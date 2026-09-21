@@ -31,18 +31,21 @@ from typing import Any, cast
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
 from qore.infrastructure.fundednext_live_guard import FOREX_OPEN_COMMISSION_PER_LOT_USD
 from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
-from qore.infrastructure.trader_execution_profile import M5_PROFILE
 from qore.infrastructure.fundednext_mt5_clock import (
     NEW_YORK_TZ,
     normalise_fundednext_server_epoch,
 )
-from qore.infrastructure.trader_lab import cibo_market_atlas_target_destination_v2 as td
+from qore.infrastructure.m5_boundary_cache import M5BoundaryCache, M5BoundarySnapshot
+from qore.infrastructure.trader_execution_profile import M5_PROFILE
 from qore.infrastructure.trader_lab import cibo_eurusd_native_market_decision_memory_v2 as native
+from qore.infrastructure.trader_lab import cibo_market_atlas_target_destination_v2 as td
 from qore.infrastructure.trader_lab import turtle_soup_eurusd_r1 as r1
 from qore.infrastructure.trader_lab import turtle_soup_eurusd_r2_cibo_full as r2
 from qore.infrastructure.trader_lab import turtle_soup_eurusd_r3_cibo_journey as r3
 from qore.infrastructure.trader_lab import turtle_soup_eurusd_r26_specialist_memory_brain as r26
-from qore.infrastructure.trader_lab import turtle_soup_eurusd_r36_structural_fragility_governor as r36
+from qore.infrastructure.trader_lab import (
+    turtle_soup_eurusd_r36_structural_fragility_governor as r36,
+)
 from qore.infrastructure.trader_lab import turtle_soup_eurusd_specialist_cognitive_memory_v2 as v2
 from qore.infrastructure.trader_lab import turtle_soup_eurusd_specialist_memory_v1 as v1
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
@@ -630,13 +633,21 @@ def build_live_signal(
     now: datetime,
     cognitive: dict[str, Any],
     state: R38LiveState,
+    boundary_snapshot: M5BoundarySnapshot | None = None,
 ) -> tuple[R38LiveSignal | None, str]:
     anchor = current_anchor(now)
     if anchor is None:
         return None, "not-r38-entry-anchor"
     if state.open_trade is not None:
         return None, "single-position-busy"
-    evidence, _latest_open = mt5_evidence(api, now=now)
+    if boundary_snapshot is None:
+        evidence, _latest_open = mt5_evidence(api, now=now)
+    else:
+        if boundary_snapshot.symbol != SYMBOL or boundary_snapshot.anchor != anchor:
+            raise ValueError("R38 boundary snapshot drift")
+        if boundary_snapshot.observed_at > anchor + M5_PROFILE.order_send_deadline:
+            raise TimeoutError("R38 hard 2s SLA expired before signal build")
+        evidence = boundary_snapshot.evidence
     current = next(
         (bar for bar in reversed(evidence.bars) if bar.opened_at == anchor),
         None,
@@ -911,6 +922,7 @@ def manage_open_position(
     *,
     now: datetime,
     store: R38LiveStateStore,
+    cache: M5BoundaryCache | None = None,
 ) -> tuple[R38LiveState, str]:
     state = store.reconcile(api, now=now)
     opened = state.open_trade
@@ -930,7 +942,7 @@ def manage_open_position(
     entry_at = datetime.fromisoformat(opened.entry_at)
     if now >= entry_at + timedelta(hours=24):
         return state, "r38-24h-exit-due"
-    evidence, _ = mt5_evidence(api, now=now)
+    evidence = cache.evidence() if cache is not None else mt5_evidence(api, now=now)[0]
     expected = certified_stop_for_open_trade(opened, evidence, now=now)
     broker_stop = Decimal(str(position.sl))
     stored_stop = Decimal(opened.current_stop)

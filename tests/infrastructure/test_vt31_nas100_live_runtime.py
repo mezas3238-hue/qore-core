@@ -93,28 +93,28 @@ def test_certified_v4_execution_binding_is_exact() -> None:
 
 def test_execution_profiles_are_frozen_per_timeframe() -> None:
     assert M1_PROFILE.timeframe == "M1"
-    assert M1_PROFILE.decision_deadline_seconds == Decimal("5.0")
-    assert M1_PROFILE.order_send_deadline_seconds == Decimal("5.0")
+    assert M1_PROFILE.decision_deadline_seconds == Decimal("2.0")
+    assert M1_PROFILE.order_send_deadline_seconds == Decimal("2.0")
     assert M1_PROFILE.tick_max_age_seconds == Decimal("2.0")
     assert M5_PROFILE.timeframe == "M5"
-    assert M5_PROFILE.decision_deadline_seconds == Decimal("10.0")
-    assert M5_PROFILE.order_send_deadline_seconds == Decimal("10.0")
+    assert M5_PROFILE.decision_deadline_seconds == Decimal("2.0")
+    assert M5_PROFILE.order_send_deadline_seconds == Decimal("2.0")
     assert M5_PROFILE.tick_max_age_seconds == Decimal("2.0")
-    assert DECISION_DEADLINE == timedelta(seconds=5)
+    assert DECISION_DEADLINE == timedelta(seconds=2)
     assert MAX_BROKER_TICK_AGE == timedelta(seconds=2)
 
 
-def test_m1_deadline_accepts_exact_five_seconds_and_rejects_late() -> None:
+def test_m1_deadline_accepts_exact_two_seconds_and_rejects_late() -> None:
     anchor = datetime(2026, 9, 20, 14, 0, tzinfo=UTC)
     assert_deadline(
         anchor=anchor,
-        now=anchor + timedelta(seconds=5),
+        now=anchor + timedelta(seconds=2),
         stage="test",
     )
     with pytest.raises(Vt31Nas100SlaExpired):
         assert_deadline(
             anchor=anchor,
-            now=anchor + timedelta(seconds=5, milliseconds=1),
+            now=anchor + timedelta(seconds=2, milliseconds=1),
             stage="test",
         )
 
@@ -275,11 +275,23 @@ def test_m1_cache_accepts_one_close_finalization_then_freezes(
         **final_row,
         "close": 20002.5,
     }
+    late_rewrite = {
+        **rewritten_row,
+        "close": 20002.75,
+    }
 
     cache._ingest([open_row], observed_at=opened + timedelta(seconds=30))
     cache._ingest(
         [final_row],
         observed_at=opened + timedelta(minutes=1, milliseconds=100),
+    )
+    cache._ingest(
+        [rewritten_row],
+        observed_at=opened + timedelta(minutes=1, seconds=1),
+    )
+    cache._ingest(
+        [rewritten_row],
+        observed_at=opened + timedelta(minutes=1, seconds=2, milliseconds=1),
     )
 
     with pytest.raises(
@@ -287,6 +299,11 @@ def test_m1_cache_accepts_one_close_finalization_then_freezes(
         match="contradictory completed M1 bar",
     ):
         cache._ingest(
-            [rewritten_row],
-            observed_at=opened + timedelta(minutes=1, seconds=1),
+            [late_rewrite],
+            observed_at=opened + timedelta(minutes=1, seconds=2, milliseconds=2),
         )
+
+    cache._ingest(
+        [late_rewrite],
+        observed_at=opened + timedelta(minutes=1, seconds=2, milliseconds=3),
+    )

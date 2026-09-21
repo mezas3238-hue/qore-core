@@ -64,7 +64,8 @@ def test_audjpy_runtime_binds_certified_identity_and_memory() -> None:
     assert MEMORY_SHA256 == (
         "22cc9fbccb8d88fe5e5027c93d93412b3cee3f9e724dae034ff9f56a0e82cfe6"
     )
-    assert '"audjpy_r42_memory_sha256": "' + MEMORY_SHA256 + '"' in text
+    assert "MEMORY_SHA256 as AUDJPY_R42_MEMORY_SHA256" in text
+    assert '"audjpy_r42_memory_sha256": AUDJPY_R42_MEMORY_SHA256' in text
 
 
 def test_shadow_position_management_is_no_send_for_audjpy() -> None:
@@ -85,17 +86,31 @@ def test_audjpy_has_independent_state_and_processed_anchor() -> None:
 def test_audjpy_runtime_hard_sla_prearms_before_maintenance() -> None:
     text = _runtime_text()
     assert "_LOOP_SECONDS = AUDJPY_R42_FEED_REFRESH_SECONDS" in text
-    assert "audjpy_r42_cache = R42AudJpyM5Cache()" in text
-    assert "audjpy_r42_cache.preload(mt5, now=datetime.now(UTC))" in text
-    assert "audjpy_r42_cache.refresh_incremental(mt5, now=cycle_at)" in text
-    assert "audjpy_r42_boundary_to_arm(cycle_at)" in text
-    assert "await_audjpy_r42_boundary_snapshot(" in text
+    assert '"AUDJPY": M5BoundaryCache(' in text
+    assert 'audjpy_r42_cache = m5_caches["AUDJPY"]' in text
+    assert "cache.preload(mt5, now=preload_at)" in text
+    assert "cache.refresh_incremental(mt5, now=cycle_at)" in text
+    assert "m5_boundary_to_arm(cycle_at)" in text
+    assert "await_m5_boundary_snapshots(" in text
     assert '"event": "AUDJPY_R42_BOUNDARY_ARMED"' in text
     assert '"event": "AUDJPY_R42_SLA_FAIL_CLOSED"' in text
     assert "current_audjpy_r42_anchor" not in text
-    critical = text.index("audjpy_arm_anchor = audjpy_r42_boundary_to_arm(cycle_at)")
+    critical = text.index("audjpy_arm_anchor = m5_boundary_to_arm(cycle_at)")
     maintenance = text.index("account_state = gateway.read_account(now=cycle_at)")
     assert critical < maintenance
+
+
+def test_all_m5_turtle_soup_traders_share_the_hard_fast_path() -> None:
+    text = _runtime_text()
+    assert '"R43_GBPUSD"' in text
+    assert '"R34_XAUUSD"' in text
+    assert '"R38_GBPJPY"' in text
+    assert '"R38_EURUSD"' in text
+    assert '"AUDJPY"' in text
+    assert '"M5_FAST_BOUNDARY_FAIL_CLOSED"' in text
+    assert "m5_deadline = (" in text
+    assert "M5_PROFILE.decision_deadline" in text
+    assert '"fast_path": True' in text
 
 
 def test_audjpy_runtime_never_sends_after_deadline_guard() -> None:
@@ -107,7 +122,7 @@ def test_audjpy_runtime_never_sends_after_deadline_guard() -> None:
     send = audjpy.index("gateway.submit_live(submission, now=send_at)")
     assert guard < send
     assert "AUDJPY_R42_ENTRY_SLA" in text
-    assert ENTRY_SLA == timedelta(seconds=10)
+    assert ENTRY_SLA == timedelta(seconds=2)
     assert '"order_send_called": False' in text
 
 

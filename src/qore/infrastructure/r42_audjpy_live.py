@@ -23,23 +23,24 @@ import json
 import os
 import tempfile
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import ROUND_FLOOR, Decimal
 from pathlib import Path
-from collections.abc import Callable
 from typing import Any
 
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
 from qore.infrastructure.fundednext_live_guard import FOREX_OPEN_COMMISSION_PER_LOT_USD
 from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
-from qore.infrastructure.trader_execution_profile import M5_PROFILE
 from qore.infrastructure.fundednext_mt5_clock import (
     NEW_YORK_TZ,
     normalise_fundednext_server_epoch,
 )
-from qore.infrastructure.trader_lab import cibo_market_atlas_target_destination_v2 as td
+from qore.infrastructure.m5_boundary_cache import M5BoundaryCache, M5BoundarySnapshot
+from qore.infrastructure.trader_execution_profile import M5_PROFILE
 from qore.infrastructure.trader_lab import cibo_audjpy_native_market_decision_memory_v2 as native
+from qore.infrastructure.trader_lab import cibo_market_atlas_target_destination_v2 as td
 from qore.infrastructure.trader_lab import turtle_soup_audjpy_r1 as r1
 from qore.infrastructure.trader_lab import turtle_soup_audjpy_r2_cibo_full as r2
 from qore.infrastructure.trader_lab import turtle_soup_audjpy_r3_cibo_journey as r3
@@ -1162,7 +1163,7 @@ def build_live_signal(
         ],
     ],
     state: R42AudJpyLiveState,
-    boundary_snapshot: R42AudJpyBoundarySnapshot | None = None,
+    boundary_snapshot: R42AudJpyBoundarySnapshot | M5BoundarySnapshot | None = None,
 ) -> tuple[R42AudJpyLiveSignal | None, str]:
     anchor = current_anchor(now)
     if anchor is None:
@@ -1515,7 +1516,7 @@ def manage_open_position(
     now: datetime,
     store: R42AudJpyLiveStateStore,
     mutations_enabled: bool = True,
-    cache: R42AudJpyM5Cache | None = None,
+    cache: R42AudJpyM5Cache | M5BoundaryCache | None = None,
 ) -> tuple[R42AudJpyLiveState, str]:
     state = store.reconcile(api, now=now)
     opened = state.open_trade

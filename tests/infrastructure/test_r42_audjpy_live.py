@@ -150,7 +150,8 @@ def test_r42_audjpy_memory_hash_is_cross_platform_line_ending_stable(
         "runtime_data/audjpy/r42-causal-authority-memory.json"
     ).read_bytes()
     target = tmp_path / "r42-audjpy-memory.json"
-    target.write_bytes(source.replace(b"\n", b"\r\n"))
+    normalized = source.replace(b"\r\n", b"\n")
+    target.write_bytes(normalized.replace(b"\n", b"\r\n"))
     assert set(load_memory(target)) == set(MEMORY_PROFILE_COUNTS)
 
 
@@ -209,14 +210,14 @@ def test_r42_audjpy_broker_stop_level_fails_closed() -> None:
 
 def test_r42_audjpy_risk_request_rejects_after_m5_deadline() -> None:
     anchor = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
-    fresh = replace(_spec(), observed_at=anchor + timedelta(seconds=10, milliseconds=1))
+    fresh = replace(_spec(), observed_at=anchor + timedelta(seconds=2, milliseconds=1))
     with pytest.raises(ValueError, match="M5 order-send deadline expired"):
         build_r42_audjpy_risk_request(
             request_id="r42-audjpy-late",
             signal=_signal(),
             provider_spec=fresh,
             account_equity=Decimal("2000"),
-            now=anchor + timedelta(seconds=10, milliseconds=1),
+            now=anchor + timedelta(seconds=2, milliseconds=1),
         )
 
 
@@ -369,11 +370,11 @@ def test_r42_audjpy_boundary_snapshot_rejects_tick_older_than_two_seconds(
         )
 
 
-def test_r42_audjpy_anchor_uses_m5_ten_second_decision_window() -> None:
+def test_r42_audjpy_anchor_uses_m5_two_second_decision_window() -> None:
     anchor = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
-    assert current_anchor(anchor + timedelta(seconds=9, milliseconds=999)) == anchor
-    assert current_anchor(anchor + timedelta(seconds=10, milliseconds=1)) is None
-    assert ENTRY_SLA == timedelta(seconds=10)
+    assert current_anchor(anchor + timedelta(seconds=1, milliseconds=999)) == anchor
+    assert current_anchor(anchor + timedelta(seconds=2, milliseconds=1)) is None
+    assert ENTRY_SLA == timedelta(seconds=2)
     assert BOUNDARY_ARM_LEAD == timedelta(seconds=10)
     assert BOUNDARY_RETRY_SECONDS == pytest.approx(0.075)
     assert NORMAL_FEED_REFRESH_SECONDS == pytest.approx(1.0)

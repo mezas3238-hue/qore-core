@@ -7,7 +7,7 @@ retune the VT31 economic identity:
 - exact newly-closed M1 + exact newly-opened M1 boundary validation;
 - broker tick freshness <= 2.0 seconds;
 - T-10s pre-arm and 75ms critical-boundary retry;
-- M1 5.0s decision deadline guard, including post-risk/pre-send checks;
+- M1 2.0s decision deadline guard, including post-risk/pre-send checks;
 - virtual OCO trigger selection without multiple broker pending orders;
 - certified R-unit -> broker volume translation, always rounded DOWN;
 - Account-Wide Risk request under the VT31_NAS100 lineage.
@@ -113,6 +113,7 @@ HISTORY_M1_BARS = 30_000
 MIN_PRELOAD_M1_BARS = 10_000
 RECENT_M1_BARS = 32
 BOUNDARY_RECENT_M1_BARS = 8
+FINALIZATION_LAG = DECISION_DEADLINE
 
 # QORE runtime normalization used by every currently integrated specialist:
 # 1.00 strategy-R maps to 0.20% account equity before the trader's frozen
@@ -286,15 +287,19 @@ class Vt31Nas100M1Cache:
             )
             prior = self._bars.get(opened)
             if prior is not None and prior != snapshot:
-                # A bar may evolve while open. On the first read after its
-                # close, accept the broker's final published OHLC once. From
-                # that point forward the completed bar is immutable.
+                # Broker OHLC can settle for a short interval immediately
+                # after a minute closes. Accept revisions inside the same
+                # hard decision window. A later historical mutation still
+                # fails closed for that cycle, but retain the newest broker
+                # snapshot so the cache can self-recover instead of emitting
+                # the same contradiction forever.
                 if opened in self._finalized_bars:
+                    self._bars[opened] = snapshot
                     raise Vt31Nas100LiveError(
                         "VT31 contradictory completed M1 bar"
                     )
             self._bars[opened] = snapshot
-            if snapshot.closed_at <= observed:
+            if snapshot.closed_at + FINALIZATION_LAG <= observed:
                 self._finalized_bars.add(opened)
 
         if len(self._bars) > self._max_bars:

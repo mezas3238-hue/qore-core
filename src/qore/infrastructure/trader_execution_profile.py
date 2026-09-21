@@ -4,11 +4,11 @@ These profiles are transport/runtime contracts. They do not modify trader
 methodology, signal logic, entry, stop, target or certified risk.
 
 M1 traders:
-- decision/order-send deadline: 5.0 seconds
+- decision/order-send deadline: 2.0 seconds
 - broker tick maximum age: 2.0 seconds
 
 M5 traders:
-- decision/order-send deadline: 10.0 seconds
+- decision/order-send deadline: 2.0 seconds
 - broker tick maximum age: 2.0 seconds
 
 Fresh-tick enforcement remains independent from the wider decision window.
@@ -45,8 +45,8 @@ class TraderExecutionProfile:
 
 M1_PROFILE = TraderExecutionProfile(
     timeframe="M1",
-    decision_deadline_seconds=Decimal("5.0"),
-    order_send_deadline_seconds=Decimal("5.0"),
+    decision_deadline_seconds=Decimal("2.0"),
+    order_send_deadline_seconds=Decimal("2.0"),
     tick_max_age_seconds=Decimal("2.0"),
     normal_feed_refresh_seconds=Decimal("1.0"),
     boundary_arm_lead_seconds=Decimal("10.0"),
@@ -55,8 +55,8 @@ M1_PROFILE = TraderExecutionProfile(
 
 M5_PROFILE = TraderExecutionProfile(
     timeframe="M5",
-    decision_deadline_seconds=Decimal("10.0"),
-    order_send_deadline_seconds=Decimal("10.0"),
+    decision_deadline_seconds=Decimal("2.0"),
+    order_send_deadline_seconds=Decimal("2.0"),
     tick_max_age_seconds=Decimal("2.0"),
     normal_feed_refresh_seconds=Decimal("1.0"),
     boundary_arm_lead_seconds=Decimal("10.0"),

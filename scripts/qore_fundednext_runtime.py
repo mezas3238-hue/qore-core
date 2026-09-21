@@ -106,6 +106,12 @@ from qore.infrastructure.pretrade_safety import (
     ExecutionSwitchState,
 )
 from qore.infrastructure.trader_execution_profile import M5_PROFILE
+from qore.infrastructure.m5_boundary_cache import (
+    M5BoundaryCache,
+    M5BoundarySnapshot,
+    await_boundary_snapshots as await_m5_boundary_snapshots,
+    boundary_to_arm as m5_boundary_to_arm,
+)
 from qore.infrastructure.r34_xauusd_live import (
     R34LiveSignal,
     R34LiveStateStore,
@@ -145,11 +151,9 @@ from qore.infrastructure.r42_audjpy_live import (
     BOUNDARY_ARM_LEAD as AUDJPY_R42_BOUNDARY_ARM_LEAD,
     ENTRY_SLA as AUDJPY_R42_ENTRY_SLA,
     NORMAL_FEED_REFRESH_SECONDS as AUDJPY_R42_FEED_REFRESH_SECONDS,
+    MEMORY_SHA256 as AUDJPY_R42_MEMORY_SHA256,
     R42AudJpyLiveSignal,
     R42AudJpyLiveStateStore,
-    R42AudJpyM5Cache,
-    await_boundary_snapshot as await_audjpy_r42_boundary_snapshot,
-    boundary_to_arm as audjpy_r42_boundary_to_arm,
     build_live_signal as build_audjpy_r42_live_signal,
     build_r42_audjpy_risk_request,
     load_memory as load_audjpy_r42_memory,
@@ -1571,8 +1575,32 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         state_dir / "r42-audjpy-state.json"
     )
     audjpy_r42_store.reconcile(mt5, now=datetime.now(UTC))
-    audjpy_r42_cache = R42AudJpyM5Cache()
-    audjpy_r42_cache.preload(mt5, now=datetime.now(UTC))
+    m5_caches: dict[str, M5BoundaryCache] = {
+        "XAUUSD": M5BoundaryCache(
+            symbol="XAUUSD",
+            error_prefix="R34 XAUUSD",
+        ),
+        "EURUSD": M5BoundaryCache(
+            symbol="EURUSD",
+            error_prefix="R38 EURUSD",
+        ),
+        "GBPUSD": M5BoundaryCache(
+            symbol="GBPUSD",
+            error_prefix="R43 GBPUSD",
+        ),
+        "GBPJPY": M5BoundaryCache(
+            symbol="GBPJPY",
+            error_prefix="GBPJPY R38",
+        ),
+        "AUDJPY": M5BoundaryCache(
+            symbol="AUDJPY",
+            error_prefix="AUDJPY R42",
+        ),
+    }
+    preload_at = datetime.now(UTC)
+    for cache in m5_caches.values():
+        cache.preload(mt5, now=preload_at)
+    audjpy_r42_cache = m5_caches["AUDJPY"]
     vt31_store = Vt31Nas100LiveStateStore(
         state_dir / "vt31-nas100-state.json"
     )
@@ -1826,9 +1854,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "audjpy_r42_policy": "AUDJPY_CONFIDENCE_100_075_025",
             "audjpy_r42_first_fragility_policy": ["1", "0.20", "0.05", "0.01"],
             "audjpy_r42_second_fragility_policy": ["1", "0.50", "0.25", "0.10"],
-            "audjpy_r42_memory_sha256": (
-                "22cc9fbccb8d88fe5e5027c93d93412b3cee3f9e724dae034ff9f56a0e82cfe6"
-            ),
+            "audjpy_r42_memory_sha256": AUDJPY_R42_MEMORY_SHA256,
             "audjpy_r42_entry_sla_seconds": str(
                 AUDJPY_R42_ENTRY_SLA.total_seconds()
             ),
@@ -1849,19 +1875,21 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     while True:
         cycle_started = time.monotonic()
         cycle_at = datetime.now(UTC)
-        try:
-            audjpy_r42_cache.refresh_incremental(mt5, now=cycle_at)
-        except Exception as error:
-            _log(
-                log_path,
-                {
-                    "event": "AUDJPY_R42_INCREMENTAL_FEED_FAIL_CLOSED",
-                    "symbol": "AUDJPY",
-                    "reason": type(error).__name__,
-                    "message": str(error),
-                    "observed_at": cycle_at.isoformat(),
-                },
-            )
+        armed_m5_snapshots: dict[str, M5BoundarySnapshot] | None = None
+        for symbol, cache in m5_caches.items():
+            try:
+                cache.refresh_incremental(mt5, now=cycle_at)
+            except Exception as error:
+                _log(
+                    log_path,
+                    {
+                        "event": "M5_INCREMENTAL_FEED_FAIL_CLOSED",
+                        "symbol": symbol,
+                        "reason": type(error).__name__,
+                        "message": str(error),
+                        "observed_at": cycle_at.isoformat(),
+                    },
+                )
         try:
             vt31_cache.refresh_incremental(mt5, now=cycle_at)
         except Exception as error:
@@ -1876,7 +1904,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 },
             )
 
-        audjpy_arm_anchor = audjpy_r42_boundary_to_arm(cycle_at)
+        audjpy_arm_anchor = m5_boundary_to_arm(cycle_at)
         certified_policy_ready = True
         policy_resolution = certified_policy.resolve_for_risk(cycle_at)
         if isinstance(policy_resolution, Failure):
@@ -1917,6 +1945,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 f"R42_AUDJPY|{audjpy_arm_anchor.isoformat()}"
             )
             if audjpy_anchor_key not in state.processed_anchors:
+                m5_fast_processed_keys: list[str] = []
                 arm_started_at = datetime.now(UTC)
                 _log(
                     log_path,
@@ -1939,6 +1968,22 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     arm_account = gateway.read_account(now=arm_started_at)
                     gateway.reconcile_unknown(now=arm_started_at)
                     arm_r42_state = audjpy_r42_store.reconcile(
+                        mt5,
+                        now=arm_started_at,
+                    )
+                    arm_r34_state = r34_store.reconcile(
+                        mt5,
+                        now=arm_started_at,
+                    )
+                    arm_r38_state = r38_store.reconcile(
+                        mt5,
+                        now=arm_started_at,
+                    )
+                    arm_r43_state = r43_store.reconcile(
+                        mt5,
+                        now=arm_started_at,
+                    )
+                    arm_gbpjpy_state = gbpjpy_r38_store.reconcile(
                         mt5,
                         now=arm_started_at,
                     )
@@ -2054,12 +2099,203 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         or not mission_snapshot.new_risk_allowed_by_mission
                     )
 
-                    boundary_snapshot = await_audjpy_r42_boundary_snapshot(
+                    armed_m5_snapshots = await_m5_boundary_snapshots(
                         mt5,
-                        cache=audjpy_r42_cache,
+                        caches=m5_caches,
                         anchor=audjpy_arm_anchor,
                     )
-                    boundary_observed = boundary_snapshot.observed_at
+                    boundary_snapshot = armed_m5_snapshots["AUDJPY"]
+                    boundary_observed = max(
+                        item.observed_at for item in armed_m5_snapshots.values()
+                    )
+                    cycle_at = boundary_observed
+                    m5_deadline = (
+                        audjpy_arm_anchor + M5_PROFILE.decision_deadline
+                    )
+                    fast_plan = (
+                        (
+                            "R43_GBPUSD",
+                            "GBPUSD",
+                            "R43_CAUSAL_ABSTAIN",
+                            lambda: build_r43_live_signal(
+                                mt5,
+                                now=boundary_observed,
+                                memory_bundle=r43_memory,
+                                state=arm_r43_state,
+                                boundary_snapshot=armed_m5_snapshots["GBPUSD"],
+                            ),
+                            lambda signal, at: _process_r43_candidate(
+                                signal=signal,
+                                now=at,
+                                mode=mode,
+                                gateway=gateway,
+                                transport=transport,
+                                risk=risk,
+                                account_binding_id=fingerprint,
+                                provider_budget=arm_provider,
+                                capital_budget=arm_capital,
+                                account_equity=arm_account.equity,
+                                r43_store=r43_store,
+                                log_path=log_path,
+                            ),
+                        ),
+                        (
+                            "R34_XAUUSD",
+                            "XAUUSD",
+                            "R34_CAUSAL_ABSTAIN",
+                            lambda: build_r34_live_signal(
+                                mt5,
+                                now=boundary_observed,
+                                cognitive=r34_cognitive,
+                                state=arm_r34_state,
+                                boundary_snapshot=armed_m5_snapshots["XAUUSD"],
+                            ),
+                            lambda signal, at: _process_r34_candidate(
+                                signal=signal,
+                                now=at,
+                                mode=mode,
+                                gateway=gateway,
+                                transport=transport,
+                                risk=risk,
+                                account_binding_id=fingerprint,
+                                provider_budget=arm_provider,
+                                capital_budget=arm_capital,
+                                account_equity=arm_account.equity,
+                                r34_store=r34_store,
+                                log_path=log_path,
+                            ),
+                        ),
+                        (
+                            "R38_GBPJPY",
+                            "GBPJPY",
+                            "GBPJPY_R38_CAUSAL_ABSTAIN",
+                            lambda: build_gbpjpy_r38_live_signal(
+                                mt5,
+                                now=boundary_observed,
+                                memory_bundle=gbpjpy_r38_memory,
+                                state=arm_gbpjpy_state,
+                                boundary_snapshot=armed_m5_snapshots["GBPJPY"],
+                            ),
+                            lambda signal, at: _process_gbpjpy_r38_candidate(
+                                signal=signal,
+                                now=at,
+                                mode=mode,
+                                gateway=gateway,
+                                transport=transport,
+                                risk=risk,
+                                account_binding_id=fingerprint,
+                                provider_budget=arm_provider,
+                                capital_budget=arm_capital,
+                                account_equity=arm_account.equity,
+                                gbpjpy_r38_store=gbpjpy_r38_store,
+                                log_path=log_path,
+                            ),
+                        ),
+                        (
+                            "R38_EURUSD",
+                            "EURUSD",
+                            "R38_CAUSAL_ABSTAIN",
+                            lambda: build_r38_live_signal(
+                                mt5,
+                                now=boundary_observed,
+                                cognitive=r38_cognitive,
+                                state=arm_r38_state,
+                                boundary_snapshot=armed_m5_snapshots["EURUSD"],
+                            ),
+                            lambda signal, at: _process_r38_candidate(
+                                signal=signal,
+                                now=at,
+                                mode=mode,
+                                gateway=gateway,
+                                transport=transport,
+                                risk=risk,
+                                account_binding_id=fingerprint,
+                                provider_budget=arm_provider,
+                                capital_budget=arm_capital,
+                                account_equity=arm_account.equity,
+                                r38_store=r38_store,
+                                log_path=log_path,
+                            ),
+                        ),
+                    )
+                    for (
+                        fast_identity,
+                        fast_symbol,
+                        abstain_event,
+                        build_fast,
+                        process_fast,
+                    ) in fast_plan:
+                        fast_key = (
+                            f"{fast_identity}|{audjpy_arm_anchor.isoformat()}"
+                        )
+                        if fast_key in state.processed_anchors:
+                            continue
+                        m5_fast_processed_keys.append(fast_key)
+                        if arm_blocked:
+                            _log(
+                                log_path,
+                                {
+                                    "event": "M5_FAST_BOUNDARY_FAIL_CLOSED",
+                                    "symbol": fast_symbol,
+                                    "decision_at": audjpy_arm_anchor.isoformat(),
+                                    "reason": "preflight-new-order-blocked",
+                                    "order_send_called": False,
+                                },
+                            )
+                            continue
+                        try:
+                            fast_signal, fast_reason = build_fast()
+                            fast_done = datetime.now(UTC)
+                            latency_ms = int(
+                                (
+                                    fast_done - audjpy_arm_anchor
+                                ).total_seconds()
+                                * 1000
+                            )
+                            if fast_done > m5_deadline:
+                                _log(
+                                    log_path,
+                                    {
+                                        "event": "M5_FAST_BOUNDARY_FAIL_CLOSED",
+                                        "symbol": fast_symbol,
+                                        "decision_at": (
+                                            audjpy_arm_anchor.isoformat()
+                                        ),
+                                        "reason": "decision-deadline-expired",
+                                        "latency_ms": latency_ms,
+                                        "order_send_called": False,
+                                    },
+                                )
+                                continue
+                            if fast_signal is None:
+                                _log(
+                                    log_path,
+                                    {
+                                        "event": abstain_event,
+                                        "symbol": fast_symbol,
+                                        "decision_at": (
+                                            audjpy_arm_anchor.isoformat()
+                                        ),
+                                        "observed_at": fast_done.isoformat(),
+                                        "latency_ms": latency_ms,
+                                        "reason": fast_reason,
+                                        "fast_path": True,
+                                    },
+                                )
+                            else:
+                                process_fast(fast_signal, fast_done)
+                        except Exception as fast_error:
+                            _log(
+                                log_path,
+                                {
+                                    "event": "M5_FAST_BOUNDARY_FAIL_CLOSED",
+                                    "symbol": fast_symbol,
+                                    "decision_at": audjpy_arm_anchor.isoformat(),
+                                    "reason": type(fast_error).__name__,
+                                    "message": str(fast_error),
+                                    "order_send_called": False,
+                                },
+                            )
                     if arm_blocked:
                         _log(
                             log_path,
@@ -2086,7 +2322,30 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             state=arm_r42_state,
                             boundary_snapshot=boundary_snapshot,
                         )
-                        if audjpy_signal is None:
+                        audjpy_done = datetime.now(UTC)
+                        audjpy_latency_ms = int(
+                            (
+                                audjpy_done - audjpy_arm_anchor
+                            ).total_seconds()
+                            * 1000
+                        )
+                        if audjpy_done > m5_deadline:
+                            _log(
+                                log_path,
+                                {
+                                    "event": "AUDJPY_R42_BOUNDARY_FAIL_CLOSED",
+                                    "symbol": "AUDJPY",
+                                    "decision_at": audjpy_arm_anchor.isoformat(),
+                                    "reason": "decision-deadline-expired",
+                                    "observed_at": audjpy_done.isoformat(),
+                                    "latency_ms": audjpy_latency_ms,
+                                    "hard_sla_seconds": (
+                                        AUDJPY_R42_ENTRY_SLA.total_seconds()
+                                    ),
+                                    "order_send_called": False,
+                                },
+                            )
+                        elif audjpy_signal is None:
                             _log(
                                 log_path,
                                 {
@@ -2094,21 +2353,17 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                     "symbol": "AUDJPY",
                                     "decision_at": audjpy_arm_anchor.isoformat(),
                                     "reason": reason,
-                                    "observed_at": boundary_observed.isoformat(),
-                                    "latency_ms": int(
-                                        (
-                                            boundary_observed
-                                            - audjpy_arm_anchor
-                                        ).total_seconds()
-                                        * 1000
+                                    "observed_at": audjpy_done.isoformat(),
+                                    "latency_ms": audjpy_latency_ms,
+                                    "hard_sla_seconds": (
+                                        AUDJPY_R42_ENTRY_SLA.total_seconds()
                                     ),
-                                    "hard_sla_seconds": AUDJPY_R42_ENTRY_SLA.total_seconds(),
                                 },
                             )
                         else:
                             _process_audjpy_r42_candidate(
                                 signal=audjpy_signal,
-                                now=boundary_observed,
+                                now=audjpy_done,
                                 mode=mode,
                                 gateway=gateway,
                                 transport=transport,
@@ -2141,6 +2396,14 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         },
                     )
                 completed_at = datetime.now(UTC)
+                for fast_processed_key in m5_fast_processed_keys:
+                    state = state.with_cycle(
+                        highest_closed_balance=str(highest),
+                        active_mll=str(previous_mll),
+                        processed_anchor=fast_processed_key,
+                        reconciled_at=completed_at,
+                        heartbeat_at=completed_at,
+                    )
                 state = state.with_cycle(
                     highest_closed_balance=str(highest),
                     active_mll=str(previous_mll),
@@ -2149,7 +2412,6 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     heartbeat_at=completed_at,
                 )
                 store.store(state)
-                continue
 
         current_hour = cycle_at.replace(
             minute=0,
@@ -2182,7 +2444,33 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 heartbeat_at=cycle_at,
             )
             store.store(state)
-            continue
+
+        if armed_m5_snapshots is None:
+            m5_late_delta = cycle_at - current_hour
+            if timedelta(0) <= m5_late_delta <= M5_PROFILE.order_send_deadline:
+                try:
+                    armed_m5_snapshots = await_m5_boundary_snapshots(
+                        mt5,
+                        caches=m5_caches,
+                        anchor=current_hour,
+                    )
+                    cycle_at = max(
+                        item.observed_at for item in armed_m5_snapshots.values()
+                    )
+                except Exception as error:
+                    _log(
+                        log_path,
+                        {
+                            "event": "M5_PORTFOLIO_BOUNDARY_FAIL_CLOSED",
+                            "decision_at": current_hour.isoformat(),
+                            "reason": type(error).__name__,
+                            "message": str(error),
+                            "hard_sla_seconds": (
+                                M5_PROFILE.order_send_deadline.total_seconds()
+                            ),
+                            "order_send_called": False,
+                        },
+                    )
 
         vt31_arm_anchor = vt31_boundary_to_arm(cycle_at)
         if (
@@ -2443,6 +2731,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             mt5,
             now=cycle_at,
             store=r38_store,
+            cache=m5_caches["EURUSD"],
         )
         if r38_manage_reason not in {
             "no-open-r38-position",
@@ -2463,6 +2752,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             mt5,
             now=cycle_at,
             store=r43_store,
+            cache=m5_caches["GBPUSD"],
         )
         if r43_manage_reason not in {
             "no-open-r43-position",
@@ -2486,6 +2776,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 now=cycle_at,
                 store=gbpjpy_r38_store,
                 mutations_enabled=mode == "live",
+                cache=m5_caches["GBPJPY"],
             )
         )
         if gbpjpy_r38_manage_reason not in {
@@ -2766,6 +3057,11 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         now=cycle_at,
                         cognitive=r34_cognitive,
                         state=r34_live_state,
+                        boundary_snapshot=(
+                            None
+                            if armed_m5_snapshots is None
+                            else armed_m5_snapshots.get("XAUUSD")
+                        ),
                     )
                     if r34_signal is None:
                         _log(
@@ -2827,6 +3123,11 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         now=cycle_at,
                         cognitive=r38_cognitive,
                         state=r38_live_state,
+                        boundary_snapshot=(
+                            None
+                            if armed_m5_snapshots is None
+                            else armed_m5_snapshots.get("EURUSD")
+                        ),
                     )
                     if r38_signal is None:
                         _log(
@@ -2892,6 +3193,11 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         now=cycle_at,
                         memory_bundle=r43_memory,
                         state=r43_live_state,
+                        boundary_snapshot=(
+                            None
+                            if armed_m5_snapshots is None
+                            else armed_m5_snapshots.get("GBPUSD")
+                        ),
                     )
                     if r43_signal is None:
                         _log(
@@ -2964,6 +3270,11 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         now=cycle_at,
                         memory_bundle=gbpjpy_r38_memory,
                         state=gbpjpy_r38_live_state,
+                        boundary_snapshot=(
+                            None
+                            if armed_m5_snapshots is None
+                            else armed_m5_snapshots.get("GBPJPY")
+                        ),
                     )
                     if gbpjpy_r38_signal is None:
                         _log(
@@ -3045,12 +3356,35 @@ def main() -> None:
     )
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
-    lock = SingleWriterRuntimeLock(root / "var" / "fundednext" / "runtime.lock")
-    try:
-        with lock:
-            run(root, mode=args.mode, activation_path=(root / args.activation))
-    finally:
-        mt5.shutdown()
+    recovery_log = root / "artifacts" / "fundednext_runtime_events.jsonl"
+    while True:
+        lock = SingleWriterRuntimeLock(
+            root / "var" / "fundednext" / "runtime.lock"
+        )
+        try:
+            with lock:
+                run(
+                    root,
+                    mode=args.mode,
+                    activation_path=(root / args.activation),
+                )
+            raise RuntimeError("resident runtime returned unexpectedly")
+        except KeyboardInterrupt:
+            mt5.shutdown()
+            raise
+        except Exception as error:
+            _log(
+                recovery_log,
+                {
+                    "event": "RUNTIME_FATAL_RECOVERY",
+                    "reason": type(error).__name__,
+                    "message": str(error),
+                    "observed_at": datetime.now(UTC).isoformat(),
+                    "restart_delay_seconds": 1.0,
+                },
+            )
+            mt5.shutdown()
+            time.sleep(1.0)
 
 
 if __name__ == "__main__":

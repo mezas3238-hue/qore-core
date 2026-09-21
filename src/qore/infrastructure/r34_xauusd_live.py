@@ -20,6 +20,7 @@ from zoneinfo import ZoneInfo
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
 from qore.infrastructure.fundednext_live_guard import FOREX_OPEN_COMMISSION_PER_LOT_USD
 from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
+from qore.infrastructure.m5_boundary_cache import M5BoundarySnapshot
 from qore.infrastructure.trader_execution_profile import M5_PROFILE
 from qore.infrastructure.trader_lab import cibo_market_atlas_target_destination_v2 as td
 from qore.infrastructure.trader_lab import turtle_soup_xauusd_r1 as r1
@@ -28,18 +29,20 @@ from qore.infrastructure.trader_lab import turtle_soup_xauusd_r3_cibo_journey as
 from qore.infrastructure.trader_lab import turtle_soup_xauusd_r33_subfamily_risk_governor as r33
 from qore.infrastructure.trader_lab import turtle_soup_xauusd_specialist_cognitive_memory_v2 as v2
 from qore.infrastructure.trader_lab import turtle_soup_xauusd_specialist_memory_v1 as v1
-from qore.infrastructure.trader_lab.cibo_xauusd_native_market_decision_memory_v2 import POSTURE_STATIC
+from qore.infrastructure.trader_lab.cibo_xauusd_native_market_decision_memory_v2 import (
+    POSTURE_STATIC,
+)
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
     Bar,
     Evidence,
     Side,
     SourceCandle,
+    _h4_open_for,
     build_daily,
     build_h1,
     build_h4,
     build_m15,
     causal_cisd,
-    _h4_open_for,
 )
 
 IDENTITY = "TURTLE_SOUP_XAUUSD_R34"
@@ -463,13 +466,21 @@ def build_live_signal(
     now: datetime,
     cognitive: dict[str, Any],
     state: R34LiveState,
+    boundary_snapshot: M5BoundarySnapshot | None = None,
 ) -> tuple[R34LiveSignal | None, str]:
     anchor = current_anchor(now)
     if anchor is None:
         return None, "not-r34-entry-anchor"
     if state.open_trade is not None:
         return None, "single-position-busy"
-    evidence, _latest_open = mt5_evidence(api, now=now)
+    if boundary_snapshot is None:
+        evidence, _latest_open = mt5_evidence(api, now=now)
+    else:
+        if boundary_snapshot.symbol != SYMBOL or boundary_snapshot.anchor != anchor:
+            raise ValueError("R34 boundary snapshot drift")
+        if boundary_snapshot.observed_at > anchor + M5_PROFILE.order_send_deadline:
+            raise TimeoutError("R34 hard 2s SLA expired before signal build")
+        evidence = boundary_snapshot.evidence
     current = next((bar for bar in reversed(evidence.bars) if bar.opened_at == anchor), None)
     if current is None:
         raise RuntimeError("R34 current M5 boundary not yet available")
