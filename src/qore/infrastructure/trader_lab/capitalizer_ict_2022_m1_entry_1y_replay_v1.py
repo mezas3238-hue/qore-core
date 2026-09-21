@@ -40,7 +40,6 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
-from statistics import median
 from typing import Any
 from zoneinfo import ZoneInfo
 
