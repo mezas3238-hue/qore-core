@@ -6,6 +6,9 @@ _ROOT = Path(__file__).resolve().parents[2]
 _RUNTIME = _ROOT / "scripts" / "qore_fundednext_runtime.py"
 _ACTIVATOR = _ROOT / "scripts" / "authorize_fundednext_live.ps1"
 _WATCHDOG = _ROOT / "scripts" / "qore_fundednext_watchdog.ps1"
+_NO_SEND = _ROOT / "scripts" / "fundednext_mt5_no_send_probe.py"
+_ORDER_CHECK = _ROOT / "scripts" / "fundednext_mt5_order_check_probe.py"
+_VT31_LIVE = _ROOT / "src" / "qore" / "infrastructure" / "vt31_nas100_live.py"
 
 
 def test_h4_exit_comment_uses_broker_verified_29_character_limit() -> None:
@@ -62,3 +65,35 @@ def test_live_runtime_accepts_only_010509_new_york_entry_anchors() -> None:
     assert "current_anchor_hour=anchor_local.hour" in source
     assert "if hour > anchor_local.hour:" in source
     assert "FINAL_CAUSAL_ENTRY_ANCHOR_NY" not in source
+
+
+def test_live_runtime_registers_vt31_as_seventh_single_writer_trader() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+    assert '"VT31_NAS100",' in source
+    assert "**vt31_runtime_started_fields()" in source
+    assert "manage_vt31_open_trade(" in source
+    assert "evaluate_vt31_boundary(" in source
+    assert "await_vt31_boundary_snapshot(" in source
+    assert "vt31_cache.preload(mt5" in source
+    assert "vt31_cache.refresh_incremental(mt5" in source
+
+
+def test_vt31_lifecycle_is_not_routed_through_vt08_h4_exit_manager() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+    assert "if lineage is TraderLineage.VT31_NAS100:" in source
+    assert "VT31 owns its 16:00 NY lifecycle" in source
+
+
+def test_vt31_nas100_is_broker_probed_before_shadow_or_live() -> None:
+    no_send = _NO_SEND.read_text(encoding="utf-8-sig")
+    order_check = _ORDER_CHECK.read_text(encoding="utf-8-sig")
+    assert '"NAS100"' in no_send
+    assert '"NAS100"' in order_check
+    assert "PILOT_SYMBOL_MAP.get(symbol, symbol)" in no_send
+    assert "PILOT_SYMBOL_MAP.get(symbol, symbol)" in order_check
+
+
+def test_vt31_m1_feed_uses_ndx100_provider_symbol_for_preload_and_incremental() -> None:
+    source = _VT31_LIVE.read_text(encoding="utf-8-sig")
+    assert source.count("copy_rates_from_pos(\n            PROVIDER_SYMBOL,") >= 2
+    assert "symbol_info_tick(PROVIDER_SYMBOL)" in source

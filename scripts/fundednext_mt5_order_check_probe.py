@@ -17,11 +17,12 @@ from pathlib import Path
 import MetaTrader5 as mt5
 
 from qore.infrastructure.fundednext_live_guard import CERTIFIED_LIVE_DIRECTIONS
+from qore.infrastructure.fundednext_stellar_instant import PILOT_SYMBOL_MAP
 from qore.infrastructure.fundednext_live_mt5 import MetaTrader5FundedNextLiveTransport
 from qore.infrastructure.fundednext_mt5 import FundedNextMt5OrderPlan
 from qore.infrastructure.order_intent import OrderSide, OrderType
 
-_MARKETS = ("AUDJPY", "GBPUSD", "GBPJPY", "EURUSD", "XAUUSD")
+_MARKETS = ("AUDJPY", "GBPUSD", "GBPJPY", "EURUSD", "XAUUSD", "NAS100")
 _SERVER = "FundedNext-Server"
 _ACCOUNT_REF = "fundednext-stellar-instant-live"
 
@@ -66,11 +67,20 @@ def main() -> None:
         )
         checks: dict[str, object] = {}
         for symbol in _MARKETS:
-            spec = transport.symbol_info(symbol)
+            provider_symbol = PILOT_SYMBOL_MAP.get(symbol, symbol)
+            spec = transport.symbol_info(provider_symbol)
             if spec is None:
-                raise SystemExit(f"symbol unavailable: {symbol}")
+                raise SystemExit(
+                    f"symbol unavailable: {symbol}:{provider_symbol}"
+                )
             volume = spec.minimum_volume
-            distance = max(spec.point * Decimal("100"), spec.tick_size * Decimal("20"))
+            base_distance = max(
+                spec.point * Decimal("100"),
+                spec.tick_size * Decimal("20"),
+                spec.point * spec.minimum_stop_distance_points,
+            )
+            spread_distance = abs(spec.ask - spec.bid)
+            distance = spread_distance + base_distance
             for side_text in sorted(CERTIFIED_LIVE_DIRECTIONS[symbol]):
                 side = OrderSide.BUY if side_text == "long" else OrderSide.SELL
                 entry = spec.ask if side is OrderSide.BUY else spec.bid
@@ -83,7 +93,7 @@ def main() -> None:
                 plan = FundedNextMt5OrderPlan(
                     client_order_id=f"qore-shadow-{symbol.lower()}-{side_text}-probe",
                     qore_symbol=symbol,
-                    provider_symbol=symbol,
+                    provider_symbol=provider_symbol,
                     side=side,
                     order_type=OrderType.MARKET,
                     volume=volume,
@@ -103,6 +113,7 @@ def main() -> None:
                     "volume": str(volume),
                     "tick_size": str(spec.tick_size),
                     "tick_value": str(spec.tick_value),
+                    "provider_symbol": provider_symbol,
                     "filling_mode_source": "fresh SymbolInfo",
                 }
                 if not result.broker_valid:

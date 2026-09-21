@@ -1,9 +1,10 @@
-"""Resident QORE FundedNext runtime for VT08, R34 XAUUSD and R38 EURUSD.
+"""Resident QORE FundedNext runtime for all certified live adapters.
 
 The VPS/MT5 installation is assumed to exist already. This is the single-writer
-24/7 execution loop. VT08 evaluates 01:00/05:00/09:00 New York anchors; R34 and
-R38 evaluate every New York H1/H4 boundary using broker-to-UTC normalization.
-Sovereign Account-Wide Risk remains above all traders.
+24/7 execution loop. VT08 evaluates 01:00/05:00/09:00 New York anchors; Turtle
+Soup XAUUSD R34, EURUSD R38, GBPUSD R43 and GBPJPY R38 evaluate every New York
+H1/H4 boundary using broker-to-UTC normalization. Sovereign Account-Wide Risk
+remains above all traders.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ import argparse
 import hashlib
 import json
 import subprocess
+from importlib import import_module
 import sys
 import time
 from datetime import UTC, datetime, timedelta
@@ -92,6 +94,7 @@ from qore.infrastructure.pretrade_safety import (
     ExecutionSafetySwitchSnapshot,
     ExecutionSwitchState,
 )
+from qore.infrastructure.trader_execution_profile import M5_PROFILE
 from qore.infrastructure.r34_xauusd_live import (
     R34LiveSignal,
     R34LiveStateStore,
@@ -109,6 +112,45 @@ from qore.infrastructure.r38_eurusd_live import (
     load_cognitive as load_r38_cognitive,
     manage_open_position as manage_r38_open_position,
 )
+from qore.infrastructure.r43_gbpusd_live import (
+    R43LiveSignal,
+    R43LiveStateStore,
+    build_live_signal as build_r43_live_signal,
+    build_r43_risk_request,
+    current_anchor as current_r43_anchor,
+    load_memory as load_r43_memory,
+    manage_open_position as manage_r43_open_position,
+)
+from qore.infrastructure.r38_gbpjpy_live import (
+    R38GbpJpyLiveSignal,
+    R38GbpJpyLiveStateStore,
+    build_live_signal as build_gbpjpy_r38_live_signal,
+    build_r38_gbpjpy_risk_request,
+    current_anchor as current_gbpjpy_r38_anchor,
+    load_memory as load_gbpjpy_r38_memory,
+    manage_open_position as manage_gbpjpy_r38_open_position,
+)
+from qore.infrastructure.r42_audjpy_live import (
+    BOUNDARY_ARM_LEAD as AUDJPY_R42_BOUNDARY_ARM_LEAD,
+    ENTRY_SLA as AUDJPY_R42_ENTRY_SLA,
+    NORMAL_FEED_REFRESH_SECONDS as AUDJPY_R42_FEED_REFRESH_SECONDS,
+    R42AudJpyLiveSignal,
+    R42AudJpyLiveStateStore,
+    R42AudJpyM5Cache,
+    await_boundary_snapshot as await_audjpy_r42_boundary_snapshot,
+    boundary_to_arm as audjpy_r42_boundary_to_arm,
+    build_live_signal as build_audjpy_r42_live_signal,
+    build_r42_audjpy_risk_request,
+    load_memory as load_audjpy_r42_memory,
+    manage_open_position as manage_audjpy_r42_open_position,
+)
+from qore.infrastructure.vt31_nas100_live import (
+    DECISION_DEADLINE as VT31_DECISION_DEADLINE,
+    Vt31Nas100M1Cache,
+    await_boundary_snapshot as await_vt31_boundary_snapshot,
+    boundary_to_arm as vt31_boundary_to_arm,
+)
+from qore.infrastructure.vt31_nas100_state import Vt31Nas100LiveStateStore
 from qore.infrastructure.traders.vt08_b01_r3_8 import (
     OWNER_FOREX_ENTRY_ANCHORS,
     Vt08B01Bar,
@@ -123,12 +165,23 @@ from qore.infrastructure.vt08_forex_fundednext_sizing import (
     build_certified_vt08_forex_cibo_request,
 )
 
+# Load the script-layer VT31 adapter dynamically so existing trader mypy
+# regressions do not type-check the historical research graph it reuses.
+_vt31_adapter = import_module("vt31_nas100_runtime_adapter")
+evaluate_vt31_boundary = _vt31_adapter.evaluate_boundary
+manage_vt31_open_trade = _vt31_adapter.manage_open_trade
+process_vt31_virtual_oco = _vt31_adapter.process_virtual_oco
+reconcile_vt31_pending = _vt31_adapter.reconcile_pending
+vt31_runtime_started_fields = _vt31_adapter.runtime_started_fields
+shadow_vt31_basket = _vt31_adapter.shadow_basket
+submit_vt31_single_live = _vt31_adapter.submit_single_live
+
 _NY = NEW_YORK_TZ
 _MARKETS = ("AUDJPY", "GBPUSD", "GBPJPY")
 _EXCLUDED_LEGACY_TRADERS = ("VT09",)
 _EXPECTED_SERVER = "FundedNext-Server"
 _ACCOUNT_REF = "fundednext-stellar-instant-live"
-_LOOP_SECONDS = 10
+_LOOP_SECONDS = AUDJPY_R42_FEED_REFRESH_SECONDS
 _ANCHOR_GRACE = timedelta(seconds=30)
 _HISTORY_DAYS = 14
 _HISTORY_M15_BARS = _HISTORY_DAYS * 24 * 4 + 96
@@ -210,6 +263,12 @@ def _current_anchor(now: datetime) -> datetime | None:
     if current < anchor or current - anchor > _ANCHOR_GRACE:
         return None
     return anchor
+
+
+def _vt31_entry_boundary(anchor: datetime) -> bool:
+    """Only the certified 10:00-11:00 NY Silver Bullet admission window."""
+    local = anchor.astimezone(_NY)
+    return local.hour == 10 and 1 <= local.minute <= 59
 
 
 def _causal_candidate(symbol: str, anchor: datetime) -> tuple[Vt08B01Candidate | None, str]:
@@ -408,16 +467,30 @@ def _manage_h4_exits(
         if source is None:
             continue
         lineage = lineages.get(source.risk_authorization_id)
-        if lineage in {TraderLineage.R34_XAUUSD, TraderLineage.R38_EURUSD}:
+        if lineage is TraderLineage.VT31_NAS100:
+            # VT31 owns its 16:00 NY lifecycle and V4 partial/runner journey.
+            continue
+        if lineage in {
+            TraderLineage.R34_XAUUSD,
+            TraderLineage.R38_EURUSD,
+            TraderLineage.R43_GBPUSD,
+            TraderLineage.R38_GBPJPY,
+            TraderLineage.R42_AUDJPY,
+        }:
             signal_anchor = source.transitioned_at.astimezone(UTC).replace(
                 minute=0, second=0, microsecond=0
             )
             due = signal_anchor + timedelta(hours=24)
-            exit_label = (
-                "R34_24H"
-                if lineage is TraderLineage.R34_XAUUSD
-                else "R38_24H"
-            )
+            if lineage is TraderLineage.R34_XAUUSD:
+                exit_label = "R34_24H"
+            elif lineage is TraderLineage.R38_EURUSD:
+                exit_label = "R38_24H"
+            elif lineage is TraderLineage.R43_GBPUSD:
+                exit_label = "R43_24H"
+            elif lineage is TraderLineage.R38_GBPJPY:
+                exit_label = "GBPJPY_R38_24H"
+            else:
+                exit_label = "AUDJPY_R42_24H"
         else:
             due = h4_containment_exit_at(_signal_anchor(source.transitioned_at))
             exit_label = "VT08_H4"
@@ -443,10 +516,17 @@ def _manage_h4_exits(
             "type": mt5.ORDER_TYPE_BUY if closing_buy else mt5.ORDER_TYPE_SELL,
             "price": float(tick.ask if closing_buy else tick.bid),
             "magic": int(position.magic),
-            "comment": f"qore-exit-{exit_label}-{str(position.ticket)}"[:29],
             "type_time": mt5.ORDER_TIME_GTC,
             "type_filling": _exit_filling(str(position.symbol)),
         }
+        if exit_label == "VT08_H4":
+            request |= {
+                "comment": f"qore-h4-exit-{str(position.ticket)}"[:29],
+            }
+        else:
+            request["comment"] = (
+                f"qore-exit-{exit_label}-{str(position.ticket)}"[:29]
+            )
         checked = mt5.order_check(request)
         if checked is None or int(checked.retcode) != 0:
             _log(
@@ -609,7 +689,20 @@ def _process_candidate(
             },
         )
         return
-    provider_ref = gateway.submit_live(submission, now=now)
+    send_at = datetime.now(UTC)
+    if send_at > setup.expires_at.astimezone(UTC):
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "VT08_LIVE_SEND_FAIL_CLOSED",
+                "symbol": candidate.symbol,
+                "reason": "setup-expired-before-order-send",
+                "order_send_called": False,
+            },
+        )
+        return
+    provider_ref = gateway.submit_live(submission, now=send_at)
     risk.record_full_fill(authorization.authorization_id)
     _log(
         log_path,
@@ -719,7 +812,24 @@ def _process_r34_candidate(
             },
         )
         return
-    provider_ref = gateway.submit_live(submission, now=now)
+    send_at = datetime.now(UTC)
+    deadline = signal.entry_at.astimezone(UTC) + M5_PROFILE.order_send_deadline
+    if send_at > deadline:
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "R34_LIVE_SEND_FAIL_CLOSED",
+                "symbol": "XAUUSD",
+                "signal_fingerprint": signal.signal_fingerprint,
+                "reason": "m5-order-send-deadline-expired",
+                "deadline_at": deadline.isoformat(),
+                "observed_at": send_at.isoformat(),
+                "order_send_called": False,
+            },
+        )
+        return
+    provider_ref = gateway.submit_live(submission, now=send_at)
     risk.record_full_fill(authorization.authorization_id)
     client_order_id = f"qore-{submission.idempotency_key.value.hex[:24]}"
     r34_store.mark_open(
@@ -848,7 +958,24 @@ def _process_r38_candidate(
             },
         )
         return
-    provider_ref = gateway.submit_live(submission, now=now)
+    send_at = datetime.now(UTC)
+    deadline = signal.entry_at.astimezone(UTC) + M5_PROFILE.order_send_deadline
+    if send_at > deadline:
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "R38_LIVE_SEND_FAIL_CLOSED",
+                "symbol": "EURUSD",
+                "signal_fingerprint": signal.signal_fingerprint,
+                "reason": "m5-order-send-deadline-expired",
+                "deadline_at": deadline.isoformat(),
+                "observed_at": send_at.isoformat(),
+                "order_send_called": False,
+            },
+        )
+        return
+    provider_ref = gateway.submit_live(submission, now=send_at)
     risk.record_full_fill(authorization.authorization_id)
     client_order_id = f"qore-{submission.idempotency_key.value.hex[:24]}"
     r38_store.mark_open(
@@ -863,6 +990,493 @@ def _process_r38_candidate(
             **event,
             "risk_authorization": authorization.authorization_id,
             "provider_order_ref": provider_ref,
+        },
+    )
+
+
+
+def _process_r43_candidate(
+    *,
+    signal: R43LiveSignal,
+    now: datetime,
+    mode: str,
+    gateway: FundedNextLiveMt5ExecutionGateway,
+    transport: MetaTrader5FundedNextLiveTransport,
+    risk: DurableAccountWideRiskEngine,
+    account_binding_id: str,
+    provider_budget: StellarInstantRiskBudget,
+    capital_budget: QoreOperationalCapitalBudget,
+    account_equity: Decimal,
+    r43_store: R43LiveStateStore,
+    log_path: Path,
+) -> None:
+    spec = gateway.read_symbol("GBPUSD", now=now)
+    request, base_risk_usd = build_r43_risk_request(
+        request_id=f"r43-{signal.signal_fingerprint[:24]}",
+        signal=signal,
+        provider_spec=spec,
+        account_equity=account_equity,
+        now=now,
+    )
+    open_stop, floating_loss, pending_stop = _broker_risk(transport)
+    account_state = gateway.read_account(now=now)
+    snapshot = AccountRiskSnapshot(
+        account_binding_id=account_binding_id,
+        equity=account_equity,
+        margin_used=account_state.margin,
+        free_margin=account_state.free_margin,
+        open_stop_worst_case_loss=open_stop,
+        open_floating_loss=floating_loss,
+        pending_broker_worst_case_loss=pending_stop,
+        qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
+        provider_budget=provider_budget,
+        reconciled_at=now,
+    )
+    if risk.recovery_required:
+        risk.complete_boot_reconciliation(snapshot, now=now)
+    authorization = risk.authorize(request, snapshot, now=now)
+    if authorization.decision is RiskDecision.REJECT:
+        _log(
+            log_path,
+            {
+                "event": "R43_RISK_REJECT",
+                "symbol": "GBPUSD",
+                "reason": authorization.reason,
+                "signal_fingerprint": signal.signal_fingerprint,
+            },
+        )
+        return
+    submission = build_account_bound_submission(
+        authorization,
+        switch=ExecutionSafetySwitchSnapshot(
+            state=ExecutionSwitchState.ENABLED,
+            observed_at=now,
+            reason="qore R43 certified runtime safety gate enabled",
+        ),
+        authorized_at=now,
+        submitted_at=now,
+    )
+    shadow = gateway.shadow_check(submission, now=now)
+    if not shadow.broker_valid:
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "R43_SHADOW_REJECT",
+                "symbol": "GBPUSD",
+                "reason": shadow.reason,
+                "signal_fingerprint": signal.signal_fingerprint,
+            },
+        )
+        return
+    event = {
+        "symbol": "GBPUSD",
+        "signal_fingerprint": signal.signal_fingerprint,
+        "timeframe": signal.timeframe,
+        "target_rank": signal.target_rank,
+        "target_route": signal.target_route,
+        "decision_source": signal.decision_source,
+        "family": signal.family,
+        "classification": signal.classification,
+        "posture": signal.posture,
+        "structural_scale": str(signal.structural_scale),
+        "side_overlay_scale": str(signal.side_overlay_scale),
+        "rank_overlay_scale": str(signal.rank_overlay_scale),
+        "drawdown_scale": str(signal.drawdown_scale),
+        "risk_scale": str(signal.risk_scale),
+        "risk_usd": str(authorization.monetary_stop_loss),
+        "volume": str(authorization.authorized_volume),
+    }
+    if mode == "shadow":
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "R43_SHADOW_PASS",
+                **event,
+                "retcode": shadow.retcode,
+            },
+        )
+        return
+    send_at = datetime.now(UTC)
+    deadline = signal.entry_at.astimezone(UTC) + M5_PROFILE.order_send_deadline
+    if send_at > deadline:
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "R43_LIVE_SEND_FAIL_CLOSED",
+                "symbol": "GBPUSD",
+                "signal_fingerprint": signal.signal_fingerprint,
+                "reason": "m5-order-send-deadline-expired",
+                "deadline_at": deadline.isoformat(),
+                "observed_at": send_at.isoformat(),
+                "order_send_called": False,
+            },
+        )
+        return
+    provider_ref = gateway.submit_live(submission, now=send_at)
+    risk.record_full_fill(authorization.authorization_id)
+    client_order_id = f"qore-{submission.idempotency_key.value.hex[:24]}"
+    r43_store.mark_open(
+        client_order_id=client_order_id,
+        signal=signal,
+        base_risk_usd=base_risk_usd,
+    )
+    _log(
+        log_path,
+        {
+            "event": "R43_LIVE_SUBMIT_ACCEPTED",
+            **event,
+            "risk_authorization": authorization.authorization_id,
+            "provider_order_ref": provider_ref,
+        },
+    )
+
+
+def _process_gbpjpy_r38_candidate(
+    *,
+    signal: R38GbpJpyLiveSignal,
+    now: datetime,
+    mode: str,
+    gateway: FundedNextLiveMt5ExecutionGateway,
+    transport: MetaTrader5FundedNextLiveTransport,
+    risk: DurableAccountWideRiskEngine,
+    account_binding_id: str,
+    provider_budget: StellarInstantRiskBudget,
+    capital_budget: QoreOperationalCapitalBudget,
+    account_equity: Decimal,
+    gbpjpy_r38_store: R38GbpJpyLiveStateStore,
+    log_path: Path,
+) -> None:
+    spec = gateway.read_symbol("GBPJPY", now=now)
+    request, base_risk_usd = build_r38_gbpjpy_risk_request(
+        request_id=f"gbpjpy-r38-{signal.signal_fingerprint[:24]}",
+        signal=signal,
+        provider_spec=spec,
+        account_equity=account_equity,
+        now=now,
+    )
+    open_stop, floating_loss, pending_stop = _broker_risk(transport)
+    account_state = gateway.read_account(now=now)
+    snapshot = AccountRiskSnapshot(
+        account_binding_id=account_binding_id,
+        equity=account_equity,
+        margin_used=account_state.margin,
+        free_margin=account_state.free_margin,
+        open_stop_worst_case_loss=open_stop,
+        open_floating_loss=floating_loss,
+        pending_broker_worst_case_loss=pending_stop,
+        qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
+        provider_budget=provider_budget,
+        reconciled_at=now,
+    )
+    if risk.recovery_required:
+        risk.complete_boot_reconciliation(snapshot, now=now)
+    authorization = risk.authorize(request, snapshot, now=now)
+    if authorization.decision is RiskDecision.REJECT:
+        _log(
+            log_path,
+            {
+                "event": "GBPJPY_R38_RISK_REJECT",
+                "symbol": "GBPJPY",
+                "reason": authorization.reason,
+                "signal_fingerprint": signal.signal_fingerprint,
+            },
+        )
+        return
+
+    submission = build_account_bound_submission(
+        authorization,
+        switch=ExecutionSafetySwitchSnapshot(
+            state=ExecutionSwitchState.ENABLED,
+            observed_at=now,
+            reason="qore GBPJPY R38 certified runtime safety gate enabled",
+        ),
+        authorized_at=now,
+        submitted_at=now,
+    )
+    shadow = gateway.shadow_check(submission, now=now)
+    if not shadow.broker_valid:
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "GBPJPY_R38_SHADOW_REJECT",
+                "symbol": "GBPJPY",
+                "reason": shadow.reason,
+                "signal_fingerprint": signal.signal_fingerprint,
+            },
+        )
+        return
+
+    event = {
+        "symbol": "GBPJPY",
+        "signal_fingerprint": signal.signal_fingerprint,
+        "timeframe": signal.timeframe,
+        "target_rank": signal.target_rank,
+        "target_route": signal.target_route,
+        "source_scheme": signal.source_scheme,
+        "authority_tier": signal.authority_tier,
+        "classification": signal.classification,
+        "posture": signal.posture,
+        "base_risk_scale": str(signal.base_risk_scale),
+        "fragility_flags": list(signal.fragility_flags),
+        "structural_overlay_scale": str(signal.structural_overlay_scale),
+        "risk_scale": str(signal.risk_scale),
+        "risk_usd": str(authorization.monetary_stop_loss),
+        "volume": str(authorization.authorized_volume),
+    }
+    if mode == "shadow":
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "GBPJPY_R38_SHADOW_PASS",
+                **event,
+                "retcode": shadow.retcode,
+            },
+        )
+        return
+
+    send_at = datetime.now(UTC)
+    deadline = signal.entry_at.astimezone(UTC) + M5_PROFILE.order_send_deadline
+    if send_at > deadline:
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "GBPJPY_R38_LIVE_SEND_FAIL_CLOSED",
+                "symbol": "GBPJPY",
+                "signal_fingerprint": signal.signal_fingerprint,
+                "reason": "m5-order-send-deadline-expired",
+                "deadline_at": deadline.isoformat(),
+                "observed_at": send_at.isoformat(),
+                "order_send_called": False,
+            },
+        )
+        return
+    provider_ref = gateway.submit_live(submission, now=send_at)
+    risk.record_full_fill(authorization.authorization_id)
+    client_order_id = f"qore-{submission.idempotency_key.value.hex[:24]}"
+    gbpjpy_r38_store.mark_open(
+        client_order_id=client_order_id,
+        signal=signal,
+        base_risk_usd=base_risk_usd,
+    )
+    _log(
+        log_path,
+        {
+            "event": "GBPJPY_R38_LIVE_SUBMIT_ACCEPTED",
+            **event,
+            "risk_authorization": authorization.authorization_id,
+            "provider_order_ref": provider_ref,
+        },
+    )
+
+
+def _process_audjpy_r42_candidate(
+    *,
+    signal: R42AudJpyLiveSignal,
+    now: datetime,
+    mode: str,
+    gateway: FundedNextLiveMt5ExecutionGateway,
+    transport: MetaTrader5FundedNextLiveTransport,
+    risk: DurableAccountWideRiskEngine,
+    account_binding_id: str,
+    provider_budget: StellarInstantRiskBudget,
+    capital_budget: QoreOperationalCapitalBudget,
+    account_equity: Decimal,
+    audjpy_r42_store: R42AudJpyLiveStateStore,
+    log_path: Path,
+    preflight_snapshot: AccountRiskSnapshot | None = None,
+) -> None:
+    deadline = signal.entry_at.astimezone(UTC) + AUDJPY_R42_ENTRY_SLA
+
+    def stage_time(stage: str) -> datetime | None:
+        observed = datetime.now(UTC)
+        if observed > deadline:
+            _log(
+                log_path,
+                {
+                    "event": "AUDJPY_R42_SLA_FAIL_CLOSED",
+                    "symbol": "AUDJPY",
+                    "stage": stage,
+                    "signal_fingerprint": signal.signal_fingerprint,
+                    "entry_at": signal.entry_at.isoformat(),
+                    "deadline_at": deadline.isoformat(),
+                    "observed_at": observed.isoformat(),
+                    "latency_ms": int(
+                        (observed - signal.entry_at).total_seconds() * 1000
+                    ),
+                    "order_send_called": False,
+                },
+            )
+            return None
+        return observed
+
+    processing_at = stage_time("before-symbol-read")
+    if processing_at is None:
+        return
+    spec = gateway.read_symbol("AUDJPY", now=processing_at)
+
+    request_at = stage_time("before-risk-request")
+    if request_at is None:
+        return
+    request, base_risk_usd = build_r42_audjpy_risk_request(
+        request_id=f"audjpy-r42-{signal.signal_fingerprint[:24]}",
+        signal=signal,
+        provider_spec=spec,
+        account_equity=account_equity,
+        now=request_at,
+    )
+
+    if preflight_snapshot is None:
+        open_stop, floating_loss, pending_stop = _broker_risk(transport)
+        account_state = gateway.read_account(now=request_at)
+        snapshot = AccountRiskSnapshot(
+            account_binding_id=account_binding_id,
+            equity=account_equity,
+            margin_used=account_state.margin,
+            free_margin=account_state.free_margin,
+            open_stop_worst_case_loss=open_stop,
+            open_floating_loss=floating_loss,
+            pending_broker_worst_case_loss=pending_stop,
+            qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
+            provider_budget=provider_budget,
+            reconciled_at=request_at,
+        )
+    else:
+        snapshot = preflight_snapshot
+        if snapshot.account_binding_id != account_binding_id:
+            raise RuntimeError("AUDJPY R42 preflight account binding drift")
+
+    authorize_at = stage_time("before-account-wide-risk")
+    if authorize_at is None:
+        return
+    if risk.recovery_required:
+        risk.complete_boot_reconciliation(snapshot, now=authorize_at)
+    authorization = risk.authorize(request, snapshot, now=authorize_at)
+    if authorization.decision is RiskDecision.REJECT:
+        _log(
+            log_path,
+            {
+                "event": "AUDJPY_R42_RISK_REJECT",
+                "symbol": "AUDJPY",
+                "reason": authorization.reason,
+                "signal_fingerprint": signal.signal_fingerprint,
+                "latency_ms": int(
+                    (authorize_at - signal.entry_at).total_seconds() * 1000
+                ),
+            },
+        )
+        return
+
+    submission_at = stage_time("before-submission-build")
+    if submission_at is None:
+        risk.cancel(authorization.authorization_id)
+        return
+    submission = build_account_bound_submission(
+        authorization,
+        switch=ExecutionSafetySwitchSnapshot(
+            state=ExecutionSwitchState.ENABLED,
+            observed_at=submission_at,
+            reason="qore AUDJPY R42 certified runtime safety gate enabled",
+        ),
+        authorized_at=submission_at,
+        submitted_at=submission_at,
+    )
+
+    shadow_at = stage_time("before-broker-order-check")
+    if shadow_at is None:
+        risk.cancel(authorization.authorization_id)
+        return
+    shadow = gateway.shadow_check(submission, now=shadow_at)
+    checked_at = stage_time("after-broker-order-check")
+    if checked_at is None:
+        risk.cancel(authorization.authorization_id)
+        return
+    if not shadow.broker_valid:
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "AUDJPY_R42_SHADOW_REJECT",
+                "symbol": "AUDJPY",
+                "reason": shadow.reason,
+                "signal_fingerprint": signal.signal_fingerprint,
+            },
+        )
+        return
+
+    event = {
+        "symbol": "AUDJPY",
+        "signal_fingerprint": signal.signal_fingerprint,
+        "timeframe": signal.timeframe,
+        "target_rank": signal.target_rank,
+        "target_route": signal.target_route,
+        "source_scheme": signal.source_scheme,
+        "authority_tier": signal.authority_tier,
+        "classification": signal.classification,
+        "posture": signal.posture,
+        "base_risk_scale": str(signal.base_risk_scale),
+        "first_layer_fragility_flags": list(
+            signal.first_layer_fragility_flags
+        ),
+        "first_layer_overlay_scale": str(signal.first_layer_overlay_scale),
+        "second_layer_fragility_flags": list(
+            signal.second_layer_fragility_flags
+        ),
+        "second_layer_overlay_scale": str(signal.second_layer_overlay_scale),
+        "risk_scale": str(signal.risk_scale),
+        "risk_usd": str(authorization.monetary_stop_loss),
+        "volume": str(authorization.authorized_volume),
+        "boundary_tick_at": signal.boundary_tick_at.isoformat(),
+        "latency_ms": int(
+            (checked_at - signal.entry_at).total_seconds() * 1000
+        ),
+        "entry_sla_ms": int(AUDJPY_R42_ENTRY_SLA.total_seconds() * 1000),
+    }
+    if mode == "shadow":
+        risk.cancel(authorization.authorization_id)
+        _log(
+            log_path,
+            {
+                "event": "AUDJPY_R42_SHADOW_PASS",
+                **event,
+                "retcode": shadow.retcode,
+            },
+        )
+        return
+
+    send_at = stage_time("before-order-send")
+    if send_at is None:
+        risk.cancel(authorization.authorization_id)
+        return
+    provider_ref = gateway.submit_live(submission, now=send_at)
+    risk.record_full_fill(authorization.authorization_id)
+    client_order_id = f"qore-{submission.idempotency_key.value.hex[:24]}"
+    audjpy_r42_store.mark_open(
+        client_order_id=client_order_id,
+        signal=signal,
+        base_risk_usd=base_risk_usd,
+    )
+    accepted_at = datetime.now(UTC)
+    _log(
+        log_path,
+        {
+            "event": "AUDJPY_R42_LIVE_SUBMIT_ACCEPTED",
+            **event,
+            "risk_authorization": authorization.authorization_id,
+            "provider_order_ref": provider_ref,
+            "order_send_started_at": send_at.isoformat(),
+            "provider_ack_at": accepted_at.isoformat(),
+            "send_started_latency_ms": int(
+                (send_at - signal.entry_at).total_seconds() * 1000
+            ),
+            "provider_ack_latency_ms": int(
+                (accepted_at - signal.entry_at).total_seconds() * 1000
+            ),
         },
     )
 
@@ -916,6 +1530,41 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     )
     r38_store = R38LiveStateStore(state_dir / "r38-state.json")
     r38_store.reconcile(mt5, now=datetime.now(UTC))
+    r43_memory = load_r43_memory(
+        root
+        / "runtime_data"
+        / "gbpusd"
+        / "r43-r32-regime-memory.json"
+    )
+    r43_store = R43LiveStateStore(state_dir / "r43-state.json")
+    r43_store.reconcile(mt5, now=datetime.now(UTC))
+    gbpjpy_r38_memory = load_gbpjpy_r38_memory(
+        root
+        / "runtime_data"
+        / "gbpjpy"
+        / "r38-confidence-tier-memory.json"
+    )
+    gbpjpy_r38_store = R38GbpJpyLiveStateStore(
+        state_dir / "r38-gbpjpy-state.json"
+    )
+    gbpjpy_r38_store.reconcile(mt5, now=datetime.now(UTC))
+    audjpy_r42_memory = load_audjpy_r42_memory(
+        root
+        / "runtime_data"
+        / "audjpy"
+        / "r42-causal-authority-memory.json"
+    )
+    audjpy_r42_store = R42AudJpyLiveStateStore(
+        state_dir / "r42-audjpy-state.json"
+    )
+    audjpy_r42_store.reconcile(mt5, now=datetime.now(UTC))
+    audjpy_r42_cache = R42AudJpyM5Cache()
+    audjpy_r42_cache.preload(mt5, now=datetime.now(UTC))
+    vt31_store = Vt31Nas100LiveStateStore(
+        state_dir / "vt31-nas100-state.json"
+    )
+    vt31_cache = Vt31Nas100M1Cache()
+    vt31_cache.preload(mt5, now=datetime.now(UTC))
 
     def refresh_provider_rules_before_submission() -> None:
         result = subprocess.run(
@@ -1041,12 +1690,523 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "r38_single_position_busy": True,
             "r38_lifecycle": "STATIC_OR_PROTECT_DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
             "r38_base_risk_fraction": "0.002",
+            "r43_enabled": True,
+            "r43_identity": "TURTLE_SOUP_GBPUSD_R43",
+            "r43_certification": "TURTLE_SOUP_GBPUSD_R45_FINAL_CERTIFICATION_SUITE_V1",
+            "r43_strategy_timezone": "America/New_York",
+            "r43_schedule": "EVERY_H1_H4_BOUNDARY_24_7_SERVICE",
+            "r43_single_position_busy": True,
+            "r43_lifecycle": "STATIC_OR_PROTECT_DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
+            "r43_base_risk_fraction": "0.002",
+            "r43_short_overlay_scale": "0.005",
+            "r43_rank2_overlay_scale": "0.25",
+            "r43_memory_sha256": "e4a79978c0144e0b97c19ce3ee18040e62a02efe891b204fc724e4a0016734ae",
+            **vt31_runtime_started_fields(),
+            "loaded_traders": [
+                "VT08",
+                "TURTLE_SOUP_XAUUSD_R34",
+                "TURTLE_SOUP_EURUSD_R38",
+                "TURTLE_SOUP_GBPUSD_R43",
+                "TURTLE_SOUP_GBPJPY_R38",
+                "TURTLE_SOUP_AUDJPY_R42",
+                "VT31_NAS100",
+            ],
+            "single_mt5_writer": True,
+            "account_wide_risk_active": True,
+            "gbpjpy_r38_enabled": True,
+            "gbpjpy_r38_identity": "TURTLE_SOUP_GBPJPY_R38",
+            "gbpjpy_r38_certification": "TURTLE_SOUP_GBPJPY_R39_FINAL_CERTIFICATION_SUITE_V1",
+            "gbpjpy_r38_strategy_timezone": "America/New_York",
+            "gbpjpy_r38_schedule": "EVERY_H1_H4_BOUNDARY_24_7_SERVICE",
+            "gbpjpy_r38_single_position_busy": True,
+            "gbpjpy_r38_lifecycle": "STATIC_OR_PROTECT_DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
+            "gbpjpy_r38_base_risk_fraction": "0.002",
+            "gbpjpy_r38_ensemble": "R35_RANGE_DIRECTION_MINIMAL_ROBUST",
+            "gbpjpy_r38_policy": "CONFIDENCE_100_050_010",
+            "gbpjpy_r38_fragility_policy": ["1", "0.25", "0.10", "0.05"],
+            "gbpjpy_r38_memory_sha256": "16a369e8457394642642ca2c7331e32b05644a5656d339cbba06db089f44211f",
+            "audjpy_r42_enabled": True,
+            "audjpy_r42_identity": "TURTLE_SOUP_AUDJPY_R42",
+            "audjpy_r42_certification": "TURTLE_SOUP_AUDJPY_R43_FINAL_CERTIFICATION_SUITE_V1",
+            "audjpy_r42_strategy_timezone": "America/New_York",
+            "audjpy_r42_schedule": "EVERY_H1_H4_BOUNDARY_24_7_SERVICE",
+            "audjpy_r42_single_position_busy": True,
+            "audjpy_r42_lifecycle": "STATIC_OR_PROTECT_DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
+            "audjpy_r42_base_risk_fraction": "0.002",
+            "audjpy_r42_ensemble": "R38_FROZEN_SIGNAL_BASELINE",
+            "audjpy_r42_policy": "AUDJPY_CONFIDENCE_100_075_025",
+            "audjpy_r42_first_fragility_policy": ["1", "0.20", "0.05", "0.01"],
+            "audjpy_r42_second_fragility_policy": ["1", "0.50", "0.25", "0.10"],
+            "audjpy_r42_memory_sha256": "22cc9fbccb8d88fe5e5027c93d93412b3cee3f9e724dae034ff9f56a0e82cfe6",
+            "audjpy_r42_entry_sla_seconds": str(
+                AUDJPY_R42_ENTRY_SLA.total_seconds()
+            ),
+            "audjpy_r42_boundary_arm_lead_seconds": str(
+                AUDJPY_R42_BOUNDARY_ARM_LEAD.total_seconds()
+            ),
+            "audjpy_r42_feed_refresh_seconds": str(
+                AUDJPY_R42_FEED_REFRESH_SECONDS
+            ),
+            "audjpy_r42_boundary_retry_ms": 75,
+            "audjpy_r42_history_preload_once": True,
+            "audjpy_r42_incremental_cache": True,
+            "order_submission_authorized": activation.authorization.order_submission_authorized,
         },
     )
     last_lifecycle: str | None = None
 
     while True:
+        cycle_started = time.monotonic()
         cycle_at = datetime.now(UTC)
+        try:
+            audjpy_r42_cache.refresh_incremental(mt5, now=cycle_at)
+        except Exception as error:
+            _log(
+                log_path,
+                {
+                    "event": "AUDJPY_R42_INCREMENTAL_FEED_FAIL_CLOSED",
+                    "symbol": "AUDJPY",
+                    "reason": type(error).__name__,
+                    "message": str(error),
+                    "observed_at": cycle_at.isoformat(),
+                },
+            )
+        try:
+            vt31_cache.refresh_incremental(mt5, now=cycle_at)
+        except Exception as error:
+            _log(
+                log_path,
+                {
+                    "event": "VT31_NAS100_INCREMENTAL_FEED_FAIL_CLOSED",
+                    "symbol": "NAS100",
+                    "reason": type(error).__name__,
+                    "message": str(error),
+                    "observed_at": cycle_at.isoformat(),
+                },
+            )
+
+        audjpy_arm_anchor = audjpy_r42_boundary_to_arm(cycle_at)
+        if audjpy_arm_anchor is not None:
+            audjpy_anchor_key = (
+                f"R42_AUDJPY|{audjpy_arm_anchor.isoformat()}"
+            )
+            if audjpy_anchor_key not in state.processed_anchors:
+                arm_started_at = datetime.now(UTC)
+                _log(
+                    log_path,
+                    {
+                        "event": "AUDJPY_R42_BOUNDARY_ARMED",
+                        "symbol": "AUDJPY",
+                        "decision_at": audjpy_arm_anchor.isoformat(),
+                        "armed_at": arm_started_at.isoformat(),
+                        "lead_ms": int(
+                            (
+                                audjpy_arm_anchor - arm_started_at
+                            ).total_seconds()
+                            * 1000
+                        ),
+                        "maintenance_frozen": True,
+                        "risk_preflight_only": True,
+                    },
+                )
+                try:
+                    arm_account = gateway.read_account(now=arm_started_at)
+                    gateway.reconcile_unknown(now=arm_started_at)
+                    arm_r42_state = audjpy_r42_store.reconcile(
+                        mt5,
+                        now=arm_started_at,
+                    )
+                    arm_highest = max(highest, arm_account.balance)
+                    arm_provider = evaluate_stellar_instant_budget(
+                        StellarInstantAccountSnapshot(
+                            initial_balance=PILOT_INITIAL_BALANCE,
+                            balance=arm_account.balance,
+                            equity=arm_account.equity,
+                            highest_closed_balance=arm_highest,
+                            previous_active_mll=previous_mll,
+                        )
+                    )
+                    arm_open_stop, arm_floating_loss, arm_pending_stop = (
+                        _broker_risk(transport)
+                    )
+                    arm_aggregate = (
+                        arm_open_stop
+                        + arm_pending_stop
+                        + risk.active_reserved_stop_risk()
+                    )
+                    arm_posture = request_cibo_posture(
+                        initial_balance=PILOT_INITIAL_BALANCE,
+                        balance=arm_account.balance,
+                        equity=arm_account.equity,
+                        current_aggregate_risk=arm_aggregate,
+                    )
+                    arm_capital = evaluate_qore_operational_capital_budget(
+                        provider_budget=arm_provider,
+                        initial_balance=PILOT_INITIAL_BALANCE,
+                        balance=arm_account.balance,
+                        equity=arm_account.equity,
+                        highest_closed_balance=arm_highest,
+                        current_aggregate_stop_risk=arm_aggregate,
+                        requested_posture=arm_posture,
+                    )
+                    arm_snapshot = AccountRiskSnapshot(
+                        account_binding_id=fingerprint,
+                        equity=arm_account.equity,
+                        margin_used=arm_account.margin,
+                        free_margin=arm_account.free_margin,
+                        open_stop_worst_case_loss=arm_open_stop,
+                        open_floating_loss=arm_floating_loss,
+                        pending_broker_worst_case_loss=arm_pending_stop,
+                        qore_authorizable_headroom=(
+                            arm_capital.qore_authorizable_headroom
+                        ),
+                        provider_budget=arm_provider,
+                        reconciled_at=arm_started_at,
+                    )
+                    accepted_times = [
+                        item.transitioned_at
+                        for item in mutation_ledger.records()
+                        if item.state is FundedNextMt5MutationState.ACCEPTED
+                    ]
+                    arm_last_activity = max(
+                        accepted_times,
+                        default=activation.authorization.activation_timestamp,
+                    )
+                    arm_lifecycle = inactivity_state(
+                        last_activity_at=arm_last_activity,
+                        now=arm_started_at,
+                    )
+                    arm_blocked = (
+                        arm_capital.decision is CapitalBudgetDecision.REJECT
+                        or arm_lifecycle is InactivityState.BLOCKED
+                        or exit_ledger.has_unresolved
+                        or gateway.has_unresolved_mutations
+                    )
+
+                    boundary_snapshot = await_audjpy_r42_boundary_snapshot(
+                        mt5,
+                        cache=audjpy_r42_cache,
+                        anchor=audjpy_arm_anchor,
+                    )
+                    boundary_observed = boundary_snapshot.observed_at
+                    if arm_blocked:
+                        _log(
+                            log_path,
+                            {
+                                "event": "AUDJPY_R42_BOUNDARY_FAIL_CLOSED",
+                                "symbol": "AUDJPY",
+                                "decision_at": audjpy_arm_anchor.isoformat(),
+                                "reason": "preflight-new-order-blocked",
+                                "observed_at": boundary_observed.isoformat(),
+                                "latency_ms": int(
+                                    (
+                                        boundary_observed
+                                        - audjpy_arm_anchor
+                                    ).total_seconds()
+                                    * 1000
+                                ),
+                            },
+                        )
+                    else:
+                        audjpy_signal, reason = build_audjpy_r42_live_signal(
+                            mt5,
+                            now=boundary_observed,
+                            memory_bundle=audjpy_r42_memory,
+                            state=arm_r42_state,
+                            boundary_snapshot=boundary_snapshot,
+                        )
+                        if audjpy_signal is None:
+                            _log(
+                                log_path,
+                                {
+                                    "event": "AUDJPY_R42_CAUSAL_ABSTAIN",
+                                    "symbol": "AUDJPY",
+                                    "decision_at": audjpy_arm_anchor.isoformat(),
+                                    "reason": reason,
+                                    "observed_at": boundary_observed.isoformat(),
+                                    "latency_ms": int(
+                                        (
+                                            boundary_observed
+                                            - audjpy_arm_anchor
+                                        ).total_seconds()
+                                        * 1000
+                                    ),
+                                    "hard_sla_seconds": AUDJPY_R42_ENTRY_SLA.total_seconds(),
+                                },
+                            )
+                        else:
+                            _process_audjpy_r42_candidate(
+                                signal=audjpy_signal,
+                                now=boundary_observed,
+                                mode=mode,
+                                gateway=gateway,
+                                transport=transport,
+                                risk=risk,
+                                account_binding_id=fingerprint,
+                                provider_budget=arm_provider,
+                                capital_budget=arm_capital,
+                                account_equity=arm_account.equity,
+                                audjpy_r42_store=audjpy_r42_store,
+                                log_path=log_path,
+                                preflight_snapshot=arm_snapshot,
+                            )
+                except Exception as error:
+                    freeze_until = audjpy_arm_anchor + AUDJPY_R42_ENTRY_SLA
+                    remaining = (
+                        freeze_until - datetime.now(UTC)
+                    ).total_seconds()
+                    if remaining > 0:
+                        time.sleep(remaining)
+                    _log(
+                        log_path,
+                        {
+                            "event": "AUDJPY_R42_BOUNDARY_FAIL_CLOSED",
+                            "symbol": "AUDJPY",
+                            "decision_at": audjpy_arm_anchor.isoformat(),
+                            "reason": type(error).__name__,
+                            "message": str(error),
+                            "hard_sla_seconds": AUDJPY_R42_ENTRY_SLA.total_seconds(),
+                            "order_send_called": False,
+                        },
+                    )
+                completed_at = datetime.now(UTC)
+                state = state.with_cycle(
+                    highest_closed_balance=str(highest),
+                    active_mll=str(previous_mll),
+                    processed_anchor=audjpy_anchor_key,
+                    reconciled_at=completed_at,
+                    heartbeat_at=completed_at,
+                )
+                store.store(state)
+                continue
+
+        current_hour = cycle_at.replace(
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+        current_hour_key = f"R42_AUDJPY|{current_hour.isoformat()}"
+        late_delta = cycle_at - current_hour
+        if (
+            timedelta(0) <= late_delta <= AUDJPY_R42_ENTRY_SLA
+            and current_hour_key not in state.processed_anchors
+        ):
+            _log(
+                log_path,
+                {
+                    "event": "AUDJPY_R42_SLA_FAIL_CLOSED",
+                    "symbol": "AUDJPY",
+                    "stage": "boundary-not-prearmed",
+                    "decision_at": current_hour.isoformat(),
+                    "observed_at": cycle_at.isoformat(),
+                    "latency_ms": int(late_delta.total_seconds() * 1000),
+                    "order_send_called": False,
+                },
+            )
+            state = state.with_cycle(
+                highest_closed_balance=str(highest),
+                active_mll=str(previous_mll),
+                processed_anchor=current_hour_key,
+                reconciled_at=cycle_at,
+                heartbeat_at=cycle_at,
+            )
+            store.store(state)
+            continue
+
+        vt31_arm_anchor = vt31_boundary_to_arm(cycle_at)
+        if (
+            vt31_arm_anchor is not None
+            and _vt31_entry_boundary(vt31_arm_anchor)
+        ):
+            vt31_arm_started_at = datetime.now(UTC)
+            _log(
+                log_path,
+                {
+                    "event": "VT31_NAS100_BOUNDARY_ARMED",
+                    "symbol": "NAS100",
+                    "decision_at": vt31_arm_anchor.isoformat(),
+                    "armed_at": vt31_arm_started_at.isoformat(),
+                    "lead_ms": int(
+                        (vt31_arm_anchor - vt31_arm_started_at).total_seconds()
+                        * 1000
+                    ),
+                    "maintenance_frozen": True,
+                    "risk_preflight_only": True,
+                },
+            )
+            try:
+                vt31_account = gateway.read_account(now=vt31_arm_started_at)
+                gateway.reconcile_unknown(now=vt31_arm_started_at)
+                vt31_highest = max(highest, vt31_account.balance)
+                vt31_provider = evaluate_stellar_instant_budget(
+                    StellarInstantAccountSnapshot(
+                        initial_balance=PILOT_INITIAL_BALANCE,
+                        balance=vt31_account.balance,
+                        equity=vt31_account.equity,
+                        highest_closed_balance=vt31_highest,
+                        previous_active_mll=previous_mll,
+                    )
+                )
+                (
+                    vt31_open_stop,
+                    vt31_floating_loss,
+                    vt31_pending_stop,
+                ) = _broker_risk(transport)
+                vt31_aggregate = (
+                    vt31_open_stop
+                    + vt31_pending_stop
+                    + risk.active_reserved_stop_risk()
+                )
+                vt31_posture = request_cibo_posture(
+                    initial_balance=PILOT_INITIAL_BALANCE,
+                    balance=vt31_account.balance,
+                    equity=vt31_account.equity,
+                    current_aggregate_risk=vt31_aggregate,
+                )
+                vt31_capital = evaluate_qore_operational_capital_budget(
+                    provider_budget=vt31_provider,
+                    initial_balance=PILOT_INITIAL_BALANCE,
+                    balance=vt31_account.balance,
+                    equity=vt31_account.equity,
+                    highest_closed_balance=vt31_highest,
+                    current_aggregate_stop_risk=vt31_aggregate,
+                    requested_posture=vt31_posture,
+                )
+                vt31_snapshot = AccountRiskSnapshot(
+                    account_binding_id=fingerprint,
+                    equity=vt31_account.equity,
+                    margin_used=vt31_account.margin,
+                    free_margin=vt31_account.free_margin,
+                    open_stop_worst_case_loss=vt31_open_stop,
+                    open_floating_loss=vt31_floating_loss,
+                    pending_broker_worst_case_loss=vt31_pending_stop,
+                    qore_authorizable_headroom=(
+                        vt31_capital.qore_authorizable_headroom
+                    ),
+                    provider_budget=vt31_provider,
+                    reconciled_at=vt31_arm_started_at,
+                )
+                vt31_accepted_times = [
+                    item.transitioned_at
+                    for item in mutation_ledger.records()
+                    if item.state is FundedNextMt5MutationState.ACCEPTED
+                ]
+                vt31_last_activity = max(
+                    vt31_accepted_times,
+                    default=activation.authorization.activation_timestamp,
+                )
+                vt31_lifecycle = inactivity_state(
+                    last_activity_at=vt31_last_activity,
+                    now=vt31_arm_started_at,
+                )
+                vt31_blocked = (
+                    vt31_capital.decision is CapitalBudgetDecision.REJECT
+                    or vt31_lifecycle is InactivityState.BLOCKED
+                    or exit_ledger.has_unresolved
+                    or gateway.has_unresolved_mutations
+                )
+                vt31_boundary = await_vt31_boundary_snapshot(
+                    mt5,
+                    cache=vt31_cache,
+                    anchor=vt31_arm_anchor,
+                )
+                if vt31_blocked:
+                    _log(
+                        log_path,
+                        {
+                            "event": "VT31_NAS100_BOUNDARY_FAIL_CLOSED",
+                            "symbol": "NAS100",
+                            "decision_at": vt31_arm_anchor.isoformat(),
+                            "reason": "preflight-new-order-blocked",
+                            "observed_at": vt31_boundary.observed_at.isoformat(),
+                            "order_send_called": False,
+                        },
+                    )
+                else:
+                    vt31_basket, vt31_reason = evaluate_vt31_boundary(
+                        closed_m1=vt31_boundary.closed_m1,
+                        evidence_fingerprint=(
+                            vt31_boundary.evidence_fingerprint
+                        ),
+                        store=vt31_store,
+                    )
+                    if vt31_basket is None:
+                        _log(
+                            log_path,
+                            {
+                                "event": "VT31_NAS100_CAUSAL_ABSTAIN",
+                                "symbol": "NAS100",
+                                "decision_at": vt31_arm_anchor.isoformat(),
+                                "reason": vt31_reason,
+                                "observed_at": (
+                                    vt31_boundary.observed_at.isoformat()
+                                ),
+                            },
+                        )
+                    elif mode == "shadow":
+                        shadow_vt31_basket(
+                            basket=vt31_basket,
+                            boundary_at=vt31_arm_anchor,
+                            gateway=gateway,
+                            risk=risk,
+                            snapshot=vt31_snapshot,
+                            account_equity=vt31_account.equity,
+                            store=vt31_store,
+                            log=lambda event: _log(log_path, event),
+                        )
+                    elif len(vt31_basket.candidates) == 1:
+                        submit_vt31_single_live(
+                            basket=vt31_basket,
+                            boundary_at=vt31_arm_anchor,
+                            gateway=gateway,
+                            risk=risk,
+                            snapshot=vt31_snapshot,
+                            account_equity=vt31_account.equity,
+                            store=vt31_store,
+                            log=lambda event: _log(log_path, event),
+                        )
+                    else:
+                        _log(
+                            log_path,
+                            {
+                                "event": "VT31_NAS100_VIRTUAL_OCO_ARMED",
+                                "symbol": "NAS100",
+                                "decision_at": vt31_arm_anchor.isoformat(),
+                                "basket_id": vt31_basket.basket_id,
+                                "candidate_count": len(
+                                    vt31_basket.candidates
+                                ),
+                            },
+                        )
+            except Exception as error:
+                freeze_until = vt31_arm_anchor + VT31_DECISION_DEADLINE
+                remaining = (freeze_until - datetime.now(UTC)).total_seconds()
+                if remaining > 0:
+                    time.sleep(remaining)
+                _log(
+                    log_path,
+                    {
+                        "event": "VT31_NAS100_BOUNDARY_FAIL_CLOSED",
+                        "symbol": "NAS100",
+                        "decision_at": vt31_arm_anchor.isoformat(),
+                        "reason": type(error).__name__,
+                        "message": str(error),
+                        "decision_deadline_seconds": (
+                            VT31_DECISION_DEADLINE.total_seconds()
+                        ),
+                    },
+                )
+            completed_at = datetime.now(UTC)
+            state = state.with_cycle(
+                highest_closed_balance=str(highest),
+                active_mll=str(previous_mll),
+                processed_anchor=None,
+                reconciled_at=completed_at,
+                heartbeat_at=completed_at,
+            )
+            store.store(state)
+            continue
+
         account_state = gateway.read_account(now=cycle_at)
         gateway.reconcile_unknown(now=cycle_at)
         _manage_h4_exits(
@@ -1083,6 +2243,106 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "new_york_time": cycle_at.astimezone(_NY).isoformat(),
                 },
             )
+        r43_live_state, r43_manage_reason = manage_r43_open_position(
+            mt5,
+            now=cycle_at,
+            store=r43_store,
+        )
+        if r43_manage_reason not in {
+            "no-open-r43-position",
+            "r43-stop-unchanged",
+            "r43-position-awaiting-reconcile",
+            "r43-24h-exit-due",
+        }:
+            _log(
+                log_path,
+                {
+                    "event": "R43_POSITION_MANAGEMENT",
+                    "symbol": "GBPUSD",
+                    "reason": r43_manage_reason,
+                    "strategy_drawdown_r": str(r43_live_state.drawdown_r),
+                    "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                },
+            )
+        gbpjpy_r38_live_state, gbpjpy_r38_manage_reason = (
+            manage_gbpjpy_r38_open_position(
+                mt5,
+                now=cycle_at,
+                store=gbpjpy_r38_store,
+                mutations_enabled=mode == "live",
+            )
+        )
+        if gbpjpy_r38_manage_reason not in {
+            "no-open-gbpjpy-r38-position",
+            "gbpjpy-r38-stop-unchanged",
+            "gbpjpy-r38-position-awaiting-reconcile",
+            "gbpjpy-r38-24h-exit-due",
+        }:
+            _log(
+                log_path,
+                {
+                    "event": "GBPJPY_R38_POSITION_MANAGEMENT",
+                    "symbol": "GBPJPY",
+                    "reason": gbpjpy_r38_manage_reason,
+                    "strategy_drawdown_r": str(
+                        gbpjpy_r38_live_state.drawdown_r
+                    ),
+                    "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                },
+            )
+        audjpy_r42_live_state, audjpy_r42_manage_reason = (
+            manage_audjpy_r42_open_position(
+                mt5,
+                now=cycle_at,
+                store=audjpy_r42_store,
+                mutations_enabled=mode == "live",
+                cache=audjpy_r42_cache,
+            )
+        )
+        if audjpy_r42_manage_reason not in {
+            "no-open-audjpy-r42-position",
+            "audjpy-r42-stop-unchanged",
+            "audjpy-r42-position-awaiting-reconcile",
+            "audjpy-r42-24h-exit-due",
+        }:
+            _log(
+                log_path,
+                {
+                    "event": "AUDJPY_R42_POSITION_MANAGEMENT",
+                    "symbol": "AUDJPY",
+                    "reason": audjpy_r42_manage_reason,
+                    "strategy_drawdown_r": str(
+                        audjpy_r42_live_state.drawdown_r
+                    ),
+                    "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                },
+            )
+        vt31_live_state, vt31_manage_reason = manage_vt31_open_trade(
+            mt5_api=mt5,
+            now=cycle_at,
+            cache=vt31_cache,
+            store=vt31_store,
+            mutations_enabled=mode == "live",
+            log=lambda event: _log(log_path, event),
+        )
+        if vt31_manage_reason not in {
+            "no-open-vt31-position",
+            "vt31-position-awaiting-reconcile",
+            "vt31-journey-hold",
+            "vt31-base-runner-hold",
+            "vt31-eq-overlay-hold",
+            "vt31-runner-hold",
+        }:
+            _log(
+                log_path,
+                {
+                    "event": "VT31_NAS100_POSITION_MANAGEMENT",
+                    "symbol": "NAS100",
+                    "reason": vt31_manage_reason,
+                    "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                },
+            )
+
         highest = max(highest, account_state.balance)
         provider = evaluate_stellar_instant_budget(
             StellarInstantAccountSnapshot(
@@ -1148,6 +2408,38 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             or exit_ledger.has_unresolved
             or gateway.has_unresolved_mutations
         )
+        vt31_runtime_snapshot = AccountRiskSnapshot(
+            account_binding_id=fingerprint,
+            equity=account_state.equity,
+            margin_used=account_state.margin,
+            free_margin=account_state.free_margin,
+            open_stop_worst_case_loss=open_stop,
+            open_floating_loss=floating_loss,
+            pending_broker_worst_case_loss=pending_stop,
+            qore_authorizable_headroom=capital.qore_authorizable_headroom,
+            provider_budget=provider,
+            reconciled_at=cycle_at,
+        )
+        reconcile_vt31_pending(
+            mt5_api=mt5,
+            transport=transport,
+            risk=risk,
+            store=vt31_store,
+            now=cycle_at,
+            log=lambda event: _log(log_path, event),
+        )
+        if mode == "live" and not new_order_blocked:
+            process_vt31_virtual_oco(
+                mt5_api=mt5,
+                now=cycle_at,
+                gateway=gateway,
+                risk=risk,
+                snapshot=vt31_runtime_snapshot,
+                account_equity=account_state.equity,
+                store=vt31_store,
+                log=lambda event: _log(log_path, event),
+            )
+
         if anchor is not None and not new_order_blocked:
             for symbol in _MARKETS:
                 anchor_key = f"{symbol}|{anchor.isoformat()}"
@@ -1325,6 +2617,147 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         },
                     )
 
+        r43_anchor = current_r43_anchor(cycle_at)
+        if r43_anchor is not None and not new_order_blocked:
+            r43_anchor_key = f"R43_GBPUSD|{r43_anchor.isoformat()}"
+            if r43_anchor_key not in state.processed_anchors:
+                try:
+                    r43_live_state = r43_store.reconcile(mt5, now=cycle_at)
+                    r43_signal, reason = build_r43_live_signal(
+                        mt5,
+                        now=cycle_at,
+                        memory_bundle=r43_memory,
+                        state=r43_live_state,
+                    )
+                    if r43_signal is None:
+                        _log(
+                            log_path,
+                            {
+                                "event": "R43_CAUSAL_ABSTAIN",
+                                "symbol": "GBPUSD",
+                                "decision_at": r43_anchor.isoformat(),
+                                "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                                "reason": reason,
+                                "strategy_drawdown_r": str(r43_live_state.drawdown_r),
+                                "last_trailing_exit_at": (
+                                    None
+                                    if r43_live_state.trailing_exit_at is None
+                                    else r43_live_state.trailing_exit_at.isoformat()
+                                ),
+                            },
+                        )
+                    else:
+                        _process_r43_candidate(
+                            signal=r43_signal,
+                            now=cycle_at,
+                            mode=mode,
+                            gateway=gateway,
+                            transport=transport,
+                            risk=risk,
+                            account_binding_id=fingerprint,
+                            provider_budget=provider,
+                            capital_budget=capital,
+                            account_equity=account_state.equity,
+                            r43_store=r43_store,
+                            log_path=log_path,
+                        )
+                    processed_anchor = r43_anchor_key
+                    state = state.with_cycle(
+                        highest_closed_balance=str(highest),
+                        active_mll=str(previous_mll),
+                        processed_anchor=r43_anchor_key,
+                        reconciled_at=cycle_at,
+                        heartbeat_at=cycle_at,
+                    )
+                    store.store(state)
+                except Exception as error:
+                    _log(
+                        log_path,
+                        {
+                            "event": "R43_ANCHOR_FAIL_CLOSED",
+                            "symbol": "GBPUSD",
+                            "decision_at": r43_anchor.isoformat(),
+                            "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                            "reason": type(error).__name__,
+                            "message": str(error),
+                        },
+                    )
+
+
+        gbpjpy_r38_anchor = current_gbpjpy_r38_anchor(cycle_at)
+        if gbpjpy_r38_anchor is not None and not new_order_blocked:
+            gbpjpy_r38_anchor_key = (
+                f"R38_GBPJPY|{gbpjpy_r38_anchor.isoformat()}"
+            )
+            if gbpjpy_r38_anchor_key not in state.processed_anchors:
+                try:
+                    gbpjpy_r38_live_state = gbpjpy_r38_store.reconcile(
+                        mt5,
+                        now=cycle_at,
+                    )
+                    gbpjpy_r38_signal, reason = build_gbpjpy_r38_live_signal(
+                        mt5,
+                        now=cycle_at,
+                        memory_bundle=gbpjpy_r38_memory,
+                        state=gbpjpy_r38_live_state,
+                    )
+                    if gbpjpy_r38_signal is None:
+                        _log(
+                            log_path,
+                            {
+                                "event": "GBPJPY_R38_CAUSAL_ABSTAIN",
+                                "symbol": "GBPJPY",
+                                "decision_at": gbpjpy_r38_anchor.isoformat(),
+                                "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                                "reason": reason,
+                                "strategy_drawdown_r": str(
+                                    gbpjpy_r38_live_state.drawdown_r
+                                ),
+                                "last_trailing_exit_at": (
+                                    None
+                                    if gbpjpy_r38_live_state.trailing_exit_at is None
+                                    else gbpjpy_r38_live_state.trailing_exit_at.isoformat()
+                                ),
+                            },
+                        )
+                    else:
+                        _process_gbpjpy_r38_candidate(
+                            signal=gbpjpy_r38_signal,
+                            now=cycle_at,
+                            mode=mode,
+                            gateway=gateway,
+                            transport=transport,
+                            risk=risk,
+                            account_binding_id=fingerprint,
+                            provider_budget=provider,
+                            capital_budget=capital,
+                            account_equity=account_state.equity,
+                            gbpjpy_r38_store=gbpjpy_r38_store,
+                            log_path=log_path,
+                        )
+                    processed_anchor = gbpjpy_r38_anchor_key
+                    state = state.with_cycle(
+                        highest_closed_balance=str(highest),
+                        active_mll=str(previous_mll),
+                        processed_anchor=gbpjpy_r38_anchor_key,
+                        reconciled_at=cycle_at,
+                        heartbeat_at=cycle_at,
+                    )
+                    store.store(state)
+                except Exception as error:
+                    _log(
+                        log_path,
+                        {
+                            "event": "GBPJPY_R38_ANCHOR_FAIL_CLOSED",
+                            "symbol": "GBPJPY",
+                            "decision_at": gbpjpy_r38_anchor.isoformat(),
+                            "new_york_time": cycle_at.astimezone(_NY).isoformat(),
+                            "reason": type(error).__name__,
+                            "message": str(error),
+                        },
+                    )
+
+
         if processed_anchor is None:
             state = state.with_cycle(
                 highest_closed_balance=str(highest),
@@ -1334,7 +2767,8 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 heartbeat_at=cycle_at,
             )
             store.store(state)
-        time.sleep(_LOOP_SECONDS)
+        cycle_elapsed = time.monotonic() - cycle_started
+        time.sleep(max(0.05, _LOOP_SECONDS - cycle_elapsed))
 
 
 def main() -> None:

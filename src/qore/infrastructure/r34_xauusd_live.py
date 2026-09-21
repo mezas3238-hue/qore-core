@@ -20,6 +20,7 @@ from zoneinfo import ZoneInfo
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
 from qore.infrastructure.fundednext_live_guard import FOREX_OPEN_COMMISSION_PER_LOT_USD
 from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
+from qore.infrastructure.trader_execution_profile import M5_PROFILE
 from qore.infrastructure.trader_lab import cibo_market_atlas_target_destination_v2 as td
 from qore.infrastructure.trader_lab import turtle_soup_xauusd_r1 as r1
 from qore.infrastructure.trader_lab import turtle_soup_xauusd_r2_cibo_full as r2
@@ -51,7 +52,7 @@ COGNITIVE_SHA256 = "95653ca2156b9d3efb1004cc1dd81f5968d37c7d2161b91eab3adc76af3d
 BASE_RISK_FRACTION = Decimal("0.002")
 MAX_SOURCE_ENTRY_DRIFT_R = Decimal("0.10")
 BROKER_RISK_BUFFER = Decimal("1.02")
-ANCHOR_GRACE = timedelta(seconds=45)
+ANCHOR_GRACE = M5_PROFILE.decision_deadline
 HISTORY_M5_BARS = 15_000
 _BROKER_SERVER_TZ = ZoneInfo("Europe/Helsinki")
 _STRATEGY_TZ = ZoneInfo("America/New_York")
@@ -471,7 +472,7 @@ def build_live_signal(
     evidence, _latest_open = mt5_evidence(api, now=now)
     current = next((bar for bar in reversed(evidence.bars) if bar.opened_at == anchor), None)
     if current is None:
-        return None, "current-m5-open-unavailable"
+        raise RuntimeError("R34 current M5 boundary not yet available")
     complete = tuple(bar for bar in evidence.bars if bar.closed_at <= anchor)
     frames: list[tuple[str, tuple[SourceCandle, ...]]] = []
     h4 = build_h4(complete)

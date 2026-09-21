@@ -26,6 +26,8 @@ def test_certified_direction_contract_is_frozen() -> None:
     assert_certified_direction("GBPUSD", "short")
     assert_certified_direction("GBPJPY", "long")
     assert_certified_direction("GBPJPY", "short")
+    assert_certified_direction("NAS100", "long")
+    assert_certified_direction("NAS100", "short")
     with pytest.raises(FundedNextLiveGuardError, match="direction-outside"):
         assert_certified_direction("GBPUSD", "long")
 

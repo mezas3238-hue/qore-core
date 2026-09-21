@@ -24,6 +24,7 @@ from qore.infrastructure.fundednext_mt5 import (
     Mt5ExecutionBlockedError,
     Mt5ExecutionValidationError,
 )
+from qore.infrastructure.fundednext_mt5_clock import FUNDEDNEXT_SERVER_TZ
 from qore.infrastructure.fundednext_mt5_mutation_ledger import (
     InMemoryFundedNextMt5MutationLedger,
 )
@@ -45,6 +46,16 @@ from qore.infrastructure.pretrade_safety import (
 _NOW = datetime(2026, 9, 15, 12, 0, tzinfo=UTC)
 _SHA = "a" * 40
 _HASH = "b" * 64
+
+
+def _server_epoch(at: datetime) -> int:
+    local_wall = at.astimezone(FUNDEDNEXT_SERVER_TZ).replace(tzinfo=None)
+    return int(local_wall.replace(tzinfo=UTC).timestamp())
+
+
+def _server_epoch_msc(at: datetime) -> int:
+    local_wall = at.astimezone(FUNDEDNEXT_SERVER_TZ).replace(tzinfo=None)
+    return int(local_wall.replace(tzinfo=UTC).timestamp() * 1000)
 
 
 @dataclass
@@ -88,6 +99,8 @@ class _Symbol:
 class _Tick:
     bid: float = 1.2500
     ask: float = 1.2502
+    time: int = _server_epoch(_NOW)
+    time_msc: int = _server_epoch_msc(_NOW)
 
 
 @dataclass
@@ -145,6 +158,8 @@ class _Api:
         self.sent = 0
         self.checked = 0
         self.bid = bid
+        self.tick_time = _server_epoch(_NOW)
+        self.tick_time_msc = _server_epoch_msc(_NOW)
 
     def terminal_info(self) -> _Terminal | None:
         return _Terminal()
@@ -163,7 +178,12 @@ class _Api:
 
     def symbol_info_tick(self, symbol: str) -> _Tick | None:
         return (
-            _Tick(bid=self.bid, ask=self.bid + 0.0002)
+            _Tick(
+                bid=self.bid,
+                ask=self.bid + 0.0002,
+                time=self.tick_time,
+                time_msc=self.tick_time_msc,
+            )
             if symbol == "GBPUSD"
             else None
         )
@@ -206,6 +226,39 @@ class _Api:
     ) -> tuple[_Deal, ...] | None:
         del date_from, date_to
         return ()
+
+
+
+class _NasApi(_Api):
+    def symbols_get(self) -> tuple[_Symbol, ...] | None:
+        return (
+            _Symbol(
+                name="NDX100",
+                digits=1,
+                point=0.1,
+                trade_contract_size=1.0,
+                trade_tick_size=0.1,
+                trade_tick_value=1.0,
+            ),
+        )
+
+    def symbol_select(self, symbol: str, enable: bool) -> bool:
+        return enable and symbol == "NDX100"
+
+    def symbol_info(self, symbol: str) -> _Symbol | None:
+        if symbol != "NDX100":
+            return None
+        return _Symbol(
+            name="NDX100",
+            digits=1,
+            point=0.1,
+            trade_contract_size=1.0,
+            trade_tick_size=0.1,
+            trade_tick_value=1.0,
+        )
+
+    def symbol_info_tick(self, symbol: str) -> _Tick | None:
+        return _Tick(bid=20000.0, ask=20000.2) if symbol == "NDX100" else None
 
 
 def _account_identity() -> MarketTestAccountIdentity:
@@ -326,6 +379,14 @@ def test_shadow_order_check_never_sends() -> None:
     assert api.sent == 0
 
 
+def test_live_send_rechecks_broker_order_after_final_fresh_market_gate() -> None:
+    api = _Api()
+    gateway = _gateway(api, complete=True, submission_enabled=True)
+    gateway.submit_live(_submission(), now=_NOW)
+    assert api.checked == 2
+    assert api.sent == 1
+
+
 def test_live_send_requires_complete_activation() -> None:
     api = _Api()
     gateway = _gateway(api, complete=False, submission_enabled=True)
@@ -375,6 +436,24 @@ def test_account_observation_allows_subsecond_call_order_skew() -> None:
     assert state.balance == Decimal("2000.0")
 
 
+def test_shadow_read_allows_retained_tick_but_live_send_requires_fresh_tick() -> None:
+    api = _Api()
+    stale = _NOW - timedelta(seconds=2, milliseconds=1)
+    api.tick_time = _server_epoch(stale)
+    api.tick_time_msc = _server_epoch_msc(stale)
+
+    shadow_gateway = _gateway(api, complete=False, submission_enabled=False)
+    spec = shadow_gateway.read_symbol("GBPUSD", now=_NOW)
+    assert spec.provider_symbol == "GBPUSD"
+    assert shadow_gateway.shadow_check(_submission(), now=_NOW).broker_valid is True
+    assert api.sent == 0
+
+    live_gateway = _gateway(api, complete=True, submission_enabled=True)
+    with pytest.raises(Mt5ExecutionBlockedError, match="broker-tick-older-than-2s"):
+        live_gateway.submit_live(_submission(), now=_NOW)
+    assert api.sent == 0
+
+
 def test_account_observation_rejects_material_future_timestamp() -> None:
     api = _Api()
     gateway = _gateway(
@@ -385,3 +464,10 @@ def test_account_observation_rejects_material_future_timestamp() -> None:
     )
     with pytest.raises(Mt5ExecutionValidationError, match="account-state-timestamp-from-future"):
         gateway.read_account(now=_NOW)
+
+
+def test_live_gateway_resolves_nas100_to_ndx100() -> None:
+    api = _NasApi()
+    gateway = _gateway(api, complete=False, submission_enabled=False)
+    spec = gateway.read_symbol("NAS100", now=_NOW)
+    assert spec.provider_symbol == "NDX100"

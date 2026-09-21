@@ -35,6 +35,7 @@ from qore.infrastructure.fundednext_mt5 import (
     Mt5ProviderOutcome,
     Mt5SymbolSpecification,
 )
+from qore.infrastructure.fundednext_mt5_clock import normalise_fundednext_server_epoch
 from qore.infrastructure.fundednext_mt5_mutation_ledger import (
     FundedNextMt5MutationLedger,
     FundedNextMt5MutationRecord,
@@ -46,12 +47,16 @@ from qore.infrastructure.fundednext_mt5_transport import (
     MetaTrader5FundedNextTransport,
 )
 from qore.infrastructure.fundednext_rule_refresh import RollingStellarInstantRuleVerification
-from qore.infrastructure.fundednext_stellar_instant import StellarInstantRuleVerification
+from qore.infrastructure.fundednext_stellar_instant import (
+    PILOT_SYMBOL_MAP,
+    StellarInstantRuleVerification,
+)
 from qore.infrastructure.market_test_environment import (
     MarketRuntimeEnvironment,
     MarketTestAccountIdentity,
 )
 from qore.infrastructure.order_intent import OrderSide, OrderType
+from qore.infrastructure.trader_execution_profile import M1_PROFILE
 
 
 class Mt5CheckResultLike(Protocol):
@@ -109,6 +114,41 @@ class MetaTrader5FundedNextLiveTransport(MetaTrader5FundedNextTransport):
         if spec is None:
             return None
         return replace(spec, observed_at=self._now())
+
+    def assert_fresh_broker_market(
+        self,
+        provider_symbol: str,
+        *,
+        max_tick_age: timedelta = M1_PROFILE.tick_max_age,
+    ) -> datetime:
+        """Fail closed immediately before a LIVE broker mutation.
+
+        SHADOW/order_check may inspect retained broker state while a market is
+        closed. Freshness is an execution invariant, not a deployment
+        invariant, so the <=2s broker-tick gate belongs only on the mutation
+        path.
+        """
+        self._require_bound_account()
+        if not self._live_api.symbol_select(provider_symbol, True):
+            raise Mt5ExecutionBlockedError("mt5-symbol-select-failed-before-send")
+        info = self._live_api.symbol_info(provider_symbol)
+        tick = self._live_api.symbol_info_tick(provider_symbol)
+        if info is None or tick is None:
+            raise Mt5ExecutionBlockedError("mt5-broker-market-unavailable-before-send")
+        if info.trade_mode == self._live_api.SYMBOL_TRADE_MODE_DISABLED:
+            raise Mt5ExecutionBlockedError("mt5-symbol-trading-disabled-before-send")
+        bid = Decimal(str(tick.bid))
+        ask = Decimal(str(tick.ask))
+        if bid <= 0 or ask <= 0:
+            raise Mt5ExecutionBlockedError("mt5-session-not-open-before-send")
+        observed = self._now()
+        tick_at = _broker_tick_at(tick)
+        tick_age = observed - tick_at
+        if tick_age < timedelta(seconds=-0.5):
+            raise Mt5ExecutionBlockedError("mt5-broker-tick-from-future")
+        if tick_age > max_tick_age:
+            raise Mt5ExecutionBlockedError("mt5-broker-tick-older-than-2s")
+        return observed
 
     def check_order(self, plan: FundedNextMt5OrderPlan) -> FundedNextMt5ShadowReceipt:
         self._require_bound_account()
@@ -220,13 +260,14 @@ class FundedNextLiveMt5ExecutionGateway:
         return state
 
     def read_symbol(self, qore_symbol: str, *, now: datetime) -> Mt5SymbolSpecification:
-        if qore_symbol not in {"AUDJPY", "GBPUSD", "GBPJPY", "EURUSD", "XAUUSD"}:
+        if qore_symbol not in {"AUDJPY", "GBPUSD", "GBPJPY", "EURUSD", "XAUUSD", "NAS100"}:
             raise Mt5ExecutionBlockedError("symbol-outside-certified-live-universe")
+        provider_symbol = PILOT_SYMBOL_MAP.get(qore_symbol, qore_symbol)
         catalog = self._transport.available_symbols()
-        matches = tuple(symbol for symbol in catalog if symbol == qore_symbol)
+        matches = tuple(symbol for symbol in catalog if symbol == provider_symbol)
         if len(matches) != 1:
             raise Mt5ExecutionBlockedError("live-symbol-must-resolve-exactly-once")
-        spec = self._transport.symbol_info(qore_symbol)
+        spec = self._transport.symbol_info(provider_symbol)
         if spec is None:
             raise Mt5ExecutionBlockedError("mt5-symbol-info-missing")
         _fresh(spec.observed_at, now, self._max_spec_age, "symbol-info")
@@ -335,6 +376,29 @@ class FundedNextLiveMt5ExecutionGateway:
             raise Mt5ExecutionBlockedError(shadow.reason)
         if not self._rules.automated_mt5_allowed(now):
             raise Mt5ExecutionBlockedError("provider-automation-rules-not-current")
+
+        # Final mutation gate: SHADOW can validate retained market state, but
+        # LIVE cannot cross the broker boundary unless the broker is producing
+        # a genuinely fresh executable tick at this exact point.
+        final_checked_at = self._transport.assert_fresh_broker_market(
+            plan.provider_symbol,
+            max_tick_age=M1_PROFILE.tick_max_age,
+        )
+        if final_checked_at > submission.authorized_intent.authorization.expires_at:
+            raise Mt5ExecutionBlockedError("canonical-pretrade-authorization-expired-before-send")
+
+        # Re-plan against the latest broker snapshot after the fresh-tick gate
+        # so certified entry drift, geometry, margin and risk are revalidated
+        # immediately before mutation.
+        plan = self.plan_submission(submission, now=final_checked_at)
+        final_shadow = self._transport.check_order(plan)
+        if not final_shadow.broker_valid:
+            raise Mt5ExecutionBlockedError(final_shadow.reason)
+        self._transport.assert_fresh_broker_market(
+            plan.provider_symbol,
+            max_tick_age=M1_PROFILE.tick_max_age,
+        )
+
         risk_id, risk_fingerprint, reservation_id = extract_risk_provenance(submission)
         record = FundedNextMt5MutationRecord(
             idempotency_key=key,
@@ -427,6 +491,19 @@ class FundedNextLiveMt5ExecutionGateway:
     def _persist(self, record: FundedNextMt5MutationRecord) -> None:
         self._ledger.upsert(record)
         self._records[record.idempotency_key] = record
+
+
+def _broker_tick_at(tick: object) -> datetime:
+    raw_msc = int(getattr(tick, "time_msc", 0) or 0)
+    if raw_msc > 0:
+        raw_seconds, millis = divmod(raw_msc, 1000)
+        return normalise_fundednext_server_epoch(raw_seconds) + timedelta(
+            milliseconds=millis
+        )
+    raw_seconds = int(getattr(tick, "time", 0) or 0)
+    if raw_seconds > 0:
+        return normalise_fundednext_server_epoch(raw_seconds)
+    raise Mt5ExecutionBlockedError("mt5-broker-tick-timestamp-unavailable")
 
 
 def _system_utc_now() -> datetime:
