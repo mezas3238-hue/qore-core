@@ -60,6 +60,10 @@ NEWS_URL = (
     "https://help.fundednext.com/en/articles/"
     "11641410-is-news-trading-allowed-in-the-stellar-instant-accounts"
 )
+PRICING_URL = (
+    "https://help.fundednext.com/en/articles/"
+    "11641161-how-much-does-each-stellar-instant-account-cost"
+)
 
 _SCHEMA = "qore.fundednext.provider-rules-refresh.v3"
 
@@ -84,6 +88,18 @@ def _text(raw: bytes) -> str:
 def _require(condition: bool, reason: str) -> None:
     if not condition:
         raise RuntimeError(reason)
+
+
+def _stellar_5k_price(text: str) -> str:
+    patterns = (
+        r"\$5,?000\s+account\s+\$([0-9]+(?:\.[0-9]{1,2})?)",
+        r"\$5,?000[^$]{0,80}\$([0-9]+(?:\.[0-9]{1,2})?)",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match is not None:
+            return format(float(match.group(1)), ".2f")
+    raise RuntimeError("Stellar Instant 5K purchase price not verified")
 
 
 def _atomic_json(path: Path, payload: dict[str, object]) -> None:
@@ -128,6 +144,7 @@ def refresh(root: Path) -> dict[str, object]:
         "allocation": ALLOCATION_URL,
         "general": GENERAL_URL,
         "news": NEWS_URL,
+        "pricing": PRICING_URL,
     }
     with ThreadPoolExecutor(max_workers=6) as pool:
         futures = {name: pool.submit(_fetch, url) for name, url in urls.items()}
@@ -145,6 +162,7 @@ def refresh(root: Path) -> dict[str, object]:
     allocation = texts["allocation"]
     general = texts["general"]
     news = texts["news"]
+    pricing = texts["pricing"]
 
     _require("stellar instant" in mll, "MLL source no longer identifies Stellar Instant")
     _require(
@@ -228,6 +246,12 @@ def refresh(root: Path) -> dict[str, object]:
         "news MLL buffer usage cap not verified",
     )
 
+    _require(
+        "stellar instant" in pricing and "$5,000" in pricing,
+        "Stellar Instant 5K pricing source not verified",
+    )
+    stellar_5k_price = _stellar_5k_price(pricing)
+
     observed_at = datetime.now(UTC).isoformat()
     payload: dict[str, object] = {
         "schema": _SCHEMA,
@@ -265,6 +289,7 @@ def refresh(root: Path) -> dict[str, object]:
             "account_merging_allowed": False,
             "max_scaled_allocation_usd": "2000000",
             "vps_allowed": True,
+            "stellar_instant_5k_purchase_price_usd": stellar_5k_price,
         },
         "sources": {
             name: {
