@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from qore.infrastructure.trader_lab import (
-    vt08_index_r115_last_extreme_source_qualification as r115,
+    vt08_index_r82_protected_swing_source_qualification as r82,
 )
 from qore.infrastructure.trader_lab import (
-    vt08_index_r82_protected_swing_source_qualification as r82,
+    vt08_index_r115_last_extreme_source_qualification as r115,
 )
 
 
