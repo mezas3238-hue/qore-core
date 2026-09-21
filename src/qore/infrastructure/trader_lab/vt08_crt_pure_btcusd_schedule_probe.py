@@ -64,6 +64,7 @@ def probe_btcusd_schedule() -> dict[str, object]:
         if detail is None:
             raise RuntimeError("BTCUSD symbol detail missing")
         schedule = tuple(cast(Iterable[object], getattr(detail, "schedule", ())))
+        holidays = tuple(cast(Iterable[object], getattr(detail, "holiday", ())))
         return {
             "schema": "qore.vt08.crt_pure.btcusd_ctrader_schedule_probe.v1",
             "provider_symbol": "BTCUSD",
@@ -75,6 +76,19 @@ def probe_btcusd_schedule() -> dict[str, object]:
                     "end_second": _native_int(item, "endSecond"),
                 }
                 for item in schedule
+            ],
+            "holidays": [
+                {
+                    "holiday_id": _native_int(item, "holidayId"),
+                    "name": getattr(item, "name", None),
+                    "description": getattr(item, "description", None),
+                    "schedule_time_zone": getattr(item, "scheduleTimeZone", None),
+                    "holiday_date": _native_int(item, "holidayDate"),
+                    "is_recurring": getattr(item, "isRecurring", None),
+                    "start_second": getattr(item, "startSecond", None),
+                    "end_second": getattr(item, "endSecond", None),
+                }
+                for item in holidays
             ],
             "research_only": True,
             "mutated_runtime": False,
