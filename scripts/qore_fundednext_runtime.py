@@ -14,6 +14,7 @@ import hashlib
 import json
 import subprocess
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from importlib import import_module
 import sys
@@ -1601,35 +1602,46 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             server=_EXPECTED_SERVER,
         )
     state_dir = root / "var" / "fundednext"
-    r34_cognitive = load_r34_cognitive(
+    startup_memory = ThreadPoolExecutor(
+        max_workers=5,
+        thread_name_prefix="qore-startup-memory",
+    )
+    r34_cognitive_future = startup_memory.submit(
+        load_r34_cognitive,
         root
         / "var"
         / "r34"
         / "cognitive-v3"
-        / "turtle-soup-xauusd-specialist-cognitive-memory-v3.json"
+        / "turtle-soup-xauusd-specialist-cognitive-memory-v3.json",
     )
-    r34_store = R34LiveStateStore(state_dir / "r34-state.json")
-    r34_store.reconcile(mt5, now=datetime.now(UTC))
-    r38_cognitive = load_r38_cognitive(
+    r38_cognitive_future = startup_memory.submit(
+        load_r38_cognitive,
         root
         / "var"
         / "r38"
         / "cognitive-v3"
-        / "turtle-soup-eurusd-specialist-cognitive-memory-v3.json"
+        / "turtle-soup-eurusd-specialist-cognitive-memory-v3.json",
     )
+    r43_memory_future = startup_memory.submit(
+        load_r43_memory,
+        root / "runtime_data" / "gbpusd" / "r43-r32-regime-memory.json",
+    )
+    gbpjpy_r38_memory_future = startup_memory.submit(
+        load_gbpjpy_r38_memory,
+        root / "runtime_data" / "gbpjpy" / "r38-confidence-tier-memory.json",
+    )
+    audjpy_r42_memory_future = startup_memory.submit(
+        load_audjpy_r42_memory,
+        root / "runtime_data" / "audjpy" / "r42-causal-authority-memory.json",
+    )
+    r34_store = R34LiveStateStore(state_dir / "r34-state.json")
+    r34_store.reconcile(mt5, now=datetime.now(UTC))
     r38_store = R38LiveStateStore(state_dir / "r38-state.json")
     r38_store.reconcile(mt5, now=datetime.now(UTC))
-    r43_memory = load_r43_memory(root / "runtime_data" / "gbpusd" / "r43-r32-regime-memory.json")
     r43_store = R43LiveStateStore(state_dir / "r43-state.json")
     r43_store.reconcile(mt5, now=datetime.now(UTC))
-    gbpjpy_r38_memory = load_gbpjpy_r38_memory(
-        root / "runtime_data" / "gbpjpy" / "r38-confidence-tier-memory.json"
-    )
     gbpjpy_r38_store = R38GbpJpyLiveStateStore(state_dir / "r38-gbpjpy-state.json")
     gbpjpy_r38_store.reconcile(mt5, now=datetime.now(UTC))
-    audjpy_r42_memory = load_audjpy_r42_memory(
-        root / "runtime_data" / "audjpy" / "r42-causal-authority-memory.json"
-    )
     audjpy_r42_store = R42AudJpyLiveStateStore(state_dir / "r42-audjpy-state.json")
     audjpy_r42_store.reconcile(mt5, now=datetime.now(UTC))
     m5_caches: dict[str, M5BoundaryCache] = {
@@ -1661,6 +1673,14 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     vt31_store = Vt31Nas100LiveStateStore(state_dir / "vt31-nas100-state.json")
     vt31_cache = Vt31Nas100M1Cache()
     vt31_cache.preload(mt5, now=datetime.now(UTC))
+    try:
+        r34_cognitive = r34_cognitive_future.result()
+        r38_cognitive = r38_cognitive_future.result()
+        r43_memory = r43_memory_future.result()
+        gbpjpy_r38_memory = gbpjpy_r38_memory_future.result()
+        audjpy_r42_memory = audjpy_r42_memory_future.result()
+    finally:
+        startup_memory.shutdown(wait=True, cancel_futures=True)
 
     def refresh_provider_rules_before_submission() -> None:
         result = subprocess.run(
