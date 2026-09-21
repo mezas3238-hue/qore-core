@@ -78,6 +78,11 @@ CATEGORICAL_FEATURES = (
     "ny_entry_hour",
     "order_block_candle_count_state",
 )
+COMPOSITE_CORE_FEATURES = (
+    "setup_age_minutes",
+    "session_elapsed_minutes",
+    "pre_entry_peak_extension_r",
+)
 
 
 @dataclass(slots=True)
@@ -132,6 +137,15 @@ class CapitalizerBreathingThresholdAudit:
 
 
 @dataclass(frozen=True, slots=True)
+class CapitalizerBreathingCompositeSlice:
+    degraded_factor_count: int
+    development_overshoots: int
+    development_target_rate: str
+    consumed_holdout_overshoots: int
+    consumed_holdout_target_rate: str
+
+
+@dataclass(frozen=True, slots=True)
 class CapitalizerBreathingCategorySlice:
     feature: str
     state: str
@@ -158,6 +172,12 @@ class CapitalizerStopBreathingContextReport:
     development_breathing_success_rate: str
     consumed_holdout_breathing_success_rate: str
     threshold_audits: tuple[CapitalizerBreathingThresholdAudit, ...]
+    composite_slices: tuple[CapitalizerBreathingCompositeSlice, ...]
+    composite_development_coherent_rate: str
+    composite_development_degraded_rate: str
+    composite_consumed_holdout_coherent_rate: str
+    composite_consumed_holdout_degraded_rate: str
+    composite_direction_transported: bool
     categorical_slices: tuple[CapitalizerBreathingCategorySlice, ...]
     transported_context_clues: tuple[str, ...]
     pre_entry_path_features_present: bool = True
@@ -167,6 +187,9 @@ class CapitalizerStopBreathingContextReport:
     post_entry_reclaim_used_for_initial_stop: bool = False
     historical_spread_at_entry_available: bool = False
     historical_broker_tick_size_available: bool = False
+    composite_core_features_correlated_not_independent: bool = True
+    planned_reward_excluded_from_composite_due_target_distance_confound: bool = True
+    composite_feature_set_informed_by_consumed_forensics: bool = True
     development_outcome_used_for_hypothesis_generation: bool = True
     consumed_holdout_used_for_threshold_selection: bool = False
     buffer_candidate_frozen: bool = False
@@ -594,6 +617,78 @@ def _category_value(row: dict[str, Any], feature: str) -> str:
     return str(row[feature])
 
 
+def _degraded_count(
+    row: dict[str, Any],
+    audits: dict[str, CapitalizerBreathingThresholdAudit],
+) -> int | None:
+    degraded = 0
+    for feature in COMPOSITE_CORE_FEATURES:
+        audit = audits.get(feature)
+        if audit is None:
+            return None
+        value = _optional_decimal(row, feature)
+        if value is None:
+            return None
+        threshold = Decimal(audit.threshold)
+        if audit.development_direction == "LOWER_FEATURE_MORE_BREATHING":
+            degraded += int(value >= threshold)
+        elif audit.development_direction == "HIGHER_FEATURE_MORE_BREATHING":
+            degraded += int(value < threshold)
+        else:
+            return None
+    return degraded
+
+
+def _composite_slices(
+    *,
+    development_overshoots: list[dict[str, Any]],
+    holdout_overshoots: list[dict[str, Any]],
+    audits: tuple[CapitalizerBreathingThresholdAudit, ...],
+) -> tuple[
+    tuple[CapitalizerBreathingCompositeSlice, ...],
+    Decimal,
+    Decimal,
+    Decimal,
+    Decimal,
+]:
+    audit_index = {audit.feature: audit for audit in audits}
+    dev_groups: dict[int, list[dict[str, Any]]] = defaultdict(list)
+    hold_groups: dict[int, list[dict[str, Any]]] = defaultdict(list)
+    for row in development_overshoots:
+        count = _degraded_count(row, audit_index)
+        if count is not None:
+            dev_groups[count].append(row)
+    for row in holdout_overshoots:
+        count = _degraded_count(row, audit_index)
+        if count is not None:
+            hold_groups[count].append(row)
+
+    slices = tuple(
+        CapitalizerBreathingCompositeSlice(
+            degraded_factor_count=count,
+            development_overshoots=len(dev_groups[count]),
+            development_target_rate=str(_rate(dev_groups[count])),
+            consumed_holdout_overshoots=len(hold_groups[count]),
+            consumed_holdout_target_rate=str(_rate(hold_groups[count])),
+        )
+        for count in range(len(COMPOSITE_CORE_FEATURES) + 1)
+    )
+
+    dev_coherent = dev_groups[0] + dev_groups[1]
+    dev_degraded = dev_groups[2] + dev_groups[3]
+    hold_coherent = hold_groups[0] + hold_groups[1]
+    hold_degraded = hold_groups[2] + hold_groups[3]
+    if not dev_coherent or not dev_degraded or not hold_coherent or not hold_degraded:
+        raise ValueError("composite breathing state lacks two-sided density")
+    return (
+        slices,
+        _rate(dev_coherent),
+        _rate(dev_degraded),
+        _rate(hold_coherent),
+        _rate(hold_degraded),
+    )
+
+
 def _categorical_slices(
     *,
     development_overshoots: list[dict[str, Any]],
@@ -681,6 +776,17 @@ def build_market_report(
         )
         is not None
     )
+    (
+        composite_slices,
+        dev_coherent_rate,
+        dev_degraded_rate,
+        hold_coherent_rate,
+        hold_degraded_rate,
+    ) = _composite_slices(
+        development_overshoots=dev_over,
+        holdout_overshoots=hold_over,
+        audits=audits,
+    )
     category_slices = _categorical_slices(
         development_overshoots=dev_over,
         holdout_overshoots=hold_over,
@@ -708,6 +814,15 @@ def build_market_report(
         development_breathing_success_rate=str(_rate(dev_over)),
         consumed_holdout_breathing_success_rate=str(_rate(hold_over)),
         threshold_audits=audits,
+        composite_slices=composite_slices,
+        composite_development_coherent_rate=str(dev_coherent_rate),
+        composite_development_degraded_rate=str(dev_degraded_rate),
+        composite_consumed_holdout_coherent_rate=str(hold_coherent_rate),
+        composite_consumed_holdout_degraded_rate=str(hold_degraded_rate),
+        composite_direction_transported=(
+            dev_coherent_rate > dev_degraded_rate
+            and hold_coherent_rate > hold_degraded_rate
+        ),
         categorical_slices=category_slices,
         transported_context_clues=clues,
     )
@@ -777,6 +892,15 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "post_entry_reclaim_used_for_initial_stop": False,
         "historical_spread_at_entry_available": False,
         "historical_broker_tick_size_available": False,
+        "composite_core_features": list(COMPOSITE_CORE_FEATURES),
+        "composite_direction_transported_markets": [
+            report["symbol"]
+            for report in reports
+            if bool(report["composite_direction_transported"])
+        ],
+        "composite_core_features_correlated_not_independent": True,
+        "planned_reward_excluded_from_composite_due_target_distance_confound": True,
+        "composite_feature_set_informed_by_consumed_forensics": True,
         "development_outcome_used_for_hypothesis_generation": True,
         "consumed_holdout_used_for_threshold_selection": False,
         "buffer_candidate_frozen": False,
