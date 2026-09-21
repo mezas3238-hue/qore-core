@@ -21,6 +21,10 @@ def test_required_concepts_are_unique_and_only_primary_closed_concepts_promote()
         CrtPureConceptId.TIME_TURTLE_SOUP_RELATION,
         CrtPureConceptId.MARKET_TIMEFRAME_SCOPE,
         CrtPureConceptId.MAKE_OR_BREAK_LEVEL,
+        CrtPureConceptId.FIFTY_PERCENT_DESTINATION_FAMILY,
+        CrtPureConceptId.INCOMPLETE_CRT_TRAP,
+        CrtPureConceptId.OPPOSITE_CRT_BIAS_REVERSAL,
+        CrtPureConceptId.OLD_CRTH_CRL_STAB_REACTION,
     }
     assert set(promotable_concepts()) == promoted
     assert set(pending_concepts()) == set(CRT_PURE_REQUIRED_CONCEPTS) - promoted
@@ -98,11 +102,19 @@ def test_discovered_level_a_evidence_is_retained_but_not_promoted() -> None:
         CrtPureConceptId.TIME_TURTLE_SOUP_RELATION,
         CrtPureConceptId.MARKET_TIMEFRAME_SCOPE,
         CrtPureConceptId.MAKE_OR_BREAK_LEVEL,
+        CrtPureConceptId.FIFTY_PERCENT_DESTINATION_FAMILY,
+        CrtPureConceptId.INCOMPLETE_CRT_TRAP,
+        CrtPureConceptId.OPPOSITE_CRT_BIAS_REVERSAL,
+        CrtPureConceptId.OLD_CRTH_CRL_STAB_REACTION,
     }
     assert set(promotable_concepts()) == {
         CrtPureConceptId.TIME_TURTLE_SOUP_RELATION,
         CrtPureConceptId.MARKET_TIMEFRAME_SCOPE,
         CrtPureConceptId.MAKE_OR_BREAK_LEVEL,
+        CrtPureConceptId.FIFTY_PERCENT_DESTINATION_FAMILY,
+        CrtPureConceptId.INCOMPLETE_CRT_TRAP,
+        CrtPureConceptId.OPPOSITE_CRT_BIAS_REVERSAL,
+        CrtPureConceptId.OLD_CRTH_CRL_STAB_REACTION,
     }
 
 
