@@ -24,10 +24,16 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_2y_replay import (
     START,
     ReplayBar,
     ReplayTrade,
+    _days,
+    _segment,
     run_market_replay,
     summarize,
 )
 from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
+from qore.infrastructure.traders.crt_pure_timing_policy import (
+    NY,
+    utc_triplet_windows_for_local_date,
+)
 
 SOURCE_ID = "COINBASE_EXCHANGE_BTC_USD"
 PRODUCT_ID = "BTC-USD"
@@ -35,7 +41,7 @@ GRANULARITY_SECONDS = 300
 CHUNK_CANDLES = 250
 PRICE_SCALE = Decimal("100000000")
 BASE_URL = f"https://api.exchange.coinbase.com/products/{PRODUCT_ID}/candles"
-FETCH_MARGIN = timedelta(days=1)
+FETCH_START_MARGIN = timedelta(days=1)
 
 
 def _scaled_price(value: object) -> int:
@@ -130,12 +136,43 @@ def _coverage(
         "first_missing": None if not missing else missing[0].isoformat(),
         "last_missing": None if not missing else missing[-1].isoformat(),
         "complete": not missing and len(by_time) == len(expected),
+        "missing_examples": [item.isoformat() for item in missing[:20]],
     }
 
 
+def _window_coverage(bars: tuple[ReplayBar, ...]) -> dict[str, dict[str, int]]:
+    by_time = {bar.opened_at: bar for bar in bars}
+    start_day = (START - FETCH_START_MARGIN).astimezone(NY).date()
+    end_day = END_EXCLUSIVE.astimezone(NY).date()
+    counters = {
+        "1": {"eligible": 0, "complete": 0, "missing_c1": 0, "missing_c2": 0, "missing_c3": 0},
+        "2": {"eligible": 0, "complete": 0, "missing_c1": 0, "missing_c2": 0, "missing_c3": 0},
+    }
+    for day in _days(start_day, end_day):
+        local_noon = datetime(day.year, day.month, day.day, 12, tzinfo=NY)
+        for timing_index, window in enumerate(
+            utc_triplet_windows_for_local_date(CrtPureMarket.BTCUSD, local_noon)
+        ):
+            key = str(timing_index + 1)
+            if not START <= window.candle_3_open < END_EXCLUSIVE:
+                continue
+            counters[key]["eligible"] += 1
+            if _segment(by_time, window.candle_1_open, window.candle_2_open) is None:
+                counters[key]["missing_c1"] += 1
+                continue
+            if _segment(by_time, window.candle_2_open, window.candle_3_open) is None:
+                counters[key]["missing_c2"] += 1
+                continue
+            if _segment(by_time, window.candle_3_open, window.window_close) is None:
+                counters[key]["missing_c3"] += 1
+                continue
+            counters[key]["complete"] += 1
+    return counters
+
+
 def load_coinbase_two_year_m5() -> tuple[ReplayBar, ...]:
-    fetch_start = START - FETCH_MARGIN
-    fetch_end = END_EXCLUSIVE + FETCH_MARGIN
+    fetch_start = START - FETCH_START_MARGIN
+    fetch_end = END_EXCLUSIVE
     chunk_span = timedelta(seconds=GRANULARITY_SECONDS * CHUNK_CANDLES)
     by_time: dict[datetime, ReplayBar] = {}
     cursor = fetch_start
@@ -155,13 +192,7 @@ def load_coinbase_two_year_m5() -> tuple[ReplayBar, ...]:
         cursor = closed
         time.sleep(0.12)
 
-    bars = tuple(by_time[key] for key in sorted(by_time))
-    coverage = _coverage(bars, fetch_start, fetch_end)
-    if not coverage["complete"]:
-        raise RuntimeError(
-            "Coinbase BTC-USD M5 coverage is not lossless: " + json.dumps(coverage)
-        )
-    return bars
+    return tuple(by_time[key] for key in sorted(by_time))
 
 
 def _triplet_summary(
@@ -176,8 +207,8 @@ def build_coinbase_report(
     bars: tuple[ReplayBar, ...],
 ) -> tuple[dict[str, Any], tuple[ReplayTrade, ...]]:
     trades = run_market_replay(CrtPureMarket.BTCUSD, bars)
-    fetch_start = START - FETCH_MARGIN
-    fetch_end = END_EXCLUSIVE + FETCH_MARGIN
+    fetch_start = START - FETCH_START_MARGIN
+    fetch_end = END_EXCLUSIVE
     report = {
         "schema": "qore.vt08.crt_pure.btcusd_coinbase_2y.v1",
         "source": SOURCE_ID,
@@ -186,11 +217,13 @@ def build_coinbase_report(
         "window_start": START.isoformat(),
         "window_end_exclusive": END_EXCLUSIVE.isoformat(),
         "coverage": _coverage(bars, fetch_start, fetch_end),
+        "window_coverage": _window_coverage(bars),
         "full_2y": summarize(trades),
         "triplet_1": _triplet_summary(trades, "1"),
         "triplet_2": _triplet_summary(trades, "2"),
         "provider_mixing": False,
         "synthetic_bars": False,
+        "incomplete_windows_excluded": True,
         "research_only": True,
         "candidate_certified": False,
     }
