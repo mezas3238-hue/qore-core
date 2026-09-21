@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from pathlib import Path
 
 import qore.infrastructure.fundednext_capitalization_mission as mission
 
@@ -159,7 +160,7 @@ def test_certified_price_change_recalculates_target_instead_of_reusing_old_latch
     assert repriced.state is mission.CapitalizationMissionState.CAPITALIZE
 
 
-def test_durable_store_round_trips_mission_state(tmp_path) -> None:
+def test_durable_store_round_trips_mission_state(tmp_path: Path) -> None:
     config = _config()
     snapshot = mission.evaluate_capitalization_mission(
         config=config,
