@@ -46,10 +46,11 @@ def _session_segment(
     opened_at: datetime,
     closed_at: datetime,
     calendar: CTraderMarketCalendar,
-) -> tuple[tuple[ReplayBar, ...] | None, int, int]:
+) -> tuple[tuple[ReplayBar, ...] | None, int, int, int]:
     rows: list[ReplayBar] = []
     scheduled_closed_slots = 0
     missing_open_slots = 0
+    closed_slots_with_bar = 0
     cursor = opened_at
     while cursor < closed_at:
         bar = by_time.get(cursor)
@@ -61,13 +62,12 @@ def _session_segment(
         else:
             scheduled_closed_slots += 1
             if bar is not None:
-                raise RuntimeError(
-                    "cTrader returned M5 at broker-declared closed market timestamp"
-                )
+                closed_slots_with_bar += 1
+                rows.append(bar)
         cursor += timedelta(minutes=PERIOD_MINUTES)
     if missing_open_slots or not rows:
-        return None, scheduled_closed_slots, missing_open_slots
-    return tuple(rows), scheduled_closed_slots, 0
+        return None, scheduled_closed_slots, missing_open_slots, closed_slots_with_bar
+    return tuple(rows), scheduled_closed_slots, 0, closed_slots_with_bar
 
 
 def run_schedule_aware_replay(
@@ -99,7 +99,7 @@ def run_schedule_aware_replay(
                 ("c2", window.candle_2_open, window.candle_3_open),
                 ("c3", window.candle_3_open, window.window_close),
             ):
-                segment, scheduled_closed, missing_open = _session_segment(
+                segment, scheduled_closed, missing_open, closed_with_bar = _session_segment(
                     by_time,
                     opened_at,
                     closed_at,
@@ -107,6 +107,7 @@ def run_schedule_aware_replay(
                 )
                 counter[f"{stage}_scheduled_closed_slots"] += scheduled_closed
                 counter[f"{stage}_missing_open_slots"] += missing_open
+                counter[f"{stage}_closed_slots_with_bar"] += closed_with_bar
                 if segment is None:
                     counter[f"missing_{stage}"] += 1
                     break
@@ -169,6 +170,7 @@ def build_report(
         "triplet_2": _triplet_summary(trades, "2"),
         "synthetic_bars": False,
         "scheduled_closures_are_not_missing_data": True,
+        "observed_bar_overrides_current_schedule_for_historical_evidence": True,
         "missing_during_open_is_fail_closed": True,
         "research_only": True,
         "candidate_certified": False,
