@@ -42,6 +42,15 @@ def test_strategy_identity_exposes_only_canonical_source_rules() -> None:
         "incomplete_crt_trap",
         "opposite_crt_bias_reversal",
         "old_crth_crl_stab_reaction",
+        "reference_range",
+        "crh_crl",
+        "liquidation_sweep",
+        "reclaim_close_back_inside",
+        "candle_1_2_3",
+        "invalidation",
+        "entry_families",
+        "structural_stop",
+        "structural_destination",
     }
 
 
