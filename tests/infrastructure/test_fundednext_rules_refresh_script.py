@@ -70,6 +70,11 @@ _GOOD = {
         b"profit counts. A 1% safety buffer or 1% equity extension applies to the "
         b"MLL and can be used a maximum of 3 times."
     ),
+    "pricing": (
+        b"Stellar Instant Pricing Table $2,000 Account $59.99 "
+        b"$5,000 Account $149.99 $10,000 Account $299.99 "
+        b"$20,000 Account $599.99"
+    ),
 }
 
 
@@ -104,6 +109,7 @@ def _pages(overrides: dict[str, bytes] | None = None) -> dict[str, bytes]:
         MODULE.ALLOCATION_URL: source_by_name["allocation"],
         MODULE.GENERAL_URL: source_by_name["general"],
         MODULE.NEWS_URL: source_by_name["news"],
+        MODULE.PRICING_URL: source_by_name["pricing"],
     }
 
 
@@ -131,7 +137,8 @@ def test_refresh_certifies_complete_stellar_instant_policy(
     assert facts["reward_split_tier_3_plus"] == "0.80"
     assert facts["inactivity_calendar_days"] == 30
     assert facts["account_merging_allowed"] is False
-    assert len(payload["sources"]) == 11
+    assert facts["stellar_instant_5k_purchase_price_usd"] == "149.99"
+    assert len(payload["sources"]) == 12
     for item in payload["sources"].values():
         assert len(item["sha256"]) == 64
         assert item["url"].startswith("https://help.fundednext.com/")
@@ -205,6 +212,10 @@ def test_refresh_rejects_source_read_failure(
         (
             {"news": b"News 5 minutes before and 5 minutes after; 40%."},
             "news MLL buffer",
+        ),
+        (
+            {"pricing": b"Stellar Instant $5,000 Account price unavailable"},
+            "5K purchase price",
         ),
     ],
 )
