@@ -716,6 +716,116 @@ def _source_label_metrics(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 
+def _ny_hour_key(moment: datetime) -> str:
+    local = moment.astimezone(NEW_YORK)
+    return f"{local.hour:02d}:00"
+
+
+def _hourly_stop_profile(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Describe entry and STOP timing in New York local time.
+
+    This is descriptive consumed evidence only. The native-M1 clone contains OHLC
+    bars but no historical bid/ask spread series, so timing concentration can support
+    a spread/liquidity hypothesis but cannot prove spread causality by itself.
+    """
+
+    entry_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    stop_entry_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    stop_exit_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+
+    for row in rows:
+        entry_at = _aware(str(row["entry_at"]))
+        entry_key = _ny_hour_key(entry_at)
+        entry_groups[entry_key].append(row)
+        if str(row["exit_reason"]) == "STOP":
+            stop_entry_groups[entry_key].append(row)
+            stop_exit_at = _aware(str(row["exit_at"]))
+            stop_exit_groups[_ny_hour_key(stop_exit_at)].append(row)
+
+    hourly: list[dict[str, Any]] = []
+    keys = sorted(
+        set(entry_groups) | set(stop_entry_groups) | set(stop_exit_groups),
+        key=lambda value: int(value[:2]),
+    )
+    for key in keys:
+        trades = entry_groups.get(key, [])
+        stopped_entries = stop_entry_groups.get(key, [])
+        stop_exits = stop_exit_groups.get(key, [])
+        hourly.append(
+            {
+                "ny_hour": key,
+                "entries": len(trades),
+                "entries_that_stopped": len(stopped_entries),
+                "entry_stop_rate": (
+                    None
+                    if not trades
+                    else str(Decimal(len(stopped_entries)) / Decimal(len(trades)))
+                ),
+                "stop_exits": len(stop_exits),
+            }
+        )
+
+    def _window(
+        *,
+        start_hour: int,
+        end_hour_exclusive: int,
+        label: str,
+    ) -> dict[str, Any]:
+        entries: list[dict[str, Any]] = []
+        stopped_entries: list[dict[str, Any]] = []
+        stop_exits: list[dict[str, Any]] = []
+        for row in rows:
+            entry_local = _aware(str(row["entry_at"])).astimezone(NEW_YORK)
+            entry_hour = entry_local.hour
+            if start_hour <= entry_hour < end_hour_exclusive:
+                entries.append(row)
+                if str(row["exit_reason"]) == "STOP":
+                    stopped_entries.append(row)
+            if str(row["exit_reason"]) == "STOP":
+                exit_local = _aware(str(row["exit_at"])).astimezone(NEW_YORK)
+                if start_hour <= exit_local.hour < end_hour_exclusive:
+                    stop_exits.append(row)
+        return {
+            "label": label,
+            "start_hour_ny": start_hour,
+            "end_hour_exclusive_ny": end_hour_exclusive,
+            "entries": len(entries),
+            "entries_that_stopped": len(stopped_entries),
+            "entry_stop_rate": (
+                None
+                if not entries
+                else str(Decimal(len(stopped_entries)) / Decimal(len(entries)))
+            ),
+            "stop_exits": len(stop_exits),
+        }
+
+    session = str(rows[0]["session"]) if rows else ""
+    windows: list[dict[str, Any]] = []
+    if session == "ASIA":
+        windows.extend(
+            [
+                _window(start_hour=20, end_hour_exclusive=21, label="ASIA_OPEN_FIRST_HOUR"),
+                _window(start_hour=20, end_hour_exclusive=22, label="ASIA_OPEN_FIRST_TWO_HOURS"),
+            ]
+        )
+    elif session == "NEW_YORK":
+        windows.extend(
+            [
+                _window(start_hour=14, end_hour_exclusive=16, label="NEW_YORK_AFTER_14"),
+                _window(start_hour=15, end_hour_exclusive=16, label="NEW_YORK_LAST_HOUR"),
+            ]
+        )
+
+    return {
+        "timezone": "America/New_York",
+        "hourly": hourly,
+        "hypothesis_windows": windows,
+        "historical_spread_series_present": False,
+        "spread_causality_proven": False,
+    }
+
+
+
 def build_market_forensics(
     replay_root: Path,
     m1_root: Path,
@@ -778,6 +888,7 @@ def build_market_forensics(
         },
         "source_event_label_metrics": _source_label_metrics(rows),
         "stop_intelligence": stop_target_progress,
+        "ny_time_stop_profile": _hourly_stop_profile(rows),
         "target_capacity": target_reach,
         "entry_forensics_complete": all(
             row.get("displacement_body_ratio") is not None
@@ -843,6 +954,26 @@ def write_market(report: dict[str, Any], rows: list[dict[str, Any]], output: Pat
             f"- Recovery rate: {stop['target_recovery_rate']}",
             f"- Median extra stop R needed among recovered cases: {stop['median_extra_stop_r_needed_for_recovered']}",
             "",
+            "## New York time STOP profile",
+        ]
+    )
+    for bucket in report["ny_time_stop_profile"]["hourly"]:
+        lines.append(
+            f"- {bucket['ny_hour']}: entries={bucket['entries']}, "
+            f"entry_stops={bucket['entries_that_stopped']}, "
+            f"entry_stop_rate={bucket['entry_stop_rate']}, "
+            f"stop_exits={bucket['stop_exits']}"
+        )
+    for window in report["ny_time_stop_profile"]["hypothesis_windows"]:
+        lines.append(
+            f"- {window['label']}: entries={window['entries']}, "
+            f"entry_stops={window['entries_that_stopped']}, "
+            f"entry_stop_rate={window['entry_stop_rate']}, "
+            f"stop_exits={window['stop_exits']}"
+        )
+    lines.extend(
+        [
+            "",
             "## Winner vs loser median directions",
         ]
     )
@@ -882,6 +1013,7 @@ def build_matrix(root: Path) -> dict[str, Any]:
                 "baseline_metrics": report["baseline_metrics"],
                 "loss_classification_counts": report["loss_classification_counts"],
                 "stop_intelligence": report["stop_intelligence"],
+                "ny_time_stop_profile": report["ny_time_stop_profile"],
                 "winner_loser_feature_medians": report["winner_loser_feature_medians"],
             }
             for report in sorted(reports, key=lambda item: str(item["symbol"]))
