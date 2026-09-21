@@ -317,7 +317,8 @@ def _whole_window_metric(
     dimension: str,
     label: str,
 ) -> dict[str, Any] | None:
-    return section["breakdowns"][dimension].get(label)
+    value = section["breakdowns"][dimension].get(label)
+    return value if isinstance(value, dict) else None
 
 
 def _period_metric(
@@ -326,10 +327,11 @@ def _period_metric(
     label: str,
     period: str,
 ) -> dict[str, Any] | None:
-    return section["period_breakdowns"][dimension].get(
+    value = section["period_breakdowns"][dimension].get(
         label,
         {},
     ).get(period)
+    return value if isinstance(value, dict) else None
 
 
 def _adverse_contexts(
