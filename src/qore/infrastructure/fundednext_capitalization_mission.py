@@ -234,9 +234,10 @@ def evaluate_capitalization_mission(
         if previous.account_identity_fingerprint != config.account_identity_fingerprint:
             raise CapitalizationMissionError("prior mission account mismatch")
         highest = max(highest, previous.highest_closed_balance_seen)
-        bank_latched = bank_latched or previous.bank_latched
-        target_latched = target_latched or previous.target_reached_latched
-        payout_latched = payout_latched or previous.payout_ready_latched
+        if previous.config_fingerprint == config.fingerprint:
+            bank_latched = bank_latched or previous.bank_latched
+            target_latched = target_latched or previous.target_reached_latched
+            payout_latched = payout_latched or previous.payout_ready_latched
         mission_complete = mission_complete or previous.mission_complete
 
     if mission_complete:
