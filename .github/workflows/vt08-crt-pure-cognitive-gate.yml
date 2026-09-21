@@ -30,6 +30,7 @@ jobs:
             src/qore/infrastructure/traders/crt_pure_source_corpus.py \
             src/qore/infrastructure/traders/crt_pure_strategy_identity_memory.py \
             src/qore/infrastructure/traders/crt_pure_methodology_candidate.py \
+            src/qore/infrastructure/traders/crt_pure_candidate_replay.py \
             src/qore/infrastructure/traders/crt_pure_cognitive_contract.py \
             src/qore/infrastructure/traders/crt_pure_cognitive_state.py \
             src/qore/infrastructure/traders/crt_pure_position_intelligence.py \
@@ -38,6 +39,7 @@ jobs:
             tests/infrastructure/traders/test_crt_pure_source_registry.py \
             tests/infrastructure/traders/test_crt_pure_strategy_identity_memory.py \
             tests/infrastructure/traders/test_crt_pure_methodology_candidate.py \
+            tests/infrastructure/traders/test_crt_pure_candidate_replay.py \
             tests/infrastructure/traders/test_crt_pure_cognitive_architecture.py \
             tests/infrastructure/traders/test_crt_pure_source_corpus_and_cross_market.py
       - name: Mypy CRT PURE
