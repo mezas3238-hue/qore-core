@@ -40,11 +40,15 @@ jobs:
         run: |
           ruff check --ignore B009 \
             src/qore/infrastructure/trader_lab/vt08_crt_pure_m5_consumer.py \
-            tests/infrastructure/trader_lab/test_vt08_crt_pure_m5_consumer.py
+            src/qore/infrastructure/trader_lab/vt08_crt_pure_m5_windowed_runtime.py \
+            tests/infrastructure/trader_lab/test_vt08_crt_pure_m5_consumer.py \
+            tests/infrastructure/trader_lab/test_vt08_crt_pure_m5_windowed_runtime.py
       - name: Mypy focused gate
-        run: mypy src/qore/infrastructure/trader_lab/vt08_crt_pure_m5_consumer.py
+        run: |
+          mypy             src/qore/infrastructure/trader_lab/vt08_crt_pure_m5_consumer.py             src/qore/infrastructure/trader_lab/vt08_crt_pure_m5_windowed_runtime.py
       - name: Focused CRT PURE M5 consumption tests
-        run: pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_pure_m5_consumer.py
+        run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_vt08_crt_pure_m5_consumer.py             tests/infrastructure/trader_lab/test_vt08_crt_pure_m5_windowed_runtime.py
 
 
   consume:
@@ -90,7 +94,7 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p "artifacts/${QORE_SYMBOL}"
-          python -m qore.infrastructure.trader_lab.vt08_crt_pure_m5_consumer \
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_m5_windowed_runtime \
             "$QORE_SYMBOL" "artifacts/${QORE_SYMBOL}" \
             > "artifacts/${QORE_SYMBOL}/stdout.json"
       - name: Bind immutable git SHA
