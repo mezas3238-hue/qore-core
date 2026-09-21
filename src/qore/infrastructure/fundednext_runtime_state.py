@@ -7,6 +7,7 @@ import json
 import os
 import platform
 import tempfile
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -14,6 +15,7 @@ from pathlib import Path
 from qore.kernel.errors import InfrastructureError
 
 _SCHEMA = "qore.fundednext.runtime-state.v1"
+_ATOMIC_REPLACE_RETRY_DELAYS_SECONDS = (0.01, 0.02, 0.04, 0.08, 0.16, 0.25)
 
 
 class FundedNextRuntimeStateError(InfrastructureError):
@@ -135,12 +137,23 @@ class DurableFundedNextRuntimeStateStore:
                 handle.write("\n")
                 handle.flush()
                 os.fsync(handle.fileno())
-            os.replace(temp, self._path)
-        except OSError as error:
-            raise FundedNextRuntimeStateError("runtime-state atomic write failed") from error
+            for delay in (*_ATOMIC_REPLACE_RETRY_DELAYS_SECONDS, None):
+                try:
+                    os.replace(temp, self._path)
+                    break
+                except OSError as error:
+                    if delay is None:
+                        raise FundedNextRuntimeStateError(
+                            "runtime-state atomic write failed"
+                        ) from error
+                    time.sleep(delay)
         finally:
-            if temp.exists():
-                temp.unlink()
+            try:
+                temp.unlink(missing_ok=True)
+            except OSError:
+                # A scanner may still have the abandoned temp file open. It is
+                # never a valid state candidate and a later cleanup can remove it.
+                pass
 
 
 class SingleWriterRuntimeLock:
