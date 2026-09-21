@@ -31,6 +31,13 @@ from qore.infrastructure.account_wide_risk_ledger import (
     DurableAccountWideRiskEngine,
     DurableAccountWideRiskLedger,
 )
+from qore.infrastructure.fundednext_capitalization_mission import (
+    CapitalizationMissionSnapshot,
+    CapitalizationMissionState,
+    DurableCapitalizationMissionStore,
+    build_5k_mission_config,
+    evaluate_capitalization_mission,
+)
 from qore.infrastructure.fundednext_certified_policy import (
     CertifiedStellarInstantPolicyBundle,
     load_certified_stellar_instant_policy,
@@ -154,6 +161,7 @@ from qore.infrastructure.traders.vt08_b01_r3_8 import (
 )
 from qore.infrastructure.vt08_forex_cibo_operational import (
     Vt08ForexCiboDecision,
+    Vt08ForexCiboPosture,
     evaluate_vt08_forex_cibo,
 )
 from qore.infrastructure.vt08_forex_fundednext_sizing import (
@@ -1483,6 +1491,29 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     refresh_provider_rules_before_submission()
     certified_policy = load_current_certified_policy(datetime.now(UTC))
     certified_policy_last_reload = certified_policy.observed_at
+    mission_store = DurableCapitalizationMissionStore(
+        state_dir / "capitalization-mission.json"
+    )
+    mission_config = build_5k_mission_config(
+        account_identity_fingerprint=fingerprint,
+        start_balance=PILOT_INITIAL_BALANCE,
+        purchase_cash_required=(
+            certified_policy.facts.stellar_instant_5k_purchase_price_usd
+        ),
+        reward_split_fraction=certified_policy.facts.reward_split_tier_1_2,
+    )
+    mission_snapshot: CapitalizationMissionSnapshot = (
+        evaluate_capitalization_mission(
+            config=mission_config,
+            closed_balance=Decimal(str(account_info.balance)),
+            equity=Decimal(str(account_info.equity)),
+            now=datetime.now(UTC),
+            previous=mission_store.load(),
+            defend=False,
+            payout_eligible=False,
+        )
+    )
+    mission_store.store(mission_snapshot)
     safety_path = state_dir / "live-safety.json"
     load_live_safety_state(safety_path)
     safety = JsonFileLiveOperationalSafetyBoundary(safety_path)
@@ -1624,6 +1655,27 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "certified_prop_policy_stop_loss_required": (
                 certified_policy.facts.stop_loss_required
             ),
+            "capitalization_mission_active": True,
+            "capitalization_mission_id": mission_snapshot.mission_id,
+            "capitalization_mission_state": mission_snapshot.state.value,
+            "capitalization_purchase_cash_required": str(
+                mission_snapshot.purchase_cash_required
+            ),
+            "capitalization_gross_reward_required": str(
+                mission_snapshot.gross_reward_required
+            ),
+            "capitalization_post_withdrawal_reserve": str(
+                mission_snapshot.post_withdrawal_reserve
+            ),
+            "capitalization_bank_balance_threshold": str(
+                mission_snapshot.bank_balance_threshold
+            ),
+            "capitalization_balance_target": str(
+                mission_snapshot.mission_balance_target
+            ),
+            "capitalization_target_remaining": str(
+                mission_snapshot.target_remaining
+            ),
             "gbpjpy_r38_enabled": True,
             "gbpjpy_r38_identity": "TURTLE_SOUP_GBPJPY_R38",
             "gbpjpy_r38_certification": "TURTLE_SOUP_GBPJPY_R39_FINAL_CERTIFICATION_SUITE_V1",
@@ -1701,6 +1753,16 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     refresh_provider_rules_before_submission()
                 certified_policy = load_current_certified_policy(cycle_at)
                 certified_policy_last_reload = cycle_at
+                mission_config = build_5k_mission_config(
+                    account_identity_fingerprint=fingerprint,
+                    start_balance=PILOT_INITIAL_BALANCE,
+                    purchase_cash_required=(
+                        certified_policy.facts.stellar_instant_5k_purchase_price_usd
+                    ),
+                    reward_split_fraction=(
+                        certified_policy.facts.reward_split_tier_1_2
+                    ),
+                )
                 certified_policy_ready = True
             except Exception as error:
                 certified_policy_ready = False
@@ -1762,12 +1824,24 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         + arm_pending_stop
                         + risk.active_reserved_stop_risk()
                     )
+                    prior_mission_state = mission_snapshot.state
+                    mission_snapshot = evaluate_capitalization_mission(
+                        config=mission_config,
+                        closed_balance=arm_account.balance,
+                        equity=arm_account.equity,
+                        now=arm_started_at,
+                        previous=mission_snapshot,
+                        defend=False,
+                        payout_eligible=False,
+                    )
                     arm_posture = request_cibo_posture(
                         initial_balance=PILOT_INITIAL_BALANCE,
                         balance=arm_account.balance,
                         equity=arm_account.equity,
                         current_aggregate_risk=arm_aggregate,
                     )
+                    if mission_snapshot.state is CapitalizationMissionState.BANK:
+                        arm_posture = Vt08ForexCiboPosture.BANK
                     arm_capital = evaluate_qore_operational_capital_budget(
                         provider_budget=arm_provider,
                         initial_balance=PILOT_INITIAL_BALANCE,
@@ -1780,6 +1854,34 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             certified_policy.facts.reclassified_open_risk_fraction
                         ),
                     )
+                    mission_snapshot = evaluate_capitalization_mission(
+                        config=mission_config,
+                        closed_balance=arm_account.balance,
+                        equity=arm_account.equity,
+                        now=arm_started_at,
+                        previous=mission_snapshot,
+                        defend=(
+                            arm_capital.decision is CapitalBudgetDecision.REJECT
+                        ),
+                        payout_eligible=False,
+                    )
+                    mission_store.store(mission_snapshot)
+                    if mission_snapshot.state is not prior_mission_state:
+                        _log(
+                            log_path,
+                            {
+                                "event": "CAPITALIZATION_MISSION_STATE_CHANGED",
+                                "from_state": prior_mission_state.value,
+                                "to_state": mission_snapshot.state.value,
+                                "closed_balance": str(arm_account.balance),
+                                "target_remaining": str(
+                                    mission_snapshot.target_remaining
+                                ),
+                                "new_risk_allowed_by_mission": (
+                                    mission_snapshot.new_risk_allowed_by_mission
+                                ),
+                            },
+                        )
                     arm_snapshot = AccountRiskSnapshot(
                         account_binding_id=fingerprint,
                         equity=arm_account.equity,
@@ -1794,7 +1896,38 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         provider_budget=arm_provider,
                         reconciled_at=arm_started_at,
                     )
-                    accepted_times = [
+                    mission_snapshot = evaluate_capitalization_mission(
+            config=mission_config,
+            closed_balance=account_state.balance,
+            equity=account_state.equity,
+            now=cycle_at,
+            previous=mission_snapshot,
+            defend=(capital.decision is CapitalBudgetDecision.REJECT),
+            payout_eligible=False,
+        )
+        mission_store.store(mission_snapshot)
+        if mission_snapshot.state is not prior_mission_state:
+            _log(
+                log_path,
+                {
+                    "event": "CAPITALIZATION_MISSION_STATE_CHANGED",
+                    "from_state": prior_mission_state.value,
+                    "to_state": mission_snapshot.state.value,
+                    "closed_balance": str(account_state.balance),
+                    "realized_profit": str(mission_snapshot.realized_profit),
+                    "target_remaining": str(mission_snapshot.target_remaining),
+                    "bank_balance_threshold": str(
+                        mission_snapshot.bank_balance_threshold
+                    ),
+                    "mission_balance_target": str(
+                        mission_snapshot.mission_balance_target
+                    ),
+                    "new_risk_allowed_by_mission": (
+                        mission_snapshot.new_risk_allowed_by_mission
+                    ),
+                },
+            )
+        accepted_times = [
                         item.transitioned_at
                         for item in mutation_ledger.records()
                         if item.state is FundedNextMt5MutationState.ACCEPTED
@@ -1813,6 +1946,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         or exit_ledger.has_unresolved
                         or gateway.has_unresolved_mutations
                         or not certified_policy_ready
+                        or not mission_snapshot.new_risk_allowed_by_mission
                     )
 
                     boundary_snapshot = await_audjpy_r42_boundary_snapshot(
@@ -2075,12 +2209,24 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
 
         open_stop, floating_loss, pending_stop = _broker_risk(transport)
         aggregate = open_stop + pending_stop + risk.active_reserved_stop_risk()
+        prior_mission_state = mission_snapshot.state
+        mission_snapshot = evaluate_capitalization_mission(
+            config=mission_config,
+            closed_balance=account_state.balance,
+            equity=account_state.equity,
+            now=cycle_at,
+            previous=mission_snapshot,
+            defend=False,
+            payout_eligible=False,
+        )
         posture = request_cibo_posture(
             initial_balance=PILOT_INITIAL_BALANCE,
             balance=account_state.balance,
             equity=account_state.equity,
             current_aggregate_risk=aggregate,
         )
+        if mission_snapshot.state is CapitalizationMissionState.BANK:
+            posture = Vt08ForexCiboPosture.BANK
         capital = evaluate_qore_operational_capital_budget(
             provider_budget=provider,
             initial_balance=PILOT_INITIAL_BALANCE,
@@ -2123,6 +2269,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             or exit_ledger.has_unresolved
             or gateway.has_unresolved_mutations
             or not certified_policy_ready
+            or not mission_snapshot.new_risk_allowed_by_mission
         )
         if anchor is not None and not new_order_blocked:
             for symbol in _MARKETS:
