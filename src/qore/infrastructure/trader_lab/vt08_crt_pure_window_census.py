@@ -10,7 +10,6 @@ from pathlib import Path
 
 from qore.infrastructure.trader_lab.vt08_crt_pure_2y_replay import (
     END_EXCLUSIVE,
-    NY,
     START,
     _aggregate,
     _days,
@@ -24,6 +23,7 @@ from qore.infrastructure.traders.crt_pure_methodology_candidate import (
     classify_range_outcome,
 )
 from qore.infrastructure.traders.crt_pure_timing_policy import (
+    NY,
     utc_triplet_windows_for_local_date,
 )
 
