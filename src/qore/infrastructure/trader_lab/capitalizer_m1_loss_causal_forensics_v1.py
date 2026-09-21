@@ -1028,10 +1028,8 @@ def write_market(report: dict[str, Any], rows: list[dict[str, Any]], output: Pat
     )
     for feature, data in report["winner_loser_feature_medians"].items():
         lines.append(
-            (
-                f"- {feature}: winners={data['winner_median']} "
-                f"losers={data['loser_median']} ({data['direction']})"
-            )
+            f"- {feature}: winners={data['winner_median']} "
+            f"losers={data['loser_median']} ({data['direction']})"
         )
     (output / f"{stem}.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
