@@ -61,13 +61,12 @@ CRT_PURE_PRIMARY_SOURCE_CORPUS: tuple[CrtPureSourceArtifact, ...] = (
         title="What is CRT? Why do all other trading strategies suck?",
         source_name="RomeoTPT",
         source_tier=CrtPureSourceTier.LEVEL_A,
-        status=CrtPureSourceArtifactStatus.PENDING_PRIMARY_LOCATOR,
-        canonical_url=None,
-        provenance_url=None,
+        status=CrtPureSourceArtifactStatus.VERIFIED_PRIMARY_LINK,
+        canonical_url="https://www.youtube.com/watch?v=UUq_wKQ61Wo",
+        provenance_url="https://videohighlight.com/channel/@romeotpt",
         notes=(
-            "Known official RomeoTPT video. Navigation indexes identify YouTube id "
-            "UUq_wKQ61Wo, but official-channel provenance is still being bound before "
-            "promoting the locator to VERIFIED_PRIMARY_LINK."
+            "Direct YouTube locator resolved from the RomeoTPT channel inventory. "
+            "Third-party transcript/summary text remains navigation-only."
         ),
     ),
     CrtPureSourceArtifact(
@@ -140,10 +139,10 @@ CRT_PURE_PRIMARY_SOURCE_CORPUS: tuple[CrtPureSourceArtifact, ...] = (
         title="CRT secrets ep.6: SMT",
         source_name="RomeoTPT",
         source_tier=CrtPureSourceTier.LEVEL_A,
-        status=CrtPureSourceArtifactStatus.PENDING_PRIMARY_LOCATOR,
-        canonical_url=None,
-        provenance_url=None,
-        notes="Episode existence identified; direct primary locator remains to be bound.",
+        status=CrtPureSourceArtifactStatus.VERIFIED_PRIMARY_LINK,
+        canonical_url="https://www.youtube.com/watch?v=3IWgc52Dqsg",
+        provenance_url="https://videohighlight.com/channel/@romeotpt",
+        notes="Direct YouTube locator resolved from the RomeoTPT channel inventory.",
     ),
     CrtPureSourceArtifact(
         artifact_id="ROMEO_CRT_SECRETS_EP07",
@@ -177,10 +176,10 @@ CRT_PURE_PRIMARY_SOURCE_CORPUS: tuple[CrtPureSourceArtifact, ...] = (
         title="CRT secrets ep.10: A clean close",
         source_name="RomeoTPT",
         source_tier=CrtPureSourceTier.LEVEL_A,
-        status=CrtPureSourceArtifactStatus.PENDING_PRIMARY_LOCATOR,
-        canonical_url=None,
-        provenance_url=None,
-        notes="Episode existence identified; direct primary locator remains to be bound.",
+        status=CrtPureSourceArtifactStatus.VERIFIED_PRIMARY_LINK,
+        canonical_url="https://www.youtube.com/watch?v=af7ECe4HBjc",
+        provenance_url="https://videohighlight.com/channel/@romeotpt",
+        notes="Direct YouTube locator resolved from the RomeoTPT channel inventory.",
     ),
     CrtPureSourceArtifact(
         artifact_id="ROMEO_CRTOLOGY_EP01",
