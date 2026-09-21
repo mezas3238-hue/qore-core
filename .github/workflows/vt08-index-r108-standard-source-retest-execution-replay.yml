@@ -1,0 +1,160 @@
+name: VT08 Index R108 Standard Source Retest Execution Replay
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r108-standard-source-retest-execution-replay.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r108_standard_source_retest_execution_replay.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r108_standard_source_retest_execution_replay.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r108_standard_source_retest_execution_replay.py
+
+  replay:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: \${{ secrets.GITHUB_TOKEN }}
+          repository: \${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: \${{ secrets.GITHUB_TOKEN }}
+          repository: \${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: \${{ secrets.GITHUB_TOKEN }}
+          repository: \${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute R108 source-retest execution replay
+        run: |
+          mkdir -p artifacts/report
+          python -m qore.infrastructure.trader_lab.vt08_index_r108_standard_source_retest_execution_replay \
+            --nas100-root artifacts/NAS100 \
+            --sp500-root artifacts/SP500 \
+            --us30-root artifacts/US30 \
+            --out artifacts/report/vt08-index-r108-standard-source-retest-execution-replay.json
+
+      - name: Verify R108 preregistration and governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "artifacts/report/vt08-index-r108-standard-source-retest-execution-replay.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "VT08_INDEX_R108_STANDARD_SOURCE_RETEST_EXECUTION_REPLAY_001"
+          )
+          assert report["source_r107"]["run_id"] == 35557537194
+          assert report["source_r107"]["artifact_id"] == 10620513767
+          assert report["source_r107"]["artifact_digest"] == (
+              "sha256:ed8e7195ff6641ac23bbd30cac68e6ee3a3ed59f5f6ed60c1a7f06626c6dbe51"
+          )
+
+          contract = report["preregistered_contract"]
+          assert contract["same_setup_only"] is True
+          assert contract["retest_creates_second_trade"] is False
+          assert contract["standard_only_rerouted"] is True
+          assert contract["explicit_ps_unchanged"] is True
+          assert contract["no_retest_fallback"] == "CANONICAL_CONTINUATION_CLOSE"
+          assert contract["stop"] == "SAME_PROTECTED_SWING"
+          assert contract["target_r"] == "2.5"
+          assert contract["risk_allocator"] == "R102_FIXED_WEIGHTS_NO_RECOMPUTE"
+          assert contract["retest_bar_target_credit"] is False
+          assert contract["target_grid_searched"] is False
+          assert contract["stop_grid_searched"] is False
+          assert contract["risk_grid_searched"] is False
+          assert contract["market_side_anchor_calendar_selection"] is False
+
+          expected = {
+              "five_year": (2448, 1756, 1049),
+              "recent_two_year": (1017, 746, 452),
+              "r66_failed_holdout": (773, 546, 318),
+          }
+          for key, (canonical, standard, retest) in expected.items():
+              section = report[key]
+              assert section["canonical_sample"] == canonical
+              assert section["standard_sample"] == standard
+              assert section["retest_execution"]["available_count"] == retest
+              assert (
+                  section["retest_execution"]["same_setup_trade_count_added"]
+                  == 0
+              )
+              assert (
+                  section["retest_fixed_r102_weights"]["sample"]
+                  == canonical
+              )
+              assert (
+                  section["baseline_fixed_r102_weights"]["sample"]
+                  == canonical
+              )
+
+          gov = report["governance"]
+          assert gov["research_only"] is True
+          assert gov["consumed_evidence_only"] is True
+          assert gov["fresh_holdout_claim"] is False
+          assert gov["signal_surface_changed"] is False
+          assert gov["signals_suppressed"] is False
+          assert gov["trade_count_changed"] is False
+          assert gov["retest_double_counted"] is False
+          assert gov["protected_swing_stop_changed"] is False
+          assert gov["target_r_changed"] is False
+          assert gov["risk_allocator_recomputed"] is False
+          assert gov["year_or_calendar_runtime_feature"] is False
+          assert gov["anchor_14_enabled"] is False
+          assert gov["candidate_created"] is False
+          assert gov["trader_certified"] is False
+          assert gov["live_authorized"] is False
+          assert gov["real_capital_authorized"] is False
+          assert gov["production_authorized"] is False
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt08-index-r108-standard-source-retest-execution-replay-\${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90
