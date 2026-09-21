@@ -3,6 +3,9 @@ from __future__ import annotations
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab import (
+    vt08_index_r80_source_2r_target_transport as r80,
+)
+from qore.infrastructure.trader_lab import (
     vt08_index_r107_standard_economic_root_attribution as r107,
 )
 
@@ -20,8 +23,8 @@ def test_r107_identity_and_source_are_frozen() -> None:
 
 def test_r107_reuses_existing_floor_and_source_target() -> None:
     assert r107.FLOOR == Decimal("0.005")
-    assert r107.r80.SOURCE_TARGET_R == Decimal("2")
-    assert r107.r80.CANONICAL_TARGET_R == Decimal("2.5")
+    assert r80.SOURCE_TARGET_R == Decimal("2")
+    assert r80.CANONICAL_TARGET_R == Decimal("2.5")
 
 
 def test_r107_source_urls_are_primary_ttrades() -> None:
