@@ -153,6 +153,8 @@ class CapitalizerStopBreathingContextReport:
     consumed_holdout_trades: int
     development_evaluable_overshoots: int
     consumed_holdout_evaluable_overshoots: int
+    development_pre_entry_path_observed: int
+    consumed_holdout_pre_entry_path_observed: int
     development_breathing_success_rate: str
     consumed_holdout_breathing_success_rate: str
     threshold_audits: tuple[CapitalizerBreathingThresholdAudit, ...]
@@ -318,7 +320,6 @@ def _enrich_pre_entry_paths(
     windows: tuple[list[dict[str, Any]], ...],
     m1_root: Path,
 ) -> None:
-    starts: dict[datetime, list[_PreEntryPathState]] = defaultdict(list)
     all_states: list[_PreEntryPathState] = []
     for rows in windows:
         for row in rows:
@@ -331,29 +332,27 @@ def _enrich_pre_entry_paths(
             risk = abs(entry - stop)
             if risk <= 0:
                 raise ValueError("pre-entry path requires positive baseline risk")
-            state = _PreEntryPathState(
-                row=row,
-                start_at=start_at,
-                entry_at=entry_at,
-                side=str(row["side"]),
-                ob_low=_decimal(row, "m1_order_block_low"),
-                ob_high=_decimal(row, "m1_order_block_high"),
-                risk=risk,
+            all_states.append(
+                _PreEntryPathState(
+                    row=row,
+                    start_at=start_at,
+                    entry_at=entry_at,
+                    side=str(row["side"]),
+                    ob_low=_decimal(row, "m1_order_block_low"),
+                    ob_high=_decimal(row, "m1_order_block_high"),
+                    risk=risk,
+                )
             )
-            starts[start_at].append(state)
-            all_states.append(state)
 
+    pending = sorted(all_states, key=lambda item: (item.start_at, item.entry_at))
+    pending_index = 0
     active: list[_PreEntryPathState] = []
-    pending_starts = set(starts)
+    last_entry = max(state.entry_at for state in all_states)
     for bar in iter_cibo_m1(m1_root):
         at = bar.opened_at
-        if at in starts:
-            active.extend(starts[at])
-            pending_starts.discard(at)
-        if not active:
-            if not pending_starts and all(state.entry_at <= at for state in all_states):
-                break
-            continue
+        while pending_index < len(pending) and pending[pending_index].start_at <= at:
+            active.append(pending[pending_index])
+            pending_index += 1
 
         retained: list[_PreEntryPathState] = []
         for state in active:
@@ -375,16 +374,30 @@ def _enrich_pre_entry_paths(
             retained.append(state)
         active = retained
 
-    if pending_starts:
-        raise ValueError("native M1 clone missed FVG-confirmation starts")
+        if pending_index == len(pending) and not active and at >= last_entry:
+            break
+
+    if pending_index != len(pending):
+        raise ValueError("native M1 clone ended before pre-entry states were reached")
 
     for state in all_states:
+        row = state.row
+        row["pre_entry_expansion_bars"] = state.bars
+        row["pre_entry_path_observed"] = state.bars > 0
+        if state.bars == 0:
+            row["pre_entry_peak_extension_r"] = None
+            row["pre_entry_peak_close_extension_r"] = None
+            row["pre_entry_peak_extension_speed_r_per_minute"] = None
+            row["pre_entry_mean_bar_range_r"] = None
+            row["pre_entry_mean_bar_body_r"] = None
+            row["pre_entry_median_bar_range_r"] = None
+            row["pre_entry_median_bar_body_r"] = None
+            continue
+
         elapsed_to_peak = Decimal("1")
         if state.peak_at is not None:
             seconds = Decimal(str((state.peak_at - state.start_at).total_seconds()))
             elapsed_to_peak = max(Decimal("1"), seconds / Decimal("60"))
-        row = state.row
-        row["pre_entry_expansion_bars"] = state.bars
         row["pre_entry_peak_extension_r"] = str(state.peak_extension / state.risk)
         row["pre_entry_peak_close_extension_r"] = str(
             state.peak_close_extension / state.risk
@@ -392,25 +405,19 @@ def _enrich_pre_entry_paths(
         row["pre_entry_peak_extension_speed_r_per_minute"] = str(
             (state.peak_extension / state.risk) / elapsed_to_peak
         )
-        row["pre_entry_mean_bar_range_r"] = (
-            "0"
-            if state.bars == 0
-            else str((state.range_sum / Decimal(state.bars)) / state.risk)
+        row["pre_entry_mean_bar_range_r"] = str(
+            (state.range_sum / Decimal(state.bars)) / state.risk
         )
-        row["pre_entry_mean_bar_body_r"] = (
-            "0"
-            if state.bars == 0
-            else str((state.body_sum / Decimal(state.bars)) / state.risk)
+        row["pre_entry_mean_bar_body_r"] = str(
+            (state.body_sum / Decimal(state.bars)) / state.risk
         )
-        row["pre_entry_median_bar_range_r"] = (
-            "0"
-            if not state.ranges
-            else str(median(state.ranges) / state.risk)
+        assert state.ranges is not None
+        assert state.bodies is not None
+        row["pre_entry_median_bar_range_r"] = str(
+            median(state.ranges) / state.risk
         )
-        row["pre_entry_median_bar_body_r"] = (
-            "0"
-            if not state.bodies
-            else str(median(state.bodies) / state.risk)
+        row["pre_entry_median_bar_body_r"] = str(
+            median(state.bodies) / state.risk
         )
 
 
@@ -692,6 +699,12 @@ def build_market_report(
         consumed_holdout_trades=len(hold_rows),
         development_evaluable_overshoots=len(dev_over),
         consumed_holdout_evaluable_overshoots=len(hold_over),
+        development_pre_entry_path_observed=sum(
+            bool(row.get("pre_entry_path_observed")) for row in dev_rows
+        ),
+        consumed_holdout_pre_entry_path_observed=sum(
+            bool(row.get("pre_entry_path_observed")) for row in hold_rows
+        ),
         development_breathing_success_rate=str(_rate(dev_over)),
         consumed_holdout_breathing_success_rate=str(_rate(hold_over)),
         threshold_audits=audits,
@@ -742,6 +755,12 @@ def build_matrix(root: Path) -> dict[str, Any]:
         ),
         "consumed_holdout_evaluable_overshoots": sum(
             int(r["consumed_holdout_evaluable_overshoots"]) for r in reports
+        ),
+        "development_pre_entry_path_observed": sum(
+            int(r["development_pre_entry_path_observed"]) for r in reports
+        ),
+        "consumed_holdout_pre_entry_path_observed": sum(
+            int(r["consumed_holdout_pre_entry_path_observed"]) for r in reports
         ),
         "markets": sorted(reports, key=lambda item: str(item["symbol"])),
         "markets_with_transported_context_clues": [

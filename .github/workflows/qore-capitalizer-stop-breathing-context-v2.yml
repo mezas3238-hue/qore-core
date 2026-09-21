@@ -30,6 +30,8 @@ env:
   HOLD_FORENSICS_SHA: 'e69998808dbbb0f57a51622c096b0a4f30006af1'
   HOLD_PEN_RUN_ID: '35592309957'
   HOLD_PEN_SHA: 'd7b4f397ae88b1e3dc1ad558e2ccb2284268aea5'
+  DEV_PEN_RUN_ID: '35593504906'
+  DEV_PEN_SHA: '14014ae72aeebe985b08cae56a04b55122c60f92'
 
 jobs:
   quality:
@@ -54,7 +56,7 @@ jobs:
           pytest -q --no-cov \
             tests/infrastructure/trader_lab/test_capitalizer_stop_breathing_context_v2.py
 
-  development_penetration:
+  context:
     needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 180
@@ -85,85 +87,13 @@ jobs:
           path: m1-source
           github-token: ${{ github.token }}
           run-id: ${{ env.SOURCE_M1_RUN_ID }}
-      - name: Download development replay
+      - name: Download frozen development penetration
         uses: actions/download-artifact@v4
         with:
-          name: qore-capitalizer-5y-dev-replay-${{ matrix.symbol }}-${{ env.SOURCE_5Y_SHA }}
-          path: dev-replay
-          github-token: ${{ github.token }}
-          run-id: ${{ env.SOURCE_5Y_RUN_ID }}
-      - name: Measure development OB penetration
-        run: |
-          python -m qore.infrastructure.trader_lab.capitalizer_ob_penetration_intelligence_v1 \
-            market dev-replay m1-source dev-penetration
-      - name: Enforce development boundary
-        env:
-          EXPECTED_SYMBOL: ${{ matrix.symbol }}
-          EXPECTED_SESSION: ${{ matrix.session }}
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          symbol = os.environ["EXPECTED_SYMBOL"]
-          path = Path("dev-penetration") / (
-              f"capitalizer-{symbol.lower()}-ob-penetration-intelligence-v1.json"
-          )
-          report = json.loads(path.read_text())
-          assert report["identity"] == "QORE_CAPITALIZER_OB_PENETRATION_INTELLIGENCE_V1"
-          assert report["symbol"] == symbol
-          assert report["session"] == os.environ["EXPECTED_SESSION"]
-          assert report["source_trade_count"] > 0
-          assert report["buffer_authorized"] is False
-          assert report["entry_failure_proven"] is False
-          assert report["outcome_used_for_entry_selection"] is False
-          assert report["rule_promotion_allowed"] is False
-          assert report["trader_certified"] is False
-          PY
-      - uses: actions/upload-artifact@v4
-        with:
-          name: qore-capitalizer-ob-penetration-dev-${{ matrix.symbol }}-${{ github.sha }}
+          name: qore-capitalizer-ob-penetration-dev-${{ matrix.symbol }}-${{ env.DEV_PEN_SHA }}
           path: dev-penetration
-          if-no-files-found: error
-          retention-days: 90
-
-  context:
-    needs: development_penetration
-    runs-on: ubuntu-latest
-    timeout-minutes: 180
-    strategy:
-      fail-fast: false
-      max-parallel: 3
-      matrix:
-        include:
-          - {symbol: USDJPY, session: ASIA}
-          - {symbol: AUDJPY, session: ASIA}
-          - {symbol: AUDUSD, session: ASIA}
-          - {symbol: GBPJPY, session: ASIA}
-          - {symbol: EURUSD, session: LONDON}
-          - {symbol: GBPUSD, session: LONDON}
-          - {symbol: XAUUSD, session: NEW_YORK}
-          - {symbol: USDCAD, session: NEW_YORK}
-          - {symbol: NAS100, session: NEW_YORK}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: python -m pip install -e .
-      - name: Download immutable native-M1 clone
-        uses: actions/download-artifact@v4
-        with:
-          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.SOURCE_M1_SHA }}
-          path: m1-source
           github-token: ${{ github.token }}
-          run-id: ${{ env.SOURCE_M1_RUN_ID }}
-      - name: Download development penetration
-        uses: actions/download-artifact@v4
-        with:
-          name: qore-capitalizer-ob-penetration-dev-${{ matrix.symbol }}-${{ github.sha }}
-          path: dev-penetration
+          run-id: ${{ env.DEV_PEN_RUN_ID }}
       - name: Download development forensics
         uses: actions/download-artifact@v4
         with:
