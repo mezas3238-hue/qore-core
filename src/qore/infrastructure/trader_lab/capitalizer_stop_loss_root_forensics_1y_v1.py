@@ -1062,10 +1062,20 @@ def _enrich_trade(
         ),
         m15_range_position=None if m15_pos is None else str(m15_pos),
         protected_swing_price=None if protected is None else str(protected),
-        protected_swing_distance_r=None if protected is None else str(abs(entry - protected) / risk),
-        nearest_causal_liquidity_price=None if nearest_price is None else str(nearest_price),
+        protected_swing_distance_r=(
+            None
+            if protected is None
+            else str(abs(entry - protected) / risk)
+        ),
+        nearest_causal_liquidity_price=(
+            None if nearest_price is None else str(nearest_price)
+        ),
         nearest_causal_liquidity_type=nearest_type,
-        nearest_causal_liquidity_r=None if nearest_price is None else str(abs(nearest_price - entry) / risk),
+        nearest_causal_liquidity_r=(
+            None
+            if nearest_price is None
+            else str(abs(nearest_price - entry) / risk)
+        ),
         two_r_price=str(two_r),
         nearest_liquidity_before_original_stop=nearest_before,
         two_r_before_original_stop=_before_stop(two_r_index, stop_index),
@@ -1371,7 +1381,9 @@ def main() -> None:
                     "nearest_before_stop": report.stop_trades_nearest_liquidity_before_stop,
                     "two_r_before_stop": report.stop_trades_two_r_before_stop,
                     "wick_only_stop": report.stop_trades_wick_only_reclaim,
-                    "fvg_invalidated_before_stop": report.stop_trades_fvg_close_invalidated_before_stop,
+                    "fvg_invalidated_before_stop": (
+                        report.stop_trades_fvg_close_invalidated_before_stop
+                    ),
                 },
                 sort_keys=True,
             )
