@@ -42,7 +42,7 @@ def test_consumed_stop_recovery_is_forensic_not_rule_promotion(tmp_path: Path) -
     replay.mkdir()
     higher.mkdir()
 
-    signal = datetime(2024, 6, 3, 13, 0, tzinfo=UTC)
+    signal = datetime(2024, 6, 3, 19, 0, tzinfo=UTC)
     entry = signal + timedelta(minutes=3)
     stop_exit = signal + timedelta(minutes=5)
 
