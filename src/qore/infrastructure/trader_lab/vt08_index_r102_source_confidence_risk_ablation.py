@@ -417,7 +417,7 @@ def _window(
     if len(stream) != expected:
         raise ValueError(f"R102 {window_id} sample drift")
 
-    bars = {
+    bars: dict[str, Sequence[Vt08IndexC2R1Bar]] = {
         key: tuple(value)
         for key, value in bars_by_symbol.items()
     }
