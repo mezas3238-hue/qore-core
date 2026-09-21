@@ -659,7 +659,7 @@ def build_report(
             "candidate_created": False,
             "trader_certified": False,
             "live_authorized": False,
-            "real_capital_authorized": false,
+            "real_capital_authorized": False,
             "production_authorized": False,
         },
     }
