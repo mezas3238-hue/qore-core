@@ -160,7 +160,13 @@ def _load_p50_envelope(root: Path, symbol: str) -> dict[str, Any]:
     envelopes = raw.get("envelopes")
     if not isinstance(envelopes, list):
         raise ValueError("envelopes must be a list")
-    matches = [item for item in envelopes if item.get("quantile") == "P50"]
+    matches: list[dict[str, Any]] = []
+    for raw_item in envelopes:
+        if not isinstance(raw_item, dict):
+            raise ValueError("each envelope must be an object")
+        item = dict(raw_item)
+        if item.get("quantile") == "P50":
+            matches.append(item)
     if len(matches) != 1:
         raise ValueError("candidate requires exactly one P50 envelope")
     item = matches[0]
