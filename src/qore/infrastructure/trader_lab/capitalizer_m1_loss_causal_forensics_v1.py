@@ -471,13 +471,13 @@ def _enrich_with_m1(rows: list[dict[str, Any]], m1_root: Path) -> None:
     by_session_end: dict[datetime, list[int]] = defaultdict(list)
     session_intervals: list[tuple[datetime, datetime]] = []
     for index, row in enumerate(rows):
-        entry = _aware(str(row["entry_at"]))
+        trade_entry_at = _aware(str(row["entry_at"]))
         exit_at = _aware(str(row["exit_at"]))
         displacement_open = _aware(str(row["m1_displacement_at"])) - timedelta(minutes=1)
-        session_start, session_end = _session_bounds(entry, str(row["session"]))
+        session_start, session_end = _session_bounds(trade_entry_at, str(row["session"]))
         session_intervals.append((session_start, session_end))
         by_displacement[displacement_open].append(index)
-        by_entry[entry].append(index)
+        by_entry[trade_entry_at].append(index)
         if str(row["exit_reason"]) == "STOP":
             by_exit[exit_at].append(index)
             by_session_end[session_end].append(index)
@@ -518,10 +518,14 @@ def _enrich_with_m1(rows: list[dict[str, Any]], m1_root: Path) -> None:
                 count, ob_low, ob_high = _reconstruct_ob(prior, str(row["side"]))
                 row["displacement_body_ratio"] = str(body_ratio)
                 row["displacement_range_vs_prior20"] = (
-                    None if med_range in {None, Decimal("0")} else str(bar.range / med_range)
+                    None
+                    if med_range is None or med_range == Decimal("0")
+                    else str(bar.range / med_range)
                 )
                 row["displacement_body_vs_prior20"] = (
-                    None if med_body in {None, Decimal("0")} else str(bar.body / med_body)
+                    None
+                    if med_body is None or med_body == Decimal("0")
+                    else str(bar.body / med_body)
                 )
                 row["displacement_range_r"] = str(bar.range / risk)
                 row["displacement_body_r"] = str(bar.body / risk)
