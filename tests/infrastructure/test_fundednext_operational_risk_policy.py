@@ -44,6 +44,7 @@ def _budget(
     high: str = "2000",
     previous_mll: str = "1880",
     current_risk: str = "0",
+    certified_open_risk_fraction: str | None = None,
 ) -> QoreOperationalCapitalBudget:
     provider = _provider(
         balance=balance,
@@ -59,6 +60,11 @@ def _budget(
         highest_closed_balance=Decimal(high),
         current_aggregate_stop_risk=Decimal(current_risk),
         requested_posture=posture,
+        certified_open_risk_fraction=(
+            None
+            if certified_open_risk_fraction is None
+            else Decimal(certified_open_risk_fraction)
+        ),
     )
 
 
@@ -124,3 +130,17 @@ def test_provider_or_qore_safety_buffer_breach_rejects_new_risk() -> None:
     assert budget.decision is CapitalBudgetDecision.REJECT
     assert budget.qore_authorizable_headroom == 0
     assert budget.reason == "qore-internal-dd-buffer-exhausted"
+
+
+def test_unknown_clarity_classification_can_be_capped_at_strictest_one_percent() -> None:
+    budget = _budget(
+        Vt08ForexCiboPosture.ATTACK,
+        balance="2025",
+        equity="2025",
+        high="2025",
+        certified_open_risk_fraction="0.01",
+    )
+    assert budget.decision is CapitalBudgetDecision.ALLOW
+    assert budget.authorized_posture is Vt08ForexCiboPosture.ATTACK
+    assert budget.aggregate_heat_cap == Decimal("20.00")
+    assert budget.qore_authorizable_headroom == Decimal("20.00")
