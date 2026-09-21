@@ -13,11 +13,11 @@ permissions:
   actions: read
 
 env:
-  QORE_CTRADER_CLIENT_ID: \${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
-  QORE_CTRADER_CLIENT_SECRET: \${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
-  QORE_CTRADER_ACCESS_TOKEN: \${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
-  QORE_CTRADER_REFRESH_TOKEN: \${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
-  QORE_CTRADER_DEMO_ACCOUNT_ID: \${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
 
 jobs:
   probe:
@@ -28,7 +28,7 @@ jobs:
       matrix:
         symbol: [AUDUSD, USDJPY, BTCUSD]
     env:
-      QORE_SYMBOL: \${{ matrix.symbol }}
+      QORE_SYMBOL: ${{ matrix.symbol }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -40,22 +40,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN QORE_CTRADER_DEMO_ACCOUNT_ID; do
             test -n "\${!name:-}" || { echo "missing required DEMO input: $name" >&2; exit 2; }
           done
-      - name: Discover DEMO account when needed
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -z "\${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
-            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
-            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
-              echo "invalid DEMO account discovery" >&2
-              exit 3
-            fi
-            echo "::add-mask::$account_id"
-            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
-          fi
       - name: Probe exact symbol and yearly M5 history
         shell: bash
         run: |
@@ -70,16 +57,33 @@ jobs:
           from pathlib import Path
           from typing import cast
 
-          from qore.infrastructure.ctrader_open_api_client import SpotwareCTraderOpenApiClient
-          from qore.infrastructure.ctrader_demo_account_discovery import _credentials
+          from qore.infrastructure.ctrader_open_api_client import (
+              CTraderOpenApiCredentials,
+              SpotwareCTraderOpenApiClient,
+          )
           from qore.kernel.result import Failure
+
+          def required_env(name: str) -> str:
+              value = os.getenv(name)
+              if not value:
+                  raise RuntimeError(f"missing required environment variable: {name}")
+              return value
+
+          def credentials() -> CTraderOpenApiCredentials:
+              return CTraderOpenApiCredentials(
+                  client_id=required_env("QORE_CTRADER_CLIENT_ID"),
+                  client_secret=required_env("QORE_CTRADER_CLIENT_SECRET"),
+                  access_token=required_env("QORE_CTRADER_ACCESS_TOKEN"),
+                  refresh_token=required_env("QORE_CTRADER_REFRESH_TOKEN"),
+                  ctid_trader_account_id=int(required_env("QORE_CTRADER_DEMO_ACCOUNT_ID")),
+              )
 
           symbol_name = os.environ["QORE_SYMBOL"]
           frozen_close = datetime(2026, 9, 20, 23, 59, tzinfo=UTC)
           start_year = 2010
           period_m5 = 5
 
-          client = SpotwareCTraderOpenApiClient(credentials=_credentials())
+          client = SpotwareCTraderOpenApiClient(credentials=credentials())
           try:
               ready = client.connect_and_authenticate()
               if isinstance(ready, Failure):
@@ -184,8 +188,8 @@ jobs:
           sha256sum availability.json git-sha.txt > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: qore-vt08-crt-pure-market-evidence-\${{ matrix.symbol }}-\${{ github.sha }}
-          path: artifacts/\${{ matrix.symbol }}
+          name: qore-vt08-crt-pure-market-evidence-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/${{ matrix.symbol }}
           if-no-files-found: error
           retention-days: 90
 
@@ -196,7 +200,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: qore-vt08-crt-pure-market-evidence-*-\${{ github.sha }}
+          pattern: qore-vt08-crt-pure-market-evidence-*-${{ github.sha }}
           path: artifacts/input
       - name: Aggregate exact three-market evidence
         shell: bash
@@ -233,7 +237,7 @@ jobs:
           sha256sum market-evidence.json git-sha.txt > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: qore-vt08-crt-pure-market-evidence-aggregate-\${{ github.sha }}
+          name: qore-vt08-crt-pure-market-evidence-aggregate-${{ github.sha }}
           path: artifacts/aggregate
           if-no-files-found: error
           retention-days: 90
