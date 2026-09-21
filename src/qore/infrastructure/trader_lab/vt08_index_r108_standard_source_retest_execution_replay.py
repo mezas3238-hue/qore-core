@@ -32,7 +32,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -274,7 +274,7 @@ def _breakdowns(
     *,
     meta: dict[int, dict[str, Any]],
 ) -> dict[str, Any]:
-    selectors = {
+    selectors: dict[str, Callable[[r15.AssignedTrade], str]] = {
         "family": lambda item: str(meta[item.trade_id]["execution_family"]),
         "market": lambda item: item.symbol,
         "side": lambda item: item.opportunity.signal.side.value,
