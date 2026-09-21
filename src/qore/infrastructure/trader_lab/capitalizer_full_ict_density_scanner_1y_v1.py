@@ -429,7 +429,10 @@ def _latest_completed_objective(
 
 def _confirmed_pivots(
     bars: tuple[CapitalizerM1Bar, ...],
-) -> tuple[tuple[int, Decimal], tuple[int, Decimal]]:
+) -> tuple[
+    tuple[tuple[int, Decimal], ...],
+    tuple[tuple[int, Decimal], ...],
+]:
     highs: list[tuple[int, Decimal]] = []
     lows: list[tuple[int, Decimal]] = []
     for center in range(1, len(bars) - 1):
