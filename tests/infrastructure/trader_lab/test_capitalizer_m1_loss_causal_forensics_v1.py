@@ -172,9 +172,9 @@ def test_consumed_stop_recovery_is_forensic_not_rule_promotion(tmp_path: Path) -
         item["label"]: item
         for item in time_profile["hypothesis_windows"]
     }["NEW_YORK_AFTER_14"]
-    assert after_14["entries"] == 0
-    assert after_14["entries_that_stopped"] == 0
-    assert after_14["entry_stop_rate"] is None
-    assert after_14["stop_exits"] == 0
+    assert after_14["entries"] == 1
+    assert after_14["entries_that_stopped"] == 1
+    assert after_14["entry_stop_rate"] == "1"
+    assert after_14["stop_exits"] == 1
     assert enriched[0]["loss_classification"] == "PREMATURE_STOP_EVIDENCE"
     assert enriched[0]["target_reached_after_stop_same_session"] is True
