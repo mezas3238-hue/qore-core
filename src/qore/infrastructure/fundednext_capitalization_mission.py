@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import ROUND_CEILING, Decimal
 from enum import StrEnum
@@ -287,6 +287,13 @@ def evaluate_capitalization_mission(
     )
 
 
+def _json_bool(payload: dict[str, object], key: str) -> bool:
+    value = payload.get(key)
+    if type(value) is not bool:
+        raise CapitalizationMissionError(f"{key} must be bool")
+    return value
+
+
 class DurableCapitalizationMissionStore:
     def __init__(self, path: Path) -> None:
         self._path = path
@@ -319,12 +326,14 @@ class DurableCapitalizationMissionStore:
                 highest_closed_balance_seen=Decimal(
                     str(payload["highest_closed_balance_seen"])
                 ),
-                bank_latched=bool(payload["bank_latched"]),
-                target_reached_latched=bool(payload["target_reached_latched"]),
-                payout_ready_latched=bool(payload["payout_ready_latched"]),
-                mission_complete=bool(payload["mission_complete"]),
-                new_risk_allowed_by_mission=bool(
-                    payload["new_risk_allowed_by_mission"]
+                bank_latched=_json_bool(payload, "bank_latched"),
+                target_reached_latched=_json_bool(
+                    payload, "target_reached_latched"
+                ),
+                payout_ready_latched=_json_bool(payload, "payout_ready_latched"),
+                mission_complete=_json_bool(payload, "mission_complete"),
+                new_risk_allowed_by_mission=_json_bool(
+                    payload, "new_risk_allowed_by_mission"
                 ),
                 updated_at=datetime.fromisoformat(str(payload["updated_at"])),
             )
