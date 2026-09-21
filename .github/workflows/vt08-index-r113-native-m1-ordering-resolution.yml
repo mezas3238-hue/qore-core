@@ -1,0 +1,165 @@
+name: VT08 Index R113 Native M1 Ordering Resolution
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r113-native-m1-ordering-resolution.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r113_native_m1_ordering_resolution.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r113_native_m1_ordering_resolution.py
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev,ctrader]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r113_native_m1_ordering_resolution.py
+
+  resolve:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev,ctrader]"
+
+      - name: Verify DEMO read-only credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || { echo "missing required DEMO input: $name" >&2; exit 2; }
+          done
+
+      - name: Discover DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Download NAS100 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute R113 native M1 ordering resolution
+        run: |
+          mkdir -p artifacts/report
+          python -m qore.infrastructure.trader_lab.vt08_index_r113_native_m1_ordering_resolution \
+            --nas100-root artifacts/NAS100 \
+            --sp500-root artifacts/SP500 \
+            --us30-root artifacts/US30 \
+            --out artifacts/report/vt08-index-r113-native-m1-ordering-resolution.json
+
+      - name: Verify R113 governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "artifacts/report/vt08-index-r113-native-m1-ordering-resolution.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "VT08_INDEX_R113_NATIVE_M1_ORDERING_RESOLUTION_001"
+          )
+          assert report["source_r112"]["run_id"] == 35661839898
+          assert report["source_r112"]["artifact_id"] == 10667714516
+          assert report["source_r112"]["artifact_digest"] == (
+              "sha256:e0b2dfd0363c2920ba7566672ffef05264d69fbfb4778e81de8568dba05f0e53"
+          )
+          provider = report["provider_contract"]
+          assert provider["environment"] == "DEMO_ONLY"
+          assert provider["period"] == "M1_NATIVE"
+          assert provider["synthetic_m1"] is False
+          assert provider["interpolated_m1"] is False
+          assert provider["requested_only_r112_ambiguous_m15_windows"] is True
+          assert provider["complete_m1_per_m15_required"] == 15
+          assert provider["exact_m1_to_cibo_m15_ohlc_match_required"] is True
+
+          assert report["five_year"]["ambiguous_sample"] == 7
+          assert report["recent_two_year"]["ambiguous_sample"] == 1
+          assert report["r66_failed_holdout"]["ambiguous_sample"] == 1
+          assert report["root_cause_conclusion"] == (
+              "SAME_M15_PRECEDENCE_CANNOT_EXPLAIN_R66_B2"
+          )
+          assert report["decision"] == (
+              "R113_NATIVE_M1_ORDERING_RESOLUTION_COMPLETE_NO_RULE_CHANGE"
+          )
+
+          gov = report["governance"]
+          assert gov["research_only"] is True
+          assert gov["read_only_provider_requests"] is True
+          assert gov["signal_generation_from_m1"] is False
+          assert gov["candidate_created"] is False
+          assert gov["signals_suppressed"] is False
+          assert gov["trade_count_changed"] is False
+          assert gov["target_changed"] is False
+          assert gov["stop_changed"] is False
+          assert gov["risk_allocator_changed"] is False
+          assert gov["anchor_14_enabled"] is False
+          assert gov["live_authorized"] is False
+          assert gov["real_capital_authorized"] is False
+          assert gov["production_authorized"] is False
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt08-index-r113-native-m1-ordering-resolution-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90
