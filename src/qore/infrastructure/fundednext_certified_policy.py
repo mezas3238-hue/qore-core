@@ -98,6 +98,7 @@ class StellarInstantCertifiedFacts:
     account_merging_allowed: bool
     max_scaled_allocation_usd: Decimal
     vps_allowed: bool
+    stellar_instant_5k_purchase_price_usd: Decimal
 
     def assert_frozen_contract(self) -> None:
         expected = {
@@ -143,6 +144,11 @@ class StellarInstantCertifiedFacts:
             raise ValueError("reward biweekly cadence mismatch")
         if self.inactivity_calendar_days != 30:
             raise ValueError("inactivity rule mismatch")
+        if (
+            not self.stellar_instant_5k_purchase_price_usd.is_finite()
+            or self.stellar_instant_5k_purchase_price_usd <= 0
+        ):
+            raise ValueError("Stellar Instant 5K purchase price must be positive")
 
 
 @dataclass(frozen=True, slots=True)
@@ -250,6 +256,9 @@ def _facts(payload: dict[str, object]) -> StellarInstantCertifiedFacts:
         account_merging_allowed=_bool(raw, "account_merging_allowed"),
         max_scaled_allocation_usd=_decimal(raw, "max_scaled_allocation_usd"),
         vps_allowed=_bool(raw, "vps_allowed"),
+        stellar_instant_5k_purchase_price_usd=_decimal(
+            raw, "stellar_instant_5k_purchase_price_usd"
+        ),
     )
     facts.assert_frozen_contract()
     return facts
