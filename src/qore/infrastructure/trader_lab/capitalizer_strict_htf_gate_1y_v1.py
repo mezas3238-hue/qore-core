@@ -1043,33 +1043,33 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "market":
-        report, trades = build_market_report(
+        market_report, trades = build_market_report(
             args.m1_root,
             session=CapitalizerSession(args.session),
         )
-        write_market(report, trades, args.output)
+        write_market(market_report, trades, args.output)
         print(
             json.dumps(
                 {
-                    "symbol": report.symbol,
-                    "session": report.session,
-                    "trades": report.raw_entries,
+                    "symbol": market_report.symbol,
+                    "session": market_report.session,
+                    "trades": market_report.raw_entries,
                     "pf": (
                         None
-                        if report.raw_metrics is None
-                        else report.raw_metrics.profit_factor
+                        if market_report.raw_metrics is None
+                        else market_report.raw_metrics.profit_factor
                     ),
-                    "stops": report.raw_stop_exits,
-                    "targets": report.raw_target_exits,
+                    "stops": market_report.raw_stop_exits,
+                    "targets": market_report.raw_target_exits,
                 },
                 sort_keys=True,
             )
         )
         return
 
-    report = build_matrix(args.input_root)
-    write_matrix(report, args.output)
-    print(json.dumps(report, sort_keys=True))
+    matrix_report = build_matrix(args.input_root)
+    write_matrix(matrix_report, args.output)
+    print(json.dumps(matrix_report, sort_keys=True))
 
 
 if __name__ == "__main__":
