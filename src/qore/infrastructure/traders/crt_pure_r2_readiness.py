@@ -9,10 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from qore.infrastructure.traders.crt_pure_source_registry import (
-    CrtPureConceptId,
-    promotable_concepts,
-)
+from qore.infrastructure.traders.crt_pure_source_registry import CrtPureConceptId, promotable_concepts
 
 
 CRT_PURE_R2_MODEL1_REQUIRED_CONCEPTS: tuple[CrtPureConceptId, ...] = (
