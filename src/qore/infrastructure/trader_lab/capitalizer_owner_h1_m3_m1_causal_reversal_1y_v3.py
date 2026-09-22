@@ -266,12 +266,15 @@ def _metrics(trades: tuple[V3Trade, ...]) -> ICTReplayMetrics | None:
 
 
 def _price_quantum(bars: tuple[CapitalizerM1Bar, ...]) -> Decimal:
-    exponent = min(
-        value.as_tuple().exponent
+    exponents = [
+        exponent
         for bar in bars[: min(len(bars), 10000)]
         for value in (bar.open, bar.high, bar.low, bar.close)
-    )
-    return Decimal(1).scaleb(exponent)
+        if isinstance((exponent := value.as_tuple().exponent), int)
+    ]
+    if not exponents:
+        raise ValueError("V3 replay requires finite decimal prices")
+    return Decimal(1).scaleb(min(exponents))
 
 
 def _stop_buffer(bars: tuple[CapitalizerM1Bar, ...]) -> Decimal:
@@ -439,11 +442,11 @@ def _find_sweep_closeback(
             continue
         start = bisect.bisect_right(m5_closes, sweep_bar.opened_at)
         end = bisect.bisect_right(m5_closes, h1_deadline)
-        for bar in m5[start:end]:
+        for m5_bar in m5[start:end]:
             closed_back = (
-                bar.source.close < level.price
+                m5_bar.source.close < level.price
                 if level.kind == "HIGH"
-                else bar.source.close > level.price
+                else m5_bar.source.close > level.price
             )
             if not closed_back:
                 continue
@@ -462,7 +465,7 @@ def _find_sweep_closeback(
                         if level.kind == "HIGH"
                         else sweep_bar.low
                     ),
-                    closeback_at=bar.closed_at,
+                    closeback_at=m5_bar.closed_at,
                     h1_open=h1_open,
                     h1_deadline=h1_deadline,
                 )
@@ -657,8 +660,8 @@ def _m1_causal_zone(
     formed_at, fvg_low, fvg_high = min(
         candidates, key=lambda item: item[0]
     )
-    overlap_low = max(ob.low, fvg_low)
-    overlap_high = min(ob.high, fvg_high)
+    overlap_low: Decimal | None = max(ob.low, fvg_low)
+    overlap_high: Decimal | None = min(ob.high, fvg_high)
     if overlap_low > overlap_high:
         overlap_low = None
         overlap_high = None
@@ -1265,9 +1268,9 @@ def main() -> None:
             )
         )
         return
-    report = build_matrix(args.input_root)
-    write_matrix(report, args.output)
-    print(json.dumps(report, sort_keys=True))
+    matrix_report = build_matrix(args.input_root)
+    write_matrix(matrix_report, args.output)
+    print(json.dumps(matrix_report, sort_keys=True))
 
 
 if __name__ == "__main__":
