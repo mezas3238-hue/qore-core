@@ -660,11 +660,16 @@ def _m1_causal_zone(
     formed_at, fvg_low, fvg_high = min(
         candidates, key=lambda item: item[0]
     )
-    overlap_low: Decimal | None = max(ob.low, fvg_low)
-    overlap_high: Decimal | None = min(ob.high, fvg_high)
-    if overlap_low > overlap_high:
+    overlap_candidate_low = max(ob.low, fvg_low)
+    overlap_candidate_high = min(ob.high, fvg_high)
+    overlap_low: Decimal | None
+    overlap_high: Decimal | None
+    if overlap_candidate_low > overlap_candidate_high:
         overlap_low = None
         overlap_high = None
+    else:
+        overlap_low = overlap_candidate_low
+        overlap_high = overlap_candidate_high
     return M1EntryZone(
         ob_opened_at=ob.opened_at,
         ob_low=ob.low,
