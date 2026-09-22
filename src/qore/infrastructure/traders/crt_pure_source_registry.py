@@ -404,6 +404,41 @@ _DISCOVERED_SOURCE_EVIDENCE: dict[
             adjudication=CrtPureAdjudicationState.CANONICAL,
         ),
     ),
+    CrtPureConceptId.KEY_LEVELS: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.KEY_LEVELS,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance="official RomeoTPT Telegram referencing CRT Secrets episode 5",
+            locator="https://t.me/s/officialRomeotpt?before=6280",
+            normalized_statement=(
+                "RomeoTPT states that the trader can trade the Journey of price toward "
+                "a key level or trade the reaction of price from the key level."
+            ),
+            adjudication=CrtPureAdjudicationState.CANONICAL,
+            ambiguity_notes=(
+                "This closes key-level causal relevance and journey/reaction roles, "
+                "not an exhaustive machine taxonomy, distance threshold, or universal "
+                "NO_KEY_LEVEL => ABSTAIN rule."
+            ),
+        ),
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.KEY_LEVELS,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance="archived original RomeoTPT X post",
+            locator="https://en.rattibha.com/thread/1807861915122593847",
+            normalized_statement=(
+                "RomeoTPT states that a higher-timeframe key level is more important "
+                "than a lower-timeframe market-structure shift and instructs traders "
+                "to trade the logic rather than the pattern."
+            ),
+            adjudication=CrtPureAdjudicationState.CANONICAL,
+            ambiguity_notes=(
+                "This does not make every key-level family a hard execution gate."
+            ),
+        ),
+    ),
     CrtPureConceptId.INVALIDATION: (
         CrtPureSourceEvidence(
             concept_id=CrtPureConceptId.INVALIDATION,
