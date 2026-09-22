@@ -184,12 +184,10 @@ def _window(
             continue
 
         signal = item.opportunity.signal
-        days = _source_days(
+        previous_day, current_day = _source_days(
             indexed_by_symbol[item.symbol],
-            before_local=signal.signal_at.astimezone(v7._NY),
-            count=3,
+            before_local=signal.h4_opened_at.astimezone(v7._NY),
         )
-        _previous_previous, previous_day, current_day = days[-3:]
         previous_alignment = (
             "ALIGNED"
             if _aligned(previous_day, signal.side)
