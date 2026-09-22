@@ -161,7 +161,7 @@ jobs:
           report = json.loads(path.read_text())
           assert report["identity"] == (
               "QORE_CAPITALIZER_NINE_MARKET_"
-              "M5_MSS_M3_REFINEMENT_1Y_MATRIX_V1"
+              "OWNER_H1_M5_M3_1Y_MATRIX_V1"
           )
           assert report["architecture"] == "H1_BIAS_TO_LIQUIDITY_SWEEP_TO_M5_CISD_MSS_TSPOT_TO_M3"
           assert report["architecture_predeclared"] is True
