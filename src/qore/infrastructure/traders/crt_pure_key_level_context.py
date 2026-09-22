@@ -1,15 +1,11 @@
 """Source-bound key-level context for VT08 CRT PURE.
 
-RomeoTPT source closes the causal ROLE of key levels:
-- price can be traded on its Journey toward a key level;
-- price can be traded on its reaction from a key level;
-- a higher-timeframe key level outranks a lower-timeframe structure pattern.
+Primary RomeoTPT material closes the causal ROLE of key levels and explicitly
+names old CRTH/CRL reactions plus the MOB (make-or-break) level.  The reviewed
+source does not close a universal OB/FVG/PDH/PDL taxonomy, proximity threshold,
+or NO_KEY_LEVEL => ABSTAIN rule.
 
-The reviewed source does NOT yet close an exhaustive machine taxonomy, proximity
-threshold, or a universal rule that absence of a recognized key level must veto a trade.
-
-This module therefore enriches cognition only.  It can neither create an entry nor
-hard-reject an otherwise source-valid CRT solely because key-level evidence is absent.
+This module therefore enriches cognition without granting entry/capital authority.
 """
 
 from __future__ import annotations
@@ -19,16 +15,32 @@ from datetime import datetime
 from enum import StrEnum
 
 
+class CrtPureKeyLevelFamily(StrEnum):
+    OLD_CRTH = "OLD_CRTH"
+    OLD_CRTL = "OLD_CRTL"
+    MOB = "MOB"
+    OTHER_SOURCE_AUTHORIZED = "OTHER_SOURCE_AUTHORIZED"
+
+
 class CrtPureKeyLevelInteraction(StrEnum):
     UNKNOWN = "UNKNOWN"
     JOURNEY_TO = "JOURNEY_TO"
     REACTION_FROM = "REACTION_FROM"
+    MAKE_OR_BREAK = "MAKE_OR_BREAK"
 
 
 class CrtPureKeyLevelReadiness(StrEnum):
     ROLE_SOURCE_CLOSED = "ROLE_SOURCE_CLOSED"
+    FAMILY_SOURCE_CLOSED = "FAMILY_SOURCE_CLOSED"
     TAXONOMY_UNRESOLVED = "TAXONOMY_UNRESOLVED"
     GEOMETRY_UNRESOLVED = "GEOMETRY_UNRESOLVED"
+
+
+_SOURCE_NATIVE_FAMILIES: tuple[CrtPureKeyLevelFamily, ...] = (
+    CrtPureKeyLevelFamily.OLD_CRTH,
+    CrtPureKeyLevelFamily.OLD_CRTL,
+    CrtPureKeyLevelFamily.MOB,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,11 +49,11 @@ class CrtPureKeyLevelEvidence:
     level_token: str
     observed_at: datetime
     interaction: CrtPureKeyLevelInteraction
+    family: CrtPureKeyLevelFamily
     level_timeframe_seconds: int | None = None
-    source_family: str = "UNSPECIFIED_SOURCE_AUTHORIZED_KEY_LEVEL"
 
     def __post_init__(self) -> None:
-        if not self.evidence_id or not self.level_token or not self.source_family:
+        if not self.evidence_id or not self.level_token:
             raise ValueError("key-level evidence identifiers must be non-empty")
         if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
             raise ValueError("key-level evidence timestamp must be timezone-aware")
@@ -55,6 +67,7 @@ class CrtPureKeyLevelEvidence:
 @dataclass(frozen=True, slots=True)
 class CrtPureKeyLevelAssessment:
     interaction: CrtPureKeyLevelInteraction
+    families: tuple[CrtPureKeyLevelFamily, ...]
     evidence_ids: tuple[str, ...]
     readiness: tuple[CrtPureKeyLevelReadiness, ...]
     higher_timeframe_context_present: bool
@@ -71,12 +84,18 @@ class CrtPureKeyLevelAssessment:
             raise ValueError("key-level context cannot grant capital authority")
 
 
+def source_native_key_level_families() -> tuple[CrtPureKeyLevelFamily, ...]:
+    """Return only key-level families directly named in accepted primary evidence."""
+
+    return _SOURCE_NATIVE_FAMILIES
+
+
 def assess_key_level_context(
     evidence: tuple[CrtPureKeyLevelEvidence, ...],
     *,
     execution_timeframe_seconds: int,
 ) -> CrtPureKeyLevelAssessment:
-    """Describe causal key-level context without inventing key-level taxonomy."""
+    """Describe causal key-level context without inventing universal geometry."""
 
     if execution_timeframe_seconds <= 0:
         raise ValueError("execution timeframe must be positive")
@@ -84,9 +103,11 @@ def assess_key_level_context(
     if not evidence:
         return CrtPureKeyLevelAssessment(
             interaction=CrtPureKeyLevelInteraction.UNKNOWN,
+            families=(),
             evidence_ids=(),
             readiness=(
                 CrtPureKeyLevelReadiness.ROLE_SOURCE_CLOSED,
+                CrtPureKeyLevelReadiness.FAMILY_SOURCE_CLOSED,
                 CrtPureKeyLevelReadiness.TAXONOMY_UNRESOLVED,
                 CrtPureKeyLevelReadiness.GEOMETRY_UNRESOLVED,
             ),
@@ -105,11 +126,14 @@ def assess_key_level_context(
         and item.level_timeframe_seconds > execution_timeframe_seconds
         for item in evidence
     )
+    families = tuple(dict.fromkeys(item.family for item in evidence))
     return CrtPureKeyLevelAssessment(
         interaction=interaction,
+        families=families,
         evidence_ids=tuple(item.evidence_id for item in evidence),
         readiness=(
             CrtPureKeyLevelReadiness.ROLE_SOURCE_CLOSED,
+            CrtPureKeyLevelReadiness.FAMILY_SOURCE_CLOSED,
             CrtPureKeyLevelReadiness.TAXONOMY_UNRESOLVED,
             CrtPureKeyLevelReadiness.GEOMETRY_UNRESOLVED,
         ),
