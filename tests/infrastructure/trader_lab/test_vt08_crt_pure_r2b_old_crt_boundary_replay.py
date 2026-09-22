@@ -29,7 +29,7 @@ def _m15(hour: int, minute: int, o: int, h: int, low: int, c: int) -> M15Bar:
 
 
 def _agg(hour: int, o: int, h: int, low: int, c: int) -> AggregatedCandle:
-    opened = datetime(2026, 1, 2, hour, 0, tzinfo=UTC)
+    opened = datetime(2026, 1, 2, 0, 0, tzinfo=UTC) + timedelta(hours=hour)
     return AggregatedCandle(
         opened_at=opened,
         closed_at=opened + timedelta(hours=4),
