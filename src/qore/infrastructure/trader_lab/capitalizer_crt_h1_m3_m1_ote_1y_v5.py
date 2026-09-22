@@ -848,7 +848,7 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "identity": MATRIX_IDENTITY,
         "architecture": (
             "H1_N_N1_CRT_TO_M5_CLOSEBACK_TO_M3_LAST_PIVOT_MSS_"
-            "TO_M1_OB_BODY_FIB_OTE_REACTION"
+            "TO_M1_OB_BODY_FIB_079_TWO_CANDLE_ABSORPTION"
         ),
         "window_start": WINDOW_START.isoformat(),
         "window_end_exclusive": WINDOW_END.isoformat(),
