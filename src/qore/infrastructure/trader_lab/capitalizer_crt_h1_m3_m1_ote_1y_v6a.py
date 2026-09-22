@@ -325,6 +325,14 @@ def _metrics(trades: tuple[V6ATrade, ...]) -> V6AMetrics | None:
 
 
 
+def _variant_structure_logic(
+    *,
+    structure_break: bool,
+    cisd_break: bool,
+) -> bool:
+    return structure_break and cisd_break
+
+
 def _find_m3_filtered(
     *,
     crt: CRTEvent,
@@ -390,7 +398,10 @@ def _find_m3_filtered(
                 else source.close < boundary
             )
 
-        if not (structure_break and cisd_break):
+        if not _variant_structure_logic(
+            structure_break=structure_break,
+            cisd_break=cisd_break,
+        ):
             stages["M3_FILTER_STRUCTURE_CISD_REJECT"] += 1
             continue
 
