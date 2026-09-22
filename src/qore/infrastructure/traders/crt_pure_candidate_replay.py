@@ -149,5 +149,5 @@ def scan_candidate_formations(
 
     return tuple(
         detect_candidate_formation(reference, observed)
-        for reference, observed in zip(candles, candles[1:], strict=True)
+        for reference, observed in zip(candles[:-1], candles[1:], strict=True)
     )
