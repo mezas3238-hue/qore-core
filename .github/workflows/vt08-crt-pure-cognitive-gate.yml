@@ -44,7 +44,6 @@ jobs:
             tests/infrastructure/traders/test_crt_pure_strategy_identity_memory.py \
             tests/infrastructure/traders/test_crt_pure_model1.py \
             tests/infrastructure/traders/test_crt_pure_methodology_candidate.py \
-            tests/infrastructure/traders/test_crt_pure_model1.py \
             tests/infrastructure/traders/test_crt_pure_candidate_replay.py \
             tests/infrastructure/traders/test_crt_pure_certification_readiness.py \
             tests/infrastructure/traders/test_crt_pure_timing_policy.py \
