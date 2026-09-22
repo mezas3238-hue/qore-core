@@ -122,6 +122,7 @@ def test_discovered_level_a_evidence_is_retained_but_not_promoted() -> None:
         CrtPureConceptId.OLD_CRTH_CRL_STAB_REACTION,
         CrtPureConceptId.MODEL_1_ENTRY,
         CrtPureConceptId.MODEL_1_TIMEFRAME_ALIGNMENT,
+        CrtPureConceptId.MODEL_1_REFERENCE_SELECTION,
     }
     assert set(promotable_concepts()) == {
         CrtPureConceptId.TIME_TURTLE_SOUP_RELATION,
@@ -150,3 +151,5 @@ def test_level_b_never_promotes_without_primary_closure() -> None:
     assert CrtPureConceptId.CANDLE_1_2_3 in promotable_concepts()
     assert CrtPureConceptId.NESTED_CRT in evidence_backed_concepts()
     assert CrtPureConceptId.NESTED_CRT not in promotable_concepts()
+    assert CrtPureConceptId.MODEL_1_REFERENCE_SELECTION in evidence_backed_concepts()
+    assert CrtPureConceptId.MODEL_1_REFERENCE_SELECTION not in promotable_concepts()
