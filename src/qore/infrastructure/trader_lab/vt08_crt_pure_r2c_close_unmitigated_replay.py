@@ -87,23 +87,10 @@ def build_close_unmitigated_breach_groups(
     grouped: dict[datetime, tuple[BreachGroup, ...]] = {}
 
     for index, bar in enumerate(bars):
-        # A body close beyond a level invalidates it before any Model #1 event
-        # can be created from that same candle.
-        close_broken_highs = tuple(
-            item for item in active_highs if bar.close_price > item.price
-        )
-        close_broken_lows = tuple(
-            item for item in active_lows if bar.close_price < item.price
-        )
-        if close_broken_highs:
-            active_highs = [
-                item for item in active_highs if item not in close_broken_highs
-            ]
-        if close_broken_lows:
-            active_lows = [
-                item for item in active_lows if item not in close_broken_lows
-            ]
-
+        # Eligibility is evaluated from information available before this candle
+        # closes.  Therefore this candle may itself become the first Model #1
+        # raid even when its close also mitigates the old level.  A prior close
+        # beyond the level would already have removed it on an earlier iteration.
         raided_highs = tuple(
             item for item in active_highs if bar.high_price > item.price
         )
@@ -112,30 +99,45 @@ def build_close_unmitigated_breach_groups(
         )
 
         events: list[BreachGroup] = []
+        event_highs: tuple[OldLevel, ...] = ()
+        event_lows: tuple[OldLevel, ...] = ()
         if raided_highs and bar.up_close:
+            event_highs = raided_highs
             events.append(
                 BreachGroup(
                     source_candle=bar,
                     kind=ReferenceKind.OLD_HIGH,
                     policy=REFERENCE_POLICY,
-                    references=raided_highs,
+                    references=event_highs,
                 )
             )
-            active_highs = [item for item in active_highs if item not in raided_highs]
 
         if raided_lows and bar.down_close:
+            event_lows = raided_lows
             events.append(
                 BreachGroup(
                     source_candle=bar,
                     kind=ReferenceKind.OLD_LOW,
                     policy=REFERENCE_POLICY,
-                    references=raided_lows,
+                    references=event_lows,
                 )
             )
-            active_lows = [item for item in active_lows if item not in raided_lows]
 
         if events:
             grouped[bar.opened_at] = tuple(events)
+
+        close_broken_highs = tuple(
+            item for item in active_highs if bar.close_price > item.price
+        )
+        close_broken_lows = tuple(
+            item for item in active_lows if bar.close_price < item.price
+        )
+        retired_highs = set(event_highs) | set(close_broken_highs)
+        retired_lows = set(event_lows) | set(close_broken_lows)
+        if retired_highs:
+            active_highs = [item for item in active_highs if item not in retired_highs]
+        if retired_lows:
+            active_lows = [item for item in active_lows if item not in retired_lows]
 
         for level in _confirmed_pivot(bars, index, REFERENCE_POLICY):
             if level.kind is ReferenceKind.OLD_HIGH:
