@@ -1105,10 +1105,7 @@ def _load_reports(root: Path) -> list[dict[str, Any]]:
 
 def _load_trades(root: Path) -> tuple[V3Trade, ...]:
     rows: list[V3Trade] = []
-    pattern = (
-        "capitalizer-*-owner-h1-m3-m1-causal-reversal-"
-        "1y-v3-trades.jsonl"
-    )
+    pattern = "capitalizer-*-v3-density-multi-mss-1y-v1-trades.jsonl"
     for path in sorted(root.rglob(pattern)):
         with path.open(encoding="utf-8") as handle:
             for line in handle:
@@ -1250,6 +1247,8 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "m3_mss_required": True,
         "m3_body_ratio_min": "0.60",
         "m3_atr_multiplier": "1.2",
+        "multi_mss_per_h1_allowed": True,
+        "identical_entry_trigger_to_v3": True,
         "stop_buffer_pips": "5",
         "stop_buffer_model": "5_X_10_X_MIN_DECIMAL_QUANTUM",
         "m1_entry_causally_linked_to_m3": True,
@@ -1265,10 +1264,7 @@ def build_matrix(root: Path) -> dict[str, Any]:
 
 def write_matrix(report: dict[str, Any], output: Path) -> None:
     output.mkdir(parents=True, exist_ok=True)
-    path = output / (
-        "capitalizer-nine-market-owner-h1-m3-m1-"
-        "causal-reversal-1y-v3.json"
-    )
+    path = output / "capitalizer-nine-market-v3-density-multi-mss-1y-v1.json"
     path.write_text(
         json.dumps(report, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
