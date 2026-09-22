@@ -211,6 +211,7 @@ class V3MarketReport:
     stop_buffer_pips: str = "5"
     stop_buffer_model: str = "5_X_10_X_MIN_DECIMAL_QUANTUM"
     m1_entry_causally_linked_to_m3: bool = True
+    m1_can_originate_trade: bool = False
     max3_is_ceiling_not_quota: bool = True
     fresh_holdout_claimed: bool = False
     rule_promotion_allowed: bool = False
