@@ -13,6 +13,13 @@ on:
 permissions:
   contents: read
 
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -23,7 +30,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install development dependencies
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,ctrader]"
       - name: Ruff
         run: ruff check src/qore/infrastructure/trader_lab/vt08_crt_pure_r2_model1_reference_lab.py tests/infrastructure/trader_lab/test_vt08_crt_pure_r2_model1_reference_lab.py
       - name: Mypy
@@ -41,19 +48,22 @@ jobs:
         market: [AUDUSD, USDJPY, BTCUSD]
     env:
       QORE_MARKET: ${{ matrix.market }}
-      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
-      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
-      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
-      QORE_CTRADER_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_ACCOUNT_ID }}
-      QORE_CTRADER_HOST: ${{ secrets.QORE_CTRADER_HOST }}
-      QORE_CTRADER_PORT: ${{ secrets.QORE_CTRADER_PORT }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Install package
-        run: pip install -e .
+        run: pip install -e '.[ctrader]'
+      - name: Discover DEMO account when needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
       - name: Run R2 Model1 reference ambiguity lab
         shell: bash
         run: |
