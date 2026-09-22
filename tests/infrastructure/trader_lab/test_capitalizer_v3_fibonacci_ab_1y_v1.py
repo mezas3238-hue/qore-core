@@ -10,9 +10,9 @@ from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
 from qore.infrastructure.trader_lab.capitalizer_v3_fibonacci_ab_1y_v1 import (
     IDENTITY,
     MATRIX_IDENTITY,
-    OTEZone,
     STOP_IDENTITY,
     TARGET_IDENTITY,
+    OTEZone,
     _find_ote_fill,
 )
 
@@ -22,7 +22,7 @@ def _bar(
     *,
     o: str,
     h: str,
-    l: str,
+    low: str,
     c: str,
 ) -> CapitalizerM1Bar:
     return CapitalizerM1Bar(
@@ -31,7 +31,7 @@ def _bar(
         closed_at=at + timedelta(minutes=1),
         open=Decimal(o),
         high=Decimal(h),
-        low=Decimal(l),
+        low=Decimal(low),
         close=Decimal(c),
         volume=None,
         digits=5,
@@ -57,8 +57,8 @@ def test_ote_absorption_can_enter_before_079() -> None:
         zone_high=Decimal("103.8"),
     )
     bars = (
-        _bar(now, o="103.6", h="103.7", l="103.2", c="103.4"),
-        _bar(now + timedelta(minutes=1), o="103.3", h="103.8", l="103.3", c="103.6"),
+        _bar(now, o="103.6", h="103.7", low="103.2", c="103.4"),
+        _bar(now + timedelta(minutes=1), o="103.3", h="103.8", low="103.3", c="103.6"),
     )
 
     class Event:
@@ -87,7 +87,7 @@ def test_close_through_079_invalidates() -> None:
         zone_low=Decimal("102.1"),
         zone_high=Decimal("103.8"),
     )
-    bars = (_bar(now, o="102.4", h="102.5", l="101.8", c="101.9"),)
+    bars = (_bar(now, o="102.4", h="102.5", low="101.8", c="101.9"),)
 
     class Event:
         side = CapitalizerSide.LONG
