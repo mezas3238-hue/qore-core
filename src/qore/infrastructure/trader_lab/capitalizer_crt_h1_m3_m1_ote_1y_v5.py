@@ -7,8 +7,11 @@ Frozen chain:
     -> M3 breaks last pre-sweep 3-candle pivot
     -> causal M1 OB
     -> Fibonacci impulse using candle bodies only
-    -> OTE 0.62-0.79 reaction (M1 rejection OR micro-CISD)
-    -> M1 entry at reaction close
+    -> price may traverse OTE 0.62-0.79 but NO entry at 0.62/0.705
+    -> exact 0.79 must be reached
+    -> M1 rejection OR micro-CISD at 0.79
+    -> adverse M1 close through 0.79 invalidates pre-entry
+    -> M1 entry only after confirmed 0.79 reaction
     -> stop beyond M1 OB + 5-pip-equivalent buffer
     -> TP1 H1 N equilibrium closes 50% and moves remainder to BE
     -> TP2 opposite H1 N extreme
@@ -67,7 +70,7 @@ IDENTITY = "QORE_CAPITALIZER_CRT_H1_M3_M1_OTE_1Y_V5"
 MATRIX_IDENTITY = "QORE_CAPITALIZER_NINE_MARKET_CRT_H1_M3_M1_OTE_1Y_V5"
 ENTRY_IDENTITY = (
     "H1_N_N1_CRT__M5_CLOSEBACK__M3_LAST_PRE_SWEEP_PIVOT_BREAK__"
-    "M1_CAUSAL_OB__BODY_FIB_OTE_062_079__REACTION"
+    "M1_CAUSAL_OB__BODY_FIB__EXACT_079_REACTION_OR_INVALIDATION"
 )
 STOP_IDENTITY = "M1_OB_EXTREME_PLUS_5_PIP_BUFFER"
 TARGET_IDENTITY = "TP1_H1_N_EQ_50PCT__BE__TP2_H1_N_OPPOSITE_EXTREME"
@@ -115,7 +118,7 @@ class OTEReaction:
     confirmed_at: datetime
     entry_price: Decimal
     reaction_type: str
-    sweet_spot_touched: bool
+    level_079_touched: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,7 +153,7 @@ class V5Trade:
     ote_zone_low: str
     ote_zone_high: str
     ote_reaction_type: str
-    sweet_spot_0705_touched: bool
+    level_079_touched: bool
     entry_at: str
     entry_price: str
     stop_price: str
@@ -214,9 +217,9 @@ class V5MarketReport:
     m1_ob_identified: int
     ote_zones_defined: int
     ote_zone_interactions: int
-    ote_0705_interactions: int
-    ote_reactions_confirmed: int
-    ote_invalidated_no_reaction: int
+    ote_79_touches: int
+    ote_reactions_confirmed_79: int
+    invalidated_close_through_79: int
     entries_executed: int
     target_geometry_invalid: int
     raw_metrics: V5Metrics | None
@@ -228,8 +231,10 @@ class V5MarketReport:
     m3_swing_rule: str = "LAST_3_CANDLE_PIVOT_FORMED_PRE_SWEEP"
     fib_anchor_rule: str = "M1_BODY_SWEEP_TO_M3_BREAK_BODY_EXTREME"
     ote_zone: str = "0.62_TO_0.79"
-    ote_sweet_spot: str = "0.705"
-    reaction_rule: str = "M1_REJECTION_OR_MICRO_CISD"
+    ote_sweet_spot: str = "0.705_REFERENCE_ONLY_NO_ENTRY"
+    entry_level: str = "0.79_REQUIRED"
+    reaction_rule: str = "M1_REJECTION_OR_MICRO_CISD_AT_079"
+    pre_entry_invalidation_rule: str = "M1_CLOSE_THROUGH_079"
     fvg_required: bool = False
     m3_cisd_required: bool = False
     m3_body_threshold_required: bool = False
@@ -430,15 +435,24 @@ def _find_ote_reaction(
     side: CapitalizerSide,
     zone: OTEZone,
     after: datetime,
-) -> tuple[bool, OTEReaction | None]:
-    interacted = False
+) -> tuple[str, OTEReaction | None]:
+    zone_interacted = False
+    level_079_reached = False
+
     for index, bar in enumerate(execution):
         if bar.opened_at < after:
             continue
+
         touches_zone = bar.low <= zone.zone_high and bar.high >= zone.zone_low
-        if not touches_zone:
+        if touches_zone:
+            zone_interacted = True
+
+        touches_079 = bar.low <= zone.level_079 <= bar.high
+        if touches_079:
+            level_079_reached = True
+
+        if not level_079_reached:
             continue
-        interacted = True
 
         adverse_close = (
             bar.close < zone.level_079
@@ -446,7 +460,10 @@ def _find_ote_reaction(
             else bar.close > zone.level_079
         )
         if adverse_close:
-            return True, None
+            return "INVALIDATED_CLOSE_THROUGH_079", None
+
+        if not touches_079:
+            continue
 
         rejection = _rejection(bar, side=side)
         boundary = _micro_cisd_boundary(
@@ -464,21 +481,25 @@ def _find_ote_reaction(
 
         if rejection or micro_cisd:
             reaction_type = (
-                "REJECTION_AND_MICRO_CISD"
+                "REJECTION_AND_MICRO_CISD_AT_079"
                 if rejection and micro_cisd
-                else "REJECTION"
+                else "REJECTION_AT_079"
                 if rejection
-                else "MICRO_CISD"
+                else "MICRO_CISD_AT_079"
             )
-            sweet = bar.low <= zone.level_0705 <= bar.high
-            return True, OTEReaction(
+            return "REACTION_AT_079", OTEReaction(
                 index=index,
                 confirmed_at=bar.closed_at,
                 entry_price=bar.close,
                 reaction_type=reaction_type,
-                sweet_spot_touched=sweet,
+                level_079_touched=True,
             )
-    return interacted, None
+
+    if level_079_reached:
+        return "TOUCHED_079_NO_REACTION", None
+    if zone_interacted:
+        return "OTE_ONLY_NO_079_TOUCH", None
+    return "NO_OTE_INTERACTION", None
 
 
 def _scan_day(
@@ -547,23 +568,27 @@ def _scan_day(
             continue
         stages["OTE_ZONE_DEFINED"] += 1
 
-        interacted, reaction = _find_ote_reaction(
+        ote_status, reaction = _find_ote_reaction(
             execution,
             side=crt.side,
             zone=zone,
             after=mss.break_confirmed_at,
         )
-        if interacted:
+        if ote_status != "NO_OTE_INTERACTION":
             stages["OTE_ZONE_INTERACTION"] += 1
-        if reaction is None:
-            if interacted:
-                stages["OTE_INVALIDATED_NO_REACTION"] += 1
-            else:
-                stages["OTE_NO_INTERACTION"] += 1
+        if ote_status in {
+            "TOUCHED_079_NO_REACTION",
+            "INVALIDATED_CLOSE_THROUGH_079",
+            "REACTION_AT_079",
+        }:
+            stages["OTE_079_TOUCH"] += 1
+        if ote_status == "INVALIDATED_CLOSE_THROUGH_079":
+            stages["OTE_INVALIDATED_CLOSE_THROUGH_079"] += 1
             continue
-        stages["OTE_REACTION_CONFIRMED"] += 1
-        if reaction.sweet_spot_touched:
-            stages["OTE_0705_INTERACTION"] += 1
+        if reaction is None:
+            stages[f"OTE_NO_ENTRY_{ote_status}"] += 1
+            continue
+        stages["OTE_REACTION_CONFIRMED_079"] += 1
 
         entry_price = reaction.entry_price
         stop_price = (
@@ -642,7 +667,7 @@ def _scan_day(
                 ote_zone_low=str(zone.zone_low),
                 ote_zone_high=str(zone.zone_high),
                 ote_reaction_type=reaction.reaction_type,
-                sweet_spot_0705_touched=reaction.sweet_spot_touched,
+                level_079_touched=reaction.level_079_touched,
                 entry_at=execution[reaction.index].opened_at.isoformat(),
                 entry_price=str(entry_price),
                 stop_price=str(stop_price),
@@ -732,9 +757,9 @@ def build_market_report(
         m1_ob_identified=stages["M1_OB_IDENTIFIED"],
         ote_zones_defined=stages["OTE_ZONE_DEFINED"],
         ote_zone_interactions=stages["OTE_ZONE_INTERACTION"],
-        ote_0705_interactions=stages["OTE_0705_INTERACTION"],
-        ote_reactions_confirmed=stages["OTE_REACTION_CONFIRMED"],
-        ote_invalidated_no_reaction=stages["OTE_INVALIDATED_NO_REACTION"],
+        ote_79_touches=stages["OTE_079_TOUCH"],
+        ote_reactions_confirmed_79=stages["OTE_REACTION_CONFIRMED_079"],
+        invalidated_close_through_79=stages["OTE_INVALIDATED_CLOSE_THROUGH_079"],
         entries_executed=len(ordered),
         target_geometry_invalid=stages["TARGET_GEOMETRY_INVALID"],
         raw_metrics=_metrics(ordered),
@@ -850,9 +875,9 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "m1_ob_identified": sum(int(x["m1_ob_identified"]) for x in reports),
         "ote_zones_defined": sum(int(x["ote_zones_defined"]) for x in reports),
         "ote_zone_interactions": sum(int(x["ote_zone_interactions"]) for x in reports),
-        "ote_0705_interactions": sum(int(x["ote_0705_interactions"]) for x in reports),
-        "ote_reactions_confirmed": sum(int(x["ote_reactions_confirmed"]) for x in reports),
-        "ote_invalidated_no_reaction": sum(int(x["ote_invalidated_no_reaction"]) for x in reports),
+        "ote_79_touches": sum(int(x["ote_79_touches"]) for x in reports),
+        "ote_reactions_confirmed_79": sum(int(x["ote_reactions_confirmed_79"]) for x in reports),
+        "invalidated_close_through_79": sum(int(x["invalidated_close_through_79"]) for x in reports),
         "raw_trades": len(raw),
         "raw_metrics": None if raw_metrics is None else asdict(raw_metrics),
         "max3_selected_trades": len(max3),
@@ -867,7 +892,7 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "max3_session_exits": sum(x.exit_reason == "SESSION_EXIT" for x in max3),
         "max3_tp1_hits": sum(x.tp1_hit for x in max3),
         "max3_tp2_hits": sum(x.tp2_hit for x in max3),
-        "max3_0705_touches": sum(x.sweet_spot_0705_touched for x in max3),
+        "max3_079_touches": sum(x.level_079_touched for x in max3),
         "entry_identity": ENTRY_IDENTITY,
         "stop_identity": STOP_IDENTITY,
         "target_identity": TARGET_IDENTITY,
@@ -875,8 +900,10 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "ote_required": True,
         "fib_body_anchors_only": True,
         "ote_zone": "0.62_TO_0.79",
-        "ote_sweet_spot": "0.705",
-        "reaction_rule": "M1_REJECTION_OR_MICRO_CISD",
+        "ote_sweet_spot": "0.705_REFERENCE_ONLY_NO_ENTRY",
+        "entry_level": "0.79_REQUIRED",
+        "reaction_rule": "M1_REJECTION_OR_MICRO_CISD_AT_079",
+        "pre_entry_invalidation_rule": "M1_CLOSE_THROUGH_079",
         "m3_cisd_required": False,
         "m3_body_threshold_required": False,
         "m3_atr_threshold_required": False,
