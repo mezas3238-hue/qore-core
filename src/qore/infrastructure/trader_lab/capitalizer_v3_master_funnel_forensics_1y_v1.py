@@ -9,6 +9,9 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.trader_lab import (
+    capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 as v3,
+)
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
     iter_cibo_m1,
@@ -19,9 +22,6 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
     CapitalizerSide,
-)
-from qore.infrastructure.trader_lab import (
-    capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 as v3,
 )
 
 IDENTITY = "QORE_CAPITALIZER_V3_MASTER_FUNNEL_FORENSICS_1Y_V1"
