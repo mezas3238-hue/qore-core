@@ -27,9 +27,9 @@ from qore.infrastructure.trader_lab.capitalizer_full_ict_density_scanner_1y_v1 i
     _aggregate_h1,
 )
 from qore.infrastructure.trader_lab.capitalizer_ict_2022_m1_entry_1y_replay_v1 import (
-    ICTReplayMetrics,
     WINDOW_END,
     WINDOW_START,
+    ICTReplayMetrics,
     _aware,
 )
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
