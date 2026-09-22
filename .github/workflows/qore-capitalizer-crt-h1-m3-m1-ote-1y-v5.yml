@@ -102,8 +102,9 @@ jobs:
           assert report["ote_zone"] == "0.62_TO_0.79"
           assert report["ote_sweet_spot"] == "0.705_REFERENCE_ONLY_NO_ENTRY"
           assert report["entry_level"] == "0.79_REQUIRED"
-          assert report["reaction_rule"] == "M1_REJECTION_OR_MICRO_CISD_AT_079"
-          assert report["pre_entry_invalidation_rule"] == "M1_CLOSE_THROUGH_079"
+          assert report["reaction_rule"] == "M1_TWO_CANDLE_ABSORPTION_AT_079_ONLY"
+          assert report["pre_entry_invalidation_rule"] == "ANY_M1_CLOSE_THROUGH_079_BEFORE_ENTRY"
+          assert report["micro_cisd_required"] is False
           assert report["fvg_required"] is False
           assert report["m3_cisd_required"] is False
           assert report["m3_body_threshold_required"] is False
@@ -159,7 +160,7 @@ jobs:
           assert report["identity"] == "QORE_CAPITALIZER_NINE_MARKET_CRT_H1_M3_M1_OTE_1Y_V5"
           assert report["architecture"] == (
               "H1_N_N1_CRT_TO_M5_CLOSEBACK_TO_M3_LAST_PIVOT_MSS_"
-              "TO_M1_OB_BODY_FIB_OTE_REACTION"
+              "TO_M1_OB_BODY_FIB_079_TWO_CANDLE_ABSORPTION"
           )
           assert report["market_count"] == 9
           assert report["fvg_required"] is False
@@ -168,8 +169,9 @@ jobs:
           assert report["ote_zone"] == "0.62_TO_0.79"
           assert report["ote_sweet_spot"] == "0.705_REFERENCE_ONLY_NO_ENTRY"
           assert report["entry_level"] == "0.79_REQUIRED"
-          assert report["reaction_rule"] == "M1_REJECTION_OR_MICRO_CISD_AT_079"
-          assert report["pre_entry_invalidation_rule"] == "M1_CLOSE_THROUGH_079"
+          assert report["reaction_rule"] == "M1_TWO_CANDLE_ABSORPTION_AT_079_ONLY"
+          assert report["pre_entry_invalidation_rule"] == "ANY_M1_CLOSE_THROUGH_079_BEFORE_ENTRY"
+          assert report["micro_cisd_required"] is False
           assert report["m3_cisd_required"] is False
           assert report["m3_body_threshold_required"] is False
           assert report["m3_atr_threshold_required"] is False
