@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -170,7 +169,10 @@ def aggregate_complete_m15(bars: tuple[ReplayBar, ...]) -> tuple[M15Bar, ...]:
     for opened_at in sorted(by_time):
         if opened_at.second or opened_at.microsecond or opened_at.minute % 15:
             continue
-        rows = tuple(by_time.get(opened_at + timedelta(minutes=offset)) for offset in (0, 5, 10))
+        rows = tuple(
+            by_time.get(opened_at + timedelta(minutes=offset))
+            for offset in (0, 5, 10)
+        )
         if any(item is None for item in rows):
             continue
         first, second, third = rows
@@ -188,7 +190,10 @@ def aggregate_complete_m15(bars: tuple[ReplayBar, ...]) -> tuple[M15Bar, ...]:
 
 
 def _contiguous(window: tuple[M15Bar, ...]) -> bool:
-    return all(right.opened_at - left.opened_at == M15 for left, right in zip(window[:-1], window[1:]))
+    return all(
+        right.opened_at - left.opened_at == M15
+        for left, right in zip(window[:-1], window[1:])
+    )
 
 
 def _confirmed_pivot(
@@ -502,7 +507,10 @@ def run_policy(
 
 
 def _summary(trades: tuple[Model1LabTrade, ...]) -> dict[str, Any]:
-    values = tuple(item.r_multiple for item in sorted(trades, key=lambda item: item.entry_opened_at))
+    values = tuple(
+        item.r_multiple
+        for item in sorted(trades, key=lambda item: item.entry_opened_at)
+    )
     positive = tuple(item for item in values if item > 0)
     negative = tuple(item for item in values if item < 0)
     gross_profit = sum(positive)
@@ -550,7 +558,10 @@ def _fold(
     )
 
 
-def build_report(market: CrtPureMarket, bars: tuple[ReplayBar, ...]) -> tuple[dict[str, Any], tuple[Model1LabTrade, ...]]:
+def build_report(
+    market: CrtPureMarket,
+    bars: tuple[ReplayBar, ...],
+) -> tuple[dict[str, Any], tuple[Model1LabTrade, ...]]:
     parents = build_parent_crts(market, bars)
     all_trades: list[Model1LabTrade] = []
     policies: dict[str, Any] = {}
