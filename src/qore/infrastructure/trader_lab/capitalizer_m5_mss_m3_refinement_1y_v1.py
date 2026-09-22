@@ -372,7 +372,7 @@ def _m3_entry_after_m5_mss(
 
 
 def _metrics(
-    trades: tuple[FastFractalTrade, ...],
+    trades: tuple[BM3Trade, ...],
 ) -> ICTReplayMetrics | None:
     if not trades:
         return None
@@ -432,7 +432,7 @@ def _scan_operating_day(
     m3: tuple[TFBar, ...],
     m3_pivots: tuple[Pivot, ...],
     stages: Counter[str],
-) -> tuple[FastFractalTrade, ...]:
+) -> tuple[BM3Trade, ...]:
     if reference is None:
         stages["REFERENCE_LIQUIDITY_UNAVAILABLE"] += 1
         return ()
@@ -441,7 +441,7 @@ def _scan_operating_day(
     if len(execution) < 15:
         stages["EXECUTION_WINDOW_TOO_SPARSE"] += 1
         return ()
-    results: list[FastFractalTrade] = []
+    results: list[BM3Trade] = []
     cursor = 2
     while cursor < len(execution) and len(results) < MAX_EXECUTIONS_PER_SESSION:
         sweep_index: int | None = None
@@ -547,7 +547,7 @@ def _scan_operating_day(
         )
         stages["M3_CE_ENTRY"] += 1
         results.append(
-            FastFractalTrade(
+            BM3Trade(
                 symbol=symbol,
                 session=session.value,
                 operating_date=operating_day.isoformat(),
@@ -606,7 +606,7 @@ def build_market_report(
     m1_root: Path,
     *,
     session: CapitalizerSession,
-) -> tuple[FastFractalMarketReport, tuple[FastFractalTrade, ...]]:
+) -> tuple[BM3MarketReport, tuple[BM3Trade, ...]]:
     all_bars = tuple(
         bar
         for bar in iter_cibo_m1(m1_root)
@@ -638,7 +638,7 @@ def build_market_report(
     )
 
     stages: Counter[str] = Counter()
-    trades: list[FastFractalTrade] = []
+    trades: list[BM3Trade] = []
     per_day: Counter[str] = Counter()
 
     for value in grouped_dates:
@@ -661,7 +661,7 @@ def build_market_report(
         per_day[value] += len(produced)
 
     ordered = tuple(sorted(trades, key=lambda item: _aware(item.entry_at)))
-    report = FastFractalMarketReport(
+    report = BM3MarketReport(
         identity=IDENTITY,
         symbol=symbol,
         session=session.value,
@@ -699,13 +699,13 @@ def build_market_report(
 
 
 def write_market(
-    report: FastFractalMarketReport,
-    trades: tuple[FastFractalTrade, ...],
+    report: BM3MarketReport,
+    trades: tuple[BM3Trade, ...],
     output: Path,
 ) -> None:
     output.mkdir(parents=True, exist_ok=True)
     stem = (
-        f"capitalizer-{report.symbol.lower()}-m5-mss-m3-refinement-h1-m5-m1-1y-v1"
+        f"capitalizer-{report.symbol.lower()}-m5-mss-m3-refinement-1y-v1"
     )
     (output / f"{stem}.json").write_text(
         json.dumps(asdict(report), indent=2, sort_keys=True) + "\n",
@@ -721,7 +721,7 @@ def write_market(
 
 def _load_reports(root: Path) -> list[dict[str, Any]]:
     paths = sorted(
-        root.rglob("capitalizer-*-m5-mss-m3-refinement-h1-m5-m1-1y-v1.json")
+        root.rglob("capitalizer-*-m5-mss-m3-refinement-1y-v1.json")
     )
     if len(paths) != 9:
         raise ValueError(
@@ -738,27 +738,27 @@ def _load_reports(root: Path) -> list[dict[str, Any]]:
     return sorted(reports, key=lambda item: str(item["symbol"]))
 
 
-def _load_trades(root: Path) -> tuple[FastFractalTrade, ...]:
-    rows: list[FastFractalTrade] = []
-    pattern = "capitalizer-*-m5-mss-m3-refinement-h1-m5-m1-1y-v1-trades.jsonl"
+def _load_trades(root: Path) -> tuple[BM3Trade, ...]:
+    rows: list[BM3Trade] = []
+    pattern = "capitalizer-*-m5-mss-m3-refinement-1y-v1-trades.jsonl"
     for path in sorted(root.rglob(pattern)):
         with path.open(encoding="utf-8") as handle:
             for line in handle:
                 if line.strip():
-                    rows.append(FastFractalTrade(**json.loads(line)))
+                    rows.append(BM3Trade(**json.loads(line)))
     return tuple(
         sorted(rows, key=lambda item: (_aware(item.entry_at), item.symbol))
     )
 
 
 def _portfolio_max3(
-    trades: tuple[FastFractalTrade, ...],
-) -> tuple[FastFractalTrade, ...]:
-    grouped: dict[str, list[FastFractalTrade]] = defaultdict(list)
+    trades: tuple[BM3Trade, ...],
+) -> tuple[BM3Trade, ...]:
+    grouped: dict[str, list[BM3Trade]] = defaultdict(list)
     for trade in trades:
         grouped[f"{trade.session}:{trade.operating_date}"].append(trade)
 
-    selected: list[FastFractalTrade] = []
+    selected: list[BM3Trade] = []
     for key in sorted(grouped):
         ordered = sorted(
             grouped[key],
@@ -771,7 +771,7 @@ def _portfolio_max3(
 
 
 def _monthly_counts(
-    trades: tuple[FastFractalTrade, ...],
+    trades: tuple[BM3Trade, ...],
 ) -> dict[str, int]:
     counts: Counter[str] = Counter()
     for trade in trades:
