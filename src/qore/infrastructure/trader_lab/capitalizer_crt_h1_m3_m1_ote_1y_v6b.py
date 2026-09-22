@@ -187,9 +187,13 @@ class V6BTrade:
     fvg_required: bool = False
     ote_required: bool = True
     fib_body_anchors_only: bool = True
+    m3_filter_logic: str = "SWING_OR_CISD_AND_BODY060_AND_ATR1P2"
+    m3_swing_break_required: bool = False
     m3_cisd_required: bool = False
-    m3_body_threshold_required: bool = False
-    m3_atr_threshold_required: bool = False
+    m3_body_threshold_required: bool = True
+    m3_atr_threshold_required: bool = True
+    m3_body_ratio_min: str = "0.60"
+    m3_atr_multiplier: str = "1.2"
     max3_is_ceiling_not_quota: bool = True
     outcome_used_for_selection: bool = False
 
