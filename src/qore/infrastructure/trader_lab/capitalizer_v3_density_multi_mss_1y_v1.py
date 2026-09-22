@@ -155,6 +155,8 @@ class V3Trade:
     exit_reason: str
     m1_bars_held: int
     same_minute_stop_target_ambiguity: bool
+    mss_ordinal: int
+    mss_offset_minutes: int
     entry_definition: str = ENTRY_IDENTITY
     stop_definition: str = STOP_IDENTITY
     target_definition: str = TARGET_IDENTITY
@@ -861,11 +863,29 @@ def _scan_day(
             stages["M3_MSS_MISSING"] += 1
             continue
         stages["M3_MSS_CONFIRMED"] += len(msses)
+        if len(msses) == 1:
+            stages["H1_WITH_1_MSS"] += 1
+        elif len(msses) == 2:
+            stages["H1_WITH_2_MSS"] += 1
+        else:
+            stages["H1_WITH_3PLUS_MSS"] += 1
         if len(msses) > 1:
             stages["H1_WITH_MULTIPLE_MSS"] += 1
+            stages["M3_MSS_ADDITIONAL"] += len(msses) - 1
 
-        seen_fill_keys: set[tuple[datetime, Decimal, str]] = set()
-        for mss in msses:
+        seen_fill_keys: set[tuple[datetime, str]] = set()
+        for mss_ordinal, mss in enumerate(msses, start=1):
+            offset_minutes = int(
+                (mss.confirmed_at - h1_open).total_seconds() // 60
+            )
+            if offset_minutes < 15:
+                stages["MSS_MINUTE_00_14"] += 1
+            elif offset_minutes < 30:
+                stages["MSS_MINUTE_15_29"] += 1
+            elif offset_minutes < 45:
+                stages["MSS_MINUTE_30_44"] += 1
+            else:
+                stages["MSS_MINUTE_45_59"] += 1
             if len(results) >= MAX_EXECUTIONS_PER_SESSION:
                 break
             zone = _m1_causal_zone(execution, event=mss)
@@ -891,13 +911,15 @@ def _scan_day(
             entry_index, entry_price, entry_mode = fill
             fill_key = (
                 execution[entry_index].opened_at,
-                entry_price,
                 closeback.side.value,
             )
             if fill_key in seen_fill_keys:
                 stages["DUPLICATE_MSS_FILL_SKIPPED"] += 1
                 continue
-            seen_fill_keys.add(fill_key)
+            if mss_ordinal == 1:
+                stages["FIRST_MSS_FILL_FOUND"] += 1
+            else:
+                stages["LATER_MSS_FILL_FOUND"] += 1
             stop_price = (
                 mss.broken_swing_price - buffer_price
                 if closeback.side is CapitalizerSide.LONG
@@ -911,6 +933,7 @@ def _scan_day(
             if not valid_stop:
                 stages["M3_STOP_INVALID_GEOMETRY"] += 1
                 continue
+            seen_fill_keys.add(fill_key)
             risk = abs(entry_price - stop_price)
             target_price = (
                 entry_price + Decimal("2") * risk
@@ -927,6 +950,10 @@ def _scan_day(
                 deadline=h1_deadline,
             )
             stages["ENTRY_EXECUTED"] += 1
+            if mss_ordinal == 1:
+                stages["ENTRY_EXECUTED_FIRST_MSS"] += 1
+            else:
+                stages["ENTRY_EXECUTED_LATER_MSS"] += 1
             results.append(
                 V3Trade(
                     symbol=symbol,
@@ -965,6 +992,8 @@ def _scan_day(
                     exit_reason=reason,
                     m1_bars_held=held,
                     same_minute_stop_target_ambiguity=ambiguous,
+                    mss_ordinal=mss_ordinal,
+                    mss_offset_minutes=offset_minutes,
                 )
             )
     return tuple(results)
@@ -1141,12 +1170,31 @@ def _monthly_counts(trades: tuple[V3Trade, ...]) -> dict[str, int]:
     return dict(sorted(counts.items()))
 
 
+def _sum_stage(reports: list[dict[str, Any]], name: str) -> int:
+    return sum(
+        sum(
+            int(count)
+            for stage_name, count in item["stage_counts"]
+            if stage_name == name
+        )
+        for item in reports
+    )
+
+
 def build_matrix(root: Path) -> dict[str, Any]:
     reports = _load_reports(root)
     raw = _load_trades(root)
     max3 = _portfolio_max3(raw)
     raw_metrics = _metrics(raw)
     max3_metrics = _metrics(max3)
+    first_raw = tuple(item for item in raw if item.mss_ordinal == 1)
+    later_raw = tuple(item for item in raw if item.mss_ordinal > 1)
+    first_max3 = tuple(item for item in max3 if item.mss_ordinal == 1)
+    later_max3 = tuple(item for item in max3 if item.mss_ordinal > 1)
+    first_raw_metrics = _metrics(first_raw)
+    later_raw_metrics = _metrics(later_raw)
+    first_max3_metrics = _metrics(first_max3)
+    later_max3_metrics = _metrics(later_max3)
     per_session: dict[str, dict[str, Any]] = {}
     for session in CapitalizerSession:
         session_raw = tuple(
@@ -1192,6 +1240,25 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "m3_mss_confirmed": sum(
             int(item["m3_mss_confirmed"]) for item in reports
         ),
+        "h1_with_1_mss": _sum_stage(reports, "H1_WITH_1_MSS"),
+        "h1_with_2_mss": _sum_stage(reports, "H1_WITH_2_MSS"),
+        "h1_with_3plus_mss": _sum_stage(reports, "H1_WITH_3PLUS_MSS"),
+        "m3_mss_additional": _sum_stage(reports, "M3_MSS_ADDITIONAL"),
+        "duplicate_mss_fills_skipped": _sum_stage(
+            reports, "DUPLICATE_MSS_FILL_SKIPPED"
+        ),
+        "first_mss_fills_found": _sum_stage(
+            reports, "FIRST_MSS_FILL_FOUND"
+        ),
+        "later_mss_fills_found": _sum_stage(
+            reports, "LATER_MSS_FILL_FOUND"
+        ),
+        "mss_temporal_distribution": {
+            "00_14": _sum_stage(reports, "MSS_MINUTE_00_14"),
+            "15_29": _sum_stage(reports, "MSS_MINUTE_15_29"),
+            "30_44": _sum_stage(reports, "MSS_MINUTE_30_44"),
+            "45_59": _sum_stage(reports, "MSS_MINUTE_45_59"),
+        },
         "m1_causal_fvg_confirmed": sum(
             int(item["m1_causal_fvg_confirmed"]) for item in reports
         ),
@@ -1204,6 +1271,23 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "max3_metrics": (
             None if max3_metrics is None else asdict(max3_metrics)
         ),
+        "first_mss_raw_trades": len(first_raw),
+        "first_mss_raw_metrics": (
+            None if first_raw_metrics is None else asdict(first_raw_metrics)
+        ),
+        "later_mss_raw_trades": len(later_raw),
+        "later_mss_raw_metrics": (
+            None if later_raw_metrics is None else asdict(later_raw_metrics)
+        ),
+        "first_mss_max3_trades": len(first_max3),
+        "first_mss_max3_metrics": (
+            None if first_max3_metrics is None else asdict(first_max3_metrics)
+        ),
+        "later_mss_max3_trades": len(later_max3),
+        "later_mss_max3_metrics": (
+            None if later_max3_metrics is None else asdict(later_max3_metrics)
+        ),
+        "trades_recovered_from_later_mss": len(later_max3),
         "raw_stop_exits": sum(
             item.exit_reason == "STOP" for item in raw
         ),
