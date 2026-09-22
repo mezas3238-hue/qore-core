@@ -57,10 +57,11 @@ def test_body_close_above_old_high_mitigates_before_model1_event() -> None:
             (100, 102, 99, 101),
             (101, 106, 100, 105),
             (105, 103, 98, 100),
-            # Body close above 106 invalidates the old high.
-            (104, 108, 103, 107),
-            # Cannot revive it later.
-            (107, 109, 105, 108),
+            # Down-close body still finishes above 106: it is not a bearish
+            # Model #1 source, but it structurally mitigates the old high.
+            (110, 111, 105, 108),
+            # Cannot revive the already mitigated level later.
+            (108, 112, 107, 111),
         )
     )
     m15 = aggregate_complete_m15(rows)
