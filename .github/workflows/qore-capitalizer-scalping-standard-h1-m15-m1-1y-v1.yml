@@ -77,7 +77,7 @@ jobs:
           path: m1-source
           github-token: ${{ github.token }}
           run-id: ${{ env.SOURCE_M1_RUN_ID }}
-      - name: Run predeclared fast-fractal replay
+      - name: Run predeclared scalping-standard replay
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_scalping_standard_h1_m15_m1_1y_v1 \
             market m1-source replay-output --session ${{ matrix.session }}
@@ -97,7 +97,7 @@ jobs:
           )
           report = json.loads(path.read_text())
           assert report["identity"] == (
-              "QORE_CAPITALIZER_SCALPING_STANDARD_H1_M5_M1_1Y_V1"
+              "QORE_CAPITALIZER_SCALPING_STANDARD_H1_M15_M1_1Y_V1"
           )
           assert report["symbol"] == symbol
           assert report["session"] == os.environ["EXPECTED_SESSION"]

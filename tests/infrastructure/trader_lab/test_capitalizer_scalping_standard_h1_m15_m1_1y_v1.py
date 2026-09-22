@@ -32,7 +32,7 @@ def test_variant_a_is_predeclared_h1_m15_m1_without_m5_gate() -> None:
     assert ENTRY_IDENTITY == (
         "H1_C2C3__PRIOR_SESSION_SWEEP__M15_BREAK__M1_MSS_FVG_CE"
     )
-    assert "M15" not in ENTRY_IDENTITY
+    assert "M5" not in ENTRY_IDENTITY
 
 
 def test_m15_parent_can_authorize_structure_without_m5_dependency() -> None:
@@ -40,17 +40,17 @@ def test_m15_parent_can_authorize_structure_without_m5_dependency() -> None:
     bars = (
         TFBar(
             t0,
-            t0 + timedelta(minutes=5),
+            t0 + timedelta(minutes=15),
             _source("100", "101", "99", "100"),
         ),
         TFBar(
-            t0 + timedelta(minutes=5),
-            t0 + timedelta(minutes=10),
+            t0 + timedelta(minutes=15),
+            t0 + timedelta(minutes=30),
             _source("100", "102", "99.5", "101.5"),
         ),
         TFBar(
-            t0 + timedelta(minutes=10),
-            t0 + timedelta(minutes=15),
+            t0 + timedelta(minutes=30),
+            t0 + timedelta(minutes=45),
             _source("101.5", "103", "101", "102.5"),
         ),
     )
@@ -73,7 +73,7 @@ def test_m15_parent_can_authorize_structure_without_m5_dependency() -> None:
         bars,
         pivots,
         after=t0,
-        before=t0 + timedelta(minutes=20),
+        before=t0 + timedelta(hours=1),
         side=CapitalizerSide.LONG,
     )
 

@@ -9,7 +9,7 @@ Predeclared architecture A:
     -> first causal touch of FVG CE
     -> entry
 
-M15 is intentionally not an admission gate in this experiment.
+M5 is intentionally not an admission gate in this experiment.
 M1 remains execution-only and cannot originate the trade thesis.
 
 Risk/lifecycle:
