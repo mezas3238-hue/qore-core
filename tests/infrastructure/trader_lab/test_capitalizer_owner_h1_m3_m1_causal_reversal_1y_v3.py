@@ -26,6 +26,8 @@ def _bar(at: datetime, value: str) -> CapitalizerM1Bar:
         high=price,
         low=price,
         close=price,
+        volume=None,
+        digits=5,
     )
 
 
