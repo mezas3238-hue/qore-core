@@ -488,10 +488,10 @@ def _summarize(
     session: CapitalizerSession,
     diagnostics: tuple[ClosebackDiagnostic, ...],
 ) -> ForensicMarketReport:
-    independent = Counter()
-    first = Counter()
-    signatures = Counter()
-    pairwise = Counter()
+    independent: Counter[str] = Counter()
+    first: Counter[str] = Counter()
+    signatures: Counter[str] = Counter()
+    pairwise: Counter[str] = Counter()
 
     attr_map = {
         "DIRECTION": "direction_failed",
@@ -899,16 +899,16 @@ def main() -> None:
         )
         return
 
-    report = build_matrix(
+    matrix_report = build_matrix(
         args.input_root
     )
     write_matrix(
-        report,
+        matrix_report,
         args.output,
     )
     print(
         json.dumps(
-            report,
+            matrix_report,
             sort_keys=True,
         )
     )
