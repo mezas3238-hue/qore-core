@@ -145,6 +145,7 @@ def test_discovered_level_a_evidence_is_retained_but_not_promoted() -> None:
         CrtPureConceptId.STRUCTURAL_DESTINATION,
         CrtPureConceptId.MODEL_1_ENTRY,
         CrtPureConceptId.MODEL_1_TIMEFRAME_ALIGNMENT,
+        CrtPureConceptId.KEY_LEVELS,
     }
 
 
