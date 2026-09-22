@@ -120,7 +120,7 @@ jobs:
           assert freeze["previous_alignment"] == (
               "BODY_SIGN_EQUALS_SIDE_SIGN_ELSE_OPPOSED"
           )
-          assert freeze["source_days_requested"] == 3
+          assert freeze["source_days_requested"] == 2\n          assert freeze["v4_retained_source_days_original"] == 3\n          assert freeze["classification_consumed_source_days"] == 2
           assert freeze["numeric_price_threshold_used"] is False
           assert freeze["outcome_used_for_classification"] is False
           assert freeze["calendar_or_year_used_for_classification"] is False
