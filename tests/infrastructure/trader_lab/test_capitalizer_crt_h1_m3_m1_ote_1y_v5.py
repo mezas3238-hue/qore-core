@@ -6,6 +6,7 @@ from qore.infrastructure.trader_lab.capitalizer_crt_h1_m3_m1_ote_1y_v5 import (
     IDENTITY,
     MATRIX_IDENTITY,
     OTEZone,
+    _find_ote_reaction,
     _rejection,
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
@@ -69,3 +70,109 @@ def test_ote_zone_contains_sweet_spot() -> None:
         zone_high=Decimal("103.8"),
     )
     assert zone.zone_low < zone.level_0705 < zone.zone_high
+
+
+def test_zone_touch_without_079_does_not_enter() -> None:
+    now = datetime(2026, 9, 22, 13, 0, tzinfo=UTC)
+    zone = OTEZone(
+        impulse_start=Decimal("100"),
+        impulse_end=Decimal("110"),
+        level_050=Decimal("105"),
+        level_062=Decimal("103.8"),
+        level_0705=Decimal("102.95"),
+        level_079=Decimal("102.1"),
+        zone_low=Decimal("102.1"),
+        zone_high=Decimal("103.8"),
+    )
+    bars = (
+        CapitalizerM1Bar(
+            symbol="EURUSD",
+            opened_at=now,
+            closed_at=now + timedelta(minutes=1),
+            open=Decimal("104.0"),
+            high=Decimal("104.1"),
+            low=Decimal("103.0"),
+            close=Decimal("103.7"),
+            volume=None,
+            digits=5,
+        ),
+    )
+    status, reaction = _find_ote_reaction(
+        bars,
+        side=CapitalizerSide.LONG,
+        zone=zone,
+        after=now,
+    )
+    assert status == "OTE_ONLY_NO_079_TOUCH"
+    assert reaction is None
+
+
+def test_079_rejection_enters_long() -> None:
+    now = datetime(2026, 9, 22, 13, 0, tzinfo=UTC)
+    zone = OTEZone(
+        impulse_start=Decimal("100"),
+        impulse_end=Decimal("110"),
+        level_050=Decimal("105"),
+        level_062=Decimal("103.8"),
+        level_0705=Decimal("102.95"),
+        level_079=Decimal("102.1"),
+        zone_low=Decimal("102.1"),
+        zone_high=Decimal("103.8"),
+    )
+    bars = (
+        CapitalizerM1Bar(
+            symbol="EURUSD",
+            opened_at=now,
+            closed_at=now + timedelta(minutes=1),
+            open=Decimal("102.4"),
+            high=Decimal("102.6"),
+            low=Decimal("102.0"),
+            close=Decimal("102.5"),
+            volume=None,
+            digits=5,
+        ),
+    )
+    status, reaction = _find_ote_reaction(
+        bars,
+        side=CapitalizerSide.LONG,
+        zone=zone,
+        after=now,
+    )
+    assert status == "REACTION_AT_079"
+    assert reaction is not None
+    assert reaction.level_079_touched is True
+
+
+def test_close_through_079_invalidates_before_entry() -> None:
+    now = datetime(2026, 9, 22, 13, 0, tzinfo=UTC)
+    zone = OTEZone(
+        impulse_start=Decimal("100"),
+        impulse_end=Decimal("110"),
+        level_050=Decimal("105"),
+        level_062=Decimal("103.8"),
+        level_0705=Decimal("102.95"),
+        level_079=Decimal("102.1"),
+        zone_low=Decimal("102.1"),
+        zone_high=Decimal("103.8"),
+    )
+    bars = (
+        CapitalizerM1Bar(
+            symbol="EURUSD",
+            opened_at=now,
+            closed_at=now + timedelta(minutes=1),
+            open=Decimal("102.4"),
+            high=Decimal("102.5"),
+            low=Decimal("101.8"),
+            close=Decimal("101.9"),
+            volume=None,
+            digits=5,
+        ),
+    )
+    status, reaction = _find_ote_reaction(
+        bars,
+        side=CapitalizerSide.LONG,
+        zone=zone,
+        after=now,
+    )
+    assert status == "INVALIDATED_CLOSE_THROUGH_079"
+    assert reaction is None
