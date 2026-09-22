@@ -352,7 +352,9 @@ def build_report(
             "previous_alignment": (
                 "BODY_SIGN_EQUALS_SIDE_SIGN_ELSE_OPPOSED"
             ),
-            "source_days_requested": 2,\n            "v4_retained_source_days_original": 3,\n            "classification_consumed_source_days": 2,
+            "source_days_requested": 2,
+            "v4_retained_source_days_original": 3,
+            "classification_consumed_source_days": 2,
             "classification_cutoff": "BEFORE_CANONICAL_ENTRY",
             "numeric_price_threshold_used": False,
             "outcome_used_for_classification": False,
