@@ -6,9 +6,9 @@ from qore.infrastructure.trader_lab.capitalizer_exposure_graph import Capitalize
 from qore.infrastructure.trader_lab.capitalizer_v3_density_multi_mss_1y_v1 import (
     IDENTITY,
     MATRIX_IDENTITY,
-    M3MssEvent,
     STOP_IDENTITY,
     TARGET_IDENTITY,
+    M3MssEvent,
     _find_all_m3_mss,
 )
 
