@@ -48,6 +48,8 @@ class CrtPureConceptId(StrEnum):
     REARM_IDENTITY = "rearm_identity"
     SAME_BAR_AMBIGUITY = "same_bar_ambiguity"
     BTCUSD_CONTINUOUS_MARKET = "btcusd_continuous_market"
+    MODEL_1_ENTRY = "model_1_entry"
+    MODEL_1_TIMEFRAME_ALIGNMENT = "model_1_timeframe_alignment"
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,6 +120,46 @@ _DISCOVERED_SOURCE_EVIDENCE: dict[
     CrtPureConceptId,
     tuple[CrtPureSourceEvidence, ...],
 ] = {
+    CrtPureConceptId.MODEL_1_ENTRY: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.MODEL_1_ENTRY,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance=(
+                "canonical foundational RomeoTPT video; indexed transcript extraction "
+                "used only as transport for the spoken rule"
+            ),
+            locator="https://www.youtube.com/watch?v=UUq_wKQ61Wo&t=2332s",
+            normalized_statement=(
+                "Model #1 uses one specific candle that stabs an old high or old low. "
+                "For a bearish Model #1 the source candle is an up-close candle that "
+                "stabs an old high and confirmation is a candle-body close below that "
+                "source candle; bullish Model #1 is the inverse with a down-close candle "
+                "stabbing an old low and a body close above it. Wicks do not satisfy "
+                "the confirmation close."
+            ),
+            adjudication=CrtPureAdjudicationState.CANONICAL,
+            ambiguity_notes=(
+                "Romeo describes thicker source candles as preferred, not as a "
+                "quantified universal threshold. Selection among multiple eligible old "
+                "highs/lows is not closed by this evidence."
+            ),
+        ),
+    ),
+    CrtPureConceptId.MODEL_1_TIMEFRAME_ALIGNMENT: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.MODEL_1_TIMEFRAME_ALIGNMENT,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance="archived original RomeoTPT X post",
+            locator="https://en.rattibha.com/storage/pdf/1087549_1.pdf",
+            normalized_statement=(
+                "RomeoTPT maps 4H CRT to 15-minute Model #1, alongside the fractal "
+                "Monthly->Daily, Weekly->4H and Daily->1H Model #1 mappings."
+            ),
+            adjudication=CrtPureAdjudicationState.CANONICAL,
+        ),
+    ),
     CrtPureConceptId.SESSION_TIME_RULES: (
         CrtPureSourceEvidence(
             concept_id=CrtPureConceptId.SESSION_TIME_RULES,
