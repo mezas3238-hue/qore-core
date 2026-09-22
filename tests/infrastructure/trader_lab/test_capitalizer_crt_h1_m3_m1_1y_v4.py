@@ -1,13 +1,13 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_crt_h1_m3_m1_1y_v4 import (
-    CRTEvent,
     IDENTITY,
     MATRIX_IDENTITY,
+    CRTEvent,
     _target_geometry,
 )
+from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 
 
 def test_v4_identity_is_separate() -> None:
