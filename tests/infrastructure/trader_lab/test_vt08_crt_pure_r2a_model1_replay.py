@@ -73,7 +73,7 @@ def _group(source: M15Bar, suffix: str) -> BreachGroup:
 
 
 def test_first_source_without_confirmation_blocks_later_fallback() -> None:
-    first = _m15(0, 110, 116, 108, 115)
+    first = _m15(0, 108, 116, 107, 115)
     second = _m15(15, 114, 117, 109, 113)
     later_source = _m15(30, 111, 118, 110, 117)
     later_confirm = _m15(45, 116, 116, 104, 109)
