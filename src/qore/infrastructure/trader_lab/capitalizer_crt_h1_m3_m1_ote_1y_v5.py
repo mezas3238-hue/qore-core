@@ -877,7 +877,10 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "ote_zone_interactions": sum(int(x["ote_zone_interactions"]) for x in reports),
         "ote_79_touches": sum(int(x["ote_79_touches"]) for x in reports),
         "ote_reactions_confirmed_79": sum(int(x["ote_reactions_confirmed_79"]) for x in reports),
-        "invalidated_close_through_79": sum(int(x["invalidated_close_through_79"]) for x in reports),
+        "invalidated_close_through_79": sum(
+            int(x["invalidated_close_through_79"])
+            for x in reports
+        ),
         "raw_trades": len(raw),
         "raw_metrics": None if raw_metrics is None else asdict(raw_metrics),
         "max3_selected_trades": len(max3),
