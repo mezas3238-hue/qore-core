@@ -8,6 +8,7 @@ _ACTIVATOR = _ROOT / "scripts" / "authorize_fundednext_live.ps1"
 _WATCHDOG = _ROOT / "scripts" / "qore_fundednext_watchdog.ps1"
 _NO_SEND = _ROOT / "scripts" / "fundednext_mt5_no_send_probe.py"
 _ORDER_CHECK = _ROOT / "scripts" / "fundednext_mt5_order_check_probe.py"
+_VT31_ADAPTER = _ROOT / "scripts" / "vt31_nas100_runtime_adapter.py"
 _VT31_LIVE = _ROOT / "src" / "qore" / "infrastructure" / "vt31_nas100_live.py"
 
 
@@ -130,6 +131,24 @@ def test_vt31_m1_feed_uses_ndx100_provider_symbol_for_preload_and_incremental() 
     source = _VT31_LIVE.read_text(encoding="utf-8-sig")
     assert source.count("copy_rates_from_pos(\n            PROVIDER_SYMBOL,") >= 2
     assert "symbol_info_tick(PROVIDER_SYMBOL)" in source
+
+
+def test_vt31_adapter_normalizes_fundednext_tick_and_position_clocks() -> None:
+    source = _VT31_ADAPTER.read_text(encoding="utf-8-sig")
+    assert (
+        "from qore.infrastructure.fundednext_mt5_clock import "
+        "normalise_fundednext_server_epoch"
+    ) in source
+    tick_clock = source[source.index("def _tick_at"):source.index("def _position_time")]
+    position_clock = source[
+        source.index("def _position_time"):source.index("def _lifecycle_exit")
+    ]
+    assert "normalise_fundednext_server_epoch(raw_seconds)" in tick_clock
+    assert "normalise_fundednext_server_epoch(raw)" in tick_clock
+    assert "datetime.fromtimestamp" not in tick_clock
+    assert "normalise_fundednext_server_epoch(raw_seconds)" in position_clock
+    assert "normalise_fundednext_server_epoch(raw)" in position_clock
+    assert "datetime.fromtimestamp" not in position_clock
 
 
 def test_runtime_binds_certified_policy_and_capitalization_without_changing_vt31() -> None:

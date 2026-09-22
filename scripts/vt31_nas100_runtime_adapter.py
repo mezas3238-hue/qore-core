@@ -32,6 +32,7 @@ from qore.infrastructure.fundednext_live_mt5 import (
     MetaTrader5FundedNextLiveTransport,
 )
 from qore.infrastructure.fundednext_mt5 import Mt5ProviderOutcome
+from qore.infrastructure.fundednext_mt5_clock import normalise_fundednext_server_epoch
 from qore.infrastructure.fundednext_operational import build_account_bound_submission
 from qore.infrastructure.pretrade_safety import (
     ExecutionSafetySwitchSnapshot,
@@ -1259,20 +1260,26 @@ def _magic(client_order_id: str) -> int:
 def _tick_at(tick: Any) -> datetime:
     raw_msc = int(getattr(tick, "time_msc", 0) or 0)
     if raw_msc > 0:
-        return datetime.fromtimestamp(raw_msc / 1000, tz=UTC)
+        raw_seconds, millis = divmod(raw_msc, 1000)
+        return normalise_fundednext_server_epoch(raw_seconds) + timedelta(
+            milliseconds=millis
+        )
     raw = int(getattr(tick, "time", 0) or 0)
     if raw <= 0:
         raise Vt31Nas100LiveError("VT31 broker tick timestamp unavailable")
-    return datetime.fromtimestamp(raw, tz=UTC)
+    return normalise_fundednext_server_epoch(raw)
 
 
 def _position_time(position: Any, fallback: datetime) -> datetime:
     raw_msc = int(getattr(position, "time_msc", 0) or 0)
     if raw_msc > 0:
-        return datetime.fromtimestamp(raw_msc / 1000, tz=UTC)
+        raw_seconds, millis = divmod(raw_msc, 1000)
+        return normalise_fundednext_server_epoch(raw_seconds) + timedelta(
+            milliseconds=millis
+        )
     raw = int(getattr(position, "time", 0) or 0)
     if raw > 0:
-        return datetime.fromtimestamp(raw, tz=UTC)
+        return normalise_fundednext_server_epoch(raw)
     return fallback.astimezone(UTC)
 
 
