@@ -9,6 +9,7 @@ from qore.infrastructure.trader_lab.capitalizer_v3_density_multi_mss_1y_v1 impor
     _find_all_m3_mss,
 )
 
+
 def test_density_multi_mss_keeps_v3_economic_contract() -> None:
     assert IDENTITY == "QORE_CAPITALIZER_V3_DENSITY_MULTI_MSS_1Y_V1"
     assert MATRIX_IDENTITY == "QORE_CAPITALIZER_NINE_MARKET_V3_DENSITY_MULTI_MSS_1Y_V1"
