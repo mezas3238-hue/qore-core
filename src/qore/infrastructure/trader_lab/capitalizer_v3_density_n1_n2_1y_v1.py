@@ -683,6 +683,18 @@ def _m1_causal_zone(
     )
 
 
+def _execution_deadline_for_mss(
+    *,
+    mss_confirmed_at: datetime,
+    h1_deadline: datetime,
+    mss_deadline: datetime,
+) -> datetime:
+    """Preserve V3 timing for N+1; extend only genuinely recovered N+2 MSS."""
+    if mss_confirmed_at <= h1_deadline:
+        return h1_deadline
+    return mss_deadline
+
+
 def _find_m1_fill(
     execution: tuple[CapitalizerM1Bar, ...],
     *,
@@ -836,6 +848,14 @@ def _scan_day(
             stages["M3_MSS_MISSING"] += 1
             continue
         stages["M3_MSS_CONFIRMED"] += 1
+        recovered_n2 = mss.confirmed_at > h1_deadline
+        if recovered_n2:
+            stages["M3_MSS_RECOVERED_N2"] += 1
+        execution_deadline = _execution_deadline_for_mss(
+            mss_confirmed_at=mss.confirmed_at,
+            h1_deadline=h1_deadline,
+            mss_deadline=mss_deadline,
+        )
         zone = _m1_causal_zone(execution, event=mss)
         if zone is None:
             stages["M1_CAUSAL_FVG_MISSING"] += 1
@@ -851,7 +871,7 @@ def _scan_day(
             execution,
             event=mss,
             zone=zone,
-            deadline=mss_deadline,
+            deadline=execution_deadline,
         )
         if fill is None:
             stages["M1_FILL_MISSING"] += 1
@@ -864,7 +884,6 @@ def _scan_day(
         if entry_key in seen_entry_keys:
             stages["DUPLICATE_EXTENDED_WINDOW_FILL"] += 1
             continue
-        seen_entry_keys.add(entry_key)
         stop_price = (
             mss.broken_swing_price - buffer_price
             if closeback.side is CapitalizerSide.LONG
@@ -878,6 +897,7 @@ def _scan_day(
         if not valid_stop:
             stages["M3_STOP_INVALID_GEOMETRY"] += 1
             continue
+        seen_entry_keys.add(entry_key)
         risk = abs(entry_price - stop_price)
         target_price = (
             entry_price + Decimal("2") * risk
@@ -891,7 +911,7 @@ def _scan_day(
             entry_price=entry_price,
             stop_price=stop_price,
             target_price=target_price,
-            deadline=mss_deadline,
+            deadline=execution_deadline,
         )
         stages["ENTRY_EXECUTED"] += 1
         results.append(
@@ -1158,6 +1178,22 @@ def build_matrix(root: Path) -> dict[str, Any]:
         ),
         "m3_mss_confirmed": sum(
             int(item["m3_mss_confirmed"]) for item in reports
+        ),
+        "m3_mss_recovered_n2": sum(
+            sum(
+                int(count)
+                for name, count in item["stage_counts"]
+                if name == "M3_MSS_RECOVERED_N2"
+            )
+            for item in reports
+        ),
+        "duplicate_extended_window_fills": sum(
+            sum(
+                int(count)
+                for name, count in item["stage_counts"]
+                if name == "DUPLICATE_EXTENDED_WINDOW_FILL"
+            )
+            for item in reports
         ),
         "m1_causal_fvg_confirmed": sum(
             int(item["m1_causal_fvg_confirmed"]) for item in reports
