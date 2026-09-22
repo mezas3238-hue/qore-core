@@ -687,6 +687,8 @@ def build_matrix(root: Path) -> dict[str, Any]:
     reports = _load_reports(root)
     raw = _load_trades(root)
     max3 = _portfolio_max3(raw)
+    raw_metrics = _metrics(raw)
+    max3_metrics = _metrics(max3)
     per_session: dict[str, Any] = {}
     for session in CapitalizerSession:
         items = tuple(x for x in max3 if x.session == session.value)
@@ -701,9 +703,9 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "market_count": 9,
         "m3_mss_confirmed": sum(int(x["m3_mss_confirmed"]) for x in reports),
         "raw_trades": len(raw),
-        "raw_metrics": None if _metrics(raw) is None else asdict(_metrics(raw)),
+        "raw_metrics": None if raw_metrics is None else asdict(raw_metrics),
         "max3_selected_trades": len(max3),
-        "max3_metrics": None if _metrics(max3) is None else asdict(_metrics(max3)),
+        "max3_metrics": None if max3_metrics is None else asdict(max3_metrics),
         "per_session": per_session,
         "entries_062_0705": sum(
             x.absorption_bucket == "0.62_TO_0.705" for x in max3
@@ -751,9 +753,9 @@ def main() -> None:
         write_market(report, trades, args.output)
         print(json.dumps(asdict(report), sort_keys=True))
         return
-    report = build_matrix(args.input_root)
-    write_matrix(report, args.output)
-    print(json.dumps(report, sort_keys=True))
+    matrix_report = build_matrix(args.input_root)
+    write_matrix(matrix_report, args.output)
+    print(json.dumps(matrix_report, sort_keys=True))
 
 
 if __name__ == "__main__":
