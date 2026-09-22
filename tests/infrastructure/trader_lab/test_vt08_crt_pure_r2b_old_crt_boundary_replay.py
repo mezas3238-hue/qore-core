@@ -18,24 +18,24 @@ from qore.infrastructure.traders.crt_pure_methodology_candidate import (
 )
 
 
-def _m15(hour: int, minute: int, o: int, h: int, l: int, c: int) -> M15Bar:
+def _m15(hour: int, minute: int, o: int, h: int, low: int, c: int) -> M15Bar:
     return M15Bar(
         opened_at=datetime(2026, 1, 2, hour, minute, tzinfo=UTC),
         open_price=o,
         high_price=h,
-        low_price=l,
+        low_price=low,
         close_price=c,
     )
 
 
-def _agg(hour: int, o: int, h: int, l: int, c: int) -> AggregatedCandle:
+def _agg(hour: int, o: int, h: int, low: int, c: int) -> AggregatedCandle:
     opened = datetime(2026, 1, 2, hour, 0, tzinfo=UTC)
     return AggregatedCandle(
         opened_at=opened,
         closed_at=opened + timedelta(hours=4),
         open_price=o,
         high_price=h,
-        low_price=l,
+        low_price=low,
         close_price=c,
         m5_count=48,
     )
