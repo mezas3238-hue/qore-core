@@ -1,13 +1,13 @@
 from datetime import UTC, datetime
 from decimal import Decimal
 
+from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import CapitalizerM1Bar
 from qore.infrastructure.trader_lab.capitalizer_crt_h1_m3_m1_ote_1y_v5 import (
     IDENTITY,
     MATRIX_IDENTITY,
     OTEZone,
     _rejection,
 )
-from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import CapitalizerM1Bar
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 
 
