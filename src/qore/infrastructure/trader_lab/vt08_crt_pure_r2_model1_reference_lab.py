@@ -192,7 +192,7 @@ def aggregate_complete_m15(bars: tuple[ReplayBar, ...]) -> tuple[M15Bar, ...]:
 def _contiguous(window: tuple[M15Bar, ...]) -> bool:
     return all(
         right.opened_at - left.opened_at == M15
-        for left, right in zip(window[:-1], window[1:])
+        for left, right in zip(window[:-1], window[1:], strict=True)
     )
 
 
@@ -284,7 +284,10 @@ def build_first_breach_groups(
     return grouped
 
 
-def _parent_direction(c1: AggregatedCandle, c2: AggregatedCandle) -> CrtPureCandidateDirection | None:
+def _parent_direction(
+    c1: AggregatedCandle,
+    c2: AggregatedCandle,
+) -> CrtPureCandidateDirection | None:
     outcome = classify_range_outcome(
         reference_high=float(c1.high_price),
         reference_low=float(c1.low_price),
