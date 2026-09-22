@@ -54,12 +54,6 @@ from qore.infrastructure.trader_lab.capitalizer_crt_h1_m3_m1_1y_v4 import (
     _target_geometry,
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
-from qore.infrastructure.trader_lab.capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 import (
-    ATR_MULTIPLIER,
-    BODY_RATIO_MIN,
-    _atr14,
-    _opposing_series_boundary,
-)
 from qore.infrastructure.trader_lab.capitalizer_full_ict_density_scanner_1y_v1 import (
     _aggregate_h1,
 )
@@ -67,6 +61,12 @@ from qore.infrastructure.trader_lab.capitalizer_ict_2022_m1_entry_1y_replay_v1 i
     WINDOW_END,
     WINDOW_START,
     _aware,
+)
+from qore.infrastructure.trader_lab.capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 import (
+    ATR_MULTIPLIER,
+    BODY_RATIO_MIN,
+    _atr14,
+    _opposing_series_boundary,
 )
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     _aggregate_tf,
