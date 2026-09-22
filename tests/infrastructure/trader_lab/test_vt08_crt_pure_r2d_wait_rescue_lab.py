@@ -73,7 +73,7 @@ def test_ote_zone_uses_only_prior_closed_impulse_extreme() -> None:
             (105, 106, 98, 100),  # source origin low 98
             (100, 110, 100, 109),  # favorable extreme becomes 110 only after close
             (109, 111, 107, 110),  # prior extreme 110: no OTE touch
-            (110, 110, 101, 106),  # prior extreme 111 => OTE zone approx 100.73..102.94
+            (102, 110, 101, 106),  # bullish reaction inside prior OTE zone 100.73..102.94
             (106, 108, 104, 107),
         )
     )
