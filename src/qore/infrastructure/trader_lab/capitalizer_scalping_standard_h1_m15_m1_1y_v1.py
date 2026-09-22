@@ -429,7 +429,7 @@ def build_market_report(
 
     h1 = _aggregate_h1(all_bars)
     bias_events = _build_htf_bias_events(h1)
-    m15 = _aggregate_tf(all_bars, minutes=5)
+    m15 = _aggregate_tf(all_bars, minutes=15)
     m15_pivots = _pivots(m15)
 
     execution_by_day, reference_by_day = _index_day_inputs(
