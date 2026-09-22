@@ -100,8 +100,10 @@ jobs:
           assert report["session"] == os.environ["EXPECTED_SESSION"]
           assert report["fib_anchor_rule"] == "M1_BODY_SWEEP_TO_M3_BREAK_BODY_EXTREME"
           assert report["ote_zone"] == "0.62_TO_0.79"
-          assert report["ote_sweet_spot"] == "0.705"
-          assert report["reaction_rule"] == "M1_REJECTION_OR_MICRO_CISD"
+          assert report["ote_sweet_spot"] == "0.705_REFERENCE_ONLY_NO_ENTRY"
+          assert report["entry_level"] == "0.79_REQUIRED"
+          assert report["reaction_rule"] == "M1_REJECTION_OR_MICRO_CISD_AT_079"
+          assert report["pre_entry_invalidation_rule"] == "M1_CLOSE_THROUGH_079"
           assert report["fvg_required"] is False
           assert report["m3_cisd_required"] is False
           assert report["m3_body_threshold_required"] is False
@@ -164,8 +166,10 @@ jobs:
           assert report["ote_required"] is True
           assert report["fib_body_anchors_only"] is True
           assert report["ote_zone"] == "0.62_TO_0.79"
-          assert report["ote_sweet_spot"] == "0.705"
-          assert report["reaction_rule"] == "M1_REJECTION_OR_MICRO_CISD"
+          assert report["ote_sweet_spot"] == "0.705_REFERENCE_ONLY_NO_ENTRY"
+          assert report["entry_level"] == "0.79_REQUIRED"
+          assert report["reaction_rule"] == "M1_REJECTION_OR_MICRO_CISD_AT_079"
+          assert report["pre_entry_invalidation_rule"] == "M1_CLOSE_THROUGH_079"
           assert report["m3_cisd_required"] is False
           assert report["m3_body_threshold_required"] is False
           assert report["m3_atr_threshold_required"] is False
