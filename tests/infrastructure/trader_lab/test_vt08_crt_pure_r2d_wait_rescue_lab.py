@@ -1,12 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import M15Bar
-from qore.infrastructure.trader_lab.vt08_crt_pure_r2d_wait_rescue_lab import (
-    RescueFamily,
-    _cisd_signal,
-    _fvg_signal,
-    _ote_signal,
-)
+from qore.infrastructure.trader_lab import vt08_crt_pure_r2d_wait_rescue_lab as r2d
 from qore.infrastructure.traders.crt_pure_methodology_candidate import (
     CrtPureCandidateDirection,
 )
@@ -40,13 +35,13 @@ def test_cisd_uses_last_adverse_delivery_leg_open_and_next_bar_fill() -> None:
             (112, 114, 111, 113),
         )
     )
-    signal = _cisd_signal(
+    signal = r2d._cisd_signal(
         direction=CrtPureCandidateDirection.BULLISH,
         bars=bars,
         source_index=1,
     )
     assert signal is not None
-    assert signal.family is RescueFamily.CISD
+    assert signal.family is r2d.RescueFamily.CISD
     assert signal.confirmation.opened_at == _BASE + timedelta(minutes=45)
     assert signal.entry_bar.opened_at == _BASE + timedelta(minutes=60)
     assert "adverse_leg_open=110" in signal.detail
@@ -62,13 +57,13 @@ def test_fvg_detects_first_direction_aligned_gap_after_source() -> None:
             (111, 113, 109, 112),
         )
     )
-    signal = _fvg_signal(
+    signal = r2d._fvg_signal(
         direction=CrtPureCandidateDirection.BULLISH,
         bars=bars,
         source_index=0,
     )
     assert signal is not None
-    assert signal.family is RescueFamily.FVG
+    assert signal.family is r2d.RescueFamily.FVG
     assert signal.confirmation.opened_at == _BASE + timedelta(minutes=45)
     assert signal.entry_bar.opened_at == _BASE + timedelta(minutes=60)
 
@@ -83,13 +78,13 @@ def test_ote_zone_uses_only_prior_closed_impulse_extreme() -> None:
             (106, 108, 104, 107),
         )
     )
-    signal = _ote_signal(
+    signal = r2d._ote_signal(
         direction=CrtPureCandidateDirection.BULLISH,
         bars=bars,
         source_index=0,
     )
     assert signal is not None
-    assert signal.family is RescueFamily.OTE
+    assert signal.family is r2d.RescueFamily.OTE
     assert signal.confirmation.opened_at == _BASE + timedelta(minutes=45)
     assert signal.entry_bar.opened_at == _BASE + timedelta(minutes=60)
 
@@ -104,11 +99,11 @@ def test_bearish_fvg_is_symmetric() -> None:
             (92, 95, 90, 93),
         )
     )
-    signal = _fvg_signal(
+    signal = r2d._fvg_signal(
         direction=CrtPureCandidateDirection.BEARISH,
         bars=bars,
         source_index=0,
     )
     assert signal is not None
-    assert signal.family is RescueFamily.FVG
+    assert signal.family is r2d.RescueFamily.FVG
     assert signal.entry_bar.opened_at == _BASE + timedelta(minutes=60)
