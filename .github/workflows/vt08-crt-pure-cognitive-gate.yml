@@ -33,6 +33,7 @@ jobs:
             src/qore/infrastructure/traders/crt_pure_model1.py \
             src/qore/infrastructure/traders/crt_pure_r2_entry_router.py \
             src/qore/infrastructure/traders/crt_pure_r2_readiness.py \
+            src/qore/infrastructure/traders/crt_pure_key_level_context.py \
             src/qore/infrastructure/traders/crt_pure_candidate_replay.py \
             src/qore/infrastructure/traders/crt_pure_certification_readiness.py \
             src/qore/infrastructure/traders/crt_pure_timing_policy.py \
@@ -47,6 +48,7 @@ jobs:
             tests/infrastructure/traders/test_crt_pure_model1.py \
             tests/infrastructure/traders/test_crt_pure_r2_entry_router.py \
             tests/infrastructure/traders/test_crt_pure_r2_readiness.py \
+            tests/infrastructure/traders/test_crt_pure_key_level_context.py \
             tests/infrastructure/traders/test_crt_pure_candidate_replay.py \
             tests/infrastructure/traders/test_crt_pure_certification_readiness.py \
             tests/infrastructure/traders/test_crt_pure_timing_policy.py \
@@ -63,6 +65,7 @@ jobs:
             src/qore/infrastructure/traders/crt_pure_model1.py \
             src/qore/infrastructure/traders/crt_pure_r2_entry_router.py \
             src/qore/infrastructure/traders/crt_pure_r2_readiness.py \
+            src/qore/infrastructure/traders/crt_pure_key_level_context.py \
             src/qore/infrastructure/traders/crt_pure_cognitive_contract.py \
             src/qore/infrastructure/traders/crt_pure_cognitive_state.py \
             src/qore/infrastructure/traders/crt_pure_position_intelligence.py \
@@ -77,6 +80,7 @@ jobs:
             tests/infrastructure/traders/test_crt_pure_model1.py \
             tests/infrastructure/traders/test_crt_pure_r2_entry_router.py \
             tests/infrastructure/traders/test_crt_pure_r2_readiness.py \
+            tests/infrastructure/traders/test_crt_pure_key_level_context.py \
             tests/infrastructure/traders/test_crt_pure_candidate_replay.py \
             tests/infrastructure/traders/test_crt_pure_certification_readiness.py \
             tests/infrastructure/traders/test_crt_pure_timing_policy.py \
