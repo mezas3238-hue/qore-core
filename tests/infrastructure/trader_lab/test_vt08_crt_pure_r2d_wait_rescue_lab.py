@@ -6,7 +6,6 @@ from qore.infrastructure.traders.crt_pure_methodology_candidate import (
     CrtPureCandidateDirection,
 )
 
-
 _BASE = datetime(2026, 1, 2, 10, 0, tzinfo=UTC)
 
 
