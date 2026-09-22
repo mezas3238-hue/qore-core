@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import asdict, replace
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +36,7 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_2y_replay import (
     load_two_year_m5,
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import (
+    BreachGroup,
     M15Bar,
     Model1LabTrade,
     ParentCrt,
@@ -61,8 +63,8 @@ REFERENCE_POLICY = ReferencePolicy.UNTOUCHED_SWING_STRENGTH_1
 def first_eligible_model1_trade(
     *,
     parent: ParentCrt,
-    m15_by_time: dict[object, M15Bar],
-    breaches: dict[object, tuple[object, ...]],
+    m15_by_time: dict[datetime, M15Bar],
+    breaches: dict[datetime, tuple[BreachGroup, ...]],
 ) -> tuple[Model1LabTrade | None, str]:
     """Use only the first aligned source event; never fall through to a later one."""
 
