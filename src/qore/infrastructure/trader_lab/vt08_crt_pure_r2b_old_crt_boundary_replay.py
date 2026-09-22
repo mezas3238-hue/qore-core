@@ -45,8 +45,6 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import
     M15Bar,
     ParentCrt,
     _confirmation,
-    _fold,
-    _summary,
     aggregate_complete_m15,
     build_parent_crts,
 )
