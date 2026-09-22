@@ -146,6 +146,10 @@ class OwnerM3Trade:
     entry_timeframe: str = "M3"
     m5_cisd_required: bool = True
     m5_mss_required: bool = True
+    m3_mss_required: bool = False
+    m3_trigger_logic: str = "INVERSION_FVG_OR_CISD"
+    entry_mode_logic: str = "FVG_CE_50_OR_OB_FVG_RETEST"
+    time_exit: str = "NEXT_H1_OPEN"
     m1_intrabar_only: bool = True
     m1_originated_trade: bool = False
     daily_driver_used: bool = False
