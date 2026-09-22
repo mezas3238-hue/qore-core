@@ -1,0 +1,205 @@
+name: QORE Capitalizer CRT H1-M3-M1 OTE 1Y V6C
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-crt-h1-m3-m1-ote-1y-v6c.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_crt_h1_m3_m1_ote_1y_v6c.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_crt_h1_m3_m1_ote_1y_v6c.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-crt-h1-m3-m1-ote-1y-v6c-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_M1_RUN_ID: '35548099334'
+  SOURCE_M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6c
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_crt_h1_m3_m1_ote_1y_v6c.py \
+            tests/infrastructure/trader_lab/test_capitalizer_crt_h1_m3_m1_ote_1y_v6c.py
+      - name: Mypy
+        run: |
+          mypy src/qore/infrastructure/trader_lab/capitalizer_crt_h1_m3_m1_ote_1y_v6c.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_crt_h1_m3_m1_ote_1y_v6c.py
+
+  market:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - {symbol: USDJPY, session: ASIA}
+          - {symbol: AUDJPY, session: ASIA}
+          - {symbol: AUDUSD, session: ASIA}
+          - {symbol: GBPJPY, session: ASIA}
+          - {symbol: EURUSD, session: LONDON}
+          - {symbol: GBPUSD, session: LONDON}
+          - {symbol: XAUUSD, session: NEW_YORK}
+          - {symbol: USDCAD, session: NEW_YORK}
+          - {symbol: NAS100, session: NEW_YORK}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6c
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download immutable native-M1 clone
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.SOURCE_M1_SHA }}
+          path: m1-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M1_RUN_ID }}
+      - name: Run frozen V6C replay
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_crt_h1_m3_m1_ote_1y_v6c \
+            market m1-source replay-output --session ${{ matrix.session }}
+      - name: Enforce V6C boundary
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+          EXPECTED_SESSION: ${{ matrix.session }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          path = Path("replay-output") / (
+              f"capitalizer-{symbol.lower()}-crt-h1-m3-m1-ote-1y-v6c.json"
+          )
+          report = json.loads(path.read_text())
+          assert report["identity"] == "QORE_CAPITALIZER_CRT_H1_M3_M1_OTE_1Y_V6C"
+          assert report["symbol"] == symbol
+          assert report["session"] == os.environ["EXPECTED_SESSION"]
+          assert report["fib_anchor_rule"] == "M1_BODY_SWEEP_TO_M3_BREAK_BODY_EXTREME"
+          assert report["ote_zone"] == "0.62_TO_0.79"
+          assert report["ote_sweet_spot"] == "0.705_REPORTING_BOUNDARY"
+          assert report["entry_level"] == "ANYWHERE_0.62_TO_0.79"
+          assert report["level_079_role"] == "PRE_ENTRY_INVALIDATION_BY_CLOSE_ONLY"
+          assert report["reaction_rule"] == "M1_TWO_CANDLE_ABSORPTION_ANYWHERE_OTE"
+          assert report["pre_entry_invalidation_rule"] == "ANY_M1_CLOSE_THROUGH_079_BEFORE_ABSORPTION"
+          assert report["micro_cisd_required"] is False
+          assert report["fvg_required"] is False
+          assert report["m3_filter_logic"] == "SWING_AND_BODY060_AND_ATR1P2_NO_CISD"
+          assert report["m3_swing_break_required"] is True
+          assert report["m3_cisd_required"] is False
+          assert report["m3_body_threshold_required"] is True
+          assert report["m3_atr_threshold_required"] is True
+          assert report["m3_body_ratio_min"] == "0.60"
+          assert report["m3_atr_multiplier"] == "1.2"
+          assert report["stop_buffer_pips"] == "5"
+          assert report["tp1_fraction"] == "0.5"
+          assert report["tp1_moves_stop_to_be"] is True
+          assert report["max3_is_ceiling_not_quota"] is True
+          assert report["methodology_research_only"] is True
+          assert report["fresh_holdout_claimed"] is False
+          assert report["economic_candidate"] is False
+          assert report["trader_certified"] is False
+          assert report["live_authorized"] is False
+          assert report["real_capital_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-crt-h1-m3-m1-ote-1y-v6c-${{ matrix.symbol }}-${{ github.sha }}
+          path: replay-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6c
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-crt-h1-m3-m1-ote-1y-v6c-*-${{ github.sha }}
+          path: replay-input
+          merge-multiple: false
+      - name: Build V6C nine-market matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_crt_h1_m3_m1_ote_1y_v6c \
+            matrix replay-input matrix-output
+      - name: Enforce aggregate V6C boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path(
+              "matrix-output/"
+              "capitalizer-nine-market-crt-h1-m3-m1-ote-1y-v6c.json"
+          )
+          report = json.loads(path.read_text())
+          assert report["identity"] == "QORE_CAPITALIZER_NINE_MARKET_CRT_H1_M3_M1_OTE_1Y_V6C"
+          assert report["architecture"] == (
+              "H1_N_N1_CRT_TO_M5_CLOSEBACK_TO_M3_LAST_PIVOT_MSS_"
+              "TO_M1_OB_BODY_FIB_OTE_TWO_CANDLE_ABSORPTION"
+          )
+          assert report["market_count"] == 9
+          assert report["fvg_required"] is False
+          assert report["ote_required"] is True
+          assert report["fib_body_anchors_only"] is True
+          assert report["ote_zone"] == "0.62_TO_0.79"
+          assert report["ote_sweet_spot"] == "0.705_REPORTING_BOUNDARY"
+          assert report["entry_level"] == "ANYWHERE_0.62_TO_0.79"
+          assert report["level_079_role"] == "PRE_ENTRY_INVALIDATION_BY_CLOSE_ONLY"
+          assert report["reaction_rule"] == "M1_TWO_CANDLE_ABSORPTION_ANYWHERE_OTE"
+          assert report["pre_entry_invalidation_rule"] == "ANY_M1_CLOSE_THROUGH_079_BEFORE_ABSORPTION"
+          assert report["micro_cisd_required"] is False
+          assert report["m3_filter_logic"] == "SWING_AND_BODY060_AND_ATR1P2_NO_CISD"
+          assert report["m3_swing_break_required"] is True
+          assert report["m3_cisd_required"] is False
+          assert report["m3_body_threshold_required"] is True
+          assert report["m3_atr_threshold_required"] is True
+          assert report["m3_body_ratio_min"] == "0.60"
+          assert report["m3_atr_multiplier"] == "1.2"
+          assert report["stop_uses_m1_ob"] is True
+          assert report["stop_buffer_pips"] == "5"
+          assert report["tp1_fraction"] == "0.5"
+          assert report["tp1_moves_stop_to_be"] is True
+          assert report["max3_is_ceiling_not_quota"] is True
+          assert report["methodology_research_only"] is True
+          assert report["fresh_holdout_claimed"] is False
+          assert report["economic_candidate"] is False
+          assert report["trader_certified"] is False
+          assert report["live_authorized"] is False
+          assert report["real_capital_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-nine-market-crt-h1-m3-m1-ote-1y-v6c-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90
