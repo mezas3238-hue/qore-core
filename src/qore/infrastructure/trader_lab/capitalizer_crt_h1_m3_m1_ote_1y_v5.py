@@ -8,10 +8,10 @@ Frozen chain:
     -> causal M1 OB
     -> Fibonacci impulse using candle bodies only
     -> price may traverse OTE 0.62-0.79 but NO entry at 0.62/0.705
-    -> exact 0.79 must be reached
-    -> two-candle M1 absorption at 0.79 is the only entry trigger
+    -> two-candle M1 absorption may occur anywhere inside OTE 0.62-0.79
+    -> 0.705 is a reporting sweet-spot boundary, not a mandatory trigger
     -> adverse M1 close through 0.79 invalidates pre-entry
-    -> M1 entry only at the close of candle 2 of the absorption
+    -> M1 entry at the close of candle 2 of the first valid absorption
     -> stop beyond M1 OB + 5-pip-equivalent buffer
     -> TP1 H1 N equilibrium closes 50% and moves remainder to BE
     -> TP2 opposite H1 N extreme
@@ -70,7 +70,7 @@ IDENTITY = "QORE_CAPITALIZER_CRT_H1_M3_M1_OTE_1Y_V5"
 MATRIX_IDENTITY = "QORE_CAPITALIZER_NINE_MARKET_CRT_H1_M3_M1_OTE_1Y_V5"
 ENTRY_IDENTITY = (
     "H1_N_N1_CRT__M5_CLOSEBACK__M3_LAST_PRE_SWEEP_PIVOT_BREAK__"
-    "M1_CAUSAL_OB__BODY_FIB__EXACT_079_TWO_CANDLE_ABSORPTION"
+    "M1_CAUSAL_OB__BODY_FIB__OTE_062_079_TWO_CANDLE_ABSORPTION"
 )
 STOP_IDENTITY = "M1_OB_EXTREME_PLUS_5_PIP_BUFFER"
 TARGET_IDENTITY = "TP1_H1_N_EQ_50PCT__BE__TP2_H1_N_OPPOSITE_EXTREME"
@@ -121,6 +121,8 @@ class OTEReaction:
     level_079_touched: bool
     absorption_candle1_at: datetime
     absorption_candle2_at: datetime
+    absorption_retracement: Decimal
+    absorption_bucket: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,6 +158,8 @@ class V5Trade:
     ote_zone_high: str
     ote_reaction_type: str
     level_079_touched: bool
+    absorption_retracement: str
+    absorption_bucket: str
     entry_at: str
     entry_price: str
     stop_price: str
@@ -220,8 +224,12 @@ class V5MarketReport:
     ote_zones_defined: int
     ote_zone_interactions: int
     ote_79_touches: int
-    absorptions_confirmed_79: int
+    absorptions_confirmed_zone: int
+    absorptions_062_0705: int
+    absorptions_0705_079: int
     invalidated_close_through_79: int
+    entries_062_0705: int
+    entries_0705_079: int
     entries_executed: int
     target_geometry_invalid: int
     raw_metrics: V5Metrics | None
@@ -233,10 +241,11 @@ class V5MarketReport:
     m3_swing_rule: str = "LAST_3_CANDLE_PIVOT_FORMED_PRE_SWEEP"
     fib_anchor_rule: str = "M1_BODY_SWEEP_TO_M3_BREAK_BODY_EXTREME"
     ote_zone: str = "0.62_TO_0.79"
-    ote_sweet_spot: str = "0.705_REFERENCE_ONLY_NO_ENTRY"
-    entry_level: str = "0.79_REQUIRED"
-    reaction_rule: str = "M1_TWO_CANDLE_ABSORPTION_AT_079_ONLY"
-    pre_entry_invalidation_rule: str = "ANY_M1_CLOSE_THROUGH_079_BEFORE_ENTRY"
+    ote_sweet_spot: str = "0.705_REPORTING_BOUNDARY"
+    entry_level: str = "ANYWHERE_0.62_TO_0.79"
+    level_079_role: str = "PRE_ENTRY_INVALIDATION_BY_CLOSE_ONLY"
+    reaction_rule: str = "M1_TWO_CANDLE_ABSORPTION_ANYWHERE_OTE"
+    pre_entry_invalidation_rule: str = "ANY_M1_CLOSE_THROUGH_079_BEFORE_ABSORPTION"
     micro_cisd_required: bool = False
     fvg_required: bool = False
     m3_cisd_required: bool = False
@@ -398,14 +407,14 @@ def _is_absorption_candle1(
     bar: CapitalizerM1Bar,
     *,
     side: CapitalizerSide,
-    level_079: Decimal,
+    zone: OTEZone,
 ) -> bool:
-    touches_079 = bar.low <= level_079 <= bar.high
-    if not touches_079:
+    touches_zone = bar.low <= zone.zone_high and bar.high >= zone.zone_low
+    if not touches_zone:
         return False
     if side is CapitalizerSide.LONG:
-        return bar.close < bar.open and bar.close >= level_079
-    return bar.close > bar.open and bar.close <= level_079
+        return bar.close < bar.open and bar.close >= zone.level_079
+    return bar.close > bar.open and bar.close <= zone.level_079
 
 
 def _is_absorption_candle2(
@@ -415,14 +424,31 @@ def _is_absorption_candle2(
     side: CapitalizerSide,
 ) -> bool:
     if side is CapitalizerSide.LONG:
-        return (
-            bar.close > bar.open
-            and bar.close > previous.close
-        )
-    return (
-        bar.close < bar.open
-        and bar.close < previous.close
+        return bar.close > bar.open and bar.close > previous.close
+    return bar.close < bar.open and bar.close < previous.close
+
+
+def _absorption_depth(
+    bar: CapitalizerM1Bar,
+    *,
+    side: CapitalizerSide,
+    zone: OTEZone,
+) -> Decimal:
+    span = abs(zone.impulse_end - zone.impulse_start)
+    if span <= 0:
+        raise ValueError("OTE absorption depth requires positive impulse span")
+    raw = (
+        (zone.impulse_end - bar.low) / span
+        if side is CapitalizerSide.LONG
+        else (bar.high - zone.impulse_end) / span
     )
+    return min(FIB_079, max(FIB_062, raw))
+
+
+def _absorption_bucket(depth: Decimal) -> str:
+    if depth <= FIB_0705:
+        return "0.62_TO_0.705"
+    return "0.705_TO_0.79"
 
 
 def _find_ote_reaction(
@@ -444,6 +470,10 @@ def _find_ote_reaction(
         if touches_zone:
             zone_interacted = True
 
+        touches_079 = bar.low <= zone.level_079 <= bar.high
+        if touches_079:
+            level_079_reached = True
+
         adverse_close = (
             bar.close < zone.level_079
             if side is CapitalizerSide.LONG
@@ -452,10 +482,6 @@ def _find_ote_reaction(
         if adverse_close:
             return "INVALIDATED_CLOSE_THROUGH_079", None
 
-        touches_079 = bar.low <= zone.level_079 <= bar.high
-        if touches_079:
-            level_079_reached = True
-
         if candidate_index is not None:
             candle1 = execution[candidate_index]
             if index == candidate_index + 1 and _is_absorption_candle2(
@@ -463,28 +489,37 @@ def _find_ote_reaction(
                 candle1,
                 side=side,
             ):
-                return "ABSORPTION_AT_079", OTEReaction(
+                depth = _absorption_depth(
+                    candle1,
+                    side=side,
+                    zone=zone,
+                )
+                return "ABSORPTION_IN_OTE", OTEReaction(
                     index=index,
                     confirmed_at=bar.closed_at,
                     entry_price=bar.close,
-                    reaction_type="TWO_CANDLE_ABSORPTION_AT_079",
-                    level_079_touched=True,
+                    reaction_type="TWO_CANDLE_ABSORPTION_IN_OTE",
+                    level_079_touched=(
+                        candle1.low <= zone.level_079 <= candle1.high
+                    ),
                     absorption_candle1_at=candle1.opened_at,
                     absorption_candle2_at=bar.opened_at,
+                    absorption_retracement=depth,
+                    absorption_bucket=_absorption_bucket(depth),
                 )
             candidate_index = None
 
         if _is_absorption_candle1(
             bar,
             side=side,
-            level_079=zone.level_079,
+            zone=zone,
         ):
             candidate_index = index
 
     if level_079_reached:
         return "TOUCHED_079_NO_ABSORPTION", None
     if zone_interacted:
-        return "OTE_ONLY_NO_079_TOUCH", None
+        return "OTE_INTERACTION_NO_ABSORPTION", None
     return "NO_OTE_INTERACTION", None
 
 def _scan_day(
@@ -564,8 +599,7 @@ def _scan_day(
         if ote_status in {
             "TOUCHED_079_NO_ABSORPTION",
             "INVALIDATED_CLOSE_THROUGH_079",
-            "ABSORPTION_AT_079",
-        }:
+        } or (reaction is not None and reaction.level_079_touched):
             stages["OTE_079_TOUCH"] += 1
         if ote_status == "INVALIDATED_CLOSE_THROUGH_079":
             stages["OTE_INVALIDATED_CLOSE_THROUGH_079"] += 1
@@ -573,7 +607,8 @@ def _scan_day(
         if reaction is None:
             stages[f"OTE_NO_ENTRY_{ote_status}"] += 1
             continue
-        stages["OTE_ABSORPTION_CONFIRMED_079"] += 1
+        stages["OTE_ABSORPTION_CONFIRMED_ZONE"] += 1
+        stages[f"OTE_ABSORPTION_{reaction.absorption_bucket}"] += 1
 
         entry_price = reaction.entry_price
         stop_price = (
@@ -614,6 +649,7 @@ def _scan_day(
             tp2_price=tp2_price,
         )
         stages["ENTRY_EXECUTED"] += 1
+        stages[f"ENTRY_{reaction.absorption_bucket}"] += 1
         if tp1_hit:
             stages["TP1_HIT"] += 1
         if tp2_hit:
@@ -653,6 +689,8 @@ def _scan_day(
                 ote_zone_high=str(zone.zone_high),
                 ote_reaction_type=reaction.reaction_type,
                 level_079_touched=reaction.level_079_touched,
+                absorption_retracement=str(reaction.absorption_retracement),
+                absorption_bucket=reaction.absorption_bucket,
                 entry_at=execution[reaction.index].opened_at.isoformat(),
                 entry_price=str(entry_price),
                 stop_price=str(stop_price),
@@ -743,8 +781,12 @@ def build_market_report(
         ote_zones_defined=stages["OTE_ZONE_DEFINED"],
         ote_zone_interactions=stages["OTE_ZONE_INTERACTION"],
         ote_79_touches=stages["OTE_079_TOUCH"],
-        absorptions_confirmed_79=stages["OTE_ABSORPTION_CONFIRMED_079"],
+        absorptions_confirmed_zone=stages["OTE_ABSORPTION_CONFIRMED_ZONE"],
+        absorptions_062_0705=stages["OTE_ABSORPTION_0.62_TO_0.705"],
+        absorptions_0705_079=stages["OTE_ABSORPTION_0.705_TO_0.79"],
         invalidated_close_through_79=stages["OTE_INVALIDATED_CLOSE_THROUGH_079"],
+        entries_062_0705=stages["ENTRY_0.62_TO_0.705"],
+        entries_0705_079=stages["ENTRY_0.705_TO_0.79"],
         entries_executed=len(ordered),
         target_geometry_invalid=stages["TARGET_GEOMETRY_INVALID"],
         raw_metrics=_metrics(ordered),
@@ -848,7 +890,7 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "identity": MATRIX_IDENTITY,
         "architecture": (
             "H1_N_N1_CRT_TO_M5_CLOSEBACK_TO_M3_LAST_PIVOT_MSS_"
-            "TO_M1_OB_BODY_FIB_079_TWO_CANDLE_ABSORPTION"
+            "TO_M1_OB_BODY_FIB_OTE_TWO_CANDLE_ABSORPTION"
         ),
         "window_start": WINDOW_START.isoformat(),
         "window_end_exclusive": WINDOW_END.isoformat(),
@@ -861,10 +903,24 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "ote_zones_defined": sum(int(x["ote_zones_defined"]) for x in reports),
         "ote_zone_interactions": sum(int(x["ote_zone_interactions"]) for x in reports),
         "ote_79_touches": sum(int(x["ote_79_touches"]) for x in reports),
-        "absorptions_confirmed_79": sum(int(x["absorptions_confirmed_79"]) for x in reports),
+        "absorptions_confirmed_zone": sum(
+            int(x["absorptions_confirmed_zone"]) for x in reports
+        ),
+        "absorptions_062_0705": sum(
+            int(x["absorptions_062_0705"]) for x in reports
+        ),
+        "absorptions_0705_079": sum(
+            int(x["absorptions_0705_079"]) for x in reports
+        ),
         "invalidated_close_through_79": sum(
             int(x["invalidated_close_through_79"])
             for x in reports
+        ),
+        "entries_062_0705_raw": sum(
+            x.absorption_bucket == "0.62_TO_0.705" for x in raw
+        ),
+        "entries_0705_079_raw": sum(
+            x.absorption_bucket == "0.705_TO_0.79" for x in raw
         ),
         "raw_trades": len(raw),
         "raw_metrics": None if raw_metrics is None else asdict(raw_metrics),
@@ -881,6 +937,12 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "max3_tp1_hits": sum(x.tp1_hit for x in max3),
         "max3_tp2_hits": sum(x.tp2_hit for x in max3),
         "max3_079_touches": sum(x.level_079_touched for x in max3),
+        "max3_entries_062_0705": sum(
+            x.absorption_bucket == "0.62_TO_0.705" for x in max3
+        ),
+        "max3_entries_0705_079": sum(
+            x.absorption_bucket == "0.705_TO_0.79" for x in max3
+        ),
         "entry_identity": ENTRY_IDENTITY,
         "stop_identity": STOP_IDENTITY,
         "target_identity": TARGET_IDENTITY,
@@ -888,10 +950,11 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "ote_required": True,
         "fib_body_anchors_only": True,
         "ote_zone": "0.62_TO_0.79",
-        "ote_sweet_spot": "0.705_REFERENCE_ONLY_NO_ENTRY",
-        "entry_level": "0.79_REQUIRED",
-        "reaction_rule": "M1_TWO_CANDLE_ABSORPTION_AT_079_ONLY",
-        "pre_entry_invalidation_rule": "ANY_M1_CLOSE_THROUGH_079_BEFORE_ENTRY",
+        "ote_sweet_spot": "0.705_REPORTING_BOUNDARY",
+        "entry_level": "ANYWHERE_0.62_TO_0.79",
+        "level_079_role": "PRE_ENTRY_INVALIDATION_BY_CLOSE_ONLY",
+        "reaction_rule": "M1_TWO_CANDLE_ABSORPTION_ANYWHERE_OTE",
+        "pre_entry_invalidation_rule": "ANY_M1_CLOSE_THROUGH_079_BEFORE_ABSORPTION",
         "micro_cisd_required": False,
         "m3_cisd_required": False,
         "m3_body_threshold_required": False,
