@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from qore.infrastructure.trader_lab.capitalizer_v3_density_multi_mss_1y_v1 import (
     IDENTITY,
     MATRIX_IDENTITY,
@@ -16,11 +18,12 @@ def test_density_multi_mss_keeps_v3_economic_contract() -> None:
 
 
 def test_multi_mss_empty_window_is_empty() -> None:
+    now = datetime(2026, 9, 22, tzinfo=UTC)
     assert _find_all_m3_mss(
         (),
         (),
         (),
-        after=__import__("datetime").datetime.now(__import__("datetime").UTC),
-        before=__import__("datetime").datetime.now(__import__("datetime").UTC),
+        after=now,
+        before=now,
         side=CapitalizerSide.LONG,
     ) == ()
