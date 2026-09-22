@@ -29,7 +29,9 @@ jobs:
             src/qore/infrastructure/traders/crt_pure_source_registry.py \
             src/qore/infrastructure/traders/crt_pure_source_corpus.py \
             src/qore/infrastructure/traders/crt_pure_strategy_identity_memory.py \
+            src/qore/infrastructure/traders/crt_pure_model1.py \
             src/qore/infrastructure/traders/crt_pure_methodology_candidate.py \
+            src/qore/infrastructure/traders/crt_pure_model1.py \
             src/qore/infrastructure/traders/crt_pure_candidate_replay.py \
             src/qore/infrastructure/traders/crt_pure_certification_readiness.py \
             src/qore/infrastructure/traders/crt_pure_timing_policy.py \
@@ -40,7 +42,9 @@ jobs:
             tests/infrastructure/traders/test_crt_pure_identity.py \
             tests/infrastructure/traders/test_crt_pure_source_registry.py \
             tests/infrastructure/traders/test_crt_pure_strategy_identity_memory.py \
+            tests/infrastructure/traders/test_crt_pure_model1.py \
             tests/infrastructure/traders/test_crt_pure_methodology_candidate.py \
+            tests/infrastructure/traders/test_crt_pure_model1.py \
             tests/infrastructure/traders/test_crt_pure_candidate_replay.py \
             tests/infrastructure/traders/test_crt_pure_certification_readiness.py \
             tests/infrastructure/traders/test_crt_pure_timing_policy.py \
