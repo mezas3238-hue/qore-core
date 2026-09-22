@@ -24,7 +24,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import ROUND_FLOOR, Decimal
-from typing import Any
+from typing import Any, cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
@@ -239,6 +239,9 @@ class Vt31Nas100M1Cache:
         self._preload_calls = 0
         self._incremental_calls = 0
         self._last_refresh_at: datetime | None = None
+        self._prepared_anchor: datetime | None = None
+        self._prepared_prefix: tuple[OhlcSnapshot, ...] = ()
+        self._prepared_evidence_hasher: Any | None = None
 
     @property
     def preloaded(self) -> bool:
@@ -350,6 +353,20 @@ class Vt31Nas100M1Cache:
         self._incremental_calls += 1
         self._last_refresh_at = now.astimezone(UTC)
 
+    def prepare_boundary(self, *, anchor: datetime) -> str:
+        """Pre-hash evidence immutable before the armed M1 boundary."""
+        anchor = _utc(anchor, "anchor")
+        prefix = self.closed_m1(through=anchor - timedelta(minutes=1))
+        if len(prefix) < 119:
+            raise Vt31Nas100LiveError("VT31 M1 causal cache underfilled")
+        hasher = _evidence_prefix_hasher(prefix)
+        self._prepared_anchor = anchor
+        self._prepared_prefix = prefix
+        self._prepared_evidence_hasher = hasher
+        prefix_digest = hasher.copy()
+        prefix_digest.update(b"]")
+        return cast(str, prefix_digest.hexdigest())
+
     def boundary_snapshot(
         self,
         api: Any,
@@ -387,7 +404,22 @@ class Vt31Nas100M1Cache:
         )
         if len(closed) < 120:
             raise Vt31Nas100LiveError("VT31 M1 causal cache underfilled")
-        fingerprint = _evidence_fingerprint(closed)
+        if (
+            self._prepared_anchor == anchor
+            and self._prepared_evidence_hasher is not None
+            and closed[:-1] == self._prepared_prefix
+            and closed[-1].closed_at == anchor
+        ):
+            fingerprint = _finish_evidence_fingerprint(
+                self._prepared_evidence_hasher,
+                closed[-1],
+                has_prefix=bool(self._prepared_prefix),
+            )
+        else:
+            fingerprint = _evidence_fingerprint(closed)
+        self._prepared_anchor = None
+        self._prepared_prefix = ()
+        self._prepared_evidence_hasher = None
         return Vt31Nas100BoundarySnapshot(
             anchor=anchor,
             closed_m1=closed,
@@ -851,30 +883,61 @@ def _tick_timestamp(tick: Any) -> datetime:
     raw_msc = int(getattr(tick, "time_msc", 0) or 0)
     if raw_msc > 0:
         raw_seconds, millis = divmod(raw_msc, 1000)
-        return normalise_fundednext_server_epoch(raw_seconds) + timedelta(
+        return cast(
+            datetime,
+            normalise_fundednext_server_epoch(raw_seconds),
+        ) + timedelta(
             milliseconds=millis
         )
     raw_seconds = int(getattr(tick, "time", 0) or 0)
     if raw_seconds <= 0:
         raise Vt31Nas100LiveError("VT31 broker tick timestamp unavailable")
-    return normalise_fundednext_server_epoch(raw_seconds)
+    return cast(
+        datetime,
+        normalise_fundednext_server_epoch(raw_seconds),
+    )
+
+
+def _evidence_item(bar: OhlcSnapshot) -> bytes:
+    material = (
+        bar.opened_at.isoformat(),
+        bar.closed_at.isoformat(),
+        str(bar.open),
+        str(bar.high),
+        str(bar.low),
+        str(bar.close),
+    )
+    return json.dumps(material, separators=(",", ":")).encode("utf-8")
+
+
+def _evidence_prefix_hasher(bars: tuple[OhlcSnapshot, ...]) -> Any:
+    hasher = hashlib.sha256()
+    hasher.update(b"[")
+    for index, bar in enumerate(bars):
+        if index:
+            hasher.update(b",")
+        hasher.update(_evidence_item(bar))
+    return hasher
+
+
+def _finish_evidence_fingerprint(
+    prefix_hasher: Any,
+    final_bar: OhlcSnapshot,
+    *,
+    has_prefix: bool,
+) -> str:
+    hasher = prefix_hasher.copy()
+    if has_prefix:
+        hasher.update(b",")
+    hasher.update(_evidence_item(final_bar))
+    hasher.update(b"]")
+    return cast(str, hasher.hexdigest())
 
 
 def _evidence_fingerprint(bars: tuple[OhlcSnapshot, ...]) -> str:
-    material = [
-        (
-            bar.opened_at.isoformat(),
-            bar.closed_at.isoformat(),
-            str(bar.open),
-            str(bar.high),
-            str(bar.low),
-            str(bar.close),
-        )
-        for bar in bars
-    ]
-    return hashlib.sha256(
-        json.dumps(material, separators=(",", ":")).encode("utf-8")
-    ).hexdigest()
+    hasher = _evidence_prefix_hasher(bars)
+    hasher.update(b"]")
+    return cast(str, hasher.hexdigest())
 
 
 def _floor_to_step(value: Decimal, step: Decimal) -> Decimal:

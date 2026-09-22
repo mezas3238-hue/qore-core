@@ -293,6 +293,27 @@ class Vt31Nas100LiveStateStore:
     def clear_virtual_basket(self) -> Vt31Nas100LiveState:
         return self.replace(virtual_basket=None)
 
+    def retire_single_basket(
+        self,
+        *,
+        basket_id: str,
+    ) -> Vt31Nas100LiveState:
+        """Retire an immediate candidate that cannot execute at its boundary."""
+        state = self.load()
+        basket = state.virtual_basket
+        if basket is None or basket.basket_id != basket_id:
+            return state
+        if len(basket.candidates) != 1:
+            raise ValueError("VT31 virtual OCO cannot be retired as single")
+        fingerprint = basket.candidates[0].signal_fingerprint
+        closed = tuple((*state.closed_signal_fingerprints, fingerprint))[-512:]
+        processed = tuple((*state.processed_baskets, fingerprint))[-512:]
+        return self.replace(
+            virtual_basket=None,
+            closed_signal_fingerprints=closed,
+            processed_baskets=processed,
+        )
+
     def mark_pending(
         self,
         pending: Vt31PendingBrokerOrderState,

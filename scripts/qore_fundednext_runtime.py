@@ -202,12 +202,14 @@ from qore.kernel.result import Failure
 # regressions do not type-check the historical research graph it reuses.
 _vt31_adapter = import_module("vt31_nas100_runtime_adapter")
 evaluate_vt31_boundary = _vt31_adapter.evaluate_boundary
+prepare_vt31_boundary = _vt31_adapter.prepare_boundary
 manage_vt31_open_trade = _vt31_adapter.manage_open_trade
 process_vt31_virtual_oco = _vt31_adapter.process_virtual_oco
 reconcile_vt31_pending = _vt31_adapter.reconcile_pending
 vt31_runtime_started_fields = _vt31_adapter.runtime_started_fields
 shadow_vt31_basket = _vt31_adapter.shadow_basket
 submit_vt31_single_live = _vt31_adapter.submit_single_live
+warm_vt31_runtime = _vt31_adapter.warm_runtime
 
 _NY = NEW_YORK_TZ
 _MARKETS = ("AUDJPY", "GBPUSD", "GBPJPY")
@@ -1846,7 +1848,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         )
     state_dir = root / "var" / "fundednext"
     startup_memory = ThreadPoolExecutor(
-        max_workers=5,
+        max_workers=6,
         thread_name_prefix="qore-startup-memory",
     )
     r34_cognitive_future = startup_memory.submit(
@@ -1877,6 +1879,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         load_audjpy_r42_memory,
         root / "runtime_data" / "audjpy" / "r42-causal-authority-memory.json",
     )
+    vt31_memory_future = startup_memory.submit(warm_vt31_runtime)
     r34_store = R34LiveStateStore(state_dir / "r34-state.json")
     r34_store.reconcile(mt5, now=datetime.now(UTC))
     r38_store = R38LiveStateStore(state_dir / "r38-state.json")
@@ -1922,6 +1925,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         r43_memory = r43_memory_future.result()
         gbpjpy_r38_memory = gbpjpy_r38_memory_future.result()
         audjpy_r42_memory = audjpy_r42_memory_future.result()
+        vt31_memory_fingerprint = vt31_memory_future.result()
+        if vt31_memory_fingerprint != _vt31_adapter.CIBO_MEMORY_FINGERPRINT:
+            raise RuntimeError("VT31 CIBO memory fingerprint drift")
     finally:
         startup_memory.shutdown(wait=True, cancel_futures=True)
 
@@ -2834,6 +2840,50 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         vt31_arm_anchor = vt31_boundary_to_arm(cycle_at)
         if vt31_arm_anchor is not None and _vt31_entry_boundary(vt31_arm_anchor):
             vt31_arm_started_at = datetime.now(UTC)
+            vt31_prepare_started_ns = time.perf_counter_ns()
+            vt31_prepared_context = None
+            try:
+                vt31_cache.refresh_incremental(mt5, now=vt31_arm_started_at)
+                vt31_prefix_fingerprint = vt31_cache.prepare_boundary(
+                    anchor=vt31_arm_anchor
+                )
+                vt31_prepared_context = prepare_vt31_boundary(
+                    closed_m1=vt31_cache.closed_m1(
+                        through=vt31_arm_anchor - timedelta(minutes=1)
+                    ),
+                    evidence_fingerprint=vt31_prefix_fingerprint,
+                )
+                vt31_prepare_elapsed_ms = (
+                    time.perf_counter_ns() - vt31_prepare_started_ns
+                ) / 1_000_000
+                _log(
+                    log_path,
+                    {
+                        "event": "VT31_NAS100_BOUNDARY_PREPARED",
+                        "boundary_at_utc": vt31_arm_anchor.isoformat(),
+                        "boundary_at_new_york": (
+                            vt31_arm_anchor.astimezone(_NY).isoformat()
+                        ),
+                        "elapsed_ms": round(vt31_prepare_elapsed_ms, 3),
+                        "strategy_timezone": "America/New_York",
+                    },
+                )
+            except Exception as preparation_error:
+                _log(
+                    log_path,
+                    {
+                        "event": "VT31_FAIL_CLOSED",
+                        "boundary_at_utc": vt31_arm_anchor.isoformat(),
+                        "boundary_at_new_york": (
+                            vt31_arm_anchor.astimezone(_NY).isoformat()
+                        ),
+                        "stage": "prearm",
+                        "reason": type(preparation_error).__name__,
+                        "message": str(preparation_error),
+                        "order_send_called": False,
+                    },
+                )
+                continue
             _log(
                 log_path,
                 {
@@ -2959,6 +3009,27 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     cache=vt31_cache,
                     anchor=vt31_arm_anchor,
                 )
+                _log(
+                    log_path,
+                    {
+                        "event": "VT31_M1_SEEN",
+                        "boundary_at_utc": vt31_arm_anchor.isoformat(),
+                        "boundary_at_new_york": (
+                            vt31_arm_anchor.astimezone(_NY).isoformat()
+                        ),
+                        "observed_at_utc": vt31_boundary.observed_at.isoformat(),
+                        "observed_at_new_york": (
+                            vt31_boundary.observed_at.astimezone(_NY).isoformat()
+                        ),
+                        "feed_latency_ms": int(
+                            (
+                                vt31_boundary.observed_at - vt31_arm_anchor
+                            ).total_seconds()
+                            * 1000
+                        ),
+                        "strategy_timezone": "America/New_York",
+                    },
+                )
                 if vt31_blocked:
                     _log(
                         log_path,
@@ -2972,11 +3043,68 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         },
                     )
                 else:
+                    vt31_strategy_started_ns = time.perf_counter_ns()
                     vt31_basket, vt31_reason = evaluate_vt31_boundary(
                         closed_m1=vt31_boundary.closed_m1,
                         evidence_fingerprint=(vt31_boundary.evidence_fingerprint),
                         store=vt31_store,
+                        prepared_context=vt31_prepared_context,
                     )
+                    vt31_strategy_elapsed_ms = (
+                        time.perf_counter_ns() - vt31_strategy_started_ns
+                    ) / 1_000_000
+                    vt31_decided_at = datetime.now(UTC)
+                    _log(
+                        log_path,
+                        {
+                            "event": "VT31_STRATEGY_DECISION",
+                            "boundary_at_utc": vt31_arm_anchor.isoformat(),
+                            "boundary_at_new_york": (
+                                vt31_arm_anchor.astimezone(_NY).isoformat()
+                            ),
+                            "decision_at_utc": vt31_decided_at.isoformat(),
+                            "decision_at_new_york": (
+                                vt31_decided_at.astimezone(_NY).isoformat()
+                            ),
+                            "elapsed_ms": round(vt31_strategy_elapsed_ms, 3),
+                            "result": (
+                                "CANDIDATE"
+                                if vt31_basket is not None
+                                else "ABSTAIN"
+                            ),
+                            "reason": vt31_reason,
+                            "strategy_timezone": "America/New_York",
+                        },
+                    )
+                    if vt31_basket is not None:
+                        _log(
+                            log_path,
+                            {
+                                "event": "VT31_CANDIDATE",
+                                "boundary_at_utc": vt31_arm_anchor.isoformat(),
+                                "boundary_at_new_york": (
+                                    vt31_arm_anchor.astimezone(_NY).isoformat()
+                                ),
+                                "decision_at_utc": vt31_decided_at.isoformat(),
+                                "decision_at_new_york": (
+                                    vt31_decided_at.astimezone(_NY).isoformat()
+                                ),
+                                "elapsed_ms": round(
+                                    vt31_strategy_elapsed_ms,
+                                    3,
+                                ),
+                                "basket_id": vt31_basket.basket_id,
+                                "tier": vt31_basket.tier,
+                                "candidate_ids": [
+                                    item.candidate_id
+                                    for item in vt31_basket.candidates
+                                ],
+                                "signal_fingerprints": [
+                                    item.signal_fingerprint
+                                    for item in vt31_basket.candidates
+                                ],
+                            },
+                        )
                     if vt31_basket is None:
                         _log(
                             log_path,
@@ -3047,6 +3175,25 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         "reason": type(error).__name__,
                         "message": str(error),
                         "decision_deadline_seconds": (VT31_DECISION_DEADLINE.total_seconds()),
+                        "order_send_called": False,
+                    },
+                )
+                failed_at = datetime.now(UTC)
+                _log(
+                    log_path,
+                    {
+                        "event": "VT31_FAIL_CLOSED",
+                        "boundary_at_utc": vt31_arm_anchor.isoformat(),
+                        "boundary_at_new_york": (
+                            vt31_arm_anchor.astimezone(_NY).isoformat()
+                        ),
+                        "logged_at_utc": failed_at.isoformat(),
+                        "logged_at_new_york": (
+                            failed_at.astimezone(_NY).isoformat()
+                        ),
+                        "reason": type(error).__name__,
+                        "message": str(error),
+                        "order_send_called": False,
                     },
                 )
             completed_at = datetime.now(UTC)
