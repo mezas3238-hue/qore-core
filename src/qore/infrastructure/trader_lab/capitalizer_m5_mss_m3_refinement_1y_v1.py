@@ -902,7 +902,7 @@ def build_matrix(root: Path) -> dict[str, Any]:
 def write_matrix(report: dict[str, Any], output: Path) -> None:
     output.mkdir(parents=True, exist_ok=True)
     path = output / (
-        "capitalizer-nine-market-m5-mss-m3-refinement-h1-m5-m1-1y-matrix-v1.json"
+        "capitalizer-nine-market-m5-mss-m3-refinement-1y-matrix-v1.json"
     )
     path.write_text(
         json.dumps(report, indent=2, sort_keys=True) + "\n",
