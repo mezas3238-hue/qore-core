@@ -23,6 +23,21 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
     CapitalizerSide,
 )
+from qore.infrastructure.trader_lab.capitalizer_full_ict_density_scanner_1y_v1 import (
+    _aggregate_h1,
+)
+from qore.infrastructure.trader_lab.capitalizer_ict_2022_m1_entry_1y_replay_v1 import (
+    WINDOW_END,
+    WINDOW_START,
+)
+from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
+    Pivot,
+    ReferenceLiquidity,
+    TFBar,
+    _aggregate_tf,
+    _index_day_inputs,
+    _pivots,
+)
 
 IDENTITY = "QORE_CAPITALIZER_V3_MASTER_FUNNEL_FORENSICS_1Y_V1"
 MATRIX_IDENTITY = "QORE_CAPITALIZER_NINE_MARKET_V3_MASTER_FUNNEL_FORENSICS_1Y_V1"
@@ -229,15 +244,15 @@ def _scan_day(
     symbol: str,
     session: CapitalizerSession,
     operating_day: date,
-    prior_session: v3.ReferenceLiquidity | None,
+    prior_session: ReferenceLiquidity | None,
     execution: tuple[CapitalizerM1Bar, ...],
     all_bars: tuple[CapitalizerM1Bar, ...],
     h1_swings: tuple[v3.H1Swing, ...],
-    m5: tuple[v3.TFBar, ...],
+    m5: tuple[TFBar, ...],
     m5_closes: tuple[datetime, ...],
-    m3: tuple[v3.TFBar, ...],
+    m3: tuple[TFBar, ...],
     m3_closes: tuple[datetime, ...],
-    m3_pivots: tuple[v3.Pivot, ...],
+    m3_pivots: tuple[Pivot, ...],
     buffer_price: Decimal,
     stages: Counter[str],
 ) -> tuple[ForensicRow, ...]:
@@ -492,31 +507,31 @@ def build_market_report(
         for bar in iter_cibo_m1(m1_root)
         if v3.LOOKBACK_START
         <= bar.opened_at
-        < v3.WINDOW_END + timedelta(days=1)
+        < WINDOW_END + timedelta(days=1)
     )
     if not all_bars:
         raise ValueError("master forensics found no native M1")
     symbol = all_bars[0].symbol
     if any(bar.symbol != symbol for bar in all_bars):
         raise ValueError("master forensics requires one symbol per M1 root")
-    h1 = v3._aggregate_h1(all_bars)
+    h1 = _aggregate_h1(all_bars)
     h1_swings = v3._build_h1_swings(h1)
-    m5 = v3._aggregate_tf(all_bars, minutes=5)
-    m3 = v3._aggregate_tf(all_bars, minutes=3)
-    m3_pivots = v3._pivots(m3)
+    m5 = _aggregate_tf(all_bars, minutes=5)
+    m3 = _aggregate_tf(all_bars, minutes=3)
+    m3_pivots = _pivots(m3)
     m5_closes = tuple(item.closed_at for item in m5)
     m3_closes = tuple(item.closed_at for item in m3)
     buffer_price = v3._stop_buffer(all_bars)
-    execution_by_day, reference_by_day = v3._index_day_inputs(
+    execution_by_day, reference_by_day = _index_day_inputs(
         all_bars,
         session=session,
     )
     grouped_dates = sorted(
         key
         for key in execution_by_day
-        if v3.WINDOW_START.date().isoformat()
+        if WINDOW_START.date().isoformat()
         <= key
-        < v3.WINDOW_END.date().isoformat()
+        < WINDOW_END.date().isoformat()
     )
     stages: Counter[str] = Counter()
     rows: list[ForensicRow] = []
@@ -562,8 +577,8 @@ def build_market_report(
         "architecture": ARCHITECTURE,
         "symbol": symbol,
         "session": session.value,
-        "window_start": v3.WINDOW_START.isoformat(),
-        "window_end_exclusive": v3.WINDOW_END.isoformat(),
+        "window_start": WINDOW_START.isoformat(),
+        "window_end_exclusive": WINDOW_END.isoformat(),
         "operating_sessions_scanned": len(grouped_dates),
         "stage_counts": dict(sorted(stages.items())),
         "closeback_rows": len(ordered),
@@ -800,8 +815,8 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "identity": MATRIX_IDENTITY,
         "architecture": ARCHITECTURE,
         "d1_overlay_identity": D1_OVERLAY_IDENTITY,
-        "window_start": v3.WINDOW_START.isoformat(),
-        "window_end_exclusive": v3.WINDOW_END.isoformat(),
+        "window_start": WINDOW_START.isoformat(),
+        "window_end_exclusive": WINDOW_END.isoformat(),
         "market_count": 9,
         "assigned_session_count": 3,
         "assigned_market_session_pairs": 9,
