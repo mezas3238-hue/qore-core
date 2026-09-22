@@ -1,7 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_full_ict_density_scanner_1y_v1 import (
     AggregatedBar,
 )
