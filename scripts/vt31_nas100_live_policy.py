@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, cast
@@ -25,6 +26,7 @@ import vt31_nas100_structural_rearm_density_frontier_v1 as frontier
 import vt31_nas100_structural_rearm_quality_frontier_v1 as quality
 
 from qore.infrastructure.market_data import OhlcSnapshot
+from qore.infrastructure.vt31_nas100_live import _evidence_fingerprint
 from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
     structurally_rearmed,
 )
@@ -59,11 +61,126 @@ ACTIVITY_L = corrective.ACTIVITY_L
 REARM_RISK_MAP = corrective.REARM_RISK_MAP
 
 
+@dataclass(frozen=True, slots=True)
+class Vt31PreparedLiveContext:
+    """Immutable prior-day reasoning context prepared before the boundary."""
+
+    local_day: date
+    previous_path_range: object
+    prior_ref_median: object
+    prior_admitted_day_bars: tuple[object, ...]
+    scanned_session_count: int
+    saw_wait: bool
+    session_scan_usable: bool
+
+
+def prepare_live_context(
+    closed_m1: tuple[OhlcSnapshot, ...],
+    *,
+    evidence_fingerprint: str | None = None,
+) -> Vt31PreparedLiveContext | None:
+    if not closed_m1:
+        return None
+    local_day = _day(closed_m1[-1].opened_at)
+    by_day = _by_day(closed_m1)
+    context = specialist._context_map(by_day).get(local_day)
+    if context is None:
+        return None
+    previous_path_range, prior_ref_median, prior_admitted_day_bars = context
+    day_bars = by_day[local_day]
+    reference = specialist._slice(day_bars, (9, 0, 0), (10, 0, 0))
+    session = specialist._slice(day_bars, (10, 0, 0), (11, 0, 0))
+    scanned_count, saw_wait, scan_usable = _prepare_session_scan(
+        reference=reference,
+        session=session,
+        day_bars=day_bars,
+        previous_path_range=previous_path_range,
+        prior_ref_median=prior_ref_median,
+        prior_admitted_day_bars=tuple(prior_admitted_day_bars),
+        evidence_fingerprint=(
+            _evidence_fingerprint(closed_m1)
+            if evidence_fingerprint is None
+            else evidence_fingerprint
+        ),
+    )
+    return Vt31PreparedLiveContext(
+        local_day=local_day,
+        previous_path_range=previous_path_range,
+        prior_ref_median=prior_ref_median,
+        prior_admitted_day_bars=tuple(prior_admitted_day_bars),
+        scanned_session_count=scanned_count,
+        saw_wait=saw_wait,
+        session_scan_usable=scan_usable,
+    )
+
+
+def _prepare_session_scan(
+    *,
+    reference: tuple[object, ...],
+    session: tuple[object, ...],
+    day_bars: tuple[object, ...],
+    previous_path_range: object,
+    prior_ref_median: object,
+    prior_admitted_day_bars: tuple[object, ...],
+    evidence_fingerprint: str,
+) -> tuple[int, bool, bool]:
+    """Pre-evaluate the immutable session prefix without carrying a decision."""
+    if len(reference) != 60:
+        return 0, False, False
+    policy = Vt31R22ExecutionPolicy()
+    prefix: list[object] = list(reference)
+    saw_wait = False
+    for index, bar in enumerate(session):
+        prefix.append(bar)
+        closed_at = cast(datetime, getattr(bar, "closed_at"))
+        evaluation = evaluate_vt31_r2_2_source(
+            instrument=getattr(bar, "instrument"),
+            as_of=closed_at,
+            m1_candles=cast(Any, tuple(prefix)),
+            evidence_fingerprint=evidence_fingerprint,
+        )
+        if evaluation.setup is None:
+            if saw_wait and evaluation.both_sides_swept:
+                return index + 1, saw_wait, False
+            continue
+        executable, _ = make_executable_setup(evaluation.setup, policy)
+        if executable is None:
+            return index + 1, saw_wait, False
+        session_prefix = tuple(
+            item
+            for item in prefix
+            if (10, 0, 0)
+            <= _wall(getattr(item, "opened_at"))
+            < (11, 0, 0)
+        )
+        state = specialist._state_snapshot(
+            day_bars,
+            previous_path_range,
+            prior_ref_median,
+            prior_admitted_day_bars,
+            session_prefix,
+            evaluation.setup,
+            executable,
+            closed_at,
+        )
+        action = cast(str, state["action"])
+        if action == "WAIT":
+            saw_wait = True
+            if specialist.baseline._local_minute(bar) >= WAIT_RELEASE_MINUTE:
+                return index + 1, saw_wait, False
+            continue
+        if action in {"ABSTAIN", "EXECUTE"}:
+            return index + 1, saw_wait, False
+        raise ValueError(f"VT31 unsupported reasoning action={action}")
+    return len(session), saw_wait, True
+
+
 def evaluate_live_basket(
     *,
     closed_m1: tuple[OhlcSnapshot, ...],
     evidence_fingerprint: str,
     live_state: Vt31Nas100LiveState,
+    prepared_context: Vt31PreparedLiveContext | None = None,
 ) -> tuple[Vt31VirtualBasketState | None, str]:
     """Return the currently authorized basket from evidence available now."""
     if not closed_m1:
@@ -104,18 +221,38 @@ def evaluate_live_basket(
             local_day=local_day,
         )
 
-    context_by_day = specialist._context_map(by_day)
-    if local_day not in context_by_day:
-        return None, "CONTEXT_UNAVAILABLE"
-    (
-        previous_path_range,
-        prior_ref_median,
-        prior_admitted_day_bars,
-    ) = context_by_day[local_day]
+    if prepared_context is not None and prepared_context.local_day == local_day:
+        previous_path_range = prepared_context.previous_path_range
+        prior_ref_median = prepared_context.prior_ref_median
+        prior_admitted_day_bars = prepared_context.prior_admitted_day_bars
+    else:
+        context_by_day = specialist._context_map(by_day)
+        if local_day not in context_by_day:
+            return None, "CONTEXT_UNAVAILABLE"
+        (
+            previous_path_range,
+            prior_ref_median,
+            prior_admitted_day_bars,
+        ) = context_by_day[local_day]
 
     policy = Vt31R22ExecutionPolicy()
-    prefix: list[object] = list(reference)
-    saw_wait = False
+    if (
+        prepared_context is not None
+        and prepared_context.local_day == local_day
+        and prepared_context.session_scan_usable
+        and prepared_context.scanned_session_count <= len(session)
+    ):
+        scanned_session_count = prepared_context.scanned_session_count
+        prefix: list[object] = [
+            *reference,
+            *session[:scanned_session_count],
+        ]
+        saw_wait = prepared_context.saw_wait
+        session_to_scan = session[scanned_session_count:]
+    else:
+        prefix = list(reference)
+        saw_wait = False
+        session_to_scan = session
     authorization_at: datetime | None = None
     authorization_source: Vt31R22SourceSetup | None = None
     tier: str | None = None
@@ -123,7 +260,7 @@ def evaluate_live_basket(
     core_setup: Vt31R22ExecutableSetup | None = None
     core_state: dict[str, object] | None = None
 
-    for bar in session:
+    for bar in session_to_scan:
         prefix.append(bar)
         closed_at = cast(datetime, getattr(bar, "closed_at"))
         evaluation = evaluate_vt31_r2_2_source(
@@ -235,12 +372,15 @@ def evaluate_live_basket(
     # SECONDARY/SCOUT OCO: authorization is fixed at the first causal release,
     # but candidate families may continue to form afterward. Rebuild only the
     # same source event through the latest closed M1.
-    source, invalidated = _source_through_now(
-        reference=reference,
-        session=session,
-        evidence_fingerprint=evidence_fingerprint,
-        source_key=_source_key(authorization_source),
-    )
+    if authorization_at == latest.closed_at:
+        source, invalidated = authorization_source, False
+    else:
+        source, invalidated = _source_through_now(
+            reference=reference,
+            session=session,
+            evidence_fingerprint=evidence_fingerprint,
+            source_key=_source_key(authorization_source),
+        )
     if invalidated:
         return None, "SOURCE_INVALIDATED_BEFORE_FILL"
     if source is None:

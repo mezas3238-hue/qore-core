@@ -15,10 +15,12 @@ resident single writer, broker checks, durable state and Account-Wide Risk.
 from __future__ import annotations
 
 import hashlib
+import time
 from datetime import UTC, datetime, timedelta
 from decimal import ROUND_FLOOR, Decimal
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
+from zoneinfo import ZoneInfo
 
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
@@ -34,6 +36,9 @@ from qore.infrastructure.fundednext_live_mt5 import (
 from qore.infrastructure.fundednext_mt5 import Mt5ProviderOutcome
 from qore.infrastructure.fundednext_mt5_clock import normalise_fundednext_server_epoch
 from qore.infrastructure.fundednext_operational import build_account_bound_submission
+from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
+    cibo_market_memory_fingerprint,
+)
 from qore.infrastructure.pretrade_safety import (
     ExecutionSafetySwitchSnapshot,
     ExecutionSwitchState,
@@ -55,6 +60,7 @@ from qore.infrastructure.vt31_nas100_live import (
     TRADER_EXPERIENCE_FINGERPRINT,
     Vt31Nas100LiveError,
     Vt31Nas100M1Cache,
+    Vt31Nas100SlaExpired,
     Vt31RiskContext,
     Vt31VirtualCandidate,
     assert_deadline,
@@ -70,9 +76,27 @@ from qore.infrastructure.vt31_nas100_state import (
     Vt31VirtualOrderState,
 )
 
-from vt31_nas100_live_policy import evaluate_live_basket
+from vt31_nas100_live_policy import (
+    Vt31PreparedLiveContext,
+    evaluate_live_basket,
+    prepare_live_context,
+)
 
 SYMBOL = "NAS100"
+_NY = ZoneInfo("America/New_York")
+
+
+def _new_york(value: datetime) -> str:
+    return value.astimezone(_NY).isoformat()
+
+
+def _elapsed_ms(started_ns: int) -> float:
+    return round((time.perf_counter_ns() - started_ns) / 1_000_000, 3)
+
+
+def warm_runtime() -> str:
+    """Materialize immutable CIBO memory before any M1 decision boundary."""
+    return cast(str, cibo_market_memory_fingerprint())
 
 
 def runtime_started_fields() -> dict[str, object]:
@@ -107,21 +131,41 @@ def runtime_started_fields() -> dict[str, object]:
     }
 
 
+def prepare_boundary(
+    *,
+    closed_m1: tuple[Any, ...],
+    evidence_fingerprint: str,
+) -> Vt31PreparedLiveContext | None:
+    return prepare_live_context(
+        closed_m1,
+        evidence_fingerprint=evidence_fingerprint,
+    )
+
+
 def evaluate_boundary(
     *,
     closed_m1: tuple[Any, ...],
     evidence_fingerprint: str,
     store: Vt31Nas100LiveStateStore,
+    prepared_context: Vt31PreparedLiveContext | None = None,
 ) -> tuple[Vt31VirtualBasketState | None, str]:
     state = store.load()
     if state.open_trade is not None:
         return None, "SINGLE_POSITION_BUSY"
     if state.pending_broker_order is not None:
         return None, "BROKER_PENDING_BUSY"
+    if state.virtual_basket is not None:
+        if len(state.virtual_basket.candidates) > 1:
+            return None, "VIRTUAL_OCO_ACTIVE"
+        store.retire_single_basket(
+            basket_id=state.virtual_basket.basket_id,
+        )
+        return None, "STALE_SINGLE_BASKET_RETIRED"
     basket, reason = evaluate_live_basket(
         closed_m1=closed_m1,
         evidence_fingerprint=evidence_fingerprint,
         live_state=state,
+        prepared_context=prepared_context,
     )
     if basket is not None:
         if any(
@@ -174,17 +218,23 @@ def submit_single_live(
         raise Vt31Nas100LiveError(
             "VT31 multi-candidate basket must remain virtual OCO"
         )
-    _authorize_and_check(
-        order=basket.candidates[0],
-        trigger_at=boundary_at,
-        mode="live",
-        gateway=gateway,
-        risk=risk,
-        snapshot=snapshot,
-        account_equity=account_equity,
-        store=store,
-        log=log,
-    )
+    try:
+        _authorize_and_check(
+            order=basket.candidates[0],
+            trigger_at=boundary_at,
+            mode="live",
+            gateway=gateway,
+            risk=risk,
+            snapshot=snapshot,
+            account_equity=account_equity,
+            store=store,
+            log=log,
+        )
+    except Vt31Nas100SlaExpired:
+        store.retire_single_basket(basket_id=basket.basket_id)
+        raise
+    if store.load().pending_broker_order is None:
+        store.retire_single_basket(basket_id=basket.basket_id)
 
 
 def process_virtual_oco(
@@ -1085,6 +1135,7 @@ def _authorize_and_check(
     log: Callable[[dict[str, object]], None],
 ) -> None:
     trigger_at = trigger_at.astimezone(UTC)
+    operation_started_ns = time.perf_counter_ns()
     expires_at = datetime.fromisoformat(order.expires_at)
     def stage(stage_name: str) -> datetime:
         observed = datetime.now(UTC)
@@ -1125,6 +1176,18 @@ def _authorize_and_check(
         reservation_expires_at=expires_at,
         now=request_at,
     )
+    log({
+        "event": "VT31_BROKER_SIZING",
+        "candidate_id": order.candidate_id,
+        "signal_fingerprint": order.signal_fingerprint,
+        "decision_at_utc": trigger_at.isoformat(),
+        "decision_at_new_york": _new_york(trigger_at),
+        "logged_at_utc": datetime.now(UTC).isoformat(),
+        "elapsed_ms": _elapsed_ms(operation_started_ns),
+        "requested_volume": str(request.requested_volume),
+        "broker_minimum_volume": str(request.minimum_volume),
+        "requested_risk_usd": str(request.requested_stop_risk),
+    })
     auth_at = stage("before-account-wide-risk")
     if risk.recovery_required:
         risk.complete_boot_reconciliation(snapshot, now=auth_at)
@@ -1146,6 +1209,18 @@ def _authorize_and_check(
         "provider_headroom_usd": str(authorization.provider_headroom),
         "qore_headroom_usd": str(authorization.internal_qore_headroom),
     }
+    log({
+        "event": "VT31_RISK_DECISION",
+        "candidate_id": order.candidate_id,
+        "signal_fingerprint": order.signal_fingerprint,
+        "decision_at_utc": trigger_at.isoformat(),
+        "decision_at_new_york": _new_york(trigger_at),
+        "logged_at_utc": datetime.now(UTC).isoformat(),
+        "elapsed_ms": _elapsed_ms(operation_started_ns),
+        "risk_decision": authorization.decision.value,
+        "reason": authorization.reason,
+        **risk_observability,
+    })
     if authorization.decision is RiskDecision.REJECT:
         log({
             "event": "VT31_NAS100_RISK_REJECT",
@@ -1179,6 +1254,17 @@ def _authorize_and_check(
     check_at = stage("before-broker-order-check")
     shadow = gateway.shadow_check(submission, now=check_at)
     checked_at = stage("after-broker-order-check")
+    log({
+        "event": "VT31_ORDER_CHECK",
+        "candidate_id": order.candidate_id,
+        "signal_fingerprint": order.signal_fingerprint,
+        "decision_at_utc": trigger_at.isoformat(),
+        "decision_at_new_york": _new_york(trigger_at),
+        "logged_at_utc": checked_at.isoformat(),
+        "elapsed_ms": _elapsed_ms(operation_started_ns),
+        "broker_valid": shadow.broker_valid,
+        "reason": shadow.reason,
+    })
     if not shadow.broker_valid:
         risk.cancel(authorization.authorization_id)
         log({
@@ -1210,6 +1296,17 @@ def _authorize_and_check(
 
     send_at = stage("before-order-send")
     provider_ref = gateway.submit_live(submission, now=send_at)
+    log({
+        "event": "VT31_ORDER_SEND",
+        "candidate_id": order.candidate_id,
+        "signal_fingerprint": order.signal_fingerprint,
+        "decision_at_utc": trigger_at.isoformat(),
+        "decision_at_new_york": _new_york(trigger_at),
+        "logged_at_utc": datetime.now(UTC).isoformat(),
+        "elapsed_ms": _elapsed_ms(operation_started_ns),
+        "order_send_called": True,
+        "accepted": True,
+    })
     client_order_id = f"qore-{submission.idempotency_key.value.hex[:24]}"
     pending = Vt31PendingBrokerOrderState(
         client_order_id=client_order_id,
@@ -1289,25 +1386,31 @@ def _tick_at(tick: Any) -> datetime:
     raw_msc = int(getattr(tick, "time_msc", 0) or 0)
     if raw_msc > 0:
         raw_seconds, millis = divmod(raw_msc, 1000)
-        return normalise_fundednext_server_epoch(raw_seconds) + timedelta(
+        return cast(
+            datetime,
+            normalise_fundednext_server_epoch(raw_seconds),
+        ) + timedelta(
             milliseconds=millis
         )
     raw = int(getattr(tick, "time", 0) or 0)
     if raw <= 0:
         raise Vt31Nas100LiveError("VT31 broker tick timestamp unavailable")
-    return normalise_fundednext_server_epoch(raw)
+    return cast(datetime, normalise_fundednext_server_epoch(raw))
 
 
 def _position_time(position: Any, fallback: datetime) -> datetime:
     raw_msc = int(getattr(position, "time_msc", 0) or 0)
     if raw_msc > 0:
         raw_seconds, millis = divmod(raw_msc, 1000)
-        return normalise_fundednext_server_epoch(raw_seconds) + timedelta(
+        return cast(
+            datetime,
+            normalise_fundednext_server_epoch(raw_seconds),
+        ) + timedelta(
             milliseconds=millis
         )
     raw = int(getattr(position, "time", 0) or 0)
     if raw > 0:
-        return normalise_fundednext_server_epoch(raw)
+        return cast(datetime, normalise_fundednext_server_epoch(raw))
     return fallback.astimezone(UTC)
 
 
