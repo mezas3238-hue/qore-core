@@ -50,6 +50,7 @@ class CrtPureConceptId(StrEnum):
     BTCUSD_CONTINUOUS_MARKET = "btcusd_continuous_market"
     MODEL_1_ENTRY = "model_1_entry"
     MODEL_1_TIMEFRAME_ALIGNMENT = "model_1_timeframe_alignment"
+    MODEL_1_REFERENCE_SELECTION = "model_1_reference_selection"
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,6 +159,31 @@ _DISCOVERED_SOURCE_EVIDENCE: dict[
                 "Monthly->Daily, Weekly->4H and Daily->1H Model #1 mappings."
             ),
             adjudication=CrtPureAdjudicationState.CANONICAL,
+        ),
+    ),
+    CrtPureConceptId.MODEL_1_REFERENCE_SELECTION: (
+        CrtPureSourceEvidence(
+            concept_id=CrtPureConceptId.MODEL_1_REFERENCE_SELECTION,
+            source_name="RomeoTPT",
+            source_tier=CrtPureSourceTier.LEVEL_A,
+            provenance=(
+                "canonical foundational RomeoTPT video; indexed transcript extraction "
+                "used only as transport for the spoken rule"
+            ),
+            locator="https://www.youtube.com/watch?v=UUq_wKQ61Wo&t=2332s",
+            normalized_statement=(
+                "RomeoTPT instructs the trader to wait for a Model #1 candle to stab "
+                "an old high or old low, but the reviewed primary rule does not define "
+                "a deterministic ownership/selection algorithm when multiple old highs "
+                "or old lows are simultaneously eligible."
+            ),
+            adjudication=CrtPureAdjudicationState.AMBIGUOUS,
+            ambiguity_notes=(
+                "Autonomous replay must fail closed rather than select the old level "
+                "from outcome data. A future primary closure must define the causal "
+                "reference-selection policy or explicitly authorize a deterministic "
+                "engineering enumeration."
+            ),
         ),
     ),
     CrtPureConceptId.SESSION_TIME_RULES: (
