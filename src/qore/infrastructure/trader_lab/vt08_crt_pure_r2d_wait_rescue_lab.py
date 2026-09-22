@@ -165,11 +165,14 @@ def _cisd_signal(
     """
 
     source = bars[source_index]
-    adverse = (
-        (lambda bar: bar.down_close)
-        if direction is CrtPureCandidateDirection.BULLISH
-        else (lambda bar: bar.up_close)
-    )
+
+    def adverse(bar: M15Bar) -> bool:
+        return (
+            bar.down_close
+            if direction is CrtPureCandidateDirection.BULLISH
+            else bar.up_close
+        )
+
     if not adverse(source):
         return None
 
