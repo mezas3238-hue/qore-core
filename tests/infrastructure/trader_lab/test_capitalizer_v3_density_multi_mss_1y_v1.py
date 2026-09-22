@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 
+from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_v3_density_multi_mss_1y_v1 import (
     IDENTITY,
     MATRIX_IDENTITY,
@@ -7,8 +8,6 @@ from qore.infrastructure.trader_lab.capitalizer_v3_density_multi_mss_1y_v1 impor
     TARGET_IDENTITY,
     _find_all_m3_mss,
 )
-from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
-
 
 def test_density_multi_mss_keeps_v3_economic_contract() -> None:
     assert IDENTITY == "QORE_CAPITALIZER_V3_DENSITY_MULTI_MSS_1Y_V1"
