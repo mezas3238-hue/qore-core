@@ -177,6 +177,10 @@ class BM3MarketReport:
     max3_is_ceiling_not_quota: bool = True
     methodology_research_only: bool = True
     daily_driver_used: bool = False
+    entry_timeframe: str = "M3"
+    m5_cisd_required: bool = True
+    m5_mss_required: bool = True
+    m1_intrabar_only: bool = True
     m1_can_originate_trade: bool = False
     fresh_holdout_claimed: bool = False
     rule_promotion_allowed: bool = False
