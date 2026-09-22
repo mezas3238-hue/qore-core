@@ -7,11 +7,13 @@ consumed V4 context lead on the current R100+ STANDARD surface:
 
     previous source-day body aligned/opposed to the current trade side.
 
-The source-day reconstruction and alignment semantics are copied from V4
-root-cause forensics. Classification is causal and available before the
-canonical continuation entry. R119 also crosses this context state with the
-R118 failed-attempt relation and LAST_BAR anatomy. No signal is removed and no
-runtime rule or candidate is created.
+The body-alignment predicate is copied from V4 root-cause forensics. The
+source-day pair itself is reconstructed with the exact V7 source-corrected
+helper used by the current architecture to produce daily bias, including its
+single 16:15 NY maintenance-gap allowance. Classification is fixed at the H4
+decision open and is therefore causal. R119 also crosses this context state
+with the R118 failed-attempt relation and LAST_BAR anatomy. No signal is
+removed and no runtime rule or candidate is created.
 """
 
 from __future__ import annotations
@@ -20,7 +22,7 @@ import argparse
 import json
 from collections import defaultdict
 from collections.abc import Callable, Sequence
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -58,7 +60,6 @@ from qore.infrastructure.trader_lab import (
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import (
     Vt08IndexC2R1Bar,
-    _source_day,
 )
 
 SCHEMA = "qore.trader_lab.vt08_index_r119_previous_source_day_alignment.v1"
@@ -91,22 +92,16 @@ def _source_days(
     indexed: dict[datetime, Vt08IndexC2R1Bar],
     *,
     before_local: datetime,
-    count: int,
-) -> tuple[Vt08IndexC2R1Bar, ...]:
-    """Return the two complete source days actually consumed by V4 classification."""
+) -> tuple[Vt08IndexC2R1Bar, Vt08IndexC2R1Bar]:
+    """Reuse the exact current V7 source-day pair behind daily bias."""
 
-    end_date = before_local.astimezone(v7._NY).date() - timedelta(days=1)
-    retained: list[Vt08IndexC2R1Bar] = []
-    for offset in range(30):
-        candidate = _source_day(
-            indexed,
-            end_date=end_date - timedelta(days=offset),
-        )
-        if candidate is not None:
-            retained.append(candidate)
-            if len(retained) == count:
-                return tuple(reversed(retained))
-    raise ValueError("R119 insufficient complete source-day history")
+    result = v7._latest_complete_source_days(
+        indexed,
+        before_local=before_local,
+    )
+    if result is None:
+        raise ValueError("R119 current V7 source-day pair missing")
+    return result
 
 
 def _group(
@@ -348,14 +343,19 @@ def build_report(
             ),
         },
         "v4_semantic_freeze": {
-            "source_day_reconstruction": "EXACT_V4_SOURCE_DAYS",
+            "conceptual_feature_origin": "V4_PREVIOUS_SOURCE_DAY_BODY_ALIGNMENT",
+            "source_day_reconstruction": (
+                "EXACT_CURRENT_V7_SOURCE_CORRECTED_SOURCE_DAY_PAIR"
+            ),
             "previous_alignment": (
                 "BODY_SIGN_EQUALS_SIDE_SIGN_ELSE_OPPOSED"
             ),
             "source_days_requested": 2,
             "v4_retained_source_days_original": 3,
             "classification_consumed_source_days": 2,
-            "classification_cutoff": "BEFORE_CANONICAL_ENTRY",
+            "exact_v4_source_day_helper_reused": False,
+            "current_v7_daily_bias_source_day_helper_reused": True,
+            "classification_cutoff": "H4_DECISION_OPEN",
             "numeric_price_threshold_used": False,
             "outcome_used_for_classification": False,
             "calendar_or_year_used_for_classification": False,
