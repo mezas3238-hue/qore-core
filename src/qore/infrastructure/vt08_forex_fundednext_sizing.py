@@ -16,6 +16,7 @@ from qore.infrastructure.account_wide_risk import (
     CiboRiskRequest,
     TraderLineage,
 )
+from qore.infrastructure.broker_risk_sizing import size_volume_for_risk
 from qore.infrastructure.fundednext_live_guard import FOREX_OPEN_COMMISSION_PER_LOT_USD
 from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
 from qore.infrastructure.vt08_forex_cibo_operational import (
@@ -70,11 +71,14 @@ def build_certified_vt08_forex_cibo_request(
 
     risk_fraction = R315_BASE_RISK_BPS[setup.qore_symbol] / Decimal("10000")
     monetary_risk = account_equity * risk_fraction
-    raw_volume = monetary_risk / stop_loss_per_volume
-    volume = _floor_to_step(raw_volume, provider_spec.volume_step)
-    volume = min(volume, provider_spec.maximum_volume)
-    if volume < provider_spec.minimum_volume:
-        raise AccountWideRiskError("certified risk is below broker minimum volume")
+    sizing = size_volume_for_risk(
+        requested_risk_usd=monetary_risk,
+        stop_loss_per_volume=stop_loss_per_volume,
+        volume_step=provider_spec.volume_step,
+        minimum_volume=provider_spec.minimum_volume,
+        maximum_volume=provider_spec.maximum_volume,
+    )
+    volume = sizing.authorized_volume
 
     return CiboRiskRequest(
         request_id=request_id,
@@ -94,6 +98,8 @@ def build_certified_vt08_forex_cibo_request(
         margin_per_volume=provider_spec.margin_per_volume,
         requested_at=setup.decided_at,
         expires_at=setup.expires_at,
+        strategy_requested_risk_usd=monetary_risk,
+        minimum_volume_uplifted=sizing.minimum_volume_uplifted,
     )
 
 

@@ -97,6 +97,11 @@ def test_exact_six_symbol_mapping_and_commissions() -> None:
     assert resolve_pilot_symbol("US30") == "US30"
     assert opening_commission_per_lot("GBPUSD") == Decimal("7")
     assert opening_commission_per_lot("NAS100") == 0
+    assert opening_commission_per_lot(
+        "XAUUSD",
+        executable_entry=Decimal("4342.90"),
+        contract_size=Decimal("100"),
+    ) == Decimal("6.9486400")
     with pytest.raises(StellarInstantContractError):
         resolve_pilot_symbol("EURUSD")
 

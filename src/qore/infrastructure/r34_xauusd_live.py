@@ -19,8 +19,9 @@ from typing import Any, cast
 from zoneinfo import ZoneInfo
 
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
-from qore.infrastructure.fundednext_live_guard import FOREX_OPEN_COMMISSION_PER_LOT_USD
+from qore.infrastructure.broker_risk_sizing import size_volume_for_risk
 from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
+from qore.infrastructure.fundednext_stellar_instant import opening_commission_per_lot
 from qore.infrastructure.m5_boundary_cache import M5BoundarySnapshot
 from qore.infrastructure.trader_execution_profile import M5_PROFILE
 from qore.infrastructure.trader_lab import cibo_market_atlas_target_destination_v2 as td
@@ -615,18 +616,24 @@ def build_r34_risk_request(
     if signal.side == "short" and not signal.take_profit < executable < signal.stop_loss:
         raise ValueError("R34 live short geometry invalid")
     ticks = abs(executable - signal.stop_loss) / provider_spec.tick_size
+    commission_per_lot = opening_commission_per_lot(
+        SYMBOL,
+        executable_entry=executable,
+        contract_size=provider_spec.contract_size,
+    )
     stop_per_lot = (
-        ticks * provider_spec.tick_value + FOREX_OPEN_COMMISSION_PER_LOT_USD
+        ticks * provider_spec.tick_value + commission_per_lot
     ) * BROKER_RISK_BUFFER
     base_risk_usd = account_equity * BASE_RISK_FRACTION
     requested_risk = base_risk_usd * signal.risk_scale
-    volume = _floor_to_step(
-        requested_risk / stop_per_lot,
-        provider_spec.volume_step,
+    sizing = size_volume_for_risk(
+        requested_risk_usd=requested_risk,
+        stop_loss_per_volume=stop_per_lot,
+        volume_step=provider_spec.volume_step,
+        minimum_volume=provider_spec.minimum_volume,
+        maximum_volume=provider_spec.maximum_volume,
     )
-    volume = min(volume, provider_spec.maximum_volume)
-    if volume < provider_spec.minimum_volume:
-        raise ValueError("R34 risk maps below broker minimum volume")
+    volume = sizing.authorized_volume
     request = CiboRiskRequest(
         request_id=request_id,
         trader_id=TraderLineage.R34_XAUUSD,
@@ -645,5 +652,7 @@ def build_r34_risk_request(
         margin_per_volume=provider_spec.margin_per_volume,
         requested_at=now,
         expires_at=now + timedelta(seconds=30),
+        strategy_requested_risk_usd=requested_risk,
+        minimum_volume_uplifted=sizing.minimum_volume_uplifted,
     )
     return request, base_risk_usd

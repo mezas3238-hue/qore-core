@@ -14,24 +14,24 @@ from qore.infrastructure.r42_audjpy_live import (
     BASE_RISK_FRACTION,
     BOUNDARY_ARM_LEAD,
     BOUNDARY_RETRY_SECONDS,
-    ENTRY_SLA,
-    MAX_BROKER_TICK_AGE,
-    NORMAL_FEED_REFRESH_SECONDS,
     CERTIFICATION_ARTIFACT_ID,
     CERTIFICATION_IDENTITY,
     CERTIFICATION_RUN_ID,
+    ENTRY_SLA,
     IDENTITY,
+    MAX_BROKER_TICK_AGE,
     MEMORY_FULL_PROFILE_COUNTS,
     MEMORY_PROFILE_COUNTS,
     MEMORY_SHA256,
-    R42AudJpyDol,
-    R42AudJpyLiveSignal,
-    R42AudJpyM5Cache,
-    R42AudJpyLiveState,
-    R42AudJpyOpenTrade,
+    NORMAL_FEED_REFRESH_SECONDS,
     SECOND_LAYER_POLICY,
     SELECTED_ENSEMBLE,
     SELECTED_POLICY,
+    R42AudJpyDol,
+    R42AudJpyLiveSignal,
+    R42AudJpyLiveState,
+    R42AudJpyM5Cache,
+    R42AudJpyOpenTrade,
     _risk_scale_for,
     build_r42_audjpy_risk_request,
     certified_stop_for_open_trade,
@@ -171,16 +171,18 @@ def test_r42_audjpy_request_maps_certified_risk_into_sovereign_risk() -> None:
     assert request.requested_volume >= Decimal("0.01")
 
 
-def test_r42_audjpy_tiny_certified_risk_never_rounds_up() -> None:
+def test_r42_audjpy_tiny_certified_risk_requests_minimum_lot() -> None:
     now = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
-    with pytest.raises(ValueError, match="below broker minimum"):
-        build_r42_audjpy_risk_request(
-            request_id="r42-audjpy-min",
-            signal=_signal(first=Decimal("0.01"), second=Decimal("0.10")),
-            provider_spec=_spec(),
-            account_equity=Decimal("2000"),
-            now=now,
-        )
+    request, _ = build_r42_audjpy_risk_request(
+        request_id="r42-audjpy-min",
+        signal=_signal(first=Decimal("0.01"), second=Decimal("0.10")),
+        provider_spec=_spec(),
+        account_equity=Decimal("2000"),
+        now=now,
+    )
+    assert request.requested_volume == Decimal("0.01")
+    assert request.minimum_volume_uplifted is True
+    assert request.requested_stop_risk > request.strategy_requested_risk_usd
 
 
 def test_r42_audjpy_source_open_drift_fails_closed() -> None:

@@ -122,14 +122,40 @@ def test_r34_anchor_is_hourly_and_short_grace_only() -> None:
     assert current_anchor(datetime(2026, 9, 18, 5, 0, 2, 1_000, tzinfo=UTC)) is None
 
 
-def test_r34_wide_stop_below_broker_minimum_fails_closed() -> None:
+def test_r34_wide_stop_requests_minimum_lot_for_shared_risk_authority() -> None:
     now = datetime(2026, 9, 18, 5, 0, tzinfo=UTC)
     wide = replace(_signal(), stop_loss=Decimal("4290.00"))
-    with pytest.raises(ValueError, match="below broker minimum"):
-        build_r34_risk_request(
-            request_id="r34-min-lot",
-            signal=wide,
-            provider_spec=_spec(),
-            account_equity=Decimal("2000"),
-            now=now,
-        )
+    request, _ = build_r34_risk_request(
+        request_id="r34-min-lot",
+        signal=wide,
+        provider_spec=_spec(),
+        account_equity=Decimal("2000"),
+        now=now,
+    )
+    assert request.requested_volume == Decimal("0.01")
+    assert request.minimum_volume_uplifted is True
+    assert request.requested_stop_risk > request.strategy_requested_risk_usd
+
+
+def test_r34_live_incident_minimum_lot_is_delegated_to_shared_risk() -> None:
+    now = datetime(2026, 9, 22, 5, 0, tzinfo=UTC)
+    signal = replace(
+        _signal(),
+        signal_fingerprint="3e20d162888f51d8cec43b42eb4d83b96ce6a070339ed49964d46c1c9d72887d",
+        entry_at=now,
+        certified_entry=Decimal("4342.79"),
+        stop_loss=Decimal("4335.02"),
+        take_profit=Decimal("4349.28"),
+    )
+    request, base_risk = build_r34_risk_request(
+        request_id="r34-live-20260922-0500",
+        signal=signal,
+        provider_spec=_spec(bid="4342.42", ask="4342.90"),
+        account_equity=Decimal("2000"),
+        now=now,
+    )
+    assert base_risk == Decimal("4.000")
+    assert request.requested_volume == Decimal("0.01")
+    assert request.stop_loss_per_volume == Decimal("810.847612800")
+    assert request.requested_stop_risk == Decimal("8.10847612800")
+    assert request.minimum_volume_uplifted is True

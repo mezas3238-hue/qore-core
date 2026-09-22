@@ -50,6 +50,7 @@ from qore.infrastructure.fundednext_rule_refresh import RollingStellarInstantRul
 from qore.infrastructure.fundednext_stellar_instant import (
     PILOT_SYMBOL_MAP,
     StellarInstantRuleVerification,
+    opening_commission_per_lot,
 )
 from qore.infrastructure.market_test_environment import (
     MarketRuntimeEnvironment,
@@ -552,12 +553,18 @@ def _assert_broker_executable_risk(
                 )
             except FundedNextLiveGuardError as error:
                 raise Mt5ExecutionBlockedError(str(error)) from error
+    commission_per_lot = opening_commission_per_lot(
+        intent.instrument.value,
+        executable_entry=entry,
+        contract_size=spec.contract_size,
+    )
     actual_risk = market_stop_risk_usd(
         executable_entry=entry,
         stop_loss=stop,
         tick_size=spec.tick_size,
         tick_value=spec.tick_value,
         volume=volume,
+        opening_commission_per_lot=commission_per_lot,
     )
     if actual_risk > authorized_risk:
         raise Mt5ExecutionBlockedError("broker-executable-risk-exceeds-sovereign-authorization")

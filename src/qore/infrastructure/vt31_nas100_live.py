@@ -28,6 +28,7 @@ from typing import Any
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
+from qore.infrastructure.broker_risk_sizing import size_volume_for_risk
 from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
 from qore.infrastructure.fundednext_mt5_clock import normalise_fundednext_server_epoch
 from qore.infrastructure.fundednext_stellar_instant import resolve_pilot_symbol
@@ -669,15 +670,18 @@ def build_risk_request(
     stop_per_volume = ticks * provider_spec.tick_value * BROKER_RISK_BUFFER
     one_r_usd = account_equity * QORE_ONE_R_ACCOUNT_FRACTION
     requested_risk_usd = one_r_usd * certified_risk_r
-    volume = _floor_to_step(
-        requested_risk_usd / stop_per_volume,
-        provider_spec.volume_step,
+    # VT31's frozen four-leg management needs at least four broker steps so
+    # each quarter leg remains executable. Shared QORE Risk authorizes the
+    # resulting actual monetary risk against account-wide headroom.
+    execution_minimum_volume = provider_spec.minimum_volume * Decimal("4")
+    sizing = size_volume_for_risk(
+        requested_risk_usd=requested_risk_usd,
+        stop_loss_per_volume=stop_per_volume,
+        volume_step=provider_spec.volume_step,
+        minimum_volume=execution_minimum_volume,
+        maximum_volume=provider_spec.maximum_volume,
     )
-    volume = min(volume, provider_spec.maximum_volume)
-    if volume < provider_spec.minimum_volume:
-        raise Vt31Nas100LiveError(
-            "VT31 certified risk maps below broker minimum volume"
-        )
+    volume = sizing.authorized_volume
     half_leg = _floor_to_step(
         volume * Decimal("0.50"),
         provider_spec.volume_step,
@@ -707,11 +711,13 @@ def build_risk_request(
         take_profit=take_profit,
         requested_volume=volume,
         volume_step=provider_spec.volume_step,
-        minimum_volume=provider_spec.minimum_volume,
+        minimum_volume=execution_minimum_volume,
         stop_loss_per_volume=stop_per_volume,
         margin_per_volume=provider_spec.margin_per_volume,
         requested_at=now,
         expires_at=reservation_expires_at,
+        strategy_requested_risk_usd=requested_risk_usd,
+        minimum_volume_uplifted=sizing.minimum_volume_uplifted,
     )
     return request, one_r_usd
 

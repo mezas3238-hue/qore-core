@@ -32,6 +32,7 @@ from qore.infrastructure.account_wide_risk import (
     RiskDecision,
     TraderLineage,
 )
+from qore.infrastructure.broker_risk_sizing import BrokerMinimumVolumeRiskRejectError
 from qore.infrastructure.account_wide_risk_ledger import (
     DurableAccountWideRiskEngine,
     DurableAccountWideRiskLedger,
@@ -50,7 +51,6 @@ from qore.infrastructure.fundednext_certified_policy import (
 from qore.infrastructure.fundednext_live_activation import load_verified_live_activation
 from qore.infrastructure.fundednext_live_guard import (
     LIVE_ENTRY_ANCHORS_NY,
-    FOREX_OPEN_COMMISSION_PER_LOT_USD,
     DurableFundedNextLiveCapitalStore,
     FundedNextLiveCapitalCheckpoint,
     InactivityState,
@@ -101,6 +101,7 @@ from qore.infrastructure.fundednext_stellar_instant import (
     StellarInstantAccountSnapshot,
     StellarInstantRiskBudget,
     evaluate_stellar_instant_budget,
+    opening_commission_per_lot,
 )
 from qore.infrastructure.market_test_environment import (
     MarketRuntimeEnvironment,
@@ -373,10 +374,17 @@ def _broker_risk(
             raise RuntimeError("pending-order-symbol-economics-unavailable")
         entry = Decimal(str(order.price_open))
         volume = Decimal(str(order.volume_current))
-        pending_stop += (
-            abs(entry - stop) / spec.tick_size * spec.tick_value * volume
-            + FOREX_OPEN_COMMISSION_PER_LOT_USD * volume
+        provider_symbol = str(order.symbol)
+        qore_symbol = "NAS100" if provider_symbol == "NDX100" else provider_symbol
+        commission_per_lot = opening_commission_per_lot(
+            qore_symbol,
+            executable_entry=entry,
+            contract_size=spec.contract_size,
         )
+        pending_stop += (
+            abs(entry - stop) / spec.tick_size * spec.tick_value
+            + commission_per_lot
+        ) * volume
     return open_stop, floating_loss, pending_stop
 
 
@@ -434,11 +442,24 @@ def _log_market_decision_telemetry(
             "trader": result.identity,
             "symbol": result.symbol,
             "boundary_at": anchor.isoformat(),
+            "boundary_at_utc": anchor.astimezone(UTC).isoformat(),
+            "boundary_at_new_york": anchor.astimezone(_NY).isoformat(),
             "new_bar_first_seen_at": snapshot.new_bar_first_seen_at.isoformat(),
+            "new_bar_first_seen_at_utc": (
+                snapshot.new_bar_first_seen_at.astimezone(UTC).isoformat()
+            ),
+            "new_bar_first_seen_at_new_york": (
+                snapshot.new_bar_first_seen_at.astimezone(_NY).isoformat()
+            ),
             "market_state_updated_at": snapshot.market_state_updated_at.isoformat(),
             "aggregate_finished_at": snapshot.aggregate_finished_at.isoformat(),
             "strategy_started_at": result.strategy_started_at.isoformat(),
             "strategy_finished_at": result.strategy_finished_at.isoformat(),
+            "decision_at_utc": result.strategy_finished_at.astimezone(UTC).isoformat(),
+            "decision_at_new_york": (
+                result.strategy_finished_at.astimezone(_NY).isoformat()
+            ),
+            "strategy_timezone": "America/New_York",
             "feed_latency_ms": _latency_ms(
                 anchor,
                 snapshot.new_bar_first_seen_at,
@@ -678,6 +699,24 @@ def _process_candidate(
     account_equity: Decimal,
     log_path: Path,
 ) -> None:
+    boundary_utc = candidate.decision_at.astimezone(UTC)
+    observed_utc = now.astimezone(UTC)
+    _log(
+        log_path,
+        {
+            "event": "VT08_CANDLE_SEEN_STRATEGY_DECISION",
+            "trader": "VT08_FOREX",
+            "symbol": candidate.symbol,
+            "boundary_at_utc": boundary_utc.isoformat(),
+            "boundary_at_new_york": boundary_utc.astimezone(_NY).isoformat(),
+            "new_bar_first_seen_at_utc": observed_utc.isoformat(),
+            "new_bar_first_seen_at_new_york": observed_utc.astimezone(_NY).isoformat(),
+            "decision_at_utc": observed_utc.isoformat(),
+            "decision_at_new_york": observed_utc.astimezone(_NY).isoformat(),
+            "strategy_timezone": "America/New_York",
+            "anchor_new_york": candidate.entry_anchor_hour,
+        },
+    )
     setup = cibo_setup_from_b01(candidate)
     posture = request_cibo_posture(
         initial_balance=PILOT_INITIAL_BALANCE,
@@ -726,9 +765,43 @@ def _process_candidate(
                 "event": "RISK_REJECT",
                 "symbol": candidate.symbol,
                 "reason": authorization.reason,
+                "strategy_requested_risk_usd": str(
+                    request.strategy_requested_risk_usd
+                ),
+                "minimum_volume_uplifted": request.minimum_volume_uplifted,
+                "requested_stop_risk_usd": str(request.requested_stop_risk),
+                "broker_min_volume": str(request.minimum_volume),
+                "risk_at_broker_min_volume": str(
+                    request.minimum_volume * request.stop_loss_per_volume
+                ),
+                "aggregate_pre_order_worst_case": str(
+                    authorization.aggregate_pre_order_worst_case
+                ),
+                "provider_headroom": str(authorization.provider_headroom),
+                "internal_qore_headroom": str(authorization.internal_qore_headroom),
             },
         )
         return
+    if request.minimum_volume_uplifted:
+        _log(
+            log_path,
+            {
+                "event": "MINIMUM_BROKER_VOLUME_UPLIFT_AUTHORIZED",
+                "symbol": request.qore_symbol,
+                "strategy_requested_risk_usd": str(
+                    request.strategy_requested_risk_usd
+                ),
+                "authorized_risk_usd": str(authorization.monetary_stop_loss),
+                "authorized_volume": str(authorization.authorized_volume),
+                "aggregate_pre_order_worst_case": str(
+                    authorization.aggregate_pre_order_worst_case
+                ),
+                "aggregate_post_order_worst_case": str(
+                    authorization.aggregate_post_order_worst_case
+                ),
+                "internal_qore_headroom": str(authorization.internal_qore_headroom),
+            },
+        )
     submission = build_account_bound_submission(
         authorization,
         switch=ExecutionSafetySwitchSnapshot(
@@ -848,10 +921,44 @@ def _process_r34_candidate(
                 "event": "R34_RISK_REJECT",
                 "symbol": "XAUUSD",
                 "reason": authorization.reason,
+                "strategy_requested_risk_usd": str(
+                    request.strategy_requested_risk_usd
+                ),
+                "minimum_volume_uplifted": request.minimum_volume_uplifted,
+                "requested_stop_risk_usd": str(request.requested_stop_risk),
+                "broker_min_volume": str(request.minimum_volume),
+                "risk_at_broker_min_volume": str(
+                    request.minimum_volume * request.stop_loss_per_volume
+                ),
+                "aggregate_pre_order_worst_case": str(
+                    authorization.aggregate_pre_order_worst_case
+                ),
+                "provider_headroom": str(authorization.provider_headroom),
+                "internal_qore_headroom": str(authorization.internal_qore_headroom),
                 "signal_fingerprint": signal.signal_fingerprint,
             },
         )
         return
+    if request.minimum_volume_uplifted:
+        _log(
+            log_path,
+            {
+                "event": "MINIMUM_BROKER_VOLUME_UPLIFT_AUTHORIZED",
+                "symbol": request.qore_symbol,
+                "strategy_requested_risk_usd": str(
+                    request.strategy_requested_risk_usd
+                ),
+                "authorized_risk_usd": str(authorization.monetary_stop_loss),
+                "authorized_volume": str(authorization.authorized_volume),
+                "aggregate_pre_order_worst_case": str(
+                    authorization.aggregate_pre_order_worst_case
+                ),
+                "aggregate_post_order_worst_case": str(
+                    authorization.aggregate_post_order_worst_case
+                ),
+                "internal_qore_headroom": str(authorization.internal_qore_headroom),
+            },
+        )
     submission = build_account_bound_submission(
         authorization,
         switch=ExecutionSafetySwitchSnapshot(
@@ -994,10 +1101,44 @@ def _process_r38_candidate(
                 "event": "R38_RISK_REJECT",
                 "symbol": "EURUSD",
                 "reason": authorization.reason,
+                "strategy_requested_risk_usd": str(
+                    request.strategy_requested_risk_usd
+                ),
+                "minimum_volume_uplifted": request.minimum_volume_uplifted,
+                "requested_stop_risk_usd": str(request.requested_stop_risk),
+                "broker_min_volume": str(request.minimum_volume),
+                "risk_at_broker_min_volume": str(
+                    request.minimum_volume * request.stop_loss_per_volume
+                ),
+                "aggregate_pre_order_worst_case": str(
+                    authorization.aggregate_pre_order_worst_case
+                ),
+                "provider_headroom": str(authorization.provider_headroom),
+                "internal_qore_headroom": str(authorization.internal_qore_headroom),
                 "signal_fingerprint": signal.signal_fingerprint,
             },
         )
         return
+    if request.minimum_volume_uplifted:
+        _log(
+            log_path,
+            {
+                "event": "MINIMUM_BROKER_VOLUME_UPLIFT_AUTHORIZED",
+                "symbol": request.qore_symbol,
+                "strategy_requested_risk_usd": str(
+                    request.strategy_requested_risk_usd
+                ),
+                "authorized_risk_usd": str(authorization.monetary_stop_loss),
+                "authorized_volume": str(authorization.authorized_volume),
+                "aggregate_pre_order_worst_case": str(
+                    authorization.aggregate_pre_order_worst_case
+                ),
+                "aggregate_post_order_worst_case": str(
+                    authorization.aggregate_post_order_worst_case
+                ),
+                "internal_qore_headroom": str(authorization.internal_qore_headroom),
+            },
+        )
     submission = build_account_bound_submission(
         authorization,
         switch=ExecutionSafetySwitchSnapshot(
@@ -1138,10 +1279,44 @@ def _process_r43_candidate(
                 "event": "R43_RISK_REJECT",
                 "symbol": "GBPUSD",
                 "reason": authorization.reason,
+                "strategy_requested_risk_usd": str(
+                    request.strategy_requested_risk_usd
+                ),
+                "minimum_volume_uplifted": request.minimum_volume_uplifted,
+                "requested_stop_risk_usd": str(request.requested_stop_risk),
+                "broker_min_volume": str(request.minimum_volume),
+                "risk_at_broker_min_volume": str(
+                    request.minimum_volume * request.stop_loss_per_volume
+                ),
+                "aggregate_pre_order_worst_case": str(
+                    authorization.aggregate_pre_order_worst_case
+                ),
+                "provider_headroom": str(authorization.provider_headroom),
+                "internal_qore_headroom": str(authorization.internal_qore_headroom),
                 "signal_fingerprint": signal.signal_fingerprint,
             },
         )
         return
+    if request.minimum_volume_uplifted:
+        _log(
+            log_path,
+            {
+                "event": "MINIMUM_BROKER_VOLUME_UPLIFT_AUTHORIZED",
+                "symbol": request.qore_symbol,
+                "strategy_requested_risk_usd": str(
+                    request.strategy_requested_risk_usd
+                ),
+                "authorized_risk_usd": str(authorization.monetary_stop_loss),
+                "authorized_volume": str(authorization.authorized_volume),
+                "aggregate_pre_order_worst_case": str(
+                    authorization.aggregate_pre_order_worst_case
+                ),
+                "aggregate_post_order_worst_case": str(
+                    authorization.aggregate_post_order_worst_case
+                ),
+                "internal_qore_headroom": str(authorization.internal_qore_headroom),
+            },
+        )
     submission = build_account_bound_submission(
         authorization,
         switch=ExecutionSafetySwitchSnapshot(
@@ -1284,11 +1459,45 @@ def _process_gbpjpy_r38_candidate(
                 "event": "GBPJPY_R38_RISK_REJECT",
                 "symbol": "GBPJPY",
                 "reason": authorization.reason,
+                "strategy_requested_risk_usd": str(
+                    request.strategy_requested_risk_usd
+                ),
+                "minimum_volume_uplifted": request.minimum_volume_uplifted,
+                "requested_stop_risk_usd": str(request.requested_stop_risk),
+                "broker_min_volume": str(request.minimum_volume),
+                "risk_at_broker_min_volume": str(
+                    request.minimum_volume * request.stop_loss_per_volume
+                ),
+                "aggregate_pre_order_worst_case": str(
+                    authorization.aggregate_pre_order_worst_case
+                ),
+                "provider_headroom": str(authorization.provider_headroom),
+                "internal_qore_headroom": str(authorization.internal_qore_headroom),
                 "signal_fingerprint": signal.signal_fingerprint,
             },
         )
         return
 
+    if request.minimum_volume_uplifted:
+        _log(
+            log_path,
+            {
+                "event": "MINIMUM_BROKER_VOLUME_UPLIFT_AUTHORIZED",
+                "symbol": request.qore_symbol,
+                "strategy_requested_risk_usd": str(
+                    request.strategy_requested_risk_usd
+                ),
+                "authorized_risk_usd": str(authorization.monetary_stop_loss),
+                "authorized_volume": str(authorization.authorized_volume),
+                "aggregate_pre_order_worst_case": str(
+                    authorization.aggregate_pre_order_worst_case
+                ),
+                "aggregate_post_order_worst_case": str(
+                    authorization.aggregate_post_order_worst_case
+                ),
+                "internal_qore_headroom": str(authorization.internal_qore_headroom),
+            },
+        )
     submission = build_account_bound_submission(
         authorization,
         switch=ExecutionSafetySwitchSnapshot(
@@ -1466,6 +1675,20 @@ def _process_audjpy_r42_candidate(
                 "event": "AUDJPY_R42_RISK_REJECT",
                 "symbol": "AUDJPY",
                 "reason": authorization.reason,
+                "strategy_requested_risk_usd": str(
+                    request.strategy_requested_risk_usd
+                ),
+                "minimum_volume_uplifted": request.minimum_volume_uplifted,
+                "requested_stop_risk_usd": str(request.requested_stop_risk),
+                "broker_min_volume": str(request.minimum_volume),
+                "risk_at_broker_min_volume": str(
+                    request.minimum_volume * request.stop_loss_per_volume
+                ),
+                "aggregate_pre_order_worst_case": str(
+                    authorization.aggregate_pre_order_worst_case
+                ),
+                "provider_headroom": str(authorization.provider_headroom),
+                "internal_qore_headroom": str(authorization.internal_qore_headroom),
                 "signal_fingerprint": signal.signal_fingerprint,
                 "latency_ms": int((authorize_at - signal.entry_at).total_seconds() * 1000),
             },
@@ -1476,6 +1699,26 @@ def _process_audjpy_r42_candidate(
     if submission_at is None:
         risk.cancel(authorization.authorization_id)
         return
+    if request.minimum_volume_uplifted:
+        _log(
+            log_path,
+            {
+                "event": "MINIMUM_BROKER_VOLUME_UPLIFT_AUTHORIZED",
+                "symbol": request.qore_symbol,
+                "strategy_requested_risk_usd": str(
+                    request.strategy_requested_risk_usd
+                ),
+                "authorized_risk_usd": str(authorization.monetary_stop_loss),
+                "authorized_volume": str(authorization.authorized_volume),
+                "aggregate_pre_order_worst_case": str(
+                    authorization.aggregate_pre_order_worst_case
+                ),
+                "aggregate_post_order_worst_case": str(
+                    authorization.aggregate_post_order_worst_case
+                ),
+                "internal_qore_headroom": str(authorization.internal_qore_headroom),
+            },
+        )
     submission = build_account_bound_submission(
         authorization,
         switch=ExecutionSafetySwitchSnapshot(
@@ -1868,7 +2111,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "certified_prop_policy_default_open_risk_fraction": str(
                 certified_policy.facts.cumulative_open_risk_fraction
             ),
-            "certified_prop_policy_fail_closed_open_risk_fraction": str(
+            "certified_prop_policy_reclassified_open_risk_fraction": str(
                 certified_policy.facts.reclassified_open_risk_fraction
             ),
             "certified_prop_policy_stop_loss_required": (certified_policy.facts.stop_loss_required),
@@ -2068,7 +2311,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         current_aggregate_stop_risk=arm_aggregate,
                         requested_posture=arm_posture,
                         certified_open_risk_fraction=(
-                            certified_policy.facts.reclassified_open_risk_fraction
+                            certified_policy.facts.cumulative_open_risk_fraction
                         ),
                     )
                     mission_snapshot = evaluate_capitalization_mission(
@@ -2381,6 +2624,18 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 )
                             else:
                                 process_fast(signal=fast_signal, now=fast_done)
+                        except BrokerMinimumVolumeRiskRejectError as risk_reject:
+                            _log(
+                                log_path,
+                                {
+                                    "event": "RISK_REJECT_MINIMUM_BROKER_VOLUME",
+                                    "symbol": fast_symbol,
+                                    "decision_at": audjpy_arm_anchor.isoformat(),
+                                    "candidate": True,
+                                    "order_send_called": False,
+                                    **risk_reject.telemetry(),
+                                },
+                            )
                         except Exception as fast_error:
                             _log(
                                 log_path,
@@ -2474,6 +2729,18 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 preflight_snapshot=arm_snapshot,
                                 preflight_spec=arm_specs["AUDJPY"],
                             )
+                except BrokerMinimumVolumeRiskRejectError as risk_reject:
+                    _log(
+                        log_path,
+                        {
+                            "event": "RISK_REJECT_MINIMUM_BROKER_VOLUME",
+                            "symbol": "AUDJPY",
+                            "decision_at": audjpy_arm_anchor.isoformat(),
+                            "candidate": True,
+                            "order_send_called": False,
+                            **risk_reject.telemetry(),
+                        },
+                    )
                 except Exception as error:
                     freeze_until = audjpy_arm_anchor + AUDJPY_R42_ENTRY_SLA
                     remaining = (freeze_until - datetime.now(UTC)).total_seconds()
@@ -2627,7 +2894,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     current_aggregate_stop_risk=vt31_aggregate,
                     requested_posture=vt31_posture,
                     certified_open_risk_fraction=(
-                        certified_policy.facts.reclassified_open_risk_fraction
+                        certified_policy.facts.cumulative_open_risk_fraction
                     ),
                 )
                 mission_snapshot = evaluate_capitalization_mission(
@@ -2754,6 +3021,18 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "candidate_count": len(vt31_basket.candidates),
                             },
                         )
+            except BrokerMinimumVolumeRiskRejectError as risk_reject:
+                _log(
+                    log_path,
+                    {
+                        "event": "RISK_REJECT_MINIMUM_BROKER_VOLUME",
+                        "symbol": "NAS100",
+                        "decision_at": vt31_arm_anchor.isoformat(),
+                        "candidate": True,
+                        "order_send_called": False,
+                        **risk_reject.telemetry(),
+                    },
+                )
             except Exception as error:
                 freeze_until = vt31_arm_anchor + VT31_DECISION_DEADLINE
                 remaining = (freeze_until - datetime.now(UTC)).total_seconds()
@@ -2958,7 +3237,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             highest_closed_balance=highest,
             current_aggregate_stop_risk=aggregate,
             requested_posture=posture,
-            certified_open_risk_fraction=(certified_policy.facts.reclassified_open_risk_fraction),
+            certified_open_risk_fraction=(certified_policy.facts.cumulative_open_risk_fraction),
         )
         mission_snapshot = evaluate_capitalization_mission(
             config=mission_config,

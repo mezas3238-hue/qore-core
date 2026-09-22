@@ -1,7 +1,7 @@
-"""Sovereign account-wide Risk for the two-Trader FundedNext pilot.
+"""Sovereign account-wide Risk for the certified FundedNext trader portfolio.
 
-Both VT08_FOREX and VT08_INDEX consume one atomic loss/margin budget.  CIBO may
-request exposure, but only this engine issues RiskAuthorization.
+Every live lineage consumes one atomic loss/margin budget. CIBO and each trader
+may request exposure, but only this engine issues RiskAuthorization.
 """
 
 from __future__ import annotations
@@ -102,6 +102,8 @@ class CiboRiskRequest:
     margin_per_volume: Decimal
     requested_at: datetime
     expires_at: datetime
+    strategy_requested_risk_usd: Decimal | None = None
+    minimum_volume_uplifted: bool = False
 
     def __post_init__(self) -> None:
         for name, text_value in (
@@ -133,6 +135,16 @@ class CiboRiskRequest:
             raise AccountWideRiskError("expires_at must follow requested_at")
         if self.minimum_volume < self.volume_step:
             raise AccountWideRiskError("minimum_volume cannot be below volume_step")
+        if self.strategy_requested_risk_usd is not None:
+            _positive(self.strategy_requested_risk_usd, "strategy_requested_risk_usd")
+        if type(self.minimum_volume_uplifted) is not bool:
+            raise AccountWideRiskError("minimum_volume_uplifted must be bool")
+        if (
+            self.minimum_volume_uplifted
+            and self.strategy_requested_risk_usd is not None
+            and self.requested_stop_risk <= self.strategy_requested_risk_usd
+        ):
+            raise AccountWideRiskError("minimum-volume uplift must increase monetary risk")
         if self.side not in {"long", "short"}:
             raise AccountWideRiskError("side must be long or short")
         if self.side == "long" and not self.stop_loss < self.intended_entry < self.take_profit:
@@ -176,6 +188,8 @@ class RiskAuthorization:
     issued_at: datetime
     expires_at: datetime
     authorization_fingerprint: str
+    strategy_requested_risk_usd: Decimal | None = None
+    minimum_volume_uplifted: bool = False
 
     def __post_init__(self) -> None:
         if type(self.decision) is not RiskDecision:
@@ -387,7 +401,9 @@ class AccountWideRiskEngine:
             margin_reserved=margin,
             decision=decision,
             reason=(
-                "request-fits-shared-account-budget"
+                "minimum-broker-volume-fits-shared-account-budget"
+                if decision is RiskDecision.ALLOW and request.minimum_volume_uplifted
+                else "request-fits-shared-account-budget"
                 if decision is RiskDecision.ALLOW
                 else "request-reduced-to-shared-account-budget"
             ),
@@ -510,6 +526,8 @@ def _authorization(
         issued_at=issued_at,
         expires_at=request.expires_at,
         authorization_fingerprint=fingerprint,
+        strategy_requested_risk_usd=request.strategy_requested_risk_usd,
+        minimum_volume_uplifted=request.minimum_volume_uplifted,
     )
 
 

@@ -135,3 +135,16 @@ def test_cibo_deny_cannot_reach_risk_request() -> None:
             provider_spec=_spec("GBPUSD"),
             account_equity=Decimal("2000"),
         )
+
+
+def test_vt08_requests_broker_minimum_and_delegates_actual_risk() -> None:
+    request = build_certified_vt08_forex_cibo_request(
+        request_id="request-minimum-uplift",
+        cibo_authorization=_cibo("GBPUSD"),
+        provider_spec=_spec("GBPUSD"),
+        account_equity=Decimal("100"),
+    )
+    assert request.strategy_requested_risk_usd == Decimal("0.25")
+    assert request.requested_volume == Decimal("0.01")
+    assert request.requested_stop_risk == Decimal("1.07")
+    assert request.minimum_volume_uplifted is True

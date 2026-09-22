@@ -99,6 +99,23 @@ def test_r38_request_maps_certified_scale_into_sovereign_risk() -> None:
     assert request.take_profit == Decimal("1.10400")
 
 
+def test_r38_minimum_broker_volume_uses_shared_risk_headroom() -> None:
+    now = datetime(2026, 9, 18, 6, 0, tzinfo=UTC)
+    request, base_risk = build_r38_risk_request(
+        request_id="r38-minimum-volume",
+        signal=_signal(scale="0.01"),
+        provider_spec=_spec(),
+        account_equity=Decimal("2000"),
+        now=now,
+    )
+    assert base_risk == Decimal("4.000")
+    assert request.requested_volume == Decimal("0.01")
+    assert request.minimum_volume == Decimal("0.01")
+    assert request.minimum_volume_uplifted is True
+    assert request.strategy_requested_risk_usd == Decimal("0.04000")
+    assert request.requested_stop_risk > request.strategy_requested_risk_usd
+
+
 def test_r38_source_open_drift_over_certified_stress_fails_closed() -> None:
     now = datetime(2026, 9, 18, 6, 0, tzinfo=UTC)
     with pytest.raises(ValueError, match="entry drift"):

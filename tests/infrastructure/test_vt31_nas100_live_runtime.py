@@ -210,7 +210,7 @@ def test_symbol_snapshot_older_than_two_seconds_fails_closed() -> None:
         )
 
 
-def test_certified_partial_leg_granularity_fails_closed() -> None:
+def test_certified_partial_leg_granularity_requests_four_broker_minimums() -> None:
     now = datetime(2026, 9, 20, 14, 0, tzinfo=UTC)
     spec = _spec(now)
     tiny = Mt5SymbolSpecification(
@@ -221,21 +221,23 @@ def test_certified_partial_leg_granularity_fails_closed() -> None:
         },
         minimum_volume=Decimal("0.5"),
     )
-    with pytest.raises(Vt31Nas100LiveError, match="partial legs"):
-        build_risk_request(
-            request_id="vt31-tiny",
-            signal_fingerprint="tiny",
-            side="long",
-            entry=Decimal("20000"),
-            stop_loss=Decimal("19990"),
-            take_profit=Decimal("20020"),
-            certified_risk_r=Decimal("1"),
-            provider_spec=tiny,
-            account_equity=Decimal("100000"),
-            decision_anchor=now,
-            reservation_expires_at=now + timedelta(minutes=30),
-            now=now,
-        )
+    request, _ = build_risk_request(
+        request_id="vt31-tiny",
+        signal_fingerprint="tiny",
+        side="long",
+        entry=Decimal("20000"),
+        stop_loss=Decimal("19990"),
+        take_profit=Decimal("20020"),
+        certified_risk_r=Decimal("1"),
+        provider_spec=tiny,
+        account_equity=Decimal("100000"),
+        decision_anchor=now,
+        reservation_expires_at=now + timedelta(minutes=30),
+        now=now,
+    )
+    assert request.requested_volume == Decimal("2.0")
+    assert request.minimum_volume == Decimal("2.0")
+    assert request.minimum_volume_uplifted is True
 
 
 def test_live_state_store_roundtrips_empty_state(tmp_path: Path) -> None:
@@ -307,3 +309,26 @@ def test_m1_cache_accepts_one_close_finalization_then_freezes(
         [late_rewrite],
         observed_at=opened + timedelta(minutes=1, seconds=2, milliseconds=3),
     )
+
+
+def test_vt31_small_account_requests_executable_four_leg_minimum() -> None:
+    now = datetime(2026, 9, 20, 14, 0, tzinfo=UTC)
+    request, one_r = build_risk_request(
+        request_id="vt31-2k-minimum",
+        signal_fingerprint="small-account",
+        side="long",
+        entry=Decimal("20000"),
+        stop_loss=Decimal("19990"),
+        take_profit=Decimal("20020"),
+        certified_risk_r=Decimal("1"),
+        provider_spec=_spec(now),
+        account_equity=Decimal("2000"),
+        decision_anchor=now,
+        reservation_expires_at=now + timedelta(minutes=30),
+        now=now,
+    )
+    assert one_r == Decimal("4")
+    assert request.requested_volume == Decimal("0.4")
+    assert request.minimum_volume == Decimal("0.4")
+    assert request.requested_stop_risk == Decimal("40.80")
+    assert request.minimum_volume_uplifted is True

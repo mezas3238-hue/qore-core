@@ -147,16 +147,18 @@ def test_r43_long_request_maps_certified_risk_into_sovereign_risk() -> None:
     assert request.requested_volume >= Decimal("0.01")
 
 
-def test_r43_tiny_short_risk_never_rounds_up_to_minimum_lot() -> None:
+def test_r43_tiny_short_risk_requests_minimum_lot() -> None:
     now = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
-    with pytest.raises(ValueError, match="below broker minimum"):
-        build_r43_risk_request(
-            request_id="r43-short-min",
-            signal=_signal(scale="0.005", side="short"),
-            provider_spec=_spec(),
-            account_equity=Decimal("2000"),
-            now=now,
-        )
+    request, _ = build_r43_risk_request(
+        request_id="r43-short-min",
+        signal=_signal(scale="0.005", side="short"),
+        provider_spec=_spec(),
+        account_equity=Decimal("2000"),
+        now=now,
+    )
+    assert request.requested_volume == Decimal("0.01")
+    assert request.minimum_volume_uplifted is True
+    assert request.requested_stop_risk > request.strategy_requested_risk_usd
 
 
 def test_r43_source_open_drift_over_certified_stress_fails_closed() -> None:

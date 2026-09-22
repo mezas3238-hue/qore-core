@@ -45,6 +45,7 @@ MAXIMUM_LOSS_FRACTION = Decimal("0.06")
 SEPARATE_MAX_RISK_AT_ANY_TIME_FRACTION = Decimal("0.03")
 FOREX_OPEN_COMMISSION_PER_LOT_USD = Decimal("7")
 INDEX_OPEN_COMMISSION_PER_LOT_USD = Decimal("0")
+COMMODITY_OPEN_COMMISSION_RATE = Decimal("0.000016")
 PILOT_SYMBOL_MAP: dict[str, str] = {
     "AUDJPY": "AUDJPY",
     "GBPUSD": "GBPUSD",
@@ -233,12 +234,28 @@ def resolve_pilot_symbol(qore_symbol: str) -> str:
         ) from error
 
 
-def opening_commission_per_lot(qore_symbol: str) -> Decimal:
-    if qore_symbol in {"AUDJPY", "GBPUSD", "GBPJPY"}:
+def opening_commission_per_lot(
+    qore_symbol: str,
+    *,
+    executable_entry: Decimal | None = None,
+    contract_size: Decimal | None = None,
+) -> Decimal:
+    if qore_symbol in {"AUDJPY", "EURUSD", "GBPUSD", "GBPJPY"}:
         return FOREX_OPEN_COMMISSION_PER_LOT_USD
     if qore_symbol in {"NAS100", "SP500", "US30"}:
         return INDEX_OPEN_COMMISSION_PER_LOT_USD
-    raise StellarInstantContractError("symbol is outside the frozen six-market pilot")
+    if qore_symbol == "XAUUSD":
+        if (
+            executable_entry is None
+            or contract_size is None
+            or executable_entry <= 0
+            or contract_size <= 0
+        ):
+            raise StellarInstantContractError(
+                "XAUUSD commission requires positive entry and contract size"
+            )
+        return executable_entry * contract_size * COMMODITY_OPEN_COMMISSION_RATE
+    raise StellarInstantContractError("symbol is outside the certified live universe")
 
 
 def _aware(value: datetime, name: str) -> None:

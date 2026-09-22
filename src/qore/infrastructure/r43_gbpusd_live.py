@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
+from qore.infrastructure.broker_risk_sizing import size_volume_for_risk
 from qore.infrastructure.fundednext_live_guard import FOREX_OPEN_COMMISSION_PER_LOT_USD
 from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
 from qore.infrastructure.fundednext_mt5_clock import (
@@ -887,13 +888,14 @@ def build_r43_risk_request(
     ) * BROKER_RISK_BUFFER
     base_risk_usd = account_equity * BASE_RISK_FRACTION
     requested_risk = base_risk_usd * signal.risk_scale
-    volume = _floor_to_step(
-        requested_risk / stop_per_lot,
-        provider_spec.volume_step,
+    sizing = size_volume_for_risk(
+        requested_risk_usd=requested_risk,
+        stop_loss_per_volume=stop_per_lot,
+        volume_step=provider_spec.volume_step,
+        minimum_volume=provider_spec.minimum_volume,
+        maximum_volume=provider_spec.maximum_volume,
     )
-    volume = min(volume, provider_spec.maximum_volume)
-    if volume < provider_spec.minimum_volume:
-        raise ValueError("R43 risk maps below broker minimum volume")
+    volume = sizing.authorized_volume
     request = CiboRiskRequest(
         request_id=request_id,
         trader_id=TraderLineage.R43_GBPUSD,
@@ -912,6 +914,8 @@ def build_r43_risk_request(
         margin_per_volume=provider_spec.margin_per_volume,
         requested_at=now,
         expires_at=now + timedelta(seconds=30),
+        strategy_requested_risk_usd=requested_risk,
+        minimum_volume_uplifted=sizing.minimum_volume_uplifted,
     )
     return request, base_risk_usd
 

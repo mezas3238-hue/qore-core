@@ -26,11 +26,11 @@ from qore.infrastructure.fundednext_stellar_instant import (
 from qore.infrastructure.vt08_forex_cibo_operational import Vt08ForexCiboPosture
 
 QORE_INTERNAL_SAFETY_BUFFER_FRACTION = Decimal("0.005")
-QORE_INTERNAL_BANK_HEAT_FRACTION = Decimal("0.005")
-QORE_INTERNAL_NORMAL_HEAT_FRACTION = Decimal("0.01")
-QORE_INTERNAL_ATTACK_HEAT_FRACTION = Decimal("0.015")
+QORE_INTERNAL_BANK_HEAT_FRACTION = Decimal("0.03")
+QORE_INTERNAL_NORMAL_HEAT_FRACTION = Decimal("0.03")
+QORE_INTERNAL_ATTACK_HEAT_FRACTION = Decimal("0.03")
 QORE_INTERNAL_ATTACK_MIN_EARNED_CUSHION_FRACTION = Decimal("0.01")
-QORE_OPERATIONAL_RISK_POLICY_VERSION = "qore-stellar-instant-operational-risk-v2"
+QORE_OPERATIONAL_RISK_POLICY_VERSION = "qore-stellar-instant-operational-risk-v3"
 
 
 class CapitalBudgetDecision(StrEnum):
@@ -109,6 +109,8 @@ def operational_risk_policy_fingerprint() -> str:
             QORE_INTERNAL_ATTACK_MIN_EARNED_CUSHION_FRACTION
         ),
         "per_trade_vt08_risk_unchanged_by_posture": True,
+        "minimum_broker_volume_uplift_requires_shared_headroom": True,
+        "aggregate_heat_shared_by_all_traders": True,
         "risk_final_capital_authority": True,
     }
     return sha256(

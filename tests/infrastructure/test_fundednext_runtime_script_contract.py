@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 _ROOT = Path(__file__).resolve().parents[2]
 _RUNTIME = _ROOT / "scripts" / "qore_fundednext_runtime.py"
@@ -10,6 +12,43 @@ _NO_SEND = _ROOT / "scripts" / "fundednext_mt5_no_send_probe.py"
 _ORDER_CHECK = _ROOT / "scripts" / "fundednext_mt5_order_check_probe.py"
 _VT31_ADAPTER = _ROOT / "scripts" / "vt31_nas100_runtime_adapter.py"
 _VT31_LIVE = _ROOT / "src" / "qore" / "infrastructure" / "vt31_nas100_live.py"
+
+
+def test_runtime_telemetry_exposes_utc_new_york_and_vt08_anchor() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+    for field in (
+        '"boundary_at_utc"',
+        '"boundary_at_new_york"',
+        '"new_bar_first_seen_at_utc"',
+        '"new_bar_first_seen_at_new_york"',
+        '"decision_at_utc"',
+        '"decision_at_new_york"',
+        '"strategy_timezone": "America/New_York"',
+        '"anchor_new_york"',
+    ):
+        assert field in source
+
+
+def test_new_york_telemetry_conversion_respects_dst_transitions() -> None:
+    ny = ZoneInfo("America/New_York")
+    before_spring = datetime(2026, 3, 8, 6, 59, tzinfo=UTC).astimezone(ny)
+    after_spring = datetime(2026, 3, 8, 7, 0, tzinfo=UTC).astimezone(ny)
+    before_fall = datetime(2026, 11, 1, 5, 59, tzinfo=UTC).astimezone(ny)
+    after_fall = datetime(2026, 11, 1, 6, 0, tzinfo=UTC).astimezone(ny)
+    assert (before_spring.hour, before_spring.utcoffset().total_seconds()) == (1, -18000)
+    assert (after_spring.hour, after_spring.utcoffset().total_seconds()) == (3, -14400)
+    assert (before_fall.hour, before_fall.utcoffset().total_seconds()) == (1, -14400)
+    assert (after_fall.hour, after_fall.utcoffset().total_seconds()) == (1, -18000)
+
+
+def test_broker_exposure_snapshot_uses_symbol_specific_commission() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+    start = source.index("def _broker_risk")
+    end = source.index("def _reconcile_filled_reservations")
+    broker_risk = source[start:end]
+    assert "opening_commission_per_lot(" in broker_risk
+    assert 'qore_symbol = "NAS100" if provider_symbol == "NDX100"' in broker_risk
+    assert "FOREX_OPEN_COMMISSION_PER_LOT_USD" not in broker_risk
 
 
 def test_h4_exit_comment_uses_broker_verified_29_character_limit() -> None:

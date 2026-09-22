@@ -1129,13 +1129,41 @@ def _authorize_and_check(
     if risk.recovery_required:
         risk.complete_boot_reconciliation(snapshot, now=auth_at)
     authorization = risk.authorize(request, snapshot, now=auth_at)
+    minimum_volume_risk = request.minimum_volume * request.stop_loss_per_volume
+    risk_observability = {
+        "strategy_requested_risk_usd": (
+            None
+            if request.strategy_requested_risk_usd is None
+            else str(request.strategy_requested_risk_usd)
+        ),
+        "minimum_volume_uplifted": request.minimum_volume_uplifted,
+        "requested_risk_usd": str(request.requested_stop_risk),
+        "broker_minimum_volume": str(request.minimum_volume),
+        "risk_at_broker_minimum_volume_usd": str(minimum_volume_risk),
+        "aggregate_pre_order_worst_case_usd": str(
+            authorization.aggregate_pre_order_worst_case
+        ),
+        "provider_headroom_usd": str(authorization.provider_headroom),
+        "qore_headroom_usd": str(authorization.internal_qore_headroom),
+    }
     if authorization.decision is RiskDecision.REJECT:
         log({
             "event": "VT31_NAS100_RISK_REJECT",
             "signal_fingerprint": order.signal_fingerprint,
             "reason": authorization.reason,
+            **risk_observability,
         })
         return
+    if request.minimum_volume_uplifted:
+        log({
+            "event": "MINIMUM_BROKER_VOLUME_UPLIFT_AUTHORIZED",
+            "trader": "VT31_NAS100",
+            "symbol": PROVIDER_SYMBOL,
+            "signal_fingerprint": order.signal_fingerprint,
+            "authorized_volume": str(authorization.authorized_volume),
+            "authorized_risk_usd": str(authorization.monetary_stop_loss),
+            **risk_observability,
+        })
 
     submission_at = stage("before-submission-build")
     submission = build_account_bound_submission(

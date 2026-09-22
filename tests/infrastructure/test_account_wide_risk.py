@@ -50,6 +50,9 @@ def _request(
     volume: str = "1",
     step: str = "1",
     minimum: str = "1",
+    stop_per_volume: str = "20",
+    strategy_requested_risk: str | None = None,
+    minimum_volume_uplifted: bool = False,
 ) -> CiboRiskRequest:
     return CiboRiskRequest(
         request_id=request_id,
@@ -65,10 +68,16 @@ def _request(
         requested_volume=Decimal(volume),
         volume_step=Decimal(step),
         minimum_volume=Decimal(minimum),
-        stop_loss_per_volume=Decimal("20"),
+        stop_loss_per_volume=Decimal(stop_per_volume),
         margin_per_volume=Decimal("50"),
         requested_at=_NOW,
         expires_at=_NOW + timedelta(minutes=2),
+        strategy_requested_risk_usd=(
+            None
+            if strategy_requested_risk is None
+            else Decimal(strategy_requested_risk)
+        ),
+        minimum_volume_uplifted=minimum_volume_uplifted,
     )
 
 
@@ -173,3 +182,33 @@ def test_partial_then_full_fill_remains_reserved_until_reconciliation() -> None:
     assert engine.active_reserved_stop_risk() == Decimal("20.0")
     engine.reconcile_fill(auth.authorization_id)
     assert engine.active_reserved_stop_risk() == 0
+
+
+def test_minimum_lot_uplift_uses_shared_budget_then_blocks_when_exhausted() -> None:
+    engine = AccountWideRiskEngine()
+    snapshot = _snapshot("60")
+    authorizations = []
+    for index in range(8):
+        authorization = engine.authorize(
+            _request(
+                f"min-{index}",
+                TraderLineage.R34_XAUUSD,
+                f"xau-signal-{index}",
+                volume="0.01",
+                step="0.01",
+                minimum="0.01",
+                stop_per_volume="810.8476128",
+                strategy_requested_risk="4",
+                minimum_volume_uplifted=True,
+            ),
+            snapshot,
+            now=_NOW,
+        )
+        authorizations.append(authorization)
+
+    assert all(item.decision is RiskDecision.ALLOW for item in authorizations[:7])
+    assert authorizations[0].monetary_stop_loss == Decimal("8.108476128")
+    assert authorizations[0].reason == "minimum-broker-volume-fits-shared-account-budget"
+    assert authorizations[7].decision is RiskDecision.REJECT
+    assert authorizations[7].reason == "insufficient-shared-risk-or-margin-headroom"
+    assert engine.active_reserved_stop_risk() == Decimal("56.759332896")
