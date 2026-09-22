@@ -36,6 +36,7 @@ def test_required_concepts_are_unique_and_only_primary_closed_concepts_promote()
         CrtPureConceptId.STRUCTURAL_DESTINATION,
         CrtPureConceptId.MODEL_1_ENTRY,
         CrtPureConceptId.MODEL_1_TIMEFRAME_ALIGNMENT,
+        CrtPureConceptId.KEY_LEVELS,
     }
     assert set(promotable_concepts()) == promoted
     assert set(pending_concepts()) == set(CRT_PURE_REQUIRED_CONCEPTS) - promoted
@@ -123,6 +124,7 @@ def test_discovered_level_a_evidence_is_retained_but_not_promoted() -> None:
         CrtPureConceptId.MODEL_1_ENTRY,
         CrtPureConceptId.MODEL_1_TIMEFRAME_ALIGNMENT,
         CrtPureConceptId.MODEL_1_REFERENCE_SELECTION,
+        CrtPureConceptId.KEY_LEVELS,
     }
     assert set(promotable_concepts()) == {
         CrtPureConceptId.TIME_TURTLE_SOUP_RELATION,
