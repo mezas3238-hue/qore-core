@@ -241,6 +241,7 @@ class V6MarketReport:
     methodology_research_only: bool = True
     reference_rule: str = "IMMEDIATELY_PREVIOUS_COMPLETED_H1"
     m3_swing_rule: str = "LAST_3_CANDLE_PIVOT_PRE_SWEEP__M3_BODY_CLOSE_BREAK"
+    m3_body_close_break_required: bool = True
     fib_anchor_rule: str = "M1_BODY_SWEEP_TO_M3_BREAK_BODY_EXTREME"
     ote_zone: str = "0.62_TO_0.79"
     ote_sweet_spot: str = "0.705_REPORTING_BOUNDARY"
