@@ -127,16 +127,18 @@ def build_prior_crt_boundary_breaches(
 ) -> dict[datetime, tuple[CrtBoundaryBreach, ...]]:
     """Build first-breach events from already-causal parent CRT boundaries."""
 
-    parents_by_activation: dict[datetime, list[ParentCrt]] = {}
-    for parent in parents:
-        parents_by_activation.setdefault(parent.c3_opened_at, []).append(parent)
-
+    ordered_parents = tuple(sorted(parents, key=lambda item: item.c3_opened_at))
+    parent_index = 0
     active_highs: list[CrtBoundaryLevel] = []
     active_lows: list[CrtBoundaryLevel] = []
     grouped: dict[datetime, tuple[CrtBoundaryBreach, ...]] = {}
 
     for bar in sorted(m15, key=lambda item: item.opened_at):
-        for parent in parents_by_activation.get(bar.opened_at, ()):
+        while (
+            parent_index < len(ordered_parents)
+            and ordered_parents[parent_index].c3_opened_at <= bar.opened_at
+        ):
+            parent = ordered_parents[parent_index]
             active_highs.append(
                 CrtBoundaryLevel(
                     kind=CrtBoundaryKind.OLD_CRTH,
@@ -153,6 +155,7 @@ def build_prior_crt_boundary_breaches(
                     activated_at=parent.c3_opened_at,
                 )
             )
+            parent_index += 1
 
         breached_highs = tuple(item for item in active_highs if bar.high_price > item.price)
         breached_lows = tuple(item for item in active_lows if bar.low_price < item.price)
