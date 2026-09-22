@@ -1,0 +1,143 @@
+name: QORE Provider Contracts FTMO + FundedNext
+
+on:
+  push:
+    branches:
+      - agent/qore-provider-contracts-ftmo-fundednext-001
+  workflow_dispatch:
+
+concurrency:
+  group: qore-provider-contracts-ftmo-fundednext-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  provider-contract-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout exact provider-contract head
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy src tests
+
+      - name: Focused provider contract gate
+        run: |
+          pytest -q \
+            tests/infrastructure/test_provider_contracts.py \
+            tests/infrastructure/test_provider_operating.py \
+            tests/infrastructure/test_provider_contract_platform_failclosed.py
+
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+      - name: Build provider contract manifest
+        run: |
+          mkdir -p artifacts
+          python -m qore.infrastructure.provider_contract_manifest \
+            --out artifacts/provider-contracts-ftmo-fundednext.json
+
+      - name: Verify manifest governance and route invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("artifacts/provider-contracts-ftmo-fundednext.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          assert payload["schema"] == "qore.provider_contracts.ftmo_fundednext.v1"
+          assert payload["verified_on"] == "2026-09-13"
+          assert len(payload["contracts"]) == 6
+          invariants = payload["invariants"]
+          assert invariants["provider_rules_are_external_hard_constraints"] is True
+          assert invariants["qore_overlay_may_only_reduce_provider_headroom"] is True
+          assert invariants["cibo_request_is_risk_authorization"] is False
+          assert invariants["risk_remains_sovereign"] is True
+          assert invariants["provider_static_floors_are_not_retrailed_by_qore"] is True
+          assert invariants["ftmo_1_step_uses_eod_trailing_overall_loss"] is True
+          assert invariants["fundednext_product_rule_conflict_fails_closed_to_manual"] is True
+          assert invariants["activation_reverification_required"] is True
+          assert invariants["credentials_present"] is False
+          assert invariants["orders_submitted"] is False
+          governance = payload["governance"]
+          assert governance["research_only"] is True
+          assert governance["demo_eligible"] is False
+          assert governance["live_authorized"] is False
+          assert governance["production_authorized"] is False
+          assert governance["provider_selected_by_economic_result"] is False
+
+          routing = payload["routing_adjudication"]
+          assert routing["ftmo"]["status"] == (
+              "AUTOMATION_SUPPORTED_SUBJECT_TO_ACTIVATION_REVERIFY"
+          )
+          assert routing["fundednext"]["status"] == (
+              "PRODUCT_RULE_CONFLICT_FAIL_CLOSED_TO_MANUAL"
+          )
+
+          ftmo = payload["contracts"]["FTMO_2_STEP_PHASE_1_2026_09_13"]
+          assert ftmo["baseline_100k_budget"]["overall_floor"] == "90000.00"
+          ftmo_ctrader = [
+              row for row in ftmo["routing_matrix"]
+              if row["account_size"] == "200000"
+              and row["platform"] == "ctrader"
+              and row["fundednext_ea_addon_enabled"] is False
+          ]
+          assert len(ftmo_ctrader) == 1
+          assert ftmo_ctrader[0]["route"] == "automated"
+
+          fn = payload["contracts"]["FUNDEDNEXT_STELLAR_2_STEP_PHASE_1_2026_09_13"]
+          assert fn["baseline_100k_budget"]["overall_floor"] == "90000.00"
+          fn_ctrader_25 = [
+              row for row in fn["routing_matrix"]
+              if row["account_size"] == "25000"
+              and row["platform"] == "ctrader"
+              and row["fundednext_ea_addon_enabled"] is False
+          ]
+          assert len(fn_ctrader_25) == 1
+          assert fn_ctrader_25[0]["route"] == "manual-handoff"
+          fn_mt5_25_addon = [
+              row for row in fn["routing_matrix"]
+              if row["account_size"] == "25000"
+              and row["platform"] == "mt5"
+              and row["fundednext_ea_addon_enabled"] is True
+          ]
+          assert len(fn_mt5_25_addon) == 1
+          assert fn_mt5_25_addon[0]["route"] == "manual-handoff"
+          assert fn_mt5_25_addon[0]["automated_order_submission_allowed"] is False
+          fn_ctrader_100 = [
+              row for row in fn["routing_matrix"]
+              if row["account_size"] == "100000"
+              and row["platform"] == "ctrader"
+              and row["fundednext_ea_addon_enabled"] is False
+          ]
+          assert len(fn_ctrader_100) == 1
+          assert fn_ctrader_100[0]["route"] == "reject"
+          PY
+
+      - name: Bind git SHA
+        run: printf '%s\n' "$GITHUB_SHA" > artifacts/git-sha.txt
+
+      - name: Upload provider contract artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-provider-contracts-ftmo-fundednext-${{ github.sha }}
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 90

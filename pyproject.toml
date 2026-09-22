@@ -7,6 +7,9 @@ name = "qore-core"
 version = "0.1.0"
 description = "QORE Core"
 requires-python = ">=3.12,<3.13"
+dependencies = [
+    "tzdata>=2026.1,<2027",
+]
 
 [project.optional-dependencies]
 ctrader = [
@@ -29,6 +32,16 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# MetaTrader5 is a third-party CamelCase module commonly imported as mt5.
+# Runtime scripts are outside the typed src package and intentionally hash
+# namedtuple-like provider objects without introducing a local protocol layer.
+"scripts/fundednext_mt5_order_check_probe.py" = ["B009", "N813"]
+"scripts/qore_fundednext_runtime.py" = ["B009", "I001", "N813"]
+# The interrupted-attempt loop iterates stable key/value pairs for snapshot
+# safety even though only the record is required by the current transition.
+"src/qore/infrastructure/fundednext_live_mt5.py" = ["B007"]
 
 [tool.mypy]
 python_version = "3.12"

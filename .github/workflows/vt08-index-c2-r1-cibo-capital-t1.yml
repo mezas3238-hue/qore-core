@@ -1,0 +1,110 @@
+name: VT08 Index C2 R1 CIBO Capital T1
+
+on:
+  push:
+    branches:
+      - agent/vt08-index-c2-r1-cibo-capital-t1-001
+  workflow_dispatch:
+
+concurrency:
+  group: vt08-index-c2-r1-cibo-capital-t1-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality-and-capital-study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Checkout exact capital-study head
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy src tests
+
+      - name: Focused CIBO capital T1 gate
+        run: |
+          pytest -q \
+            tests/infrastructure/trader_lab/test_vt08_index_c2_r1_cibo_capital_t1.py
+
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+      - name: Download exact official CIBO stop-transfer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-c2-r1-cibo-stop-protection-9c072a582d11943dc2c32c77627f1aa96ea32a52
+          path: parent
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34773753125
+
+      - name: Run frozen chronological plus Monte Carlo capital study
+        run: |
+          mkdir -p artifacts
+          python -m qore.infrastructure.trader_lab.vt08_index_c2_r1_cibo_capital_t1 \
+            --input parent/vt08-index-c2-r1-cibo-stop-protection.json \
+            --out artifacts/vt08-index-c2-r1-cibo-capital-t1.json
+
+      - name: Verify research and Risk-sovereignty boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("artifacts/vt08-index-c2-r1-cibo-capital-t1.json").read_text()
+          )
+          assert payload["schema"] == "qore.trader_lab.vt08_index_c2_r1_cibo_capital_t1.v1"
+          assert payload["capital_t1_freeze"] == "9d9d37652555e08d6ee25ee9e7dea6eeb53cf80d"
+          assert payload["parent_cibo_stop_artifact_id"] == 10322827806
+          assert payload["signal_count"] == 152
+          assert payload["stop_policies"] == [
+              "off", "soft", "be050-lock050-at100", "aggressive"
+          ]
+          assert payload["controllers"] == [
+              "risk_only_r100",
+              "cibo_bank_attack_r317_transfer",
+              "cibo_full_guard_t1",
+          ]
+          governance = payload["governance"]
+          assert governance["trader_signal_mutation"] is False
+          assert governance["cibo_request_is_risk_authorization"] is False
+          assert governance["risk_remains_sovereign"] is True
+          assert governance["fresh_unseen_validation_required"] is True
+          assert governance["demo_eligible"] is False
+          assert governance["live_authorized"] is False
+          assert governance["production_authorized"] is False
+          for stop_policy in payload["stop_policies"]:
+              for controller in payload["controllers"]:
+                  mc = payload["studies"][stop_policy][controller]["monte_carlo_60d"]
+                  assert mc["paths"] == 10000
+                  assert mc["provider_boundary_breaches"] == 0
+          PY
+
+      - name: Bind git SHA
+        run: printf '%s\n' "$GITHUB_SHA" > artifacts/git-sha.txt
+
+      - name: Upload CIBO capital T1 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-c2-r1-cibo-capital-t1-${{ github.sha }}
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 90

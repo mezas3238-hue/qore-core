@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
 from enum import StrEnum
+from types import MappingProxyType
 from typing import Protocol
 
 from qore.infrastructure.ingestion import (
@@ -18,7 +19,9 @@ from qore.infrastructure.market_data import (
     OhlcSnapshot,
     QuoteRequest,
     QuoteSnapshot,
+    Timeframe,
 )
+from qore.infrastructure.market_observation import MarketTimeframeCode
 from qore.infrastructure.ports import (
     ExternalHealth,
     ExternalPortError,
@@ -28,7 +31,7 @@ from qore.infrastructure.ports import (
 from qore.kernel.result import Failure, Result, Success
 
 _CTRADER_RELATIVE_PRICE_SCALE = Decimal(100_000)
-_M5_SECONDS = 300
+_DAILY_SECONDS = 86_400
 
 
 class CTraderDemoMarketDataError(ExternalPortError):
@@ -44,19 +47,91 @@ class CTraderDemoMarketDataValidationError(CTraderDemoMarketDataError):
 
 
 class CTraderDemoMarketDataUnsupportedError(CTraderDemoMarketDataError):
-    """Requested functionality is outside the limited candle-only delivery."""
+    """Requested functionality is outside the admitted DEMO market-data delivery."""
 
     __slots__ = ()
 
 
 class CTraderTrendbarPeriod(StrEnum):
-    """cTrader trendbar periods admitted by the first QORE delivery."""
+    """Provider-native cTrader periods admitted by the first DEMO cohort.
 
+    Values are the native ProtoOATrendbarPeriod names. H4 is included because
+    VT-08 requires closed H4 structural context; no timeframe is resampled from
+    another provider period.
+    """
+
+    M1 = "M1"
     M5 = "M5"
+    M15 = "M15"
+    M30 = "M30"
+    H1 = "H1"
+    H4 = "H4"
+    D1 = "D1"
 
     @property
     def seconds(self) -> int:
-        return _M5_SECONDS
+        """Exact fixed-duration representation used by QORE's OHLC contract."""
+        return _SECONDS_BY_PERIOD[self]
+
+    @property
+    def is_daily(self) -> bool:
+        """True only for the UTC calendar-day native period."""
+        return self is CTraderTrendbarPeriod.D1
+
+    @property
+    def canonical_timeframe_code(self) -> MarketTimeframeCode:
+        """Canonical Core-facing code bound to this provider-native period."""
+        return _CANONICAL_TIMEFRAME_CODE_BY_PERIOD[self]
+
+
+_SECONDS_BY_PERIOD: MappingProxyType[CTraderTrendbarPeriod, int] = MappingProxyType(
+    {
+        CTraderTrendbarPeriod.M1: 60,
+        CTraderTrendbarPeriod.M5: 300,
+        CTraderTrendbarPeriod.M15: 900,
+        CTraderTrendbarPeriod.M30: 1_800,
+        CTraderTrendbarPeriod.H1: 3_600,
+        CTraderTrendbarPeriod.H4: 14_400,
+        CTraderTrendbarPeriod.D1: _DAILY_SECONDS,
+    }
+)
+
+_CANONICAL_TIMEFRAME_CODE_BY_PERIOD: MappingProxyType[
+    CTraderTrendbarPeriod, MarketTimeframeCode
+] = MappingProxyType(
+    {
+        CTraderTrendbarPeriod.M1: MarketTimeframeCode.M1,
+        CTraderTrendbarPeriod.M5: MarketTimeframeCode.M5,
+        CTraderTrendbarPeriod.M15: MarketTimeframeCode.M15,
+        CTraderTrendbarPeriod.M30: MarketTimeframeCode.M30,
+        CTraderTrendbarPeriod.H1: MarketTimeframeCode.H1,
+        CTraderTrendbarPeriod.H4: MarketTimeframeCode.H4,
+        CTraderTrendbarPeriod.D1: MarketTimeframeCode.D1,
+    }
+)
+
+_PERIOD_BY_SECONDS: MappingProxyType[int, CTraderTrendbarPeriod] = MappingProxyType(
+    {seconds: period for period, seconds in _SECONDS_BY_PERIOD.items()}
+)
+
+if len(_PERIOD_BY_SECONDS) != len(_SECONDS_BY_PERIOD):
+    raise CTraderDemoMarketDataValidationError(
+        "cTrader period-to-seconds mapping must be a bijection"
+    )
+
+
+def _period_for_timeframe(timeframe: Timeframe) -> CTraderTrendbarPeriod | None:
+    return _PERIOD_BY_SECONDS.get(timeframe.seconds)
+
+
+def _is_utc_midnight(value: datetime) -> bool:
+    utc_value = value.astimezone(UTC)
+    return (
+        utc_value.hour == 0
+        and utc_value.minute == 0
+        and utc_value.second == 0
+        and utc_value.microsecond == 0
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,12 +204,12 @@ class CTraderTrendbarReadResult:
             raise CTraderDemoMarketDataValidationError(
                 "cTrader result digits must be a non-negative int"
             )
-        if not isinstance(self.period, CTraderTrendbarPeriod):
+        if type(self.period) is not CTraderTrendbarPeriod:
             raise CTraderDemoMarketDataValidationError(
                 "cTrader result period must be CTraderTrendbarPeriod"
             )
-        if not isinstance(self.trendbars, tuple) or any(
-            not isinstance(item, CTraderTrendbar) for item in self.trendbars
+        if type(self.trendbars) is not tuple or any(
+            type(item) is not CTraderTrendbar for item in self.trendbars
         ):
             raise CTraderDemoMarketDataValidationError(
                 "cTrader result trendbars must be an immutable CTraderTrendbar tuple"
@@ -233,7 +308,7 @@ def _opened_at_from_minutes(value: int) -> Result[datetime, ExternalPortError]:
 
 @dataclass(frozen=True, slots=True)
 class CTraderDemoMarketDataPayloadAdapter:
-    """Translate cTrader DEMO closed-M5 trendbars into QORE ingestion payloads."""
+    """Translate provider-native cTrader DEMO closed trendbars into QORE payloads."""
 
     client: CTraderDemoTrendbarClientBoundary
 
@@ -284,10 +359,17 @@ class CTraderDemoMarketDataPayloadAdapter:
             return Failure(
                 CTraderDemoMarketDataValidationError("cTrader OHLC read requires OhlcRequest")
             )
-        if request.timeframe.seconds != _M5_SECONDS:
+        period = _period_for_timeframe(request.timeframe)
+        if period is None:
             return Failure(
                 CTraderDemoMarketDataUnsupportedError(
-                    "cTrader first delivery supports native M5 only"
+                    "cTrader delivery supports native M1/M5/M15/M30/H1/H4/D1 only"
+                )
+            )
+        if period.is_daily and not _is_utc_midnight(request.opened_at):
+            return Failure(
+                CTraderDemoMarketDataValidationError(
+                    "cTrader daily interval must open at UTC midnight"
                 )
             )
         try:
@@ -296,9 +378,7 @@ class CTraderDemoMarketDataPayloadAdapter:
             return Failure(error)
         if isinstance(result, Failure):
             return Failure(result.error)
-        if not isinstance(result, Success) or not isinstance(
-            result.value, CTraderTrendbarReadResult
-        ):
+        if not isinstance(result, Success) or type(result.value) is not CTraderTrendbarReadResult:
             return Failure(
                 CTraderDemoMarketDataValidationError(
                     "cTrader client must return Result[CTraderTrendbarReadResult]"
@@ -311,10 +391,10 @@ class CTraderDemoMarketDataPayloadAdapter:
                     "cTrader result instrument must match requested instrument"
                 )
             )
-        if response.period is not CTraderTrendbarPeriod.M5:
+        if response.period is not period:
             return Failure(
                 CTraderDemoMarketDataValidationError(
-                    "cTrader trendbar period must match requested M5 timeframe"
+                    "cTrader trendbar period must match requested timeframe"
                 )
             )
         if response.has_more:
@@ -331,11 +411,24 @@ class CTraderDemoMarketDataPayloadAdapter:
             )
 
         trendbar = response.trendbars[0]
+        if trendbar.utc_timestamp_in_minutes % (period.seconds // 60) != 0:
+            return Failure(
+                CTraderDemoMarketDataValidationError(
+                    "cTrader trendbar open must align to the requested period grid"
+                )
+            )
         opened_at_result = _opened_at_from_minutes(trendbar.utc_timestamp_in_minutes)
         if isinstance(opened_at_result, Failure):
             return opened_at_result
         opened_at = opened_at_result.value
-        closed_at = opened_at + timedelta(seconds=_M5_SECONDS)
+        try:
+            closed_at = opened_at + timedelta(seconds=period.seconds)
+        except OverflowError:
+            return Failure(
+                CTraderDemoMarketDataValidationError(
+                    "cTrader trendbar interval is outside supported datetime range"
+                )
+            )
         if opened_at != request.opened_at or closed_at != request.closed_at:
             return Failure(
                 CTraderDemoMarketDataValidationError(
@@ -361,7 +454,7 @@ class CTraderDemoMarketDataPayloadAdapter:
             ExternalOhlcPayload(
                 source=self.descriptor,
                 instrument=response.instrument,
-                timeframe_seconds=_M5_SECONDS,
+                timeframe_seconds=period.seconds,
                 opened_at=opened_at,
                 closed_at=closed_at,
                 open=normalized["open"],
@@ -374,7 +467,7 @@ class CTraderDemoMarketDataPayloadAdapter:
 
 @dataclass(frozen=True, slots=True)
 class CTraderDemoMarketDataFlow:
-    """Canonical QORE facade for one injected cTrader DEMO candle client."""
+    """Canonical QORE facade for one injected cTrader DEMO market-data client."""
 
     payload_adapter: CTraderDemoMarketDataPayloadAdapter
 

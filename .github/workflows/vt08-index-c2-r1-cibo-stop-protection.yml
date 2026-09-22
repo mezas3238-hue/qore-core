@@ -1,0 +1,140 @@
+name: VT08 Index C2 R1 CIBO Stop Protection
+
+on:
+  push:
+    branches:
+      - agent/vt08-index-c2-r1-cibo-stop-protection-001
+  workflow_dispatch:
+
+concurrency:
+  group: vt08-index-c2-r1-cibo-stop-protection-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality-and-study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout exact study head
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy src tests
+
+      - name: Focused CIBO stop-protection gate
+        run: |
+          pytest -q \
+            tests/infrastructure/trader_lab/test_vt08_index_c2_r1_cibo_stop_protection.py
+
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+      - name: Download exact frozen R1 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-c2-positional-r1-5232540cdb444473ddf0bfae01beb2e672cea344
+          path: retained/r1
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34772299203
+
+      - name: Download retained NAS100 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-v2-source-executable-NAS100-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: retained/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Download retained SP500 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-v2-source-executable-SP500-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: retained/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Download retained US30 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-v2-source-executable-US30-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: retained/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Run frozen CIBO transfer study
+        run: |
+          mkdir -p artifacts
+          python -m qore.infrastructure.trader_lab.vt08_index_c2_r1_cibo_stop_protection \
+            --r1 retained/r1/vt08-index-c2-positional-r1.json \
+            --nas100 retained/NAS100/market-evidence.json \
+            --sp500 retained/SP500/market-evidence.json \
+            --us30 retained/US30/market-evidence.json \
+            --out artifacts/vt08-index-c2-r1-cibo-stop-protection.json
+
+      - name: Verify immutable Trader and authority boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("artifacts/vt08-index-c2-r1-cibo-stop-protection.json").read_text()
+          )
+          assert payload["schema"] == "qore.trader_lab.vt08_index_c2_r1_cibo_stop_protection.v1"
+          assert payload["research_only"] is True
+          assert payload["consumed_evidence"] is True
+          assert payload["fresh_holdout"] is False
+          assert payload["parent_r1_head"] == "5232540cdb444473ddf0bfae01beb2e672cea344"
+          assert payload["parent_r1_artifact_id"] == 10323025742
+          assert payload["parent_r1_freeze"] == "31bee8643cb09659a66e9ed793c1cb2bf9ba6353"
+          assert payload["cibo_transfer_freeze"] == "404b163b096b9927b145d5ea446755d50e2d99e3"
+          assert payload["signal_count"] == 152
+          assert payload["signal_identity_sha256"] == "f29bb0c1877b38f535671730c34623df9210465ae7743b640dac2c2d2c8e7d7d"
+          assert payload["off_reconciles_parent_r1_exactly"] is True
+          assert set(payload["policies"]) == {
+              "off", "soft", "be050-lock050-at100", "aggressive"
+          }
+          for policy in payload["policies"].values():
+              assert policy["signal_count"] == 152
+              assert policy["signal_identity_sha256"] == payload["signal_identity_sha256"]
+          governance = payload["governance"]
+          assert governance["trader_signal_mutation"] is False
+          assert governance["policy_selection_from_consumed_result_authorized"] is False
+          assert governance["fresh_unseen_validation_required"] is True
+          assert governance["cibo_decision_is_risk_authorization"] is False
+          assert governance["demo_eligible"] is False
+          assert governance["live_authorized"] is False
+          assert governance["production_authorized"] is False
+          PY
+
+      - name: Bind git SHA
+        run: printf '%s\n' "$GITHUB_SHA" > artifacts/git-sha.txt
+
+      - name: Upload CIBO transfer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-c2-r1-cibo-stop-protection-${{ github.sha }}
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 90

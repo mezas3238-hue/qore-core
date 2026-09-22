@@ -1,0 +1,141 @@
+name: VT08 Index C2 R1 CIBO Capital T2
+
+on:
+  push:
+    branches:
+      - agent/vt08-index-c2-r1-cibo-capital-t2-budget-reactivation-001
+  workflow_dispatch:
+
+concurrency:
+  group: vt08-index-c2-r1-cibo-capital-t2-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality-and-capital-study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout exact T2 head
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy src tests
+
+      - name: Focused CIBO T2 gate
+        run: |
+          pytest -q \
+            tests/infrastructure/trader_lab/test_vt08_index_c2_r1_cibo_capital_t2.py \
+            tests/infrastructure/trader_lab/test_vt08_index_c2_r1_cibo_capital_t2_strict.py
+
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+      - name: Download exact official CIBO stop-transfer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-c2-r1-cibo-stop-protection-9c072a582d11943dc2c32c77627f1aa96ea32a52
+          path: parent-stop
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34773753125
+
+      - name: Download exact official CIBO capital T1 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-c2-r1-cibo-capital-t1-0a07f6294d501613650f70fbf36e160606d62b47
+          path: parent-t1
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34774905465
+
+      - name: Verify exact T1 JSON and extend only T2 zero counters
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          source = Path("parent-t1/vt08-index-c2-r1-cibo-capital-t1.json")
+          raw = source.read_bytes()
+          assert hashlib.sha256(raw).hexdigest() == "6e8327e0c1ded91713d951d45919b845617726fd8fae63888e6eefd8589dd160"
+          payload = json.loads(raw)
+          for policy in ("off", "soft", "be050-lock050-at100", "aggressive"):
+              control = payload["studies"][policy]["risk_only_r100"]
+              control["chronological"]["cibo_lock_groups"] = 0
+              control["chronological"]["cibo_reactivate_groups"] = 0
+              control["monte_carlo_60d"]["mean_cibo_lock_groups"] = 0.0
+              control["monte_carlo_60d"]["mean_cibo_reactivate_groups"] = 0.0
+          normalized = Path("parent-t1/t1-reference-t2-schema.json")
+          normalized.write_text(
+              json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Run frozen T2 chronological plus Monte Carlo study
+        run: |
+          mkdir -p artifacts
+          python -m qore.infrastructure.trader_lab.vt08_index_c2_r1_cibo_capital_t2_strict \
+            --parent-stop parent-stop/vt08-index-c2-r1-cibo-stop-protection.json \
+            --t1-reference parent-t1/t1-reference-t2-schema.json \
+            --out artifacts/vt08-index-c2-r1-cibo-capital-t2.json
+
+      - name: Verify governance and authority boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("artifacts/vt08-index-c2-r1-cibo-capital-t2.json").read_text()
+          )
+          assert payload["schema"] == "qore.trader_lab.vt08_index_c2_r1_cibo_capital_t2.v1"
+          assert payload["research_only"] is True
+          assert payload["consumed_evidence"] is True
+          assert payload["fresh_holdout"] is False
+          assert payload["capital_t2_freeze"] == "182b1418826b6d695966e36d70a7b97d9d780840"
+          assert payload["signal_count"] == 152
+          assert payload["t1_control_reconciles_parent_exactly"] is True
+          assert payload["numerical_contract_unchanged_from_t1"] is True
+          semantic = payload["semantic_change"]
+          assert semantic["bank_reference_is_hard_risk_floor"] is False
+          assert semantic["risk_daily_capital_provider_floors_are_sovereign"] is True
+          assert semantic["reactivation_requires_risk_authorizable_budget"] is True
+          governance = payload["governance"]
+          assert governance["threshold_search_performed"] is False
+          assert governance["trader_signal_mutation"] is False
+          assert governance["cibo_request_is_risk_authorization"] is False
+          assert governance["risk_remains_sovereign"] is True
+          assert governance["fresh_unseen_validation_required"] is True
+          assert governance["demo_eligible"] is False
+          assert governance["live_authorized"] is False
+          assert governance["production_authorized"] is False
+          PY
+
+      - name: Bind git SHA
+        run: printf '%s\n' "$GITHUB_SHA" > artifacts/git-sha.txt
+
+      - name: Upload CIBO T2 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-c2-r1-cibo-capital-t2-${{ github.sha }}
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,198 @@
+name: QORE FundedNext Stellar Instant $2K Pilot
+
+on:
+  push:
+    branches:
+      - agent/fundednext-stellar-instant-2k-pilot-001
+      - agent/fundednext-stellar-instant-canonical-execution-001
+  workflow_dispatch:
+
+concurrency:
+  group: qore-fundednext-stellar-instant-2k-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  pilot-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout exact pilot head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Compile src tests and resident scripts
+        run: python -m compileall -q src tests scripts
+
+      - name: Parse Windows runtime PowerShell
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $files = @(
+            "scripts/install_fundednext_runtime.ps1",
+            "scripts/qore_fundednext_watchdog.ps1",
+            "scripts/finalize_fundednext_activation.ps1",
+            "scripts/authorize_fundednext_live.ps1",
+            "scripts/set_fundednext_kill_switch.ps1"
+          )
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $file).Path,
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -ne 0) {
+              $errors | ForEach-Object { Write-Error "${file}: $($_.Message)" }
+              throw "PowerShell parse failed: $file"
+            }
+          }
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy src tests
+
+      - name: Focused Stellar Instant CIBO Risk runtime execution and MT5 gate
+        run: |
+          pytest -q \
+            tests/infrastructure/test_fundednext_stellar_instant.py \
+            tests/infrastructure/test_fundednext_rule_refresh.py \
+            tests/infrastructure/test_fundednext_rules_refresh_script.py \
+            tests/infrastructure/test_fundednext_runtime_script_contract.py \
+            tests/infrastructure/test_account_wide_risk.py \
+            tests/infrastructure/test_account_wide_risk_ledger.py \
+            tests/infrastructure/test_fundednext_operational_risk_policy.py \
+            tests/infrastructure/test_fundednext_execution_bridge.py \
+            tests/infrastructure/test_fundednext_mt5.py \
+            tests/infrastructure/test_fundednext_mt5_transport.py \
+            tests/infrastructure/test_fundednext_live_authorization.py \
+            tests/infrastructure/test_fundednext_live_mt5.py \
+            tests/infrastructure/test_fundednext_live_guard.py \
+            tests/infrastructure/test_fundednext_live_safety.py \
+            tests/infrastructure/test_fundednext_position_exit_ledger.py \
+            tests/infrastructure/test_fundednext_runtime_pipeline.py \
+            tests/infrastructure/test_fundednext_runtime_state.py \
+            tests/infrastructure/test_fundednext_operational.py \
+            tests/infrastructure/test_vt08_forex_cibo_operational.py \
+            tests/infrastructure/test_vt08_forex_fundednext_sizing.py \
+            tests/test_fundednext_cibo_risk_certification.py
+
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+      - name: Build exact-SHA CIBO Risk certification
+        run: |
+          mkdir -p artifacts
+          python -m qore.infrastructure.fundednext_cibo_risk_certification \
+            --git-sha "$GITHUB_SHA" \
+            --out artifacts/cibo-risk-certification.json
+          sha256sum artifacts/cibo-risk-certification.json \
+            > artifacts/cibo-risk-certification.sha256
+
+      - name: Build immutable pilot readiness manifest
+        run: |
+          python -m qore.infrastructure.fundednext_pilot_manifest \
+            --git-sha "$GITHUB_SHA" \
+            --out artifacts/fundednext-stellar-instant-2k-readiness.json
+          printf '%s\n' "$GITHUB_SHA" > artifacts/git-sha.txt
+          sha256sum artifacts/fundednext-stellar-instant-2k-readiness.json \
+            > artifacts/readiness.sha256
+
+      - name: Verify provider CIBO Risk and governance invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          cert = json.loads(Path("artifacts/cibo-risk-certification.json").read_text())
+          assert cert["git_sha"] == "${{ github.sha }}"
+          assert cert["status"] == "CIBO_RISK_COMPONENT_CERTIFIED"
+          assert cert["provider"]["maximum_loss_fraction"] == "0.06"
+          assert cert["provider"]["daily_loss_limit"] is None
+          assert cert["provider"]["cumulative_open_risk_fraction"] == "0.03"
+          assert cert["provider"]["cumulative_open_risk_guard_enforced"] is True
+          assert cert["provider"]["cumulative_open_risk_is_maximum_loss"] is False
+          assert cert["cibo"]["capital_authority"] is False
+          assert cert["cibo"]["attack_can_override_risk"] is False
+          assert cert["account_wide_risk"]["final_capital_authority"] is True
+          assert cert["account_wide_risk"]["broker_executable_price_risk_recheck_required"] is True
+          assert cert["account_wide_risk"]["opening_commission_reserved"] is True
+          assert cert["qore_internal_policy"]["explicitly_not_provider_rule"] is True
+          assert cert["governance"]["component_certification_grants_order_send_authority"] is False
+          assert cert["governance"]["component_certification_grants_live_activation"] is False
+
+          payload = json.loads(
+              Path("artifacts/fundednext-stellar-instant-2k-readiness.json").read_text()
+          )
+          assert payload["schema"] == "qore.fundednext.stellar-instant-2k-pilot-readiness.v2"
+          assert payload["git_sha"] == "${{ github.sha }}"
+          assert payload["provider"]["maximum_loss_fraction"] == "0.06"
+          assert payload["provider"]["daily_loss_limit"] is None
+          assert payload["provider"]["cumulative_open_risk_fraction"] == "0.03"
+          assert payload["provider"]["cumulative_open_risk_guard_present"] is True
+          assert payload["provider"]["cumulative_open_risk_is_maximum_loss"] is False
+          assert payload["qore_internal_risk_policy"]["explicitly_not_provider_rule"] is True
+          assert payload["qore_internal_risk_policy"]["risk_is_final_capital_authority"] is True
+          state = payload["certification_state"]
+          assert state["vt08_forex_demo_approved"] is True
+          assert state["cibo_forex_normal_bank_attack_implemented"] is True
+          governance = payload["governance"]
+          assert governance["order_submission_authorized"] is False
+          assert governance["real_capital_authorized"] is False
+          assert governance["live_authorized"] is False
+          assert governance["production_authorized"] is False
+          assert governance["pr_may_be_merged"] is False
+          assert governance["pr_may_be_marked_ready"] is False
+          readiness = payload["technical_readiness"]
+          for key in (
+              "certified_direction_guard_implemented",
+              "causal_daily_selection_live_subset_implemented",
+              "durable_shared_risk_implemented",
+              "opening_commission_reserved_in_risk_implemented",
+              "broker_executable_risk_recheck_implemented",
+              "current_price_open_position_risk_implemented",
+              "strict_activation_evidence_digest_verification_implemented",
+              "ea_and_vps_entitlement_gates_implemented",
+              "tracked_worktree_sha_guard_implemented",
+              "certified_direction_order_check_probe_implemented",
+              "durable_h4_containment_exit_implemented",
+              "dual_copy_trailing_mll_checkpoint_implemented",
+              "durable_scoped_kill_switches_implemented",
+              "post_reboot_reconciliation_proof_implemented",
+              "owner_live_activation_transition_implemented",
+              "provider_inactivity_guard_implemented",
+              "resident_scripts_compiled_in_ci",
+          ):
+              assert readiness[key] is True, key
+          assert readiness["ready_for_vps_shadow_closeout"] is True
+          assert readiness["ready_for_owner_activation"] is False
+          assert readiness["ready_to_operate_stellar_instant"] is False
+          assert readiness["actual_account_bound_on_this_sha"] is False
+          assert readiness["no_send_passed_on_this_sha"] is False
+          assert readiness["shadow_mode_passed_on_this_sha"] is False
+          PY
+
+      - name: Upload pilot evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-fundednext-stellar-instant-2k-${{ github.sha }}
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,74 @@
+name: QORE GBPJPY R38 Live Core
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/turtle-soup-gbpusd-r43-live-core-integration-001
+    paths:
+      - '.github/workflows/gbpjpy-r38-live-core.yml'
+      - 'src/qore/infrastructure/r38_gbpjpy_live.py'
+      - 'src/qore/infrastructure/account_wide_risk.py'
+      - 'scripts/qore_fundednext_runtime.py'
+      - 'src/qore/infrastructure/trader_lab/turtle_soup_gbpjpy_*.py'
+      - 'src/qore/infrastructure/trader_lab/cibo_gbpjpy_*.py'
+      - 'runtime_data/gbpjpy/**'
+      - 'tests/infrastructure/test_r38_gbpjpy_live.py'
+      - 'tests/infrastructure/test_account_wide_risk.py'
+      - 'tests/infrastructure/test_r43_gbpusd_live.py'
+      - 'scripts/rebind_fundednext_shadow_state.py'
+      - 'scripts/install_fundednext_runtime.ps1'
+      - 'tests/infrastructure/test_fundednext_shadow_state_rebind.py'
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff focused integration gate
+        run: |
+          ruff check --ignore E501,I001 \
+            src/qore/infrastructure/r38_gbpjpy_live.py \
+            src/qore/infrastructure/account_wide_risk.py \
+            scripts/qore_fundednext_runtime.py \
+            tests/infrastructure/test_r38_gbpjpy_live.py \
+            tests/infrastructure/test_r43_gbpusd_live.py \
+            scripts/rebind_fundednext_shadow_state.py \
+            tests/infrastructure/test_fundednext_shadow_state_rebind.py
+      - name: Mypy focused integration gate
+        run: |
+          mypy --disable-error-code attr-defined \
+            src/qore/infrastructure/r38_gbpjpy_live.py \
+            src/qore/infrastructure/account_wide_risk.py \
+            scripts/qore_fundednext_runtime.py \
+            scripts/rebind_fundednext_shadow_state.py
+      - name: Focused live and account-wide risk tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/test_r38_gbpjpy_live.py \
+            tests/infrastructure/test_r43_gbpusd_live.py \
+            tests/infrastructure/test_account_wide_risk.py \
+            tests/infrastructure/test_fundednext_shadow_state_rebind.py
+      - name: Runtime syntax and immutable memory binding
+        run: |
+          python -m py_compile scripts/qore_fundednext_runtime.py scripts/rebind_fundednext_shadow_state.py
+          grep -F 'order_submission_authorized = $false' scripts/install_fundednext_runtime.ps1
+          grep -F 'rebind_fundednext_shadow_state.py' scripts/install_fundednext_runtime.ps1
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          p=Path('runtime_data/gbpjpy/r38-confidence-tier-memory.json')
+          data=json.loads(p.read_text())
+          assert hashlib.sha256(p.read_bytes()).hexdigest() == '16a369e8457394642642ca2c7331e32b05644a5656d339cbba06db089f44211f'
+          assert data['identity'] == 'TURTLE_SOUP_GBPJPY_R38_LIVE_MEMORY_V1'
+          assert data['selected_ensemble'] == 'R35_RANGE_DIRECTION_MINIMAL_ROBUST'
+          assert data['selected_policy'] == 'CONFIDENCE_100_050_010'
+          PY

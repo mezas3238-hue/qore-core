@@ -17,6 +17,9 @@ from qore.infrastructure.ctrader_demo_execution_configuration import (
     CTraderSymbolMapping,
     ctrader_demo_secret_requirements,
 )
+from qore.infrastructure.ctrader_demo_mutation_ledger import (
+    InMemoryCTraderDemoMutationLedger,
+)
 from qore.infrastructure.ctrader_demo_operational_runtime import (
     CTraderDemoOperationalRuntime,
     CTraderDemoOperationalRuntimeValidationError,
@@ -261,6 +264,7 @@ def _runtime(client: _FakeOpenApiClient) -> CTraderDemoOperationalRuntime:
         credentials=_credentials(),
         environment_authorization=_authorization(),
         market_data_descriptor=_DESCRIPTOR,
+        mutation_ledger=InMemoryCTraderDemoMutationLedger(),
         client=client,
         clock=lambda: _NOW + timedelta(seconds=7),
     )
@@ -315,5 +319,6 @@ def test_runtime_rejects_mismatched_credential_account_before_network_access() -
             credentials=_credentials(account_id=999999),
             environment_authorization=_authorization(),
             market_data_descriptor=_DESCRIPTOR,
+            mutation_ledger=InMemoryCTraderDemoMutationLedger(),
             client=_FakeOpenApiClient(),
         )
