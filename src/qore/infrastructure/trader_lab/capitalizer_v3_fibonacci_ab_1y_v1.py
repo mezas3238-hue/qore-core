@@ -38,9 +38,6 @@ from qore.infrastructure.trader_lab.capitalizer_ict_2022_m1_entry_1y_replay_v1 i
     _aware,
 )
 from qore.infrastructure.trader_lab.capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 import (
-    ATR_MULTIPLIER,
-    BODY_RATIO_MIN,
-    BUFFER_PIPS,
     H1Swing,
     M3MssEvent,
     SweepCloseback,
