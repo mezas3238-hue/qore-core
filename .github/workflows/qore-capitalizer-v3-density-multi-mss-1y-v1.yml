@@ -168,6 +168,15 @@ jobs:
           assert report["trader_certified"] is False
           assert report["live_authorized"] is False
           assert report["real_capital_authorized"] is False
+          assert report["h1_with_1_mss"] >= 0
+          assert report["h1_with_2_mss"] >= 0
+          assert report["h1_with_3plus_mss"] >= 0
+          assert report["m3_mss_additional"] >= 0
+          assert report["duplicate_mss_fills_skipped"] >= 0
+          assert report["trades_recovered_from_later_mss"] >= 0
+          assert set(report["mss_temporal_distribution"]) == {
+              "00_14", "15_29", "30_44", "45_59"
+          }
           PY
       - uses: actions/upload-artifact@v4
         with:
