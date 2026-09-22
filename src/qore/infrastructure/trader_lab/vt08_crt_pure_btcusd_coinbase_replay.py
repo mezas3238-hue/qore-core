@@ -34,6 +34,10 @@ from qore.infrastructure.traders.crt_pure_timing_policy import (
     NY,
     utc_triplet_windows_for_local_date,
 )
+from qore.infrastructure.traders.crt_pure_timing_policy import (
+    NY,
+    utc_triplet_windows_for_local_date,
+)
 
 SOURCE_ID = "COINBASE_EXCHANGE_BTC_USD"
 PRODUCT_ID = "BTC-USD"
@@ -195,6 +199,41 @@ def load_coinbase_two_year_m5() -> tuple[ReplayBar, ...]:
     return tuple(by_time[key] for key in sorted(by_time))
 
 
+
+
+def _window_coverage(bars: tuple[ReplayBar, ...]) -> dict[str, dict[str, int]]:
+    by_time = {bar.opened_at: bar for bar in bars}
+    start_day = (START - timedelta(days=1)).astimezone(NY).date()
+    end_day = END_EXCLUSIVE.astimezone(NY).date()
+    counters = {
+        "1": {"eligible": 0, "complete": 0, "missing_c1": 0, "missing_c2": 0, "missing_c3": 0},
+        "2": {"eligible": 0, "complete": 0, "missing_c1": 0, "missing_c2": 0, "missing_c3": 0},
+    }
+
+    for day in _days(start_day, end_day):
+        local_noon = datetime(day.year, day.month, day.day, 12, tzinfo=NY)
+        windows = utc_triplet_windows_for_local_date(CrtPureMarket.BTCUSD, local_noon)
+        for timing_index, window in enumerate(windows):
+            if not START <= window.candle_3_open < END_EXCLUSIVE:
+                continue
+            key = str(timing_index + 1)
+            counters[key]["eligible"] += 1
+            c1 = _segment(by_time, window.candle_1_open, window.candle_2_open)
+            c2 = _segment(by_time, window.candle_2_open, window.candle_3_open)
+            c3 = _segment(by_time, window.candle_3_open, window.window_close)
+            if c1 is None:
+                counters[key]["missing_c1"] += 1
+                continue
+            if c2 is None:
+                counters[key]["missing_c2"] += 1
+                continue
+            if c3 is None:
+                counters[key]["missing_c3"] += 1
+                continue
+            counters[key]["complete"] += 1
+    return counters
+
+
 def _triplet_summary(
     trades: tuple[ReplayTrade, ...],
     triplet: str,
@@ -223,6 +262,7 @@ def build_coinbase_report(
         "triplet_2": _triplet_summary(trades, "2"),
         "provider_mixing": False,
         "synthetic_bars": False,
+        "gap_policy": "FAIL_CLOSED_PER_CRT_WINDOW",
         "incomplete_windows_excluded": True,
         "research_only": True,
         "candidate_certified": False,
