@@ -117,3 +117,18 @@ def test_prior_crth_model1_can_confirm_bearish_without_later_source_fallback() -
     assert trade.stop_price_relative == 112
     assert trade.research_only is True
     assert trade.source_canonical is False
+
+
+def test_prior_crt_boundary_activates_on_first_observable_m15_after_gap() -> None:
+    old_parent = _parent(c3_hour=4, direction=CrtPureCandidateDirection.BEARISH)
+    bars = (
+        _m15(4, 30, 108, 111, 107, 110),
+        _m15(4, 45, 110, 115, 109, 114),
+    )
+    breaches = build_prior_crt_boundary_breaches(
+        parents=(old_parent,),
+        m15=bars,
+    )
+    event = breaches[bars[0].opened_at][0]
+    assert event.kind is CrtBoundaryKind.OLD_CRTH
+    assert event.references[0].activated_at == old_parent.c3_opened_at
