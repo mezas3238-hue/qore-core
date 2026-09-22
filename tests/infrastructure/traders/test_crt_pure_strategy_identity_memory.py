@@ -31,6 +31,8 @@ def test_strategy_identity_exposes_only_canonical_source_rules() -> None:
         "entry_families",
         "structural_stop",
         "structural_destination",
+        "model_1_entry",
+        "model_1_timeframe_alignment",
     }
     rules = payload["canonical_rules"]
     assert isinstance(rules, dict)
@@ -51,6 +53,8 @@ def test_strategy_identity_exposes_only_canonical_source_rules() -> None:
         "entry_families",
         "structural_stop",
         "structural_destination",
+        "model_1_entry",
+        "model_1_timeframe_alignment",
     }
 
 
