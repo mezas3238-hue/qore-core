@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import Model1LabTrade
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2bf_audusd_pf_loss_attribution import (
     IDENTITY,
     _annual_bucket,
@@ -8,7 +9,6 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2bf_audusd_pf_loss_attributio
     _reference_bucket,
     _stop_subtype,
 )
-from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import Model1LabTrade
 
 
 def _trade() -> Model1LabTrade:
