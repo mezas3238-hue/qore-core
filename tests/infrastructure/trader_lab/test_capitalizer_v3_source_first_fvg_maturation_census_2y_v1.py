@@ -13,10 +13,10 @@ def test_fvg_maturation_census_contract_is_frozen() -> None:
 
 
 def test_fvg_maturation_order_is_causal() -> None:
-    from datetime import datetime, timezone
+    from datetime import UTC, datetime
 
-    same = datetime(2026, 1, 1, 10, 1, tzinfo=timezone.utc)
-    opposed = datetime(2026, 1, 1, 10, 2, tzinfo=timezone.utc)
+    same = datetime(2026, 1, 1, 10, 1, tzinfo=UTC)
+    opposed = datetime(2026, 1, 1, 10, 2, tzinfo=UTC)
     assert census._order(same, opposed) == "SAME_SIDE_FIRST"
     assert census._order(opposed, same) == "OPPOSED_FIRST"
     assert census._order(same, same) == "SIMULTANEOUS"
