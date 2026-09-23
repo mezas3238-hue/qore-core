@@ -92,3 +92,23 @@ def test_first_opposing_open_persists_until_post_closeback_confirmation(
     assert event.confirmed_at == base + timedelta(minutes=12)
     assert event.cisd_boundary == Decimal("100")
     assert event.broken_swing_price == Decimal("100.5")
+
+
+def test_closeback_exactly_at_deadline_fails_closed() -> None:
+    base = datetime(2026, 1, 2, 12, 0, tzinfo=UTC)
+    bars = (
+        _bar(base, "100", "100.2", "98.8", "99"),
+    )
+    closes = tuple(item.closed_at for item in bars)
+
+    event = find_source_first_m3_mss(
+        bars,
+        closes,
+        (),
+        sweep_at=base - timedelta(minutes=1),
+        after=base + timedelta(minutes=3),
+        before=base + timedelta(minutes=3),
+        side=CapitalizerSide.LONG,
+    )
+
+    assert event is None
