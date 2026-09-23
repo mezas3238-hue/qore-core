@@ -26,6 +26,9 @@ from typing import Any
 from qore.infrastructure.trader_lab import (
     capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 as v3,
 )
+from qore.infrastructure.trader_lab import (
+    capitalizer_v3_source_first_wait5_protected_swing_rescue_2y_v1 as protected_rescue,
+)
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
     iter_cibo_m1,
@@ -53,9 +56,6 @@ from qore.infrastructure.trader_lab.capitalizer_v3_cisd_boundary_semantics_censu
 )
 from qore.infrastructure.trader_lab.capitalizer_v3_source_first_cisd_v1 import (
     find_source_first_m3_mss,
-)
-from qore.infrastructure.trader_lab import (
-    capitalizer_v3_source_first_wait5_protected_swing_rescue_2y_v1 as protected_rescue,
 )
 from qore.infrastructure.trader_lab.capitalizer_v3_source_first_wait_rearm_atlas_2y_v1 import (
     _new_closeback,
