@@ -108,7 +108,9 @@ jobs:
           assert report["same_h1_deadline"] is True
           assert report["same_source_first_mss"] is True
           assert report["same_m1_fvg"] is True
-          assert report["same_no_rearm_architecture"] is True\n          assert report["earliest_executable_wins"] is True\n          assert report["ambiguous_earliest_tie_fail_closed"] is True
+          assert report["same_no_rearm_architecture"] is True
+          assert report["earliest_executable_wins"] is True
+          assert report["ambiguous_earliest_tie_fail_closed"] is True
           assert report["same_stop_geometry"] is True
           assert report["outcome_fields_read"] is False
           assert report["outcome_used_for_admission"] is False
