@@ -116,11 +116,15 @@ def evaluate(path: Path) -> dict[str, object]:
     bounds = (0, n // 3, (2 * n) // 3, n)
     for index in range(3):
         selected = joined[bounds[index] : bounds[index + 1]]
-        item = _bucket(selected)
-        item["block"] = index + 1
-        item["start_signal_at"] = selected[0][0].baseline.signal_at.isoformat()
-        item["end_signal_at"] = selected[-1][0].baseline.signal_at.isoformat()
-        thirds.append(item)
+        block_payload = _bucket(selected)
+        block_payload["block"] = index + 1
+        block_payload["start_signal_at"] = (
+            selected[0][0].baseline.signal_at.isoformat()
+        )
+        block_payload["end_signal_at"] = (
+            selected[-1][0].baseline.signal_at.isoformat()
+        )
+        thirds.append(block_payload)
 
     by_axis: dict[str, object] = {}
     for axis in AXES:
