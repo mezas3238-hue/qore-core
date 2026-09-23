@@ -22,6 +22,7 @@ No outcomes or future V3/SOURCE_FIRST events are used for classification.
 from __future__ import annotations
 
 import argparse
+import bisect
 import json
 from collections import Counter
 from dataclasses import asdict, dataclass
@@ -128,6 +129,22 @@ def _immediate_series(
     return tuple(selected)
 
 
+def _source_first_boundary_at(
+    bars: tuple[TFBar, ...],
+    closes: tuple[datetime, ...],
+    *,
+    sweep_at: datetime,
+    before_index: int,
+    side: CapitalizerSide,
+) -> tuple[Decimal, datetime] | None:
+    start = bisect.bisect_right(closes, sweep_at)
+    for current in range(start, before_index):
+        bar = bars[current]
+        if _is_opposing(bar, side):
+            return bar.source.open, bar.closed_at
+    return None
+
+
 def _series_vs_sweep(
     series: tuple[TFBar, ...],
     *,
@@ -190,6 +207,7 @@ def _build_row(
     raw: dict[str, Any],
     *,
     m3: tuple[TFBar, ...],
+    closes: tuple[datetime, ...],
     by_close: dict[datetime, int],
 ) -> V3OnlyCausalSeriesRow:
     side = CapitalizerSide(str(raw["side"]))
@@ -214,14 +232,24 @@ def _build_row(
     if not _breaks(close, current_boundary, side):
         raise ValueError("frozen CURRENT_V3 MSS does not cross reconstructed boundary")
 
-    source_raw = raw.get("source_first_boundary")
-    source = None if source_raw is None else Decimal(str(source_raw))
-    source_started_raw = raw.get("source_first_boundary_started_at")
-    source_started = (
-        None
-        if source_started_raw is None
-        else datetime.fromisoformat(str(source_started_raw))
+    source_pair = _source_first_boundary_at(
+        m3,
+        closes,
+        sweep_at=sweep_at,
+        before_index=index,
+        side=side,
     )
+    source: Decimal | None = None
+    source_started: datetime | None = None
+    if source_pair is not None:
+        source, source_started = source_pair
+
+    frozen_started_raw = raw.get("source_first_boundary_started_at")
+    if frozen_started_raw is not None:
+        frozen_started = datetime.fromisoformat(str(frozen_started_raw))
+        if source_started != frozen_started:
+            raise ValueError("reconstructed SOURCE_FIRST boundary start mismatch")
+
     source_available = (
         source is not None
         and source_started is not None
@@ -307,10 +335,19 @@ def build_market_report(
         raise ValueError("V3-only semantics/M1 symbol mismatch")
 
     m3 = _aggregate_tf(native, minutes=3)
+    closes = tuple(bar.closed_at for bar in m3)
     by_close = {bar.closed_at: index for index, bar in enumerate(m3)}
     rows = tuple(
         sorted(
-            (_build_row(raw, m3=m3, by_close=by_close) for raw in frozen),
+            (
+                _build_row(
+                    raw,
+                    m3=m3,
+                    closes=closes,
+                    by_close=by_close,
+                )
+                for raw in frozen
+            ),
             key=lambda item: item.current_v3_mss_at,
         )
     )
