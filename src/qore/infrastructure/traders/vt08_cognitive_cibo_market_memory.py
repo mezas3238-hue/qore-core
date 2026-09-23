@@ -120,7 +120,9 @@ def validate_cibo_market_memory() -> None:
         assert set(_MARKET_ANCHOR_PRIORS[market]) == {"1", "5", "9"}
         for anchor in OWNER_FOREX_ANCHORS:
             cell = _MARKET_ANCHOR_PRIORS[market][str(anchor)]
-            assert int(cell["sample"]) >= 500
+            sample = cell["sample"]
+            assert isinstance(sample, int)
+            assert sample >= 500
     payload = _payload_cached()
     governance = cast(dict[str, object], payload["governance"])
     assert governance["runtime_self_training_allowed"] is False
