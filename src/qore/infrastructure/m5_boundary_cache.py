@@ -34,6 +34,9 @@ BOUNDARY_RECENT_M5_BARS = 4
 MIN_HISTORY_M5_BARS = 2_000
 BOUNDARY_RETRY_SECONDS = M5_PROFILE.boundary_retry_ms / 1000.0
 NORMAL_FEED_REFRESH_SECONDS = float(M5_PROFILE.normal_feed_refresh_seconds)
+# Preserve one second of the hard two-second contract for strategy, Risk and
+# broker execution.  A provider-late market must not hold ready siblings.
+PORTFOLIO_PARTIAL_RELEASE_AFTER = timedelta(seconds=1)
 
 
 @dataclass(frozen=True, slots=True)
@@ -419,6 +422,7 @@ def await_boundary_snapshots(
                     refresh_telemetry=refresh_telemetry,
                 )
                 snapshots[name] = snapshot
+                last_reasons.pop(name, None)
                 if on_snapshot is not None:
                     on_snapshot(name, snapshot)
             except (RuntimeError, TimeoutError) as error:
@@ -427,6 +431,10 @@ def await_boundary_snapshots(
         if len(snapshots) == len(caches):
             return snapshots
         checked = clock().astimezone(UTC)
+        if snapshots and checked >= anchor + PORTFOLIO_PARTIAL_RELEASE_AFTER:
+            # Return causal markets with enough remaining headroom for
+            # strategy + Risk + broker.  Missing siblings fail independently.
+            return snapshots
         remaining = (deadline - checked).total_seconds()
         if remaining <= 0:
             detail = ";".join(f"{name}:{reason}" for name, reason in sorted(last_reasons.items()))
