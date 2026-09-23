@@ -94,6 +94,10 @@ class CausalTrade:
             self.trade.entry_opened_at,
         )
 
+    @property
+    def clock_slot_signature(self) -> tuple[str]:
+        return (self.trade.entry_opened_at,)
+
 
 def _multiplicity(values: tuple[tuple[Any, ...], ...]) -> dict[str, Any]:
     counts = Counter(values)
@@ -178,10 +182,12 @@ def run_census(market: CrtPureMarket) -> dict[str, Any]:
     exact = tuple(item.exact_signature for item in frozen)
     source = tuple(item.source_signature for item in frozen)
     entry_signatures = tuple(item.entry_slot_signature for item in frozen)
+    clock_signatures = tuple(item.clock_slot_signature for item in frozen)
 
     exact_result = _multiplicity(exact)
     source_result = _multiplicity(source)
     entry_result = _multiplicity(entry_signatures)
+    clock_result = _multiplicity(clock_signatures)
     raw = len(frozen)
 
     report: dict[str, Any] = {
@@ -199,6 +205,7 @@ def run_census(market: CrtPureMarket) -> dict[str, Any]:
         "exact_causal_signature": exact_result,
         "source_event_signature": source_result,
         "entry_slot_signature": entry_result,
+        "clock_slot_signature": clock_result,
         "unique_entry_slots_per_year": round(
             int(entry_result["unique"]) / 6,
             8,
@@ -207,6 +214,11 @@ def run_census(market: CrtPureMarket) -> dict[str, Any]:
             None
             if raw == 0
             else round(int(entry_result["unique"]) / raw, 8)
+        ),
+        "clock_slot_retention_after_dedup": (
+            None
+            if raw == 0
+            else round(int(clock_result["unique"]) / raw, 8)
         ),
         "pnl_evaluated": False,
         "dedup_policy_promoted": False,
