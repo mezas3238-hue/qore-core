@@ -50,7 +50,7 @@ def test_short_directional_mapping() -> None:
 
 def test_mixed_or_undecided_is_neutral() -> None:
     mixed = (
-        "HIGH_ACCEPTANCE+HIGH_BREAK_ATTEMPT+"
+        "HIGH_BREAK_ATTEMPT+HIGH_RAID_REJECTION+"
         "LOW_BREAK_ATTEMPT+LOW_RAID_REJECTION+OUTSIDE_BAR"
     )
     assert classify_m5_directional_state(
