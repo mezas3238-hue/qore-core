@@ -40,6 +40,10 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import
     _parent_direction,
     aggregate_complete_m15,
 )
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2ai_opportunity_capacity import (
+    _midpoint_valid,
+    _structural_risk_valid,
+)
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2c_close_unmitigated_replay import (
     build_close_unmitigated_breach_groups,
 )
@@ -49,10 +53,6 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2e_source_multiplicity_census
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2g_competition_lab import (
     _candidate_pairs,
-)
-from qore.infrastructure.trader_lab.vt08_crt_pure_r2ai_opportunity_capacity import (
-    _midpoint_valid,
-    _structural_risk_valid,
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_window_evidence import load_m5_window
 from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
