@@ -77,7 +77,7 @@ class FillMissRow:
     mitigation_band: str
     minutes_remaining_at_mss: int
     stop_before_deadline: bool
-    gap_beyond_fvg_before_deadline: bool
+    gap_beyond_ce_before_deadline: bool
     late_fill_at: str | None
     late_fill_mode: str | None
     late_fill_delay_minutes: int | None
@@ -149,15 +149,22 @@ def _mitigation_depth(
             continue
         if bar.opened_at >= deadline:
             break
-        intersects = bar.high >= zone.fvg_low and bar.low <= zone.fvg_high
-        if not intersects:
+        intersection_low = max(bar.low, zone.fvg_low)
+        intersection_high = min(bar.high, zone.fvg_high)
+        if intersection_low > intersection_high:
             continue
-        current = (
-            (zone.fvg_high - max(bar.low, zone.fvg_low)) / width
-            if event.side is CapitalizerSide.LONG
-            else (min(bar.high, zone.fvg_high) - zone.fvg_low) / width
-        )
-        current = max(Decimal("0"), min(Decimal("1"), current))
+        ce = (zone.fvg_low + zone.fvg_high) / Decimal("2")
+        if intersection_low <= ce <= intersection_high:
+            raise ValueError("fill-miss bar unexpectedly trades through CE")
+        if event.side is CapitalizerSide.LONG:
+            if intersection_high < ce:
+                continue
+            current = (zone.fvg_high - intersection_low) / width
+        else:
+            if intersection_low > ce:
+                continue
+            current = (intersection_high - zone.fvg_low) / width
+        current = max(Decimal("0"), min(Decimal("0.5"), current))
         depth = max(depth, current)
     return depth
 
@@ -174,7 +181,7 @@ def _depth_band(depth: Decimal) -> str:
     return TOUCH_40_50
 
 
-def _gap_beyond_fvg(
+def _gap_beyond_ce(
     execution: tuple[CapitalizerM1Bar, ...],
     *,
     event: v3.M3MssEvent,
@@ -186,10 +193,11 @@ def _gap_beyond_fvg(
             continue
         if bar.opened_at >= deadline:
             break
+        ce = (zone.fvg_low + zone.fvg_high) / Decimal("2")
         beyond = (
-            bar.high < zone.fvg_low
+            bar.high < ce
             if event.side is CapitalizerSide.LONG
-            else bar.low > zone.fvg_high
+            else bar.low > ce
         )
         if beyond:
             return True
@@ -276,7 +284,7 @@ def _build_row(
         side=side,
         stop_price=stop_price,
     )
-    gap_beyond = _gap_beyond_fvg(
+    gap_beyond = _gap_beyond_ce(
         execution,
         event=event,
         zone=zone,
@@ -328,7 +336,7 @@ def _build_row(
             (deadline - event.confirmed_at).total_seconds() // 60
         ),
         stop_before_deadline=stop_before_deadline,
-        gap_beyond_fvg_before_deadline=gap_beyond,
+        gap_beyond_ce_before_deadline=gap_beyond,
         late_fill_at=None if late_fill_at is None else late_fill_at.isoformat(),
         late_fill_mode=late_fill_mode,
         late_fill_delay_minutes=late_delay,
@@ -445,8 +453,8 @@ def build_market_report(
         "stop_before_deadline": sum(
             1 for item in ordered if item.stop_before_deadline
         ),
-        "gap_beyond_fvg_before_deadline": sum(
-            1 for item in ordered if item.gap_beyond_fvg_before_deadline
+        "gap_beyond_ce_before_deadline": sum(
+            1 for item in ordered if item.gap_beyond_ce_before_deadline
         ),
         "late_status_counts": dict(sorted(late_status.items())),
         "late_delay_bands": dict(sorted(late_delay.items())),
@@ -510,8 +518,8 @@ def build_matrix(root: Path) -> dict[str, Any]:
         bucket = per_session.setdefault(str(report["session"]), Counter())
         bucket["fill_miss"] += int(report["fill_miss_population"])
         bucket["stop_before_deadline"] += int(report["stop_before_deadline"])
-        bucket["gap_beyond_fvg"] += int(
-            report["gap_beyond_fvg_before_deadline"]
+        bucket["gap_beyond_ce"] += int(
+            report["gap_beyond_ce_before_deadline"]
         )
         bucket["late_fill_clean"] += int(report["late_fill_clean"])
         bucket["late_fill_after_stop"] += int(report["late_fill_after_stop"])
@@ -529,8 +537,8 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "stop_before_deadline": sum(
             int(item["stop_before_deadline"]) for item in reports
         ),
-        "gap_beyond_fvg_before_deadline": sum(
-            int(item["gap_beyond_fvg_before_deadline"]) for item in reports
+        "gap_beyond_ce_before_deadline": sum(
+            int(item["gap_beyond_ce_before_deadline"]) for item in reports
         ),
         "late_status_counts": dict(sorted(late_status.items())),
         "late_delay_bands": dict(sorted(late_delay.items())),
