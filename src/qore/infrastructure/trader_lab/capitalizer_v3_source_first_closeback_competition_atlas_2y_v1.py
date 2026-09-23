@@ -38,6 +38,10 @@ from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     iter_cibo_m1,
 )
 from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
+from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
+from qore.infrastructure.trader_lab.capitalizer_full_ict_density_scanner_1y_v1 import (
+    _aggregate_h1,
+)
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     Pivot,
     TFBar,
@@ -114,9 +118,9 @@ def _enumerate_closebacks(
             if not closed_back:
                 continue
             side = (
-                v3.CapitalizerSide.SHORT
+                CapitalizerSide.SHORT
                 if level.kind == "HIGH"
-                else v3.CapitalizerSide.LONG
+                else CapitalizerSide.LONG
             )
             candidates.append(
                 v3.SweepCloseback(
@@ -235,7 +239,7 @@ def build_market_report(
     if any(bar.symbol != symbol for bar in all_bars):
         raise ValueError("closeback competition atlas requires one market")
 
-    h1 = wait5._aggregate_h1(all_bars)
+    h1 = _aggregate_h1(all_bars)
     h1_swings = v3._build_h1_swings(h1)
     m5 = _aggregate_tf(all_bars, minutes=5)
     m5_closes = tuple(item.closed_at for item in m5)
