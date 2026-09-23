@@ -28,6 +28,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 from qore.infrastructure.trader_lab import (
     capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 as v3,
@@ -40,6 +41,7 @@ from qore.infrastructure.trader_lab.capitalizer_m3_mss_bottleneck_forensics_2y_v
     WINDOW_END,
 )
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
+    Pivot,
     TFBar,
     _aggregate_tf,
     _pivots,
@@ -130,7 +132,7 @@ def _build_row(
     session: CapitalizerSession,
     m3: tuple[TFBar, ...],
     m3_closes: tuple[datetime, ...],
-    m3_pivots: object,
+    m3_pivots: tuple[Pivot, ...],
 ) -> AtrReadinessRow:
     side = CapitalizerSide(str(raw["side"]))
     sweep_at = _aware(str(raw["sweep_at"]))
@@ -237,7 +239,7 @@ def build_market_report(
     m1_root: Path,
     *,
     session: CapitalizerSession,
-) -> tuple[dict[str, object], tuple[AtrReadinessRow, ...]]:
+) -> tuple[dict[str, Any], tuple[AtrReadinessRow, ...]]:
     frozen = _load_atr_blockers(residual_root)
     if not frozen:
         raise ValueError("ATR readiness found no frozen ATR blockers")
@@ -305,7 +307,7 @@ def build_market_report(
 
 
 def write_market(
-    report: dict[str, object],
+    report: dict[str, Any],
     rows: tuple[AtrReadinessRow, ...],
     output: Path,
 ) -> None:
@@ -321,7 +323,7 @@ def write_market(
             handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
 
 
-def _load_reports(root: Path) -> list[dict[str, object]]:
+def _load_reports(root: Path) -> list[dict[str, Any]]:
     paths = sorted(
         root.rglob("capitalizer-*-v3-source-first-atr-readiness-atlas-2y-v1.json")
     )
@@ -331,7 +333,7 @@ def _load_reports(root: Path) -> list[dict[str, object]]:
 
 
 def _sum_bands(
-    reports: list[dict[str, object]],
+    reports: list[dict[str, Any]],
     key: str,
 ) -> dict[str, int]:
     total: Counter[str] = Counter()
@@ -344,7 +346,7 @@ def _sum_bands(
     return dict(sorted(total.items()))
 
 
-def build_matrix(root: Path) -> dict[str, object]:
+def build_matrix(root: Path) -> dict[str, Any]:
     reports = _load_reports(root)
     total = sum(int(item["atr_blockers"]) for item in reports)
     return {
@@ -380,7 +382,7 @@ def build_matrix(root: Path) -> dict[str, object]:
     }
 
 
-def write_matrix(report: dict[str, object], output: Path) -> None:
+def write_matrix(report: dict[str, Any], output: Path) -> None:
     output.mkdir(parents=True, exist_ok=True)
     path = output / (
         "capitalizer-nine-market-v3-source-first-atr-readiness-atlas-2y-v1.json"
