@@ -328,7 +328,19 @@ def build_market_report(
     if not semantics:
         raise ValueError("funnel atlas found no SOURCE_FIRST MSS rows")
 
-    all_bars = tuple(iter_cibo_m1(m1_root))
+    first_sweep = min(
+        datetime.fromisoformat(str(row["sweep_at"])) for row in semantics
+    )
+    last_deadline = max(
+        datetime.fromisoformat(str(row["h1_deadline"])) for row in semantics
+    )
+    scan_start = first_sweep - timedelta(days=2)
+    scan_end = last_deadline + timedelta(days=1)
+    all_bars = tuple(
+        bar
+        for bar in iter_cibo_m1(m1_root)
+        if scan_start <= bar.opened_at <= scan_end
+    )
     if not all_bars:
         raise ValueError("funnel atlas found no native M1")
     symbol = all_bars[0].symbol
