@@ -1,5 +1,10 @@
+from typing import cast
+
 from qore.infrastructure.trader_lab import (
     capitalizer_v3_source_first_wait5_fvg_lag2_2y_v1 as candidate,
+)
+from qore.infrastructure.trader_lab.capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 import (
+    V3Trade,
 )
 
 
@@ -20,4 +25,4 @@ def test_lag2_trade_detection_uses_fvg_confirmation_after_mss() -> None:
         m1_fvg_confirmed_at = "2026-01-01T10:02:00+00:00"
         m3_mss_at = "2026-01-01T10:01:00+00:00"
 
-    assert candidate._is_lag2_trade(Trade()) is True
+    assert candidate._is_lag2_trade(cast(V3Trade, Trade())) is True
