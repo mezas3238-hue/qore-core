@@ -42,6 +42,7 @@ jobs:
           pytest -q \
             tests/infrastructure/trader_lab/test_vt08_cognitive_expansion_5m_v1.py \
             tests/infrastructure/trader_lab/test_vt08_cognitive_core_allocation_frontier_v1.py \
+            tests/infrastructure/trader_lab/test_vt08_cognitive_core_stack_dev_v1.py \
             tests/infrastructure/trader_lab/test_vt08_cognitive_structural_bank_frontier_v1.py \
             tests/infrastructure/trader_lab/test_vt08_cognitive_selective_runner_frontier_v1.py \
             tests/infrastructure/trader_lab/test_vt08_cognitive_cibo_stop_protection_v1.py
