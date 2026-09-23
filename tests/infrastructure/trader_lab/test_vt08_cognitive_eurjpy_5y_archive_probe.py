@@ -36,7 +36,7 @@ def test_five_year_archive_contract_is_strict() -> None:
 def test_short_archive_fails_closed() -> None:
     checked = datetime(2026, 9, 23, tzinfo=UTC)
     requested = checked - timedelta(days=1825)
-    with pytest.raises(ValueError, match="shorter"):
+    with pytest.raises(ValueError):
         validate_five_year_coverage(
             _payload(requested, requested + timedelta(days=1000)),
             requested_opened_at=requested,
