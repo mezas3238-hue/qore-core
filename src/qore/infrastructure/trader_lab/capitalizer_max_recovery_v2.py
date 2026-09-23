@@ -29,6 +29,9 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.trader_lab import (
+    capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 as v3,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_v3_source_first_wait5_protected_swing_rescue_2y_v1 as rescue,
 )
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
@@ -162,7 +165,7 @@ def _protected_additions(
             if side == "LONG"
             else entry_price - Decimal("2") * risk
         )
-        realized, reason, _, ambiguous, exit_at = rescue.v3._lifecycle(
+        realized, reason, _, ambiguous, exit_at = v3._lifecycle(
             execution,
             entry_index=entry_index,
             side=CapitalizerSide(side),
