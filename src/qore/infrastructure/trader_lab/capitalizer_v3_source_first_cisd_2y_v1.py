@@ -49,8 +49,10 @@ from qore.infrastructure.trader_lab.capitalizer_v3_frozen_replay_2y_v1 import (
 )
 from qore.infrastructure.trader_lab.capitalizer_v3_source_first_cisd_v1 import (
     BOUNDARY_SEMANTICS,
-    IDENTITY as SOURCE_FIRST_HELPER_IDENTITY,
     find_source_first_m3_mss,
+)
+from qore.infrastructure.trader_lab.capitalizer_v3_source_first_cisd_v1 import (
+    IDENTITY as SOURCE_FIRST_HELPER_IDENTITY,
 )
 
 IDENTITY = "QORE_CAPITALIZER_V3_SOURCE_FIRST_CISD_2Y_V1"
