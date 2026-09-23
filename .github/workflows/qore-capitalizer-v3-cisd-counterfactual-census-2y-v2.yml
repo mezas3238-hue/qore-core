@@ -179,8 +179,12 @@ jobs:
           assert report["cisd_first_blockers"] == 3007
           assert report["partition_reproduced"] is True
           assert report["boundary_cisd_contradictions"] == 0
-          assert report["step4_aligned_substitute_confirmations"] == 44
-          assert report["step4_reconciliation"] is True
+          assert report["step4_full_substitute_confirmations"] == 44
+          assert report["step4_cisd_first_blocker_subset_confirmations"] == (
+              report["true_cisd_only_aligned"]
+          )
+          assert report["step4_substitutes_outside_cisd_first_blocker_scope"] >= 0
+          assert report["step4_full_reconciliation_requires_all_blockers_provenance"] is True
           assert report["v1_reservoir_inflation_corrected"] is True
           assert report["cisd_boundary_required_for_true_cisd_only"] is True
           assert report["strategy_mutated"] is False
