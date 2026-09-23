@@ -29,7 +29,7 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import asdict
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
 from pathlib import Path
@@ -47,6 +47,7 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2ay_audusd_confirmation_suita
     run_walk_forward,
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_window_evidence import load_m5_window
+from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
 
 IDENTITY = "VT08_CRT_PURE_R2AZ_AUDUSD_CAUSAL_PROTECTION_FAMILY_001"
 SCHEMA = "qore.vt08.crt_pure.r2az_audusd_causal_protection_family.v1"
@@ -85,8 +86,6 @@ def _bar_window(
     trade: Model1LabTrade,
     m15_by_time: dict[Any, M15Bar],
 ) -> tuple[M15Bar, ...]:
-    from datetime import datetime
-
     entry_time = datetime.fromisoformat(trade.entry_opened_at)
     c3_open = datetime.fromisoformat(trade.c3_opened_at)
     c3_close = c3_open + timedelta(hours=4)
@@ -232,8 +231,6 @@ def _simulate(
 def _annual(
     trades: tuple[Model1LabTrade, ...],
 ) -> dict[str, dict[str, Any]]:
-    from datetime import UTC, datetime
-
     rows: dict[str, dict[str, Any]] = {}
     for year in range(START.year + 3, END.year):
         left = datetime(year, 9, 21, 0, 0, tzinfo=UTC)
@@ -255,10 +252,7 @@ def run_family() -> tuple[
     source_trades = tuple(record.trade for record in retained_records)
 
     m5 = load_m5_window(
-        market=__import__(
-            "qore.infrastructure.traders.crt_pure_identity",
-            fromlist=["CrtPureMarket"],
-        ).CrtPureMarket.AUDUSD,
+        CrtPureMarket.AUDUSD,
         start=START - timedelta(days=2),
         end_exclusive=END + timedelta(days=2),
     )
