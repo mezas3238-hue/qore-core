@@ -190,7 +190,15 @@ def run_density(
         diagnostics["context_available"] += 1
 
         efficiency = context[config.efficiency_index]
-        regime_pass = config.efficiency_low <= efficiency < config.efficiency_high
+        if not isinstance(efficiency, Decimal):
+            raise TypeError(
+                "configured efficiency index did not resolve to Decimal"
+            )
+        regime_pass = (
+            config.efficiency_low
+            <= efficiency
+            < config.efficiency_high
+        )
         if not regime_pass:
             diagnostics["regime_rejected_parent"] += 1
             if unfiltered_trade is not None:
