@@ -92,17 +92,24 @@ CANDIDATE_BOUNDS: dict[CandidateId, tuple[Decimal, Decimal] | None] = {
     CandidateId.C1_BODY_025_055: (Decimal("0.25"), Decimal("0.55")),
     CandidateId.C1_BODY_020_055: (Decimal("0.20"), Decimal("0.55")),
 }
+def _bounds_manifest(candidate: CandidateId) -> str:
+    bounds = CANDIDATE_BOUNDS[candidate]
+    if bounds is None:
+        return f"{candidate.value}:ALL"
+    lower, upper = bounds
+    return f"{candidate.value}:{lower}:{upper}"
+
+
+def _bounds_payload(candidate: CandidateId) -> list[str] | None:
+    bounds = CANDIDATE_BOUNDS[candidate]
+    if bounds is None:
+        return None
+    lower, upper = bounds
+    return [str(lower), str(upper)]
+
+
 FAMILY_MANIFEST = "|".join(
-    f"{candidate.value}:"
-    + (
-        "ALL"
-        if CANDIDATE_BOUNDS[candidate] is None
-        else (
-            f"{CANDIDATE_BOUNDS[candidate][0]}:"
-            f"{CANDIDATE_BOUNDS[candidate][1]}"
-        )
-    )
-    for candidate in CANDIDATE_FAMILY
+    _bounds_manifest(candidate) for candidate in CANDIDATE_FAMILY
 )
 FAMILY_DIGEST = sha256(FAMILY_MANIFEST.encode("utf-8")).hexdigest()
 
@@ -254,14 +261,7 @@ def run_validation() -> tuple[
         if survived:
             survivors.append(candidate.value)
         arms[candidate.value] = {
-            "bounds": (
-                None
-                if CANDIDATE_BOUNDS[candidate] is None
-                else [
-                    str(CANDIDATE_BOUNDS[candidate][0]),
-                    str(CANDIDATE_BOUNDS[candidate][1]),
-                ]
-            ),
+            "bounds": _bounds_payload(candidate),
             "full_2y": full,
             "year_1": year_1,
             "year_2": year_2,
