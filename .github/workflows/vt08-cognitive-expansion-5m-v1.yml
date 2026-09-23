@@ -31,7 +31,9 @@ jobs:
           mypy             src/qore/infrastructure/trader_lab/vt08_cognitive_expansion_5m_v1.py             src/qore/infrastructure/trader_lab/vt08_cognitive_expansion_5m_evaluator_v1.py             src/qore/infrastructure/trader_lab/vt08_cognitive_expansion_5m_backtest_v1.py
       - name: Focused tests
         run: |
-          pytest -q tests/infrastructure/trader_lab/test_vt08_cognitive_expansion_5m_v1.py
+          pytest -q \
+            tests/infrastructure/trader_lab/test_vt08_cognitive_expansion_5m_v1.py \
+            tests/infrastructure/trader_lab/test_vt08_cognitive_core_allocation_frontier_v1.py
       - name: Freeze fingerprints
         run: |
           python - <<'PY'
