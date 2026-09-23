@@ -1,5 +1,10 @@
+from typing import cast
+
 from qore.infrastructure.trader_lab import (
     capitalizer_v3_source_first_wait5_fvg_lag2_fresh_holdout_2y_v1 as holdout,
+)
+from qore.infrastructure.trader_lab.capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 import (
+    V3Trade,
 )
 
 
@@ -22,7 +27,7 @@ def test_holdout_trade_key_is_deterministic() -> None:
         side = "LONG"
         entry_at = "2023-01-03T15:31:00+00:00"
 
-    assert holdout._trade_key(Trade()) == (
+    assert holdout._trade_key(cast(V3Trade, Trade())) == (
         "NAS100",
         "NEW_YORK",
         "2023-01-03",
