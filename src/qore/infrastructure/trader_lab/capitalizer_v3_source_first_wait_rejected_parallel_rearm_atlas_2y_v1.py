@@ -321,18 +321,33 @@ def build_market_report(
     }, ordered
 
 
-def write_market(report: dict[str, Any], rows: tuple[RejectedWaitRearmRow, ...], output: Path) -> None:
+def write_market(
+    report: dict[str, Any],
+    rows: tuple[RejectedWaitRearmRow, ...],
+    output: Path,
+) -> None:
     output.mkdir(parents=True, exist_ok=True)
     symbol = str(report["symbol"]).lower()
-    stem = f"capitalizer-{symbol}-v3-source-first-wait-rejected-parallel-rearm-atlas-2y-v1"
-    (output / f"{stem}.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    stem = (
+        f"capitalizer-{symbol}-v3-source-first-"
+        "wait-rejected-parallel-rearm-atlas-2y-v1"
+    )
+    (output / f"{stem}.json").write_text(
+        json.dumps(report, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     with (output / f"{stem}-rows.jsonl").open("w", encoding="utf-8") as handle:
         for row in rows:
             handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
 
 
 def build_matrix(root: Path) -> dict[str, Any]:
-    paths = sorted(root.rglob("capitalizer-*-v3-source-first-wait-rejected-parallel-rearm-atlas-2y-v1.json"))
+    paths = sorted(
+        root.rglob(
+            "capitalizer-*-v3-source-first-"
+            "wait-rejected-parallel-rearm-atlas-2y-v1.json"
+        )
+    )
     if len(paths) != 9:
         raise ValueError(f"parallel rearm matrix requires 9 reports, got {len(paths)}")
     reports = [dict(json.loads(p.read_text(encoding="utf-8"))) for p in paths]
@@ -373,8 +388,14 @@ def build_matrix(root: Path) -> dict[str, Any]:
 
 def write_matrix(report: dict[str, Any], output: Path) -> None:
     output.mkdir(parents=True, exist_ok=True)
-    path = output / "capitalizer-nine-market-v3-source-first-wait-rejected-parallel-rearm-atlas-2y-v1.json"
-    path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path = output / (
+        "capitalizer-nine-market-v3-source-first-"
+        "wait-rejected-parallel-rearm-atlas-2y-v1.json"
+    )
+    path.write_text(
+        json.dumps(report, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
 
 def main() -> None:
@@ -390,7 +411,11 @@ def main() -> None:
     matrix.add_argument("output", type=Path)
     args = parser.parse_args()
     if args.command == "market":
-        report, rows = build_market_report(args.funnel_root, args.m1_root, session=CapitalizerSession(args.session))
+        report, rows = build_market_report(
+            args.funnel_root,
+            args.m1_root,
+            session=CapitalizerSession(args.session),
+        )
         write_market(report, rows, args.output)
         print(json.dumps(report, sort_keys=True))
         return
