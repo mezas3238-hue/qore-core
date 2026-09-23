@@ -61,7 +61,7 @@ def test_capital_weighting_changes_r_not_trade_count() -> None:
     assert weighted["sample_size"] == 2
     assert contexts == {"SUPPORTIVE": 2}
     assert audit[0]["risk_multiplier"] == format(SUPPORTIVE_MULTIPLIER, "f")
-    assert weighted["total_r"] == "1.2"
+    assert weighted["total_r"] == "1.20"
 
 
 def test_frozen_multipliers_are_bounded_and_nonzero() -> None:
