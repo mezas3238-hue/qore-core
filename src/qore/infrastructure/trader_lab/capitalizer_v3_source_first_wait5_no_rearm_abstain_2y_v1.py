@@ -24,6 +24,7 @@ import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import asdict
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -164,7 +165,7 @@ def _load_trades(root: Path) -> tuple[v3.V3Trade, ...]:
         sorted(
             rows,
             key=lambda item: (
-                v3._aware(item.entry_at),
+                datetime.fromisoformat(item.entry_at),
                 item.symbol,
             ),
         )
