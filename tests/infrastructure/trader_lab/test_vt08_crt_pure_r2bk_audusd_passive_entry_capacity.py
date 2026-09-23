@@ -3,9 +3,9 @@ from __future__ import annotations
 from datetime import timedelta
 
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2bk_audusd_passive_entry_capacity import (
-    EntryArm,
     HORIZON,
     IDENTITY,
+    EntryArm,
 )
 
 
