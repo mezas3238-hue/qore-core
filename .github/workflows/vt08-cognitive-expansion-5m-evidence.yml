@@ -180,6 +180,36 @@ jobs:
               "status_counts": consumed["status_counts"],
           }, sort_keys=True))
           PY
+      - name: Run VT08 CIBO stop protection transfer
+        env:
+          QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab.vt08_cognitive_cibo_stop_protection_v1 import (
+              replay,
+          )
+
+          symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
+          root = Path(f"artifacts/vt08-expansion-{symbol}")
+          report = replay(root / "market-evidence.json")
+          (root / "vt08-cibo-stop-protection.json").write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")),
+              encoding="utf-8",
+          )
+          print(json.dumps({
+              "symbol": symbol,
+              "trade_count": report["trade_count"],
+              "temporal_consumed_count": report["split"]["temporal_consumed_count"],
+              "off": report["policies"]["off"]["temporal_consumed"],
+              "soft": report["policies"]["soft"]["temporal_consumed"],
+              "be050_lock050_at100": report["policies"]["be050-lock050-at100"]["temporal_consumed"],
+              "aggressive": report["policies"]["aggressive"]["temporal_consumed"],
+          }, sort_keys=True))
+          PY
       - name: Upload sanitized evidence and replay
         uses: actions/upload-artifact@v4
         with:
