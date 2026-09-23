@@ -39,6 +39,7 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
     MAX_EXECUTIONS_PER_SESSION,
     CapitalizerSession,
 )
+from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     _index_day_inputs,
 )
@@ -294,7 +295,7 @@ def _candidate_additions(
         realized, reason, _, ambiguous, exit_at = v3._lifecycle(
             execution,
             entry_index=entry_index,
-            side=v3.CapitalizerSide(side),
+            side=CapitalizerSide(side),
             entry_price=entry_price,
             stop_price=stop_price,
             target_price=target_price,
