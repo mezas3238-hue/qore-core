@@ -63,7 +63,7 @@ from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     Pivot,
     ReferenceLiquidity,
     StructureEvent,
-    TFBar as TFBar,
+    TFBar,
     _aggregate_tf,
     _find_structure_event,
     _immediate_h1_bias,
@@ -74,6 +74,8 @@ from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     _sweep_extreme,
     _sweep_level,
 )
+
+__all__ = ["TFBar"]
 
 IDENTITY = "QORE_CAPITALIZER_M5_MSS_M3_REFINEMENT_1Y_V1"
 MATRIX_IDENTITY = (
