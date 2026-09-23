@@ -307,19 +307,112 @@ def write_market(
             handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
 
 
+def _load_market_reports(root: Path) -> list[dict[str, Any]]:
+    paths = sorted(
+        root.rglob(
+            "capitalizer-*-v3-source-first-shadow-boundary-forensics-2y-v1.json"
+        )
+    )
+    if len(paths) != 9:
+        raise ValueError(
+            f"shadow boundary matrix requires 9 reports, got {len(paths)}"
+        )
+    return [dict(json.loads(path.read_text(encoding="utf-8"))) for path in paths]
+
+
+def build_matrix(root: Path) -> dict[str, Any]:
+    reports = _load_market_reports(root)
+    state_counts: Counter[str] = Counter()
+    relation_by_state: dict[str, Counter[str]] = {}
+    per_session: dict[str, Counter[str]] = {}
+    for report in reports:
+        for key, value in dict(report["shadow_state_counts"]).items():
+            state_counts[str(key)] += int(value)
+        raw_rel = report["future_relation_by_shadow_state"]
+        if not isinstance(raw_rel, dict):
+            raise ValueError("future_relation_by_shadow_state must be mapping")
+        for state, mapping in raw_rel.items():
+            if not isinstance(mapping, dict):
+                raise ValueError("future relation state must be mapping")
+            bucket = relation_by_state.setdefault(str(state), Counter())
+            for relation, count in mapping.items():
+                bucket[str(relation)] += int(count)
+        session = str(report["session"])
+        session_counts = per_session.setdefault(session, Counter())
+        session_counts["raw_trades"] += int(report["raw_trades"])
+        for key, value in dict(report["shadow_state_counts"]).items():
+            session_counts[str(key)] += int(value)
+
+    raw_trades = sum(int(report["raw_trades"]) for report in reports)
+    return {
+        "identity": MATRIX_IDENTITY,
+        "market_count": 9,
+        "raw_trades": raw_trades,
+        "source_first_raw_control_reproduced": (
+            raw_trades == EXPECTED_SOURCE_FIRST_RAW
+        ),
+        "shadow_state_counts": dict(sorted(state_counts.items())),
+        "shadow_state_partition_reproduced": (
+            sum(state_counts.values()) == raw_trades
+        ),
+        "future_relation_by_shadow_state": {
+            key: dict(sorted(value.items()))
+            for key, value in sorted(relation_by_state.items())
+        },
+        "per_session": {
+            key: dict(value) for key, value in sorted(per_session.items())
+        },
+        "markets": sorted(reports, key=lambda item: str(item["symbol"])),
+        "shadow_state_is_decision_time": True,
+        "future_relation_is_diagnostic_only": True,
+        "outcome_used_for_admission": False,
+        "future_relation_used_for_admission": False,
+        "strategy_mutated": False,
+        "diagnostic_only": True,
+        "economic_candidate": False,
+        "rule_promotion_allowed": False,
+    }
+
+
+def write_matrix(report: dict[str, Any], output: Path) -> None:
+    output.mkdir(parents=True, exist_ok=True)
+    path = (
+        output
+        / "capitalizer-nine-market-v3-source-first-shadow-boundary-forensics-2y-v1.json"
+    )
+    path.write_text(
+        json.dumps(report, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("replay_root", type=Path)
-    parser.add_argument("semantics_root", type=Path)
-    parser.add_argument("m1_root", type=Path)
-    parser.add_argument("output", type=Path)
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    market = sub.add_parser("market")
+    market.add_argument("replay_root", type=Path)
+    market.add_argument("semantics_root", type=Path)
+    market.add_argument("m1_root", type=Path)
+    market.add_argument("output", type=Path)
+
+    matrix = sub.add_parser("matrix")
+    matrix.add_argument("input_root", type=Path)
+    matrix.add_argument("output", type=Path)
+
     args = parser.parse_args()
-    report, rows = build_market_report(
-        args.replay_root,
-        args.semantics_root,
-        args.m1_root,
-    )
-    write_market(report, rows, args.output)
+    if args.command == "market":
+        report, rows = build_market_report(
+            args.replay_root,
+            args.semantics_root,
+            args.m1_root,
+        )
+        write_market(report, rows, args.output)
+        print(json.dumps(report, sort_keys=True))
+        return
+
+    report = build_matrix(args.input_root)
+    write_matrix(report, args.output)
     print(json.dumps(report, sort_keys=True))
 
 
