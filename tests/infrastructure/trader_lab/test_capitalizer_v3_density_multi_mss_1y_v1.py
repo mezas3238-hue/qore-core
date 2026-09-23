@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+import pytest
 import qore.infrastructure.trader_lab.capitalizer_v3_density_multi_mss_1y_v1 as d2
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_v3_density_multi_mss_1y_v1 import (
@@ -35,7 +36,7 @@ def test_multi_mss_empty_window_is_empty() -> None:
     ) == ()
 
 
-def test_multi_mss_cursor_advances_to_event_confirmation(monkeypatch) -> None:
+def test_multi_mss_cursor_advances_to_event_confirmation(monkeypatch: pytest.MonkeyPatch) -> None:
     start = datetime(2026, 9, 22, 10, tzinfo=UTC)
     first_at = start + timedelta(minutes=9)
     second_at = start + timedelta(minutes=21)
@@ -56,7 +57,9 @@ def test_multi_mss_cursor_advances_to_event_confirmation(monkeypatch) -> None:
 
     events = iter((event(first_at), event(second_at), None))
 
-    def fake_find(*args, after: datetime, **kwargs):
+    def fake_find(
+        *args: object, after: datetime, **kwargs: object
+    ) -> M3MssEvent | None:
         calls.append(after)
         return next(events)
 
