@@ -70,6 +70,8 @@ def test_supported_complete_situation_executes() -> None:
     )
     assert result.decision.action is Vt08CognitiveAction.EXECUTE
     assert result.decision.metacognition.state is Vt08KnowledgeState.SUPPORTED
+    assert len(result.decision.cognitive_memory_fingerprint) == 64
+    assert len(result.decision.market_anchor_context_fingerprint) == 64
     assert result.hypothesis.state is Vt08HypothesisState.EXECUTABLE
 
 
