@@ -18,6 +18,8 @@ from typing import Any
 
 from qore.infrastructure.trader_lab.capitalizer_m3_mss_bottleneck_forensics_2y_v1 import (
     IDENTITY as BOTTLENECK_IDENTITY,
+)
+from qore.infrastructure.trader_lab.capitalizer_m3_mss_bottleneck_forensics_2y_v1 import (
     WINDOW_END,
     WINDOW_START,
 )
