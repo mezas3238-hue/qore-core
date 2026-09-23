@@ -1,6 +1,8 @@
 from qore.infrastructure.trader_lab import (
     capitalizer_v3_source_first_delta_drawdown_forensics_2y_v1 as atlas,
 )
+
+
 def test_source_first_delta_drawdown_contract_is_frozen() -> None:
     assert atlas.IDENTITY == (
         "QORE_CAPITALIZER_V3_SOURCE_FIRST_DELTA_DRAWDOWN_FORENSICS_2Y_V1"
