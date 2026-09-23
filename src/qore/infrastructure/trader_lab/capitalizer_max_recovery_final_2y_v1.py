@@ -54,13 +54,12 @@ from qore.infrastructure.trader_lab.capitalizer_v3_cisd_boundary_semantics_censu
 from qore.infrastructure.trader_lab.capitalizer_v3_source_first_cisd_v1 import (
     find_source_first_m3_mss,
 )
+from qore.infrastructure.trader_lab import (
+    capitalizer_v3_source_first_wait5_protected_swing_rescue_2y_v1 as protected_rescue,
+)
 from qore.infrastructure.trader_lab.capitalizer_v3_source_first_wait_rearm_atlas_2y_v1 import (
     _new_closeback,
     _new_raid,
-)
-from qore.infrastructure.trader_lab.capitalizer_v3_source_first_wait5_protected_swing_rescue_2y_v1 import (
-    _funnel_rows,
-    _stop_rows,
 )
 
 IDENTITY = "QORE_CAPITALIZER_MAX_RECOVERY_FINAL_2Y_V1"
@@ -235,8 +234,8 @@ def build_market_report(
     tuple[RecoveryTrade, ...],
 ]:
     arbitration = _load_arbitration(arbitration_root)
-    stop_rows = _stop_rows(stop_root)
-    invalid_funnel_rows = _funnel_rows(funnel_root)
+    stop_rows = protected_rescue._stop_rows(stop_root)
+    invalid_funnel_rows = protected_rescue._funnel_rows(funnel_root)
     rejected_rows = _load_rejected_wait_rows(funnel_root)
 
     bars = tuple(iter_cibo_m1(m1_root))
