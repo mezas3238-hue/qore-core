@@ -247,8 +247,15 @@ def _build_row(
     frozen_started_raw = raw.get("source_first_boundary_started_at")
     if frozen_started_raw is not None:
         frozen_started = datetime.fromisoformat(str(frozen_started_raw))
-        if source_started != frozen_started:
-            raise ValueError("reconstructed SOURCE_FIRST boundary start mismatch")
+        if frozen_started <= current_mss:
+            if source_started != frozen_started:
+                raise ValueError(
+                    "reconstructed decision-time SOURCE_FIRST boundary mismatch"
+                )
+        elif source_started is not None:
+            raise ValueError(
+                "decision-time SOURCE_FIRST boundary exists before frozen future start"
+            )
 
     source_available = (
         source is not None
