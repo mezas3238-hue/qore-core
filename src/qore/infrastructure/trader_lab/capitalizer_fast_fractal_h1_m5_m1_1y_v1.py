@@ -57,10 +57,10 @@ from qore.infrastructure.trader_lab.capitalizer_ict_2022_m1_entry_1y_replay_v1 i
     _lifecycle,
 )
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
-    Pivot,
+    Pivot as Pivot,
     ReferenceLiquidity,
     StructureEvent,
-    TFBar,
+    TFBar as TFBar,
     _aggregate_tf,
     _find_structure_event,
     _immediate_h1_bias,
