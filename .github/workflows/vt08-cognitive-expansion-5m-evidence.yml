@@ -13,26 +13,11 @@ permissions:
 
 jobs:
   collect:
-    name: collect-${{ matrix.symbol }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        symbol:
-          - EURJPY
-          - USDCHF
-          - NZDUSD
-          - CADJPY
-          - USDCAD
-    env:
-      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
-      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
-      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
-      QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
-      QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
-      QORE_DEMO_LAB_LOOKBACK_DAYS: "760"
-      QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
-      QORE_SOFTWARE_SHA: ${{ github.sha }}
+        symbol: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -42,43 +27,37 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[ctrader]"
-      - name: Verify DEMO credentials without printing secrets
-        shell: bash
-        run: |
-          set -euo pipefail
-          for name in             QORE_CTRADER_CLIENT_ID             QORE_CTRADER_CLIENT_SECRET             QORE_CTRADER_ACCESS_TOKEN             QORE_CTRADER_REFRESH_TOKEN             QORE_CTRADER_DEMO_ACCOUNT_ID
-          do
-            if [ -z "${!name:-}" ]; then
-              echo "missing required DEMO runtime input: ${name}" >&2
-              exit 2
-            fi
-          done
       - name: Collect 760-day sanitized read-only evidence
-        run: |
-          mkdir -p "artifacts/vt08-expansion-${QORE_DEMO_LAB_SYMBOL}"
-          python -m qore.infrastructure.ctrader_demo_lab_long_horizon_probe             > "artifacts/vt08-expansion-${QORE_DEMO_LAB_SYMBOL}/market-evidence.json"
-          printf '%s
-' "${GITHUB_SHA}"             > "artifacts/vt08-expansion-${QORE_DEMO_LAB_SYMBOL}/git-sha.txt"
-      - name: Validate expansion evidence contract
+        env:
+          QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+          QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+          QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+          QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+          QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID }}
+          QORE_DEMO_LAB_LOOKBACK_DAYS: "760"
+          QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
+          QORE_SOFTWARE_SHA: ${{ github.sha }}
         run: |
           python - <<'PY'
-          import json
           import os
-          from pathlib import Path
-
-          symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
-          path = Path(f"artifacts/vt08-expansion-{symbol}/market-evidence.json")
-          payload = json.loads(path.read_text())
-          assert payload["environment"] == "demo"
-          assert payload["read_only"] is True
-          assert payload["account_is_live"] is False
-          assert payload["symbol"]["symbol_name"] == symbol
-          assert payload["software_sha"] == os.environ["GITHUB_SHA"]
-          assert payload["required_coverage_days"] == 730
-          assert payload["coverage"]["M15"]["span_seconds"] >= 730 * 24 * 60 * 60
-          assert payload["periods"]["M15"]
+          required = (
+              "QORE_CTRADER_CLIENT_ID",
+              "QORE_CTRADER_CLIENT_SECRET",
+              "QORE_CTRADER_ACCESS_TOKEN",
+              "QORE_CTRADER_REFRESH_TOKEN",
+              "QORE_CTRADER_DEMO_ACCOUNT_ID",
+          )
+          missing = [name for name in required if not os.environ.get(name)]
+          if missing:
+              raise SystemExit("missing required DEMO runtime inputs: " + ",".join(missing))
           PY
-      - name: Run VT08 5M replay for this market
+          mkdir -p "artifacts/vt08-expansion-${QORE_DEMO_LAB_SYMBOL}"
+          python -m qore.infrastructure.ctrader_demo_lab_long_horizon_probe >             "artifacts/vt08-expansion-${QORE_DEMO_LAB_SYMBOL}/market-evidence.json"
+          printf '%s\n' "${GITHUB_SHA}" >             "artifacts/vt08-expansion-${QORE_DEMO_LAB_SYMBOL}/git-sha.txt"
+      - name: Validate and replay
+        env:
+          QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
+          QORE_SOFTWARE_SHA: ${{ github.sha }}
         run: |
           python - <<'PY'
           import json
@@ -91,20 +70,23 @@ jobs:
 
           symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
           root = Path(f"artifacts/vt08-expansion-{symbol}")
+          evidence = json.loads((root / "market-evidence.json").read_text())
+          assert evidence["environment"] == "demo"
+          assert evidence["read_only"] is True
+          assert evidence["account_is_live"] is False
+          assert evidence["symbol"]["symbol_name"] == symbol
+          assert evidence["software_sha"] == os.environ["QORE_SOFTWARE_SHA"]
+          assert evidence["required_coverage_days"] == 730
+          assert evidence["periods"]["M15"]
+
           report = run_market_backtest(root / "market-evidence.json")
           (root / "vt08-5m-replay.json").write_text(
               json.dumps(report, sort_keys=True, separators=(",", ":")),
               encoding="utf-8",
           )
-          economics = report["economics"]
           print(json.dumps({
               "symbol": symbol,
-              "sample_size": economics["sample_size"],
-              "profit_factor": economics["profit_factor"],
-              "total_r": economics["total_r"],
-              "mean_r": economics["mean_r"],
-              "max_drawdown_r": economics["max_drawdown_r"],
-              "max_losing_streak": economics["max_losing_streak"],
+              **report["economics"],
           }, sort_keys=True))
           PY
       - name: Upload sanitized evidence and replay
