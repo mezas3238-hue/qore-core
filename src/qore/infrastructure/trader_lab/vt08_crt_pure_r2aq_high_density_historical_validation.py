@@ -28,8 +28,15 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.trader_lab.vt08_crt_pure_2y_replay import (
+    _aggregate,
+    _days,
+    _segment,
+)
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import (
     Model1LabTrade,
+    ParentCrt,
+    _parent_direction,
     _summary,
     aggregate_complete_m15,
 )
@@ -40,7 +47,6 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2af_audusd_target_family impo
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2aj_timing_lattice_density import (
     TimingLattice,
-    _parents,
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2c_close_unmitigated_replay import (
     build_close_unmitigated_breach_groups,
@@ -55,6 +61,7 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2g_competition_lab import (
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_window_evidence import load_m5_window
 from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
+from qore.infrastructure.traders.crt_pure_timing_policy import NY
 
 IDENTITY = "VT08_CRT_PURE_R2AQ_HIGH_DENSITY_HISTORICAL_VALIDATION_001"
 SCHEMA = "qore.vt08.crt_pure.r2aq_high_density_historical_validation.v1"
@@ -119,6 +126,65 @@ def _annual(
     }
 
 
+def _rolling_parents(
+    *,
+    market: CrtPureMarket,
+    bars: tuple[Any, ...],
+    window: ValidationWindow,
+) -> tuple[ParentCrt, ...]:
+    by_time = {bar.opened_at: bar for bar in bars}
+    start_day = (window.start - timedelta(days=1)).astimezone(NY).date()
+    end_day = window.end.astimezone(NY).date()
+    parents: list[ParentCrt] = []
+
+    for date_value in _days(start_day, end_day):
+        for index, hour in enumerate((1, 5, 9, 13, 17, 21), start=1):
+            c1_local = datetime(
+                date_value.year,
+                date_value.month,
+                date_value.day,
+                hour,
+                tzinfo=NY,
+            )
+            c2_local = c1_local + timedelta(hours=4)
+            c3_local = c1_local + timedelta(hours=8)
+            close_local = c1_local + timedelta(hours=12)
+
+            c1_open = c1_local.astimezone(UTC)
+            c2_open = c2_local.astimezone(UTC)
+            c3_open = c3_local.astimezone(UTC)
+            close = close_local.astimezone(UTC)
+
+            if not window.start <= c3_open < window.end:
+                continue
+
+            c1_m5 = _segment(by_time, c1_open, c2_open)
+            c2_m5 = _segment(by_time, c2_open, c3_open)
+            c3_m5 = _segment(by_time, c3_open, close)
+            if c1_m5 is None or c2_m5 is None or c3_m5 is None:
+                continue
+
+            c1 = _aggregate(c1_m5, c1_open, c2_open)
+            c2 = _aggregate(c2_m5, c2_open, c3_open)
+            direction = _parent_direction(c1, c2)
+            if direction is None:
+                continue
+
+            parents.append(
+                ParentCrt(
+                    market=market,
+                    direction=direction,
+                    triplet=f"ROLLING_H4:{index}",
+                    c3_opened_at=c3_open,
+                    c3_closed_at=close,
+                    c1=c1,
+                    c2=c2,
+                    c3_m5=c3_m5,
+                )
+            )
+    return tuple(parents)
+
+
 def run_validation(
     market: CrtPureMarket,
 ) -> tuple[tuple[Model1LabTrade, ...], dict[str, Any]]:
@@ -128,9 +194,92 @@ def run_validation(
         start=window.start - timedelta(days=2),
         end_exclusive=window.end + timedelta(days=2),
     )
-    # _parents uses module-level 2020-2026 limits, so this validation cannot use it.
-    # Build rolling parents with a local imported helper in the next revision.
-    raise RuntimeError("R2-AQ rolling parent window helper not bound")
+    parents = _rolling_parents(
+        market=market,
+        bars=bars,
+        window=window,
+    )
+    m15 = aggregate_complete_m15(bars)
+    m15_by_time = {bar.opened_at: bar for bar in m15}
+    breaches = build_close_unmitigated_breach_groups(m15)
+
+    rows: list[Model1LabTrade] = []
+    diagnostics: dict[str, int] = {
+        "parent_count": len(parents),
+        "source_event_count": 0,
+        "no_selected_hypothesis": 0,
+        "selected_hypothesis": 0,
+        "invalid_structural_geometry": 0,
+        "trade_created": 0,
+    }
+
+    for parent in parents:
+        c3_m15 = _c3_m15(parent, m15_by_time)
+        observations = _aligned_sources(
+            parent=parent,
+            c3_m15=c3_m15,
+            breaches=breaches,
+        )
+        diagnostics["source_event_count"] += len(observations)
+        selected = select_competing_hypothesis(
+            policy=BASE_POLICY,
+            parent=parent,
+            observations=observations,
+            c3_m15=c3_m15,
+        )
+        if selected is None:
+            diagnostics["no_selected_hypothesis"] += 1
+            continue
+
+        diagnostics["selected_hypothesis"] += 1
+        observation, confirmation, entry = selected
+        trade = _resolve_fixed_target(
+            arm=ARM,
+            multiple=MULTIPLE,
+            parent=parent,
+            group=observation.group,
+            confirmation=confirmation,
+            entry_bar=entry,
+            c3_m15=c3_m15,
+        )
+        if trade is None:
+            diagnostics["invalid_structural_geometry"] += 1
+            continue
+
+        diagnostics["trade_created"] += 1
+        rows.append(trade)
+
+    frozen = tuple(sorted(rows, key=lambda item: item.entry_opened_at))
+    annual = _annual(frozen, window)
+    years = window.end.year - window.start.year
+    report: dict[str, Any] = {
+        "schema": SCHEMA,
+        "identity": IDENTITY,
+        "market": market.value,
+        "validation_start": window.start.isoformat(),
+        "validation_end_exclusive": window.end.isoformat(),
+        "years": years,
+        "timing_lattice": LATTICE.value,
+        "target_arm": ARM.value,
+        "base_competition_policy": BASE_POLICY.value,
+        "efficiency_regime_filter": "OFF",
+        "historical_validation_frozen_before_outcomes": True,
+        "diagnostics": diagnostics,
+        "full_window": _summary(frozen),
+        "annual": annual,
+        "trades_per_year": round(len(frozen) / years, 8),
+        "positive_annual_windows": sum(
+            float(item["total_r"]) > 0 for item in annual.values()
+        ),
+        "automatic_promotion": False,
+        "research_only": True,
+        "candidate_certified": False,
+        "demo_eligible": False,
+        "live_authorized": False,
+        "real_capital_authorized": False,
+        "production_authorized": False,
+    }
+    return frozen, report
 
 
 def main() -> None:
