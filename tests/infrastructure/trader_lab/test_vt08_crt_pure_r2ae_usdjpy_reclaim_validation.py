@@ -3,9 +3,9 @@ from __future__ import annotations
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2ae_usdjpy_reclaim_validation import (
-    END,
     EFF5_HIGH,
     EFF5_LOW,
+    END,
     MARKET,
     RECLAIM_HIGH,
     RECLAIM_LOW,
