@@ -156,7 +156,7 @@ def _ordinal_index(
     for trade in trades:
         grouped[(trade.session, trade.operating_date)].append(trade)
     result: dict[tuple[str, str, str, str], int] = {}
-    for key, rows in grouped.items():
+    for _key, rows in grouped.items():
         ordered = sorted(rows, key=lambda item: (_aware(item.entry_at), item.symbol))
         for ordinal, trade in enumerate(ordered, start=1):
             result[
