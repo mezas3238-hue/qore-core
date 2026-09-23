@@ -242,7 +242,7 @@ def _source_first_scan_day(
 def _source_first_scan_patch() -> Iterator[None]:
     original = v3._scan_day
     try:
-        v3._scan_day = _source_first_scan_day  # type: ignore[assignment]
+        v3._scan_day = _source_first_scan_day
         yield
     finally:
         v3._scan_day = original
