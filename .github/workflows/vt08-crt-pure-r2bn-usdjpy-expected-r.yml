@@ -1,0 +1,79 @@
+name: QORE VT08 CRT PURE R2-BN USDJPY Root-Cause Expected-R WFO
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-crt-pure-source-identity-001
+    paths:
+      - '.github/workflows/vt08-crt-pure-r2bn-usdjpy-expected-r.yml'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_r2bn_usdjpy_root_cause_expected_r_wf.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_r2bn_usdjpy_root_cause_expected_r_wf.py'
+
+permissions:
+  contents: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install development dependencies
+        run: python -m pip install -e '.[dev,ctrader]'
+      - name: Ruff
+        run: |
+          ruff check             src/qore/infrastructure/trader_lab/vt08_crt_pure_r2bn_usdjpy_root_cause_expected_r_wf.py             tests/infrastructure/trader_lab/test_vt08_crt_pure_r2bn_usdjpy_root_cause_expected_r_wf.py
+      - name: Mypy
+        run: mypy src/qore/infrastructure/trader_lab/vt08_crt_pure_r2bn_usdjpy_root_cause_expected_r_wf.py
+      - name: Pytest
+        run: pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_pure_r2bn_usdjpy_root_cause_expected_r_wf.py
+
+  walk_forward:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 720
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install cTrader runtime
+        run: python -m pip install -e '.[ctrader]'
+      - name: Discover DEMO account when needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Run R2-BN USDJPY root-cause Expected-R WFO
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/USDJPY
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_r2bn_usdjpy_root_cause_expected_r_wf             artifacts/USDJPY | tee artifacts/USDJPY/stdout.log
+      - name: Bind SHA and hashes
+        shell: bash
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > artifacts/USDJPY/git-sha.txt
+          cd artifacts/USDJPY
+          sha256sum report.json records.jsonl stdout.log git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-crt-pure-r2bn-usdjpy-${{ github.sha }}
+          path: artifacts/USDJPY
+          if-no-files-found: error
+          retention-days: 90
