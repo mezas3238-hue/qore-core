@@ -27,10 +27,11 @@ from __future__ import annotations
 import argparse
 import json
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import (
     Model1LabTrade,
