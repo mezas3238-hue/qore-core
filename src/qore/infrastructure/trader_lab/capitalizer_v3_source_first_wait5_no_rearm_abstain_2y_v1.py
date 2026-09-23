@@ -179,7 +179,7 @@ def _metrics_dict(
 
 
 def build_matrix(root: Path) -> dict[str, Any]:
-    reports = _load_reports(root)
+    _load_reports(root)
     raw = _load_trades(root)
     max3 = v3._portfolio_max3(raw)
     metrics = v3._metrics(max3)
