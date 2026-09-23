@@ -30,11 +30,6 @@ from typing import Any
 from qore.infrastructure.trader_lab import (
     capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 as v3,
 )
-from qore.infrastructure.trader_lab.capitalizer_v3_frozen_replay_2y_v1 import (
-    LOOKBACK_START,
-    WINDOW_END,
-    WINDOW_START,
-)
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
     iter_cibo_m1,
@@ -50,6 +45,11 @@ from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     _aggregate_tf,
     _index_day_inputs,
     _pivots,
+)
+from qore.infrastructure.trader_lab.capitalizer_v3_frozen_replay_2y_v1 import (
+    LOOKBACK_START,
+    WINDOW_END,
+    WINDOW_START,
 )
 from qore.infrastructure.trader_lab.capitalizer_v3_source_first_cisd_v1 import (
     find_source_first_m3_mss,
