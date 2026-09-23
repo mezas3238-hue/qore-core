@@ -29,18 +29,19 @@ LOOKBACK_START = WINDOW_START - timedelta(days=21)
 
 @contextmanager
 def _v3_window() -> Iterator[None]:
-    old_start = getattr(v3, "WINDOW_START")
-    old_end = getattr(v3, "WINDOW_END")
-    old_lookback = getattr(v3, "LOOKBACK_START")
+    mutable_v3: Any = v3
+    old_start = mutable_v3.WINDOW_START
+    old_end = mutable_v3.WINDOW_END
+    old_lookback = mutable_v3.LOOKBACK_START
     try:
-        setattr(v3, "WINDOW_START", WINDOW_START)
-        setattr(v3, "WINDOW_END", WINDOW_END)
-        setattr(v3, "LOOKBACK_START", LOOKBACK_START)
+        mutable_v3.WINDOW_START = WINDOW_START
+        mutable_v3.WINDOW_END = WINDOW_END
+        mutable_v3.LOOKBACK_START = LOOKBACK_START
         yield
     finally:
-        setattr(v3, "WINDOW_START", old_start)
-        setattr(v3, "WINDOW_END", old_end)
-        setattr(v3, "LOOKBACK_START", old_lookback)
+        mutable_v3.WINDOW_START = old_start
+        mutable_v3.WINDOW_END = old_end
+        mutable_v3.LOOKBACK_START = old_lookback
 
 
 def build_market_report(
