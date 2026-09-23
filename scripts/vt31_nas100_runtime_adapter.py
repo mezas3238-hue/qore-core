@@ -19,11 +19,12 @@ import time
 from datetime import UTC, datetime, timedelta
 from decimal import ROUND_FLOOR, Decimal
 from collections.abc import Callable
-from typing import Any, cast
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
+    AccountWideRiskError,
     RiskDecision,
 )
 from qore.infrastructure.account_wide_risk_ledger import (
@@ -33,7 +34,11 @@ from qore.infrastructure.fundednext_live_mt5 import (
     FundedNextLiveMt5ExecutionGateway,
     MetaTrader5FundedNextLiveTransport,
 )
-from qore.infrastructure.fundednext_mt5 import Mt5ProviderOutcome
+from qore.infrastructure.fundednext_mt5 import (
+    Mt5ExecutionBlockedError,
+    Mt5ExecutionValidationError,
+    Mt5ProviderOutcome,
+)
 from qore.infrastructure.fundednext_mt5_clock import normalise_fundednext_server_epoch
 from qore.infrastructure.fundednext_operational import build_account_bound_submission
 from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
@@ -96,7 +101,7 @@ def _elapsed_ms(started_ns: int) -> float:
 
 def warm_runtime() -> str:
     """Materialize immutable CIBO memory before any M1 decision boundary."""
-    return cast(str, cibo_market_memory_fingerprint())
+    return cibo_market_memory_fingerprint()
 
 
 def runtime_started_fields() -> dict[str, object]:
@@ -157,10 +162,11 @@ def evaluate_boundary(
     if state.virtual_basket is not None:
         if len(state.virtual_basket.candidates) > 1:
             return None, "VIRTUAL_OCO_ACTIVE"
-        store.retire_single_basket(
-            basket_id=state.virtual_basket.basket_id,
-        )
-        return None, "STALE_SINGLE_BASKET_RETIRED"
+        # A single candidate left resident without a broker-pending order never
+        # crossed the execution boundary. Release it without poisoning the
+        # anti-duplicate closed-signal set; technical failure is not a trade.
+        store.clear_virtual_basket()
+        return None, "STALE_SINGLE_BASKET_RELEASED"
     basket, reason = evaluate_live_basket(
         closed_m1=closed_m1,
         evidence_fingerprint=evidence_fingerprint,
@@ -230,8 +236,17 @@ def submit_single_live(
             store=store,
             log=log,
         )
-    except Vt31Nas100SlaExpired:
-        store.retire_single_basket(basket_id=basket.basket_id)
+    except (
+        Vt31Nas100SlaExpired,
+        AccountWideRiskError,
+        Mt5ExecutionBlockedError,
+        Mt5ExecutionValidationError,
+    ):
+        # These failures occur before a provider mutation is safely accepted.
+        # Keep duplicate protection, but do not falsely classify the signal as
+        # a closed/executed trade.
+        if gateway is None or not gateway.has_unresolved_mutations:
+            store.clear_virtual_basket()
         raise
     if store.load().pending_broker_order is None:
         store.retire_single_basket(basket_id=basket.basket_id)
@@ -1386,31 +1401,25 @@ def _tick_at(tick: Any) -> datetime:
     raw_msc = int(getattr(tick, "time_msc", 0) or 0)
     if raw_msc > 0:
         raw_seconds, millis = divmod(raw_msc, 1000)
-        return cast(
-            datetime,
-            normalise_fundednext_server_epoch(raw_seconds),
-        ) + timedelta(
+        return normalise_fundednext_server_epoch(raw_seconds) + timedelta(
             milliseconds=millis
         )
     raw = int(getattr(tick, "time", 0) or 0)
     if raw <= 0:
         raise Vt31Nas100LiveError("VT31 broker tick timestamp unavailable")
-    return cast(datetime, normalise_fundednext_server_epoch(raw))
+    return normalise_fundednext_server_epoch(raw)
 
 
 def _position_time(position: Any, fallback: datetime) -> datetime:
     raw_msc = int(getattr(position, "time_msc", 0) or 0)
     if raw_msc > 0:
         raw_seconds, millis = divmod(raw_msc, 1000)
-        return cast(
-            datetime,
-            normalise_fundednext_server_epoch(raw_seconds),
-        ) + timedelta(
+        return normalise_fundednext_server_epoch(raw_seconds) + timedelta(
             milliseconds=millis
         )
     raw = int(getattr(position, "time", 0) or 0)
     if raw > 0:
-        return cast(datetime, normalise_fundednext_server_epoch(raw))
+        return normalise_fundednext_server_epoch(raw)
     return fallback.astimezone(UTC)
 
 

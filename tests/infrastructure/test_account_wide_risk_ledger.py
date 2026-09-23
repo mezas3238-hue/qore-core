@@ -121,3 +121,22 @@ def test_full_fill_and_reconcile_are_durable(tmp_path: Path) -> None:
     clean = DurableAccountWideRiskEngine(DurableAccountWideRiskLedger(path))
     assert clean.recovery_required is False
     assert clean.active_reserved_stop_risk() == 0
+
+
+def test_stale_boot_snapshot_can_be_recovered_by_fresh_refresh(tmp_path: Path) -> None:
+    path = tmp_path / "account-wide-risk.json"
+    first = DurableAccountWideRiskEngine(DurableAccountWideRiskLedger(path))
+    first.authorize(_request("same"), _snapshot(), now=_NOW)
+
+    restarted = DurableAccountWideRiskEngine(DurableAccountWideRiskLedger(path))
+    with pytest.raises(AccountWideRiskError, match="snapshot is stale"):
+        restarted.complete_boot_reconciliation(
+            _snapshot(reconciled_at=_NOW - timedelta(minutes=1)),
+            now=_NOW,
+        )
+    assert restarted.recovery_required is True
+
+    restarted.complete_boot_reconciliation(_snapshot(reconciled_at=_NOW), now=_NOW)
+    assert restarted.recovery_required is False
+    authorization = restarted.authorize(_request("fresh-after-recovery"), _snapshot(), now=_NOW)
+    assert authorization.decision is not RiskDecision.REJECT
