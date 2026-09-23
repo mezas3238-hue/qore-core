@@ -1,0 +1,51 @@
+name: QORE VT08 Cognitive V1 Foundation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-cognitive-v1-001
+    paths:
+      - src/qore/infrastructure/traders/vt08_cognitive_*
+      - tests/infrastructure/traders/test_vt08_cognitive_v1_*
+      - docs/research/VT08_FOREX_COGNITIVE_V1_ARCHITECTURE_FREEZE.md
+      - .github/workflows/vt08-cognitive-v1-foundation.yml
+
+permissions:
+  contents: read
+
+jobs:
+  foundation:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Ruff
+        run: |
+          ruff check             src/qore/infrastructure/traders/vt08_cognitive_v1_contracts.py             src/qore/infrastructure/traders/vt08_cognitive_strategy_identity_memory.py             src/qore/infrastructure/traders/vt08_cognitive_situation_model.py             src/qore/infrastructure/traders/vt08_cognitive_hypothesis.py             src/qore/infrastructure/traders/vt08_cognitive_reasoning.py             src/qore/infrastructure/traders/vt08_cognitive_orchestrator.py             tests/infrastructure/traders/test_vt08_cognitive_v1_contracts.py             tests/infrastructure/traders/test_vt08_cognitive_v1_kernel.py
+      - name: Mypy
+        run: |
+          mypy             src/qore/infrastructure/traders/vt08_cognitive_v1_contracts.py             src/qore/infrastructure/traders/vt08_cognitive_strategy_identity_memory.py             src/qore/infrastructure/traders/vt08_cognitive_situation_model.py             src/qore/infrastructure/traders/vt08_cognitive_hypothesis.py             src/qore/infrastructure/traders/vt08_cognitive_reasoning.py             src/qore/infrastructure/traders/vt08_cognitive_orchestrator.py
+      - name: Focused tests
+        run: |
+          pytest -q             tests/infrastructure/traders/test_vt08_cognitive_v1_contracts.py             tests/infrastructure/traders/test_vt08_cognitive_v1_kernel.py
+      - name: Fingerprints
+        run: |
+          python - <<'PY'
+          import json
+          from qore.infrastructure.traders.vt08_cognitive_strategy_identity_memory import (
+              strategy_identity_fingerprint,
+              validate_strategy_identity,
+          )
+          from qore.infrastructure.traders.vt08_cognitive_v1_contracts import (
+              architecture_fingerprint,
+          )
+          validate_strategy_identity()
+          print(json.dumps({
+              "architecture": architecture_fingerprint(),
+              "strategy_identity": strategy_identity_fingerprint(),
+          }, sort_keys=True))
+          PY
