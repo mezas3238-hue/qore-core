@@ -7,7 +7,9 @@ on:
       - agent/vt08-cognitive-expansion-5m-v1-001
     paths:
       - src/qore/infrastructure/trader_lab/vt08_cognitive_expansion_5m_*
+      - src/qore/infrastructure/trader_lab/vt08_cognitive_core_*
       - tests/infrastructure/trader_lab/test_vt08_cognitive_expansion_5m_*
+      - tests/infrastructure/trader_lab/test_vt08_cognitive_core_*
       - docs/research/VT08_COGNITIVE_EXPANSION_5M_V1_FREEZE.md
       - .github/workflows/vt08-cognitive-expansion-5m-v1.yml
 
