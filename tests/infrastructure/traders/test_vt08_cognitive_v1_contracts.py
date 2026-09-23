@@ -1,5 +1,4 @@
 from qore.infrastructure.traders.vt08_cognitive_v1_contracts import (
-    OWNER_OPERATIONAL_ANCHORS_NY,
     Vt08CognitiveAction,
     Vt08CognitiveArchitectureFreeze,
     Vt08HypothesisState,
