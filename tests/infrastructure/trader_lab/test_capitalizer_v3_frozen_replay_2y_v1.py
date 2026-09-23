@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from qore.infrastructure.trader_lab import (
     capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 as v3,
@@ -22,11 +23,20 @@ def test_v3_2y_window_contract() -> None:
 
 
 def test_v3_window_adapter_restores_frozen_module_globals() -> None:
-    original = (v3.WINDOW_START, v3.WINDOW_END, v3.LOOKBACK_START)
+    mutable_v3: Any = v3
+    original = (
+        mutable_v3.WINDOW_START,
+        mutable_v3.WINDOW_END,
+        mutable_v3.LOOKBACK_START,
+    )
 
     with _v3_window():
-        assert v3.WINDOW_START == WINDOW_START
-        assert v3.WINDOW_END == WINDOW_END
-        assert v3.LOOKBACK_START == LOOKBACK_START
+        assert mutable_v3.WINDOW_START == WINDOW_START
+        assert mutable_v3.WINDOW_END == WINDOW_END
+        assert mutable_v3.LOOKBACK_START == LOOKBACK_START
 
-    assert (v3.WINDOW_START, v3.WINDOW_END, v3.LOOKBACK_START) == original
+    assert (
+        mutable_v3.WINDOW_START,
+        mutable_v3.WINDOW_END,
+        mutable_v3.LOOKBACK_START,
+    ) == original
