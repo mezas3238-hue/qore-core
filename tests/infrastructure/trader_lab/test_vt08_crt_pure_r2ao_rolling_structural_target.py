@@ -3,6 +3,9 @@ from __future__ import annotations
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2af_audusd_target_family import (
     TargetArm,
 )
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2aj_timing_lattice_density import (
+    TimingLattice,
+)
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2ao_rolling_structural_target import (
     ARMS,
     BASE_POLICY,
@@ -13,9 +16,6 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2ao_rolling_structural_target
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2g_competition_lab import (
     CompetitionPolicy,
-)
-from qore.infrastructure.trader_lab.vt08_crt_pure_r2aj_timing_lattice_density import (
-    TimingLattice,
 )
 
 
