@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2af_audusd_target_family import (
+    TargetArm,
+)
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2al_structural_target_density import (
     ARMS,
     BASE_POLICY,
     END,
     IDENTITY,
     START,
-)
-from qore.infrastructure.trader_lab.vt08_crt_pure_r2af_audusd_target_family import (
-    TargetArm,
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2g_competition_lab import (
     CompetitionPolicy,
