@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
 from zoneinfo import ZoneInfo
@@ -31,6 +31,8 @@ from qore.infrastructure.traders.vt08_b01_r3_8 import (
     resolve_bias,
     source_day_from_m15,
     source_h4_from_m15,
+)
+from qore.infrastructure.traders.vt08_b01_r3_8 import (
     methodology_fingerprint as vt08_b01_methodology_fingerprint,
 )
 
