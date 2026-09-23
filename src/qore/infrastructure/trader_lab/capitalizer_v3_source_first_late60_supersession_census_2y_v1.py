@@ -207,18 +207,7 @@ def _classify(
         sweep_at = None
     elif closeback is None:
         state = NEW_SWEEP_ONLY
-        sweep_at = min(
-            bar.opened_at
-            for bar in hour_bars
-            if any(
-                (
-                    bar.high >= level.price
-                    if level.side is CapitalizerSide.SHORT
-                    else bar.low <= level.price
-                )
-                for level in levels
-            )
-        )
+        sweep_at = None
     else:
         state = NEW_CLOSEBACK_NO_MSS
         sweep_at = closeback.sweep_at
