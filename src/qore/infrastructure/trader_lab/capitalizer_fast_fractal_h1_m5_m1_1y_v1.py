@@ -57,10 +57,10 @@ from qore.infrastructure.trader_lab.capitalizer_ict_2022_m1_entry_1y_replay_v1 i
     _lifecycle,
 )
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
-    Pivot as Pivot,
+    Pivot,
     ReferenceLiquidity,
     StructureEvent,
-    TFBar as TFBar,
+    TFBar,
     _aggregate_tf,
     _find_structure_event,
     _immediate_h1_bias,
@@ -73,6 +73,8 @@ from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     _sweep_extreme,
     _sweep_level,
 )
+
+__all__ = ["Pivot", "TFBar"]
 
 IDENTITY = "QORE_CAPITALIZER_FAST_FRACTAL_H1_M5_M1_1Y_V1"
 MATRIX_IDENTITY = (
