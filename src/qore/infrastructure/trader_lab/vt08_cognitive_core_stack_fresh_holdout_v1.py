@@ -59,7 +59,10 @@ def evaluate_fresh_market(path: Path) -> dict[str, object]:
     baseline = metrics(tuple(row.baseline for row in rows))
     stack = metrics(tuple(row.as_trade() for row in rows))
 
-    sample = int(stack["sample_size"])
+    sample_raw = stack["sample_size"]
+    if not isinstance(sample_raw, int):
+        raise ValueError("fresh holdout sample_size must be int")
+    sample = sample_raw
     baseline_pf = _decimal_metric(baseline, "profit_factor")
     stack_pf = _decimal_metric(stack, "profit_factor")
     stack_total = _decimal_metric(stack, "total_r")
