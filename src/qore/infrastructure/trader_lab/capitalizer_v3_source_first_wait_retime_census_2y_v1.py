@@ -20,6 +20,7 @@ economic A/B is attempted.
 from __future__ import annotations
 
 import argparse
+import bisect
 import json
 from collections import Counter
 from dataclasses import asdict, dataclass
@@ -107,6 +108,7 @@ def _ce_touch(bar: CapitalizerM1Bar, ce: Decimal) -> bool:
 def _scan_counterfactual(
     trade: v3.V3Trade,
     execution: tuple[CapitalizerM1Bar, ...],
+    opens: tuple[datetime, ...],
 ) -> RetimeRow:
     mss_at = datetime.fromisoformat(trade.m3_mss_at)
     current_entry_at = datetime.fromisoformat(trade.entry_at)
@@ -121,12 +123,9 @@ def _scan_counterfactual(
     same_bar_stop = False
     status = "NO_LATER_FILL_BEFORE_DEADLINE"
 
-    for bar in execution:
-        if bar.opened_at < mss_at:
-            continue
-        if bar.opened_at >= deadline:
-            break
-
+    start = bisect.bisect_left(opens, mss_at)
+    end = bisect.bisect_left(opens, deadline)
+    for bar in execution[start:end]:
         stop_hit = _stop_hit(bar, trade)
         eligible = bar.opened_at >= wait_eligible_at
         ce_touch = eligible and _ce_touch(bar, ce)
@@ -201,9 +200,18 @@ def build_market_report(
     m1_root: Path,
 ) -> tuple[dict[str, Any], tuple[RetimeRow, ...]]:
     trades = _load_trades(replay_root)
-    native = tuple(iter_cibo_m1(m1_root))
-    if not trades or not native:
-        raise ValueError("retiming census requires SOURCE_FIRST trades and native M1")
+    if not trades:
+        raise ValueError("retiming census requires SOURCE_FIRST trades")
+    first_mss = min(datetime.fromisoformat(trade.m3_mss_at) for trade in trades)
+    last_deadline = max(datetime.fromisoformat(trade.h1_deadline) for trade in trades)
+    native = tuple(
+        bar
+        for bar in iter_cibo_m1(m1_root)
+        if first_mss - timedelta(minutes=1) <= bar.opened_at < last_deadline
+    )
+    if not native:
+        raise ValueError("retiming census requires native M1 in the replay window")
+    opens = tuple(bar.opened_at for bar in native)
 
     symbols = {trade.symbol for trade in trades}
     sessions = {trade.session for trade in trades}
@@ -225,7 +233,10 @@ def build_market_report(
         <= Decimal(str(WAIT_MINUTES))
     )
 
-    rows = tuple(_scan_counterfactual(trade, native) for trade in population)
+    rows = tuple(
+        _scan_counterfactual(trade, native, opens)
+        for trade in population
+    )
     statuses = Counter(row.status for row in rows)
     delay_bands = Counter(
         _delay_band(row)
