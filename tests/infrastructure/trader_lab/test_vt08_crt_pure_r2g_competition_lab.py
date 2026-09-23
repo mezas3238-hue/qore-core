@@ -104,7 +104,7 @@ def test_policy_family_is_frozen_and_contains_control() -> None:
 
 def test_first_source_control_does_not_fall_through_to_later_source() -> None:
     t0 = datetime(2026, 1, 1, 20, 0, tzinfo=UTC)
-    source_1 = _bar(t0, 100, 102, 95, 98)
+    source_1 = _bar(t0, 106, 108, 95, 98)
     no_confirm = _bar(t0 + timedelta(minutes=15), 98, 100, 97, 99)
     source_2 = _bar(t0 + timedelta(minutes=30), 104, 105, 96, 99)
     confirm_2 = _bar(t0 + timedelta(minutes=45), 99, 106, 99, 105)
@@ -127,12 +127,12 @@ def test_first_source_control_does_not_fall_through_to_later_source() -> None:
 
 def test_first_confirmation_wins_can_select_later_independent_source() -> None:
     t0 = datetime(2026, 1, 1, 20, 0, tzinfo=UTC)
-    source_1 = _bar(t0, 100, 102, 95, 98)
+    source_1 = _bar(t0, 105, 107, 95, 98)
     source_2 = _bar(t0 + timedelta(minutes=15), 101, 103, 96, 99)
     confirm_2 = _bar(t0 + timedelta(minutes=30), 99, 103, 99, 102)
     entry = _bar(t0 + timedelta(minutes=45), 102, 104, 101, 103)
-    late_confirm_1 = _bar(t0 + timedelta(minutes=60), 103, 105, 102, 104)
-    final_entry = _bar(t0 + timedelta(minutes=75), 104, 106, 103, 105)
+    late_confirm_1 = _bar(t0 + timedelta(minutes=60), 103, 107, 102, 106)
+    final_entry = _bar(t0 + timedelta(minutes=75), 106, 108, 105, 107)
     c3 = (source_1, source_2, confirm_2, entry, late_confirm_1, final_entry)
     observations = (
         _observation(bar=source_1, source_index=0, price=96),
