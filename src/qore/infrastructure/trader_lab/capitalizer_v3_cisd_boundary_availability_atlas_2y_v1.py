@@ -158,7 +158,7 @@ def _non_cisd_ready(
     )
     if broken is None:
         return False
-    return (
+    return bool(
         source.close > broken.price
         if side is CapitalizerSide.LONG
         else source.close < broken.price
