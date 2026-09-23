@@ -216,6 +216,7 @@ def run_census() -> dict[str, Any]:
                 year_counter["invalid_structural_risk"] += 1
                 continue
 
+            touched_at: datetime | None
             if arm is EntryArm.NEXT_OPEN_CONTROL:
                 touched_at = entry_bar.opened_at
             else:
