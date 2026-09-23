@@ -22,7 +22,6 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import (
-    Model1LabTrade,
     _resolve_trade,
     _summary,
     aggregate_complete_m15,
