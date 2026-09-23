@@ -1,0 +1,196 @@
+name: QORE Capitalizer V3 CISD Counterfactual Census 2Y V2
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-v3-cisd-counterfactual-census-2y-v2.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_v3_cisd_counterfactual_census_2y_v2.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_v3_cisd_counterfactual_census_2y_v2.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-v3-cisd-counterfactual-census-2y-v2-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  BOTTLENECK_RUN_ID: '35804015774'
+  BOTTLENECK_SHA: '8cd1f83221f8e89c9586f0a241e18f91ad5ac0fc'
+  MICRO_RUN_ID: '35805397236'
+  MICRO_SHA: 'e3be1ed5dda60ab3a53257287c9471ce247d2554'
+  SOURCE_M1_RUN_ID: '35548099334'
+  SOURCE_M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_v3_cisd_counterfactual_census_2y_v2.py \
+            tests/infrastructure/trader_lab/test_capitalizer_v3_cisd_counterfactual_census_2y_v2.py
+      - name: Mypy
+        run: |
+          mypy src/qore/infrastructure/trader_lab/capitalizer_v3_cisd_counterfactual_census_2y_v2.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_v3_cisd_counterfactual_census_2y_v2.py
+
+  market:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - {symbol: USDJPY, session: ASIA}
+          - {symbol: AUDJPY, session: ASIA}
+          - {symbol: AUDUSD, session: ASIA}
+          - {symbol: GBPJPY, session: ASIA}
+          - {symbol: EURUSD, session: LONDON}
+          - {symbol: GBPUSD, session: LONDON}
+          - {symbol: XAUUSD, session: NEW_YORK}
+          - {symbol: USDCAD, session: NEW_YORK}
+          - {symbol: NAS100, session: NEW_YORK}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download frozen bottleneck cell
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-m3-mss-bottleneck-forensics-2y-v1-${{ matrix.symbol }}-${{ env.BOTTLENECK_SHA }}
+          path: bottleneck-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.BOTTLENECK_RUN_ID }}
+      - name: Download frozen microstructure context
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-v3-m3-microstructure-context-2y-v1-${{ matrix.symbol }}-${{ env.MICRO_SHA }}
+          path: micro-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.MICRO_RUN_ID }}
+      - name: Download immutable native-M1 clone
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.SOURCE_M1_SHA }}
+          path: m1-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M1_RUN_ID }}
+      - name: Run corrected CISD census
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_v3_cisd_counterfactual_census_2y_v2 \
+            market bottleneck-source micro-source m1-source census-output
+      - name: Enforce corrected semantics
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+          EXPECTED_SESSION: ${{ matrix.session }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          report = json.loads(
+              (
+                  Path("census-output")
+                  / f"capitalizer-{symbol.lower()}-v3-cisd-counterfactual-census-2y-v2.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_V3_CISD_COUNTERFACTUAL_CENSUS_2Y_V2"
+          )
+          assert report["symbol"] == symbol
+          assert report["session"] == os.environ["EXPECTED_SESSION"]
+          assert report["cisd_first_blockers"] == (
+              report["true_same_bar_cisd_only"]
+              + report["same_bar_boundary_missing_only"]
+              + report["other_cisd_first_blocker"]
+          )
+          assert report["boundary_cisd_contradictions"] == 0
+          assert report["v1_reservoir_inflation_corrected"] is True
+          assert report["cisd_boundary_required_for_true_cisd_only"] is True
+          assert report["strategy_mutated"] is False
+          assert report["outcome_used_for_admission"] is False
+          assert report["diagnostic_only"] is True
+          assert report["economic_candidate"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v3-cisd-counterfactual-census-2y-v2-${{ matrix.symbol }}-${{ github.sha }}
+          path: census-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v3-cisd-counterfactual-census-2y-v2-*-${{ github.sha }}
+          path: census-input
+          merge-multiple: false
+      - name: Build corrected nine-market census
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_v3_cisd_counterfactual_census_2y_v2 \
+            matrix census-input matrix-output
+      - name: Enforce reconciliation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "matrix-output/"
+                  "capitalizer-nine-market-v3-cisd-counterfactual-census-2y-v2.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_NINE_MARKET_V3_CISD_COUNTERFACTUAL_CENSUS_2Y_V2"
+          )
+          assert report["market_count"] == 9
+          assert report["cisd_control_reproduced"] is True
+          assert report["cisd_first_blockers"] == 3007
+          assert report["partition_reproduced"] is True
+          assert report["boundary_cisd_contradictions"] == 0
+          assert report["step4_aligned_substitute_confirmations"] == 44
+          assert report["step4_reconciliation"] is True
+          assert report["v1_reservoir_inflation_corrected"] is True
+          assert report["cisd_boundary_required_for_true_cisd_only"] is True
+          assert report["strategy_mutated"] is False
+          assert report["outcome_used_for_admission"] is False
+          assert report["diagnostic_only"] is True
+          assert report["economic_candidate"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-nine-market-v3-cisd-counterfactual-census-2y-v2-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90
