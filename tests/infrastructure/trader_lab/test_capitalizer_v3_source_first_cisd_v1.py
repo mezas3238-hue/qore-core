@@ -1,6 +1,8 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+import pytest
+
 from qore.infrastructure.trader_lab import (
     capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 as v3,
 )
@@ -44,7 +46,7 @@ def test_source_first_contract_identity_is_frozen() -> None:
 
 
 def test_first_opposing_open_persists_until_post_closeback_confirmation(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     base = datetime(2026, 1, 2, 12, 0, tzinfo=UTC)
     bars = (
