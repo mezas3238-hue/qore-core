@@ -15,6 +15,8 @@ from typing import Final
 from qore.infrastructure.traders.vt08_forex import (
     AUTHORIZED_MARKETS,
     MAXIMUM_FILLED_TRADES_PER_MARKET_PER_NY_DATE,
+)
+from qore.infrastructure.traders.vt08_forex import (
     methodology_fingerprint as forex_methodology_fingerprint,
 )
 from qore.infrastructure.traders.vt08_source_kernel_r3_2 import (
@@ -27,6 +29,8 @@ from qore.infrastructure.traders.vt08_source_kernel_r3_2 import (
     VT08LtfProfile,
     VT08StopFamily,
     VT08TargetFamily,
+)
+from qore.infrastructure.traders.vt08_source_kernel_r3_2 import (
     methodology_fingerprint as source_kernel_fingerprint,
 )
 
