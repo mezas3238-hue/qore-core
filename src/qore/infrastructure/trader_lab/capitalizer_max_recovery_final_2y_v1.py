@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import asdict
 from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -319,7 +320,7 @@ def write_market(
     )
     with (output / f"{stem}-trades.jsonl").open("w", encoding="utf-8") as handle:
         for trade in candidate:
-            handle.write(json.dumps(trade.__dict__, sort_keys=True) + "\n")
+            handle.write(json.dumps(asdict(trade), sort_keys=True) + "\n")
 
 
 def _load_reports(root: Path) -> list[dict[str, Any]]:
