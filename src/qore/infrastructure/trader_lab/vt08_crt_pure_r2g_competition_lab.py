@@ -81,22 +81,6 @@ POLICY_FAMILY_MANIFEST = "|".join(policy.value for policy in POLICY_FAMILY)
 POLICY_FAMILY_DIGEST = sha256(POLICY_FAMILY_MANIFEST.encode("utf-8")).hexdigest()
 
 
-def _pair(
-    observation: SourceObservation,
-    c3_m15: tuple[M15Bar, ...],
-) -> tuple[M15Bar, M15Bar] | None:
-    source = observation.group.source_candle
-    return _confirmation(
-        source,
-        c3_m15[observation.source_index + 1 :],
-        # All observations are aligned to the parent direction by _aligned_sources.
-        # Direction is irrelevant to indexing but required by _confirmation caller.
-        # Patched by _candidate_pairs where parent direction is known.
-        # This sentinel path is never called directly.
-        None,  # type: ignore[arg-type]
-    )
-
-
 def _candidate_pairs(
     *,
     parent: ParentCrt,
@@ -290,8 +274,9 @@ def run_competition_family(
 
             observation, confirmation, entry = selected
             counter["selected_hypothesis"] += 1
-            counter[f"selected_generation_{observation.source_index + 1}"] += 1
-            if observation.source_index > 0:
+            source_generation = observations.index(observation) + 1
+            counter[f"selected_generation_{source_generation}"] += 1
+            if source_generation > 1:
                 counter["selected_later_source"] += 1
 
             trade = _resolve_trade(
