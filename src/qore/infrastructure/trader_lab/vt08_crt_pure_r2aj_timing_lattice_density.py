@@ -25,7 +25,7 @@ import argparse
 import json
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -61,8 +61,8 @@ from qore.infrastructure.traders.crt_pure_timing_policy import NY
 IDENTITY = "VT08_CRT_PURE_R2AJ_H4_TIMING_LATTICE_DENSITY_001"
 SCHEMA = "qore.vt08.crt_pure.r2aj_h4_timing_lattice_density.v1"
 
-START = datetime(2020, 9, 21, 0, 0, tzinfo=NY).astimezone()
-END = datetime(2026, 9, 21, 0, 0, tzinfo=NY).astimezone()
+START = datetime(2020, 9, 21, 0, 0, tzinfo=UTC)
+END = datetime(2026, 9, 21, 0, 0, tzinfo=UTC)
 FX_MARKETS = (CrtPureMarket.AUDUSD, CrtPureMarket.USDJPY)
 
 
