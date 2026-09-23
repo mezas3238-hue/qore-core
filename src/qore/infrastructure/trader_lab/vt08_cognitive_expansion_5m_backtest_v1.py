@@ -92,6 +92,12 @@ def _boolean(value: object, *, name: str) -> bool:
     return value
 
 
+def _integer(value: object, *, name: str) -> int:
+    if type(value) is not int:
+        raise Vt08ExpansionBacktestError(f"{name} must be int")
+    return value
+
+
 def _timestamp(value: object, *, name: str) -> datetime:
     raw = _text(value, name=name)
     try:
@@ -366,7 +372,7 @@ def run_five_market_matrix(paths: tuple[Path, ...]) -> dict[str, object]:
                     symbol=str(raw["symbol"]),
                     signal_at=_timestamp(raw["signal_at"], name="signal_at"),
                     exited_at=_timestamp(raw["exited_at"], name="exited_at"),
-                    anchor_hour_ny=int(raw["anchor_hour_ny"]),
+                    anchor_hour_ny=_integer(raw["anchor_hour_ny"], name="anchor_hour_ny"),
                     side=DemoTradingSetupSide(str(raw["side"])),
                     entry=Decimal(str(raw["entry"])),
                     stop=Decimal(str(raw["stop"])),
