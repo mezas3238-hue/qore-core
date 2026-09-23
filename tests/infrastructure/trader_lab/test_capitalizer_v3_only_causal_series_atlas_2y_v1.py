@@ -1,6 +1,9 @@
+from decimal import Decimal
+
 from qore.infrastructure.trader_lab import (
     capitalizer_v3_only_causal_series_atlas_2y_v1 as atlas,
 )
+from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 
 
 def test_v3_only_causal_series_contract_is_frozen() -> None:
@@ -11,11 +14,9 @@ def test_v3_only_causal_series_contract_is_frozen() -> None:
 
 
 def test_v3_only_boundary_relation_is_side_aware() -> None:
-    from decimal import Decimal
-
     assert atlas._boundary_relation(
-        Decimal("99"), Decimal("100"), atlas.CapitalizerSide.LONG
+        Decimal("99"), Decimal("100"), CapitalizerSide.LONG
     ) == "CURRENT_EASIER"
     assert atlas._boundary_relation(
-        Decimal("101"), Decimal("100"), atlas.CapitalizerSide.SHORT
+        Decimal("101"), Decimal("100"), CapitalizerSide.SHORT
     ) == "CURRENT_EASIER"
