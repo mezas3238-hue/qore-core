@@ -7,8 +7,8 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2bn_usdjpy_root_cause_expecte
     ABSTENTION_FRACTION,
     IDENTITY,
     MARKET,
-    MemoryHead,
     TRAINING_YEARS,
+    MemoryHead,
     _record,
 )
 from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
