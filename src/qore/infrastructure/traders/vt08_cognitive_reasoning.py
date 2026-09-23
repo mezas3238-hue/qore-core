@@ -2,7 +2,8 @@
 
 The engine does not invent strategy thresholds. It adjudicates only explicit
 methodology state, causal contradictions, and unresolved material evidence from
-the Situation Model.
+the Situation Model. Market/anchor memories are bound for audit/context but are
+not direct execution gates.
 """
 from __future__ import annotations
 
@@ -11,6 +12,10 @@ import json
 from dataclasses import dataclass
 from typing import Final
 
+from qore.infrastructure.traders.vt08_cognitive_memory import (
+    cognitive_memory_fingerprint,
+    market_anchor_context,
+)
 from qore.infrastructure.traders.vt08_cognitive_situation_model import (
     Vt08ForexSituationModel,
 )
@@ -53,6 +58,8 @@ class Vt08ReasoningDecision:
     metacognition: Vt08MetacognitiveAssessment
     situation_fingerprint: str
     strategy_identity_fingerprint: str
+    cognitive_memory_fingerprint: str
+    market_anchor_context_fingerprint: str
 
     def fingerprint(self) -> str:
         payload = {
@@ -70,6 +77,10 @@ class Vt08ReasoningDecision:
             "metacognitive_material_unknowns": self.metacognition.material_unknowns,
             "situation_fingerprint": self.situation_fingerprint,
             "strategy_identity_fingerprint": self.strategy_identity_fingerprint,
+            "cognitive_memory_fingerprint": self.cognitive_memory_fingerprint,
+            "market_anchor_context_fingerprint": (
+                self.market_anchor_context_fingerprint
+            ),
         }
         return hashlib.sha256(
             json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -131,6 +142,11 @@ def metacognitive_assessment(
 def reason(
     situation: Vt08ForexSituationModel,
 ) -> Vt08ReasoningDecision:
+    memory_context = market_anchor_context(
+        situation.market,
+        situation.anchor_hour_ny,
+    )
+    context_fingerprint = str(memory_context["fingerprint"])
     adversarial = adversarial_assessment(situation)
     meta = metacognitive_assessment(situation, adversarial)
     reasons: list[str] = []
@@ -170,4 +186,6 @@ def reason(
         metacognition=meta,
         situation_fingerprint=situation.fingerprint(),
         strategy_identity_fingerprint=strategy_identity_fingerprint(),
+        cognitive_memory_fingerprint=cognitive_memory_fingerprint(),
+        market_anchor_context_fingerprint=context_fingerprint,
     )
