@@ -119,5 +119,5 @@ def validate_strategy_identity() -> None:
     assert guards["runtime_self_training_allowed"] is False
     assert guards["cross_trader_rules_allowed"] is False
     assert guards["qore_risk_final_capital_authority"] is True
-    assert tuple(payload["owner_operational_h4_anchors_ny"]) == (1, 5, 9)
+    assert payload["owner_operational_h4_anchors_ny"] == (1, 5, 9)
     assert len(strategy_identity_fingerprint()) == 64
