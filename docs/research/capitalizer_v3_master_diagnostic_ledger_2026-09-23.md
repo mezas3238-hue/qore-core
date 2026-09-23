@@ -461,3 +461,82 @@ Unchanged:
 - MAX3
 
 This is an informational incremental-value test, not a candidate or promotion.
+
+
+## 16. Step 3 result — M5 ALIGNED as an additional global gate
+
+Official run: `35809207218`
+Frozen experiment SHA: `8180465b9e2a955397fcfdca70d3c1a547929fee`
+
+Result:
+- MAX3 trades: **367** vs baseline 474
+- PF: **1.336815** vs 1.283270
+- Total: **+44.9339R** vs +50.3469R
+- Mean: **+0.12244R/trade** vs +0.10622
+- DD: **13.2891R** vs 13.4356R
+- LS: **8** vs 8
+- trade retention: **77.43%**
+- PF uplift: approximately **4.17%**
+- total-R delta: **-5.4130R**
+- DD improvement: only **0.1465R**
+
+Session response is heterogeneous:
+- ASIA improves from PF 1.0387 to 1.1344.
+- LONDON deteriorates from PF 1.5451 to 1.3139 and DD rises to 9.54R.
+- NEW_YORK improves from PF 1.3343 to 1.7364 and DD falls to 5.85R.
+
+Conclusion:
+M5 ALIGNED contains some economic information, but it is **not promoted as a universal additional gate**. The global PF gain is modest, density/total R fall, DD barely changes globally, and London is materially harmed.
+
+## 17. Exact V3 MAX3 deep forensics
+
+Official run: `35809747371`
+HEAD: `46bd07534600e3df63fa12448d15579162eb7547`
+
+The exact 474 MAX3 baseline trades were reproduced and labeled with frozen M5 state.
+
+Aggregate descriptive cohorts:
+- ALIGNED: **366 trades**, ~+44.99R, post-outcome PF ~1.337
+- NEUTRAL: **49 trades**, ~+2.12R, PF ~1.113
+- OPPOSED: **59 trades**, ~+3.23R, PF ~1.127
+- MSS <=30m: **388 trades**, ~+46.64R, PF ~1.306
+- MSS >30m: **86 trades**, ~+3.71R, PF ~1.146
+
+The market response is not universal. For example:
+- AUDUSD/XAUUSD/NAS100/USDCAD improve materially in the ALIGNED cohort.
+- GBPUSD is the counterexample: baseline PF 1.484, ALIGNED PF ~1.077, while its OPPOSED cohort has PF ~3.632 on only 16 consumed trades.
+
+These cohorts are post-outcome diagnostics only. They are not runtime selectors and cannot authorize market/session deletion or routing.
+
+## 18. Step 4 frozen density experiment
+
+Identity:
+`QORE_CAPITALIZER_V3_CISD_OR_M5_ALIGNED_2Y_V1`
+
+Frozen change:
+within one M3 bar keep direction + swing break + body>=60% + range>1.2*ATR and require:
+
+`CISD_BREAK OR FROZEN_M5_STATE_EQ_ALIGNED`
+
+Conservative invariant:
+the CISD boundary must still be calculable. M5 ALIGNED substitutes the **break condition**, not the existence of the boundary, because `cisd_boundary` remains part of the frozen V3 `M3MssEvent` evidence contract.
+
+Unchanged:
+- H1 liquidity/sweep
+- M5 closeback
+- swing-break requirement
+- body/ATR thresholds
+- causal M1 OB+FVG
+- fill
+- structural stop
+- fixed 2R / next-H1 lifecycle
+- MAX3
+
+Every accepted M3 confirmation is tagged as:
+- `CISD`
+- `M5_ALIGNED_SUBSTITUTE`
+
+Active official run:
+`35810309765`
+
+No promotion authority is granted by this experiment.
