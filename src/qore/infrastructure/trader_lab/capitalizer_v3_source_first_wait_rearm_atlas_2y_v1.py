@@ -152,7 +152,6 @@ def _build_row(
     m3_pivots: Any,
 ) -> RearmRow:
     original_mss = _aware(trade.m3_mss_at)
-    stale_fill = _aware(trade.entry_at)
     deadline = _aware(trade.h1_deadline)
     eligible_at = original_mss + timedelta(minutes=WAIT_MINUTES)
     side = CapitalizerSide(trade.side)
