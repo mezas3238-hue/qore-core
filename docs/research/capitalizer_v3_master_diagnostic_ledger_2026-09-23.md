@@ -367,3 +367,97 @@ Primary frozen causal-freshness comparison remains:
 - STALE: M5 closeback -> first valid V3 MSS > 30 minutes.
 
 No failing market, session, year, blocker or signature may be hidden from the 2Y report.
+
+
+## 12. Frozen V3 2Y economic baseline
+
+Exact frozen V3 replay:
+- run: `35806006221`
+- HEAD: `7f9b9efc82376bb5edbea42379a0a3cf3e72a94a`
+- MAX3 trades: **474**
+- PF: **1.2832703420**
+- Total: **+50.346864R**
+- Mean: **+0.106217R/trade**
+- DD: **13.435599R**
+- Losing streak: **8**
+- ASIA: 192 trades / PF 1.03869
+- LONDON: 163 trades / PF 1.54511
+- NEW_YORK: 119 trades / PF 1.33434
+
+This is the economic control for subsequent 2Y informational experiments.
+
+## 13. CISD Counterfactual Census 2Y
+
+Official run: `35807624359`.
+
+The 3,007 CISD-first-blockers were reproduced exactly.
+
+Frozen SAME_BAR_CISD_ONLY definition:
+one M3 bar inside original N+1 simultaneously satisfies direction + swing break + body>=60% + ATR>1.2x while CISD alone is false.
+
+Results:
+- SAME_BAR_CISD_ONLY: **1,298 / 3,007 = 43.1659%**
+- distributed non-CISD components only: **956**
+- non-CISD components incomplete: **753**
+- swing/CISD desynchronized inside N+1: **1,322**
+- same-bar reservoir with CISD elsewhere in N+1: **552**
+- same-bar reservoir without directional CISD elsewhere: **746**
+
+Thus 3,007 was an upper bound, not the clean causal reservoir. The clean same-bar reservoir is 1,298 before downstream FVG/fill/stop/MAX3 attrition.
+
+## 14. Frozen M5 directional-state contract
+
+State identity:
+`QORE_CAPITALIZER_V3_M5_DIRECTIONAL_STATE_V1`
+
+The state describes directional evidence relative to the previous completed M5 bar. It does **not** claim the M5 rejected or accepted the actual V3 liquidity source.
+
+LONG:
+- bullish evidence: LOW_RAID_REJECTION or HIGH_ACCEPTANCE
+- bearish evidence: HIGH_RAID_REJECTION or LOW_ACCEPTANCE
+
+SHORT:
+- bearish evidence is aligned
+- bullish evidence is opposed
+
+Resolution:
+- ALIGNED: setup-direction evidence only
+- OPPOSED: opposed-direction evidence only
+- NEUTRAL: neither or both
+- NEUTRAL is fail-closed for any future gate
+
+Official census run: `35808797290`.
+
+Controls reproduced:
+- closebacks: 8,099
+- valid MSS: 1,254
+- CISD first-blockers: 3,007
+- same-bar CISD-only: 1,298
+
+Distribution:
+- VALID MSS ALIGNED: **885 / 1,254 = 70.57%**
+- CISD first-blocker ALIGNED: **2,158 / 3,007 = 71.77%**
+- SAME_BAR_CISD_ONLY ALIGNED: **925 / 1,298 = 71.26%**
+
+Therefore M5 directional alignment does not materially separate valid-MSS and CISD-failure populations structurally. Its incremental economic value must be tested directly rather than inferred.
+
+## 15. Active informational experiment
+
+Experiment:
+`QORE_CAPITALIZER_V3_M5_ALIGNED_GATE_2Y_V1`
+
+Only experimental change:
+after frozen V3 chooses its M5 closeback, require frozen M5 state = ALIGNED.
+
+Unchanged:
+- H1 liquidity/sweep architecture
+- M3 swing break
+- CISD
+- body >=60%
+- ATR >1.2x
+- causal M1 OB+FVG
+- stop
+- fixed 2R / next-H1 lifecycle
+- MAX3
+
+This is an informational incremental-value test, not a candidate or promotion.
