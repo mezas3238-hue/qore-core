@@ -22,6 +22,9 @@ from qore.infrastructure.trader_lab import (
 )
 from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
+from qore.infrastructure.trader_lab.capitalizer_ict_2022_m1_entry_1y_replay_v1 import (
+    ICTReplayMetrics,
+)
 from qore.infrastructure.trader_lab.capitalizer_v3_m5_directional_state_v1 import (
     IDENTITY as STATE_IDENTITY,
 )
@@ -192,7 +195,7 @@ def _load_selected_trades(root: Path) -> tuple[v3.V3Trade, ...]:
 
 def _metric_delta(
     *,
-    gated: v3.V3Metrics,
+    gated: ICTReplayMetrics,
 ) -> dict[str, str | int]:
     return {
         "trades_delta": gated.trades - BASELINE_MAX3_TRADES,
