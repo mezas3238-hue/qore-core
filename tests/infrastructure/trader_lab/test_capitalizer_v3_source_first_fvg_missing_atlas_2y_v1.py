@@ -1,6 +1,12 @@
+from typing import cast
+
 from qore.infrastructure.trader_lab import (
     capitalizer_v3_source_first_fvg_missing_atlas_2y_v1 as atlas,
 )
+from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
+    CapitalizerM1Bar,
+)
+from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 
 
 def test_fvg_missing_atlas_contract_is_frozen() -> None:
@@ -22,9 +28,9 @@ def test_fvg_direction_helpers_are_side_aware() -> None:
             self.low = Decimal(low)
             self.high = Decimal(high)
 
-    first = Bar("100", "101")
-    third = Bar("102", "103")
-    assert atlas._same_side_fvg(first, third, atlas.CapitalizerSide.LONG) is True
-    assert atlas._opposed_fvg(first, third, atlas.CapitalizerSide.LONG) is False
-    assert atlas._same_side_fvg(first, third, atlas.CapitalizerSide.SHORT) is False
-    assert atlas._opposed_fvg(first, third, atlas.CapitalizerSide.SHORT) is True
+    first = cast(CapitalizerM1Bar, Bar("100", "101"))
+    third = cast(CapitalizerM1Bar, Bar("102", "103"))
+    assert atlas._same_side_fvg(first, third, CapitalizerSide.LONG) is True
+    assert atlas._opposed_fvg(first, third, CapitalizerSide.LONG) is False
+    assert atlas._same_side_fvg(first, third, CapitalizerSide.SHORT) is False
+    assert atlas._opposed_fvg(first, third, CapitalizerSide.SHORT) is True
