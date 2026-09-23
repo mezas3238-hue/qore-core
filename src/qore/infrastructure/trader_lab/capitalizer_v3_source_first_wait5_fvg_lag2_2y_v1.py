@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import Counter
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import asdict
