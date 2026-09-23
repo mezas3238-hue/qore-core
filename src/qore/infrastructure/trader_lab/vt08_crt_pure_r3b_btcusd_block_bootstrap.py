@@ -13,6 +13,9 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import (
+    Model1LabTrade,
+)
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2o_btcusd_block_robustness import (
     BASE_SEED,
     BLOCK_LENGTHS,
@@ -32,7 +35,7 @@ MIN_POSITIVE_TERMINAL = 0.90
 MAX_P95_DD_R = 15.0
 
 
-def run_block_certification() -> tuple[tuple[object, ...], dict[str, Any]]:
+def run_block_certification() -> tuple[tuple[Model1LabTrade, ...], dict[str, Any]]:
     trades, chronological = run_replay()
     policies: dict[str, Any] = {}
     failures: list[str] = []
