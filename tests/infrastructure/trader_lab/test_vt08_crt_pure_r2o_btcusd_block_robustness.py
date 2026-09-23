@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2j_market_context_validation import (
+    CandidateId,
+)
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2o_btcusd_block_robustness import (
     BASE_SEED,
     BLOCK_LENGTHS,
@@ -8,9 +11,6 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2o_btcusd_block_robustness im
     _max_drawdown,
     _policy,
     _resample,
-)
-from qore.infrastructure.trader_lab.vt08_crt_pure_r2j_market_context_validation import (
-    CandidateId,
 )
 
 
