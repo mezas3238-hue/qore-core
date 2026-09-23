@@ -271,7 +271,7 @@ def build_market_report(
     all_bars = tuple(
         bar
         for bar in iter_cibo_m1(m1_root)
-        if first_time - timedelta(days=2)
+        if first_time - timedelta(days=21)
         <= bar.opened_at
         <= last_time + timedelta(minutes=5)
     )
