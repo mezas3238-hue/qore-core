@@ -204,6 +204,16 @@ def _mss_to_entry_band(trade: v3.V3Trade) -> str:
     )
 
 
+def _entry_maturity(trade: v3.V3Trade) -> str:
+    value = _minutes(trade.m3_mss_at, trade.entry_at)
+    return "IMMEDIATE_LE_5M" if value <= Decimal("5") else "MATURE_GT_5M"
+
+
+def _closeback_maturity(row: dict[str, Any]) -> str:
+    value = _minutes(str(row["closeback_at"]), str(row["source_first_mss_at"]))
+    return "EARLY_LE_15M" if value <= Decimal("15") else "MATURE_GT_15M"
+
+
 def _mss_to_fvg_band(trade: v3.V3Trade) -> str:
     value = _minutes(trade.m3_mss_at, trade.m1_fvg_confirmed_at)
     return _band(
@@ -320,6 +330,7 @@ def build_report(
     }
 
     relation_strata: dict[str, dict[str, dict[str, dict[str, Any]]]] = {}
+    relation_subsets: dict[str, tuple[tuple[v3.V3Trade, dict[str, Any]], ...]] = {}
     for relation in (
         "PREEMPTS_V3_MSS",
         "RECOVERS_NO_V3_MSS",
@@ -329,10 +340,33 @@ def build_report(
             for row in joined_rows
             if str(row[1]["source_first_relation_vs_v3"]) == relation
         )
+        relation_subsets[relation] = subset
         relation_strata[relation] = {
             name: _group(subset, fn)
             for name, fn in dimensions.items()
         }
+
+    recovery_rows = relation_subsets["RECOVERS_NO_V3_MSS"]
+    recovery_maturation_cube = _group(
+        recovery_rows,
+        lambda t, m: "|".join(
+            (
+                _boundary_phase(m),
+                _entry_maturity(t),
+                "OVERLAP" if t.m1_ob_fvg_overlap else "NO_OVERLAP",
+            )
+        ),
+    )
+    recovery_timing_cube = _group(
+        recovery_rows,
+        lambda t, m: "|".join(
+            (
+                _closeback_maturity(m),
+                _entry_maturity(t),
+                "OVERLAP" if t.m1_ob_fvg_overlap else "NO_OVERLAP",
+            )
+        ),
+    )
 
     state_counts = Counter(str(meta["m5_state"]) for _, meta in joined_rows)
     relation_counts = Counter(
@@ -349,6 +383,9 @@ def build_report(
         "relation_vs_v3_counts": dict(sorted(relation_counts.items())),
         "overall_groups": overall_groups,
         "relation_strata": relation_strata,
+        "recovery_maturation_cube": recovery_maturation_cube,
+        "recovery_timing_cube": recovery_timing_cube,
+        "joint_state_exploratory_only": True,
         "max_drawdown_episode": {
             "drawdown_r": episode["drawdown_r"],
             "peak_exit_at": episode["peak_exit_at"],
