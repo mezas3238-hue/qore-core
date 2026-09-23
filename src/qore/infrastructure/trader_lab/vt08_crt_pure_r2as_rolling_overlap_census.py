@@ -177,11 +177,11 @@ def run_census(market: CrtPureMarket) -> dict[str, Any]:
     )
     exact = tuple(item.exact_signature for item in frozen)
     source = tuple(item.source_signature for item in frozen)
-    entry = tuple(item.entry_slot_signature for item in frozen)
+    entry_signatures = tuple(item.entry_slot_signature for item in frozen)
 
     exact_result = _multiplicity(exact)
     source_result = _multiplicity(source)
-    entry_result = _multiplicity(entry)
+    entry_result = _multiplicity(entry_signatures)
     raw = len(frozen)
 
     report: dict[str, Any] = {
