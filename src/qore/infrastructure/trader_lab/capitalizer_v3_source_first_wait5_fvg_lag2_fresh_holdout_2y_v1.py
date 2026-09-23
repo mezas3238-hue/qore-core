@@ -280,7 +280,7 @@ def _decimal_metric(
 
 
 def build_matrix(root: Path) -> dict[str, Any]:
-    reports = _load_reports(root)
+    _load_reports(root)
     baseline_raw = _load_trades(root, variant="baseline")
     candidate_raw = _load_trades(root, variant="candidate")
 
