@@ -39,12 +39,12 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import
     _summary,
     aggregate_complete_m15,
 )
-from qore.infrastructure.trader_lab.vt08_crt_pure_r2ay_audusd_confirmation_suitability_wf import (
-    run_walk_forward,
-)
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2ax_audusd_confirmation_geometry_atlas import (
     END,
     START,
+)
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2ay_audusd_confirmation_suitability_wf import (
+    run_walk_forward,
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2az_audusd_protection_family import (
     ProtectionPolicy,
