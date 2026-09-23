@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2j_market_context_validation import (
+    CandidateId,
+)
 from qore.infrastructure.trader_lab.vt08_crt_pure_r3a_btcusd_chronological import (
     BINDING,
     CANDIDATE_IDENTITY,
@@ -8,9 +11,6 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r3a_btcusd_chronological impor
     MIN_TRADES,
     START,
     YEAR_BOUNDARIES,
-)
-from qore.infrastructure.trader_lab.vt08_crt_pure_r2j_market_context_validation import (
-    CandidateId,
 )
 
 
