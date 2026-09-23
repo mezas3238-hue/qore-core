@@ -38,8 +38,10 @@ from qore.infrastructure.trader_lab import (
 from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
 from qore.infrastructure.trader_lab.capitalizer_v3_source_first_series_rearm_v1 import (
     BOUNDARY_SEMANTICS,
-    IDENTITY as SERIES_REARM_HELPER_IDENTITY,
     find_series_rearm_m3_mss,
+)
+from qore.infrastructure.trader_lab.capitalizer_v3_source_first_series_rearm_v1 import (
+    IDENTITY as SERIES_REARM_HELPER_IDENTITY,
 )
 
 IDENTITY = "QORE_CAPITALIZER_V3_SOURCE_FIRST_SERIES_REARM_WAIT5_2Y_V1"
