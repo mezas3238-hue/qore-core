@@ -334,3 +334,33 @@ Invariants:
 - the 30-minute boundary is fixed before the 10Y temporal fold results are read.
 
 The 10Y study is diagnostic only and must report all annual folds, including failures.
+
+
+## 11. Consumed temporal-validation fold contract
+
+The immutable native-M1 clone begins exactly at `2016-09-17T00:00:00Z`.
+
+Frozen V3 requires 21 days of prior history for its lookback-dependent H1 context. To avoid creating a boundary artifact, the first source year is not used as a primary annual validation fold.
+
+Primary full-year folds are frozen before replay:
+
+1. `2017-09-17 -> 2018-09-17`
+2. `2018-09-17 -> 2019-09-17`
+3. `2019-09-17 -> 2020-09-17`
+4. `2020-09-17 -> 2021-09-17`
+5. `2021-09-17 -> 2022-09-17`
+6. `2022-09-17 -> 2023-09-17`
+7. `2023-09-17 -> 2024-09-17`
+8. `2024-09-17 -> 2025-09-17`
+9. `2025-09-17 -> 2026-09-17`
+
+The excluded `2016-09-17 -> 2017-09-17` source year is excluded because the required pre-window lookback is unavailable, not because of its economic outcome.
+
+Primary hypothesis remains fixed:
+
+- FRESHNESS: M5 closeback -> first valid V3 MSS <= 30 minutes.
+- STALE: M5 closeback -> first valid V3 MSS > 30 minutes.
+
+The study must publish every fold and may not delete a failing year, market, or session.
+
+Classification remains `CONSUMED_TEMPORAL_VALIDATION`; it is not a fresh holdout.
