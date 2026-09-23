@@ -22,11 +22,12 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import asdict
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from qore.infrastructure.trader_lab import (
     capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 as v3,
@@ -144,7 +145,9 @@ def _boundary_phase(row: dict[str, Any]) -> str:
         raise ValueError("selected SOURCE_FIRST trade requires boundary timestamp")
     boundary_at = datetime.fromisoformat(str(started))
     closeback_at = datetime.fromisoformat(str(row["closeback_at"]))
-    return "BOUNDARY_PRE_OR_AT_CLOSEBACK" if boundary_at <= closeback_at else "BOUNDARY_POST_CLOSEBACK"
+    if boundary_at <= closeback_at:
+        return "BOUNDARY_PRE_OR_AT_CLOSEBACK"
+    return "BOUNDARY_POST_CLOSEBACK"
 
 
 def _mss_minute_band(row: dict[str, Any]) -> str:
