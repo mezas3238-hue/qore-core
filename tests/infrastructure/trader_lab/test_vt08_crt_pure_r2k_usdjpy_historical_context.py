@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2g_competition_lab import (
+    CompetitionPolicy,
+)
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2k_usdjpy_historical_context import (
     BASE_POLICY,
     END,
     FOLD,
     MARKET,
     START,
-)
-from qore.infrastructure.trader_lab.vt08_crt_pure_r2g_competition_lab import (
-    CompetitionPolicy,
 )
 from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
 
