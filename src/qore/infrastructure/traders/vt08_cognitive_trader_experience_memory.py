@@ -141,8 +141,13 @@ def validate_trader_experience() -> None:
         assert set(_EXPERIENCE[market]) == {"1", "5", "9"}
         for anchor in OWNER_FOREX_ANCHORS:
             cell = _EXPERIENCE[market][str(anchor)]
-            sample = int(cell["sample"])
-            assert int(cell["wins"]) + int(cell["losses"]) == sample
+            sample = cell["sample"]
+            wins = cell["wins"]
+            losses = cell["losses"]
+            assert isinstance(sample, int)
+            assert isinstance(wins, int)
+            assert isinstance(losses, int)
+            assert wins + losses == sample
     payload = _payload_cached()
     governance = cast(dict[str, object], payload["governance"])
     assert governance["runtime_self_training_allowed"] is False
