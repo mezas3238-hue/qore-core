@@ -104,7 +104,10 @@ def _lifecycle_bars(
     )
 
 
-def build_candidate() -> tuple[tuple[Model1LabTrade, ...], dict[str, int]]:
+def build_populations() -> tuple[
+    dict[str, tuple[Model1LabTrade, ...]],
+    dict[str, int],
+]:
     window = ValidationWindow(market=MARKET, start=START, end=END)
     bars = load_m5_window(
         MARKET,
@@ -121,7 +124,8 @@ def build_candidate() -> tuple[tuple[Model1LabTrade, ...], dict[str, int]]:
     breaches = build_close_unmitigated_breach_groups(m15)
     diagnostics: dict[str, int] = defaultdict(int)
     diagnostics["parent_count"] = len(parents)
-    rows: list[Model1LabTrade] = []
+    control: list[Model1LabTrade] = []
+    candidate: list[Model1LabTrade] = []
 
     for parent in parents:
         c3_m15 = _c3_m15(parent, m15_by_time)
@@ -154,6 +158,17 @@ def build_candidate() -> tuple[tuple[Model1LabTrade, ...], dict[str, int]]:
             diagnostics["invalid_structural_geometry"] += 1
             continue
 
+        managed = _simulate(
+            trade=trade,
+            bars=_lifecycle_bars(
+                trade=trade,
+                m15_by_time=m15_by_time,
+            ),
+            policy=PROTECTION,
+        )
+        control.append(managed)
+        diagnostics["control_trade_created"] += 1
+
         feature_map = dict(
             _features(
                 parent=parent,
@@ -166,22 +181,20 @@ def build_candidate() -> tuple[tuple[Model1LabTrade, ...], dict[str, int]]:
             diagnostics["excluded_overlap_state"] += 1
             continue
 
-        managed = _simulate(
-            trade=trade,
-            bars=_lifecycle_bars(
-                trade=trade,
-                m15_by_time=m15_by_time,
-            ),
-            policy=PROTECTION,
-        )
-        rows.append(managed)
+        candidate.append(managed)
         diagnostics["candidate_trade_created"] += 1
 
     return (
-        tuple(sorted(rows, key=lambda trade: trade.entry_opened_at)),
+        {
+            "CONTROL_BE075": tuple(
+                sorted(control, key=lambda trade: trade.entry_opened_at)
+            ),
+            "OVERLAP_CANDIDATE": tuple(
+                sorted(candidate, key=lambda trade: trade.entry_opened_at)
+            ),
+        },
         dict(diagnostics),
     )
-
 
 def _window(
     rows: tuple[Model1LabTrade, ...],
@@ -213,39 +226,13 @@ def _subwindows(
     return annual, rolling_2y
 
 
-def run_robustness() -> tuple[tuple[Model1LabTrade, ...], dict[str, Any]]:
-    trades, diagnostics = build_candidate()
-    annual, rolling_2y = _subwindows(trades)
-
-    blocks = {
-        f"BLOCK_{length}": _distribution(trades, _policy(length))
-        for length in BLOCK_LENGTHS
-    }
-    costs = {
-        f"COST_{cost:.2f}R": _stress_summary(trades, cost)
-        for cost in COST_STRESS_R
-    }
-
-    report: dict[str, Any] = {
-        "schema": SCHEMA,
-        "identity": IDENTITY,
-        "market": MARKET.value,
-        "window_start": START.isoformat(),
-        "window_end_exclusive": END.isoformat(),
-        "years": YEARS,
-        "candidate_frozen_from": "R2_BB",
-        "candidate_definition": {
-            "timing": "ROLLING_H4",
-            "target": ARM.value,
-            "competition": BASE_POLICY.value,
-            "excluded_dimension": EXCLUDED_DIMENSION,
-            "excluded_label": EXCLUDED_LABEL,
-            "protection": PROTECTION.value,
-            "expiry": "C3_CLOSE",
-        },
-        "diagnostics": diagnostics,
-        "full_15y": _summary(trades),
-        "trades_per_year": round(len(trades) / YEARS, 8),
+def _population_report(
+    rows: tuple[Model1LabTrade, ...],
+) -> dict[str, Any]:
+    annual, rolling_2y = _subwindows(rows)
+    return {
+        "full_15y": _summary(rows),
+        "trades_per_year": round(len(rows) / YEARS, 8),
         "start_subwindow": {
             "annual": annual,
             "rolling_2y": rolling_2y,
@@ -260,14 +247,61 @@ def run_robustness() -> tuple[tuple[Model1LabTrade, ...], dict[str, Any]]:
         },
         "cost_perturbation": {
             "costs_frozen_before_results": True,
-            "stress": costs,
+            "stress": {
+                f"COST_{cost:.2f}R": _stress_summary(rows, cost)
+                for cost in COST_STRESS_R
+            },
         },
         "block_bootstrap": {
             "resampling_engine": "QORE_RESEARCH_CIRCULAR_BLOCK_DRAW_STREAM",
             "block_lengths": list(BLOCK_LENGTHS),
             "resample_count": 5000,
-            "policies": blocks,
+            "policies": {
+                f"BLOCK_{length}": _distribution(rows, _policy(length))
+                for length in BLOCK_LENGTHS
+            },
         },
+    }
+
+
+def run_robustness() -> tuple[
+    dict[str, tuple[Model1LabTrade, ...]],
+    dict[str, Any],
+]:
+    populations, diagnostics = build_populations()
+    reports = {
+        name: _population_report(rows)
+        for name, rows in populations.items()
+    }
+
+    report: dict[str, Any] = {
+        "schema": SCHEMA,
+        "identity": IDENTITY,
+        "market": MARKET.value,
+        "window_start": START.isoformat(),
+        "window_end_exclusive": END.isoformat(),
+        "years": YEARS,
+        "comparison_frozen_before_results": True,
+        "control_definition": {
+            "timing": "ROLLING_H4",
+            "target": ARM.value,
+            "competition": BASE_POLICY.value,
+            "confirmation_exclusion": "NONE",
+            "protection": PROTECTION.value,
+            "expiry": "C3_CLOSE",
+        },
+        "candidate_frozen_from": "R2_BB",
+        "candidate_definition": {
+            "timing": "ROLLING_H4",
+            "target": ARM.value,
+            "competition": BASE_POLICY.value,
+            "excluded_dimension": EXCLUDED_DIMENSION,
+            "excluded_label": EXCLUDED_LABEL,
+            "protection": PROTECTION.value,
+            "expiry": "C3_CLOSE",
+        },
+        "diagnostics": diagnostics,
+        "populations": reports,
         "automatic_winner_ranking": False,
         "qualification_thresholds_imposed": False,
         "candidate_certified": False,
@@ -277,15 +311,14 @@ def run_robustness() -> tuple[tuple[Model1LabTrade, ...], dict[str, Any]]:
         "real_capital_authorized": False,
         "production_authorized": False,
     }
-    return trades, report
-
+    return populations, report
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
 
-    trades, report = run_robustness()
+    populations, report = run_robustness()
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / "report.json").write_text(
         json.dumps(report, indent=2, sort_keys=True) + "\n"
@@ -294,8 +327,11 @@ def main() -> None:
         "w",
         encoding="utf-8",
     ) as handle:
-        for trade in trades:
-            handle.write(json.dumps(asdict(trade), sort_keys=True) + "\n")
+        for population, trades in populations.items():
+            for trade in trades:
+                row = asdict(trade)
+                row["population"] = population
+                handle.write(json.dumps(row, sort_keys=True) + "\n")
     print("CRT_R2BE_ROBUSTNESS_JSON=" + json.dumps(report, sort_keys=True))
 
 
