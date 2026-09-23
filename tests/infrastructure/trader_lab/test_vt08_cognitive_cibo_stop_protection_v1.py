@@ -1,4 +1,3 @@
-from datetime import UTC, datetime
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab.vt08_cognitive_cibo_stop_protection_v1 import (
