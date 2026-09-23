@@ -358,6 +358,10 @@ def next_hour_boundary(now: datetime) -> datetime:
 
 def boundary_to_arm(now: datetime) -> datetime | None:
     current = now.astimezone(UTC)
+    current_hour = current.replace(minute=0, second=0, microsecond=0)
+    elapsed = current - current_hour
+    if timedelta(0) <= elapsed <= M5_PROFILE.order_send_deadline:
+        return current_hour
     anchor = next_hour_boundary(current)
     remaining = anchor - current
     lead = timedelta(seconds=float(M5_PROFILE.boundary_arm_lead_seconds))
@@ -387,6 +391,8 @@ def await_boundary_snapshots(
     while True:
         observed = clock().astimezone(UTC)
         if observed > deadline:
+            if snapshots:
+                return snapshots
             detail = ";".join(f"{name}:{reason}" for name, reason in sorted(last_reasons.items()))
             raise TimeoutError(f"M5 portfolio hard 2s SLA expired:{detail}")
 
@@ -424,11 +430,15 @@ def await_boundary_snapshots(
             except (RuntimeError, TimeoutError) as error:
                 last_reasons[name] = str(error)
 
-        if len(snapshots) == len(caches):
+        if snapshots:
+            # Release every market that is ready now. Slow siblings retry on the
+            # next resident cycle inside the same hard boundary SLA.
             return snapshots
         checked = clock().astimezone(UTC)
         remaining = (deadline - checked).total_seconds()
         if remaining <= 0:
+            if snapshots:
+                return snapshots
             detail = ";".join(f"{name}:{reason}" for name, reason in sorted(last_reasons.items()))
             raise TimeoutError(f"M5 portfolio hard 2s SLA expired:{detail}")
         sleep_fn(min(BOUNDARY_RETRY_SECONDS, remaining))

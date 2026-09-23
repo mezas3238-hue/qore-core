@@ -14,7 +14,7 @@ import hashlib
 import json
 import subprocess
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from functools import partial
 from importlib import import_module
 import sys
@@ -390,6 +390,72 @@ def _broker_risk(
     return open_stop, floating_loss, pending_stop
 
 
+def _refresh_execution_risk_state(
+    *,
+    gateway: FundedNextLiveMt5ExecutionGateway,
+    transport: MetaTrader5FundedNextLiveTransport,
+    risk: DurableAccountWideRiskEngine,
+    account_binding_id: str,
+    provider_budget: StellarInstantRiskBudget,
+    capital_budget: QoreOperationalCapitalBudget,
+    now: datetime,
+) -> tuple[AccountRiskSnapshot, Decimal, StellarInstantRiskBudget, QoreOperationalCapitalBudget]:
+    """Refresh broker/account/exposure state immediately before sovereign Risk."""
+    account_state = gateway.read_account(now=now)
+    gateway.reconcile_unknown(now=now)
+    risk.expire(now=now)
+    open_stop, floating_loss, pending_stop = _broker_risk(transport)
+
+    # Preserve the monotonic provider MLL while allowing a newly closed balance
+    # to ratchet it tighter.  Never reconstruct a looser provider floor.
+    highest_floor = provider_budget.active_mll + provider_budget.loss_allowance
+    highest_closed_balance = max(
+        PILOT_INITIAL_BALANCE,
+        account_state.balance,
+        highest_floor,
+    )
+    fresh_provider = evaluate_stellar_instant_budget(
+        StellarInstantAccountSnapshot(
+            initial_balance=provider_budget.initial_balance,
+            balance=account_state.balance,
+            equity=account_state.equity,
+            highest_closed_balance=highest_closed_balance,
+            previous_active_mll=provider_budget.active_mll,
+            provider_reported_mll=provider_budget.provider_reported_mll,
+        )
+    )
+    aggregate_stop_risk = (
+        open_stop + pending_stop + risk.active_reserved_stop_risk()
+    )
+    certified_open_risk_fraction = (
+        capital_budget.aggregate_heat_cap / provider_budget.initial_balance
+    )
+    fresh_capital = evaluate_qore_operational_capital_budget(
+        provider_budget=fresh_provider,
+        initial_balance=PILOT_INITIAL_BALANCE,
+        balance=account_state.balance,
+        equity=account_state.equity,
+        highest_closed_balance=highest_closed_balance,
+        current_aggregate_stop_risk=aggregate_stop_risk,
+        requested_posture=capital_budget.authorized_posture,
+        certified_open_risk_fraction=certified_open_risk_fraction,
+    )
+    refreshed_at = datetime.now(UTC)
+    snapshot = AccountRiskSnapshot(
+        account_binding_id=account_binding_id,
+        equity=account_state.equity,
+        margin_used=account_state.margin,
+        free_margin=account_state.free_margin,
+        open_stop_worst_case_loss=open_stop,
+        open_floating_loss=floating_loss,
+        pending_broker_worst_case_loss=pending_stop,
+        qore_authorizable_headroom=fresh_capital.qore_authorizable_headroom,
+        provider_budget=fresh_provider,
+        reconciled_at=refreshed_at,
+    )
+    return snapshot, account_state.equity, fresh_provider, fresh_capital
+
+
 def _reconcile_filled_reservations(
     *,
     risk: DurableAccountWideRiskEngine,
@@ -720,10 +786,13 @@ def _process_candidate(
         },
     )
     setup = cibo_setup_from_b01(candidate)
+    posture_at = datetime.now(UTC)
+    risk.expire(now=posture_at)
+    posture_account = gateway.read_account(now=posture_at)
     posture = request_cibo_posture(
         initial_balance=PILOT_INITIAL_BALANCE,
-        balance=Decimal(str(gateway.read_account(now=now).balance)),
-        equity=account_equity,
+        balance=posture_account.balance,
+        equity=posture_account.equity,
         current_aggregate_risk=risk.active_reserved_stop_risk(),
     )
     cibo = evaluate_vt08_forex_cibo(
@@ -736,30 +805,27 @@ def _process_candidate(
     if cibo.decision is not Vt08ForexCiboDecision.ALLOW:
         _log(log_path, {"event": "CIBO_DENY", "symbol": candidate.symbol, "reason": cibo.reason})
         return
-    spec = gateway.read_symbol(candidate.symbol, now=now)
+    refresh_at = datetime.now(UTC)
+    snapshot, fresh_equity, _, _ = _refresh_execution_risk_state(
+        gateway=gateway,
+        transport=transport,
+        risk=risk,
+        account_binding_id=account_binding_id,
+        provider_budget=provider_budget,
+        capital_budget=capital_budget,
+        now=refresh_at,
+    )
+    spec = gateway.read_symbol(candidate.symbol, now=datetime.now(UTC))
     request = build_certified_vt08_forex_cibo_request(
         request_id=f"vt08-{setup.signal_fingerprint[:24]}",
         cibo_authorization=cibo,
         provider_spec=spec,
-        account_equity=account_equity,
+        account_equity=fresh_equity,
     )
-    open_stop, floating_loss, pending_stop = _broker_risk(transport)
-    account_state = gateway.read_account(now=now)
-    snapshot = AccountRiskSnapshot(
-        account_binding_id=account_binding_id,
-        equity=account_equity,
-        margin_used=account_state.margin,
-        free_margin=account_state.free_margin,
-        open_stop_worst_case_loss=open_stop,
-        open_floating_loss=floating_loss,
-        pending_broker_worst_case_loss=pending_stop,
-        qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
-        provider_budget=provider_budget,
-        reconciled_at=now,
-    )
+    authorize_at = datetime.now(UTC)
     if risk.recovery_required:
-        risk.complete_boot_reconciliation(snapshot, now=now)
-    authorization = risk.authorize(request, snapshot, now=now)
+        risk.complete_boot_reconciliation(snapshot, now=authorize_at)
+    authorization = risk.authorize(request, snapshot, now=authorize_at)
     if authorization.decision is RiskDecision.REJECT:
         _log(
             log_path,
@@ -804,17 +870,18 @@ def _process_candidate(
                 "internal_qore_headroom": str(authorization.internal_qore_headroom),
             },
         )
+    submission_at = datetime.now(UTC)
     submission = build_account_bound_submission(
         authorization,
         switch=ExecutionSafetySwitchSnapshot(
             state=ExecutionSwitchState.ENABLED,
-            observed_at=now,
+            observed_at=submission_at,
             reason="qore fundednext resident runtime safety gate enabled",
         ),
-        authorized_at=now,
-        submitted_at=now,
+        authorized_at=submission_at,
+        submitted_at=submission_at,
     )
-    shadow = gateway.shadow_check(submission, now=now)
+    shadow = gateway.shadow_check(submission, now=datetime.now(UTC))
     if not shadow.broker_valid:
         risk.cancel(authorization.authorization_id)
         _log(
@@ -886,36 +953,28 @@ def _process_r34_candidate(
     preflight_snapshot: AccountRiskSnapshot | None = None,
     preflight_spec: Mt5SymbolSpecification | None = None,
 ) -> None:
-    spec = preflight_spec or gateway.read_symbol("XAUUSD", now=now)
+    refresh_started_at = datetime.now(UTC)
+    snapshot, fresh_equity, _, _ = _refresh_execution_risk_state(
+        gateway=gateway,
+        transport=transport,
+        risk=risk,
+        account_binding_id=account_binding_id,
+        provider_budget=provider_budget,
+        capital_budget=capital_budget,
+        now=refresh_started_at,
+    )
+    spec = gateway.read_symbol("XAUUSD", now=datetime.now(UTC))
     request, base_risk_usd = build_r34_risk_request(
         request_id=f"r34-{signal.signal_fingerprint[:24]}",
         signal=signal,
         provider_spec=spec,
-        account_equity=account_equity,
-        now=now,
+        account_equity=fresh_equity,
+        now=datetime.now(UTC),
     )
-    if preflight_snapshot is None:
-        open_stop, floating_loss, pending_stop = _broker_risk(transport)
-        account_state = gateway.read_account(now=now)
-        snapshot = AccountRiskSnapshot(
-            account_binding_id=account_binding_id,
-            equity=account_equity,
-            margin_used=account_state.margin,
-            free_margin=account_state.free_margin,
-            open_stop_worst_case_loss=open_stop,
-            open_floating_loss=floating_loss,
-            pending_broker_worst_case_loss=pending_stop,
-            qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
-            provider_budget=provider_budget,
-            reconciled_at=now,
-        )
-    else:
-        snapshot = preflight_snapshot
-        if snapshot.account_binding_id != account_binding_id:
-            raise RuntimeError("R34 preflight account binding drift")
+    authorize_at = datetime.now(UTC)
     if risk.recovery_required:
-        risk.complete_boot_reconciliation(snapshot, now=now)
-    authorization = risk.authorize(request, snapshot, now=now)
+        risk.complete_boot_reconciliation(snapshot, now=authorize_at)
+    authorization = risk.authorize(request, snapshot, now=authorize_at)
     if authorization.decision is RiskDecision.REJECT:
         _log(
             log_path,
@@ -961,17 +1020,18 @@ def _process_r34_candidate(
                 "internal_qore_headroom": str(authorization.internal_qore_headroom),
             },
         )
+    submission_at = datetime.now(UTC)
     submission = build_account_bound_submission(
         authorization,
         switch=ExecutionSafetySwitchSnapshot(
             state=ExecutionSwitchState.ENABLED,
-            observed_at=now,
+            observed_at=submission_at,
             reason="qore R34 certified runtime safety gate enabled",
         ),
-        authorized_at=now,
-        submitted_at=now,
+        authorized_at=submission_at,
+        submitted_at=submission_at,
     )
-    shadow = gateway.shadow_check(submission, now=now)
+    shadow = gateway.shadow_check(submission, now=datetime.now(UTC))
     if not shadow.broker_valid:
         risk.cancel(authorization.authorization_id)
         _log(
@@ -1066,36 +1126,28 @@ def _process_r38_candidate(
     preflight_snapshot: AccountRiskSnapshot | None = None,
     preflight_spec: Mt5SymbolSpecification | None = None,
 ) -> None:
-    spec = preflight_spec or gateway.read_symbol("EURUSD", now=now)
+    refresh_started_at = datetime.now(UTC)
+    snapshot, fresh_equity, _, _ = _refresh_execution_risk_state(
+        gateway=gateway,
+        transport=transport,
+        risk=risk,
+        account_binding_id=account_binding_id,
+        provider_budget=provider_budget,
+        capital_budget=capital_budget,
+        now=refresh_started_at,
+    )
+    spec = gateway.read_symbol("EURUSD", now=datetime.now(UTC))
     request, base_risk_usd = build_r38_risk_request(
         request_id=f"r38-{signal.signal_fingerprint[:24]}",
         signal=signal,
         provider_spec=spec,
-        account_equity=account_equity,
-        now=now,
+        account_equity=fresh_equity,
+        now=datetime.now(UTC),
     )
-    if preflight_snapshot is None:
-        open_stop, floating_loss, pending_stop = _broker_risk(transport)
-        account_state = gateway.read_account(now=now)
-        snapshot = AccountRiskSnapshot(
-            account_binding_id=account_binding_id,
-            equity=account_equity,
-            margin_used=account_state.margin,
-            free_margin=account_state.free_margin,
-            open_stop_worst_case_loss=open_stop,
-            open_floating_loss=floating_loss,
-            pending_broker_worst_case_loss=pending_stop,
-            qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
-            provider_budget=provider_budget,
-            reconciled_at=now,
-        )
-    else:
-        snapshot = preflight_snapshot
-        if snapshot.account_binding_id != account_binding_id:
-            raise RuntimeError("R38 preflight account binding drift")
+    authorize_at = datetime.now(UTC)
     if risk.recovery_required:
-        risk.complete_boot_reconciliation(snapshot, now=now)
-    authorization = risk.authorize(request, snapshot, now=now)
+        risk.complete_boot_reconciliation(snapshot, now=authorize_at)
+    authorization = risk.authorize(request, snapshot, now=authorize_at)
     if authorization.decision is RiskDecision.REJECT:
         _log(
             log_path,
@@ -1141,17 +1193,18 @@ def _process_r38_candidate(
                 "internal_qore_headroom": str(authorization.internal_qore_headroom),
             },
         )
+    submission_at = datetime.now(UTC)
     submission = build_account_bound_submission(
         authorization,
         switch=ExecutionSafetySwitchSnapshot(
             state=ExecutionSwitchState.ENABLED,
-            observed_at=now,
+            observed_at=submission_at,
             reason="qore R38 certified runtime safety gate enabled",
         ),
-        authorized_at=now,
-        submitted_at=now,
+        authorized_at=submission_at,
+        submitted_at=submission_at,
     )
-    shadow = gateway.shadow_check(submission, now=now)
+    shadow = gateway.shadow_check(submission, now=datetime.now(UTC))
     if not shadow.broker_valid:
         risk.cancel(authorization.authorization_id)
         _log(
@@ -1244,36 +1297,28 @@ def _process_r43_candidate(
     preflight_snapshot: AccountRiskSnapshot | None = None,
     preflight_spec: Mt5SymbolSpecification | None = None,
 ) -> None:
-    spec = preflight_spec or gateway.read_symbol("GBPUSD", now=now)
+    refresh_started_at = datetime.now(UTC)
+    snapshot, fresh_equity, _, _ = _refresh_execution_risk_state(
+        gateway=gateway,
+        transport=transport,
+        risk=risk,
+        account_binding_id=account_binding_id,
+        provider_budget=provider_budget,
+        capital_budget=capital_budget,
+        now=refresh_started_at,
+    )
+    spec = gateway.read_symbol("GBPUSD", now=datetime.now(UTC))
     request, base_risk_usd = build_r43_risk_request(
         request_id=f"r43-{signal.signal_fingerprint[:24]}",
         signal=signal,
         provider_spec=spec,
-        account_equity=account_equity,
-        now=now,
+        account_equity=fresh_equity,
+        now=datetime.now(UTC),
     )
-    if preflight_snapshot is None:
-        open_stop, floating_loss, pending_stop = _broker_risk(transport)
-        account_state = gateway.read_account(now=now)
-        snapshot = AccountRiskSnapshot(
-            account_binding_id=account_binding_id,
-            equity=account_equity,
-            margin_used=account_state.margin,
-            free_margin=account_state.free_margin,
-            open_stop_worst_case_loss=open_stop,
-            open_floating_loss=floating_loss,
-            pending_broker_worst_case_loss=pending_stop,
-            qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
-            provider_budget=provider_budget,
-            reconciled_at=now,
-        )
-    else:
-        snapshot = preflight_snapshot
-        if snapshot.account_binding_id != account_binding_id:
-            raise RuntimeError("R43 preflight account binding drift")
+    authorize_at = datetime.now(UTC)
     if risk.recovery_required:
-        risk.complete_boot_reconciliation(snapshot, now=now)
-    authorization = risk.authorize(request, snapshot, now=now)
+        risk.complete_boot_reconciliation(snapshot, now=authorize_at)
+    authorization = risk.authorize(request, snapshot, now=authorize_at)
     if authorization.decision is RiskDecision.REJECT:
         _log(
             log_path,
@@ -1319,17 +1364,18 @@ def _process_r43_candidate(
                 "internal_qore_headroom": str(authorization.internal_qore_headroom),
             },
         )
+    submission_at = datetime.now(UTC)
     submission = build_account_bound_submission(
         authorization,
         switch=ExecutionSafetySwitchSnapshot(
             state=ExecutionSwitchState.ENABLED,
-            observed_at=now,
+            observed_at=submission_at,
             reason="qore R43 certified runtime safety gate enabled",
         ),
-        authorized_at=now,
-        submitted_at=now,
+        authorized_at=submission_at,
+        submitted_at=submission_at,
     )
-    shadow = gateway.shadow_check(submission, now=now)
+    shadow = gateway.shadow_check(submission, now=datetime.now(UTC))
     if not shadow.broker_valid:
         risk.cancel(authorization.authorization_id)
         _log(
@@ -1424,36 +1470,28 @@ def _process_gbpjpy_r38_candidate(
     preflight_snapshot: AccountRiskSnapshot | None = None,
     preflight_spec: Mt5SymbolSpecification | None = None,
 ) -> None:
-    spec = preflight_spec or gateway.read_symbol("GBPJPY", now=now)
+    refresh_started_at = datetime.now(UTC)
+    snapshot, fresh_equity, _, _ = _refresh_execution_risk_state(
+        gateway=gateway,
+        transport=transport,
+        risk=risk,
+        account_binding_id=account_binding_id,
+        provider_budget=provider_budget,
+        capital_budget=capital_budget,
+        now=refresh_started_at,
+    )
+    spec = gateway.read_symbol("GBPJPY", now=datetime.now(UTC))
     request, base_risk_usd = build_r38_gbpjpy_risk_request(
         request_id=f"gbpjpy-r38-{signal.signal_fingerprint[:24]}",
         signal=signal,
         provider_spec=spec,
-        account_equity=account_equity,
-        now=now,
+        account_equity=fresh_equity,
+        now=datetime.now(UTC),
     )
-    if preflight_snapshot is None:
-        open_stop, floating_loss, pending_stop = _broker_risk(transport)
-        account_state = gateway.read_account(now=now)
-        snapshot = AccountRiskSnapshot(
-            account_binding_id=account_binding_id,
-            equity=account_equity,
-            margin_used=account_state.margin,
-            free_margin=account_state.free_margin,
-            open_stop_worst_case_loss=open_stop,
-            open_floating_loss=floating_loss,
-            pending_broker_worst_case_loss=pending_stop,
-            qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
-            provider_budget=provider_budget,
-            reconciled_at=now,
-        )
-    else:
-        snapshot = preflight_snapshot
-        if snapshot.account_binding_id != account_binding_id:
-            raise RuntimeError("GBPJPY R38 preflight account binding drift")
+    authorize_at = datetime.now(UTC)
     if risk.recovery_required:
-        risk.complete_boot_reconciliation(snapshot, now=now)
-    authorization = risk.authorize(request, snapshot, now=now)
+        risk.complete_boot_reconciliation(snapshot, now=authorize_at)
+    authorization = risk.authorize(request, snapshot, now=authorize_at)
     if authorization.decision is RiskDecision.REJECT:
         _log(
             log_path,
@@ -1500,17 +1538,18 @@ def _process_gbpjpy_r38_candidate(
                 "internal_qore_headroom": str(authorization.internal_qore_headroom),
             },
         )
+    submission_at = datetime.now(UTC)
     submission = build_account_bound_submission(
         authorization,
         switch=ExecutionSafetySwitchSnapshot(
             state=ExecutionSwitchState.ENABLED,
-            observed_at=now,
+            observed_at=submission_at,
             reason="qore GBPJPY R38 certified runtime safety gate enabled",
         ),
-        authorized_at=now,
-        submitted_at=now,
+        authorized_at=submission_at,
+        submitted_at=submission_at,
     )
-    shadow = gateway.shadow_check(submission, now=now)
+    shadow = gateway.shadow_check(submission, now=datetime.now(UTC))
     if not shadow.broker_valid:
         risk.cancel(authorization.authorization_id)
         _log(
@@ -1628,10 +1667,23 @@ def _process_audjpy_r42_candidate(
             return None
         return observed
 
+    refresh_at = stage_time("before-risk-refresh")
+    if refresh_at is None:
+        return
+    snapshot, fresh_equity, _, _ = _refresh_execution_risk_state(
+        gateway=gateway,
+        transport=transport,
+        risk=risk,
+        account_binding_id=account_binding_id,
+        provider_budget=provider_budget,
+        capital_budget=capital_budget,
+        now=refresh_at,
+    )
+
     processing_at = stage_time("before-symbol-read")
     if processing_at is None:
         return
-    spec = preflight_spec or gateway.read_symbol("AUDJPY", now=processing_at)
+    spec = gateway.read_symbol("AUDJPY", now=processing_at)
 
     request_at = stage_time("before-risk-request")
     if request_at is None:
@@ -1640,29 +1692,9 @@ def _process_audjpy_r42_candidate(
         request_id=f"audjpy-r42-{signal.signal_fingerprint[:24]}",
         signal=signal,
         provider_spec=spec,
-        account_equity=account_equity,
+        account_equity=fresh_equity,
         now=request_at,
     )
-
-    if preflight_snapshot is None:
-        open_stop, floating_loss, pending_stop = _broker_risk(transport)
-        account_state = gateway.read_account(now=request_at)
-        snapshot = AccountRiskSnapshot(
-            account_binding_id=account_binding_id,
-            equity=account_equity,
-            margin_used=account_state.margin,
-            free_margin=account_state.free_margin,
-            open_stop_worst_case_loss=open_stop,
-            open_floating_loss=floating_loss,
-            pending_broker_worst_case_loss=pending_stop,
-            qore_authorizable_headroom=capital_budget.qore_authorizable_headroom,
-            provider_budget=provider_budget,
-            reconciled_at=request_at,
-        )
-    else:
-        snapshot = preflight_snapshot
-        if snapshot.account_binding_id != account_binding_id:
-            raise RuntimeError("AUDJPY R42 preflight account binding drift")
 
     authorize_at = stage_time("before-account-wide-risk")
     if authorize_at is None:
@@ -1965,6 +1997,12 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     refresh_provider_rules_before_submission()
     certified_policy = load_current_certified_policy(datetime.now(UTC))
     certified_policy_last_reload = certified_policy.observed_at
+    policy_refresh_pool = ThreadPoolExecutor(
+        max_workers=1,
+        thread_name_prefix="qore-provider-policy-refresh",
+    )
+    policy_refresh_future: Future[None] | None = None
+    next_policy_refresh_at = certified_policy.observed_at + timedelta(hours=5)
     mission_store = DurableCapitalizationMissionStore(state_dir / "capitalization-mission.json")
     mission_config = build_5k_mission_config(
         account_identity_fingerprint=fingerprint,
@@ -2203,29 +2241,53 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             )
 
         audjpy_arm_anchor = m5_boundary_to_arm(cycle_at)
-        certified_policy_ready = True
-        policy_resolution = certified_policy.resolve_for_risk(cycle_at)
-        if isinstance(policy_resolution, Failure):
-            certified_policy_ready = False
+        certified_policy_ready = not isinstance(
+            certified_policy.resolve_for_risk(cycle_at),
+            Failure,
+        )
 
-        reload_due = cycle_at - certified_policy_last_reload >= timedelta(minutes=5)
-        refresh_due = cycle_at - certified_policy.observed_at >= timedelta(hours=6)
-        if audjpy_arm_anchor is None and (reload_due or not certified_policy_ready):
+        if policy_refresh_future is not None and policy_refresh_future.done():
             try:
-                if refresh_due:
-                    refresh_provider_rules_before_submission()
+                policy_refresh_future.result()
                 certified_policy = load_current_certified_policy(cycle_at)
                 certified_policy_last_reload = cycle_at
+                next_policy_refresh_at = certified_policy.observed_at + timedelta(hours=5)
                 mission_config = build_5k_mission_config(
                     account_identity_fingerprint=fingerprint,
                     start_balance=PILOT_INITIAL_BALANCE,
                     purchase_cash_required=(
                         certified_policy.facts.stellar_instant_5k_purchase_price_usd
                     ),
-                    reward_split_fraction=(certified_policy.facts.reward_split_tier_1_2),
+                    reward_split_fraction=certified_policy.facts.reward_split_tier_1_2,
                 )
                 certified_policy_ready = True
             except Exception as error:
+                certified_policy_ready = False
+                next_policy_refresh_at = cycle_at + timedelta(minutes=1)
+                _log(
+                    log_path,
+                    {
+                        "event": "CERTIFIED_PROP_POLICY_REFRESH_FAILED",
+                        "reason": type(error).__name__,
+                        "message": str(error),
+                        "observed_at": cycle_at.isoformat(),
+                    },
+                )
+            finally:
+                policy_refresh_future = None
+
+        reload_due = cycle_at - certified_policy_last_reload >= timedelta(minutes=5)
+        if reload_due:
+            try:
+                certified_policy = load_current_certified_policy(cycle_at)
+                certified_policy_last_reload = cycle_at
+                next_policy_refresh_at = min(
+                    next_policy_refresh_at,
+                    certified_policy.observed_at + timedelta(hours=5),
+                )
+                certified_policy_ready = True
+            except Exception as error:
+                certified_policy_last_reload = cycle_at
                 certified_policy_ready = False
                 _log(
                     log_path,
@@ -2236,10 +2298,35 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         "observed_at": cycle_at.isoformat(),
                     },
                 )
+
+        refresh_needed = (
+            not certified_policy_ready
+            or cycle_at >= certified_policy.observed_at + timedelta(hours=5)
+        )
+        if (
+            policy_refresh_future is None
+            and refresh_needed
+            and cycle_at >= next_policy_refresh_at
+        ):
+            policy_refresh_future = policy_refresh_pool.submit(
+                refresh_provider_rules_before_submission
+            )
+            next_policy_refresh_at = cycle_at + timedelta(minutes=1)
         if audjpy_arm_anchor is not None:
-            audjpy_anchor_key = f"R42_AUDJPY|{audjpy_arm_anchor.isoformat()}"
-            if audjpy_anchor_key not in state.processed_anchors:
+            m5_anchor_keys = {
+                "GBPUSD": f"R43_GBPUSD|{audjpy_arm_anchor.isoformat()}",
+                "XAUUSD": f"R34_XAUUSD|{audjpy_arm_anchor.isoformat()}",
+                "GBPJPY": f"R38_GBPJPY|{audjpy_arm_anchor.isoformat()}",
+                "EURUSD": f"R38_EURUSD|{audjpy_arm_anchor.isoformat()}",
+                "AUDJPY": f"R42_AUDJPY|{audjpy_arm_anchor.isoformat()}",
+            }
+            audjpy_anchor_key = m5_anchor_keys["AUDJPY"]
+            if any(
+                key not in state.processed_anchors
+                for key in m5_anchor_keys.values()
+            ):
                 m5_fast_processed_keys: list[str] = []
+                audjpy_anchor_processed = False
                 arm_started_at = datetime.now(UTC)
                 _log(
                     log_path,
@@ -2475,15 +2562,12 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         def submit_ready_market(
                             symbol: str,
                             snapshot: M5BoundarySnapshot,
-                            blocked: bool = arm_blocked,
                             r43_state: R43LiveState = arm_r43_state,
                             r34_state: R34LiveState = arm_r34_state,
                             gbpjpy_state: R38GbpJpyLiveState = arm_gbpjpy_state,
                             r38_state: R38LiveState = arm_r38_state,
                             r42_state: R42AudJpyLiveState = arm_r42_state,
                         ) -> None:
-                            if blocked:
-                                return
                             evaluate: Callable[[], tuple[Any | None, str]]
                             if symbol == "GBPUSD":
                                 identity = "R43_GBPUSD"
@@ -2545,9 +2629,14 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 )
                             )
 
+                        pending_m5_caches = {
+                            symbol: cache
+                            for symbol, cache in m5_caches.items()
+                            if m5_anchor_keys[symbol] not in state.processed_anchors
+                        }
                         armed_m5_snapshots = await_m5_boundary_snapshots(
                             mt5,
-                            caches=m5_caches,
+                            caches=pending_m5_caches,
                             anchor=audjpy_arm_anchor,
                             on_snapshot=submit_ready_market,
                         )
@@ -2568,7 +2657,21 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         fast_key = f"{fast_identity}|{audjpy_arm_anchor.isoformat()}"
                         if fast_key in state.processed_anchors:
                             continue
-                        m5_fast_processed_keys.append(fast_key)
+                        if (
+                            fast_symbol not in armed_m5_snapshots
+                            or fast_identity not in boundary_results
+                        ):
+                            _log(
+                                log_path,
+                                {
+                                    "event": "M5_FAST_BOUNDARY_FAIL_CLOSED",
+                                    "symbol": fast_symbol,
+                                    "decision_at": audjpy_arm_anchor.isoformat(),
+                                    "reason": "market-snapshot-unavailable-within-sla",
+                                    "order_send_called": False,
+                                },
+                            )
+                            continue
                         if arm_blocked:
                             _log(
                                 log_path,
@@ -2628,8 +2731,10 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                         "strategy_latency_ms": (actor_result.strategy_latency_ms),
                                     },
                                 )
+                                m5_fast_processed_keys.append(fast_key)
                             else:
                                 process_fast(signal=fast_signal, now=fast_done)
+                                m5_fast_processed_keys.append(fast_key)
                         except BrokerMinimumVolumeRiskRejectError as risk_reject:
                             _log(
                                 log_path,
@@ -2642,6 +2747,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                     **risk_reject.telemetry(),
                                 },
                             )
+                            m5_fast_processed_keys.append(fast_key)
                         except Exception as fast_error:
                             _log(
                                 log_path,
@@ -2654,7 +2760,24 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                     "order_send_called": False,
                                 },
                             )
-                    if arm_blocked:
+                    audjpy_anchor_processed = False
+                    if audjpy_anchor_key in state.processed_anchors:
+                        pass
+                    elif (
+                        "AUDJPY" not in armed_m5_snapshots
+                        or "R42_AUDJPY" not in boundary_results
+                    ):
+                        _log(
+                            log_path,
+                            {
+                                "event": "AUDJPY_R42_BOUNDARY_FAIL_CLOSED",
+                                "symbol": "AUDJPY",
+                                "decision_at": audjpy_arm_anchor.isoformat(),
+                                "reason": "market-snapshot-unavailable-within-sla",
+                                "order_send_called": False,
+                            },
+                        )
+                    elif arm_blocked:
                         _log(
                             log_path,
                             {
@@ -2698,6 +2821,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                     "order_send_called": False,
                                 },
                             )
+                            audjpy_anchor_processed = True
                         elif audjpy_signal is None:
                             _log(
                                 log_path,
@@ -2718,6 +2842,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                     "strategy_latency_ms": (audjpy_result.strategy_latency_ms),
                                 },
                             )
+                            audjpy_anchor_processed = True
                         else:
                             _process_audjpy_r42_candidate(
                                 signal=audjpy_signal,
@@ -2735,6 +2860,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 preflight_snapshot=arm_snapshot,
                                 preflight_spec=arm_specs["AUDJPY"],
                             )
+                            audjpy_anchor_processed = True
                 except BrokerMinimumVolumeRiskRejectError as risk_reject:
                     _log(
                         log_path,
@@ -2747,11 +2873,8 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             **risk_reject.telemetry(),
                         },
                     )
+                    audjpy_anchor_processed = True
                 except Exception as error:
-                    freeze_until = audjpy_arm_anchor + AUDJPY_R42_ENTRY_SLA
-                    remaining = (freeze_until - datetime.now(UTC)).total_seconds()
-                    if remaining > 0:
-                        time.sleep(remaining)
                     _log(
                         log_path,
                         {
@@ -2773,13 +2896,14 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         reconciled_at=completed_at,
                         heartbeat_at=completed_at,
                     )
-                state = state.with_cycle(
-                    highest_closed_balance=str(highest),
-                    active_mll=str(previous_mll),
-                    processed_anchor=audjpy_anchor_key,
-                    reconciled_at=completed_at,
-                    heartbeat_at=completed_at,
-                )
+                if audjpy_anchor_processed:
+                    state = state.with_cycle(
+                        highest_closed_balance=str(highest),
+                        active_mll=str(previous_mll),
+                        processed_anchor=audjpy_anchor_key,
+                        reconciled_at=completed_at,
+                        heartbeat_at=completed_at,
+                    )
                 store.store(state)
 
         current_hour = cycle_at.replace(
@@ -2805,14 +2929,8 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "order_send_called": False,
                 },
             )
-            state = state.with_cycle(
-                highest_closed_balance=str(highest),
-                active_mll=str(previous_mll),
-                processed_anchor=current_hour_key,
-                reconciled_at=cycle_at,
-                heartbeat_at=cycle_at,
-            )
-            store.store(state)
+            # Do not consume an unprocessed boundary. boundary_to_arm() now
+            # re-enters the current hour while the hard 2s SLA remains open.
 
         m5_portfolio_keys = (
             f"R43_GBPUSD|{current_hour.isoformat()}",
@@ -3105,6 +3223,22 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 ],
                             },
                         )
+                        (
+                            vt31_snapshot,
+                            vt31_execution_equity,
+                            vt31_provider,
+                            vt31_capital,
+                        ) = _refresh_execution_risk_state(
+                            gateway=gateway,
+                            transport=transport,
+                            risk=risk,
+                            account_binding_id=fingerprint,
+                            provider_budget=vt31_provider,
+                            capital_budget=vt31_capital,
+                            now=datetime.now(UTC),
+                        )
+                    else:
+                        vt31_execution_equity = vt31_account.equity
                     if vt31_basket is None:
                         _log(
                             log_path,
@@ -3123,7 +3257,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             gateway=gateway,
                             risk=risk,
                             snapshot=vt31_snapshot,
-                            account_equity=vt31_account.equity,
+                            account_equity=vt31_execution_equity,
                             store=vt31_store,
                             log=lambda event: _log(log_path, event),
                         )
@@ -3134,7 +3268,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             gateway=gateway,
                             risk=risk,
                             snapshot=vt31_snapshot,
-                            account_equity=vt31_account.equity,
+                            account_equity=vt31_execution_equity,
                             store=vt31_store,
                             log=lambda event: _log(log_path, event),
                         )
@@ -3162,10 +3296,6 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     },
                 )
             except Exception as error:
-                freeze_until = vt31_arm_anchor + VT31_DECISION_DEADLINE
-                remaining = (freeze_until - datetime.now(UTC)).total_seconds()
-                if remaining > 0:
-                    time.sleep(remaining)
                 _log(
                     log_path,
                     {

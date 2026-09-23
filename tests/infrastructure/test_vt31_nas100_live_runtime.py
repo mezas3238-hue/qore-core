@@ -23,6 +23,7 @@ from qore.infrastructure.vt31_nas100_live import (
     Vt31RiskContext,
     Vt31VirtualCandidate,
     assert_deadline,
+    boundary_to_arm,
     build_risk_request,
     resolve_certified_risk,
     virtual_oco_trigger,
@@ -332,3 +333,11 @@ def test_vt31_small_account_requests_executable_four_leg_minimum() -> None:
     assert request.minimum_volume == Decimal("0.4")
     assert request.requested_stop_risk == Decimal("40.80")
     assert request.minimum_volume_uplifted is True
+
+
+def test_vt31_boundary_to_arm_recovers_current_minute_inside_hard_sla() -> None:
+    anchor = datetime(2026, 9, 23, 14, 16, tzinfo=UTC)
+    assert boundary_to_arm(anchor) == anchor
+    assert boundary_to_arm(anchor + timedelta(milliseconds=500)) == anchor
+    assert boundary_to_arm(anchor + timedelta(seconds=2)) == anchor
+    assert boundary_to_arm(anchor + timedelta(seconds=2, milliseconds=1)) is None

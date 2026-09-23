@@ -440,6 +440,10 @@ def next_minute_boundary(now: datetime) -> datetime:
 
 def boundary_to_arm(now: datetime) -> datetime | None:
     current = _utc(now, "now")
+    current_minute = current.replace(second=0, microsecond=0)
+    elapsed = current - current_minute
+    if timedelta(0) <= elapsed <= DECISION_DEADLINE:
+        return current_minute
     anchor = next_minute_boundary(current)
     remaining = anchor - current
     if timedelta(0) < remaining <= BOUNDARY_ARM_LEAD:
@@ -883,19 +887,13 @@ def _tick_timestamp(tick: Any) -> datetime:
     raw_msc = int(getattr(tick, "time_msc", 0) or 0)
     if raw_msc > 0:
         raw_seconds, millis = divmod(raw_msc, 1000)
-        return cast(
-            datetime,
-            normalise_fundednext_server_epoch(raw_seconds),
-        ) + timedelta(
+        return normalise_fundednext_server_epoch(raw_seconds) + timedelta(
             milliseconds=millis
         )
     raw_seconds = int(getattr(tick, "time", 0) or 0)
     if raw_seconds <= 0:
         raise Vt31Nas100LiveError("VT31 broker tick timestamp unavailable")
-    return cast(
-        datetime,
-        normalise_fundednext_server_epoch(raw_seconds),
-    )
+    return normalise_fundednext_server_epoch(raw_seconds)
 
 
 def _evidence_item(bar: OhlcSnapshot) -> bytes:

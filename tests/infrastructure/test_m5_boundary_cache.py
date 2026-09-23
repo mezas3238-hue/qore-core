@@ -9,6 +9,7 @@ import pytest
 from qore.infrastructure.m5_boundary_cache import (
     M5BoundaryCache,
     await_boundary_snapshots,
+    boundary_to_arm,
 )
 from qore.infrastructure.market_boundary_actor import (
     MarketBoundaryJob,
@@ -205,10 +206,10 @@ def test_ready_market_is_delivered_once_without_waiting_for_delayed_sibling(
         on_snapshot=lambda symbol, _snapshot: delivered.append(symbol),
     )
 
-    assert set(snapshots) == {"READY", "DELAYED"}
-    assert delivered == ["READY", "DELAYED"]
+    assert set(snapshots) == {"READY"}
+    assert delivered == ["READY"]
     assert caches["READY"].incremental_calls == 1
-    assert caches["DELAYED"].incremental_calls == 2
+    assert caches["DELAYED"].incremental_calls == 1
 
 
 def test_resident_aggregates_remain_bit_equivalent_across_updates_and_eviction(
@@ -433,3 +434,71 @@ def test_all_turtle_live_adapters_consume_resident_frames_without_rebuild(
         state=audjpy.R42AudJpyLiveState(),
         boundary_snapshot=snapshots["AUDJPY"],
     ) == (None, "no-audjpy-r42-certified-signal")
+
+
+def test_m5_boundary_to_arm_recovers_current_hour_inside_hard_sla() -> None:
+    anchor = datetime(2026, 9, 23, 14, 0, tzinfo=UTC)
+    assert boundary_to_arm(anchor) == anchor
+    assert boundary_to_arm(anchor + timedelta(milliseconds=500)) == anchor
+    assert boundary_to_arm(anchor + timedelta(seconds=2)) == anchor
+    assert boundary_to_arm(anchor + timedelta(seconds=2, milliseconds=1)) is None
+
+
+def test_delayed_market_does_not_barrier_ready_sibling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from qore.infrastructure import m5_boundary_cache as live
+
+    monkeypatch.setattr(
+        live,
+        "normalise_fundednext_server_epoch",
+        lambda raw: datetime.fromtimestamp(raw, tz=UTC),
+    )
+    anchor = datetime(2026, 9, 23, 14, 0, tzinfo=UTC)
+    start = anchor - timedelta(minutes=5 * 2000)
+    rows = {
+        symbol: [_row(start + timedelta(minutes=5 * index), "1.100") for index in range(2000)]
+        for symbol in ("READY", "DELAYED")
+    }
+
+    class PermanentDelayedApi(_Api):
+        def copy_rates_from_pos(
+            self, symbol: str, timeframe: int, start_pos: int, count: int
+        ) -> list[dict[str, object]]:
+            if symbol == "DELAYED" and count == 4:
+                self.copy_counts[symbol].append(count)
+                return self.rows[symbol][:-1][-count:]
+            return super().copy_rates_from_pos(symbol, timeframe, start_pos, count)
+    api = PermanentDelayedApi(
+        rows,
+        {"READY": anchor + timedelta(milliseconds=100), "DELAYED": anchor},
+    )
+    caches = {
+        symbol: M5BoundaryCache(symbol=symbol, error_prefix=symbol)
+        for symbol in rows
+    }
+    for cache in caches.values():
+        cache.preload(api, now=anchor - timedelta(seconds=10))
+    for symbol in rows:
+        rows[symbol].append(_row(anchor, "1.101"))
+
+    calls = 0
+
+    def clock() -> datetime:
+        nonlocal calls
+        calls += 1
+        if calls <= 8:
+            return anchor + timedelta(milliseconds=100)
+        return anchor + timedelta(seconds=2, milliseconds=1)
+
+    delivered: list[str] = []
+    snapshots = await_boundary_snapshots(
+        api,
+        caches=caches,
+        anchor=anchor,
+        now_fn=clock,
+        sleep_fn=lambda _seconds: None,
+        on_snapshot=lambda symbol, _snapshot: delivered.append(symbol),
+    )
+    assert set(snapshots) == {"READY"}
+    assert delivered == ["READY"]
