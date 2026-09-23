@@ -168,6 +168,55 @@ def _quarter(trade: v3.V3Trade) -> str:
     return f"{value.year}-Q{quarter}"
 
 
+def _body_ratio_band(trade: v3.V3Trade) -> str:
+    value = Decimal(trade.m3_body_ratio)
+    if value < Decimal("0.70"):
+        return "BODY_60_70"
+    if value < Decimal("0.80"):
+        return "BODY_70_80"
+    if value < Decimal("0.90"):
+        return "BODY_80_90"
+    return "BODY_90_100"
+
+
+def _displacement_atr_band(trade: v3.V3Trade) -> str:
+    atr = Decimal(trade.m3_atr14)
+    if atr <= 0:
+        raise ValueError("M3 ATR must be positive")
+    ratio = Decimal(trade.m3_displacement_range) / atr
+    if ratio < Decimal("1.50"):
+        return "ATR_1_2_1_5"
+    if ratio < Decimal("2.00"):
+        return "ATR_1_5_2_0"
+    return "ATR_2_0_PLUS"
+
+
+def _mss_to_entry_band(trade: v3.V3Trade) -> str:
+    value = _minutes(trade.m3_mss_at, trade.entry_at)
+    return _band(
+        value,
+        (
+            (Decimal("5"), "00_05M"),
+            (Decimal("15"), "05_15M"),
+            (Decimal("30"), "15_30M"),
+        ),
+        "30M_PLUS",
+    )
+
+
+def _mss_to_fvg_band(trade: v3.V3Trade) -> str:
+    value = _minutes(trade.m3_mss_at, trade.m1_fvg_confirmed_at)
+    return _band(
+        value,
+        (
+            (Decimal("3"), "00_03M"),
+            (Decimal("10"), "03_10M"),
+            (Decimal("20"), "10_20M"),
+        ),
+        "20M_PLUS",
+    )
+
+
 def _metrics(trades: tuple[v3.V3Trade, ...]) -> dict[str, Any] | None:
     value = v3._metrics(trades)
     return None if value is None else asdict(value)
@@ -250,6 +299,13 @@ def build_report(
         "boundary_phase": lambda _t, m: _boundary_phase(m),
         "mss_minute_band": lambda _t, m: _mss_minute_band(m),
         "calendar_quarter": lambda t, _m: _quarter(t),
+        "body_ratio_band": lambda t, _m: _body_ratio_band(t),
+        "displacement_atr_band": lambda t, _m: _displacement_atr_band(t),
+        "mss_to_entry": lambda t, _m: _mss_to_entry_band(t),
+        "mss_to_fvg": lambda t, _m: _mss_to_fvg_band(t),
+        "ob_fvg_overlap": lambda t, _m: (
+            "OVERLAP" if t.m1_ob_fvg_overlap else "NO_OVERLAP"
+        ),
         "market": lambda t, _m: t.symbol,
         "session": lambda t, _m: t.session,
     }
@@ -262,6 +318,21 @@ def build_report(
         name: _group(dd_added, fn)
         for name, fn in dimensions.items()
     }
+
+    relation_strata: dict[str, dict[str, dict[str, dict[str, Any]]]] = {}
+    for relation in (
+        "PREEMPTS_V3_MSS",
+        "RECOVERS_NO_V3_MSS",
+    ):
+        subset = tuple(
+            row
+            for row in joined_rows
+            if str(row[1]["source_first_relation_vs_v3"]) == relation
+        )
+        relation_strata[relation] = {
+            name: _group(subset, fn)
+            for name, fn in dimensions.items()
+        }
 
     state_counts = Counter(str(meta["m5_state"]) for _, meta in joined_rows)
     relation_counts = Counter(
@@ -277,6 +348,7 @@ def build_report(
         "m5_state_counts": dict(sorted(state_counts.items())),
         "relation_vs_v3_counts": dict(sorted(relation_counts.items())),
         "overall_groups": overall_groups,
+        "relation_strata": relation_strata,
         "max_drawdown_episode": {
             "drawdown_r": episode["drawdown_r"],
             "peak_exit_at": episode["peak_exit_at"],
