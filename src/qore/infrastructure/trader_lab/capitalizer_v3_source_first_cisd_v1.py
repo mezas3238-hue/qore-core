@@ -77,10 +77,12 @@ def find_source_first_m3_mss(
     closeback and never after the supplied H1 deadline.
     """
 
-    if not sweep_at <= after < before:
+    if sweep_at > after or after > before:
         raise ValueError(
-            "source-first CISD requires sweep_at <= closeback_at < deadline"
+            "source-first CISD requires sweep_at <= closeback_at <= deadline"
         )
+    if after == before:
+        return None
 
     start = bisect.bisect_right(closes, sweep_at)
     end = bisect.bisect_right(closes, before)
