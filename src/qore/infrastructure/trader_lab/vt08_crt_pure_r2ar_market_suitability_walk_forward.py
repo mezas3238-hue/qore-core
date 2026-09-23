@@ -81,6 +81,7 @@ ARM = TargetArm.FIXED_1_5R
 MULTIPLE = TARGET_MULTIPLE[ARM]
 TRAINING_YEARS = 3
 MIN_RETENTION = Decimal("0.70")
+MIN_REMOVED_TRADES_PER_YEAR = 12
 
 
 @dataclass(frozen=True, slots=True)
@@ -225,7 +226,7 @@ def _select_rule(
             rows = _slice(removed, left, right)
             value = _total_r(rows)
             yearly_removed[f"{left.year}_{right.year}"] = round(value, 8)
-            if not rows or value >= 0:
+            if len(rows) < MIN_REMOVED_TRADES_PER_YEAR or value >= 0:
                 negative_every_year = False
                 break
         if not negative_every_year:
@@ -391,6 +392,7 @@ def run_walk_forward(
         "period_end_exclusive": period.end.isoformat(),
         "training_years": TRAINING_YEARS,
         "minimum_training_retention": str(MIN_RETENTION),
+        "minimum_removed_trades_per_training_year": MIN_REMOVED_TRADES_PER_YEAR,
         "high_density_core": {
             "timing_lattice": "ROLLING_H4",
             "target": ARM.value,
@@ -399,6 +401,7 @@ def run_walk_forward(
         },
         "selection_rule": (
             "ONE_BUCKET_NEGATIVE_IN_ALL_3_TRAINING_YEARS;"
+            "MIN_12_REMOVED_TRADES_EACH_TRAINING_YEAR;"
             "RETAIN_GE_70_PERCENT;"
             "MOST_NEGATIVE_AGGREGATE_STATE"
         ),
