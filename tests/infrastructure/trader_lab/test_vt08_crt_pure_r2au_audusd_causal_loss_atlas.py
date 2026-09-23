@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2af_audusd_target_family import (
+    TargetArm,
+)
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2au_audusd_causal_loss_atlas import (
     ARM,
     END,
@@ -9,9 +12,6 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2au_audusd_causal_loss_atlas 
     MIN_ANNUAL_SUPPORT,
     MIN_BUCKET_TRADES,
     START,
-)
-from qore.infrastructure.trader_lab.vt08_crt_pure_r2af_audusd_target_family import (
-    TargetArm,
 )
 from qore.infrastructure.traders.crt_pure_identity import CrtPureMarket
 
