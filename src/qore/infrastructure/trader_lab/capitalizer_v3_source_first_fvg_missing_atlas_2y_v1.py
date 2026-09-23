@@ -34,7 +34,17 @@ from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
     iter_cibo_m1,
 )
+from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
+from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
+    TFBar,
+    _aggregate_tf,
+    _index_day_inputs,
+    _pivots,
+)
+from qore.infrastructure.trader_lab.capitalizer_v3_source_first_cisd_v1 import (
+    find_source_first_m3_mss,
+)
 
 IDENTITY = "QORE_CAPITALIZER_V3_SOURCE_FIRST_FVG_MISSING_ATLAS_2Y_V1"
 MATRIX_IDENTITY = "QORE_CAPITALIZER_NINE_MARKET_V3_SOURCE_FIRST_FVG_MISSING_ATLAS_2Y_V1"
@@ -136,7 +146,7 @@ def _build_row(
     *,
     raw: dict[str, Any],
     execution: tuple[CapitalizerM1Bar, ...],
-    m3: tuple[funnel.TFBar, ...],
+    m3: tuple[TFBar, ...],
     m3_closes: tuple[datetime, ...],
     m3_pivots: Any,
 ) -> FvgMissingRow:
@@ -146,7 +156,7 @@ def _build_row(
     deadline = datetime.fromisoformat(str(raw["h1_deadline"]))
     frozen_mss = datetime.fromisoformat(str(raw["source_first_mss_at"]))
 
-    event = funnel.find_source_first_m3_mss(
+    event = find_source_first_m3_mss(
         m3,
         m3_closes,
         m3_pivots,
@@ -284,12 +294,12 @@ def build_market_report(
     if any(str(row["symbol"]) != symbol for row in frozen):
         raise ValueError("funnel/M1 symbol mismatch")
 
-    m3 = funnel._aggregate_tf(all_bars, minutes=3)
+    m3 = _aggregate_tf(all_bars, minutes=3)
     m3_closes = tuple(item.closed_at for item in m3)
-    m3_pivots = funnel._pivots(m3)
-    execution_by_day, _ = funnel._index_day_inputs(
+    m3_pivots = _pivots(m3)
+    execution_by_day, _ = _index_day_inputs(
         all_bars,
-        session=funnel.CapitalizerSession(str(frozen[0]["session"])),
+        session=CapitalizerSession(str(frozen[0]["session"])),
     )
 
     rows: list[FvgMissingRow] = []
