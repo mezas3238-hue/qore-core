@@ -311,11 +311,11 @@ def run_forensics(
     }
 
     for record in frozen:
-        generation = _bucket_generation(record.generation)
-        delay = _bucket_delay(record.confirmation_delay_bars)
-        groups["generation"][generation].append(record)
+        generation_bucket = _bucket_generation(record.generation)
+        delay_bucket = _bucket_delay(record.confirmation_delay_bars)
+        groups["generation"][generation_bucket].append(record)
         groups["reference_count"][_bucket_references(record.reference_count)].append(record)
-        groups["confirmation_delay"][delay].append(record)
+        groups["confirmation_delay"][delay_bucket].append(record)
         groups["projected_rr"][_bucket_rr(record.projected_rr)].append(record)
         groups["source_body_fraction"][
             _bucket_fraction(record.source_body_fraction, "BODY")
@@ -331,7 +331,7 @@ def run_forensics(
         groups["triplet_x_direction"][
             f"T{record.trade.timing_triplet}|{record.trade.parent_direction}"
         ].append(record)
-        groups["generation_x_delay"][f"{generation}|{delay}"].append(record)
+        groups["generation_x_delay"][f"{generation_bucket}|{delay_bucket}"].append(record)
 
     report: dict[str, Any] = {
         "schema": SCHEMA,
