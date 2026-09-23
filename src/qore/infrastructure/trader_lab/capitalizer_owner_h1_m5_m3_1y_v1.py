@@ -61,7 +61,7 @@ from qore.infrastructure.trader_lab.capitalizer_ict_2022_m1_entry_1y_replay_v1 i
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     Pivot,
     ReferenceLiquidity,
-    StructureEvent as StructureEvent,
+    StructureEvent,
     TFBar,
     _aggregate_tf,
     _find_structure_event,
@@ -73,6 +73,8 @@ from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     _sweep_extreme,
     _sweep_level,
 )
+
+__all__ = ["StructureEvent"]
 
 IDENTITY = "QORE_CAPITALIZER_OWNER_H1_M5_M3_1Y_V1"
 MATRIX_IDENTITY = (
