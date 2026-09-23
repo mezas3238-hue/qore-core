@@ -16,6 +16,7 @@ import json
 from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -317,7 +318,9 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "cisd_control_reproduced": total == EXPECTED_CISD_FIRST_BLOCKERS,
         "same_bar_cisd_only": same_bar,
         "same_bar_reservoir_rate": (
-            None if total == 0 else str(same_bar / total)
+            None
+            if total == 0
+            else str(Decimal(same_bar) / Decimal(total))
         ),
         "same_bar_cisd_only_with_cisd_elsewhere": sum(
             int(item["same_bar_cisd_only_with_cisd_elsewhere"])
