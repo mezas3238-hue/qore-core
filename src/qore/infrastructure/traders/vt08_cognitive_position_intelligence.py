@@ -84,15 +84,19 @@ class Vt08PositionSnapshot:
         ):
             raise ValueError("VT08 protection candidate must be positive finite")
         if self.side == "long":
-            if not self.current_stop <= self.entry_price < self.bound_destination:
-                raise ValueError("VT08 long position geometry invalid")
-            if self.initial_stop > self.current_stop:
+            if not self.initial_stop < self.entry_price < self.bound_destination:
+                raise ValueError("VT08 long initial geometry invalid")
+            if self.current_stop < self.initial_stop:
                 raise ValueError("VT08 long current stop widened beyond initial stop")
+            if self.current_stop >= self.current_price:
+                raise ValueError("VT08 long current stop must remain below current price")
         else:
-            if not self.bound_destination < self.entry_price <= self.current_stop:
-                raise ValueError("VT08 short position geometry invalid")
-            if self.initial_stop < self.current_stop:
+            if not self.bound_destination < self.entry_price < self.initial_stop:
+                raise ValueError("VT08 short initial geometry invalid")
+            if self.current_stop > self.initial_stop:
                 raise ValueError("VT08 short current stop widened beyond initial stop")
+            if self.current_stop <= self.current_price:
+                raise ValueError("VT08 short current stop must remain above current price")
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,6 +162,19 @@ def decide_position(
     policy: Vt08PositionPolicy = RESEARCH_UNCALIBRATED_POSITION_POLICY,
 ) -> Vt08PositionDecision:
     reasons: list[str] = []
+
+    if (
+        "JOURNEY:H4_LIFECYCLE_EXPIRED" in journey.contradictions
+        and policy.exit_on_h4_lifecycle_end
+    ):
+        reasons.append("POSITION:EXIT_H4_LIFECYCLE_END")
+        return Vt08PositionDecision(
+            action=Vt08PositionAction.EXIT,
+            next_stop=None,
+            reason_codes=tuple(reasons),
+            policy_calibrated=policy.calibrated,
+            journey_fingerprint=journey.fingerprint(),
+        )
 
     if (
         journey.journey_state is Vt08JourneyState.INVALIDATED
