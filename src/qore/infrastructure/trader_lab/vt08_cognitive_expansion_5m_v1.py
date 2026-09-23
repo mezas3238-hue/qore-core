@@ -11,8 +11,8 @@ import json
 from dataclasses import asdict, dataclass
 from typing import Final
 
+from qore.infrastructure.traders.vt08_b01_r3_8 import OWNER_FOREX_ENTRY_ANCHORS
 from qore.infrastructure.traders.vt08_b01_r3_8 import (
-    OWNER_FOREX_ENTRY_ANCHORS,
     methodology_fingerprint as vt08_b01_methodology_fingerprint,
 )
 
