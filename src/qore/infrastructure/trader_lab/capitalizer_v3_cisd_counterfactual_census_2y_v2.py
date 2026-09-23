@@ -375,9 +375,14 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "step4_aligned_substitute_confirmations": (
             STEP4_EXPECTED_ALIGNED_SUBSTITUTE_CONFIRMATIONS
         ),
-        "step4_reconciliation": (
-            aligned == STEP4_EXPECTED_ALIGNED_SUBSTITUTE_CONFIRMATIONS
+        "step4_full_substitute_confirmations": (
+            STEP4_EXPECTED_ALIGNED_SUBSTITUTE_CONFIRMATIONS
         ),
+        "step4_cisd_first_blocker_subset_confirmations": aligned,
+        "step4_substitutes_outside_cisd_first_blocker_scope": (
+            STEP4_EXPECTED_ALIGNED_SUBSTITUTE_CONFIRMATIONS - aligned
+        ),
+        "step4_full_reconciliation_requires_all_blockers_provenance": True,
         "boundary_cisd_contradictions": contradictions,
         "per_session": {
             key: dict(value) for key, value in sorted(per_session.items())
