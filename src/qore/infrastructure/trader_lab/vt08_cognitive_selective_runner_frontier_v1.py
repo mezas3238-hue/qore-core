@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import UTC, date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Final
@@ -122,12 +122,9 @@ def _runner_room(
 def simulate_selective_runner(
     candidate: Vt08ExpansionCandidate,
     *,
-    bars_by_open: dict[object, Vt08B01Bar],
+    bars_by_open: dict[datetime, Vt08B01Bar],
 ) -> SelectiveRunnerTrade | None:
-    # Datetime keys are intentionally accepted through object typing so this
-    # helper remains tightly coupled to the validated bar map supplied below.
-    indexed = {key: value for key, value in bars_by_open.items()}
-    baseline = model_trade(candidate, bars_by_open=indexed)  # type: ignore[arg-type]
+    baseline = model_trade(candidate, bars_by_open=bars_by_open)
     if baseline is None:
         return None
 
@@ -169,7 +166,7 @@ def simulate_selective_runner(
         stop=baseline.stop,
         level=destination,
     )
-    rows = _window(candidate, indexed)  # type: ignore[arg-type]
+    rows = _window(candidate, bars_by_open)
     if rows is None:
         return None
 
