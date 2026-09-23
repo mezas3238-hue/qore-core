@@ -205,3 +205,20 @@ def test_runtime_binds_certified_policy_and_capitalization_without_changing_vt31
     assert '"capitalization_balance_target"' in source
     assert "VT31_DECISION_DEADLINE" in source
     assert "await_vt31_boundary_snapshot" in source
+
+
+def test_policy_refresh_resolves_against_post_refresh_clock() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+    start = source.index("def load_current_certified_policy")
+    end = source.index("refresh_provider_rules_before_submission()", start)
+    loader = source[start:end]
+    assert "evaluated_at = datetime.now(UTC)" in loader
+    assert "bundle.resolve_for_risk(evaluated_at)" in loader
+    assert "load_current_certified_policy(cycle_at)" not in source
+
+
+def test_provider_late_m5_symbol_cannot_block_ready_siblings() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+    assert "if fast_symbol not in armed_m5_snapshots:" in source
+    assert '"symbol-boundary-unavailable-within-feed-budget"' in source
+    assert 'elif "AUDJPY" not in armed_m5_snapshots:' in source

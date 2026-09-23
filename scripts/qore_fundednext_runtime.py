@@ -1949,21 +1949,24 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             detail = (result.stderr or result.stdout or "provider-rule-refresh-failed").strip()
             raise RuntimeError(detail[:500])
 
-    def load_current_certified_policy(
-        now: datetime,
-    ) -> CertifiedStellarInstantPolicyBundle:
+    def load_current_certified_policy() -> CertifiedStellarInstantPolicyBundle:
         bundle = load_certified_stellar_instant_policy(
             refresh_path=state_dir / "provider-rules-refresh.json",
             account_binding_id=fingerprint,
             account_size=PILOT_INITIAL_BALANCE,
         )
-        resolved = bundle.resolve_for_risk(now)
+        # The refresh subprocess records observed_at when it finishes.  Always
+        # resolve against a clock sampled after reading that evidence; using
+        # the cycle timestamp captured before refresh makes fresh evidence
+        # appear to be from the future and creates an endless fail-closed loop.
+        evaluated_at = datetime.now(UTC)
+        resolved = bundle.resolve_for_risk(evaluated_at)
         if isinstance(resolved, Failure):
             raise RuntimeError(f"certified-prop-policy-unavailable:{resolved.error}")
         return bundle
 
     refresh_provider_rules_before_submission()
-    certified_policy = load_current_certified_policy(datetime.now(UTC))
+    certified_policy = load_current_certified_policy()
     certified_policy_last_reload = certified_policy.observed_at
     mission_store = DurableCapitalizationMissionStore(state_dir / "capitalization-mission.json")
     mission_config = build_5k_mission_config(
@@ -2214,7 +2217,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             try:
                 if refresh_due:
                     refresh_provider_rules_before_submission()
-                certified_policy = load_current_certified_policy(cycle_at)
+                certified_policy = load_current_certified_policy()
                 certified_policy_last_reload = cycle_at
                 mission_config = build_5k_mission_config(
                     account_identity_fingerprint=fingerprint,
@@ -2581,6 +2584,21 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 },
                             )
                             continue
+                        if fast_symbol not in armed_m5_snapshots:
+                            _log(
+                                log_path,
+                                {
+                                    "event": "M5_FAST_BOUNDARY_FAIL_CLOSED",
+                                    "symbol": fast_symbol,
+                                    "decision_at": audjpy_arm_anchor.isoformat(),
+                                    "reason": "symbol-boundary-unavailable-within-feed-budget",
+                                    "hard_sla_seconds": (
+                                        M5_PROFILE.order_send_deadline.total_seconds()
+                                    ),
+                                    "order_send_called": False,
+                                },
+                            )
+                            continue
                         try:
                             actor_result = boundary_results[fast_identity]
                             _log_market_decision_telemetry(
@@ -2666,6 +2684,24 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "latency_ms": int(
                                     (boundary_observed - audjpy_arm_anchor).total_seconds() * 1000
                                 ),
+                            },
+                        )
+                    elif "AUDJPY" not in armed_m5_snapshots:
+                        _log(
+                            log_path,
+                            {
+                                "event": "AUDJPY_R42_BOUNDARY_FAIL_CLOSED",
+                                "symbol": "AUDJPY",
+                                "decision_at": audjpy_arm_anchor.isoformat(),
+                                "reason": "symbol-boundary-unavailable-within-feed-budget",
+                                "observed_at": boundary_observed.isoformat(),
+                                "latency_ms": int(
+                                    (boundary_observed - audjpy_arm_anchor).total_seconds() * 1000
+                                ),
+                                "hard_sla_seconds": (
+                                    AUDJPY_R42_ENTRY_SLA.total_seconds()
+                                ),
+                                "order_send_called": False,
                             },
                         )
                     else:

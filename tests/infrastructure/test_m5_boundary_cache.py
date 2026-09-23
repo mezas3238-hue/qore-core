@@ -433,3 +433,49 @@ def test_all_turtle_live_adapters_consume_resident_frames_without_rebuild(
         state=audjpy.R42AudJpyLiveState(),
         boundary_snapshot=snapshots["AUDJPY"],
     ) == (None, "no-audjpy-r42-certified-signal")
+
+
+def test_provider_late_market_does_not_discard_ready_sibling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from qore.infrastructure import m5_boundary_cache as live
+
+    monkeypatch.setattr(
+        live,
+        "normalise_fundednext_server_epoch",
+        lambda raw: datetime.fromtimestamp(raw, tz=UTC),
+    )
+    anchor = datetime(2026, 9, 23, 9, 0, tzinfo=UTC)
+    start = anchor - timedelta(minutes=5 * 2000)
+    rows = {
+        symbol: [_row(start + timedelta(minutes=5 * index), "1.100") for index in range(2000)]
+        for symbol in ("READY", "PROVIDER_LATE")
+    }
+    api = _Api(
+        rows,
+        {
+            "READY": anchor + timedelta(milliseconds=100),
+            "PROVIDER_LATE": anchor - timedelta(milliseconds=100),
+        },
+    )
+    caches = {
+        symbol: M5BoundaryCache(symbol=symbol, error_prefix=symbol)
+        for symbol in rows
+    }
+    for cache in caches.values():
+        cache.preload(api, now=anchor - timedelta(seconds=10))
+    rows["READY"].append(_row(anchor, "1.101"))
+
+    delivered: list[str] = []
+    snapshots = await_boundary_snapshots(
+        api,
+        caches=caches,
+        anchor=anchor,
+        now_fn=lambda: anchor + timedelta(seconds=1, milliseconds=1),
+        sleep_fn=lambda _seconds: None,
+        on_snapshot=lambda symbol, _snapshot: delivered.append(symbol),
+    )
+
+    assert set(snapshots) == {"READY"}
+    assert delivered == ["READY"]
+    assert snapshots["READY"].observed_at < anchor + timedelta(seconds=2)
