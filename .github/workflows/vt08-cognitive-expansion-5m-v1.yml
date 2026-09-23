@@ -6,17 +6,10 @@ on:
     branches:
       - agent/vt08-cognitive-expansion-5m-v1-001
     paths:
-      - src/qore/infrastructure/trader_lab/vt08_cognitive_expansion_5m_*
-      - src/qore/infrastructure/trader_lab/vt08_cognitive_core_*
-      - src/qore/infrastructure/trader_lab/vt08_cognitive_structural_*
-      - src/qore/infrastructure/trader_lab/vt08_cognitive_selective_*
-      - src/qore/infrastructure/trader_lab/vt08_cognitive_cibo_*
-      - tests/infrastructure/trader_lab/test_vt08_cognitive_expansion_5m_*
-      - tests/infrastructure/trader_lab/test_vt08_cognitive_core_*
-      - tests/infrastructure/trader_lab/test_vt08_cognitive_structural_*
-      - tests/infrastructure/trader_lab/test_vt08_cognitive_selective_*
-      - tests/infrastructure/trader_lab/test_vt08_cognitive_cibo_*
-      - docs/research/VT08_COGNITIVE_EXPANSION_5M_V1_FREEZE.md
+      - src/qore/infrastructure/trader_lab/vt08_cognitive_*
+      - tests/infrastructure/trader_lab/test_vt08_cognitive_*
+      - docs/research/VT08_COGNITIVE_*.md
+      - docs/research/VT08_EURJPY_*.md
       - .github/workflows/vt08-cognitive-expansion-5m-v1.yml
 
 permissions:
@@ -33,19 +26,13 @@ jobs:
       - run: pip install -e ".[dev]"
       - name: Ruff
         run: |
-          ruff check             src/qore/infrastructure/trader_lab/vt08_cognitive_expansion_5m_v1.py             src/qore/infrastructure/trader_lab/vt08_cognitive_expansion_5m_evaluator_v1.py             src/qore/infrastructure/trader_lab/vt08_cognitive_expansion_5m_backtest_v1.py             tests/infrastructure/trader_lab/test_vt08_cognitive_expansion_5m_v1.py
+          ruff check             src/qore/infrastructure/trader_lab/vt08_cognitive_*.py             tests/infrastructure/trader_lab/test_vt08_cognitive_*.py
       - name: Mypy
         run: |
-          mypy             src/qore/infrastructure/trader_lab/vt08_cognitive_expansion_5m_v1.py             src/qore/infrastructure/trader_lab/vt08_cognitive_expansion_5m_evaluator_v1.py             src/qore/infrastructure/trader_lab/vt08_cognitive_expansion_5m_backtest_v1.py
+          mypy src/qore/infrastructure/trader_lab/vt08_cognitive_*.py
       - name: Focused tests
         run: |
-          pytest -q \
-            tests/infrastructure/trader_lab/test_vt08_cognitive_expansion_5m_v1.py \
-            tests/infrastructure/trader_lab/test_vt08_cognitive_core_allocation_frontier_v1.py \
-            tests/infrastructure/trader_lab/test_vt08_cognitive_core_stack_dev_v1.py \
-            tests/infrastructure/trader_lab/test_vt08_cognitive_structural_bank_frontier_v1.py \
-            tests/infrastructure/trader_lab/test_vt08_cognitive_selective_runner_frontier_v1.py \
-            tests/infrastructure/trader_lab/test_vt08_cognitive_cibo_stop_protection_v1.py
+          pytest -q tests/infrastructure/trader_lab/test_vt08_cognitive_*.py
       - name: Freeze fingerprints
         run: |
           python - <<'PY'
