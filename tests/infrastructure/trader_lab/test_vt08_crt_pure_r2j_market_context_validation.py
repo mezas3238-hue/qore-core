@@ -188,13 +188,13 @@ def test_usd_and_btc_candidate_gates_match_frozen_forensics() -> None:
         reference_count=1,
         delay_bars=2,
         source_open=100,
-        source_high=112,
+        source_high=114,
         source_low=88,
         source_close=114,
     )
     assert _accept(CandidateId.USD_T1, usd)
     assert _accept(CandidateId.USD_D2, usd)
-    # Body/range = 14/24, inside 0.50-0.75.
+    # Body/range = 14/26, inside 0.50-0.75.
     assert Decimal("0.50") <= usd.body_fraction < Decimal("0.75")
     assert _accept(CandidateId.USD_BODY_050_TO_075, usd)
 
@@ -205,6 +205,7 @@ def test_usd_and_btc_candidate_gates_match_frozen_forensics() -> None:
         generation=3,
         reference_count=2,
         delay_bars=2,
+        source_close=116,
     )
     assert _accept(CandidateId.BTC_REF2_PLUS, btc)
     assert _accept(CandidateId.BTC_BODY_GE_050, btc)
