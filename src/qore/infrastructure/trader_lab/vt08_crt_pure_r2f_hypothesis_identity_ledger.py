@@ -70,6 +70,7 @@ class HypothesisLedgerRow:
     hypothesis_id: str
     event_generation: int
     source_opened_at: str
+    source_known_at: str
     source_reference_ids: tuple[str, ...]
     source_reference_count: int
     state_at_c3_close: str
@@ -144,6 +145,7 @@ def _row(
         hypothesis_id=hypothesis_id,
         event_generation=generation,
         source_opened_at=observation.group.source_candle.opened_at.isoformat(),
+        source_known_at=observation.group.source_candle.closed_at.isoformat(),
         source_reference_ids=refs,
         source_reference_count=len(refs),
         state_at_c3_close=_state(observation).value,
@@ -169,7 +171,7 @@ def _max_simultaneously_awaiting(
         return 0
     events: list[tuple[datetime, int]] = []
     for row in rows:
-        opened_at = datetime.fromisoformat(row.source_opened_at)
+        known_at = datetime.fromisoformat(row.source_known_at)
         closed_at = (
             parent.c3_closed_at
             if row.confirmation_known_at is None
@@ -177,7 +179,7 @@ def _max_simultaneously_awaiting(
         )
         # Close before open at the same instant: once confirmation is known, the
         # older hypothesis is no longer counted as awaiting.
-        events.append((opened_at, 1))
+        events.append((known_at, 1))
         events.append((closed_at, -1))
     current = 0
     maximum = 0
@@ -285,6 +287,7 @@ def run_ledger(
         "ledger_rows": len(all_rows),
         "source_event_ids_unique": True,
         "hypothesis_ids_unique": True,
+        "source_availability_semantics": "SOURCE_KNOWN_AT_M15_CLOSE",
         "multiple_hypotheses_do_not_imply_multiple_entries": True,
         "competition_policy_frozen": False,
         "methodology_mutated": False,
