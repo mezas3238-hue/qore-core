@@ -181,13 +181,23 @@ def build_matrix(root: Path) -> dict[str, Any]:
     }
 
 
-def write_matrix(report: dict[str, Any], output: Path) -> None:
+def write_matrix(
+    report: dict[str, Any],
+    output: Path,
+    *,
+    source_root: Path,
+) -> None:
     output.mkdir(parents=True, exist_ok=True)
     path = output / "capitalizer-nine-market-v3-frozen-replay-2y-v1.json"
     path.write_text(
         json.dumps(report, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+    max3 = v3._portfolio_max3(_load_trades(source_root))
+    ledger = output / "capitalizer-nine-market-v3-frozen-replay-2y-v1-max3-trades.jsonl"
+    with ledger.open("w", encoding="utf-8") as handle:
+        for trade in max3:
+            handle.write(json.dumps(asdict(trade), sort_keys=True) + "\n")
 
 
 def main() -> None:
@@ -227,7 +237,7 @@ def main() -> None:
         return
 
     report = build_matrix(args.input_root)
-    write_matrix(report, args.output)
+    write_matrix(report, args.output, source_root=args.input_root)
     print(json.dumps(report, sort_keys=True))
 
 
