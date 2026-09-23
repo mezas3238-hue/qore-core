@@ -7,6 +7,17 @@ from qore.infrastructure.traders.vt08_cognitive_hypothesis import (
     Vt08Hypothesis,
     advance_hypothesis,
 )
+from qore.infrastructure.traders.vt08_cognitive_journey_intelligence import (
+    Vt08JourneyAssessment,
+    assess_journey,
+)
+from qore.infrastructure.traders.vt08_cognitive_position_intelligence import (
+    RESEARCH_UNCALIBRATED_POSITION_POLICY,
+    Vt08PositionDecision,
+    Vt08PositionPolicy,
+    Vt08PositionSnapshot,
+    decide_position,
+)
 from qore.infrastructure.traders.vt08_cognitive_reasoning import (
     Vt08ReasoningDecision,
     reason,
@@ -24,6 +35,13 @@ class Vt08CognitiveEvaluation:
     situation: Vt08ForexSituationModel
     decision: Vt08ReasoningDecision
     hypothesis: Vt08Hypothesis
+
+
+@dataclass(frozen=True, slots=True)
+class Vt08InTradeCognitiveEvaluation:
+    situation: Vt08ForexSituationModel
+    journey: Vt08JourneyAssessment
+    position_decision: Vt08PositionDecision
 
 
 def evaluate_cognitive_hypothesis(
@@ -53,4 +71,25 @@ def evaluate_cognitive_hypothesis(
         situation=situation,
         decision=decision,
         hypothesis=updated,
+    )
+
+
+def evaluate_in_trade_cognition(
+    *,
+    situation: Vt08ForexSituationModel,
+    position: Vt08PositionSnapshot,
+    policy: Vt08PositionPolicy = RESEARCH_UNCALIBRATED_POSITION_POLICY,
+) -> Vt08InTradeCognitiveEvaluation:
+    if situation.side != position.side:
+        raise ValueError("VT08 in-trade cognition side mismatch")
+    journey = assess_journey(situation)
+    position_decision = decide_position(
+        position=position,
+        journey=journey,
+        policy=policy,
+    )
+    return Vt08InTradeCognitiveEvaluation(
+        situation=situation,
+        journey=journey,
+        position_decision=position_decision,
     )
