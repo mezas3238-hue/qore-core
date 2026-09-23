@@ -91,6 +91,35 @@ jobs:
               **report["economics"],
           }, sort_keys=True))
           PY
+      - name: Run VT08 Core capital-intelligence frontier
+        env:
+          QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab.vt08_cognitive_core_allocation_frontier_v1 import (
+              replay,
+          )
+
+          symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
+          root = Path(f"artifacts/vt08-expansion-{symbol}")
+          report = replay(root / "market-evidence.json")
+          (root / "vt08-core-capital-frontier.json").write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")),
+              encoding="utf-8",
+          )
+          print(json.dumps({
+              "symbol": symbol,
+              "train_count": report["split"]["train_count"],
+              "oos_count": report["split"]["oos_count"],
+              "oos_equal_risk": report["oos"]["equal_risk"],
+              "oos_capital_weighted": report["oos"]["capital_weighted"],
+              "oos_context_counts": report["oos"]["context_counts"],
+          }, sort_keys=True))
+          PY
       - name: Upload sanitized evidence and replay
         uses: actions/upload-artifact@v4
         with:
