@@ -25,7 +25,7 @@ from decimal import Decimal
 from enum import StrEnum
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import (
     M15Bar,
