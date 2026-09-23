@@ -82,7 +82,7 @@ def _aligned_closeback_gate(
     lookup: dict[tuple[str, str], CapitalizerM5DirectionalState],
     counters: Counter[str],
 ) -> Iterator[None]:
-    original = getattr(v3, "_find_sweep_closeback")
+    original = v3._find_sweep_closeback
 
     def gated(*args: Any, **kwargs: Any) -> tuple[bool, v3.SweepCloseback | None]:
         sweep_seen, closeback = original(*args, **kwargs)
@@ -102,10 +102,10 @@ def _aligned_closeback_gate(
         return sweep_seen, closeback
 
     try:
-        setattr(v3, "_find_sweep_closeback", gated)
+        v3._find_sweep_closeback = gated  # type: ignore[assignment]
         yield
     finally:
-        setattr(v3, "_find_sweep_closeback", original)
+        v3._find_sweep_closeback = original  # type: ignore[assignment]
 
 
 def build_market_report(
