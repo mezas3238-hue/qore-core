@@ -1,0 +1,182 @@
+name: QORE Capitalizer V3 WAIT5 LATE60 Carry Context Forensics 2Y V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-v3-wait5-late60-carry-context-forensics-2y-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_v3_wait5_late60_carry_context_forensics_2y_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_v3_wait5_late60_carry_context_forensics_2y_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-v3-wait5-late60-carry-context-forensics-2y-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  LATE60_RUN_ID: '35850354903'
+  LATE60_SHA: 'b8639455c31e35274dd100a650cc090da559f147'
+  SOURCE_M1_RUN_ID: '35548099334'
+  SOURCE_M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_v3_wait5_late60_carry_context_forensics_2y_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_v3_wait5_late60_carry_context_forensics_2y_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_v3_wait5_late60_carry_context_forensics_2y_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_v3_wait5_late60_carry_context_forensics_2y_v1.py
+
+  market:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        symbol: [USDJPY, AUDJPY, AUDUSD, GBPJPY, EURUSD, GBPUSD, XAUUSD, USDCAD, NAS100]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download frozen LATE60 market ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-v3-source-first-wait5-late60-2y-v1-${{ matrix.symbol }}-${{ env.LATE60_SHA }}
+          path: late60-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.LATE60_RUN_ID }}
+      - name: Download immutable native-M1 clone
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.SOURCE_M1_SHA }}
+          path: m1-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M1_RUN_ID }}
+      - name: Run carry-context census
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_v3_wait5_late60_carry_context_forensics_2y_v1 \
+            market late60-source m1-source context-output
+      - name: Enforce market invariants
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          report = json.loads(
+              (
+                  Path("context-output")
+                  / f"capitalizer-{symbol.lower()}-v3-wait5-late60-carry-context-forensics-2y-v1.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_V3_WAIT5_LATE60_CARRY_CONTEXT_FORENSICS_2Y_V1"
+          )
+          assert report["symbol"] == symbol
+          assert report["state_semantics_identity"] == (
+              "QORE_CAPITALIZER_V3_M5_DIRECTIONAL_STATE_V1"
+          )
+          assert sum(report["deadline_states"].values()) == report["late_raw_trades"]
+          assert sum(report["entry_states"].values()) == report["late_raw_trades"]
+          assert sum(report["state_transitions"].values()) == report["late_raw_trades"]
+          assert report["outcome_used_for_state"] is False
+          assert report["strategy_mutated"] is False
+          assert report["diagnostic_only"] is True
+          assert report["rule_promotion_allowed"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v3-wait5-late60-carry-context-forensics-2y-v1-${{ matrix.symbol }}-${{ github.sha }}
+          path: context-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v3-wait5-late60-carry-context-forensics-2y-v1-*-${{ github.sha }}
+          path: context-input
+          merge-multiple: false
+      - name: Download frozen LATE60 ledgers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v3-source-first-wait5-late60-2y-v1-*-${{ env.LATE60_SHA }}
+          path: late60-source
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.LATE60_RUN_ID }}
+      - name: Build nine-market carry-context matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_v3_wait5_late60_carry_context_forensics_2y_v1 \
+            matrix context-input late60-source matrix-output
+      - name: Enforce aggregate controls
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "matrix-output/"
+                  "capitalizer-nine-market-v3-wait5-late60-carry-context-forensics-2y-v1.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_NINE_MARKET_V3_WAIT5_LATE60_CARRY_CONTEXT_FORENSICS_2Y_V1"
+          )
+          assert report["market_count"] == 9
+          assert report["late_raw_trades"] == 365
+          assert report["late_raw_control_reproduced"] is True
+          assert report["late_selected_trades"] == 354
+          assert report["late_selected_control_reproduced"] is True
+          assert report["structural_states_outcome_free"] is True
+          assert report["outcome_aware_descriptive"] is True
+          assert report["outcome_used_for_state"] is False
+          assert report["outcome_used_for_admission"] is False
+          assert report["post_result_diagnostic_only"] is True
+          assert report["strategy_mutated"] is False
+          assert report["rule_promotion_allowed"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-nine-market-v3-wait5-late60-carry-context-forensics-2y-v1-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90
