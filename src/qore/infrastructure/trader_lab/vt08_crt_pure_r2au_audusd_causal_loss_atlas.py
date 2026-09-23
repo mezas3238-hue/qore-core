@@ -60,7 +60,6 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2g_competition_lab import (
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2i_context_forensics import (
     _bucket_delay,
-    _bucket_fraction as _bucket_source_fraction,
     _bucket_generation,
     _bucket_range_ratio,
     _bucket_references,
@@ -68,6 +67,9 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2i_context_forensics import (
     _penetration_fraction,
     _source_body_fraction,
     _source_range_to_c1,
+)
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2i_context_forensics import (
+    _bucket_fraction as _bucket_source_fraction,
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2q_usdjpy_multi_regime_atlas import (
     _bucket_c1_range,
