@@ -136,6 +136,11 @@ def build_report(
     lost = tuple(base_by_key[key] for key in sorted(lost_keys))
     preserved_tuple = tuple(preserved)
     replaced_tuple = tuple(replaced)
+    replaced_v3_tuple = tuple(
+        base_by_key[key]
+        for key in sorted(common_keys)
+        if base_by_key[key].m3_mss_at != step4_by_key[key].m3_mss_at
+    )
 
     added_routes = Counter(route_by_key[key] for key in added_keys)
 
@@ -201,8 +206,13 @@ def build_report(
         "added_total_r": _r_sum(added),
         "lost_metrics": _metrics(lost),
         "lost_total_r": _r_sum(lost),
+        "replaced_v3_metrics": _metrics(replaced_v3_tuple),
+        "replaced_v3_total_r": _r_sum(replaced_v3_tuple),
         "replaced_step4_metrics": _metrics(replaced_tuple),
         "replaced_step4_total_r": _r_sum(replaced_tuple),
+        "replaced_total_r_delta": str(
+            Decimal(_r_sum(replaced_tuple)) - Decimal(_r_sum(replaced_v3_tuple))
+        ),
         "v3_max3_trades": len(base_max3),
         "step4_max3_trades": len(step4_max3),
         "v3_max3_control_reproduced": len(base_max3) == EXPECTED_V3_MAX3,
