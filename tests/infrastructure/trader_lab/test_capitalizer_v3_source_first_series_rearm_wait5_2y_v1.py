@@ -17,7 +17,7 @@ def test_series_rearm_wait5_contract_is_frozen() -> None:
     )
     assert candidate.WAIT5_BASELINE_RAW == 1003
     assert candidate.WAIT5_BASELINE_MAX3 == 983
-    assert getattr(candidate, "BOUNDARY_SEMANTICS") == (
+    assert vars(candidate)["BOUNDARY_SEMANTICS"] == (
         "FIRST_OPPOSING_OPEN_PER_DISTINCT_POST_SWEEP_SERIES"
     )
 
