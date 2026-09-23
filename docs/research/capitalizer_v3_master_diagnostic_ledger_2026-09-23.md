@@ -270,3 +270,67 @@ Recommended next research contract:
 6. Treat the 39 clean delayed FVG touches as a bounded density research population; do not enable them until a lifecycle contract is declared and validated.
 
 No strategy promotion is authorized by this document.
+
+
+## 9. Historical freshness audit
+
+A project-level freshness audit was completed before opening another validation window.
+
+The existing workflow:
+
+`QORE Capitalizer Native M1 5Y Dev Holdout V1`
+
+predeclared:
+
+- DEVELOPMENT: `[2016-09-17, 2021-09-17)`
+- FRESH_HOLDOUT: `[2021-09-17, 2026-09-17)`
+
+The workflow was executed successfully:
+
+- commit: `e7cc3ed4497cb5e51303de374d7e3c6eedaebcdd`
+- run: `35548659988`
+- quality: GREEN
+- all 9 development jobs: GREEN
+- development aggregate: GREEN
+- contract freeze: GREEN
+- all 9 holdout jobs: GREEN
+- holdout aggregate: GREEN
+- development/holdout comparison: GREEN
+
+Therefore the entire currently available CIBO 10Y historical span has already been exposed to Capitalizer research at project level.
+
+### Governance consequence
+
+No sub-window inside `[2016-09-17, 2026-09-17)` may now be described as a genuinely fresh historical holdout for the current V3 causal-expiration hypothesis.
+
+Any additional work on those dates must be labeled:
+
+`CONSUMED_TEMPORAL_VALIDATION`
+
+and may establish temporal consistency / falsification evidence only. It cannot, by itself, satisfy the future certification requirement for a sealed fresh holdout.
+
+A genuinely fresh test now requires data not previously exposed to Capitalizer research (for example future forward data or an independently sealed external historical source with proven non-exposure).
+
+## 10. Frozen temporal-validation hypothesis
+
+Before looking at additional fold outcomes, the following single diagnostic hypothesis is frozen:
+
+`M5_CLOSEBACK_TO_VALID_M3_MSS_CAUSAL_FRESHNESS_30M`
+
+Comparison:
+
+- FRESHNESS cohort: closeback -> first valid V3 MSS <= 30 minutes
+- STALE cohort: closeback -> first valid V3 MSS > 30 minutes
+
+Invariants:
+
+- V3 entry trigger remains M1 causal OB+FVG.
+- V3 M3 CISD / swing / body / ATR filters remain unchanged.
+- stop remains M3 broken/protected swing + 5-pip buffer.
+- target remains fixed 2R / next-H1-open lifecycle.
+- MAX3 remains portfolio ceiling.
+- no market or session is removed.
+- outcomes are labels only and are not runtime admission features.
+- the 30-minute boundary is fixed before the 10Y temporal fold results are read.
+
+The 10Y study is diagnostic only and must report all annual folds, including failures.
