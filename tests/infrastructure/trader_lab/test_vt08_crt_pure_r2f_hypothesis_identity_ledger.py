@@ -134,6 +134,9 @@ def test_row_never_grants_entry_or_capital_authority() -> None:
     )
 
     assert row.state_at_c3_close == LedgerState.CONFIRMED_ENTRY_SLOT_AVAILABLE.value
+    assert row.source_known_at == (
+        parent.c3_opened_at + timedelta(minutes=15)
+    ).isoformat()
     assert row.confirmation_known_at == (
         parent.c3_opened_at + timedelta(minutes=30)
     ).isoformat()
@@ -167,3 +170,34 @@ def test_concurrency_counts_two_unresolved_hypotheses() -> None:
     )
 
     assert _max_simultaneously_awaiting(parent=parent, rows=(first, second)) == 2
+
+
+def test_concurrency_starts_at_source_close_not_source_open() -> None:
+    parent = _parent()
+    first = _row(
+        market=CrtPureMarket.AUDUSD,
+        parent=parent,
+        observation=_observation(
+            source_opened_at=parent.c3_opened_at,
+            evidence_offset=1,
+            state=ConfirmationState.EXECUTABLE_CONFIRMATION,
+            confirmation_opened_at=parent.c3_opened_at + timedelta(minutes=15),
+        ),
+        generation=1,
+    )
+    second = _row(
+        market=CrtPureMarket.AUDUSD,
+        parent=parent,
+        observation=_observation(
+            source_opened_at=parent.c3_opened_at + timedelta(minutes=15),
+            evidence_offset=2,
+            state=ConfirmationState.NO_BODY_CONFIRMATION,
+            confirmation_opened_at=None,
+        ),
+        generation=2,
+    )
+
+    # First confirmation becomes known exactly when the second source candle
+    # closes. The first hypothesis leaves AWAITING before the second enters it.
+    assert first.confirmation_known_at == second.source_known_at
+    assert _max_simultaneously_awaiting(parent=parent, rows=(first, second)) == 1
