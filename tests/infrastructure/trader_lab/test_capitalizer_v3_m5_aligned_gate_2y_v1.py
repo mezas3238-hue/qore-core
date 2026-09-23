@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from qore.infrastructure.trader_lab.capitalizer_v3_m5_aligned_gate_2y_v1 import (
     BASELINE_DD_R,
@@ -25,7 +26,7 @@ def test_information_experiment_contract_is_frozen() -> None:
     assert BASELINE_LOSING_STREAK == 8
 
 
-def test_state_lookup_uses_frozen_directional_mapping(tmp_path) -> None:
+def test_state_lookup_uses_frozen_directional_mapping(tmp_path: Path) -> None:
     path = tmp_path / (
         "capitalizer-eurusd-v3-m3-microstructure-context-2y-v1-rows.jsonl"
     )
