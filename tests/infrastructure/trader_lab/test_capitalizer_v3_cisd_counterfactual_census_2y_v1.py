@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from qore.infrastructure.trader_lab.capitalizer_v3_cisd_counterfactual_census_2y_v1 import (
     EXPECTED_CISD_FIRST_BLOCKERS,
@@ -17,7 +18,7 @@ def test_census_contract_is_frozen() -> None:
     assert EXPECTED_CISD_FIRST_BLOCKERS == 3007
 
 
-def test_bottleneck_loader_filters_only_cisd_first_blockers(tmp_path) -> None:
+def test_bottleneck_loader_filters_only_cisd_first_blockers(tmp_path: Path) -> None:
     summary = {
         "identity": "QORE_CAPITALIZER_M3_MSS_BOTTLENECK_FORENSICS_2Y_V1"
     }
@@ -45,7 +46,7 @@ def test_bottleneck_loader_filters_only_cisd_first_blockers(tmp_path) -> None:
     assert [row["closeback_at"] for row in rows] == ["a", "c"]
 
 
-def test_microstructure_loader_preserves_raw_signature(tmp_path) -> None:
+def test_microstructure_loader_preserves_raw_signature(tmp_path: Path) -> None:
     ledger = tmp_path / (
         "capitalizer-eurusd-v3-m3-microstructure-context-2y-v1-rows.jsonl"
     )
