@@ -41,9 +41,11 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import
     _summary,
     aggregate_complete_m15,
 )
-from qore.infrastructure.trader_lab.vt08_crt_pure_r2ay_audusd_confirmation_suitability_wf import (
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2ax_audusd_confirmation_geometry_atlas import (
     END,
     START,
+)
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2ay_audusd_confirmation_suitability_wf import (
     run_walk_forward,
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_window_evidence import load_m5_window
@@ -311,14 +313,14 @@ def run_family() -> tuple[
     for policy in ProtectionPolicy:
         if policy is ProtectionPolicy.CONTROL:
             continue
-        report = reports[policy.value]
-        full = report["full_oos"]
+        policy_report = reports[policy.value]
+        full = policy_report["full_oos"]
         if (
-            report["trades_per_year"] >= 170
+            policy_report["trades_per_year"] >= 170
             and full["profit_factor"] is not None
             and float(full["profit_factor"]) >= 1.05
             and float(full["total_r"]) > 0
-            and report["positive_oos_year_fraction"] >= 0.60
+            and policy_report["positive_oos_year_fraction"] >= 0.60
             and float(full["max_drawdown_r"])
             <= float(control["max_drawdown_r"])
         ):
