@@ -133,7 +133,7 @@ def _trend_efficiency(rows: tuple[M15Bar, ...]) -> Decimal:
     if len(rows) < 2:
         return Decimal("0")
     net = abs(rows[-1].close_price - rows[0].open_price)
-    path = sum(
+    path = abs(rows[0].close_price - rows[0].open_price) + sum(
         abs(right.close_price - left.close_price)
         for left, right in zip(rows[:-1], rows[1:], strict=True)
     )
