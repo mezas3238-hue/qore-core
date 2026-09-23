@@ -141,7 +141,6 @@ def _aligned_sources(
 
 def _count_wait_parent(
     *,
-    parent: ParentCrt,
     observations: tuple[SourceObservation, ...],
     counter: Counter[str],
 ) -> None:
@@ -211,10 +210,9 @@ def run_census(
             c3_m15=_c3_m15(parent, m15_by_time),
             breaches=breaches,
         )
-        _count_wait_parent(parent=parent, observations=observations, counter=full)
+        _count_wait_parent(observations=observations, counter=full)
         fold_counter = year_1 if parent.c3_opened_at < FOLD_1_END else year_2
         _count_wait_parent(
-            parent=parent,
             observations=observations,
             counter=fold_counter,
         )
