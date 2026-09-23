@@ -7,8 +7,8 @@ This atlas does NOT extend, retime, or reuse the original unfilled FVG.
 It asks whether density can be recovered only through a completely NEW causal
 sequence inside the same frozen H1 context:
 
-1. after the original FVG is confirmed, a new raid must exceed the original
-   sweep extreme of the same frozen liquidity reference;
+1. after the original setup is fully confirmed by its SOURCE_FIRST MSS, a new
+   raid must exceed the original sweep extreme of the same frozen liquidity reference;
 2. a new completed M5 closeback must cross back through that reference;
 3. a new SOURCE_FIRST M3 MSS must confirm on the same side;
 4. a new causal M1 OB/FVG zone must exist for that new MSS;
@@ -231,7 +231,7 @@ def _build_row(
 
     raid = _new_raid(
         execution,
-        after=original_zone.fvg_confirmed_at,
+        after=original_mss.confirmed_at,
         before=deadline,
         liquidity_kind=closeback.reference.kind,
         original_extreme=closeback.sweep_extreme,
