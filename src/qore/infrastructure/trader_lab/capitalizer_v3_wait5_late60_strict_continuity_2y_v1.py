@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import asdict
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -39,8 +40,8 @@ ATLAS_STEM = (
 )
 
 
-def _aware(value: str):
-    return v3._aware(value)
+def _aware(value: str) -> datetime:
+    return datetime.fromisoformat(value)
 
 
 def _load_atlas_rows(root: Path) -> tuple[dict[str, Any], ...]:
