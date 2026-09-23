@@ -63,7 +63,7 @@ from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     Pivot,
     ReferenceLiquidity,
     StructureEvent,
-    TFBar,
+    TFBar as TFBar,
     _aggregate_tf,
     _find_structure_event,
     _immediate_h1_bias,
