@@ -197,18 +197,24 @@ def _metric_delta(
     *,
     gated: ICTReplayMetrics,
 ) -> dict[str, str | int]:
+    if gated.profit_factor is None or gated.mean_r is None:
+        raise ValueError("M5-aligned comparison requires finite PF and mean R")
+    gated_pf = Decimal(gated.profit_factor)
+    gated_total = Decimal(gated.total_r)
+    gated_mean = Decimal(gated.mean_r)
+    gated_dd = Decimal(gated.max_drawdown_r)
     return {
         "trades_delta": gated.trades - BASELINE_MAX3_TRADES,
         "trades_retention_rate": str(
             Decimal(gated.trades) / Decimal(BASELINE_MAX3_TRADES)
         ),
-        "profit_factor_delta": str(gated.profit_factor - BASELINE_PF),
+        "profit_factor_delta": str(gated_pf - BASELINE_PF),
         "profit_factor_relative_change": str(
-            gated.profit_factor / BASELINE_PF - Decimal("1")
+            gated_pf / BASELINE_PF - Decimal("1")
         ),
-        "total_r_delta": str(gated.total_r - BASELINE_TOTAL_R),
-        "mean_r_delta": str(gated.mean_r - BASELINE_MEAN_R),
-        "max_drawdown_r_delta": str(gated.max_drawdown_r - BASELINE_DD_R),
+        "total_r_delta": str(gated_total - BASELINE_TOTAL_R),
+        "mean_r_delta": str(gated_mean - BASELINE_MEAN_R),
+        "max_drawdown_r_delta": str(gated_dd - BASELINE_DD_R),
         "losing_streak_delta": gated.max_losing_streak - BASELINE_LOSING_STREAK,
     }
 
