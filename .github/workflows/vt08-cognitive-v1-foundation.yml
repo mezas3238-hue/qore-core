@@ -1,0 +1,63 @@
+name: QORE VT08 Cognitive V1 Foundation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-cognitive-v1-001
+    paths:
+      - src/qore/infrastructure/traders/vt08_cognitive_*
+      - tests/infrastructure/traders/test_vt08_cognitive_v1_*
+      - docs/research/VT08_FOREX_COGNITIVE_V1_*.md
+      - .github/workflows/vt08-cognitive-v1-foundation.yml
+
+permissions:
+  contents: read
+
+jobs:
+  foundation:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Ruff
+        run: |
+          ruff check             src/qore/infrastructure/traders/vt08_cognitive_*.py             tests/infrastructure/traders/test_vt08_cognitive_v1_*.py
+      - name: Mypy
+        run: |
+          mypy src/qore/infrastructure/traders/vt08_cognitive_*.py
+      - name: Focused tests
+        run: |
+          pytest -q tests/infrastructure/traders/test_vt08_cognitive_v1_*.py
+      - name: Fingerprints
+        run: |
+          python - <<'PY'
+          import json
+          from qore.infrastructure.traders.vt08_cognitive_cibo_market_memory import (
+              cibo_market_memory_fingerprint,
+          )
+          from qore.infrastructure.traders.vt08_cognitive_memory import (
+              cognitive_memory_fingerprint,
+              validate_cognitive_memory,
+          )
+          from qore.infrastructure.traders.vt08_cognitive_strategy_identity_memory import (
+              strategy_identity_fingerprint,
+          )
+          from qore.infrastructure.traders.vt08_cognitive_trader_experience_memory import (
+              trader_experience_fingerprint,
+          )
+          from qore.infrastructure.traders.vt08_cognitive_v1_contracts import (
+              architecture_fingerprint,
+          )
+          validate_cognitive_memory()
+          print(json.dumps({
+              "architecture": architecture_fingerprint(),
+              "strategy_identity": strategy_identity_fingerprint(),
+              "cibo_market": cibo_market_memory_fingerprint(),
+              "trader_experience": trader_experience_fingerprint(),
+              "cognitive_bundle": cognitive_memory_fingerprint(),
+          }, sort_keys=True))
+          PY
