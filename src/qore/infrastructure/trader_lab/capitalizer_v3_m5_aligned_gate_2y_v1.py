@@ -25,6 +25,7 @@ from qore.infrastructure.trader_lab import (
     capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 as v3,
 )
 from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
+from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_v3_frozen_replay_2y_v1 import (
     LOOKBACK_START,
     WINDOW_END,
@@ -66,7 +67,7 @@ def _load_state_lookup(root: Path) -> dict[tuple[str, str], CapitalizerM5Directi
                 raise ValueError("microstructure row must be object")
             key = (str(raw["closeback_at"]), str(raw["side"]))
             state = classify_m5_directional_state(
-                side=v3.CapitalizerSide(str(raw["side"])),
+                side=CapitalizerSide(str(raw["side"])),
                 microstructure_signature=str(raw["microstructure_signature"]),
             )
             if key in result:
@@ -102,10 +103,10 @@ def _aligned_closeback_gate(
         return sweep_seen, closeback
 
     try:
-        v3._find_sweep_closeback = gated  # type: ignore[assignment]
+        v3._find_sweep_closeback = gated
         yield
     finally:
-        v3._find_sweep_closeback = original  # type: ignore[assignment]
+        v3._find_sweep_closeback = original
 
 
 def build_market_report(
@@ -208,6 +209,8 @@ def build_matrix(root: Path) -> dict[str, Any]:
     metrics = v3._metrics(max3)
     if metrics is None:
         raise ValueError("M5-aligned experiment produced no MAX3 trades")
+    if metrics.profit_factor is None or metrics.mean_r is None:
+        raise ValueError("M5-aligned metrics require PF and mean R")
 
     per_session: dict[str, dict[str, Any]] = {}
     for session in CapitalizerSession:
