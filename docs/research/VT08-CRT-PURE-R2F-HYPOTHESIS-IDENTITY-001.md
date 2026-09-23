@@ -1,8 +1,8 @@
 # VT08 CRT PURE — R2-F MODEL #1 HYPOTHESIS IDENTITY LEDGER 001
 
 **Identity:** `VT08_CRT_PURE_R2F_MODEL1_HYPOTHESIS_IDENTITY_LEDGER_001`  
-**Workflow run:** `35809223057`  
-**Evidence HEAD:** `99f8d4a4d7dbf517c88bf470002e90ca8ab124f8`  
+**Workflow run:** `35811162435`  
+**Evidence HEAD:** `24c5d2b8cc4e9f15d42d4d5396e72997fc5af8e3`  
 **Status:** CHARACTERIZATION COMPLETE / COMPETITION POLICY OPEN  
 **Methodology mutated:** FALSE  
 **Trades created:** 0  
@@ -60,6 +60,7 @@ algorithm.
 - Every source event gets a stable hash identity from market, parent C3, source time and
   reference evidence IDs.
 - Duplicate source/hypothesis IDs fail closed.
+- A Model #1 source becomes causally available only when its own M15 candle closes.
 - Body confirmation is tracked only when its candle closes.
 - A next contiguous M15 slot is recorded as availability only; it grants no entry.
 - Multiple hypotheses do not imply multiple entries.
@@ -69,7 +70,7 @@ algorithm.
 
 ## 4. Validation
 
-Run `35809223057` completed SUCCESS.
+Corrected causal-availability run `35811162435` completed SUCCESS.
 
 - Quality: SUCCESS
 - Ruff: SUCCESS
@@ -79,8 +80,8 @@ Run `35809223057` completed SUCCESS.
 - USDJPY ledger: SUCCESS
 - BTCUSD ledger: SUCCESS
 
-Cognitive Gate on evidence HEAD `99f8d4a4d7dbf517c88bf470002e90ca8ab124f8`:
-`35809223019 — SUCCESS`.
+Cognitive Gate on corrected implementation HEAD `24c5d2b8cc4e9f15d42d4d5396e72997fc5af8e3`:
+`35811162491 — SUCCESS`.
 
 ## 5. AUDUSD
 
@@ -95,12 +96,12 @@ Parent CRT: **287**
 - events with body confirmation + contiguous next slot: 217
 - parents with any confirmed entry slot: 156
 - parents with a later confirmed entry slot: 74
-- parents with concurrent awaiting hypotheses: 135
+- parents with concurrent awaiting hypotheses: 131
 - maximum observed awaiting concurrency: 8
 
 Temporal split:
 
-- Year 1: 153 parents / 307 source events / 74 concurrent parents
+- Year 1: 153 parents / 307 source events / 70 concurrent parents
 - Year 2: 134 parents / 256 source events / 61 concurrent parents
 
 ## 6. USDJPY
@@ -116,13 +117,13 @@ Parent CRT: **267**
 - events with body confirmation + contiguous next slot: 191
 - parents with any confirmed entry slot: 139
 - parents with a later confirmed entry slot: 69
-- parents with concurrent awaiting hypotheses: 128
+- parents with concurrent awaiting hypotheses: 120
 - maximum observed awaiting concurrency: 7
 
 Temporal split:
 
-- Year 1: 136 parents / 286 source events / 70 concurrent parents
-- Year 2: 131 parents / 242 source events / 58 concurrent parents
+- Year 1: 136 parents / 286 source events / 64 concurrent parents
+- Year 2: 131 parents / 242 source events / 56 concurrent parents
 
 ## 7. BTCUSD
 
@@ -137,13 +138,13 @@ Parent CRT: **459**
 - events with body confirmation + contiguous next slot: 460
 - parents with any confirmed entry slot: 300
 - parents with a later confirmed entry slot: 180
-- parents with concurrent awaiting hypotheses: 238
+- parents with concurrent awaiting hypotheses: 230
 - maximum observed awaiting concurrency: 8
 
 Temporal split:
 
-- Year 1: 234 parents / 493 source events / 117 concurrent parents
-- Year 2: 225 parents / 500 source events / 121 concurrent parents
+- Year 1: 234 parents / 493 source events / 112 concurrent parents
+- Year 2: 225 parents / 500 source events / 118 concurrent parents
 
 ## 8. Combined 3-market characterization
 
@@ -158,7 +159,7 @@ Parents:
 - zero source: **153**
 - exactly one source: **270**
 - multiple sources: **590 / 1,013 = 58.2%**
-- with concurrent awaiting hypotheses: **501 / 1,013 = 49.5%**
+- with concurrent awaiting hypotheses: **481 / 1,013 = 47.5%**
 - with any confirmed entry slot: **595 / 1,013 = 58.7%**
 - with a later confirmed entry slot: **323 / 1,013 = 31.9%**
 
@@ -178,8 +179,8 @@ Observed maximum simultaneous awaiting hypotheses:
 The data falsifies any assumption that one Model #1 source event naturally represents the
 entire hypothesis space of a parent C3.
 
-Nearly half of all parent CRTs contain overlapping unconfirmed hypotheses under the existing
-causal source construction.
+Nearly half of all parent CRTs contain overlapping unconfirmed hypotheses even after source
+availability is corrected to M15 close rather than M15 open.
 
 That is a cognition/lifecycle problem before it is an economic problem.
 
