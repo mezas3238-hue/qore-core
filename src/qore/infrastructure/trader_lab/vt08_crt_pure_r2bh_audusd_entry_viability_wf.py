@@ -179,7 +179,7 @@ def _entry_features(
     generation: int,
 ) -> tuple[tuple[str, str], ...]:
     base = {
-        "timing_triplet": parent.timing_triplet,
+        "timing_triplet": parent.triplet,
         "direction": parent.direction.value,
         **_source_features(
             parent=parent,
