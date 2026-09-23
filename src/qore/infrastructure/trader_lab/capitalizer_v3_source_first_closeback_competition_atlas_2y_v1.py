@@ -30,8 +30,10 @@ from typing import Any
 from qore.infrastructure.trader_lab import (
     capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 as v3,
 )
-from qore.infrastructure.trader_lab import (
-    capitalizer_v3_source_first_wait5_2y_v1 as wait5,
+from qore.infrastructure.trader_lab.capitalizer_v3_frozen_replay_2y_v1 import (
+    LOOKBACK_START,
+    WINDOW_END,
+    WINDOW_START,
 )
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
@@ -229,9 +231,9 @@ def build_market_report(
     all_bars = tuple(
         bar
         for bar in iter_cibo_m1(m1_root)
-        if wait5.LOOKBACK_START
+        if LOOKBACK_START
         <= bar.opened_at
-        < wait5.WINDOW_END + timedelta(days=1)
+        < WINDOW_END + timedelta(days=1)
     )
     if not all_bars:
         raise ValueError("closeback competition atlas found no native M1")
@@ -260,9 +262,9 @@ def build_market_report(
     dates = sorted(
         key
         for key in execution_by_day
-        if wait5.WINDOW_START.date().isoformat()
+        if WINDOW_START.date().isoformat()
         <= key
-        < wait5.WINDOW_END.date().isoformat()
+        < WINDOW_END.date().isoformat()
     )
     for value in dates:
         operating_day = date.fromisoformat(value)
