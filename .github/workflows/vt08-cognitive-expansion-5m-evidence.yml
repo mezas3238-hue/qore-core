@@ -149,6 +149,37 @@ jobs:
               "oos_status_counts": report["oos"]["status_counts"],
           }, sort_keys=True))
           PY
+      - name: Run VT08 selective runner frontier
+        env:
+          QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab.vt08_cognitive_selective_runner_frontier_v1 import (
+              replay,
+          )
+
+          symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
+          root = Path(f"artifacts/vt08-expansion-{symbol}")
+          report = replay(root / "market-evidence.json")
+          (root / "vt08-selective-runner-frontier.json").write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")),
+              encoding="utf-8",
+          )
+          consumed = report["consumed_temporal"]
+          print(json.dumps({
+              "symbol": symbol,
+              "train_count": report["split"]["train_count"],
+              "consumed_temporal_count": report["split"]["consumed_temporal_count"],
+              "baseline": consumed["baseline"],
+              "selective_runner": consumed["selective_runner"],
+              "runner_activated_count": consumed["runner_activated_count"],
+              "status_counts": consumed["status_counts"],
+          }, sort_keys=True))
+          PY
       - name: Upload sanitized evidence and replay
         uses: actions/upload-artifact@v4
         with:
