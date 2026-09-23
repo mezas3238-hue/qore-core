@@ -1,7 +1,7 @@
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_v3_m5_directional_state_v1 import (
-    CapitalizerM5DirectionalState,
     IDENTITY,
+    CapitalizerM5DirectionalState,
     classify_m5_directional_state,
 )
 
