@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Final, cast
@@ -17,6 +17,7 @@ from qore.infrastructure.trader_lab.vt08_cognitive_core_stack_robustness_v1 impo
     monte_carlo,
 )
 from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_backtest_v1 import (
+    ExpansionTrade,
     load_market_evidence,
     metrics,
 )
@@ -40,15 +41,15 @@ def _d(payload: dict[str, object], key: str) -> Decimal:
     return Decimal(str(raw))
 
 
-def _managed(rows: tuple[CoreStackTrade, ...]) -> tuple:
+def _managed(rows: tuple[CoreStackTrade, ...]) -> tuple[ExpansionTrade, ...]:
     return tuple(row.as_trade() for row in rows)
 
 
 def _window(
     rows: tuple[CoreStackTrade, ...],
     *,
-    start,
-    end,
+    start: datetime,
+    end: datetime,
 ) -> dict[str, object]:
     selected = tuple(
         row
@@ -82,9 +83,10 @@ def evaluate(path: Path) -> dict[str, object]:
         start = coverage_start + timedelta(days=365 * index)
         end = min(start + timedelta(days=365), coverage_end)
         item = _window(rows, start=start, end=end)
+        trade_count = cast(int, item["trade_count"])
         item["block"] = index + 1
         item["positive"] = (
-            item["trade_count"] > 0
+            trade_count > 0
             and _d(cast(dict[str, object], item["metrics"]), "total_r") > 0
             and _d(cast(dict[str, object], item["metrics"]), "mean_r") > 0
         )
@@ -97,8 +99,9 @@ def evaluate(path: Path) -> dict[str, object]:
         item = _window(rows, start=start, end=end)
         m = cast(dict[str, object], item["metrics"])
         pf = m["profit_factor"]
+        trade_count = cast(int, item["trade_count"])
         gates = {
-            "sample_at_least_30": int(item["trade_count"]) >= ROLLING_MIN_SAMPLE,
+            "sample_at_least_30": trade_count >= ROLLING_MIN_SAMPLE,
             "pf_at_least_1_20": (
                 pf is not None and Decimal(str(pf)) >= ROLLING_MIN_PF
             ),
