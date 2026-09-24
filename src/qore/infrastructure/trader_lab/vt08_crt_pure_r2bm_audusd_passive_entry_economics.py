@@ -8,11 +8,11 @@ Important causal rules:
 - passive fills require an observed M5 range touch within the frozen 30m horizon;
 - a structural stop touched on an earlier M5 before the passive fill invalidates
   the pending order;
-- if fill and stop are both touched in the same M5, STOP_FIRST is applied and
-  the trade is counted as an immediate full stop;
+- if stop and target are both reachable inside the same M15 after fill,
+  STOP_FIRST is applied, preserving the frozen CRT ambiguity contract;
 - no synthetic fills and no fill after the horizon;
 - BE_CLOSE_075 is armed only by a completed M15 close observed after fill and
-  becomes effective on the next M5 bar.
+  becomes effective on the next M15 bar.
 
 Research only. No arm is promoted automatically.
 """
@@ -124,6 +124,36 @@ def _target_touched(
     return Decimal(bar.low_price) <= target
 
 
+def _m15_exit(
+    *,
+    bullish: bool,
+    current_stop: Decimal,
+    target: Decimal,
+    bars: tuple[Any, ...],
+) -> tuple[str, Decimal] | None:
+    stop_hit = any(
+        _stop_touched(
+            bullish=bullish,
+            stop=current_stop,
+            bar=bar,
+        )
+        for bar in bars
+    )
+    target_hit = any(
+        _target_touched(
+            bullish=bullish,
+            target=target,
+            bar=bar,
+        )
+        for bar in bars
+    )
+    if stop_hit:
+        return "STOP", current_stop
+    if target_hit:
+        return "TARGET_FIXED_1_5R", target
+    return None
+
+
 def _find_fill(
     *,
     arm: EntryArm,
@@ -189,34 +219,39 @@ def _simulate(
     protection_armed = False
     exit_reason = "C3_CLOSE"
     exit_price: Decimal | None = None
-    cursor = fill_at
     last_close: Decimal | None = None
+    bucket_start = fill_at.replace(
+        minute=(fill_at.minute // 15) * 15,
+        second=0,
+        microsecond=0,
+    )
 
-    while cursor < parent.c3_closed_at:
-        bar = m5_by_time.get(cursor)
-        if bar is None:
-            return None
-        last_close = Decimal(bar.close_price)
+    while bucket_start < parent.c3_closed_at:
+        bucket_end = min(
+            bucket_start + timedelta(minutes=15),
+            parent.c3_closed_at,
+        )
+        cursor = max(fill_at, bucket_start)
+        bucket: list[Any] = []
+        while cursor < bucket_end:
+            bar = m5_by_time.get(cursor)
+            if bar is None:
+                return None
+            bucket.append(bar)
+            cursor += timedelta(minutes=5)
 
-        if _stop_touched(
-            bullish=bullish,
-            stop=current_stop,
-            bar=bar,
-        ):
-            exit_reason = "STOP"
-            exit_price = current_stop
-            break
+        if bucket:
+            last_close = Decimal(bucket[-1].close_price)
+            outcome = _m15_exit(
+                bullish=bullish,
+                current_stop=current_stop,
+                target=target,
+                bars=tuple(bucket),
+            )
+            if outcome is not None:
+                exit_reason, exit_price = outcome
+                break
 
-        if _target_touched(
-            bullish=bullish,
-            target=target,
-            bar=bar,
-        ):
-            exit_reason = "TARGET_FIXED_1_5R"
-            exit_price = target
-            break
-
-        if cursor.minute % 15 == 10:
             close_r = _r_at_price(
                 bullish=bullish,
                 entry=level,
@@ -231,7 +266,7 @@ def _simulate(
                 )
                 protection_armed = current_stop == level
 
-        cursor += timedelta(minutes=5)
+        bucket_start += timedelta(minutes=15)
 
     if exit_price is None:
         if last_close is None:
@@ -267,7 +302,6 @@ def _simulate(
         ),
         protection_armed=protection_armed,
     )
-
 
 def _summary(rows: tuple[PassiveTrade, ...]) -> dict[str, Any]:
     ordered = tuple(
@@ -540,6 +574,7 @@ def run_replay() -> tuple[
         "fill_rule": "OBSERVED_RANGE_TOUCH_ONLY",
         "pre_fill_stop_invalidation": True,
         "same_fill_bar_stop_precedence": "STOP_FIRST",
+        "same_m15_stop_target_ambiguity": "STOP_FIRST",
         "structural_stop": "SOURCE_CANDLE_EXTREME",
         "target": "FIXED_1_5R_FROM_ACTUAL_FILL",
         "expiry": "C3_CLOSE",
