@@ -5,6 +5,7 @@ import json
 from collections import Counter
 from dataclasses import dataclass
 from datetime import timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Final
 from zoneinfo import ZoneInfo
@@ -52,7 +53,7 @@ def _series_diagnostics(
     bars: tuple[Vt08B01Bar, ...],
     *,
     side: DemoTradingSetupSide,
-    important_level,
+    important_level: Decimal,
 ) -> tuple[SeriesDiagnostic, ...]:
     diagnostics: list[SeriesDiagnostic] = []
     series_open = None
@@ -121,7 +122,7 @@ def _profile_failure_class(
     bars: tuple[Vt08B01Bar, ...],
     *,
     side: DemoTradingSetupSide,
-    important_level,
+    important_level: Decimal,
 ) -> str:
     diagnostics = _series_diagnostics(
         bars,
