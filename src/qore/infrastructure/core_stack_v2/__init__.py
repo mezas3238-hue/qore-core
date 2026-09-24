@@ -1,14 +1,14 @@
 """QORE CORE STACK V2 shared, authority-free cognitive context layer."""
 
-from qore.infrastructure.core_stack_v2.analog_memory import (
-    AnalogQuery,
-    CausalAnalogMemory,
-    ClosedEpisode,
-)
 from qore.infrastructure.core_stack_v2.ab import (
     DecisionABSummary,
     DecisionObservation,
     summarize_decision_ab,
+)
+from qore.infrastructure.core_stack_v2.analog_memory import (
+    AnalogQuery,
+    CausalAnalogMemory,
+    ClosedEpisode,
 )
 from qore.infrastructure.core_stack_v2.adapters import (
     CoreAdapter,
