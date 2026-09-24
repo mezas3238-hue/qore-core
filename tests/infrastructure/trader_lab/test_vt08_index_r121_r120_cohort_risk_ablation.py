@@ -1,6 +1,12 @@
 from __future__ import annotations
 
 from qore.infrastructure.trader_lab import (
+    vt08_index_r55_distributed_causal_risk as r55,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_r102_source_confidence_risk_ablation as r102,
+)
+from qore.infrastructure.trader_lab import (
     vt08_index_r121_r120_cohort_risk_ablation as r121,
 )
 
@@ -44,6 +50,6 @@ def test_r121_policy_reuses_existing_r102_r58_contracts() -> None:
     assert r121.VARIANT_POLICY_ID == (
         "R120_CLOSE_BREAKOUT_PRIOR_DEEPER_R58_PROMOTION"
     )
-    assert r121.r102.MIN_EFFECTIVE_WEIGHT == r121.r55.MIN_EFFECTIVE_WEIGHT
-    assert r121.r102.MAX_REQUESTED_WEIGHT == r121.r55.MAX_REQUESTED_WEIGHT
-    assert r121.r102.PORTFOLIO_BUDGET_R == r121.r55.PORTFOLIO_BUDGET_R
+    assert r102.MIN_EFFECTIVE_WEIGHT == r55.MIN_EFFECTIVE_WEIGHT
+    assert r102.MAX_REQUESTED_WEIGHT == r55.MAX_REQUESTED_WEIGHT
+    assert r102.PORTFOLIO_BUDGET_R == r55.PORTFOLIO_BUDGET_R
