@@ -1,4 +1,5 @@
 name: QORE VT08 EURJPY 5Y Failure Forensics V1
+# Re-run on exact evidence-aligned 365D boundaries.
 
 on:
   workflow_dispatch:
