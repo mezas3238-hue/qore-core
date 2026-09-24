@@ -4,11 +4,11 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from qore.infrastructure.core_stack_v2 import (
+    CoreSnapshot,
     CoreStackV2Runtime,
     MarketEvent,
     freeze_facts,
 )
-
 
 NOW = datetime(2026, 9, 23, 20, 0, 1, tzinfo=UTC)
 
