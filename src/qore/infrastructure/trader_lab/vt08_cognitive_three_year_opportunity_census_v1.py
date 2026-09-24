@@ -263,8 +263,8 @@ def _union_summary(
         tuple[str, datetime, str], list[OpportunityVariant]
     ] = defaultdict(list)
 
-    for profile, rows in by_profile.items():
-        for row in rows:
+    for profile, profile_rows in by_profile.items():
+        for row in profile_rows:
             membership[row.identity].add(profile)
             variants_by_identity[row.identity].append(row)
 
@@ -274,8 +274,8 @@ def _union_summary(
     )
     by_anchor: Counter[int] = Counter()
     by_side: Counter[str] = Counter()
-    for rows in variants_by_identity.values():
-        exemplar = rows[0]
+    for identity_rows in variants_by_identity.values():
+        exemplar = identity_rows[0]
         by_anchor[exemplar.anchor_hour_ny] += 1
         by_side[exemplar.side.value] += 1
 
