@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import cast
 
 import vt31_core_stack_v3_analog_world_model_v1 as v3
+
 from qore.infrastructure.core_stack_v2.analog_memory import (
     AnalogQuery,
     CausalAnalogMemory,
