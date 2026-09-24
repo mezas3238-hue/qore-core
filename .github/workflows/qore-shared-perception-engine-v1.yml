@@ -1,0 +1,30 @@
+name: QORE Shared Perception Engine V1
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/perception_engine.py
+      - tests/infrastructure/test_shared_perception_engine.py
+      - .github/workflows/qore-shared-perception-engine-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  perception:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Static validation
+        run: |
+          ruff check src/qore/infrastructure/core_stack_v2/perception_engine.py tests/infrastructure/test_shared_perception_engine.py
+          python -m py_compile src/qore/infrastructure/core_stack_v2/perception_engine.py
+      - name: Causal perception tests
+        run: pytest -q tests/infrastructure/test_shared_perception_engine.py
