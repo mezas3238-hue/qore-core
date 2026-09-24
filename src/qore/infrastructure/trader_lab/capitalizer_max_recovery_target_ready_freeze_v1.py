@@ -31,9 +31,9 @@ from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
 from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_max_recovery_final_2y_v1 import (
-    RecoveryTrade,
     _load_rejected_wait_rows,
 )
+from qore.infrastructure.trader_lab.capitalizer_max_recovery_v2 import RecoveryTrade
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     TFBar,
     _aggregate_tf,
@@ -372,21 +372,21 @@ def build_market_report(
             execution_by_day=execution_by_day,
         ),
     ):
-        for key, trade in source.items():
+        for key, detail_trade in source.items():
             if key in details:
                 raise ValueError("target-ready geometry key collision")
-            details[key] = trade
+            details[key] = detail_trade
 
     selected: list[TargetReadyTrade] = []
-    for trade in frozen:
-        if trade.symbol != symbol:
+    for frozen_trade in frozen:
+        if frozen_trade.symbol != symbol:
             raise ValueError("target-ready final/M1 symbol mismatch")
         key = _key(
-            provenance=trade.provenance,
-            operating_date=trade.operating_date,
-            h1_open=trade.h1_open,
-            entry_at=trade.entry_at,
-            side=trade.side,
+            provenance=frozen_trade.provenance,
+            operating_date=frozen_trade.operating_date,
+            h1_open=frozen_trade.h1_open,
+            entry_at=frozen_trade.entry_at,
+            side=frozen_trade.side,
         )
         detail = details.get(key)
         if detail is None:
