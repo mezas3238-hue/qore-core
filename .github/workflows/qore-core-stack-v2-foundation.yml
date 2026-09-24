@@ -26,9 +26,7 @@ jobs:
       - name: Install
         run: pip install -e ".[dev]"
       - name: Ruff
-        run: |
-          ruff check --fix src/qore/infrastructure/core_stack_v2 tests/infrastructure/test_core_stack_v2_foundation.py
-          git diff --exit-code -- src/qore/infrastructure/core_stack_v2 tests/infrastructure/test_core_stack_v2_foundation.py
+        run: ruff check src/qore/infrastructure/core_stack_v2 tests/infrastructure/test_core_stack_v2_foundation.py
       - name: Mypy
         run: mypy src/qore/infrastructure/core_stack_v2
       - name: Focused tests
