@@ -83,6 +83,22 @@ def test_owner_scope_freezes_shared_as_qore_wide_not_vt31_module() -> None:
     assert validation["must_include_different_methodologies"] is True
 
 
+def test_owner_freeze_requires_third_eye_pf_density_and_sub4_aspiration() -> None:
+    contract = superintelligence_freeze_contract()
+    scope = contract["transversal_scope"]
+    essential = contract["shared_essential_intelligence"]
+    north_star = essential["owner_economic_north_star"]
+
+    assert scope["shared_is_third_eye_cognitive_support_for_every_enabled_trader"] is True
+    assert scope["shared_must_support_full_market_lifecycle_not_only_entry_filtering"] is True
+    assert essential["profit_factor"]["must_increase_vs_same_trader_baseline"] is True
+    assert north_star["drawdown_acceptable_band_r"] == ("4", "6")
+    assert north_star["drawdown_below_4r_is_preferred_when_pf_and_density_are_preserved"] is True
+    assert north_star["density_must_be_preserved"] is True
+    assert north_star["mass_abstention_is_not_intelligence"] is True
+    assert north_star["risk_or_sizing_compression_cannot_claim_shared_success"] is True
+
+
 def test_generic_shared_modules_do_not_embed_vt31_methodology_ontology() -> None:
     root = Path("src/qore/infrastructure/core_stack_v2")
     generic_modules = (
