@@ -39,10 +39,10 @@ from qore.infrastructure.traders.contracts import (
 )
 from qore.infrastructure.traders.vt08_b01_r3_8 import (
     Vt08B01Bar,
+    methodology_fingerprint,
     protected_swings_in_candle2,
     resolve_bias,
     source_h4_from_m15,
-    methodology_fingerprint,
 )
 
 SCHEMA: Final = "qore.trader_lab.vt08_cognitive_m5_fractal_density_recovery.v1"
@@ -180,7 +180,7 @@ def _model_trade_m15_outer(
     else:
         result_r = (setup.entry_price - exit_price) / risk
     return ExpansionTrade(
-        symbol=symbol if (symbol := candidate.symbol) else candidate.symbol,
+        symbol=candidate.symbol,
         signal_at=start,
         exited_at=exited_at,
         anchor_hour_ny=candidate.entry_anchor_hour,
