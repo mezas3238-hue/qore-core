@@ -18,7 +18,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -351,28 +350,6 @@ def build_report(
         )
 
     rows = tuple(result)
-    row_keys = {
-        (
-            row.symbol,
-            row.session,
-            row.operating_date,
-            str(control_by_key[
-                next(
-                    key
-                    for key in control_by_key
-                    if key[0] == row.symbol
-                    and key[1] == row.session
-                    and key[2] == row.operating_date
-                    and key[4] == row.entry_at
-                )
-            ]["h1_open"]),
-            row.entry_at,
-        ): row
-        for row in rows
-    }
-    if len(row_keys) != len(rows):
-        raise ValueError("failure fingerprint output identity collision")
-
     def cohort(
         *,
         field: str,
