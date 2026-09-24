@@ -277,10 +277,10 @@ def _evidence_model(
         learned: dict[str, Evidence] = {}
         diag: list[dict[str, object]] = []
         for value in set(left).intersection(right):
-            l = _stats(left[value])
-            r = _stats(right[value])
-            l_n = int(l["sample"])
-            r_n = int(r["sample"])
+            left_stats = _stats(left[value])
+            right_stats = _stats(right[value])
+            l_n = int(left_stats["sample"])
+            r_n = int(right_stats["sample"])
             if l_n < minimum_half_sample or r_n < minimum_half_sample:
                 continue
             sample_floor = min(l_n, r_n)
