@@ -330,25 +330,43 @@ def _candidate_score(
     diag: dict[str, object],
 ) -> Decimal | None:
     density = _d(diag["density_retained"])
-    if density < Decimal("0.70"):
+    abstained = int(diag["abstained_trades"])
+    input_trades = int(diag["input_trades"])
+    if input_trades <= 0:
         return None
+    abstain_share = Decimal(abstained) / Decimal(input_trades)
+    if density < Decimal("0.70") or density > Decimal("0.90"):
+        return None
+    if abstain_share < Decimal("0.10"):
+        return None
+
     baseline_total = _d(baseline_metrics["total_r"])
     candidate_total = _d(candidate_metrics["total_r"])
     if baseline_total > 0 and candidate_total < baseline_total * Decimal("0.95"):
         return None
+
     baseline_pf_raw = baseline_metrics["profit_factor"]
     candidate_pf_raw = candidate_metrics["profit_factor"]
     if baseline_pf_raw is None or candidate_pf_raw is None:
         return None
     baseline_pf = _d(baseline_pf_raw)
     candidate_pf = _d(candidate_pf_raw)
+    if candidate_pf < baseline_pf * Decimal("1.03"):
+        return None
+
     baseline_dd = max(_d(baseline_metrics["max_drawdown_r"]), Decimal("0.000001"))
     candidate_dd = max(_d(candidate_metrics["max_drawdown_r"]), Decimal("0.000001"))
+    if candidate_dd > baseline_dd:
+        return None
+    if int(candidate_metrics["max_losing_streak"]) > int(
+        baseline_metrics["max_losing_streak"]
+    ):
+        return None
+
     return (
         (candidate_pf / baseline_pf)
         * (candidate_total / max(baseline_total, Decimal("0.000001")))
         * (baseline_dd / candidate_dd)
-        * density.sqrt()
     )
 
 
@@ -460,11 +478,11 @@ def run(*, r8: Path, r6: Path, r5: Path) -> dict[str, object]:
 
     baseline_mc = engine._monte_carlo(
         evaluation_rows,
-        variant=f"{BASELINE_ID}:CORE_V2_EVAL_BASELINE",
+        variant="CORE_V2_COMMON_RANDOM_EVAL",
     )
     candidate_mc = engine._monte_carlo(
         candidate_eval_rows,
-        variant=f"{SHARED_CORE_ID}:CORE_V2_EVAL",
+        variant="CORE_V2_COMMON_RANDOM_EVAL",
     )
 
     baseline_pf = _d(cast(object, baseline_eval_metrics["profit_factor"]))
