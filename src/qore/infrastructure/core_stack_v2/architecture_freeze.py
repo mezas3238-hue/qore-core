@@ -192,7 +192,8 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "market_behavior_must_be_primary_cause": True,
                 "runtime_loss_streak_as_primary_cause_forbidden": True,
                 "runtime_pnl_as_primary_cause_forbidden": True,
-                "must_detect_environment_formation_before_drawdown_cluster_when_causally_possible": True,
+                "must_detect_environment_formation_before_drawdown_cluster_when_"
+                "causally_possible": True,
                 "must_detect_persistence_not_only_snapshot": True,
                 "must_detect_stabilization_and_edge_restoration": True,
                 "offline_realized_outcomes_allowed_for_evaluation_only": True,
