@@ -114,7 +114,10 @@ def _efficiency(window: tuple[PerceptionBar, ...]) -> Decimal | None:
     if len(window) < 2:
         return None
     travelled = sum(
-        (abs(right.close - left.close) for left, right in zip(window, window[1:], strict=False))),
+        (
+            abs(right.close - left.close)
+            for left, right in zip(window, window[1:], strict=False)
+        ),
         ZERO,
     )
     if travelled <= 0:
