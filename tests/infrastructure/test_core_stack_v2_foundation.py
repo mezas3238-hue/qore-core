@@ -34,6 +34,8 @@ from qore.infrastructure.core_stack_v2 import (
     compatibility_manifest,
     freeze_facts,
     summarize_decision_ab,
+    superintelligence_freeze_contract,
+    superintelligence_freeze_fingerprint,
 )
 from qore.infrastructure.traders.vt31_core_stack_v2_adapter import VT31CoreAdapter
 
@@ -347,3 +349,35 @@ def test_global_market_universe_retains_every_qore_market_without_allowlist() ->
     assert universe.risk_authority is False
     assert universe.strategy_mutation_authority is False
     assert universe.execution_authority is False
+
+
+
+def test_superintelligence_architecture_freeze_preserves_owner_laws() -> None:
+    contract = superintelligence_freeze_contract()
+    universe = contract["global_market_universe"]
+    sovereignty = contract["specialist_sovereignty"]
+    benchmark = contract["vt31_benchmark"]
+    governance = contract["governance"]
+
+    assert isinstance(universe, dict)
+    assert universe["required"] is True
+    assert universe["dynamic_not_hardcoded"] is True
+    assert universe["retain_restricted_markets_as_context"] is True
+    assert universe["market_knowledge_implies_trade_authority"] is False
+
+    assert isinstance(sovereignty, dict)
+    assert sovereignty["shared_core_may_rewrite_setup"] is False
+    assert sovereignty["shared_core_may_authorize_order"] is False
+    assert sovereignty["shared_core_may_authorize_risk"] is False
+    assert sovereignty["qore_risk_sovereign"] is True
+
+    assert isinstance(benchmark, dict)
+    assert benchmark["parity_is_only_safety_gate"] is True
+    assert benchmark["economic_objective_is_material_uplift"] is True
+    assert benchmark["no_future_features"] is True
+
+    assert isinstance(governance, dict)
+    assert governance["vt08_forex_excluded"] is True
+    assert governance["live_deployment_authorized"] is False
+    assert governance["merge_authorized"] is False
+    assert len(superintelligence_freeze_fingerprint()) == 64
