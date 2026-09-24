@@ -14,7 +14,6 @@ from qore.infrastructure.core_stack_v2 import (
     freeze_facts,
     summarize_decision_ab,
 )
-
 from qore.infrastructure.traders.vt31_core_stack_v2_adapter import VT31CoreAdapter
 
 NOW = datetime(2026, 9, 23, 20, 0, 1, tzinfo=UTC)
