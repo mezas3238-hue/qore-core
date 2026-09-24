@@ -8,7 +8,7 @@ The previously recorded R2-BM economics are not admissible evidence. The passive
 
 `same M15 STOP/TARGET ambiguity -> STOP_FIRST`.
 
-The implementation has been corrected so each post-fill M15 bucket is adjudicated conservatively: if both stop and target are reachable anywhere inside that M15, STOP wins. BE_CLOSE_075 remains close-confirmed and becomes effective only on the next M15.
+The implementation has been corrected so each post-fill M15 bucket is adjudicated conservatively: if both stop and target are reachable anywhere inside that M15, STOP wins. In addition, a passive entry may not claim a target touch from the same M5 range that established the fill, because the target may have occurred before the fill inside that bar. The same-fill-M5 stop is still charged conservatively. BE_CLOSE_075 remains close-confirmed and becomes effective only on the next M15.
 
 The earlier headline values (including CONF_RANGE_MID PF 1.11891) must not be used for promotion, comparison, certification, or downstream claims until the corrected replay completes.
 
