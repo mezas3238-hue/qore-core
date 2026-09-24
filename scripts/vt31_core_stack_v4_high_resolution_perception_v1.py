@@ -16,10 +16,9 @@ from __future__ import annotations
 import argparse
 import json
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
-from statistics import median
 from typing import cast
 
 import cibo_atlas_vt31_complete_behavior_explainer as complete
