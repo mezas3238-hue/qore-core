@@ -8,6 +8,9 @@ from pathlib import Path
 from typing import Final
 from zoneinfo import ZoneInfo
 
+from qore.infrastructure.trader_lab.vt08_cognitive_5m_density_funnel_audit_v1 import (
+    _c2_state,
+)
 from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_backtest_v1 import (
     load_market_evidence,
 )
@@ -22,9 +25,6 @@ from qore.infrastructure.trader_lab.vt08_cognitive_three_year_opportunity_census
     PROFILES,
     _c3_shapes,
     _profile_variants,
-)
-from qore.infrastructure.trader_lab.vt08_cognitive_5m_density_funnel_audit_v1 import (
-    _c2_state,
 )
 from qore.infrastructure.traders.vt08_b01_r3_8 import (
     resolve_bias,
