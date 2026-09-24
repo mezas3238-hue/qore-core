@@ -8,10 +8,9 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import Counter, defaultdict
+from collections import Counter
 from decimal import Decimal
 from pathlib import Path
-from typing import cast
 
 import vt31_core_stack_v3_ev_ensemble_v2 as ev
 import vt31_core_stack_v4_high_resolution_perception_v1 as v4
@@ -120,14 +119,14 @@ def _categorical_summary(
         values: dict[str, object] = {}
         for key in keys:
             w = winner_counts[key]
-            l = loss_counts[key]
-            if w + l < 3:
+            loss_count = loss_counts[key]
+            if w + loss_count < 3:
                 continue
             values[key] = {
                 "winners": w,
-                "losses": l,
+                "losses": loss_count,
                 "winner_share": format(
-                    Decimal(w) / Decimal(w + l),
+                    Decimal(w) / Decimal(w + loss_count),
                     "f",
                 ),
             }
