@@ -10,10 +10,13 @@ from qore.infrastructure.core_stack_v2 import (
     CognitiveState,
     JourneyDisposition,
     MarketStabilityEvidence,
+    MarketTrajectoryState,
+    MarketTransitionObservation,
     PositionJourneyEvidence,
     StabilityMode,
     TraderStabilityTelemetry,
     assess_drawdown_stability,
+    assess_market_trajectory,
     assess_position_journey,
     superintelligence_freeze_contract,
 )
@@ -87,6 +90,7 @@ def test_generic_shared_modules_do_not_embed_vt31_methodology_ontology() -> None
         "perception_engine.py",
         "stability_intelligence.py",
         "journey_intelligence.py",
+        "transition_intelligence.py",
     )
     forbidden = (
         "silver_bullet",
@@ -257,3 +261,167 @@ def test_journey_is_insufficient_when_current_data_integrity_is_low() -> None:
 
     assert result.disposition is JourneyDisposition.INSUFFICIENT
     assert result.reasons == ("DATA_INTEGRITY_INSUFFICIENT",)
+
+def _transition_observation(
+    minutes: int,
+    **overrides: object,
+) -> MarketTransitionObservation:
+    values: dict[str, object] = {
+        "as_of": NOW + timedelta(minutes=minutes),
+        "data_integrity_bps": 9800,
+        "trend_support_bps": 8200,
+        "momentum_bps": 8200,
+        "displacement_bps": 8000,
+        "liquidity_capacity_bps": 7800,
+        "volatility_stability_bps": 8000,
+        "cross_market_confirmation_bps": 8500,
+        "correlation_stability_bps": 8500,
+        "contradiction_bps": 1200,
+        "anomaly_bps": 500,
+        "uncertainty_bps": 1200,
+        "opposite_pressure_bps": 900,
+    }
+    values.update(overrides)
+    return MarketTransitionObservation(**values)  # type: ignore[arg-type]
+
+
+def test_dynamic_transition_model_reads_sequence_not_only_snapshot() -> None:
+    result = assess_market_trajectory(
+        (
+            _transition_observation(0),
+            _transition_observation(
+                1,
+                trend_support_bps=7000,
+                momentum_bps=6800,
+                displacement_bps=6500,
+                cross_market_confirmation_bps=7000,
+                correlation_stability_bps=7200,
+                contradiction_bps=3000,
+                uncertainty_bps=3000,
+                opposite_pressure_bps=3000,
+            ),
+            _transition_observation(
+                2,
+                trend_support_bps=4800,
+                momentum_bps=4200,
+                displacement_bps=4300,
+                liquidity_capacity_bps=5000,
+                volatility_stability_bps=4500,
+                cross_market_confirmation_bps=4000,
+                correlation_stability_bps=4200,
+                contradiction_bps=6000,
+                anomaly_bps=4000,
+                uncertainty_bps=5600,
+                opposite_pressure_bps=6200,
+            ),
+            _transition_observation(
+                3,
+                trend_support_bps=2300,
+                momentum_bps=2000,
+                displacement_bps=2500,
+                liquidity_capacity_bps=2800,
+                volatility_stability_bps=3000,
+                cross_market_confirmation_bps=1500,
+                correlation_stability_bps=2500,
+                contradiction_bps=8500,
+                anomaly_bps=7200,
+                uncertainty_bps=8200,
+                opposite_pressure_bps=8600,
+            ),
+        )
+    )
+
+    assert result.state is MarketTrajectoryState.FAILURE
+    assert result.deterioration_velocity_bps > 0
+    assert result.deterioration_persistence_bps >= 5500
+    assert "DETERIORATION_PERSISTENT" in result.reasons
+    assert result.order_authority is False
+    assert result.risk_authority is False
+    assert result.sizing_authority is False
+    assert result.execution_authority is False
+    assert result.strategy_mutation_authority is False
+
+
+def test_dynamic_transition_model_detects_recovery_causally() -> None:
+    result = assess_market_trajectory(
+        (
+            _transition_observation(
+                0,
+                trend_support_bps=2000,
+                momentum_bps=1800,
+                displacement_bps=2200,
+                liquidity_capacity_bps=2600,
+                volatility_stability_bps=2500,
+                cross_market_confirmation_bps=1500,
+                correlation_stability_bps=2500,
+                contradiction_bps=8500,
+                anomaly_bps=7000,
+                uncertainty_bps=8000,
+                opposite_pressure_bps=8500,
+            ),
+            _transition_observation(
+                1,
+                trend_support_bps=3500,
+                momentum_bps=3600,
+                displacement_bps=3800,
+                liquidity_capacity_bps=4000,
+                volatility_stability_bps=4200,
+                cross_market_confirmation_bps=3800,
+                correlation_stability_bps=4300,
+                contradiction_bps=6200,
+                anomaly_bps=5000,
+                uncertainty_bps=6000,
+                opposite_pressure_bps=6000,
+            ),
+            _transition_observation(
+                2,
+                trend_support_bps=5600,
+                momentum_bps=5800,
+                displacement_bps=6000,
+                liquidity_capacity_bps=6200,
+                volatility_stability_bps=6500,
+                cross_market_confirmation_bps=6200,
+                correlation_stability_bps=6500,
+                contradiction_bps=3800,
+                anomaly_bps=2600,
+                uncertainty_bps=3500,
+                opposite_pressure_bps=3300,
+            ),
+            _transition_observation(3),
+        )
+    )
+
+    assert result.state is MarketTrajectoryState.RECOVERING
+    assert result.recovery_velocity_bps > 0
+    assert result.recovery_persistence_bps >= 5500
+    assert "SUPPORT_RECOVERING" in result.reasons
+
+
+def test_dynamic_transition_model_fails_closed_on_low_integrity() -> None:
+    result = assess_market_trajectory(
+        (
+            _transition_observation(0),
+            _transition_observation(1),
+            _transition_observation(2, data_integrity_bps=5000),
+            _transition_observation(3),
+        )
+    )
+
+    assert result.state is MarketTrajectoryState.INSUFFICIENT
+    assert result.reasons[0] == "TRAJECTORY_EVIDENCE_INSUFFICIENT"
+
+
+def test_dynamic_transition_model_rejects_noncausal_ordering() -> None:
+    with pytest.raises(
+        ValueError,
+        match="market observations must be strictly increasing and causal",
+    ):
+        assess_market_trajectory(
+            (
+                _transition_observation(1),
+                _transition_observation(0),
+                _transition_observation(2),
+                _transition_observation(3),
+            )
+        )
+
