@@ -114,7 +114,9 @@ class InstinctAssessment:
             or self.execution_authority
             or self.strategy_mutation_authority
         ):
-            raise ValueError("Shared instinct hot path cannot carry authority or hidden data access")
+            raise ValueError(
+                "Shared instinct hot path cannot carry authority or hidden data access"
+            )
 
 
 def _mean4(a: int, b: int, c: int, d: int) -> int:
