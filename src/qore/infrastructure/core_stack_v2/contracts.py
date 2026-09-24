@@ -12,7 +12,6 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Final
 
-
 CORE_STACK_VERSION: Final = "2.0.0-research"
 
 
