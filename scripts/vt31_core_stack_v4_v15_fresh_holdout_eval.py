@@ -11,7 +11,6 @@ import argparse
 import json
 from collections import defaultdict
 from datetime import date
-from decimal import Decimal
 from pathlib import Path
 from typing import Any, cast
 
@@ -40,9 +39,9 @@ def _daily_context(paths: dict[str, Path]) -> dict[str, dict[str, dict[str, obje
         series, _, _, _, _, provider = load_market_evidence(path)
         grouped: dict[date, list[object]] = defaultdict(list)
         for bar in series:
-            grouped[_day(getattr(bar, "opened_at"))].append(bar)
+            grouped[_day(bar.opened_at)].append(bar)
         for local_day, raw in sorted(grouped.items()):
-            frozen = tuple(sorted(raw, key=lambda bar: getattr(bar, "opened_at")))
+            frozen = tuple(sorted(raw, key=lambda bar: bar.opened_at))
             reference = cast(
                 tuple[object, ...],
                 sparse._reference_bars(cast(tuple[object, ...], frozen)),
