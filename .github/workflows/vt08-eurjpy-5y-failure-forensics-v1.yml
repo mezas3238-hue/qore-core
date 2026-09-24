@@ -1,0 +1,58 @@
+name: QORE VT08 EURJPY 5Y Failure Forensics V1
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-cognitive-expansion-5m-v1-001
+    paths:
+      - .github/workflows/vt08-eurjpy-5y-failure-forensics-v1.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  forensics:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Download immutable five-year artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-eurjpy-core-stack-5y-7cc22c327c82b0029386131f18ecd4d30305581f
+          path: evidence
+          github-token: ${{ github.token }}
+          run-id: 35936076221
+      - name: Run diagnostics-only five-year forensics
+        run: |
+          mkdir -p artifacts
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab.vt08_cognitive_eurjpy_5y_failure_forensics_v1 import (
+              evaluate,
+          )
+
+          report = evaluate(Path("evidence/market-evidence-5y.json"))
+          Path("artifacts/eurjpy-5y-failure-forensics.json").write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")),
+              encoding="utf-8",
+          )
+          print(json.dumps({
+              "overall": report["overall"],
+              "five_365d_blocks": report["five_365d_blocks"],
+              "weak_block_1_by_causal_axis": report["weak_block_1_by_causal_axis"],
+          }, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-eurjpy-5y-forensics-${{ github.sha }}
+          path: artifacts/eurjpy-5y-failure-forensics.json
+          if-no-files-found: error
+          retention-days: 30
