@@ -15,7 +15,6 @@ Historical outcomes are offline research labels only.
 from __future__ import annotations
 
 import argparse
-import itertools
 import json
 from dataclasses import dataclass
 from decimal import Decimal
