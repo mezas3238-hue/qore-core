@@ -1,14 +1,35 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
+
+from qore.governance.executive_control import ExecutiveReadScope
+from qore.governance.executive_operational_read_models import (
+    ExecutiveAssetClass,
+    ExecutiveMarketAuthorizationState,
+    ExecutiveMarketAvailability,
+    ExecutiveMarketInstrument,
+    ExecutiveMarketSummary,
+    ExecutiveMarketsReadModel,
+)
+from qore.governance.executive_ports import ExecutiveEvidenceRef
+from qore.governance.executive_read_models import (
+    ExecutiveAttentionLevel,
+    ExecutiveProjectionId,
+    ExecutiveProjectionMetadata,
+    ExecutiveProjectionVersion,
+    ExecutiveSourceFreshness,
+)
 
 from qore.infrastructure.core_stack_v2 import (
+    GLOBAL_MARKET_UNIVERSE_REQUIRED,
     CoreHypothesis,
     CoreStackConfig,
     DecisionObservation,
     HypothesisStatus,
     MarketEvent,
     PortfolioIntent,
+    build_global_market_universe,
     build_snapshot,
     compatibility_manifest,
     freeze_facts,
@@ -251,3 +272,78 @@ def test_ab_summary_reports_decision_and_latency_deltas() -> None:
     assert summary.abstain_deltas == 1
     assert summary.invalid_core_contexts == 0
     assert summary.latency_p99_us == 200
+
+
+
+def _executive_market(
+    symbol: str,
+    *,
+    asset_class: str,
+    availability: ExecutiveMarketAvailability,
+    authorization: ExecutiveMarketAuthorizationState,
+) -> ExecutiveMarketSummary:
+    evidence = ExecutiveEvidenceRef(f"market-evidence:{symbol.lower()}")
+    return ExecutiveMarketSummary(
+        instrument=ExecutiveMarketInstrument(symbol),
+        asset_class=ExecutiveAssetClass(asset_class),
+        availability=availability,
+        authorization_state=authorization,
+        regime_code="context-available",
+        session_code="global",
+        reason_codes=("canonical-market-state",),
+        evidence_refs=(evidence,),
+    )
+
+
+def test_global_market_universe_retains_every_qore_market_without_allowlist() -> None:
+    metadata = ExecutiveProjectionMetadata(
+        projection_id=ExecutiveProjectionId(
+            UUID("00000000-0000-0000-0000-000000000635")
+        ),
+        projection_version=ExecutiveProjectionVersion("core-v2-market-universe"),
+        scope=ExecutiveReadScope.MARKETS,
+        source_observed_at=NOW,
+        projected_at=NOW,
+        freshness=ExecutiveSourceFreshness.FRESH,
+    )
+    read_model = ExecutiveMarketsReadModel(
+        metadata=metadata,
+        attention=ExecutiveAttentionLevel.INFORMATION,
+        markets=(
+            _executive_market(
+                "XAUUSD",
+                asset_class="metals",
+                availability=ExecutiveMarketAvailability.RESTRICTED,
+                authorization=ExecutiveMarketAuthorizationState.BLOCKED,
+            ),
+            _executive_market(
+                "NAS100",
+                asset_class="indices",
+                availability=ExecutiveMarketAvailability.AVAILABLE,
+                authorization=ExecutiveMarketAuthorizationState.AUTHORIZED,
+            ),
+            _executive_market(
+                "EURUSD",
+                asset_class="forex",
+                availability=ExecutiveMarketAvailability.AVAILABLE,
+                authorization=ExecutiveMarketAuthorizationState.AUTHORIZED,
+            ),
+        ),
+    )
+
+    universe = build_global_market_universe(read_model)
+
+    assert GLOBAL_MARKET_UNIVERSE_REQUIRED is True
+    assert tuple(item.instrument for item in universe.markets) == (
+        "EURUSD",
+        "NAS100",
+        "XAUUSD",
+    )
+    assert universe.market_count == 3
+    xau = next(item for item in universe.markets if item.instrument == "XAUUSD")
+    assert xau.availability == "restricted"
+    assert xau.authorization_state == "blocked"
+    assert universe.order_authority is False
+    assert universe.risk_authority is False
+    assert universe.strategy_mutation_authority is False
+    assert universe.execution_authority is False
