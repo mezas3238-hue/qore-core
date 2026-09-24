@@ -104,7 +104,7 @@ def _overlap_rate(window: tuple[PerceptionBar, ...]) -> Decimal | None:
     if len(window) < 2:
         return None
     overlaps = 0
-    for left, right in zip(window, window[1:]):
+    for left, right in zip(window, window[1:], strict=False):
         if min(left.high, right.high) >= max(left.low, right.low):
             overlaps += 1
     return Decimal(overlaps) / Decimal(len(window) - 1)
@@ -196,7 +196,12 @@ def perceive_market(
     if persistence is not None and persistence >= Decimal("0.70"):
         flags.append("DIRECTIONAL_PERSISTENCE")
 
-    if efficiency is not None and persistence is not None and efficiency >= Decimal("0.60") and persistence >= Decimal("0.60"):
+    if (
+        efficiency is not None
+        and persistence is not None
+        and efficiency >= Decimal("0.60")
+        and persistence >= Decimal("0.60")
+    ):
         momentum = "DIRECTIONAL"
     elif overlap is not None and overlap >= Decimal("0.70"):
         momentum = "ROTATIONAL"
