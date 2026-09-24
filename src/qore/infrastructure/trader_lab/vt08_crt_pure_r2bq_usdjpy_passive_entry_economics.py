@@ -9,6 +9,7 @@ Invariants:
 - observed M5 fills only, within the frozen 30m horizon;
 - pending order dies if the original source stop is touched before fill;
 - same-M5 fill/stop ambiguity is STOP_FIRST;
+- same-M15 stop/target ambiguity is STOP_FIRST;
 - original source-candle structural stop;
 - fixed 1.5R target from the actual fill;
 - C3-close expiry;
@@ -127,6 +128,36 @@ def _target_touched(
     return Decimal(bar.low_price) <= target
 
 
+def _m15_exit(
+    *,
+    bullish: bool,
+    stop: Decimal,
+    target: Decimal,
+    bars: tuple[Any, ...],
+) -> tuple[str, Decimal] | None:
+    stop_hit = any(
+        _stop_touched(
+            bullish=bullish,
+            stop=stop,
+            bar=bar,
+        )
+        for bar in bars
+    )
+    target_hit = any(
+        _target_touched(
+            bullish=bullish,
+            target=target,
+            bar=bar,
+        )
+        for bar in bars
+    )
+    if stop_hit:
+        return "STOP", stop
+    if target_hit:
+        return "TARGET_FIXED_1_5R", target
+    return None
+
+
 def _simulate(
     *,
     arm: EntryArm,
@@ -149,27 +180,42 @@ def _simulate(
         else level - TARGET_R * risk
     )
 
-    cursor = fill_at
     last_close: Decimal | None = None
     exit_reason = "C3_CLOSE"
     exit_price: Decimal | None = None
+    bucket_start = fill_at.replace(
+        minute=(fill_at.minute // 15) * 15,
+        second=0,
+        microsecond=0,
+    )
 
-    while cursor < parent.c3_closed_at:
-        bar = m5_by_time.get(cursor)
-        if bar is None:
-            return None
-        last_close = Decimal(bar.close_price)
+    while bucket_start < parent.c3_closed_at:
+        bucket_end = min(
+            bucket_start + timedelta(minutes=15),
+            parent.c3_closed_at,
+        )
+        cursor = max(fill_at, bucket_start)
+        bucket: list[Any] = []
+        while cursor < bucket_end:
+            bar = m5_by_time.get(cursor)
+            if bar is None:
+                return None
+            bucket.append(bar)
+            cursor += timedelta(minutes=5)
 
-        # Conservative ambiguity: stop first.
-        if _stop_touched(bullish=bullish, stop=stop, bar=bar):
-            exit_reason = "STOP"
-            exit_price = stop
-            break
-        if _target_touched(bullish=bullish, target=target, bar=bar):
-            exit_reason = "TARGET_FIXED_1_5R"
-            exit_price = target
-            break
-        cursor += timedelta(minutes=5)
+        if bucket:
+            last_close = Decimal(bucket[-1].close_price)
+            outcome = _m15_exit(
+                bullish=bullish,
+                stop=stop,
+                target=target,
+                bars=tuple(bucket),
+            )
+            if outcome is not None:
+                exit_reason, exit_price = outcome
+                break
+
+        bucket_start += timedelta(minutes=15)
 
     if exit_price is None:
         if last_close is None:
@@ -204,7 +250,6 @@ def _simulate(
             (fill_at - decision_bar.opened_at).total_seconds() / 60
         ),
     )
-
 
 def _summary(rows: tuple[PassiveTrade, ...]) -> dict[str, Any]:
     ordered = tuple(sorted(rows, key=lambda row: row.entry_opened_at))
@@ -467,6 +512,7 @@ def run_replay() -> tuple[
         "fill_rule": "OBSERVED_RANGE_TOUCH_ONLY",
         "pre_fill_stop_invalidation": True,
         "same_fill_bar_stop_precedence": "STOP_FIRST",
+        "same_m15_stop_target_ambiguity": "STOP_FIRST",
         "structural_stop": "SOURCE_CANDLE_EXTREME",
         "target": "FIXED_1_5R_FROM_ACTUAL_FILL",
         "expiry": "C3_CLOSE",
