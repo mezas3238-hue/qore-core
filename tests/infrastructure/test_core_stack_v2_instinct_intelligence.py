@@ -128,6 +128,33 @@ def test_instinct_selects_immediate_defense_on_converged_terminal_failure() -> N
     assert result.execution_authority is False
 
 
+
+def test_instinct_preentry_terminal_failure_does_not_require_position_path() -> None:
+    result = assess_instinct(
+        _environment(
+            state=MarketEnvironmentState.DEFENSIVE,
+            support=1600,
+            adverse=8800,
+            velocity=8500,
+            persistence=9000,
+        ),
+        _trajectory(
+            state=MarketTrajectoryState.FAILURE,
+            support=1400,
+            adverse=9000,
+            pressure=9000,
+            velocity=8800,
+            persistence=9000,
+        ),
+        opportunity_quality_bps=2000,
+        expansion_capacity_bps=1200,
+    )
+
+    assert result.situation is InstinctSituation.TERMINAL_FAILURE_RISK
+    assert result.support_methodology is SupportMethodology.IMMEDIATE_DEFENSE
+    assert result.threat_bps >= 8500
+
+
 def test_instinct_protects_established_winner_before_defense_logic() -> None:
     result = assess_instinct(
         _environment(
