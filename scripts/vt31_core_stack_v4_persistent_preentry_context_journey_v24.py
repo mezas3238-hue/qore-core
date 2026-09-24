@@ -20,7 +20,7 @@ import argparse
 import json
 from collections import Counter
 from dataclasses import dataclass
-from dateutil.parser import isoparse
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
@@ -263,7 +263,7 @@ def _seed_transition_history(
     us_by_day: object,
 ) -> list[MarketTransitionObservation]:
     side = cast(str, row["side"])
-    local_day = isoparse(cast(str, row["filled_at"])).date()
+    local_day = datetime.fromisoformat(cast(str, row["filled_at"])).date()
     start = max(0, fill_index - PREENTRY_BARS)
     history: list[MarketTransitionObservation] = []
 
