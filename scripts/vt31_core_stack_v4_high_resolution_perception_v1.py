@@ -11,6 +11,7 @@ Adds the missing decision-time perception layer before the EV ensemble:
 
 No current-trade outcome or future bar is an input.
 """
+# ruff: noqa: B009
 from __future__ import annotations
 
 import argparse
