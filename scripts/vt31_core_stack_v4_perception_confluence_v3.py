@@ -24,7 +24,6 @@ from typing import cast
 
 import vt31_core_stack_v4_perception_first_v2 as v2
 
-
 SCHEMA = "qore.core_stack_v4.vt31.perception_confluence.v3"
 IDENTITY = "VT31_NAS100_SHARED_PERCEPTION_CONFLUENCE_V3"
 
