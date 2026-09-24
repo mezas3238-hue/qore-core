@@ -79,13 +79,63 @@ def superintelligence_freeze_contract() -> dict[str, object]:
             "stop_can_widen": False,
             "future_information_allowed": False,
         },
+        "shared_essential_intelligence": {
+            "profit_factor": {
+                "required": True,
+                "meaning": (
+                    "Shared must improve opportunity selection and journey quality "
+                    "enough to create materially higher Profit Factor."
+                ),
+                "cannot_be_achieved_by_risk_weighting_only": True,
+            },
+            "drawdown": {
+                "required": True,
+                "meaning": (
+                    "Shared must identify bad situations, deterioration, anomaly "
+                    "and failed continuation/reversal early enough to reduce DD."
+                ),
+                "stop_may_improve_or_hold_only": True,
+                "stop_widening_forbidden": True,
+            },
+            "adaptive_journey": {
+                "required": True,
+                "extend_target_when_market_capacity_supports_it": True,
+                "hold_original_target_when_extension_is_unproven": True,
+                "defend_or_reduce_loss_when_market_deteriorates": True,
+                "decision_must_be_causal_as_of_each_observation": True,
+                "future_path_or_terminal_outcome_forbidden": True,
+                "shared_has_no_execution_authority": True,
+            },
+            "market_situation_dimensions": (
+                "anomaly",
+                "volatility",
+                "trend",
+                "range",
+                "regime",
+                "regime_transition",
+                "liquidity",
+                "structure",
+                "displacement",
+                "compression",
+                "expansion",
+                "exhaustion",
+                "cross_market_confirmation",
+                "cross_market_divergence",
+                "historical_analogs",
+                "failure_patterns",
+                "uncertainty",
+            ),
+            "success_requires_all_three": True,
+        },
         "shared_research_sequence": {
-            "phase_a_shared_decision_intelligence": {
+            "phase_a_shared_intelligence": {
                 "status": "ACTIVE_PRIMARY_RESEARCH",
-                "scope": "MISSION_1_ONLY",
-                "potentiation_forbidden_in_phase": True,
+                "scope": "DECISION_PLUS_POSITION_JOURNEY_INTELLIGENCE",
+                "capital_potentiation_forbidden_in_phase": True,
                 "risk_weighting_forbidden_in_phase": True,
-                "position_potentiation_forbidden_in_phase": True,
+                "journey_intelligence_required_in_phase": True,
+                "target_extension_intelligence_required_in_phase": True,
+                "loss_defense_intelligence_required_in_phase": True,
                 "must_be_formally_accepted_before_phase_b": True,
                 "formal_acceptance_requires_temporal_falsification_pass": True,
                 "formal_acceptance_requires_material_pf_uplift": True,
@@ -93,12 +143,15 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "formal_acceptance_requires_loss_rejection_quality": True,
                 "formal_acceptance_requires_winner_preservation": True,
                 "formal_acceptance_requires_density_preservation": True,
+                "formal_acceptance_requires_target_extension_quality": True,
+                "formal_acceptance_requires_loss_defense_quality": True,
             },
-            "phase_b_trade_potentiation": {
+            "phase_b_capital_potentiation": {
                 "status": "DEFERRED_BLOCKED",
                 "blocked_until_phase_a_formally_accepted": True,
-                "shared_decision_model_must_be_frozen_first": True,
+                "shared_intelligence_model_must_be_frozen_first": True,
                 "may_not_influence_phase_a_selection": True,
+                "capital_or_risk_weighting_belongs_here": True,
             },
         },
         "shared_dual_mission": {
