@@ -33,6 +33,10 @@ from qore.infrastructure.trader_lab.capitalizer_exposure_graph import Capitalize
 from qore.infrastructure.trader_lab.capitalizer_max_recovery_final_2y_v1 import (
     _load_rejected_wait_rows,
 )
+from qore.infrastructure.trader_lab.capitalizer_m3_mss_bottleneck_forensics_2y_v1 import (
+    LOOKBACK_START,
+    WINDOW_END,
+)
 from qore.infrastructure.trader_lab.capitalizer_max_recovery_v2 import RecoveryTrade
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     TFBar,
@@ -351,7 +355,11 @@ def build_market_report(
     session: CapitalizerSession,
 ) -> tuple[dict[str, Any], tuple[TargetReadyTrade, ...]]:
     frozen = _load_final(final_root)
-    bars = tuple(iter_cibo_m1(m1_root))
+    bars = tuple(
+        bar
+        for bar in iter_cibo_m1(m1_root)
+        if LOOKBACK_START <= bar.opened_at < WINDOW_END + timedelta(days=1)
+    )
     if not bars:
         raise ValueError("target-ready freeze requires native M1")
     symbol = bars[0].symbol
