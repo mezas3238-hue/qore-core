@@ -496,6 +496,47 @@ def _latency_ms(started_at: datetime, finished_at: datetime) -> int:
     return int((finished_at - started_at).total_seconds() * 1000)
 
 
+def _execution_preflight_status(
+    *,
+    capital_reject: bool,
+    inactivity_blocked: bool,
+    unresolved_exit: bool,
+    gateway: FundedNextLiveMt5ExecutionGateway,
+    certified_policy_ready: bool,
+    mission_risk_allowed: bool,
+    now: datetime,
+) -> tuple[bool, dict[str, object]]:
+    unresolved = gateway.unresolved_mutations
+    flags = {
+        "capital_reject": capital_reject,
+        "inactivity_blocked": inactivity_blocked,
+        "unresolved_exit": unresolved_exit,
+        "unresolved_mutation": bool(unresolved),
+        "certified_policy_not_ready": not certified_policy_ready,
+        "mission_risk_disabled": not mission_risk_allowed,
+    }
+    mutation_details = [
+        {
+            "mutation_id": item.idempotency_key,
+            "client_order_id": item.client_order_id,
+            "mutation_state": item.state.value,
+            "mutation_transitioned_at": item.transitioned_at.isoformat(),
+            "age_seconds": max(
+                0.0,
+                (now - item.transitioned_at).total_seconds(),
+            ),
+            "provider_order_ref": item.provider_order_ref,
+            "reason": item.reason,
+        }
+        for item in unresolved
+    ]
+    telemetry: dict[str, object] = {
+        "blockers": flags,
+        "unresolved_mutations": mutation_details,
+    }
+    return any(flags.values()), telemetry
+
+
 def _log_market_decision_telemetry(
     *,
     log_path: Path,
