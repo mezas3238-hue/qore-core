@@ -1,0 +1,87 @@
+name: QORE Core Stack V2 VT31 Shared Dual Mission V1
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/vt31_core_stack_v2_shared_dual_mission_lab_v1.py
+      - .github/workflows/qore-core-stack-v2-vt31-shared-dual-mission-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  dual-mission:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Static validation
+        run: |
+          ruff check scripts/vt31_core_stack_v2_shared_dual_mission_lab_v1.py
+          python -m py_compile scripts/vt31_core_stack_v2_shared_dual_mission_lab_v1.py
+      - name: Recover immutable VT31 5Y evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/r8 input/r6 input/r5 result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          echo "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb  input/r8/fresh/NAS100/market-evidence.json" | sha256sum -c -
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          echo "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581  input/r6/fresh/NAS100/market-evidence.json" | sha256sum -c -
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          echo "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7  input/r5/fresh/NAS100/market-evidence.json" | sha256sum -c -
+      - name: Run Shared dual-mission falsification
+        run: |
+          python scripts/vt31_core_stack_v2_shared_dual_mission_lab_v1.py             --r8 input/r8/fresh/NAS100/market-evidence.json             --r6 input/r6/fresh/NAS100/market-evidence.json             --r5 input/r5/fresh/NAS100/market-evidence.json             --output result/shared-dual-mission.json             | tee result/summary.json
+      - name: Governance and challenge-set gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/shared-dual-mission.json").read_text())
+          assert p["challenge_set"]["source_only_trades_5y"] == 822
+          assert p["challenge_set"]["losses_5y"] == 711
+          assert p["challenge_set"]["winners_5y"] == 111
+          g=p["governance"]
+          assert g["silver_bullet_methodology_modified"] is False
+          assert g["shared_order_authority"] is False
+          assert g["shared_risk_authority"] is False
+          assert g["qore_risk_sovereign"] is True
+          assert g["current_trade_outcome_used_by_shared"] is False
+          assert g["post_outcome_features_used_by_shared"] is False
+          assert g["r5_retuned_after_open"] is False
+          assert g["live_authorized"] is False
+          assert g["merge_authorized"] is False
+          print(json.dumps({
+              "passes_dual_mission":p["passes_dual_mission"],
+              "gates":p["gates"],
+              "evaluation":p["evaluation"],
+          },sort_keys=True))
+          PY
+      - name: Bind result
+        run: |
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-core-stack-v2-vt31-shared-dual-mission-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
