@@ -342,7 +342,15 @@ class MetaTrader5FundedNextTransport:
         now = datetime.now(UTC)
         magic = _magic(client_order_id)
         comment = _client_comment(client_order_id)
-        active = self._api.orders_get() or ()
+
+        active = self._api.orders_get()
+        if active is None:
+            return FundedNextMt5TransportReceipt(
+                client_order_id=client_order_id,
+                outcome=Mt5ProviderOutcome.UNKNOWN,
+                recorded_at=now,
+                reason="mt5-order-discovery-active-unavailable",
+            )
         for order in active:
             if _matches(order.magic, order.comment, magic, comment):
                 return FundedNextMt5TransportReceipt(
@@ -351,7 +359,15 @@ class MetaTrader5FundedNextTransport:
                     recorded_at=now,
                     provider_order_ref=str(order.ticket),
                 )
-        history = self._api.history_orders_get(now - _DISCOVERY_WINDOW, now) or ()
+
+        history = self._api.history_orders_get(now - _DISCOVERY_WINDOW, now)
+        if history is None:
+            return FundedNextMt5TransportReceipt(
+                client_order_id=client_order_id,
+                outcome=Mt5ProviderOutcome.UNKNOWN,
+                recorded_at=now,
+                reason="mt5-order-discovery-history-unavailable",
+            )
         for order in reversed(history):
             if not _matches(order.magic, order.comment, magic, comment):
                 continue
@@ -372,7 +388,10 @@ class MetaTrader5FundedNextTransport:
                 recorded_at=now,
                 provider_order_ref=(
                     str(order.ticket)
-                    if outcome in {Mt5ProviderOutcome.ACCEPTED, Mt5ProviderOutcome.CANCELLED}
+                    if outcome in {
+                        Mt5ProviderOutcome.ACCEPTED,
+                        Mt5ProviderOutcome.CANCELLED,
+                    }
                     else None
                 ),
                 reason=(
@@ -381,7 +400,15 @@ class MetaTrader5FundedNextTransport:
                     else "mt5-history-state-unknown"
                 ),
             )
-        deals = self._api.history_deals_get(now - _DISCOVERY_WINDOW, now) or ()
+
+        deals = self._api.history_deals_get(now - _DISCOVERY_WINDOW, now)
+        if deals is None:
+            return FundedNextMt5TransportReceipt(
+                client_order_id=client_order_id,
+                outcome=Mt5ProviderOutcome.UNKNOWN,
+                recorded_at=now,
+                reason="mt5-order-discovery-deals-unavailable",
+            )
         for deal in reversed(deals):
             if _matches(deal.magic, deal.comment, magic, comment):
                 return FundedNextMt5TransportReceipt(
@@ -390,7 +417,13 @@ class MetaTrader5FundedNextTransport:
                     recorded_at=now,
                     provider_order_ref=str(deal.order),
                 )
-        return None
+
+        return FundedNextMt5TransportReceipt(
+            client_order_id=client_order_id,
+            outcome=Mt5ProviderOutcome.UNKNOWN,
+            recorded_at=now,
+            reason="mt5-order-not-found-conclusive",
+        )
 
     def _bound_account(self) -> Mt5AccountInfoLike | None:
         account = self._api.account_info()
