@@ -9,6 +9,8 @@ on:
       - '.github/workflows/vt08-crt-pure-r2br-audusd-cap2-passive-oco.yml'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_r2br_audusd_cap2_passive_oco.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_r2br_audusd_cap2_passive_oco.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_r2bm_audusd_passive_entry_economics.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_r2bo_audusd_passive_rearm_density.py'
 
 permissions:
   contents: read
