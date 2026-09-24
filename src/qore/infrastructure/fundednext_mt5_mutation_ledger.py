@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import tempfile
+import time
 from dataclasses import dataclass, replace
 from datetime import datetime
 from enum import StrEnum
@@ -30,6 +31,7 @@ class FundedNextMt5MutationLedgerError(ExecutionBoundaryError):
 class FundedNextMt5MutationState(StrEnum):
     ATTEMPT_STARTED = "attempt_started"
     OUTCOME_UNKNOWN = "outcome_unknown"
+    NOT_SUBMITTED = "not_submitted"
     ACCEPTED = "accepted"
     REJECTED = "rejected"
     CANCELLED = "cancelled"
@@ -226,39 +228,58 @@ class JsonFileFundedNextMt5MutationLedger:
             self._records = next_records
 
     def _commit(self, records: dict[str, FundedNextMt5MutationRecord]) -> None:
-        parent = self._path.parent
-        try:
-            parent.mkdir(parents=True, exist_ok=True)
-            descriptor, temporary_name = tempfile.mkstemp(
-                prefix=f".{self._path.name}.", suffix=".tmp", dir=parent
-            )
-            temporary = Path(temporary_name)
+        last_error: OSError | None = None
+        for attempt in range(3):
             try:
-                with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-                    json.dump(
-                        {
-                            "records": [
-                                records[key].as_json() for key in sorted(records)
-                            ],
-                            "schema_version": self.SCHEMA_VERSION,
-                        },
-                        stream,
-                        ensure_ascii=True,
-                        separators=(",", ":"),
-                        sort_keys=True,
-                    )
-                    stream.flush()
-                    os.fsync(stream.fileno())
-                os.replace(temporary, self._path)
-                directory_fd = os.open(parent, os.O_RDONLY)
-                try:
-                    os.fsync(directory_fd)
-                finally:
-                    os.close(directory_fd)
-            finally:
-                if temporary.exists():
-                    temporary.unlink()
-        except OSError as error:
-            raise FundedNextMt5MutationLedgerError(
-                "atomic FundedNext MT5 mutation-ledger commit failed"
-            ) from error
+                self._commit_once(records)
+                return
+            except OSError as error:
+                last_error = error
+                if attempt < 2:
+                    time.sleep(0.01 * (attempt + 1))
+        assert last_error is not None
+        raise FundedNextMt5MutationLedgerError(
+            "atomic FundedNext MT5 mutation-ledger commit failed"
+        ) from last_error
+
+    def _commit_once(
+        self,
+        records: dict[str, FundedNextMt5MutationRecord],
+    ) -> None:
+        parent = self._path.parent
+        parent.mkdir(parents=True, exist_ok=True)
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=f".{self._path.name}.", suffix=".tmp", dir=parent
+        )
+        temporary = Path(temporary_name)
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+                json.dump(
+                    {
+                        "records": [
+                            records[key].as_json() for key in sorted(records)
+                        ],
+                        "schema_version": self.SCHEMA_VERSION,
+                    },
+                    stream,
+                    ensure_ascii=True,
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temporary, self._path)
+            _fsync_parent_directory(parent)
+        finally:
+            if temporary.exists():
+                temporary.unlink()
+
+
+def _fsync_parent_directory(parent: Path) -> None:
+    if os.name == "nt":
+        return
+    directory_fd = os.open(parent, os.O_RDONLY)
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
