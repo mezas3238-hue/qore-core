@@ -5,7 +5,6 @@ Collection only. No strategy replay or economics are inspected in this module.
 from __future__ import annotations
 
 import json
-import os
 import re
 from datetime import UTC, datetime, timedelta
 from typing import Final, cast
