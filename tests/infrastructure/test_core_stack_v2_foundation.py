@@ -9,8 +9,8 @@ from qore.governance.executive_operational_read_models import (
     ExecutiveMarketAuthorizationState,
     ExecutiveMarketAvailability,
     ExecutiveMarketInstrument,
-    ExecutiveMarketSummary,
     ExecutiveMarketsReadModel,
+    ExecutiveMarketSummary,
 )
 from qore.governance.executive_ports import ExecutiveEvidenceRef
 from qore.governance.executive_read_models import (
@@ -20,7 +20,6 @@ from qore.governance.executive_read_models import (
     ExecutiveProjectionVersion,
     ExecutiveSourceFreshness,
 )
-
 from qore.infrastructure.core_stack_v2 import (
     GLOBAL_MARKET_UNIVERSE_REQUIRED,
     CoreHypothesis,
