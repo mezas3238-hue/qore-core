@@ -5,7 +5,7 @@ import hashlib
 import json
 from typing import Final
 
-SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_004"
+SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_005"
 
 _CAPABILITIES: Final = (
     "PERCEPTION_INTEGRITY",
@@ -26,6 +26,7 @@ _CAPABILITIES: Final = (
     "RECOVERY_AND_EDGE_RESTORATION_INTELLIGENCE",
     "OPPORTUNITY_QUALITY_INTELLIGENCE",
     "WINNER_PROTECTION_INTELLIGENCE",
+    "CAUSAL_POSITION_PATH_ASYMMETRY_INTELLIGENCE",
     "MARKET_EXPANSION_CAPACITY_INTELLIGENCE",
     "ANOMALY_FUSION_INTELLIGENCE",
     "MARKET_CONTEXT_MEMORY",
@@ -197,6 +198,16 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "must_detect_persistence_not_only_snapshot": True,
                 "must_detect_stabilization_and_edge_restoration": True,
                 "offline_realized_outcomes_allowed_for_evaluation_only": True,
+            },
+            "causal_position_path_asymmetry": {
+                "required": True,
+                "must_distinguish_terminal_failure_from_recoverable_pullback": True,
+                "must_use_only_causal_observations": True,
+                "must_protect_established_favorable_journey": True,
+                "must_detect_adverse_path_persistence": True,
+                "runtime_terminal_outcome_label_forbidden": True,
+                "future_path_forbidden": True,
+                "density_reduction_as_primary_mechanism_forbidden": True,
             },
             "opportunity_quality_and_winner_protection": {
                 "required": True,
