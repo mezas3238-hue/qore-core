@@ -5,7 +5,7 @@ import hashlib
 import json
 from typing import Final
 
-SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_007"
+SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_008"
 
 _CAPABILITIES: Final = (
     "PERCEPTION_INTEGRITY",
@@ -158,8 +158,30 @@ def superintelligence_freeze_contract() -> dict[str, object]:
             "target_extension_when_causally_supported": True,
             "target_reduction_not_required_for_dd_claim": True,
             "same_position_size_throughout_trade": True,
-            "sizing_changes_for_shared_economic_claims_forbidden": True,
+            "shared_sizing_use_forbidden": True,
+            "shared_sizing_change_forbidden": True,
+            "shared_position_quantity_change_forbidden": True,
             "future_information_allowed": False,
+        },
+        "absolute_shared_sizing_prohibition": {
+            "owner_law": True,
+            "scope": "ALL_SHARED_RUNTIME_RESEARCH_LABS_AND_FUTURE_PHASES",
+            "shared_may_read_sizing_to_decide_market_state": False,
+            "shared_may_compute_sizing": False,
+            "shared_may_recommend_sizing": False,
+            "shared_may_change_sizing": False,
+            "shared_may_weight_capital": False,
+            "shared_may_change_risk_budget": False,
+            "shared_may_change_order_quantity": False,
+            "shared_may_scale_in_or_scale_out_by_quantity": False,
+            "shared_may_claim_dd_improvement_from_sizing": False,
+            "qore_risk_remains_external_and_sovereign": True,
+            "shared_success_requires_identical_sizing_baseline": True,
+            "purpose": (
+                "Measure Shared true causal market intelligence under adverse "
+                "conditions without allowing risk or capital compression to "
+                "manufacture lower drawdown."
+            ),
         },
         "shared_essential_intelligence": {
             "universal_stability": {
@@ -387,6 +409,7 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "same_opportunity_universe_required_for_claims": True,
                 "risk_or_sizing_compression_cannot_claim_shared_success": True,
                 "shared_behavior_must_be_measured_with_sizing_unchanged": True,
+                "shared_sizing_is_absolutely_forbidden": True,
             },
             "success_requires_all_three": True,
         },
@@ -409,12 +432,15 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "formal_acceptance_requires_target_extension_quality": True,
                 "formal_acceptance_requires_loss_defense_quality": True,
             },
-            "phase_b_capital_potentiation": {
+            "phase_b_external_risk_integration": {
                 "status": "DEFERRED_BLOCKED",
-                "blocked_until_phase_a_formally_accepted": True,
+                "blocked_until_shared_intelligence_formally_accepted": True,
                 "shared_intelligence_model_must_be_frozen_first": True,
-                "may_not_influence_phase_a_selection": True,
-                "capital_or_risk_weighting_belongs_here": True,
+                "shared_sizing_remains_forbidden": True,
+                "shared_capital_weighting_remains_forbidden": True,
+                "qore_risk_may_consume_shared_context_independently": True,
+                "qore_risk_keeps_all_sizing_authority": True,
+                "shared_results_must_continue_to_be_reported_at_identical_sizing": True,
             },
         },
         "shared_dual_mission": {
@@ -445,8 +471,9 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "profit_factor_must_increase": True,
                 "observed_drawdown_may_increase": False,
                 "measure_position_journey_uplift": True,
-                "measure_capital_efficiency_uplift": True,
-                "measure_pf_before_and_after_weighting": True,
+                "measure_path_efficiency_uplift": True,
+                "measure_pf_with_identical_sizing": True,
+                "capital_weighting_inside_shared_forbidden": True,
             },
             "success_requires_both_missions": True,
         },
