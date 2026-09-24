@@ -9,7 +9,6 @@ from qore.infrastructure.fundednext_mt5_mutation_ledger import (
     JsonFileFundedNextMt5MutationLedger,
 )
 
-
 _NOW = datetime(2026, 9, 24, 12, 0, tzinfo=UTC)
 
 
