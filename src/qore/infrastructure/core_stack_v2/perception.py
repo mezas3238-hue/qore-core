@@ -81,12 +81,32 @@ class PerceptionVector:
             raise ValueError("Shared perception cannot carry trading authority")
 
 
+def _d(value: object) -> Decimal:
+    return value if isinstance(value, Decimal) else Decimal(str(value))
+
+
+def _open(bar: ClosedBar) -> Decimal:
+    return _d(bar.open)
+
+
+def _high(bar: ClosedBar) -> Decimal:
+    return _d(bar.high)
+
+
+def _low(bar: ClosedBar) -> Decimal:
+    return _d(bar.low)
+
+
+def _close(bar: ClosedBar) -> Decimal:
+    return _d(bar.close)
+
+
 def _safe_div(left: Decimal, right: Decimal) -> Decimal:
     return Decimal(0) if right == 0 else left / right
 
 
 def _range(bar: ClosedBar) -> Decimal:
-    return max(Decimal(0), bar.high - bar.low)
+    return max(Decimal(0), _high(bar) - _low(bar))
 
 
 def _signed_efficiency(
@@ -98,12 +118,12 @@ def _signed_efficiency(
         return Decimal(0)
     path = sum(
         (
-            abs(bars[index].close - bars[index - 1].close)
+            abs(_close(bars[index]) - _close(bars[index - 1]))
             for index in range(1, len(bars))
         ),
         Decimal(0),
     )
-    return _safe_div(sign * (bars[-1].close - bars[0].close), path)
+    return _safe_div(sign * (_close(bars[-1]) - _close(bars[0])), path)
 
 
 def _body_bias(
@@ -113,7 +133,7 @@ def _body_bias(
 ) -> Decimal:
     denominator = sum((_range(bar) for bar in bars), Decimal(0))
     numerator = sum(
-        (sign * (bar.close - bar.open) for bar in bars),
+        (sign * (_close(bar) - _open(bar)) for bar in bars),
         Decimal(0),
     )
     return _safe_div(numerator, denominator)
@@ -122,7 +142,7 @@ def _body_bias(
 def _overlap(left: ClosedBar, right: ClosedBar) -> Decimal:
     intersection = max(
         Decimal(0),
-        min(left.high, right.high) - max(left.low, right.low),
+        min(_high(left), _high(right)) - max(_low(left), _low(right)),
     )
     denominator = min(_range(left), _range(right))
     return min(Decimal(1), _safe_div(intersection, denominator))
@@ -198,11 +218,11 @@ def perceive(
 
     if sweep_to_signal:
         extreme = (
-            min(bar.low for bar in sweep_to_signal)
+            min(_low(bar) for bar in sweep_to_signal)
             if side == "long"
-            else max(bar.high for bar in sweep_to_signal)
+            else max(_high(bar) for bar in sweep_to_signal)
         )
-        recovery = sign * (sweep_to_signal[-1].close - extreme)
+        recovery = sign * (_close(sweep_to_signal[-1]) - extreme)
         recovery_ref = recovery / reference_width
     else:
         recovery_ref = Decimal(0)
@@ -212,7 +232,7 @@ def perceive(
             return Decimal(0)
         scale = _mean_range(bars)
         return _safe_div(
-            sign * (bars[-1].close - bars[0].open),
+            sign * (_close(bars[-1]) - _open(bars[0])),
             scale * Decimal(len(bars)),
         )
 
