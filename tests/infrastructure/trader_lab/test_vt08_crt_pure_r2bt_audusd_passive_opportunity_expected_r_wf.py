@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from importlib import import_module
+
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2bj_audusd_root_cause_expected_r_family import (
     ABSTENTION_FRACTION,
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2bk_audusd_passive_entry_capacity import (
     EntryArm,
 )
-from importlib import import_module
 
 r2bt = import_module(
     "qore.infrastructure.trader_lab."
