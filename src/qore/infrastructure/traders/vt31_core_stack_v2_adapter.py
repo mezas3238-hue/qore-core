@@ -94,9 +94,7 @@ def _world_facts(situation: Nas100SituationModel) -> dict[str, str]:
             "COMPRESSION" if volatility == "COMPRESSED" else "NOT_COMPRESSED"
         ),
         "directional_state": situation.h1_state,
-        "reversal_state": situation.reversal_state
-        if hasattr(situation, "reversal_state")
-        else "SPECIALIST_UNRESOLVED",
+        "reversal_state": "SPECIALIST_UNRESOLVED",
         "continuation_state": "SPECIALIST_UNRESOLVED",
         "liquidity_target_state": situation.dol1_state,
         "opposite_displacement_state": "UNKNOWN",
