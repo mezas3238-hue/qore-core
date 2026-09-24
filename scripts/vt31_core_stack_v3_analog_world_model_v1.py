@@ -122,6 +122,15 @@ class Policy:
         }
 
 
+_MEMORY_CACHE: dict[
+    tuple[int, tuple[str, ...]],
+    CausalAnalogMemory,
+] = {}
+_ANALOG_CACHE: dict[
+    tuple[int, int, int, str],
+    dict[str, object],
+] = {}
+
 POLICIES = tuple(
     Policy(
         profile,
@@ -367,6 +376,10 @@ def _memory(
     rows: list[dict[str, object]],
     fields: tuple[str, ...],
 ) -> CausalAnalogMemory:
+    cache_key = (id(rows), fields)
+    cached = _MEMORY_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
     weights = {
         "side": Decimal("2"),
         "entry_family": Decimal("2"),
@@ -377,17 +390,28 @@ def _memory(
         "prior_nas100_regime": Decimal("1.5"),
         "prior_peer_direction_state": Decimal("1.25"),
     }
-    return CausalAnalogMemory(
+    memory = CausalAnalogMemory(
         tuple(_episode(row, fields) for row in rows),
         feature_weights=weights,
     )
+    _MEMORY_CACHE[cache_key] = memory
+    return memory
 
 
-def _query(
+def _analog_view(
     memory: CausalAnalogMemory,
     row: dict[str, object],
     policy: Policy,
 ) -> dict[str, object]:
+    cache_key = (
+        id(memory),
+        policy.maximum_analogs,
+        policy.minimum_similarity_bps,
+        cast(str, row["signal_at"]),
+    )
+    cached = _ANALOG_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
     summary = memory.query(
         AnalogQuery(
             market="NAS100",
@@ -397,21 +421,32 @@ def _query(
             minimum_similarity_bps=policy.minimum_similarity_bps,
         )
     )
-    mean = (
-        None
-        if summary.weighted_mean_r is None
-        else _d(summary.weighted_mean_r)
-    )
-    loss_rate = (
-        None
-        if summary.weighted_loss_rate is None
-        else _d(summary.weighted_loss_rate)
-    )
-    effective_n = _d(summary.effective_sample_size)
+    view = {
+        "weighted_mean_r": summary.weighted_mean_r,
+        "weighted_loss_rate": summary.weighted_loss_rate,
+        "effective_sample_size": view["effective_sample_size"],
+        "confidence_bps": view["confidence_bps"],
+        "analog_count": view["analog_count"],
+    }
+    _ANALOG_CACHE[cache_key] = view
+    return view
+
+
+def _query(
+    memory: CausalAnalogMemory,
+    row: dict[str, object],
+    policy: Policy,
+) -> dict[str, object]:
+    view = _analog_view(memory, row, policy)
+    mean_raw = view["weighted_mean_r"]
+    loss_raw = view["weighted_loss_rate"]
+    mean = None if mean_raw is None else _d(mean_raw)
+    loss_rate = None if loss_raw is None else _d(loss_raw)
+    effective_n = _d(view["effective_sample_size"])
     sufficient = (
         mean is not None
         and loss_rate is not None
-        and summary.confidence_bps >= policy.minimum_confidence_bps
+        and int(view["confidence_bps"]) >= policy.minimum_confidence_bps
         and effective_n >= Decimal("6")
     )
 
