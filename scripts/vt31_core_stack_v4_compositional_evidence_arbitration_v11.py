@@ -290,12 +290,12 @@ def _evidence_model(
             )
 
             loss_delta = min(
-                cast(Decimal, l["loss_rate"]) - cast(Decimal, old_global["loss_rate"]),
-                cast(Decimal, r["loss_rate"]) - cast(Decimal, recent_global["loss_rate"]),
+                cast(Decimal, left_stats["loss_rate"]) - cast(Decimal, old_global["loss_rate"]),
+                cast(Decimal, right_stats["loss_rate"]) - cast(Decimal, recent_global["loss_rate"]),
             )
             winner_delta = min(
-                cast(Decimal, l["winner_r_density"]) - cast(Decimal, old_global["winner_r_density"]),
-                cast(Decimal, r["winner_r_density"]) - cast(Decimal, recent_global["winner_r_density"]),
+                cast(Decimal, left_stats["winner_r_density"]) - cast(Decimal, old_global["winner_r_density"]),
+                cast(Decimal, right_stats["winner_r_density"]) - cast(Decimal, recent_global["winner_r_density"]),
             )
 
             failure = max(ZERO, loss_delta) * reliability * Decimal("4")
@@ -326,19 +326,19 @@ def _evidence_model(
                 "evidence": evidence.payload(),
                 "old": {
                     "sample": l_n,
-                    "wins": l["wins"],
-                    "losses": l["losses"],
-                    "loss_rate": format(cast(Decimal, l["loss_rate"]), "f"),
-                    "winner_r_density": format(cast(Decimal, l["winner_r_density"]), "f"),
-                    "total_r": format(cast(Decimal, l["total_r"]), "f"),
+                    "wins": left_stats["wins"],
+                    "losses": left_stats["losses"],
+                    "loss_rate": format(cast(Decimal, left_stats["loss_rate"]), "f"),
+                    "winner_r_density": format(cast(Decimal, left_stats["winner_r_density"]), "f"),
+                    "total_r": format(cast(Decimal, left_stats["total_r"]), "f"),
                 },
                 "recent": {
                     "sample": r_n,
-                    "wins": r["wins"],
-                    "losses": r["losses"],
-                    "loss_rate": format(cast(Decimal, r["loss_rate"]), "f"),
-                    "winner_r_density": format(cast(Decimal, r["winner_r_density"]), "f"),
-                    "total_r": format(cast(Decimal, r["total_r"]), "f"),
+                    "wins": right_stats["wins"],
+                    "losses": right_stats["losses"],
+                    "loss_rate": format(cast(Decimal, right_stats["loss_rate"]), "f"),
+                    "winner_r_density": format(cast(Decimal, right_stats["winner_r_density"]), "f"),
+                    "total_r": format(cast(Decimal, right_stats["total_r"]), "f"),
                 },
             })
         model[feature] = learned
