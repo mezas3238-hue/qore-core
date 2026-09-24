@@ -13,7 +13,6 @@ import json
 from collections import defaultdict
 from decimal import Decimal
 from pathlib import Path
-from typing import cast
 
 import vt31_core_stack_v4_perception_first_v2 as v2
 
