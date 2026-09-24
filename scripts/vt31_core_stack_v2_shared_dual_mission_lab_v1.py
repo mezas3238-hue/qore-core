@@ -18,7 +18,6 @@ features of the current decision.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 from dataclasses import dataclass
 from decimal import Decimal
@@ -176,7 +175,7 @@ def _metrics_values(values: list[Decimal]) -> dict[str, object]:
     }
 
 
-def _metrics(rows: list[dict[str, object]], field: str = "net_r_after_friction") -> dict[str, object]:
+def _metrics(\n    rows: list[dict[str, object]],\n    field: str = "net_r_after_friction",\n) -> dict[str, object]:
     ordered = sorted(rows, key=lambda row: cast(str, row["signal_at"]))
     return _metrics_values(_values(ordered, field))
 
