@@ -110,6 +110,8 @@ class Policy:
         }
 
 
+_SCORE_CACHE: dict[tuple[int, str, int, int, str], tuple[Decimal | None, int]] = {}
+
 POLICIES = tuple(
     Policy(profile, shrinkage, abstain, favorable, min_groups, caution)
     for profile in ("BASE", "GEOMETRY", "FULL")
@@ -210,8 +212,20 @@ def _score(
     current: dict[str, object],
     policy: Policy,
 ) -> tuple[Decimal | None, int]:
+    cache_key = (
+        id(history),
+        policy.profile,
+        policy.shrinkage,
+        policy.minimum_groups,
+        cast(str, current["signal_at"]),
+    )
+    cached = _SCORE_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
     if len(history) < 80:
-        return None, 0
+        result = (None, 0)
+        _SCORE_CACHE[cache_key] = result
+        return result
     for field in FORBIDDEN_CURRENT_FEATURES:
         if field in policy.features:
             raise AssertionError(f"post-outcome feature leaked into policy: {field}")
@@ -244,12 +258,16 @@ def _score(
             estimate, n = item
             estimates.append((estimate, Decimal(n).sqrt() * Decimal("1.5")))
     if len(estimates) < policy.minimum_groups:
-        return None, len(estimates)
+        result = (None, len(estimates))
+        _SCORE_CACHE[cache_key] = result
+        return result
     weight = sum((w for _, w in estimates), Decimal(0))
-    return (
+    result = (
         sum((estimate * w for estimate, w in estimates), Decimal(0)) / weight,
         len(estimates),
     )
+    _SCORE_CACHE[cache_key] = result
+    return result
 
 
 def _decision_and_weight(
