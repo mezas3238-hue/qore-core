@@ -44,6 +44,13 @@ from qore.infrastructure.core_stack_v2.contracts import (
     freeze_facts,
 )
 from qore.infrastructure.core_stack_v2.engine import CoreStackConfig, build_snapshot
+from qore.infrastructure.core_stack_v2.environment_intelligence import (
+    MarketEnvironmentAssessment,
+    MarketEnvironmentObservation,
+    MarketEnvironmentPolicy,
+    MarketEnvironmentState,
+    assess_market_environment,
+)
 from qore.infrastructure.core_stack_v2.intelligence import (
     AnalogSummary,
     CausalEdge,
@@ -106,6 +113,10 @@ __all__ = [
     "JourneyAssessment",
     "JourneyDisposition",
     "MarketStabilityEvidence",
+    "MarketEnvironmentAssessment",
+    "MarketEnvironmentObservation",
+    "MarketEnvironmentPolicy",
+    "MarketEnvironmentState",
     "MarketTrajectoryAssessment",
     "MarketTrajectoryState",
     "MarketTransitionObservation",
@@ -163,6 +174,7 @@ __all__ = [
     "UncertaintyState",
     "WorldState",
     "assess_drawdown_stability",
+    "assess_market_environment",
     "assess_market_trajectory",
     "assess_position_journey",
     "build_global_market_universe",
