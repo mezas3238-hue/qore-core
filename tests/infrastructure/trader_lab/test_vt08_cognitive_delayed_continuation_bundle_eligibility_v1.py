@@ -25,7 +25,7 @@ def test_unique_causal_fvg_requires_confirmation_close_inside() -> None:
         _bar(0, high="100", low="99", close="99.5"),
         _bar(1, high="100", low="99", close="99.5"),
         _bar(2, high="103", low="101", close="102"),
-        _bar(3, high="102.5", low="101.5", close="102"),
+        _bar(3, high="101.5", low="100.2", close="100.5"),
     )
     poi = _unique_causal_fvg_at_confirmation(
         bars,
