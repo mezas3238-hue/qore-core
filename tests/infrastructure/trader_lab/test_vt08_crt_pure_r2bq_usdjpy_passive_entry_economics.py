@@ -41,3 +41,16 @@ def test_r2bq_same_m15_target_then_stop_resolves_stop_first() -> None:
         ),
     )
     assert outcome == ("STOP", Decimal("90"))
+
+
+def test_r2bq_passive_fill_bar_target_is_not_credited() -> None:
+    outcome = _m15_exit(
+        bullish=True,
+        stop=Decimal("90"),
+        target=Decimal("110"),
+        bars=(
+            _bar(low=100, high=111),
+        ),
+        target_bars=(),
+    )
+    assert outcome is None
