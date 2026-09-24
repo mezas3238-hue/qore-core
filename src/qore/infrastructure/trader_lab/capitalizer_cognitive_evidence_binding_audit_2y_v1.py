@@ -96,6 +96,7 @@ class CognitiveEvidenceBindingRow:
     h1_open: str
     entry_at: str
     provenance: str
+    source_microstructure_match_found: bool
     source_microstructure_bound: bool
     source_timestamps_causal: bool
     evidence_provenance_complete: bool
@@ -219,9 +220,9 @@ def _causal_microstructure(
     arbitration: dict[str, Any] | None,
     *,
     entry_at: datetime,
-) -> tuple[bool, bool, tuple[str, ...]]:
+) -> tuple[bool, bool, bool, tuple[str, ...]]:
     if arbitration is None:
-        return False, False, ()
+        return False, False, False, ()
 
     causal = True
     for field in _CAUSAL_TIMESTAMP_FIELDS:
@@ -230,7 +231,7 @@ def _causal_microstructure(
             causal = False
 
     if not causal:
-        return False, False, ()
+        return True, False, False, ()
 
     observations = (
         f"LIQUIDITY_SOURCE:{arbitration['liquidity_source']}",
@@ -243,7 +244,7 @@ def _causal_microstructure(
         f"M3_MSS_AT:{arbitration['m3_mss_at']}",
         f"M1_FVG_CONFIRMED_AT:{arbitration['m1_fvg_confirmed_at']}",
     )
-    return True, True, observations
+    return True, True, True, observations
 
 
 def _unit_position(row: dict[str, Any]) -> CapitalizerExposurePosition:
@@ -332,7 +333,7 @@ def _build_rows(
 
         shared, same, opposing = _factor_relation(current, active)
         source = arbitration.get(_control_key(current))
-        source_bound, timestamps_causal, observations = _causal_microstructure(
+        source_match, source_bound, timestamps_causal, observations = _causal_microstructure(
             source,
             entry_at=entry_at,
         )
@@ -364,6 +365,7 @@ def _build_rows(
                 h1_open=str(current["h1_open"]),
                 entry_at=str(current["entry_at"]),
                 provenance=str(current["provenance"]),
+                source_microstructure_match_found=source_match,
                 source_microstructure_bound=source_bound,
                 source_timestamps_causal=timestamps_causal,
                 evidence_provenance_complete=source_bound and timestamps_causal,
@@ -428,7 +430,7 @@ def build_report(
         for key in stop_keys
     )
     future_violations = sum(
-        row.source_microstructure_bound and not row.source_timestamps_causal
+        row.source_microstructure_match_found and not row.source_timestamps_causal
         for row in rows
     )
     minimum_context = sum(
