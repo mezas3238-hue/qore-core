@@ -5,7 +5,7 @@ import hashlib
 import json
 from typing import Final
 
-SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_008"
+SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_009"
 
 _CAPABILITIES: Final = (
     "PERCEPTION_INTEGRITY",
@@ -302,6 +302,8 @@ def superintelligence_freeze_contract() -> dict[str, object]:
             },
             "realtime_trade_management": {
                 "required": True,
+                "research_status": "DEFERRED_UNTIL_NATURAL_DD_INTELLIGENCE_PASSES",
+                "may_contribute_to_current_primary_dd_claim": False,
                 "purpose": (
                     "Shared must act as the trader third eye during the live path: "
                     "reduce loss exposure with causal stop improvement/trailing and "
@@ -318,10 +320,10 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                     "TRAIL_AND_EXTEND",
                     "EXIT_RISK",
                 ),
-                "trailing_stop_required": True,
+                "trailing_stop_required_after_phase_unlock": True,
                 "stop_may_only_improve_or_hold": True,
                 "stop_widening_forbidden": True,
-                "target_extension_allowed": True,
+                "target_extension_allowed_after_phase_unlock": True,
                 "target_extension_requires_causal_capacity": True,
                 "normal_pullback_must_not_trigger_false_exit": True,
                 "large_winner_protection_required": True,
@@ -413,6 +415,57 @@ def superintelligence_freeze_contract() -> dict[str, object]:
             },
             "success_requires_all_three": True,
         },
+        "drawdown_intelligence_sequence": {
+            "phase_1_natural_dd_intelligence": {
+                "status": "ACTIVE_PRIMARY_RESEARCH",
+                "purpose": (
+                    "Prove that Shared can causally recognize the market states, "
+                    "transitions and adverse environments that create drawdown "
+                    "before using trade-management actuators."
+                ),
+                "sizing_forbidden": True,
+                "capital_weighting_forbidden": True,
+                "trailing_stop_forbidden_for_primary_claim": True,
+                "target_extension_forbidden_for_primary_claim": True,
+                "stop_geometry_mutation_forbidden_for_primary_claim": True,
+                "target_geometry_mutation_forbidden_for_primary_claim": True,
+                "entry_abstention_for_primary_intelligence_score_forbidden": True,
+                "same_trade_universe_required": True,
+                "same_initial_position_size_required": True,
+                "primary_outputs": (
+                    "causal_loss_risk_classification",
+                    "adverse_environment_recall",
+                    "loss_cluster_recall",
+                    "winner_false_positive_rate",
+                    "winner_r_false_positive_exposure",
+                    "lead_time_before_loss",
+                    "lead_time_before_loss_cluster",
+                    "recovery_detection_latency",
+                    "avoidable_drawdown_envelope",
+                ),
+                "actual_dd_reduction_not_claimed_until_actuation_phase": True,
+                "must_explain_where_drawdown_originates": True,
+                "must_identify_adverse_market_cause_not_only_outcome": True,
+                "must_distinguish_terminal_loss_risk_from_recoverable_pullback": True,
+                "must_preserve_large_winner_classification": True,
+                "must_pass_both_consumed_folds_before_phase_2": True,
+                "fresh_holdout_remains_closed_during_development": True,
+            },
+            "phase_2_realtime_dd_actuation": {
+                "status": "LOCKED",
+                "unlock_requires_phase_1_pass": True,
+                "trailing_stop_allowed_after_unlock": True,
+                "loss_compression_allowed_after_unlock": True,
+                "target_extension_allowed_after_unlock": True,
+                "sizing_remains_forbidden": True,
+                "capital_weighting_remains_forbidden": True,
+                "same_initial_position_size_required": True,
+                "purpose": (
+                    "Apply already-proven Shared intelligence to the live trade "
+                    "path through defense, trailing and target extension."
+                ),
+            },
+        },
         "shared_research_sequence": {
             "phase_a_shared_intelligence": {
                 "status": "ACTIVE_PRIMARY_RESEARCH",
@@ -420,8 +473,9 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "capital_potentiation_forbidden_in_phase": True,
                 "risk_weighting_forbidden_in_phase": True,
                 "journey_intelligence_required_in_phase": True,
-                "target_extension_intelligence_required_in_phase": True,
-                "loss_defense_intelligence_required_in_phase": True,
+                "target_extension_intelligence_required_in_phase": False,
+                "loss_defense_actuation_required_in_phase": False,
+                "natural_drawdown_intelligence_must_pass_first": True,
                 "must_be_formally_accepted_before_phase_b": True,
                 "formal_acceptance_requires_temporal_falsification_pass": True,
                 "formal_acceptance_requires_material_pf_uplift": True,
