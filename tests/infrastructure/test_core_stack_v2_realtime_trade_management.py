@@ -202,7 +202,9 @@ def test_realtime_management_freeze_forbids_sizing_and_allows_dynamic_path() -> 
     assert management["shared_management_directive_authority"] is True
     assert management["shared_broker_execution_authority"] is False
     assert position["same_position_size_throughout_trade"] is True
-    assert position["sizing_changes_for_shared_economic_claims_forbidden"] is True
+    assert position["shared_sizing_use_forbidden"] is True
+    assert position["shared_sizing_change_forbidden"] is True
+    assert position["shared_position_quantity_change_forbidden"] is True
     assert north_star["shared_behavior_must_be_measured_with_sizing_unchanged"] is True
 
 
