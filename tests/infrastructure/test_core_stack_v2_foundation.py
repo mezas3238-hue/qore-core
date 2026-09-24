@@ -357,12 +357,12 @@ def test_global_market_universe_retains_every_qore_market_without_allowlist() ->
     assert universe.execution_authority is False
 
 
-
 def test_superintelligence_architecture_freeze_preserves_owner_laws() -> None:
     contract = superintelligence_freeze_contract()
     universe = contract["global_market_universe"]
     sovereignty = contract["specialist_sovereignty"]
     benchmark = contract["vt31_benchmark"]
+    falsification = contract["operational_falsification"]
     governance = contract["governance"]
 
     assert isinstance(universe, dict)
@@ -382,12 +382,20 @@ def test_superintelligence_architecture_freeze_preserves_owner_laws() -> None:
     assert benchmark["economic_objective_is_material_uplift"] is True
     assert benchmark["no_future_features"] is True
 
+    assert isinstance(falsification, dict)
+    assert falsification["required"] is True
+    assert falsification["same_realized_market_path_required"] is True
+    assert falsification["same_opportunity_universe_required"] is True
+    assert falsification["shared_decision_must_precede_outcome"] is True
+    assert falsification["shared_must_materially_outperform_on_poor_period"] is True
+    assert falsification["shared_failure_to_improve_materially_is_falsification"] is True
+    assert falsification["hindsight_reclassification_forbidden"] is True
+
     assert isinstance(governance, dict)
     assert governance["vt08_forex_excluded"] is True
     assert governance["live_deployment_authorized"] is False
     assert governance["merge_authorized"] is False
     assert len(superintelligence_freeze_fingerprint()) == 64
-
 
 
 def test_real_operation_falsification_uses_exact_pre_entry_shadow_decisions() -> None:
