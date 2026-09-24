@@ -33,12 +33,12 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Sequence
 from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
-from collections.abc import Sequence
 
 from qore.infrastructure.trader_lab import (
     vt08_index_r15_concurrent_portfolio_validation as r15,
