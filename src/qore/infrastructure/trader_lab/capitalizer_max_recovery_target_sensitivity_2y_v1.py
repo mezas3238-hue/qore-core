@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import defaultdict
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -334,7 +333,7 @@ def _load_outcomes(root: Path) -> tuple[TargetOutcome, ...]:
 
 
 def build_matrix(root: Path) -> dict[str, Any]:
-    reports = _load_reports(root)
+    _load_reports(root)
     outcomes = _load_outcomes(root)
 
     variants: list[dict[str, Any]] = []
