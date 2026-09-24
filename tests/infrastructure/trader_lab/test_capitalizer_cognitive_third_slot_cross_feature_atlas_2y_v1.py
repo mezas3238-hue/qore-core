@@ -7,9 +7,11 @@ from pathlib import Path
 from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_evidence_binding_audit_2y_v2 as binding_v2,
 )
-from qore.infrastructure.trader_lab.capitalizer_cognitive_third_slot_cross_feature_atlas_2y_v1 import (
-    JOURNEY_FEATURES,
-    PREENTRY_FEATURES,
+from qore.infrastructure.trader_lab import (
+    capitalizer_cognitive_third_slot_cross_feature_atlas_2y_v1 as cross,
+)
+    cross.JOURNEY_FEATURES,
+    cross.PREENTRY_FEATURES,
     build_report,
 )
 
@@ -170,12 +172,12 @@ def test_cross_feature_atlas_is_pairwise_and_causal(tmp_path: Path) -> None:
         bindings,
     )
 
-    report = build_report(binding_root, target_root)
+    report = cross.build_report(binding_root, target_root)
 
     assert report["control_trades"] == 120
     assert report["third_slot_trades"] == 40
-    assert report["journey_features"] == JOURNEY_FEATURES
-    assert report["preentry_features"] == PREENTRY_FEATURES
+    assert report["journey_features"] == cross.JOURNEY_FEATURES
+    assert report["preentry_features"] == cross.PREENTRY_FEATURES
     assert report["pairwise_cell_count"] > 0
     assert report["pairwise_only_no_three_way_search"] is True
     assert report["all_features_known_by_entry"] is True
