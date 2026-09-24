@@ -1,0 +1,67 @@
+"""QORE CORE STACK V2 shared, authority-free cognitive context layer."""
+
+from qore.infrastructure.core_stack_v2.ab import (
+    DecisionABSummary,
+    DecisionObservation,
+    summarize_decision_ab,
+)
+from qore.infrastructure.core_stack_v2.adapters import (
+    CoreAdapter,
+    TraderCognitiveContext,
+    VT31CoreAdapter,
+)
+from qore.infrastructure.core_stack_v2.audit import CoreAuditRecord, make_audit_record
+from qore.infrastructure.core_stack_v2.compatibility import (
+    CompatibilityEntry,
+    CompatibilityStatus,
+    compatibility_manifest,
+    compatibility_manifest_fingerprint,
+)
+from qore.infrastructure.core_stack_v2.contracts import (
+    CORE_STACK_VERSION,
+    CognitiveState,
+    CoreHypothesis,
+    CoreSnapshot,
+    HypothesisStatus,
+    KnowledgeState,
+    MarketEvent,
+    PerceptionIntegrity,
+    PortfolioIntent,
+    PortfolioSituation,
+    PositionContext,
+    UncertaintyState,
+    WorldState,
+    freeze_facts,
+)
+from qore.infrastructure.core_stack_v2.engine import CoreStackConfig, build_snapshot
+
+__all__ = [
+    "CORE_STACK_VERSION",
+    "CognitiveState",
+    "CompatibilityEntry",
+    "CompatibilityStatus",
+    "CoreAdapter",
+    "CoreAuditRecord",
+    "CoreHypothesis",
+    "CoreSnapshot",
+    "CoreStackConfig",
+    "DecisionABSummary",
+    "DecisionObservation",
+    "HypothesisStatus",
+    "KnowledgeState",
+    "MarketEvent",
+    "PerceptionIntegrity",
+    "PortfolioIntent",
+    "PortfolioSituation",
+    "PositionContext",
+    "TraderCognitiveContext",
+    "UncertaintyState",
+    "VT31CoreAdapter",
+    "WorldState",
+    "build_snapshot",
+    "compatibility_manifest",
+    "compatibility_manifest_fingerprint",
+    "freeze_facts",
+    "make_audit_record",
+    "summarize_decision_ab",
+]
