@@ -199,7 +199,7 @@ def _persistence(values: Sequence[int], *, increasing: bool) -> int:
     if len(values) < 2:
         return 0
     qualifying = 0
-    for left, right in zip(values, values[1:], strict=True):
+    for left, right in zip(values, values[1:], strict=False):
         if (right > left) if increasing else (right < left):
             qualifying += 1
     return qualifying * 10_000 // (len(values) - 1)
