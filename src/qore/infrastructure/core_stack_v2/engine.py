@@ -207,10 +207,11 @@ def build_snapshot(
     config: CoreStackConfig | None = None,
 ) -> CoreSnapshot:
     """Build one immutable shared snapshot from already-observable causal inputs."""
+    effective_config = config or CoreStackConfig()
     integrity = _integrity(
         events,
         generated_at=generated_at,
-        stale_after_ms=config.stale_after_ms,
+        stale_after_ms=effective_config.stale_after_ms,
     )
     markets = {event.market for event in events}
     if len(markets) != 1:
