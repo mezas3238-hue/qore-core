@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 from collections import Counter, defaultdict
-from datetime import date
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Final, cast
@@ -31,12 +31,16 @@ from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_v1 import (
 )
 from qore.infrastructure.trader_lab.vt08_cognitive_m3_fractal_density_recovery_v1 import (
     _load_m3,
+)
+from qore.infrastructure.trader_lab.vt08_cognitive_m3_fractal_density_recovery_v1 import (
     _window as _window_m3,
 )
 from qore.infrastructure.trader_lab.vt08_cognitive_m5_fractal_density_recovery_v1 import (
     _candidate,
     _load_m5,
     _model_trade_m15_outer,
+)
+from qore.infrastructure.trader_lab.vt08_cognitive_m5_fractal_density_recovery_v1 import (
     _window as _window_m5,
 )
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
@@ -110,10 +114,10 @@ def _profile_bars(
 def _ltf_window(
     *,
     profile: str,
-    bars_by_open: dict,
-    opened_at,
-    closed_at,
-):
+    bars_by_open: dict[datetime, Vt08B01Bar],
+    opened_at: datetime,
+    closed_at: datetime,
+) -> tuple[Vt08B01Bar, ...] | None:
     if profile == "M15_STANDARD":
         return _window_bars(
             bars_by_open,
@@ -171,11 +175,11 @@ def evaluate(
 
         reference = source_h4_from_m15(
             m15_by_open,
-            opened_at_local=local - __import__("datetime").timedelta(hours=8),
+            opened_at_local=local - timedelta(hours=8),
         )
         candle2 = source_h4_from_m15(
             m15_by_open,
-            opened_at_local=local - __import__("datetime").timedelta(hours=4),
+            opened_at_local=local - timedelta(hours=4),
         )
         if reference is None or candle2 is None or candle2.closed_at != entry_bar.opened_at:
             failures["INCOMPLETE_SOURCE_H4"] += 1
