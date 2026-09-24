@@ -150,6 +150,11 @@ def _entry_context(
         "trajectory_state": latest_trajectory.state.value,
         "trajectory_support_bps": latest_trajectory.support_bps,
         "trajectory_adversity_bps": latest_trajectory.adversity_bps,
+        "trajectory_pressure_bps": latest_trajectory.deterioration_pressure_bps,
+        "trajectory_recovery_velocity_bps": latest_trajectory.recovery_velocity_bps,
+        "trajectory_recovery_persistence_bps": (
+            latest_trajectory.recovery_persistence_bps
+        ),
         "trajectory_deterioration_velocity_bps": (
             latest_trajectory.deterioration_velocity_bps
         ),
@@ -160,12 +165,18 @@ def _entry_context(
         "environment_state": latest_environment.state.value,
         "environment_support_bps": latest_environment.market_support_bps,
         "environment_adverse_bps": latest_environment.adverse_environment_bps,
+        "environment_adverse_velocity_bps": latest_environment.adverse_velocity_bps,
+        "environment_recovery_velocity_bps": latest_environment.recovery_velocity_bps,
+        "environment_recovery_persistence_bps": (
+            latest_environment.recovery_persistence_bps
+        ),
         "environment_adverse_persistence_bps": (
             latest_environment.adverse_persistence_bps
         ),
         "cross_market_fragility_bps": latest_environment.cross_market_fragility_bps,
         "structural_fragility_bps": latest_environment.structural_fragility_bps,
         "preentry_observation_count": len(transitions),
+        "as_of": latest_environment.as_of.isoformat(),
     }
 
 
