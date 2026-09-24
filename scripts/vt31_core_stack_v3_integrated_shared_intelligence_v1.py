@@ -20,6 +20,7 @@ Journey actions are causal:
 - No future bar, terminal PnL, MFE/MAE outcome label or fold identity may be a
   current decision input.
 """
+# ruff: noqa: B009
 from __future__ import annotations
 
 import argparse
