@@ -2798,29 +2798,6 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 result=actor_result,
                             )
                             done = actor_result.strategy_finished_at
-                            if arm_blocked:
-                                _log(
-                                    log_path,
-                                    {
-                                        "event": "PRE_FLIGHT_NEW_ORDER_BLOCKED",
-                                        "trader": identity,
-                                        "symbol": symbol,
-                                        "decision_at": (
-                                            audjpy_arm_anchor.isoformat()
-                                        ),
-                                        "candidate": (
-                                            actor_result.signal is not None
-                                        ),
-                                        **arm_blocker_telemetry,
-                                    },
-                                )
-                                log_m5_hard_fail(
-                                    identity,
-                                    symbol,
-                                    reason="preflight-new-order-blocked",
-                                    observed_at=done,
-                                )
-                                return
                             if actor_result.error is not None:
                                 log_m5_hard_fail(
                                     identity,
@@ -2889,6 +2866,29 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                         },
                                     )
                                 mark_m5_terminal(identity, symbol)
+                                return
+
+                            if arm_blocked:
+                                _log(
+                                    log_path,
+                                    {
+                                        "event": "PRE_FLIGHT_NEW_ORDER_BLOCKED",
+                                        "trader": identity,
+                                        "symbol": symbol,
+                                        "decision_at": (
+                                            audjpy_arm_anchor.isoformat()
+                                        ),
+                                        "candidate": True,
+                                        "strategy_reason": reason,
+                                        **arm_blocker_telemetry,
+                                    },
+                                )
+                                log_m5_hard_fail(
+                                    identity,
+                                    symbol,
+                                    reason="preflight-new-order-blocked",
+                                    observed_at=done,
+                                )
                                 return
 
                             try:
