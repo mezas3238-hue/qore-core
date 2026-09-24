@@ -15,12 +15,15 @@ from qore.infrastructure.core_stack_v2 import (
     MarketTrajectoryState,
     MarketTransitionObservation,
     PositionJourneyEvidence,
+    PositionPathObservation,
+    PositionPathState,
     StabilityMode,
     TraderStabilityTelemetry,
     assess_drawdown_stability,
     assess_market_environment,
     assess_market_trajectory,
     assess_position_journey,
+    assess_position_path,
     superintelligence_freeze_contract,
 )
 
@@ -111,6 +114,7 @@ def test_generic_shared_modules_do_not_embed_vt31_methodology_ontology() -> None
         "journey_intelligence.py",
         "transition_intelligence.py",
         "environment_intelligence.py",
+        "path_intelligence.py",
     )
     forbidden = (
         "silver_bullet",
@@ -534,3 +538,108 @@ def test_market_environment_fails_closed_and_rejects_noncausal_ordering() -> Non
                 _environment_observation(4, 8000),
             )
         )
+
+
+def _path_observation(
+    minutes: int,
+    *,
+    progress: int,
+    close_support: int,
+    efficiency: int,
+    favorable: int,
+    adverse: int,
+    favorable_body: int,
+    adverse_body: int,
+    market_support: int,
+    environment_adverse: int,
+    recovery: int,
+) -> PositionPathObservation:
+    return PositionPathObservation(
+        as_of=NOW + timedelta(minutes=minutes),
+        data_integrity_bps=9800,
+        journey_progress_bps=progress,
+        close_support_bps=close_support,
+        directional_efficiency_bps=efficiency,
+        favorable_excursion_bps=favorable,
+        adverse_excursion_bps=adverse,
+        favorable_body_bps=favorable_body,
+        adverse_body_bps=adverse_body,
+        market_support_bps=market_support,
+        environment_adverse_bps=environment_adverse,
+        recovery_evidence_bps=recovery,
+    )
+
+
+def test_position_path_protects_established_winner_during_pullback() -> None:
+    result = assess_position_path(
+        (
+            _path_observation(
+                1, progress=5200, close_support=7600, efficiency=7600,
+                favorable=6500, adverse=1800, favorable_body=7200,
+                adverse_body=1800, market_support=7800,
+                environment_adverse=2200, recovery=4200,
+            ),
+            _path_observation(
+                2, progress=6800, close_support=8000, efficiency=8200,
+                favorable=7800, adverse=2200, favorable_body=8000,
+                adverse_body=2000, market_support=8000,
+                environment_adverse=2500, recovery=4500,
+            ),
+            _path_observation(
+                3, progress=7200, close_support=6200, efficiency=6000,
+                favorable=8200, adverse=3600, favorable_body=5400,
+                adverse_body=4200, market_support=6500,
+                environment_adverse=5200, recovery=5000,
+            ),
+            _path_observation(
+                4, progress=7200, close_support=5600, efficiency=5400,
+                favorable=8200, adverse=4300, favorable_body=5000,
+                adverse_body=5000, market_support=6100,
+                environment_adverse=6100, recovery=5200,
+            ),
+        )
+    )
+    assert result.state in {
+        PositionPathState.FAVORABLE_EXPANSION,
+        PositionPathState.HEALTHY_PULLBACK,
+    }
+    assert result.winner_protection_bps >= 6200
+    assert result.order_authority is False
+    assert result.risk_authority is False
+    assert result.sizing_authority is False
+    assert result.execution_authority is False
+
+
+def test_position_path_detects_persistent_unproven_failure_risk() -> None:
+    result = assess_position_path(
+        (
+            _path_observation(
+                1, progress=900, close_support=4200, efficiency=4300,
+                favorable=1500, adverse=5200, favorable_body=3200,
+                adverse_body=6100, market_support=4300,
+                environment_adverse=5600, recovery=2600,
+            ),
+            _path_observation(
+                2, progress=1200, close_support=3300, efficiency=3400,
+                favorable=1800, adverse=6500, favorable_body=2600,
+                adverse_body=7200, market_support=3500,
+                environment_adverse=6500, recovery=2200,
+            ),
+            _path_observation(
+                3, progress=1300, close_support=2400, efficiency=2600,
+                favorable=1900, adverse=7600, favorable_body=1900,
+                adverse_body=8300, market_support=2700,
+                environment_adverse=7600, recovery=1800,
+            ),
+            _path_observation(
+                4, progress=1400, close_support=1500, efficiency=1800,
+                favorable=2000, adverse=8800, favorable_body=1400,
+                adverse_body=9000, market_support=1900,
+                environment_adverse=8600, recovery=1400,
+            ),
+        )
+    )
+    assert result.state is PositionPathState.FAILURE_RISK
+    assert result.adverse_persistence_bps >= 5500
+    assert result.winner_protection_bps < 6200
+    assert result.terminal_failure_risk_bps >= 7200
