@@ -25,6 +25,7 @@ from typing import cast
 import vt31_core_stack_v3_integrated_shared_intelligence_v1 as journey
 import vt31_core_stack_v3_journey_counterfactual_memory_v2 as counter
 import vt31_core_stack_v4_causal_journey_defense_v17 as v17
+import vt31_core_stack_v4_cross_market_coherence_veto_v15 as v15
 import vt31_core_stack_v4_cross_market_sequence_hypothesis_v13 as v13
 import vt31_core_stack_v4_perception_first_v2 as v2
 import vt31_core_stack_v4_perception_sequence_topology_v8 as v8
