@@ -247,9 +247,11 @@ def _rearm_details(
         closeback_raw = raw.get("new_closeback_at")
         mss_raw = raw.get("new_mss_at")
         fill_raw = raw.get("new_fill_at")
-        if not all(
-            isinstance(value, str)
-            for value in (raid_raw, closeback_raw, mss_raw, fill_raw)
+        if (
+            not isinstance(raid_raw, str)
+            or not isinstance(closeback_raw, str)
+            or not isinstance(mss_raw, str)
+            or not isinstance(fill_raw, str)
         ):
             raise ValueError("target-ready executable rearm ledger incomplete")
 
