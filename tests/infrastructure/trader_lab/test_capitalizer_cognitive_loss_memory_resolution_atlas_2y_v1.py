@@ -6,8 +6,8 @@ from pathlib import Path
 from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_failure_fingerprint_audit_2y_v1 as fp,
 )
-from qore.infrastructure.trader_lab.capitalizer_cognitive_loss_memory_resolution_atlas_2y_v1 import (
-    build_report,
+from qore.infrastructure.trader_lab import (
+    capitalizer_cognitive_loss_memory_resolution_atlas_2y_v1 as atlas,
 )
 
 
@@ -163,7 +163,7 @@ def test_resolution_semantics_are_causal_and_distinct(tmp_path: Path) -> None:
         fp_rows,
     )
 
-    report = build_report(fingerprint_root, target_root)
+    report = atlas.build_report(fingerprint_root, target_root)
     structural = {
         row["semantics"]: row
         for row in report["variants"]["STRUCTURAL"]
