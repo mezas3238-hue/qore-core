@@ -77,8 +77,14 @@ def compatibility_manifest() -> dict[str, object]:
             "KNOWN_OWNER_SCOPED_TRADERS; repository/runtime discovery remains required "
             "before expanding integration"
         ),
+        "shared_scope": "ALL_ENABLED_QORE_TRADERS_VIA_ADAPTER",
+        "default_new_trader_status": "ADAPTER_REQUIRED",
+        "vt31_role": "PRIMARY_FALSIFICATION_LAB_ONLY",
         "entries": entries,
         "governance": {
+            "shared_core_is_qore_wide": True,
+            "shared_core_is_not_vt31_specific": True,
+            "explicit_exclusions_override_default_adapter_eligibility": True,
             "vt08_forex_excluded": True,
             "live_deployment_authorized": False,
             "merge_authorized": False,
