@@ -39,8 +39,8 @@ class RecordingConsumer:
     markets: tuple[str, ...]
     snapshot_ids: list[str] = field(default_factory=list)
 
-    def consume(self, snapshot: object) -> None:
-        self.snapshot_ids.append(getattr(snapshot, "snapshot_id"))
+    def consume(self, snapshot: CoreSnapshot) -> None:
+        self.snapshot_ids.append(snapshot.snapshot_id)
 
 
 @dataclass(slots=True)
@@ -48,7 +48,7 @@ class FailingConsumer:
     trader_id: str = "BROKEN_SHADOW"
     markets: tuple[str, ...] = ("NAS100",)
 
-    def consume(self, snapshot: object) -> None:
+    def consume(self, snapshot: CoreSnapshot) -> None:
         _ = snapshot
         raise RuntimeError("injected adapter failure")
 
