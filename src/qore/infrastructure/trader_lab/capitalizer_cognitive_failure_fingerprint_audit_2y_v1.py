@@ -19,7 +19,6 @@ import argparse
 import hashlib
 import json
 from dataclasses import asdict, dataclass
-from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -194,6 +193,34 @@ def _metrics(rows: tuple[dict[str, Any], ...]) -> dict[str, Any]:
     }
 
 
+def _prior_matches(
+    prior: dict[str, Any],
+    fingerprints: dict[
+        tuple[str, str, str, str, str],
+        tuple[tuple[str, ...], tuple[str, ...], str, str],
+    ],
+    *,
+    wanted_hash: str,
+    contextual_mode: bool,
+    current_day: str,
+    current_session: str,
+    same_day: bool,
+    same_session_day: bool,
+) -> bool:
+    prior_key = _binding_key(prior)
+    prior_hash = fingerprints[prior_key][3 if contextual_mode else 2]
+    if prior_hash != wanted_hash:
+        return False
+    if same_day and str(prior["operating_date"]) != current_day:
+        return False
+    if same_session_day and (
+        str(prior["operating_date"]) != current_day
+        or str(prior["session"]) != current_session
+    ):
+        return False
+    return True
+
+
 def build_report(
     binding_root: Path,
     target_root: Path,
@@ -247,78 +274,79 @@ def build_report(
             and Decimal(str(row["realized_gross_r"])) < 0
         )
 
-        def same_prior(
-            prior: dict[str, Any],
-            *,
-            contextual_mode: bool,
-            same_day: bool,
-            same_session_day: bool,
-        ) -> bool:
-            prior_key = _binding_key(prior)
-            prior_hash = fingerprints[prior_key][3 if contextual_mode else 2]
-            wanted = contextual_hash if contextual_mode else structural_hash
-            if prior_hash != wanted:
-                return False
-            if same_day and str(prior["operating_date"]) != str(
-                current["operating_date"]
-            ):
-                return False
-            if same_session_day and (
-                str(prior["operating_date"]) != str(current["operating_date"])
-                or str(prior["session"]) != str(current["session"])
-            ):
-                return False
-            return True
-
         structural_all = sum(
-            same_prior(
+            _prior_matches(
                 prior,
+                fingerprints,
+                wanted_hash=structural_hash,
                 contextual_mode=False,
+                current_day=str(current["operating_date"]),
+                current_session=str(current["session"]),
                 same_day=False,
                 same_session_day=False,
             )
             for prior in prior_losses
         )
         structural_day = sum(
-            same_prior(
+            _prior_matches(
                 prior,
+                fingerprints,
+                wanted_hash=structural_hash,
                 contextual_mode=False,
+                current_day=str(current["operating_date"]),
+                current_session=str(current["session"]),
                 same_day=True,
                 same_session_day=False,
             )
             for prior in prior_losses
         )
         structural_session = sum(
-            same_prior(
+            _prior_matches(
                 prior,
+                fingerprints,
+                wanted_hash=structural_hash,
                 contextual_mode=False,
+                current_day=str(current["operating_date"]),
+                current_session=str(current["session"]),
                 same_day=False,
                 same_session_day=True,
             )
             for prior in prior_losses
         )
         contextual_all = sum(
-            same_prior(
+            _prior_matches(
                 prior,
+                fingerprints,
+                wanted_hash=contextual_hash,
                 contextual_mode=True,
+                current_day=str(current["operating_date"]),
+                current_session=str(current["session"]),
                 same_day=False,
                 same_session_day=False,
             )
             for prior in prior_losses
         )
         contextual_day = sum(
-            same_prior(
+            _prior_matches(
                 prior,
+                fingerprints,
+                wanted_hash=contextual_hash,
                 contextual_mode=True,
+                current_day=str(current["operating_date"]),
+                current_session=str(current["session"]),
                 same_day=True,
                 same_session_day=False,
             )
             for prior in prior_losses
         )
         contextual_session = sum(
-            same_prior(
+            _prior_matches(
                 prior,
+                fingerprints,
+                wanted_hash=contextual_hash,
                 contextual_mode=True,
+                current_day=str(current["operating_date"]),
+                current_session=str(current["session"]),
                 same_day=False,
                 same_session_day=True,
             )
