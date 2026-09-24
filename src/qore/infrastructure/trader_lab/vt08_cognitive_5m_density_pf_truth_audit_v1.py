@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 from decimal import Decimal
 from pathlib import Path
-from typing import Final
+from typing import Final, cast
 
 from qore.infrastructure.trader_lab.vt08_cognitive_core_stack_dev_v1 import (
     stack_rows,
@@ -45,12 +45,16 @@ def evaluate(path: Path) -> dict[str, object]:
         raise ValueError("market outside frozen VT08 5M universe")
 
     baseline_report = run_market_backtest(path)
-    baseline = dict(baseline_report["economics"])
+    baseline = cast(dict[str, object], baseline_report["economics"]).copy()
     stack = stack_rows(path)
     managed = metrics(tuple(row.as_trade() for row in stack))
 
-    baseline_count = int(baseline["sample_size"])
-    managed_count = int(managed["sample_size"])
+    baseline_count_raw = baseline["sample_size"]
+    managed_count_raw = managed["sample_size"]
+    if not isinstance(baseline_count_raw, int) or not isinstance(managed_count_raw, int):
+        raise ValueError("trade sample sizes must be ints")
+    baseline_count = baseline_count_raw
+    managed_count = managed_count_raw
     if baseline_count != managed_count:
         raise AssertionError("Core Stack changed VT08 trade density")
 
