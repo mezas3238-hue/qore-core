@@ -79,6 +79,39 @@ def superintelligence_freeze_contract() -> dict[str, object]:
             "stop_can_widen": False,
             "future_information_allowed": False,
         },
+        "shared_dual_mission": {
+            "mission_1_decision_support": {
+                "purpose": (
+                    "improve the original trader methodology decision quality "
+                    "without rewriting the methodology"
+                ),
+                "decision_must_precede_entry": True,
+                "methodology_rules_unchanged": True,
+                "profit_factor_must_increase": True,
+                "observed_drawdown_must_decrease": True,
+                "protect_winner_retention": True,
+                "measure_losses_avoided": True,
+                "measure_winners_sacrificed": True,
+                "measure_density_retained": True,
+            },
+            "mission_2_trade_potentiation": {
+                "purpose": (
+                    "increase the economic quality of trades the trader actually "
+                    "takes, reproducing the beneficial economic role of legacy "
+                    "Core Stack without owning execution or risk authority"
+                ),
+                "trader_trade_identity_preserved": True,
+                "shared_order_authority": False,
+                "shared_risk_authority": False,
+                "qore_risk_remains_sovereign": True,
+                "profit_factor_must_increase": True,
+                "observed_drawdown_may_increase": False,
+                "measure_position_journey_uplift": True,
+                "measure_capital_efficiency_uplift": True,
+                "measure_pf_before_and_after_weighting": True,
+            },
+            "success_requires_both_missions": True,
+        },
         "vt31_benchmark": {
             "owner_raw_methodology": {
                 "role": "PRIMARY_FALSIFICATION_BASELINE",
@@ -110,6 +143,15 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "total_r_5y": "68.4017921123",
                 "observed_dd_r_5y": "3.7089849073",
                 "trade_count_5y": 806,
+                "winner_count_5y": 241,
+                "certification_loser_count_5y": 565,
+                "owner_observed_loser_count": 546,
+                "loser_count_requires_reconciliation": True,
+                "win_rate_5y_from_certification": "0.2990074441687344913151364764",
+                "weighted_pf_uses_capital_weighted_net_r": True,
+                "weighted_pf_is_not_signal_quality_pf": True,
+                "signal_quality_must_be_measured_unweighted": True,
+                "loss_count_imbalance_is_diagnostic_not_pf_proof": True,
             },
             "parity_is_only_safety_gate": True,
             "economic_objective_is_material_uplift": True,
