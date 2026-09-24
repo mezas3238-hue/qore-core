@@ -7,6 +7,8 @@ on:
     paths:
       - "src/qore/infrastructure/core_stack_v2/**"
       - "tests/infrastructure/test_core_stack_v2_foundation.py"
+      - "tests/infrastructure/test_vt31_core_stack_v2_adapter.py"
+      - "src/qore/infrastructure/traders/vt31_core_stack_v2_adapter.py"
       - "docs/research/QORE-CORE-STACK-V2-SHARED-FOUNDATION-001.md"
       - ".github/workflows/qore-core-stack-v2-foundation.yml"
   workflow_dispatch:
@@ -26,8 +28,20 @@ jobs:
       - name: Install
         run: pip install -e ".[dev]"
       - name: Ruff
-        run: ruff check src/qore/infrastructure/core_stack_v2 tests/infrastructure/test_core_stack_v2_foundation.py
+        run: >-
+          ruff check
+          src/qore/infrastructure/core_stack_v2
+          src/qore/infrastructure/traders/vt31_core_stack_v2_adapter.py
+          tests/infrastructure/test_core_stack_v2_foundation.py
+          tests/infrastructure/test_vt31_core_stack_v2_adapter.py
       - name: Mypy
-        run: mypy src/qore/infrastructure/core_stack_v2
+        run: >-
+          mypy
+          src/qore/infrastructure/core_stack_v2
+          src/qore/infrastructure/traders/vt31_core_stack_v2_adapter.py
       - name: Focused tests
-        run: pytest -q tests/infrastructure/test_core_stack_v2_foundation.py --no-cov
+        run: >-
+          pytest -q
+          tests/infrastructure/test_core_stack_v2_foundation.py
+          tests/infrastructure/test_vt31_core_stack_v2_adapter.py
+          --no-cov
