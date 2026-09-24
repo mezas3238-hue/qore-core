@@ -1,4 +1,5 @@
 name: QORE Shared VT31 Ultrafast Instinct Prearm V27
+# V27 rerun marker after instinct export repair
 
 on:
   push:
