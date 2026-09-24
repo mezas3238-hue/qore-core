@@ -57,7 +57,7 @@ class CoreAdapter(Protocol):
     def adapt(self, snapshot: CoreSnapshot) -> TraderCognitiveContext: ...
 
 
-def _shared_context(
+def build_shared_context(
     *,
     trader_id: str,
     adapter_version: str,
@@ -125,18 +125,3 @@ def _shared_context(
         position_observations=position,
     )
 
-
-@dataclass(frozen=True, slots=True)
-class VT31CoreAdapter:
-    """Shadow adapter only; VT31 methodology remains the existing authority."""
-
-    trader_id: str = "VT31_NAS100"
-    adapter_version: str = "1.0.0-research"
-
-    def adapt(self, snapshot: CoreSnapshot) -> TraderCognitiveContext:
-        return _shared_context(
-            trader_id=self.trader_id,
-            adapter_version=self.adapter_version,
-            snapshot=snapshot,
-            market_allowed=snapshot.market == "NAS100",
-        )
