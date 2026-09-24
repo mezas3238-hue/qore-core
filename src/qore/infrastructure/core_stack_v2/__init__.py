@@ -51,7 +51,14 @@ from qore.infrastructure.core_stack_v2.environment_intelligence import (
     MarketEnvironmentState,
     assess_market_environment,
 )
-from qore.infrastructure.core_stack_v2.instinct_intelligence import (\n    InstinctAssessment,\n    InstinctPolicy,\n    InstinctSituation,\n    SupportMethodology,\n    assess_instinct,\n)\nfrom qore.infrastructure.core_stack_v2.intelligence import (
+from qore.infrastructure.core_stack_v2.instinct_intelligence import (
+    InstinctAssessment,
+    InstinctPolicy,
+    InstinctSituation,
+    SupportMethodology,
+    assess_instinct,
+)
+from qore.infrastructure.core_stack_v2.intelligence import (
     AnalogSummary,
     CausalEdge,
     CrossMarketRelation,
