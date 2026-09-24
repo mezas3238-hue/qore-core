@@ -69,14 +69,15 @@ DECISION_POLICIES = tuple(
             tail_min_win_rate=Decimal("0.12"),
         ),
         positive_era_veto_ev_r=veto_ev,
-        minimum_negative_era_support=1,
+        minimum_negative_era_support=negative_era_support,
     )
     for maximum in (24, 32)
     for similarity in (4500, 5500, 6500)
     for confidence in (2000, 3000)
     for abstain_ev in (Decimal("-0.05"), Decimal("0"))
     for negative_views in (1, 2)
-    for veto_ev in (Decimal("0.15"), Decimal("0.30"))
+    for veto_ev in (Decimal("0.15"), Decimal("0.30"), Decimal("0.50"))
+    for negative_era_support in (0, 1)
 )
 
 
