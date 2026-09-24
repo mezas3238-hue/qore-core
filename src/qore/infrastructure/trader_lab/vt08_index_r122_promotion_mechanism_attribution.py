@@ -211,8 +211,6 @@ def _window(
     rows: list[dict[str, Any]] = []
     for item in base:
         identity = item.opportunity.identity()
-        if identity not in cohort_ids:
-            continue
 
         base_request = r102._base_request(item)
         requested, labels = r55._requested_weight(
@@ -227,10 +225,6 @@ def _window(
         effective_delta = variant_weight - control_weight
         if effective_delta == 0:
             continue
-        if effective_delta < 0:
-            raise ValueError("R122 cohort effective risk unexpectedly decreased")
-        if any(label.startswith("R47:") for label in labels):
-            raise ValueError("R122 promoted row has R47 demotion label")
 
         period = r109._period_label(
             exit_date=item.exited_at.astimezone(v7._NY).date(),
@@ -238,10 +232,20 @@ def _window(
             start_date=start_date,
             end_date=end_date,
         )
-        signature = "+".join(labels) if labels else "UNLABELED_PROMOTION"
+        signature = (
+            "+".join(labels)
+            if labels
+            else "NO_R55_PROMOTION_LABEL"
+        )
+        change_origin = (
+            "R120_COHORT"
+            if identity in cohort_ids
+            else "NON_COHORT_PROPAGATION"
+        )
         rows.append(
             {
                 "trade_id": item.trade_id,
+                "change_origin": change_origin,
                 "symbol": item.symbol,
                 "side": item.opportunity.signal.side.value,
                 "anchor": str(
@@ -273,16 +277,36 @@ def _window(
         "window_id": window_id,
         "canonical_sample": expected,
         "r120_cohort_sample": len(cohort_ids),
-        "promoted_trade_count": len(rows),
+        "effective_changed_trade_count": len(rows),
+        "cohort_requested_promotion_count": int(
+            variant_diag["counts"].get(
+                "R120_COHORT_PROMOTED_ABOVE_BASE",
+                0,
+            )
+        ),
         "cohort_diagnostics": cohort_diag,
         "variant_diagnostics": variant_diag,
         "incremental": {
             "primary": primary,
             "secondary": secondary,
         },
+        "by_change_origin": _group(rows, field="change_origin"),
         "by_promotion_signature": _group(
             rows,
             field="promotion_signature",
+        ),
+        "by_origin_x_signature": _group(
+            [
+                {
+                    **row,
+                    "origin_x_signature": (
+                        f"{row['change_origin']}|"
+                        f"{row['promotion_signature']}"
+                    ),
+                }
+                for row in rows
+            ],
+            field="origin_x_signature",
         ),
         "by_individual_promotion_label": _by_individual_label(rows),
         "by_period": _group(rows, field="period"),
@@ -381,7 +405,10 @@ def main() -> None:
             {
                 "identity": IDENTITY,
                 "five_year": {
-                    "promoted": report["five_year"]["promoted_trade_count"],
+                    "changed": report["five_year"]["effective_changed_trade_count"],
+                    "cohort_requested_promotions": report["five_year"][
+                        "cohort_requested_promotion_count"
+                    ],
                     "incremental": report["five_year"]["incremental"],
                     "by_signature": report["five_year"][
                         "by_promotion_signature"
@@ -389,9 +416,12 @@ def main() -> None:
                     "by_period": report["five_year"]["by_period"],
                 },
                 "recent_two_year": {
-                    "promoted": report["recent_two_year"][
-                        "promoted_trade_count"
+                    "changed": report["recent_two_year"][
+                        "effective_changed_trade_count"
                     ],
+                    "cohort_requested_promotions": report[
+                        "recent_two_year"
+                    ]["cohort_requested_promotion_count"],
                     "incremental": report["recent_two_year"]["incremental"],
                     "by_signature": report["recent_two_year"][
                         "by_promotion_signature"
@@ -399,9 +429,12 @@ def main() -> None:
                     "by_period": report["recent_two_year"]["by_period"],
                 },
                 "r66": {
-                    "promoted": report["r66_failed_holdout"][
-                        "promoted_trade_count"
+                    "changed": report["r66_failed_holdout"][
+                        "effective_changed_trade_count"
                     ],
+                    "cohort_requested_promotions": report[
+                        "r66_failed_holdout"
+                    ]["cohort_requested_promotion_count"],
                     "incremental": report["r66_failed_holdout"][
                         "incremental"
                     ],
