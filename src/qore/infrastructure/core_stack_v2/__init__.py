@@ -8,7 +8,7 @@ from qore.infrastructure.core_stack_v2.ab import (
 from qore.infrastructure.core_stack_v2.adapters import (
     CoreAdapter,
     TraderCognitiveContext,
-    VT31CoreAdapter,
+    build_shared_context,
 )
 from qore.infrastructure.core_stack_v2.audit import CoreAuditRecord, make_audit_record
 from qore.infrastructure.core_stack_v2.compatibility import (
@@ -56,8 +56,8 @@ __all__ = [
     "PositionContext",
     "TraderCognitiveContext",
     "UncertaintyState",
-    "VT31CoreAdapter",
     "WorldState",
+    "build_shared_context",
     "build_snapshot",
     "compatibility_manifest",
     "compatibility_manifest_fingerprint",
