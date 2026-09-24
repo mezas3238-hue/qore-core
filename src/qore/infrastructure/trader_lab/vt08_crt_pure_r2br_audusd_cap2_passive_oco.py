@@ -31,7 +31,6 @@ import argparse
 import json
 from dataclasses import asdict
 from datetime import datetime, timedelta
-from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
