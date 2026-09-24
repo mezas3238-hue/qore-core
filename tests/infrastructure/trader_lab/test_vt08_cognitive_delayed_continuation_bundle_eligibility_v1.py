@@ -1,8 +1,8 @@
-from decimal import Decimal
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
-from qore.infrastructure.trader_lab.vt08_cognitive_delayed_continuation_bundle_eligibility_v1 import (
-    _unique_causal_fvg_at_confirmation,
+from qore.infrastructure.trader_lab import (
+    vt08_cognitive_delayed_continuation_bundle_eligibility_v1 as eligibility,
 )
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 from qore.infrastructure.traders.vt08_b01_r3_8 import Vt08B01Bar
@@ -27,7 +27,7 @@ def test_unique_causal_fvg_requires_confirmation_close_inside() -> None:
         _bar(2, high="103", low="101", close="102"),
         _bar(3, high="101.5", low="100.2", close="100.5"),
     )
-    poi = _unique_causal_fvg_at_confirmation(
+    poi = eligibility._unique_causal_fvg_at_confirmation(
         bars,
         confirmation_index=3,
         side=DemoTradingSetupSide.LONG,
