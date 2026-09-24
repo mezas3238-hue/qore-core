@@ -17,7 +17,7 @@ env:
   GH_TOKEN: ${{ github.token }}
 
 jobs:
-  # Re-trigger after static-only repair; economic contract unchanged.
+  # Re-trigger after score-cache optimization; economic contract unchanged.
   dual-mission:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
