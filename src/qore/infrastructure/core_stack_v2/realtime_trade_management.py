@@ -245,13 +245,13 @@ def assess_realtime_trade_management(
         if (
             extension_supported
             and progress_bps >= effective.extension_progress_bps
-            and instinct.extension_capacity_bps >= effective.medium_extension_capacity_bps
+            and instinct.expansion_capacity_bps >= effective.medium_extension_capacity_bps
         ):
             action = RealtimeTradeAction.TRAIL_AND_EXTEND
             stop_mode = StopManagementMode.TRAIL_WIDE
             trail_distance_r = Decimal("0.75")
             target_mode, target_multiplier = _target_mode(
-                instinct.extension_capacity_bps,
+                instinct.expansion_capacity_bps,
                 effective,
             )
             reasons.extend(
@@ -289,7 +289,7 @@ def assess_realtime_trade_management(
     ):
         action = RealtimeTradeAction.EXTEND
         target_mode, target_multiplier = _target_mode(
-            instinct.extension_capacity_bps,
+            instinct.expansion_capacity_bps,
             effective,
         )
         reasons.append("EXTENSION_SUPPORTED_WITHOUT_STOP_CHANGE")
@@ -309,6 +309,6 @@ def assess_realtime_trade_management(
         threat_bps=instinct.threat_bps,
         urgency_bps=instinct.urgency_bps,
         winner_protection_bps=path.winner_protection_bps,
-        extension_capacity_bps=instinct.extension_capacity_bps,
+        extension_capacity_bps=instinct.expansion_capacity_bps,
         reasons=tuple(dict.fromkeys(reasons)),
     )
