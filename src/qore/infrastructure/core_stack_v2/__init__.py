@@ -34,6 +34,13 @@ from qore.infrastructure.core_stack_v2.contracts import (
     freeze_facts,
 )
 from qore.infrastructure.core_stack_v2.engine import CoreStackConfig, build_snapshot
+from qore.infrastructure.core_stack_v2.market_universe import (
+    GLOBAL_MARKET_UNIVERSE_REQUIRED,
+    CoreGlobalMarketUniverse,
+    CoreInstrumentFamilyKnowledge,
+    CoreMarketKnowledge,
+    build_global_market_universe,
+)
 from qore.infrastructure.core_stack_v2.runtime import (
     CoreRuntimeCheckpoint,
     CoreRuntimeResult,
@@ -44,12 +51,16 @@ from qore.infrastructure.core_stack_v2.runtime import (
 
 __all__ = [
     "CORE_STACK_VERSION",
+    "GLOBAL_MARKET_UNIVERSE_REQUIRED",
     "CognitiveState",
     "CompatibilityEntry",
     "CompatibilityStatus",
     "CoreAdapter",
     "CoreAuditRecord",
+    "CoreGlobalMarketUniverse",
     "CoreHypothesis",
+    "CoreInstrumentFamilyKnowledge",
+    "CoreMarketKnowledge",
     "CoreSnapshot",
     "CoreStackConfig",
     "CoreRuntimeCheckpoint",
@@ -69,6 +80,7 @@ __all__ = [
     "TraderCognitiveContext",
     "UncertaintyState",
     "WorldState",
+    "build_global_market_universe",
     "build_shared_context",
     "build_snapshot",
     "compatibility_manifest",
