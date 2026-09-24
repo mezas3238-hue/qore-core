@@ -178,6 +178,25 @@ def _window(
     if len(cohort_ids) != EXPECTED_COHORT[window_id]:
         raise ValueError(f"R122 {window_id} cohort drift")
 
+    variant, variant_diag = r121._apply_variant(
+        base,
+        bars_by_symbol=bars_by_symbol,
+        cohort_ids=cohort_ids,
+    )
+    if len(variant) != expected:
+        raise ValueError(f"R122 {window_id} variant density drift")
+
+    control_by_identity = {
+        item.opportunity.identity(): item
+        for item in control
+    }
+    variant_by_identity = {
+        item.opportunity.identity(): item
+        for item in variant
+    }
+    if set(control_by_identity) != set(variant_by_identity):
+        raise ValueError("R122 control/variant identity drift")
+
     h4_by_symbol = {
         symbol: v6._build_h4(
             {
@@ -202,9 +221,14 @@ def _window(
             reaction_bars=reaction_bars,
             reaction_opened=reaction_opened,
         )
-        delta = requested - base_request
-        if delta <= 0:
+        requested_delta = requested - base_request
+        control_weight = control_by_identity[identity].weight
+        variant_weight = variant_by_identity[identity].weight
+        effective_delta = variant_weight - control_weight
+        if effective_delta == 0:
             continue
+        if effective_delta < 0:
+            raise ValueError("R122 cohort effective risk unexpectedly decreased")
         if any(label.startswith("R47:") for label in labels):
             raise ValueError("R122 promoted row has R47 demotion label")
 
@@ -229,7 +253,10 @@ def _window(
                 "promotion_labels": list(labels),
                 "base_request": str(base_request),
                 "requested": str(requested),
-                "delta_weight": str(delta),
+                "requested_delta_weight": str(requested_delta),
+                "control_effective_weight": str(control_weight),
+                "variant_effective_weight": str(variant_weight),
+                "delta_weight": str(effective_delta),
                 "outcome_r": str(item.outcome.r_multiple),
             }
         )
@@ -248,6 +275,7 @@ def _window(
         "r120_cohort_sample": len(cohort_ids),
         "promoted_trade_count": len(rows),
         "cohort_diagnostics": cohort_diag,
+        "variant_diagnostics": variant_diag,
         "incremental": {
             "primary": primary,
             "secondary": secondary,
