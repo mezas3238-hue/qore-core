@@ -1,4 +1,5 @@
 name: QORE Shared VT31 V15 Fresh Pre-R8 Holdout
+# Pre-open retry after static-only correction; no fresh evidence was acquired.
 
 on:
   push:
