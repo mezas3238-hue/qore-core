@@ -10,6 +10,7 @@ Invariants:
 - pending order dies if the original source stop is touched before fill;
 - same-M5 fill/stop ambiguity is STOP_FIRST;
 - same-M15 stop/target ambiguity is STOP_FIRST;
+- passive fill-M5 target credit is forbidden because intrabar order is unknown;
 - original source-candle structural stop;
 - fixed 1.5R target from the actual fill;
 - C3-close expiry;
@@ -134,6 +135,7 @@ def _m15_exit(
     stop: Decimal,
     target: Decimal,
     bars: tuple[Any, ...],
+    target_bars: tuple[Any, ...] | None = None,
 ) -> tuple[str, Decimal] | None:
     stop_hit = any(
         _stop_touched(
@@ -143,13 +145,14 @@ def _m15_exit(
         )
         for bar in bars
     )
+    target_rows = bars if target_bars is None else target_bars
     target_hit = any(
         _target_touched(
             bullish=bullish,
             target=target,
             bar=bar,
         )
-        for bar in bars
+        for bar in target_rows
     )
     if stop_hit:
         return "STOP", stop
@@ -205,11 +208,18 @@ def _simulate(
 
         if bucket:
             last_close = Decimal(bucket[-1].close_price)
+            target_bars = tuple(bucket)
+            if (
+                arm is not EntryArm.NEXT_OPEN_CONTROL
+                and bucket_start <= fill_at < bucket_end
+            ):
+                target_bars = tuple(bucket[1:])
             outcome = _m15_exit(
                 bullish=bullish,
                 stop=stop,
                 target=target,
                 bars=tuple(bucket),
+                target_bars=target_bars,
             )
             if outcome is not None:
                 exit_reason, exit_price = outcome
@@ -513,6 +523,7 @@ def run_replay() -> tuple[
         "pre_fill_stop_invalidation": True,
         "same_fill_bar_stop_precedence": "STOP_FIRST",
         "same_m15_stop_target_ambiguity": "STOP_FIRST",
+        "passive_fill_m5_target_credit": "FORBIDDEN_UNKNOWN_INTRABAR_ORDER",
         "structural_stop": "SOURCE_CANDLE_EXTREME",
         "target": "FIXED_1_5R_FROM_ACTUAL_FILL",
         "expiry": "C3_CLOSE",
