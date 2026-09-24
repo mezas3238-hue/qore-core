@@ -9,6 +9,8 @@ import pytest
 from qore.infrastructure.core_stack_v2 import (
     CognitiveState,
     JourneyDisposition,
+    MarketEnvironmentObservation,
+    MarketEnvironmentState,
     MarketStabilityEvidence,
     MarketTrajectoryState,
     MarketTransitionObservation,
@@ -16,6 +18,7 @@ from qore.infrastructure.core_stack_v2 import (
     StabilityMode,
     TraderStabilityTelemetry,
     assess_drawdown_stability,
+    assess_market_environment,
     assess_market_trajectory,
     assess_position_journey,
     superintelligence_freeze_contract,
@@ -91,6 +94,7 @@ def test_generic_shared_modules_do_not_embed_vt31_methodology_ontology() -> None
         "stability_intelligence.py",
         "journey_intelligence.py",
         "transition_intelligence.py",
+        "environment_intelligence.py",
     )
     forbidden = (
         "silver_bullet",
