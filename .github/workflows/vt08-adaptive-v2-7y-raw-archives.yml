@@ -1,0 +1,79 @@
+name: QORE VT08 Adaptive V2 7Y Sealed Raw Archives
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-cognitive-expansion-5m-v1-001
+    paths:
+      - .github/workflows/vt08-adaptive-v2-7y-raw-archives.yml
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        symbol: [CADJPY, NZDUSD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+      - name: Discover authorized DEMO account
+        env:
+          QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+          QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+          QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+          QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+          if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+            echo "invalid cTrader DEMO account discovery" >&2
+            exit 3
+          fi
+          echo "::add-mask::$account_id"
+          printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+      - name: Collect strict seven-year raw archive
+        env:
+          QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+          QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+          QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+          QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+          QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
+          QORE_SOFTWARE_SHA: ${{ github.sha }}
+        run: |
+          mkdir -p "artifacts/${QORE_DEMO_LAB_SYMBOL}"
+          python -m qore.infrastructure.trader_lab.vt08_cognitive_adaptive_v2_7y_archive_probe             > "artifacts/${QORE_DEMO_LAB_SYMBOL}/raw-7y-evidence.json"
+      - name: Assert sealed raw semantics
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          symbol = os.environ["SYMBOL"]
+          payload = json.loads(
+              Path(f"artifacts/{symbol}/raw-7y-evidence.json").read_text()
+          )
+          assert payload["sealed_raw_archive"] is True
+          assert payload["strategy_replay_performed"] is False
+          assert payload["symbol"]["symbol_name"] == symbol
+          assert payload["requested_lookback_days"] == 2555
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-adaptive-v2-7y-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/${{ matrix.symbol }}/raw-7y-evidence.json
+          if-no-files-found: error
+          retention-days: 30
