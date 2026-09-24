@@ -25,6 +25,9 @@ from qore.governance.executive_read_models import (
 )
 from qore.infrastructure.core_stack_v2 import (
     GLOBAL_MARKET_UNIVERSE_REQUIRED,
+    AnalogQuery,
+    CausalAnalogMemory,
+    ClosedEpisode,
     ActualTrade,
     CoreHypothesis,
     CoreStackConfig,
@@ -486,3 +489,77 @@ def test_real_operation_falsification_rejects_post_entry_shadow_decision() -> No
 
     with pytest.raises(ValueError, match="produced after entry"):
         evaluate_real_operation_falsification((trade,), (decision,))
+
+
+
+def test_causal_analog_memory_excludes_current_and_future_episodes() -> None:
+    memory = CausalAnalogMemory(
+        (
+            ClosedEpisode(
+                episode_id="past-loss",
+                market="NAS100",
+                closed_at=NOW - timedelta(days=3),
+                signature=(("entry_family", "fvg"), ("risk_ref", "0.5")),
+                terminal_r=Decimal("-1"),
+            ),
+            ClosedEpisode(
+                episode_id="past-win",
+                market="NAS100",
+                closed_at=NOW - timedelta(days=2),
+                signature=(("entry_family", "fvg"), ("risk_ref", "0.6")),
+                terminal_r=Decimal("2"),
+            ),
+            ClosedEpisode(
+                episode_id="future-forbidden",
+                market="NAS100",
+                closed_at=NOW + timedelta(minutes=1),
+                signature=(("entry_family", "fvg"), ("risk_ref", "0.5")),
+                terminal_r=Decimal("-10"),
+            ),
+        )
+    )
+    summary = memory.query(
+        AnalogQuery(
+            market="NAS100",
+            as_of=NOW,
+            signature=(("entry_family", "fvg"), ("risk_ref", "0.5")),
+            maximum_analogs=10,
+            minimum_similarity_bps=0,
+        )
+    )
+    assert {item.episode_id for item in summary.analogs} == {
+        "past-loss",
+        "past-win",
+    }
+    assert all(item.closed_at < NOW for item in summary.analogs)
+    assert summary.weighted_mean_r is not None
+    assert summary.weighted_loss_rate is not None
+
+
+def test_causal_analog_memory_is_deterministic() -> None:
+    episodes = (
+        ClosedEpisode(
+            episode_id="a",
+            market="NAS100",
+            closed_at=NOW - timedelta(days=3),
+            signature=(("side", "long"), ("risk_ref", "0.5")),
+            terminal_r=Decimal("-1"),
+        ),
+        ClosedEpisode(
+            episode_id="b",
+            market="NAS100",
+            closed_at=NOW - timedelta(days=2),
+            signature=(("side", "long"), ("risk_ref", "0.55")),
+            terminal_r=Decimal("2"),
+        ),
+    )
+    request = AnalogQuery(
+        market="NAS100",
+        as_of=NOW,
+        signature=(("side", "long"), ("risk_ref", "0.52")),
+        maximum_analogs=2,
+        minimum_similarity_bps=0,
+    )
+    first = CausalAnalogMemory(episodes).query(request)
+    second = CausalAnalogMemory(episodes).query(request)
+    assert first == second
