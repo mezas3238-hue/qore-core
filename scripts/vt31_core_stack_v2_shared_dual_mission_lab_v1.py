@@ -373,6 +373,77 @@ def _ratio(new: object, old: object) -> Decimal:
     return _d(new) / _d(old)
 
 
+def _calibration_gate_report(
+    result: dict[str, object],
+) -> dict[str, bool]:
+    baseline = cast(dict[str, object], result["baseline"])
+    m1 = cast(dict[str, object], result["mission_1_decision_support"])
+    m2 = cast(dict[str, object], result["mission_2_trade_potentiation"])
+    dmet = cast(dict[str, object], m1["metrics"])
+    pmet = cast(dict[str, object], m2["metrics"])
+
+    bpf_raw = baseline["profit_factor"]
+    dpf_raw = dmet["profit_factor"]
+    ppf_raw = pmet["profit_factor"]
+    bdd = _d(baseline["max_drawdown_r"])
+    return {
+        "density_60_to_92pct": (
+            Decimal("0.60")
+            <= _d(m1["density_retained"])
+            <= Decimal("0.92")
+        ),
+        "winner_retention_at_least_80pct": (
+            _d(m1["winner_retention"]) >= Decimal("0.80")
+        ),
+        "loss_rejection_recall_at_least_12pct": (
+            _d(m1["loss_rejection_recall"]) >= Decimal("0.12")
+        ),
+        "mission1_pf_at_least_10pct_better": (
+            bpf_raw is not None
+            and dpf_raw is not None
+            and _d(dpf_raw) >= _d(bpf_raw) * Decimal("1.10")
+        ),
+        "mission2_pf_at_least_10pct_better": (
+            bpf_raw is not None
+            and ppf_raw is not None
+            and _d(ppf_raw) >= _d(bpf_raw) * Decimal("1.10")
+        ),
+        "mission1_dd_at_least_10pct_lower": (
+            _d(dmet["max_drawdown_r"]) <= bdd * Decimal("0.90")
+        ),
+        "mission2_dd_not_worse": (
+            _d(pmet["max_drawdown_r"]) <= bdd
+        ),
+    }
+
+
+def _near_miss_score(
+    result: dict[str, object],
+) -> tuple[int, Decimal]:
+    gates = _calibration_gate_report(result)
+    baseline = cast(dict[str, object], result["baseline"])
+    m1 = cast(dict[str, object], result["mission_1_decision_support"])
+    m2 = cast(dict[str, object], result["mission_2_trade_potentiation"])
+    dmet = cast(dict[str, object], m1["metrics"])
+    pmet = cast(dict[str, object], m2["metrics"])
+
+    bpf = _d(cast(object, baseline["profit_factor"]))
+    dpf = _d(cast(object, dmet["profit_factor"]))
+    ppf = _d(cast(object, pmet["profit_factor"]))
+    bdd = max(_d(baseline["max_drawdown_r"]), Decimal("0.000001"))
+    ddd = max(_d(dmet["max_drawdown_r"]), Decimal("0.000001"))
+    pdd = max(_d(pmet["max_drawdown_r"]), Decimal("0.000001"))
+    diagnostic = (
+        (dpf / bpf)
+        * (ppf / bpf)
+        * (bdd / ddd)
+        * (bdd / pdd)
+        * _d(m1["winner_retention"])
+        * (Decimal("1") + _d(m1["loss_rejection_recall"]))
+    )
+    return sum(gates.values()), diagnostic
+
+
 def _calibration_score(result: dict[str, object]) -> Decimal | None:
     baseline = cast(dict[str, object], result["baseline"])
     m1 = cast(dict[str, object], result["mission_1_decision_support"])
@@ -474,13 +545,27 @@ def run(r8: Path, r6: Path, r5: Path) -> dict[str, object]:
     for policy in POLICIES:
         result = _evaluate(r8_rows, r6_rows, policy)
         score = _calibration_score(result)
+        calibration_gates = _calibration_gate_report(result)
+        near_count, near_score = _near_miss_score(result)
         frontier.append({
             "policy": policy.payload(),
             "calibration": result,
+            "calibration_gates": calibration_gates,
+            "calibration_gates_passed": near_count,
+            "near_miss_score": format(near_score, "f"),
             "selection_score": None if score is None else format(score, "f"),
         })
         if score is not None and (best is None or score > best[0]):
             best = (score, policy)
+
+    ranked_frontier = sorted(
+        frontier,
+        key=lambda item: (
+            int(item["calibration_gates_passed"]),
+            _d(item["near_miss_score"]),
+        ),
+        reverse=True,
+    )
 
     if best is None:
         return {
@@ -508,6 +593,8 @@ def run(r8: Path, r6: Path, r5: Path) -> dict[str, object]:
                 "calibration_survivor_exists": False,
             },
             "passes_dual_mission": False,
+            "economic_status": "FALSIFIED_IN_CALIBRATION",
+            "top_calibration_near_misses": ranked_frontier[:10],
             "governance": {
                 "silver_bullet_methodology_modified": False,
                 "shared_order_authority": False,
@@ -516,6 +603,7 @@ def run(r8: Path, r6: Path, r5: Path) -> dict[str, object]:
                 "current_trade_outcome_used_by_shared": False,
                 "post_outcome_features_used_by_shared": False,
                 "r5_retuned_after_open": False,
+                "r5_economics_used_for_policy_selection": False,
                 "live_authorized": False,
                 "production_authorized": False,
                 "merge_authorized": False,
@@ -548,6 +636,12 @@ def run(r8: Path, r6: Path, r5: Path) -> dict[str, object]:
         "evaluation": evaluation,
         "gates": gates,
         "passes_dual_mission": all(gates.values()),
+        "economic_status": (
+            "DUAL_MISSION_PASS"
+            if all(gates.values())
+            else "FALSIFIED_IN_TEMPORAL_EVALUATION"
+        ),
+        "top_calibration_near_misses": ranked_frontier[:10],
         "governance": {
             "silver_bullet_methodology_modified": False,
             "shared_order_authority": False,
@@ -580,6 +674,10 @@ def main() -> None:
         "evaluation": payload["evaluation"],
         "gates": payload["gates"],
         "passes_dual_mission": payload["passes_dual_mission"],
+        "economic_status": payload.get("economic_status"),
+        "top_calibration_near_misses": payload.get(
+            "top_calibration_near_misses", []
+        )[:3],
     }
     print(json.dumps(summary, sort_keys=True))
 
