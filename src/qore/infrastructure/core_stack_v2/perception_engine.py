@@ -8,11 +8,11 @@ about before consulting historical memory.
 """
 from __future__ import annotations
 
+import json
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from decimal import Decimal
 from hashlib import sha256
-import json
-from collections.abc import Iterable
 
 ZERO = Decimal("0")
 
