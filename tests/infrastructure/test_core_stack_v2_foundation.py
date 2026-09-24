@@ -361,6 +361,7 @@ def test_superintelligence_architecture_freeze_preserves_owner_laws() -> None:
     contract = superintelligence_freeze_contract()
     universe = contract["global_market_universe"]
     sovereignty = contract["specialist_sovereignty"]
+    dual_mission = contract["shared_dual_mission"]
     benchmark = contract["vt31_benchmark"]
     falsification = contract["operational_falsification"]
     governance = contract["governance"]
@@ -377,10 +378,29 @@ def test_superintelligence_architecture_freeze_preserves_owner_laws() -> None:
     assert sovereignty["shared_core_may_authorize_risk"] is False
     assert sovereignty["qore_risk_sovereign"] is True
 
+    assert isinstance(dual_mission, dict)
+    mission_1 = dual_mission["mission_1_decision_support"]
+    mission_2 = dual_mission["mission_2_trade_potentiation"]
+    assert isinstance(mission_1, dict)
+    assert isinstance(mission_2, dict)
+    assert mission_1["methodology_rules_unchanged"] is True
+    assert mission_1["profit_factor_must_increase"] is True
+    assert mission_1["observed_drawdown_must_decrease"] is True
+    assert mission_2["trader_trade_identity_preserved"] is True
+    assert mission_2["profit_factor_must_increase"] is True
+    assert mission_2["observed_drawdown_may_increase"] is False
+    assert dual_mission["success_requires_both_missions"] is True
+
     assert isinstance(benchmark, dict)
     assert benchmark["parity_is_only_safety_gate"] is True
     assert benchmark["economic_objective_is_material_uplift"] is True
     assert benchmark["no_future_features"] is True
+    legacy = benchmark["legacy_core_stack_certified"]
+    assert isinstance(legacy, dict)
+    assert legacy["winner_count_5y"] == 241
+    assert legacy["certification_loser_count_5y"] == 565
+    assert legacy["weighted_pf_is_not_signal_quality_pf"] is True
+    assert legacy["signal_quality_must_be_measured_unweighted"] is True
 
     assert isinstance(falsification, dict)
     assert falsification["required"] is True
