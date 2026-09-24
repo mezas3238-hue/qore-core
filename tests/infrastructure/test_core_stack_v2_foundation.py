@@ -25,10 +25,10 @@ from qore.governance.executive_read_models import (
 )
 from qore.infrastructure.core_stack_v2 import (
     GLOBAL_MARKET_UNIVERSE_REQUIRED,
+    ActualTrade,
     AnalogQuery,
     CausalAnalogMemory,
     ClosedEpisode,
-    ActualTrade,
     CoreHypothesis,
     CoreStackConfig,
     DecisionObservation,
