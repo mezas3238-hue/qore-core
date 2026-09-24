@@ -39,6 +39,13 @@ from qore.infrastructure.core_stack_v2.contracts import (
     freeze_facts,
 )
 from qore.infrastructure.core_stack_v2.engine import CoreStackConfig, build_snapshot
+from qore.infrastructure.core_stack_v2.market_universe import (
+    GLOBAL_MARKET_UNIVERSE_REQUIRED,
+    CoreGlobalMarketUniverse,
+    CoreInstrumentFamilyKnowledge,
+    CoreMarketKnowledge,
+    build_global_market_universe,
+)
 from qore.infrastructure.core_stack_v2.operational_falsification import (
     ActualTrade,
     CurveMetrics,
@@ -46,13 +53,6 @@ from qore.infrastructure.core_stack_v2.operational_falsification import (
     ShadowAction,
     SharedShadowDecision,
     evaluate_real_operation_falsification,
-)
-from qore.infrastructure.core_stack_v2.market_universe import (
-    GLOBAL_MARKET_UNIVERSE_REQUIRED,
-    CoreGlobalMarketUniverse,
-    CoreInstrumentFamilyKnowledge,
-    CoreMarketKnowledge,
-    build_global_market_universe,
 )
 from qore.infrastructure.core_stack_v2.runtime import (
     CoreRuntimeCheckpoint,
