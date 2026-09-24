@@ -213,12 +213,12 @@ def build_report(root: Path) -> tuple[dict[str, Any], tuple[CognitiveShadowRow, 
     abstain = tuple(item for item in rows if item.decision == CapitalizerDecision.ABSTAIN.value)
 
     by_reason: Counter[str] = Counter()
-    for item in rows:
-        by_reason.update(item.reasons)
+    for shadow_row in rows:
+        by_reason.update(shadow_row.reasons)
 
     by_original_exit: dict[str, Counter[str]] = defaultdict(Counter)
-    for item in rows:
-        by_original_exit[item.original_exit_reason][item.decision] += 1
+    for shadow_row in rows:
+        by_original_exit[shadow_row.original_exit_reason][shadow_row.decision] += 1
 
     report = {
         "identity": IDENTITY,
