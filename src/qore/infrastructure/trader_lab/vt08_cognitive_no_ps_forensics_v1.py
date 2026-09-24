@@ -2,13 +2,16 @@
 from __future__ import annotations
 
 import json
-from collections import Counter, defaultdict
+from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Final
 from zoneinfo import ZoneInfo
 
+from qore.infrastructure.trader_lab.vt08_cognitive_5m_density_funnel_audit_v1 import (
+    _c2_state,
+)
 from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_backtest_v1 import (
     load_market_evidence,
 )
@@ -26,9 +29,6 @@ from qore.infrastructure.trader_lab.vt08_cognitive_latest_ps_density_recovery_v1
 )
 from qore.infrastructure.trader_lab.vt08_cognitive_three_year_opportunity_census_v1 import (
     _profile_variants,
-)
-from qore.infrastructure.trader_lab.vt08_cognitive_5m_density_funnel_audit_v1 import (
-    _c2_state,
 )
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 from qore.infrastructure.traders.vt08_b01_r3_8 import (
