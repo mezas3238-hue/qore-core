@@ -77,6 +77,7 @@ jobs:
         run: |
           python - <<'PY'
           import json
+          from decimal import Decimal
           from pathlib import Path
 
           report = json.loads(
@@ -112,9 +113,15 @@ jobs:
               assert section["r120_cohort_sample"] == cohort
               assert section["cohort_requested_promotion_count"] == promoted
               assert section["effective_changed_trade_count"] >= promoted
-              assert section["incremental"]["secondary"][
-                  "total_incremental_r"
-              ] == secondary_delta
+              observed = Decimal(
+                  section["incremental"]["secondary"][
+                      "total_incremental_r"
+                  ]
+              )
+              assert abs(observed - Decimal(secondary_delta)) <= Decimal(
+                  "1e-24"
+              )
+              assert section["reconciliation"]["pass"] is True
 
           gov = report["governance"]
           assert gov["research_only"] is True
