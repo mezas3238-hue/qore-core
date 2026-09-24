@@ -4,6 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from hashlib import sha256
 
 import pytest
 
@@ -26,6 +27,8 @@ from qore.infrastructure.fundednext_mt5 import (
 )
 from qore.infrastructure.fundednext_mt5_clock import FUNDEDNEXT_SERVER_TZ
 from qore.infrastructure.fundednext_mt5_mutation_ledger import (
+    FundedNextMt5MutationRecord,
+    FundedNextMt5MutationState,
     InMemoryFundedNextMt5MutationLedger,
 )
 from qore.infrastructure.fundednext_operational import build_account_bound_submission
@@ -347,6 +350,7 @@ def _gateway(
     submission_enabled: bool,
     clock: Callable[[], datetime] | None = None,
     rules: StellarInstantRuleVerification | None = None,
+    mutation_ledger: InMemoryFundedNextMt5MutationLedger | None = None,
 ) -> FundedNextLiveMt5ExecutionGateway:
     transport = MetaTrader5FundedNextLiveTransport(
         api=api,
@@ -358,7 +362,7 @@ def _gateway(
     return FundedNextLiveMt5ExecutionGateway(
         account=_account_identity(),
         transport=transport,
-        mutation_ledger=InMemoryFundedNextMt5MutationLedger(),
+        mutation_ledger=mutation_ledger or InMemoryFundedNextMt5MutationLedger(),
         rule_verification=rules or _rules(),
         live_authorization=_live_auth(complete=complete),
         safety=_Safety(),
@@ -474,3 +478,110 @@ def test_live_gateway_resolves_nas100_to_ndx100() -> None:
     gateway = _gateway(api, complete=False, submission_enabled=False)
     spec = gateway.read_symbol("NAS100", now=_NOW)
     assert spec.provider_symbol == "NDX100"
+
+
+def _unknown_mutation(
+    *,
+    client_order_id: str = "qore-reconcile-test",
+    state: FundedNextMt5MutationState = FundedNextMt5MutationState.OUTCOME_UNKNOWN,
+) -> FundedNextMt5MutationRecord:
+    return FundedNextMt5MutationRecord(
+        idempotency_key="mutation-reconcile-test",
+        receipt_id="receipt-reconcile-test",
+        submission_digest="sha256:" + "d" * 64,
+        client_order_id=client_order_id,
+        state=state,
+        transitioned_at=_NOW - timedelta(seconds=10),
+        risk_authorization_id="risk-reconcile-test",
+        risk_authorization_fingerprint="e" * 64,
+        risk_reservation_id="risk-reconcile-test",
+        reason="test-unknown",
+    )
+
+
+def test_conclusive_broker_absence_resolves_unknown_without_send() -> None:
+    api = _Api()
+    ledger = InMemoryFundedNextMt5MutationLedger()
+    ledger.upsert(_unknown_mutation())
+    gateway = _gateway(
+        api,
+        complete=False,
+        submission_enabled=False,
+        mutation_ledger=ledger,
+    )
+
+    assert gateway.has_unresolved_mutations is True
+    assert gateway.reconcile_unknown(now=_NOW) == ("mutation-reconcile-test",)
+    assert gateway.has_unresolved_mutations is False
+    record = ledger.records()[0]
+    assert record.state is FundedNextMt5MutationState.NOT_SUBMITTED
+    assert record.reason == "provider-history-confirmed-order-absent"
+    assert api.sent == 0
+
+
+def test_incomplete_broker_discovery_keeps_unknown_fail_closed() -> None:
+    class _UnavailableApi(_Api):
+        def orders_get(self) -> tuple[_Order, ...] | None:
+            return None
+
+    api = _UnavailableApi()
+    ledger = InMemoryFundedNextMt5MutationLedger()
+    ledger.upsert(_unknown_mutation())
+    gateway = _gateway(
+        api,
+        complete=False,
+        submission_enabled=False,
+        mutation_ledger=ledger,
+    )
+
+    assert gateway.reconcile_unknown(now=_NOW) == ()
+    assert gateway.has_unresolved_mutations is True
+    assert ledger.records()[0].state is FundedNextMt5MutationState.OUTCOME_UNKNOWN
+    assert api.sent == 0
+
+
+def test_restart_fence_reconciles_existing_broker_order_without_resend() -> None:
+    client_order_id = "qore-restart-reconcile"
+    expected_magic = (
+        int.from_bytes(sha256(client_order_id.encode("utf-8")).digest()[:4], "big")
+        & 0x7FFFFFFF
+    )
+    expected_comment = client_order_id[:29]
+
+    class _RecoveredApi(_Api):
+        def history_orders_get(
+            self,
+            date_from: datetime,
+            date_to: datetime,
+        ) -> tuple[_Order, ...] | None:
+            del date_from, date_to
+            return (
+                _Order(
+                    ticket=81234,
+                    magic=expected_magic,
+                    comment=expected_comment,
+                    state=self.ORDER_STATE_FILLED,
+                ),
+            )
+
+    api = _RecoveredApi()
+    ledger = InMemoryFundedNextMt5MutationLedger()
+    ledger.upsert(
+        _unknown_mutation(
+            client_order_id=client_order_id,
+            state=FundedNextMt5MutationState.ATTEMPT_STARTED,
+        )
+    )
+    gateway = _gateway(
+        api,
+        complete=False,
+        submission_enabled=False,
+        mutation_ledger=ledger,
+    )
+
+    assert ledger.records()[0].state is FundedNextMt5MutationState.OUTCOME_UNKNOWN
+    assert gateway.reconcile_unknown(now=_NOW) == ("mutation-reconcile-test",)
+    record = ledger.records()[0]
+    assert record.state is FundedNextMt5MutationState.ACCEPTED
+    assert record.provider_order_ref == "81234"
+    assert api.sent == 0
