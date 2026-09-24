@@ -243,15 +243,20 @@ class FundedNextLiveMt5ExecutionGateway:
         self._mark_interrupted_attempts_unknown()
 
     @property
-    def has_unresolved_mutations(self) -> bool:
-        return any(
-            item.state
+    def unresolved_mutations(self) -> tuple[FundedNextMt5MutationRecord, ...]:
+        return tuple(
+            item
+            for item in self._records.values()
+            if item.state
             in {
                 FundedNextMt5MutationState.ATTEMPT_STARTED,
                 FundedNextMt5MutationState.OUTCOME_UNKNOWN,
             }
-            for item in self._records.values()
         )
+
+    @property
+    def has_unresolved_mutations(self) -> bool:
+        return bool(self.unresolved_mutations)
 
     def read_account(self, *, now: datetime) -> Mt5AccountState:
         if not self._transport.connected():
@@ -468,14 +473,32 @@ class FundedNextLiveMt5ExecutionGateway:
                 state = FundedNextMt5MutationState.REJECTED
             elif found.outcome is Mt5ProviderOutcome.CANCELLED:
                 state = FundedNextMt5MutationState.CANCELLED
+            elif (
+                found.outcome is Mt5ProviderOutcome.UNKNOWN
+                and found.reason == "mt5-order-not-found-conclusive"
+            ):
+                state = FundedNextMt5MutationState.NOT_SUBMITTED
             else:
+                if record.state is FundedNextMt5MutationState.ATTEMPT_STARTED:
+                    self._persist(
+                        record.transition(
+                            state=FundedNextMt5MutationState.OUTCOME_UNKNOWN,
+                            transitioned_at=found.recorded_at,
+                            provider_order_ref=found.provider_order_ref,
+                            reason=found.reason or "provider-discovery-not-conclusive",
+                        )
+                    )
                 continue
             self._persist(
                 record.transition(
                     state=state,
                     transitioned_at=found.recorded_at,
                     provider_order_ref=found.provider_order_ref,
-                    reason=found.reason,
+                    reason=(
+                        found.reason
+                        if state is not FundedNextMt5MutationState.NOT_SUBMITTED
+                        else "provider-history-confirmed-order-absent"
+                    ),
                 )
             )
             resolved.append(key)
