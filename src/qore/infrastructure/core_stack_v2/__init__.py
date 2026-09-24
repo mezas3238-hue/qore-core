@@ -56,6 +56,12 @@ from qore.infrastructure.core_stack_v2.intelligence import (
     SituationGraph,
     TraderOpportunityContext,
 )
+from qore.infrastructure.core_stack_v2.journey_intelligence import (
+    JourneyAssessment,
+    JourneyDisposition,
+    PositionJourneyEvidence,
+    assess_position_journey,
+)
 from qore.infrastructure.core_stack_v2.market_universe import (
     GLOBAL_MARKET_UNIVERSE_REQUIRED,
     CoreGlobalMarketUniverse,
@@ -78,9 +84,25 @@ from qore.infrastructure.core_stack_v2.runtime import (
     SnapshotConsumer,
     SnapshotDelivery,
 )
+from qore.infrastructure.core_stack_v2.stability_intelligence import (
+    DrawdownStabilityAssessment,
+    MarketStabilityEvidence,
+    StabilityMode,
+    StabilityPolicy,
+    TraderStabilityTelemetry,
+    assess_drawdown_stability,
+)
 
 __all__ = [
     "CORE_STACK_VERSION",
+    "DrawdownStabilityAssessment",
+    "JourneyAssessment",
+    "JourneyDisposition",
+    "MarketStabilityEvidence",
+    "PositionJourneyEvidence",
+    "StabilityMode",
+    "StabilityPolicy",
+    "TraderStabilityTelemetry",
     "TraderOpportunityContext",
     "SituationGraph",
     "RegimeVector",
@@ -129,6 +151,8 @@ __all__ = [
     "TraderCognitiveContext",
     "UncertaintyState",
     "WorldState",
+    "assess_drawdown_stability",
+    "assess_position_journey",
     "build_global_market_universe",
     "build_shared_context",
     "build_snapshot",
