@@ -1,5 +1,10 @@
 """QORE CORE STACK V2 shared, authority-free cognitive context layer."""
 
+from qore.infrastructure.core_stack_v2.analog_memory import (
+    AnalogQuery,
+    CausalAnalogMemory,
+    ClosedEpisode,
+)
 from qore.infrastructure.core_stack_v2.ab import (
     DecisionABSummary,
     DecisionObservation,
@@ -39,6 +44,18 @@ from qore.infrastructure.core_stack_v2.contracts import (
     freeze_facts,
 )
 from qore.infrastructure.core_stack_v2.engine import CoreStackConfig, build_snapshot
+from qore.infrastructure.core_stack_v2.intelligence import (
+    AnalogSummary,
+    CausalEdge,
+    CrossMarketRelation,
+    FailurePatternEvidence,
+    HistoricalAnalogEvidence,
+    HypothesisView,
+    OpportunityDisposition,
+    RegimeVector,
+    SituationGraph,
+    TraderOpportunityContext,
+)
 from qore.infrastructure.core_stack_v2.market_universe import (
     GLOBAL_MARKET_UNIVERSE_REQUIRED,
     CoreGlobalMarketUniverse,
@@ -64,6 +81,19 @@ from qore.infrastructure.core_stack_v2.runtime import (
 
 __all__ = [
     "CORE_STACK_VERSION",
+    "TraderOpportunityContext",
+    "SituationGraph",
+    "RegimeVector",
+    "OpportunityDisposition",
+    "HypothesisView",
+    "HistoricalAnalogEvidence",
+    "FailurePatternEvidence",
+    "CrossMarketRelation",
+    "ClosedEpisode",
+    "CausalEdge",
+    "CausalAnalogMemory",
+    "AnalogSummary",
+    "AnalogQuery",
     "ActualTrade",
     "GLOBAL_MARKET_UNIVERSE_REQUIRED",
     "SUPERINTELLIGENCE_FREEZE_VERSION",
