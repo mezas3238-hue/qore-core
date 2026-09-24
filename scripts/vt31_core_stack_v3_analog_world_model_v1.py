@@ -424,9 +424,9 @@ def _analog_view(
     view = {
         "weighted_mean_r": summary.weighted_mean_r,
         "weighted_loss_rate": summary.weighted_loss_rate,
-        "effective_sample_size": view["effective_sample_size"],
-        "confidence_bps": view["confidence_bps"],
-        "analog_count": view["analog_count"],
+        "effective_sample_size": summary.effective_sample_size,
+        "confidence_bps": summary.confidence_bps,
+        "analog_count": len(summary.analogs),
     }
     _ANALOG_CACHE[cache_key] = view
     return view
@@ -472,9 +472,9 @@ def _query(
         "weighted_loss_rate": (
             None if loss_rate is None else format(loss_rate, "f")
         ),
-        "effective_sample_size": summary.effective_sample_size,
-        "confidence_bps": summary.confidence_bps,
-        "analog_count": len(summary.analogs),
+        "effective_sample_size": view["effective_sample_size"],
+        "confidence_bps": view["confidence_bps"],
+        "analog_count": view["analog_count"],
     }
 
 
