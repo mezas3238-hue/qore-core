@@ -3263,13 +3263,23 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     last_activity_at=vt31_last_activity,
                     now=vt31_arm_started_at,
                 )
-                vt31_blocked = (
-                    vt31_capital.decision is CapitalBudgetDecision.REJECT
-                    or vt31_lifecycle is InactivityState.BLOCKED
-                    or exit_ledger.has_unresolved
-                    or gateway.has_unresolved_mutations
-                    or not certified_policy_ready
-                    or not mission_snapshot.new_risk_allowed_by_mission
+                (
+                    vt31_blocked,
+                    vt31_blocker_telemetry,
+                ) = _execution_preflight_status(
+                    capital_reject=(
+                        vt31_capital.decision is CapitalBudgetDecision.REJECT
+                    ),
+                    inactivity_blocked=(
+                        vt31_lifecycle is InactivityState.BLOCKED
+                    ),
+                    unresolved_exit=exit_ledger.has_unresolved,
+                    gateway=gateway,
+                    certified_policy_ready=certified_policy_ready,
+                    mission_risk_allowed=(
+                        mission_snapshot.new_risk_allowed_by_mission
+                    ),
+                    now=vt31_arm_started_at,
                 )
                 vt31_boundary = await_vt31_boundary_snapshot(
                     mt5,
@@ -3297,7 +3307,62 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         "strategy_timezone": "America/New_York",
                     },
                 )
-                if vt31_blocked:
+                vt31_strategy_started_ns = time.perf_counter_ns()
+                vt31_basket, vt31_reason = evaluate_vt31_boundary(
+                    closed_m1=vt31_boundary.closed_m1,
+                    evidence_fingerprint=(vt31_boundary.evidence_fingerprint),
+                    store=vt31_store,
+                    prepared_context=vt31_prepared_context,
+                )
+                vt31_strategy_elapsed_ms = (
+                    time.perf_counter_ns() - vt31_strategy_started_ns
+                ) / 1_000_000
+                vt31_decided_at = datetime.now(UTC)
+                _log(
+                    log_path,
+                    {
+                        "event": "VT31_STRATEGY_DECISION",
+                        "boundary_at_utc": vt31_arm_anchor.isoformat(),
+                        "boundary_at_new_york": (
+                            vt31_arm_anchor.astimezone(_NY).isoformat()
+                        ),
+                        "decision_at_utc": vt31_decided_at.isoformat(),
+                        "decision_at_new_york": (
+                            vt31_decided_at.astimezone(_NY).isoformat()
+                        ),
+                        "elapsed_ms": round(vt31_strategy_elapsed_ms, 3),
+                        "result": (
+                            "CANDIDATE"
+                            if vt31_basket is not None
+                            else "ABSTAIN"
+                        ),
+                        "reason": vt31_reason,
+                        "strategy_timezone": "America/New_York",
+                    },
+                )
+                if vt31_basket is None:
+                    _log(
+                        log_path,
+                        {
+                            "event": "VT31_NAS100_CAUSAL_ABSTAIN",
+                            "symbol": "NAS100",
+                            "decision_at": vt31_arm_anchor.isoformat(),
+                            "reason": vt31_reason,
+                            "observed_at": vt31_boundary.observed_at.isoformat(),
+                        },
+                    )
+                elif vt31_blocked:
+                    _log(
+                        log_path,
+                        {
+                            "event": "PRE_FLIGHT_NEW_ORDER_BLOCKED",
+                            "trader": "VT31_NAS100",
+                            "symbol": "NAS100",
+                            "decision_at": vt31_arm_anchor.isoformat(),
+                            "candidate": True,
+                            **vt31_blocker_telemetry,
+                        },
+                    )
                     _log(
                         log_path,
                         {
@@ -3310,39 +3375,6 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         },
                     )
                 else:
-                    vt31_strategy_started_ns = time.perf_counter_ns()
-                    vt31_basket, vt31_reason = evaluate_vt31_boundary(
-                        closed_m1=vt31_boundary.closed_m1,
-                        evidence_fingerprint=(vt31_boundary.evidence_fingerprint),
-                        store=vt31_store,
-                        prepared_context=vt31_prepared_context,
-                    )
-                    vt31_strategy_elapsed_ms = (
-                        time.perf_counter_ns() - vt31_strategy_started_ns
-                    ) / 1_000_000
-                    vt31_decided_at = datetime.now(UTC)
-                    _log(
-                        log_path,
-                        {
-                            "event": "VT31_STRATEGY_DECISION",
-                            "boundary_at_utc": vt31_arm_anchor.isoformat(),
-                            "boundary_at_new_york": (
-                                vt31_arm_anchor.astimezone(_NY).isoformat()
-                            ),
-                            "decision_at_utc": vt31_decided_at.isoformat(),
-                            "decision_at_new_york": (
-                                vt31_decided_at.astimezone(_NY).isoformat()
-                            ),
-                            "elapsed_ms": round(vt31_strategy_elapsed_ms, 3),
-                            "result": (
-                                "CANDIDATE"
-                                if vt31_basket is not None
-                                else "ABSTAIN"
-                            ),
-                            "reason": vt31_reason,
-                            "strategy_timezone": "America/New_York",
-                        },
-                    )
                     if vt31_basket is not None:
                         _log(
                             log_path,
