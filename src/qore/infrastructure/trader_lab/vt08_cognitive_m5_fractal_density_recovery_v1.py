@@ -39,6 +39,7 @@ from qore.infrastructure.traders.contracts import (
 )
 from qore.infrastructure.traders.vt08_b01_r3_8 import (
     Vt08B01Bar,
+    Vt08B01ProtectedSwing,
     methodology_fingerprint,
     protected_swings_in_candle2,
     resolve_bias,
@@ -92,7 +93,7 @@ def _candidate(
     reference: Vt08B01Bar,
     candle2: Vt08B01Bar,
     side: DemoTradingSetupSide,
-    protected,
+    protected: Vt08B01ProtectedSwing,
     entry_bar: Vt08B01Bar,
 ) -> Vt08ExpansionCandidate | None:
     entry = entry_bar.open
