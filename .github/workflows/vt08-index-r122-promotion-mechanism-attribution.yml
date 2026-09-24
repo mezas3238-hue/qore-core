@@ -110,7 +110,8 @@ jobs:
               section = report[key]
               assert section["canonical_sample"] == sample
               assert section["r120_cohort_sample"] == cohort
-              assert section["promoted_trade_count"] == promoted
+              assert section["cohort_requested_promotion_count"] == promoted
+              assert section["effective_changed_trade_count"] >= promoted
               assert section["incremental"]["secondary"][
                   "total_incremental_r"
               ] == secondary_delta
