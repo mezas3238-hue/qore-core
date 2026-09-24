@@ -5,7 +5,7 @@ import hashlib
 import json
 from typing import Final
 
-SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_001"
+SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_002"
 
 _CAPABILITIES: Final = (
     "PERCEPTION_INTEGRITY",
@@ -19,6 +19,9 @@ _CAPABILITIES: Final = (
     "OPPORTUNITY_SUITABILITY_BY_TRADER",
     "FAILURE_AND_COUNTERFACTUAL_MEMORY",
     "POSITION_JOURNEY_AND_ECONOMIC_ATTRIBUTION",
+    "UNIVERSAL_DRAWDOWN_STABILITY_INTELLIGENCE",
+    "UNIVERSAL_POSITION_JOURNEY_INTELLIGENCE",
+    "TRADER_ADAPTER_TRANSLATION_LAYER",
 )
 
 _MARKET_UNIVERSE_SOURCES: Final = (
@@ -48,6 +51,54 @@ def superintelligence_freeze_contract() -> dict[str, object]:
         ),
         "authority_chain": _AUTHORITY_CHAIN,
         "capabilities": _CAPABILITIES,
+        "transversal_scope": {
+            "shared_core_is_qore_wide": True,
+            "shared_core_is_not_a_vt31_module": True,
+            "vt31_role": "PRIMARY_FALSIFICATION_LAB_ONLY",
+            "all_enabled_traders_may_consume_shared_context": True,
+            "shared_understands_market_once_then_adapters_translate": True,
+            "same_market_context_may_yield_different_trader_decisions": True,
+            "adapter_required_for_methodology_specific_translation": True,
+            "explicitly_excluded_traders_remain_excluded_until_owner_changes_governance": True,
+        },
+        "generic_ontology_law": {
+            "core_concepts": (
+                "trend",
+                "range",
+                "compression",
+                "expansion",
+                "volatility",
+                "anomaly",
+                "liquidity",
+                "structure",
+                "displacement",
+                "momentum",
+                "exhaustion",
+                "reversal",
+                "continuation",
+                "regime_transition",
+                "correlation",
+                "divergence",
+                "market_leadership",
+                "synchronization",
+                "behavior_change",
+                "uncertainty",
+                "path_capacity",
+                "position_deterioration",
+            ),
+            "trader_specific_ontology_forbidden_in_shared_core": True,
+            "vt31_specific_concepts_belong_in_adapter_or_lab": True,
+            "examples_forbidden_as_shared_core_primitives": (
+                "silver_bullet",
+                "vt31_raid",
+                "vt31_breaker",
+                "vt31_fvg",
+                "vt31_structural_target",
+                "vt31_r1_r22",
+                "nas100_only_rule",
+                "0900_1000_reference_rule",
+            ),
+        },
         "global_market_universe": {
             "required": True,
             "dynamic_not_hardcoded": True,
@@ -80,6 +131,17 @@ def superintelligence_freeze_contract() -> dict[str, object]:
             "future_information_allowed": False,
         },
         "shared_essential_intelligence": {
+            "universal_stability": {
+                "required": True,
+                "preferred_observed_drawdown_band_r": ("4", "6"),
+                "stability_must_be_cognitive_not_risk_weighting": True,
+                "must_use_current_market_deterioration": True,
+                "may_use_closed_trader_performance_state": True,
+                "current_trade_outcome_as_input_forbidden": True,
+                "future_trade_outcome_as_input_forbidden": True,
+                "must_generalize_across_methodologies": True,
+                "qore_risk_remains_sovereign": True,
+            },
             "profit_factor": {
                 "required": True,
                 "meaning": (
@@ -246,6 +308,26 @@ def superintelligence_freeze_contract() -> dict[str, object]:
             "evaluate_losses_avoided_vs_winners_sacrificed": True,
             "no_future_features": True,
             "no_calendar_or_fold_identity_edge": True,
+        },
+        "multi_trader_validation": {
+            "required_after_vt31": True,
+            "vt31_pass_is_not_global_completion": True,
+            "must_include_different_methodologies": True,
+            "minimum_metrics_per_trader": (
+                "pf_baseline",
+                "pf_plus_shared",
+                "dd_baseline",
+                "dd_plus_shared",
+                "total_r_baseline",
+                "total_r_plus_shared",
+                "losses_avoided",
+                "winner_retention",
+                "winner_r_retention",
+                "density_retained",
+                "extend_quality",
+                "defend_quality",
+            ),
+            "shared_is_transversal_only_after_repeatable_cross_methodology_uplift": True,
         },
         "operational_falsification": {
             "required": True,
