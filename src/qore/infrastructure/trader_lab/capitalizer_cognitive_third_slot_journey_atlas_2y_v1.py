@@ -265,7 +265,10 @@ def build_report(binding_root: Path, target_root: Path) -> dict[str, Any]:
         "trader_certified": False,
         "live_authorized": False,
         "real_capital_authorized": False,
-        "next_phase": "FREEZE_THIRD_SLOT_COGNITIVE_PRESSURE_HYPOTHESIS_IF_CAUSAL_CELL_IS_INFORMATIVE",
+        "next_phase": (
+            "FREEZE_THIRD_SLOT_COGNITIVE_PRESSURE_HYPOTHESIS_"
+            "IF_CAUSAL_CELL_IS_INFORMATIVE"
+        ),
     }
 
 
