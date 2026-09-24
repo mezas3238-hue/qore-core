@@ -22,6 +22,7 @@ from qore.infrastructure.trader_lab.vt08_cognitive_core_stack_dev_v1 import (
     stack_rows,
 )
 from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_backtest_v1 import (
+    load_market_evidence,
     metrics,
 )
 from qore.infrastructure.trader_lab.vt08_cognitive_structural_bank_frontier_v1 import (
@@ -83,11 +84,14 @@ def _summary(
 
 
 def evaluate(path: Path) -> dict[str, object]:
+    _fingerprint, symbol, _checked_at, _software_sha, bars = load_market_evidence(path)
+    if symbol != MARKET:
+        raise ValueError("EURJPY 5Y forensics requires EURJPY")
     stack = stack_rows(path)
     bank = structural_rows(path)
     causal = causal_rows(path)
     if not stack or stack[0].baseline.symbol != MARKET:
-        raise ValueError("EURJPY 5Y forensics requires EURJPY")
+        raise ValueError("EURJPY 5Y forensics emitted no EURJPY rows")
     bank_map = {row.baseline.signal_at: row for row in bank}
     causal_map = {row.trade.signal_at: row for row in causal}
 
@@ -102,7 +106,7 @@ def evaluate(path: Path) -> dict[str, object]:
     if len(joined) != len(bank) or len(joined) != len(causal):
         raise AssertionError("EURJPY 5Y forensic cardinality drift")
 
-    coverage_start = min(row.baseline.signal_at for row in stack)
+    coverage_start = min(bar.opened_at for bar in bars)
     blocks: list[dict[str, object]] = []
     for index in range(5):
         start = coverage_start + timedelta(days=365 * index)
