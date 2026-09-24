@@ -2507,13 +2507,23 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         last_activity_at=arm_last_activity,
                         now=arm_started_at,
                     )
-                    arm_blocked = (
-                        arm_capital.decision is CapitalBudgetDecision.REJECT
-                        or arm_lifecycle is InactivityState.BLOCKED
-                        or exit_ledger.has_unresolved
-                        or gateway.has_unresolved_mutations
-                        or not certified_policy_ready
-                        or not mission_snapshot.new_risk_allowed_by_mission
+                    (
+                        arm_blocked,
+                        arm_blocker_telemetry,
+                    ) = _execution_preflight_status(
+                        capital_reject=(
+                            arm_capital.decision is CapitalBudgetDecision.REJECT
+                        ),
+                        inactivity_blocked=(
+                            arm_lifecycle is InactivityState.BLOCKED
+                        ),
+                        unresolved_exit=exit_ledger.has_unresolved,
+                        gateway=gateway,
+                        certified_policy_ready=certified_policy_ready,
+                        mission_risk_allowed=(
+                            mission_snapshot.new_risk_allowed_by_mission
+                        ),
+                        now=arm_started_at,
                     )
 
                     fast_plan = (
@@ -2614,6 +2624,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         "ready_snapshots": ready_snapshots,
                         "terminal_ids": m5_terminal_identities,
                         "arm_blocked": arm_blocked,
+                        "arm_blocker_telemetry": arm_blocker_telemetry,
                         "fast_plan": fast_plan_by_identity,
                         "arm_provider": arm_provider,
                         "arm_capital": arm_capital,
@@ -2766,6 +2777,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             m5_terminal_identities: set[str] = _ctx["terminal_ids"]
                             ready_snapshots: dict[str, M5BoundarySnapshot] = _ctx["ready_snapshots"]
                             arm_blocked: bool = _ctx["arm_blocked"]
+                            arm_blocker_telemetry: dict[str, object] = _ctx[
+                                "arm_blocker_telemetry"
+                            ]
                             fast_plan_by_identity: dict[str, Any] = _ctx["fast_plan"]
                             arm_provider: StellarInstantRiskBudget = _ctx["arm_provider"]
                             arm_capital: QoreOperationalCapitalBudget = _ctx["arm_capital"]
@@ -2785,6 +2799,21 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             )
                             done = actor_result.strategy_finished_at
                             if arm_blocked:
+                                _log(
+                                    log_path,
+                                    {
+                                        "event": "PRE_FLIGHT_NEW_ORDER_BLOCKED",
+                                        "trader": identity,
+                                        "symbol": symbol,
+                                        "decision_at": (
+                                            audjpy_arm_anchor.isoformat()
+                                        ),
+                                        "candidate": (
+                                            actor_result.signal is not None
+                                        ),
+                                        **arm_blocker_telemetry,
+                                    },
+                                )
                                 log_m5_hard_fail(
                                     identity,
                                     symbol,
