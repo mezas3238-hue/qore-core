@@ -119,6 +119,10 @@ class InstinctAssessment:
             )
 
 
+def _mean3(a: int, b: int, c: int) -> int:
+    return (a + b + c) // 3
+
+
 def _mean4(a: int, b: int, c: int, d: int) -> int:
     return (a + b + c + d) // 4
 
@@ -162,11 +166,19 @@ def assess_instinct(
         opportunity_quality_bps,
         expansion_capacity_bps,
     )
-    threat = _mean4(
-        environment.adverse_environment_bps,
-        trajectory.deterioration_pressure_bps,
-        trajectory.adversity_bps,
-        path_failure,
+    threat = (
+        _mean3(
+            environment.adverse_environment_bps,
+            trajectory.deterioration_pressure_bps,
+            trajectory.adversity_bps,
+        )
+        if path is None
+        else _mean4(
+            environment.adverse_environment_bps,
+            trajectory.deterioration_pressure_bps,
+            trajectory.adversity_bps,
+            path_failure,
+        )
     )
     urgency = _clamp(
         _mean4(
