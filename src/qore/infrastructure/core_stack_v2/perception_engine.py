@@ -13,6 +13,7 @@ from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from decimal import Decimal
 from hashlib import sha256
+from typing import cast
 
 ZERO = Decimal("0")
 
@@ -248,7 +249,26 @@ def perceive_market(
         "structure_state": structure,
         "anomaly_flags": tuple(flags),
     }
-    return MarketPerception(**base, fingerprint=_fingerprint(base))
+    return MarketPerception(
+        as_of=as_of,
+        sample_bars=len(long),
+        short_range=short_range,
+        long_range=long_range,
+        volatility_ratio=volatility_ratio,
+        short_body_fraction=short_body,
+        long_body_fraction=long_body,
+        overlap_rate=overlap,
+        path_efficiency=efficiency,
+        displacement_ratio=displacement,
+        directional_persistence=persistence,
+        compression_score=compression,
+        expansion_score=expansion,
+        momentum_state=momentum,
+        volatility_state=volatility_state,
+        structure_state=structure,
+        anomaly_flags=tuple(flags),
+        fingerprint=_fingerprint(base),
+    )
 
 
 def infer_situation(
@@ -323,9 +343,24 @@ def infer_situation(
         "uncertainty_pressure": uncertainty,
         "anomaly_flags": perception.anomaly_flags,
     }
-    return SituationVector(**base, fingerprint=_fingerprint(base))
+    return SituationVector(
+        as_of=perception.as_of,
+        regime=regime,
+        transition=transition,
+        confidence_bps=confidence,
+        trend_pressure=trend_pressure,
+        range_pressure=range_pressure,
+        expansion_pressure=expansion_pressure,
+        exhaustion_pressure=exhaustion_pressure,
+        uncertainty_pressure=uncertainty,
+        anomaly_flags=perception.anomaly_flags,
+        fingerprint=_fingerprint(base),
+    )
 
 
 def public_payload(value: MarketPerception | SituationVector) -> dict[str, object]:
     payload = asdict(value)
-    return json.loads(json.dumps(payload, default=str))
+    return cast(
+        dict[str, object],
+        json.loads(json.dumps(payload, default=str)),
+    )
