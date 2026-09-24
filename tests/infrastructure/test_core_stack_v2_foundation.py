@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from uuid import UUID
+
+import pytest
 
 from qore.governance.executive_control import ExecutiveReadScope
 from qore.governance.executive_operational_read_models import (
@@ -22,15 +25,19 @@ from qore.governance.executive_read_models import (
 )
 from qore.infrastructure.core_stack_v2 import (
     GLOBAL_MARKET_UNIVERSE_REQUIRED,
+    ActualTrade,
     CoreHypothesis,
     CoreStackConfig,
     DecisionObservation,
     HypothesisStatus,
     MarketEvent,
     PortfolioIntent,
+    ShadowAction,
+    SharedShadowDecision,
     build_global_market_universe,
     build_snapshot,
     compatibility_manifest,
+    evaluate_real_operation_falsification,
     freeze_facts,
     summarize_decision_ab,
     superintelligence_freeze_contract,
@@ -380,3 +387,74 @@ def test_superintelligence_architecture_freeze_preserves_owner_laws() -> None:
     assert governance["live_deployment_authorized"] is False
     assert governance["merge_authorized"] is False
     assert len(superintelligence_freeze_fingerprint()) == 64
+
+
+
+def test_real_operation_falsification_uses_exact_pre_entry_shadow_decisions() -> None:
+    entries = tuple(
+        NOW + timedelta(minutes=index)
+        for index in range(5)
+    )
+    realized = (
+        Decimal("1"),
+        Decimal("-1"),
+        Decimal("2"),
+        Decimal("-1"),
+        Decimal("1"),
+    )
+    trades = tuple(
+        ActualTrade(
+            trade_id=f"real-{index}",
+            entry_at=entry,
+            exit_at=entry + timedelta(minutes=10),
+            realized_r=value,
+        )
+        for index, (entry, value) in enumerate(zip(entries, realized, strict=True))
+    )
+    decisions = tuple(
+        SharedShadowDecision(
+            trade_id=trade.trade_id,
+            decided_at=trade.entry_at - timedelta(seconds=1),
+            action=(
+                ShadowAction.ABSTAIN
+                if trade.trade_id == "real-1"
+                else ShadowAction.PASS
+            ),
+            context_fingerprint=f"ctx-{index}",
+        )
+        for index, trade in enumerate(trades)
+    )
+
+    result = evaluate_real_operation_falsification(trades, decisions)
+
+    assert result.baseline.profit_factor == Decimal("2")
+    assert result.shared_shadow.profit_factor == Decimal("4")
+    assert result.baseline.total_r == Decimal("2")
+    assert result.shared_shadow.total_r == Decimal("3")
+    assert result.density_retained == Decimal("0.8")
+    assert result.losses_avoided == 1
+    assert result.winners_sacrificed == 0
+    assert result.pf_delta_pct == Decimal("100")
+    assert result.exact_opportunity_binding is True
+    assert result.all_shadow_decisions_pre_entry is True
+    assert result.current_outcome_used_by_shadow is False
+    assert result.shared_order_authority is False
+    assert result.shared_risk_authority is False
+
+
+def test_real_operation_falsification_rejects_post_entry_shadow_decision() -> None:
+    trade = ActualTrade(
+        trade_id="late-shadow",
+        entry_at=NOW,
+        exit_at=NOW + timedelta(minutes=5),
+        realized_r=Decimal("-1"),
+    )
+    decision = SharedShadowDecision(
+        trade_id=trade.trade_id,
+        decided_at=NOW + timedelta(microseconds=1),
+        action=ShadowAction.ABSTAIN,
+        context_fingerprint="ctx-late",
+    )
+
+    with pytest.raises(ValueError, match="produced after entry"):
+        evaluate_real_operation_falsification((trade,), (decision,))
