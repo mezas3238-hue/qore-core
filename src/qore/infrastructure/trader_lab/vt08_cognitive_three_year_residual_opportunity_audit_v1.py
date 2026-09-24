@@ -21,12 +21,15 @@ from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_v1 import (
     ANCHORS_NY,
     EXPANSION_MARKETS,
 )
-from qore.infrastructure.trader_lab.vt08_cognitive_three_year_opportunity_census_v1 import (
+from qore.infrastructure.trader_lab.vt08_cognitive_latest_ps_density_recovery_v1 import (
     PROFILES,
+)
+from qore.infrastructure.trader_lab.vt08_cognitive_three_year_opportunity_census_v1 import (
     _c3_shapes,
     _profile_variants,
 )
 from qore.infrastructure.traders.vt08_b01_r3_8 import (
+    Vt08B01Bar,
     resolve_bias,
     source_h4_from_m15,
 )
@@ -37,8 +40,8 @@ _NY = ZoneInfo("America/New_York")
 
 def _source_state(
     *,
-    bars_by_open,
-    entry_bar,
+    bars_by_open: dict[datetime, Vt08B01Bar],
+    entry_bar: Vt08B01Bar,
 ) -> str:
     local = entry_bar.opened_at.astimezone(_NY)
     reference = source_h4_from_m15(
