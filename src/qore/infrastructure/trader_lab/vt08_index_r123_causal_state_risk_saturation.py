@@ -247,6 +247,7 @@ def _window(
                 "side": signal.side.value,
                 "anchor": str(signal.h4_opened_at.astimezone(v7._NY).hour),
                 "period": period,
+                "exit_timestamp": item.exited_at.astimezone(UTC).isoformat(),
                 "bias_mechanism": mechanism,
                 "prior_extreme_relation": relation,
                 "last_state": last_state,
