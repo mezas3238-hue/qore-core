@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from decimal import Decimal
 from types import SimpleNamespace
 
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2bk_audusd_passive_entry_capacity import (
@@ -12,6 +13,7 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2bm_audusd_passive_entry_econ
     IDENTITY,
     TARGET_R,
     _find_fill,
+    _m15_exit,
 )
 
 
@@ -64,3 +66,16 @@ def test_r2bm_same_m5_fill_and_stop_is_conservative_fill_then_stop() -> None:
     )
     assert fill == start
     assert state == "FILL_AND_STOP_SAME_M5"
+
+
+def test_r2bm_same_m15_target_then_stop_still_resolves_stop_first() -> None:
+    outcome = _m15_exit(
+        bullish=True,
+        current_stop=Decimal("90"),
+        target=Decimal("110"),
+        bars=(
+            _bar(low=100, high=111),
+            _bar(low=89, high=105),
+        ),
+    )
+    assert outcome == ("STOP", Decimal("90"))
