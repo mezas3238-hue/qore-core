@@ -36,8 +36,8 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
     CapitalizerSession,
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
-from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
-    _index_day_inputs,
+from qore.infrastructure.trader_lab.capitalizer_session_clock import (
+    capitalizer_session_at,
 )
 
 IDENTITY = "QORE_CAPITALIZER_NATIVE_M1_FIXED_SELECTION_TARGET1_10Y_V1"
@@ -224,6 +224,23 @@ def _simulate(
     )
 
 
+def _source_execution_by_day(
+    bars: tuple[CapitalizerM1Bar, ...],
+    *,
+    session: CapitalizerSession,
+) -> dict[str, tuple[CapitalizerM1Bar, ...]]:
+    grouped: dict[str, list[CapitalizerM1Bar]] = defaultdict(list)
+    for bar in bars:
+        if capitalizer_session_at(bar.opened_at) is not session:
+            continue
+        key = native._operating_date(bar.opened_at, session)
+        grouped[key].append(bar)
+    return {
+        key: tuple(sorted(rows, key=lambda item: item.opened_at))
+        for key, rows in grouped.items()
+    }
+
+
 def build_market_report(
     replay_root: Path,
     m1_root: Path,
@@ -240,7 +257,7 @@ def build_market_report(
     bars = tuple(iter_cibo_m1(m1_root))
     if not bars or any(bar.symbol != symbol for bar in bars):
         raise ValueError("target1 native-M1 source bars mismatch")
-    execution_by_day, _ = _index_day_inputs(bars, session=session)
+    execution_by_day = _source_execution_by_day(bars, session=session)
 
     outcomes: list[NativeM1Target1Outcome] = []
     for trade in source:
