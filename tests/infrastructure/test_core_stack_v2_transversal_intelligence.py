@@ -115,6 +115,7 @@ def test_generic_shared_modules_do_not_embed_vt31_methodology_ontology() -> None
         "transition_intelligence.py",
         "environment_intelligence.py",
         "path_intelligence.py",
+        "instinct_intelligence.py",
     )
     forbidden = (
         "silver_bullet",
