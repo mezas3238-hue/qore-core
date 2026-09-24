@@ -268,10 +268,20 @@ def _window(
     primary = _delta_metrics(rows, stress=r102.PRIMARY_STRESS)
     secondary = _delta_metrics(rows, stress=r102.SECONDARY_STRESS)
     expected_delta = EXPECTED_INCREMENTAL[window_id]
-    if Decimal(str(primary["total_incremental_r"])) != expected_delta["primary"]:
-        raise ValueError(f"R122 {window_id} primary R121 delta mismatch")
-    if Decimal(str(secondary["total_incremental_r"])) != expected_delta["secondary"]:
-        raise ValueError(f"R122 {window_id} secondary R121 delta mismatch")
+    observed_primary = Decimal(str(primary["total_incremental_r"]))
+    observed_secondary = Decimal(str(secondary["total_incremental_r"]))
+    if observed_primary != expected_delta["primary"]:
+        raise ValueError(
+            f"R122 {window_id} primary R121 delta mismatch: "
+            f"observed={observed_primary} "
+            f"expected={expected_delta['primary']}"
+        )
+    if observed_secondary != expected_delta["secondary"]:
+        raise ValueError(
+            f"R122 {window_id} secondary R121 delta mismatch: "
+            f"observed={observed_secondary} "
+            f"expected={expected_delta['secondary']}"
+        )
 
     return {
         "window_id": window_id,
