@@ -92,6 +92,13 @@ from qore.infrastructure.core_stack_v2.stability_intelligence import (
     TraderStabilityTelemetry,
     assess_drawdown_stability,
 )
+from qore.infrastructure.core_stack_v2.transition_intelligence import (
+    DynamicTransitionPolicy,
+    MarketTrajectoryAssessment,
+    MarketTrajectoryState,
+    MarketTransitionObservation,
+    assess_market_trajectory,
+)
 
 __all__ = [
     "CORE_STACK_VERSION",
@@ -99,6 +106,10 @@ __all__ = [
     "JourneyAssessment",
     "JourneyDisposition",
     "MarketStabilityEvidence",
+    "MarketTrajectoryAssessment",
+    "MarketTrajectoryState",
+    "MarketTransitionObservation",
+    "DynamicTransitionPolicy",
     "PositionJourneyEvidence",
     "StabilityMode",
     "StabilityPolicy",
@@ -152,6 +163,7 @@ __all__ = [
     "UncertaintyState",
     "WorldState",
     "assess_drawdown_stability",
+    "assess_market_trajectory",
     "assess_position_journey",
     "build_global_market_universe",
     "build_shared_context",
