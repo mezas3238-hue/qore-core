@@ -76,6 +76,13 @@ from qore.infrastructure.core_stack_v2.market_universe import (
     CoreMarketKnowledge,
     build_global_market_universe,
 )
+from qore.infrastructure.core_stack_v2.path_intelligence import (
+    PositionPathAssessment,
+    PositionPathObservation,
+    PositionPathPolicy,
+    PositionPathState,
+    assess_position_path,
+)
 from qore.infrastructure.core_stack_v2.operational_falsification import (
     ActualTrade,
     CurveMetrics,
@@ -122,6 +129,10 @@ __all__ = [
     "MarketTransitionObservation",
     "DynamicTransitionPolicy",
     "PositionJourneyEvidence",
+    "PositionPathAssessment",
+    "PositionPathObservation",
+    "PositionPathPolicy",
+    "PositionPathState",
     "StabilityMode",
     "StabilityPolicy",
     "TraderStabilityTelemetry",
@@ -177,6 +188,7 @@ __all__ = [
     "assess_market_environment",
     "assess_market_trajectory",
     "assess_position_journey",
+    "assess_position_path",
     "build_global_market_universe",
     "build_shared_context",
     "build_snapshot",
