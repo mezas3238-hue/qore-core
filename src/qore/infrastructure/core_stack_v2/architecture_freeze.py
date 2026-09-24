@@ -5,7 +5,7 @@ import hashlib
 import json
 from typing import Final
 
-SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_006"
+SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_007"
 
 _CAPABILITIES: Final = (
     "PERCEPTION_INTEGRITY",
@@ -31,6 +31,7 @@ _CAPABILITIES: Final = (
     "ANOMALY_FUSION_INTELLIGENCE",
     "MARKET_CONTEXT_MEMORY",
     "ULTRAFAST_INSTINCT_HOT_PATH_INTELLIGENCE",
+    "REALTIME_TRAILING_AND_TARGET_MANAGEMENT_INTELLIGENCE",
     "UNIVERSAL_POSITION_JOURNEY_INTELLIGENCE",
     "TRADER_ADAPTER_TRANSLATION_LAYER",
 )
@@ -141,6 +142,10 @@ def superintelligence_freeze_contract() -> dict[str, object]:
             "shared_core_may_rewrite_entry": False,
             "shared_core_may_rewrite_stop": False,
             "shared_core_may_rewrite_target": False,
+            "shared_may_issue_stop_improvement_directive": True,
+            "shared_may_issue_target_extension_directive": True,
+            "shared_may_issue_realtime_trade_management_directive": True,
+            "direct_broker_mutation_by_shared_forbidden": True,
             "shared_core_may_authorize_order": False,
             "shared_core_may_authorize_risk": False,
             "qore_risk_sovereign": True,
@@ -149,6 +154,11 @@ def superintelligence_freeze_contract() -> dict[str, object]:
         "position_law": {
             "stop_can_improve_or_hold": True,
             "stop_can_widen": False,
+            "trailing_stop_management_required": True,
+            "target_extension_when_causally_supported": True,
+            "target_reduction_not_required_for_dd_claim": True,
+            "same_position_size_throughout_trade": True,
+            "sizing_changes_for_shared_economic_claims_forbidden": True,
             "future_information_allowed": False,
         },
         "shared_essential_intelligence": {
@@ -268,6 +278,45 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                     "target_instinct_plus_adapter_budget_ms": "<10",
                 },
             },
+            "realtime_trade_management": {
+                "required": True,
+                "purpose": (
+                    "Shared must act as the trader third eye during the live path: "
+                    "reduce loss exposure with causal stop improvement/trailing and "
+                    "extend targets when continuation capacity remains strong."
+                ),
+                "resident_state_only": True,
+                "incremental_reassessment_required": True,
+                "instinctive_reaction_required": True,
+                "actions": (
+                    "HOLD",
+                    "DEFEND",
+                    "TRAIL",
+                    "EXTEND",
+                    "TRAIL_AND_EXTEND",
+                    "EXIT_RISK",
+                ),
+                "trailing_stop_required": True,
+                "stop_may_only_improve_or_hold": True,
+                "stop_widening_forbidden": True,
+                "target_extension_allowed": True,
+                "target_extension_requires_causal_capacity": True,
+                "normal_pullback_must_not_trigger_false_exit": True,
+                "large_winner_protection_required": True,
+                "sizing_change_forbidden": True,
+                "capital_weighting_forbidden": True,
+                "risk_budget_change_forbidden": True,
+                "same_trade_count_required": True,
+                "same_initial_position_size_required": True,
+                "economic_attribution_must_isolate_shared_trade_management": True,
+                "shared_management_directive_authority": True,
+                "shared_broker_execution_authority": False,
+                "qore_risk_sizing_authority_unchanged": True,
+                "adapter_translates_management_directive_to_price_geometry": True,
+                "hot_path_complexity": "O(1)",
+                "runtime_terminal_outcome_input_forbidden": True,
+                "future_market_input_forbidden": True,
+            },
             "profit_factor": {
                 "required": True,
                 "meaning": (
@@ -323,6 +372,9 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "instinct_situation",
                 "support_methodology",
                 "threat_urgency",
+                "realtime_stop_management",
+                "realtime_target_extension",
+                "trailing_state",
             ),
             "owner_economic_north_star": {
                 "profit_factor_must_increase": True,
@@ -334,6 +386,7 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "winner_count_and_winner_r_must_be_protected": True,
                 "same_opportunity_universe_required_for_claims": True,
                 "risk_or_sizing_compression_cannot_claim_shared_success": True,
+                "shared_behavior_must_be_measured_with_sizing_unchanged": True,
             },
             "success_requires_all_three": True,
         },
