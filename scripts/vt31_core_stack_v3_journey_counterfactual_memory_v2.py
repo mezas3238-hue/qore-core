@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import defaultdict
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
@@ -807,6 +806,7 @@ def run(
             rows: list[dict[str, object]],
             paths: dict[str, tuple[object, tuple[object, ...]]],
             extension_fraction: Decimal,
+            cache_key: str = cache_key,
         ) -> JourneyMemory:
             if cache_key not in memory_cache:
                 memory_cache[cache_key] = original_builder(
