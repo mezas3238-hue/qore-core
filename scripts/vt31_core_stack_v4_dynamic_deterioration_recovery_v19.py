@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import cast
 
 import vt31_core_stack_v4_cross_market_journey_defense_v18 as v18
+
 from qore.infrastructure.core_stack_v2.transition_intelligence import (
     MarketTrajectoryState,
     MarketTransitionObservation,
