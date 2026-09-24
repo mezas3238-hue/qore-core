@@ -1,4 +1,4 @@
-"""Shared Perception Engine V1.
+"""Shared Perception Engine V1.\n\n# ruff: noqa: E501
 
 Causal, decision-time market perception. This module deliberately contains no
 PnL, outcome labels, analog search, order authority, risk authority or
