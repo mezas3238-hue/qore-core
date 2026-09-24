@@ -325,12 +325,13 @@ def _annotate_persistent_context(
         state_history: list[str] = []
         last_entry_environment = MarketEnvironmentState.INSUFFICIENT
 
-        for transition in transition_history:
+        for index, transition in enumerate(transition_history):
             trajectory = assess_market_trajectory(
-                tuple(transition_history[
-                    max(0, transition_history.index(transition) - TRAJECTORY_WINDOW + 1):
-                    transition_history.index(transition) + 1
-                ])
+                tuple(
+                    transition_history[
+                        max(0, index - TRAJECTORY_WINDOW + 1) : index + 1
+                    ]
+                )
             )
             state_history.append(trajectory.state.value)
             environment_observation = _environment_observation(
