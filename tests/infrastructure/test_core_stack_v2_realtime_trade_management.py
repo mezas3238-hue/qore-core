@@ -206,6 +206,30 @@ def test_realtime_management_freeze_forbids_sizing_and_allows_dynamic_path() -> 
     assert north_star["shared_behavior_must_be_measured_with_sizing_unchanged"] is True
 
 
+def test_owner_law_absolutely_forbids_shared_sizing_everywhere() -> None:
+    contract = superintelligence_freeze_contract()
+    sizing = contract["absolute_shared_sizing_prohibition"]
+    phase_b = contract["shared_research_sequence"]["phase_b_external_risk_integration"]
+
+    assert sizing["owner_law"] is True
+    assert sizing["scope"] == "ALL_SHARED_RUNTIME_RESEARCH_LABS_AND_FUTURE_PHASES"
+    assert sizing["shared_may_read_sizing_to_decide_market_state"] is False
+    assert sizing["shared_may_compute_sizing"] is False
+    assert sizing["shared_may_recommend_sizing"] is False
+    assert sizing["shared_may_change_sizing"] is False
+    assert sizing["shared_may_weight_capital"] is False
+    assert sizing["shared_may_change_risk_budget"] is False
+    assert sizing["shared_may_change_order_quantity"] is False
+    assert sizing["shared_may_scale_in_or_scale_out_by_quantity"] is False
+    assert sizing["shared_may_claim_dd_improvement_from_sizing"] is False
+    assert sizing["shared_success_requires_identical_sizing_baseline"] is True
+
+    assert phase_b["shared_sizing_remains_forbidden"] is True
+    assert phase_b["shared_capital_weighting_remains_forbidden"] is True
+    assert phase_b["qore_risk_keeps_all_sizing_authority"] is True
+    assert phase_b["shared_results_must_continue_to_be_reported_at_identical_sizing"] is True
+
+
 def test_realtime_management_hot_path_is_submillisecond_p95() -> None:
     instinct = _instinct(
         situation=InstinctSituation.RAPID_DETERIORATION,
