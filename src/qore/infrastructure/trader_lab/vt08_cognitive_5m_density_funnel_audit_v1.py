@@ -30,6 +30,7 @@ from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_v1 import (
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 from qore.infrastructure.traders.vt08_b01_r3_8 import (
     Vt08B01Bar,
+    Vt08B01ProtectedSwing,
     protected_swings_in_candle2,
     resolve_bias,
     source_h4_from_m15,
@@ -69,7 +70,7 @@ def _candidate_from_components(
     reference: Vt08B01Bar,
     candle2: Vt08B01Bar,
     side: DemoTradingSetupSide,
-    protected,
+    protected: Vt08B01ProtectedSwing,
     entry_bar: Vt08B01Bar,
 ) -> Vt08ExpansionCandidate | None:
     from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_evaluator_v1 import (
