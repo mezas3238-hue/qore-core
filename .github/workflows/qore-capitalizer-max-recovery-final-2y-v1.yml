@@ -21,6 +21,8 @@ env:
   STOP_ATLAS_SHA: 'd55b380fe9be21cee59023c2d6ed4cb3ebc84052'
   FUNNEL_RUN_ID: '35847723760'
   FUNNEL_SHA: 'e099f14092c8ab547137b6a3e59a3a1df9344b9e'
+  REARM_RUN_ID: '35934425045'
+  REARM_SHA: '3fca2555ca6161817809f58c07c9606d8f187cbe'
   SOURCE_M1_RUN_ID: '35548099334'
   SOURCE_M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
 
@@ -85,6 +87,12 @@ jobs:
           run-id: ${{ env.FUNNEL_RUN_ID }}
       - uses: actions/download-artifact@v4
         with:
+          name: qore-capitalizer-v3-source-first-wait-rejected-parallel-rearm-atlas-2y-v1-${{ matrix.symbol }}-${{ env.REARM_SHA }}
+          path: rearm-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.REARM_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
           name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.SOURCE_M1_SHA }}
           path: m1-source
           github-token: ${{ github.token }}
@@ -92,7 +100,7 @@ jobs:
       - name: Build final recovery market
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_final_2y_v1 \
-            market arbitration-source stop-source funnel-source m1-source recovery-output \
+            market arbitration-source stop-source funnel-source rearm-source m1-source recovery-output \
             --session ${{ matrix.session }}
       - name: Enforce final recovery controls
         env:
