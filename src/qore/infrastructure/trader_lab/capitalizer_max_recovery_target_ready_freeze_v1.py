@@ -35,7 +35,7 @@ from qore.infrastructure.trader_lab.capitalizer_m3_mss_bottleneck_forensics_2y_v
     WINDOW_END,
 )
 from qore.infrastructure.trader_lab.capitalizer_max_recovery_final_2y_v1 import (
-    _load_rejected_wait_rows,
+    _load_rearm_rows,
 )
 from qore.infrastructure.trader_lab.capitalizer_max_recovery_v2 import RecoveryTrade
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
@@ -44,15 +44,8 @@ from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     _index_day_inputs,
     _pivots,
 )
-from qore.infrastructure.trader_lab.capitalizer_v3_cisd_boundary_semantics_census_2y_v1 import (
-    _reconstruct_closebacks,
-)
 from qore.infrastructure.trader_lab.capitalizer_v3_source_first_cisd_v1 import (
     find_source_first_m3_mss,
-)
-from qore.infrastructure.trader_lab.capitalizer_v3_source_first_wait_rearm_atlas_2y_v1 import (
-    _new_closeback,
-    _new_raid,
 )
 
 IDENTITY = "QORE_CAPITALIZER_MAX_RECOVERY_TARGET_READY_FREEZE_V1"
@@ -232,66 +225,56 @@ def _protected_details(
 
 def _rearm_details(
     *,
-    funnel_root: Path,
+    rearm_root: Path,
     bars: tuple[CapitalizerM1Bar, ...],
     session: CapitalizerSession,
     execution_by_day: dict[str, tuple[CapitalizerM1Bar, ...]],
 ) -> dict[tuple[str, str, str, str, str], TargetReadyTrade]:
-    rejected = _load_rejected_wait_rows(funnel_root)
-    closebacks = _reconstruct_closebacks(all_bars=bars, session=session)
-    m5: tuple[TFBar, ...] = _aggregate_tf(bars, minutes=5)
-    m5_closes = tuple(item.closed_at for item in m5)
+    rearm_rows = _load_rearm_rows(rearm_root)
     m3: tuple[TFBar, ...] = _aggregate_tf(bars, minutes=3)
     m3_closes = tuple(item.closed_at for item in m3)
     m3_pivots = _pivots(m3)
     buffer_price = v3._stop_buffer(bars)
     result: dict[tuple[str, str, str, str, str], TargetReadyTrade] = {}
 
-    for raw in rejected:
-        original = closebacks.get(str(raw["closeback_at"]))
-        if original is None:
-            raise ValueError("target-ready rearm missing closeback")
+    for raw in rearm_rows:
         day = str(raw["operating_date"])
         execution = execution_by_day.get(day, ())
         if not execution:
             raise ValueError("target-ready rearm missing execution day")
+
+        raid_raw = raw.get("new_raid_at")
+        closeback_raw = raw.get("new_closeback_at")
+        mss_raw = raw.get("new_mss_at")
+        fill_raw = raw.get("new_fill_at")
+        if not all(
+            isinstance(value, str)
+            for value in (raid_raw, closeback_raw, mss_raw, fill_raw)
+        ):
+            raise ValueError("target-ready executable rearm ledger incomplete")
+
+        raid_at = datetime.fromisoformat(raid_raw)
+        closeback_at = datetime.fromisoformat(closeback_raw)
+        expected_mss_at = datetime.fromisoformat(mss_raw)
+        expected_fill_at = datetime.fromisoformat(fill_raw)
         deadline = datetime.fromisoformat(str(raw["h1_deadline"]))
-        original_mss = datetime.fromisoformat(str(raw["source_first_mss_at"]))
         side = CapitalizerSide(str(raw["side"]))
 
-        raid = _new_raid(
-            execution,
-            after=original_mss + timedelta(minutes=WAIT_MINUTES),
-            before=deadline,
-            liquidity_kind=original.reference.kind,
-            original_extreme=original.sweep_extreme,
-        )
-        if raid is None:
-            continue
-        closeback_at = _new_closeback(
-            m5,
-            m5_closes,
-            raid_at=raid.opened_at,
-            deadline=deadline,
-            liquidity_kind=original.reference.kind,
-            liquidity_price=original.reference.price,
-        )
-        if closeback_at is None:
-            continue
         mss = find_source_first_m3_mss(
             m3,
             m3_closes,
             m3_pivots,
-            sweep_at=raid.opened_at,
+            sweep_at=raid_at,
             after=closeback_at,
             before=deadline,
             side=side,
         )
-        if mss is None:
-            continue
+        if mss is None or mss.confirmed_at != expected_mss_at:
+            raise ValueError("target-ready rearm MSS mismatch")
+
         zone = v3._m1_causal_zone(execution, event=mss)
         if zone is None:
-            continue
+            raise ValueError("target-ready rearm FVG mismatch")
         fill = v3._find_m1_fill(
             execution,
             event=mss,
@@ -299,8 +282,12 @@ def _rearm_details(
             deadline=deadline,
         )
         if fill is None:
-            continue
+            raise ValueError("target-ready rearm fill mismatch")
         entry_index, entry, _ = fill
+        entry_at = execution[entry_index].opened_at
+        if entry_at != expected_fill_at:
+            raise ValueError("target-ready rearm timestamp mismatch")
+
         stop = (
             mss.broken_swing_price - buffer_price
             if side is CapitalizerSide.LONG
@@ -310,7 +297,7 @@ def _rearm_details(
             stop < entry if side is CapitalizerSide.LONG else stop > entry
         )
         if not valid:
-            continue
+            raise ValueError("target-ready rearm stop mismatch")
 
         risk = abs(entry - stop)
         target = (
@@ -325,7 +312,7 @@ def _rearm_details(
             side=side.value,
             h1_open=(deadline - timedelta(hours=1)).isoformat(),
             h1_deadline=deadline.isoformat(),
-            entry_at=execution[entry_index].opened_at.isoformat(),
+            entry_at=entry_at.isoformat(),
             entry_price=str(entry),
             stop_price=str(stop),
             risk_price=str(risk),
@@ -344,12 +331,12 @@ def _rearm_details(
         ] = trade
     return result
 
-
 def build_market_report(
     final_root: Path,
     arbitration_root: Path,
     stop_root: Path,
     funnel_root: Path,
+    rearm_root: Path,
     m1_root: Path,
     *,
     session: CapitalizerSession,
@@ -374,7 +361,7 @@ def build_market_report(
             execution_by_day=execution_by_day,
         ),
         _rearm_details(
-            funnel_root=funnel_root,
+            rearm_root=rearm_root,
             bars=bars,
             session=session,
             execution_by_day=execution_by_day,
@@ -500,6 +487,7 @@ def main() -> None:
     market.add_argument("arbitration_root", type=Path)
     market.add_argument("stop_root", type=Path)
     market.add_argument("funnel_root", type=Path)
+    market.add_argument("rearm_root", type=Path)
     market.add_argument("m1_root", type=Path)
     market.add_argument("output", type=Path)
     market.add_argument(
@@ -517,6 +505,7 @@ def main() -> None:
             args.arbitration_root,
             args.stop_root,
             args.funnel_root,
+            args.rearm_root,
             args.m1_root,
             session=CapitalizerSession(args.session),
         )
