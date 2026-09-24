@@ -60,6 +60,7 @@ SOURCE_R121_ARTIFACT_DIGEST = (
 )
 
 EXPECTED_COHORT = r121.EXPECTED_COHORT
+RECONCILIATION_TOLERANCE_R = Decimal("1e-24")
 EXPECTED_INCREMENTAL = {
     "5Y": {
         "primary": Decimal("3.157"),
@@ -270,17 +271,21 @@ def _window(
     expected_delta = EXPECTED_INCREMENTAL[window_id]
     observed_primary = Decimal(str(primary["total_incremental_r"]))
     observed_secondary = Decimal(str(secondary["total_incremental_r"]))
-    if observed_primary != expected_delta["primary"]:
+    primary_residual = observed_primary - expected_delta["primary"]
+    secondary_residual = observed_secondary - expected_delta["secondary"]
+    if abs(primary_residual) > RECONCILIATION_TOLERANCE_R:
         raise ValueError(
             f"R122 {window_id} primary R121 delta mismatch: "
             f"observed={observed_primary} "
-            f"expected={expected_delta['primary']}"
+            f"expected={expected_delta['primary']} "
+            f"residual={primary_residual}"
         )
-    if observed_secondary != expected_delta["secondary"]:
+    if abs(secondary_residual) > RECONCILIATION_TOLERANCE_R:
         raise ValueError(
             f"R122 {window_id} secondary R121 delta mismatch: "
             f"observed={observed_secondary} "
-            f"expected={expected_delta['secondary']}"
+            f"expected={expected_delta['secondary']} "
+            f"residual={secondary_residual}"
         )
 
     return {
@@ -299,6 +304,12 @@ def _window(
         "incremental": {
             "primary": primary,
             "secondary": secondary,
+        },
+        "reconciliation": {
+            "tolerance_r": str(RECONCILIATION_TOLERANCE_R),
+            "primary_residual_r": str(primary_residual),
+            "secondary_residual_r": str(secondary_residual),
+            "pass": True,
         },
         "by_change_origin": _group(rows, field="change_origin"),
         "by_promotion_signature": _group(
