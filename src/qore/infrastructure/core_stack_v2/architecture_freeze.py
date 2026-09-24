@@ -5,7 +5,7 @@ import hashlib
 import json
 from typing import Final
 
-SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_003"
+SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_004"
 
 _CAPABILITIES: Final = (
     "PERCEPTION_INTEGRITY",
@@ -21,6 +21,14 @@ _CAPABILITIES: Final = (
     "POSITION_JOURNEY_AND_ECONOMIC_ATTRIBUTION",
     "UNIVERSAL_DRAWDOWN_STABILITY_INTELLIGENCE",
     "DYNAMIC_MARKET_DETERIORATION_RECOVERY_INTELLIGENCE",
+    "ADVERSE_MARKET_ENVIRONMENT_INTELLIGENCE",
+    "LOSS_CLUSTER_PREVENTION_INTELLIGENCE",
+    "RECOVERY_AND_EDGE_RESTORATION_INTELLIGENCE",
+    "OPPORTUNITY_QUALITY_INTELLIGENCE",
+    "WINNER_PROTECTION_INTELLIGENCE",
+    "MARKET_EXPANSION_CAPACITY_INTELLIGENCE",
+    "ANOMALY_FUSION_INTELLIGENCE",
+    "MARKET_CONTEXT_MEMORY",
     "UNIVERSAL_POSITION_JOURNEY_INTELLIGENCE",
     "TRADER_ADAPTER_TRANSLATION_LAYER",
 )
@@ -60,6 +68,9 @@ def superintelligence_freeze_contract() -> dict[str, object]:
             "shared_understands_market_once_then_adapters_translate": True,
             "same_market_context_may_yield_different_trader_decisions": True,
             "adapter_required_for_methodology_specific_translation": True,
+            "shared_is_third_eye_cognitive_support_for_every_enabled_trader": True,
+            "shared_must_observe_what_specialist_methodology_does_not_explicitly_model": True,
+            "shared_must_support_full_market_lifecycle_not_only_entry_filtering": True,
             "explicitly_excluded_traders_remain_excluded_until_owner_changes_governance": True,
         },
         "generic_ontology_law": {
@@ -86,6 +97,13 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "uncertainty",
                 "path_capacity",
                 "position_deterioration",
+                "adverse_environment_formation",
+                "environment_persistence",
+                "edge_environment_restoration",
+                "opportunity_quality",
+                "winner_protection",
+                "expansion_capacity",
+                "anomaly_fusion",
             ),
             "trader_specific_ontology_forbidden_in_shared_core": True,
             "vt31_specific_concepts_belong_in_adapter_or_lab": True,
@@ -135,6 +153,9 @@ def superintelligence_freeze_contract() -> dict[str, object]:
             "universal_stability": {
                 "required": True,
                 "preferred_observed_drawdown_band_r": ("4", "6"),
+                "exceptional_observed_drawdown_target_r": "<4",
+                "dd_reduction_cannot_be_bought_with_density_destruction": True,
+                "profit_factor_must_increase_vs_trader_baseline": True,
                 "stability_must_be_cognitive_not_risk_weighting": True,
                 "must_use_current_market_deterioration": True,
                 "may_use_closed_trader_performance_state": True,
@@ -155,6 +176,41 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "future_market_path_forbidden": True,
                 "trader_specific_ontology_forbidden": True,
             },
+            "third_eye_market_support": {
+                "required": True,
+                "trader_keeps_methodology_identity": True,
+                "shared_supplies_superior_transversal_market_intelligence": True,
+                "before_entry_support": True,
+                "during_trade_support": True,
+                "between_trade_environment_support": True,
+                "recovery_support": True,
+                "shared_must_detect_information_not_explicitly_captured_by_trader": True,
+                "shared_must_not_replace_specialist_methodology": True,
+            },
+            "adverse_environment_and_loss_cluster_prevention": {
+                "required": True,
+                "market_behavior_must_be_primary_cause": True,
+                "runtime_loss_streak_as_primary_cause_forbidden": True,
+                "runtime_pnl_as_primary_cause_forbidden": True,
+                "must_detect_environment_formation_before_drawdown_cluster_when_causally_possible": True,
+                "must_detect_persistence_not_only_snapshot": True,
+                "must_detect_stabilization_and_edge_restoration": True,
+                "offline_realized_outcomes_allowed_for_evaluation_only": True,
+            },
+            "opportunity_quality_and_winner_protection": {
+                "required": True,
+                "compare_methodology_valid_opportunities_by_market_support": True,
+                "normal_pullback_must_not_be_confused_with_terminal_failure": True,
+                "protect_large_winners_from_false_defense": True,
+                "extension_requires_causal_market_capacity": True,
+            },
+            "anomaly_fusion_and_context_memory": {
+                "required": True,
+                "single_anomaly_should_not_dominate_without_context": True,
+                "fuse_volatility_liquidity_structure_momentum_correlation_and_behavior": True,
+                "maintain_causal_market_context_across_observations": True,
+                "uncertainty_must_remain_explicit": True,
+            },
             "profit_factor": {
                 "required": True,
                 "meaning": (
@@ -162,6 +218,8 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                     "enough to create materially higher Profit Factor."
                 ),
                 "cannot_be_achieved_by_risk_weighting_only": True,
+                "must_increase_vs_same_trader_baseline": True,
+                "pf_improvement_has_priority_over_cosmetic_dd_reduction": True,
             },
             "drawdown": {
                 "required": True,
@@ -171,6 +229,9 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 ),
                 "stop_may_improve_or_hold_only": True,
                 "stop_widening_forbidden": True,
+                "acceptable_target_band_r": ("4", "6"),
+                "exceptional_target_r": "<4",
+                "density_preservation_required": True,
             },
             "adaptive_journey": {
                 "required": True,
@@ -203,6 +264,17 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "failure_patterns",
                 "uncertainty",
             ),
+            "owner_economic_north_star": {
+                "profit_factor_must_increase": True,
+                "drawdown_acceptable_band_r": ("4", "6"),
+                "drawdown_below_4r_is_preferred_when_pf_and_density_are_preserved": True,
+                "density_must_be_preserved": True,
+                "mass_abstention_is_not_intelligence": True,
+                "total_r_should_be_preserved_or_improved": True,
+                "winner_count_and_winner_r_must_be_protected": True,
+                "same_opportunity_universe_required_for_claims": True,
+                "risk_or_sizing_compression_cannot_claim_shared_success": True,
+            },
             "success_requires_all_three": True,
         },
         "shared_research_sequence": {
