@@ -1,4 +1,5 @@
 name: QORE VT08 C3 Positional Eligibility V1
+# exact-C3-only-rerun
 
 on:
   workflow_dispatch:
