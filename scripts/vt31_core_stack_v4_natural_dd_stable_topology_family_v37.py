@@ -15,10 +15,11 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
-from typing import Callable, cast
+from typing import cast
 
 import vt31_core_stack_v4_natural_dd_reciprocal_stable_intersection_v36 as v36
 
