@@ -9,6 +9,8 @@ on:
       - '.github/workflows/vt08-crt-pure-r2bs-audusd-passive-bj-overlap.yml'
       - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_r2bs_audusd_passive_bj_overlap.py'
       - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_r2bs_audusd_passive_bj_overlap.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_r2bm_audusd_passive_entry_economics.py'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_r2bj_audusd_root_cause_expected_r_family.py'
 
 permissions:
   contents: read
