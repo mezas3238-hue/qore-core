@@ -33,7 +33,6 @@ from qore.infrastructure.traders.vt31_nas100_situation_model import (
     Nas100SituationModel,
 )
 
-
 VT31_ADAPTER_VERSION = "1.0.0-research"
 
 
