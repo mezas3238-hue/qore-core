@@ -108,6 +108,7 @@ def evaluate(path: Path) -> dict[str, object]:
 
     coverage_start = min(bar.opened_at for bar in bars)
     blocks: list[dict[str, object]] = []
+    block_axis: dict[str, object] = {}
     for index in range(5):
         start = coverage_start + timedelta(days=365 * index)
         end = start + timedelta(days=365)
@@ -123,6 +124,23 @@ def evaluate(path: Path) -> dict[str, object]:
         payload["start"] = start.isoformat()
         payload["end_exclusive"] = end.isoformat()
         blocks.append(payload)
+
+        per_axis: dict[str, object] = {}
+        for axis in AXES:
+            axis_buckets: dict[
+                str,
+                list[tuple[CoreStackTrade, StructuralBankTrade, CausalTradeRow]],
+            ] = defaultdict(list)
+            for item in selected:
+                axis_buckets[item[2].state(axis)].append(item)
+            per_axis[axis] = {
+                state: _summary(
+                    tuple(item[0] for item in rows),
+                    tuple(item[1] for item in rows),
+                )
+                for state, rows in sorted(axis_buckets.items())
+            }
+        block_axis[str(index + 1)] = per_axis
 
     weak_end = coverage_start + timedelta(days=365)
     weak = tuple(
@@ -154,6 +172,7 @@ def evaluate(path: Path) -> dict[str, object]:
         "diagnostics_only": True,
         "overall": _summary(stack, bank),
         "five_365d_blocks": blocks,
+        "five_blocks_by_causal_axis": block_axis,
         "weak_block_1_by_causal_axis": by_axis,
         "governance": {
             "runtime_filter_created": False,
