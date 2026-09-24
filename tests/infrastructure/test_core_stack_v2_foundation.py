@@ -542,21 +542,21 @@ def test_causal_analog_memory_is_deterministic() -> None:
             episode_id="a",
             market="NAS100",
             closed_at=NOW - timedelta(days=3),
-            signature=(("side", "long"), ("risk_ref", "0.5")),
+            signature=(("risk_ref", "0.5"), ("side", "long")),
             terminal_r=Decimal("-1"),
         ),
         ClosedEpisode(
             episode_id="b",
             market="NAS100",
             closed_at=NOW - timedelta(days=2),
-            signature=(("side", "long"), ("risk_ref", "0.55")),
+            signature=(("risk_ref", "0.55"), ("side", "long")),
             terminal_r=Decimal("2"),
         ),
     )
     request = AnalogQuery(
         market="NAS100",
         as_of=NOW,
-        signature=(("side", "long"), ("risk_ref", "0.52")),
+        signature=(("risk_ref", "0.52"), ("side", "long")),
         maximum_analogs=2,
         minimum_similarity_bps=0,
     )
