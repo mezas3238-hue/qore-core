@@ -12,7 +12,7 @@ R5 = untouched evaluation.
 No journey management, capital weighting, current-trade outcome feature,
 post-signal candle, Shared order authority, or R5 retune.
 """
-# ruff: noqa: E501,E701,E702,E741
+# ruff: noqa: E501,E701,E702,E741,E701,E702,E741
 from __future__ import annotations
 
 import argparse
