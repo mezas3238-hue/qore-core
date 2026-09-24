@@ -20,6 +20,7 @@ from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_backtest_v1 impo
     load_market_evidence,
 )
 from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_evaluator_v1 import (
+    _candle2_reversal_side,
     _latest_complete_source_days,
 )
 from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_v1 import (
@@ -235,6 +236,8 @@ def evaluate(base_path: Path, *, m3_path: Path) -> dict[str, object]:
         current_day, previous_day = source_days
         bias = resolve_bias(previous_day=previous_day, current_day=current_day)
         if bias is None:
+            continue
+        if _candle2_reversal_side(c1, c2) is bias:
             continue
         if not is_c3_closure_shape(c2, c3, bias=bias):
             continue
