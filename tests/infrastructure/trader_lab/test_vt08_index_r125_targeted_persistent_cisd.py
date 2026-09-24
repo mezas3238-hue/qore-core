@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
+from qore.infrastructure.trader_lab import (
+    vt08_index_r78_persistent_cisd_series as r78,
+)
+from qore.infrastructure.trader_lab import (
+    vt08_index_r108_standard_source_retest_execution_replay as r108,
+)
 from qore.infrastructure.trader_lab import (
     vt08_index_r125_targeted_persistent_cisd as r125,
 )
@@ -23,7 +31,7 @@ def test_r125_sources_and_target_are_pinned() -> None:
 
 
 def test_r125_uses_frozen_persistent_semantics() -> None:
-    assert r125.r78.IDENTITY == (
+    assert r78.IDENTITY == (
         "VT08_INDEX_R78_PERSISTENT_CISD_SERIES_RECOVERY_FALSIFICATION_001"
     )
-    assert r125.r108.TARGET_R == r125.Decimal("2.5")
+    assert r108.TARGET_R == Decimal("2.5")
