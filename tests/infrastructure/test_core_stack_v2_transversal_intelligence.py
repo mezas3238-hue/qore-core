@@ -445,3 +445,92 @@ def test_dynamic_transition_model_rejects_noncausal_ordering() -> None:
             )
         )
 
+
+
+def _environment_observation(minutes: int, level: int) -> MarketEnvironmentObservation:
+    support = max(500, 9000 - level)
+    stability = max(500, 9000 - level)
+    adverse = min(9500, 1000 + level)
+    return MarketEnvironmentObservation(
+        as_of=NOW + timedelta(minutes=minutes),
+        data_integrity_bps=9800,
+        trajectory_support_bps=support,
+        trajectory_adversity_bps=adverse,
+        deterioration_velocity_bps=min(9500, 500 + level),
+        recovery_velocity_bps=max(500, 9000 - level),
+        cross_market_breadth_bps=stability,
+        leadership_stability_bps=stability,
+        correlation_stability_bps=stability,
+        volatility_stability_bps=stability,
+        liquidity_stability_bps=stability,
+        regime_stability_bps=stability,
+        anomaly_bps=adverse,
+        uncertainty_bps=adverse,
+        opposite_pressure_bps=adverse,
+    )
+
+
+def test_market_environment_detects_persistent_adverse_formation() -> None:
+    result = assess_market_environment(
+        tuple(
+            _environment_observation(index, level)
+            for index, level in enumerate((500, 2500, 4500, 6500, 8000))
+        )
+    )
+
+    assert result.state in {
+        MarketEnvironmentState.ADVERSE_FORMING,
+        MarketEnvironmentState.DEFENSIVE,
+    }
+    assert result.adverse_persistence_bps >= 6000
+    assert result.cross_market_fragility_bps >= 6000
+    assert result.structural_fragility_bps >= 6000
+    assert result.order_authority is False
+    assert result.risk_authority is False
+    assert result.sizing_authority is False
+    assert result.execution_authority is False
+    assert result.strategy_mutation_authority is False
+
+
+def test_market_environment_detects_restoration_causally() -> None:
+    observations = tuple(
+        _environment_observation(index, level)
+        for index, level in enumerate((8000, 6500, 4500, 2500, 500))
+    )
+    result = assess_market_environment(observations)
+
+    assert result.state is MarketEnvironmentState.RESTORED
+    assert result.recovery_persistence_bps >= 6000
+    assert result.market_support_bps >= 6200
+    assert "MARKET_SUPPORT_RESTORED" in result.reasons
+
+
+def test_market_environment_fails_closed_and_rejects_noncausal_ordering() -> None:
+    low = _environment_observation(2, 4500)
+    low = MarketEnvironmentObservation(
+        **{
+            name: (5000 if name == "data_integrity_bps" else getattr(low, name))
+            for name in low.__dataclass_fields__
+        }
+    )
+    result = assess_market_environment(
+        (
+            _environment_observation(0, 500),
+            _environment_observation(1, 2500),
+            low,
+            _environment_observation(3, 6500),
+            _environment_observation(4, 8000),
+        )
+    )
+    assert result.state is MarketEnvironmentState.INSUFFICIENT
+
+    with pytest.raises(ValueError, match="strictly increasing"):
+        assess_market_environment(
+            (
+                _environment_observation(1, 500),
+                _environment_observation(0, 2500),
+                _environment_observation(2, 4500),
+                _environment_observation(3, 6500),
+                _environment_observation(4, 8000),
+            )
+        )
