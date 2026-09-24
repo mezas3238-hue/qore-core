@@ -98,6 +98,14 @@ from qore.infrastructure.core_stack_v2.path_intelligence import (
     PositionPathState,
     assess_position_path,
 )
+from qore.infrastructure.core_stack_v2.realtime_trade_management import (
+    RealtimeManagementPolicy,
+    RealtimeTradeAction,
+    RealtimeTradeManagementDirective,
+    StopManagementMode,
+    TargetManagementMode,
+    assess_realtime_trade_management,
+)
 from qore.infrastructure.core_stack_v2.runtime import (
     CoreRuntimeCheckpoint,
     CoreRuntimeResult,
@@ -143,7 +151,12 @@ __all__ = [
     "PositionPathObservation",
     "PositionPathPolicy",
     "PositionPathState",
+    "RealtimeManagementPolicy",
+    "RealtimeTradeAction",
+    "RealtimeTradeManagementDirective",
     "StabilityMode",
+    "StopManagementMode",
+    "TargetManagementMode",
     "SupportMethodology",
     "StabilityPolicy",
     "TraderStabilityTelemetry",
@@ -201,6 +214,7 @@ __all__ = [
     "assess_market_trajectory",
     "assess_position_journey",
     "assess_position_path",
+    "assess_realtime_trade_management",
     "build_global_market_universe",
     "build_shared_context",
     "build_snapshot",
