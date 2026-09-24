@@ -1,0 +1,191 @@
+name: QORE Shared VT31 V15 Fresh Pre-R8 Holdout
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - .github/workflows/qore-shared-vt31-v15-fresh-pre-r8-holdout.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  fresh-pre-r8-holdout:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install research and cTrader dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,ctrader]"
+      - name: Static validation
+        run: |
+          ruff check scripts/vt31_core_stack_v4_v15_fresh_holdout_probe.py scripts/vt31_core_stack_v4_v15_fresh_holdout_eval.py
+          python -m py_compile scripts/vt31_core_stack_v4_v15_fresh_holdout_probe.py scripts/vt31_core_stack_v4_v15_fresh_holdout_eval.py
+      - name: Verify frozen V15 calibration and unchanged identity
+        run: |
+          set -euo pipefail
+          mkdir -p input/calibration input/pure input/cibo input/r8 fresh result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10819663613/zip" > calibration.zip
+          unzip -q calibration.zip -d input/calibration
+          (cd input/calibration && sha256sum -c SHA256SUMS)
+          test "$(cat input/calibration/git-sha.txt)" = "2f515c5325c981ec6405e95bcedbaf7955c36e51"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("input/calibration/cross-market-coherence-veto-v15.json").read_text())
+          assert p["identity"] == "VT31_NAS100_SHARED_CROSS_MARKET_COHERENCE_VETO_V15"
+          assert p["passes_calibration"] is True
+          assert p["economic_status"] == "CALIBRATION_PASSED_HOLDOUT_REQUIRED"
+          assert p["r5_opened"] is False
+          assert p["new_holdout_opened"] is False
+          assert all(p["r8"]["gates"].values())
+          assert all(p["r6"]["gates"].values())
+          PY
+          allowed="$(
+            git diff --name-only 2f515c5325c981ec6405e95bcedbaf7955c36e51 HEAD | sort
+          )"
+          expected="$(printf '%s\n'             '.github/workflows/qore-shared-vt31-v15-fresh-pre-r8-holdout.yml'             'scripts/vt31_core_stack_v4_v15_fresh_holdout_eval.py'             'scripts/vt31_core_stack_v4_v15_fresh_holdout_probe.py' | sort)"
+          test "$allowed" = "$expected"
+      - name: Recover immutable consumed calibration evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10799064861/zip" > pure.zip
+          unzip -q pure.zip -d input/pure
+          (cd input/pure && sha256sum -c SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10478487667/zip" > cibo.zip
+          unzip -q cibo.zip -d input/cibo
+          (cd input/cibo && sha256sum -c SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+      - name: Verify DEMO credentials before opening holdout
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}"
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Enforce one-shot and mark holdout opened
+        run: |
+          set -euo pipefail
+          marker_name="qore-shared-vt31-v15-pre-r8-holdout-open-marker"
+          count="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${marker_name}" --jq '.artifacts | length')"
+          test "$count" = "0"
+          cat > holdout-open-marker.json <<'JSON'
+          {
+            "identity": "VT31_NAS100_SHARED_CROSS_MARKET_COHERENCE_VETO_V15",
+            "partition": "PRE_R8_FRESH_ONE_SHOT",
+            "holdout_end_exclusive": "2016-04-18T00:00:00+00:00",
+            "lookback_days": 760,
+            "retuning_after_open": false,
+            "r5_used": false,
+            "live_authorized": false,
+            "production_authorized": false
+          }
+          JSON
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-vt31-v15-pre-r8-holdout-open-marker
+          path: holdout-open-marker.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Acquire pre-registered historical evidence once
+        run: |
+          set -euo pipefail
+          mkdir -p fresh/{NAS100,SP500,US30}
+          for market in NAS100 SP500 US30
+          do
+            QORE_DEMO_LAB_SYMBOL="$market" python scripts/vt31_core_stack_v4_v15_fresh_holdout_probe.py > "fresh/$market/market-evidence.json"
+          done
+          sha256sum fresh/*/market-evidence.json > fresh/EVIDENCE-SHA256SUMS
+      - name: Evaluate exact frozen V15
+        run: |
+          python scripts/vt31_core_stack_v4_v15_fresh_holdout_eval.py \
+            --calibration input/calibration/cross-market-coherence-veto-v15.json \
+            --r8-trades input/pure/r8.json \
+            --r8-nas input/r8/fresh/NAS100/market-evidence.json \
+            --r8-sp input/r8/fresh/SP500/market-evidence.json \
+            --r8-us input/r8/fresh/US30/market-evidence.json \
+            --r8-daily input/cibo/DAILY_PATH_LEDGER.jsonl \
+            --fresh-nas fresh/NAS100/market-evidence.json \
+            --fresh-sp fresh/SP500/market-evidence.json \
+            --fresh-us fresh/US30/market-evidence.json \
+            --output result/v15-fresh-pre-r8-holdout.json \
+            | tee result/summary.json
+      - name: Governance validation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/v15-fresh-pre-r8-holdout.json").read_text())
+          assert p["identity"] == "VT31_NAS100_SHARED_CROSS_MARKET_COHERENCE_VETO_V15"
+          assert p["r5_opened"] is False
+          g=p["governance"]
+          assert g["calibration_frozen_before_holdout"] is True
+          assert g["pre_r8_temporally_disjoint_holdout"] is True
+          assert g["r5_opened"] is False
+          assert g["r5_outcomes_used"] is False
+          assert g["holdout_outcomes_used_for_retuning"] is False
+          assert g["runtime_current_outcome_used"] is False
+          assert g["runtime_exact_state_lookup_used"] is False
+          assert g["runtime_nearest_neighbor_used"] is False
+          assert g["three_index_closed_m1_used"] is True
+          assert g["future_m1_used"] is False
+          assert g["capital_risk_weighting_used"] is False
+          assert g["methodology_modified"] is False
+          assert g["shared_order_authority"] is False
+          assert g["shared_risk_authority"] is False
+          assert g["shared_execution_authority"] is False
+          assert g["live_authorized"] is False
+          assert g["production_authorized"] is False
+          assert g["merge_authorized"] is False
+          print(json.dumps({
+            "economic_status":p["economic_status"],
+            "passes_fresh_holdout":p["passes_fresh_holdout"],
+            "holdout":p["holdout"],
+            "evaluation":p["evaluation"],
+            "gates":p["gates"],
+          },sort_keys=True))
+          PY
+      - name: Bind evidence and result
+        run: |
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          cp holdout-open-marker.json result/holdout-open-marker.json
+          cp fresh/EVIDENCE-SHA256SUMS result/EVIDENCE-SHA256SUMS
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-vt31-v15-fresh-pre-r8-holdout-${{ github.sha }}
+          path: |
+            result/
+            fresh/NAS100/market-evidence.json
+            fresh/SP500/market-evidence.json
+            fresh/US30/market-evidence.json
+          if-no-files-found: error
+          retention-days: 90
