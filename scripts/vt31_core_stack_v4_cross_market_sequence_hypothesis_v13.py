@@ -20,7 +20,7 @@ lookup, nearest neighbor, future candle, sizing, Risk or execution authority.
 R8 = discovery, R6 = calibration + freeze, R5 = untouched evaluation only
 after every R6 hard gate passes.
 """
-# ruff: noqa: E501
+# ruff: noqa: B009,E501,I001
 from __future__ import annotations
 
 import argparse
