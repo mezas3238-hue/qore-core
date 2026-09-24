@@ -5,7 +5,7 @@ import hashlib
 import json
 from typing import Final
 
-SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_005"
+SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_006"
 
 _CAPABILITIES: Final = (
     "PERCEPTION_INTEGRITY",
@@ -30,6 +30,7 @@ _CAPABILITIES: Final = (
     "MARKET_EXPANSION_CAPACITY_INTELLIGENCE",
     "ANOMALY_FUSION_INTELLIGENCE",
     "MARKET_CONTEXT_MEMORY",
+    "ULTRAFAST_INSTINCT_HOT_PATH_INTELLIGENCE",
     "UNIVERSAL_POSITION_JOURNEY_INTELLIGENCE",
     "TRADER_ADAPTER_TRANSLATION_LAYER",
 )
@@ -223,6 +224,50 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "maintain_causal_market_context_across_observations": True,
                 "uncertainty_must_remain_explicit": True,
             },
+            "ultrafast_instinct_hot_path": {
+                "required": True,
+                "purpose": (
+                    "Shared must recognize the current market/trade situation "
+                    "immediately from resident causal state and select the correct "
+                    "authority-free support methodology before adverse movement "
+                    "can become economically expensive."
+                ),
+                "resident_state_inputs_only": True,
+                "constant_time_fusion_required": True,
+                "complexity_contract": "O(1)",
+                "history_scan_in_hot_path_forbidden": True,
+                "historical_analog_lookup_in_hot_path_forbidden": True,
+                "network_io_in_hot_path_forbidden": True,
+                "filesystem_io_in_hot_path_forbidden": True,
+                "runtime_pnl_input_forbidden": True,
+                "terminal_outcome_input_forbidden": True,
+                "future_market_input_forbidden": True,
+                "must_classify_threat_support_recovery_and_winner_protection": True,
+                "must_select_support_methodology_immediately": True,
+                "support_methodologies": (
+                    "IMMEDIATE_DEFENSE",
+                    "PROGRESSIVE_DEFENSE",
+                    "WINNER_PROTECTION",
+                    "HOLD_AND_MONITOR",
+                    "RECOVERY_SUPPORT",
+                    "EXTENSION_SUPPORT",
+                    "INSUFFICIENT_FAIL_CLOSED",
+                ),
+                "must_not_rewrite_trader_methodology": True,
+                "must_not_reduce_density_as_primary_mechanism": True,
+                "shared_order_authority": False,
+                "shared_risk_authority": False,
+                "shared_sizing_authority": False,
+                "shared_execution_authority": False,
+                "performance_engineering": {
+                    "precompute_heavy_cognition_outside_trade_hot_path": True,
+                    "keep_market_state_resident": True,
+                    "incremental_updates_required": True,
+                    "full_rebuild_per_trade_forbidden": True,
+                    "target_single_instinct_fusion_p95_ms": "<1",
+                    "target_instinct_plus_adapter_budget_ms": "<10",
+                },
+            },
             "profit_factor": {
                 "required": True,
                 "meaning": (
@@ -275,6 +320,9 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "historical_analogs",
                 "failure_patterns",
                 "uncertainty",
+                "instinct_situation",
+                "support_methodology",
+                "threat_urgency",
             ),
             "owner_economic_north_star": {
                 "profit_factor_must_increase": True,
