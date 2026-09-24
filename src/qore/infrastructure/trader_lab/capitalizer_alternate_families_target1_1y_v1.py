@@ -39,6 +39,7 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_ict_2022_m1_entry_1y_replay_v1 import (
+    WINDOW_END,
     _lifecycle,
 )
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
@@ -265,7 +266,7 @@ def build_market_report(
     bars = tuple(
         bar
         for bar in iter_cibo_m1(m1_root)
-        if fast.LOOKBACK_START <= bar.opened_at < fast.WINDOW_END + timedelta(days=1)
+        if fast.LOOKBACK_START <= bar.opened_at < WINDOW_END + timedelta(days=1)
     )
     if not bars or any(bar.symbol != symbol for bar in bars):
         raise ValueError("alternate-family native M1 symbol mismatch")
