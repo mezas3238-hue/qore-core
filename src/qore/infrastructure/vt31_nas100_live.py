@@ -29,9 +29,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
 from qore.infrastructure.broker_risk_sizing import size_volume_for_risk
-from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
-from qore.infrastructure.fundednext_mt5_clock import normalise_fundednext_server_epoch
-from qore.infrastructure.fundednext_stellar_instant import resolve_pilot_symbol
+from qore.infrastructure.ctrader_demo_compat import normalise_legacy_server_epoch
 from qore.infrastructure.market_data import (
     Instrument,
     MarketDataSnapshotId,
@@ -48,7 +46,7 @@ from qore.infrastructure.ports import (
 
 IDENTITY = "VT31_NAS100"
 SYMBOL = "NAS100"
-PROVIDER_SYMBOL = resolve_pilot_symbol(SYMBOL)
+PROVIDER_SYMBOL = "NDX100"
 STRATEGY_IDENTITY = "VT31_NAS100_STRUCTURAL_TARGET_V1"
 CERTIFIED_STRATEGY_FINGERPRINT = (
     "089c41f98a72295278063cfc29caf8419538f68315d9f5e57be144fbdae15e08"
@@ -271,7 +269,7 @@ class Vt31Nas100M1Cache:
     def _ingest(self, rows: Any, *, observed_at: datetime) -> None:
         observed = _utc(observed_at, "observed_at")
         for row in rows:
-            opened = normalise_fundednext_server_epoch(int(row["time"]))
+            opened = normalise_legacy_server_epoch(int(row["time"]))
             snapshot = OhlcSnapshot(
                 snapshot_id=MarketDataSnapshotId(
                     uuid5(
@@ -341,7 +339,9 @@ class Vt31Nas100M1Cache:
             raise Vt31Nas100LiveError("VT31 M1 cache not preloaded")
         if count <= 0 or count > 64:
             raise ValueError("VT31 incremental M1 count invalid")
-        rows = api.copy_rates_from_pos(
+        resident_reader = getattr(api, "copy_rates_from_pos_resident", None)
+        reader = resident_reader if callable(resident_reader) else api.copy_rates_from_pos
+        rows = reader(
             PROVIDER_SYMBOL,
             api.TIMEFRAME_M1,
             0,
@@ -647,7 +647,7 @@ def build_risk_request(
     stop_loss: Decimal,
     take_profit: Decimal,
     certified_risk_r: Decimal,
-    provider_spec: Mt5SymbolSpecification,
+    provider_spec: Any,
     account_equity: Decimal,
     decision_anchor: datetime,
     reservation_expires_at: datetime,
@@ -887,13 +887,13 @@ def _tick_timestamp(tick: Any) -> datetime:
     raw_msc = int(getattr(tick, "time_msc", 0) or 0)
     if raw_msc > 0:
         raw_seconds, millis = divmod(raw_msc, 1000)
-        return normalise_fundednext_server_epoch(raw_seconds) + timedelta(
+        return normalise_legacy_server_epoch(raw_seconds) + timedelta(
             milliseconds=millis
         )
     raw_seconds = int(getattr(tick, "time", 0) or 0)
     if raw_seconds <= 0:
         raise Vt31Nas100LiveError("VT31 broker tick timestamp unavailable")
-    return normalise_fundednext_server_epoch(raw_seconds)
+    return normalise_legacy_server_epoch(raw_seconds)
 
 
 def _evidence_item(bar: OhlcSnapshot) -> bytes:

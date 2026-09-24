@@ -284,7 +284,7 @@ def test_r42_audjpy_cache_preloads_once_then_reads_recent_only(
 
     monkeypatch.setattr(
         live,
-        "normalise_fundednext_server_epoch",
+        "normalise_legacy_server_epoch",
         lambda raw: datetime.fromtimestamp(raw, tz=UTC),
     )
     anchor = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
@@ -321,7 +321,7 @@ def test_r42_audjpy_boundary_snapshot_requires_exact_new_and_closed_m5(
 
     monkeypatch.setattr(
         live,
-        "normalise_fundednext_server_epoch",
+        "normalise_legacy_server_epoch",
         lambda raw: datetime.fromtimestamp(raw, tz=UTC),
     )
     anchor = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
@@ -348,7 +348,7 @@ def test_r42_audjpy_boundary_snapshot_rejects_tick_older_than_two_seconds(
 
     monkeypatch.setattr(
         live,
-        "normalise_fundednext_server_epoch",
+        "normalise_legacy_server_epoch",
         lambda raw: datetime.fromtimestamp(raw, tz=UTC),
     )
     anchor = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)

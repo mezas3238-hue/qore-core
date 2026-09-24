@@ -14,8 +14,8 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
-from qore.infrastructure.fundednext_mt5_clock import (
-    normalise_fundednext_server_epoch,
+from qore.infrastructure.ctrader_demo_compat import (
+    normalise_legacy_server_epoch,
 )
 from qore.infrastructure.trader_execution_profile import M5_PROFILE
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
@@ -181,7 +181,7 @@ class M5BoundaryCache:
         now = clock or (lambda: datetime.now(UTC))
         changed: list[Bar] = []
         for row in rows:
-            opened = normalise_fundednext_server_epoch(int(row["time"]))
+            opened = normalise_legacy_server_epoch(int(row["time"]))
             bar = Bar(
                 opened_at=opened,
                 closed_at=opened + timedelta(minutes=5),
@@ -238,7 +238,9 @@ class M5BoundaryCache:
             raise RuntimeError(f"{self.error_prefix} M5 cache not preloaded")
         if count <= 0 or count > 64:
             raise ValueError(f"{self.error_prefix} incremental count invalid")
-        rows = api.copy_rates_from_pos(
+        resident_reader = getattr(api, "copy_rates_from_pos_resident", None)
+        reader = resident_reader if callable(resident_reader) else api.copy_rates_from_pos
+        rows = reader(
             self.symbol,
             api.TIMEFRAME_M5,
             0,
@@ -308,22 +310,22 @@ class M5BoundaryCache:
         current = self._bars.get(anchor)
         if prior is None or prior.closed_at != anchor:
             raise RuntimeError(f"{self.error_prefix} exact newly-closed M5 unavailable")
-        if current is None or current.opened_at != anchor:
-            raise RuntimeError(f"{self.error_prefix} exact new M5 unavailable")
+        if current is not None and current.opened_at != anchor:
+            raise RuntimeError(f"{self.error_prefix} exact new M5 identity drift")
         tick = api.symbol_info_tick(self.symbol)
         if tick is None:
             raise RuntimeError(f"{self.error_prefix} broker tick unavailable")
         raw_msc = int(getattr(tick, "time_msc", 0) or 0)
         if raw_msc > 0:
             raw_seconds, millis = divmod(raw_msc, 1000)
-            broker_tick_at = normalise_fundednext_server_epoch(raw_seconds) + timedelta(
+            broker_tick_at = normalise_legacy_server_epoch(raw_seconds) + timedelta(
                 milliseconds=millis
             )
         else:
             raw_seconds = int(getattr(tick, "time", 0) or 0)
             if raw_seconds <= 0:
                 raise RuntimeError(f"{self.error_prefix} broker tick timestamp unavailable")
-            broker_tick_at = normalise_fundednext_server_epoch(raw_seconds)
+            broker_tick_at = normalise_legacy_server_epoch(raw_seconds)
         tick_age = observed - broker_tick_at
         if tick_age < timedelta(seconds=-0.5):
             raise RuntimeError(f"{self.error_prefix} broker tick from future")
@@ -339,7 +341,7 @@ class M5BoundaryCache:
             symbol=self.symbol,
             anchor=anchor,
             evidence=self.evidence(),
-            current_open=current.open,
+            current_open=(prior.close if current is None else current.open),
             broker_tick_at=broker_tick_at,
             observed_at=observed,
             new_bar_first_seen_at=telemetry.new_bar_first_seen_at,

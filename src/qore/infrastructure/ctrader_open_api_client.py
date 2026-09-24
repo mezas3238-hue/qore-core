@@ -155,50 +155,17 @@ class _SdkBindings:
             common = import_module("ctrader_open_api.messages.OpenApiCommonMessages_pb2")
             messages = import_module("ctrader_open_api.messages.OpenApiMessages_pb2")
             reactor_module = import_module("twisted.internet.reactor")
-            application_internet = import_module("twisted.application.internet")
-            endpoints = import_module("twisted.internet.endpoints")
-            sdk_factory_module = import_module("ctrader_open_api.factory")
         except ImportError as error:
             raise CTraderOpenApiDependencyError(
                 "install the qore-core ctrader optional dependency"
             ) from error
 
         sdk_client_type = cast(type[object], _attribute(package, "Client"))
-        client_service = cast(type[object], _attribute(application_internet, "ClientService"))
-        client_from_string = _method(endpoints, "clientFromString")
-        factory_type = _attribute(sdk_factory_module, "Factory")
-
-        def verified_identity_init(
-            client: object,
-            host: str,
-            port: int,
-            protocol: type[object],
-            **options: int,
-        ) -> None:
-            send_rate = options.pop("numberOfMessagesToSendPerSecond", 5)
-            if options:
-                raise CTraderOpenApiDependencyError(
-                    "verified SDK client received unsupported options"
-                )
-            client_state = vars(client)
-            client_state["_runningReactor"] = reactor_module
-            client_state["numberOfMessagesToSendPerSecond"] = send_rate
-            endpoint = client_from_string(
-                reactor_module,
-                _verified_tls_endpoint_description(host, port),
-            )
-            factory = _method(factory_type, "forProtocol")(protocol, client=client)
-            _method(client_service, "__init__")(client, endpoint, factory)
-            client_state["_events"] = {}
-            client_state["_responseDeferreds"] = {}
-            client_state["isConnected"] = False
-
-        verified_client_type = type(
-            "VerifiedIdentityClient",
-            (sdk_client_type,),
-            {"__init__": verified_identity_init},
-        )
-        self.client_type = cast(Callable[..., object], verified_client_type)
+        # Keep the official Spotware transport intact. QORE performs an explicit
+        # CA + exact-hostname verification before starting this SDK client.
+        # Rebuilding ClientService with a custom Twisted endpoint caused
+        # ApplicationAuth requests to time out despite a healthy TLS socket.
+        self.client_type = cast(Callable[..., object], sdk_client_type)
         self.tcp_protocol = cast(type[object], _attribute(package, "TcpProtocol"))
         protobuf = _attribute(package, "Protobuf")
         self.extract = cast(Callable[[object], object], _method(protobuf, "extract"))
@@ -223,6 +190,19 @@ class _SdkBindings:
             "ProtoOAOrderListReq",
             "ProtoOAOrderDetailsReq",
             "ProtoOAReconcileReq",
+            "ProtoOAReconcileRes",
+            "ProtoOATraderReq",
+            "ProtoOATraderRes",
+            "ProtoOAAssetListReq",
+            "ProtoOAAssetListRes",
+            "ProtoOADealListReq",
+            "ProtoOADealListRes",
+            "ProtoOADealListByPositionIdReq",
+            "ProtoOADealListByPositionIdRes",
+            "ProtoOAGetPositionUnrealizedPnLReq",
+            "ProtoOAGetPositionUnrealizedPnLRes",
+            "ProtoOAAmendPositionSLTPReq",
+            "ProtoOAClosePositionReq",
             "ProtoOAGetTrendbarsReq",
             "ProtoOASubscribeSpotsReq",
             "ProtoOASpotEvent",

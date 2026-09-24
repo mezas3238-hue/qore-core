@@ -219,6 +219,22 @@ def _exact_price(
     return Success(format(price, f".{digits}f"))
 
 
+def _relative_price_distance(
+    reference: Decimal,
+    protection: Decimal,
+    *,
+    field_name: str,
+) -> Result[int, CTraderDemoExecutionError]:
+    distance = abs(reference - protection) * Decimal("100000")
+    if not distance.is_finite() or distance <= 0 or distance != distance.to_integral_value():
+        return Failure(
+            CTraderDemoExecutionValidationError(
+                f"cTrader {field_name} must map exactly to 1/100000 price units"
+            )
+        )
+    return Success(int(distance))
+
+
 def _mapping_for_instrument(
     configuration: CTraderDemoRuntimeConfiguration,
     instrument: ExecutionInstrument,
@@ -256,6 +272,11 @@ class CTraderOrderCreatePlan:
     body_json: str
     stop_loss: str | None = None
     take_profit: str | None = None
+    relative_stop_loss: int | None = None
+    relative_take_profit: int | None = None
+    expiration_timestamp_ms: int | None = None
+    label: str | None = None
+    comment: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.account, MarketTestAccountIdentity):
@@ -312,8 +333,22 @@ class CTraderOrderCreatePlan:
             self.stop_loss is not None or self.take_profit is not None
         ):
             raise CTraderDemoExecutionValidationError(
-                "protected MARKET orders are unsupported by the absolute-price DEMO wire"
+                "MARKET protections must use relative cTrader distances"
             )
+        if self.order_type is OrderType.LIMIT and (
+            self.relative_stop_loss is not None or self.relative_take_profit is not None
+        ):
+            raise CTraderDemoExecutionValidationError(
+                "LIMIT protections must use absolute cTrader prices"
+            )
+        for field_name, distance in (
+            ("relative_stop_loss", self.relative_stop_loss),
+            ("relative_take_profit", self.relative_take_profit),
+        ):
+            if distance is not None and (type(distance) is not int or distance <= 0):
+                raise CTraderDemoExecutionValidationError(
+                    f"order-create plan {field_name} must be a positive int"
+                )
         for field_name, protection in (
             ("stop_loss", self.stop_loss),
             ("take_profit", self.take_profit),
@@ -332,6 +367,19 @@ class CTraderOrderCreatePlan:
             raise CTraderDemoExecutionValidationError(
                 "order-create plan stop_loss and take_profit must be distinct"
             )
+        if self.expiration_timestamp_ms is not None and (
+            type(self.expiration_timestamp_ms) is not int
+            or self.expiration_timestamp_ms <= 0
+            or self.order_type is not OrderType.LIMIT
+        ):
+            raise CTraderDemoExecutionValidationError(
+                "expiration timestamp is valid only as positive int for LIMIT"
+            )
+        for field_name, value in (("label", self.label), ("comment", self.comment)):
+            if value is not None and (not isinstance(value, str) or not value):
+                raise CTraderDemoExecutionValidationError(
+                    f"order-create plan {field_name} must be non-empty or None"
+                )
         if not isinstance(self.timeout, ExternalTransportTimeout):
             raise CTraderDemoExecutionValidationError(
                 "order-create plan requires ExternalTransportTimeout"
@@ -349,6 +397,17 @@ class CTraderOrderCreatePlan:
             expected_body["stopLoss"] = self.stop_loss
         if self.take_profit is not None:
             expected_body["takeProfit"] = self.take_profit
+        if self.relative_stop_loss is not None:
+            expected_body["relativeStopLoss"] = self.relative_stop_loss
+        if self.relative_take_profit is not None:
+            expected_body["relativeTakeProfit"] = self.relative_take_profit
+        if self.expiration_timestamp_ms is not None:
+            expected_body["timeInForce"] = 1
+            expected_body["expirationTimestamp"] = self.expiration_timestamp_ms
+        if self.label is not None:
+            expected_body["label"] = self.label
+        if self.comment is not None:
+            expected_body["comment"] = self.comment
         try:
             decoded_body: object = json.loads(self.body_json)
         except (TypeError, json.JSONDecodeError) as error:
@@ -381,6 +440,11 @@ class CTraderOrderCreatePlan:
             self.limit_price,
             self.stop_loss,
             self.take_profit,
+            self.relative_stop_loss,
+            self.relative_take_profit,
+            self.expiration_timestamp_ms,
+            self.label,
+            self.comment,
             self.timeout.logical_values(),
             self.body_json,
         )
@@ -400,6 +464,11 @@ class CTraderOrderCreatePlan:
             self.limit_price,
             self.stop_loss,
             self.take_profit,
+            self.relative_stop_loss,
+            self.relative_take_profit,
+            self.expiration_timestamp_ms,
+            self.label,
+            self.comment,
             self.timeout.logical_values(),
             self.body_json,
         )
@@ -455,27 +524,97 @@ def build_ctrader_demo_order_create_plan(
         if isinstance(price_result, Failure):
             return price_result
         limit_price = price_result.value
+    stop_loss: str | None = None
+    take_profit: str | None = None
+    relative_stop_loss: int | None = None
+    relative_take_profit: int | None = None
     if intent.order_type is OrderType.MARKET and (
         intent.stop_loss is not None or intent.take_profit is not None
     ):
-        return Failure(
-            CTraderDemoExecutionValidationError(
-                "protected MARKET orders are unsupported; use a protected LIMIT "
-                "or an explicit relative-protection contract"
+        reference_raw = intent.metadata.attributes.get("ctrader_reference_entry")
+        if not isinstance(reference_raw, str):
+            return Failure(
+                CTraderDemoExecutionValidationError(
+                    "protected MARKET order requires ctrader_reference_entry metadata"
+                )
             )
-        )
-    stop_loss: str | None = None
-    if intent.stop_loss is not None:
-        stop_result = _exact_price(intent.stop_loss.value, mapping.digits)
-        if isinstance(stop_result, Failure):
-            return stop_result
-        stop_loss = stop_result.value
-    take_profit: str | None = None
-    if intent.take_profit is not None:
-        take_result = _exact_price(intent.take_profit.value, mapping.digits)
-        if isinstance(take_result, Failure):
-            return take_result
-        take_profit = take_result.value
+        reference_result = _decimal_string(reference_raw, field_name="MARKET reference entry")
+        if isinstance(reference_result, Failure) or reference_result.value <= 0:
+            return Failure(
+                CTraderDemoExecutionValidationError(
+                    "protected MARKET reference entry must be a positive decimal"
+                )
+            )
+        reference = reference_result.value
+        if intent.stop_loss is not None:
+            stop = intent.stop_loss.value
+            valid_stop = stop < reference if intent.side is OrderSide.BUY else stop > reference
+            if not valid_stop:
+                return Failure(
+                    CTraderDemoExecutionValidationError(
+                        "MARKET stop geometry does not match order side"
+                    )
+                )
+            relative = _relative_price_distance(reference, stop, field_name="relative stop loss")
+            if isinstance(relative, Failure):
+                return relative
+            relative_stop_loss = relative.value
+        if intent.take_profit is not None:
+            target = intent.take_profit.value
+            valid_target = (
+                target > reference if intent.side is OrderSide.BUY else target < reference
+            )
+            if not valid_target:
+                return Failure(
+                    CTraderDemoExecutionValidationError(
+                        "MARKET target geometry does not match order side"
+                    )
+                )
+            relative = _relative_price_distance(
+                reference, target, field_name="relative take profit"
+            )
+            if isinstance(relative, Failure):
+                return relative
+            relative_take_profit = relative.value
+    else:
+        if intent.stop_loss is not None:
+            stop_result = _exact_price(intent.stop_loss.value, mapping.digits)
+            if isinstance(stop_result, Failure):
+                return stop_result
+            stop_loss = stop_result.value
+        if intent.take_profit is not None:
+            take_result = _exact_price(intent.take_profit.value, mapping.digits)
+            if isinstance(take_result, Failure):
+                return take_result
+            take_profit = take_result.value
+    expiration_timestamp_ms: int | None = None
+    if intent.order_type is OrderType.LIMIT:
+        raw_expiry = intent.metadata.attributes.get("ctrader_order_expires_at")
+        if raw_expiry is not None:
+            if not isinstance(raw_expiry, str):
+                return Failure(
+                    CTraderDemoExecutionValidationError(
+                        "invalid cTrader LIMIT expiry metadata"
+                    )
+                )
+            try:
+                expiry = datetime.fromisoformat(raw_expiry)
+            except ValueError:
+                return Failure(
+                    CTraderDemoExecutionValidationError(
+                        "invalid cTrader LIMIT expiry metadata"
+                    )
+                )
+            if expiry.tzinfo is None or expiry.utcoffset() is None:
+                return Failure(
+                    CTraderDemoExecutionValidationError(
+                        "cTrader LIMIT expiry must be timezone-aware"
+                    )
+                )
+            expiration_timestamp_ms = int(expiry.timestamp() * 1000)
+    trader_id = intent.metadata.attributes.get("trader_id")
+    label = f"QORE:{trader_id}" if isinstance(trader_id, str) and trader_id else None
+    comment = f"qore:{str(intent.idempotency_key.value)[:18]}"
     body: dict[str, object] = {
         "clientMsgId": str(intent.idempotency_key.value),
         "symbolId": mapping.symbol_id,
@@ -489,6 +628,16 @@ def build_ctrader_demo_order_create_plan(
         body["stopLoss"] = stop_loss
     if take_profit is not None:
         body["takeProfit"] = take_profit
+    if relative_stop_loss is not None:
+        body["relativeStopLoss"] = relative_stop_loss
+    if relative_take_profit is not None:
+        body["relativeTakeProfit"] = relative_take_profit
+    if expiration_timestamp_ms is not None:
+        body["timeInForce"] = 1
+        body["expirationTimestamp"] = expiration_timestamp_ms
+    if label is not None:
+        body["label"] = label
+    body["comment"] = comment
     body_json = json.dumps(body, sort_keys=True, separators=(",", ":"), allow_nan=False)
     try:
         plan = CTraderOrderCreatePlan(
@@ -505,6 +654,11 @@ def build_ctrader_demo_order_create_plan(
             body_json=body_json,
             stop_loss=stop_loss,
             take_profit=take_profit,
+            relative_stop_loss=relative_stop_loss,
+            relative_take_profit=relative_take_profit,
+            expiration_timestamp_ms=expiration_timestamp_ms,
+            label=label,
+            comment=comment,
         )
     except CTraderDemoExecutionError as error:
         return Failure(error)

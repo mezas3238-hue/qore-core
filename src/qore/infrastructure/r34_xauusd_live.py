@@ -20,8 +20,6 @@ from zoneinfo import ZoneInfo
 
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
 from qore.infrastructure.broker_risk_sizing import size_volume_for_risk
-from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
-from qore.infrastructure.fundednext_stellar_instant import opening_commission_per_lot
 from qore.infrastructure.m5_boundary_cache import M5BoundarySnapshot
 from qore.infrastructure.trader_execution_profile import M5_PROFILE
 from qore.infrastructure.trader_lab import cibo_market_atlas_target_destination_v2 as td
@@ -596,7 +594,7 @@ def build_r34_risk_request(
     *,
     request_id: str,
     signal: R34LiveSignal,
-    provider_spec: Mt5SymbolSpecification,
+    provider_spec: Any,
     account_equity: Decimal,
     now: datetime,
 ) -> tuple[CiboRiskRequest, Decimal]:
@@ -616,11 +614,11 @@ def build_r34_risk_request(
     if signal.side == "short" and not signal.take_profit < executable < signal.stop_loss:
         raise ValueError("R34 live short geometry invalid")
     ticks = abs(executable - signal.stop_loss) / provider_spec.tick_size
-    commission_per_lot = opening_commission_per_lot(
-        SYMBOL,
-        executable_entry=executable,
-        contract_size=provider_spec.contract_size,
-    )
+    commission_per_lot = getattr(provider_spec, "open_commission_per_lot_usd", None)
+    if commission_per_lot is None:
+        commission_per_lot = (
+            executable * provider_spec.contract_size * Decimal("0.000016")
+        )
     stop_per_lot = (
         ticks * provider_spec.tick_value + commission_per_lot
     ) * BROKER_RISK_BUFFER

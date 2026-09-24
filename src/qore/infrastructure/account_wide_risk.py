@@ -12,8 +12,8 @@ from decimal import ROUND_FLOOR, Decimal
 from enum import StrEnum
 from hashlib import sha256
 from threading import RLock
+from typing import Protocol
 
-from qore.infrastructure.fundednext_stellar_instant import StellarInstantRiskBudget
 from qore.kernel.errors import InfrastructureError
 
 
@@ -21,6 +21,13 @@ class AccountWideRiskError(InfrastructureError):
     """Account-wide risk state or transition violates a fail-closed invariant."""
 
     __slots__ = ()
+
+
+class ProviderRiskBudget(Protocol):
+    provider_headroom: Decimal
+    max_risk_at_any_time: Decimal
+    active_mll: Decimal
+    hard_breach: bool
 
 
 class TraderLineage(StrEnum):
@@ -60,7 +67,7 @@ class AccountRiskSnapshot:
     open_floating_loss: Decimal
     pending_broker_worst_case_loss: Decimal
     qore_authorizable_headroom: Decimal
-    provider_budget: StellarInstantRiskBudget
+    provider_budget: ProviderRiskBudget
     reconciled_at: datetime
 
     def __post_init__(self) -> None:
@@ -77,9 +84,12 @@ class AccountRiskSnapshot:
         ):
             _nonnegative(decimal_value, name)
         _aware(self.reconciled_at, "reconciled_at")
-        if not isinstance(self.provider_budget, StellarInstantRiskBudget):
-            raise AccountWideRiskError("provider_budget must be StellarInstantRiskBudget")
-        if self.qore_authorizable_headroom > self.provider_budget.provider_headroom:
+        provider = self.provider_budget
+        for name in ("provider_headroom", "max_risk_at_any_time", "active_mll"):
+            _nonnegative(getattr(provider, name, None), f"provider_budget.{name}")
+        if type(getattr(provider, "hard_breach", None)) is not bool:
+            raise AccountWideRiskError("provider_budget.hard_breach must be bool")
+        if self.qore_authorizable_headroom > provider.provider_headroom:
             raise AccountWideRiskError("QORE headroom cannot exceed provider headroom")
 
 

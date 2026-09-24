@@ -94,26 +94,34 @@ def _configuration() -> CTraderDemoRuntimeConfiguration:
     )
 
 
-def _submission(*, order_type: OrderType = OrderType.LIMIT) -> ExecutionSubmission:
+def _submission(
+    *,
+    order_type: OrderType = OrderType.LIMIT,
+    include_reference_entry: bool = True,
+) -> ExecutionSubmission:
+    metadata = ExternalRequestMetadata(
+        correlation_id=_METADATA.correlation_id,
+        attributes=(
+            {"ctrader_reference_entry": "1.10000"}
+            if order_type is OrderType.MARKET and include_reference_entry
+            else {}
+        ),
+    )
     intent = OrderIntent(
         intent_id=OrderIntentId(UUID("54000000-0000-0000-0000-000000000010")),
-        idempotency_key=ExecutionIdempotencyKey(
-            UUID("54000000-0000-0000-0000-000000000011")
-        ),
+        idempotency_key=ExecutionIdempotencyKey(UUID("54000000-0000-0000-0000-000000000011")),
         instrument=ExecutionInstrument("EURUSD"),
         side=OrderSide.BUY,
         order_type=order_type,
         quantity=OrderQuantity(Decimal("1")),
         created_at=_NOW,
-        metadata=_METADATA,
+        metadata=metadata,
         limit_price=OrderPrice(Decimal("1.10000")) if order_type is OrderType.LIMIT else None,
         stop_loss=OrderPrice(Decimal("1.09500")),
         take_profit=OrderPrice(Decimal("1.11000")),
     )
     authorization = PreTradeAuthorization(
-        authorization_id=PreTradeAuthorizationId(
-            UUID("54000000-0000-0000-0000-000000000012")
-        ),
+        authorization_id=PreTradeAuthorizationId(UUID("54000000-0000-0000-0000-000000000012")),
         policy_id=PreTradePolicyId("ctrader.demo.pretrade"),
         intent_id=intent.intent_id,
         decision=PreTradeDecision.APPROVED,
@@ -148,15 +156,30 @@ def test_limit_plan_carries_exact_absolute_stop_and_take_profit() -> None:
     assert '"takeProfit":"1.11000"' in built.value.body_json
 
 
-def test_protected_market_order_fails_closed_before_provider_io() -> None:
+def test_protected_market_order_uses_relative_protection_distances() -> None:
     built = build_ctrader_demo_order_create_plan(
         _configuration(),
         _submission(order_type=OrderType.MARKET),
     )
 
+    assert isinstance(built, Success)
+    assert built.value.stop_loss is None
+    assert built.value.take_profit is None
+    assert built.value.relative_stop_loss == 500
+    assert built.value.relative_take_profit == 1000
+    assert '"relativeStopLoss":500' in built.value.body_json
+    assert '"relativeTakeProfit":1000' in built.value.body_json
+
+
+def test_protected_market_order_requires_reference_entry_before_provider_io() -> None:
+    built = build_ctrader_demo_order_create_plan(
+        _configuration(),
+        _submission(order_type=OrderType.MARKET, include_reference_entry=False),
+    )
+
     assert isinstance(built, Failure)
     assert isinstance(built.error, CTraderDemoExecutionValidationError)
-    assert "protected MARKET" in str(built.error)
+    assert "ctrader_reference_entry" in str(built.error)
 
 
 class _Client:
@@ -227,6 +250,29 @@ def test_open_api_transport_sends_limit_protections_on_creation() -> None:
     assert client.fields["limitPrice"] == 1.1
     assert client.fields["stopLoss"] == 1.095
     assert client.fields["takeProfit"] == 1.11
+
+
+def test_open_api_transport_sends_relative_market_protections_on_creation() -> None:
+    submission = _submission(order_type=OrderType.MARKET)
+    plan = build_ctrader_demo_order_create_plan(_configuration(), submission)
+    assert isinstance(plan, Success)
+    client = _Client()
+    transport = CTraderOpenApiExecutionTransport(
+        configuration=_configuration(),
+        client=client,
+        clock=lambda: _NOW,
+    )
+
+    result = transport.submit_order(
+        plan.value, metadata=submission.authorized_intent.intent.metadata
+    )
+
+    assert isinstance(result, Success)
+    assert client.fields is not None
+    assert client.fields["relativeStopLoss"] == 500
+    assert client.fields["relativeTakeProfit"] == 1000
+    assert "stopLoss" not in client.fields
+    assert "takeProfit" not in client.fields
 
 
 class _DiscoveryClient(_Client):

@@ -128,7 +128,17 @@ def _order_matches_plan(order: object, plan: CTraderOrderCreatePlan) -> bool:
         return False
     if not _price_matches(getattr(order, "stopLoss", None), plan.stop_loss):
         return False
-    return _price_matches(getattr(order, "takeProfit", None), plan.take_profit)
+    if not _price_matches(getattr(order, "takeProfit", None), plan.take_profit):
+        return False
+    if plan.relative_stop_loss is not None and (
+        getattr(order, "relativeStopLoss", None) != plan.relative_stop_loss
+    ):
+        return False
+    if plan.relative_take_profit is not None and (
+        getattr(order, "relativeTakeProfit", None) != plan.relative_take_profit
+    ):
+        return False
+    return True
 
 
 class CTraderOpenApiExecutionTransport:
@@ -295,6 +305,17 @@ class CTraderOpenApiExecutionTransport:
             fields["stopLoss"] = float(plan.stop_loss)
         if plan.take_profit is not None:
             fields["takeProfit"] = float(plan.take_profit)
+        if plan.relative_stop_loss is not None:
+            fields["relativeStopLoss"] = plan.relative_stop_loss
+        if plan.relative_take_profit is not None:
+            fields["relativeTakeProfit"] = plan.relative_take_profit
+        if plan.expiration_timestamp_ms is not None:
+            fields["timeInForce"] = 1
+            fields["expirationTimestamp"] = plan.expiration_timestamp_ms
+        if plan.label is not None:
+            fields["label"] = plan.label
+        if plan.comment is not None:
+            fields["comment"] = plan.comment
         response = self._client.request(
             "ProtoOANewOrderReq",
             fields,

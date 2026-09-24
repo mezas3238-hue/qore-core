@@ -33,11 +33,9 @@ from typing import Any
 
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
 from qore.infrastructure.broker_risk_sizing import size_volume_for_risk
-from qore.infrastructure.fundednext_live_guard import FOREX_OPEN_COMMISSION_PER_LOT_USD
-from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
-from qore.infrastructure.fundednext_mt5_clock import (
+from qore.infrastructure.ctrader_demo_compat import (
     NEW_YORK_TZ,
-    normalise_fundednext_server_epoch,
+    normalise_legacy_server_epoch,
 )
 from qore.infrastructure.m5_boundary_cache import M5BoundaryCache, M5BoundarySnapshot
 from qore.infrastructure.trader_execution_profile import M5_PROFILE
@@ -383,7 +381,7 @@ class R42AudJpyLiveStateStore:
         if not exits:
             return state
         last = max(exits, key=lambda item: int(getattr(item, "time", 0)))
-        closed_at = normalise_fundednext_server_epoch(int(last.time))
+        closed_at = normalise_legacy_server_epoch(int(last.time))
         trailing_exit = state.last_trailing_exit_at
         moved = Decimal(opened.current_stop) != Decimal(opened.initial_stop)
         if moved and int(getattr(last, "reason", -1)) == int(getattr(api, "DEAL_REASON_SL", -2)):
@@ -464,7 +462,7 @@ class R42AudJpyM5Cache:
 
     def _ingest(self, rows: Any) -> None:
         for row in rows:
-            opened = normalise_fundednext_server_epoch(int(row["time"]))
+            opened = normalise_legacy_server_epoch(int(row["time"]))
             self._bars[opened] = Bar(
                 opened_at=opened,
                 closed_at=opened + timedelta(minutes=5),
@@ -557,10 +555,10 @@ class R42AudJpyM5Cache:
             raw_seconds = int(getattr(tick, "time", 0) or 0)
             if raw_seconds <= 0:
                 raise RuntimeError("AUDJPY R42 broker tick timestamp unavailable")
-            broker_tick_at = normalise_fundednext_server_epoch(raw_seconds)
+            broker_tick_at = normalise_legacy_server_epoch(raw_seconds)
         else:
             raw_seconds, millis = divmod(raw_msc, 1000)
-            broker_tick_at = normalise_fundednext_server_epoch(raw_seconds) + timedelta(
+            broker_tick_at = normalise_legacy_server_epoch(raw_seconds) + timedelta(
                 milliseconds=millis
             )
         tick_age = observed - broker_tick_at
@@ -667,7 +665,7 @@ def mt5_evidence(api: Any, *, now: datetime) -> tuple[Evidence, Decimal]:
         raise RuntimeError("AUDJPY R42 AUDJPY symbol info unavailable")
     retained: dict[datetime, Bar] = {}
     for row in rows:
-        opened = normalise_fundednext_server_epoch(int(row["time"]))
+        opened = normalise_legacy_server_epoch(int(row["time"]))
         bar = Bar(
             opened_at=opened,
             closed_at=opened + timedelta(minutes=5),
@@ -1272,7 +1270,7 @@ def build_r42_audjpy_risk_request(
     *,
     request_id: str,
     signal: R42AudJpyLiveSignal,
-    provider_spec: Mt5SymbolSpecification,
+    provider_spec: Any,
     account_equity: Decimal,
     now: datetime,
 ) -> tuple[CiboRiskRequest, Decimal]:
@@ -1335,7 +1333,8 @@ def build_r42_audjpy_risk_request(
 
     ticks = abs(executable - signal.stop_loss) / provider_spec.tick_size
     stop_per_lot = (
-        ticks * provider_spec.tick_value + FOREX_OPEN_COMMISSION_PER_LOT_USD
+        ticks * provider_spec.tick_value
+        + getattr(provider_spec, "open_commission_per_lot_usd", Decimal("7"))
     ) * BROKER_RISK_BUFFER
     base_risk_usd = account_equity * BASE_RISK_FRACTION
     requested_risk = base_risk_usd * signal.risk_scale

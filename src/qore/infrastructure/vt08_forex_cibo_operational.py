@@ -16,7 +16,14 @@ from enum import StrEnum
 from hashlib import sha256
 
 from qore.infrastructure.account_wide_risk import AccountWideRiskError
-from qore.infrastructure.fundednext_live_guard import CERTIFIED_LIVE_DIRECTIONS
+CERTIFIED_LIVE_DIRECTIONS: dict[str, frozenset[str]] = {
+    "AUDJPY": frozenset({"short"}),
+    "GBPUSD": frozenset({"short"}),
+    "GBPJPY": frozenset({"long", "short"}),
+    "EURUSD": frozenset({"long", "short"}),
+    "XAUUSD": frozenset({"long", "short"}),
+    "NAS100": frozenset({"long", "short"}),
+}
 
 R315_METHOD_FINGERPRINT = (
     "0c3fe8e1353386f7384a8532c7fe71bbbe9fcfdf1da7530be4b53e01bc59de0d"
