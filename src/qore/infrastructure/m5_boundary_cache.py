@@ -33,6 +33,7 @@ RECENT_M5_BARS = 8
 BOUNDARY_RECENT_M5_BARS = 4
 MIN_HISTORY_M5_BARS = 2_000
 BOUNDARY_RETRY_SECONDS = M5_PROFILE.boundary_retry_ms / 1000.0
+FINAL_BOUNDARY_RETRY_SECONDS = 0.005
 NORMAL_FEED_REFRESH_SECONDS = float(M5_PROFILE.normal_feed_refresh_seconds)
 
 
@@ -378,8 +379,14 @@ def await_boundary_snapshots(
     now_fn: Callable[[], datetime] | None = None,
     sleep_fn: Callable[[float], None] = time.sleep,
     on_snapshot: Callable[[str, M5BoundarySnapshot], None] | None = None,
+    on_poll: Callable[[datetime], None] | None = None,
 ) -> dict[str, M5BoundarySnapshot]:
-    """Deliver each market snapshot once, inside its original 2-second SLA."""
+    """Poll only missing markets until each is ready or the real 2-second deadline.
+
+    Snapshot readiness is per symbol. A ready market is emitted immediately via
+    on_snapshot while slower siblings continue polling. Missing state before the
+    deadline is NOT_READY_YET, not a terminal failure.
+    """
 
     clock = now_fn or (lambda: datetime.now(UTC))
     anchor = anchor.astimezone(UTC)
@@ -391,6 +398,8 @@ def await_boundary_snapshots(
     while True:
         observed = clock().astimezone(UTC)
         if observed > deadline:
+            if on_poll is not None:
+                on_poll(observed)
             if snapshots:
                 return snapshots
             detail = ";".join(f"{name}:{reason}" for name, reason in sorted(last_reasons.items()))
@@ -404,9 +413,12 @@ def await_boundary_snapshots(
                 for cache in caches.values():
                     cache.refresh_incremental(api, now=observed)
                 last_pre_refresh = observed
+            if on_poll is not None:
+                on_poll(observed)
             remaining = (anchor - observed).total_seconds()
             sleep_fn(min(BOUNDARY_RETRY_SECONDS, max(0.001, remaining)))
             continue
+
         for name, cache in caches.items():
             if name in snapshots:
                 continue
@@ -425,20 +437,32 @@ def await_boundary_snapshots(
                     refresh_telemetry=refresh_telemetry,
                 )
                 snapshots[name] = snapshot
+                last_reasons.pop(name, None)
                 if on_snapshot is not None:
                     on_snapshot(name, snapshot)
             except (RuntimeError, TimeoutError) as error:
                 last_reasons[name] = str(error)
 
-        if snapshots:
-            # Release every market that is ready now. Slow siblings retry on the
-            # next resident cycle inside the same hard boundary SLA.
+            if on_poll is not None:
+                on_poll(clock().astimezone(UTC))
+
+        if len(snapshots) == len(caches):
+            if on_poll is not None:
+                on_poll(clock().astimezone(UTC))
             return snapshots
+
         checked = clock().astimezone(UTC)
+        if on_poll is not None:
+            on_poll(checked)
         remaining = (deadline - checked).total_seconds()
         if remaining <= 0:
             if snapshots:
                 return snapshots
             detail = ";".join(f"{name}:{reason}" for name, reason in sorted(last_reasons.items()))
             raise TimeoutError(f"M5 portfolio hard 2s SLA expired:{detail}")
-        sleep_fn(min(BOUNDARY_RETRY_SECONDS, remaining))
+        retry = (
+            FINAL_BOUNDARY_RETRY_SECONDS
+            if remaining <= BOUNDARY_RETRY_SECONDS
+            else BOUNDARY_RETRY_SECONDS
+        )
+        sleep_fn(min(retry, remaining))

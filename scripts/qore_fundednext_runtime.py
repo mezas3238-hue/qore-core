@@ -2557,6 +2557,82 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             ),
                         ),
                     )
+                    m5_deadline = audjpy_arm_anchor + M5_PROFILE.decision_deadline
+                    fast_plan_by_identity = {
+                        identity: (symbol, abstain_event, process_fast)
+                        for identity, symbol, abstain_event, process_fast in fast_plan
+                    }
+                    ready_snapshots: dict[str, M5BoundarySnapshot] = {}
+                    m5_terminal_identities: set[str] = set()
+                    m5_ctx: dict[str, Any] = {
+                        "anchor": audjpy_arm_anchor,
+                        "deadline": m5_deadline,
+                        "anchor_keys": m5_anchor_keys,
+                        "state": state,
+                        "processed_keys": m5_fast_processed_keys,
+                        "ready_snapshots": ready_snapshots,
+                        "terminal_ids": m5_terminal_identities,
+                        "arm_blocked": arm_blocked,
+                        "fast_plan": fast_plan_by_identity,
+                        "arm_provider": arm_provider,
+                        "arm_capital": arm_capital,
+                        "arm_account": arm_account,
+                        "arm_snapshot": arm_snapshot,
+                        "arm_specs": arm_specs,
+                    }
+
+                    def mark_m5_terminal(
+                        identity: str,
+                        symbol: str,
+                        _ctx: dict[str, Any] = m5_ctx,
+                    ) -> None:
+                        terminal_ids: set[str] = _ctx["terminal_ids"]
+                        if identity in terminal_ids:
+                            return
+                        terminal_ids.add(identity)
+                        if identity != "R42_AUDJPY":
+                            anchor_keys: dict[str, str] = _ctx["anchor_keys"]
+                            runtime_state: FundedNextRuntimeState = _ctx["state"]
+                            processed_keys: list[str] = _ctx["processed_keys"]
+                            key = anchor_keys[symbol]
+                            if (
+                                key not in runtime_state.processed_anchors
+                                and key not in processed_keys
+                            ):
+                                processed_keys.append(key)
+
+                    def log_m5_hard_fail(
+                        identity: str,
+                        symbol: str,
+                        *,
+                        reason: str,
+                        observed_at: datetime,
+                        message: str | None = None,
+                        _ctx: dict[str, Any] = m5_ctx,
+                    ) -> None:
+                        boundary_anchor: datetime = _ctx["anchor"]
+                        event = (
+                            "AUDJPY_R42_BOUNDARY_FAIL_CLOSED"
+                            if identity == "R42_AUDJPY"
+                            else "M5_FAST_BOUNDARY_FAIL_CLOSED"
+                        )
+                        payload: dict[str, object] = {
+                            "event": event,
+                            "symbol": symbol,
+                            "decision_at": boundary_anchor.isoformat(),
+                            "reason": reason,
+                            "observed_at": observed_at.isoformat(),
+                            "latency_ms": int(
+                                (observed_at - boundary_anchor).total_seconds() * 1000
+                            ),
+                            "hard_sla_seconds": M5_PROFILE.decision_deadline.total_seconds(),
+                            "order_send_called": False,
+                        }
+                        if message is not None:
+                            payload["message"] = message
+                        _log(log_path, payload)
+                        mark_m5_terminal(identity, symbol)
+
                     with ResidentMarketActorPool(max_workers=5) as market_actors:
 
                         def submit_ready_market(
@@ -2567,7 +2643,10 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             gbpjpy_state: R38GbpJpyLiveState = arm_gbpjpy_state,
                             r38_state: R38LiveState = arm_r38_state,
                             r42_state: R42AudJpyLiveState = arm_r42_state,
+                            _ctx: dict[str, Any] = m5_ctx,
                         ) -> None:
+                            snapshots: dict[str, M5BoundarySnapshot] = _ctx["ready_snapshots"]
+                            snapshots[symbol] = snapshot
                             evaluate: Callable[[], tuple[Any | None, str]]
                             if symbol == "GBPUSD":
                                 identity = "R43_GBPUSD"
@@ -2620,7 +2699,15 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                     boundary_snapshot=snapshot,
                                 )
                             else:
-                                raise RuntimeError(f"unsupported resident M5 market:{symbol}")
+                                raise RuntimeError(
+                                    f"unsupported resident M5 market:{symbol}"
+                                )
+                            anchor_keys: dict[str, str] = _ctx["anchor_keys"]
+                            runtime_state: FundedNextRuntimeState = _ctx["state"]
+                            terminal_ids: set[str] = _ctx["terminal_ids"]
+                            if anchor_keys[symbol] in runtime_state.processed_anchors:
+                                terminal_ids.add(identity)
+                                return
                             market_actors.submit(
                                 MarketBoundaryJob(
                                     identity=identity,
@@ -2629,261 +2716,237 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 )
                             )
 
+                        def consume_market_result(
+                            actor_result: MarketBoundaryResult,
+                            _ctx: dict[str, Any] = m5_ctx,
+                        ) -> None:
+                            audjpy_arm_anchor: datetime = _ctx["anchor"]
+                            m5_deadline: datetime = _ctx["deadline"]
+                            m5_terminal_identities: set[str] = _ctx["terminal_ids"]
+                            ready_snapshots: dict[str, M5BoundarySnapshot] = _ctx["ready_snapshots"]
+                            arm_blocked: bool = _ctx["arm_blocked"]
+                            fast_plan_by_identity: dict[str, Any] = _ctx["fast_plan"]
+                            arm_provider: StellarInstantRiskBudget = _ctx["arm_provider"]
+                            arm_capital: QoreOperationalCapitalBudget = _ctx["arm_capital"]
+                            arm_account: Any = _ctx["arm_account"]
+                            arm_snapshot: AccountRiskSnapshot = _ctx["arm_snapshot"]
+                            arm_specs: dict[str, Mt5SymbolSpecification] = _ctx["arm_specs"]
+                            identity = actor_result.identity
+                            symbol = actor_result.symbol
+                            if identity in m5_terminal_identities:
+                                return
+                            snapshot = ready_snapshots[symbol]
+                            _log_market_decision_telemetry(
+                                log_path=log_path,
+                                anchor=audjpy_arm_anchor,
+                                snapshot=snapshot,
+                                result=actor_result,
+                            )
+                            done = actor_result.strategy_finished_at
+                            if arm_blocked:
+                                log_m5_hard_fail(
+                                    identity,
+                                    symbol,
+                                    reason="preflight-new-order-blocked",
+                                    observed_at=done,
+                                )
+                                return
+                            if actor_result.error is not None:
+                                log_m5_hard_fail(
+                                    identity,
+                                    symbol,
+                                    reason=type(actor_result.error).__name__,
+                                    message=str(actor_result.error),
+                                    observed_at=done,
+                                )
+                                return
+                            if done > m5_deadline:
+                                log_m5_hard_fail(
+                                    identity,
+                                    symbol,
+                                    reason="decision-deadline-expired",
+                                    observed_at=done,
+                                )
+                                return
+
+                            signal = actor_result.signal
+                            reason = actor_result.reason
+                            latency_ms = int(
+                                (done - audjpy_arm_anchor).total_seconds() * 1000
+                            )
+                            if signal is None:
+                                if identity == "R42_AUDJPY":
+                                    _log(
+                                        log_path,
+                                        {
+                                            "event": "AUDJPY_R42_CAUSAL_ABSTAIN",
+                                            "symbol": symbol,
+                                            "decision_at": audjpy_arm_anchor.isoformat(),
+                                            "reason": reason,
+                                            "observed_at": done.isoformat(),
+                                            "latency_ms": latency_ms,
+                                            "hard_sla_seconds": (
+                                                AUDJPY_R42_ENTRY_SLA.total_seconds()
+                                            ),
+                                            "strategy_started_at": (
+                                                actor_result.strategy_started_at.isoformat()
+                                            ),
+                                            "strategy_finished_at": done.isoformat(),
+                                            "strategy_latency_ms": (
+                                                actor_result.strategy_latency_ms
+                                            ),
+                                        },
+                                    )
+                                else:
+                                    _, abstain_event, _ = fast_plan_by_identity[identity]
+                                    _log(
+                                        log_path,
+                                        {
+                                            "event": abstain_event,
+                                            "symbol": symbol,
+                                            "decision_at": audjpy_arm_anchor.isoformat(),
+                                            "observed_at": done.isoformat(),
+                                            "latency_ms": latency_ms,
+                                            "reason": reason,
+                                            "fast_path": True,
+                                            "strategy_started_at": (
+                                                actor_result.strategy_started_at.isoformat()
+                                            ),
+                                            "strategy_finished_at": done.isoformat(),
+                                            "strategy_latency_ms": (
+                                                actor_result.strategy_latency_ms
+                                            ),
+                                        },
+                                    )
+                                mark_m5_terminal(identity, symbol)
+                                return
+
+                            try:
+                                if identity == "R42_AUDJPY":
+                                    _process_audjpy_r42_candidate(
+                                        signal=signal,
+                                        now=done,
+                                        mode=mode,
+                                        gateway=gateway,
+                                        transport=transport,
+                                        risk=risk,
+                                        account_binding_id=fingerprint,
+                                        provider_budget=arm_provider,
+                                        capital_budget=arm_capital,
+                                        account_equity=arm_account.equity,
+                                        audjpy_r42_store=audjpy_r42_store,
+                                        log_path=log_path,
+                                        preflight_snapshot=arm_snapshot,
+                                        preflight_spec=arm_specs["AUDJPY"],
+                                    )
+                                else:
+                                    _, _, process_fast = fast_plan_by_identity[identity]
+                                    process_fast(signal=signal, now=done)
+                            except BrokerMinimumVolumeRiskRejectError as risk_reject:
+                                _log(
+                                    log_path,
+                                    {
+                                        "event": "RISK_REJECT_MINIMUM_BROKER_VOLUME",
+                                        "symbol": symbol,
+                                        "decision_at": audjpy_arm_anchor.isoformat(),
+                                        "candidate": True,
+                                        "order_send_called": False,
+                                        **risk_reject.telemetry(),
+                                    },
+                                )
+                            except Exception as market_error:
+                                log_m5_hard_fail(
+                                    identity,
+                                    symbol,
+                                    reason=type(market_error).__name__,
+                                    message=str(market_error),
+                                    observed_at=datetime.now(UTC),
+                                )
+                                return
+                            mark_m5_terminal(identity, symbol)
+
+                        def drain_ready_market_results(_observed: datetime) -> None:
+                            for result in market_actors.ready_results():
+                                consume_market_result(result)
+
                         pending_m5_caches = {
                             symbol: cache
                             for symbol, cache in m5_caches.items()
                             if m5_anchor_keys[symbol] not in state.processed_anchors
                         }
-                        armed_m5_snapshots = await_m5_boundary_snapshots(
-                            mt5,
-                            caches=pending_m5_caches,
-                            anchor=audjpy_arm_anchor,
-                            on_snapshot=submit_ready_market,
-                        )
-                        boundary_results = {
-                            result.identity: result for result in market_actors.results()
-                        }
-                    boundary_observed = max(
-                        item.observed_at for item in armed_m5_snapshots.values()
-                    )
-                    cycle_at = boundary_observed
-                    m5_deadline = audjpy_arm_anchor + M5_PROFILE.decision_deadline
-                    for (
-                        fast_identity,
-                        fast_symbol,
-                        abstain_event,
-                        process_fast,
-                    ) in fast_plan:
-                        fast_key = f"{fast_identity}|{audjpy_arm_anchor.isoformat()}"
-                        if fast_key in state.processed_anchors:
-                            continue
-                        if (
-                            fast_symbol not in armed_m5_snapshots
-                            or fast_identity not in boundary_results
-                        ):
-                            _log(
-                                log_path,
-                                {
-                                    "event": "M5_FAST_BOUNDARY_FAIL_CLOSED",
-                                    "symbol": fast_symbol,
-                                    "decision_at": audjpy_arm_anchor.isoformat(),
-                                    "reason": "market-snapshot-unavailable-within-sla",
-                                    "order_send_called": False,
-                                },
-                            )
-                            continue
-                        if arm_blocked:
-                            _log(
-                                log_path,
-                                {
-                                    "event": "M5_FAST_BOUNDARY_FAIL_CLOSED",
-                                    "symbol": fast_symbol,
-                                    "decision_at": audjpy_arm_anchor.isoformat(),
-                                    "reason": "preflight-new-order-blocked",
-                                    "order_send_called": False,
-                                },
-                            )
-                            continue
                         try:
-                            actor_result = boundary_results[fast_identity]
-                            _log_market_decision_telemetry(
-                                log_path=log_path,
+                            armed_m5_snapshots = await_m5_boundary_snapshots(
+                                mt5,
+                                caches=pending_m5_caches,
                                 anchor=audjpy_arm_anchor,
-                                snapshot=armed_m5_snapshots[fast_symbol],
-                                result=actor_result,
+                                on_snapshot=submit_ready_market,
+                                on_poll=drain_ready_market_results,
                             )
-                            if actor_result.error is not None:
-                                raise actor_result.error
-                            fast_signal = actor_result.signal
-                            fast_reason = actor_result.reason
-                            fast_done = actor_result.strategy_finished_at
-                            latency_ms = int((fast_done - audjpy_arm_anchor).total_seconds() * 1000)
-                            if fast_done > m5_deadline:
-                                _log(
-                                    log_path,
-                                    {
-                                        "event": "M5_FAST_BOUNDARY_FAIL_CLOSED",
-                                        "symbol": fast_symbol,
-                                        "decision_at": (audjpy_arm_anchor.isoformat()),
-                                        "reason": "decision-deadline-expired",
-                                        "latency_ms": latency_ms,
-                                        "order_send_called": False,
-                                    },
-                                )
+                        except TimeoutError:
+                            # Zero snapshots by the real deadline is handled below
+                            # as one terminal HARD_FAIL per missing market.
+                            armed_m5_snapshots = {}
+
+                        while (
+                            market_actors.pending_identities()
+                            and datetime.now(UTC) <= m5_deadline
+                        ):
+                            drain_ready_market_results(datetime.now(UTC))
+                            if market_actors.pending_identities():
+                                remaining = (
+                                    m5_deadline - datetime.now(UTC)
+                                ).total_seconds()
+                                if remaining > 0:
+                                    time.sleep(min(0.005, remaining))
+                        drain_ready_market_results(datetime.now(UTC))
+
+                        expected_markets = {
+                            "R43_GBPUSD": "GBPUSD",
+                            "R34_XAUUSD": "XAUUSD",
+                            "R38_GBPJPY": "GBPJPY",
+                            "R38_EURUSD": "EURUSD",
+                            "R42_AUDJPY": "AUDJPY",
+                        }
+                        final_observed = max(datetime.now(UTC), m5_deadline)
+                        for identity, symbol in expected_markets.items():
+                            key = m5_anchor_keys[symbol]
+                            if (
+                                key in state.processed_anchors
+                                or identity in m5_terminal_identities
+                            ):
                                 continue
-                            if fast_signal is None:
-                                _log(
-                                    log_path,
-                                    {
-                                        "event": abstain_event,
-                                        "symbol": fast_symbol,
-                                        "decision_at": (audjpy_arm_anchor.isoformat()),
-                                        "observed_at": fast_done.isoformat(),
-                                        "latency_ms": latency_ms,
-                                        "reason": fast_reason,
-                                        "fast_path": True,
-                                        "strategy_started_at": (
-                                            actor_result.strategy_started_at.isoformat()
-                                        ),
-                                        "strategy_finished_at": (
-                                            actor_result.strategy_finished_at.isoformat()
-                                        ),
-                                        "strategy_latency_ms": (actor_result.strategy_latency_ms),
-                                    },
+                            if symbol not in ready_snapshots:
+                                log_m5_hard_fail(
+                                    identity,
+                                    symbol,
+                                    reason="market-snapshot-unavailable-within-sla",
+                                    observed_at=final_observed,
                                 )
-                                m5_fast_processed_keys.append(fast_key)
                             else:
-                                process_fast(signal=fast_signal, now=fast_done)
-                                m5_fast_processed_keys.append(fast_key)
-                        except BrokerMinimumVolumeRiskRejectError as risk_reject:
-                            _log(
-                                log_path,
-                                {
-                                    "event": "RISK_REJECT_MINIMUM_BROKER_VOLUME",
-                                    "symbol": fast_symbol,
-                                    "decision_at": audjpy_arm_anchor.isoformat(),
-                                    "candidate": True,
-                                    "order_send_called": False,
-                                    **risk_reject.telemetry(),
-                                },
-                            )
-                            m5_fast_processed_keys.append(fast_key)
-                        except Exception as fast_error:
-                            _log(
-                                log_path,
-                                {
-                                    "event": "M5_FAST_BOUNDARY_FAIL_CLOSED",
-                                    "symbol": fast_symbol,
-                                    "decision_at": audjpy_arm_anchor.isoformat(),
-                                    "reason": type(fast_error).__name__,
-                                    "message": str(fast_error),
-                                    "order_send_called": False,
-                                },
-                            )
-                    audjpy_anchor_processed = False
-                    if audjpy_anchor_key in state.processed_anchors:
-                        pass
-                    elif (
-                        "AUDJPY" not in armed_m5_snapshots
-                        or "R42_AUDJPY" not in boundary_results
-                    ):
-                        _log(
-                            log_path,
-                            {
-                                "event": "AUDJPY_R42_BOUNDARY_FAIL_CLOSED",
-                                "symbol": "AUDJPY",
-                                "decision_at": audjpy_arm_anchor.isoformat(),
-                                "reason": "market-snapshot-unavailable-within-sla",
-                                "order_send_called": False,
-                            },
-                        )
-                    elif arm_blocked:
-                        _log(
-                            log_path,
-                            {
-                                "event": "AUDJPY_R42_BOUNDARY_FAIL_CLOSED",
-                                "symbol": "AUDJPY",
-                                "decision_at": audjpy_arm_anchor.isoformat(),
-                                "reason": "preflight-new-order-blocked",
-                                "observed_at": boundary_observed.isoformat(),
-                                "latency_ms": int(
-                                    (boundary_observed - audjpy_arm_anchor).total_seconds() * 1000
-                                ),
-                            },
-                        )
-                    else:
-                        audjpy_result = boundary_results["R42_AUDJPY"]
-                        _log_market_decision_telemetry(
-                            log_path=log_path,
-                            anchor=audjpy_arm_anchor,
-                            snapshot=armed_m5_snapshots["AUDJPY"],
-                            result=audjpy_result,
-                        )
-                        if audjpy_result.error is not None:
-                            raise audjpy_result.error
-                        audjpy_signal = audjpy_result.signal
-                        reason = audjpy_result.reason
-                        audjpy_done = audjpy_result.strategy_finished_at
-                        audjpy_latency_ms = int(
-                            (audjpy_done - audjpy_arm_anchor).total_seconds() * 1000
-                        )
-                        if audjpy_done > m5_deadline:
-                            _log(
-                                log_path,
-                                {
-                                    "event": "AUDJPY_R42_BOUNDARY_FAIL_CLOSED",
-                                    "symbol": "AUDJPY",
-                                    "decision_at": audjpy_arm_anchor.isoformat(),
-                                    "reason": "decision-deadline-expired",
-                                    "observed_at": audjpy_done.isoformat(),
-                                    "latency_ms": audjpy_latency_ms,
-                                    "hard_sla_seconds": (AUDJPY_R42_ENTRY_SLA.total_seconds()),
-                                    "order_send_called": False,
-                                },
-                            )
-                            audjpy_anchor_processed = True
-                        elif audjpy_signal is None:
-                            _log(
-                                log_path,
-                                {
-                                    "event": "AUDJPY_R42_CAUSAL_ABSTAIN",
-                                    "symbol": "AUDJPY",
-                                    "decision_at": audjpy_arm_anchor.isoformat(),
-                                    "reason": reason,
-                                    "observed_at": audjpy_done.isoformat(),
-                                    "latency_ms": audjpy_latency_ms,
-                                    "hard_sla_seconds": (AUDJPY_R42_ENTRY_SLA.total_seconds()),
-                                    "strategy_started_at": (
-                                        audjpy_result.strategy_started_at.isoformat()
-                                    ),
-                                    "strategy_finished_at": (
-                                        audjpy_result.strategy_finished_at.isoformat()
-                                    ),
-                                    "strategy_latency_ms": (audjpy_result.strategy_latency_ms),
-                                },
-                            )
-                            audjpy_anchor_processed = True
-                        else:
-                            _process_audjpy_r42_candidate(
-                                signal=audjpy_signal,
-                                now=audjpy_done,
-                                mode=mode,
-                                gateway=gateway,
-                                transport=transport,
-                                risk=risk,
-                                account_binding_id=fingerprint,
-                                provider_budget=arm_provider,
-                                capital_budget=arm_capital,
-                                account_equity=arm_account.equity,
-                                audjpy_r42_store=audjpy_r42_store,
-                                log_path=log_path,
-                                preflight_snapshot=arm_snapshot,
-                                preflight_spec=arm_specs["AUDJPY"],
-                            )
-                            audjpy_anchor_processed = True
-                except BrokerMinimumVolumeRiskRejectError as risk_reject:
-                    _log(
-                        log_path,
-                        {
-                            "event": "RISK_REJECT_MINIMUM_BROKER_VOLUME",
-                            "symbol": "AUDJPY",
-                            "decision_at": audjpy_arm_anchor.isoformat(),
-                            "candidate": True,
-                            "order_send_called": False,
-                            **risk_reject.telemetry(),
-                        },
+                                log_m5_hard_fail(
+                                    identity,
+                                    symbol,
+                                    reason="decision-deadline-expired",
+                                    observed_at=final_observed,
+                                )
+
+                    boundary_observed = max(
+                        (item.observed_at for item in ready_snapshots.values()),
+                        default=datetime.now(UTC),
                     )
-                    audjpy_anchor_processed = True
+                    cycle_at = max(boundary_observed, datetime.now(UTC))
+                    audjpy_anchor_processed = (
+                        "R42_AUDJPY" in m5_terminal_identities
+                    )
                 except Exception as error:
                     _log(
                         log_path,
                         {
-                            "event": "AUDJPY_R42_BOUNDARY_FAIL_CLOSED",
-                            "symbol": "AUDJPY",
+                            "event": "M5_PORTFOLIO_PREARM_NOT_READY",
                             "decision_at": audjpy_arm_anchor.isoformat(),
+                            "observed_at": datetime.now(UTC).isoformat(),
                             "reason": type(error).__name__,
                             "message": str(error),
-                            "hard_sla_seconds": AUDJPY_R42_ENTRY_SLA.total_seconds(),
                             "order_send_called": False,
                         },
                     )
@@ -2911,27 +2974,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             second=0,
             microsecond=0,
         )
-        current_hour_key = f"R42_AUDJPY|{current_hour.isoformat()}"
         late_delta = cycle_at - current_hour
-        if (
-            timedelta(0) <= late_delta <= AUDJPY_R42_ENTRY_SLA
-            and current_hour_key not in state.processed_anchors
-        ):
-            _log(
-                log_path,
-                {
-                    "event": "AUDJPY_R42_SLA_FAIL_CLOSED",
-                    "symbol": "AUDJPY",
-                    "stage": "boundary-not-prearmed",
-                    "decision_at": current_hour.isoformat(),
-                    "observed_at": cycle_at.isoformat(),
-                    "latency_ms": int(late_delta.total_seconds() * 1000),
-                    "order_send_called": False,
-                },
-            )
-            # Do not consume an unprocessed boundary. boundary_to_arm() now
-            # re-enters the current hour while the hard 2s SLA remains open.
-
         m5_portfolio_keys = (
             f"R43_GBPUSD|{current_hour.isoformat()}",
             f"R34_XAUUSD|{current_hour.isoformat()}",
@@ -2939,21 +2982,57 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             f"R38_EURUSD|{current_hour.isoformat()}",
             f"R42_AUDJPY|{current_hour.isoformat()}",
         )
+        m5_portfolio_identities = (
+            ("R43_GBPUSD", "GBPUSD"),
+            ("R34_XAUUSD", "XAUUSD"),
+            ("R38_GBPJPY", "GBPJPY"),
+            ("R38_EURUSD", "EURUSD"),
+            ("R42_AUDJPY", "AUDJPY"),
+        )
         if armed_m5_snapshots is None and any(
             key not in state.processed_anchors for key in m5_portfolio_keys
         ):
-            m5_late_delta = cycle_at - current_hour
-            if timedelta(0) <= m5_late_delta <= M5_PROFILE.order_send_deadline:
-                _log(
-                    log_path,
-                    {
-                        "event": "M5_PORTFOLIO_BOUNDARY_FAIL_CLOSED",
-                        "decision_at": current_hour.isoformat(),
-                        "reason": "boundary-not-prearmed",
-                        "hard_sla_seconds": (M5_PROFILE.order_send_deadline.total_seconds()),
-                        "order_send_called": False,
-                    },
-                )
+            if (
+                late_delta > M5_PROFILE.order_send_deadline
+                and late_delta <= _ANCHOR_GRACE
+            ):
+                missed_keys: list[str] = []
+                for identity, symbol in m5_portfolio_identities:
+                    key = f"{identity}|{current_hour.isoformat()}"
+                    if key in state.processed_anchors:
+                        continue
+                    event = (
+                        "AUDJPY_R42_BOUNDARY_FAIL_CLOSED"
+                        if identity == "R42_AUDJPY"
+                        else "M5_FAST_BOUNDARY_FAIL_CLOSED"
+                    )
+                    _log(
+                        log_path,
+                        {
+                            "event": event,
+                            "symbol": symbol,
+                            "decision_at": current_hour.isoformat(),
+                            "observed_at": cycle_at.isoformat(),
+                            "latency_ms": int(late_delta.total_seconds() * 1000),
+                            "reason": "boundary-not-prearmed-within-sla",
+                            "hard_sla_seconds": (
+                                M5_PROFILE.order_send_deadline.total_seconds()
+                            ),
+                            "order_send_called": False,
+                        },
+                    )
+                    missed_keys.append(key)
+                if missed_keys:
+                    missed_at = datetime.now(UTC)
+                    for key in missed_keys:
+                        state = state.with_cycle(
+                            highest_closed_balance=str(highest),
+                            active_mll=str(previous_mll),
+                            processed_anchor=key,
+                            reconciled_at=missed_at,
+                            heartbeat_at=missed_at,
+                        )
+                    store.store(state)
 
         vt31_arm_anchor = vt31_boundary_to_arm(cycle_at)
         if vt31_arm_anchor is not None and _vt31_entry_boundary(vt31_arm_anchor):

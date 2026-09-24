@@ -13,6 +13,7 @@ from qore.infrastructure.m5_boundary_cache import (
 )
 from qore.infrastructure.market_boundary_actor import (
     MarketBoundaryJob,
+    ResidentMarketActorPool,
     evaluate_market_boundaries,
 )
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
@@ -206,10 +207,10 @@ def test_ready_market_is_delivered_once_without_waiting_for_delayed_sibling(
         on_snapshot=lambda symbol, _snapshot: delivered.append(symbol),
     )
 
-    assert set(snapshots) == {"READY"}
-    assert delivered == ["READY"]
+    assert set(snapshots) == {"READY", "DELAYED"}
+    assert delivered == ["READY", "DELAYED"]
     assert caches["READY"].incremental_calls == 1
-    assert caches["DELAYED"].incremental_calls == 1
+    assert caches["DELAYED"].incremental_calls == 2
 
 
 def test_resident_aggregates_remain_bit_equivalent_across_updates_and_eviction(
@@ -502,3 +503,372 @@ def test_delayed_market_does_not_barrier_ready_sibling(
     )
     assert set(snapshots) == {"READY"}
     assert delivered == ["READY"]
+
+
+class _SimClock:
+    def __init__(self, now: datetime) -> None:
+        self.now = now
+
+    def __call__(self) -> datetime:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.now += timedelta(seconds=seconds)
+
+
+class _ArrivalApi(_Api):
+    def __init__(
+        self,
+        rows: dict[str, list[dict[str, object]]],
+        *,
+        anchor: datetime,
+        arrivals_ms: dict[str, int],
+        clock: _SimClock,
+    ) -> None:
+        super().__init__(rows, {symbol: anchor for symbol in rows})
+        self.anchor = anchor
+        self.arrivals_ms = arrivals_ms
+        self.clock = clock
+
+    def copy_rates_from_pos(
+        self,
+        symbol: str,
+        timeframe: int,
+        start_pos: int,
+        count: int,
+    ) -> list[dict[str, object]]:
+        if count == 4:
+            elapsed_ms = int((self.clock() - self.anchor).total_seconds() * 1000)
+            if elapsed_ms < self.arrivals_ms[symbol]:
+                self.copy_counts[symbol].append(count)
+                return self.rows[symbol][:-1][-count:]
+        return super().copy_rates_from_pos(symbol, timeframe, start_pos, count)
+
+    def symbol_info_tick(self, _symbol: str) -> SimpleNamespace:
+        now = self.clock()
+        return SimpleNamespace(
+            time=int(now.timestamp()),
+            time_msc=int(now.timestamp() * 1000),
+        )
+
+
+def _arrival_fixture(
+    *,
+    anchor: datetime,
+    arrivals_ms: dict[str, int],
+) -> tuple[_ArrivalApi, dict[str, M5BoundaryCache], _SimClock]:
+    start = anchor - timedelta(minutes=5 * 2000)
+    rows = {
+        symbol: [
+            _row(start + timedelta(minutes=5 * index), "1.100")
+            for index in range(2000)
+        ]
+        for symbol in arrivals_ms
+    }
+    clock = _SimClock(anchor)
+    api = _ArrivalApi(
+        rows,
+        anchor=anchor,
+        arrivals_ms=arrivals_ms,
+        clock=clock,
+    )
+    caches = {
+        symbol: M5BoundaryCache(symbol=symbol, error_prefix=symbol)
+        for symbol in arrivals_ms
+    }
+    for cache in caches.values():
+        cache.preload(api, now=anchor - timedelta(seconds=10))
+    for symbol in arrivals_ms:
+        rows[symbol].append(_row(anchor, "1.101"))
+    return api, caches, clock
+
+
+@pytest.mark.parametrize(
+    "arrival_ms",
+    [100, 250, 500, 750, 1000, 1250, 1500, 1750, 1990],
+)
+def test_each_market_can_arrive_anytime_inside_full_two_second_sla(
+    monkeypatch: pytest.MonkeyPatch,
+    arrival_ms: int,
+) -> None:
+    from qore.infrastructure import m5_boundary_cache as live
+
+    monkeypatch.setattr(
+        live,
+        "normalise_fundednext_server_epoch",
+        lambda raw: datetime.fromtimestamp(raw, tz=UTC),
+    )
+    anchor = datetime(2026, 9, 24, 1, 0, tzinfo=UTC)
+    api, caches, clock = _arrival_fixture(
+        anchor=anchor,
+        arrivals_ms={"EURUSD": arrival_ms},
+    )
+    delivered_at: list[datetime] = []
+
+    snapshots = await_boundary_snapshots(
+        api,
+        caches=caches,
+        anchor=anchor,
+        now_fn=clock,
+        sleep_fn=clock.sleep,
+        on_snapshot=lambda _symbol, _snapshot: delivered_at.append(clock()),
+    )
+
+    assert set(snapshots) == {"EURUSD"}
+    assert len(delivered_at) == 1
+    observed_ms = int((delivered_at[0] - anchor).total_seconds() * 1000)
+    assert arrival_ms <= observed_ms <= 2000
+    assert snapshots["EURUSD"].anchor == anchor
+    assert any(bar.opened_at == anchor for bar in snapshots["EURUSD"].evidence.bars)
+
+
+def test_market_arriving_after_two_seconds_hard_fails_without_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from qore.infrastructure import m5_boundary_cache as live
+
+    monkeypatch.setattr(
+        live,
+        "normalise_fundednext_server_epoch",
+        lambda raw: datetime.fromtimestamp(raw, tz=UTC),
+    )
+    anchor = datetime(2026, 9, 24, 1, 0, tzinfo=UTC)
+    api, caches, clock = _arrival_fixture(
+        anchor=anchor,
+        arrivals_ms={"EURUSD": 2001},
+    )
+
+    with pytest.raises(TimeoutError, match="hard 2s SLA expired"):
+        await_boundary_snapshots(
+            api,
+            caches=caches,
+            anchor=anchor,
+            now_fn=clock,
+            sleep_fn=clock.sleep,
+        )
+    assert clock() <= anchor + timedelta(seconds=2)
+
+
+def test_owner_20260923_2100_boundary_is_per_symbol_and_exact_m5(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from qore.infrastructure import m5_boundary_cache as live
+
+    monkeypatch.setattr(
+        live,
+        "normalise_fundednext_server_epoch",
+        lambda raw: datetime.fromtimestamp(raw, tz=UTC),
+    )
+    anchor = datetime(2026, 9, 24, 1, 0, tzinfo=UTC)
+    arrivals = {
+        "XAUUSD": 200,
+        "GBPUSD": 900,
+        "GBPJPY": 1200,
+        "EURUSD": 1600,
+        "AUDJPY": 1900,
+    }
+    api, caches, clock = _arrival_fixture(
+        anchor=anchor,
+        arrivals_ms=arrivals,
+    )
+    delivered: list[tuple[str, int]] = []
+
+    snapshots = await_boundary_snapshots(
+        api,
+        caches=caches,
+        anchor=anchor,
+        now_fn=clock,
+        sleep_fn=clock.sleep,
+        on_snapshot=lambda symbol, _snapshot: delivered.append(
+            (symbol, int((clock() - anchor).total_seconds() * 1000))
+        ),
+    )
+
+    assert set(snapshots) == set(arrivals)
+    assert {symbol for symbol, _ in delivered} == set(arrivals)
+    observed = dict(delivered)
+    for symbol, arrival_ms in arrivals.items():
+        assert arrival_ms <= observed[symbol] <= 2000
+        assert snapshots[symbol].anchor == anchor
+        assert any(bar.opened_at == anchor for bar in snapshots[symbol].evidence.bars)
+    assert observed["XAUUSD"] < observed["GBPUSD"]
+    assert observed["GBPUSD"] < observed["GBPJPY"]
+    assert observed["GBPJPY"] < observed["EURUSD"]
+    assert observed["EURUSD"] < observed["AUDJPY"]
+
+
+def test_owner_boundary_actor_emits_one_terminal_result_per_market(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from qore.infrastructure import m5_boundary_cache as live
+
+    monkeypatch.setattr(
+        live,
+        "normalise_fundednext_server_epoch",
+        lambda raw: datetime.fromtimestamp(raw, tz=UTC),
+    )
+    anchor = datetime(2026, 9, 24, 1, 0, tzinfo=UTC)
+    arrivals = {
+        "XAUUSD": 200,
+        "GBPUSD": 900,
+        "GBPJPY": 1200,
+        "EURUSD": 1600,
+        "AUDJPY": 1900,
+    }
+    identities = {
+        "XAUUSD": "R34_XAUUSD",
+        "GBPUSD": "R43_GBPUSD",
+        "GBPJPY": "R38_GBPJPY",
+        "EURUSD": "R38_EURUSD",
+        "AUDJPY": "R42_AUDJPY",
+    }
+    reasons = {
+        "XAUUSD": "no-r34-certified-signal",
+        "GBPUSD": "no-r43-certified-signal",
+        "GBPJPY": "no-gbpjpy-r38-certified-signal",
+        "EURUSD": "no-r38-certified-signal",
+        "AUDJPY": "no-audjpy-r42-certified-signal",
+    }
+    api, caches, clock = _arrival_fixture(
+        anchor=anchor,
+        arrivals_ms=arrivals,
+    )
+    terminal: dict[str, str | None] = {}
+
+    with ResidentMarketActorPool(max_workers=5, clock=clock) as pool:
+        def submit(symbol: str, _snapshot: object) -> None:
+            pool.submit(
+                MarketBoundaryJob(
+                    identity=identities[symbol],
+                    symbol=symbol,
+                    evaluate=lambda symbol=symbol: (None, reasons[symbol]),
+                )
+            )
+
+        snapshots = await_boundary_snapshots(
+            api,
+            caches=caches,
+            anchor=anchor,
+            now_fn=clock,
+            sleep_fn=clock.sleep,
+            on_snapshot=submit,
+        )
+        for result in pool.results():
+            assert result.error is None
+            assert result.identity not in terminal
+            terminal[result.identity] = result.reason
+            assert result.strategy_started_at <= anchor + timedelta(seconds=2)
+
+    assert set(snapshots) == set(arrivals)
+    assert terminal == {
+        identities[symbol]: reasons[symbol] for symbol in arrivals
+    }
+
+
+def test_owner_20260923_2100_replays_natural_strategy_outcomes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from qore.infrastructure import m5_boundary_cache as cache_module
+    from qore.infrastructure import r34_xauusd_live as xauusd
+    from qore.infrastructure import r38_eurusd_live as eurusd
+    from qore.infrastructure import r38_gbpjpy_live as gbpjpy
+    from qore.infrastructure import r42_audjpy_live as audjpy
+    from qore.infrastructure import r43_gbpusd_live as gbpusd
+
+    monkeypatch.setattr(
+        cache_module,
+        "normalise_fundednext_server_epoch",
+        lambda raw: datetime.fromtimestamp(raw, tz=UTC),
+    )
+    monkeypatch.setattr(
+        xauusd,
+        "_normalise_server_epoch",
+        lambda raw: datetime.fromtimestamp(raw, tz=UTC),
+    )
+    for module in (eurusd, gbpusd, gbpjpy, audjpy):
+        monkeypatch.setattr(
+            module,
+            "normalise_fundednext_server_epoch",
+            lambda raw: datetime.fromtimestamp(raw, tz=UTC),
+        )
+
+    anchor = datetime(2026, 9, 24, 1, 0, tzinfo=UTC)
+    arrivals = {
+        "XAUUSD": 200,
+        "GBPUSD": 900,
+        "GBPJPY": 1200,
+        "EURUSD": 1600,
+        "AUDJPY": 1900,
+    }
+    api, caches, clock = _arrival_fixture(
+        anchor=anchor,
+        arrivals_ms=arrivals,
+    )
+    snapshots = await_boundary_snapshots(
+        api,
+        caches=caches,
+        anchor=anchor,
+        now_fn=clock,
+        sleep_fn=clock.sleep,
+    )
+
+    builders = {
+        "R34_XAUUSD": lambda: xauusd.build_live_signal(
+            api,
+            now=snapshots["XAUUSD"].observed_at,
+            cognitive={},
+            state=xauusd.R34LiveState(),
+            boundary_snapshot=snapshots["XAUUSD"],
+        ),
+        "R43_GBPUSD": lambda: gbpusd.build_live_signal(
+            api,
+            now=snapshots["GBPUSD"].observed_at,
+            memory_bundle=((), "", {}),
+            state=gbpusd.R43LiveState(),
+            boundary_snapshot=snapshots["GBPUSD"],
+        ),
+        "R38_GBPJPY": lambda: gbpjpy.build_live_signal(
+            api,
+            now=snapshots["GBPJPY"].observed_at,
+            memory_bundle={},
+            state=gbpjpy.R38GbpJpyLiveState(),
+            boundary_snapshot=snapshots["GBPJPY"],
+        ),
+        "R38_EURUSD": lambda: eurusd.build_live_signal(
+            api,
+            now=snapshots["EURUSD"].observed_at,
+            cognitive={},
+            state=eurusd.R38LiveState(),
+            boundary_snapshot=snapshots["EURUSD"],
+        ),
+        "R42_AUDJPY": lambda: audjpy.build_live_signal(
+            api,
+            now=snapshots["AUDJPY"].observed_at,
+            memory_bundle={},
+            state=audjpy.R42AudJpyLiveState(),
+            boundary_snapshot=snapshots["AUDJPY"],
+        ),
+    }
+    expected = {
+        "R34_XAUUSD": "no-r34-certified-signal",
+        "R43_GBPUSD": "no-r43-certified-signal",
+        "R38_GBPJPY": "no-gbpjpy-r38-certified-signal",
+        "R38_EURUSD": "no-r38-certified-signal",
+        "R42_AUDJPY": "no-audjpy-r42-certified-signal",
+    }
+
+    results = evaluate_market_boundaries(
+        tuple(
+            MarketBoundaryJob(
+                identity=identity,
+                symbol=identity.split("_", 1)[1],
+                evaluate=builder,
+            )
+            for identity, builder in builders.items()
+        )
+    )
+    assert {result.identity for result in results} == set(expected)
+    for result in results:
+        assert result.error is None
+        assert result.signal is None
+        assert result.reason == expected[result.identity]
