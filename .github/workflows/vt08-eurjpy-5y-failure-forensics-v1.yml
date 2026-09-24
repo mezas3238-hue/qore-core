@@ -1,5 +1,5 @@
 name: QORE VT08 EURJPY 5Y Failure Forensics V1
-# Re-run on exact evidence-aligned 365D boundaries.
+# Re-run on exact evidence-aligned 365D boundaries and five-block causal comparison.
 
 on:
   workflow_dispatch:
@@ -48,6 +48,7 @@ jobs:
           print(json.dumps({
               "overall": report["overall"],
               "five_365d_blocks": report["five_365d_blocks"],
+              "five_blocks_by_causal_axis": report["five_blocks_by_causal_axis"],
               "weak_block_1_by_causal_axis": report["weak_block_1_by_causal_axis"],
           }, sort_keys=True))
           PY
