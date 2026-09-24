@@ -6,6 +6,8 @@ on:
       - agent/qore-core-stack-v2-shared-001
     paths:
       - .github/workflows/qore-shared-vt31-v15-fresh-pre-r8-holdout.yml
+      - scripts/vt31_core_stack_v4_v15_fresh_holdout_probe.py
+      - scripts/vt31_core_stack_v4_v15_fresh_holdout_eval.py
   workflow_dispatch:
 
 permissions:
