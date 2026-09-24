@@ -39,6 +39,14 @@ from qore.infrastructure.core_stack_v2.contracts import (
     freeze_facts,
 )
 from qore.infrastructure.core_stack_v2.engine import CoreStackConfig, build_snapshot
+from qore.infrastructure.core_stack_v2.operational_falsification import (
+    ActualTrade,
+    CurveMetrics,
+    OperationalFalsificationResult,
+    ShadowAction,
+    SharedShadowDecision,
+    evaluate_real_operation_falsification,
+)
 from qore.infrastructure.core_stack_v2.market_universe import (
     GLOBAL_MARKET_UNIVERSE_REQUIRED,
     CoreGlobalMarketUniverse,
@@ -56,6 +64,7 @@ from qore.infrastructure.core_stack_v2.runtime import (
 
 __all__ = [
     "CORE_STACK_VERSION",
+    "ActualTrade",
     "GLOBAL_MARKET_UNIVERSE_REQUIRED",
     "SUPERINTELLIGENCE_FREEZE_VERSION",
     "CognitiveState",
@@ -63,6 +72,7 @@ __all__ = [
     "CompatibilityStatus",
     "CoreAdapter",
     "CoreAuditRecord",
+    "CurveMetrics",
     "CoreGlobalMarketUniverse",
     "CoreHypothesis",
     "CoreInstrumentFamilyKnowledge",
@@ -73,6 +83,7 @@ __all__ = [
     "CoreRuntimeResult",
     "CoreStackV2Runtime",
     "DecisionABSummary",
+    "OperationalFalsificationResult",
     "DecisionObservation",
     "HypothesisStatus",
     "KnowledgeState",
@@ -81,6 +92,8 @@ __all__ = [
     "PortfolioIntent",
     "PortfolioSituation",
     "PositionContext",
+    "ShadowAction",
+    "SharedShadowDecision",
     "SnapshotConsumer",
     "SnapshotDelivery",
     "TraderCognitiveContext",
@@ -91,6 +104,7 @@ __all__ = [
     "build_snapshot",
     "compatibility_manifest",
     "compatibility_manifest_fingerprint",
+    "evaluate_real_operation_falsification",
     "freeze_facts",
     "make_audit_record",
     "summarize_decision_ab",
