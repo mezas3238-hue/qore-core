@@ -3746,13 +3746,21 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
 
         anchor = _current_anchor(cycle_at)
         processed_anchor: str | None = None
-        new_order_blocked = (
-            capital.decision is CapitalBudgetDecision.REJECT
-            or lifecycle is InactivityState.BLOCKED
-            or exit_ledger.has_unresolved
-            or gateway.has_unresolved_mutations
-            or not certified_policy_ready
-            or not mission_snapshot.new_risk_allowed_by_mission
+        (
+            new_order_blocked,
+            new_order_blocker_telemetry,
+        ) = _execution_preflight_status(
+            capital_reject=(
+                capital.decision is CapitalBudgetDecision.REJECT
+            ),
+            inactivity_blocked=(lifecycle is InactivityState.BLOCKED),
+            unresolved_exit=exit_ledger.has_unresolved,
+            gateway=gateway,
+            certified_policy_ready=certified_policy_ready,
+            mission_risk_allowed=(
+                mission_snapshot.new_risk_allowed_by_mission
+            ),
+            now=cycle_at,
         )
         vt31_runtime_snapshot = AccountRiskSnapshot(
             account_binding_id=fingerprint,
@@ -3786,7 +3794,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 log=lambda event: _log(log_path, event),
             )
 
-        if anchor is not None and not new_order_blocked:
+        if anchor is not None:
             for symbol in _MARKETS:
                 anchor_key = f"{symbol}|{anchor.isoformat()}"
                 if anchor_key in state.processed_anchors:
@@ -3801,6 +3809,19 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "symbol": symbol,
                                 "decision_at": anchor.isoformat(),
                                 "reason": reason,
+                            },
+                        )
+                    elif new_order_blocked:
+                        _log(
+                            log_path,
+                            {
+                                "event": "PRE_FLIGHT_NEW_ORDER_BLOCKED",
+                                "trader": "VT08",
+                                "symbol": symbol,
+                                "decision_at": anchor.isoformat(),
+                                "candidate": True,
+                                "strategy_reason": reason,
+                                **new_order_blocker_telemetry,
                             },
                         )
                     else:
