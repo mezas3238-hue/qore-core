@@ -276,7 +276,7 @@ def build_snapshot(
         snapshot_id=f"CORE_SNAPSHOT_{digest[:24]}",
         version=CORE_STACK_VERSION,
         generated_at=generated_at,
-        source_cutoff_at=integrity.newest_source_at,
+        source_cutoff_at=min(integrity.newest_source_at, generated_at),
         market=market,
         perception_integrity=integrity,
         world_state=world,
