@@ -79,6 +79,28 @@ def superintelligence_freeze_contract() -> dict[str, object]:
             "stop_can_widen": False,
             "future_information_allowed": False,
         },
+        "shared_research_sequence": {
+            "phase_a_shared_decision_intelligence": {
+                "status": "ACTIVE_PRIMARY_RESEARCH",
+                "scope": "MISSION_1_ONLY",
+                "potentiation_forbidden_in_phase": True,
+                "risk_weighting_forbidden_in_phase": True,
+                "position_potentiation_forbidden_in_phase": True,
+                "must_be_formally_accepted_before_phase_b": True,
+                "formal_acceptance_requires_temporal_falsification_pass": True,
+                "formal_acceptance_requires_material_pf_uplift": True,
+                "formal_acceptance_requires_material_dd_reduction": True,
+                "formal_acceptance_requires_loss_rejection_quality": True,
+                "formal_acceptance_requires_winner_preservation": True,
+                "formal_acceptance_requires_density_preservation": True,
+            },
+            "phase_b_trade_potentiation": {
+                "status": "DEFERRED_BLOCKED",
+                "blocked_until_phase_a_formally_accepted": True,
+                "shared_decision_model_must_be_frozen_first": True,
+                "may_not_influence_phase_a_selection": True,
+            },
+        },
         "shared_dual_mission": {
             "mission_1_decision_support": {
                 "purpose": (
