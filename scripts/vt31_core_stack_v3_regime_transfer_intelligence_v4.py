@@ -669,10 +669,15 @@ def _calibration_gates(result: dict[str, object]) -> dict[str, bool]:
         "dd_minus_25pct": sdd <= bdd * Decimal("0.75"),
         "total_r_not_lower": v3._d(shared["total_r"]) >= v3._d(baseline["total_r"]),
         "loss_recall_at_least_15pct": v3._d(dec["loss_rejection_recall"]) >= Decimal("0.15"),
-        "winner_count_retention_at_least_85pct": v3._d(dec["winner_count_retention"]) >= Decimal("0.85"),
+        "winner_count_retention_at_least_85pct": (
+            v3._d(dec["winner_count_retention"]) >= Decimal("0.85")
+        ),
         "winner_r_retention_at_least_90pct": v3._d(dec["winner_r_retention"]) >= Decimal("0.90"),
         "density_at_least_70pct": v3._d(dec["density_retained"]) >= Decimal("0.70"),
-        "extension_positive": int(journey["extension_signaled_trades"]) > 0 and v3._d(journey["extension_signaled_trade_uplift_r"]) > 0,
+        "extension_positive": (
+            int(journey["extension_signaled_trades"]) > 0
+            and v3._d(journey["extension_signaled_trade_uplift_r"]) > 0
+        ),
         "defense_nonnegative": v3._d(journey["defense_signaled_trade_uplift_r"]) >= 0,
     }
 
