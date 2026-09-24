@@ -11,6 +11,7 @@ on:
       - "tests/infrastructure/test_core_stack_v2_runtime.py"
       - "src/qore/infrastructure/traders/vt31_core_stack_v2_adapter.py"
       - "docs/research/QORE-CORE-STACK-V2-SHARED-FOUNDATION-001.md"
+      - "docs/research/QORE-CORE-STACK-V2-SUPERINTELLIGENCE-FREEZE-001.md"
       - ".github/workflows/qore-core-stack-v2-foundation.yml"
   workflow_dispatch:
 
