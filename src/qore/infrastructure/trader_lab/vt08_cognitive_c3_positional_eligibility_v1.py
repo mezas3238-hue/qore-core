@@ -10,11 +10,11 @@ from pathlib import Path
 from typing import Final
 from zoneinfo import ZoneInfo
 
-from qore.infrastructure.trader_lab.vt08_cognitive_c3_shape_opportunity_audit_v1 import (
-    is_c3_closure_shape,
-)
 from qore.infrastructure.trader_lab import (
     vt08_cognitive_delayed_continuation_bundle_eligibility_v1 as continuation,
+)
+from qore.infrastructure.trader_lab.vt08_cognitive_c3_shape_opportunity_audit_v1 import (
+    is_c3_closure_shape,
 )
 from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_backtest_v1 import (
     load_market_evidence,
