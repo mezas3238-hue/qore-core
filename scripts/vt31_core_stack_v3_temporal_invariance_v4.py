@@ -14,7 +14,7 @@ Protocol:
 
 No capital/risk weighting. No Shared execution authority.
 """
-# ruff: noqa: B009
+# ruff: noqa: B009,E501
 from __future__ import annotations
 
 import argparse
@@ -25,10 +25,8 @@ from pathlib import Path
 from typing import cast
 
 import vt31_core_stack_v3_analog_world_model_v1 as v3
-import vt31_core_stack_v3_ev_ensemble_v2 as ev
 import vt31_core_stack_v3_integrated_shared_intelligence_v1 as integrated
 import vt31_core_stack_v3_journey_counterfactual_memory_v2 as journey
-import vt31_core_stack_v3_journey_split_heads_v3 as split
 import vt31_core_stack_v3_shared_decision_intelligence_v2 as decision
 
 SCHEMA = "qore.core_stack_v3.vt31.temporal_invariance.v4"
@@ -629,7 +627,6 @@ def run(
     p6 = cast(dict[str, tuple[object, tuple[object, ...]]], integrated._reconstruct_partition(r6_evidence))
     p5 = cast(dict[str, tuple[object, tuple[object, ...]]], integrated._reconstruct_partition(r5_evidence))
     r8_old, r8_recent = _chronological_split(r8)
-    p8_old = {cast(str, row["signal_at"]): p8[cast(str, row["signal_at"])] for row in r8_old}
     p8_recent = {cast(str, row["signal_at"]): p8[cast(str, row["signal_at"])] for row in r8_recent}
 
     frontier: list[dict[str, object]] = []
