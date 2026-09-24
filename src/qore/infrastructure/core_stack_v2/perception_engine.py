@@ -12,7 +12,7 @@ from dataclasses import asdict, dataclass
 from decimal import Decimal
 from hashlib import sha256
 import json
-from typing import Iterable
+from collections.abc import Iterable
 
 ZERO = Decimal("0")
 
@@ -114,7 +114,7 @@ def _efficiency(window: tuple[PerceptionBar, ...]) -> Decimal | None:
     if len(window) < 2:
         return None
     travelled = sum(
-        (abs(right.close - left.close) for left, right in zip(window, window[1:])),
+        (abs(right.close - left.close) for left, right in zip(window, window[1:], strict=False))),
         ZERO,
     )
     if travelled <= 0:
