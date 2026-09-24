@@ -2,12 +2,6 @@ name: QORE VT08 CRT PURE R2-BO AUDUSD Passive Rearm Density
 
 on:
   workflow_dispatch:
-  pull_request:
-    types: [opened, synchronize, reopened]
-    paths:
-      - '.github/workflows/vt08-crt-pure-r2bo-audusd-passive-rearm.yml'
-      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_r2bo_audusd_passive_rearm_density.py'
-      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_r2bo_audusd_passive_rearm_density.py'
   push:
     branches:
       - agent/vt08-crt-pure-source-identity-001
