@@ -126,7 +126,7 @@ POLICIES = tuple(
 class _BarIndex:
     def __init__(self, bars: tuple[object, ...]) -> None:
         self.bars = bars
-        self.times = tuple(getattr(bar, "closed_at") for bar in bars)
+        self.times = tuple(bar.closed_at for bar in bars)
 
     def between(self, start: object, end: object) -> tuple[object, ...]:
         left = bisect.bisect_left(self.times, start)
@@ -137,7 +137,7 @@ class _BarIndex:
 def _load_index(path: Path) -> _BarIndex:
     series, _, _, _, _, _ = native.load_market_evidence(path)
     ordered = tuple(
-        sorted(series, key=lambda bar: getattr(bar, "closed_at"))
+        sorted(series, key=lambda bar: bar.closed_at)
     )
     return _BarIndex(ordered)
 
