@@ -5,7 +5,7 @@ import hashlib
 import json
 from typing import Final
 
-SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_002"
+SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_003"
 
 _CAPABILITIES: Final = (
     "PERCEPTION_INTEGRITY",
@@ -20,6 +20,7 @@ _CAPABILITIES: Final = (
     "FAILURE_AND_COUNTERFACTUAL_MEMORY",
     "POSITION_JOURNEY_AND_ECONOMIC_ATTRIBUTION",
     "UNIVERSAL_DRAWDOWN_STABILITY_INTELLIGENCE",
+    "DYNAMIC_MARKET_DETERIORATION_RECOVERY_INTELLIGENCE",
     "UNIVERSAL_POSITION_JOURNEY_INTELLIGENCE",
     "TRADER_ADAPTER_TRANSLATION_LAYER",
 )
@@ -142,6 +143,18 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "must_generalize_across_methodologies": True,
                 "qore_risk_remains_sovereign": True,
             },
+            "dynamic_market_transition": {
+                "required": True,
+                "continuous_evidence_primary": True,
+                "state_summary_secondary": True,
+                "must_reason_over_causal_sequences_not_only_snapshots": True,
+                "must_detect_deterioration_velocity_and_persistence": True,
+                "must_detect_recovery_velocity_and_persistence": True,
+                "current_market_evidence_primary": True,
+                "pnl_or_trade_outcome_as_primary_state_forbidden": True,
+                "future_market_path_forbidden": True,
+                "trader_specific_ontology_forbidden": True,
+            },
             "profit_factor": {
                 "required": True,
                 "meaning": (
@@ -175,6 +188,9 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "range",
                 "regime",
                 "regime_transition",
+                "transition_velocity",
+                "deterioration_persistence",
+                "recovery_persistence",
                 "liquidity",
                 "structure",
                 "displacement",
