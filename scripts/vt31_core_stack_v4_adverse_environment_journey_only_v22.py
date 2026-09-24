@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import cast
 
 import vt31_core_stack_v4_failure_sequence_topology_v21 as v21
+
 from qore.infrastructure.core_stack_v2.environment_intelligence import (
     MarketEnvironmentObservation,
     MarketEnvironmentState,
