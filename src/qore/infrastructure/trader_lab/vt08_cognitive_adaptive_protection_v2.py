@@ -42,6 +42,7 @@ from qore.infrastructure.trader_lab.vt08_index_c2_r1_cibo_stop_protection import
     STOP_POLICIES,
     StopPolicy,
 )
+from qore.infrastructure.traders.vt08_b01_r3_8 import Vt08B01Bar
 
 SCHEMA: Final = "qore.trader_lab.vt08_cognitive_adaptive_protection_v2.v1"
 MARKETS: Final = ("CADJPY", "NZDUSD")
@@ -112,17 +113,12 @@ class AdaptiveProtectionTrade:
 def simulate_adaptive(
     candidate: Vt08ExpansionCandidate,
     *,
-    bars_by_open: dict[datetime, object],
+    bars_by_open: dict[datetime, Vt08B01Bar],
 ) -> AdaptiveProtectionTrade | None:
-    typed_bars = {
-        key: value
-        for key, value in bars_by_open.items()
-        if hasattr(value, "opened_at")
-    }
-    baseline = model_trade(candidate, bars_by_open=typed_bars)  # type: ignore[arg-type]
+    baseline = model_trade(candidate, bars_by_open=bars_by_open)
     if baseline is None:
         return None
-    rows = _window(candidate, typed_bars)  # type: ignore[arg-type]
+    rows = _window(candidate, bars_by_open)
     if rows is None:
         return None
 
