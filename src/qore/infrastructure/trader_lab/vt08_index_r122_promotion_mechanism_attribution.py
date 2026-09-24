@@ -22,9 +22,6 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.trader_lab import (
-    vt08_index_r15_concurrent_portfolio_validation as r15,
-)
-from qore.infrastructure.trader_lab import (
     vt08_index_r55_distributed_causal_risk as r55,
 )
 from qore.infrastructure.trader_lab import (
