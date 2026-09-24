@@ -17,8 +17,6 @@ import json
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
-from typing import cast
-
 import vt31_core_stack_v4_natural_dd_causal_origin_atlas_v30 as v30
 
 SCHEMA = "qore.core_stack_v4.vt31.natural_dd_causal_discrimination.v31"
