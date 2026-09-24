@@ -76,6 +76,10 @@ class InstinctAssessment:
     market_support_bps: int
     threat_bps: int
     urgency_bps: int
+    shock_risk_bps: int
+    structural_risk_bps: int
+    resilience_bps: int
+    threat_convergence_bps: int
     confidence_bps: int
     winner_protection_bps: int
     expansion_capacity_bps: int
@@ -97,6 +101,10 @@ class InstinctAssessment:
             "market_support_bps",
             "threat_bps",
             "urgency_bps",
+            "shock_risk_bps",
+            "structural_risk_bps",
+            "resilience_bps",
+            "threat_convergence_bps",
             "confidence_bps",
             "winner_protection_bps",
             "expansion_capacity_bps",
@@ -188,6 +196,32 @@ def assess_instinct(
             trajectory.deterioration_persistence_bps,
         )
     )
+    shock_risk = _clamp(
+        _mean4(
+            environment.adverse_velocity_bps,
+            trajectory.deterioration_velocity_bps,
+            trajectory.deterioration_pressure_bps,
+            environment.adverse_environment_bps,
+        )
+    )
+    structural_risk = _clamp(
+        _mean4(
+            environment.cross_market_fragility_bps,
+            environment.structural_fragility_bps,
+            trajectory.adversity_bps,
+            trajectory.deterioration_pressure_bps,
+        )
+    )
+    resilience = _clamp(
+        _mean4(
+            environment.market_support_bps,
+            trajectory.support_bps,
+            environment.recovery_velocity_bps,
+            trajectory.recovery_velocity_bps,
+        )
+    )
+    threat_convergence = _clamp(_mean3(threat, urgency, structural_risk))
+
     confidence = _clamp(
         _mean4(
             data_integrity_bps,
@@ -231,31 +265,66 @@ def assess_instinct(
         methodology = SupportMethodology.IMMEDIATE_DEFENSE
         reasons.extend(("PATH_FAILURE_RISK_HIGH", "MARKET_THREAT_CONVERGED"))
     elif (
-        trajectory.state is MarketTrajectoryState.FAILURE
-        and environment.state in {
-            MarketEnvironmentState.ADVERSE_FORMING,
-            MarketEnvironmentState.DEFENSIVE,
+        trajectory.state in {
+            MarketTrajectoryState.DETERIORATING,
+            MarketTrajectoryState.FAILURE,
         }
-        and threat >= effective.immediate_threat_bps
+        and environment.state
+        not in {
+            MarketEnvironmentState.SUPPORTIVE,
+            MarketEnvironmentState.RESTORED,
+        }
+        and (
+            threat_convergence >= effective.immediate_threat_bps
+            or (
+                shock_risk >= effective.immediate_threat_bps
+                and threat >= effective.rapid_threat_bps
+            )
+        )
     ):
         situation = InstinctSituation.TERMINAL_FAILURE_RISK
         methodology = SupportMethodology.IMMEDIATE_DEFENSE
-        reasons.extend(("TRAJECTORY_FAILURE", "ADVERSE_ENVIRONMENT_CONVERGED"))
+        reasons.extend(
+            (
+                "SEVERE_TRAJECTORY",
+                "MULTI_AXIS_THREAT_CONVERGED",
+                "PREENTRY_TERMINAL_RISK",
+            )
+        )
     elif (
         trajectory.state in {
             MarketTrajectoryState.DETERIORATING,
             MarketTrajectoryState.FAILURE,
         }
-        and environment.state in {
-            MarketEnvironmentState.DEGRADING,
-            MarketEnvironmentState.ADVERSE_FORMING,
-            MarketEnvironmentState.DEFENSIVE,
+        and environment.state
+        not in {
+            MarketEnvironmentState.SUPPORTIVE,
+            MarketEnvironmentState.RESTORED,
         }
-        and max(threat, urgency) >= effective.rapid_threat_bps
     ):
         situation = InstinctSituation.RAPID_DETERIORATION
         methodology = SupportMethodology.PROGRESSIVE_DEFENSE
-        reasons.extend(("DETERIORATION_CONVERGED", "DEFENSE_REQUIRED_WITHOUT_ENTRY_ABSTENTION"))
+        reasons.extend(
+            (
+                "SEVERE_TRAJECTORY",
+                "NON_SUPPORTIVE_ENVIRONMENT",
+                "DEFENSE_REQUIRED_WITHOUT_ENTRY_ABSTENTION",
+            )
+        )
+    elif (
+        trajectory.state in {
+            MarketTrajectoryState.WEAKENING,
+            MarketTrajectoryState.DIVERGING,
+        }
+        and environment.state in {
+            MarketEnvironmentState.ADVERSE_FORMING,
+            MarketEnvironmentState.DEFENSIVE,
+        }
+        and threat_convergence >= effective.rapid_threat_bps
+    ):
+        situation = InstinctSituation.RAPID_DETERIORATION
+        methodology = SupportMethodology.PROGRESSIVE_DEFENSE
+        reasons.extend(("ADVERSE_TRANSITION", "MULTI_AXIS_THREAT_CONVERGED"))
     elif (
         environment.state in {
             MarketEnvironmentState.FRAGILE,
@@ -321,6 +390,10 @@ def assess_instinct(
         market_support_bps=market_support,
         threat_bps=threat,
         urgency_bps=urgency,
+        shock_risk_bps=shock_risk,
+        structural_risk_bps=structural_risk,
+        resilience_bps=resilience,
+        threat_convergence_bps=threat_convergence,
         confidence_bps=confidence,
         winner_protection_bps=winner_protection,
         expansion_capacity_bps=expansion_capacity_bps,
