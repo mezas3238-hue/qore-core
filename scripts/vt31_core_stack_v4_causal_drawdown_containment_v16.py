@@ -167,11 +167,32 @@ def _containment_veto(
     )
 
 
-def _evaluate(
+def _prepare_rows(
     rows: list[dict[str, object]],
     *,
     negative: dict[str, set[tuple[str, ...]]],
     model: dict[str, dict[str, dict[str, float]]],
+) -> list[dict[str, object]]:
+    prepared: list[dict[str, object]] = []
+    for source in sorted(rows, key=lambda item: cast(str, item["signal_at"])):
+        row = dict(source)
+        base_keep, decision = _v15_base_keep(
+            row,
+            negative=negative,
+            model=model,
+        )
+        prepared.append({
+            "row": row,
+            "value": _d(row["net_r_after_friction"]),
+            "base_keep": base_keep,
+            "decision": decision,
+        })
+    return prepared
+
+
+def _evaluate_prepared(
+    prepared: list[dict[str, object]],
+    *,
     policy: ContainmentPolicy,
 ) -> dict[str, object]:
     baseline_values: list[Decimal] = []
@@ -180,17 +201,12 @@ def _evaluate(
     containment_vetoed: list[dict[str, object]] = []
     kept_rows: list[dict[str, object]] = []
 
-    for source in sorted(rows, key=lambda item: cast(str, item["signal_at"])):
-        row = dict(source)
-        value = _d(row["net_r_after_friction"])
+    for item in prepared:
+        row = cast(dict[str, object], item["row"])
+        value = cast(Decimal, item["value"])
+        decision = cast(dict[str, object], item["decision"])
         baseline_values.append(value)
-        base_keep, decision = _v15_base_keep(
-            row,
-            negative=negative,
-            model=model,
-        )
-        row["v16_decision_facts"] = decision
-        if not base_keep:
+        if not bool(item["base_keep"]):
             base_rejected.append(row)
             continue
         if _containment_veto(row, decision, policy):
@@ -219,7 +235,7 @@ def _evaluate(
         "baseline": baseline,
         "shared_v16": shared,
         "selection": {
-            "input": len(rows),
+            "input": len(prepared),
             "kept": len(kept_rows),
             "abstained": len(abstained),
             "v15_base_rejected": len(base_rejected),
@@ -245,12 +261,11 @@ def _evaluate(
             "winner_r_retention": "1" if gross_winner_r == 0 else format(
                 (gross_winner_r - sacrificed_r) / gross_winner_r, "f"
             ),
-            "density_retained": "0" if not rows else format(
-                Decimal(len(kept_rows)) / Decimal(len(rows)), "f"
+            "density_retained": "0" if not prepared else format(
+                Decimal(len(kept_rows)) / Decimal(len(prepared)), "f"
             ),
         },
     }
-
 
 def _gates(result: dict[str, object]) -> dict[str, bool]:
     baseline = cast(dict[str, object], result["baseline"])
@@ -323,11 +338,13 @@ def run(
     negative = v8._negative_tables(r8)
     r8_n1 = [row for row in r8 if v13._negative_views(row, negative) == 1]
     model, diagnostics = v13._learn_model(r8_n1)
+    r8_prepared = _prepare_rows(r8, negative=negative, model=model)
+    r6_prepared = _prepare_rows(r6, negative=negative, model=model)
 
     discovery: list[tuple[Decimal, ContainmentPolicy]] = []
     r8_frontier: list[dict[str, object]] = []
     for policy in POLICIES:
-        result = _evaluate(r8, negative=negative, model=model, policy=policy)
+        result = _evaluate_prepared(r8_prepared, policy=policy)
         gates = _gates(result)
         score = _score(result)
         if score is not None:
@@ -355,7 +372,7 @@ def run(
     r6_frontier: list[dict[str, object]] = []
     best: tuple[Decimal, ContainmentPolicy, dict[str, object]] | None = None
     for _, policy in discovery[:240]:
-        result = _evaluate(r6, negative=negative, model=model, policy=policy)
+        result = _evaluate_prepared(r6_prepared, policy=policy)
         gates = _gates(result)
         score = _score(result)
         r6_frontier.append({
@@ -385,7 +402,7 @@ def run(
         }
 
     score, policy, r6_result = best
-    r8_result = _evaluate(r8, negative=negative, model=model, policy=policy)
+    r8_result = _evaluate_prepared(r8_prepared, policy=policy)
     return {
         "schema": SCHEMA,
         "identity": IDENTITY,
