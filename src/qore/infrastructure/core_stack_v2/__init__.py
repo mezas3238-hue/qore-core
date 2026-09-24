@@ -76,13 +76,6 @@ from qore.infrastructure.core_stack_v2.market_universe import (
     CoreMarketKnowledge,
     build_global_market_universe,
 )
-from qore.infrastructure.core_stack_v2.path_intelligence import (
-    PositionPathAssessment,
-    PositionPathObservation,
-    PositionPathPolicy,
-    PositionPathState,
-    assess_position_path,
-)
 from qore.infrastructure.core_stack_v2.operational_falsification import (
     ActualTrade,
     CurveMetrics,
@@ -90,6 +83,13 @@ from qore.infrastructure.core_stack_v2.operational_falsification import (
     ShadowAction,
     SharedShadowDecision,
     evaluate_real_operation_falsification,
+)
+from qore.infrastructure.core_stack_v2.path_intelligence import (
+    PositionPathAssessment,
+    PositionPathObservation,
+    PositionPathPolicy,
+    PositionPathState,
+    assess_position_path,
 )
 from qore.infrastructure.core_stack_v2.runtime import (
     CoreRuntimeCheckpoint,
