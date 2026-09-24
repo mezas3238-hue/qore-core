@@ -24,8 +24,8 @@ from decimal import Decimal
 from pathlib import Path
 from typing import cast
 
-import vt31_core_stack_v4_ultrafast_instinct_prearm_v27 as v27
 import vt31_core_stack_v4_persistent_preentry_context_journey_v24 as v24
+import vt31_core_stack_v4_ultrafast_instinct_prearm_v27 as v27
 
 from qore.infrastructure.core_stack_v2.environment_intelligence import (
     MarketEnvironmentObservation,
