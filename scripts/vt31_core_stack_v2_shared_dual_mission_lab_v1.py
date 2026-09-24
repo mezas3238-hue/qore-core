@@ -483,7 +483,45 @@ def run(r8: Path, r6: Path, r5: Path) -> dict[str, object]:
             best = (score, policy)
 
     if best is None:
-        raise AssertionError("no Shared dual-mission calibration survivor")
+        return {
+            "schema": SCHEMA,
+            "identity": IDENTITY,
+            "challenge_set": {
+                "source_only_trades_5y": 822,
+                "winners_5y": 111,
+                "losses_5y": 711,
+                "r8": r8_result["metrics"],
+                "r6": r6_result["metrics"],
+                "r5": r5_result["metrics"],
+            },
+            "temporal_protocol": {
+                "r8": "DISCOVERY_MEMORY_ONLY",
+                "r6": "CALIBRATION_POLICY_FREEZE",
+                "r5": "NO_RETUNE_TEMPORAL_EVALUATION_NOT_OPENED_NO_SURVIVOR",
+            },
+            "forbidden_current_features": FORBIDDEN_CURRENT_FEATURES,
+            "policy_frontier_size": len(POLICIES),
+            "selection_status": "NO_CALIBRATION_SURVIVOR",
+            "frozen_policy": None,
+            "evaluation": None,
+            "gates": {
+                "calibration_survivor_exists": False,
+            },
+            "passes_dual_mission": False,
+            "governance": {
+                "silver_bullet_methodology_modified": False,
+                "shared_order_authority": False,
+                "shared_risk_authority": False,
+                "qore_risk_sovereign": True,
+                "current_trade_outcome_used_by_shared": False,
+                "post_outcome_features_used_by_shared": False,
+                "r5_retuned_after_open": False,
+                "live_authorized": False,
+                "production_authorized": False,
+                "merge_authorized": False,
+            },
+            "frontier": frontier,
+        }
 
     frozen = best[1]
     evaluation = _evaluate(r8_rows + r6_rows, r5_rows, frozen)
