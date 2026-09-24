@@ -385,11 +385,6 @@ def evaluate(
         for rows in mechanical.values()
         for row in rows
     }
-    terminal_union = {
-        row.identity
-        for rows in terminal.values()
-        for row in rows
-    }
     c3 = _c3_shapes(base_path)
     c3_ids = {row.identity for row in c3}
     c3_overlap = c3_ids & mechanical_union
