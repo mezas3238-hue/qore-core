@@ -205,3 +205,46 @@ def test_runtime_binds_certified_policy_and_capitalization_without_changing_vt31
     assert '"capitalization_balance_target"' in source
     assert "VT31_DECISION_DEADLINE" in source
     assert "await_vt31_boundary_snapshot" in source
+
+
+def test_preflight_blocker_telemetry_is_deterministic_and_mutation_specific() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+    for field in (
+        '"event": "PRE_FLIGHT_NEW_ORDER_BLOCKED"',
+        '"capital_reject"',
+        '"inactivity_blocked"',
+        '"unresolved_exit"',
+        '"unresolved_mutation"',
+        '"certified_policy_not_ready"',
+        '"mission_risk_disabled"',
+        '"mutation_id"',
+        '"mutation_state"',
+        '"mutation_transitioned_at"',
+        '"age_seconds"',
+    ):
+        assert field in source
+
+
+def test_strategy_decision_precedes_execution_block_for_m5_vt31_and_vt08() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+
+    m5_start = source.index("def consume_market_result(")
+    m5_end = source.index("def drain_ready_market_results", m5_start)
+    m5 = source[m5_start:m5_end]
+    assert m5.index("signal = actor_result.signal") < m5.index("if arm_blocked:")
+    assert m5.index("if signal is None:") < m5.index("if arm_blocked:")
+
+    vt31_start = source.index("vt31_strategy_started_ns = time.perf_counter_ns()")
+    vt31_end = source.index("except BrokerMinimumVolumeRiskRejectError", vt31_start)
+    vt31 = source[vt31_start:vt31_end]
+    assert vt31.index("evaluate_vt31_boundary(") < vt31.index("elif vt31_blocked:")
+    assert vt31.index('"event": "VT31_STRATEGY_DECISION"') < vt31.index(
+        "elif vt31_blocked:"
+    )
+
+    vt08_start = source.index("if anchor is not None:")
+    vt08_end = source.index("r34_anchor = current_r34_anchor", vt08_start)
+    vt08 = source[vt08_start:vt08_end]
+    assert vt08.index("_causal_candidate(symbol, anchor)") < vt08.index(
+        "elif new_order_blocked:"
+    )
