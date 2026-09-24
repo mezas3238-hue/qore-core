@@ -19,7 +19,7 @@ import argparse
 import json
 from collections import defaultdict
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -36,10 +36,6 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
     CapitalizerSession,
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
-from qore.infrastructure.trader_lab.capitalizer_m3_mss_bottleneck_forensics_2y_v1 import (
-    LOOKBACK_START,
-    WINDOW_END,
-)
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     _index_day_inputs,
 )
@@ -380,7 +376,9 @@ def _year_rows(
 ) -> list[dict[str, Any]]:
     grouped: dict[str, list[NativeM1Target1Outcome]] = defaultdict(list)
     for trade in trades:
-        year = str(datetime.fromisoformat(trade.entry_at).year)
+        year = str(
+            datetime.fromisoformat(trade.entry_at).astimezone(native.NEW_YORK).year
+        )
         grouped[year].append(trade)
     return [
         {
