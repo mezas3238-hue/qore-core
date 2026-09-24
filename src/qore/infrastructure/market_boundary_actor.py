@@ -54,6 +54,7 @@ class ResidentMarketActorPool:
             thread_name_prefix="qore-market-actor",
         )
         self._futures: dict[str, Future[MarketBoundaryResult]] = {}
+        self._delivered: set[str] = set()
 
     def __enter__(self) -> ResidentMarketActorPool:
         return self
@@ -69,6 +70,25 @@ class ResidentMarketActorPool:
             job,
             self._clock,
         )
+
+    def ready_results(self) -> tuple[MarketBoundaryResult, ...]:
+        """Return newly completed market results without blocking siblings."""
+
+        ready: list[MarketBoundaryResult] = []
+        for identity, future in self._futures.items():
+            if identity in self._delivered or not future.done():
+                continue
+            ready.append(future.result())
+            self._delivered.add(identity)
+        return tuple(ready)
+
+    def pending_identities(self) -> tuple[str, ...]:
+        return tuple(
+            identity for identity in self._futures if identity not in self._delivered
+        )
+
+    def submitted_identities(self) -> tuple[str, ...]:
+        return tuple(self._futures)
 
     def results(self) -> tuple[MarketBoundaryResult, ...]:
         return tuple(future.result() for future in self._futures.values())
