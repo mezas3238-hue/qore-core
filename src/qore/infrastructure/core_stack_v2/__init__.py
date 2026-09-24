@@ -10,6 +10,11 @@ from qore.infrastructure.core_stack_v2.adapters import (
     TraderCognitiveContext,
     build_shared_context,
 )
+from qore.infrastructure.core_stack_v2.architecture_freeze import (
+    SUPERINTELLIGENCE_FREEZE_VERSION,
+    superintelligence_freeze_contract,
+    superintelligence_freeze_fingerprint,
+)
 from qore.infrastructure.core_stack_v2.audit import CoreAuditRecord, make_audit_record
 from qore.infrastructure.core_stack_v2.compatibility import (
     CompatibilityEntry,
@@ -52,6 +57,7 @@ from qore.infrastructure.core_stack_v2.runtime import (
 __all__ = [
     "CORE_STACK_VERSION",
     "GLOBAL_MARKET_UNIVERSE_REQUIRED",
+    "SUPERINTELLIGENCE_FREEZE_VERSION",
     "CognitiveState",
     "CompatibilityEntry",
     "CompatibilityStatus",
@@ -88,4 +94,6 @@ __all__ = [
     "freeze_facts",
     "make_audit_record",
     "summarize_decision_ab",
+    "superintelligence_freeze_contract",
+    "superintelligence_freeze_fingerprint",
 ]
