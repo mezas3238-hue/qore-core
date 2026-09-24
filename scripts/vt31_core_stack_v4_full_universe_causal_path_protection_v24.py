@@ -21,6 +21,7 @@ import argparse
 import json
 from collections import Counter
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
@@ -129,9 +130,7 @@ def _path_observation(
     signed_body = _d(event["signed_body_r"])
 
     return PositionPathObservation(
-        as_of=v19._to_observation({}, event).as_of
-        if False
-        else cast(object, event["path_as_of"]),
+        as_of=cast(datetime, event["path_as_of"]),
         data_integrity_bps=int(event["path_data_integrity_bps"]),
         journey_progress_bps=_clamp_bps(progress * Decimal("10000")),
         close_support_bps=v19._signed_bps(close_r),
