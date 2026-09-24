@@ -160,7 +160,11 @@ def _load_daily(path: Path) -> dict[str, dict[str, dict[str, object]]]:
     return result
 
 
-def _breach_asof(day: dict[str, dict[str, object]], market: str, signal: datetime) -> tuple[str, datetime | None]:
+def _breach_asof(
+    day: dict[str, dict[str, object]],
+    market: str,
+    signal: datetime,
+) -> tuple[str, datetime | None]:
     row = day.get(market)
     if row is None:
         return "missing", None
