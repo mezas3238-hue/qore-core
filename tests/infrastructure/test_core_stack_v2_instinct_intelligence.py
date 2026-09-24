@@ -129,6 +129,39 @@ def test_instinct_selects_immediate_defense_on_converged_terminal_failure() -> N
 
 
 
+def test_instinct_severe_preentry_deterioration_is_never_passive() -> None:
+    result = assess_instinct(
+        _environment(
+            state=MarketEnvironmentState.FRAGILE,
+            support=4700,
+            adverse=5600,
+            velocity=5200,
+            persistence=6500,
+        ),
+        _trajectory(
+            state=MarketTrajectoryState.DETERIORATING,
+            support=4300,
+            adverse=6600,
+            pressure=6500,
+            velocity=6100,
+            persistence=7000,
+        ),
+        opportunity_quality_bps=4800,
+        expansion_capacity_bps=4200,
+    )
+
+    assert result.situation in {
+        InstinctSituation.RAPID_DETERIORATION,
+        InstinctSituation.TERMINAL_FAILURE_RISK,
+    }
+    assert result.support_methodology in {
+        SupportMethodology.PROGRESSIVE_DEFENSE,
+        SupportMethodology.IMMEDIATE_DEFENSE,
+    }
+    assert result.structural_risk_bps > 0
+    assert result.threat_convergence_bps > 0
+
+
 def test_instinct_preentry_terminal_failure_does_not_require_position_path() -> None:
     result = assess_instinct(
         _environment(
