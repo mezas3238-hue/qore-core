@@ -19,7 +19,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
@@ -182,9 +182,9 @@ def _journey_evidence(
 
     return PositionJourneyEvidence(
         trader_id="VT31_FALSIFICATION_LAB",
-        market=str(row["market"]),
+        market=str(row.get("market", row.get("instrument", "NAS100"))),
         side=str(row["side"]).upper(),
-        opened_at=v18.v3._dt(row["filled_at"]),
+        opened_at=datetime.fromisoformat(str(row["filled_at"])),
         as_of=cast(object, as_of),
         data_integrity_bps=9800,
         regime_stability_bps=_clamp_bps(regime_stability),
