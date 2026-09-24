@@ -366,6 +366,18 @@ def _simulate(
             pending = None
             pending_anchor_close = None
 
+            gap_through_stop = (
+                opened <= current_stop
+                if side == "long"
+                else opened >= current_stop
+            )
+            if gap_through_stop:
+                return terminal(
+                    sign * (opened - entry) / risk,
+                    "REALTIME_GAP_THROUGH_MANAGED_STOP",
+                    index - fill_index,
+                )
+
         hit_stop = low <= current_stop if side == "long" else high >= current_stop
         hit_target = high >= active_target if side == "long" else low <= active_target
         if hit_stop and hit_target:
