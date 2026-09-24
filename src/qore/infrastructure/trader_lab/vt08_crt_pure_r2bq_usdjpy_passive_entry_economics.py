@@ -38,13 +38,15 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2aq_high_density_historical_v
     ValidationWindow,
     _rolling_parents,
 )
-from qore.infrastructure.trader_lab.vt08_crt_pure_r2bp_usdjpy_passive_entry_capacity import (
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2bl_usdjpy_pf_root_cause import (
     BASE_POLICY,
     END,
-    HORIZON,
     MARKET,
     START,
     YEARS,
+)
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2bp_usdjpy_passive_entry_capacity import (
+    HORIZON,
     EntryArm,
     _fill_state,
     _level,
