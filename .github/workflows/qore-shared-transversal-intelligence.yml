@@ -11,6 +11,7 @@ on:
       - src/qore/infrastructure/core_stack_v2/journey_intelligence.py
       - src/qore/infrastructure/core_stack_v2/transition_intelligence.py
       - src/qore/infrastructure/core_stack_v2/environment_intelligence.py
+      - src/qore/infrastructure/core_stack_v2/path_intelligence.py
       - src/qore/infrastructure/core_stack_v2/__init__.py
       - tests/infrastructure/test_core_stack_v2_transversal_intelligence.py
       - .github/workflows/qore-shared-transversal-intelligence.yml
@@ -31,8 +32,8 @@ jobs:
       - run: pip install -e ".[dev]"
       - name: Static validation
         run: |
-          ruff check             src/qore/infrastructure/core_stack_v2/architecture_freeze.py             src/qore/infrastructure/core_stack_v2/compatibility.py             src/qore/infrastructure/core_stack_v2/stability_intelligence.py             src/qore/infrastructure/core_stack_v2/journey_intelligence.py             src/qore/infrastructure/core_stack_v2/transition_intelligence.py             src/qore/infrastructure/core_stack_v2/environment_intelligence.py             src/qore/infrastructure/core_stack_v2/__init__.py             tests/infrastructure/test_core_stack_v2_transversal_intelligence.py
-          python -m py_compile             src/qore/infrastructure/core_stack_v2/architecture_freeze.py             src/qore/infrastructure/core_stack_v2/compatibility.py             src/qore/infrastructure/core_stack_v2/stability_intelligence.py             src/qore/infrastructure/core_stack_v2/journey_intelligence.py             src/qore/infrastructure/core_stack_v2/transition_intelligence.py             src/qore/infrastructure/core_stack_v2/environment_intelligence.py             src/qore/infrastructure/core_stack_v2/__init__.py
+          ruff check             src/qore/infrastructure/core_stack_v2/architecture_freeze.py             src/qore/infrastructure/core_stack_v2/compatibility.py             src/qore/infrastructure/core_stack_v2/stability_intelligence.py             src/qore/infrastructure/core_stack_v2/journey_intelligence.py             src/qore/infrastructure/core_stack_v2/transition_intelligence.py             src/qore/infrastructure/core_stack_v2/environment_intelligence.py             src/qore/infrastructure/core_stack_v2/path_intelligence.py             src/qore/infrastructure/core_stack_v2/__init__.py             tests/infrastructure/test_core_stack_v2_transversal_intelligence.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/architecture_freeze.py             src/qore/infrastructure/core_stack_v2/compatibility.py             src/qore/infrastructure/core_stack_v2/stability_intelligence.py             src/qore/infrastructure/core_stack_v2/journey_intelligence.py             src/qore/infrastructure/core_stack_v2/transition_intelligence.py             src/qore/infrastructure/core_stack_v2/environment_intelligence.py             src/qore/infrastructure/core_stack_v2/path_intelligence.py             src/qore/infrastructure/core_stack_v2/__init__.py
       - name: Transversal architecture tests
         run: |
           pytest -q             tests/infrastructure/test_core_stack_v2_transversal_intelligence.py             tests/infrastructure/test_core_stack_v2_foundation.py             tests/infrastructure/test_core_stack_v2_runtime.py
