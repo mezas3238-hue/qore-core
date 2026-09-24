@@ -204,7 +204,7 @@ def build_snapshot(
     portfolio_intents: tuple[PortfolioIntent, ...] = (),
     cross_market_facts: dict[str, str] | None = None,
     position_context: PositionContext | None = None,
-    config: CoreStackConfig = CoreStackConfig(),
+    config: CoreStackConfig | None = None,
 ) -> CoreSnapshot:
     """Build one immutable shared snapshot from already-observable causal inputs."""
     integrity = _integrity(
