@@ -26,7 +26,6 @@ from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_evaluator_v1 imp
 from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_v1 import (
     ANCHORS_NY,
     EXPANSION_MARKETS,
-    program_fingerprint,
 )
 from qore.infrastructure.trader_lab.vt08_cognitive_m5_fractal_density_recovery_v1 import (
     _candidate,
