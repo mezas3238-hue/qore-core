@@ -48,6 +48,7 @@ jobs:
             intelligence.py \
             analog_memory.py \
             competing_future_intelligence.py \
+            competing_risk_path_core.py \
             drawdown_phenotype_memory.py \
             environment_intelligence.py \
             future_geometry_intelligence.py \
@@ -201,6 +202,10 @@ jobs:
               assert phase["future_outcome_input_used"] is False
               assert phase["realized_outcome_used_for_scoring_only"] is True
               assert phase["canonical_exit_bar_excluded_from_runtime_classification"] is True
+
+              risk=w["competing_risk_diagnostics"]
+              assert risk["calibrated_probability"] is False
+              assert risk["management_authority"] is False
 
           g=p["governance"]
           assert g["trailing_used"] is False
