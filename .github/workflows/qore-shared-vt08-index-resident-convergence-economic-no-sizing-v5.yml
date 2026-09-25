@@ -1,0 +1,210 @@
+name: QORE Shared VT08 Index Resident Convergence Economic No Sizing V5
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/vt08_index_shared_resident_convergence_economic_no_sizing_v5.py
+      - scripts/vt08_index_shared_full_stack_no_sizing_v3.py
+      - scripts/vt08_index_shared_cognitive_challenge_v2.py
+      - src/qore/infrastructure/core_stack_v2/**
+      - tests/infrastructure/test_core_stack_v2_specialist_boundary.py
+      - .github/workflows/qore-shared-vt08-index-full-stack-economic-no-sizing-v4.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  shared-vt08-economic-v5:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - name: Checkout Shared
+        uses: actions/checkout@v4
+        with:
+          path: shared
+
+      - name: Checkout VT08 Index PR604 source branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/vt08-index-deep-behavior-lab-final
+          path: vt08
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compose VT08 execution surface with Shared full stack
+        run: |
+          set -euo pipefail
+          mkdir -p vt08/src/qore/infrastructure/core_stack_v2 vt08/scripts
+          : > vt08/src/qore/infrastructure/core_stack_v2/__init__.py
+          for file in             contracts.py             intelligence.py             analog_memory.py             competing_future_intelligence.py             drawdown_phenotype_memory.py             environment_intelligence.py             future_geometry_intelligence.py             instinct_intelligence.py             journey_intelligence.py             path_intelligence.py             perception_engine.py             realtime_trade_management.py             resident_convergence_intelligence.py             stability_intelligence.py             transition_intelligence.py
+          do
+            cp "shared/src/qore/infrastructure/core_stack_v2/$file"                "vt08/src/qore/infrastructure/core_stack_v2/$file"
+          done
+          cp shared/scripts/vt08_index_shared_cognitive_challenge_v2.py              vt08/scripts/vt08_index_shared_cognitive_challenge_v2.py
+          cp shared/scripts/vt08_index_shared_full_stack_no_sizing_v3.py              vt08/scripts/vt08_index_shared_full_stack_no_sizing_v3.py
+          cp shared/scripts/vt08_index_shared_resident_convergence_economic_no_sizing_v5.py              vt08/scripts/vt08_index_shared_resident_convergence_economic_no_sizing_v5.py
+
+      - name: Install composite research tree
+        run: |
+          cd vt08
+          pip install -e ".[dev]"
+
+      - name: Static validation
+        run: |
+          set -euo pipefail
+          cd vt08
+          ruff check scripts/vt08_index_shared_cognitive_challenge_v2.py
+          ruff check scripts/vt08_index_shared_full_stack_no_sizing_v3.py
+          ruff check scripts/vt08_index_shared_resident_convergence_economic_no_sizing_v5.py
+          python -m py_compile scripts/vt08_index_shared_resident_convergence_economic_no_sizing_v5.py
+          for file in             contracts.py             intelligence.py             analog_memory.py             competing_future_intelligence.py             drawdown_phenotype_memory.py             environment_intelligence.py             future_geometry_intelligence.py             instinct_intelligence.py             journey_intelligence.py             path_intelligence.py             perception_engine.py             realtime_trade_management.py             resident_convergence_intelligence.py             stability_intelligence.py             transition_intelligence.py
+          do
+            ruff check "src/qore/infrastructure/core_stack_v2/$file"
+            python -m py_compile "src/qore/infrastructure/core_stack_v2/$file"
+          done
+
+      - name: Enforce Shared specialist cognition boundary
+        run: |
+          cd shared
+          pytest -q tests/infrastructure/test_core_stack_v2_specialist_boundary.py
+
+      - name: Download NAS100 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: vt08/artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: vt08/artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: vt08/artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Run Shared resident convergence economic no-sizing replay
+        run: |
+          set -euo pipefail
+          cd vt08
+          mkdir -p artifacts/shared-economic-v5
+          python scripts/vt08_index_shared_resident_convergence_economic_no_sizing_v5.py             --nas100-root artifacts/NAS100             --sp500-root artifacts/SP500             --us30-root artifacts/US30             --out artifacts/shared-economic-v5/vt08-index-shared-resident-convergence-economic-no-sizing-v5.json             | tee artifacts/shared-economic-v5/summary.json
+
+      - name: Validate resident convergence economic no-sizing contract
+        run: |
+          set -euo pipefail
+          cd vt08
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path(
+                  "artifacts/shared-economic-v5/"
+                  "vt08-index-shared-resident-convergence-economic-no-sizing-v5.json"
+              ).read_text()
+          )
+          assert p["identity"] == "QORE_SHARED_VT08_INDEX_RESIDENT_CONVERGENCE_ECONOMIC_NO_SIZING_V5"
+          c=p["challenge"]
+          assert c["source_pr"] == 604
+          assert c["source_head"] == "5e307ff861df136b92d857693997d8fb950f4d79"
+          assert c["shared_is_only_cognitive_engine"] is True
+          assert c["vt31_cognition_used"] is False
+          assert c["vt08_cognition_used_by_shared"] is False
+          assert c["same_opportunity_universe"] is True
+          assert c["same_initial_position_size"] is True
+          assert c["initial_size_r"] == "1"
+          assert c["sizing_used"] is False
+          assert c["capital_weighting_used"] is False
+          assert c["risk_weighting_used"] is False
+          assert c["signal_suppression_used"] is False
+          assert c["market_removal_used"] is False
+          assert c["calendar_filter_used"] is False
+          assert c["stop_widening_used"] is False
+          assert c["target_reduction_used"] is False
+          assert c["runtime_current_trade_outcome_used"] is False
+          assert c["runtime_future_market_used"] is False
+          assert c["resident_convergence_recomputed_each_closed_bar"] is True
+          assert "MULTI_AXIS_FUTURE_GEOMETRY" in c["resident_convergence_heads"]
+          assert "MULTI_HORIZON_COMPETING_FUTURES" in c["resident_convergence_heads"]
+          assert "DRAWDOWN_STABILITY" in c["resident_convergence_heads"]
+
+          expected = {
+              "five_year": 2448,
+              "recent_two_year": 1017,
+              "r66_consumed_failed_holdout": 773,
+          }
+          for key, sample in expected.items():
+              w=p[key]
+              assert w["sample"] == sample
+              assert w["canonical_expected"] == sample
+              assert w["density_retained"] == "1"
+              assert len(w["trades"]) == sample
+              assert w["shared_managed"]["primary"]["sample"] == sample
+              assert w["shared_managed"]["secondary"]["sample"] == sample
+
+          g=p["governance"]
+          assert g["sizing_forbidden"] is True
+          assert g["sizing_used"] is False
+          assert g["risk_budget_changed"] is False
+          assert g["vt08_methodology_modified"] is False
+          assert g["fresh_holdout_opened"] is False
+          assert g["live_authorized"] is False
+          assert g["production_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["merge_authorized"] is False
+
+          print(json.dumps({
+              "five_year":{
+                  "baseline":p["five_year"]["baseline"]["primary"],
+                  "managed":p["five_year"]["shared_managed"]["primary"],
+                  "delta":p["five_year"]["delta_vs_baseline"]["primary"],
+                  "management":p["five_year"]["management"],
+              },
+              "recent_two_year":{
+                  "baseline":p["recent_two_year"]["baseline"]["primary"],
+                  "managed":p["recent_two_year"]["shared_managed"]["primary"],
+                  "delta":p["recent_two_year"]["delta_vs_baseline"]["primary"],
+                  "management":p["recent_two_year"]["management"],
+              },
+              "r66":{
+                  "baseline":p["r66_consumed_failed_holdout"]["baseline"]["primary"],
+                  "managed":p["r66_consumed_failed_holdout"]["shared_managed"]["primary"],
+                  "delta":p["r66_consumed_failed_holdout"]["delta_vs_baseline"]["primary"],
+                  "management":p["r66_consumed_failed_holdout"]["management"],
+              },
+          },sort_keys=True))
+          PY
+
+      - name: Bind result
+        run: |
+          cd vt08/artifacts/shared-economic-v5
+          echo "$GITHUB_SHA" > shared-git-sha.txt
+          echo "5e307ff861df136b92d857693997d8fb950f4d79" > vt08-pr604-head.txt
+          find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          sha256sum -c SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-vt08-index-resident-convergence-economic-no-sizing-v5-${{ github.sha }}
+          path: vt08/artifacts/shared-economic-v5/
+          if-no-files-found: error
+          retention-days: 90
