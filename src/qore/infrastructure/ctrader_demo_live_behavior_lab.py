@@ -16,12 +16,12 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from threading import Lock
 
 
-class BehaviorStage(str, Enum):
+class BehaviorStage(StrEnum):
     SIGNAL = "SIGNAL"
     CIBO = "CIBO"
     RISK = "RISK"
@@ -107,7 +107,7 @@ class LiveBehaviorEvent:
         }
 
     @classmethod
-    def from_json(cls, value: Mapping[str, object]) -> "LiveBehaviorEvent":
+    def from_json(cls, value: Mapping[str, object]) -> LiveBehaviorEvent:
         observed = datetime.fromisoformat(str(value["observed_at"]))
         if observed.tzinfo is None or observed.utcoffset() is None:
             raise ValueError("behavior event observed_at must be timezone-aware")
