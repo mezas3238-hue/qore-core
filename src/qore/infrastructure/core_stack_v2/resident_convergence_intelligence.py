@@ -1,20 +1,19 @@
-"""Resident multi-head convergence intelligence for Shared Core.
+"""Relation-preserving resident convergence intelligence for Shared Core.
 
-Shared owns many independent causal views of the same market. This module keeps
-those views separate and then asks a narrow resident question:
+Shared has several independent causal heads. Their job is not to vote by
+averaging everything into one threat score. Terminal adversity and recoverable
+adversity are different *relations* between market state, future geometry and
+position path.
 
-    do independent Shared heads converge on terminal deterioration,
-    recoverable adversity, or supportive continuation *right now*?
+This module therefore uses categorical topology as the primary discriminator:
+- Future Geometry and Competing Futures preserve the prospective shape.
+- Environment and Trajectory confirm current deterioration/recovery.
+- Position Path confirms whether an open trade is failing or recovering.
+- Closed analog memory, drawdown phenotype memory and stability are advisory
+  context only; they cannot create a terminal/defensive state by themselves.
 
-It is intentionally generic and sizing-blind. It consumes only already-causal
-Shared assessments plus CLOSED historical memory summaries. It cannot place an
-order, resize risk, widen a stop, mutate a target, or inspect the current
-trade's terminal outcome/future market path.
-
-The purpose of this layer is to prevent two failure modes:
-1. late defense because one slow path model is still accumulating observations;
-2. false defense because a single adverse head overwhelms stronger recovery /
-   winner evidence from the rest of Shared.
+The layer is QORE-wide, trader-agnostic, outcome-blind for the current trade,
+future-blind, and has no sizing/risk/order/execution authority.
 """
 from __future__ import annotations
 
@@ -25,6 +24,7 @@ from enum import StrEnum
 
 from qore.infrastructure.core_stack_v2.competing_future_intelligence import (
     CompetingFutureAssessment,
+    CompetingFutureState,
 )
 from qore.infrastructure.core_stack_v2.drawdown_phenotype_memory import (
     DrawdownPhenotypeAssessment,
@@ -32,13 +32,16 @@ from qore.infrastructure.core_stack_v2.drawdown_phenotype_memory import (
 )
 from qore.infrastructure.core_stack_v2.environment_intelligence import (
     MarketEnvironmentAssessment,
+    MarketEnvironmentState,
 )
 from qore.infrastructure.core_stack_v2.future_geometry_intelligence import (
     FutureGeometryAssessment,
+    FutureGeometryState,
 )
 from qore.infrastructure.core_stack_v2.intelligence import AnalogSummary
 from qore.infrastructure.core_stack_v2.path_intelligence import (
     PositionPathAssessment,
+    PositionPathState,
 )
 from qore.infrastructure.core_stack_v2.stability_intelligence import (
     DrawdownStabilityAssessment,
@@ -46,6 +49,7 @@ from qore.infrastructure.core_stack_v2.stability_intelligence import (
 )
 from qore.infrastructure.core_stack_v2.transition_intelligence import (
     MarketTrajectoryAssessment,
+    MarketTrajectoryState,
 )
 
 
@@ -61,24 +65,18 @@ class ResidentConvergenceState(StrEnum):
 @dataclass(frozen=True, slots=True)
 class ResidentConvergencePolicy:
     minimum_active_heads: int = 4
-    terminal_vote_bps: int = 6_000
-    recovery_vote_bps: int = 6_000
-    support_vote_bps: int = 6_500
-    terminal_risk_bps: int = 6_500
-    rapid_risk_bps: int = 5_800
-    recovery_strength_bps: int = 6_000
-    support_strength_bps: int = 6_500
-    terminal_margin_bps: int = 1_000
-    rapid_margin_bps: int = 500
-    recovery_margin_bps: int = 750
     memory_minimum_confidence_bps: int = 2_500
+    advisory_loss_rate_bps: int = 6_500
+    advisory_winner_rate_bps: int = 6_500
 
     def __post_init__(self) -> None:
-        if self.minimum_active_heads < 3:
-            raise ValueError("minimum_active_heads must be at least 3")
-        for name in self.__dataclass_fields__:
-            if name == "minimum_active_heads":
-                continue
+        if self.minimum_active_heads < 4:
+            raise ValueError("minimum_active_heads must be at least 4")
+        for name in (
+            "memory_minimum_confidence_bps",
+            "advisory_loss_rate_bps",
+            "advisory_winner_rate_bps",
+        ):
             value = int(getattr(self, name))
             if not 0 <= value <= 10_000:
                 raise ValueError(f"{name} must be within 0..10000")
@@ -108,6 +106,8 @@ class ResidentConvergenceAssessment:
     target_authority: bool = False
 
     def __post_init__(self) -> None:
+        if self.as_of.tzinfo is None or self.as_of.utcoffset() is None:
+            raise ValueError("as_of must be timezone-aware")
         if self.active_head_count < 0:
             raise ValueError("active_head_count cannot be negative")
         for name in (
@@ -133,34 +133,6 @@ class ResidentConvergenceAssessment:
             raise ValueError("resident convergence cannot carry trading authority")
 
 
-@dataclass(frozen=True, slots=True)
-class _Head:
-    name: str
-    terminal_bps: int
-    recovery_bps: int
-    support_bps: int
-
-
-def _clip(value: int) -> int:
-    return max(0, min(10_000, int(value)))
-
-
-def _mean(*values: int) -> int:
-    if not values:
-        raise ValueError("mean requires values")
-    return sum(values) // len(values)
-
-
-def _blend_neutral(value_bps: int, confidence_bps: int) -> int:
-    return _clip(
-        (
-            value_bps * confidence_bps
-            + 5_000 * (10_000 - confidence_bps)
-        )
-        // 10_000
-    )
-
-
 def _decimal_bps(value: str | None) -> int | None:
     if value is None:
         return None
@@ -170,142 +142,115 @@ def _decimal_bps(value: str | None) -> int | None:
         return None
     if not parsed.is_finite():
         return None
-    return _clip(int(parsed * Decimal(10_000)))
+    return max(0, min(10_000, int(parsed * Decimal(10_000))))
 
 
-def _environment_head(value: MarketEnvironmentAssessment) -> _Head:
-    terminal = _mean(
-        value.adverse_environment_bps,
-        value.adverse_velocity_bps,
-        value.adverse_persistence_bps,
-        value.cross_market_fragility_bps,
-        value.structural_fragility_bps,
-    )
-    recovery = _mean(
-        value.recovery_velocity_bps,
-        value.recovery_persistence_bps,
-        value.market_support_bps,
-    )
-    return _Head("ENVIRONMENT", terminal, recovery, value.market_support_bps)
+def _ratio_bps(numerator: int, denominator: int) -> int:
+    if denominator <= 0:
+        return 0
+    return max(0, min(10_000, numerator * 10_000 // denominator))
 
 
-def _trajectory_head(value: MarketTrajectoryAssessment) -> _Head:
-    terminal = _mean(
-        value.adversity_bps,
-        value.deterioration_pressure_bps,
-        value.deterioration_velocity_bps,
-        value.deterioration_persistence_bps,
-    )
-    recovery = _mean(
-        value.recovery_velocity_bps,
-        value.recovery_persistence_bps,
-        value.support_bps,
-    )
-    return _Head("TRAJECTORY", terminal, recovery, value.support_bps)
+def _categorical_votes(
+    environment: MarketEnvironmentAssessment,
+    trajectory: MarketTrajectoryAssessment,
+    geometry: FutureGeometryAssessment,
+    futures: CompetingFutureAssessment,
+    path: PositionPathAssessment | None,
+) -> tuple[int, int, int, int]:
+    terminal = 0
+    recovery = 0
+    support = 0
+    active = 4
+
+    if environment.state in {
+        MarketEnvironmentState.ADVERSE_FORMING,
+        MarketEnvironmentState.DEFENSIVE,
+    }:
+        terminal += 1
+    elif environment.state in {
+        MarketEnvironmentState.STABILIZING,
+        MarketEnvironmentState.RESTORED,
+    }:
+        recovery += 1
+    elif environment.state is MarketEnvironmentState.SUPPORTIVE:
+        support += 1
+
+    if trajectory.state in {
+        MarketTrajectoryState.DETERIORATING,
+        MarketTrajectoryState.FAILURE,
+    }:
+        terminal += 1
+    elif trajectory.state in {
+        MarketTrajectoryState.STABILIZING,
+        MarketTrajectoryState.RECOVERING,
+    }:
+        recovery += 1
+    elif trajectory.state is MarketTrajectoryState.HEALTHY:
+        support += 1
+
+    if geometry.state is FutureGeometryState.TERMINAL_COLLAPSE:
+        terminal += 1
+    elif geometry.state is FutureGeometryState.RECOVERABLE_ADVERSITY:
+        recovery += 1
+    elif geometry.state is FutureGeometryState.SUPPORTIVE_CONTINUATION:
+        support += 1
+
+    if futures.state is CompetingFutureState.TERMINAL_ADVERSE:
+        terminal += 1
+    elif futures.state is CompetingFutureState.RECOVERABLE_ADVERSE:
+        recovery += 1
+    elif futures.state is CompetingFutureState.SUPPORTIVE:
+        support += 1
+
+    if path is not None and path.state is not PositionPathState.INSUFFICIENT:
+        active += 1
+        if path.state is PositionPathState.FAILURE_RISK:
+            terminal += 1
+        elif path.state in {
+            PositionPathState.RECOVERING,
+            PositionPathState.HEALTHY_PULLBACK,
+        }:
+            recovery += 1
+        elif path.state is PositionPathState.FAVORABLE_EXPANSION:
+            support += 1
+
+    return terminal, recovery, support, active
 
 
-def _geometry_head(value: FutureGeometryAssessment) -> _Head:
-    total = max(1, len(value.horizons))
-    terminal = _clip(
-        (
-            value.collapse_horizon_count * 10_000
-            + value.structural_agreement_bps
-        )
-        // (total + 1)
-    )
-    recovery = _clip(
-        (
-            value.recovery_horizon_count * 10_000
-            + value.resilient_horizon_count * 5_000
-            + value.structural_agreement_bps
-        )
-        // (total + 1)
-    )
-    support = _clip(
-        (
-            value.resilient_horizon_count * 10_000
-            + value.recovery_horizon_count * 6_500
-            + (10_000 - terminal)
-        )
-        // (total + 1)
-    )
-    return _Head("FUTURE_GEOMETRY", terminal, recovery, support)
-
-
-def _future_head(value: CompetingFutureAssessment) -> _Head:
-    terminal = value.terminal_evidence_bps
-    recovery = value.recovery_evidence_bps
-    support = _clip(
-        _mean(
-            10_000 - terminal,
-            recovery,
-            value.horizon_agreement_bps,
-        )
-    )
-    return _Head("COMPETING_FUTURES", terminal, recovery, support)
-
-
-def _path_head(value: PositionPathAssessment) -> _Head:
-    terminal = value.terminal_failure_risk_bps
-    recovery = _mean(
-        value.recovery_persistence_bps,
-        value.path_support_bps,
-        value.winner_protection_bps,
-    )
-    support = _mean(value.path_support_bps, value.winner_protection_bps)
-    return _Head("POSITION_PATH", terminal, recovery, support)
-
-
-def _analog_head(
-    value: AnalogSummary,
+def _advisory_reasons(
     *,
-    minimum_confidence_bps: int,
-) -> _Head | None:
-    if value.confidence_bps < minimum_confidence_bps:
-        return None
-    loss_rate = _decimal_bps(value.weighted_loss_rate)
-    if loss_rate is None:
-        return None
-    terminal = _blend_neutral(loss_rate, value.confidence_bps)
-    recovery = _blend_neutral(10_000 - loss_rate, value.confidence_bps)
-    return _Head("CAUSAL_ANALOG_MEMORY", terminal, recovery, recovery)
+    analog: AnalogSummary | None,
+    phenotype: DrawdownPhenotypeAssessment | None,
+    stability: DrawdownStabilityAssessment | None,
+    policy: ResidentConvergencePolicy,
+) -> tuple[str, ...]:
+    reasons: list[str] = []
 
+    if analog is not None and analog.confidence_bps >= policy.memory_minimum_confidence_bps:
+        loss_rate = _decimal_bps(analog.weighted_loss_rate)
+        if loss_rate is not None:
+            if loss_rate >= policy.advisory_loss_rate_bps:
+                reasons.append("CAUSAL_MEMORY_ADVERSE_CONTEXT_ONLY")
+            elif 10_000 - loss_rate >= policy.advisory_winner_rate_bps:
+                reasons.append("CAUSAL_MEMORY_WINNER_CONTEXT_ONLY")
 
-def _phenotype_head(
-    value: DrawdownPhenotypeAssessment,
-    *,
-    minimum_confidence_bps: int,
-) -> _Head | None:
-    if value.confidence_bps < minimum_confidence_bps:
-        return None
-    base_terminal = {
-        DrawdownPhenotypeRecognition.UNKNOWN: 5_000,
-        DrawdownPhenotypeRecognition.KNOWN_PURE_LOSS: 8_500,
-        DrawdownPhenotypeRecognition.KNOWN_LOSS_BIASED: 7_000,
-        DrawdownPhenotypeRecognition.KNOWN_AMBIGUOUS: 5_000,
-        DrawdownPhenotypeRecognition.KNOWN_WINNER_OVERLAP: 3_500,
-    }[value.recognition]
-    terminal = _blend_neutral(base_terminal, value.confidence_bps)
-    recovery = _blend_neutral(10_000 - base_terminal, value.confidence_bps)
-    return _Head("DRAWDOWN_PHENOTYPE_MEMORY", terminal, recovery, recovery)
+    if phenotype is not None and phenotype.confidence_bps >= policy.memory_minimum_confidence_bps:
+        if phenotype.recognition in {
+            DrawdownPhenotypeRecognition.KNOWN_PURE_LOSS,
+            DrawdownPhenotypeRecognition.KNOWN_LOSS_BIASED,
+        }:
+            reasons.append("DRAWDOWN_PHENOTYPE_ADVERSE_CONTEXT_ONLY")
+        elif phenotype.recognition is DrawdownPhenotypeRecognition.KNOWN_WINNER_OVERLAP:
+            reasons.append("DRAWDOWN_PHENOTYPE_WINNER_CONTEXT_ONLY")
 
+    if stability is not None:
+        if stability.mode is StabilityMode.DEFENSIVE:
+            reasons.append("DRAWDOWN_STABILITY_DEFENSIVE_CONTEXT_ONLY")
+        elif stability.mode is StabilityMode.RECOVERY:
+            reasons.append("DRAWDOWN_STABILITY_RECOVERY_CONTEXT_ONLY")
 
-def _stability_head(value: DrawdownStabilityAssessment) -> _Head:
-    terminal = _mean(
-        value.drawdown_pressure_bps,
-        value.loss_cluster_pressure_bps,
-        value.market_adversity_bps,
-        value.deterioration_pressure_bps,
-    )
-    recovery = value.recovery_confidence_bps
-    support = _clip(
-        _mean(
-            10_000 - value.deterioration_pressure_bps,
-            value.recovery_confidence_bps,
-            7_000 if value.mode in {StabilityMode.STABLE, StabilityMode.RECOVERY} else 3_000,
-        )
-    )
-    return _Head("DRAWDOWN_STABILITY", terminal, recovery, support)
+    return tuple(reasons)
 
 
 def assess_resident_convergence(
@@ -320,6 +265,7 @@ def assess_resident_convergence(
     stability: DrawdownStabilityAssessment | None = None,
     policy: ResidentConvergencePolicy | None = None,
 ) -> ResidentConvergenceAssessment:
+    """Resolve resident Shared state by causal relation, never scalar averaging."""
     effective = policy or ResidentConvergencePolicy()
     as_of = environment.as_of
     for name, stamp in (
@@ -336,111 +282,166 @@ def assess_resident_convergence(
     if stability is not None and stability.as_of != as_of:
         raise ValueError("stability assessment must share resident as_of")
 
-    heads: list[_Head] = [
-        _environment_head(environment),
-        _trajectory_head(trajectory),
-        _geometry_head(geometry),
-        _future_head(futures),
-    ]
-    if path is not None:
-        heads.append(_path_head(path))
-    if analog is not None:
-        head = _analog_head(
-            analog,
-            minimum_confidence_bps=effective.memory_minimum_confidence_bps,
-        )
-        if head is not None:
-            heads.append(head)
-    if phenotype is not None:
-        head = _phenotype_head(
-            phenotype,
-            minimum_confidence_bps=effective.memory_minimum_confidence_bps,
-        )
-        if head is not None:
-            heads.append(head)
-    if stability is not None:
-        heads.append(_stability_head(stability))
-
-    active = len(heads)
-    terminal = _mean(*(item.terminal_bps for item in heads))
-    recovery = _mean(*(item.recovery_bps for item in heads))
-    support = _mean(*(item.support_bps for item in heads))
-    terminal_votes = sum(
-        item.terminal_bps >= effective.terminal_vote_bps
-        and item.terminal_bps >= item.recovery_bps
-        for item in heads
+    terminal_votes, recovery_votes, support_votes, active = _categorical_votes(
+        environment,
+        trajectory,
+        geometry,
+        futures,
+        path,
     )
-    recovery_votes = sum(
-        item.recovery_bps >= effective.recovery_vote_bps
-        and item.recovery_bps > item.terminal_bps
-        for item in heads
-    )
-    support_votes = sum(
-        item.support_bps >= effective.support_vote_bps
-        and item.terminal_bps < effective.terminal_vote_bps
-        for item in heads
-    )
-    dominant_votes = max(terminal_votes, recovery_votes, support_votes)
-    agreement = 0 if active == 0 else dominant_votes * 10_000 // active
-
     reasons: list[str] = []
-    if active < effective.minimum_active_heads:
+
+    insufficient = (
+        environment.state is MarketEnvironmentState.INSUFFICIENT
+        or trajectory.state is MarketTrajectoryState.INSUFFICIENT
+        or geometry.state is FutureGeometryState.INSUFFICIENT
+        or futures.state is CompetingFutureState.INSUFFICIENT
+        or active < effective.minimum_active_heads
+    )
+
+    future_terminal_pair = (
+        geometry.state is FutureGeometryState.TERMINAL_COLLAPSE
+        and futures.state is CompetingFutureState.TERMINAL_ADVERSE
+    )
+    current_failure_pair = (
+        environment.state
+        in {
+            MarketEnvironmentState.ADVERSE_FORMING,
+            MarketEnvironmentState.DEFENSIVE,
+        }
+        and trajectory.state
+        in {
+            MarketTrajectoryState.DETERIORATING,
+            MarketTrajectoryState.FAILURE,
+        }
+    )
+    future_recovery_present = (
+        geometry.state is FutureGeometryState.RECOVERABLE_ADVERSITY
+        or futures.state is CompetingFutureState.RECOVERABLE_ADVERSE
+    )
+    path_recovery_present = (
+        path is not None
+        and path.state
+        in {
+            PositionPathState.RECOVERING,
+            PositionPathState.HEALTHY_PULLBACK,
+            PositionPathState.FAVORABLE_EXPANSION,
+        }
+    )
+    path_failure_present = (
+        path is not None and path.state is PositionPathState.FAILURE_RISK
+    )
+    one_terminal_future = (
+        geometry.state is FutureGeometryState.TERMINAL_COLLAPSE
+        or futures.state is CompetingFutureState.TERMINAL_ADVERSE
+    )
+    future_support_pair = (
+        geometry.state is FutureGeometryState.SUPPORTIVE_CONTINUATION
+        and futures.state is CompetingFutureState.SUPPORTIVE
+    )
+    current_support_present = (
+        environment.state
+        in {
+            MarketEnvironmentState.SUPPORTIVE,
+            MarketEnvironmentState.STABILIZING,
+            MarketEnvironmentState.RESTORED,
+        }
+        and trajectory.state
+        in {
+            MarketTrajectoryState.HEALTHY,
+            MarketTrajectoryState.STABILIZING,
+            MarketTrajectoryState.RECOVERING,
+        }
+    )
+
+    if insufficient:
         state = ResidentConvergenceState.INSUFFICIENT
-        reasons.append("RESIDENT_HEAD_COVERAGE_INSUFFICIENT")
-    elif (
-        terminal_votes >= 3
-        and terminal >= effective.terminal_risk_bps
-        and terminal >= recovery + effective.terminal_margin_bps
-        and support < effective.support_strength_bps
-    ):
-        state = ResidentConvergenceState.TERMINAL_FAILURE
-        reasons.extend(
-            (
-                "MULTI_HEAD_TERMINAL_CONVERGENCE",
-                "TERMINAL_RISK_DOMINATES_RECOVERY",
-            )
-        )
-    elif (
-        recovery_votes >= 3
-        and recovery >= effective.recovery_strength_bps
-        and recovery >= terminal + effective.recovery_margin_bps
-    ):
+        reasons.append("RESIDENT_RELATIONAL_EVIDENCE_INSUFFICIENT")
+    elif future_recovery_present and not future_terminal_pair:
         state = ResidentConvergenceState.RECOVERABLE_ADVERSITY
         reasons.extend(
             (
-                "MULTI_HEAD_RECOVERY_CONVERGENCE",
-                "RECOVERY_DOMINATES_TERMINAL_RISK",
+                "RECOVERABLE_FUTURE_EXPLICIT",
+                "RECOVERY_VETOES_TERMINAL_DEFENSE",
+            )
+        )
+    elif path_recovery_present and not future_terminal_pair:
+        state = ResidentConvergenceState.RECOVERABLE_ADVERSITY
+        reasons.extend(
+            (
+                "POSITION_PATH_RECOVERY_EXPLICIT",
+                "WINNER_OR_RECOVERY_PATH_VETOES_TERMINAL_DEFENSE",
+            )
+        )
+    elif future_terminal_pair and current_failure_pair:
+        state = ResidentConvergenceState.TERMINAL_FAILURE
+        reasons.extend(
+            (
+                "FUTURE_GEOMETRY_AND_COMPETING_FUTURES_TERMINAL",
+                "CURRENT_ENVIRONMENT_AND_TRAJECTORY_CONFIRM_FAILURE",
             )
         )
     elif (
-        support_votes >= 3
-        and support >= effective.support_strength_bps
-        and terminal < effective.rapid_risk_bps
-    ):
-        state = ResidentConvergenceState.SUPPORTIVE_CONTINUATION
-        reasons.append("MULTI_HEAD_SUPPORTIVE_CONTINUATION")
-    elif (
-        terminal_votes >= 2
-        and terminal >= effective.rapid_risk_bps
-        and terminal >= recovery + effective.rapid_margin_bps
+        current_failure_pair
+        and one_terminal_future
+        and not future_recovery_present
+        and (
+            path_failure_present
+            or geometry.state is not FutureGeometryState.SUPPORTIVE_CONTINUATION
+            or futures.state is not CompetingFutureState.SUPPORTIVE
+        )
     ):
         state = ResidentConvergenceState.RAPID_DETERIORATION
         reasons.extend(
             (
-                "MULTI_HEAD_RAPID_DETERIORATION",
-                "TERMINAL_RISK_LEADS_RECOVERY",
+                "CURRENT_MARKET_FAILURE_CONFIRMED",
+                "ONE_PROSPECTIVE_TERMINAL_HEAD_CONFIRMS_DANGER",
+            )
+        )
+    elif future_support_pair and current_support_present:
+        state = ResidentConvergenceState.SUPPORTIVE_CONTINUATION
+        reasons.extend(
+            (
+                "FUTURE_SUPPORT_PAIR_CONFIRMED",
+                "CURRENT_MARKET_SUPPORT_CONFIRMED",
             )
         )
     else:
         state = ResidentConvergenceState.CONTESTED
-        reasons.append("SHARED_HEADS_NOT_YET_DECISIVELY_SEPARATED")
+        reasons.append("RELATIONAL_TOPOLOGY_NOT_DECISIVE")
 
-    if terminal_votes:
-        reasons.append(f"TERMINAL_HEADS_{terminal_votes}")
-    if recovery_votes:
-        reasons.append(f"RECOVERY_HEADS_{recovery_votes}")
-    if support_votes:
-        reasons.append(f"SUPPORT_HEADS_{support_votes}")
+    terminal_risk = _ratio_bps(terminal_votes, active)
+    recovery_strength = _ratio_bps(recovery_votes, active)
+    support_strength = _ratio_bps(support_votes, active)
+    dominant = max(terminal_votes, recovery_votes, support_votes)
+    agreement = _ratio_bps(dominant, active)
+
+    if state is ResidentConvergenceState.TERMINAL_FAILURE:
+        terminal_risk = max(terminal_risk, 8_000)
+    elif state is ResidentConvergenceState.RAPID_DETERIORATION:
+        terminal_risk = max(terminal_risk, 6_500)
+    elif state is ResidentConvergenceState.RECOVERABLE_ADVERSITY:
+        recovery_strength = max(recovery_strength, 7_000)
+        terminal_risk = min(terminal_risk, 4_500)
+    elif state is ResidentConvergenceState.SUPPORTIVE_CONTINUATION:
+        support_strength = max(support_strength, 7_500)
+        terminal_risk = min(terminal_risk, 3_500)
+
+    reasons.extend(
+        _advisory_reasons(
+            analog=analog,
+            phenotype=phenotype,
+            stability=stability,
+            policy=effective,
+        )
+    )
+    reasons.extend(
+        (
+            f"TERMINAL_CAUSAL_HEADS_{terminal_votes}",
+            f"RECOVERY_CAUSAL_HEADS_{recovery_votes}",
+            f"SUPPORT_CAUSAL_HEADS_{support_votes}",
+        )
+    )
 
     return ResidentConvergenceAssessment(
         as_of=as_of,
@@ -449,9 +450,9 @@ def assess_resident_convergence(
         terminal_vote_count=terminal_votes,
         recovery_vote_count=recovery_votes,
         support_vote_count=support_votes,
-        terminal_risk_bps=terminal,
-        recovery_strength_bps=recovery,
-        support_strength_bps=support,
+        terminal_risk_bps=terminal_risk,
+        recovery_strength_bps=recovery_strength,
+        support_strength_bps=support_strength,
         head_agreement_bps=agreement,
-        reasons=tuple(reasons),
+        reasons=tuple(dict.fromkeys(reasons)),
     )
