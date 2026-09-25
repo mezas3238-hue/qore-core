@@ -5,12 +5,13 @@ import hashlib
 import json
 from typing import Final
 
-SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_010"
+SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_011"
 
 _CAPABILITIES: Final = (
     "PERCEPTION_INTEGRITY",
     "HISTORICAL_CAUSAL_MARKET_MEMORY",
     "DEEP_MARKET_WORLD_MODEL",
+    "MULTI_HORIZON_COMPETING_FUTURES_INTELLIGENCE",
     "REGIME_AND_TRANSITION_INTELLIGENCE",
     "ATTENTION_AND_CHANGE_DETECTION",
     "HYPOTHESIS_ENSEMBLE",
@@ -223,6 +224,34 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "runtime_must_be_able_to_mark_unknown_or_unseen_form": True,
                 "runtime_outcome_input_forbidden": True,
                 "future_market_path_forbidden": True,
+                "sizing_dependency_forbidden": True,
+                "phase_1_actuation_authority": False,
+            },
+            "multi_horizon_competing_futures": {
+                "required": True,
+                "purpose": (
+                    "Shared must distinguish terminal adversity from recoverable "
+                    "adversity by preserving causal relations across multiple "
+                    "pre-entry horizons instead of collapsing the market into one "
+                    "scalar threat/support average."
+                ),
+                "terminal_and_recovery_futures_must_be_explicit_and_competing": True,
+                "multi_horizon_state_required": True,
+                "minimum_distinct_horizons": 2,
+                "preferred_horizons_minutes": (5, 15, 30, 60),
+                "broad_horizon_structural_confirmation_required": True,
+                "fast_adversity_may_coexist_with_broad_recovery": True,
+                "support_vs_adversity_relation_preserved": True,
+                "recovery_vs_deterioration_velocity_relation_preserved": True,
+                "recovery_vs_deterioration_persistence_relation_preserved": True,
+                "cross_market_confirmation_vs_fragility_relation_preserved": True,
+                "trend_support_vs_structural_fragility_relation_preserved": True,
+                "scalar_average_cannot_be_primary_discriminator": True,
+                "forced_binary_guess_when_futures_conflict_forbidden": True,
+                "conflicted_and_insufficient_states_must_remain_explicit": True,
+                "runtime_outcome_input_forbidden": True,
+                "runtime_pnl_input_forbidden": True,
+                "historical_outcome_lookup_in_hot_path_forbidden": True,
                 "sizing_dependency_forbidden": True,
                 "phase_1_actuation_authority": False,
             },
@@ -476,6 +505,10 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "must_identify_adverse_market_cause_not_only_outcome": True,
                 "must_distinguish_terminal_loss_risk_from_recoverable_pullback": True,
                 "must_preserve_large_winner_classification": True,
+                "must_use_competing_terminal_vs_recoverable_futures": True,
+                "must_use_multi_horizon_causal_state": True,
+                "single_short_window_as_primary_discriminator_forbidden": True,
+                "scalar_threat_average_as_primary_discriminator_forbidden": True,
                 "must_pass_both_consumed_folds_before_phase_2": True,
                 "universal_drawdown_form_capture_required": True,
                 "pure_and_ambiguous_dd_forms_must_both_be_retained": True,
