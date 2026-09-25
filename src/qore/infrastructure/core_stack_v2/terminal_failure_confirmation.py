@@ -14,7 +14,8 @@ execution authority.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Sequence
+from dataclasses import dataclass, replace
 from datetime import datetime
 from enum import StrEnum
 
@@ -210,3 +211,50 @@ def assess_terminal_failure(
         uncertainty_bps=belief.uncertainty_bps,
         reasons=tuple(dict.fromkeys(reasons)),
     )
+
+def resolve_terminal_failure_sequence(
+    assessments: Sequence[TerminalFailureAssessment],
+    *,
+    ambiguity_confirmations: int = 2,
+) -> TerminalFailureAssessment:
+    """Promote only persistent extreme ambiguity using causal history."""
+    if not assessments:
+        raise ValueError("at least one terminal-failure assessment is required")
+    if ambiguity_confirmations < 2:
+        raise ValueError("ambiguity_confirmations must be at least 2")
+
+    for left, right in zip(assessments, assessments[1:], strict=False):
+        if right.as_of <= left.as_of:
+            raise ValueError(
+                "terminal-failure assessments must be strictly increasing and causal"
+            )
+
+    latest = assessments[-1]
+    if latest.state is not TerminalFailureState.EXTREME_ADVERSE_AMBIGUITY:
+        return latest
+
+    tail = tuple(assessments[-ambiguity_confirmations:])
+    persistent = (
+        len(tail) == ambiguity_confirmations
+        and all(
+            item.state is TerminalFailureState.EXTREME_ADVERSE_AMBIGUITY
+            for item in tail
+        )
+    )
+    if not persistent:
+        return latest
+
+    return replace(
+        latest,
+        state=TerminalFailureState.TERMINAL_CONFIRMED,
+        reasons=tuple(
+            dict.fromkeys(
+                (
+                    *latest.reasons,
+                    "EXTREME_ADVERSE_AMBIGUITY_PERSISTED",
+                    "TERMINAL_CONFIRMATION_PROMOTED_BY_CAUSAL_PERSISTENCE",
+                )
+            )
+        ),
+    )
+
