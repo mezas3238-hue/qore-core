@@ -7,7 +7,7 @@ from qore.infrastructure.trader_lab import (
 )
 
 
-def _row(symbol: str, entry_at: str, value: str) -> dict[str, object]:
+def _row(symbol: str, entry_at: str, value: str) -> dict[str, Any]:
     return {
         "symbol": symbol,
         "entry_at": entry_at,
