@@ -39,6 +39,7 @@ from qore.infrastructure.core_stack_v2.transition_intelligence import (
 class CompetingRiskBeliefState:
     as_of: datetime
     stop_pressure_bps: int
+    stop_formation_bps: int
     target_capacity_bps: int
     recovery_strength_bps: int
     uncertainty_bps: int
@@ -62,6 +63,7 @@ class CompetingRiskBeliefState:
             raise ValueError("as_of must be timezone-aware")
         for name in (
             "stop_pressure_bps",
+            "stop_formation_bps",
             "target_capacity_bps",
             "recovery_strength_bps",
             "uncertainty_bps",
@@ -217,6 +219,7 @@ def assess_competing_risk_path(
     )
     if not path_available:
         stop_pressure = min(5_000, max(current_terminal, prospective_terminal))
+        stop_formation = min(4_500, max(current_terminal, prospective_terminal))
         target_capacity = min(4_000, max(current_target, prospective_target))
         recovery_strength = min(5_000, max(current_recovery, prospective_recovery))
         uncertainty = max(
@@ -249,6 +252,25 @@ def assess_competing_risk_path(
             path_terminal,
             max(current_terminal, prospective_terminal),
         )
+        path_stop_formation = min(
+            max(
+                10_000 - path.path_support_bps,
+                path.adverse_dominance_bps,
+            ),
+            max(
+                path.terminal_failure_risk_bps,
+                path.adverse_persistence_bps,
+            ),
+        )
+        stop_formation = path_stop_formation
+        if path.state in {
+            PositionPathState.HEALTHY_PULLBACK,
+            PositionPathState.RECOVERING,
+        }:
+            stop_formation = min(stop_formation, 4_500)
+        elif path.state is PositionPathState.FAVORABLE_EXPANSION:
+            stop_formation = min(stop_formation, 3_500)
+
         target_capacity = min(
             path_target,
             max(current_target, prospective_target),
@@ -297,6 +319,7 @@ def assess_competing_risk_path(
     return CompetingRiskBeliefState(
         as_of=as_of,
         stop_pressure_bps=_clamp(stop_pressure),
+        stop_formation_bps=_clamp(stop_formation),
         target_capacity_bps=_clamp(target_capacity),
         recovery_strength_bps=_clamp(recovery_strength),
         uncertainty_bps=_clamp(uncertainty),
