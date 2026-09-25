@@ -218,7 +218,7 @@ def test_conflicting_future_shape_remains_contested() -> None:
     assert result.hypothesis is StopTargetHypothesis.CONTESTED
 
 
-def test_phase_one_freeze_blocks_management_until_discrimination_passes() -> None:
+def test_phase_one_pass_unlocks_research_only_management() -> None:
     contract = superintelligence_freeze_contract()
     path = contract["shared_essential_intelligence"]["causal_position_path_asymmetry"]
     management = contract["shared_essential_intelligence"]["realtime_trade_management"]
@@ -228,4 +228,5 @@ def test_phase_one_freeze_blocks_management_until_discrimination_passes() -> Non
     assert path["classification_must_be_shadow_only_until_phase_1_passes"] is True
     assert management["unlock_requires_possible_stop_possible_target_discrimination_pass"] is True
     assert management["trailing_and_target_extension_forbidden_for_phase_1_primary_claim"] is True
-    assert management["may_contribute_to_current_primary_dd_claim"] is False
+    assert management["may_contribute_to_current_primary_dd_claim"] is True
+    assert management["research_status"] == "ACTIVE_RESEARCH_ONLY_AFTER_PHASE_1_CONSUMED_PASS"
