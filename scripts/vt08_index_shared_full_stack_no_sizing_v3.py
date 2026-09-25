@@ -25,11 +25,9 @@ import heapq
 import json
 from collections import Counter, defaultdict
 from collections.abc import Sequence
-from dataclasses import asdict
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
 
 import vt08_index_shared_cognitive_challenge_v2 as v2
 
@@ -54,7 +52,6 @@ from qore.infrastructure.core_stack_v2.drawdown_phenotype_memory import (
 from qore.infrastructure.core_stack_v2.environment_intelligence import (
     MarketEnvironmentAssessment,
     MarketEnvironmentObservation,
-    MarketEnvironmentState,
     assess_market_environment,
 )
 from qore.infrastructure.core_stack_v2.future_geometry_intelligence import (
@@ -65,7 +62,6 @@ from qore.infrastructure.core_stack_v2.future_geometry_intelligence import (
 )
 from qore.infrastructure.core_stack_v2.instinct_intelligence import (
     InstinctAssessment,
-    SupportMethodology,
     assess_instinct,
 )
 from qore.infrastructure.core_stack_v2.journey_intelligence import (
@@ -74,7 +70,6 @@ from qore.infrastructure.core_stack_v2.journey_intelligence import (
 )
 from qore.infrastructure.core_stack_v2.path_intelligence import (
     PositionPathObservation,
-    PositionPathState,
     assess_position_path,
 )
 from qore.infrastructure.core_stack_v2.perception_engine import (
@@ -94,7 +89,6 @@ from qore.infrastructure.core_stack_v2.stability_intelligence import (
 from qore.infrastructure.core_stack_v2.transition_intelligence import (
     MarketTrajectoryAssessment,
     MarketTransitionObservation,
-    MarketTrajectoryState,
     assess_market_trajectory,
 )
 
