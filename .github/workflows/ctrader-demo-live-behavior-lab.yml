@@ -37,7 +37,8 @@ jobs:
           python -m py_compile \
             scripts/qore_ctrader_demo_free_runtime.py \
             scripts/vt31_nas100_ctrader_demo_adapter.py \
-            src/qore/infrastructure/ctrader_demo_free_sink.py
+            src/qore/infrastructure/ctrader_demo_free_sink.py \
+            src/qore/infrastructure/ctrader_demo_full_api.py
 
       - name: Mypy new lab code
         run: |
