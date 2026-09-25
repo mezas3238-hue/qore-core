@@ -492,7 +492,7 @@ def _unknown_mutation(
         submission_digest="sha256:" + "d" * 64,
         client_order_id=client_order_id,
         state=state,
-        transitioned_at=transitioned_at or _NOW - timedelta(minutes=2),
+        transitioned_at=transitioned_at or _NOW - timedelta(minutes=10),
         risk_authorization_id="risk-reconcile-test",
         risk_authorization_fingerprint="e" * 64,
         risk_reservation_id="risk-reconcile-test",
