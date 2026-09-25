@@ -36,9 +36,6 @@ from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_destination_departure_binding_audit_2r_v1 as departure_binding,
 )
 from qore.infrastructure.trader_lab import (
-    capitalizer_cognitive_economic_rebase_2r_v1 as rebase,
-)
-from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_regime_evidence_binding_audit_2r_v1 as regime_binding,
 )
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
