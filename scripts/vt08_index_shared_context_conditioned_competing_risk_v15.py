@@ -32,9 +32,8 @@ from statistics import median
 from typing import Any
 
 import numpy as np
-from sklearn.linear_model import LogisticRegression
-
 import vt08_index_shared_competing_risk_calibration_v9 as v9
+from sklearn.linear_model import LogisticRegression
 
 IDENTITY = "QORE_SHARED_VT08_CONTEXT_CONDITIONED_COMPETING_RISK_V15"
 SCHEMA = "qore.shared.vt08_context_conditioned_competing_risk.v15"
