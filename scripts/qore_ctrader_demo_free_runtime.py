@@ -154,6 +154,7 @@ from qore.infrastructure.ctrader_demo_vt08_sizing import (
 )
 from qore.infrastructure.ctrader_demo_live_behavior_lab import (
     CTraderDemoLiveBehaviorLedger,
+    CTraderDemoMarketTape,
     management_observation_payload,
     position_path_observation_payload,
 )
@@ -878,6 +879,30 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         str(row["qore_symbol"]): Decimal(str(row["source_contract_size_units"]))
         for row in binding_raw["contracts"]
     }
+    market_tape = CTraderDemoMarketTape(
+        root
+        / "artifacts"
+        / "ctrader_demo_live_behavior_lab"
+        / "market-tape.jsonl"
+    )
+
+    def record_market_tick(
+        symbol: str,
+        symbol_id: int,
+        bid: Decimal,
+        ask: Decimal,
+        provider_at: datetime,
+        received_at: datetime,
+    ) -> None:
+        market_tape.append(
+            symbol=symbol,
+            symbol_id=symbol_id,
+            bid=bid,
+            ask=ask,
+            provider_at=provider_at,
+            received_at=received_at,
+        )
+
     demo_api = CTraderDemoFullApi(
         client=demo_sink.client,
         binding=demo_sink.binding,
@@ -885,6 +910,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         registry=demo_sink.registry,
         binding_path=root / "var" / "ctrader_demo_free" / "binding.json",
         source_contract_sizes=demo_source_contract_sizes,
+        spot_observer=record_market_tick,
     )
     if not demo_api.initialize():
         raise RuntimeError("cTrader DEMO independent market-data initialization failed")
@@ -1113,11 +1139,15 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "audjpy_r42_incremental_cache": True,
             "ctrader_demo_execution_enabled": True,
             "behavior_lab_active": True,
-            "behavior_lab_mode": "CONTINUOUS_READ_ONLY",
+            "behavior_lab_mode": "CONTINUOUS_SUPERVISION",
             "behavior_lab_runtime_ledger": (
                 "artifacts/ctrader_demo_live_behavior_lab/"
                 "runtime-events.normalized.jsonl"
             ),
+            "behavior_lab_market_tape": (
+                "artifacts/ctrader_demo_live_behavior_lab/market-tape.jsonl"
+            ),
+            "behavior_lab_market_tape_mode": "EVERY_VALID_BROKER_SPOT_EVENT",
             "risk_role": "CAPITAL_ALLOCATOR_ONLY",
         },
     )
