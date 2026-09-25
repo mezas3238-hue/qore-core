@@ -23,6 +23,10 @@ from qore.infrastructure.core_stack_v2.path_intelligence import (
     PositionPathAssessment,
     PositionPathState,
 )
+from qore.infrastructure.core_stack_v2.resident_convergence_intelligence import (
+    ResidentConvergenceAssessment,
+    ResidentConvergenceState,
+)
 from qore.infrastructure.core_stack_v2.transition_intelligence import (
     MarketTrajectoryAssessment,
     MarketTrajectoryState,
@@ -135,6 +139,10 @@ def _mean4(a: int, b: int, c: int, d: int) -> int:
     return (a + b + c + d) // 4
 
 
+def _mean5(a: int, b: int, c: int, d: int, e: int) -> int:
+    return (a + b + c + d + e) // 5
+
+
 def _clamp(value: int) -> int:
     return max(0, min(10_000, value))
 
@@ -144,6 +152,7 @@ def assess_instinct(
     trajectory: MarketTrajectoryAssessment,
     *,
     path: PositionPathAssessment | None = None,
+    convergence: ResidentConvergenceAssessment | None = None,
     opportunity_quality_bps: int = 5_000,
     expansion_capacity_bps: int = 5_000,
     data_integrity_bps: int = 10_000,
@@ -163,31 +172,61 @@ def assess_instinct(
         raise ValueError("resident environment and trajectory assessments must share as_of")
     if path is not None and path.as_of != environment.as_of:
         raise ValueError("resident path assessment must share as_of")
+    if convergence is not None and convergence.as_of != environment.as_of:
+        raise ValueError("resident convergence assessment must share as_of")
 
     as_of = environment.as_of.astimezone(UTC)
     path_failure = 0 if path is None else path.terminal_failure_risk_bps
     winner_protection = 0 if path is None else path.winner_protection_bps
 
-    market_support = _mean4(
-        environment.market_support_bps,
-        trajectory.support_bps,
-        opportunity_quality_bps,
-        expansion_capacity_bps,
+    convergence_terminal = 0 if convergence is None else convergence.terminal_risk_bps
+    convergence_recovery = 0 if convergence is None else convergence.recovery_strength_bps
+    convergence_support = 0 if convergence is None else convergence.support_strength_bps
+
+    market_support = (
+        _mean4(
+            environment.market_support_bps,
+            trajectory.support_bps,
+            opportunity_quality_bps,
+            expansion_capacity_bps,
+        )
+        if convergence is None
+        else _mean5(
+            environment.market_support_bps,
+            trajectory.support_bps,
+            opportunity_quality_bps,
+            expansion_capacity_bps,
+            convergence_support,
+        )
     )
-    threat = (
-        _mean3(
+    if path is None and convergence is None:
+        threat = _mean3(
             environment.adverse_environment_bps,
             trajectory.deterioration_pressure_bps,
             trajectory.adversity_bps,
         )
-        if path is None
-        else _mean4(
+    elif path is None:
+        threat = _mean4(
+            environment.adverse_environment_bps,
+            trajectory.deterioration_pressure_bps,
+            trajectory.adversity_bps,
+            convergence_terminal,
+        )
+    elif convergence is None:
+        threat = _mean4(
             environment.adverse_environment_bps,
             trajectory.deterioration_pressure_bps,
             trajectory.adversity_bps,
             path_failure,
         )
-    )
+    else:
+        threat = _mean5(
+            environment.adverse_environment_bps,
+            trajectory.deterioration_pressure_bps,
+            trajectory.adversity_bps,
+            path_failure,
+            convergence_terminal,
+        )
     urgency = _clamp(
         _mean4(
             environment.adverse_velocity_bps,
@@ -211,6 +250,14 @@ def assess_instinct(
             trajectory.adversity_bps,
             trajectory.deterioration_pressure_bps,
         )
+        if convergence is None
+        else _mean5(
+            environment.cross_market_fragility_bps,
+            environment.structural_fragility_bps,
+            trajectory.adversity_bps,
+            trajectory.deterioration_pressure_bps,
+            convergence_terminal,
+        )
     )
     resilience = _clamp(
         _mean4(
@@ -219,8 +266,25 @@ def assess_instinct(
             environment.recovery_velocity_bps,
             trajectory.recovery_velocity_bps,
         )
+        if convergence is None
+        else _mean5(
+            environment.market_support_bps,
+            trajectory.support_bps,
+            environment.recovery_velocity_bps,
+            trajectory.recovery_velocity_bps,
+            convergence_recovery,
+        )
     )
-    threat_convergence = _clamp(_mean3(threat, urgency, structural_risk))
+    threat_convergence = _clamp(
+        _mean3(threat, urgency, structural_risk)
+        if convergence is None
+        else _mean4(
+            threat,
+            urgency,
+            structural_risk,
+            convergence_terminal,
+        )
+    )
 
     confidence = _clamp(
         _mean4(
@@ -232,14 +296,35 @@ def assess_instinct(
                 trajectory.recovery_persistence_bps,
             ),
         )
+        if convergence is None
+        else _mean5(
+            data_integrity_bps,
+            10_000 - abs(environment.adverse_environment_bps - trajectory.adversity_bps),
+            max(environment.adverse_persistence_bps, environment.recovery_persistence_bps),
+            max(
+                trajectory.deterioration_persistence_bps,
+                trajectory.recovery_persistence_bps,
+            ),
+            convergence.head_agreement_bps,
+        )
     )
 
     reasons: list[str] = []
+    fast_convergence_available = (
+        convergence is not None
+        and convergence.active_head_count >= 4
+        and convergence.state is not ResidentConvergenceState.INSUFFICIENT
+    )
+    path_insufficient = (
+        path is not None
+        and path.state is PositionPathState.INSUFFICIENT
+        and not fast_convergence_available
+    )
     insufficient = (
         data_integrity_bps < effective.minimum_integrity_bps
         or environment.state is MarketEnvironmentState.INSUFFICIENT
         or trajectory.state is MarketTrajectoryState.INSUFFICIENT
-        or (path is not None and path.state is PositionPathState.INSUFFICIENT)
+        or path_insufficient
     )
     if insufficient:
         situation = InstinctSituation.INSUFFICIENT
@@ -256,6 +341,55 @@ def assess_instinct(
         situation = InstinctSituation.HEALTHY_CONTINUATION
         methodology = SupportMethodology.WINNER_PROTECTION
         reasons.extend(("ESTABLISHED_WINNER_PATH", "FALSE_DEFENSE_MUST_BE_AVOIDED"))
+    elif (
+        convergence is not None
+        and convergence.state is ResidentConvergenceState.RECOVERABLE_ADVERSITY
+    ):
+        situation = InstinctSituation.RECOVERY_BUILDING
+        methodology = SupportMethodology.RECOVERY_SUPPORT
+        reasons.extend(
+            (
+                "RESIDENT_RECOVERY_CONVERGENCE",
+                "FALSE_DEFENSE_BLOCKED_BY_RECOVERY_EVIDENCE",
+            )
+        )
+    elif (
+        convergence is not None
+        and convergence.state is ResidentConvergenceState.TERMINAL_FAILURE
+    ):
+        situation = InstinctSituation.TERMINAL_FAILURE_RISK
+        methodology = SupportMethodology.IMMEDIATE_DEFENSE
+        reasons.extend(
+            (
+                "RESIDENT_MULTI_HEAD_TERMINAL_CONVERGENCE",
+                "FAST_DEFENSE_WITHOUT_WAITING_FOR_SLOW_PATH",
+            )
+        )
+    elif (
+        convergence is not None
+        and convergence.state is ResidentConvergenceState.RAPID_DETERIORATION
+    ):
+        situation = InstinctSituation.RAPID_DETERIORATION
+        methodology = SupportMethodology.PROGRESSIVE_DEFENSE
+        reasons.extend(
+            (
+                "RESIDENT_MULTI_HEAD_RAPID_DETERIORATION",
+                "EARLY_DEFENSE_FROM_TRANSVERSAL_SHARED_EVIDENCE",
+            )
+        )
+    elif (
+        convergence is not None
+        and convergence.state is ResidentConvergenceState.SUPPORTIVE_CONTINUATION
+        and expansion_capacity_bps >= effective.extension_capacity_bps
+    ):
+        situation = InstinctSituation.SUPPORTIVE_EXPANSION
+        methodology = SupportMethodology.EXTENSION_SUPPORT
+        reasons.extend(
+            (
+                "RESIDENT_SUPPORTIVE_CONVERGENCE",
+                "EXPANSION_CAPACITY_HIGH",
+            )
+        )
     elif (
         path is not None
         and path.state is PositionPathState.FAILURE_RISK
