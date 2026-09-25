@@ -234,7 +234,7 @@ def _decision(
             f"AUDUSD:{trade.source_opened_at}:{trade.confirmation_opened_at}"
         ),
         source_event_id=trade.source_opened_at,
-        event_generation=max(1, int(trade.source_generation)),
+        event_generation=1,
         attention_state=CrtPureAttentionState.DECISION,
         hypothesis_stage=CrtPureHypothesisStage.CONFIRMED,
         data_integrity_ok=True,
