@@ -257,11 +257,12 @@ def build_report(
             Decimal(str(item["metrics"]["max_drawdown_r"]))
             for item in per_policy
         )
-        min_pf = min(
+        finite_pfs = tuple(
             Decimal(str(item["metrics"]["profit_factor"]))
             for item in per_policy
             if item["metrics"]["profit_factor"] is not None
         )
+        min_pf = min(finite_pfs) if finite_pfs else None
         min_total = min(
             Decimal(str(item["metrics"]["total_r"]))
             for item in per_policy
@@ -292,7 +293,9 @@ def build_report(
                 ),
                 "policy_results": per_policy,
                 "worst_case_max_drawdown_r": str(worst_dd),
-                "worst_case_profit_factor": str(min_pf),
+                "worst_case_profit_factor": (
+                    None if min_pf is None else str(min_pf)
+                ),
                 "worst_case_total_r": str(min_total),
                 "worst_case_density_retention": str(min_density),
                 "all_policies_at_or_below_6r_dd": worst_dd <= DD_CEILING,
