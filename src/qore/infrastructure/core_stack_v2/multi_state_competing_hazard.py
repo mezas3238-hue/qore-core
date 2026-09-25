@@ -123,9 +123,10 @@ def assess_competing_hazards(
     else:
         decision = CompetingHazardDecision.CONTESTED
         reasons = (
-            "WINNER_VETO_ACTIVE" if veto and adverse > favorable
-            else "HAZARDS_NOT_SEPARATED"
-        ,)
+            "WINNER_VETO_ACTIVE"
+            if veto and adverse > favorable
+            else "HAZARDS_NOT_SEPARATED",
+        )
 
     return CompetingHazardAssessment(
         as_of=evidence.as_of,
