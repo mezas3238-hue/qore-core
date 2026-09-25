@@ -32,6 +32,7 @@ class CompetingRiskDecision(StrEnum):
 class CompetingRiskDecisionPolicy:
     confirmation_observations: int = 3
     hazard_threshold_bps: int = 6_500
+    formation_threshold_bps: int = 5_000
     minimum_margin_bps: int = 1_800
     persistence_bps: int = 10_000
     maximum_uncertainty_bps: int = 6_500
@@ -43,6 +44,7 @@ class CompetingRiskDecisionPolicy:
             raise ValueError("confirmation_observations must be at least 2")
         for name in (
             "hazard_threshold_bps",
+            "formation_threshold_bps",
             "minimum_margin_bps",
             "persistence_bps",
             "maximum_uncertainty_bps",
@@ -60,9 +62,11 @@ class CompetingRiskDecisionState:
     decision: CompetingRiskDecision
     evidence_count: int
     stop_persistence_bps: int
+    stop_formation_persistence_bps: int
     target_persistence_bps: int
     recovery_persistence_bps: int
     latest_stop_hazard_bps: int
+    latest_stop_formation_bps: int
     latest_target_hazard_bps: int
     latest_recovery_strength_bps: int
     latest_uncertainty_bps: int
@@ -82,9 +86,11 @@ class CompetingRiskDecisionState:
             raise ValueError("evidence_count must be positive")
         for name in (
             "stop_persistence_bps",
+            "stop_formation_persistence_bps",
             "target_persistence_bps",
             "recovery_persistence_bps",
             "latest_stop_hazard_bps",
+            "latest_stop_formation_bps",
             "latest_target_hazard_bps",
             "latest_recovery_strength_bps",
             "latest_uncertainty_bps",
@@ -108,6 +114,18 @@ def _ratio(count: int, total: int) -> int:
     if total <= 0:
         return 0
     return count * 10_000 // total
+
+
+def _stop_formation_qualifies(
+    item: CompetingRiskBeliefState,
+    policy: CompetingRiskDecisionPolicy,
+) -> bool:
+    return (
+        item.path_evidence_available
+        and item.stop_formation_bps >= policy.formation_threshold_bps
+        and item.stop_formation_bps > item.target_hazard_proxy_bps
+        and item.recovery_strength_bps < policy.recovery_veto_bps
+    )
 
 
 def _stop_qualifies(
@@ -166,13 +184,18 @@ def assess_competing_risk_decision(
     window = tuple(beliefs[-effective.confirmation_observations :])
     latest = window[-1]
     stop_count = sum(_stop_qualifies(item, effective) for item in window)
+    stop_formation_count = sum(
+        _stop_formation_qualifies(item, effective) for item in window
+    )
     target_count = sum(_target_qualifies(item, effective) for item in window)
     recovery_count = sum(_recovery_qualifies(item, effective) for item in window)
     stop_persistence = _ratio(stop_count, len(window))
+    stop_formation_persistence = _ratio(stop_formation_count, len(window))
     target_persistence = _ratio(target_count, len(window))
     recovery_persistence = _ratio(recovery_count, len(window))
 
     latest_stop = _stop_qualifies(latest, effective)
+    latest_stop_formation = _stop_formation_qualifies(latest, effective)
     latest_target = _target_qualifies(latest, effective)
     latest_recovery = _recovery_qualifies(latest, effective)
     enough_history = len(window) >= effective.confirmation_observations
@@ -208,6 +231,14 @@ def assess_competing_risk_decision(
             (
                 "STOP_HAZARD_SEPARATED",
                 "STOP_PERSISTENCE_NOT_YET_CONFIRMED",
+            )
+        )
+    elif latest_stop_formation:
+        decision = CompetingRiskDecision.STOP_FORMING
+        reasons.extend(
+            (
+                "EARLY_STOP_FORMATION_PRESSURE_PRESENT",
+                "CONFIRMED_STOP_HAZARD_NOT_YET_ESTABLISHED",
             )
         )
     elif (
@@ -247,9 +278,11 @@ def assess_competing_risk_decision(
         decision=decision,
         evidence_count=len(window),
         stop_persistence_bps=stop_persistence,
+        stop_formation_persistence_bps=stop_formation_persistence,
         target_persistence_bps=target_persistence,
         recovery_persistence_bps=recovery_persistence,
         latest_stop_hazard_bps=latest.stop_hazard_proxy_bps,
+        latest_stop_formation_bps=latest.stop_formation_bps,
         latest_target_hazard_bps=latest.target_hazard_proxy_bps,
         latest_recovery_strength_bps=latest.recovery_strength_bps,
         latest_uncertainty_bps=latest.uncertainty_bps,
