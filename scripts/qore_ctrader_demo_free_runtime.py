@@ -152,6 +152,9 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
 from qore.infrastructure.ctrader_demo_vt08_sizing import (
     build_ctrader_demo_vt08_cibo_request,
 )
+from qore.infrastructure.ctrader_demo_live_behavior_lab import (
+    management_observation_payload,
+)
 
 # Load only the cTrader DEMO VT31 adapter.  The frozen VT31 strategy remains
 # unchanged; this adapter replaces broker/account transport and execution.
@@ -1082,6 +1085,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         },
     )
     last_lifecycle: str | None = None
+    last_management_observation: dict[str, str] = {}
 
     while True:
         cycle_started = time.monotonic()
@@ -2083,6 +2087,68 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     mutations_enabled=True,
                     log=lambda event: _log(log_path, event),
                 )
+
+                management_rows = (
+                    (
+                        "R34_XAUUSD",
+                        "XAUUSD",
+                        r34_live_state,
+                        (
+                            "r34-static-sl-tp-hold"
+                            if r34_live_state.open_trade is not None
+                            else "no-open-r34-position"
+                        ),
+                    ),
+                    ("R38_EURUSD", "EURUSD", r38_live_state, r38_manage_reason),
+                    ("R43_GBPUSD", "GBPUSD", r43_live_state, r43_manage_reason),
+                    (
+                        "R38_GBPJPY",
+                        "GBPJPY",
+                        gbpjpy_r38_live_state,
+                        gbpjpy_r38_manage_reason,
+                    ),
+                    (
+                        "R42_AUDJPY",
+                        "AUDJPY",
+                        audjpy_r42_live_state,
+                        audjpy_r42_manage_reason,
+                    ),
+                    ("VT31_NAS100", "NAS100", vt31_live_state, vt31_manage_reason),
+                )
+                for (
+                    management_trader,
+                    management_symbol,
+                    management_state,
+                    management_reason,
+                ) in management_rows:
+                    observation = management_observation_payload(
+                        trader=management_trader,
+                        symbol=management_symbol,
+                        state=management_state,
+                        reason=management_reason,
+                        observed_at=cycle_at,
+                    )
+                    stable_observation = {
+                        key: value
+                        for key, value in observation.items()
+                        if key != "observed_at"
+                    }
+                    observation_fingerprint = hashlib.sha256(
+                        json.dumps(
+                            stable_observation,
+                            sort_keys=True,
+                            default=str,
+                            separators=(",", ":"),
+                        ).encode("utf-8")
+                    ).hexdigest()
+                    if (
+                        last_management_observation.get(management_trader)
+                        != observation_fingerprint
+                    ):
+                        _log(log_path, observation)
+                        last_management_observation[management_trader] = (
+                            observation_fingerprint
+                        )
 
                 # Certified 24h lifecycle for Turtle Soup lineages.
                 for state_obj, reason, label in (
