@@ -2080,20 +2080,24 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             or vt31_store.load().open_trade is not None
         )
         if demo_has_state:
+            management_trader = "R34_XAUUSD"
             try:
                 r34_live_state = r34_store.reconcile(demo_management_api, now=cycle_at)
+                management_trader = "R38_EURUSD"
                 r38_live_state, r38_manage_reason = manage_r38_open_position(
                     demo_management_api,
                     now=cycle_at,
                     store=r38_store,
                     cache=m5_caches["EURUSD"],
                 )
+                management_trader = "R43_GBPUSD"
                 r43_live_state, r43_manage_reason = manage_r43_open_position(
                     demo_management_api,
                     now=cycle_at,
                     store=r43_store,
                     cache=m5_caches["GBPUSD"],
                 )
+                management_trader = "R38_GBPJPY"
                 gbpjpy_r38_live_state, gbpjpy_r38_manage_reason = manage_gbpjpy_r38_open_position(
                     demo_management_api,
                     now=cycle_at,
@@ -2101,6 +2105,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     mutations_enabled=True,
                     cache=m5_caches["GBPJPY"],
                 )
+                management_trader = "R42_AUDJPY"
                 audjpy_r42_live_state, audjpy_r42_manage_reason = manage_audjpy_r42_open_position(
                     demo_management_api,
                     now=cycle_at,
@@ -2108,6 +2113,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     mutations_enabled=True,
                     cache=audjpy_r42_cache,
                 )
+                management_trader = "VT31_NAS100"
                 # VT31 reads a fresh broker tick inside reconcile/management.
                 # Do not compare that tick with cycle_at captured several seconds
                 # earlier after other trader management and API work.
@@ -2167,7 +2173,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         symbol=management_symbol,
                         state=management_state,
                         reason=management_reason,
-                        observed_at=cycle_at,
+                        observed_at=datetime.now(UTC),
                     )
                     stable_observation = {
                         key: value
@@ -2250,14 +2256,33 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             },
                         )
             except Exception as demo_management_error:
-                _log(
-                    log_path,
-                    {
-                        "event": "CTRADER_DEMO_MANAGEMENT_FAIL_CLOSED",
-                        "reason": type(demo_management_error).__name__,
-                        "message": str(demo_management_error),
-                    },
-                )
+                fault_signal: str | None = None
+                try:
+                    fault_store = {
+                        "R34_XAUUSD": r34_store,
+                        "R38_EURUSD": r38_store,
+                        "R43_GBPUSD": r43_store,
+                        "R38_GBPJPY": gbpjpy_r38_store,
+                        "R42_AUDJPY": audjpy_r42_store,
+                        "VT31_NAS100": vt31_store,
+                    }[management_trader]
+                    fault_opened = getattr(fault_store.load(), "open_trade", None)
+                    fault_signal = (
+                        None
+                        if fault_opened is None
+                        else getattr(fault_opened, "signal_fingerprint", None)
+                    )
+                except Exception:
+                    fault_signal = None
+                failure_payload: dict[str, object] = {
+                    "event": "CTRADER_DEMO_MANAGEMENT_FAIL_CLOSED",
+                    "trader": management_trader,
+                    "reason": type(demo_management_error).__name__,
+                    "message": str(demo_management_error),
+                }
+                if fault_signal:
+                    failure_payload["signal_fingerprint"] = fault_signal
+                _log(log_path, failure_payload)
                 r34_live_state = r34_store.load()
                 r38_live_state = r38_store.load()
                 r43_live_state = r43_store.load()
