@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 
 from qore.infrastructure.ctrader_demo_live_behavior_lab import (
     BehaviorStage,
@@ -15,7 +16,7 @@ from qore.infrastructure.ctrader_demo_live_behavior_lab import (
 NOW = datetime(2026, 9, 25, 15, 0, tzinfo=UTC)
 
 
-def test_behavior_ledger_round_trip_is_append_only(tmp_path):
+def test_behavior_ledger_round_trip_is_append_only(tmp_path: Path) -> None:
     ledger = CTraderDemoLiveBehaviorLedger(tmp_path / "behavior.jsonl")
     first = ledger.record_raw(
         {
@@ -47,7 +48,7 @@ def test_behavior_ledger_round_trip_is_append_only(tmp_path):
     assert rows[1].stage is BehaviorStage.EXECUTION
 
 
-def test_vt31_case_reports_missing_cibo_and_protection_as_observation_not_failure():
+def test_vt31_case_reports_missing_cibo_and_protection_as_observation_not_failure() -> None:
     signal = "b" * 64
     events = (
         normalize_runtime_event(
@@ -92,7 +93,7 @@ def test_vt31_case_reports_missing_cibo_and_protection_as_observation_not_failur
     assert report.fault_events == ()
 
 
-def test_vt31_protection_event_is_preserved_in_same_case():
+def test_vt31_protection_event_is_preserved_in_same_case() -> None:
     signal = "c" * 64
     events = (
         normalize_runtime_event(
@@ -135,7 +136,7 @@ def test_vt31_protection_event_is_preserved_in_same_case():
     assert "position_exited_without_observed_protection_event" not in report.observations
 
 
-def test_stage_classifier_keeps_management_distinct_from_execution():
+def test_stage_classifier_keeps_management_distinct_from_execution() -> None:
     assert classify_stage("VT31_NAS100_PS2_STOP_ADVANCED") is BehaviorStage.MANAGEMENT
     assert classify_stage("VT31_NAS100_DOL1_QUARTER_BANKED") is BehaviorStage.MANAGEMENT
     assert classify_stage("CTRADER_DEMO_FREE_SUBMIT") is BehaviorStage.EXECUTION
@@ -143,7 +144,7 @@ def test_stage_classifier_keeps_management_distinct_from_execution():
 
 
 
-def test_management_observation_is_passive_and_preserves_vt31_state():
+def test_management_observation_is_passive_and_preserves_vt31_state() -> None:
     class Opened:
         signal_fingerprint = "d" * 64
         client_order_id = "qore-vt31-1"
@@ -176,7 +177,7 @@ def test_management_observation_is_passive_and_preserves_vt31_state():
 
 
 
-def test_position_path_samples_measure_favorable_adverse_and_protection_history():
+def test_position_path_samples_measure_favorable_adverse_and_protection_history() -> None:
     signal = "e" * 64
     samples = (
         position_path_observation_payload(
@@ -226,7 +227,7 @@ def test_position_path_samples_measure_favorable_adverse_and_protection_history(
     assert report.volume_history == ("1", "0.5")
 
 
-def test_position_path_preserves_zero_missing_protection():
+def test_position_path_preserves_zero_missing_protection() -> None:
     payload = position_path_observation_payload(
         trader="R34_XAUUSD",
         symbol="XAUUSD",
