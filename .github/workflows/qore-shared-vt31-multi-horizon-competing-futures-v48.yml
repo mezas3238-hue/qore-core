@@ -7,6 +7,7 @@ on:
     paths:
       - src/qore/infrastructure/core_stack_v2/competing_future_intelligence.py
       - scripts/vt31_core_stack_v4_multi_horizon_competing_futures_v48.py
+      - tests/infrastructure/test_core_stack_v2_competing_future_intelligence.py
       - .github/workflows/qore-shared-vt31-multi-horizon-competing-futures-v48.yml
   workflow_dispatch:
 
