@@ -5,6 +5,13 @@ from qore.infrastructure.core_stack_v2.ab import (
     DecisionObservation,
     summarize_decision_ab,
 )
+from qore.infrastructure.core_stack_v2.adversity_challenge_intelligence import (
+    AdversityChallengeAssessment,
+    AdversityChallengeObservation,
+    AdversityChallengePolicy,
+    AdversityChallengeState,
+    assess_adversity_challenge,
+)
 from qore.infrastructure.core_stack_v2.adapters import (
     CoreAdapter,
     TraderCognitiveContext,
@@ -195,6 +202,10 @@ from qore.infrastructure.core_stack_v2.transition_intelligence import (
 
 __all__ = [
     "CORE_STACK_VERSION",
+    "AdversityChallengeAssessment",
+    "AdversityChallengeObservation",
+    "AdversityChallengePolicy",
+    "AdversityChallengeState",
     "AutonomousDefenseAction",
     "AutonomousLossDefenseDirective",
     "AutonomousLossDefenseEvidence",
@@ -306,6 +317,7 @@ __all__ = [
     "TraderCognitiveContext",
     "UncertaintyState",
     "WorldState",
+    "assess_adversity_challenge",
     "assess_autonomous_loss_defense",
     "assess_drawdown_stability",
     "assess_stop_target_path",
