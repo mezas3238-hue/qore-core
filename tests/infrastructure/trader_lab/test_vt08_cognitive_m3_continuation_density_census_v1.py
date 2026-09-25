@@ -2,8 +2,8 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab.vt08_cognitive_m3_continuation_density_census_v1 import (
-    ContinuationOpportunity,
     SCHEMA,
+    ContinuationOpportunity,
 )
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 
