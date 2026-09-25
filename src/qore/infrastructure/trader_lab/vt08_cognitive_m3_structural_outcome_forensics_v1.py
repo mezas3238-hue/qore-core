@@ -16,6 +16,9 @@ from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_backtest_v1 impo
     metrics,
     model_trade,
 )
+from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_evaluator_v1 import (
+    Vt08ExpansionCandidate,
+)
 from qore.infrastructure.trader_lab.vt08_cognitive_latest_ps_core_stack_frontier_v1 import (
     _candidate_rows,
 )
@@ -53,7 +56,7 @@ def _with_side(side: DemoTradingSetupSide, open_: Decimal, close: Decimal) -> st
     return "WITH_SIDE" if aligned else "AGAINST_SIDE"
 
 
-def _features(candidate: object, *, ps_count: int) -> dict[str, str]:
+def _features(candidate: Vt08ExpansionCandidate, *, ps_count: int) -> dict[str, str]:
     side = candidate.side
     reference = candidate.reference_h4
     c2 = candidate.candle2
