@@ -1,0 +1,114 @@
+name: VT08 Index R133 Shared R75 Density Attribution
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r133-shared-r75-density-attribution.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r133_shared_r75_density_attribution.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r133_shared_r75_density_attribution.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r133_shared_r75_density_attribution.py
+
+  attribution:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute R133 Shared attribution on R75 density
+        run: |
+          mkdir -p artifacts/report
+          python -m qore.infrastructure.trader_lab.vt08_index_r133_shared_r75_density_attribution \
+            --nas100-root artifacts/NAS100 \
+            --sp500-root artifacts/SP500 \
+            --us30-root artifacts/US30 \
+            --out artifacts/report/vt08-index-r133-shared-r75-density-attribution.json
+
+      - name: Verify R133 contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "artifacts/report/"
+                  "vt08-index-r133-shared-r75-density-attribution.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "VT08_INDEX_R133_SHARED_R75_ADDED_DENSITY_ATTRIBUTION_001"
+          )
+          assert report["source_r132"]["run_id"] == 36174146167
+          expected = {
+              "five_year": 139,
+              "recent_two_year": 68,
+              "r66_failed_holdout": 42,
+          }
+          for key, sample in expected.items():
+              assert report[key]["sample"] == sample
+
+          contract = report["classification_contract"]
+          assert contract["classification_before_outcome_attachment"] is True
+          assert contract["trade_outcome_used_for_classification"] is False
+          assert contract["pnl_used_for_classification"] is False
+          assert contract["signal_suppression"] is False
+          assert contract["candidate_selected"] is False
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt08-index-r133-shared-r75-density-attribution-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

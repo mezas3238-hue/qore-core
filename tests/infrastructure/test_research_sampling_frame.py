@@ -6,6 +6,7 @@ from uuid import UUID
 
 import pytest
 
+from qore.infrastructure import research_sampling_frame as sampling_module
 from qore.infrastructure.research_economic_evidence import (
     ResearchFillEvidence,
     ResearchGrossEconomicResult,
@@ -223,3 +224,38 @@ def test_non_overlap_does_not_claim_independence_or_significance() -> None:
     assert not hasattr(frame, "stationary")
     assert not hasattr(frame, "p_value")
     assert not hasattr(frame, "statistically_significant")
+
+
+def test_sampling_frame_builder_computes_overlap_pairs_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sampling_module._PREVALIDATED_FRAME_COMPONENTS.clear()
+    first = _sample(
+        suffix=60,
+        opened_at=_BASE,
+        closed_at=_BASE + timedelta(minutes=10),
+    )
+    second = _sample(
+        suffix=61,
+        opened_at=_BASE + timedelta(minutes=5),
+        closed_at=_BASE + timedelta(minutes=15),
+    )
+    calls = 0
+    original = sampling_module._overlapping_pairs
+
+    def counted(
+        intervals: tuple[sampling_module.ResearchHoldingInterval, ...],
+    ) -> tuple[
+        tuple[ResearchReturnObservationId, ResearchReturnObservationId], ...
+    ]:
+        nonlocal calls
+        calls += 1
+        return original(intervals)
+
+    monkeypatch.setattr(sampling_module, "_overlapping_pairs", counted)
+    built = build_research_sampling_frame(
+        frame_id=ResearchSamplingFrameId(_uuid(160)),
+        frozen_oos=_frozen_oos(((first, second),)),
+    )
+    assert isinstance(built, Success)
+    assert calls == 1

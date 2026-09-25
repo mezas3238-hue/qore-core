@@ -743,6 +743,10 @@ def _stage_reference(
             gate=TraderLabGovernedGate.INDEPENDENT_VALIDATION,
             suffix=suffix,
         )
+    if stage is TraderLabStage.ECONOMIC_EVIDENCE:
+        return reference_research_economic(
+            candidate, _return_observation(candidate, suffix=900)
+        )
     raise AssertionError(f"unexpected stage: {stage}")
 
 

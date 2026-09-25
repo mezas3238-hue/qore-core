@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 from uuid import UUID
 
 from qore.domain.events import CorrelationId
@@ -29,6 +30,10 @@ from qore.infrastructure.ctrader_demo_execution_gateway import (
     CTraderDemoExecutionGateway,
     CTraderDemoExecutionGatewayValidationError,
     CTraderDemoExecutionTransportBoundary,
+)
+from qore.infrastructure.ctrader_demo_mutation_ledger import (
+    InMemoryCTraderDemoMutationLedger,
+    JsonFileCTraderDemoMutationLedger,
 )
 from qore.infrastructure.execution_boundary import (
     ExecutionBoundaryError,
@@ -187,6 +192,7 @@ def _fill_payload(
     cumulative_volume: int = 4,
     is_complete: bool = False,
     timestamp: str = "2026-08-08T23:30:06+00:00",
+    price: str = "1.23456",
 ) -> bytes:
     return json.dumps(
         {
@@ -195,7 +201,7 @@ def _fill_payload(
             "symbolId": 1234,
             "filledVolume": filled_volume,
             "cumulativeVolume": cumulative_volume,
-            "price": "1.23456",
+            "price": price,
             "timestamp": timestamp,
             "isComplete": is_complete,
         }
@@ -211,15 +217,22 @@ class _FakeExecutionTransport:
         submit_error: ExecutionBoundaryError | None = None,
         cancel_response: ExternalTransportResponse | None = None,
         query_response: ExternalTransportResponse | None = None,
+        discover_response: ExternalTransportResponse | None = None,
+        discover_error: ExecutionBoundaryError | None = None,
     ) -> None:
         self._configuration = configuration
         self.create_response = create_response
         self.submit_error = submit_error
         self.cancel_response = cancel_response
         self.query_response = query_response
+        self.discover_response = discover_response
+        self.discover_error = discover_error
         self.submit_calls: list[tuple[CTraderOrderCreatePlan, ExternalRequestMetadata]] = []
         self.cancel_calls: list[tuple[CTraderOrderCancelPlan, ExternalRequestMetadata]] = []
         self.query_calls: list[tuple[str, ExternalRequestMetadata]] = []
+        self.discover_calls: list[
+            tuple[CTraderOrderCreatePlan, datetime, datetime, ExternalRequestMetadata]
+        ] = []
 
     @property
     def configuration(self) -> CTraderDemoRuntimeConfiguration:
@@ -259,6 +272,21 @@ class _FakeExecutionTransport:
             return Failure(CTraderDemoExecutionGatewayValidationError("query unavailable"))
         return Success(self.query_response)
 
+    def discover_order(
+        self,
+        plan: CTraderOrderCreatePlan,
+        *,
+        from_timestamp: datetime,
+        to_timestamp: datetime,
+        metadata: ExternalRequestMetadata,
+    ) -> Result[ExternalTransportResponse, ExecutionBoundaryError]:
+        self.discover_calls.append((plan, from_timestamp, to_timestamp, metadata))
+        if self.discover_error is not None:
+            return Failure(self.discover_error)
+        if self.discover_response is None:
+            return Failure(CTraderDemoExecutionGatewayValidationError("discovery unavailable"))
+        return Success(self.discover_response)
+
 
 def _gateway(
     *,
@@ -267,6 +295,7 @@ def _gateway(
     return CTraderDemoExecutionGateway(
         configuration=_configuration(),
         transport=transport,
+        mutation_ledger=InMemoryCTraderDemoMutationLedger(),
     )
 
 
@@ -594,6 +623,297 @@ def test_resolve_unknown_outcome_recovers_definitive_state() -> None:
     assert resolved.value.provider_order_ref == "70001"
 
 
+def test_discover_unknown_outcome_binds_unique_match_then_reconciles() -> None:
+    submission = _submission()
+    transport = _FakeExecutionTransport(
+        configuration=_configuration(),
+        submit_error=CTraderDemoExecutionGatewayValidationError("disconnect"),
+        discover_response=ExternalTransportResponse(
+            status_code=200,
+            received_at=_NOW + timedelta(seconds=9),
+            payload=b'{"orderId":"70001","status":"accepted"}',
+        ),
+        query_response=ExternalTransportResponse(
+            status_code=200,
+            received_at=_NOW + timedelta(seconds=10),
+            payload=(
+                b'{"orderId":"70001","status":"filled",'
+                b'"createdAt":"2026-08-08T23:30:05+00:00"}'
+            ),
+        ),
+    )
+    gateway = _gateway(transport=transport)
+    assert isinstance(gateway.submit(account=_ACCOUNT, submission=submission), Failure)
+
+    result = gateway.discover_unknown_outcome(
+        receipt_id=submission.receipt_id,
+        from_timestamp=_NOW,
+        to_timestamp=_NOW + timedelta(minutes=1),
+        searched_at=_NOW + timedelta(seconds=8),
+    )
+
+    assert isinstance(result, Success)
+    assert result.value.state is CTraderDemoAttemptState.RESOLVED
+    assert result.value.provider_order_ref == "70001"
+    assert len(transport.discover_calls) == 1
+    assert transport.query_calls == [("70001", _METADATA)]
+    assert len(transport.submit_calls) == 1
+
+
+def test_discover_unknown_outcome_complete_zero_match_resolves_without_retry() -> None:
+    submission = _submission()
+    transport = _FakeExecutionTransport(
+        configuration=_configuration(),
+        submit_error=CTraderDemoExecutionGatewayValidationError("disconnect"),
+        discover_response=ExternalTransportResponse(
+            status_code=404,
+            received_at=_NOW + timedelta(seconds=9),
+            payload=b'{"reason":"complete search found no match"}',
+        ),
+    )
+    gateway = _gateway(transport=transport)
+    assert isinstance(gateway.submit(account=_ACCOUNT, submission=submission), Failure)
+
+    result = gateway.discover_unknown_outcome(
+        receipt_id=submission.receipt_id,
+        from_timestamp=_NOW,
+        to_timestamp=_NOW + timedelta(minutes=1),
+        searched_at=_NOW + timedelta(seconds=8),
+    )
+
+    assert isinstance(result, Success)
+    assert result.value.state is CTraderDemoAttemptState.RESOLVED
+    assert result.value.provider_order_ref is None
+    assert transport.query_calls == []
+    assert len(transport.submit_calls) == 1
+
+
+def test_discover_unknown_outcome_ambiguous_or_incomplete_is_contained() -> None:
+    for response in (
+        ExternalTransportResponse(
+            status_code=409,
+            received_at=_NOW + timedelta(seconds=9),
+            payload=b'{"reason":"multiple matches"}',
+        ),
+        None,
+    ):
+        submission = _submission(suffix=40 if response is not None else 41)
+        transport = _FakeExecutionTransport(
+            configuration=_configuration(),
+            submit_error=CTraderDemoExecutionGatewayValidationError("disconnect"),
+            discover_response=response,
+            discover_error=(
+                None
+                if response is not None
+                else CTraderDemoExecutionGatewayValidationError("incomplete search")
+            ),
+        )
+        gateway = _gateway(transport=transport)
+        assert isinstance(gateway.submit(account=_ACCOUNT, submission=submission), Failure)
+
+        result = gateway.discover_unknown_outcome(
+            receipt_id=submission.receipt_id,
+            from_timestamp=_NOW,
+            to_timestamp=_NOW + timedelta(minutes=1),
+            searched_at=_NOW + timedelta(seconds=8),
+        )
+
+        assert isinstance(result, Success)
+        assert result.value.state is CTraderDemoAttemptState.CONTAINED
+        assert transport.query_calls == []
+        assert len(transport.submit_calls) == 1
+
+
+def test_discover_unknown_outcome_contradictory_query_is_contained() -> None:
+    submission = _submission(suffix=42)
+    transport = _FakeExecutionTransport(
+        configuration=_configuration(),
+        submit_error=CTraderDemoExecutionGatewayValidationError("disconnect"),
+        discover_response=ExternalTransportResponse(
+            status_code=200,
+            received_at=_NOW + timedelta(seconds=9),
+            payload=b'{"orderId":"70001"}',
+        ),
+        query_response=ExternalTransportResponse(
+            status_code=404,
+            received_at=_NOW + timedelta(seconds=10),
+            payload=b"{}",
+        ),
+    )
+    gateway = _gateway(transport=transport)
+    assert isinstance(gateway.submit(account=_ACCOUNT, submission=submission), Failure)
+
+    result = gateway.discover_unknown_outcome(
+        receipt_id=submission.receipt_id,
+        from_timestamp=_NOW,
+        to_timestamp=_NOW + timedelta(minutes=1),
+        searched_at=_NOW + timedelta(seconds=8),
+    )
+
+    assert isinstance(result, Success)
+    assert result.value.state is CTraderDemoAttemptState.CONTAINED
+    assert len(transport.submit_calls) == 1
+
+
+def test_discover_unknown_outcome_query_failure_is_contained() -> None:
+    submission = _submission(suffix=46)
+    transport = _FakeExecutionTransport(
+        configuration=_configuration(),
+        submit_error=CTraderDemoExecutionGatewayValidationError("disconnect"),
+        discover_response=ExternalTransportResponse(
+            status_code=200,
+            received_at=_NOW + timedelta(seconds=9),
+            payload=b'{"orderId":"70001"}',
+        ),
+    )
+    gateway = _gateway(transport=transport)
+    assert isinstance(gateway.submit(account=_ACCOUNT, submission=submission), Failure)
+
+    result = gateway.discover_unknown_outcome(
+        receipt_id=submission.receipt_id,
+        from_timestamp=_NOW,
+        to_timestamp=_NOW + timedelta(minutes=1),
+        searched_at=_NOW + timedelta(seconds=8),
+    )
+
+    assert isinstance(result, Success)
+    assert result.value.state is CTraderDemoAttemptState.CONTAINED
+    assert len(transport.submit_calls) == 1
+
+
+def test_durable_unknown_restart_blocks_create_and_recovers_by_discovery(
+    tmp_path: Path,
+) -> None:
+    submission = _submission(suffix=43)
+    path = tmp_path / "ctrader-mutations.json"
+    first_transport = _FakeExecutionTransport(
+        configuration=_configuration(),
+        submit_error=CTraderDemoExecutionGatewayValidationError("lost response"),
+    )
+    first = CTraderDemoExecutionGateway(
+        configuration=_configuration(),
+        transport=first_transport,
+        mutation_ledger=JsonFileCTraderDemoMutationLedger(path),
+    )
+    assert isinstance(first.submit(account=_ACCOUNT, submission=submission), Failure)
+    assert len(first_transport.submit_calls) == 1
+
+    recovery_transport = _FakeExecutionTransport(
+        configuration=_configuration(),
+        create_response=_create_response(submission=submission),
+        discover_response=ExternalTransportResponse(
+            status_code=200,
+            received_at=_NOW + timedelta(seconds=9),
+            payload=b'{"orderId":"70001"}',
+        ),
+        query_response=ExternalTransportResponse(
+            status_code=200,
+            received_at=_NOW + timedelta(seconds=10),
+            payload=(
+                b'{"orderId":"70001","status":"accepted",'
+                b'"createdAt":"2026-08-08T23:30:05+00:00"}'
+            ),
+        ),
+    )
+    recovered = CTraderDemoExecutionGateway(
+        configuration=_configuration(),
+        transport=recovery_transport,
+        mutation_ledger=JsonFileCTraderDemoMutationLedger(path),
+    )
+    blocked = recovered.submit(account=_ACCOUNT, submission=submission)
+    assert isinstance(blocked, Failure)
+    assert isinstance(blocked.error, CTraderDemoExecutionUnknownOutcomeError)
+    assert recovery_transport.submit_calls == []
+    assert isinstance(recovered.restore_submission(submission), Success)
+
+    resolved = recovered.discover_unknown_outcome(
+        receipt_id=submission.receipt_id,
+        from_timestamp=_NOW,
+        to_timestamp=_NOW + timedelta(minutes=1),
+        searched_at=_NOW + timedelta(seconds=8),
+    )
+    assert isinstance(resolved, Success)
+    assert resolved.value.state is CTraderDemoAttemptState.RESOLVED
+    assert resolved.value.provider_order_ref == "70001"
+    assert recovery_transport.submit_calls == []
+
+
+def test_restart_after_risk_fence_treats_attempt_as_unknown_and_never_sends(
+    tmp_path: Path,
+) -> None:
+    submission = _submission(suffix=44)
+    path = tmp_path / "ctrader-risk-fence.json"
+    transport = _FakeExecutionTransport(
+        configuration=_configuration(),
+        create_response=_create_response(submission=submission),
+    )
+    first = CTraderDemoExecutionGateway(
+        configuration=_configuration(),
+        transport=transport,
+        mutation_ledger=JsonFileCTraderDemoMutationLedger(path),
+    )
+    fenced = first.stage_risk_fence(
+        submission,
+        risk_authorization_id="risk-auth-1",
+        risk_authorization_fingerprint="a" * 64,
+        risk_reservation_id="risk-reservation-1",
+    )
+    assert isinstance(fenced, Success)
+
+    recovered = CTraderDemoExecutionGateway(
+        configuration=_configuration(),
+        transport=transport,
+        mutation_ledger=JsonFileCTraderDemoMutationLedger(path),
+    )
+    assert recovered.attempts[0].state is CTraderDemoAttemptState.OUTCOME_UNKNOWN
+    assert isinstance(recovered.submit(account=_ACCOUNT, submission=submission), Failure)
+    assert transport.submit_calls == []
+
+
+def test_durable_fill_identity_survives_restart_and_preserves_real_conflict(
+    tmp_path: Path,
+) -> None:
+    submission = _submission(suffix=45)
+    path = tmp_path / "ctrader-fills.json"
+    transport = _FakeExecutionTransport(
+        configuration=_configuration(),
+        create_response=_create_response(submission=submission, status="filled"),
+    )
+    first = CTraderDemoExecutionGateway(
+        configuration=_configuration(),
+        transport=transport,
+        mutation_ledger=JsonFileCTraderDemoMutationLedger(path),
+    )
+    assert isinstance(first.submit(account=_ACCOUNT, submission=submission), Success)
+    assert isinstance(
+        first.observe_fill(
+            submission,
+            _fill_payload(cumulative_volume=10, filled_volume=10, is_complete=True),
+            received_at=_NOW + timedelta(seconds=7),
+        ),
+        Success,
+    )
+
+    recovered = CTraderDemoExecutionGateway(
+        configuration=_configuration(),
+        transport=transport,
+        mutation_ledger=JsonFileCTraderDemoMutationLedger(path),
+    )
+    assert isinstance(recovered.restore_submission(submission), Success)
+    conflict = recovered.observe_fill(
+        submission,
+        _fill_payload(
+            cumulative_volume=10,
+            filled_volume=10,
+            is_complete=True,
+            price="1.99999",
+        ),
+        received_at=_NOW + timedelta(seconds=20),
+    )
+    assert isinstance(conflict, Failure)
+    assert isinstance(conflict.error, CTraderDemoExecutionConflictError)
+
+
 def test_fill_for_different_order_reference_is_rejected() -> None:
     submission = _submission()
     transport = _FakeExecutionTransport(
@@ -670,6 +990,7 @@ def test_project_execution_observation_composes_canonical_reconciliation() -> No
     gateway = CTraderDemoExecutionGateway(
         configuration=configuration,
         transport=transport,
+        mutation_ledger=InMemoryCTraderDemoMutationLedger(),
     )
     environment_result = authorize_market_test_account(
         _ACCOUNT,
@@ -733,6 +1054,7 @@ def test_full_boundary_composition_idempotency() -> None:
     gateway = CTraderDemoExecutionGateway(
         configuration=configuration,
         transport=transport,
+        mutation_ledger=InMemoryCTraderDemoMutationLedger(),
     )
     environment_result = authorize_market_test_account(
         _ACCOUNT,

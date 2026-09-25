@@ -1,0 +1,65 @@
+name: VT08 Index R62 External Gate Readiness
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r62-external-gate-readiness.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r62_external_gate_readiness.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r62_external_gate_readiness.py
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r62_external_gate_readiness.py
+
+  readiness:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Materialize R62 external-gate readiness bundle
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r62_external_gate_readiness \
+            --out artifacts/report/vt08-index-r62-external-gate-readiness.json
+      - name: Verify fail-closed external governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "artifacts/report/vt08-index-r62-external-gate-readiness.json"
+              ).read_text()
+          )
+          assert report["quantitative_certification_ready"] is True
+          assert report["external_governed_gates_satisfied"] is False
+          assert report["demo_eligible"] is False
+          assert report["trader_certified"] is False
+          assert report["governance"]["external_proofs_fabricated"] is False
+          assert report["governance"]["live_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r62-external-gate-readiness-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

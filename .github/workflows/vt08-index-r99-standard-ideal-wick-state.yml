@@ -1,0 +1,137 @@
+name: VT08 Index R99 Standard PS Qualified Wick State
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r99-standard-ideal-wick-state.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r99_standard_ideal_wick_state.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r99_standard_ideal_wick_state.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r99_standard_ideal_wick_state.py
+
+  forensics:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute R99 wick-state census
+        run: |
+          mkdir -p artifacts/report
+          python -m qore.infrastructure.trader_lab.vt08_index_r99_standard_ideal_wick_state \
+            --nas100-root artifacts/NAS100 \
+            --sp500-root artifacts/SP500 \
+            --us30-root artifacts/US30 \
+            --out artifacts/report/vt08-index-r99-standard-ideal-wick-state.json
+
+      - name: Verify R99 governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "artifacts/report/vt08-index-r99-standard-ideal-wick-state.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "VT08_INDEX_R99_STANDARD_PS_QUALIFIED_WICK_STATE_CENSUS_001"
+          )
+          assert report["source_r98"]["run_id"] == 35535639692
+          assert report["source_r98"]["artifact_id"] == 10612860698
+          contract = report["classification_contract"]
+          assert contract["canonical_surface_changed"] is False
+          assert contract["small_wick_rule"] == (
+              "directional_body > adverse_run"
+          )
+          assert contract["large_wick_rule"] == (
+              "adverse_run > directional_body"
+          )
+          assert contract["equal_rule"] == "FAIL_CLOSED_DIAGNOSTIC"
+          assert contract["numeric_percentage_threshold"] is None
+          assert contract["pnl_evaluated"] is False
+
+          assert report["five_year"]["canonical_sample"] == 2448
+          assert report["recent_two_year"]["canonical_sample"] == 1017
+          assert report["r66_failed_holdout"]["canonical_sample"] == 773
+          assert report["decision"] == (
+              "R99_STANDARD_PS_QUALIFIED_WICK_STATE_CENSUS_COMPLETE_NO_RULE"
+          )
+
+          gov = report["governance"]
+          assert gov["forensics_only"] is True
+          assert gov["consumed_evidence_only"] is True
+          assert gov["fresh_holdout_claim"] is False
+          assert gov["future_information_used"] is False
+          assert gov["canonical_signal_surface_changed"] is False
+          assert gov["signals_added"] is False
+          assert gov["signals_suppressed"] is False
+          assert gov["numeric_threshold_search"] is False
+          assert gov["pnl_evaluated"] is False
+          assert gov["risk_changed"] is False
+          assert gov["target_changed"] is False
+          assert gov["anchors_changed"] is False
+          assert gov["candidate_created"] is False
+          assert gov["trader_certified"] is False
+          assert gov["live_authorized"] is False
+          assert gov["real_capital_authorized"] is False
+          assert gov["production_authorized"] is False
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt08-index-r99-standard-ideal-wick-state-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,153 @@
+name: VT08 Index R117 Standard Late Revalidation Anatomy
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r117-standard-late-revalidation-anatomy.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r117_standard_late_revalidation_anatomy.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r117_standard_late_revalidation_anatomy.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r117_standard_late_revalidation_anatomy.py
+
+  attribution:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute R117 STANDARD late-revalidation anatomy attribution
+        run: |
+          mkdir -p artifacts/report
+          python -m qore.infrastructure.trader_lab.vt08_index_r117_standard_late_revalidation_anatomy \
+            --nas100-root artifacts/NAS100 \
+            --sp500-root artifacts/SP500 \
+            --us30-root artifacts/US30 \
+            --out artifacts/report/vt08-index-r117-standard-late-revalidation-anatomy.json
+
+      - name: Verify R117 frozen attribution contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "artifacts/report/vt08-index-r117-standard-late-revalidation-anatomy.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "VT08_INDEX_R117_STANDARD_LATE_REVALIDATION_ANATOMY_ATTRIBUTION_001"
+          )
+          assert report["source_r116"]["run_id"] == 35666472208
+          assert report["source_r116"]["artifact_id"] == 10669207820
+          assert report["source_r116"]["artifact_digest"] == (
+              "sha256:b3d6aa3e0af0cb9aeaf809fb54f40d2f3e1a7d0de9a98808b0a5227c9228e9f2"
+          )
+          expected = {
+              "five_year": 1756,
+              "recent_two_year": 746,
+              "r66_failed_holdout": 546,
+          }
+          for key, sample in expected.items():
+              section = report[key]
+              assert section["sample"] == sample
+              assert section["expected_sample"] == sample
+              assert sum(
+                  int(row["sample"])
+                  for row in section["by_late_revalidation"].values()
+              ) == sample
+              assert sum(
+                  int(row["sample"])
+                  for row in section["by_combined_state"].values()
+              ) == sample
+
+          reused = report["reused_detector_contract"]
+          assert reused["implementation"] == "R55._late_revalidation"
+          assert reused["source_poi_required"] == "cisd"
+          assert reused["continuation_latency_bucket_required"] == "5+"
+          assert reused["fresh_liquidity_take_15m_required"] is True
+          assert reused["reaction_after_cisd_required"] is True
+          assert reused["detector_modified"] is False
+
+          contract = report["preregistered_contract"]
+          assert contract["rule_change"] is False
+          assert contract["standard_only"] is True
+          assert contract["same_r102_fixed_weights"] is True
+          assert contract["risk_promotion_applied"] is False
+          assert contract["signals_suppressed"] is False
+          assert contract["trade_count_changed"] is False
+          assert contract["target_changed"] is False
+          assert contract["stop_changed"] is False
+          assert contract["entry_changed"] is False
+          assert contract["runtime_filter_created"] is False
+
+          gov = report["governance"]
+          assert gov["candidate_created"] is False
+          assert gov["signals_suppressed"] is False
+          assert gov["trade_count_changed"] is False
+          assert gov["target_changed"] is False
+          assert gov["stop_changed"] is False
+          assert gov["risk_allocator_changed"] is False
+          assert gov["runtime_filter_created"] is False
+          assert gov["anchor_14_enabled"] is False
+          assert gov["live_authorized"] is False
+          assert gov["real_capital_authorized"] is False
+          assert gov["production_authorized"] is False
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt08-index-r117-standard-late-revalidation-anatomy-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

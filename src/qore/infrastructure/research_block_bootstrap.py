@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import ROUND_HALF_EVEN, Context, Decimal, localcontext
+from functools import lru_cache
 from hashlib import sha256
 from uuid import UUID
 
@@ -85,22 +86,75 @@ def _source_values(diagnostic: ResearchSerialDependenceDiagnostic) -> tuple[Deci
     return values
 
 
-def _draw_start(*, seed: int, replicate: int, draw: int, sample_size: int) -> int:
-    payload = (
+@lru_cache(maxsize=8192)
+def _draw_prefix(seed: int, replicate: int) -> bytes:
+    return (
         _DOMAIN
         + b":"
         + str(seed).encode("ascii")
         + b":"
         + str(replicate).encode("ascii")
         + b":"
-        + str(draw).encode("ascii")
     )
+
+
+def _draw_start(*, seed: int, replicate: int, draw: int, sample_size: int) -> int:
+    payload = _draw_prefix(seed, replicate) + str(draw).encode("ascii")
     return int.from_bytes(sha256(payload).digest(), "big") % sample_size
 
 
 def _mean(values: tuple[Decimal, ...]) -> Decimal:
     with localcontext(_DECIMAL128):
         return sum(values, Decimal(0)) / Decimal(len(values))
+
+
+@lru_cache(maxsize=8)
+def _bootstrap_means_from_values(
+    values: tuple[Decimal, ...],
+    block_length: int,
+    resample_count: int,
+    seed: int,
+) -> tuple[Decimal, tuple[Decimal, ...]]:
+    """Compute one exact deterministic distribution and memoize identical reuse.
+
+    Construction and dataclass validation intentionally invoke the same canonical
+    bootstrap calculation. Memoization avoids repeating millions of identical
+    SHA256 draws inside one process while preserving the exact values, policy,
+    seed, draw order, Decimal arithmetic, and tamper-detection comparison.
+    """
+
+    sample_size = len(values)
+    source_mean = _mean(values)
+    blocks_per_replicate = (sample_size + block_length - 1) // block_length
+    circular_blocks = tuple(
+        tuple(
+            values[(start + offset) % sample_size]
+            for offset in range(block_length)
+        )
+        for start in range(sample_size)
+    )
+    denominator = Decimal(sample_size)
+    means: list[Decimal] = []
+    with localcontext(_DECIMAL128):
+        for replicate in range(resample_count):
+            total = Decimal(0)
+            sample_count = 0
+            for draw in range(blocks_per_replicate):
+                start = _draw_start(
+                    seed=seed,
+                    replicate=replicate,
+                    draw=draw,
+                    sample_size=sample_size,
+                )
+                for value in circular_blocks[start]:
+                    total += value
+                    sample_count += 1
+                    if sample_count == sample_size:
+                        break
+                if sample_count == sample_size:
+                    break
+            means.append(total / denominator)
+    return source_mean, tuple(means)
 
 
 def _bootstrap_means(
@@ -117,26 +171,12 @@ def _bootstrap_means(
         raise ResearchBlockBootstrapValidationError(
             "block_length cannot exceed source sample size"
         )
-    source_mean = _mean(values)
-    blocks_per_replicate = (sample_size + policy.block_length - 1) // policy.block_length
-    means: list[Decimal] = []
-    for replicate in range(policy.resample_count):
-        resampled: list[Decimal] = []
-        for draw in range(blocks_per_replicate):
-            start = _draw_start(
-                seed=policy.seed,
-                replicate=replicate,
-                draw=draw,
-                sample_size=sample_size,
-            )
-            for offset in range(policy.block_length):
-                resampled.append(values[(start + offset) % sample_size])
-                if len(resampled) == sample_size:
-                    break
-            if len(resampled) == sample_size:
-                break
-        means.append(_mean(tuple(resampled)))
-    return source_mean, tuple(means)
+    return _bootstrap_means_from_values(
+        values,
+        policy.block_length,
+        policy.resample_count,
+        policy.seed,
+    )
 
 
 @dataclass(frozen=True, slots=True)

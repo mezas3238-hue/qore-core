@@ -1,0 +1,124 @@
+name: VT08 Index R90 Native M1 Provider Depth Probe
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r90-m1-provider-depth-probe.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r90_m1_provider_depth_probe.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r90_m1_provider_depth_probe.py
+
+permissions:
+  contents: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev,ctrader]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r90_m1_provider_depth_probe.py
+
+  probe:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[ctrader]"
+
+      - name: Verify DEMO read-only credential inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || { echo "missing required DEMO input: $name" >&2; exit 2; }
+          done
+
+      - name: Discover DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Execute R90 native M1 historical depth probe
+        run: |
+          mkdir -p artifacts/report
+          python -m qore.infrastructure.trader_lab.vt08_index_r90_m1_provider_depth_probe \
+            --out artifacts/report/vt08-index-r90-m1-provider-depth-probe.json
+
+      - name: Verify R90 governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "artifacts/report/vt08-index-r90-m1-provider-depth-probe.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "VT08_INDEX_R90_CTRADER_DEMO_NATIVE_M1_DEPTH_PROBE_001"
+          )
+          assert report["period"] == "M1_NATIVE"
+          assert report["period_proto_value"] == 1
+          assert sorted(report["symbols"]) == ["NAS100", "SP500", "US30"]
+          for symbol in report["symbols"].values():
+              assert len(symbol["probes"]) == 4
+              for probe in symbol["probes"]:
+                  assert probe["timestamp_alignment_errors"] == 0
+                  assert probe["out_of_window_bars"] == 0
+                  assert probe["contradictory_timestamps"] == 0
+                  assert probe["provider_payload_valid"] is True
+
+          assert report["decision"] == (
+              "R90_NATIVE_M1_DEPTH_PROBE_COMPLETE_NO_TRADES"
+          )
+          governance = report["governance"]
+          assert governance["provider_demo_only"] is True
+          assert governance["read_only"] is True
+          assert governance["fresh_holdout_claim"] is False
+          assert governance["strict_from_to_without_count"] is True
+          assert governance["synthetic_m1_created"] is False
+          assert governance["interpolated_m1_created"] is False
+          assert governance["pnl_evaluated"] is False
+          assert governance["candidate_created"] is False
+          assert governance["trader_certified"] is False
+          assert governance["live_authorized"] is False
+          assert governance["real_capital_authorized"] is False
+          assert governance["production_authorized"] is False
+          PY
+
+      - name: Upload R90 evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt08-index-r90-m1-provider-depth-probe-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

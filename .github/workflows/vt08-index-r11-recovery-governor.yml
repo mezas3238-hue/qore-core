@@ -1,0 +1,138 @@
+name: VT08 Index R11 Recovery Governor
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r11-recovery-governor.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r11_recovery_governor.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r11_recovery_governor.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r11_recovery_governor.py
+
+  replay:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute R11 recovery governor replay
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r11_recovery_governor             --nas100-root artifacts/NAS100             --sp500-root artifacts/SP500             --us30-root artifacts/US30             --out artifacts/report/vt08-index-r11-recovery-governor.json
+
+      - name: Verify governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report=json.loads(Path("artifacts/report/vt08-index-r11-recovery-governor.json").read_text())
+          assert report["identity"] == "VT08_INDEX_R11_RECOVERY_GOVERNOR_001"
+          assert 1500 <= report["sample"] <= 1600
+          assert report["execution_architecture"] == "VT08_INDEX_R8_PRIORITY_POI_REARM_RESET_001"
+          g=report["governance"]
+          assert g["all_trades_preserved"] is True
+          assert g["zero_risk_allowed"] is False
+          assert g["all_time_peak_dd_state_used"] is False
+          assert g["completed_outcomes_only_for_next_trade_state"] is True
+          assert g["strong_pre_entry_context_can_restore_risk"] is True
+          assert g["fresh_holdout_claim"] is False
+          assert g["candidate_promoted"] is False
+          assert g["live_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["production_authorized"] is False
+          PY
+
+      - name: Build summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root=Path("artifacts/report")
+          r=json.loads((root/"vt08-index-r11-recovery-governor.json").read_text())
+          lines=[
+              "# VT08 INDEX R11 Recovery Governor",
+              "",
+              f"- sample: {r['sample']}",
+              f"- schemes: {r['scheme_count']}",
+              f"- goal candidates: {r['goal_candidate_count']}",
+              "",
+          ]
+          for row in r["top_20"]:
+              p=row["primary"]
+              s=row["secondary"]
+              d=row["primary_diagnostics"]
+              lines += [
+                  f"## {row['scheme']['scheme_id']}",
+                  f"- PF05: {p['profit_factor']}",
+                  f"- DD05: {p['max_drawdown_r']}R",
+                  f"- total05: {p['total_r']}R",
+                  f"- PF10: {s['profit_factor']}",
+                  f"- DD10: {s['max_drawdown_r']}R",
+                  f"- total10: {s['total_r']}R",
+                  f"- positive years: {row['positive_years']}",
+                  f"- mean weight: {d['mean_weight']}",
+                  f"- defensive trades: {d['defensive_trades']}",
+                  f"- hard trades: {d['hard_trades']}",
+                  f"- bypass trades: {d['strong_context_bypass_trades']}",
+                  f"- goal pass: {row['goal_pass']}",
+                  "",
+              ]
+          (root/"VT08_INDEX_R11_RECOVERY_GOVERNOR_SUMMARY.md").write_text("\n".join(lines)+"\n")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r11-recovery-governor-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

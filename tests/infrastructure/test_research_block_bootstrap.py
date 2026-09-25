@@ -6,6 +6,7 @@ from uuid import UUID
 
 import pytest
 
+from qore.infrastructure import research_block_bootstrap as bootstrap
 from qore.infrastructure.research_block_bootstrap import (
     ResearchBlockBootstrapDistributionId,
     ResearchBlockBootstrapPolicy,
@@ -173,3 +174,133 @@ def test_block_distribution_makes_no_interval_or_significance_claims() -> None:
     assert not hasattr(distribution, "iid")
     assert not hasattr(distribution, "sharpe_ratio")
     assert not hasattr(distribution, "production_ready")
+
+
+def test_distribution_validation_reuses_exact_cached_bootstrap_draws(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bootstrap._bootstrap_means_from_values.cache_clear()
+    diagnostic = _diagnostic("0.10", "-0.05", "0.20", "0.00", "0.15")
+    policy = ResearchBlockBootstrapPolicy(
+        block_length=2,
+        resample_count=20,
+        seed=42,
+    )
+    draw_calls = 0
+    original_draw_start = bootstrap._draw_start
+
+    def counted_draw_start(
+        *,
+        seed: int,
+        replicate: int,
+        draw: int,
+        sample_size: int,
+    ) -> int:
+        nonlocal draw_calls
+        draw_calls += 1
+        return original_draw_start(
+            seed=seed,
+            replicate=replicate,
+            draw=draw,
+            sample_size=sample_size,
+        )
+
+    monkeypatch.setattr(bootstrap, "_draw_start", counted_draw_start)
+    built = build_research_block_bootstrap_distribution(
+        distribution_id=ResearchBlockBootstrapDistributionId(_uuid(70)),
+        diagnostic=diagnostic,
+        policy=policy,
+    )
+
+    assert isinstance(built, Success)
+    assert draw_calls == 60
+    assert len(built.value.resampled_means) == 20
+
+
+
+def _legacy_bootstrap_means(
+    values: tuple[Decimal, ...],
+    *,
+    block_length: int,
+    resample_count: int,
+    seed: int,
+) -> tuple[Decimal, tuple[Decimal, ...]]:
+    sample_size = len(values)
+    source_mean = bootstrap._mean(values)
+    blocks_per_replicate = (
+        sample_size + block_length - 1
+    ) // block_length
+    means: list[Decimal] = []
+    for replicate in range(resample_count):
+        resampled: list[Decimal] = []
+        for draw in range(blocks_per_replicate):
+            start = bootstrap._draw_start(
+                seed=seed,
+                replicate=replicate,
+                draw=draw,
+                sample_size=sample_size,
+            )
+            for offset in range(block_length):
+                resampled.append(
+                    values[(start + offset) % sample_size]
+                )
+                if len(resampled) == sample_size:
+                    break
+            if len(resampled) == sample_size:
+                break
+        means.append(bootstrap._mean(tuple(resampled)))
+    return source_mean, tuple(means)
+
+
+@pytest.mark.parametrize(
+    ("values", "block_length", "resample_count", "seed"),
+    (
+        (
+            (
+                Decimal("0.10"),
+                Decimal("-0.05"),
+                Decimal("0.20"),
+                Decimal("0.00"),
+                Decimal("0.15"),
+            ),
+            2,
+            40,
+            42,
+        ),
+        (
+            (
+                Decimal("0.1"),
+                Decimal("-0.2"),
+                Decimal("0.3"),
+                Decimal("-0.4"),
+                Decimal("0.5"),
+                Decimal("0.6"),
+            ),
+            4,
+            35,
+            17,
+        ),
+    ),
+)
+def test_streamed_bootstrap_is_exactly_legacy_equivalent(
+    values: tuple[Decimal, ...],
+    block_length: int,
+    resample_count: int,
+    seed: int,
+) -> None:
+    bootstrap._bootstrap_means_from_values.cache_clear()
+    bootstrap._draw_prefix.cache_clear()
+    expected = _legacy_bootstrap_means(
+        values,
+        block_length=block_length,
+        resample_count=resample_count,
+        seed=seed,
+    )
+    bootstrap._bootstrap_means_from_values.cache_clear()
+    actual = bootstrap._bootstrap_means_from_values(
+        values,
+        block_length,
+        resample_count,
+        seed,
+    )
+    assert actual == expected

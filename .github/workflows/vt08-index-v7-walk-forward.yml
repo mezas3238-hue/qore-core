@@ -1,0 +1,213 @@
+name: VT08 Index V7 Walk Forward
+
+on:
+  push:
+    branches: [agent/vt08-index-v7-source-correction-001]
+    paths:
+      - .github/workflows/vt08-index-v7-walk-forward.yml
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  walk-forward:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e ".[dev]"
+
+      - name: Download consumed 2018-20 evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-index-v7-fresh-*-c58751a753ef14841bd971e8abfed0388d122a02
+          path: artifacts/w2018
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35082269231
+
+      - name: Download consumed 2020-22 evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-index-v6-fresh-*-0f992b3709c3d5d5d938e722ce434653c487734b
+          path: artifacts/w2020
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35054539866
+
+      - name: Download consumed 2022-23 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-v3-fresh-decision-106a34282fe8eac2f8c466bcc8502d4ec8d73855
+          path: artifacts/w2022
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34798973408
+
+      - name: Download consumed 2023-24 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-v2-fresh-r2-decision-58dd289646de8814449f836ad617a51342eba0da
+          path: artifacts/w2023
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34795405536
+
+      - name: Download consumed 2024-26 evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-v2-source-executable-*-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: artifacts/w2024
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Execute fixed forward blocks
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/report/blocks
+          w18_nas="$(find artifacts/w2018 -path '*NAS100*' -name market-evidence.json -print -quit)"
+          w18_sp="$(find artifacts/w2018 -path '*SP500*' -name market-evidence.json -print -quit)"
+          w18_us="$(find artifacts/w2018 -path '*US30*' -name market-evidence.json -print -quit)"
+          w20_nas="$(find artifacts/w2020 -path '*NAS100*' -name market-evidence.json -print -quit)"
+          w20_sp="$(find artifacts/w2020 -path '*SP500*' -name market-evidence.json -print -quit)"
+          w20_us="$(find artifacts/w2020 -path '*US30*' -name market-evidence.json -print -quit)"
+          w24_nas="$(find artifacts/w2024 -path '*NAS100*' -name market-evidence.json -print -quit)"
+          w24_sp="$(find artifacts/w2024 -path '*SP500*' -name market-evidence.json -print -quit)"
+          w24_us="$(find artifacts/w2024 -path '*US30*' -name market-evidence.json -print -quit)"
+          test -n "$w18_nas" && test -n "$w18_sp" && test -n "$w18_us"
+          test -n "$w20_nas" && test -n "$w20_sp" && test -n "$w20_us"
+          test -n "$w24_nas" && test -n "$w24_sp" && test -n "$w24_us"
+
+          run_block() {
+            name="$1"; nas="$2"; sp="$3"; us="$4"; start="$5"; end="$6"; sha="$7"; days="$8"
+            python -m qore.infrastructure.trader_lab.vt08_index_v7_ttrades_source_corrected \
+              --nas100 "$nas" --sp500 "$sp" --us30 "$us" \
+              --start-date "$start" --end-date-exclusive "$end" \
+              --expected-software-sha "$sha" --minimum-evidence-days "$days" \
+              --out "artifacts/report/blocks/${name}.json"
+          }
+
+          run_block b01 "$w18_nas" "$w18_sp" "$w18_us" 2018-09-15 2019-03-15 c58751a753ef14841bd971e8abfed0388d122a02 760
+          run_block b02 "$w18_nas" "$w18_sp" "$w18_us" 2019-03-15 2019-09-15 c58751a753ef14841bd971e8abfed0388d122a02 760
+          run_block b03 "$w18_nas" "$w18_sp" "$w18_us" 2019-09-15 2020-03-15 c58751a753ef14841bd971e8abfed0388d122a02 760
+          run_block b04 "$w18_nas" "$w18_sp" "$w18_us" 2020-03-15 2020-09-15 c58751a753ef14841bd971e8abfed0388d122a02 760
+
+          run_block b05 "$w20_nas" "$w20_sp" "$w20_us" 2020-09-15 2021-03-15 0f992b3709c3d5d5d938e722ce434653c487734b 730
+          run_block b06 "$w20_nas" "$w20_sp" "$w20_us" 2021-03-15 2021-09-15 0f992b3709c3d5d5d938e722ce434653c487734b 730
+          run_block b07 "$w20_nas" "$w20_sp" "$w20_us" 2021-09-15 2022-03-15 0f992b3709c3d5d5d938e722ce434653c487734b 730
+          run_block b08 "$w20_nas" "$w20_sp" "$w20_us" 2022-03-15 2022-09-15 0f992b3709c3d5d5d938e722ce434653c487734b 730
+
+          run_block b09 artifacts/w2022/truncated/NAS100.json artifacts/w2022/truncated/SP500.json artifacts/w2022/truncated/US30.json 2022-09-15 2023-03-15 106a34282fe8eac2f8c466bcc8502d4ec8d73855 350
+          run_block b10 artifacts/w2022/truncated/NAS100.json artifacts/w2022/truncated/SP500.json artifacts/w2022/truncated/US30.json 2023-03-15 2023-09-15 106a34282fe8eac2f8c466bcc8502d4ec8d73855 350
+
+          run_block b11 artifacts/w2023/truncated/NAS100.json artifacts/w2023/truncated/SP500.json artifacts/w2023/truncated/US30.json 2023-09-15 2024-03-15 58dd289646de8814449f836ad617a51342eba0da 300
+          run_block b12 artifacts/w2023/truncated/NAS100.json artifacts/w2023/truncated/SP500.json artifacts/w2023/truncated/US30.json 2024-03-15 2024-08-13 58dd289646de8814449f836ad617a51342eba0da 300
+
+          run_block b13 "$w24_nas" "$w24_sp" "$w24_us" 2024-08-13 2025-02-13 a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0 700
+          run_block b14 "$w24_nas" "$w24_sp" "$w24_us" 2025-02-13 2025-08-13 a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0 700
+          run_block b15 "$w24_nas" "$w24_sp" "$w24_us" 2025-08-13 2026-02-13 a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0 700
+          run_block b16 "$w24_nas" "$w24_sp" "$w24_us" 2026-02-13 2026-08-13 a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0 700
+          run_block b17 "$w24_nas" "$w24_sp" "$w24_us" 2026-08-13 2026-09-12 a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0 700
+
+      - name: Adjudicate diagnostic expanded Walk Forward gates
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          rows=[]
+          all_trades=[]
+          for path in sorted(Path('artifacts/report/blocks').glob('b*.json')):
+              p=json.loads(path.read_text())
+              m=p['metrics_primary_stress']
+              sample=m['sample']
+              mean=Decimal(m['mean_r'])
+              supported=sample>=20
+              rows.append({
+                  'block':path.stem,
+                  'partition':p['partition'],
+                  'sample':sample,
+                  'primary_mean_r':m['mean_r'],
+                  'primary_pf':m['profit_factor'],
+                  'primary_dd_r':m['max_drawdown_r'],
+                  'secondary_mean_r':p['metrics_secondary_stress']['mean_r'],
+                  'supported':supported,
+                  'positive':supported and mean>0,
+                  'materially_negative':supported and mean<=Decimal('-0.10'),
+              })
+              all_trades.extend(p['trades'])
+
+          supported=[r for r in rows if r['supported']]
+          positives=[r for r in supported if r['positive']]
+          materially_negative=[r for r in supported if r['materially_negative']]
+
+          ordered=sorted(all_trades,key=lambda t:(t['signal_at'],t['symbol']))
+          vals=[Decimal(t['r_multiple'])-Decimal('0.05') for t in ordered]
+          vals2=[Decimal(t['r_multiple'])-Decimal('0.10') for t in ordered]
+          def stats(values):
+              total=sum(values,Decimal())
+              gains=sum((x for x in values if x>0),Decimal())
+              losses=-sum((x for x in values if x<0),Decimal())
+              eq=peak=dd=Decimal()
+              for x in values:
+                  eq+=x; peak=max(peak,eq); dd=max(dd,peak-eq)
+              return {
+                  'sample':len(values),
+                  'total_r':str(total),
+                  'mean_r':str(total/len(values)) if values else '0',
+                  'profit_factor':str(gains/losses) if losses else None,
+                  'max_drawdown_r':str(dd),
+              }
+          primary=stats(vals); secondary=stats(vals2)
+
+          market_totals={}
+          market_counts={}
+          for t in all_trades:
+              k=t['symbol']; market_counts[k]=market_counts.get(k,0)+1
+              market_totals[k]=market_totals.get(k,Decimal())+Decimal(t['r_multiple'])-Decimal('0.05')
+          market_means={k:str(market_totals[k]/market_counts[k]) for k in market_totals}
+          positive_markets=sum(Decimal(v)>0 for v in market_means.values())
+
+          gates={
+              'supported_blocks_ge_6':len(supported)>=6,
+              'positive_supported_blocks_ge_70pct':bool(supported) and Decimal(len(positives))/Decimal(len(supported))>=Decimal('0.70'),
+              'no_materially_negative_supported_block':not materially_negative,
+              'aggregate_primary_mean_positive':Decimal(primary['mean_r'])>0,
+              'aggregate_primary_pf_ge_1_15':primary['profit_factor'] is not None and Decimal(primary['profit_factor'])>=Decimal('1.15'),
+              'aggregate_primary_dd_le_20r':Decimal(primary['max_drawdown_r'])<=Decimal('20'),
+              'aggregate_secondary_mean_positive':Decimal(secondary['mean_r'])>0,
+              'aggregate_secondary_pf_gt_1':secondary['profit_factor'] is not None and Decimal(secondary['profit_factor'])>1,
+              'positive_expectancy_not_single_market_only':positive_markets>=2,
+          }
+          out={
+              'schema':'qore.trader_lab.vt08_index_v7_walk_forward.v2_diagnostic_expanded',
+              'candidate_id':'VT08_INDEX_V7_TTRADES_SOURCE_CORRECTED_001',
+              'blocks':rows,
+              'supported_blocks':len(supported),
+              'positive_supported_blocks':len(positives),
+              'primary_aggregate':primary,
+              'secondary_aggregate':secondary,
+              'market_primary_mean_r':market_means,
+              'gates':gates,
+              'walk_forward_pass':all(gates.values()),
+              'consumed_2018_2020_included':True,
+              'diagnostic_only':True,
+              'independent_certification_gate':False,
+              'post_result_tuning_permitted':False,
+          }
+          Path('artifacts/report/walk-forward-decision.json').write_text(json.dumps(out,sort_keys=True,separators=(',',':'))+'\n')
+          print(json.dumps(out,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-v7-walk-forward-expanded-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

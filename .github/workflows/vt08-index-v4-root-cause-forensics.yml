@@ -1,0 +1,132 @@
+name: VT08 Index V4 Root Cause Forensics
+
+on:
+  push:
+    branches: [agent/vt08-index-v4-regime-forensics-001]
+    paths:
+      - .github/workflows/vt08-index-v4-root-cause-forensics.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_v4_root_cause_forensics.py
+      - tests/infrastructure/trader_lab/test_vt08_index_v4_root_cause_forensics.py
+      - docs/research/VT08-INDEX-V4-ROOT-CAUSE-FORENSICS-002.md
+
+concurrency:
+  group: vt08-index-v4-root-cause-forensics
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Ruff
+        run: ruff check .
+      - name: Mypy
+        run: mypy src tests
+      - name: Focused V4 Phase-2 tests
+        run: |
+          pytest -q \
+            tests/infrastructure/trader_lab/test_vt08_index_v4_regime_forensics.py \
+            tests/infrastructure/trader_lab/test_vt08_index_v4_root_cause_forensics.py
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  root-cause:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Download consumed V3 decision evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-v3-fresh-decision-106a34282fe8eac2f8c466bcc8502d4ec8d73855
+          path: artifacts/v3
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34798973408
+      - name: Download consumed V2 decision evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-v2-fresh-r2-decision-58dd289646de8814449f836ad617a51342eba0da
+          path: artifacts/v2
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34795405536
+      - name: Download consumed development NAS100
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-v2-source-executable-NAS100-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: artifacts/dev/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+      - name: Download consumed development SP500
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-v2-source-executable-SP500-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: artifacts/dev/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+      - name: Download consumed development US30
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-v2-source-executable-US30-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: artifacts/dev/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+      - name: Build Phase-2 ledger and adjudication
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_v4_root_cause_forensics \
+            --v3-decision-root artifacts/v3 \
+            --v2-decision-root artifacts/v2 \
+            --development-nas100 artifacts/dev/NAS100/market-evidence.json \
+            --development-sp500 artifacts/dev/SP500/market-evidence.json \
+            --development-us30 artifacts/dev/US30/market-evidence.json \
+            --out-dir artifacts/report
+      - name: Enforce no-candidate fail-closed governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("artifacts/report")
+          report = json.loads((root / "vt08-index-v4-root-cause-report.json").read_text())
+          census = json.loads((root / "vt08-index-v4-regime-feature-census.json").read_text())
+          assert census["row_count"] == 183
+          assert report["adjudication"]["status"] == "V4_CANDIDATE_NOT_JUSTIFIED"
+          assert report["adjudication"]["candidate_freeze_recommended"] is False
+          assert report["causal_equivalence"]["v2"]["pass"] is True
+          assert report["causal_equivalence"]["v3"]["pass"] is True
+          assert report["governance"]["v4_candidate_frozen"] is False
+          assert report["governance"]["demo_eligible"] is False
+          assert report["governance"]["live_authorized"] is False
+          assert report["governance"]["production_authorized"] is False
+          PY
+          printf '%s\n' "$GITHUB_SHA" > artifacts/report/git-sha.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-v4-root-cause-forensics-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

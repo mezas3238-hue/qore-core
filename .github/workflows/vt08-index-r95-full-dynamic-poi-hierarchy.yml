@@ -1,0 +1,140 @@
+name: VT08 Index R95 Full Dynamic POI Hierarchy
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r95-full-dynamic-poi-hierarchy.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r95_full_dynamic_poi_hierarchy.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r95_full_dynamic_poi_hierarchy.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r95_full_dynamic_poi_hierarchy.py
+
+  forensics:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute R95 full dynamic hierarchy census
+        run: |
+          mkdir -p artifacts/report
+          python -m qore.infrastructure.trader_lab.vt08_index_r95_full_dynamic_poi_hierarchy \
+            --nas100-root artifacts/NAS100 \
+            --sp500-root artifacts/SP500 \
+            --us30-root artifacts/US30 \
+            --out artifacts/report/vt08-index-r95-full-dynamic-poi-hierarchy.json
+
+      - name: Verify R95 governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "artifacts/report/vt08-index-r95-full-dynamic-poi-hierarchy.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "VT08_INDEX_R95_FULL_DYNAMIC_CONTINUATION_POI_HIERARCHY_001"
+          )
+          assert report["source_r94"]["run_id"] == 35531601091
+          assert report["source_r94"]["artifact_id"] == 10611591229
+          assert report["source_r94"]["artifact_digest"] == (
+              "sha256:4fe16cb8a7246239cf88745f1cd13081babd4885017371f2648d1330ce777e48"
+          )
+
+          contract = report["dynamic_hierarchy_contract"]
+          assert contract["primary_model"] == "D1_H4_M15"
+          assert contract["seed"] == "R85_SOURCE_EXACT_EXECUTABLE"
+          assert contract["poi_priority"] == ["fvg", "relevant-swing", "cisd"]
+          assert contract["poi_rebuilt_after_each_protected_swing"] is True
+          assert contract["poi_touch_must_follow_prior_continuation"] is True
+          assert contract["poi_must_be_observed_before_touch"] is True
+          assert contract["h1_m5_independent_signals_added"] is False
+          assert contract["m15_m1_independent_signals_added"] is False
+          assert contract["pnl_evaluated"] is False
+
+          assert report["five_year"]["canonical_signal_reference"] == 2448
+          assert report["recent_two_year"]["canonical_signal_reference"] == 1017
+          assert report["r66_failed_holdout"]["canonical_signal_reference"] == 773
+          assert report["decision"] == (
+              "R95_FULL_DYNAMIC_POI_HIERARCHY_CENSUS_COMPLETE_NO_TRADES"
+          )
+
+          gov = report["governance"]
+          assert gov["forensics_only"] is True
+          assert gov["consumed_evidence_only"] is True
+          assert gov["fresh_holdout_claim"] is False
+          assert gov["source_primary_model_only"] is True
+          assert gov["future_information_used"] is False
+          assert gov["pnl_evaluated"] is False
+          assert gov["numeric_threshold_search"] is False
+          assert gov["market_or_anchor_selection_by_outcome"] is False
+          assert gov["risk_changed"] is False
+          assert gov["target_changed"] is False
+          assert gov["anchors_changed"] is False
+          assert gov["owner_disabled_14_preserved"] is True
+          assert gov["candidate_created"] is False
+          assert gov["trader_certified"] is False
+          assert gov["live_authorized"] is False
+          assert gov["real_capital_authorized"] is False
+          assert gov["production_authorized"] is False
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt08-index-r95-full-dynamic-poi-hierarchy-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

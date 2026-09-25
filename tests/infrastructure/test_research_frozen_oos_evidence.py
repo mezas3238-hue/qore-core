@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from uuid import UUID
 
 import pytest
 
+from qore.infrastructure import research_frozen_oos_evidence as frozen_module
+from qore.infrastructure.research_economic_evidence import ResearchReturnBasis
 from qore.infrastructure.research_evaluation_freeze import (
     ResearchEvaluationFreezeEvidence,
 )
@@ -17,7 +20,13 @@ from qore.infrastructure.research_frozen_oos_evidence import (
     compute_research_frozen_oos_fingerprint,
 )
 from qore.infrastructure.research_oos_performance import (
+    ResearchOosFoldPerformance,
     ResearchOosPerformanceEvidence,
+    ResearchOosPerformanceEvidenceId,
+)
+from qore.infrastructure.research_performance_statistics import (
+    ResearchPerformanceSnapshotId,
+    ResearchPerformanceStatisticsSnapshot,
 )
 from qore.infrastructure.research_strategy_freeze import ResearchRunStrategyBinding
 from qore.infrastructure.research_temporal_evaluation import ResearchTemporalEvaluationPlan
@@ -233,3 +242,157 @@ def test_frozen_oos_evidence_makes_no_epistemic_or_production_claims(
     assert not hasattr(evidence, "pre_registered")
     assert not hasattr(evidence, "statistically_significant")
     assert not hasattr(evidence, "production_ready")
+
+
+def test_fingerprint_canonicalizes_nested_uuid_logical_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run = object()
+    plan = _plan(run)
+    evaluation_freeze = _evaluation_freeze(plan, run)
+    oos = _oos_performance(plan)
+
+    monkeypatch.setattr(
+        ResearchEvaluationFreezeEvidence,
+        "logical_values",
+        lambda self: ("freeze", _uuid(701)),
+    )
+    monkeypatch.setattr(
+        ResearchOosPerformanceEvidence,
+        "logical_values",
+        lambda self: ("oos", (_uuid(702),)),
+    )
+
+    first = compute_research_frozen_oos_fingerprint(
+        evaluation_freeze=evaluation_freeze,
+        oos_performance=oos,
+    )
+    second = compute_research_frozen_oos_fingerprint(
+        evaluation_freeze=evaluation_freeze,
+        oos_performance=oos,
+    )
+    assert first == second
+    assert len(first.value) == 64
+
+
+class _StreamingLogical:
+    def __init__(self, *values: object) -> None:
+        self._values = values
+
+    def logical_values(self) -> tuple[object, ...]:
+        return self._values
+
+
+def test_fingerprint_streams_valid_oos_without_whole_tree_materialization(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run = object()
+    plan = _plan(run)
+    evaluation_freeze = _evaluation_freeze(plan, run)
+    oos = _oos_performance(plan)
+
+    monkeypatch.setattr(
+        ResearchEvaluationFreezeEvidence,
+        "logical_values",
+        lambda self: ("freeze", _uuid(801)),
+    )
+    monkeypatch.setattr(
+        ResearchTemporalEvaluationPlan,
+        "logical_values",
+        lambda self: ("plan", _uuid(802)),
+    )
+    monkeypatch.setattr(
+        ResearchOosPerformanceEvidence,
+        "logical_values",
+        lambda self: (_ for _ in ()).throw(
+            AssertionError("whole OOS logical tree must not be materialized")
+        ),
+    )
+
+    statistics = object.__new__(ResearchPerformanceStatisticsSnapshot)
+    object.__setattr__(
+        statistics,
+        "snapshot_id",
+        ResearchPerformanceSnapshotId(_uuid(803)),
+    )
+    object.__setattr__(statistics, "run", _StreamingLogical("run", _uuid(804)))
+    object.__setattr__(statistics, "basis", ResearchReturnBasis.GROSS)
+    object.__setattr__(
+        statistics,
+        "observations",
+        (
+            _StreamingLogical("observation", _uuid(805), "0.01"),
+            _StreamingLogical("observation", _uuid(806), "-0.02"),
+        ),
+    )
+    object.__setattr__(statistics, "sample_size", 2)
+    object.__setattr__(statistics, "positive_count", 1)
+    object.__setattr__(statistics, "negative_count", 1)
+    object.__setattr__(statistics, "flat_count", 0)
+    object.__setattr__(statistics, "mean_return", Decimal("-0.005"))
+    object.__setattr__(statistics, "minimum_return", Decimal("-0.02"))
+    object.__setattr__(statistics, "maximum_return", Decimal("0.01"))
+    object.__setattr__(statistics, "win_rate", Decimal("0.5"))
+    object.__setattr__(
+        statistics,
+        "population_variance",
+        Decimal("0.000225"),
+    )
+    object.__setattr__(statistics, "observed_at", _BASE)
+
+    fold = object.__new__(ResearchOosFoldPerformance)
+    object.__setattr__(fold, "fold", _StreamingLogical("fold", 1))
+    object.__setattr__(fold, "statistics", statistics)
+
+    object.__setattr__(
+        oos,
+        "evidence_id",
+        ResearchOosPerformanceEvidenceId(_uuid(807)),
+    )
+    object.__setattr__(oos, "basis", ResearchReturnBasis.GROSS)
+    object.__setattr__(oos, "fold_performance", (fold,))
+
+    first = compute_research_frozen_oos_fingerprint(
+        evaluation_freeze=evaluation_freeze,
+        oos_performance=oos,
+    )
+    second = compute_research_frozen_oos_fingerprint(
+        evaluation_freeze=evaluation_freeze,
+        oos_performance=oos,
+    )
+
+    assert first == second
+    assert len(first.value) == 64
+
+
+def test_fingerprint_reuses_exact_immutable_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    frozen_module._FINGERPRINT_IDENTITY_CACHE.clear()
+    run = object()
+    plan = _plan(run)
+    evaluation_freeze = _evaluation_freeze(plan, run)
+    oos = _oos_performance(plan)
+    _patch_logical_values(monkeypatch)
+
+    calls = 0
+    original = frozen_module._canonical_json_value
+
+    def counted(value: object) -> object:
+        nonlocal calls
+        calls += 1
+        return original(value)
+
+    monkeypatch.setattr(frozen_module, "_canonical_json_value", counted)
+    first = compute_research_frozen_oos_fingerprint(
+        evaluation_freeze=evaluation_freeze,
+        oos_performance=oos,
+    )
+    first_calls = calls
+    second = compute_research_frozen_oos_fingerprint(
+        evaluation_freeze=evaluation_freeze,
+        oos_performance=oos,
+    )
+    assert first == second
+    assert first_calls > 0
+    assert calls == first_calls

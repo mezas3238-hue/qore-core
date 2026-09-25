@@ -1,0 +1,85 @@
+name: VT08 Index R58 Exact R47 Distributed Risk
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r58-exact-r47-distributed-risk.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r58_exact_r47_distributed_risk.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r58_exact_r47_distributed_risk.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r58_exact_r47_distributed_risk.py
+
+  candidate:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e ".[dev]"
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+      - name: Execute corrected exact-lineage candidate
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r58_exact_r47_distributed_risk \
+            --nas100-root artifacts/NAS100 \
+            --sp500-root artifacts/SP500 \
+            --us30-root artifacts/US30 \
+            --out artifacts/report/vt08-index-r58-exact-r47-distributed-risk.json
+      - name: Verify exact R47 lineage and governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("artifacts/report/vt08-index-r58-exact-r47-distributed-risk.json")
+          r=json.loads(p.read_text())
+          assert r["five_year"]["sample"] == 2448
+          assert r["recent_two_year"]["sample"] == 1017
+          assert r["lineage"]["r42_r43_static_priors_inherited"] is False
+          assert r["five_year"]["base_r47_diagnostics"]["mean_effective_weight"] == "0.01202823024648536964968234842"
+          assert r["recent_two_year"]["base_r47_diagnostics"]["mean_effective_weight"] == "0.008629572189718310319257016108"
+          assert r["governance"]["signals_suppressed"] is False
+          assert r["governance"]["certified"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r58-exact-r47-distributed-risk-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

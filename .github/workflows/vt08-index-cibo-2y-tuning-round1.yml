@@ -1,0 +1,175 @@
+name: VT08 Index CIBO 2Y Tuning Round1
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-cibo-2y-tuning-round1.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_cibo_2y_tuning_round1.py
+      - tests/infrastructure/trader_lab/test_vt08_index_cibo_2y_tuning_round1.py
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  BRAIN_V2_TYPED_BASELINE: 09a90fe751c1cb65aa3393e4fab6d7699dc8c5d2
+  V7_FREEZE_SHA: c37412c877f2fda8b32bda652b6bc74663159761
+  V7_RULE_FINGERPRINT: a7f3b7afa3a98bfcb4daad1595762ce3925000fb256e2cbd2db84b8ec80b1308
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify frozen V7 unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code "$V7_FREEZE_SHA" "$GITHUB_SHA" --             src/qore/infrastructure/trader_lab/vt08_index_v7_ttrades_source_corrected.py             tests/infrastructure/trader_lab/test_vt08_index_v7_ttrades_source_corrected.py
+          PYTHONPATH=src python - <<'PY'
+          import os
+          from qore.infrastructure.trader_lab.vt08_index_v7_ttrades_source_corrected import RULE_FINGERPRINT
+          assert RULE_FINGERPRINT == os.environ["V7_RULE_FINGERPRINT"]
+          PY
+
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_cibo_2y_tuning_round1.py
+
+  tune:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO 10Y raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO 10Y raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO 10Y raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute 2Y tuning search
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_cibo_2y_tuning_round1             --nas100-root artifacts/NAS100             --sp500-root artifacts/SP500             --us30-root artifacts/US30             --out artifacts/report/vt08-index-cibo-2y-tuning-round1.json
+
+      - name: Verify tuning governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path("artifacts/report/vt08-index-cibo-2y-tuning-round1.json").read_text()
+          )
+          window = report["window"]
+          assert window["start_date"] == "2016-09-18"
+          assert window["end_date_exclusive"] == "2018-09-15"
+          assert window["status"] == "CONSUMED_TUNING_ON_FIRST_OBSERVATION"
+          assert window["fresh_certification_holdout"] is False
+          assert window["known_overlap_with_prior_vt08_consumed_windows"] is False
+
+          strategy = report["strategy"]
+          assert strategy["base_candidate_id"] == "VT08_INDEX_V7_TTRADES_SOURCE_CORRECTED_001"
+          assert strategy["base_rule_fingerprint"] == (
+              "a7f3b7afa3a98bfcb4daad1595762ce3925000fb256e2cbd2db84b8ec80b1308"
+          )
+          assert strategy["v7_setup_identity_changed"] is False
+          assert strategy["stop_changed"] is False
+          assert strategy["lifecycle_changed"] is False
+
+          assert report["surface_trade_count"] > 0
+          assert report["candidate_count"] > 0
+          assert report["best_candidate"] is not None
+
+          governance = report["governance"]
+          assert governance["research_only"] is True
+          assert governance["tuning_window_consumed"] is True
+          assert governance["fresh_holdout_claim"] is False
+          assert governance["rule_promotion_automatic"] is False
+          assert governance["live_authorized"] is False
+          assert governance["real_capital_authorized"] is False
+          assert governance["production_authorized"] is False
+          PY
+
+      - name: Build result summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("artifacts/report")
+          report = json.loads(
+              (root / "vt08-index-cibo-2y-tuning-round1.json").read_text()
+          )
+          best = report["best_candidate"]
+          p = best["primary_stress"]
+          s = best["secondary_stress"]
+          lines = [
+              "# VT08 Index CIBO 2Y Tuning Round 1",
+              "",
+              f"- surface trades: {report['surface_trade_count']}",
+              f"- candidates evaluated: {report['candidate_count']}",
+              f"- robust-goal candidates: {report['robust_goal_candidate_count']}",
+              f"- best candidate: {best['candidate_id']}",
+              f"- config: {json.dumps(best['config'], sort_keys=True)}",
+              f"- primary sample: {p['sample']}",
+              f"- primary PF: {p['profit_factor']}",
+              f"- primary max DD R: {p['max_drawdown_r']}",
+              f"- primary total R: {p['total_r']}",
+              f"- secondary PF: {s['profit_factor']}",
+              f"- secondary max DD R: {s['max_drawdown_r']}",
+              f"- positive halves: {best['positive_halves']}/2",
+              f"- positive quarters: {best['positive_quarters']}/{best['quarter_count']}",
+              "",
+              "This is a consumed tuning result, not a fresh certification result.",
+          ]
+          (root / "VT08_INDEX_CIBO_2Y_TUNING_ROUND1_SUMMARY.md").write_text(
+              "\n".join(lines) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-cibo-2y-tuning-round1-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

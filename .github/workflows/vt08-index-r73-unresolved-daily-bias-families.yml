@@ -1,0 +1,116 @@
+name: VT08 Index R73 Unresolved Daily Bias Families
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r73-unresolved-daily-bias-families.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r73_unresolved_daily_bias_families.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r73_unresolved_daily_bias_families.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r73_unresolved_daily_bias_families.py
+
+  forensics:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute R73 unresolved bias family forensics
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r73_unresolved_daily_bias_families \
+            --nas100-root artifacts/NAS100 \
+            --sp500-root artifacts/SP500 \
+            --us30-root artifacts/US30 \
+            --out artifacts/report/vt08-index-r73-unresolved-daily-bias-families.json
+
+      - name: Verify R73 governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(
+              Path(
+                  "artifacts/report/vt08-index-r73-unresolved-daily-bias-families.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "VT08_INDEX_R73_UNRESOLVED_DAILY_BIAS_FAMILIES_001"
+          )
+          assert report["five_year"]["ambiguous_anchor_slots"] == 2410
+          assert report["recent_two_year"]["ambiguous_anchor_slots"] == 1050
+          assert report["r66_failed_holdout"]["ambiguous_anchor_slots"] == 968
+          assert report["source_r72"]["run_id"] == 35506163421
+          assert report["decision"] == (
+              "R73_AMBIGUOUS_BIAS_FAMILIES_COMPLETE_NO_RESOLVER"
+          )
+          governance = report["governance"]
+          assert governance["forensics_only"] is True
+          assert governance["fallback_bias_created"] is False
+          assert governance["resolver_candidate_created"] is False
+          assert governance["hypothetical_pnl_replayed"] is False
+          assert governance["outcome_used_to_pick_direction"] is False
+          assert governance["signals_added"] is False
+          assert governance["signals_suppressed"] is False
+          assert governance["trader_certified"] is False
+          assert governance["live_authorized"] is False
+          assert governance["real_capital_authorized"] is False
+          assert governance["production_authorized"] is False
+          PY
+
+      - name: Upload R73 evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt08-index-r73-unresolved-daily-bias-families-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: warn
+          retention-days: 90

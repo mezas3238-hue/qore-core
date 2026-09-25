@@ -1,0 +1,88 @@
+name: VT08 Index 02-06-10 Retained Evidence
+
+on:
+  push:
+    branches:
+      - agent/vt08-index-02610-retained-evidence-001
+  workflow_dispatch:
+
+concurrency:
+  group: vt08-index-02610-retained-evidence-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality-and-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout exact research head
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy src tests
+
+      - name: Focused 02-06-10 evidence gate
+        run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_02610_retained_evidence.py
+
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+      - name: Download retained NAS100 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-v2-source-executable-NAS100-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: retained/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Download retained SP500 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-v2-source-executable-SP500-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: retained/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Download retained US30 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-v2-source-executable-US30-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: retained/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Build immutable 02-06-10 aggregate
+        run: |
+          mkdir -p artifacts
+          python -m qore.infrastructure.trader_lab.vt08_index_02610_retained_evidence \
+            --nas100 retained/NAS100 \
+            --sp500 retained/SP500 \
+            --us30 retained/US30 \
+            --out artifacts/vt08-index-02610-retained-evidence.json
+
+      - name: Upload retained-evidence aggregate
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-02610-retained-evidence-${{ github.sha }}
+          path: artifacts/vt08-index-02610-retained-evidence.json
+          if-no-files-found: error

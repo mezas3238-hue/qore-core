@@ -1,0 +1,73 @@
+name: VT08 Index R1 Formal Validation Rejection
+
+on:
+  push:
+    branches:
+      - agent/vt08-index-r1-validation-rejection-001
+  workflow_dispatch:
+
+concurrency:
+  group: vt08-index-r1-validation-rejection-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality-and-rejection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r1_validation_rejection.py
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+      - name: Download exact R1 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-c2-positional-r1-5232540cdb444473ddf0bfae01beb2e672cea344
+          path: evidence/r1
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34772299203
+      - name: Download exact forensics artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-c2-positional-r1-forensics-93c233798a6836a387fc11f1cbee1906264967f0
+          path: evidence/forensics
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34783956768
+      - name: Produce formal rejection
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r1_validation_rejection \
+            --r1 evidence/r1/vt08-index-c2-positional-r1.json \
+            --forensics evidence/forensics/vt08-index-c2-positional-r1-forensics.json \
+            --out artifacts/VT08_INDEX_VALIDATION_REJECTED.json
+      - name: Verify authority and bind SHA
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("artifacts/VT08_INDEX_VALIDATION_REJECTED.json").read_text())
+          assert payload["decision"] == "R1_REJECTED_FOR_PROMOTION"
+          assert payload["governance"]["demo_eligible"] is False
+          assert payload["governance"]["live_authorized"] is False
+          assert payload["governance"]["production_authorized"] is False
+          assert payload["governance"]["fresh_holdout_preserved_unopened"] is True
+          PY
+          printf '%s\n' "$GITHUB_SHA" > artifacts/git-sha.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r1-validation-rejection-${{ github.sha }}
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 90

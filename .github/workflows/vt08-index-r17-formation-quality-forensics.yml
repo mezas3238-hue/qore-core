@@ -1,0 +1,121 @@
+name: VT08 Index R17 Formation Quality Forensics
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r17-formation-quality-forensics.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r17_formation_quality_forensics.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r17_formation_quality_forensics.py
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r17_formation_quality_forensics.py
+
+  forensics:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download SP500 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download US30 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute R17 formation-quality forensics
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r17_formation_quality_forensics             --nas100-root artifacts/NAS100             --sp500-root artifacts/SP500             --us30-root artifacts/US30             --out artifacts/report/vt08-index-r17-formation-quality-forensics.json
+
+      - name: Verify forensic governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("artifacts/report/vt08-index-r17-formation-quality-forensics.json").read_text())
+          assert r["identity"] == "VT08_INDEX_R17_FORMATION_QUALITY_FORENSICS_001"
+          assert r["samples"]["five_year"] == 1574
+          assert 600 <= r["samples"]["recent_two_year"] <= 700
+          g=r["governance"]
+          assert g["forensics_only"] is True
+          assert g["pre_entry_features_only"] is True
+          assert g["fixed_buckets"] is True
+          assert g["parameter_search"] is False
+          assert g["candidate_promotion"] is False
+          assert g["fresh_holdout_claim"] is False
+          PY
+
+      - name: Build summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path("artifacts/report")
+          r=json.loads((root/"vt08-index-r17-formation-quality-forensics.json").read_text())
+          lines=[
+              "# VT08 INDEX R17 Formation Quality Forensics",
+              "",
+              f"- 5Y sample: {r['samples']['five_year']}",
+              f"- recent 2Y sample: {r['samples']['recent_two_year']}",
+              f"- stable PF>=1.20 rows: {r['stable_pf_1_2_count']}",
+              "",
+          ]
+          for row in r["stable_pf_1_2_rows"][:40]:
+              f=row["five_year"]
+              t=row["recent_two_year"]
+              lines.append(
+                  f"- {row['feature']} / {row['label']}: "
+                  f"5Y n={f['sample']} PF={f['profit_factor']} total={f['total_r']}R; "
+                  f"2Y n={t['sample']} PF={t['profit_factor']} total={t['total_r']}R; "
+                  f"minPF={row['min_profit_factor']}"
+              )
+          (root/"VT08_INDEX_R17_FORMATION_QUALITY_FORENSICS_SUMMARY.md").write_text("\n".join(lines)+"\n")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r17-formation-quality-forensics-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

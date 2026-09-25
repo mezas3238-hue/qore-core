@@ -1,0 +1,160 @@
+name: VT08 Index R6 5Y Failure Forensics
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r6-5y-failure-forensics.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r6_5y_failure_forensics.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r6_5y_failure_forensics.py
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  R6_FREEZE_COMMIT: 699d7519bd7355cb18d4fb98ce5825b605516511
+  R6_CANDIDATE_ID: VT08_INDEX_R6_GOVERNED_657_001
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify frozen R6 candidate unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code "$R6_FREEZE_COMMIT" "$GITHUB_SHA" --             src/qore/infrastructure/trader_lab/vt08_index_r6_governed_candidate_freeze.py
+          PYTHONPATH=src python - <<'PY'
+          import os
+          from qore.infrastructure.trader_lab import vt08_index_r6_governed_candidate_freeze as freeze
+          assert freeze.CANDIDATE_ID == os.environ["R6_CANDIDATE_ID"]
+          assert freeze.FIXED_DENSITY == 657
+          PY
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r6_5y_failure_forensics.py
+
+  forensics:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+
+      - name: Download NAS100 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+      - name: Download SP500 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+      - name: Download US30 CIBO raw M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute consumed 5Y failure forensics
+        run: |
+          python -m qore.infrastructure.trader_lab.vt08_index_r6_5y_failure_forensics             --nas100-root artifacts/NAS100             --sp500-root artifacts/SP500             --us30-root artifacts/US30             --out artifacts/report/vt08-index-r6-5y-failure-forensics.json
+
+      - name: Verify forensic governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path("artifacts/report/vt08-index-r6-5y-failure-forensics.json").read_text()
+          )
+          assert report["identity"] == "VT08_INDEX_R6_5Y_FAILURE_FORENSICS_001"
+          assert report["candidate"]["candidate_id"] == "VT08_INDEX_R6_GOVERNED_657_001"
+          assert report["sample"] == 2055
+          governance = report["governance"]
+          assert governance["forensics_only"] is True
+          assert governance["window_consumed"] is True
+          assert governance["parameter_search"] is False
+          assert governance["candidate_promotion"] is False
+          assert governance["fresh_holdout_claim"] is False
+          assert governance["live_authorized"] is False
+          assert governance["real_capital_authorized"] is False
+          assert governance["production_authorized"] is False
+          PY
+
+      - name: Build forensic summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("artifacts/report")
+          report = json.loads(
+              (root / "vt08-index-r6-5y-failure-forensics.json").read_text()
+          )
+          density = report["density_attribution"]
+          lock = report["governor_lock_in_primary"]
+          lines = [
+              "# VT08 INDEX R6 — 5Y Failure Forensics",
+              "",
+              f"- sample: {report['sample']}",
+              f"- initial trades: {density['initial_trade_count']}",
+              f"- rearm trades: {density['rearm_trade_count']}",
+              f"- rearm share: {density['rearm_share']}",
+              f"- hard governor trades: {lock['hard_mode_trades']}",
+              f"- hard governor share: {lock['hard_mode_share']}",
+              f"- first hard signal: {lock['first_hard_signal_at']}",
+              "",
+              "## Root-cause flags",
+          ]
+          for flag in report["root_cause_flags"]:
+              lines.append(
+                  f"- {flag['severity']} {flag['id']}: "
+                  f"{flag['interpretation']}"
+              )
+          for name in ("market_side", "anchor", "poi", "rearm", "model_kind"):
+              lines += ["", f"## {name}"]
+              for label, row in report["breakdowns"][name].items():
+                  raw = row["raw"]
+                  gov = row["governed"]
+                  lines.append(
+                      f"- {label}: n={row['sample']} rawPF={raw['profit_factor']} "
+                      f"rawDD={raw['max_drawdown_r']}R govPF={gov['profit_factor']} "
+                      f"govDD={gov['max_drawdown_r']}R meanWeight={row['mean_weight']}"
+                  )
+          (root / "VT08_INDEX_R6_5Y_FAILURE_FORENSICS_SUMMARY.md").write_text(
+              "\n".join(lines) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r6-5y-failure-forensics-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

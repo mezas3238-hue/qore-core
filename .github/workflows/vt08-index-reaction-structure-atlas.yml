@@ -1,0 +1,243 @@
+name: VT08 Index Reaction Structure Atlas
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-reaction-structure-atlas.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_reaction_structure_atlas.py
+      - tests/infrastructure/trader_lab/test_vt08_index_reaction_structure_atlas.py
+      - docs/research/VT08-INDEX-REACTION-STRUCTURE-ATLAS-001.md
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  V7_FREEZE_SHA: c37412c877f2fda8b32bda652b6bc74663159761
+  V7_RULE_FINGERPRINT: a7f3b7afa3a98bfcb4daad1595762ce3925000fb256e2cbd2db84b8ec80b1308
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Verify frozen V7 unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code "$V7_FREEZE_SHA" "$GITHUB_SHA" -- \
+            src/qore/infrastructure/trader_lab/vt08_index_v7_ttrades_source_corrected.py \
+            tests/infrastructure/trader_lab/test_vt08_index_v7_ttrades_source_corrected.py
+          PYTHONPATH=src python - <<'PY'
+          import os
+          from qore.infrastructure.trader_lab.vt08_index_v7_ttrades_source_corrected import RULE_FINGERPRINT
+          assert RULE_FINGERPRINT == os.environ['V7_RULE_FINGERPRINT']
+          PY
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - name: Focused reaction structure tests
+        run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_reaction_structure_atlas.py
+      - name: Full QORE gate
+        run: pytest --cov=src/qore --cov-report=term-missing
+
+  lab:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e ".[dev]"
+
+      - name: Download validated Market Journey Atlas
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-market-journey-atlas-dd81261a81c594e3c3d1a357b09521fbc6152e5b
+          path: artifacts/journey
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35159041735
+
+      - name: Download consumed 2018-20 evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-index-v7-fresh-*-c58751a753ef14841bd971e8abfed0388d122a02
+          path: artifacts/w2018
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35082269231
+
+      - name: Download consumed 2020-22 evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-index-v6-fresh-*-0f992b3709c3d5d5d938e722ce434653c487734b
+          path: artifacts/w2020
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35054539866
+
+      - name: Download consumed 2022-23 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-v3-fresh-decision-106a34282fe8eac2f8c466bcc8502d4ec8d73855
+          path: artifacts/w2022
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34798973408
+
+      - name: Download consumed 2023-24 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-index-v2-fresh-r2-decision-58dd289646de8814449f836ad617a51342eba0da
+          path: artifacts/w2023
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34795405536
+
+      - name: Download consumed 2024-26 evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-v2-source-executable-*-a5b9c6e0d65539c1f755dda8bb3d7ce7b1a839b0
+          path: artifacts/w2024
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34661791159
+
+      - name: Execute reaction structure atlas
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/report/windows
+
+          # The validated Market Journey Atlas emits `window_id`. Reaction Atlas v2
+          # historically consumed `window`. Normalize only this metadata field at the
+          # diagnostic boundary; no trade/economic fields are changed.
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          for path in sorted(Path('artifacts/journey/windows').glob('*.json')):
+              payload = json.loads(path.read_text(encoding='utf-8'))
+              if 'window' not in payload:
+                  if 'window_id' not in payload:
+                      raise SystemExit(f'{path}: missing window_id/window identity')
+                  payload['window'] = payload['window_id']
+              path.write_text(
+                  json.dumps(payload, sort_keys=True, separators=(',', ':')) + '\n',
+                  encoding='utf-8',
+              )
+          PY
+
+          resolve_triplet() {
+            root="$1"
+            nas="$(find "$root" -path '*NAS100*' -name market-evidence.json -print -quit)"
+            sp="$(find "$root" -path '*SP500*' -name market-evidence.json -print -quit)"
+            us="$(find "$root" -path '*US30*' -name market-evidence.json -print -quit)"
+            test -n "$nas" && test -n "$sp" && test -n "$us"
+            printf '%s\n%s\n%s\n' "$nas" "$sp" "$us"
+          }
+
+          mapfile -t w18 < <(resolve_triplet artifacts/w2018)
+          mapfile -t w20 < <(resolve_triplet artifacts/w2020)
+          mapfile -t w24 < <(resolve_triplet artifacts/w2024)
+
+          run_atlas() {
+            id="$1"; nas="$2"; sp="$3"; us="$4"
+            python -m qore.infrastructure.trader_lab.vt08_index_reaction_structure_atlas window \
+              --journey "artifacts/journey/windows/${id}.json" \
+              --nas100 "$nas" --sp500 "$sp" --us30 "$us" \
+              --out "artifacts/report/windows/${id}.json"
+          }
+
+          run_atlas w2018_2020 "${w18[0]}" "${w18[1]}" "${w18[2]}"
+          run_atlas w2020_2022 "${w20[0]}" "${w20[1]}" "${w20[2]}"
+          run_atlas w2022_2023 \
+            artifacts/w2022/truncated/NAS100.json \
+            artifacts/w2022/truncated/SP500.json \
+            artifacts/w2022/truncated/US30.json
+          run_atlas w2023_2024 \
+            artifacts/w2023/truncated/NAS100.json \
+            artifacts/w2023/truncated/SP500.json \
+            artifacts/w2023/truncated/US30.json
+          run_atlas w2024_2026 "${w24[0]}" "${w24[1]}" "${w24[2]}"
+
+          python -m qore.infrastructure.trader_lab.vt08_index_reaction_structure_atlas combine \
+            artifacts/report/windows/*.json \
+            --out artifacts/report/reaction-structure-atlas.json
+
+      - name: Build CIBO reaction summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('artifacts/report/reaction-structure-atlas.json').read_text())
+          lines=['# VT08 Index CIBO Reaction Structure Atlas','']
+          lines.append(f"Episodes reconstructed: {p['episode_count']}")
+
+          sections=(
+              ('Market x structure confluence','by_market_structure_combo'),
+              ('Market x weekday x structure','by_market_weekday_structure_combo'),
+              ('Market x reaction hour x structure','by_market_hour_structure_combo'),
+              ('Market x pre-arrival phase','by_market_pre_arrival_phase'),
+              ('Market x post-arrival phase','by_market_post_arrival_phase'),
+              ('Market x structure x post-arrival phase','by_market_structure_post_phase'),
+          )
+          for title,key in sections:
+              lines += ['', f'## {title}']
+              for label,value in p[key].items():
+                  if int(value.get('sample',0)) < 10:
+                      continue
+                  lines.append(
+                      f"- {label}: n={value['sample']} stop={value.get('stop_rate')} "
+                      f"1R={value.get('hit_1r_rate')} 2R={value.get('hit_2r_rate')} "
+                      f"3R={value.get('hit_3r_rate')} "
+                      f"reaction->signal={value.get('median_minutes_reaction_to_signal')}m "
+                      f"reaction->2R={value.get('median_minutes_reaction_to_2r')}m"
+                  )
+          lines += [
+              '',
+              'Reaction is strictly pre-signal and direction-aligned.',
+              'The 60m post-arrival phase is an outcome descriptor, never an admission rule.',
+              'Observed structure is diagnostic evidence, not proof of causation.',
+          ]
+          Path('artifacts/report/cibo-reaction-summary.md').write_text(
+              '\n'.join(lines)+'\n'
+          )
+          PY
+
+      - name: Verify governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('artifacts/report/reaction-structure-atlas.json').read_text())
+          assert p['candidate_id']=='VT08_INDEX_V7_TTRADES_SOURCE_CORRECTED_001'
+          assert p['rule_fingerprint']=='a7f3b7afa3a98bfcb4daad1595762ce3925000fb256e2cbd2db84b8ec80b1308'
+          status=p['definition_status']
+          assert status['order_block'].startswith('SOURCE_BOUND_DIAGNOSTIC')
+          assert status['breaker_block'].startswith('SOURCE_BOUND_DIAGNOSTIC')
+          assert status['mitigation_block'].startswith('UNRESOLVED')
+          g=p['governance']
+          assert g['diagnostic_only'] is True
+          assert g['changes_v7'] is False
+          assert g['observed_structure_is_not_causation'] is True
+          assert g['post_arrival_phase_is_outcome_not_admission_feature'] is True
+          assert g['automatic_rule_promotion_forbidden'] is True
+          assert g['live_authorized'] is False
+          assert g['real_capital_authorized'] is False
+          assert g['production_authorized'] is False
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-reaction-structure-atlas-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

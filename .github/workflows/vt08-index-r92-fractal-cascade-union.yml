@@ -1,0 +1,222 @@
+name: VT08 Index R92 Exact Fractal Cascade Union
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r92-fractal-cascade-union.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r92_fractal_cascade_union.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r92_fractal_cascade_union.py
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev,ctrader]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r92_fractal_cascade_union.py
+
+  union:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        symbol: [NAS100, SP500, US30]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[ctrader]"
+
+      - name: Verify DEMO read-only credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || { echo "missing required DEMO input: $name" >&2; exit 2; }
+          done
+
+      - name: Discover DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Download authoritative CIBO M5 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.symbol }}-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/cibo
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute R92 exact fractal cascade union
+        run: |
+          mkdir -p artifacts/report
+          python -m qore.infrastructure.trader_lab.vt08_index_r92_fractal_cascade_union \
+            --symbol "${{ matrix.symbol }}" \
+            --m15-root artifacts/cibo \
+            --out "artifacts/report/r92-${{ matrix.symbol }}.json"
+
+      - name: Verify R92 per-market governance
+        env:
+          MATRIX_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["MATRIX_SYMBOL"]
+          report = json.loads(
+              Path(f"artifacts/report/r92-{symbol}.json").read_text()
+          )
+          assert report["identity"] == (
+              "VT08_INDEX_R92_R66_EXACT_FRACTAL_CASCADE_UNION_001"
+          )
+          assert report["market"]["symbol"] == symbol
+          assert report["exact_identity_contract"] == [
+              "symbol",
+              "continuation_at_utc",
+              "side",
+              "entry",
+              "protected_swing",
+          ]
+          gov = report["governance"]
+          assert gov["consumed_r66_only"] is True
+          assert gov["exact_dedup_only"] is True
+          assert gov["fuzzy_time_tolerance_used"] is False
+          assert gov["outcome_information_used"] is False
+          assert gov["pnl_evaluated"] is False
+          assert gov["candidate_created"] is False
+          assert gov["trader_certified"] is False
+          assert gov["live_authorized"] is False
+          assert gov["real_capital_authorized"] is False
+          assert gov["production_authorized"] is False
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt08-index-r92-union-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: union
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-index-r92-union-*-${{ github.sha }}
+          path: artifacts/input
+          merge-multiple: true
+
+      - name: Aggregate exact cascade union
+        run: |
+          mkdir -p artifacts/report
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          paths = sorted(Path("artifacts/input").glob("r92-*.json"))
+          assert len(paths) == 3, paths
+          rows = [json.loads(path.read_text()) for path in paths]
+          total_union = sum(
+              int(row["market"]["exact_union_count"])
+              for row in rows
+          )
+          layer_totals = {
+              key: sum(int(row["market"]["layer_counts"][key]) for row in rows)
+              for key in ("h4_m15", "h1_m5", "m15_m1")
+          }
+          overlaps = {
+              key: sum(
+                  int(row["market"]["exact_overlap_counts"][key])
+                  for row in rows
+              )
+              for key in (
+                  "h4_m15__h1_m5",
+                  "h4_m15__m15_m1",
+                  "h1_m5__m15_m1",
+                  "all_three",
+              )
+          }
+          payload = {
+              "schema": "qore.trader_lab.vt08_index_r92_fractal_cascade_union.aggregate.v1",
+              "identity": "VT08_INDEX_R92_R66_EXACT_FRACTAL_CASCADE_UNION_001",
+              "window": "R66_CONSUMED",
+              "minimum_density": 1000,
+              "layer_totals_before_dedup": layer_totals,
+              "exact_overlap_totals": overlaps,
+              "exact_union_count": total_union,
+              "density_pass": total_union >= 1000,
+              "by_market": {
+                  row["market"]["symbol"]: {
+                      "layer_counts": row["market"]["layer_counts"],
+                      "exact_overlap_counts": row["market"]["exact_overlap_counts"],
+                      "exact_union_count": row["market"]["exact_union_count"],
+                  }
+                  for row in rows
+              },
+              "decision": (
+                  "R92_R66_EXACT_FRACTAL_UNION_DENSITY_SUFFICIENT"
+                  if total_union >= 1000
+                  else "R92_R66_EXACT_FRACTAL_UNION_DENSITY_INSUFFICIENT"
+              ),
+              "governance": {
+                  "consumed_r66_only": True,
+                  "fresh_holdout_claim": False,
+                  "exact_dedup_only": True,
+                  "pnl_evaluated": False,
+                  "candidate_created": False,
+                  "trader_certified": False,
+                  "live_authorized": False,
+                  "real_capital_authorized": False,
+                  "production_authorized": False,
+              },
+          }
+          Path("artifacts/report/r92-r66-aggregate.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n"
+          )
+          print(json.dumps(payload, sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r92-union-aggregate-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90

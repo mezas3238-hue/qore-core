@@ -1,0 +1,142 @@
+name: VT08 Index V7 Fresh Holdout
+# Retriggered after pre-access typing-only fix; V7 economics remain frozen.
+
+on:
+  push:
+    branches: [agent/vt08-index-v7-source-correction-001]
+    paths: [.github/workflows/vt08-index-v7-fresh-holdout.yml]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: vt08-index-v7-fresh-one-shot
+  cancel-in-progress: false
+
+env:
+  FREEZE_SHA: c37412c877f2fda8b32bda652b6bc74663159761
+  FINGERPRINT: a7f3b7afa3a98bfcb4daad1595762ce3925000fb256e2cbd2db84b8ec80b1308
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Verify frozen V7 economics
+        run: |
+          git diff --exit-code "$FREEZE_SHA" "$GITHUB_SHA" -- src/qore/infrastructure/trader_lab/vt08_index_v7_ttrades_source_corrected.py tests/infrastructure/trader_lab/test_vt08_index_v7_ttrades_source_corrected.py
+          PYTHONPATH=src python - <<'PY'
+          import os
+          from qore.infrastructure.trader_lab.vt08_index_v7_ttrades_source_corrected import RULE_FINGERPRINT, EXECUTABLE_H4_ANCHORS_NY
+          assert RULE_FINGERPRINT == os.environ['FINGERPRINT']
+          assert EXECUTABLE_H4_ANCHORS_NY == (22,2,6,10)
+          PY
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_v7_ttrades_source_corrected.py tests/infrastructure/trader_lab/test_vt08_index_v7_fresh_validation.py
+      - run: pytest --cov=src/qore --cov-report=term-missing
+
+  acquire:
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        symbol: [NAS100, SP500, US30]
+    env:
+      QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e ".[ctrader]"
+      - name: Discover DEMO account if needed
+        run: |
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Collect fixed fresh evidence
+        run: |
+          mkdir -p "artifacts/${QORE_DEMO_LAB_SYMBOL}"
+          python -m qore.infrastructure.ctrader_demo_lab_vt08_index_v7_fresh_probe > "artifacts/${QORE_DEMO_LAB_SYMBOL}/market-evidence.json"
+      - name: Verify boundary
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import UTC, datetime
+          from pathlib import Path
+          s=os.environ['QORE_DEMO_LAB_SYMBOL']
+          p=json.loads(Path(f'artifacts/{s}/market-evidence.json').read_text())
+          assert p['environment']=='demo' and p['read_only'] is True and p['account_is_live'] is False
+          assert p['v7_holdout_acquisition']['holdout_start_new_york']=='2018-09-15'
+          assert p['v7_holdout_acquisition']['holdout_end_exclusive_new_york']=='2020-09-15'
+          boundary=datetime(2020,9,15,4,0,tzinfo=UTC)
+          assert datetime.fromisoformat(p['checked_at']).astimezone(UTC)==boundary
+          assert all(datetime.fromisoformat(b['closed_at']).astimezone(UTC)<=boundary for b in p['periods']['M15'])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-v7-fresh-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/${{ matrix.symbol }}
+          if-no-files-found: error
+          retention-days: 90
+
+  decision:
+    needs: acquire
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e ".[dev]"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-index-v7-fresh-*-${{ github.sha }}
+          path: artifacts/input
+      - name: Resolve evidence
+        run: |
+          for s in NAS100 SP500 US30; do
+            p="$(find artifacts/input -path "*${s}*" -name market-evidence.json -print -quit)"
+            test -n "$p"
+            echo "${s}_PATH=$p" >> "$GITHUB_ENV"
+          done
+      - name: Run frozen V7
+        run: |
+          mkdir -p artifacts/decision
+          python -m qore.infrastructure.trader_lab.vt08_index_v7_ttrades_source_corrected --nas100 "$NAS100_PATH" --sp500 "$SP500_PATH" --us30 "$US30_PATH" --start-date 2018-09-15 --end-date-exclusive 2020-09-15 --expected-software-sha "$GITHUB_SHA" --minimum-evidence-days 760 --out artifacts/decision/candidate.json
+          python -m qore.infrastructure.trader_lab.vt08_index_v7_fresh_validation artifacts/decision/candidate.json --out artifacts/decision/validation.json
+      - name: Seal decision
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=Path('artifacts/decision')
+          c=json.loads((r/'candidate.json').read_text())
+          v=json.loads((r/'validation.json').read_text())
+          out={'candidate_id':c['candidate_id'],'rule_fingerprint':c['rule_fingerprint'],'partition':c['partition'],'metrics_raw':c['metrics_raw'],'metrics_primary_stress':c['metrics_primary_stress'],'metrics_secondary_stress':c['metrics_secondary_stress'],'by_market_primary_stress':c['by_market_primary_stress'],'by_side_primary_stress':c['by_side_primary_stress'],'by_anchor_primary_stress':c['by_anchor_primary_stress'],'by_model_primary_stress':c['by_model_primary_stress'],'gates':v['gates'],'fresh_holdout_pass':v['fresh_holdout_pass'],'post_result_tuning_permitted':False,'live_authorized':False,'real_capital_authorized':False,'production_authorized':False}
+          (r/'one-shot-decision.json').write_text(json.dumps(out,sort_keys=True,separators=(',',':'))+'\n')
+          print(json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-v7-fresh-decision-${{ github.sha }}
+          path: artifacts/decision
+          if-no-files-found: error
+          retention-days: 90

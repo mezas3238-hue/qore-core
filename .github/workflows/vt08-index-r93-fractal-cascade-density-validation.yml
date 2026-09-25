@@ -1,0 +1,239 @@
+name: VT08 Index R93 Fractal Cascade Density Validation
+
+on:
+  push:
+    branches: [agent/vt08-index-deep-behavior-lab-final]
+    paths:
+      - .github/workflows/vt08-index-r93-fractal-cascade-density-validation.yml
+      - src/qore/infrastructure/trader_lab/vt08_index_r93_fractal_cascade_density_validation.py
+      - tests/infrastructure/trader_lab/test_vt08_index_r93_fractal_cascade_density_validation.py
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev,ctrader]"
+      - run: ruff check .
+      - run: mypy src tests
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_index_r93_fractal_cascade_density_validation.py
+
+  validate:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        window: [5Y, 2Y]
+        symbol: [NAS100, SP500, US30]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[ctrader]"
+
+      - name: Verify DEMO read-only credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || { echo "missing required DEMO input: $name" >&2; exit 2; }
+          done
+
+      - name: Discover DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Download authoritative CIBO M5 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.symbol }}-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: artifacts/cibo
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Execute R93 exact cascade density validation
+        run: |
+          mkdir -p artifacts/report
+          python -m qore.infrastructure.trader_lab.vt08_index_r93_fractal_cascade_density_validation \
+            --symbol "${{ matrix.symbol }}" \
+            --window "${{ matrix.window }}" \
+            --root artifacts/cibo \
+            --out "artifacts/report/r93-${{ matrix.window }}-${{ matrix.symbol }}.json"
+
+      - name: Verify R93 governance
+        env:
+          MATRIX_SYMBOL: ${{ matrix.symbol }}
+          MATRIX_WINDOW: ${{ matrix.window }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["MATRIX_SYMBOL"]
+          window = os.environ["MATRIX_WINDOW"]
+          report = json.loads(
+              Path(
+                  f"artifacts/report/r93-{window}-{symbol}.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "VT08_INDEX_R93_EXACT_FRACTAL_CASCADE_DENSITY_VALIDATION_001"
+          )
+          assert report["source_r92_run_id"] == 35530286516
+          assert report["symbol"] == symbol
+          assert report["window_id"] == window
+          gov = report["governance"]
+          assert gov["consumed_evidence_only"] is True
+          assert gov["fresh_holdout_claim"] is False
+          assert gov["exact_r92_architecture_reused"] is True
+          assert gov["exact_dedup_only"] is True
+          assert gov["pnl_evaluated"] is False
+          assert gov["risk_changed"] is False
+          assert gov["target_changed"] is False
+          assert gov["anchors_changed"] is False
+          assert gov["candidate_created"] is False
+          assert gov["trader_certified"] is False
+          assert gov["live_authorized"] is False
+          assert gov["real_capital_authorized"] is False
+          assert gov["production_authorized"] is False
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-vt08-index-r93-${{ matrix.window }}-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt08-index-r93-*-${{ github.sha }}
+          path: artifacts/input
+          merge-multiple: true
+
+      - name: Aggregate R93 windows
+        run: |
+          mkdir -p artifacts/report
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          paths = sorted(Path("artifacts/input").glob("r93-*.json"))
+          assert len(paths) == 6, paths
+          rows = [json.loads(path.read_text()) for path in paths]
+          windows = {}
+          for window in ("5Y", "2Y"):
+              subset = [row for row in rows if row["window_id"] == window]
+              assert len(subset) == 3
+              union = sum(int(row["exact_union_count"]) for row in subset)
+              layers = {
+                  key: sum(int(row["layer_counts"][key]) for row in subset)
+                  for key in ("h4_m15", "h1_m5", "m15_m1")
+              }
+              overlaps = {
+                  key: sum(
+                      int(row["exact_overlap_counts"][key])
+                      for row in subset
+                  )
+                  for key in (
+                      "h4_m15__h1_m5",
+                      "h4_m15__m15_m1",
+                      "h1_m5__m15_m1",
+                      "all_three",
+                  )
+              }
+              if window == "5Y":
+                  density_pass = 2300 <= union <= 2500
+                  requirement = "2300-2500"
+              else:
+                  density_pass = union >= 1000
+                  requirement = ">=1000"
+              windows[window] = {
+                  "exact_union_count": union,
+                  "density_requirement": requirement,
+                  "density_pass": density_pass,
+                  "layer_totals_before_dedup": layers,
+                  "exact_overlap_totals": overlaps,
+                  "by_market": {
+                      row["symbol"]: {
+                          "exact_union_count": row["exact_union_count"],
+                          "layer_counts": row["layer_counts"],
+                          "exact_overlap_counts": row["exact_overlap_counts"],
+                      }
+                      for row in subset
+                  },
+              }
+
+          payload = {
+              "schema": "qore.trader_lab.vt08_index_r93_fractal_cascade_density_validation.aggregate.v1",
+              "identity": "VT08_INDEX_R93_EXACT_FRACTAL_CASCADE_DENSITY_VALIDATION_001",
+              "source_r92_run_id": 35530286516,
+              "windows": windows,
+              "density_transport_pass": all(
+                  row["density_pass"] for row in windows.values()
+              ),
+              "decision": (
+                  "R93_EXACT_CASCADE_DENSITY_TRANSPORT_SURVIVED"
+                  if all(row["density_pass"] for row in windows.values())
+                  else "R93_EXACT_CASCADE_DENSITY_TRANSPORT_FAILED_NO_ECONOMIC_STAGE"
+              ),
+              "governance": {
+                  "consumed_evidence_only": True,
+                  "fresh_holdout_claim": False,
+                  "pnl_evaluated": False,
+                  "candidate_created": False,
+                  "trader_certified": False,
+                  "live_authorized": False,
+                  "real_capital_authorized": False,
+                  "production_authorized": False,
+              },
+          }
+          Path("artifacts/report/r93-aggregate.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n"
+          )
+          print(json.dumps(payload, sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-index-r93-aggregate-${{ github.sha }}
+          path: artifacts/report
+          if-no-files-found: error
+          retention-days: 90
