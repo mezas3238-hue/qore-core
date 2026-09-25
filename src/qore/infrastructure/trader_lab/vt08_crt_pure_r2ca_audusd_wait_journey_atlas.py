@@ -29,6 +29,14 @@ from typing import Any
 from qore.infrastructure.trader_lab import (
     vt08_crt_pure_r2by_audusd_cognitive_experience_wf as r2by,
 )
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2bh_audusd_entry_viability_wf import (
+    END,
+    START,
+    TRAINING_YEARS,
+    _build_records,
+    _slice,
+    _year_start,
+)
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import (
     M15Bar,
     aggregate_complete_m15,
@@ -139,11 +147,11 @@ def _summary(rows: tuple[WaitJourneyRecord, ...]) -> dict[str, Any]:
 
 
 def run_atlas() -> tuple[tuple[WaitJourneyRecord, ...], dict[str, Any]]:
-    records, _ = r2by._build_records()
+    records, _ = _build_records()
     m5 = load_m5_window(
         r2by.MARKET,
-        start=r2by.START - timedelta(days=2),
-        end_exclusive=r2by.END + timedelta(days=1),
+        start=START - timedelta(days=2),
+        end_exclusive=END + timedelta(days=1),
     )
     m15 = aggregate_complete_m15(m5)
     by_time = {bar.opened_at: bar for bar in m15}
@@ -153,18 +161,18 @@ def run_atlas() -> tuple[tuple[WaitJourneyRecord, ...], dict[str, Any]]:
     folds: list[dict[str, Any]] = []
 
     for oos_year in range(
-        r2by.START.year + r2by.TRAINING_YEARS,
-        r2by.END.year,
+        START.year + TRAINING_YEARS,
+        END.year,
     ):
-        training = r2by._slice(
+        training = _slice(
             records,
-            r2by._year_start(oos_year - r2by.TRAINING_YEARS),
-            r2by._year_start(oos_year),
+            _year_start(oos_year - TRAINING_YEARS),
+            _year_start(oos_year),
         )
-        oos = r2by._slice(
+        oos = _slice(
             records,
-            r2by._year_start(oos_year),
-            r2by._year_start(oos_year + 1),
+            _year_start(oos_year),
+            _year_start(oos_year + 1),
         )
         model, _ = r2by._fit(training)
         fold_rows: list[WaitJourneyRecord] = []
@@ -184,7 +192,7 @@ def run_atlas() -> tuple[tuple[WaitJourneyRecord, ...], dict[str, Any]]:
         counts = Counter(item.state for item in fold_rows)
         folds.append(
             {
-                "oos_start": r2by._year_start(oos_year).isoformat(),
+                "oos_start": _year_start(oos_year).isoformat(),
                 "wait_count": len(fold_rows),
                 "state_counts": dict(counts),
                 "state_summaries": {
@@ -200,8 +208,8 @@ def run_atlas() -> tuple[tuple[WaitJourneyRecord, ...], dict[str, Any]]:
         sorted(journey_rows, key=lambda item: item.entry_opened_at)
     )
     groups: defaultdict[str, list[WaitJourneyRecord]] = defaultdict(list)
-    for row in rows:
-        groups[row.state].append(row)
+    for journey_row in rows:
+        groups[journey_row.state].append(journey_row)
 
     report: dict[str, Any] = {
         "schema": SCHEMA,
