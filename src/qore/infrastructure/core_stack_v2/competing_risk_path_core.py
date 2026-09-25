@@ -19,7 +19,6 @@ from qore.infrastructure.core_stack_v2.competing_future_intelligence import (
 )
 from qore.infrastructure.core_stack_v2.environment_intelligence import (
     MarketEnvironmentAssessment,
-    MarketEnvironmentState,
 )
 from qore.infrastructure.core_stack_v2.future_geometry_intelligence import (
     FutureGeometryAssessment,
@@ -31,7 +30,6 @@ from qore.infrastructure.core_stack_v2.path_intelligence import (
 )
 from qore.infrastructure.core_stack_v2.transition_intelligence import (
     MarketTrajectoryAssessment,
-    MarketTrajectoryState,
 )
 
 
