@@ -7,6 +7,8 @@ H1/H4 boundary using broker-to-UTC normalization. Sovereign Account-Wide Risk
 remains above all traders.
 """
 
+# ruff: noqa: E402
+
 from __future__ import annotations
 
 import argparse
@@ -23,6 +25,11 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
+
+# Bind QORE imports to the exact release tree whose Git SHA is authorized.
+_RUNTIME_ROOT = Path(__file__).resolve().parents[1]
+_RUNTIME_SRC = _RUNTIME_ROOT / "src"
+sys.path.insert(0, str(_RUNTIME_SRC))
 
 import MetaTrader5 as mt5  # type: ignore
 
@@ -1890,6 +1897,13 @@ def _process_audjpy_r42_candidate(
 
 
 def run(root: Path, *, mode: str, activation_path: Path) -> None:
+    root = root.resolve()
+    imported_qore = Path(import_module("qore").__file__).resolve()
+    expected_qore = (root / "src" / "qore").resolve()
+    if expected_qore not in imported_qore.parents:
+        raise RuntimeError(
+            f"runtime-qore-source-mismatch:{imported_qore}:{expected_qore}"
+        )
     sha = _git_sha(root)
     if not mt5.initialize():
         raise RuntimeError(f"mt5-initialize-failed-{mt5.last_error()}")
