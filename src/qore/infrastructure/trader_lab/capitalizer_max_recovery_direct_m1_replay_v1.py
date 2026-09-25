@@ -72,6 +72,9 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
     CapitalizerSession,
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
+from qore.infrastructure.trader_lab.capitalizer_full_ict_density_scanner_1y_v1 import (
+    _aggregate_h1,
+)
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     _aggregate_tf,
     _index_day_inputs,
@@ -144,22 +147,28 @@ def _window(
         frozen_v3.WINDOW_END,
         frozen_v3.LOOKBACK_START,
     )
+    mutable_wait5: Any = wait5
+    mutable_v3: Any = v3
     old_wait = (
-        wait5.WINDOW_START,
-        wait5.WINDOW_END,
-        wait5.LOOKBACK_START,
+        mutable_wait5.WINDOW_START,
+        mutable_wait5.WINDOW_END,
+        mutable_wait5.LOOKBACK_START,
     )
-    old_v3 = (v3.WINDOW_START, v3.WINDOW_END, v3.LOOKBACK_START)
+    old_v3 = (
+        mutable_v3.WINDOW_START,
+        mutable_v3.WINDOW_END,
+        mutable_v3.LOOKBACK_START,
+    )
     try:
         frozen_v3.WINDOW_START = start
         frozen_v3.WINDOW_END = end
         frozen_v3.LOOKBACK_START = lookback
-        wait5.WINDOW_START = start
-        wait5.WINDOW_END = end
-        wait5.LOOKBACK_START = lookback
-        v3.WINDOW_START = start
-        v3.WINDOW_END = end
-        v3.LOOKBACK_START = lookback
+        mutable_wait5.WINDOW_START = start
+        mutable_wait5.WINDOW_END = end
+        mutable_wait5.LOOKBACK_START = lookback
+        mutable_v3.WINDOW_START = start
+        mutable_v3.WINDOW_END = end
+        mutable_v3.LOOKBACK_START = lookback
         yield
     finally:
         (
@@ -167,8 +176,16 @@ def _window(
             frozen_v3.WINDOW_END,
             frozen_v3.LOOKBACK_START,
         ) = old_frozen
-        wait5.WINDOW_START, wait5.WINDOW_END, wait5.LOOKBACK_START = old_wait
-        v3.WINDOW_START, v3.WINDOW_END, v3.LOOKBACK_START = old_v3
+        (
+            mutable_wait5.WINDOW_START,
+            mutable_wait5.WINDOW_END,
+            mutable_wait5.LOOKBACK_START,
+        ) = old_wait
+        (
+            mutable_v3.WINDOW_START,
+            mutable_v3.WINDOW_END,
+            mutable_v3.LOOKBACK_START,
+        ) = old_v3
 
 
 def _direct_from_v3(
@@ -374,7 +391,7 @@ def _current_first_recoveries(
     end: datetime,
 ) -> tuple[tuple[DirectTrade, ...], tuple[DirectTrade, ...], Counter[str]]:
     symbol = all_bars[0].symbol
-    h1 = v3._aggregate_h1(all_bars)
+    h1 = _aggregate_h1(all_bars)
     h1_swings = v3._build_h1_swings(h1)
     m5 = _aggregate_tf(all_bars, minutes=5)
     m5_closes = tuple(item.closed_at for item in m5)
@@ -783,8 +800,8 @@ def write_market(
             "w",
             encoding="utf-8",
         ) as handle:
-            for row in rows:
-                handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+            for simulated in rows:
+                handle.write(json.dumps(asdict(simulated), sort_keys=True) + "\n")
 
 
 def _load_mode(
