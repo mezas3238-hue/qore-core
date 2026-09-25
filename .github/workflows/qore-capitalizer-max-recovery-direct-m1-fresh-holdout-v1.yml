@@ -1,0 +1,374 @@
+name: QORE Capitalizer MAX_RECOVERY Direct M1 Fresh Holdout V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-max-recovery-direct-m1-fresh-holdout-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_max_recovery_direct_m1_replay_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_max_recovery_direct_m1_replay_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-max-recovery-direct-m1-fresh-holdout-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_M1_RUN_ID: '35548099334'
+  SOURCE_M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+  DEV_START: '2024-09-17T00:00:00+00:00'
+  DEV_END: '2026-09-17T00:00:00+00:00'
+  HOLDOUT_START: '2022-09-17T00:00:00+00:00'
+  HOLDOUT_END: '2024-09-17T00:00:00+00:00'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_max_recovery_direct_m1_replay_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_max_recovery_direct_m1_replay_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_max_recovery_direct_m1_replay_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_max_recovery_direct_m1_replay_v1.py
+
+  development:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - {symbol: USDJPY, session: ASIA}
+          - {symbol: AUDJPY, session: ASIA}
+          - {symbol: AUDUSD, session: ASIA}
+          - {symbol: GBPJPY, session: ASIA}
+          - {symbol: EURUSD, session: LONDON}
+          - {symbol: GBPUSD, session: LONDON}
+          - {symbol: XAUUSD, session: NEW_YORK}
+          - {symbol: USDCAD, session: NEW_YORK}
+          - {symbol: NAS100, session: NEW_YORK}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download immutable 10Y provider-native M1
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.SOURCE_M1_SHA }}
+          path: m1-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M1_RUN_ID }}
+      - name: Rebuild development MAX_RECOVERY directly from M1
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_direct_m1_replay_v1 \
+            market m1-source dev-output \
+            --session "${{ matrix.session }}" \
+            --start "$DEV_START" \
+            --end-exclusive "$DEV_END"
+      - name: Enforce market causal controls
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+          EXPECTED_SESSION: ${{ matrix.session }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          report = json.loads(
+              (
+                  Path("dev-output")
+                  / f"capitalizer-{symbol.lower()}-max-recovery-direct-m1-replay-v1.json"
+              ).read_text()
+          )
+          assert report["symbol"] == symbol
+          assert report["session"] == os.environ["EXPECTED_SESSION"]
+          assert report["window_start"] == os.environ["DEV_START"]
+          assert report["window_end_exclusive"] == os.environ["DEV_END"]
+          assert report["original_milestone_reproduction_mismatches"] == 0
+          assert report["provider_native_m1"] is True
+          assert report["three_recovery_families_rebuilt_from_m1"] is True
+          assert report["one_trade_per_market_h1"] is True
+          assert report["earliest_causal_entry_wins"] is True
+          assert report["fixed_2r"] is True
+          assert report["outcome_used_for_admission"] is False
+          assert report["trader_certified"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-max-recovery-direct-m1-dev-${{ matrix.symbol }}-${{ github.sha }}
+          path: dev-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate_development:
+    needs: development
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-max-recovery-direct-m1-dev-*-${{ github.sha }}
+          path: dev-input
+          merge-multiple: false
+      - name: Reproduce canonical development and freeze mode map
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_direct_m1_replay_v1 \
+            matrix dev-input dev-matrix --role DEVELOPMENT
+      - name: Enforce exact 2024-2026 control
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "dev-matrix/"
+                  "capitalizer-nine-market-max-recovery-direct-m1-replay-v1.json"
+              ).read_text()
+          )
+          freeze = json.loads(
+              Path(
+                  "dev-matrix/"
+                  "capitalizer-milestone-dd-utility-mode-map-v1.json"
+              ).read_text()
+          )
+          assert report["evaluation_role"] == "DEVELOPMENT"
+          assert report["raw_trades"] == 963
+          assert report["max3_trades"] == 948
+          control = report["original_metrics"]
+          assert Decimal(control["profit_factor"]) == Decimal(
+              "1.466020472120789368123727041"
+          )
+          assert Decimal(control["total_r"]) == Decimal(
+              "153.9927998412621697329314877"
+          )
+          assert Decimal(control["max_drawdown_r"]) == Decimal(
+              "12.93584837435268644582248142"
+          )
+          assert int(control["max_losing_streak"]) == 7
+          assert freeze["selection_policy"] == "PER_MARKET_DD_UTILITY"
+          assert freeze["holdout_outcomes_visible_to_selection"] is False
+          assert len(freeze["mode_map"]) == 9
+          assert report["trader_certified"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-direct-m1-development-freeze-${{ github.sha }}
+          path: dev-matrix
+          if-no-files-found: error
+          retention-days: 90
+
+  fresh_holdout:
+    needs: aggregate_development
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - {symbol: USDJPY, session: ASIA}
+          - {symbol: AUDJPY, session: ASIA}
+          - {symbol: AUDUSD, session: ASIA}
+          - {symbol: GBPJPY, session: ASIA}
+          - {symbol: EURUSD, session: LONDON}
+          - {symbol: GBPUSD, session: LONDON}
+          - {symbol: XAUUSD, session: NEW_YORK}
+          - {symbol: USDCAD, session: NEW_YORK}
+          - {symbol: NAS100, session: NEW_YORK}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download frozen development selection before reading holdout
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-direct-m1-development-freeze-${{ github.sha }}
+          path: frozen-development
+      - name: Prove holdout cannot alter frozen map
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(
+              Path(
+                  "frozen-development/"
+                  "capitalizer-milestone-dd-utility-mode-map-v1.json"
+              ).read_text()
+          )
+          assert p["selection_policy"] == "PER_MARKET_DD_UTILITY"
+          assert p["holdout_outcomes_visible_to_selection"] is False
+          assert p["map_frozen_before_holdout_aggregation"] is True
+          PY
+      - name: Download immutable 10Y provider-native M1
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.SOURCE_M1_SHA }}
+          path: m1-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M1_RUN_ID }}
+      - name: Run untouched non-overlapping holdout
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_direct_m1_replay_v1 \
+            market m1-source holdout-output \
+            --session "${{ matrix.session }}" \
+            --start "$HOLDOUT_START" \
+            --end-exclusive "$HOLDOUT_END"
+      - name: Enforce holdout window and causal controls
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          report = json.loads(
+              (
+                  Path("holdout-output")
+                  / f"capitalizer-{symbol.lower()}-max-recovery-direct-m1-replay-v1.json"
+              ).read_text()
+          )
+          assert report["symbol"] == symbol
+          assert report["window_start"] == os.environ["HOLDOUT_START"]
+          assert report["window_end_exclusive"] == os.environ["HOLDOUT_END"]
+          assert report["original_milestone_reproduction_mismatches"] == 0
+          assert report["three_recovery_families_rebuilt_from_m1"] is True
+          assert report["outcome_used_for_admission"] is False
+          assert report["milestone_modes_selected"] is False
+          assert report["trader_certified"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-max-recovery-direct-m1-holdout-${{ matrix.symbol }}-${{ github.sha }}
+          path: holdout-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate_holdout:
+    needs: fresh_holdout
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-max-recovery-direct-m1-holdout-*-${{ github.sha }}
+          path: holdout-input
+          merge-multiple: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-direct-m1-development-freeze-${{ github.sha }}
+          path: frozen-development
+      - name: Apply development-frozen mode map to untouched holdout
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_direct_m1_replay_v1 \
+            matrix holdout-input holdout-matrix \
+            --role FRESH_HOLDOUT \
+            --frozen-map frozen-development/capitalizer-milestone-dd-utility-mode-map-v1.json
+      - name: Build certification evidence
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          p = Path(
+              "holdout-matrix/"
+              "capitalizer-nine-market-max-recovery-direct-m1-replay-v1.json"
+          )
+          report = json.loads(p.read_text())
+          assert report["evaluation_role"] == "FRESH_HOLDOUT"
+          assert report["density_retention"] == "1"
+          assert report["holdout_outcomes_visible_to_mode_map_selection"] is False
+          assert report["same_fixed_2r"] is True
+          assert report["same_max3"] is True
+
+          control = report["original_metrics"]
+          frozen = report["frozen_dd_utility_metrics"]
+          if frozen is None:
+              raise AssertionError("holdout frozen-map metrics missing")
+
+          report["certification_evidence"] = {
+              "fresh_holdout_non_overlapping": True,
+              "fresh_holdout_window": [
+                  "2022-09-17T00:00:00+00:00",
+                  "2024-09-17T00:00:00+00:00",
+              ],
+              "development_window": [
+                  "2024-09-17T00:00:00+00:00",
+                  "2026-09-17T00:00:00+00:00",
+              ],
+              "density_retention": "1",
+              "pf_improved_vs_holdout_control": (
+                  Decimal(str(frozen["profit_factor"]))
+                  >= Decimal(str(control["profit_factor"]))
+              ),
+              "total_r_improved_vs_holdout_control": (
+                  Decimal(str(frozen["total_r"]))
+                  >= Decimal(str(control["total_r"]))
+              ),
+              "dd_at_or_below_6r": (
+                  Decimal(str(frozen["max_drawdown_r"])) <= Decimal("6")
+              ),
+              "losing_streak_at_or_below_7": (
+                  int(frozen["max_losing_streak"]) <= 7
+              ),
+          }
+          report["certification_evidence"]["economic_gate_pass"] = all(
+              (
+                  report["certification_evidence"]["pf_improved_vs_holdout_control"],
+                  report["certification_evidence"]["total_r_improved_vs_holdout_control"],
+                  report["certification_evidence"]["dd_at_or_below_6r"],
+                  report["certification_evidence"]["losing_streak_at_or_below_7"],
+              )
+          )
+          # Evidence only. Formal trader certification remains a separate freeze.
+          report["trader_certified"] = False
+          p.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-max-recovery-direct-m1-fresh-holdout-matrix-${{ github.sha }}
+          path: holdout-matrix
+          if-no-files-found: error
+          retention-days: 90
