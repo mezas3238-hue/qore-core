@@ -1,0 +1,151 @@
+name: QORE Shared Evidence-Maturity Specialist Survival V22B
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/shared_evidence_maturity_specialist_survival_v22b.py
+      - .github/workflows/qore-shared-evidence-maturity-specialist-survival-v22b.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  evidence-maturity-specialist-survival-v22b:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - name: Checkout Shared
+        uses: actions/checkout@v4
+        with:
+          path: shared
+
+      - name: Checkout frozen external falsification surface
+        uses: actions/checkout@v4
+        with:
+          ref: agent/vt08-index-deep-behavior-lab-final
+          path: surface
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compose autonomous Shared research surface
+        run: |
+          set -euo pipefail
+          mkdir -p surface/src/qore/infrastructure/core_stack_v2 surface/scripts
+          : > surface/src/qore/infrastructure/core_stack_v2/__init__.py
+          cp shared/src/qore/infrastructure/core_stack_v2/adversity_challenge_intelligence.py \
+             surface/src/qore/infrastructure/core_stack_v2/adversity_challenge_intelligence.py
+          cp shared/src/qore/infrastructure/core_stack_v2/multi_state_competing_hazard.py \
+             surface/src/qore/infrastructure/core_stack_v2/multi_state_competing_hazard.py
+          for script in \
+            vt08_index_shared_competing_risk_calibration_v9.py \
+            vt08_index_shared_context_conditioned_competing_risk_v15.py \
+            shared_autonomous_nonlinear_loss_risk_ensemble_v19.py \
+            shared_multi_state_competing_hazard_v20.py \
+            shared_relational_adversity_challenge_survival_v21.py \
+            shared_evidence_maturity_specialist_survival_v22b.py
+          do
+            cp "shared/scripts/$script" "surface/scripts/$script"
+          done
+
+      - name: Install composite research tree
+        run: |
+          cd surface
+          pip install -e ".[dev]"
+          pip install "numpy>=2,<3" "scikit-learn>=1.5,<2"
+
+      - name: Static validation
+        run: |
+          set -euo pipefail
+          cd surface
+          ruff check scripts/shared_evidence_maturity_specialist_survival_v22b.py
+          python -m py_compile scripts/shared_evidence_maturity_specialist_survival_v22b.py
+
+      - name: Download frozen consumed path ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-shared-vt08-stop-target-discrimination-v6-1a534d0ae735efef4dcbc0c0be4b110ceaa80501
+          path: surface/artifacts/v6
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 36131607443
+
+      - name: Run V22B evidence-maturity specialist survival
+        run: |
+          set -euo pipefail
+          cd surface
+          mkdir -p artifacts/shared-v22b
+          python scripts/shared_evidence_maturity_specialist_survival_v22b.py \
+            --v6-json artifacts/v6/vt08-index-shared-stop-target-discrimination-v6.json \
+            --out artifacts/shared-v22b/shared-evidence-maturity-specialist-survival-v22b.json \
+            | tee artifacts/shared-v22b/summary.json
+
+      - name: Validate governance
+        run: |
+          set -euo pipefail
+          cd surface
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(Path(
+              "artifacts/shared-v22b/"
+              "shared-evidence-maturity-specialist-survival-v22b.json"
+          ).read_text())
+          assert p["identity"] == "QORE_SHARED_EVIDENCE_MATURITY_SPECIALIST_SURVIVAL_V22B"
+          assert p["research_only"] is True
+          assert p["shared_autonomous_model"] is True
+          assert p["evidence_maturity_specialists"] is True
+          assert p["bounded_past_only"] is True
+          assert p["consumed_evidence_only"] is True
+          assert p["fresh_holdout_opened"] is False
+          assert p["runtime_current_position_pnl_used"] is False
+          assert p["runtime_terminal_outcome_used"] is False
+          assert p["runtime_future_market_used"] is False
+          assert p["runtime_symbol_identity_used"] is False
+          assert p["runtime_market_identity_used"] is False
+          assert p["runtime_methodology_identity_used"] is False
+          assert p["runtime_calendar_identity_used"] is False
+          assert p["runtime_fold_identity_used"] is False
+          assert p["sizing_used"] is False
+          assert p["risk_weighting_used"] is False
+          assert p["runtime_actuation"] is False
+          assert p["closed_outcome_used_offline_to_train_survival_specialists"] is True
+          assert p["scientific_status"] in {"PASS","REJECT"}
+          if p["scientific_status"] == "PASS":
+              assert p["thresholds_selected_on_five_year_only"] is True
+              assert p["thresholds_frozen_across_validation_windows"] is True
+              assert set(p["windows"]) == {
+                  "five_year","recent_two_year","r66_consumed_failed_holdout"
+              }
+          print(json.dumps({
+              "validation_pass":p["validation_pass"],
+              "scientific_status":p["scientific_status"],
+              "rejection_reason":p.get("rejection_reason"),
+              "model":p["model"],
+              "windows":p["windows"],
+          },sort_keys=True))
+          PY
+
+      - name: Bind result
+        run: |
+          cd surface/artifacts/shared-v22b
+          echo "$GITHUB_SHA" > shared-git-sha.txt
+          echo "36131607443" > source-v6-run.txt
+          echo "36156421332" > source-v21-run.txt
+          echo "36160445959" > source-v22-r0-run.txt
+          echo "36165036594" > source-v22a-run.txt
+          find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          sha256sum -c SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-evidence-maturity-specialist-survival-v22b-${{ github.sha }}
+          path: surface/artifacts/shared-v22b/
+          if-no-files-found: error
+          retention-days: 90
