@@ -21,6 +21,14 @@ from qore.infrastructure.core_stack_v2.architecture_freeze import (
     superintelligence_freeze_fingerprint,
 )
 from qore.infrastructure.core_stack_v2.audit import CoreAuditRecord, make_audit_record
+from qore.infrastructure.core_stack_v2.competing_future_intelligence import (
+    CausalHorizonSnapshot,
+    CompetingFutureAssessment,
+    CompetingFutureState,
+    HorizonFutureState,
+    HorizonFutureVote,
+    assess_competing_futures,
+)
 from qore.infrastructure.core_stack_v2.compatibility import (
     CompatibilityEntry,
     CompatibilityStatus,
@@ -139,6 +147,9 @@ from qore.infrastructure.core_stack_v2.transition_intelligence import (
 
 __all__ = [
     "CORE_STACK_VERSION",
+    "CausalHorizonSnapshot",
+    "CompetingFutureAssessment",
+    "CompetingFutureState",
     "DrawdownPhenotype",
     "DrawdownPhenotypeAssessment",
     "DrawdownPhenotypeComposition",
@@ -209,6 +220,8 @@ __all__ = [
     "OperationalFalsificationResult",
     "DecisionObservation",
     "HypothesisStatus",
+    "HorizonFutureState",
+    "HorizonFutureVote",
     "KnowledgeState",
     "MarketEvent",
     "PerceptionIntegrity",
@@ -223,6 +236,7 @@ __all__ = [
     "UncertaintyState",
     "WorldState",
     "assess_drawdown_stability",
+    "assess_competing_futures",
     "assess_instinct",
     "assess_market_environment",
     "assess_market_trajectory",
