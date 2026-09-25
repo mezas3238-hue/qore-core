@@ -206,9 +206,7 @@ def assess_stop_target_path(
 
     explicit_recovery = geometry_recovery or futures_recovery or path_recovery
     future_terminal_pair = geometry_terminal and futures_terminal
-    future_target_pair = geometry_target and futures_target
     current_terminal_pair = environment_terminal and trajectory_terminal
-    current_target_pair = environment_supportive and trajectory_supportive
 
     if core_insufficient:
         hypothesis = StopTargetHypothesis.INSUFFICIENT
