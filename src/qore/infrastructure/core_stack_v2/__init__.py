@@ -5,17 +5,17 @@ from qore.infrastructure.core_stack_v2.ab import (
     DecisionObservation,
     summarize_decision_ab,
 )
+from qore.infrastructure.core_stack_v2.adapters import (
+    CoreAdapter,
+    TraderCognitiveContext,
+    build_shared_context,
+)
 from qore.infrastructure.core_stack_v2.adversity_challenge_intelligence import (
     AdversityChallengeAssessment,
     AdversityChallengeObservation,
     AdversityChallengePolicy,
     AdversityChallengeState,
     assess_adversity_challenge,
-)
-from qore.infrastructure.core_stack_v2.adapters import (
-    CoreAdapter,
-    TraderCognitiveContext,
-    build_shared_context,
 )
 from qore.infrastructure.core_stack_v2.analog_memory import (
     AnalogQuery,
