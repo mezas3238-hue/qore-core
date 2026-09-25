@@ -150,10 +150,10 @@ def test_realtime_management_trails_and_extends_strong_winner() -> None:
     )
 
     assert result.action is RealtimeTradeAction.TRAIL_AND_EXTEND
-    assert result.stop_mode is StopManagementMode.TRAIL_TIGHT
+    assert result.stop_mode is StopManagementMode.TRAIL_WIDE
     assert result.target_mode is TargetManagementMode.EXTEND_200
     assert str(result.target_multiplier) == "2.00"
-    assert str(result.trail_distance_r) == "0.50"
+    assert str(result.trail_distance_r) == "0.75"
     assert result.sizing_change_allowed is False
 
 
@@ -395,3 +395,64 @@ def test_realtime_management_does_not_extend_without_winner_protection() -> None
     assert result.action is RealtimeTradeAction.HOLD
     assert result.target_mode is TargetManagementMode.KEEP
     assert result.stop_mode is StopManagementMode.KEEP
+
+
+def test_realtime_management_holds_recoverable_pullback_without_trailing() -> None:
+    result = assess_realtime_trade_management(
+        _instinct(
+            situation=InstinctSituation.RECOVERY_BUILDING,
+            methodology=SupportMethodology.RECOVERY_SUPPORT,
+            support=6800,
+            threat=3600,
+            urgency=3000,
+            winner=7000,
+            extension=6500,
+        ),
+        _journey(
+            disposition=JourneyDisposition.HOLD,
+            continuation=6800,
+            deterioration=3300,
+            extension=6200,
+        ),
+        _path(
+            state=PositionPathState.HEALTHY_PULLBACK,
+            winner=7200,
+            failure=3000,
+        ),
+        progress_bps=7000,
+    )
+
+    assert result.action is RealtimeTradeAction.HOLD
+    assert result.stop_mode is StopManagementMode.KEEP
+    assert result.target_mode is TargetManagementMode.KEEP
+    assert "RECOVERABLE_ADVERSITY_MUST_NOT_BE_CHOKED" in result.reasons
+
+
+def test_realtime_management_requires_journey_and_transversal_extension_support() -> None:
+    result = assess_realtime_trade_management(
+        _instinct(
+            situation=InstinctSituation.HEALTHY_CONTINUATION,
+            methodology=SupportMethodology.WINNER_PROTECTION,
+            support=8500,
+            threat=1800,
+            urgency=1500,
+            winner=8500,
+            extension=9000,
+        ),
+        _journey(
+            disposition=JourneyDisposition.EXTEND,
+            continuation=9000,
+            deterioration=1200,
+            extension=9000,
+        ),
+        _path(
+            state=PositionPathState.FAVORABLE_EXPANSION,
+            winner=9000,
+            failure=1200,
+        ),
+        progress_bps=8000,
+    )
+
+    assert result.action is RealtimeTradeAction.TRAIL
+    assert result.target_mode is TargetManagementMode.KEEP
+    assert result.stop_mode is StopManagementMode.TRAIL_WIDE
