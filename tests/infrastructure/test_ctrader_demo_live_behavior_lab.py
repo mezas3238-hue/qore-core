@@ -5,6 +5,7 @@ from pathlib import Path
 from qore.infrastructure.ctrader_demo_live_behavior_lab import (
     BehaviorStage,
     CTraderDemoLiveBehaviorLedger,
+    CTraderDemoMarketTape,
     build_case_reports,
     classify_stage,
     management_observation_payload,
@@ -395,3 +396,30 @@ def test_economic_floor_combines_realized_partial_and_remaining_stop() -> None:
     assert Decimal(report.estimated_economic_floor_pnl or "0") == Decimal("16.14")
     assert Decimal(report.estimated_economic_floor_r or "0") > Decimal("0.63")
     assert "estimated_economic_floor_pnl=16.14" in report.observations
+
+
+def test_market_tape_records_every_tick_without_deduplication(tmp_path: Path) -> None:
+    tape = CTraderDemoMarketTape(tmp_path / "market-tape.jsonl")
+    tape.append(
+        symbol="NAS100",
+        symbol_id=11,
+        bid=Decimal("30600.1"),
+        ask=Decimal("30601.0"),
+        provider_at=NOW,
+        received_at=NOW + timedelta(milliseconds=125),
+    )
+    tape.append(
+        symbol="NAS100",
+        symbol_id=11,
+        bid=Decimal("30600.1"),
+        ask=Decimal("30601.0"),
+        provider_at=NOW + timedelta(milliseconds=5),
+        received_at=NOW + timedelta(milliseconds=130),
+    )
+
+    rows = (tmp_path / "market-tape.jsonl").read_text(encoding="utf-8").splitlines()
+
+    assert len(rows) == 2
+    assert '"event":"CTRADER_DEMO_MARKET_TICK"' in rows[0]
+    assert '"feed_age_ms":125.0' in rows[0]
+    assert '"spread":"0.9"' in rows[0]
