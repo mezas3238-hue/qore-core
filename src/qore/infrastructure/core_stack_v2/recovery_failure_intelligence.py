@@ -150,7 +150,7 @@ def assess_recovery_failure(
             if latest.recovery_strength_bps >= effective.recovery_confirm_bps
             else RecoveryChallengeState.NOT_TESTED
         )
-        reasons = (
+        reasons: tuple[str, ...] = (
             ("RECOVERY_PRESENT_WITHOUT_ACTIVE_STOP_FORMATION",)
             if state is RecoveryChallengeState.RECOVERY_ACTIVE
             else ("NO_STOP_FORMATION_CHALLENGE_PRESENT",)
@@ -160,7 +160,11 @@ def assess_recovery_failure(
             state=state,
             observations_since_formation=0,
             formation_persistence_bps=0,
-            recovery_persistence_bps=10_000 if state is RecoveryChallengeState.RECOVERY_ACTIVE else 0,
+            recovery_persistence_bps=(
+                10_000
+                if state is RecoveryChallengeState.RECOVERY_ACTIVE
+                else 0
+            ),
             latest_stop_formation_bps=latest.stop_formation_bps,
             latest_recovery_strength_bps=latest.recovery_strength_bps,
             latest_target_hazard_bps=latest.target_hazard_proxy_bps,
