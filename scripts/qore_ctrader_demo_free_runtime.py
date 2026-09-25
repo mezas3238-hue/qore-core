@@ -152,6 +152,15 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
 from qore.infrastructure.ctrader_demo_vt08_sizing import (
     build_ctrader_demo_vt08_cibo_request,
 )
+from qore.infrastructure.ctrader_demo_live_anomaly_supervisor import (
+    run_with_bounded_repair,
+)
+from qore.infrastructure.ctrader_demo_live_behavior_lab import (
+    CTraderDemoLiveBehaviorLedger,
+    CTraderDemoMarketTape,
+    management_observation_payload,
+    position_path_observation_payload,
+)
 
 # Load only the cTrader DEMO VT31 adapter.  The frozen VT31 strategy remains
 # unchanged; this adapter replaces broker/account transport and execution.
@@ -172,6 +181,7 @@ _LOOP_SECONDS = AUDJPY_R42_FEED_REFRESH_SECONDS
 _ANCHOR_GRACE = timedelta(seconds=30)
 _HISTORY_DAYS = 14
 _HISTORY_M15_BARS = _HISTORY_DAYS * 24 * 4 + 96
+_BEHAVIOR_LEDGERS: dict[Path, CTraderDemoLiveBehaviorLedger] = {}
 
 
 class _NoopExitLedger:
@@ -419,12 +429,40 @@ def _causal_candidate(symbol: str, anchor: datetime) -> tuple[Vt08B01Candidate |
     return current, f"causal-{anchor_local.hour:02d}-candidate"
 
 
+def _behavior_ledger_for(path: Path) -> CTraderDemoLiveBehaviorLedger:
+    normalized_path = (
+        path.parent
+        / "ctrader_demo_live_behavior_lab"
+        / "runtime-events.normalized.jsonl"
+    )
+    ledger = _BEHAVIOR_LEDGERS.get(normalized_path)
+    if ledger is None:
+        ledger = CTraderDemoLiveBehaviorLedger(normalized_path)
+        _BEHAVIOR_LEDGERS[normalized_path] = ledger
+    return ledger
+
+
 def _log(path: Path, event: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     value = dict(event)
     value["logged_at"] = datetime.now(UTC).isoformat()
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(value, sort_keys=True, default=str) + "\n")
+    try:
+        _behavior_ledger_for(path).record_raw(value, source="runtime")
+    except Exception as error:
+        # Observability must never acquire execution authority by failure.
+        mirror_error = {
+            "event": "BEHAVIOR_LAB_MIRROR_ERROR",
+            "source_event": str(value.get("event", "UNKNOWN")),
+            "reason": type(error).__name__,
+            "message": str(error),
+            "logged_at": datetime.now(UTC).isoformat(),
+        }
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(
+                json.dumps(mirror_error, sort_keys=True, default=str) + "\n"
+            )
 
 
 def _latency_ms(started_at: datetime, finished_at: datetime) -> int:
@@ -844,6 +882,30 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         str(row["qore_symbol"]): Decimal(str(row["source_contract_size_units"]))
         for row in binding_raw["contracts"]
     }
+    market_tape = CTraderDemoMarketTape(
+        root
+        / "artifacts"
+        / "ctrader_demo_live_behavior_lab"
+        / "market-tape.jsonl"
+    )
+
+    def record_market_tick(
+        symbol: str,
+        symbol_id: int,
+        bid: Decimal,
+        ask: Decimal,
+        provider_at: datetime,
+        received_at: datetime,
+    ) -> None:
+        market_tape.append(
+            symbol=symbol,
+            symbol_id=symbol_id,
+            bid=bid,
+            ask=ask,
+            provider_at=provider_at,
+            received_at=received_at,
+        )
+
     demo_api = CTraderDemoFullApi(
         client=demo_sink.client,
         binding=demo_sink.binding,
@@ -851,6 +913,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         registry=demo_sink.registry,
         binding_path=root / "var" / "ctrader_demo_free" / "binding.json",
         source_contract_sizes=demo_source_contract_sizes,
+        spot_observer=record_market_tick,
     )
     if not demo_api.initialize():
         raise RuntimeError("cTrader DEMO independent market-data initialization failed")
@@ -967,6 +1030,27 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     risk = DurableAccountWideRiskEngine(risk_ledger)
     gateway = CTraderDemoReadOnlyGateway(demo_api)
 
+    def recover_demo_market_state(
+        *,
+        symbol: str,
+        cache: object | None = None,
+    ) -> None:
+        if not demo_api.repair_market_data_subscription():
+            raise RuntimeError("ctrader-demo-spot-resubscribe-failed")
+        observed = datetime.now(UTC)
+        if cache is not None:
+            refresh = getattr(cache, "refresh_incremental", None)
+            if callable(refresh):
+                refresh(demo_api, now=observed)
+        _log(
+            root / "artifacts" / "ctrader_demo_free_runtime_events.jsonl",
+            {
+                "event": "CTRADER_DEMO_TECHNICAL_RECOVERY_REFRESHED",
+                "symbol": symbol,
+                "observed_at": observed.isoformat(),
+            },
+        )
+
     store = DurableCTraderDemoRuntimeStateStore(
         state_dir / "runtime-state.json"
     )
@@ -1078,40 +1162,78 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "audjpy_r42_history_preload_once": True,
             "audjpy_r42_incremental_cache": True,
             "ctrader_demo_execution_enabled": True,
+            "behavior_lab_active": True,
+            "behavior_lab_mode": "CONTINUOUS_SUPERVISION",
+            "behavior_lab_runtime_ledger": (
+                "artifacts/ctrader_demo_live_behavior_lab/"
+                "runtime-events.normalized.jsonl"
+            ),
+            "behavior_lab_market_tape": (
+                "artifacts/ctrader_demo_live_behavior_lab/market-tape.jsonl"
+            ),
+            "behavior_lab_market_tape_mode": "EVERY_VALID_BROKER_SPOT_EVENT",
             "risk_role": "CAPITAL_ALLOCATOR_ONLY",
         },
     )
     last_lifecycle: str | None = None
+    last_management_observation: dict[str, str] = {}
 
     while True:
         cycle_started = time.monotonic()
         cycle_at = datetime.now(UTC)
         armed_m5_snapshots: dict[str, M5BoundarySnapshot] | None = None
+        feed_trader = {
+            "XAUUSD": "R34_XAUUSD",
+            "EURUSD": "R38_EURUSD",
+            "GBPUSD": "R43_GBPUSD",
+            "GBPJPY": "R38_GBPJPY",
+            "AUDJPY": "R42_AUDJPY",
+        }
         for symbol, cache in m5_caches.items():
             try:
-                cache.refresh_incremental(mt5, now=cycle_at)
+                run_with_bounded_repair(
+                    trader=feed_trader[symbol],
+                    operation=lambda cache=cache: cache.refresh_incremental(
+                        mt5,
+                        now=datetime.now(UTC),
+                    ),
+                    recover=lambda symbol=symbol: recover_demo_market_state(
+                        symbol=symbol,
+                    ),
+                    emit=lambda event: _log(log_path, event),
+                )
             except Exception as error:
                 _log(
                     log_path,
                     {
                         "event": "M5_INCREMENTAL_FEED_FAIL_CLOSED",
+                        "trader": feed_trader[symbol],
                         "symbol": symbol,
                         "reason": type(error).__name__,
                         "message": str(error),
-                        "observed_at": cycle_at.isoformat(),
+                        "observed_at": datetime.now(UTC).isoformat(),
                     },
                 )
         try:
-            vt31_cache.refresh_incremental(mt5, now=cycle_at)
+            run_with_bounded_repair(
+                trader="VT31_NAS100",
+                operation=lambda: vt31_cache.refresh_incremental(
+                    mt5,
+                    now=datetime.now(UTC),
+                ),
+                recover=lambda: recover_demo_market_state(symbol="NAS100"),
+                emit=lambda event: _log(log_path, event),
+            )
         except Exception as error:
             _log(
                 log_path,
                 {
                     "event": "VT31_NAS100_INCREMENTAL_FEED_FAIL_CLOSED",
+                    "trader": "VT31_NAS100",
                     "symbol": "NAS100",
                     "reason": type(error).__name__,
                     "message": str(error),
-                    "observed_at": cycle_at.isoformat(),
+                    "observed_at": datetime.now(UTC).isoformat(),
                 },
             )
 
@@ -2039,50 +2161,181 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             or vt31_store.load().open_trade is not None
         )
         if demo_has_state:
+            management_trader = "R34_XAUUSD"
             try:
-                r34_live_state = r34_store.reconcile(demo_management_api, now=cycle_at)
-                r38_live_state, r38_manage_reason = manage_r38_open_position(
-                    demo_management_api,
-                    now=cycle_at,
-                    store=r38_store,
-                    cache=m5_caches["EURUSD"],
+                r34_live_state = run_with_bounded_repair(
+                    trader="R34_XAUUSD",
+                    operation=lambda: r34_store.reconcile(
+                        demo_management_api,
+                        now=datetime.now(UTC),
+                    ),
+                    recover=lambda: recover_demo_market_state(
+                        symbol="XAUUSD",
+                        cache=m5_caches["XAUUSD"],
+                    ),
+                    emit=lambda event: _log(log_path, event),
                 )
-                r43_live_state, r43_manage_reason = manage_r43_open_position(
-                    demo_management_api,
-                    now=cycle_at,
-                    store=r43_store,
-                    cache=m5_caches["GBPUSD"],
+                management_trader = "R38_EURUSD"
+                r38_live_state, r38_manage_reason = run_with_bounded_repair(
+                    trader="R38_EURUSD",
+                    operation=lambda: manage_r38_open_position(
+                        demo_management_api,
+                        now=datetime.now(UTC),
+                        store=r38_store,
+                        cache=m5_caches["EURUSD"],
+                    ),
+                    recover=lambda: recover_demo_market_state(
+                        symbol="EURUSD",
+                        cache=m5_caches["EURUSD"],
+                    ),
+                    emit=lambda event: _log(log_path, event),
                 )
-                gbpjpy_r38_live_state, gbpjpy_r38_manage_reason = manage_gbpjpy_r38_open_position(
-                    demo_management_api,
-                    now=cycle_at,
-                    store=gbpjpy_r38_store,
-                    mutations_enabled=True,
-                    cache=m5_caches["GBPJPY"],
+                management_trader = "R43_GBPUSD"
+                r43_live_state, r43_manage_reason = run_with_bounded_repair(
+                    trader="R43_GBPUSD",
+                    operation=lambda: manage_r43_open_position(
+                        demo_management_api,
+                        now=datetime.now(UTC),
+                        store=r43_store,
+                        cache=m5_caches["GBPUSD"],
+                    ),
+                    recover=lambda: recover_demo_market_state(
+                        symbol="GBPUSD",
+                        cache=m5_caches["GBPUSD"],
+                    ),
+                    emit=lambda event: _log(log_path, event),
                 )
-                audjpy_r42_live_state, audjpy_r42_manage_reason = manage_audjpy_r42_open_position(
-                    demo_management_api,
-                    now=cycle_at,
-                    store=audjpy_r42_store,
-                    mutations_enabled=True,
-                    cache=audjpy_r42_cache,
+                management_trader = "R38_GBPJPY"
+                gbpjpy_r38_live_state, gbpjpy_r38_manage_reason = run_with_bounded_repair(
+                    trader="R38_GBPJPY",
+                    operation=lambda: manage_gbpjpy_r38_open_position(
+                        demo_management_api,
+                        now=datetime.now(UTC),
+                        store=gbpjpy_r38_store,
+                        mutations_enabled=True,
+                        cache=m5_caches["GBPJPY"],
+                    ),
+                    recover=lambda: recover_demo_market_state(
+                        symbol="GBPJPY",
+                        cache=m5_caches["GBPJPY"],
+                    ),
+                    emit=lambda event: _log(log_path, event),
                 )
-                reconcile_vt31_pending(
-                    mt5_api=demo_management_api,
-                    transport=transport,
-                    risk=risk,
-                    store=vt31_store,
-                    now=cycle_at,
-                    log=lambda event: _log(log_path, event),
+                management_trader = "R42_AUDJPY"
+                audjpy_r42_live_state, audjpy_r42_manage_reason = run_with_bounded_repair(
+                    trader="R42_AUDJPY",
+                    operation=lambda: manage_audjpy_r42_open_position(
+                        demo_management_api,
+                        now=datetime.now(UTC),
+                        store=audjpy_r42_store,
+                        mutations_enabled=True,
+                        cache=audjpy_r42_cache,
+                    ),
+                    recover=lambda: recover_demo_market_state(
+                        symbol="AUDJPY",
+                        cache=audjpy_r42_cache,
+                    ),
+                    emit=lambda event: _log(log_path, event),
                 )
-                vt31_live_state, vt31_manage_reason = manage_vt31_open_trade(
-                    mt5_api=demo_management_api,
-                    now=cycle_at,
-                    cache=vt31_cache,
-                    store=vt31_store,
-                    mutations_enabled=True,
-                    log=lambda event: _log(log_path, event),
+                management_trader = "VT31_NAS100"
+                # VT31 reads a fresh broker tick inside reconcile/management.
+                # Do not compare that tick with cycle_at captured several seconds
+                # earlier after other trader management and API work.
+                vt31_management_at = datetime.now(UTC)
+                run_with_bounded_repair(
+                    trader="VT31_NAS100",
+                    operation=lambda: reconcile_vt31_pending(
+                        mt5_api=demo_management_api,
+                        transport=transport,
+                        risk=risk,
+                        store=vt31_store,
+                        now=datetime.now(UTC),
+                        log=lambda event: _log(log_path, event),
+                    ),
+                    recover=lambda: recover_demo_market_state(
+                        symbol="NAS100",
+                        cache=vt31_cache,
+                    ),
+                    emit=lambda event: _log(log_path, event),
                 )
+                vt31_live_state, vt31_manage_reason = run_with_bounded_repair(
+                    trader="VT31_NAS100",
+                    operation=lambda: manage_vt31_open_trade(
+                        mt5_api=demo_management_api,
+                        now=datetime.now(UTC),
+                        cache=vt31_cache,
+                        store=vt31_store,
+                        mutations_enabled=True,
+                        log=lambda event: _log(log_path, event),
+                    ),
+                    recover=lambda: recover_demo_market_state(
+                        symbol="NAS100",
+                        cache=vt31_cache,
+                    ),
+                    emit=lambda event: _log(log_path, event),
+                )
+
+                management_rows = (
+                    (
+                        "R34_XAUUSD",
+                        "XAUUSD",
+                        r34_live_state,
+                        (
+                            "r34-static-sl-tp-hold"
+                            if r34_live_state.open_trade is not None
+                            else "no-open-r34-position"
+                        ),
+                    ),
+                    ("R38_EURUSD", "EURUSD", r38_live_state, r38_manage_reason),
+                    ("R43_GBPUSD", "GBPUSD", r43_live_state, r43_manage_reason),
+                    (
+                        "R38_GBPJPY",
+                        "GBPJPY",
+                        gbpjpy_r38_live_state,
+                        gbpjpy_r38_manage_reason,
+                    ),
+                    (
+                        "R42_AUDJPY",
+                        "AUDJPY",
+                        audjpy_r42_live_state,
+                        audjpy_r42_manage_reason,
+                    ),
+                    ("VT31_NAS100", "NAS100", vt31_live_state, vt31_manage_reason),
+                )
+                for (
+                    management_trader,
+                    management_symbol,
+                    management_state,
+                    management_reason,
+                ) in management_rows:
+                    observation = management_observation_payload(
+                        trader=management_trader,
+                        symbol=management_symbol,
+                        state=management_state,
+                        reason=management_reason,
+                        observed_at=datetime.now(UTC),
+                    )
+                    stable_observation = {
+                        key: value
+                        for key, value in observation.items()
+                        if key != "observed_at"
+                    }
+                    observation_fingerprint = hashlib.sha256(
+                        json.dumps(
+                            stable_observation,
+                            sort_keys=True,
+                            default=str,
+                            separators=(",", ":"),
+                        ).encode("utf-8")
+                    ).hexdigest()
+                    if (
+                        last_management_observation.get(management_trader)
+                        != observation_fingerprint
+                    ):
+                        _log(log_path, observation)
+                        last_management_observation[management_trader] = (
+                            observation_fingerprint
+                        )
 
                 # Certified 24h lifecycle for Turtle Soup lineages.
                 for state_obj, reason, label in (
@@ -2143,14 +2396,33 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             },
                         )
             except Exception as demo_management_error:
-                _log(
-                    log_path,
-                    {
-                        "event": "CTRADER_DEMO_MANAGEMENT_FAIL_CLOSED",
-                        "reason": type(demo_management_error).__name__,
-                        "message": str(demo_management_error),
-                    },
-                )
+                fault_signal: str | None = None
+                try:
+                    fault_store = {
+                        "R34_XAUUSD": r34_store,
+                        "R38_EURUSD": r38_store,
+                        "R43_GBPUSD": r43_store,
+                        "R38_GBPJPY": gbpjpy_r38_store,
+                        "R42_AUDJPY": audjpy_r42_store,
+                        "VT31_NAS100": vt31_store,
+                    }[management_trader]
+                    fault_opened = getattr(fault_store.load(), "open_trade", None)
+                    fault_signal = (
+                        None
+                        if fault_opened is None
+                        else getattr(fault_opened, "signal_fingerprint", None)
+                    )
+                except Exception:
+                    fault_signal = None
+                failure_payload: dict[str, object] = {
+                    "event": "CTRADER_DEMO_MANAGEMENT_FAIL_CLOSED",
+                    "trader": management_trader,
+                    "reason": type(demo_management_error).__name__,
+                    "message": str(demo_management_error),
+                }
+                if fault_signal:
+                    failure_payload["signal_fingerprint"] = fault_signal
+                _log(log_path, failure_payload)
                 r34_live_state = r34_store.load()
                 r38_live_state = r38_store.load()
                 r43_live_state = r43_store.load()
@@ -2164,6 +2436,51 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             gbpjpy_r38_live_state = gbpjpy_r38_store.load()
             audjpy_r42_live_state = audjpy_r42_store.load()
             vt31_live_state = vt31_store.load()
+
+        try:
+            for position in demo_management_api.positions_get():
+                position_id = int(getattr(position, "ticket"))
+                registry_entry = demo_sink.registry.by_position(position_id)
+                if registry_entry is None:
+                    continue
+                symbol = str(getattr(position, "symbol"))
+                tick = demo_management_api.symbol_info_tick(symbol)
+                if tick is None:
+                    continue
+                side = (
+                    "long"
+                    if int(getattr(position, "type"))
+                    == int(demo_management_api.POSITION_TYPE_BUY)
+                    else "short"
+                )
+                _log(
+                    log_path,
+                    position_path_observation_payload(
+                        trader=registry_entry.trader,
+                        symbol=symbol,
+                        signal_fingerprint=registry_entry.signal_fingerprint,
+                        position_id=position_id,
+                        side=side,
+                        entry_price=Decimal(str(getattr(position, "price_open"))),
+                        bid=Decimal(str(getattr(tick, "bid"))),
+                        ask=Decimal(str(getattr(tick, "ask"))),
+                        stop_loss=Decimal(str(getattr(position, "sl", 0))),
+                        take_profit=Decimal(str(getattr(position, "tp", 0))),
+                        volume=Decimal(str(getattr(position, "volume"))),
+                        unrealized_pnl=Decimal(str(getattr(position, "profit", 0))),
+                        observed_at=datetime.now(UTC),
+                    ),
+                )
+        except Exception as behavior_sample_error:
+            _log(
+                log_path,
+                {
+                    "event": "BEHAVIOR_LAB_POSITION_SAMPLE_ERROR",
+                    "reason": type(behavior_sample_error).__name__,
+                    "message": str(behavior_sample_error),
+                    "observed_at": datetime.now(UTC).isoformat(),
+                },
+            )
 
         # DEMO_FREE: no FundedNext trailing MLL, prop capital budget, or mission gate.
         highest = max(highest, account_state.balance)

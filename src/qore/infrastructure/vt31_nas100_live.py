@@ -26,6 +26,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import ROUND_FLOOR, Decimal
 from typing import Any, cast
 from uuid import NAMESPACE_URL, UUID, uuid5
+from zoneinfo import ZoneInfo
 
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
 from qore.infrastructure.broker_risk_sizing import size_volume_for_risk
@@ -108,6 +109,7 @@ BOUNDARY_RETRY_MS = M1_PROFILE.boundary_retry_ms
 BOUNDARY_RETRY_SECONDS = BOUNDARY_RETRY_MS / 1000
 DOL1_RETRACE_WATCH_MS = 75
 DOL1_RETRACE_WATCH_SECONDS = DOL1_RETRACE_WATCH_MS / 1000
+PRE_CLOSE_SPREAD_EXIT_LEAD = timedelta(minutes=10)
 HISTORY_M1_BARS = 30_000
 MIN_PRELOAD_M1_BARS = 10_000
 RECENT_M1_BARS = 32
@@ -430,6 +432,14 @@ class Vt31Nas100M1Cache:
             observed_at=observed,
             evidence_fingerprint=fingerprint,
         )
+
+
+def pre_close_spread_exit_at(local_date: str) -> datetime:
+    """Exit before the 16:00 New York lifecycle spread-expansion window."""
+    day = datetime.fromisoformat(local_date)
+    ny = ZoneInfo("America/New_York")
+    lifecycle = datetime(day.year, day.month, day.day, 16, 0, tzinfo=ny)
+    return lifecycle.astimezone(UTC) - PRE_CLOSE_SPREAD_EXIT_LEAD
 
 
 def next_minute_boundary(now: datetime) -> datetime:

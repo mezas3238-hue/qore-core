@@ -1,0 +1,61 @@
+name: cTrader DEMO LIVE Behavior Lab
+
+on:
+  push:
+    branches:
+      - agent/ctrader-demo-live-behavior-lab-001
+  pull_request:
+    branches:
+      - agent/ctrader-demo-free-cibo-lab-001
+
+jobs:
+  behavior-lab:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff new lab code
+        run: |
+          ruff check \
+            src/qore/infrastructure/ctrader_demo_live_behavior_lab.py \
+            src/qore/infrastructure/ctrader_demo_live_anomaly_supervisor.py \
+            scripts/ctrader_demo_live_behavior_report.py \
+            scripts/ctrader_demo_live_settlement_watcher.py \
+            tests/infrastructure/test_ctrader_demo_live_behavior_lab.py \
+            tests/infrastructure/test_ctrader_demo_live_anomaly_supervisor.py
+
+      - name: Compile runtime integration
+        run: |
+          python -m py_compile \
+            scripts/qore_ctrader_demo_free_runtime.py \
+            scripts/vt31_nas100_ctrader_demo_adapter.py \
+            scripts/ctrader_demo_live_settlement_watcher.py \
+            src/qore/infrastructure/ctrader_demo_free_sink.py \
+            src/qore/infrastructure/ctrader_demo_full_api.py \
+            src/qore/infrastructure/vt31_nas100_live.py
+
+      - name: Mypy new lab code
+        run: |
+          mypy \
+            src/qore/infrastructure/ctrader_demo_live_behavior_lab.py \
+            src/qore/infrastructure/ctrader_demo_live_anomaly_supervisor.py \
+            tests/infrastructure/test_ctrader_demo_live_behavior_lab.py \
+            tests/infrastructure/test_ctrader_demo_live_anomaly_supervisor.py
+
+      - name: Pytest
+        run: |
+          pytest -q \
+            tests/infrastructure/test_ctrader_demo_live_behavior_lab.py \
+            tests/infrastructure/test_ctrader_demo_live_anomaly_supervisor.py \
+            tests/infrastructure/test_vt31_nas100_live_runtime.py

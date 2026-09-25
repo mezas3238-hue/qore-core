@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -93,12 +94,17 @@ class CTraderDemoFullApi:
         registry: CTraderDemoTradeRegistry,
         binding_path: Path,
         source_contract_sizes: dict[str, Decimal],
+        spot_observer: Callable[
+            [str, int, Decimal, Decimal, datetime, datetime],
+            None,
+        ] | None = None,
     ) -> None:
         self._client = client
         self._binding = binding
         self._positions = positions
         self._registry = registry
         self._source_contract = dict(source_contract_sizes)
+        self._spot_observer = spot_observer
         self._management = CTraderDemoMt5ManagementAdapter(
             mt5_market_api=self,
             positions=positions,
@@ -163,6 +169,24 @@ class CTraderDemoFullApi:
         self._connected = True
         return True
 
+    def repair_market_data_subscription(self) -> bool:
+        """Reassert the broker spot subscription without changing trading state."""
+        ids = [item.symbol_id for item in self._binding.contracts]
+        if self._conversion_symbol_id is not None:
+            ids.append(self._conversion_symbol_id)
+        result = self._client.request(
+            "ProtoOASubscribeSpotsReq",
+            {
+                "ctidTraderAccountId": self.account_id,
+                "subscribeToSpotTimestamp": True,
+                "symbolId": ids,
+            },
+            client_msg_id="qore-demo-repair-spots",
+            timeout_seconds=10.0,
+        )
+        return not isinstance(result, Failure)
+
+
     def shutdown(self) -> None:
         self._stop.set()
         thread = self._spot_thread
@@ -173,6 +197,10 @@ class CTraderDemoFullApi:
 
     def last_error(self) -> tuple[int, str]:
         return (0, "")
+
+    def observed_now(self) -> datetime:
+        """Return the wall-clock observation time after blocking API reads."""
+        return datetime.now(UTC)
 
     def terminal_info(self) -> object:
         return SimpleNamespace(
@@ -477,6 +505,7 @@ class CTraderDemoFullApi:
             observed = datetime.now(UTC)
             if type(timestamp) is int and timestamp > 0:
                 observed = datetime.fromtimestamp(timestamp / 1000, tz=UTC)
+            received_at = datetime.now(UTC)
             with self._spot_lock:
                 previous = self._spots.get(symbol_id)
                 next_bid = (
@@ -514,6 +543,20 @@ class CTraderDemoFullApi:
                         observed=observed,
                         bid=next_bid,
                     )
+            observer = self._spot_observer
+            if canonical is not None and observer is not None:
+                try:
+                    observer(
+                        canonical,
+                        symbol_id,
+                        next_bid,
+                        next_ask,
+                        observed,
+                        received_at,
+                    )
+                except Exception:
+                    # Market-tape failure must never interrupt the broker feed.
+                    pass
 
     def _spot_for_id(
         self,

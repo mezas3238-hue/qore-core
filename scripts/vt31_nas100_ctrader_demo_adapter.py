@@ -46,6 +46,7 @@ from qore.infrastructure.vt31_nas100_live import (
     EXECUTION_BINDING_FINGERPRINT,
     EXECUTION_BINDING_ID,
     MAX_BROKER_TICK_AGE,
+    PRE_CLOSE_SPREAD_EXIT_LEAD,
     PROVIDER_SYMBOL,
     SERVICE_24_7,
     SILVER_BULLET_SOURCE_FINGERPRINT,
@@ -60,6 +61,7 @@ from qore.infrastructure.vt31_nas100_live import (
     Vt31VirtualCandidate,
     assert_deadline,
     build_risk_request,
+    pre_close_spread_exit_at,
     resolve_certified_risk,
     virtual_oco_trigger,
 )
@@ -116,6 +118,9 @@ def runtime_started_fields() -> dict[str, object]:
         ),
         "vt31_nas100_tick_max_age_seconds": str(
             MAX_BROKER_TICK_AGE.total_seconds()
+        ),
+        "vt31_nas100_pre_close_spread_exit_lead_minutes": str(
+            int(PRE_CLOSE_SPREAD_EXIT_LEAD.total_seconds() // 60)
         ),
         "vt31_nas100_boundary_arm_lead_seconds": "10.0",
         "vt31_nas100_feed_refresh_seconds": "1.0",
@@ -371,6 +376,21 @@ def reconcile_pending(
     if pending.provider_order_ref is None:
         raise Vt31Nas100LiveError("VT31 DEMO pending provider reference missing")
     status = mt5_api.pending_order_status(pending.provider_order_ref)
+    pre_close_due = pre_close_spread_exit_at(pending.local_date)
+    if now.astimezone(UTC) >= pre_close_due and status == 1:
+        mt5_api.cancel_pending_order(pending.provider_order_ref)
+        final_status = mt5_api.pending_order_status(pending.provider_order_ref)
+        if final_status not in {3, 4, 5}:
+            raise Vt31Nas100LiveError(
+                "VT31 pre-close pending cancel remained nonterminal"
+            )
+        store.replace(pending_broker_order=None, virtual_basket=None)
+        log({
+            "event": "VT31_NAS100_PRE_CLOSE_PENDING_CANCELLED",
+            "signal_fingerprint": pending.signal_fingerprint,
+            "pre_close_due_at": pre_close_due.isoformat(),
+        })
+        return
     expires = datetime.fromisoformat(pending.expires_at)
 
     if status == 1 and now <= expires:
@@ -457,7 +477,14 @@ def manage_open_trade(
     if tick is None:
         raise Vt31Nas100LiveError("VT31 journey tick unavailable")
     tick_at = _tick_at(tick)
-    tick_age = now.astimezone(UTC) - tick_at
+    tick_checked_at = now.astimezone(UTC)
+    observed_now = getattr(mt5_api, "observed_now", None)
+    if callable(observed_now):
+        live_now = observed_now()
+        if live_now.tzinfo is None or live_now.utcoffset() is None:
+            raise Vt31Nas100LiveError("VT31 journey clock is timezone-naive")
+        tick_checked_at = live_now.astimezone(UTC)
+    tick_age = tick_checked_at - tick_at
     if tick_age < timedelta(seconds=-0.5):
         raise Vt31Nas100LiveError("VT31 journey tick is from the future")
     if tick_age > MAX_BROKER_TICK_AGE:
@@ -506,6 +533,31 @@ def manage_open_trade(
         if opened.lifecycle_exit_due_at is None
         else datetime.fromisoformat(opened.lifecycle_exit_due_at)
     )
+    pre_close_due = pre_close_spread_exit_at(opened.local_date)
+    if now.astimezone(UTC) >= pre_close_due:
+        mutated = _close_position(
+            mt5_api,
+            position=position,
+            volume=actual_volume,
+            reason="pre-close-spread",
+            mutations_enabled=mutations_enabled,
+        )
+        if mutated:
+            state = store.mark_closed(
+                closed_at=now,
+                reason="pre-close-spread",
+            )
+            log({
+                "event": "VT31_NAS100_PRE_CLOSE_SPREAD_EXIT_ACCEPTED",
+                "signal_fingerprint": opened.signal_fingerprint,
+                "pre_close_due_at": pre_close_due.isoformat(),
+                "lifecycle_due_at": (
+                    None if lifecycle_due is None else lifecycle_due.isoformat()
+                ),
+            })
+            return state, "vt31-pre-close-spread-exit"
+        return state, "vt31-shadow-pre-close-spread-check-pass"
+
     if lifecycle_due is not None and now >= lifecycle_due:
         mutated = _close_position(
             mt5_api,
@@ -1131,6 +1183,15 @@ def _authorize_and_check(
     log: Callable[[dict[str, object]], None],
 ) -> None:
     trigger_at = trigger_at.astimezone(UTC)
+    pre_close_due = pre_close_spread_exit_at(order.local_date)
+    if trigger_at >= pre_close_due:
+        log({
+            "event": "VT31_NAS100_PRE_CLOSE_ENTRY_SKIPPED",
+            "signal_fingerprint": order.signal_fingerprint,
+            "trigger_at": trigger_at.isoformat(),
+            "pre_close_due_at": pre_close_due.isoformat(),
+        })
+        return
     operation_started_ns = time.perf_counter_ns()
     expires_at = datetime.fromisoformat(order.expires_at)
     def stage(stage_name: str) -> datetime:
