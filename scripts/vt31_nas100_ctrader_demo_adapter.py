@@ -319,25 +319,6 @@ def reconcile_pending(
     if pending is None:
         return
 
-    pre_close_due = pre_close_spread_exit_at(pending.local_date)
-    if now.astimezone(UTC) >= pre_close_due:
-        if pending.provider_order_ref is not None:
-            status = mt5_api.pending_order_status(pending.provider_order_ref)
-            if status == 1:
-                mt5_api.cancel_pending_order(pending.provider_order_ref)
-                final_status = mt5_api.pending_order_status(pending.provider_order_ref)
-                if final_status not in {3, 4, 5}:
-                    raise Vt31Nas100LiveError(
-                        "VT31 pre-close pending cancel remained nonterminal"
-                    )
-                store.replace(pending_broker_order=None, virtual_basket=None)
-                log({
-                    "event": "VT31_NAS100_PRE_CLOSE_PENDING_CANCELLED",
-                    "signal_fingerprint": pending.signal_fingerprint,
-                    "pre_close_due_at": pre_close_due.isoformat(),
-                })
-                return
-
     positions = mt5_api.positions_get(symbol=PROVIDER_SYMBOL)
     if positions is None:
         raise Vt31Nas100LiveError("VT31 DEMO position reconciliation unavailable")
@@ -395,6 +376,21 @@ def reconcile_pending(
     if pending.provider_order_ref is None:
         raise Vt31Nas100LiveError("VT31 DEMO pending provider reference missing")
     status = mt5_api.pending_order_status(pending.provider_order_ref)
+    pre_close_due = pre_close_spread_exit_at(pending.local_date)
+    if now.astimezone(UTC) >= pre_close_due and status == 1:
+        mt5_api.cancel_pending_order(pending.provider_order_ref)
+        final_status = mt5_api.pending_order_status(pending.provider_order_ref)
+        if final_status not in {3, 4, 5}:
+            raise Vt31Nas100LiveError(
+                "VT31 pre-close pending cancel remained nonterminal"
+            )
+        store.replace(pending_broker_order=None, virtual_basket=None)
+        log({
+            "event": "VT31_NAS100_PRE_CLOSE_PENDING_CANCELLED",
+            "signal_fingerprint": pending.signal_fingerprint,
+            "pre_close_due_at": pre_close_due.isoformat(),
+        })
+        return
     expires = datetime.fromisoformat(pending.expires_at)
 
     if status == 1 and now <= expires:
