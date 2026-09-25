@@ -10,10 +10,6 @@ from qore.infrastructure.trader_lab import (
 from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_third_slot_cross_feature_atlas_2y_v1 as cross,
 )
-    cross.JOURNEY_FEATURES,
-    cross.PREENTRY_FEATURES,
-    build_report,
-)
 
 
 def _write_json(path: Path, value: object) -> None:
