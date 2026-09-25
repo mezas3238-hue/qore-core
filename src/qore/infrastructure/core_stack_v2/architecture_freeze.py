@@ -292,6 +292,9 @@ def superintelligence_freeze_contract() -> dict[str, object]:
             "causal_position_path_asymmetry": {
                 "required": True,
                 "must_distinguish_terminal_failure_from_recoverable_pullback": True,
+                "must_distinguish_possible_stop_from_possible_target_before_management": True,
+                "possible_stop_possible_target_discrimination_is_phase_1_primary_task": True,
+                "classification_must_be_shadow_only_until_phase_1_passes": True,
                 "must_use_only_causal_observations": True,
                 "must_protect_established_favorable_journey": True,
                 "must_detect_adverse_path_persistence": True,
@@ -361,6 +364,8 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "required": True,
                 "research_status": "DEFERRED_UNTIL_NATURAL_DD_INTELLIGENCE_PASSES",
                 "may_contribute_to_current_primary_dd_claim": False,
+                "unlock_requires_possible_stop_possible_target_discrimination_pass": True,
+                "trailing_and_target_extension_forbidden_for_phase_1_primary_claim": True,
                 "purpose": (
                     "Shared must act as the trader third eye during the live path: "
                     "reduce loss exposure with causal stop improvement/trailing and "
