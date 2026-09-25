@@ -1,5 +1,5 @@
-from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from datetime import UTC, datetime, timedelta
 
 from qore.infrastructure.ctrader_demo_live_behavior_lab import (
     BehaviorStage,
