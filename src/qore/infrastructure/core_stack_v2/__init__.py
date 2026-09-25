@@ -109,6 +109,13 @@ from qore.infrastructure.core_stack_v2.journey_intelligence import (
     PositionJourneyEvidence,
     assess_position_journey,
 )
+from qore.infrastructure.core_stack_v2.multi_state_competing_hazard import (
+    CompetingHazardAssessment,
+    CompetingHazardDecision,
+    CompetingHazardEvidence,
+    CompetingHazardPolicy,
+    assess_competing_hazards,
+)
 from qore.infrastructure.core_stack_v2.market_universe import (
     GLOBAL_MARKET_UNIVERSE_REQUIRED,
     CoreGlobalMarketUniverse,
@@ -199,6 +206,10 @@ __all__ = [
     "CompetingRiskDecisionPolicy",
     "CompetingRiskDecisionState",
     "CompetingFutureState",
+    "CompetingHazardAssessment",
+    "CompetingHazardDecision",
+    "CompetingHazardEvidence",
+    "CompetingHazardPolicy",
     "DrawdownPhenotype",
     "DrawdownPhenotypeAssessment",
     "DrawdownPhenotypeComposition",
@@ -301,6 +312,7 @@ __all__ = [
     "assess_terminal_failure",
     "resolve_terminal_failure_sequence",
     "assess_competing_futures",
+    "assess_competing_hazards",
     "assess_competing_risk_path",
     "assess_competing_risk_decision",
     "assess_instinct",
