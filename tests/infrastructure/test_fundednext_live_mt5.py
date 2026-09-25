@@ -541,6 +541,28 @@ def test_recent_conclusive_absence_stays_unknown_during_settlement_window() -> N
     assert api.sent == 0
 
 
+def test_resolved_not_submitted_record_reopens_new_order_path() -> None:
+    api = _Api()
+    ledger = InMemoryFundedNextMt5MutationLedger()
+    ledger.upsert(_unknown_mutation())
+    gateway = _gateway(
+        api,
+        complete=True,
+        submission_enabled=True,
+        mutation_ledger=ledger,
+    )
+
+    assert gateway.reconcile_unknown(now=_NOW) == ("mutation-reconcile-test",)
+    assert gateway.has_unresolved_mutations is False
+
+    provider_ref = gateway.submit_live(_submission(), now=_NOW)
+    assert provider_ref == "9001"
+    assert api.sent == 1
+    states = {record.state for record in ledger.records()}
+    assert FundedNextMt5MutationState.NOT_SUBMITTED in states
+    assert FundedNextMt5MutationState.ACCEPTED in states
+
+
 def test_incomplete_broker_discovery_keeps_unknown_fail_closed() -> None:
     class _UnavailableApi(_Api):
         def orders_get(self) -> tuple[_Order, ...] | None:
