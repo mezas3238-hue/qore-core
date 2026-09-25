@@ -113,7 +113,28 @@ def test_recovery_restored_vetoes_terminal_confirmation() -> None:
     assert result.state is TerminalFailureState.RECOVERY_VETO
 
 
-def test_failed_recovery_with_weak_terminal_path_remains_forming() -> None:
+
+
+def test_extreme_adversity_on_contested_path_stays_ambiguous() -> None:
+    result = assess_terminal_failure(
+        _belief(stop_formation=7400, uncertainty=6800),
+        _path(PositionPathState.CONTESTED, terminal=6600, adverse=5500),
+        _recovery(RecoveryChallengeState.RECOVERY_FAILED),
+    )
+
+    assert result.state is TerminalFailureState.EXTREME_ADVERSE_AMBIGUITY
+    assert "TERMINAL_CONFIRMATION_DEFERRED" in result.reasons
+
+
+def test_extreme_adversity_with_adverse_dominance_can_confirm() -> None:
+    result = assess_terminal_failure(
+        _belief(stop_formation=7400, uncertainty=6800),
+        _path(PositionPathState.ADVERSE_DOMINANCE, terminal=6600, adverse=5500),
+        _recovery(RecoveryChallengeState.RECOVERY_FAILED),
+    )
+
+    assert result.state is TerminalFailureState.TERMINAL_CONFIRMED
+\n\ndef test_failed_recovery_with_weak_terminal_path_remains_forming() -> None:
     result = assess_terminal_failure(
         _belief(),
         _path(terminal=5600, adverse=4400),
