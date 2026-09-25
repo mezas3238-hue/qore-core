@@ -18,7 +18,6 @@ from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 from threading import Lock
-from typing import Any
 
 
 class BehaviorStage(str, Enum):
