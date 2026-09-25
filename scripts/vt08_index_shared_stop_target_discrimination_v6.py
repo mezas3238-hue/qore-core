@@ -169,6 +169,7 @@ def _shadow_trade(
             "as_of": signal.signal_at.astimezone(UTC).isoformat(),
             "bar_index": 0,
             "bars_before_canonical_exit": len(observed),
+            "current_position_r": str(ZERO),
             "hypothesis": entry_shadow.hypothesis.value,
             "agreement_bps": entry_shadow.structural_agreement_bps,
             "terminal_relations": entry_shadow.terminal_relation_count,
@@ -205,6 +206,7 @@ def _shadow_trade(
                 max_mfe = max(max_mfe, (_d(signal.entry) - _d(bar.low)) / risk)
                 max_mae = max(max_mae, (_d(bar.high) - _d(signal.entry)) / risk)
 
+            current_position_r = _signed_r(signal, _d(bar.close))
             as_of = bar.closed_at.astimezone(UTC)
             history = v3._history(
                 item,
@@ -259,6 +261,7 @@ def _shadow_trade(
                     "as_of": as_of.isoformat(),
                     "bar_index": idx,
                     "bars_before_canonical_exit": len(observed) - idx,
+                    "current_position_r": str(current_position_r),
                     "hypothesis": shadow.hypothesis.value,
                     "agreement_bps": shadow.structural_agreement_bps,
                     "terminal_relations": shadow.terminal_relation_count,
@@ -581,6 +584,31 @@ def _window(
     terminal_confirmed_winners = [
         row for row in terminal_confirmed if row["actual"] == "WIN"
     ]
+    terminal_saved_loss_benefit = sum(
+        (
+            _d(row["first_terminal_confirmed"]["current_position_r"])
+            - _d(row["terminal_r"])
+        )
+        for row in terminal_confirmed_losses
+    )
+    terminal_winner_harm = sum(
+        (
+            _d(row["terminal_r"])
+            - _d(row["first_terminal_confirmed"]["current_position_r"])
+        )
+        for row in terminal_confirmed_winners
+    )
+    terminal_net_shadow_utility = (
+        terminal_saved_loss_benefit - terminal_winner_harm
+    )
+    terminal_loss_shadow_exits = [
+        _d(row["first_terminal_confirmed"]["current_position_r"])
+        for row in terminal_confirmed_losses
+    ]
+    terminal_winner_shadow_exits = [
+        _d(row["first_terminal_confirmed"]["current_position_r"])
+        for row in terminal_confirmed_winners
+    ]
 
     stop_forming_leads = [
         int(row["first_stop_forming"]["bars_before_canonical_exit"])
@@ -743,6 +771,23 @@ def _window(
                 None
                 if not terminal_confirmed_leads
                 else str(median(terminal_confirmed_leads))
+            ),
+            "terminal_saved_loss_benefit_r": str(
+                terminal_saved_loss_benefit
+            ),
+            "terminal_winner_harm_r": str(terminal_winner_harm),
+            "terminal_net_shadow_utility_r": str(
+                terminal_net_shadow_utility
+            ),
+            "median_terminal_loss_shadow_exit_r": (
+                None
+                if not terminal_loss_shadow_exits
+                else str(median(terminal_loss_shadow_exits))
+            ),
+            "median_terminal_winner_shadow_exit_r": (
+                None
+                if not terminal_winner_shadow_exits
+                else str(median(terminal_winner_shadow_exits))
             ),
             "confirmed_stop_count": len(ccrpc_predicted_stop),
             "confirmed_stop_precision": _safe_ratio(
