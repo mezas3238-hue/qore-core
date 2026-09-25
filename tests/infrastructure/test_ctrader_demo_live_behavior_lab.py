@@ -311,3 +311,87 @@ def test_settlement_evidence_reports_realized_pnl_and_prices() -> None:
     assert report.settled_source_volumes == ("0.02",)
     assert classify_stage("CTRADER_DEMO_PARTIAL_SETTLEMENT") is BehaviorStage.MANAGEMENT
     assert classify_stage("CTRADER_DEMO_EXIT_SETTLEMENT") is BehaviorStage.EXIT
+
+
+
+def test_economic_floor_combines_realized_partial_and_remaining_stop() -> None:
+    signal = "8" * 64
+    submit = normalize_runtime_event(
+        {
+            "event": "CTRADER_DEMO_FREE_SUBMIT",
+            "trader": "VT31_NAS100",
+            "symbol": "NAS100",
+            "signal_fingerprint": signal,
+            "requested_volume": "0.04",
+            "requested_stop_risk": "26.0712",
+            "recorded_at": NOW.isoformat(),
+        },
+        source="sink",
+    )
+    first_path = normalize_runtime_event(
+        position_path_observation_payload(
+            trader="VT31_NAS100",
+            symbol="NAS100",
+            signal_fingerprint=signal,
+            position_id=707,
+            side="long",
+            entry_price=Decimal("30468.2"),
+            bid=Decimal("30600.0"),
+            ask=Decimal("30600.9"),
+            stop_loss=Decimal("30404.6"),
+            take_profit=Decimal("30684.0"),
+            volume=Decimal("0.04"),
+            unrealized_pnl=Decimal("52.72"),
+            observed_at=NOW + timedelta(seconds=1),
+        ),
+        source="runtime",
+    )
+    partial = normalize_runtime_event(
+        settlement_observation_payload(
+            trader="VT31_NAS100",
+            symbol="NAS100",
+            signal_fingerprint=signal,
+            position_id=707,
+            deal_id=801,
+            order_id=901,
+            side="short",
+            execution_price=Decimal("30612.5"),
+            filled_units=Decimal("0.20"),
+            source_volume=Decimal("0.02"),
+            net_profit=Decimal("28.86"),
+            gross_profit=Decimal("28.86"),
+            commission=Decimal("0"),
+            swap=Decimal("0"),
+            pnl_conversion_fee=Decimal("0"),
+            balance_after=Decimal("1000018.27"),
+            executed_at=NOW + timedelta(seconds=2),
+            position_open_after=True,
+        ),
+        source="settlement",
+    )
+    latest_path = normalize_runtime_event(
+        position_path_observation_payload(
+            trader="VT31_NAS100",
+            symbol="NAS100",
+            signal_fingerprint=signal,
+            position_id=707,
+            side="long",
+            entry_price=Decimal("30468.2"),
+            bid=Decimal("30598.2"),
+            ask=Decimal("30599.1"),
+            stop_loss=Decimal("30404.6"),
+            take_profit=Decimal("30684.0"),
+            volume=Decimal("0.02"),
+            unrealized_pnl=Decimal("26.00"),
+            observed_at=NOW + timedelta(seconds=3),
+        ),
+        source="runtime",
+    )
+
+    report = build_case_reports((submit, first_path, partial, latest_path))[0]
+
+    assert Decimal(report.estimated_initial_risk_pnl or "0") == Decimal("25.44")
+    assert Decimal(report.estimated_remaining_stop_pnl or "0") == Decimal("-12.72")
+    assert Decimal(report.estimated_economic_floor_pnl or "0") == Decimal("16.14")
+    assert Decimal(report.estimated_economic_floor_r or "0") > Decimal("0.63")
+    assert "estimated_economic_floor_pnl=16.140" in report.observations
