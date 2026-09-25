@@ -42,7 +42,7 @@ jobs:
           set -euo pipefail
           mkdir -p vt08/src/qore/infrastructure/core_stack_v2 vt08/scripts
           : > vt08/src/qore/infrastructure/core_stack_v2/__init__.py
-          for file in             contracts.py             intelligence.py             analog_memory.py             competing_future_intelligence.py             drawdown_phenotype_memory.py             environment_intelligence.py             future_geometry_intelligence.py             instinct_intelligence.py             journey_intelligence.py             path_intelligence.py             perception_engine.py             realtime_trade_management.py             stability_intelligence.py             transition_intelligence.py
+          for file in             contracts.py             intelligence.py             analog_memory.py             competing_future_intelligence.py             drawdown_phenotype_memory.py             environment_intelligence.py             future_geometry_intelligence.py             instinct_intelligence.py             journey_intelligence.py             path_intelligence.py             perception_engine.py             realtime_trade_management.py             resident_convergence_intelligence.py             stability_intelligence.py             transition_intelligence.py
           do
             cp "shared/src/qore/infrastructure/core_stack_v2/$file"                "vt08/src/qore/infrastructure/core_stack_v2/$file"
           done
@@ -63,7 +63,7 @@ jobs:
           ruff check scripts/vt08_index_shared_full_stack_no_sizing_v3.py
           ruff check scripts/vt08_index_shared_full_stack_economic_no_sizing_v4.py
           python -m py_compile scripts/vt08_index_shared_full_stack_economic_no_sizing_v4.py
-          for file in             contracts.py             intelligence.py             analog_memory.py             competing_future_intelligence.py             drawdown_phenotype_memory.py             environment_intelligence.py             future_geometry_intelligence.py             instinct_intelligence.py             journey_intelligence.py             path_intelligence.py             perception_engine.py             realtime_trade_management.py             stability_intelligence.py             transition_intelligence.py
+          for file in             contracts.py             intelligence.py             analog_memory.py             competing_future_intelligence.py             drawdown_phenotype_memory.py             environment_intelligence.py             future_geometry_intelligence.py             instinct_intelligence.py             journey_intelligence.py             path_intelligence.py             perception_engine.py             realtime_trade_management.py             resident_convergence_intelligence.py             stability_intelligence.py             transition_intelligence.py
           do
             ruff check "src/qore/infrastructure/core_stack_v2/$file"
             python -m py_compile "src/qore/infrastructure/core_stack_v2/$file"
