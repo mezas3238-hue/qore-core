@@ -29,9 +29,11 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/ctrader_demo_live_behavior_lab.py \
+            src/qore/infrastructure/ctrader_demo_live_anomaly_supervisor.py \
             scripts/ctrader_demo_live_behavior_report.py \
             scripts/ctrader_demo_live_settlement_watcher.py \
-            tests/infrastructure/test_ctrader_demo_live_behavior_lab.py
+            tests/infrastructure/test_ctrader_demo_live_behavior_lab.py \
+            tests/infrastructure/test_ctrader_demo_live_anomaly_supervisor.py
 
       - name: Compile runtime integration
         run: |
@@ -40,16 +42,20 @@ jobs:
             scripts/vt31_nas100_ctrader_demo_adapter.py \
             scripts/ctrader_demo_live_settlement_watcher.py \
             src/qore/infrastructure/ctrader_demo_free_sink.py \
-            src/qore/infrastructure/ctrader_demo_full_api.py
+            src/qore/infrastructure/ctrader_demo_full_api.py \
+            src/qore/infrastructure/vt31_nas100_live.py
 
       - name: Mypy new lab code
         run: |
           mypy \
             src/qore/infrastructure/ctrader_demo_live_behavior_lab.py \
-            tests/infrastructure/test_ctrader_demo_live_behavior_lab.py
+            src/qore/infrastructure/ctrader_demo_live_anomaly_supervisor.py \
+            tests/infrastructure/test_ctrader_demo_live_behavior_lab.py \
+            tests/infrastructure/test_ctrader_demo_live_anomaly_supervisor.py
 
       - name: Pytest
         run: |
           pytest -q \
             tests/infrastructure/test_ctrader_demo_live_behavior_lab.py \
+            tests/infrastructure/test_ctrader_demo_live_anomaly_supervisor.py \
             tests/infrastructure/test_vt31_nas100_live_runtime.py
