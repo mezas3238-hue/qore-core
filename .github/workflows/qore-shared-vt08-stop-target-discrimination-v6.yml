@@ -14,6 +14,7 @@ on:
       - tests/infrastructure/test_core_stack_v2_competing_risk_path_core.py
       - tests/infrastructure/test_core_stack_v2_competing_risk_decision_gate.py
       - tests/infrastructure/test_core_stack_v2_recovery_failure_intelligence.py
+      - tests/infrastructure/test_core_stack_v2_terminal_failure_confirmation.py
       - .github/workflows/qore-shared-vt08-stop-target-discrimination-v6.yml
   workflow_dispatch:
 
@@ -62,6 +63,7 @@ jobs:
             perception_engine.py \
             realtime_trade_management.py \
             recovery_failure_intelligence.py \
+            terminal_failure_confirmation.py \
             resident_convergence_intelligence.py \
             stop_target_discrimination.py \
             stability_intelligence.py \
@@ -107,6 +109,7 @@ jobs:
             perception_engine.py \
             realtime_trade_management.py \
             recovery_failure_intelligence.py \
+            terminal_failure_confirmation.py \
             stop_target_discrimination.py \
             stability_intelligence.py \
             transition_intelligence.py
@@ -123,7 +126,8 @@ jobs:
             tests/infrastructure/test_core_stack_v2_stop_target_discrimination.py \
             tests/infrastructure/test_core_stack_v2_competing_risk_path_core.py \
             tests/infrastructure/test_core_stack_v2_competing_risk_decision_gate.py \
-            tests/infrastructure/test_core_stack_v2_recovery_failure_intelligence.py
+            tests/infrastructure/test_core_stack_v2_recovery_failure_intelligence.py \
+            tests/infrastructure/test_core_stack_v2_terminal_failure_confirmation.py
 
       - name: Download NAS100 CIBO evidence
         uses: actions/download-artifact@v4
@@ -217,6 +221,10 @@ jobs:
               risk=w["competing_risk_diagnostics"]
               assert risk["calibrated_probability"] is False
               assert risk["management_authority"] is False
+              assert "terminal_confirmed_count" in risk
+              assert "terminal_confirmed_precision_for_diagnostics_only" in risk
+              assert "terminal_confirmed_winner_mark_rate" in risk
+              assert "median_terminal_confirmed_lead_bars" in risk
 
           g=p["governance"]
           assert g["trailing_used"] is False
