@@ -1,0 +1,46 @@
+name: cTrader DEMO LIVE Behavior Lab
+
+on:
+  push:
+    branches:
+      - agent/ctrader-demo-live-behavior-lab-001
+  pull_request:
+    branches:
+      - agent/ctrader-demo-free-cibo-lab-001
+
+jobs:
+  behavior-lab:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/ctrader_demo_live_behavior_lab.py \
+            src/qore/infrastructure/ctrader_demo_free_sink.py \
+            scripts/qore_ctrader_demo_free_runtime.py \
+            scripts/ctrader_demo_live_behavior_report.py \
+            tests/infrastructure/test_ctrader_demo_live_behavior_lab.py
+
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/ctrader_demo_live_behavior_lab.py \
+            src/qore/infrastructure/ctrader_demo_free_sink.py \
+            tests/infrastructure/test_ctrader_demo_live_behavior_lab.py
+
+      - name: Pytest
+        run: |
+          pytest -q tests/infrastructure/test_ctrader_demo_live_behavior_lab.py
