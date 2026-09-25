@@ -254,6 +254,14 @@ def _shadow_trade(
         }
     ]
     first_decisive = None if not decisive else decisive[0]
+    first_stop_forming = next(
+        (
+            row
+            for row in rows
+            if row["hypothesis"] == StopTargetHypothesis.STOP_FORMING.value
+        ),
+        None,
+    )
     first_stop = next(
         (
             row
@@ -280,6 +288,7 @@ def _shadow_trade(
         "actual": actual,
         "entry_hypothesis": entry_shadow.hypothesis.value,
         "first_decisive": first_decisive,
+        "first_stop_forming": first_stop_forming,
         "first_stop": first_stop,
         "first_target": first_target,
         "hypothesis_counts": dict(
@@ -371,11 +380,19 @@ def _window(
     false_stop = [row for row in predicted_stop if row["actual"] == "WIN"]
     true_target = [row for row in predicted_target if row["actual"] == "WIN"]
     false_target = [row for row in predicted_target if row["actual"] == "LOSS"]
+    stop_forming = [row for row in rows if row["first_stop_forming"] is not None]
+    true_stop_forming = [row for row in stop_forming if row["actual"] == "LOSS"]
+    false_stop_forming = [row for row in stop_forming if row["actual"] == "WIN"]
     losses_detected = [row for row in losses if row["first_stop"] is not None]
+    losses_forming = [row for row in losses if row["first_stop_forming"] is not None]
     winners_detected = [row for row in winners if row["first_target"] is not None]
     winner_false_stop_any = [row for row in winners if row["first_stop"] is not None]
     loss_false_target_any = [row for row in losses if row["first_target"] is not None]
 
+    stop_forming_leads = [
+        int(row["first_stop_forming"]["bars_before_canonical_exit"])
+        for row in losses_forming
+    ]
     stop_leads = [
         int(row["first_stop"]["bars_before_canonical_exit"])
         for row in losses_detected
@@ -409,6 +426,24 @@ def _window(
             "winners": len(winners),
             "decisive_trades": len(decisive),
             "decisive_coverage": _safe_ratio(len(decisive), len(rows)),
+            "stop_forming_trades": len(stop_forming),
+            "stop_forming_true_loss": len(true_stop_forming),
+            "stop_forming_false_winner": len(false_stop_forming),
+            "stop_forming_precision": _safe_ratio(
+                len(true_stop_forming),
+                len(stop_forming),
+            ),
+            "loss_stop_forming_recall": _safe_ratio(
+                len(losses_forming),
+                len(losses),
+            ),
+            "winner_false_stop_forming_rate_anytime": _safe_ratio(
+                len(false_stop_forming),
+                len(winners),
+            ),
+            "median_stop_forming_lead_bars": (
+                None if not stop_forming_leads else str(median(stop_forming_leads))
+            ),
             "predicted_stop": len(predicted_stop),
             "predicted_target": len(predicted_target),
             "stop_true_positive": len(true_stop),
