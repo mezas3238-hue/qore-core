@@ -269,7 +269,7 @@ def test_m1_cache_accepts_one_close_finalization_then_freezes(
     opened = datetime(2026, 9, 20, 14, 0, tzinfo=UTC)
     monkeypatch.setattr(
         live,
-        "normalise_fundednext_server_epoch",
+        "normalise_legacy_server_epoch",
         lambda _raw: opened,
     )
     cache = Vt31Nas100M1Cache()
