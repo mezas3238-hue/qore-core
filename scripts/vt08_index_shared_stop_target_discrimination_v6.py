@@ -30,6 +30,10 @@ from qore.infrastructure.core_stack_v2.competing_risk_decision_gate import (
 from qore.infrastructure.core_stack_v2.competing_risk_path_core import (
     assess_competing_risk_path,
 )
+from qore.infrastructure.core_stack_v2.recovery_failure_intelligence import (
+    RecoveryChallengeState,
+    assess_recovery_failure,
+)
 from qore.infrastructure.core_stack_v2.path_intelligence import (
     PositionPathObservation,
     assess_position_path,
@@ -144,6 +148,7 @@ def _shadow_trade(
     )
     belief_history = [entry_belief]
     entry_gate = assess_competing_risk_decision(tuple(belief_history))
+    entry_recovery = assess_recovery_failure(tuple(belief_history))
 
     all_bars = bars_by_symbol[symbol]
     closed = closed_by_symbol[symbol]
@@ -178,6 +183,9 @@ def _shadow_trade(
             "ccrpc_stop_formation_persistence_bps": entry_gate.stop_formation_persistence_bps,
             "ccrpc_target_persistence_bps": entry_gate.target_persistence_bps,
             "ccrpc_recovery_persistence_bps": entry_gate.recovery_persistence_bps,
+            "recovery_challenge_state": entry_recovery.state.value,
+            "recovery_challenge_observations": entry_recovery.observations_since_formation,
+            "recovery_challenge_formation_persistence_bps": entry_recovery.formation_persistence_bps,
         }
     ]
 
@@ -256,6 +264,9 @@ def _shadow_trade(
                     "ccrpc_stop_formation_persistence_bps": gate.stop_formation_persistence_bps,
                     "ccrpc_target_persistence_bps": gate.target_persistence_bps,
                     "ccrpc_recovery_persistence_bps": gate.recovery_persistence_bps,
+                    "recovery_challenge_state": recovery_challenge.state.value,
+                    "recovery_challenge_observations": recovery_challenge.observations_since_formation,
+                    "recovery_challenge_formation_persistence_bps": recovery_challenge.formation_persistence_bps,
                     "path_state": path.state.value,
                     "path_evidence_count": path.evidence_count,
                     "path_support_bps": path.path_support_bps,
@@ -350,6 +361,22 @@ def _shadow_trade(
         ),
         None,
     )
+    first_recovery_failed = next(
+        (
+            row
+            for row in rows
+            if row["recovery_challenge_state"] == RecoveryChallengeState.RECOVERY_FAILED.value
+        ),
+        None,
+    )
+    first_recovery_restored = next(
+        (
+            row
+            for row in rows
+            if row["recovery_challenge_state"] == RecoveryChallengeState.RECOVERY_RESTORED.value
+        ),
+        None,
+    )
 
     return {
         "trade_id": item.trade_id,
@@ -366,11 +393,18 @@ def _shadow_trade(
         "first_ccrpc_stop_forming": first_ccrpc_stop_forming,
         "first_ccrpc_stop": first_ccrpc_stop,
         "first_ccrpc_target": first_ccrpc_target,
+        "first_recovery_failed": first_recovery_failed,
+        "first_recovery_restored": first_recovery_restored,
         "hypothesis_counts": dict(
             sorted(Counter(str(row["hypothesis"]) for row in rows).items())
         ),
         "ccrpc_decision_counts": dict(
             sorted(Counter(str(row["ccrpc_decision"]) for row in rows).items())
+        ),
+        "recovery_challenge_counts": dict(
+            sorted(
+                Counter(str(row["recovery_challenge_state"]) for row in rows).items()
+            )
         ),
         "competing_risk_summary": {
             "max_stop_hazard_proxy_bps": max(
@@ -498,6 +532,12 @@ def _window(
     ccrpc_false_stop = [row for row in ccrpc_predicted_stop if row["actual"] == "WIN"]
     ccrpc_true_target = [row for row in ccrpc_predicted_target if row["actual"] == "WIN"]
     ccrpc_false_target = [row for row in ccrpc_predicted_target if row["actual"] == "LOSS"]
+    recovery_failed = [row for row in rows if row["first_recovery_failed"] is not None]
+    recovery_failed_losses = [row for row in recovery_failed if row["actual"] == "LOSS"]
+    recovery_failed_winners = [row for row in recovery_failed if row["actual"] == "WIN"]
+    recovery_restored_winners = [
+        row for row in winners if row["first_recovery_restored"] is not None
+    ]
 
     stop_forming_leads = [
         int(row["first_stop_forming"]["bars_before_canonical_exit"])
@@ -531,6 +571,10 @@ def _window(
     ccrpc_forming_leads = [
         int(row["first_ccrpc_stop_forming"]["bars_before_canonical_exit"])
         for row in ccrpc_forming_losses
+    ]
+    recovery_failed_leads = [
+        int(row["first_recovery_failed"]["bars_before_canonical_exit"])
+        for row in recovery_failed_losses
     ]
     stop_leads = [
         int(row["first_stop"]["bars_before_canonical_exit"])
@@ -622,6 +666,22 @@ def _window(
                 if not ccrpc_forming_leads
                 else str(median(ccrpc_forming_leads))
             ),
+            "recovery_failed_count": len(recovery_failed),
+            "recovery_failed_loss_recall": _safe_ratio(
+                len(recovery_failed_losses), len(losses)
+            ),
+            "recovery_failed_winner_mark_rate": _safe_ratio(
+                len(recovery_failed_winners), len(winners)
+            ),
+            "recovery_failed_precision_for_diagnostics_only": _safe_ratio(
+                len(recovery_failed_losses), len(recovery_failed)
+            ),
+            "median_recovery_failed_lead_bars": (
+                None
+                if not recovery_failed_leads
+                else str(median(recovery_failed_leads))
+            ),
+            "winners_with_recovery_restored": len(recovery_restored_winners),
             "confirmed_stop_count": len(ccrpc_predicted_stop),
             "confirmed_stop_precision": _safe_ratio(
                 len(ccrpc_true_stop), len(ccrpc_predicted_stop)
