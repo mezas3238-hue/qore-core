@@ -3873,7 +3873,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     )
 
         r34_anchor = current_r34_anchor(cycle_at)
-        if r34_anchor is not None and armed_m5_snapshots is not None and not new_order_blocked:
+        if r34_anchor is not None and armed_m5_snapshots is not None:
             r34_anchor_key = f"R34_XAUUSD|{r34_anchor.isoformat()}"
             if r34_anchor_key not in state.processed_anchors:
                 try:
@@ -3898,6 +3898,20 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "reason": reason,
                                 "strategy_drawdown_r": str(r34_live_state.drawdown_r),
                                 "risk_scale": str(r34_live_state.risk_scale),
+                            },
+                        )
+                    elif new_order_blocked:
+                        _log(
+                            log_path,
+                            {
+                                "event": "R34_CANDIDATE_EXECUTION_BLOCKED",
+                                "trader": "R34_XAUUSD",
+                                "symbol": "XAUUSD",
+                                "decision_at": r34_anchor.isoformat(),
+                                "candidate": True,
+                                "strategy_reason": reason,
+                                "order_send_called": False,
+                                **new_order_blocker_telemetry,
                             },
                         )
                     else:
@@ -3937,7 +3951,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         },
                     )
         r38_anchor = current_r38_anchor(cycle_at)
-        if r38_anchor is not None and armed_m5_snapshots is not None and not new_order_blocked:
+        if r38_anchor is not None and armed_m5_snapshots is not None:
             r38_anchor_key = f"R38_EURUSD|{r38_anchor.isoformat()}"
             if r38_anchor_key not in state.processed_anchors:
                 try:
@@ -3965,6 +3979,20 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                     if r38_live_state.trailing_exit_at is None
                                     else r38_live_state.trailing_exit_at.isoformat()
                                 ),
+                            },
+                        )
+                    elif new_order_blocked:
+                        _log(
+                            log_path,
+                            {
+                                "event": "R38_CANDIDATE_EXECUTION_BLOCKED",
+                                "trader": "R38_EURUSD",
+                                "symbol": "EURUSD",
+                                "decision_at": r38_anchor.isoformat(),
+                                "candidate": True,
+                                "strategy_reason": reason,
+                                "order_send_called": False,
+                                **new_order_blocker_telemetry,
                             },
                         )
                     else:
@@ -4005,7 +4033,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     )
 
         r43_anchor = current_r43_anchor(cycle_at)
-        if r43_anchor is not None and armed_m5_snapshots is not None and not new_order_blocked:
+        if r43_anchor is not None and armed_m5_snapshots is not None:
             r43_anchor_key = f"R43_GBPUSD|{r43_anchor.isoformat()}"
             if r43_anchor_key not in state.processed_anchors:
                 try:
@@ -4034,6 +4062,20 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                     if r43_live_state.trailing_exit_at is None
                                     else r43_live_state.trailing_exit_at.isoformat()
                                 ),
+                            },
+                        )
+                    elif new_order_blocked:
+                        _log(
+                            log_path,
+                            {
+                                "event": "R43_CANDIDATE_EXECUTION_BLOCKED",
+                                "trader": "R43_GBPUSD",
+                                "symbol": "GBPUSD",
+                                "decision_at": r43_anchor.isoformat(),
+                                "candidate": True,
+                                "strategy_reason": reason,
+                                "order_send_called": False,
+                                **new_order_blocker_telemetry,
                             },
                         )
                     else:
@@ -4077,7 +4119,6 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         if (
             gbpjpy_r38_anchor is not None
             and armed_m5_snapshots is not None
-            and not new_order_blocked
         ):
             gbpjpy_r38_anchor_key = f"R38_GBPJPY|{gbpjpy_r38_anchor.isoformat()}"
             if gbpjpy_r38_anchor_key not in state.processed_anchors:
@@ -4110,6 +4151,20 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                     if gbpjpy_r38_live_state.trailing_exit_at is None
                                     else gbpjpy_r38_live_state.trailing_exit_at.isoformat()
                                 ),
+                            },
+                        )
+                    elif new_order_blocked:
+                        _log(
+                            log_path,
+                            {
+                                "event": "GBPJPY_R38_CANDIDATE_EXECUTION_BLOCKED",
+                                "trader": "R38_GBPJPY",
+                                "symbol": "GBPJPY",
+                                "decision_at": gbpjpy_r38_anchor.isoformat(),
+                                "candidate": True,
+                                "strategy_reason": reason,
+                                "order_send_called": False,
+                                **new_order_blocker_telemetry,
                             },
                         )
                     else:
