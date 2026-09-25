@@ -1,0 +1,127 @@
+name: QORE Shared VT08 Invariant Causal Path Grammar V12
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/vt08_index_shared_invariant_causal_path_grammar_v12.py
+      - src/qore/infrastructure/core_stack_v2/causal_path_representation.py
+      - .github/workflows/qore-shared-vt08-invariant-causal-path-grammar-v12.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  invariant-causal-path-grammar-v12:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout Shared
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install research dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Static validation
+        run: |
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/causal_path_representation.py \
+            scripts/vt08_index_shared_invariant_causal_path_grammar_v12.py
+          python -m py_compile \
+            src/qore/infrastructure/core_stack_v2/causal_path_representation.py \
+            scripts/vt08_index_shared_invariant_causal_path_grammar_v12.py
+
+      - name: Download frozen V6 consumed ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-shared-vt08-stop-target-discrimination-v6-1a534d0ae735efef4dcbc0c0be4b110ceaa80501
+          path: artifacts/v6
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 36131607443
+
+      - name: Run V12 invariant causal path grammar
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/v12
+          python scripts/vt08_index_shared_invariant_causal_path_grammar_v12.py \
+            --v6-json artifacts/v6/vt08-index-shared-stop-target-discrimination-v6.json \
+            --out artifacts/v12/vt08-index-shared-invariant-causal-path-grammar-v12.json \
+            | tee artifacts/v12/summary.json
+
+      - name: Validate V12 governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path(
+                  "artifacts/v12/"
+                  "vt08-index-shared-invariant-causal-path-grammar-v12.json"
+              ).read_text()
+          )
+          assert p["identity"] == "QORE_SHARED_VT08_INVARIANT_CAUSAL_PATH_GRAMMAR_V12"
+          assert p["source_v6_run"] == 36131607443
+          assert p["source_v11_run"] == 36140165499
+          assert p["v11_rejected_for_validation"] is True
+          assert p["research_only"] is True
+          assert p["consumed_evidence_only"] is True
+          assert p["path_representation_outcome_blind"] is True
+          assert p["runtime_outcome_input"] is False
+          assert p["future_market_input"] is False
+          assert p["sizing_used"] is False
+          assert p["risk_weighting_used"] is False
+          assert p["trailing_used"] is False
+          assert p["target_extension_used"] is False
+          assert p["runtime_actuation"] is False
+          assert p["grammar_policy"]["all_three_markets_required"] is True
+          assert p["grammar_policy"]["candidate_additional_training_winners_allowed"] == 0
+          assert p["grammar_policy"]["combined_incremental_training_winners_allowed"] == 0
+
+          expected = {
+              "five_year": 2448,
+              "recent_two_year": 1017,
+              "r66_consumed_failed_holdout": 773,
+          }
+          for key, sample in expected.items():
+              w=p["windows"][key]
+              assert w["sample"] == sample
+              assert w["status"] in {
+                  "ADMIT_FOR_VALIDATION",
+                  "ADMIT_FOR_ECONOMIC_SHADOW",
+                  "REJECT",
+              }
+              assert "v7_control" in w
+              assert "v12_combined" in w
+              assert "incremental_false_winner" in w
+
+          print(json.dumps({
+              "validation_pass": p["validation_pass"],
+              "selected_grammar_count": len(p["selected_grammars"]),
+              "windows": p["windows"],
+          }, sort_keys=True))
+          PY
+
+      - name: Bind result
+        run: |
+          cd artifacts/v12
+          echo "$GITHUB_SHA" > shared-git-sha.txt
+          echo "36131607443" > source-v6-run.txt
+          echo "36140165499" > source-v11-run.txt
+          find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          sha256sum -c SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-vt08-invariant-causal-path-grammar-v12-${{ github.sha }}
+          path: artifacts/v12/
+          if-no-files-found: error
+          retention-days: 90
