@@ -21,7 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -337,10 +337,10 @@ def build_report(
                 "policy": policy,
                 "collision_dropped_trades": len(collision_drop),
                 "standalone_metrics": stoprisk_2r._metrics(standalone),
-                "standalone_drawdown_episode": _drawdown_episode(standalone).__dict__,
+                "standalone_drawdown_episode": asdict(_drawdown_episode(standalone)),
                 "combined_dropped_trades": len(combined_drop),
                 "combined_metrics": stoprisk_2r._metrics(combined),
-                "combined_drawdown_episode": _drawdown_episode(combined).__dict__,
+                "combined_drawdown_episode": asdict(_drawdown_episode(combined)),
                 "combined_density_retention": str(
                     Decimal(len(combined)) / Decimal(len(control))
                 ),
@@ -394,7 +394,7 @@ def build_report(
         "target_r": "2.00",
         "control_trades": len(control),
         "control_metrics": stoprisk_2r._metrics(control),
-        "control_drawdown_episode": _drawdown_episode(control).__dict__,
+        "control_drawdown_episode": asdict(_drawdown_episode(control)),
         "third_slot_reference": {
             "journey_feature": THIRD_SLOT_JOURNEY_FEATURE,
             "journey_value": THIRD_SLOT_JOURNEY_VALUE,
