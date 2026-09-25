@@ -169,6 +169,24 @@ class CTraderDemoFullApi:
         self._connected = True
         return True
 
+    def repair_market_data_subscription(self) -> bool:
+        """Reassert the broker spot subscription without changing trading state."""
+        ids = [item.symbol_id for item in self._binding.contracts]
+        if self._conversion_symbol_id is not None:
+            ids.append(self._conversion_symbol_id)
+        result = self._client.request(
+            "ProtoOASubscribeSpotsReq",
+            {
+                "ctidTraderAccountId": self.account_id,
+                "subscribeToSpotTimestamp": True,
+                "symbolId": ids,
+            },
+            client_msg_id="qore-demo-repair-spots",
+            timeout_seconds=10.0,
+        )
+        return not isinstance(result, Failure)
+
+
     def shutdown(self) -> None:
         self._stop.set()
         thread = self._spot_thread
