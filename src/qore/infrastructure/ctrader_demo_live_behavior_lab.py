@@ -1,10 +1,10 @@
-"""Read-only cTrader DEMO LIVE behavior laboratory.
+"""cTrader DEMO LIVE behavioral supervision and evidence laboratory.
 
-The laboratory observes and classifies runtime evidence. It has no authority to
-change strategy decisions, CIBO sizing, Risk allocations, broker orders, stops,
-targets or position lifecycle. Its only purpose is to preserve enough evidence
-to explain what each trader did in LIVE DEMO and which management behavior was
-or was not observed.
+The laboratory preserves a complete market/trader evidence trail and supports
+bounded technical auto-repair through the separate anomaly supervisor. It does
+not invent strategy decisions or autonomously alter methodology, CIBO sizing,
+Risk economics, targets or lifecycle rules. Any economic mutation remains owned
+by the trader's frozen logic or by an explicitly approved operational guard.
 """
 
 from __future__ import annotations
