@@ -1,0 +1,85 @@
+name: QORE VT08 Latest PS Core Stack Frontier V1
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-cognitive-expansion-5m-v1-001
+    paths:
+      - .github/workflows/vt08-latest-ps-core-stack-frontier-v1.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  frontier:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        symbol: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+        profile: [M15_STANDARD, M5_FRACTAL, M3_FRACTAL]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: pytest -q tests/infrastructure/trader_lab/test_vt08_cognitive_latest_ps_core_stack_frontier_v1.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-cognitive-5m-fresh-${{ matrix.symbol }}-b2d33e1b4829d8b4afc76983decca8a99131403c
+          path: base/${{ matrix.symbol }}
+          github-token: ${{ github.token }}
+          run-id: 35934924907
+      - name: Download M3 evidence
+        if: matrix.profile == 'M3_FRACTAL'
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-m3-fractal-${{ matrix.symbol }}-bc1379d7661aac202495ec67afdd3098473ba723
+          path: m3-artifact/${{ matrix.symbol }}
+          github-token: ${{ github.token }}
+          run-id: 35941643396
+      - name: Replay high-density admission with frozen Core Stack
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+          PROFILE: ${{ matrix.profile }}
+        run: |
+          mkdir -p artifacts
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab.vt08_cognitive_latest_ps_core_stack_frontier_v1 import (
+              evaluate,
+          )
+
+          symbol = os.environ["SYMBOL"]
+          profile = os.environ["PROFILE"]
+          m3_path = None
+          if profile == "M3_FRACTAL":
+              matches = list(Path(f"m3-artifact/{symbol}").rglob("m3-evidence.json"))
+              if len(matches) != 1:
+                  raise SystemExit("expected exactly one M3 evidence file")
+              m3_path = matches[0]
+
+          report = evaluate(
+              Path(f"base/{symbol}/market-evidence-1095d.json"),
+              profile=profile,
+              m3_path=m3_path,
+          )
+          out = Path(f"artifacts/{symbol}-{profile}-latest-ps-core-stack.json")
+          out.write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")),
+              encoding="utf-8",
+          )
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-latest-ps-core-stack-${{ matrix.symbol }}-${{ matrix.profile }}-${{ github.sha }}
+          path: artifacts/${{ matrix.symbol }}-${{ matrix.profile }}-latest-ps-core-stack.json
+          if-no-files-found: error
+          retention-days: 30
