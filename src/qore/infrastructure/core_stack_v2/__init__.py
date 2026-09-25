@@ -21,6 +21,13 @@ from qore.infrastructure.core_stack_v2.architecture_freeze import (
     superintelligence_freeze_fingerprint,
 )
 from qore.infrastructure.core_stack_v2.audit import CoreAuditRecord, make_audit_record
+from qore.infrastructure.core_stack_v2.autonomous_loss_defense import (
+    AutonomousDefenseAction,
+    AutonomousLossDefenseDirective,
+    AutonomousLossDefenseEvidence,
+    AutonomousLossDefensePolicy,
+    assess_autonomous_loss_defense,
+)
 from qore.infrastructure.core_stack_v2.compatibility import (
     CompatibilityEntry,
     CompatibilityStatus,
@@ -181,6 +188,10 @@ from qore.infrastructure.core_stack_v2.transition_intelligence import (
 
 __all__ = [
     "CORE_STACK_VERSION",
+    "AutonomousDefenseAction",
+    "AutonomousLossDefenseDirective",
+    "AutonomousLossDefenseEvidence",
+    "AutonomousLossDefensePolicy",
     "CausalHorizonSnapshot",
     "CompetingFutureAssessment",
     "CompetingRiskBeliefState",
@@ -284,6 +295,7 @@ __all__ = [
     "TraderCognitiveContext",
     "UncertaintyState",
     "WorldState",
+    "assess_autonomous_loss_defense",
     "assess_drawdown_stability",
     "assess_stop_target_path",
     "assess_terminal_failure",
