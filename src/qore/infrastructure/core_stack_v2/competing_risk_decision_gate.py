@@ -124,6 +124,7 @@ def _stop_formation_qualifies(
         item.path_evidence_available
         and item.stop_formation_bps >= policy.formation_threshold_bps
         and item.stop_formation_bps > item.target_hazard_proxy_bps
+        and item.uncertainty_bps <= policy.maximum_uncertainty_bps
         and item.recovery_strength_bps < policy.recovery_veto_bps
     )
 
