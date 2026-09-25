@@ -35,10 +35,12 @@ from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
     iter_cibo_m1,
 )
+from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     Pivot,
     _aggregate_tf,
+    _index_day_inputs,
     _pivots,
 )
 
@@ -381,27 +383,43 @@ def build_market_report(
     if {bar.symbol for bar in bars} != {symbol}:
         raise ValueError("true-2R stop protection M1 symbol mismatch")
 
-    by_open = {bar.opened_at: index for index, bar in enumerate(bars)}
+    sessions = {CapitalizerSession(item.session) for item in market}
+    if len(sessions) != 1:
+        raise ValueError("true-2R stop protection market must have one session")
+    session = next(iter(sessions))
+    execution_by_day, _ = _index_day_inputs(bars, session=session)
+
     close_by_at = {bar.closed_at: bar.close for bar in bars}
     pivots = _pivots(_aggregate_tf(bars, minutes=3))
     pivot_confirmed = tuple(pivot.confirmed_at for pivot in pivots)
     if tuple(sorted(pivot_confirmed)) != pivot_confirmed:
         raise ValueError("M3 pivots must be chronological")
 
-    simulated: dict[str, tuple[SimulatedTrade, ...]] = {}
-    for mode in ProtectionMode:
-        simulated[mode.value] = tuple(
-            _simulate(
-                trade,
-                bars=bars,
-                by_open=by_open,
-                pivots=pivots,
-                pivot_confirmed=pivot_confirmed,
-                close_by_at=close_by_at,
-                mode=mode,
+    simulated_lists: dict[str, list[SimulatedTrade]] = {
+        mode.value: [] for mode in ProtectionMode
+    }
+    for trade in market:
+        execution = execution_by_day.get(trade.operating_date, ())
+        if not execution:
+            raise ValueError("true-2R stop protection missing execution day")
+        by_open = {
+            bar.opened_at: index for index, bar in enumerate(execution)
+        }
+        for mode in ProtectionMode:
+            simulated_lists[mode.value].append(
+                _simulate(
+                    trade,
+                    bars=execution,
+                    by_open=by_open,
+                    pivots=pivots,
+                    pivot_confirmed=pivot_confirmed,
+                    close_by_at=close_by_at,
+                    mode=mode,
+                )
             )
-            for trade in market
-        )
+    simulated = {
+        mode: tuple(rows) for mode, rows in simulated_lists.items()
+    }
 
     original = simulated[ProtectionMode.ORIGINAL.value]
     mismatches = _reproduction_mismatches(market, original)
