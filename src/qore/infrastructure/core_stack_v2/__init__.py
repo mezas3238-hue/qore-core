@@ -27,10 +27,6 @@ from qore.infrastructure.core_stack_v2.compatibility import (
     compatibility_manifest,
     compatibility_manifest_fingerprint,
 )
-from qore.infrastructure.core_stack_v2.competing_risk_path_core import (
-    CompetingRiskBeliefState,
-    assess_competing_risk_path,
-)
 from qore.infrastructure.core_stack_v2.competing_future_intelligence import (
     CausalHorizonSnapshot,
     CompetingFutureAssessment,
@@ -38,6 +34,10 @@ from qore.infrastructure.core_stack_v2.competing_future_intelligence import (
     HorizonFutureState,
     HorizonFutureVote,
     assess_competing_futures,
+)
+from qore.infrastructure.core_stack_v2.competing_risk_path_core import (
+    CompetingRiskBeliefState,
+    assess_competing_risk_path,
 )
 from qore.infrastructure.core_stack_v2.contracts import (
     CORE_STACK_VERSION,
