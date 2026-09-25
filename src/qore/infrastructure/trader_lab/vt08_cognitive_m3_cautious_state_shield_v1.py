@@ -61,7 +61,7 @@ def evaluate(base_path: Path, *, m3_path: Path) -> dict[str, object]:
     vetoed = 0
     audit = []
 
-    for candidate, trade, causal in temporal:
+    for _candidate, trade, causal in temporal:
         context, score = classify_context(causal, table)
         context_counts[context] += 1
         admit = context != "CAUTIOUS"
