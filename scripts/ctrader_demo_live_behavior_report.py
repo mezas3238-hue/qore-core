@@ -81,6 +81,19 @@ def _markdown(reports) -> str:
                 f"- Partial-close events: {', '.join(report.partial_close_events) or 'NOT_OBSERVED'}",
                 f"- Exit events: {', '.join(report.exit_events) or 'NOT_OBSERVED'}",
                 f"- Fault events: {', '.join(report.fault_events) or 'NONE'}",
+                f"- Position path samples: {report.path_sample_count}",
+                f"- Max unrealized PnL: {report.max_unrealized_pnl or 'NOT_OBSERVED'}",
+                f"- Min unrealized PnL: {report.min_unrealized_pnl or 'NOT_OBSERVED'}",
+                (
+                    "- Max favorable price delta: "
+                    f"{report.max_favorable_price_delta or 'NOT_OBSERVED'}"
+                ),
+                (
+                    "- Max adverse price delta: "
+                    f"{report.max_adverse_price_delta or 'NOT_OBSERVED'}"
+                ),
+                f"- Stop history: {', '.join(report.stop_history) or 'NOT_OBSERVED'}",
+                f"- Volume history: {', '.join(report.volume_history) or 'NOT_OBSERVED'}",
                 "",
                 "Observations:",
             ]
