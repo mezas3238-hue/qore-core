@@ -182,8 +182,9 @@ def _pairwise(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
             key = f"{left.context_id}&{right.context_id}"
             result[key] = _profile(
                 rows,
-                lambda row, l=left, r=right: (
-                    _matches(row, l) and _matches(row, r)
+                lambda row, left_ctx=left, right_ctx=right: (
+                    _matches(row, left_ctx)
+                    and _matches(row, right_ctx)
                 ),
             )
     return result
