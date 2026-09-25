@@ -79,6 +79,9 @@ from qore.infrastructure.traders.crt_pure_cognitive_state import (
     CrtPureSituationModel,
     reason,
 )
+from qore.infrastructure.traders.crt_pure_strategy_identity_memory import (
+    strategy_identity_ready,
+)
 
 IDENTITY = "VT08_CRT_PURE_R2CC_AUDUSD_COGNITIVE_WAIT_RESOLUTION_WF_001"
 SCHEMA = "qore.vt08.crt_pure.r2cc_audusd_cognitive_wait_resolution_wf.v1"
@@ -448,7 +451,7 @@ def _second_decision(
         attention_state=CrtPureAttentionState.DECISION,
         hypothesis_stage=CrtPureHypothesisStage.CONFIRMED,
         data_integrity_ok=True,
-        strategy_identity_ready=True,
+        strategy_identity_ready=strategy_identity_ready(),
         source_event_present=True,
         confirmation_complete=True,
         destination_context_known=True,
