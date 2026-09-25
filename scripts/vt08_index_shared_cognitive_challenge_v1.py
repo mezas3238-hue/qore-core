@@ -32,10 +32,11 @@ import argparse
 import bisect
 import json
 from dataclasses import replace
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 from qore.infrastructure.core_stack_v2.competing_future_intelligence import (
     CausalHorizonSnapshot,
