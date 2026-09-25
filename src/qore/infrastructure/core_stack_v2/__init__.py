@@ -43,6 +43,14 @@ from qore.infrastructure.core_stack_v2.contracts import (
     WorldState,
     freeze_facts,
 )
+from qore.infrastructure.core_stack_v2.drawdown_phenotype_memory import (
+    DrawdownPhenotype,
+    DrawdownPhenotypeAssessment,
+    DrawdownPhenotypeComposition,
+    DrawdownPhenotypeQuery,
+    DrawdownPhenotypeRecognition,
+    UniversalDrawdownPhenotypeMemory,
+)
 from qore.infrastructure.core_stack_v2.engine import CoreStackConfig, build_snapshot
 from qore.infrastructure.core_stack_v2.environment_intelligence import (
     MarketEnvironmentAssessment,
@@ -131,6 +139,11 @@ from qore.infrastructure.core_stack_v2.transition_intelligence import (
 
 __all__ = [
     "CORE_STACK_VERSION",
+    "DrawdownPhenotype",
+    "DrawdownPhenotypeAssessment",
+    "DrawdownPhenotypeComposition",
+    "DrawdownPhenotypeQuery",
+    "DrawdownPhenotypeRecognition",
     "DrawdownStabilityAssessment",
     "JourneyAssessment",
     "InstinctAssessment",
@@ -160,6 +173,7 @@ __all__ = [
     "SupportMethodology",
     "StabilityPolicy",
     "TraderStabilityTelemetry",
+    "UniversalDrawdownPhenotypeMemory",
     "TraderOpportunityContext",
     "SituationGraph",
     "RegimeVector",
