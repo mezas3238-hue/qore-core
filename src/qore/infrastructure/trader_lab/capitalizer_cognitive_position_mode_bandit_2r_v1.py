@@ -20,9 +20,6 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.trader_lab import (
-    capitalizer_cognitive_economic_rebase_2r_v1 as rebase,
-)
-from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_m3_stop_protection_true_2r_v2 as m3,
 )
 from qore.infrastructure.trader_lab import (
@@ -230,7 +227,15 @@ def _choose_mode(
     row: dict[str, Any],
     history: tuple[stability.TradeOutcome, ...],
     selection_counts: Counter[tuple[str, str]],
-) -> tuple[str, str, stability.StabilityState, bool, dict[str, Decimal], dict[str, Decimal], dict[str, int]]:
+) -> tuple[
+    str,
+    str,
+    stability.StabilityState,
+    bool,
+    dict[str, Decimal],
+    dict[str, Decimal],
+    dict[str, int],
+]:
     state, _dd, _recent5, _loss_streak, _stop_streak = stability._state(history)
     pressure = _systemic_pressure(history)
 
