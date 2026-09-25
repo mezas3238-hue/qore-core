@@ -117,6 +117,18 @@ def _requested_keys(
     return result
 
 
+def _extract_json_string(line: str, field: str) -> str | None:
+    marker = f'"{field}": "'
+    start = line.find(marker)
+    if start < 0:
+        return None
+    start += len(marker)
+    end = line.find('"', start)
+    if end < 0:
+        return None
+    return line[start:end]
+
+
 def _load_target_context_evidence(
     root: Path,
     *,
@@ -133,29 +145,43 @@ def _load_target_context_evidence(
         tuple[str, str, str],
         dict[str, Any],
     ] = {}
-    symbols_seen: Counter[str] = Counter()
+    symbols_seen: set[str] = set()
     causal_candidate_rows = 0
+    requested_departures = {key[2] for key in requested}
 
     for path in ledgers:
+        file_symbol: str | None = None
         with path.open(encoding="utf-8") as handle:
             for line in handle:
                 if not line.strip():
                     continue
+                if file_symbol is None:
+                    file_symbol = _extract_json_string(line, "symbol")
+                    if file_symbol is not None:
+                        symbols_seen.add(file_symbol.upper())
+
+                departure_hint = _extract_json_string(line, "departure_at")
+                if departure_hint not in requested_departures:
+                    continue
+                symbol_hint = _extract_json_string(line, "symbol")
+                side_hint = _extract_json_string(line, "side")
+                if symbol_hint is None or side_hint is None:
+                    raise ValueError("Target V2 row missing join identity")
+
+                key = _target_key(
+                    symbol=symbol_hint,
+                    side=side_hint,
+                    departure_at=departure_hint,
+                )
+                if key not in requested:
+                    continue
+
                 raw = json.loads(line)
                 if not isinstance(raw, dict):
                     raise ValueError("Target V2 row must be object")
                 symbol = str(raw.get("symbol", "")).upper()
                 if not symbol:
                     raise ValueError("Target V2 row missing symbol")
-                symbols_seen[symbol] += 1
-
-                key = _target_key(
-                    symbol=symbol,
-                    side=raw.get("side"),
-                    departure_at=raw.get("departure_at"),
-                )
-                if key not in requested:
-                    continue
 
                 if raw.get("identity") != TARGET_IDENTITY:
                     raise ValueError("unexpected Target V2 identity")
