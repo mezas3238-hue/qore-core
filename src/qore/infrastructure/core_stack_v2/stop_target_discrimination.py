@@ -40,6 +40,7 @@ from qore.infrastructure.core_stack_v2.transition_intelligence import (
 
 
 class StopTargetHypothesis(StrEnum):
+    STOP_FORMING = "STOP_FORMING"
     STOP_LIKELY = "STOP_LIKELY"
     TARGET_LIKELY = "TARGET_LIKELY"
     RECOVERABLE = "RECOVERABLE"
@@ -282,14 +283,29 @@ def assess_stop_target_path(
                 "STOP_HYPOTHESIS_VETOED_BY_RECOVERY",
             )
         )
+    elif (
+        terminal >= 3
+        and recovery == 0
+        and target <= 1
+        and not path_target
+        and not path_recovery
+    ):
+        hypothesis = StopTargetHypothesis.STOP_FORMING
+        reasons.extend(
+            (
+                "MULTI_RELATION_TERMINAL_FORMATION",
+                "NO_CAUSAL_RECOVERY_RELATION_PRESENT",
+                "SHADOW_PREARM_ONLY_NOT_CONFIRMED_STOP",
+            )
+        )
     elif future_terminal_pair and current_terminal_pair and not path_target:
-        hypothesis = StopTargetHypothesis.STOP_LIKELY
+        hypothesis = StopTargetHypothesis.STOP_FORMING
         reasons.extend(
             (
                 "FUTURE_GEOMETRY_TERMINAL",
                 "COMPETING_FUTURES_TERMINAL",
                 "CURRENT_MARKET_FAILURE_CONFIRMED",
-                "PREENTRY_TERMINAL_RELATION_ONLY",
+                "PREENTRY_STOP_FORMATION_ONLY",
             )
         )
     else:
