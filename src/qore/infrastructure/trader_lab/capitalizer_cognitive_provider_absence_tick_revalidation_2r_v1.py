@@ -30,6 +30,7 @@ from qore.infrastructure.trader_lab import (
 from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_historical_bar_completeness_audit_2r_v1 as bars,
 )
+from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import iter_cibo_m1
 from qore.kernel.result import Failure
 
 IDENTITY = "QORE_CAPITALIZER_COGNITIVE_PROVIDER_ABSENCE_TICK_REVALIDATION_2R_V1"
@@ -113,7 +114,7 @@ def _observed_minutes(m1_root: Path) -> set[int]:
     native_root, manifest = bars._resolve_m1_root(m1_root, symbol=SYMBOL)
     if manifest.get("provider_native_m1") is not True:
         raise ValueError("tick revalidation requires native M1")
-    return {bars._minute(item.opened_at) for item in bars.iter_cibo_m1(native_root)}
+    return {bars._minute(item.opened_at) for item in iter_cibo_m1(native_root)}
 
 
 def _missing_minutes(
