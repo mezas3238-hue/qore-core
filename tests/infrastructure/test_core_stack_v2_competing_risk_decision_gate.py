@@ -68,7 +68,7 @@ def test_early_formation_can_prearm_before_confirmed_stop_hazard() -> None:
                 stop=4600,
                 target=2600,
                 recovery=1800,
-                uncertainty=7000,
+                uncertainty=6000,
                 formation=6200,
             ),
         )
