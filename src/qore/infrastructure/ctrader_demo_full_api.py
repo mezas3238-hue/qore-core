@@ -174,6 +174,10 @@ class CTraderDemoFullApi:
     def last_error(self) -> tuple[int, str]:
         return (0, "")
 
+    def observed_now(self) -> datetime:
+        """Return the wall-clock observation time after blocking API reads."""
+        return datetime.now(UTC)
+
     def terminal_info(self) -> object:
         return SimpleNamespace(
             connected=self._client.is_ready,
