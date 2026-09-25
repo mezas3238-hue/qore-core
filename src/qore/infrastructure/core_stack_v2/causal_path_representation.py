@@ -155,14 +155,14 @@ def _direction(delta: int) -> PathDirection:
 
 
 def _delta(points: tuple[CausalPathPoint, ...], field: str) -> int:
-    return getattr(points[-1], field) - getattr(points[0], field)
+    return int(getattr(points[-1], field)) - int(getattr(points[0], field))
 
 
 def _acceleration(points: tuple[CausalPathPoint, ...], field: str) -> int:
     if len(points) < 3:
         return 0
-    previous = getattr(points[-2], field) - getattr(points[-3], field)
-    latest = getattr(points[-1], field) - getattr(points[-2], field)
+    previous = int(getattr(points[-2], field)) - int(getattr(points[-3], field))
+    latest = int(getattr(points[-1], field)) - int(getattr(points[-2], field))
     return latest - previous
 
 
