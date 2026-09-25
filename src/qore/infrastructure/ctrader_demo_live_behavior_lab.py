@@ -49,27 +49,27 @@ TRADER_BEHAVIOR_CONTRACTS: dict[str, TraderBehaviorContract] = {
     "R34_XAUUSD": TraderBehaviorContract(
         trader="R34_XAUUSD",
         management_contract="STATIC_SL_TP_PLUS_24H_EXIT",
-        sizing_path="TRADER_LIVE_RISK_REQUEST",
+        sizing_path="R34_BASE_RISK_X_GOVERNOR_SCALE_THEN_DEMO_NATIVE_VOLUME",
     ),
     "R38_EURUSD": TraderBehaviorContract(
         trader="R38_EURUSD",
         management_contract="DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
-        sizing_path="TRADER_LIVE_RISK_REQUEST",
+        sizing_path="R38_EURUSD_BASE_RISK_X_COGNITIVE_SCALE_THEN_DEMO_NATIVE_VOLUME",
     ),
     "R43_GBPUSD": TraderBehaviorContract(
         trader="R43_GBPUSD",
         management_contract="DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
-        sizing_path="TRADER_LIVE_RISK_REQUEST",
+        sizing_path="R43_GBPUSD_BASE_RISK_X_COGNITIVE_SCALE_THEN_DEMO_NATIVE_VOLUME",
     ),
     "R38_GBPJPY": TraderBehaviorContract(
         trader="R38_GBPJPY",
         management_contract="DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
-        sizing_path="TRADER_LIVE_RISK_REQUEST",
+        sizing_path="R38_GBPJPY_BASE_RISK_X_COGNITIVE_SCALE_THEN_DEMO_NATIVE_VOLUME",
     ),
     "R42_AUDJPY": TraderBehaviorContract(
         trader="R42_AUDJPY",
         management_contract="DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
-        sizing_path="TRADER_LIVE_RISK_REQUEST",
+        sizing_path="R42_AUDJPY_BASE_RISK_X_COGNITIVE_SCALE_THEN_DEMO_NATIVE_VOLUME",
     ),
     "VT31_NAS100": TraderBehaviorContract(
         trader="VT31_NAS100",
