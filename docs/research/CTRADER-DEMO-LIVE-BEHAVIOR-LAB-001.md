@@ -353,3 +353,32 @@ changes stops or sizes.
 Traders retain their frozen lifecycle. The laboratory records when their rules
 become eligible, what they actually do, and how price moves before and after
 those decisions.
+
+
+## 12. VT31 pre-close spread protection
+
+VT31 now treats the 16:00 New York lifecycle boundary as too late for
+execution-quality protection.
+
+A deterministic pre-close spread guard is applied 10 minutes before that
+boundary:
+
+- hard open-position exit at 15:50 America/New_York;
+- no new VT31 admission at or after 15:50 New York;
+- live pending VT31 orders are cancelled when still pending at the cutoff;
+- the existing 16:00 New York lifecycle remains the absolute fallback;
+- the broker-native CFD session close remains informational and does not delay
+  the protection boundary.
+
+The purpose is execution-quality preservation: avoid carrying an otherwise
+valid VT31 journey into the period where NAS100 spread can expand around the
+cash-market pre-close.
+
+Evidence events:
+
+- `VT31_NAS100_PRE_CLOSE_SPREAD_EXIT_ACCEPTED`;
+- `VT31_NAS100_PRE_CLOSE_PENDING_CANCELLED`;
+- `VT31_NAS100_PRE_CLOSE_ENTRY_SKIPPED`.
+
+The runtime advertises
+`vt31_nas100_pre_close_spread_exit_lead_minutes=10`.
