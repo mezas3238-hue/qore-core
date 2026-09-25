@@ -25,7 +25,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Sequence
+from collections.abc import Sequence
 
 from qore.infrastructure.core_stack_v2.transition_intelligence import (
     MarketTransitionObservation,
