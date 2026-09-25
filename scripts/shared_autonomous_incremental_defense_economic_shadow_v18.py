@@ -70,6 +70,7 @@ def _moderate_defense_item(
 
     for row, probability_bps in probability_rows:
         directive = v17._directive(row, probability_bps)
+        tightened_now = False
         if directive.action is AutonomousDefenseAction.CAP_HALF_RISK:
             requested_cap_r = -Decimal("0.50")
             if active_cap_r is None or requested_cap_r > active_cap_r:
@@ -77,6 +78,7 @@ def _moderate_defense_item(
                 signal_at = directive.as_of.astimezone(UTC)
                 signal_reasons = directive.reasons
                 signal_probability_bps = probability_bps
+                tightened_now = True
 
         if active_cap_r is None:
             continue
@@ -93,12 +95,13 @@ def _moderate_defense_item(
         if shadow_exit_at >= canonical_exit_at:
             continue
 
+        shadow_r = current_r if tightened_now and current_r < active_cap_r else active_cap_r
         managed = replace(
             item,
             outcome=replace(
                 item.outcome,
                 exited_at=shadow_exit_at,
-                r_multiple=active_cap_r,
+                r_multiple=shadow_r,
                 exit_reason="SHARED_V18_INCREMENTAL_CAP_HALF_RISK",
             ),
         )
@@ -112,8 +115,8 @@ def _moderate_defense_item(
             "canonical_exit_at": canonical_exit_at.isoformat(),
             "cap_r": str(active_cap_r),
             "canonical_r": str(canonical_r),
-            "shadow_r": str(active_cap_r),
-            "delta_r": str(active_cap_r - canonical_r),
+            "shadow_r": str(shadow_r),
+            "delta_r": str(shadow_r - canonical_r),
             "canonical_outcome": (
                 "LOSS" if canonical_r < ZERO else "WIN" if canonical_r > ZERO else "FLAT"
             ),
