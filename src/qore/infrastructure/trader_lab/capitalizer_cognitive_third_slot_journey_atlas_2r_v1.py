@@ -208,7 +208,7 @@ def build_report(root: Path) -> dict[str, Any]:
             }
         )
 
-    active_distribution = defaultdict(int)
+    active_distribution: defaultdict[str, int] = defaultdict(int)
     for candidate in third:
         active_distribution[
             str(rebase_by_key[_join_key(candidate)]["baseline_active_positions"])
