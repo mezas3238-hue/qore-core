@@ -151,6 +151,10 @@ class LiveBehaviorCaseReport:
     partial_close_events: tuple[str, ...]
     exit_events: tuple[str, ...]
     fault_events: tuple[str, ...]
+    settlement_events: tuple[str, ...]
+    realized_net_pnl: str | None
+    settlement_prices: tuple[str, ...]
+    settled_source_volumes: tuple[str, ...]
     path_sample_count: int
     max_unrealized_pnl: str | None
     min_unrealized_pnl: str | None
@@ -176,6 +180,10 @@ class LiveBehaviorCaseReport:
             "partial_close_events": list(self.partial_close_events),
             "exit_events": list(self.exit_events),
             "fault_events": list(self.fault_events),
+            "settlement_events": list(self.settlement_events),
+            "realized_net_pnl": self.realized_net_pnl,
+            "settlement_prices": list(self.settlement_prices),
+            "settled_source_volumes": list(self.settled_source_volumes),
             "path_sample_count": self.path_sample_count,
             "max_unrealized_pnl": self.max_unrealized_pnl,
             "min_unrealized_pnl": self.min_unrealized_pnl,
@@ -238,6 +246,83 @@ class CTraderDemoLiveBehaviorLedger:
                         raise ValueError("behavior ledger row must be object")
                     rows.append(LiveBehaviorEvent.from_json(parsed))
         return tuple(sorted(rows, key=lambda item: item.observed_at))
+
+
+def settlement_observation_payload(
+    *,
+    trader: str,
+    symbol: str,
+    signal_fingerprint: str,
+    position_id: int,
+    deal_id: int,
+    order_id: int,
+    side: str,
+    execution_price: Decimal,
+    filled_units: Decimal,
+    source_volume: Decimal,
+    net_profit: Decimal,
+    gross_profit: Decimal,
+    commission: Decimal,
+    swap: Decimal,
+    pnl_conversion_fee: Decimal,
+    balance_after: Decimal | None,
+    executed_at: datetime,
+    position_open_after: bool,
+) -> dict[str, object]:
+    """Build one immutable broker settlement observation."""
+
+    if side not in {"long", "short"}:
+        raise ValueError("settlement side must be long/short")
+    if min(position_id, deal_id, order_id) <= 0:
+        raise ValueError("settlement ids must be positive")
+    if executed_at.tzinfo is None or executed_at.utcoffset() is None:
+        raise ValueError("settlement executed_at must be timezone-aware")
+    for name, value in (
+        ("execution_price", execution_price),
+        ("filled_units", filled_units),
+        ("source_volume", source_volume),
+        ("net_profit", net_profit),
+        ("gross_profit", gross_profit),
+        ("commission", commission),
+        ("swap", swap),
+        ("pnl_conversion_fee", pnl_conversion_fee),
+    ):
+        if not isinstance(value, Decimal) or not value.is_finite():
+            raise ValueError(f"settlement {name} must be finite Decimal")
+    if execution_price <= 0 or filled_units <= 0 or source_volume <= 0:
+        raise ValueError("settlement price/volume values must be positive")
+    if balance_after is not None and (
+        not isinstance(balance_after, Decimal) or not balance_after.is_finite()
+    ):
+        raise ValueError("settlement balance_after must be finite Decimal/null")
+
+    return {
+        "event": (
+            "CTRADER_DEMO_PARTIAL_SETTLEMENT"
+            if position_open_after
+            else "CTRADER_DEMO_EXIT_SETTLEMENT"
+        ),
+        "trader": trader,
+        "symbol": symbol,
+        "signal_fingerprint": signal_fingerprint,
+        "position_id": position_id,
+        "deal_id": deal_id,
+        "order_id": order_id,
+        "side": side,
+        "execution_price": format(execution_price, "f"),
+        "filled_units": format(filled_units, "f"),
+        "source_volume": format(source_volume, "f"),
+        "net_profit": format(net_profit, "f"),
+        "gross_profit": format(gross_profit, "f"),
+        "commission": format(commission, "f"),
+        "swap": format(swap, "f"),
+        "pnl_conversion_fee": format(pnl_conversion_fee, "f"),
+        "balance_after": (
+            None if balance_after is None else format(balance_after, "f")
+        ),
+        "position_open_after": position_open_after,
+        "executed_at": executed_at.astimezone(UTC).isoformat(),
+    }
 
 
 def position_path_observation_payload(
@@ -427,6 +512,12 @@ def _build_case_report(
     )
     exits = tuple(item.event for item in events if item.stage is BehaviorStage.EXIT)
     faults = tuple(item.event for item in events if item.stage is BehaviorStage.FAULT)
+    settlements = tuple(
+        item for item in events if "SETTLEMENT" in item.event.upper()
+    )
+    settlement_pnl = _decimal_payload_series(settlements, "net_profit")
+    settlement_prices = _unique_payload_values(settlements, "execution_price")
+    settled_source_volumes = _unique_payload_values(settlements, "source_volume")
     path_samples = tuple(
         item
         for item in events
@@ -459,6 +550,12 @@ def _build_case_report(
         partial_close_events=partials,
         exit_events=exits,
         fault_events=faults,
+        settlement_events=tuple(item.event for item in settlements),
+        realized_net_pnl=_format_optional_decimal(
+            sum(settlement_pnl, Decimal("0")) if settlement_pnl else None
+        ),
+        settlement_prices=settlement_prices,
+        settled_source_volumes=settled_source_volumes,
         path_sample_count=len(path_samples),
         max_unrealized_pnl=_format_optional_decimal(max(unrealized) if unrealized else None),
         min_unrealized_pnl=_format_optional_decimal(min(unrealized) if unrealized else None),
