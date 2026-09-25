@@ -29,14 +29,14 @@ from __future__ import annotations
 import argparse
 import itertools
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from statistics import median
-from typing import Any, Callable
+from typing import Any
 
-import numpy as np
 import vt08_index_shared_competing_risk_calibration_v9 as v9
 import vt08_index_shared_context_conditioned_competing_risk_v15 as v15
 from sklearn.linear_model import LogisticRegression
