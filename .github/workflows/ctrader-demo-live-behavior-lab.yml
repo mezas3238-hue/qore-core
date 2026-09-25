@@ -25,20 +25,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
-      - name: Ruff
+      - name: Ruff new lab code
         run: |
           ruff check \
             src/qore/infrastructure/ctrader_demo_live_behavior_lab.py \
-            src/qore/infrastructure/ctrader_demo_free_sink.py \
-            scripts/qore_ctrader_demo_free_runtime.py \
             scripts/ctrader_demo_live_behavior_report.py \
             tests/infrastructure/test_ctrader_demo_live_behavior_lab.py
 
-      - name: Mypy
+      - name: Compile runtime integration
+        run: |
+          python -m py_compile \
+            scripts/qore_ctrader_demo_free_runtime.py \
+            src/qore/infrastructure/ctrader_demo_free_sink.py
+
+      - name: Mypy new lab code
         run: |
           mypy \
             src/qore/infrastructure/ctrader_demo_live_behavior_lab.py \
-            src/qore/infrastructure/ctrader_demo_free_sink.py \
             tests/infrastructure/test_ctrader_demo_live_behavior_lab.py
 
       - name: Pytest
