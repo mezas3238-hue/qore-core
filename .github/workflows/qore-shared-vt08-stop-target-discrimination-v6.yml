@@ -13,6 +13,7 @@ on:
       - tests/infrastructure/test_core_stack_v2_stop_target_discrimination.py
       - tests/infrastructure/test_core_stack_v2_competing_risk_path_core.py
       - tests/infrastructure/test_core_stack_v2_competing_risk_decision_gate.py
+      - tests/infrastructure/test_core_stack_v2_recovery_failure_intelligence.py
       - .github/workflows/qore-shared-vt08-stop-target-discrimination-v6.yml
   workflow_dispatch:
 
@@ -60,6 +61,7 @@ jobs:
             path_intelligence.py \
             perception_engine.py \
             realtime_trade_management.py \
+            recovery_failure_intelligence.py \
             resident_convergence_intelligence.py \
             stop_target_discrimination.py \
             stability_intelligence.py \
@@ -104,6 +106,7 @@ jobs:
             path_intelligence.py \
             perception_engine.py \
             realtime_trade_management.py \
+            recovery_failure_intelligence.py \
             stop_target_discrimination.py \
             stability_intelligence.py \
             transition_intelligence.py
@@ -119,7 +122,8 @@ jobs:
             tests/infrastructure/test_core_stack_v2_specialist_boundary.py \
             tests/infrastructure/test_core_stack_v2_stop_target_discrimination.py \
             tests/infrastructure/test_core_stack_v2_competing_risk_path_core.py \
-            tests/infrastructure/test_core_stack_v2_competing_risk_decision_gate.py
+            tests/infrastructure/test_core_stack_v2_competing_risk_decision_gate.py \
+            tests/infrastructure/test_core_stack_v2_recovery_failure_intelligence.py
 
       - name: Download NAS100 CIBO evidence
         uses: actions/download-artifact@v4
