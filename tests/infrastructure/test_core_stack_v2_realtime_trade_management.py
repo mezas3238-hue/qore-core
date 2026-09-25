@@ -193,8 +193,8 @@ def test_realtime_management_freeze_forbids_sizing_and_allows_dynamic_path() -> 
     position = contract["position_law"]
     north_star = contract["shared_essential_intelligence"]["owner_economic_north_star"]
 
-    assert management["research_status"] == "DEFERRED_UNTIL_NATURAL_DD_INTELLIGENCE_PASSES"
-    assert management["may_contribute_to_current_primary_dd_claim"] is False
+    assert management["research_status"] == "ACTIVE_RESEARCH_ONLY_AFTER_PHASE_1_CONSUMED_PASS"
+    assert management["may_contribute_to_current_primary_dd_claim"] is True
     assert management["trailing_stop_required_after_phase_unlock"] is True
     assert management["target_extension_allowed_after_phase_unlock"] is True
     assert management["sizing_change_forbidden"] is True
@@ -216,7 +216,7 @@ def test_natural_drawdown_intelligence_must_pass_before_actuation() -> None:
     phase_1 = sequence["phase_1_natural_dd_intelligence"]
     phase_2 = sequence["phase_2_realtime_dd_actuation"]
 
-    assert phase_1["status"] == "ACTIVE_PRIMARY_RESEARCH"
+    assert phase_1["status"] == "PASS_CONSUMED_EVIDENCE_RESEARCH"
     assert phase_1["sizing_forbidden"] is True
     assert phase_1["trailing_stop_forbidden_for_primary_claim"] is True
     assert phase_1["target_extension_forbidden_for_primary_claim"] is True
@@ -225,8 +225,11 @@ def test_natural_drawdown_intelligence_must_pass_before_actuation() -> None:
     assert phase_1["same_trade_universe_required"] is True
     assert phase_1["actual_dd_reduction_not_claimed_until_actuation_phase"] is True
 
-    assert phase_2["status"] == "LOCKED"
+    assert phase_2["status"] == "ACTIVE_RESEARCH_ONLY"
     assert phase_2["unlock_requires_phase_1_pass"] is True
+    assert phase_2["unlocked_by_consumed_phase_1_evidence"] is True
+    assert phase_2["formal_acceptance_still_required"] is True
+    assert phase_2["live_production_authority"] is False
     assert phase_2["trailing_stop_allowed_after_unlock"] is True
     assert phase_2["target_extension_allowed_after_unlock"] is True
     assert phase_2["sizing_remains_forbidden"] is True
