@@ -1,0 +1,219 @@
+name: QORE VT08 Cognitive Expansion 5M Evidence
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-cognitive-expansion-5m-v1-001
+    paths:
+      - .github/workflows/vt08-cognitive-expansion-5m-evidence.yml
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        symbol: [EURJPY, USDCHF, NZDUSD, CADJPY, USDCAD]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+      - name: Discover authorized DEMO account
+        env:
+          QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+          QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+          QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+          QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+          if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+            echo "cTrader DEMO account discovery returned an invalid id" >&2
+            exit 3
+          fi
+          echo "::add-mask::$account_id"
+          printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+      - name: Collect 760-day sanitized read-only evidence
+        env:
+          QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+          QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+          QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+          QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+          QORE_DEMO_LAB_LOOKBACK_DAYS: "760"
+          QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
+          QORE_SOFTWARE_SHA: ${{ github.sha }}
+        run: |
+          mkdir -p "artifacts/vt08-expansion-${QORE_DEMO_LAB_SYMBOL}"
+          python -m qore.infrastructure.ctrader_demo_lab_long_horizon_probe >             "artifacts/vt08-expansion-${QORE_DEMO_LAB_SYMBOL}/market-evidence.json"
+          printf '%s\n' "${GITHUB_SHA}" >             "artifacts/vt08-expansion-${QORE_DEMO_LAB_SYMBOL}/git-sha.txt"
+      - name: Validate and replay
+        env:
+          QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
+          QORE_SOFTWARE_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab.vt08_cognitive_expansion_5m_backtest_v1 import (
+              run_market_backtest,
+          )
+
+          symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
+          root = Path(f"artifacts/vt08-expansion-{symbol}")
+          evidence = json.loads((root / "market-evidence.json").read_text())
+          assert evidence["environment"] == "demo"
+          assert evidence["read_only"] is True
+          assert evidence["account_is_live"] is False
+          assert evidence["symbol"]["symbol_name"] == symbol
+          assert evidence["software_sha"] == os.environ["QORE_SOFTWARE_SHA"]
+          assert evidence["required_coverage_days"] == 730
+          assert evidence["periods"]["M15"]
+
+          report = run_market_backtest(root / "market-evidence.json")
+          (root / "vt08-5m-replay.json").write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")),
+              encoding="utf-8",
+          )
+          print(json.dumps({
+              "symbol": symbol,
+              **report["economics"],
+          }, sort_keys=True))
+          PY
+      - name: Run VT08 Core capital-intelligence frontier
+        env:
+          QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab.vt08_cognitive_core_allocation_frontier_v1 import (
+              replay,
+          )
+
+          symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
+          root = Path(f"artifacts/vt08-expansion-{symbol}")
+          report = replay(root / "market-evidence.json")
+          (root / "vt08-core-capital-frontier.json").write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")),
+              encoding="utf-8",
+          )
+          print(json.dumps({
+              "symbol": symbol,
+              "train_count": report["split"]["train_count"],
+              "oos_count": report["split"]["oos_count"],
+              "oos_equal_risk": report["oos"]["equal_risk"],
+              "oos_capital_weighted": report["oos"]["capital_weighted"],
+              "oos_context_counts": report["oos"]["context_counts"],
+          }, sort_keys=True))
+          PY
+      - name: Run VT08 structural banking frontier
+        env:
+          QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab.vt08_cognitive_structural_bank_frontier_v1 import (
+              replay,
+          )
+
+          symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
+          root = Path(f"artifacts/vt08-expansion-{symbol}")
+          report = replay(root / "market-evidence.json")
+          (root / "vt08-structural-bank-frontier.json").write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")),
+              encoding="utf-8",
+          )
+          print(json.dumps({
+              "symbol": symbol,
+              "train_count": report["split"]["train_count"],
+              "oos_count": report["split"]["oos_count"],
+              "oos_baseline": report["oos"]["baseline"],
+              "oos_structural_bank": report["oos"]["structural_bank"],
+              "oos_status_counts": report["oos"]["status_counts"],
+          }, sort_keys=True))
+          PY
+      - name: Run VT08 selective runner frontier
+        env:
+          QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab.vt08_cognitive_selective_runner_frontier_v1 import (
+              replay,
+          )
+
+          symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
+          root = Path(f"artifacts/vt08-expansion-{symbol}")
+          report = replay(root / "market-evidence.json")
+          (root / "vt08-selective-runner-frontier.json").write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")),
+              encoding="utf-8",
+          )
+          consumed = report["consumed_temporal"]
+          print(json.dumps({
+              "symbol": symbol,
+              "train_count": report["split"]["train_count"],
+              "consumed_temporal_count": report["split"]["consumed_temporal_count"],
+              "baseline": consumed["baseline"],
+              "selective_runner": consumed["selective_runner"],
+              "runner_activated_count": consumed["runner_activated_count"],
+              "status_counts": consumed["status_counts"],
+          }, sort_keys=True))
+          PY
+      - name: Run VT08 CIBO stop protection transfer
+        env:
+          QORE_DEMO_LAB_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab.vt08_cognitive_cibo_stop_protection_v1 import (
+              replay,
+          )
+
+          symbol = os.environ["QORE_DEMO_LAB_SYMBOL"]
+          root = Path(f"artifacts/vt08-expansion-{symbol}")
+          report = replay(root / "market-evidence.json")
+          (root / "vt08-cibo-stop-protection.json").write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")),
+              encoding="utf-8",
+          )
+          print(json.dumps({
+              "symbol": symbol,
+              "trade_count": report["trade_count"],
+              "temporal_consumed_count": report["split"]["temporal_consumed_count"],
+              "off": report["policies"]["off"]["temporal_consumed"],
+              "soft": report["policies"]["soft"]["temporal_consumed"],
+              "be050_lock050_at100": report["policies"]["be050-lock050-at100"]["temporal_consumed"],
+              "aggressive": report["policies"]["aggressive"]["temporal_consumed"],
+          }, sort_keys=True))
+          PY
+      - name: Upload sanitized evidence and replay
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-cognitive-expansion-5m-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/vt08-expansion-${{ matrix.symbol }}
+          if-no-files-found: error
+          retention-days: 30

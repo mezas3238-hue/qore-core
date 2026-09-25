@@ -1,0 +1,86 @@
+name: QORE VT08 EURJPY Core Stack 5Y Validation V1
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-cognitive-expansion-5m-v1-001
+    paths:
+      - .github/workflows/vt08-eurjpy-core-stack-5y-validation-v1.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate-5y:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+      - name: Discover authorized DEMO account
+        env:
+          QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+          QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+          QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+          QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+          if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+            echo "cTrader DEMO account discovery returned an invalid id" >&2
+            exit 3
+          fi
+          echo "::add-mask::$account_id"
+          printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+      - name: Collect strict EURJPY five-year archive
+        env:
+          QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID }}
+          QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET }}
+          QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN }}
+          QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN }}
+          QORE_DEMO_LAB_SYMBOL: EURJPY
+          QORE_SOFTWARE_SHA: ${{ github.sha }}
+        run: |
+          mkdir -p artifacts/eurjpy-5y
+          python -m qore.infrastructure.trader_lab.vt08_cognitive_eurjpy_5y_archive_probe             > artifacts/eurjpy-5y/market-evidence-5y.json
+      - name: Run frozen five-year validation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab.vt08_cognitive_eurjpy_core_stack_5y_validation_v1 import (
+              evaluate,
+          )
+
+          root = Path("artifacts/eurjpy-5y")
+          report = evaluate(root / "market-evidence-5y.json")
+          (root / "eurjpy-core-stack-5y-validation.json").write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")),
+              encoding="utf-8",
+          )
+          print(json.dumps({
+              "decision": report["decision"],
+              "trade_count": report["trade_count"],
+              "metrics": report["metrics"],
+              "annual_365d_blocks": report["annual_365d_blocks"],
+              "rolling_730d_windows": report["rolling_730d_windows"],
+              "monte_carlo": report["monte_carlo"],
+              "stress_002": report["execution_stress"]["0.02"],
+              "remove_top_1": report["extreme_winner_dependence"]["remove_top_1"],
+              "gates": report["gates"],
+          }, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-eurjpy-core-stack-5y-${{ github.sha }}
+          path: artifacts/eurjpy-5y
+          if-no-files-found: error
+          retention-days: 30

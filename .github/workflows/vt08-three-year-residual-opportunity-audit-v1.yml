@@ -1,0 +1,87 @@
+name: QORE VT08 Three-Year Residual Opportunity Audit V1
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-cognitive-expansion-5m-v1-001
+    paths:
+      - .github/workflows/vt08-three-year-residual-opportunity-audit-v1.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  residual:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - symbol: EURJPY
+            m3_artifact: qore-vt08-m3-fractal-EURJPY-bc1379d7661aac202495ec67afdd3098473ba723
+          - symbol: USDCHF
+            m3_artifact: qore-vt08-m3-fractal-USDCHF-bc1379d7661aac202495ec67afdd3098473ba723
+          - symbol: NZDUSD
+            m3_artifact: qore-vt08-m3-fractal-NZDUSD-bc1379d7661aac202495ec67afdd3098473ba723
+          - symbol: CADJPY
+            m3_artifact: qore-vt08-m3-fractal-CADJPY-bc1379d7661aac202495ec67afdd3098473ba723
+          - symbol: USDCAD
+            m3_artifact: qore-vt08-m3-fractal-USDCAD-bc1379d7661aac202495ec67afdd3098473ba723
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Download immutable base evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt08-cognitive-5m-fresh-${{ matrix.symbol }}-b2d33e1b4829d8b4afc76983decca8a99131403c
+          path: base/${{ matrix.symbol }}
+          github-token: ${{ github.token }}
+          run-id: 35934924907
+      - name: Download immutable M3 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.m3_artifact }}
+          path: m3-artifact/${{ matrix.symbol }}
+          github-token: ${{ github.token }}
+          run-id: 35941643396
+      - name: Reconcile every anchor
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+        run: |
+          mkdir -p artifacts
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab.vt08_cognitive_three_year_residual_opportunity_audit_v1 import (
+              evaluate,
+          )
+
+          symbol = os.environ["SYMBOL"]
+          m3_candidates = list(
+              Path(f"m3-artifact/{symbol}").rglob("m3-evidence.json")
+          )
+          if len(m3_candidates) != 1:
+              raise SystemExit("expected exactly one M3 evidence file")
+          report = evaluate(
+              Path(f"base/{symbol}/market-evidence-1095d.json"),
+              m3_path=m3_candidates[0],
+          )
+          Path(f"artifacts/{symbol}-residual-opportunity-audit.json").write_text(
+              json.dumps(report, sort_keys=True, separators=(",", ":")),
+              encoding="utf-8",
+          )
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-residual-opportunity-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/${{ matrix.symbol }}-residual-opportunity-audit.json
+          if-no-files-found: error
+          retention-days: 30
