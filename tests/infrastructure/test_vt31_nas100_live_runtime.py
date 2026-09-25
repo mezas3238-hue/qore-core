@@ -15,6 +15,7 @@ from qore.infrastructure.vt31_nas100_live import (
     EXECUTION_BINDING_FINGERPRINT,
     EXECUTION_BINDING_ID,
     MAX_BROKER_TICK_AGE,
+    PRE_CLOSE_SPREAD_EXIT_LEAD,
     PROVIDER_SYMBOL,
     TARGET_ARCHITECTURE_ID,
     Vt31Nas100LiveError,
@@ -25,6 +26,7 @@ from qore.infrastructure.vt31_nas100_live import (
     assert_deadline,
     boundary_to_arm,
     build_risk_request,
+    pre_close_spread_exit_at,
     resolve_certified_risk,
     virtual_oco_trigger,
 )
@@ -103,6 +105,16 @@ def test_execution_profiles_are_frozen_per_timeframe() -> None:
     assert M5_PROFILE.tick_max_age_seconds == Decimal("2.0")
     assert DECISION_DEADLINE == timedelta(seconds=2)
     assert MAX_BROKER_TICK_AGE == timedelta(seconds=2)
+
+
+def test_pre_close_spread_exit_is_ten_minutes_before_16h_new_york() -> None:
+    assert PRE_CLOSE_SPREAD_EXIT_LEAD == timedelta(minutes=10)
+    assert pre_close_spread_exit_at("2026-09-25") == datetime(
+        2026, 9, 25, 19, 50, tzinfo=UTC
+    )
+    assert pre_close_spread_exit_at("2026-11-20") == datetime(
+        2026, 11, 20, 20, 50, tzinfo=UTC
+    )
 
 
 def test_m1_deadline_accepts_exact_two_seconds_and_rejects_late() -> None:
