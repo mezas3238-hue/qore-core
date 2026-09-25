@@ -150,10 +150,10 @@ def test_realtime_management_trails_and_extends_strong_winner() -> None:
     )
 
     assert result.action is RealtimeTradeAction.TRAIL_AND_EXTEND
-    assert result.stop_mode is StopManagementMode.TRAIL_WIDE
+    assert result.stop_mode is StopManagementMode.TRAIL_TIGHT
     assert result.target_mode is TargetManagementMode.EXTEND_200
     assert str(result.target_multiplier) == "2.00"
-    assert str(result.trail_distance_r) == "0.75"
+    assert str(result.trail_distance_r) == "0.50"
     assert result.sizing_change_allowed is False
 
 
@@ -327,3 +327,71 @@ def test_realtime_management_hot_path_is_submillisecond_p95() -> None:
     timings.sort()
     p95_ns = timings[int(len(timings) * 0.95)]
     assert p95_ns < 1_000_000
+
+
+def test_realtime_management_allows_fast_defense_before_path_matures() -> None:
+    path = PositionPathAssessment(
+        as_of=NOW,
+        state=PositionPathState.INSUFFICIENT,
+        evidence_count=1,
+        path_support_bps=2500,
+        adverse_dominance_bps=7000,
+        adverse_persistence_bps=0,
+        recovery_persistence_bps=0,
+        winner_protection_bps=1200,
+        terminal_failure_risk_bps=7600,
+        reasons=("PATH_EVIDENCE_INSUFFICIENT",),
+    )
+    result = assess_realtime_trade_management(
+        _instinct(
+            situation=InstinctSituation.TERMINAL_FAILURE_RISK,
+            methodology=SupportMethodology.IMMEDIATE_DEFENSE,
+            support=2000,
+            threat=8000,
+            urgency=7800,
+            winner=1200,
+            extension=1500,
+        ),
+        _journey(
+            disposition=JourneyDisposition.DEFEND,
+            continuation=2000,
+            deterioration=7800,
+            extension=1500,
+        ),
+        path,
+        progress_bps=700,
+    )
+
+    assert result.action is RealtimeTradeAction.DEFEND
+    assert result.stop_mode is StopManagementMode.CAP_QUARTER_RISK
+    assert str(result.maximum_remaining_loss_r) == "0.25"
+
+
+def test_realtime_management_does_not_extend_without_winner_protection() -> None:
+    result = assess_realtime_trade_management(
+        _instinct(
+            situation=InstinctSituation.SUPPORTIVE_EXPANSION,
+            methodology=SupportMethodology.EXTENSION_SUPPORT,
+            support=7800,
+            threat=2200,
+            urgency=1800,
+            winner=4200,
+            extension=8200,
+        ),
+        _journey(
+            disposition=JourneyDisposition.EXTEND,
+            continuation=8000,
+            deterioration=1500,
+            extension=8500,
+        ),
+        _path(
+            state=PositionPathState.CONTESTED,
+            winner=4200,
+            failure=3000,
+        ),
+        progress_bps=7000,
+    )
+
+    assert result.action is RealtimeTradeAction.HOLD
+    assert result.target_mode is TargetManagementMode.KEEP
+    assert result.stop_mode is StopManagementMode.KEEP
