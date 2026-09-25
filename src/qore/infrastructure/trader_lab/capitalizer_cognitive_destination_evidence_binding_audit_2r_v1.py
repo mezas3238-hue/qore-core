@@ -41,7 +41,6 @@ from qore.infrastructure.trader_lab.capitalizer_master_cognitive_contract import
 from qore.infrastructure.trader_lab.capitalizer_target_context import (
     CapitalizerTargetContext,
     load_target_contexts,
-    target_context_at,
 )
 
 IDENTITY = "QORE_CAPITALIZER_COGNITIVE_DESTINATION_EVIDENCE_BINDING_AUDIT_2R_V1"
@@ -136,6 +135,13 @@ def _bind_rows(
     rebase_rows: tuple[dict[str, Any], ...],
     contexts: tuple[CapitalizerTargetContext, ...],
 ) -> tuple[DestinationEvidenceBindingRow, ...]:
+    context_index = {
+        (context.symbol, context.side, context.departure_at): context
+        for context in contexts
+    }
+    if len(context_index) != len(contexts):
+        raise ValueError("destination context identity must be unique")
+
     result: list[DestinationEvidenceBindingRow] = []
     for row in rebase_rows:
         tokens = _token_map(row)
@@ -147,11 +153,8 @@ def _bind_rows(
         departure_at: datetime | None = None
         if closeback_raw is not None:
             departure_at = _aware(closeback_raw, field="M5_CLOSEBACK_AT")
-            context = target_context_at(
-                contexts,
-                symbol=str(row["symbol"]),
-                side=side,
-                departure_at=departure_at,
+            context = context_index.get(
+                (str(row["symbol"]), side, departure_at)
             )
 
         match = context is not None
