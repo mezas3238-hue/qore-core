@@ -139,6 +139,22 @@ def test_future_geometry_does_not_force_conflicted_future() -> None:
         horizon_minutes=15,
     )
 
-    result = assess_future_geometry((conflicted, conflicted))
+    second = build_horizon_geometry(
+        (
+            _obs(
+                0, trend=5000, momentum=5000, displacement=5000, liquidity=5000,
+                volatility=5000, confirmation=5000, correlation=5000,
+                contradiction=5000, anomaly=5000, uncertainty=5000, opposite=5000,
+            ),
+            _obs(
+                1, trend=5000, momentum=5000, displacement=5000, liquidity=5000,
+                volatility=5000, confirmation=5000, correlation=5000,
+                contradiction=5000, anomaly=5000, uncertainty=5000, opposite=5000,
+            ),
+        ),
+        horizon_minutes=30,
+    )
+
+    result = assess_future_geometry((conflicted, second))
 
     assert result.state is FutureGeometryState.CONFLICTED
