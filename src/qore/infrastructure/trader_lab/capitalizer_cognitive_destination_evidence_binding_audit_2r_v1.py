@@ -164,6 +164,7 @@ def _bind_rows(
             and departure_at <= entry_at
             and all(
                 candidate.known_at <= departure_at
+                and candidate.structural_opened_at <= departure_at
                 for candidate in context.candidates
             )
         )
