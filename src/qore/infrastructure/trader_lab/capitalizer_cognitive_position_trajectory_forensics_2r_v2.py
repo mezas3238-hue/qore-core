@@ -41,6 +41,7 @@ from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     iter_cibo_m1,
 )
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
+    Pivot,
     _aggregate_tf,
     _pivots,
 )
@@ -220,7 +221,7 @@ def _trajectory_row(
     bars: tuple[CapitalizerM1Bar, ...],
     by_open: dict[datetime, int],
     by_close: dict[datetime, int],
-    pivots: tuple[Any, ...],
+    pivots: tuple[Pivot, ...],
     close_by_at: dict[datetime, Decimal],
     dd_keys: frozenset[tuple[str, str]],
 ) -> True2RTrajectoryRow:
