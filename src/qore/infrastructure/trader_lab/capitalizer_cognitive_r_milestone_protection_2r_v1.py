@@ -34,7 +34,11 @@ from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
     iter_cibo_m1,
 )
+from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
+from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
+    _index_day_inputs,
+)
 
 IDENTITY = "QORE_CAPITALIZER_COGNITIVE_R_MILESTONE_PROTECTION_2R_V1"
 MATRIX_IDENTITY = "QORE_CAPITALIZER_NINE_MARKET_COGNITIVE_R_MILESTONE_PROTECTION_2R_V1"
@@ -418,14 +422,33 @@ def build_market_report(
         raise ValueError("R-milestone protection native M1 empty")
     if {bar.symbol for bar in bars} != {symbol}:
         raise ValueError("R-milestone M1 symbol mismatch")
-    by_open = {bar.opened_at: index for index, bar in enumerate(bars)}
+    sessions = {CapitalizerSession(item.session) for item in market}
+    if len(sessions) != 1:
+        raise ValueError("R-milestone market must have one session")
+    session = next(iter(sessions))
+    execution_by_day, _ = _index_day_inputs(bars, session=session)
 
+    simulated_lists: dict[str, list[SimulatedTrade]] = {
+        mode.value: [] for mode in ProtectionMode
+    }
+    for trade in market:
+        execution = execution_by_day.get(trade.operating_date, ())
+        if not execution:
+            raise ValueError("R-milestone missing execution day")
+        by_open = {
+            bar.opened_at: index for index, bar in enumerate(execution)
+        }
+        for mode in ProtectionMode:
+            simulated_lists[mode.value].append(
+                _simulate(
+                    trade,
+                    bars=execution,
+                    by_open=by_open,
+                    mode=mode,
+                )
+            )
     ledgers = {
-        mode.value: tuple(
-            _simulate(trade, bars=bars, by_open=by_open, mode=mode)
-            for trade in market
-        )
-        for mode in ProtectionMode
+        mode: tuple(rows) for mode, rows in simulated_lists.items()
     }
     original = ledgers[ProtectionMode.ORIGINAL.value]
     mismatches = _reproduction_mismatches(market, original)
