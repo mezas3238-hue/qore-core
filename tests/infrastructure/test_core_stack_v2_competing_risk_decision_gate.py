@@ -83,9 +83,9 @@ def test_early_formation_can_prearm_before_confirmed_stop_hazard() -> None:
 def test_persistent_formation_alone_never_becomes_confirmed_stop() -> None:
     result = assess_competing_risk_decision(
         (
-            _belief(1, stop=4600, target=2500, recovery=1600, uncertainty=7000, formation=6200),
-            _belief(2, stop=4700, target=2400, recovery=1500, uncertainty=6900, formation=6400),
-            _belief(3, stop=4800, target=2300, recovery=1400, uncertainty=6800, formation=6600),
+            _belief(1, stop=4600, target=2500, recovery=1600, uncertainty=6000, formation=6200),
+            _belief(2, stop=4700, target=2400, recovery=1500, uncertainty=5900, formation=6400),
+            _belief(3, stop=4800, target=2300, recovery=1400, uncertainty=5800, formation=6600),
         )
     )
 
