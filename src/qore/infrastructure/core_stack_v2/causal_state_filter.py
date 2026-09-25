@@ -17,10 +17,10 @@ accepted by this module.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from math import log
-from typing import Mapping
 
 
 @dataclass(frozen=True, slots=True)
