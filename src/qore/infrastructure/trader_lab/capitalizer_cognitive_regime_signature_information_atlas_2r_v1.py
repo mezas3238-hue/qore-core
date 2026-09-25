@@ -24,9 +24,6 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.trader_lab import (
-    capitalizer_cognitive_economic_rebase_2r_v1 as rebase,
-)
-from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_preentry_stop_risk_atlas_2r_v1 as stoprisk_2r,
 )
 from qore.infrastructure.trader_lab import (
