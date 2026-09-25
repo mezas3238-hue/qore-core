@@ -21,16 +21,13 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import Counter, defaultdict
+from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from qore.infrastructure.trader_lab import (
-    capitalizer_cognitive_economic_rebase_2r_v1 as rebase,
-)
 from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_regime_evidence_binding_audit_2r_v1 as regime_binding,
 )
