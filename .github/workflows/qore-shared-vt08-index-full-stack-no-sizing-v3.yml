@@ -131,6 +131,7 @@ jobs:
 
       - name: Run Shared full-stack no-sizing challenge
         run: |
+          set -euo pipefail
           cd vt08
           mkdir -p artifacts/shared-full-stack-v3
           python scripts/vt08_index_shared_full_stack_no_sizing_v3.py \
