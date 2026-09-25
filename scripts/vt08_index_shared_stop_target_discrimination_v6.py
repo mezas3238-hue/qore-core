@@ -166,6 +166,7 @@ def _shadow_trade(
             "target_relations": entry_shadow.target_relation_count,
             "recovery_relations": entry_shadow.recovery_relation_count,
             "stop_pressure_bps": entry_belief.stop_pressure_bps,
+            "stop_formation_bps": entry_belief.stop_formation_bps,
             "target_capacity_bps": entry_belief.target_capacity_bps,
             "recovery_strength_bps": entry_belief.recovery_strength_bps,
             "uncertainty_bps": entry_belief.uncertainty_bps,
@@ -174,6 +175,7 @@ def _shadow_trade(
             "risk_separation_margin_bps": entry_belief.separation_margin_bps,
             "ccrpc_decision": entry_gate.decision.value,
             "ccrpc_stop_persistence_bps": entry_gate.stop_persistence_bps,
+            "ccrpc_stop_formation_persistence_bps": entry_gate.stop_formation_persistence_bps,
             "ccrpc_target_persistence_bps": entry_gate.target_persistence_bps,
             "ccrpc_recovery_persistence_bps": entry_gate.recovery_persistence_bps,
         }
@@ -242,6 +244,7 @@ def _shadow_trade(
                     "target_relations": shadow.target_relation_count,
                     "recovery_relations": shadow.recovery_relation_count,
                     "stop_pressure_bps": belief.stop_pressure_bps,
+                    "stop_formation_bps": belief.stop_formation_bps,
                     "target_capacity_bps": belief.target_capacity_bps,
                     "recovery_strength_bps": belief.recovery_strength_bps,
                     "uncertainty_bps": belief.uncertainty_bps,
@@ -250,6 +253,7 @@ def _shadow_trade(
                     "risk_separation_margin_bps": belief.separation_margin_bps,
                     "ccrpc_decision": gate.decision.value,
                     "ccrpc_stop_persistence_bps": gate.stop_persistence_bps,
+                    "ccrpc_stop_formation_persistence_bps": gate.stop_formation_persistence_bps,
                     "ccrpc_target_persistence_bps": gate.target_persistence_bps,
                     "ccrpc_recovery_persistence_bps": gate.recovery_persistence_bps,
                     "path_state": path.state.value,
@@ -372,6 +376,9 @@ def _shadow_trade(
             "max_stop_hazard_proxy_bps": max(
                 int(row["stop_hazard_proxy_bps"]) for row in rows
             ),
+            "max_stop_formation_bps": max(
+                int(row["stop_formation_bps"]) for row in rows
+            ),
             "max_target_hazard_proxy_bps": max(
                 int(row["target_hazard_proxy_bps"]) for row in rows
             ),
@@ -480,6 +487,11 @@ def _window(
     winner_false_stop_any = [row for row in winners if row["first_stop"] is not None]
     loss_false_target_any = [row for row in losses if row["first_target"] is not None]
 
+    ccrpc_stop_forming = [
+        row for row in rows if row["first_ccrpc_stop_forming"] is not None
+    ]
+    ccrpc_forming_losses = [row for row in ccrpc_stop_forming if row["actual"] == "LOSS"]
+    ccrpc_forming_winners = [row for row in ccrpc_stop_forming if row["actual"] == "WIN"]
     ccrpc_predicted_stop = [row for row in rows if row["first_ccrpc_stop"] is not None]
     ccrpc_predicted_target = [row for row in rows if row["first_ccrpc_target"] is not None]
     ccrpc_true_stop = [row for row in ccrpc_predicted_stop if row["actual"] == "LOSS"]
@@ -516,6 +528,10 @@ def _window(
         for row in losses
     ]
 
+    ccrpc_forming_leads = [
+        int(row["first_ccrpc_stop_forming"]["bars_before_canonical_exit"])
+        for row in ccrpc_forming_losses
+    ]
     stop_leads = [
         int(row["first_stop"]["bars_before_canonical_exit"])
         for row in losses_detected
@@ -591,6 +607,21 @@ def _window(
         "competing_risk_diagnostics": {
             "calibrated_probability": False,
             "management_authority": False,
+            "stop_forming_count": len(ccrpc_stop_forming),
+            "stop_forming_loss_recall": _safe_ratio(
+                len(ccrpc_forming_losses), len(losses)
+            ),
+            "stop_forming_winner_mark_rate": _safe_ratio(
+                len(ccrpc_forming_winners), len(winners)
+            ),
+            "stop_forming_precision_for_diagnostics_only": _safe_ratio(
+                len(ccrpc_forming_losses), len(ccrpc_stop_forming)
+            ),
+            "median_stop_forming_lead_bars": (
+                None
+                if not ccrpc_forming_leads
+                else str(median(ccrpc_forming_leads))
+            ),
             "confirmed_stop_count": len(ccrpc_predicted_stop),
             "confirmed_stop_precision": _safe_ratio(
                 len(ccrpc_true_stop), len(ccrpc_predicted_stop)
