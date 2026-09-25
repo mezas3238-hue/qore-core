@@ -60,6 +60,9 @@ from qore.infrastructure.order_intent import OrderSide, OrderType
 from qore.infrastructure.trader_execution_profile import M1_PROFILE
 
 
+_OUTCOME_UNKNOWN_ABSENCE_CONFIRMATION_DELAY = timedelta(seconds=60)
+
+
 class Mt5CheckResultLike(Protocol):
     retcode: int
     comment: str
@@ -476,6 +479,8 @@ class FundedNextLiveMt5ExecutionGateway:
             elif (
                 found.outcome is Mt5ProviderOutcome.UNKNOWN
                 and found.reason == "mt5-order-not-found-conclusive"
+                and now - record.transitioned_at
+                >= _OUTCOME_UNKNOWN_ABSENCE_CONFIRMATION_DELAY
             ):
                 state = FundedNextMt5MutationState.NOT_SUBMITTED
             else:
