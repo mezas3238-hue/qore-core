@@ -445,7 +445,21 @@ def run(v6_json: Path) -> dict[str, object]:
         train_meta,
     )
 
-    _, _, v15_windows = v15._fit_v9(ledger)
+    v15_model, _, _, _ = v15._fit_v9(ledger)
+    v15_cell = v15.Cell(
+        fields=("path_state", "environment_state"),
+        values=("CONTESTED", "FRAGILE"),
+        probability_floor=Decimal("0.900"),
+    )
+    v15_windows = {
+        key: v15._evaluate_window(
+            model=v15_model,
+            window=ledger[key],
+            selected_cells=[v15_cell],
+            selected_keys=frozenset({v15_cell.key()}),
+        )
+        for key in (TRAIN_WINDOW, *VALIDATION_WINDOWS)
+    }
     windows = {
         key: _window(
             model=model,
