@@ -248,3 +248,26 @@ def test_strategy_decision_precedes_execution_block_for_m5_vt31_and_vt08() -> No
     assert vt08.index("_causal_candidate(symbol, anchor)") < vt08.index(
         "elif new_order_blocked:"
     )
+
+
+def test_live_runtime_binds_qore_imports_to_exact_release_tree() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+    bootstrap = 'sys.path.insert(0, str(_RUNTIME_SRC))'
+    first_qore_import = "from qore.infrastructure.account_wide_risk import ("
+    assert bootstrap in source
+    assert source.index(bootstrap) < source.index(first_qore_import)
+    assert "runtime-qore-source-mismatch" in source
+
+
+def test_fallback_traders_preserve_strategy_before_execution_block() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+    assert "r34_anchor is not None and armed_m5_snapshots is not None and not new_order_blocked" not in source
+    assert "r38_anchor is not None and armed_m5_snapshots is not None and not new_order_blocked" not in source
+    assert "r43_anchor is not None and armed_m5_snapshots is not None and not new_order_blocked" not in source
+    for event in (
+        "R34_CANDIDATE_EXECUTION_BLOCKED",
+        "R38_CANDIDATE_EXECUTION_BLOCKED",
+        "R43_CANDIDATE_EXECUTION_BLOCKED",
+        "GBPJPY_R38_CANDIDATE_EXECUTION_BLOCKED",
+    ):
+        assert f'"event": "{event}"' in source
