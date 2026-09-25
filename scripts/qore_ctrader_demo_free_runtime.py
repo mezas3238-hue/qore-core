@@ -153,6 +153,7 @@ from qore.infrastructure.ctrader_demo_vt08_sizing import (
     build_ctrader_demo_vt08_cibo_request,
 )
 from qore.infrastructure.ctrader_demo_live_behavior_lab import (
+    CTraderDemoLiveBehaviorLedger,
     management_observation_payload,
 )
 
@@ -175,6 +176,7 @@ _LOOP_SECONDS = AUDJPY_R42_FEED_REFRESH_SECONDS
 _ANCHOR_GRACE = timedelta(seconds=30)
 _HISTORY_DAYS = 14
 _HISTORY_M15_BARS = _HISTORY_DAYS * 24 * 4 + 96
+_BEHAVIOR_LEDGERS: dict[Path, CTraderDemoLiveBehaviorLedger] = {}
 
 
 class _NoopExitLedger:
@@ -422,12 +424,26 @@ def _causal_candidate(symbol: str, anchor: datetime) -> tuple[Vt08B01Candidate |
     return current, f"causal-{anchor_local.hour:02d}-candidate"
 
 
+def _behavior_ledger_for(path: Path) -> CTraderDemoLiveBehaviorLedger:
+    normalized_path = (
+        path.parent
+        / "ctrader_demo_live_behavior_lab"
+        / "runtime-events.normalized.jsonl"
+    )
+    ledger = _BEHAVIOR_LEDGERS.get(normalized_path)
+    if ledger is None:
+        ledger = CTraderDemoLiveBehaviorLedger(normalized_path)
+        _BEHAVIOR_LEDGERS[normalized_path] = ledger
+    return ledger
+
+
 def _log(path: Path, event: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     value = dict(event)
     value["logged_at"] = datetime.now(UTC).isoformat()
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(value, sort_keys=True, default=str) + "\n")
+    _behavior_ledger_for(path).record_raw(value, source="runtime")
 
 
 def _latency_ms(started_at: datetime, finished_at: datetime) -> int:
@@ -1081,6 +1097,12 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "audjpy_r42_history_preload_once": True,
             "audjpy_r42_incremental_cache": True,
             "ctrader_demo_execution_enabled": True,
+            "behavior_lab_active": True,
+            "behavior_lab_mode": "CONTINUOUS_READ_ONLY",
+            "behavior_lab_runtime_ledger": (
+                "artifacts/ctrader_demo_live_behavior_lab/"
+                "runtime-events.normalized.jsonl"
+            ),
             "risk_role": "CAPITAL_ALLOCATOR_ONLY",
         },
     )
