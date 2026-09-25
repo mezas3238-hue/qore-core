@@ -36,7 +36,7 @@ def evaluate(base_path: Path, *, m3_path: Path) -> dict[str, object]:
     results: dict[str, tuple[ExpansionTrade, ...]] = {}
 
     for policy in STOP_POLICIES:
-        rows: list[ExpansionTrade] = []
+        policy_rows: list[ExpansionTrade] = []
         for candidate in candidates:
             item = replay_policy_trade(
                 candidate,
@@ -44,8 +44,8 @@ def evaluate(base_path: Path, *, m3_path: Path) -> dict[str, object]:
                 policy=policy,
             )
             if item is not None:
-                rows.append(item.as_trade())
-        results[policy.name] = tuple(rows)
+                policy_rows.append(item.as_trade())
+        results[policy.name] = tuple(policy_rows)
 
     counts = {len(rows) for rows in results.values()}
     if len(counts) != 1:
@@ -57,15 +57,15 @@ def evaluate(base_path: Path, *, m3_path: Path) -> dict[str, object]:
 
     payload: dict[str, object] = {}
     for policy in STOP_POLICIES:
-        rows = results[policy.name]
+        result_rows = results[policy.name]
         payload[policy.name] = {
             "ratchets": [
                 {"trigger_r": format(trigger, "f"), "lock_r": format(lock, "f")}
                 for trigger, lock in policy.ratchets
             ],
-            "full_consumed": _summary(rows),
-            "train_consumed": _summary(rows[:split]),
-            "temporal_consumed": _summary(rows[split:]),
+            "full_consumed": _summary(result_rows),
+            "train_consumed": _summary(result_rows[:split]),
+            "temporal_consumed": _summary(result_rows[split:]),
         }
 
     return {
