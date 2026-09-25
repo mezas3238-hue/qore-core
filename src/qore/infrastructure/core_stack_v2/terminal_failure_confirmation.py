@@ -42,10 +42,10 @@ class TerminalFailureState(StrEnum):
 @dataclass(frozen=True, slots=True)
 class TerminalFailurePolicy:
     minimum_stop_formation_bps: int = 5_750
-    minimum_terminal_failure_bps: int = 6_000
+    minimum_terminal_failure_bps: int = 6_200
     minimum_adverse_dominance_bps: int = 5_000
     maximum_target_hazard_bps: int = 3_500
-    maximum_uncertainty_bps: int = 7_500
+    maximum_uncertainty_bps: int = 7_000
 
     def __post_init__(self) -> None:
         for name in (
