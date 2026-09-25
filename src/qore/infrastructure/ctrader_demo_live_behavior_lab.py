@@ -203,6 +203,84 @@ class LiveBehaviorCaseReport:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class MarketTapeTick:
+    symbol: str
+    symbol_id: int
+    bid: Decimal
+    ask: Decimal
+    spread: Decimal
+    provider_at: datetime
+    received_at: datetime
+
+    def as_json(self) -> dict[str, object]:
+        return {
+            "event": "CTRADER_DEMO_MARKET_TICK",
+            "symbol": self.symbol,
+            "symbol_id": self.symbol_id,
+            "bid": format(self.bid, "f"),
+            "ask": format(self.ask, "f"),
+            "spread": format(self.spread, "f"),
+            "provider_at": self.provider_at.astimezone(UTC).isoformat(),
+            "received_at": self.received_at.astimezone(UTC).isoformat(),
+            "feed_age_ms": round(
+                (self.received_at - self.provider_at).total_seconds() * 1000,
+                3,
+            ),
+        }
+
+
+class CTraderDemoMarketTape:
+    """Lossless append-only tape for every valid broker spot event."""
+
+    def __init__(self, path: Path) -> None:
+        if not isinstance(path, Path):
+            raise TypeError("market tape path must be Path")
+        self._path = path
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        self._lock = Lock()
+
+    @property
+    def path(self) -> Path:
+        return self._path
+
+    def append(
+        self,
+        *,
+        symbol: str,
+        symbol_id: int,
+        bid: Decimal,
+        ask: Decimal,
+        provider_at: datetime,
+        received_at: datetime | None = None,
+    ) -> None:
+        received = datetime.now(UTC) if received_at is None else received_at
+        if provider_at.tzinfo is None or provider_at.utcoffset() is None:
+            raise ValueError("provider_at must be timezone-aware")
+        if received.tzinfo is None or received.utcoffset() is None:
+            raise ValueError("received_at must be timezone-aware")
+        if symbol_id <= 0 or bid <= 0 or ask <= 0 or ask < bid:
+            raise ValueError("invalid market tape tick")
+        tick = MarketTapeTick(
+            symbol=symbol,
+            symbol_id=symbol_id,
+            bid=bid,
+            ask=ask,
+            spread=ask - bid,
+            provider_at=provider_at,
+            received_at=received,
+        )
+        row = json.dumps(
+            tick.as_json(),
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        )
+        with self._lock:
+            with self._path.open("a", encoding="utf-8") as handle:
+                handle.write(row + "\n")
+
+
 class CTraderDemoLiveBehaviorLedger:
     """Append-only evidence ledger used only by the DEMO behavior laboratory."""
 
