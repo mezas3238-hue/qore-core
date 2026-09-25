@@ -37,7 +37,10 @@ from qore.infrastructure.ctrader_demo_trade_registry import (
     CTraderDemoTradeRegistry,
     DemoTradeRegistryEntry,
 )
-from qore.infrastructure.ctrader_demo_live_behavior_lab import sizing_path_for
+from qore.infrastructure.ctrader_demo_live_behavior_lab import (
+    CTraderDemoLiveBehaviorLedger,
+    sizing_path_for,
+)
 from qore.infrastructure.ctrader_demo_mutation_ledger import (
     JsonFileCTraderDemoMutationLedger,
 )
@@ -89,6 +92,7 @@ class CTraderDemoFreeSink:
         "_registry",
         "_source_contract_sizes",
         "_events",
+        "_behavior",
         "_lock",
     )
 
@@ -106,6 +110,12 @@ class CTraderDemoFreeSink:
         self._root = root
         self._events = root / "var" / "ctrader_demo_free" / "events.jsonl"
         self._events.parent.mkdir(parents=True, exist_ok=True)
+        self._behavior = CTraderDemoLiveBehaviorLedger(
+            root
+            / "artifacts"
+            / "ctrader_demo_live_behavior_lab"
+            / "sink-events.normalized.jsonl"
+        )
         self._source_contract_sizes = dict(source_contract_sizes)
         self._lock = Lock()
 
@@ -309,6 +319,7 @@ class CTraderDemoFreeSink:
         row.setdefault("recorded_at", datetime.now(UTC).isoformat())
         with self._events.open("a", encoding="utf-8") as stream:
             stream.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
+        self._behavior.record_raw(row, source="sink")
 
     def close(self) -> None:
         self._runtime.close()
