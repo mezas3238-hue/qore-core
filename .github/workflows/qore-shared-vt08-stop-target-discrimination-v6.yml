@@ -109,7 +109,7 @@ jobs:
       - name: Enforce Shared phase-one cognition contract
         run: |
           cd shared
-          pytest -q \
+          PYTHONPATH=src pytest -q \
             tests/infrastructure/test_core_stack_v2_specialist_boundary.py \
             tests/infrastructure/test_core_stack_v2_stop_target_discrimination.py
 
