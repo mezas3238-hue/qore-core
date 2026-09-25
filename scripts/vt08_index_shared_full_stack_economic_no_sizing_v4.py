@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
+
 import vt08_index_shared_full_stack_no_sizing_v3 as v3
 
 from qore.infrastructure.core_stack_v2.instinct_intelligence import assess_instinct
