@@ -38,13 +38,13 @@ from qore.infrastructure.core_stack_v2.recovery_failure_intelligence import (
     RecoveryChallengeState,
     assess_recovery_failure,
 )
-from qore.infrastructure.core_stack_v2.terminal_failure_confirmation import (
-    TerminalFailureState,
-    assess_terminal_failure,
-)
 from qore.infrastructure.core_stack_v2.stop_target_discrimination import (
     StopTargetHypothesis,
     assess_stop_target_path,
+)
+from qore.infrastructure.core_stack_v2.terminal_failure_confirmation import (
+    TerminalFailureState,
+    assess_terminal_failure,
 )
 
 SCHEMA = "qore.shared.vt08_index.stop_target_discrimination.v6"
