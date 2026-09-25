@@ -240,6 +240,7 @@ def assess_stop_target_path(
     elif (
         future_target_pair
         and current_target_pair
+        and path_target
         and not path_terminal
         and not explicit_recovery
     ):
@@ -254,7 +255,8 @@ def assess_stop_target_path(
         if path_target:
             reasons.append("POSITION_PATH_CONFIRMS_TARGET_CAPACITY")
     elif (
-        current_terminal_pair
+        path_terminal
+        and (environment_terminal or trajectory_terminal)
         and (geometry_terminal or futures_terminal)
         and not explicit_recovery
         and not path_target
@@ -262,20 +264,22 @@ def assess_stop_target_path(
         hypothesis = StopTargetHypothesis.STOP_LIKELY
         reasons.extend(
             (
-                "CURRENT_TERMINAL_RELATION_PERSISTENT",
-                "ONE_PROSPECTIVE_TERMINAL_HEAD_CONFIRMS",
+                "POSITION_PATH_TERMINAL_RELATION_PRESENT",
+                "CURRENT_AND_PROSPECTIVE_TERMINAL_EVIDENCE_CONFIRM",
             )
         )
     elif (
-        (current_target_pair or path_target)
+        path_target
+        and (environment_supportive or trajectory_supportive)
         and (geometry_target or futures_target)
         and not path_terminal
+        and not explicit_recovery
     ):
         hypothesis = StopTargetHypothesis.TARGET_LIKELY
         reasons.extend(
             (
-                "CURRENT_SUPPORT_RELATION_PERSISTENT",
-                "ONE_PROSPECTIVE_TARGET_HEAD_CONFIRMS",
+                "POSITION_PATH_FAVORABLE_EXPANSION_PRESENT",
+                "CURRENT_AND_PROSPECTIVE_TARGET_EVIDENCE_CONFIRM",
             )
         )
     else:
