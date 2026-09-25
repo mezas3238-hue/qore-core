@@ -225,11 +225,10 @@ def _path_stats(
 ) -> tuple[Decimal, Decimal, int, int]:
     equity = Decimal("0")
     peak = Decimal("0")
-    dd = Decimal("0")
     for item in history:
         equity += Decimal(item.realized_gross_r)
         peak = max(peak, equity)
-        dd = max(dd, peak - equity)
+    current_dd = peak - equity
 
     recent = history[-5:]
     recent5 = sum((Decimal(item.realized_gross_r) for item in recent), Decimal("0"))
@@ -246,7 +245,7 @@ def _path_stats(
             stop_streak += 1
         else:
             break
-    return dd, recent5, loss_streak, stop_streak
+    return current_dd, recent5, loss_streak, stop_streak
 
 
 def _state(
