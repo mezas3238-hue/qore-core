@@ -66,9 +66,6 @@ from qore.infrastructure.trader_lab import (
     vt08_index_r128_close_breakout_no_attempt_context_transport as r128,
 )
 from qore.infrastructure.trader_lab import (
-    vt08_index_r129_r128_context_overlap_saturation as r129,
-)
-from qore.infrastructure.trader_lab import (
     vt08_index_r130_low_concurrent_source_retest as r130,
 )
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import (
