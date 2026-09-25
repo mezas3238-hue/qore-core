@@ -4,9 +4,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from qore.infrastructure.core_stack_v2.autonomous_loss_defense import (
-    assess_autonomous_loss_defense,
     AutonomousDefenseAction,
     AutonomousLossDefenseEvidence,
+    assess_autonomous_loss_defense,
 )
 from qore.infrastructure.core_stack_v2.environment_intelligence import (
     MarketEnvironmentState,
@@ -18,7 +18,6 @@ from qore.infrastructure.core_stack_v2.recovery_failure_intelligence import (
 from qore.infrastructure.core_stack_v2.terminal_failure_confirmation import (
     TerminalFailureState,
 )
-
 
 NOW = datetime(2026, 9, 25, 13, 0, tzinfo=UTC)
 
