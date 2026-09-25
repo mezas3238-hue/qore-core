@@ -1,0 +1,208 @@
+name: QORE Capitalizer Cognitive Blocker Census 2R V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-cognitive-blocker-census-2r-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_cognitive_blocker_census_2r_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_cognitive_blocker_census_2r_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-cognitive-blocker-census-2r-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  REBASE_RUN_ID: '36078677895'
+  REBASE_SHA: 'cfc04849c8bbfd6565310d89456f5e367ea880f7'
+  PERCEPTION_RUN_ID: '36175902303'
+  PERCEPTION_SHA: 'fffa3b5910107861a1ac07d9ca7fa069b2991c7e'
+  REGIME_RUN_ID: '36084861252'
+  REGIME_SHA: 'd1dae0c77512b49ba8817a3ba896ec73801e30da'
+  DESTINATION_RUN_ID: '36086902039'
+  DESTINATION_SHA: '56f905d81cc55736397839fc031958313e3f06fb'
+  FINGERPRINT_RUN_ID: '36066153534'
+  FINGERPRINT_SHA: 'e6bf614578b52bde0928268c43a2b57bdd547139'
+  EVIDENCE_RUN_ID: '36065651404'
+  EVIDENCE_SHA: '1d910f5c3550ac481c28390671a86ceb011597e3'
+  COLLISION_RUN_ID: '36083729816'
+  COLLISION_SHA: '4bf7c7a50f52653096bf75f984e39774d3c5dc36'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check             src/qore/infrastructure/trader_lab/capitalizer_cognitive_blocker_census_2r_v1.py             tests/infrastructure/trader_lab/test_capitalizer_cognitive_blocker_census_2r_v1.py
+      - name: Mypy
+        run: |
+          mypy             src/qore/infrastructure/trader_lab/capitalizer_cognitive_blocker_census_2r_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_capitalizer_cognitive_blocker_census_2r_v1.py
+
+  census:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+
+      - name: Download true-2R economic rebase
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-economic-rebase-2r-v1-${{ env.REBASE_SHA }}
+          path: rebase-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.REBASE_RUN_ID }}
+
+      - name: Download Perception V2
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-perception-bars-complete-binding-2r-v2-${{ env.PERCEPTION_SHA }}
+          path: perception-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.PERCEPTION_RUN_ID }}
+
+      - name: Download regime evidence binding
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-regime-evidence-binding-audit-2r-v1-${{ env.REGIME_SHA }}
+          path: regime-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.REGIME_RUN_ID }}
+
+      - name: Download destination persistence matrix
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-destination-untouched-persistence-matrix-2r-v1-${{ env.DESTINATION_SHA }}
+          path: destination-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DESTINATION_RUN_ID }}
+
+      - name: Download failure fingerprint audit
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-failure-fingerprint-audit-2y-v1-${{ env.FINGERPRINT_SHA }}
+          path: fingerprint-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.FINGERPRINT_RUN_ID }}
+
+      - name: Download cognitive evidence binding V2
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-evidence-binding-audit-2y-v2-${{ env.EVIDENCE_SHA }}
+          path: evidence-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.EVIDENCE_RUN_ID }}
+
+      - name: Download simultaneous factor collision audit
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-simultaneous-factor-collision-atlas-2r-v1-${{ env.COLLISION_SHA }}
+          path: collision-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.COLLISION_RUN_ID }}
+
+      - name: Build cognitive blocker census
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cognitive_blocker_census_2r_v1             rebase-input             perception-input             regime-input             destination-input             fingerprint-input             evidence-input             collision-input             census-output
+
+      - name: Enforce blocker census controls
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "census-output/"
+                  "capitalizer-cognitive-blocker-census-2r-v1.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_COGNITIVE_BLOCKER_CENSUS_2R_V1"
+          )
+          assert report["target_r"] == "2.00"
+          assert report["control_trades"] == 948
+          assert report["control_metrics"]["stops"] == 275
+
+          assert set(report["bound_layers"]) == {
+              "SOURCE_MICROSTRUCTURE",
+              "SESSION_DAY_JOURNEY",
+              "PORTFOLIO_EXPOSURE_BASELINE",
+              "SESSION_SLOT_STATE",
+              "PERCEPTION_BARS_COMPLETE",
+              "FAILURE_FINGERPRINT_CANDIDATE",
+          }
+          assert set(report["partial_layers"]) == {
+              "REGIME_DESCRIPTIVE_EVIDENCE",
+              "DESTINATION_DEPARTURE_CONTEXT",
+              "DESTINATION_UNTOUCHED_TO_ENTRY",
+              "SIMULTANEOUS_OPPORTUNITY_COMPETITION",
+          }
+          assert set(report["live_only_layers"]) == {
+              "PERCEPTION_QUOTE_FRESH",
+              "EXECUTION_QUALITY",
+          }
+
+          assert report["historical_master_replay_ready"] is False
+          assert report["final_cognitive_engine_ready"] is False
+          assert "PERCEPTION_QUOTE_FRESH" not in report[
+              "historical_research_blockers"
+          ]
+          assert "EXECUTION_QUALITY" not in report[
+              "historical_research_blockers"
+          ]
+          assert "REGIME_INTELLIGENCE" in report[
+              "historical_research_blockers"
+          ]
+          assert "DESTINATION_INTELLIGENCE" in report[
+              "historical_research_blockers"
+          ]
+          assert "LOSS_MEMORY_RESOLUTION" in report[
+              "historical_research_blockers"
+          ]
+          assert "FULL_OPPORTUNITY_COMPETITION" in report[
+              "historical_research_blockers"
+          ]
+
+          assert report["current_trade_outcome_visible_to_census"] is False
+          assert report["numeric_confidence_fabricated"] is False
+          assert report["missing_evidence_fabricated"] is False
+          assert report["runtime_engine_called"] is False
+          assert report["strategy_rules_changed"] is False
+          assert report["cognitive_rules_changed"] is False
+          assert report["entry_changed"] is False
+          assert report["stop_changed"] is False
+          assert report["target_changed"] is False
+          assert report["max3_changed"] is False
+          assert report["rule_promotion_allowed"] is False
+          assert report["trader_certified"] is False
+          assert report["live_authorized"] is False
+          assert report["real_capital_authorized"] is False
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-blocker-census-2r-v1-${{ github.sha }}
+          path: census-output
+          if-no-files-found: error
+          retention-days: 90
