@@ -15,11 +15,11 @@ import argparse
 import bisect
 import json
 from collections import Counter
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from statistics import median
-from typing import Sequence
 
 import vt08_index_shared_full_stack_no_sizing_v3 as v3
 
