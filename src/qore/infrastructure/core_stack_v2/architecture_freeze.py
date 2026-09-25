@@ -400,6 +400,36 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "trailing_forbidden": True,
                 "target_extension_forbidden": True,
             },
+            "causal_path_representation_v11": {
+                "phase": "PHASE_1_CONSUMED_EVIDENCE_RESEARCH",
+                "source_ledger": "V6_FROZEN_STOP_TARGET_CAUSAL_LEDGER",
+                "control": "V7_TERMINAL_FAILURE_ECONOMIC_SHADOW",
+                "motivation": (
+                    "V8_V9_V10_REJECTED_THRESHOLD_AND_SIMPLE_PERSISTENCE;"
+                    "REPRESENT_PATH_CHANGE_RELATIONS_BEFORE_TERMINAL_FAILURE"
+                ),
+                "representation_must_be_outcome_blind": True,
+                "representation_must_be_trader_agnostic": True,
+                "multi_step_path_motifs_required": True,
+                "motif_selection_train_window_only": True,
+                "train_window": "FIVE_YEAR_CONSUMED_ONLY",
+                "validation_windows": (
+                    "RECENT_TWO_YEAR_CONSUMED",
+                    "R66_CONSUMED_FAILED_HOLDOUT",
+                ),
+                "must_beat_v7_loss_recall_without_winner_harm": True,
+                "training_precision_floor": "0.97",
+                "validation_precision_floor": "0.95",
+                "validation_winner_mark_rate_ceiling": "0.005",
+                "validation_median_lead_bars_floor": "1",
+                "runtime_outcome_input_forbidden": True,
+                "future_market_input_forbidden": True,
+                "sizing_dependency_forbidden": True,
+                "risk_weighting_forbidden": True,
+                "runtime_actuation": False,
+                "trailing_forbidden": True,
+                "target_extension_forbidden": True,
+            },
             "terminal_recall_expansion": {
                 "phase": "PHASE_1_CONSUMED_EVIDENCE_RESEARCH",
                 "control": "V7_TERMINAL_FAILURE_ECONOMIC_SHADOW",
