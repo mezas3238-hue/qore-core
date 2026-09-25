@@ -3,9 +3,9 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from qore.infrastructure.core_stack_v2.multi_state_competing_hazard import (
+    assess_competing_hazards,
     CompetingHazardDecision,
     CompetingHazardEvidence,
-    assess_competing_hazards,
 )
 
 
