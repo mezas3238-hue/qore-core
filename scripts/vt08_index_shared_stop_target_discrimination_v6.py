@@ -209,6 +209,13 @@ def _shadow_trade(
                     "target_relations": shadow.target_relation_count,
                     "recovery_relations": shadow.recovery_relation_count,
                     "path_state": path.state.value,
+                    "path_evidence_count": path.evidence_count,
+                    "path_support_bps": path.path_support_bps,
+                    "path_adverse_dominance_bps": path.adverse_dominance_bps,
+                    "path_adverse_persistence_bps": path.adverse_persistence_bps,
+                    "path_recovery_persistence_bps": path.recovery_persistence_bps,
+                    "path_winner_protection_bps": path.winner_protection_bps,
+                    "path_terminal_failure_risk_bps": path.terminal_failure_risk_bps,
                 }
             )
 
