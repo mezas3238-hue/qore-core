@@ -5,9 +5,6 @@ from datetime import UTC, datetime
 from qore.infrastructure.core_stack_v2 import (
     CompetingFutureAssessment,
     CompetingFutureState,
-    FutureGeometryAssessment,
-    FutureGeometryState,
-    HorizonGeometryState,
     MarketEnvironmentAssessment,
     MarketEnvironmentState,
     MarketTrajectoryAssessment,
@@ -17,6 +14,11 @@ from qore.infrastructure.core_stack_v2 import (
     StopTargetHypothesis,
     assess_stop_target_path,
     superintelligence_freeze_contract,
+)
+from qore.infrastructure.core_stack_v2.future_geometry_intelligence import (
+    FutureGeometryAssessment,
+    FutureGeometryState,
+    HorizonGeometryState,
 )
 
 NOW = datetime(2026, 9, 25, 12, 0, tzinfo=UTC)
