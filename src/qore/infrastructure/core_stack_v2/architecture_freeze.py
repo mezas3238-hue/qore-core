@@ -5,7 +5,7 @@ import hashlib
 import json
 from typing import Final
 
-SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_009"
+SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_010"
 
 _CAPABILITIES: Final = (
     "PERCEPTION_INTEGRITY",
@@ -20,6 +20,7 @@ _CAPABILITIES: Final = (
     "FAILURE_AND_COUNTERFACTUAL_MEMORY",
     "POSITION_JOURNEY_AND_ECONOMIC_ATTRIBUTION",
     "UNIVERSAL_DRAWDOWN_STABILITY_INTELLIGENCE",
+    "UNIVERSAL_DRAWDOWN_PHENOTYPE_MEMORY",
     "DYNAMIC_MARKET_DETERIORATION_RECOVERY_INTELLIGENCE",
     "ADVERSE_MARKET_ENVIRONMENT_INTELLIGENCE",
     "LOSS_CLUSTER_PREVENTION_INTELLIGENCE",
@@ -197,6 +198,33 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "future_trade_outcome_as_input_forbidden": True,
                 "must_generalize_across_methodologies": True,
                 "qore_risk_remains_sovereign": True,
+            },
+            "universal_drawdown_phenotype_memory": {
+                "required": True,
+                "purpose": (
+                    "Shared must learn and retain the full causal taxonomy of "
+                    "drawdown-producing market forms so real-time perception can "
+                    "recognize both known pure patterns and ambiguous adverse forms."
+                ),
+                "knowledge_not_actuation_in_phase_1": True,
+                "exact_sequence_memory_required": True,
+                "morphology_memory_required": True,
+                "cross_market_shape_memory_required": True,
+                "temporal_stability_tracking_required": True,
+                "fold_stability_tracking_required": True,
+                "loss_cluster_membership_tracking_required": True,
+                "unobservable_loss_form_tracking_required": True,
+                "winner_overlap_tracking_required": True,
+                "pure_loss_forms_retained": True,
+                "loss_dominant_forms_retained": True,
+                "ambiguous_forms_retained": True,
+                "winner_dominant_forms_retained_for_disambiguation": True,
+                "ambiguous_forms_must_not_be_silently_discarded": True,
+                "runtime_must_be_able_to_mark_unknown_or_unseen_form": True,
+                "runtime_outcome_input_forbidden": True,
+                "future_market_path_forbidden": True,
+                "sizing_dependency_forbidden": True,
+                "phase_1_actuation_authority": False,
             },
             "dynamic_market_transition": {
                 "required": True,
@@ -449,6 +477,13 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "must_distinguish_terminal_loss_risk_from_recoverable_pullback": True,
                 "must_preserve_large_winner_classification": True,
                 "must_pass_both_consumed_folds_before_phase_2": True,
+                "universal_drawdown_form_capture_required": True,
+                "pure_and_ambiguous_dd_forms_must_both_be_retained": True,
+                "ambiguous_form_may_inform_perception_but_not_actuation": True,
+                "dd_form_registry_must_track_fold_and_temporal_stability": True,
+                "dd_form_registry_must_track_winner_overlap": True,
+                "dd_form_registry_must_track_loss_r_and_cluster_membership": True,
+                "dd_form_registry_must_support_unseen_form_detection": True,
                 "fresh_holdout_remains_closed_during_development": True,
             },
             "phase_2_realtime_dd_actuation": {
