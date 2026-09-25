@@ -152,6 +152,9 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
 from qore.infrastructure.ctrader_demo_vt08_sizing import (
     build_ctrader_demo_vt08_cibo_request,
 )
+from qore.infrastructure.ctrader_demo_live_anomaly_supervisor import (
+    run_with_bounded_repair,
+)
 from qore.infrastructure.ctrader_demo_live_behavior_lab import (
     CTraderDemoLiveBehaviorLedger,
     CTraderDemoMarketTape,
@@ -1026,6 +1029,27 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     exit_ledger = _NoopExitLedger()
     risk = DurableAccountWideRiskEngine(risk_ledger)
     gateway = CTraderDemoReadOnlyGateway(demo_api)
+
+    def recover_demo_market_state(
+        *,
+        symbol: str,
+        cache: object | None = None,
+    ) -> None:
+        if not demo_api.repair_market_data_subscription():
+            raise RuntimeError("ctrader-demo-spot-resubscribe-failed")
+        observed = datetime.now(UTC)
+        if cache is not None:
+            refresh = getattr(cache, "refresh_incremental", None)
+            if callable(refresh):
+                refresh(demo_api, now=observed)
+        _log(
+            root / "artifacts" / "ctrader_demo_free_runtime_events.jsonl",
+            {
+                "event": "CTRADER_DEMO_TECHNICAL_RECOVERY_REFRESHED",
+                "symbol": symbol,
+                "observed_at": observed.isoformat(),
+            },
+        )
 
     store = DurableCTraderDemoRuntimeStateStore(
         state_dir / "runtime-state.json"
@@ -2112,57 +2136,116 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         if demo_has_state:
             management_trader = "R34_XAUUSD"
             try:
-                r34_live_state = r34_store.reconcile(demo_management_api, now=cycle_at)
+                r34_live_state = run_with_bounded_repair(
+                    trader="R34_XAUUSD",
+                    operation=lambda: r34_store.reconcile(
+                        demo_management_api,
+                        now=datetime.now(UTC),
+                    ),
+                    recover=lambda: recover_demo_market_state(
+                        symbol="XAUUSD",
+                        cache=m5_caches["XAUUSD"],
+                    ),
+                    emit=lambda event: _log(log_path, event),
+                )
                 management_trader = "R38_EURUSD"
-                r38_live_state, r38_manage_reason = manage_r38_open_position(
-                    demo_management_api,
-                    now=cycle_at,
-                    store=r38_store,
-                    cache=m5_caches["EURUSD"],
+                r38_live_state, r38_manage_reason = run_with_bounded_repair(
+                    trader="R38_EURUSD",
+                    operation=lambda: manage_r38_open_position(
+                        demo_management_api,
+                        now=datetime.now(UTC),
+                        store=r38_store,
+                        cache=m5_caches["EURUSD"],
+                    ),
+                    recover=lambda: recover_demo_market_state(
+                        symbol="EURUSD",
+                        cache=m5_caches["EURUSD"],
+                    ),
+                    emit=lambda event: _log(log_path, event),
                 )
                 management_trader = "R43_GBPUSD"
-                r43_live_state, r43_manage_reason = manage_r43_open_position(
-                    demo_management_api,
-                    now=cycle_at,
-                    store=r43_store,
-                    cache=m5_caches["GBPUSD"],
+                r43_live_state, r43_manage_reason = run_with_bounded_repair(
+                    trader="R43_GBPUSD",
+                    operation=lambda: manage_r43_open_position(
+                        demo_management_api,
+                        now=datetime.now(UTC),
+                        store=r43_store,
+                        cache=m5_caches["GBPUSD"],
+                    ),
+                    recover=lambda: recover_demo_market_state(
+                        symbol="GBPUSD",
+                        cache=m5_caches["GBPUSD"],
+                    ),
+                    emit=lambda event: _log(log_path, event),
                 )
                 management_trader = "R38_GBPJPY"
-                gbpjpy_r38_live_state, gbpjpy_r38_manage_reason = manage_gbpjpy_r38_open_position(
-                    demo_management_api,
-                    now=cycle_at,
-                    store=gbpjpy_r38_store,
-                    mutations_enabled=True,
-                    cache=m5_caches["GBPJPY"],
+                gbpjpy_r38_live_state, gbpjpy_r38_manage_reason = run_with_bounded_repair(
+                    trader="R38_GBPJPY",
+                    operation=lambda: manage_gbpjpy_r38_open_position(
+                        demo_management_api,
+                        now=datetime.now(UTC),
+                        store=gbpjpy_r38_store,
+                        mutations_enabled=True,
+                        cache=m5_caches["GBPJPY"],
+                    ),
+                    recover=lambda: recover_demo_market_state(
+                        symbol="GBPJPY",
+                        cache=m5_caches["GBPJPY"],
+                    ),
+                    emit=lambda event: _log(log_path, event),
                 )
                 management_trader = "R42_AUDJPY"
-                audjpy_r42_live_state, audjpy_r42_manage_reason = manage_audjpy_r42_open_position(
-                    demo_management_api,
-                    now=cycle_at,
-                    store=audjpy_r42_store,
-                    mutations_enabled=True,
-                    cache=audjpy_r42_cache,
+                audjpy_r42_live_state, audjpy_r42_manage_reason = run_with_bounded_repair(
+                    trader="R42_AUDJPY",
+                    operation=lambda: manage_audjpy_r42_open_position(
+                        demo_management_api,
+                        now=datetime.now(UTC),
+                        store=audjpy_r42_store,
+                        mutations_enabled=True,
+                        cache=audjpy_r42_cache,
+                    ),
+                    recover=lambda: recover_demo_market_state(
+                        symbol="AUDJPY",
+                        cache=audjpy_r42_cache,
+                    ),
+                    emit=lambda event: _log(log_path, event),
                 )
                 management_trader = "VT31_NAS100"
                 # VT31 reads a fresh broker tick inside reconcile/management.
                 # Do not compare that tick with cycle_at captured several seconds
                 # earlier after other trader management and API work.
                 vt31_management_at = datetime.now(UTC)
-                reconcile_vt31_pending(
-                    mt5_api=demo_management_api,
-                    transport=transport,
-                    risk=risk,
-                    store=vt31_store,
-                    now=vt31_management_at,
-                    log=lambda event: _log(log_path, event),
+                run_with_bounded_repair(
+                    trader="VT31_NAS100",
+                    operation=lambda: reconcile_vt31_pending(
+                        mt5_api=demo_management_api,
+                        transport=transport,
+                        risk=risk,
+                        store=vt31_store,
+                        now=datetime.now(UTC),
+                        log=lambda event: _log(log_path, event),
+                    ),
+                    recover=lambda: recover_demo_market_state(
+                        symbol="NAS100",
+                        cache=vt31_cache,
+                    ),
+                    emit=lambda event: _log(log_path, event),
                 )
-                vt31_live_state, vt31_manage_reason = manage_vt31_open_trade(
-                    mt5_api=demo_management_api,
-                    now=datetime.now(UTC),
-                    cache=vt31_cache,
-                    store=vt31_store,
-                    mutations_enabled=True,
-                    log=lambda event: _log(log_path, event),
+                vt31_live_state, vt31_manage_reason = run_with_bounded_repair(
+                    trader="VT31_NAS100",
+                    operation=lambda: manage_vt31_open_trade(
+                        mt5_api=demo_management_api,
+                        now=datetime.now(UTC),
+                        cache=vt31_cache,
+                        store=vt31_store,
+                        mutations_enabled=True,
+                        log=lambda event: _log(log_path, event),
+                    ),
+                    recover=lambda: recover_demo_market_state(
+                        symbol="NAS100",
+                        cache=vt31_cache,
+                    ),
+                    emit=lambda event: _log(log_path, event),
                 )
 
                 management_rows = (
