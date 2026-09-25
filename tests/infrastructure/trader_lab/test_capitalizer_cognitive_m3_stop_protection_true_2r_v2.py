@@ -99,15 +99,14 @@ def test_metrics_preserve_full_r_values() -> None:
 def test_m1_bar_contract_still_minute_aligned() -> None:
     opened = datetime(2026, 1, 5, 10, 0, tzinfo=UTC)
     bar = CapitalizerM1Bar(
-        schema_version="capitalizer-cibo-m1-v1",
         symbol="NAS100",
-        period="M1",
         opened_at=opened,
         closed_at=opened + timedelta(minutes=1),
         open=Decimal("100"),
         high=Decimal("102"),
         low=Decimal("99"),
         close=Decimal("101"),
-        volume=Decimal("1"),
+        volume=1,
+        digits=2,
     )
     assert bar.closed_at - bar.opened_at == timedelta(minutes=1)
