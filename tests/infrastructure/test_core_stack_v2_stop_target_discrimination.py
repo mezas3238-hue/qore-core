@@ -168,6 +168,18 @@ def test_target_likely_requires_supportive_future_and_current_market_relation() 
     assert result.target_mutation_authority is False
 
 
+
+def test_supportive_preentry_context_is_not_enough_to_call_target() -> None:
+    result = assess_stop_target_path(
+        _environment(MarketEnvironmentState.SUPPORTIVE),
+        _trajectory(MarketTrajectoryState.HEALTHY),
+        _geometry(FutureGeometryState.SUPPORTIVE_CONTINUATION),
+        _futures(CompetingFutureState.SUPPORTIVE),
+    )
+
+    assert result.hypothesis is StopTargetHypothesis.CONTESTED
+    assert result.target_mutation_authority is False
+
 def test_recoverable_future_vetoes_false_stop_classification() -> None:
     result = assess_stop_target_path(
         _environment(MarketEnvironmentState.ADVERSE_FORMING),
