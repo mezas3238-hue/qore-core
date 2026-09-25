@@ -135,11 +135,6 @@ from qore.infrastructure.core_stack_v2.runtime import (
     SnapshotConsumer,
     SnapshotDelivery,
 )
-from qore.infrastructure.core_stack_v2.stop_target_discrimination import (
-    StopTargetDiscrimination,
-    StopTargetHypothesis,
-    assess_stop_target_path,
-)
 from qore.infrastructure.core_stack_v2.stability_intelligence import (
     DrawdownStabilityAssessment,
     MarketStabilityEvidence,
@@ -147,6 +142,11 @@ from qore.infrastructure.core_stack_v2.stability_intelligence import (
     StabilityPolicy,
     TraderStabilityTelemetry,
     assess_drawdown_stability,
+)
+from qore.infrastructure.core_stack_v2.stop_target_discrimination import (
+    StopTargetDiscrimination,
+    StopTargetHypothesis,
+    assess_stop_target_path,
 )
 from qore.infrastructure.core_stack_v2.transition_intelligence import (
     DynamicTransitionPolicy,
