@@ -404,6 +404,56 @@ def _v15_controls(
     }
 
 
+def _selection_forensics(
+    *,
+    trades: list[dict[str, Any]],
+    probabilities: np.ndarray,
+    meta: list[dict[str, Any]],
+    threshold: Decimal | None,
+) -> dict[str, object]:
+    if threshold is None:
+        return {"selected": 0, "loss_states": {}, "winner_states": {}, "winner_contexts": {}}
+
+    chosen: dict[int, dict[str, Any]] = {}
+    limit = float(threshold)
+    for probability, item in zip(probabilities, meta, strict=True):
+        trade_index = int(item["trade_index"])
+        if trade_index in chosen:
+            continue
+        challenge = item["challenge"]
+        if _relational_veto(challenge) or float(probability) > limit:
+            continue
+        chosen[trade_index] = item
+
+    loss_states: Counter[str] = Counter()
+    winner_states: Counter[str] = Counter()
+    winner_contexts: Counter[str] = Counter()
+    for trade_index, item in chosen.items():
+        state = item["challenge"].state.value
+        row = item["row"]
+        if trades[trade_index]["actual"] == "LOSS":
+            loss_states[state] += 1
+        else:
+            winner_states[state] += 1
+            winner_contexts[
+                "|".join(
+                    (
+                        state,
+                        f'ENV={row["environment_state"]}',
+                        f'PATH={row["path_state"]}',
+                        f'REC={row["recovery_challenge_state"]}',
+                        f'TERM={row["terminal_failure_state"]}',
+                    )
+                )
+            ] += 1
+    return {
+        "selected": len(chosen),
+        "loss_states": dict(sorted(loss_states.items())),
+        "winner_states": dict(sorted(winner_states.items())),
+        "winner_contexts": dict(sorted(winner_contexts.items())),
+    }
+
+
 def _window(
     *,
     hazard_model: HistGradientBoostingClassifier,
@@ -477,6 +527,12 @@ def _window(
         "challenge_state_counts": dict(sorted(state_counts.items())),
         "v15_loss_recall_control": str(v15_recall),
         "v21": _payload(metrics),
+        "selection_forensics": _selection_forensics(
+            trades=trades,
+            probabilities=probabilities,
+            meta=meta,
+            threshold=threshold,
+        ),
         "beats_v15_loss_recall": metrics.loss_recall > v15_recall,
         "status": "ADMIT_FOR_ECONOMIC_SHADOW" if admitted else "REJECT",
     }
