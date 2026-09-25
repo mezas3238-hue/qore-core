@@ -29,6 +29,10 @@ from typing import Any
 from qore.infrastructure.trader_lab import (
     vt08_crt_pure_r2by_audusd_cognitive_experience_wf as r2by,
 )
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import (
+    M15Bar,
+    aggregate_complete_m15,
+)
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2bh_audusd_entry_viability_wf import (
     END,
     START,
@@ -36,10 +40,6 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2bh_audusd_entry_viability_wf
     _build_records,
     _slice,
     _year_start,
-)
-from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import (
-    M15Bar,
-    aggregate_complete_m15,
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_window_evidence import (
     load_m5_window,
