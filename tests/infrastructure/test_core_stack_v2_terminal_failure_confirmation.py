@@ -28,7 +28,7 @@ def _belief(
     *,
     stop_formation: int = 6200,
     target: int = 2800,
-    uncertainty: int = 7200,
+    uncertainty: int = 6800,
     path_available: bool = True,
 ) -> CompetingRiskBeliefState:
     return CompetingRiskBeliefState(
@@ -48,7 +48,7 @@ def _belief(
 def _path(
     state: PositionPathState = PositionPathState.ADVERSE_DOMINANCE,
     *,
-    terminal: int = 6400,
+    terminal: int = 6600,
     adverse: int = 5400,
 ) -> PositionPathAssessment:
     return PositionPathAssessment(
