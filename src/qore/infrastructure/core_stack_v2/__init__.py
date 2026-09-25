@@ -164,6 +164,12 @@ from qore.infrastructure.core_stack_v2.stop_target_discrimination import (
     StopTargetHypothesis,
     assess_stop_target_path,
 )
+from qore.infrastructure.core_stack_v2.terminal_failure_confirmation import (
+    TerminalFailureAssessment,
+    TerminalFailurePolicy,
+    TerminalFailureState,
+    assess_terminal_failure,
+)
 from qore.infrastructure.core_stack_v2.transition_intelligence import (
     DynamicTransitionPolicy,
     MarketTrajectoryAssessment,
@@ -220,6 +226,9 @@ __all__ = [
     "StopTargetHypothesis",
     "StopManagementMode",
     "TargetManagementMode",
+    "TerminalFailureAssessment",
+    "TerminalFailurePolicy",
+    "TerminalFailureState",
     "SupportMethodology",
     "StabilityPolicy",
     "TraderStabilityTelemetry",
@@ -276,6 +285,7 @@ __all__ = [
     "WorldState",
     "assess_drawdown_stability",
     "assess_stop_target_path",
+    "assess_terminal_failure",
     "assess_competing_futures",
     "assess_competing_risk_path",
     "assess_competing_risk_decision",
