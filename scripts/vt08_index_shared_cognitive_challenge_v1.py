@@ -90,9 +90,7 @@ def _d(value: object) -> Decimal:
 
 
 def _side_text(signal: object) -> str:
-    side = getattr(signal, "side")
-    raw = getattr(side, "value", side)
-    return str(raw).lower()
+    return str(signal.side.value).lower()
 
 
 def _signed_move(
@@ -102,12 +100,12 @@ def _signed_move(
 ) -> Decimal | None:
     if len(bars) < 2:
         return None
-    high = max(_d(getattr(bar, "high")) for bar in bars)
-    low = min(_d(getattr(bar, "low")) for bar in bars)
+    high = max(_d(bar.high) for bar in bars)
+    low = min(_d(bar.low) for bar in bars)
     span = high - low
     if span <= ZERO:
         return ZERO
-    move = _d(getattr(bars[-1], "close")) - _d(getattr(bars[0], "open"))
+    move = _d(bars[-1].close) - _d(bars[0].open)
     sign = ONE if side == "long" else -ONE
     return sign * move / span
 
@@ -141,7 +139,7 @@ def _body_persistence(
     aligned = 0
     adverse = 0
     for bar in bars:
-        move = _d(getattr(bar, "close")) - _d(getattr(bar, "open"))
+        move = _d(bar.close) - _d(bar.open)
         if side == "short":
             move = -move
         if move > ZERO:
@@ -246,9 +244,9 @@ def _shared_state(
     bars_by_symbol: dict[str, Sequence[object]],
     closed_by_symbol: dict[str, tuple[datetime, ...]],
 ) -> dict[str, object]:
-    signal = getattr(getattr(item, "opportunity"), "signal")
-    decision_at = getattr(signal, "signal_at").astimezone(UTC)
-    symbol = str(getattr(signal, "symbol"))
+    signal = item.opportunity.signal
+    decision_at = signal.signal_at.astimezone(UTC)
+    symbol = str(signal.symbol)
     side = _side_text(signal)
 
     snapshots = tuple(
@@ -306,14 +304,14 @@ def _window(
     }
     opened_by_symbol = {
         symbol: tuple(
-            getattr(bar, "opened_at").astimezone(UTC)
+            bar.opened_at.astimezone(UTC)
             for bar in rows
         )
         for symbol, rows in bars_by_symbol.items()
     }
     closed_by_symbol = {
         symbol: tuple(
-            getattr(bar, "closed_at").astimezone(UTC)
+            bar.closed_at.astimezone(UTC)
             for bar in rows
         )
         for symbol, rows in bars_by_symbol.items()
@@ -443,7 +441,7 @@ def _window(
 
     official_baseline_rows = _unitize(control)
     official_shared_rows = _unitize(replayed_tuple)
-    if any(getattr(item, "weight") != ONE for item in official_shared_rows):
+    if any(item.weight != ONE for item in official_shared_rows):
         raise ValueError("Shared official benchmark is not unit-R")
 
     baseline = r108._bundle(
@@ -587,7 +585,6 @@ def build_report(
     two = _window(roots=roots, window_id="2Y")
     r66 = _window(roots=roots, window_id="R66")
 
-    windows = (five, two, r66)
     development_windows = (five, two)
     official_pass = all(
         all(
