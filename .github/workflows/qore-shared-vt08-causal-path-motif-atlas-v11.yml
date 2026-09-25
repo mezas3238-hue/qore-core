@@ -46,8 +46,8 @@ jobs:
         with:
           name: qore-shared-vt08-stop-target-discrimination-v6-1a534d0ae735efef4dcbc0c0be4b110ceaa80501
           path: artifacts/v6
-          github-token: \${{ secrets.GITHUB_TOKEN }}
-          repository: \${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
           run-id: 36131607443
 
       - name: Run V11 causal path motif atlas
@@ -127,7 +127,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: qore-shared-vt08-causal-path-motif-atlas-v11-\${{ github.sha }}
+          name: qore-shared-vt08-causal-path-motif-atlas-v11-${{ github.sha }}
           path: artifacts/v11/
           if-no-files-found: error
           retention-days: 90
