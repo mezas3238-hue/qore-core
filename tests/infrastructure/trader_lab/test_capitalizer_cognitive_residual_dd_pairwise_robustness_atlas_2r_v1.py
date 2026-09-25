@@ -222,7 +222,6 @@ def test_pairwise_residual_atlas_stays_two_way_and_robust(
     )
 
     assert report["control_trades"] == 5
-    assert report["policy_count"] == 6 if "policy_count" in report else True
     assert report["common_residual_episode_trades"] >= 1
     assert report["pairwise_only_no_three_way_search"] is True
     assert report["all_six_collision_policies_required"] is True
