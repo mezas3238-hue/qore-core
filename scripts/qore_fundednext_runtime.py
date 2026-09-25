@@ -1898,7 +1898,10 @@ def _process_audjpy_r42_candidate(
 
 def run(root: Path, *, mode: str, activation_path: Path) -> None:
     root = root.resolve()
-    imported_qore = Path(import_module("qore").__file__).resolve()
+    qore_module_file = import_module("qore").__file__
+    if qore_module_file is None:
+        raise RuntimeError("runtime-qore-source-file-unavailable")
+    imported_qore = Path(qore_module_file).resolve()
     expected_qore = (root / "src" / "qore").resolve()
     if expected_qore not in imported_qore.parents:
         raise RuntimeError(
