@@ -815,11 +815,16 @@ def _window(
     roots: dict[str, Path],
     window_id: str,
 ) -> dict[str, object]:
+    source_window_id = {
+        "five_year": "5Y",
+        "recent_two_year": "2Y",
+        "r66_consumed_failed_holdout": "R66",
+    }[window_id]
     canonical, bars_raw, provenance = v2.r74._load_window(
         roots=roots,
-        window_id=window_id,
+        window_id=source_window_id,
     )
-    start_date, end_date, expected = v2.r74._window_contract(window_id)
+    start_date, end_date, expected = v2.r74._window_contract(source_window_id)
     bars_by_symbol = {
         symbol: tuple(rows)
         for symbol, rows in bars_raw.items()
