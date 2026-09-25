@@ -75,10 +75,22 @@ def _markdown(reports) -> str:
                 f"- Last observed: {report.last_observed_at.isoformat()}",
                 f"- Events: {report.event_count}",
                 f"- Stages: {json.dumps(report.stages, sort_keys=True)}",
-                f"- Requested volumes: {', '.join(report.requested_volumes) or 'NOT_OBSERVED'}",
-                f"- Requested stop risk: {', '.join(report.requested_stop_risks) or 'NOT_OBSERVED'}",
-                f"- Protection events: {', '.join(report.protection_events) or 'NOT_OBSERVED'}",
-                f"- Partial-close events: {', '.join(report.partial_close_events) or 'NOT_OBSERVED'}",
+                (
+                    "- Requested volumes: "
+                    f"{', '.join(report.requested_volumes) or 'NOT_OBSERVED'}"
+                ),
+                (
+                    "- Requested stop risk: "
+                    f"{', '.join(report.requested_stop_risks) or 'NOT_OBSERVED'}"
+                ),
+                (
+                    "- Protection events: "
+                    f"{', '.join(report.protection_events) or 'NOT_OBSERVED'}"
+                ),
+                (
+                    "- Partial-close events: "
+                    f"{', '.join(report.partial_close_events) or 'NOT_OBSERVED'}"
+                ),
                 f"- Exit events: {', '.join(report.exit_events) or 'NOT_OBSERVED'}",
                 f"- Fault events: {', '.join(report.fault_events) or 'NONE'}",
                 f"- Position path samples: {report.path_sample_count}",
