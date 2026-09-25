@@ -29,6 +29,10 @@ from typing import Any
 from qore.infrastructure.trader_lab import (
     vt08_crt_pure_r2bz_usdjpy_cognitive_experience_wf as r2bz,
 )
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2bc_usdjpy_confirmation_geometry_atlas import (
+    END,
+    START,
+)
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import (
     M15Bar,
     aggregate_complete_m15,
@@ -142,8 +146,8 @@ def run_atlas() -> tuple[tuple[WaitJourneyRecord, ...], dict[str, Any]]:
     records, _ = r2bz._build_records()
     m5 = load_m5_window(
         r2bz.MARKET,
-        start=r2bz.START - timedelta(days=2),
-        end_exclusive=r2bz.END + timedelta(days=1),
+        start=START - timedelta(days=2),
+        end_exclusive=END + timedelta(days=1),
     )
     m15 = aggregate_complete_m15(m5)
     by_time = {bar.opened_at: bar for bar in m15}
@@ -153,8 +157,8 @@ def run_atlas() -> tuple[tuple[WaitJourneyRecord, ...], dict[str, Any]]:
     folds: list[dict[str, Any]] = []
 
     for oos_year in range(
-        r2bz.START.year + r2bz.TRAINING_YEARS,
-        r2bz.END.year,
+        START.year + r2bz.TRAINING_YEARS,
+        END.year,
     ):
         training = r2bz._slice(
             records,
@@ -200,8 +204,8 @@ def run_atlas() -> tuple[tuple[WaitJourneyRecord, ...], dict[str, Any]]:
         sorted(journey_rows, key=lambda item: item.entry_opened_at)
     )
     groups: defaultdict[str, list[WaitJourneyRecord]] = defaultdict(list)
-    for row in rows:
-        groups[row.state].append(row)
+    for journey_row in rows:
+        groups[journey_row.state].append(journey_row)
 
     report: dict[str, Any] = {
         "schema": SCHEMA,
