@@ -169,6 +169,7 @@ from qore.infrastructure.core_stack_v2.terminal_failure_confirmation import (
     TerminalFailurePolicy,
     TerminalFailureState,
     assess_terminal_failure,
+    resolve_terminal_failure_sequence,
 )
 from qore.infrastructure.core_stack_v2.transition_intelligence import (
     DynamicTransitionPolicy,
@@ -286,6 +287,7 @@ __all__ = [
     "assess_drawdown_stability",
     "assess_stop_target_path",
     "assess_terminal_failure",
+    "resolve_terminal_failure_sequence",
     "assess_competing_futures",
     "assess_competing_risk_path",
     "assess_competing_risk_decision",
