@@ -164,7 +164,9 @@ def test_extreme_adversity_with_adverse_dominance_can_confirm() -> None:
     )
 
     assert result.state is TerminalFailureState.TERMINAL_CONFIRMED
-\n\ndef test_failed_recovery_with_weak_terminal_path_remains_forming() -> None:
+
+
+def test_failed_recovery_with_weak_terminal_path_remains_forming() -> None:
     result = assess_terminal_failure(
         _belief(),
         _path(terminal=5600, adverse=4400),
