@@ -183,11 +183,30 @@ def assess_realtime_trade_management(
     trail_distance_r: Decimal | None = None
     target_multiplier = ONE
 
+    fast_resident_defense = (
+        instinct.support_methodology
+        in {
+            SupportMethodology.IMMEDIATE_DEFENSE,
+            SupportMethodology.PROGRESSIVE_DEFENSE,
+        }
+        and instinct.situation
+        in {
+            InstinctSituation.TERMINAL_FAILURE_RISK,
+            InstinctSituation.RAPID_DETERIORATION,
+        }
+    )
+    recovery_guard = instinct.support_methodology in {
+        SupportMethodology.RECOVERY_SUPPORT,
+        SupportMethodology.WINNER_PROTECTION,
+    }
     insufficient = (
         data_integrity_bps < effective.minimum_integrity_bps
         or instinct.situation is InstinctSituation.INSUFFICIENT
         or journey.disposition is JourneyDisposition.INSUFFICIENT
-        or path.state is PositionPathState.INSUFFICIENT
+        or (
+            path.state is PositionPathState.INSUFFICIENT
+            and not fast_resident_defense
+        )
     )
     if insufficient:
         action = RealtimeTradeAction.INSUFFICIENT
@@ -210,7 +229,10 @@ def assess_realtime_trade_management(
         )
     elif (
         instinct.support_methodology is SupportMethodology.IMMEDIATE_DEFENSE
-        or instinct.threat_bps >= effective.terminal_threat_bps
+        or (
+            instinct.threat_bps >= effective.terminal_threat_bps
+            and not recovery_guard
+        )
     ) and progress_bps < effective.established_progress_bps:
         action = RealtimeTradeAction.DEFEND
         stop_mode = StopManagementMode.CAP_QUARTER_RISK
@@ -221,6 +243,7 @@ def assess_realtime_trade_management(
         or (
             instinct.situation is InstinctSituation.RAPID_DETERIORATION
             and instinct.threat_bps >= effective.rapid_threat_bps
+            and not recovery_guard
         )
     ) and progress_bps < effective.established_progress_bps:
         action = RealtimeTradeAction.DEFEND
@@ -248,8 +271,8 @@ def assess_realtime_trade_management(
             and instinct.expansion_capacity_bps >= effective.medium_extension_capacity_bps
         ):
             action = RealtimeTradeAction.TRAIL_AND_EXTEND
-            stop_mode = StopManagementMode.TRAIL_WIDE
-            trail_distance_r = Decimal("0.75")
+            stop_mode = StopManagementMode.TRAIL_TIGHT
+            trail_distance_r = Decimal("0.50")
             target_mode, target_multiplier = _target_mode(
                 instinct.expansion_capacity_bps,
                 effective,
@@ -287,12 +310,13 @@ def assess_realtime_trade_management(
         and instinct.support_methodology is SupportMethodology.EXTENSION_SUPPORT
         and progress_bps >= effective.extension_progress_bps
     ):
-        action = RealtimeTradeAction.EXTEND
-        target_mode, target_multiplier = _target_mode(
-            instinct.expansion_capacity_bps,
-            effective,
+        action = RealtimeTradeAction.HOLD
+        reasons.extend(
+            (
+                "EXTENSION_EVIDENCE_PRESENT",
+                "TARGET_EXTENSION_REQUIRES_ESTABLISHED_WINNER_PROTECTION",
+            )
         )
-        reasons.append("EXTENSION_SUPPORTED_WITHOUT_STOP_CHANGE")
     else:
         action = RealtimeTradeAction.HOLD
         reasons.append("ORIGINAL_TRADE_GEOMETRY_REMAINS_VALID")
