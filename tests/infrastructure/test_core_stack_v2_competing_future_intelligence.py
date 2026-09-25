@@ -139,19 +139,6 @@ def test_competing_futures_does_not_force_a_guess_when_paths_conflict() -> None:
     snapshots = (
         _snap(
             5,
-            support=3000,
-            adversity=7000,
-            det_v=7000,
-            rec_v=2000,
-            det_p=7000,
-            rec_p=2000,
-            confirm=3000,
-            fragility=7000,
-            structural=7500,
-            trend=2500,
-        ),
-        _snap(
-            15,
             support=7000,
             adversity=3000,
             det_v=2000,
@@ -162,6 +149,19 @@ def test_competing_futures_does_not_force_a_guess_when_paths_conflict() -> None:
             fragility=2500,
             structural=2500,
             trend=7500,
+        ),
+        _snap(
+            15,
+            support=3000,
+            adversity=7000,
+            det_v=7000,
+            rec_v=2000,
+            det_p=7000,
+            rec_p=2000,
+            confirm=3000,
+            fragility=7000,
+            structural=7500,
+            trend=2500,
         ),
     )
 
