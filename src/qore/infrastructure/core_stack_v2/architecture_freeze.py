@@ -759,7 +759,16 @@ def superintelligence_freeze_contract() -> dict[str, object]:
         },
         "drawdown_intelligence_sequence": {
             "phase_1_natural_dd_intelligence": {
-                "status": "ACTIVE_PRIMARY_RESEARCH",
+                "status": "PASS_CONSUMED_EVIDENCE_RESEARCH",
+                "pass_evidence": {
+                    "context_conditioned_validation_run": 36141968333,
+                    "economic_shadow_run": 36142389500,
+                    "profit_factor_improved_all_consumed_windows": True,
+                    "drawdown_not_worse_all_consumed_windows": True,
+                    "same_trade_count": True,
+                    "same_initial_position_size": True,
+                    "fresh_holdout_opened": False,
+                },
                 "purpose": (
                     "Prove that Shared can causally recognize the market states, "
                     "transitions and adverse environments that create drawdown "
@@ -805,8 +814,11 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "fresh_holdout_remains_closed_during_development": True,
             },
             "phase_2_realtime_dd_actuation": {
-                "status": "LOCKED",
+                "status": "ACTIVE_RESEARCH_ONLY",
                 "unlock_requires_phase_1_pass": True,
+                "unlocked_by_consumed_phase_1_evidence": True,
+                "formal_acceptance_still_required": True,
+                "live_production_authority": False,
                 "trailing_stop_allowed_after_unlock": True,
                 "loss_compression_allowed_after_unlock": True,
                 "target_extension_allowed_after_unlock": True,
