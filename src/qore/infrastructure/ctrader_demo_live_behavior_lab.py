@@ -15,6 +15,7 @@ from collections import Counter
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
 from enum import Enum
 from pathlib import Path
 from threading import Lock
@@ -149,6 +150,13 @@ class LiveBehaviorCaseReport:
     partial_close_events: tuple[str, ...]
     exit_events: tuple[str, ...]
     fault_events: tuple[str, ...]
+    path_sample_count: int
+    max_unrealized_pnl: str | None
+    min_unrealized_pnl: str | None
+    max_favorable_price_delta: str | None
+    max_adverse_price_delta: str | None
+    stop_history: tuple[str, ...]
+    volume_history: tuple[str, ...]
     observations: tuple[str, ...]
 
     def as_json(self) -> dict[str, object]:
@@ -167,6 +175,13 @@ class LiveBehaviorCaseReport:
             "partial_close_events": list(self.partial_close_events),
             "exit_events": list(self.exit_events),
             "fault_events": list(self.fault_events),
+            "path_sample_count": self.path_sample_count,
+            "max_unrealized_pnl": self.max_unrealized_pnl,
+            "min_unrealized_pnl": self.min_unrealized_pnl,
+            "max_favorable_price_delta": self.max_favorable_price_delta,
+            "max_adverse_price_delta": self.max_adverse_price_delta,
+            "stop_history": list(self.stop_history),
+            "volume_history": list(self.volume_history),
             "observations": list(self.observations),
         }
 
@@ -222,6 +237,70 @@ class CTraderDemoLiveBehaviorLedger:
                         raise ValueError("behavior ledger row must be object")
                     rows.append(LiveBehaviorEvent.from_json(parsed))
         return tuple(sorted(rows, key=lambda item: item.observed_at))
+
+
+def position_path_observation_payload(
+    *,
+    trader: str,
+    symbol: str,
+    signal_fingerprint: str,
+    position_id: int,
+    side: str,
+    entry_price: Decimal,
+    bid: Decimal,
+    ask: Decimal,
+    stop_loss: Decimal,
+    take_profit: Decimal,
+    volume: Decimal,
+    unrealized_pnl: Decimal,
+    observed_at: datetime,
+) -> dict[str, object]:
+    """Build one causal open-position path sample for the behavior lab."""
+
+    if side not in {"long", "short"}:
+        raise ValueError("position path side must be long/short")
+    if position_id <= 0:
+        raise ValueError("position path position_id must be positive")
+    if observed_at.tzinfo is None or observed_at.utcoffset() is None:
+        raise ValueError("position path observed_at must be timezone-aware")
+    for name, value in (
+        ("entry_price", entry_price),
+        ("bid", bid),
+        ("ask", ask),
+        ("stop_loss", stop_loss),
+        ("take_profit", take_profit),
+        ("volume", volume),
+        ("unrealized_pnl", unrealized_pnl),
+    ):
+        if not isinstance(value, Decimal) or not value.is_finite():
+            raise ValueError(f"position path {name} must be finite Decimal")
+    if min(entry_price, bid, ask, stop_loss, take_profit, volume) <= 0:
+        raise ValueError("position path price/volume values must be positive")
+
+    mark = bid if side == "long" else ask
+    directional_delta = (
+        mark - entry_price
+        if side == "long"
+        else entry_price - mark
+    )
+    return {
+        "event": "CTRADER_DEMO_POSITION_PATH_SAMPLE",
+        "trader": trader,
+        "symbol": symbol,
+        "signal_fingerprint": signal_fingerprint,
+        "position_id": position_id,
+        "side": side,
+        "entry_price": format(entry_price, "f"),
+        "bid": format(bid, "f"),
+        "ask": format(ask, "f"),
+        "mark_price": format(mark, "f"),
+        "directional_price_delta": format(directional_delta, "f"),
+        "stop_loss": format(stop_loss, "f"),
+        "take_profit": format(take_profit, "f"),
+        "volume": format(volume, "f"),
+        "unrealized_pnl": format(unrealized_pnl, "f"),
+        "observed_at": observed_at.astimezone(UTC).isoformat(),
+    }
 
 
 def normalize_runtime_event(
@@ -345,6 +424,15 @@ def _build_case_report(
     )
     exits = tuple(item.event for item in events if item.stage is BehaviorStage.EXIT)
     faults = tuple(item.event for item in events if item.stage is BehaviorStage.FAULT)
+    path_samples = tuple(
+        item
+        for item in events
+        if item.event == "CTRADER_DEMO_POSITION_PATH_SAMPLE"
+    )
+    unrealized = _decimal_payload_series(path_samples, "unrealized_pnl")
+    directional = _decimal_payload_series(path_samples, "directional_price_delta")
+    stop_history = _unique_payload_values(path_samples, "stop_loss")
+    volume_history = _unique_payload_values(path_samples, "volume")
     observations = _observations(
         trader=trader,
         names=names,
@@ -368,6 +456,17 @@ def _build_case_report(
         partial_close_events=partials,
         exit_events=exits,
         fault_events=faults,
+        path_sample_count=len(path_samples),
+        max_unrealized_pnl=_format_optional_decimal(max(unrealized) if unrealized else None),
+        min_unrealized_pnl=_format_optional_decimal(min(unrealized) if unrealized else None),
+        max_favorable_price_delta=_format_optional_decimal(
+            max(directional) if directional else None
+        ),
+        max_adverse_price_delta=_format_optional_decimal(
+            min(directional) if directional else None
+        ),
+        stop_history=stop_history,
+        volume_history=volume_history,
         observations=observations,
     )
 
@@ -403,6 +502,43 @@ def _observations(
     if any("STOP" in name.upper() for name in exits):
         notes.append("stop_exit_observed")
     return tuple(notes)
+
+
+def _decimal_payload_series(
+    events: tuple[LiveBehaviorEvent, ...],
+    key: str,
+) -> tuple[Decimal, ...]:
+    values: list[Decimal] = []
+    for event in events:
+        raw = event.payload.get(key)
+        if raw is None:
+            continue
+        try:
+            value = Decimal(str(raw))
+        except InvalidOperation:
+            continue
+        if value.is_finite():
+            values.append(value)
+    return tuple(values)
+
+
+def _unique_payload_values(
+    events: tuple[LiveBehaviorEvent, ...],
+    key: str,
+) -> tuple[str, ...]:
+    values: list[str] = []
+    for event in events:
+        raw = event.payload.get(key)
+        if raw is None:
+            continue
+        value = str(raw)
+        if value not in values:
+            values.append(value)
+    return tuple(values)
+
+
+def _format_optional_decimal(value: Decimal | None) -> str | None:
+    return None if value is None else format(value, "f")
 
 
 def _payload_values(
