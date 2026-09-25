@@ -374,8 +374,8 @@ def _window(
     key: str,
     selected_motifs: frozenset[str],
 ) -> dict[str, object]:
-    window = ledger["windows"][key]
-    trades = list(window["trades"])
+    window = ledger[key]
+    trades = list(window["rows"])
     crossings = {
         str(trade["trade_id"]): _trade_motif_crossings(trade)
         for trade in trades
@@ -404,8 +404,8 @@ def run(v6_json: Path) -> dict[str, object]:
     if ledger["identity"] != "QORE_SHARED_VT08_INDEX_STOP_TARGET_DISCRIMINATION_V6":
         raise ValueError("unexpected V6 identity")
 
-    training_window = ledger["windows"][TRAIN_WINDOW]
-    training_trades = list(training_window["trades"])
+    training_window = ledger[TRAIN_WINDOW]
+    training_trades = list(training_window["rows"])
     training_crossings = {
         str(trade["trade_id"]): _trade_motif_crossings(trade)
         for trade in training_trades
