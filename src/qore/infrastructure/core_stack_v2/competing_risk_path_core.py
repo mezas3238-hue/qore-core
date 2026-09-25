@@ -19,6 +19,7 @@ from qore.infrastructure.core_stack_v2.competing_future_intelligence import (
 )
 from qore.infrastructure.core_stack_v2.environment_intelligence import (
     MarketEnvironmentAssessment,
+    MarketEnvironmentState,
 )
 from qore.infrastructure.core_stack_v2.future_geometry_intelligence import (
     FutureGeometryAssessment,
@@ -30,6 +31,7 @@ from qore.infrastructure.core_stack_v2.path_intelligence import (
 )
 from qore.infrastructure.core_stack_v2.transition_intelligence import (
     MarketTrajectoryAssessment,
+    MarketTrajectoryState,
 )
 
 
@@ -114,7 +116,7 @@ def _geometry_recovery(geometry: FutureGeometryAssessment) -> int:
     return {
         FutureGeometryState.TERMINAL_COLLAPSE: 500,
         FutureGeometryState.RECOVERABLE_ADVERSITY: 9_000,
-        FutureGeometryState.SUPPORTIVE_CONTINUATION: 6_500,
+        FutureGeometryState.SUPPORTIVE_CONTINUATION: 2_000,
         FutureGeometryState.CONFLICTED: 4_500,
         FutureGeometryState.INSUFFICIENT: 5_000,
     }[geometry.state]
@@ -128,6 +130,16 @@ def _future_target(futures: CompetingFutureAssessment) -> int:
         CompetingFutureState.CONFLICTED: 4_500,
         CompetingFutureState.INSUFFICIENT: 5_000,
     }[futures.state]
+
+
+def _future_recovery(futures: CompetingFutureAssessment) -> int:
+    if futures.state is CompetingFutureState.RECOVERABLE_ADVERSE:
+        return futures.recovery_evidence_bps
+    if futures.state is CompetingFutureState.CONFLICTED:
+        return min(futures.recovery_evidence_bps, 4_500)
+    if futures.state is CompetingFutureState.INSUFFICIENT:
+        return 5_000
+    return 1_500
 
 
 def assess_competing_risk_path(
@@ -173,15 +185,31 @@ def assess_competing_risk_path(
         _geometry_target(geometry),
         _future_target(futures),
     )
-    current_recovery = max(
-        environment.recovery_velocity_bps,
-        trajectory.recovery_velocity_bps,
-        environment.recovery_persistence_bps,
-        trajectory.recovery_persistence_bps,
+    recovery_state_present = (
+        environment.state
+        in {
+            MarketEnvironmentState.STABILIZING,
+            MarketEnvironmentState.RESTORED,
+        }
+        or trajectory.state
+        in {
+            MarketTrajectoryState.STABILIZING,
+            MarketTrajectoryState.RECOVERING,
+        }
+    )
+    current_recovery = (
+        max(
+            environment.recovery_velocity_bps,
+            trajectory.recovery_velocity_bps,
+            environment.recovery_persistence_bps,
+            trajectory.recovery_persistence_bps,
+        )
+        if recovery_state_present
+        else 0
     )
     prospective_recovery = min(
         _geometry_recovery(geometry),
-        futures.recovery_evidence_bps,
+        _future_recovery(futures),
     )
 
     path_available = (
@@ -225,9 +253,14 @@ def assess_competing_risk_path(
             path_target,
             max(current_target, prospective_target),
         )
-        recovery_strength = min(
-            max(path_recovery, current_recovery),
-            max(prospective_recovery, current_recovery),
+        recovery_strength = (
+            max(path_recovery, current_recovery, prospective_recovery)
+            if path.state
+            in {
+                PositionPathState.HEALTHY_PULLBACK,
+                PositionPathState.RECOVERING,
+            }
+            else min(5_000, max(current_recovery, prospective_recovery))
         )
 
         if path.state not in {
