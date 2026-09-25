@@ -430,6 +430,93 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "trailing_forbidden": True,
                 "target_extension_forbidden": True,
             },
+            "path_representation_frontier_v15": {
+                "phase": "PHASE_1_CONSUMED_EVIDENCE_RESEARCH",
+                "source_v6_run": 36131607443,
+                "control": "V7_TERMINAL_FAILURE_ECONOMIC_SHADOW",
+                "v11_exact_motif_atlas": {
+                    "run": 36140165499,
+                    "technical_status": "GREEN",
+                    "research_status": "REJECT_VALIDATION_OVERFIT",
+                    "five_year_loss_recall": "0.1495548961424332344213649852",
+                    "recent_two_year_loss_recall": "0.1390374331550802139037433155",
+                    "r66_loss_recall": "0.1403846153846153846153846154",
+                    "failure_mode": (
+                        "EXACT_HIGH_CARDINALITY_MOTIFS_MEMORIZED_RARE_5Y_PATHS;"
+                        "WINNER_MARK_RATE_EXPLODED_OUT_OF_SAMPLE"
+                    ),
+                },
+                "v12_invariant_coarse_grammar": {
+                    "run": 36140837830,
+                    "technical_status": "GREEN",
+                    "research_status": "REJECT_ZERO_ADDITIONAL_COVERAGE",
+                    "selected_grammar_count": 0,
+                    "failure_mode": (
+                        "LOW_CARDINALITY_ZERO_WINNER_INVARIANCE_BECAME_TOO_CONSERVATIVE"
+                    ),
+                },
+                "v13_temporal_derivative_competing_risk": {
+                    "run": 36141181714,
+                    "technical_status": "GREEN",
+                    "research_status": "REJECT_NO_SAFE_INTERVENTION_THRESHOLD",
+                    "five_year_auc": "0.8234181809034313",
+                    "recent_two_year_auc": "0.8651279565499697",
+                    "r66_auc": "0.8641451047628328",
+                    "selected_threshold": None,
+                    "failure_mode": (
+                        "GOOD_RANKING_SIGNAL_BUT_NO_GLOBAL_HIGH_PRECISION_TAIL;"
+                        "CURRENT_POSITION_R_DOMINATED_THE_LINEAR_MODEL"
+                    ),
+                },
+                "v14_imminent_loss_transition_hazard": {
+                    "run": 36141583773,
+                    "technical_status": "GREEN",
+                    "research_status": "REJECT_WEAK_TRANSITION_DISCRIMINATION",
+                    "hazard_horizon_bars": 6,
+                    "five_year_auc": "0.6533822361752457",
+                    "recent_two_year_auc": "0.655990624397106",
+                    "r66_auc": "0.683368183306999",
+                    "selected_threshold": None,
+                    "current_position_r_used": False,
+                },
+                "v15_context_conditioned_competing_risk": {
+                    "run": 36141968333,
+                    "technical_status": "GREEN",
+                    "research_status": "PASS_CONSUMED_VALIDATION_FOR_ECONOMIC_SHADOW",
+                    "frozen_policy": (
+                        "path_state=CONTESTED&environment_state=FRAGILE|P>=0.900"
+                    ),
+                    "five_year": {
+                        "precision": "0.9784946236559139784946236559",
+                        "loss_recall": "0.05400593471810089020771513353",
+                        "incremental_false_winner_vs_v7": 1,
+                    },
+                    "recent_two_year": {
+                        "precision": "1",
+                        "loss_recall": "0.05614973262032085561497326203",
+                        "incremental_false_winner_vs_v7": 0,
+                    },
+                    "r66": {
+                        "precision": "0.9574468085106382978723404255",
+                        "loss_recall": "0.08653846153846153846153846154",
+                        "incremental_false_winner_vs_v7": 0,
+                    },
+                    "economic_shadow_required_before_any_next_stage": True,
+                },
+                "do_not_repeat_as_primary_frontier": (
+                    "LOWER_GLOBAL_TERMINAL_THRESHOLDS",
+                    "SIMPLE_POSTERIOR_PERSISTENCE",
+                    "EXACT_RARE_PATH_MOTIF_MEMORIZATION",
+                    "ZERO_WINNER_COARSE_GRAMMAR",
+                    "LINEAR_TEMPORAL_EVENTUAL_OUTCOME_WITH_GLOBAL_THRESHOLD",
+                    "LINEAR_IMMINENT_HAZARD_WITHOUT_CONTEXT",
+                ),
+                "runtime_outcome_input_forbidden": True,
+                "future_market_input_forbidden": True,
+                "sizing_dependency_forbidden": True,
+                "risk_weighting_forbidden": True,
+                "runtime_actuation": False,
+            },
             "terminal_recall_expansion": {
                 "phase": "PHASE_1_CONSUMED_EVIDENCE_RESEARCH",
                 "control": "V7_TERMINAL_FAILURE_ECONOMIC_SHADOW",
