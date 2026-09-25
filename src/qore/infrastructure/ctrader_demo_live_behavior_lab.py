@@ -1,0 +1,505 @@
+"""Read-only cTrader DEMO LIVE behavior laboratory.
+
+The laboratory observes and classifies runtime evidence. It has no authority to
+change strategy decisions, CIBO sizing, Risk allocations, broker orders, stops,
+targets or position lifecycle. Its only purpose is to preserve enough evidence
+to explain what each trader did in LIVE DEMO and which management behavior was
+or was not observed.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from collections import Counter
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from enum import Enum
+from pathlib import Path
+from threading import Lock
+from typing import Any
+
+
+class BehaviorStage(str, Enum):
+    SIGNAL = "SIGNAL"
+    CIBO = "CIBO"
+    RISK = "RISK"
+    EXECUTION = "EXECUTION"
+    POSITION = "POSITION"
+    MANAGEMENT = "MANAGEMENT"
+    EXIT = "EXIT"
+    FAULT = "FAULT"
+    OTHER = "OTHER"
+
+
+@dataclass(frozen=True, slots=True)
+class TraderBehaviorContract:
+    trader: str
+    management_contract: str
+    sizing_path: str
+
+
+TRADER_BEHAVIOR_CONTRACTS: dict[str, TraderBehaviorContract] = {
+    "VT08_FOREX": TraderBehaviorContract(
+        trader="VT08_FOREX",
+        management_contract="STATIC_SL_TP_PLUS_H4_CONTAINMENT_EXIT",
+        sizing_path="VT08_CIBO_AUTHORIZATION_PLUS_DEMO_NATIVE_RISK_SIZING",
+    ),
+    "R34_XAUUSD": TraderBehaviorContract(
+        trader="R34_XAUUSD",
+        management_contract="STATIC_SL_TP_PLUS_24H_EXIT",
+        sizing_path="TRADER_LIVE_RISK_REQUEST",
+    ),
+    "R38_EURUSD": TraderBehaviorContract(
+        trader="R38_EURUSD",
+        management_contract="DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
+        sizing_path="TRADER_LIVE_RISK_REQUEST",
+    ),
+    "R43_GBPUSD": TraderBehaviorContract(
+        trader="R43_GBPUSD",
+        management_contract="DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
+        sizing_path="TRADER_LIVE_RISK_REQUEST",
+    ),
+    "R38_GBPJPY": TraderBehaviorContract(
+        trader="R38_GBPJPY",
+        management_contract="DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
+        sizing_path="TRADER_LIVE_RISK_REQUEST",
+    ),
+    "R42_AUDJPY": TraderBehaviorContract(
+        trader="R42_AUDJPY",
+        management_contract="DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
+        sizing_path="TRADER_LIVE_RISK_REQUEST",
+    ),
+    "VT31_NAS100": TraderBehaviorContract(
+        trader="VT31_NAS100",
+        management_contract="V4_PARTIAL_BE_DOL1_RUNNER_PS2_STOP_ADVANCE",
+        sizing_path="VT31_CERTIFIED_RISK_RESOLUTION_THEN_DEMO_NATIVE_VOLUME",
+    ),
+}
+
+
+@dataclass(frozen=True, slots=True)
+class LiveBehaviorEvent:
+    case_id: str
+    observed_at: datetime
+    source: str
+    stage: BehaviorStage
+    event: str
+    trader: str | None
+    symbol: str | None
+    signal_fingerprint: str | None
+    position_id: int | None
+    payload: dict[str, object]
+
+    def as_json(self) -> dict[str, object]:
+        return {
+            "case_id": self.case_id,
+            "observed_at": self.observed_at.astimezone(UTC).isoformat(),
+            "source": self.source,
+            "stage": self.stage.value,
+            "event": self.event,
+            "trader": self.trader,
+            "symbol": self.symbol,
+            "signal_fingerprint": self.signal_fingerprint,
+            "position_id": self.position_id,
+            "payload": self.payload,
+        }
+
+    @classmethod
+    def from_json(cls, value: Mapping[str, object]) -> "LiveBehaviorEvent":
+        observed = datetime.fromisoformat(str(value["observed_at"]))
+        if observed.tzinfo is None or observed.utcoffset() is None:
+            raise ValueError("behavior event observed_at must be timezone-aware")
+        raw_position = value.get("position_id")
+        position_id = (
+            int(raw_position)
+            if raw_position is not None and str(raw_position).strip()
+            else None
+        )
+        payload = value.get("payload")
+        if not isinstance(payload, dict):
+            raise ValueError("behavior event payload must be object")
+        return cls(
+            case_id=str(value["case_id"]),
+            observed_at=observed,
+            source=str(value["source"]),
+            stage=BehaviorStage(str(value["stage"])),
+            event=str(value["event"]),
+            trader=_optional_text(value.get("trader")),
+            symbol=_optional_text(value.get("symbol")),
+            signal_fingerprint=_optional_text(value.get("signal_fingerprint")),
+            position_id=position_id,
+            payload=dict(payload),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class LiveBehaviorCaseReport:
+    case_id: str
+    trader: str | None
+    symbol: str | None
+    first_observed_at: datetime
+    last_observed_at: datetime
+    event_count: int
+    stages: dict[str, int]
+    event_names: tuple[str, ...]
+    requested_volumes: tuple[str, ...]
+    requested_stop_risks: tuple[str, ...]
+    protection_events: tuple[str, ...]
+    partial_close_events: tuple[str, ...]
+    exit_events: tuple[str, ...]
+    fault_events: tuple[str, ...]
+    observations: tuple[str, ...]
+
+    def as_json(self) -> dict[str, object]:
+        return {
+            "case_id": self.case_id,
+            "trader": self.trader,
+            "symbol": self.symbol,
+            "first_observed_at": self.first_observed_at.astimezone(UTC).isoformat(),
+            "last_observed_at": self.last_observed_at.astimezone(UTC).isoformat(),
+            "event_count": self.event_count,
+            "stages": self.stages,
+            "event_names": list(self.event_names),
+            "requested_volumes": list(self.requested_volumes),
+            "requested_stop_risks": list(self.requested_stop_risks),
+            "protection_events": list(self.protection_events),
+            "partial_close_events": list(self.partial_close_events),
+            "exit_events": list(self.exit_events),
+            "fault_events": list(self.fault_events),
+            "observations": list(self.observations),
+        }
+
+
+class CTraderDemoLiveBehaviorLedger:
+    """Append-only evidence ledger used only by the DEMO behavior laboratory."""
+
+    def __init__(self, path: Path) -> None:
+        if not isinstance(path, Path):
+            raise TypeError("behavior ledger path must be Path")
+        self._path = path
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        self._lock = Lock()
+
+    @property
+    def path(self) -> Path:
+        return self._path
+
+    def record_raw(
+        self,
+        raw: Mapping[str, object],
+        *,
+        source: str,
+        observed_at: datetime | None = None,
+    ) -> LiveBehaviorEvent:
+        event = normalize_runtime_event(raw, source=source, observed_at=observed_at)
+        self.append(event)
+        return event
+
+    def append(self, event: LiveBehaviorEvent) -> None:
+        row = json.dumps(
+            event.as_json(),
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        )
+        with self._lock:
+            with self._path.open("a", encoding="utf-8") as handle:
+                handle.write(row + "\n")
+
+    def events(self) -> tuple[LiveBehaviorEvent, ...]:
+        if not self._path.exists():
+            return ()
+        rows: list[LiveBehaviorEvent] = []
+        with self._lock:
+            with self._path.open("r", encoding="utf-8") as handle:
+                for line in handle:
+                    stripped = line.strip()
+                    if not stripped:
+                        continue
+                    parsed = json.loads(stripped)
+                    if not isinstance(parsed, dict):
+                        raise ValueError("behavior ledger row must be object")
+                    rows.append(LiveBehaviorEvent.from_json(parsed))
+        return tuple(sorted(rows, key=lambda item: item.observed_at))
+
+
+def normalize_runtime_event(
+    raw: Mapping[str, object],
+    *,
+    source: str,
+    observed_at: datetime | None = None,
+) -> LiveBehaviorEvent:
+    if not source:
+        raise ValueError("behavior event source is required")
+    event_name = str(raw.get("event") or "UNKNOWN")
+    event_at = observed_at or _event_timestamp(raw)
+    trader = _first_text(raw, "trader", "identity", "trader_id")
+    symbol = _first_text(raw, "symbol", "qore_symbol")
+    signal = _first_text(raw, "signal_fingerprint", "signal")
+    position_id = _first_positive_int(raw, "position_id", "position_ticket", "position")
+    case_id = _case_id(
+        raw,
+        trader=trader,
+        symbol=symbol,
+        signal_fingerprint=signal,
+        position_id=position_id,
+    )
+    return LiveBehaviorEvent(
+        case_id=case_id,
+        observed_at=event_at,
+        source=source,
+        stage=classify_stage(event_name),
+        event=event_name,
+        trader=trader,
+        symbol=symbol,
+        signal_fingerprint=signal,
+        position_id=position_id,
+        payload=dict(raw),
+    )
+
+
+def classify_stage(event_name: str) -> BehaviorStage:
+    name = event_name.upper()
+    if any(token in name for token in ("FAIL", "ERROR", "REJECT", "DENY")):
+        return BehaviorStage.FAULT
+    if any(token in name for token in ("CLOSED", "EXIT", "TERMINAL")):
+        return BehaviorStage.EXIT
+    if any(
+        token in name
+        for token in (
+            "STOP_ADVANCED",
+            "_BE_",
+            "TRAIL",
+            "RUNNER",
+            "PARTIAL",
+            "BANKED",
+            "DOL1",
+            "EQ50",
+            "MANAGEMENT",
+            "PROTECT",
+        )
+    ):
+        return BehaviorStage.MANAGEMENT
+    if any(token in name for token in ("FILL", "POSITION")):
+        return BehaviorStage.POSITION
+    if any(
+        token in name
+        for token in ("SUBMIT", "EXECUTION", "PENDING", "ORDER_SEND", "ORDER_ACCEPT")
+    ):
+        return BehaviorStage.EXECUTION
+    if "CIBO" in name:
+        return BehaviorStage.CIBO
+    if "RISK" in name or "ALLOCAT" in name or "SIZ" in name:
+        return BehaviorStage.RISK
+    if any(token in name for token in ("CANDIDATE", "STRATEGY_DECISION", "ABSTAIN", "SIGNAL")):
+        return BehaviorStage.SIGNAL
+    return BehaviorStage.OTHER
+
+
+def build_case_reports(
+    events: Iterable[LiveBehaviorEvent],
+) -> tuple[LiveBehaviorCaseReport, ...]:
+    grouped: dict[str, list[LiveBehaviorEvent]] = {}
+    for event in events:
+        grouped.setdefault(event.case_id, []).append(event)
+
+    reports = [
+        _build_case_report(case_id, tuple(sorted(rows, key=lambda item: item.observed_at)))
+        for case_id, rows in grouped.items()
+    ]
+    return tuple(sorted(reports, key=lambda item: (item.first_observed_at, item.case_id)))
+
+
+def _build_case_report(
+    case_id: str,
+    events: tuple[LiveBehaviorEvent, ...],
+) -> LiveBehaviorCaseReport:
+    if not events:
+        raise ValueError("behavior case requires at least one event")
+    stage_counts = Counter(item.stage.value for item in events)
+    names = tuple(item.event for item in events)
+    trader = next((item.trader for item in events if item.trader), None)
+    symbol = next((item.symbol for item in events if item.symbol), None)
+    requested_volumes = _payload_values(
+        events,
+        "requested_volume",
+        "authorized_volume",
+        "volume",
+    )
+    requested_stop_risks = _payload_values(
+        events,
+        "requested_stop_risk",
+        "strategy_requested_risk_usd",
+        "requested_risk_r",
+    )
+    protection = tuple(
+        name
+        for name in names
+        if any(token in name.upper() for token in ("STOP_ADVANCED", "_BE_", "TRAIL", "PROTECT"))
+    )
+    partials = tuple(
+        name
+        for name in names
+        if any(token in name.upper() for token in ("PARTIAL", "BANKED", "EQ50", "DOL1_QUARTER"))
+    )
+    exits = tuple(item.event for item in events if item.stage is BehaviorStage.EXIT)
+    faults = tuple(item.event for item in events if item.stage is BehaviorStage.FAULT)
+    observations = _observations(
+        trader=trader,
+        names=names,
+        stages=stage_counts,
+        protection=protection,
+        exits=exits,
+        requested_volumes=requested_volumes,
+    )
+    return LiveBehaviorCaseReport(
+        case_id=case_id,
+        trader=trader,
+        symbol=symbol,
+        first_observed_at=events[0].observed_at,
+        last_observed_at=events[-1].observed_at,
+        event_count=len(events),
+        stages=dict(sorted(stage_counts.items())),
+        event_names=names,
+        requested_volumes=requested_volumes,
+        requested_stop_risks=requested_stop_risks,
+        protection_events=protection,
+        partial_close_events=partials,
+        exit_events=exits,
+        fault_events=faults,
+        observations=observations,
+    )
+
+
+def _observations(
+    *,
+    trader: str | None,
+    names: tuple[str, ...],
+    stages: Counter[str],
+    protection: tuple[str, ...],
+    exits: tuple[str, ...],
+    requested_volumes: tuple[str, ...],
+) -> tuple[str, ...]:
+    notes: list[str] = []
+    contract = TRADER_BEHAVIOR_CONTRACTS.get(trader or "")
+    if contract is not None:
+        notes.append(f"declared_sizing_path={contract.sizing_path}")
+        notes.append(f"declared_management_contract={contract.management_contract}")
+
+    saw_execution = stages[BehaviorStage.EXECUTION.value] > 0
+    saw_position = stages[BehaviorStage.POSITION.value] > 0
+    saw_cibo = stages[BehaviorStage.CIBO.value] > 0
+    if saw_execution and not requested_volumes:
+        notes.append("requested_volume_not_observed")
+    if trader == "VT31_NAS100" and saw_execution and not saw_cibo:
+        notes.append("no_explicit_cibo_sizing_event_observed_for_vt31")
+    if saw_position and not protection:
+        notes.append("no_protection_or_trailing_event_observed")
+    if exits and not protection:
+        notes.append("position_exited_without_observed_protection_event")
+    if stages[BehaviorStage.FAULT.value] > 0:
+        notes.append("fault_or_rejection_present")
+    if any("STOP" in name.upper() for name in exits):
+        notes.append("stop_exit_observed")
+    return tuple(notes)
+
+
+def _payload_values(
+    events: tuple[LiveBehaviorEvent, ...],
+    *keys: str,
+) -> tuple[str, ...]:
+    values: list[str] = []
+    for event in events:
+        for key in keys:
+            raw = event.payload.get(key)
+            if raw is None:
+                continue
+            value = str(raw)
+            if value not in values:
+                values.append(value)
+    return tuple(values)
+
+
+def _event_timestamp(raw: Mapping[str, object]) -> datetime:
+    for key in (
+        "logged_at",
+        "recorded_at",
+        "observed_at",
+        "decision_at_utc",
+        "decision_at",
+        "filled_at",
+        "closed_at",
+    ):
+        value = raw.get(key)
+        if not isinstance(value, str) or not value:
+            continue
+        try:
+            parsed = datetime.fromisoformat(value)
+        except ValueError:
+            continue
+        if parsed.tzinfo is not None and parsed.utcoffset() is not None:
+            return parsed
+    return datetime.now(UTC)
+
+
+def _case_id(
+    raw: Mapping[str, object],
+    *,
+    trader: str | None,
+    symbol: str | None,
+    signal_fingerprint: str | None,
+    position_id: int | None,
+) -> str:
+    if signal_fingerprint:
+        return f"signal:{signal_fingerprint}"
+    if position_id is not None:
+        return f"position:{position_id}"
+    request_id = _first_text(raw, "request_id", "client_order_id", "basket_id")
+    boundary = _first_text(
+        raw,
+        "boundary_at_utc",
+        "boundary_at",
+        "decision_at_utc",
+        "decision_at",
+    )
+    material = "|".join(
+        (
+            trader or "unknown-trader",
+            symbol or "unknown-symbol",
+            request_id or "no-request",
+            boundary or "no-boundary",
+            str(raw.get("event") or "UNKNOWN"),
+        )
+    )
+    digest = hashlib.sha256(material.encode("utf-8")).hexdigest()[:24]
+    return f"event:{digest}"
+
+
+def _first_text(raw: Mapping[str, object], *keys: str) -> str | None:
+    for key in keys:
+        value = raw.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _optional_text(value: object) -> str | None:
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+
+def _first_positive_int(raw: Mapping[str, object], *keys: str) -> int | None:
+    for key in keys:
+        value = raw.get(key)
+        if type(value) is int and value > 0:
+            return value
+        if isinstance(value, str) and value.isdigit() and int(value) > 0:
+            return int(value)
+    return None
+
+
+def case_reports_as_json(
+    reports: Iterable[LiveBehaviorCaseReport],
+) -> list[dict[str, object]]:
+    return [report.as_json() for report in reports]
