@@ -320,15 +320,17 @@ def _persistence(
 
 def _decision_rows(
     *,
-    model: HistGradientBoostingClassifier,
-    x_rows: np.ndarray,
+    probability_rows: np.ndarray,
+    classes: tuple[str, ...],
     meta: list[tuple[int, dict[str, Any]]],
 ) -> dict[int, list[dict[str, Any]]]:
     result: dict[int, list[dict[str, Any]]] = defaultdict(list)
     probability_history: dict[int, list[dict[str, float]]] = defaultdict(list)
 
-    for vector, (trade_index, row) in zip(x_rows, meta, strict=True):
-        probabilities = _probability_map(model, vector)
+    for values, (trade_index, row) in zip(probability_rows, meta, strict=True):
+        probabilities = {cause: 0.0 for cause in CAUSES}
+        for label, probability in zip(classes, values, strict=True):
+            probabilities[label] = float(probability)
         history = probability_history[trade_index]
         history.append(probabilities)
 
@@ -495,7 +497,11 @@ def _window(
     x_rows, y_rows, weights, meta = _dataset(trades, categories)
     probabilities = model.predict_proba(x_rows)
     classes = tuple(str(value) for value in model.classes_)
-    decisions = _decision_rows(model=model, x_rows=x_rows, meta=meta)
+    decisions = _decision_rows(
+        probability_rows=probabilities,
+        classes=classes,
+        meta=meta,
+    )
     metrics = _trade_metrics(trades, decisions)
 
     v15_recall = Decimal(
