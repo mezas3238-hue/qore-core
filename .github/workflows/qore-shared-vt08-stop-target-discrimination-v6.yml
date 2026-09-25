@@ -11,6 +11,8 @@ on:
       - src/qore/infrastructure/core_stack_v2/**
       - tests/infrastructure/test_core_stack_v2_specialist_boundary.py
       - tests/infrastructure/test_core_stack_v2_stop_target_discrimination.py
+      - tests/infrastructure/test_core_stack_v2_competing_risk_path_core.py
+      - tests/infrastructure/test_core_stack_v2_competing_risk_decision_gate.py
       - .github/workflows/qore-shared-vt08-stop-target-discrimination-v6.yml
   workflow_dispatch:
 
@@ -92,6 +94,8 @@ jobs:
             intelligence.py \
             analog_memory.py \
             competing_future_intelligence.py \
+            competing_risk_decision_gate.py \
+            competing_risk_path_core.py \
             drawdown_phenotype_memory.py \
             environment_intelligence.py \
             future_geometry_intelligence.py \
@@ -113,7 +117,9 @@ jobs:
           cd shared
           PYTHONPATH=src pytest -q \
             tests/infrastructure/test_core_stack_v2_specialist_boundary.py \
-            tests/infrastructure/test_core_stack_v2_stop_target_discrimination.py
+            tests/infrastructure/test_core_stack_v2_stop_target_discrimination.py \
+            tests/infrastructure/test_core_stack_v2_competing_risk_path_core.py \
+            tests/infrastructure/test_core_stack_v2_competing_risk_decision_gate.py
 
       - name: Download NAS100 CIBO evidence
         uses: actions/download-artifact@v4
