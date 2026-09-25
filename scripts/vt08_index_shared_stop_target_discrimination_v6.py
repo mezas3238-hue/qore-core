@@ -38,6 +38,10 @@ from qore.infrastructure.core_stack_v2.recovery_failure_intelligence import (
     RecoveryChallengeState,
     assess_recovery_failure,
 )
+from qore.infrastructure.core_stack_v2.terminal_failure_confirmation import (
+    TerminalFailureState,
+    assess_terminal_failure,
+)
 from qore.infrastructure.core_stack_v2.stop_target_discrimination import (
     StopTargetHypothesis,
     assess_stop_target_path,
@@ -184,6 +188,7 @@ def _shadow_trade(
             "ccrpc_target_persistence_bps": entry_gate.target_persistence_bps,
             "ccrpc_recovery_persistence_bps": entry_gate.recovery_persistence_bps,
             "recovery_challenge_state": entry_recovery.state.value,
+            "terminal_failure_state": TerminalFailureState.INSUFFICIENT.value,
             "recovery_challenge_observations": entry_recovery.observations_since_formation,
             "recovery_challenge_formation_persistence_bps": entry_recovery.formation_persistence_bps,
         }
@@ -243,6 +248,11 @@ def _shadow_trade(
             belief_history.append(belief)
             gate = assess_competing_risk_decision(tuple(belief_history))
             recovery_challenge = assess_recovery_failure(tuple(belief_history))
+            terminal_failure = assess_terminal_failure(
+                belief,
+                path,
+                recovery_challenge,
+            )
             rows.append(
                 {
                     "stage": "PATH",
@@ -268,6 +278,12 @@ def _shadow_trade(
                     "ccrpc_target_persistence_bps": gate.target_persistence_bps,
                     "ccrpc_recovery_persistence_bps": gate.recovery_persistence_bps,
                     "recovery_challenge_state": recovery_challenge.state.value,
+                    "terminal_failure_state": terminal_failure.state.value,
+                    "terminal_failure_stop_formation_bps": terminal_failure.stop_formation_bps,
+                    "terminal_failure_path_risk_bps": terminal_failure.terminal_failure_bps,
+                    "terminal_failure_adverse_dominance_bps": terminal_failure.adverse_dominance_bps,
+                    "terminal_failure_target_hazard_bps": terminal_failure.target_hazard_bps,
+                    "terminal_failure_uncertainty_bps": terminal_failure.uncertainty_bps,
                     "recovery_challenge_observations": recovery_challenge.observations_since_formation,
                     "recovery_challenge_formation_persistence_bps": recovery_challenge.formation_persistence_bps,
                     "path_state": path.state.value,
@@ -380,6 +396,15 @@ def _shadow_trade(
         ),
         None,
     )
+    first_terminal_confirmed = next(
+        (
+            row
+            for row in rows
+            if row["terminal_failure_state"]
+            == TerminalFailureState.TERMINAL_CONFIRMED.value
+        ),
+        None,
+    )
 
     return {
         "trade_id": item.trade_id,
@@ -398,6 +423,7 @@ def _shadow_trade(
         "first_ccrpc_target": first_ccrpc_target,
         "first_recovery_failed": first_recovery_failed,
         "first_recovery_restored": first_recovery_restored,
+        "first_terminal_confirmed": first_terminal_confirmed,
         "hypothesis_counts": dict(
             sorted(Counter(str(row["hypothesis"]) for row in rows).items())
         ),
@@ -407,6 +433,11 @@ def _shadow_trade(
         "recovery_challenge_counts": dict(
             sorted(
                 Counter(str(row["recovery_challenge_state"]) for row in rows).items()
+            )
+        ),
+        "terminal_failure_counts": dict(
+            sorted(
+                Counter(str(row["terminal_failure_state"]) for row in rows).items()
             )
         ),
         "competing_risk_summary": {
@@ -541,6 +572,15 @@ def _window(
     recovery_restored_winners = [
         row for row in winners if row["first_recovery_restored"] is not None
     ]
+    terminal_confirmed = [
+        row for row in rows if row["first_terminal_confirmed"] is not None
+    ]
+    terminal_confirmed_losses = [
+        row for row in terminal_confirmed if row["actual"] == "LOSS"
+    ]
+    terminal_confirmed_winners = [
+        row for row in terminal_confirmed if row["actual"] == "WIN"
+    ]
 
     stop_forming_leads = [
         int(row["first_stop_forming"]["bars_before_canonical_exit"])
@@ -578,6 +618,10 @@ def _window(
     recovery_failed_leads = [
         int(row["first_recovery_failed"]["bars_before_canonical_exit"])
         for row in recovery_failed_losses
+    ]
+    terminal_confirmed_leads = [
+        int(row["first_terminal_confirmed"]["bars_before_canonical_exit"])
+        for row in terminal_confirmed_losses
     ]
     stop_leads = [
         int(row["first_stop"]["bars_before_canonical_exit"])
@@ -685,6 +729,21 @@ def _window(
                 else str(median(recovery_failed_leads))
             ),
             "winners_with_recovery_restored": len(recovery_restored_winners),
+            "terminal_confirmed_count": len(terminal_confirmed),
+            "terminal_confirmed_loss_recall": _safe_ratio(
+                len(terminal_confirmed_losses), len(losses)
+            ),
+            "terminal_confirmed_winner_mark_rate": _safe_ratio(
+                len(terminal_confirmed_winners), len(winners)
+            ),
+            "terminal_confirmed_precision_for_diagnostics_only": _safe_ratio(
+                len(terminal_confirmed_losses), len(terminal_confirmed)
+            ),
+            "median_terminal_confirmed_lead_bars": (
+                None
+                if not terminal_confirmed_leads
+                else str(median(terminal_confirmed_leads))
+            ),
             "confirmed_stop_count": len(ccrpc_predicted_stop),
             "confirmed_stop_precision": _safe_ratio(
                 len(ccrpc_true_stop), len(ccrpc_predicted_stop)
