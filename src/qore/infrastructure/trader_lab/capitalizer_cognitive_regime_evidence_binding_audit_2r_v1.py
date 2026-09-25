@@ -195,6 +195,19 @@ def _bind_rows(
             ) <= entry_at
 
         bound = match and causal
+        signature: str | None = None
+        body_fraction: str | None = None
+        close_location: str | None = None
+        previous_range_ratio: str | None = None
+        if bound:
+            if micro is None:
+                raise AssertionError("bound micro context unexpectedly missing")
+            signature = str(micro["microstructure_signature"])
+            body_fraction = str(micro["body_fraction"])
+            close_location = str(micro["close_location"])
+            if micro["previous_range_ratio"] is not None:
+                previous_range_ratio = str(micro["previous_range_ratio"])
+
         result.append(
             RegimeEvidenceBindingRow(
                 symbol=str(row["symbol"]),
@@ -211,20 +224,10 @@ def _bind_rows(
                 micro_context_match_found=match,
                 micro_context_causal=causal,
                 regime_evidence_bound=bound,
-                microstructure_signature=(
-                    None if not bound else str(micro["microstructure_signature"])
-                ),
-                body_fraction=(
-                    None if not bound else str(micro["body_fraction"])
-                ),
-                close_location=(
-                    None if not bound else str(micro["close_location"])
-                ),
-                previous_range_ratio=(
-                    None
-                    if not bound or micro["previous_range_ratio"] is None
-                    else str(micro["previous_range_ratio"])
-                ),
+                microstructure_signature=signature,
+                body_fraction=body_fraction,
+                close_location=close_location,
+                previous_range_ratio=previous_range_ratio,
             )
         )
     return tuple(result)
