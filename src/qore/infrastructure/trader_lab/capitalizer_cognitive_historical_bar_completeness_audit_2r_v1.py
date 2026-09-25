@@ -308,7 +308,7 @@ def build_matrix(root: Path) -> dict[str, Any]:
     if symbols != EXPECTED_SYMBOLS:
         raise ValueError("bar completeness market universe mismatch")
 
-    counts = Counter()
+    counts: Counter[str] = Counter()
     for item in reports:
         for state, value in dict(item["state_counts"]).items():
             counts[str(state)] += int(value)
