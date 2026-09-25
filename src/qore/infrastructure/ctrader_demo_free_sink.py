@@ -37,6 +37,7 @@ from qore.infrastructure.ctrader_demo_trade_registry import (
     CTraderDemoTradeRegistry,
     DemoTradeRegistryEntry,
 )
+from qore.infrastructure.ctrader_demo_live_behavior_lab import sizing_path_for
 from qore.infrastructure.ctrader_demo_mutation_ledger import (
     JsonFileCTraderDemoMutationLedger,
 )
@@ -298,6 +299,7 @@ class CTraderDemoFreeSink:
                 "stop_loss": format(request.stop_loss, "f"),
                 "take_profit": format(request.take_profit, "f"),
                 "requested_stop_risk": format(request.requested_stop_risk, "f"),
+                "sizing_path": sizing_path_for(result.trader_id.value),
                 "recorded_at": result.recorded_at.isoformat(),
             }
         )
