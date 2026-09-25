@@ -30,13 +30,13 @@ from qore.infrastructure.core_stack_v2.competing_risk_decision_gate import (
 from qore.infrastructure.core_stack_v2.competing_risk_path_core import (
     assess_competing_risk_path,
 )
-from qore.infrastructure.core_stack_v2.recovery_failure_intelligence import (
-    RecoveryChallengeState,
-    assess_recovery_failure,
-)
 from qore.infrastructure.core_stack_v2.path_intelligence import (
     PositionPathObservation,
     assess_position_path,
+)
+from qore.infrastructure.core_stack_v2.recovery_failure_intelligence import (
+    RecoveryChallengeState,
+    assess_recovery_failure,
 )
 from qore.infrastructure.core_stack_v2.stop_target_discrimination import (
     StopTargetHypothesis,
@@ -240,6 +240,9 @@ def _shadow_trade(
                 futures,
                 path=path,
             )
+            belief_history.append(belief)
+            gate = assess_competing_risk_decision(tuple(belief_history))
+            recovery_challenge = assess_recovery_failure(tuple(belief_history))
             rows.append(
                 {
                     "stage": "PATH",
