@@ -8,6 +8,7 @@ on:
       - scripts/vt08_index_shared_terminal_failure_economic_shadow_v7.py
       - scripts/vt08_index_shared_stop_target_discrimination_v6.py
       - src/qore/infrastructure/core_stack_v2/**
+      - tests/infrastructure/test_core_stack_v2_terminal_failure_confirmation.py
       - .github/workflows/qore-shared-vt08-terminal-failure-economic-v7.yml
   workflow_dispatch:
 
