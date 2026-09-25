@@ -37,7 +37,7 @@ jobs:
       - name: Compose VT08 source with current Shared intelligence
         run: |
           set -euo pipefail
-          mkdir -p vt08/src/qore/infrastructure/core_stack_v2
+          mkdir -p vt08/src/qore/infrastructure/core_stack_v2 vt08/scripts
           : > vt08/src/qore/infrastructure/core_stack_v2/__init__.py
           cp             shared/src/qore/infrastructure/core_stack_v2/competing_future_intelligence.py             vt08/src/qore/infrastructure/core_stack_v2/competing_future_intelligence.py
           cp             shared/scripts/vt08_index_shared_cognitive_challenge_v1.py             vt08/scripts/vt08_index_shared_cognitive_challenge_v1.py
