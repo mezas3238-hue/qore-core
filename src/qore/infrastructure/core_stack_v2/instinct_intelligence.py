@@ -331,6 +331,17 @@ def assess_instinct(
         methodology = SupportMethodology.INSUFFICIENT_FAIL_CLOSED
         reasons.append("INSTINCT_EVIDENCE_INSUFFICIENT")
     elif (
+        path is not None
+        and path.state in {
+            PositionPathState.FAVORABLE_EXPANSION,
+            PositionPathState.HEALTHY_PULLBACK,
+        }
+        and winner_protection >= effective.winner_protection_bps
+    ):
+        situation = InstinctSituation.HEALTHY_CONTINUATION
+        methodology = SupportMethodology.WINNER_PROTECTION
+        reasons.extend(("ESTABLISHED_WINNER_PATH", "FALSE_DEFENSE_MUST_BE_AVOIDED"))
+    elif (
         convergence is not None
         and convergence.state is ResidentConvergenceState.RECOVERABLE_ADVERSITY
     ):
@@ -369,12 +380,6 @@ def assess_instinct(
     elif (
         convergence is not None
         and convergence.state is ResidentConvergenceState.SUPPORTIVE_CONTINUATION
-        and path is not None
-        and path.state in {
-            PositionPathState.FAVORABLE_EXPANSION,
-            PositionPathState.HEALTHY_PULLBACK,
-        }
-        and winner_protection >= effective.winner_protection_bps
         and expansion_capacity_bps >= effective.extension_capacity_bps
     ):
         situation = InstinctSituation.SUPPORTIVE_EXPANSION
@@ -382,24 +387,7 @@ def assess_instinct(
         reasons.extend(
             (
                 "RESIDENT_SUPPORTIVE_CONVERGENCE",
-                "ESTABLISHED_WINNER_PATH",
                 "EXPANSION_CAPACITY_HIGH",
-            )
-        )
-    elif (
-        path is not None
-        and path.state in {
-            PositionPathState.FAVORABLE_EXPANSION,
-            PositionPathState.HEALTHY_PULLBACK,
-        }
-        and winner_protection >= effective.winner_protection_bps
-    ):
-        situation = InstinctSituation.HEALTHY_CONTINUATION
-        methodology = SupportMethodology.WINNER_PROTECTION
-        reasons.extend(
-            (
-                "ESTABLISHED_WINNER_PATH",
-                "FALSE_DEFENSE_MUST_BE_AVOIDED",
             )
         )
     elif (
