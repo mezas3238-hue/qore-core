@@ -30,6 +30,7 @@ jobs:
           ruff check \
             src/qore/infrastructure/ctrader_demo_live_behavior_lab.py \
             scripts/ctrader_demo_live_behavior_report.py \
+            scripts/ctrader_demo_live_settlement_watcher.py \
             tests/infrastructure/test_ctrader_demo_live_behavior_lab.py
 
       - name: Compile runtime integration
@@ -37,6 +38,7 @@ jobs:
           python -m py_compile \
             scripts/qore_ctrader_demo_free_runtime.py \
             scripts/vt31_nas100_ctrader_demo_adapter.py \
+            scripts/ctrader_demo_live_settlement_watcher.py \
             src/qore/infrastructure/ctrader_demo_free_sink.py \
             src/qore/infrastructure/ctrader_demo_full_api.py
 
