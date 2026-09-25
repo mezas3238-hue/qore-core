@@ -1182,31 +1182,58 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         cycle_started = time.monotonic()
         cycle_at = datetime.now(UTC)
         armed_m5_snapshots: dict[str, M5BoundarySnapshot] | None = None
+        feed_trader = {
+            "XAUUSD": "R34_XAUUSD",
+            "EURUSD": "R38_EURUSD",
+            "GBPUSD": "R43_GBPUSD",
+            "GBPJPY": "R38_GBPJPY",
+            "AUDJPY": "R42_AUDJPY",
+        }
         for symbol, cache in m5_caches.items():
             try:
-                cache.refresh_incremental(mt5, now=cycle_at)
+                run_with_bounded_repair(
+                    trader=feed_trader[symbol],
+                    operation=lambda cache=cache: cache.refresh_incremental(
+                        mt5,
+                        now=datetime.now(UTC),
+                    ),
+                    recover=lambda symbol=symbol: recover_demo_market_state(
+                        symbol=symbol,
+                    ),
+                    emit=lambda event: _log(log_path, event),
+                )
             except Exception as error:
                 _log(
                     log_path,
                     {
                         "event": "M5_INCREMENTAL_FEED_FAIL_CLOSED",
+                        "trader": feed_trader[symbol],
                         "symbol": symbol,
                         "reason": type(error).__name__,
                         "message": str(error),
-                        "observed_at": cycle_at.isoformat(),
+                        "observed_at": datetime.now(UTC).isoformat(),
                     },
                 )
         try:
-            vt31_cache.refresh_incremental(mt5, now=cycle_at)
+            run_with_bounded_repair(
+                trader="VT31_NAS100",
+                operation=lambda: vt31_cache.refresh_incremental(
+                    mt5,
+                    now=datetime.now(UTC),
+                ),
+                recover=lambda: recover_demo_market_state(symbol="NAS100"),
+                emit=lambda event: _log(log_path, event),
+            )
         except Exception as error:
             _log(
                 log_path,
                 {
                     "event": "VT31_NAS100_INCREMENTAL_FEED_FAIL_CLOSED",
+                    "trader": "VT31_NAS100",
                     "symbol": "NAS100",
                     "reason": type(error).__name__,
                     "message": str(error),
-                    "observed_at": cycle_at.isoformat(),
+                    "observed_at": datetime.now(UTC).isoformat(),
                 },
             )
 
