@@ -33,7 +33,7 @@ class CompetingRiskDecisionPolicy:
     confirmation_observations: int = 3
     hazard_threshold_bps: int = 6_500
     minimum_margin_bps: int = 1_800
-    persistence_bps: int = 6_667
+    persistence_bps: int = 10_000
     maximum_uncertainty_bps: int = 6_500
     recovery_veto_bps: int = 6_500
     recovery_stop_cap_bps: int = 5_000
