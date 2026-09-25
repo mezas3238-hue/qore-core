@@ -10,6 +10,7 @@ from qore.infrastructure.ctrader_demo_live_behavior_lab import (
     management_observation_payload,
     normalize_runtime_event,
     position_path_observation_payload,
+    settlement_observation_payload,
     sizing_path_for,
 )
 
@@ -247,3 +248,66 @@ def test_position_path_preserves_zero_missing_protection() -> None:
     assert payload["stop_loss"] == "0"
     assert payload["take_profit"] == "0"
     assert payload["directional_price_delta"] == "1"
+
+
+
+def test_settlement_evidence_reports_realized_pnl_and_prices() -> None:
+    signal = "9" * 64
+    partial = settlement_observation_payload(
+        trader="VT31_NAS100",
+        symbol="NAS100",
+        signal_fingerprint=signal,
+        position_id=404,
+        deal_id=501,
+        order_id=601,
+        side="short",
+        execution_price=Decimal("30612.5"),
+        filled_units=Decimal("0.20"),
+        source_volume=Decimal("0.02"),
+        net_profit=Decimal("28.86"),
+        gross_profit=Decimal("28.86"),
+        commission=Decimal("0"),
+        swap=Decimal("0"),
+        pnl_conversion_fee=Decimal("0"),
+        balance_after=Decimal("1000018.27"),
+        executed_at=NOW,
+        position_open_after=True,
+    )
+    exit_row = settlement_observation_payload(
+        trader="VT31_NAS100",
+        symbol="NAS100",
+        signal_fingerprint=signal,
+        position_id=404,
+        deal_id=502,
+        order_id=602,
+        side="short",
+        execution_price=Decimal("30644.8"),
+        filled_units=Decimal("0.20"),
+        source_volume=Decimal("0.02"),
+        net_profit=Decimal("35.32"),
+        gross_profit=Decimal("35.32"),
+        commission=Decimal("0"),
+        swap=Decimal("0"),
+        pnl_conversion_fee=Decimal("0"),
+        balance_after=Decimal("1000053.59"),
+        executed_at=NOW + timedelta(minutes=1),
+        position_open_after=False,
+    )
+
+    reports = build_case_reports(
+        (
+            normalize_runtime_event(partial, source="settlement"),
+            normalize_runtime_event(exit_row, source="settlement"),
+        )
+    )
+    report = reports[0]
+
+    assert report.settlement_events == (
+        "CTRADER_DEMO_PARTIAL_SETTLEMENT",
+        "CTRADER_DEMO_EXIT_SETTLEMENT",
+    )
+    assert report.realized_net_pnl == "64.18"
+    assert report.settlement_prices == ("30612.5", "30644.8")
+    assert report.settled_source_volumes == ("0.02",)
+    assert classify_stage("CTRADER_DEMO_PARTIAL_SETTLEMENT") is BehaviorStage.MANAGEMENT
+    assert classify_stage("CTRADER_DEMO_EXIT_SETTLEMENT") is BehaviorStage.EXIT
