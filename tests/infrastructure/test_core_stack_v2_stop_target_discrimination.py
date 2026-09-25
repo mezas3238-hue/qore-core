@@ -154,6 +154,19 @@ def test_stop_likely_requires_terminal_future_and_current_market_relation() -> N
     assert result.sizing_authority is False
 
 
+
+def test_broad_terminal_context_without_failed_path_is_only_stop_forming() -> None:
+    result = assess_stop_target_path(
+        _environment(MarketEnvironmentState.DEFENSIVE),
+        _trajectory(MarketTrajectoryState.FAILURE),
+        _geometry(FutureGeometryState.TERMINAL_COLLAPSE),
+        _futures(CompetingFutureState.TERMINAL_ADVERSE),
+    )
+
+    assert result.hypothesis is StopTargetHypothesis.STOP_FORMING
+    assert result.stop_mutation_authority is False
+    assert result.target_mutation_authority is False
+
 def test_target_likely_requires_supportive_future_and_current_market_relation() -> None:
     result = assess_stop_target_path(
         _environment(MarketEnvironmentState.SUPPORTIVE),
