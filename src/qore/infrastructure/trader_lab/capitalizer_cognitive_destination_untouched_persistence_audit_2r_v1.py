@@ -766,20 +766,20 @@ def main() -> None:
 
     args = parser.parse_args()
     if args.command == "market":
-        report, rows = build_market_report(
+        market_report, market_rows = build_market_report(
             args.rebase_root,
             args.departure_root,
             args.target_root,
             args.m1_root,
             symbol=str(args.symbol),
         )
-        write_market(report, rows, args.output)
-        print(json.dumps(report, sort_keys=True))
+        write_market(market_report, market_rows, args.output)
+        print(json.dumps(market_report, sort_keys=True))
         return
 
-    report, rows = build_matrix(args.input_root)
-    write_matrix(report, rows, args.output)
-    print(json.dumps(report, sort_keys=True))
+    matrix_report, matrix_rows = build_matrix(args.input_root)
+    write_matrix(matrix_report, matrix_rows, args.output)
+    print(json.dumps(matrix_report, sort_keys=True))
 
 
 if __name__ == "__main__":
