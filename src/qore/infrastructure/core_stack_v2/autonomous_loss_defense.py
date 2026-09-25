@@ -56,12 +56,12 @@ class AutonomousLossDefensePolicy:
             "high_confidence_probability_bps",
             "moderate_probability_bps",
         ):
-            value = int(getattr(self, name))
-            if not 0 <= value <= 10_000:
+            bps_value = int(getattr(self, name))
+            if not 0 <= bps_value <= 10_000:
                 raise ValueError(f"{name} must be within 0..10000")
         for name in ("half_risk_cap_r", "quarter_risk_cap_r"):
-            value = Decimal(getattr(self, name))
-            if not ZERO < value <= ONE:
+            risk_value = Decimal(getattr(self, name))
+            if not ZERO < risk_value <= ONE:
                 raise ValueError(f"{name} must be within (0, 1]")
         if self.quarter_risk_cap_r > self.half_risk_cap_r:
             raise ValueError("quarter-risk cap cannot be looser than half-risk cap")
