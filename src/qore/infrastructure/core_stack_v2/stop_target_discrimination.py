@@ -253,6 +253,7 @@ def assess_stop_target_path(
             (
                 "POSITION_PATH_RECOVERY_PRIMARY",
                 "STOP_HYPOTHESIS_VETOED_BY_TRADE_PATH_RECOVERY",
+                "STOP_HYPOTHESIS_VETOED_BY_RECOVERY",
             )
         )
     elif (
