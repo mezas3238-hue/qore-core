@@ -1,0 +1,70 @@
+name: QORE VT08 CRT PURE BTCUSD Coinbase 2Y
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/vt08-crt-pure-source-identity-001
+    paths:
+      - '.github/workflows/vt08-crt-pure-btcusd-coinbase-2y.yml'
+      - 'src/qore/infrastructure/trader_lab/vt08_crt_pure_btcusd_coinbase_replay.py'
+      - 'tests/infrastructure/trader_lab/test_vt08_crt_pure_btcusd_coinbase_replay.py'
+
+concurrency:
+  group: qore-vt08-crt-pure-coinbase-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/vt08_crt_pure_btcusd_coinbase_replay.py \
+            tests/infrastructure/trader_lab/test_vt08_crt_pure_btcusd_coinbase_replay.py
+      - name: Mypy
+        run: mypy src/qore/infrastructure/trader_lab/vt08_crt_pure_btcusd_coinbase_replay.py
+      - name: Pytest
+        run: pytest -q --no-cov tests/infrastructure/trader_lab/test_vt08_crt_pure_btcusd_coinbase_replay.py
+
+  replay:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install package
+        run: python -m pip install -e .
+      - name: Run lossless-per-window Coinbase BTC-USD 2Y replay
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/BTCUSD
+          python -m qore.infrastructure.trader_lab.vt08_crt_pure_btcusd_coinbase_replay \
+            artifacts/BTCUSD \
+            | tee artifacts/BTCUSD/stdout.log
+      - name: Bind git SHA and hashes
+        shell: bash
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > artifacts/BTCUSD/git-sha.txt
+          cd artifacts/BTCUSD
+          sha256sum report.json trades.jsonl stdout.log git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt08-crt-pure-btcusd-coinbase-2y-${{ github.sha }}
+          path: artifacts/BTCUSD
+          if-no-files-found: error
+          retention-days: 90
