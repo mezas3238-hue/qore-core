@@ -31,8 +31,8 @@ from __future__ import annotations
 import argparse
 import bisect
 import json
-from dataclasses import replace
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
