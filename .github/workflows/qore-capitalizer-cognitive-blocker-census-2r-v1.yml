@@ -142,7 +142,7 @@ jobs:
           )
           assert report["target_r"] == "2.00"
           assert report["control_trades"] == 948
-          assert report["control_metrics"]["stops"] == 275
+          assert report["control_metrics"]["stop_exits"] == 275
 
           assert set(report["bound_layers"]) == {
               "SOURCE_MICROSTRUCTURE",
