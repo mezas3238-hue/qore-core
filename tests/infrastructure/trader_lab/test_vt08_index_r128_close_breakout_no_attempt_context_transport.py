@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from qore.infrastructure.trader_lab import (
+    vt08_index_r105_standard_context_transport_atlas as r105,
+)
+from qore.infrastructure.trader_lab import (
     vt08_index_r128_close_breakout_no_attempt_context_transport as r128,
 )
 
@@ -24,7 +27,7 @@ def test_r128_source_and_cohort_are_pinned() -> None:
 
 
 def test_r128_dimensions_reuse_frozen_r105_vocabulary() -> None:
-    assert "cisd_latency_bucket" in r128.r105.DIMENSIONS
-    assert "continuation_latency_bucket" in r128.r105.DIMENSIONS
-    assert "cross_index_state" in r128.r105.DIMENSIONS
-    assert "current_source_day_body_alignment" in r128.r105.DIMENSIONS
+    assert "cisd_latency_bucket" in r105.DIMENSIONS
+    assert "continuation_latency_bucket" in r105.DIMENSIONS
+    assert "cross_index_state" in r105.DIMENSIONS
+    assert "current_source_day_body_alignment" in r105.DIMENSIONS
