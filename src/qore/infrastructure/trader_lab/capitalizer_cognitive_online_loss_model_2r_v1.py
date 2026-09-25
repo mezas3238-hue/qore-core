@@ -28,6 +28,9 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.trader_lab import (
+    capitalizer_cognitive_m3_stop_protection_true_2r_v2 as m3,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_online_causal_memory_2r_v1 as causal_memory,
 )
 from qore.infrastructure.trader_lab import (
@@ -35,9 +38,6 @@ from qore.infrastructure.trader_lab import (
 )
 from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_stability_intelligence_2r_v1 as stability,
-)
-from qore.infrastructure.trader_lab import (
-    capitalizer_cognitive_m3_stop_protection_true_2r_v2 as m3,
 )
 
 IDENTITY = "QORE_CAPITALIZER_COGNITIVE_ONLINE_LOSS_MODEL_2R_V1"
