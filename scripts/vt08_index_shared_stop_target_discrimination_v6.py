@@ -23,6 +23,10 @@ from statistics import median
 
 import vt08_index_shared_full_stack_no_sizing_v3 as v3
 
+from qore.infrastructure.core_stack_v2.competing_risk_decision_gate import (
+    CompetingRiskDecision,
+    assess_competing_risk_decision,
+)
 from qore.infrastructure.core_stack_v2.competing_risk_path_core import (
     assess_competing_risk_path,
 )
@@ -138,6 +142,8 @@ def _shadow_trade(
         entry["geometry"],
         entry["futures"],
     )
+    belief_history = [entry_belief]
+    entry_gate = assess_competing_risk_decision(tuple(belief_history))
 
     all_bars = bars_by_symbol[symbol]
     closed = closed_by_symbol[symbol]
@@ -166,6 +172,10 @@ def _shadow_trade(
             "stop_hazard_proxy_bps": entry_belief.stop_hazard_proxy_bps,
             "target_hazard_proxy_bps": entry_belief.target_hazard_proxy_bps,
             "risk_separation_margin_bps": entry_belief.separation_margin_bps,
+            "ccrpc_decision": entry_gate.decision.value,
+            "ccrpc_stop_persistence_bps": entry_gate.stop_persistence_bps,
+            "ccrpc_target_persistence_bps": entry_gate.target_persistence_bps,
+            "ccrpc_recovery_persistence_bps": entry_gate.recovery_persistence_bps,
         }
     ]
 
@@ -238,6 +248,10 @@ def _shadow_trade(
                     "stop_hazard_proxy_bps": belief.stop_hazard_proxy_bps,
                     "target_hazard_proxy_bps": belief.target_hazard_proxy_bps,
                     "risk_separation_margin_bps": belief.separation_margin_bps,
+                    "ccrpc_decision": gate.decision.value,
+                    "ccrpc_stop_persistence_bps": gate.stop_persistence_bps,
+                    "ccrpc_target_persistence_bps": gate.target_persistence_bps,
+                    "ccrpc_recovery_persistence_bps": gate.recovery_persistence_bps,
                     "path_state": path.state.value,
                     "path_evidence_count": path.evidence_count,
                     "path_support_bps": path.path_support_bps,
@@ -308,6 +322,30 @@ def _shadow_trade(
         ),
         None,
     )
+    first_ccrpc_stop_forming = next(
+        (
+            row
+            for row in rows
+            if row["ccrpc_decision"] == CompetingRiskDecision.STOP_FORMING.value
+        ),
+        None,
+    )
+    first_ccrpc_stop = next(
+        (
+            row
+            for row in rows
+            if row["ccrpc_decision"] == CompetingRiskDecision.STOP_LIKELY.value
+        ),
+        None,
+    )
+    first_ccrpc_target = next(
+        (
+            row
+            for row in rows
+            if row["ccrpc_decision"] == CompetingRiskDecision.TARGET_LIKELY.value
+        ),
+        None,
+    )
 
     return {
         "trade_id": item.trade_id,
@@ -321,8 +359,14 @@ def _shadow_trade(
         "first_stop_forming": first_stop_forming,
         "first_stop": first_stop,
         "first_target": first_target,
+        "first_ccrpc_stop_forming": first_ccrpc_stop_forming,
+        "first_ccrpc_stop": first_ccrpc_stop,
+        "first_ccrpc_target": first_ccrpc_target,
         "hypothesis_counts": dict(
             sorted(Counter(str(row["hypothesis"]) for row in rows).items())
+        ),
+        "ccrpc_decision_counts": dict(
+            sorted(Counter(str(row["ccrpc_decision"]) for row in rows).items())
         ),
         "competing_risk_summary": {
             "max_stop_hazard_proxy_bps": max(
@@ -436,6 +480,13 @@ def _window(
     winner_false_stop_any = [row for row in winners if row["first_stop"] is not None]
     loss_false_target_any = [row for row in losses if row["first_target"] is not None]
 
+    ccrpc_predicted_stop = [row for row in rows if row["first_ccrpc_stop"] is not None]
+    ccrpc_predicted_target = [row for row in rows if row["first_ccrpc_target"] is not None]
+    ccrpc_true_stop = [row for row in ccrpc_predicted_stop if row["actual"] == "LOSS"]
+    ccrpc_false_stop = [row for row in ccrpc_predicted_stop if row["actual"] == "WIN"]
+    ccrpc_true_target = [row for row in ccrpc_predicted_target if row["actual"] == "WIN"]
+    ccrpc_false_target = [row for row in ccrpc_predicted_target if row["actual"] == "LOSS"]
+
     stop_forming_leads = [
         int(row["first_stop_forming"]["bars_before_canonical_exit"])
         for row in losses_forming
@@ -540,6 +591,20 @@ def _window(
         "competing_risk_diagnostics": {
             "calibrated_probability": False,
             "management_authority": False,
+            "confirmed_stop_count": len(ccrpc_predicted_stop),
+            "confirmed_stop_precision": _safe_ratio(
+                len(ccrpc_true_stop), len(ccrpc_predicted_stop)
+            ),
+            "confirmed_stop_false_positive_rate_on_winners": _safe_ratio(
+                len(ccrpc_false_stop), len(winners)
+            ),
+            "confirmed_target_count": len(ccrpc_predicted_target),
+            "confirmed_target_precision": _safe_ratio(
+                len(ccrpc_true_target), len(ccrpc_predicted_target)
+            ),
+            "confirmed_target_false_positive_rate_on_losses": _safe_ratio(
+                len(ccrpc_false_target), len(losses)
+            ),
             "median_max_stop_hazard_loss_bps": (
                 None if not loss_stop_hazards else str(median(loss_stop_hazards))
             ),
