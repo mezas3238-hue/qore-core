@@ -534,6 +534,8 @@ def _build_case_report(
         protection=protection,
         exits=exits,
         requested_volumes=requested_volumes,
+        settlements=settlements,
+        settlement_pnl=settlement_pnl,
     )
     return LiveBehaviorCaseReport(
         case_id=case_id,
@@ -579,6 +581,8 @@ def _observations(
     protection: tuple[str, ...],
     exits: tuple[str, ...],
     requested_volumes: tuple[str, ...],
+    settlements: tuple[LiveBehaviorEvent, ...],
+    settlement_pnl: tuple[Decimal, ...],
 ) -> tuple[str, ...]:
     notes: list[str] = []
     contract = TRADER_BEHAVIOR_CONTRACTS.get(trader or "")
@@ -594,7 +598,12 @@ def _observations(
     if trader == "VT31_NAS100" and saw_execution and not saw_cibo:
         notes.append("no_explicit_cibo_sizing_event_observed_for_vt31")
     if saw_position and not protection:
-        notes.append("no_protection_or_trailing_event_observed")
+        notes.append("no_physical_stop_or_trailing_event_observed")
+    if settlements:
+        realized = sum(settlement_pnl, Decimal("0"))
+        notes.append(f"realized_settlement_net_pnl={format(realized, 'f')}")
+        if any("PARTIAL" in item.event.upper() for item in settlements):
+            notes.append("realized_partial_settlement_observed")
     if exits and not protection:
         notes.append("position_exited_without_observed_protection_event")
     if stages[BehaviorStage.FAULT.value] > 0:
