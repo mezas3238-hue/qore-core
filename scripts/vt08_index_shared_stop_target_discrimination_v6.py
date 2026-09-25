@@ -23,6 +23,9 @@ from statistics import median
 
 import vt08_index_shared_full_stack_no_sizing_v3 as v3
 
+from qore.infrastructure.core_stack_v2.competing_risk_path_core import (
+    assess_competing_risk_path,
+)
 from qore.infrastructure.core_stack_v2.path_intelligence import (
     PositionPathObservation,
     assess_position_path,
@@ -129,6 +132,12 @@ def _shadow_trade(
         entry["geometry"],
         entry["futures"],
     )
+    entry_belief = assess_competing_risk_path(
+        entry["environment"],
+        entry["trajectory"],
+        entry["geometry"],
+        entry["futures"],
+    )
 
     all_bars = bars_by_symbol[symbol]
     closed = closed_by_symbol[symbol]
@@ -150,6 +159,13 @@ def _shadow_trade(
             "terminal_relations": entry_shadow.terminal_relation_count,
             "target_relations": entry_shadow.target_relation_count,
             "recovery_relations": entry_shadow.recovery_relation_count,
+            "stop_pressure_bps": entry_belief.stop_pressure_bps,
+            "target_capacity_bps": entry_belief.target_capacity_bps,
+            "recovery_strength_bps": entry_belief.recovery_strength_bps,
+            "uncertainty_bps": entry_belief.uncertainty_bps,
+            "stop_hazard_proxy_bps": entry_belief.stop_hazard_proxy_bps,
+            "target_hazard_proxy_bps": entry_belief.target_hazard_proxy_bps,
+            "risk_separation_margin_bps": entry_belief.separation_margin_bps,
         }
     ]
 
@@ -197,6 +213,13 @@ def _shadow_trade(
                 futures,
                 path=path,
             )
+            belief = assess_competing_risk_path(
+                environment,
+                trajectory,
+                geometry,
+                futures,
+                path=path,
+            )
             rows.append(
                 {
                     "stage": "PATH",
@@ -208,6 +231,13 @@ def _shadow_trade(
                     "terminal_relations": shadow.terminal_relation_count,
                     "target_relations": shadow.target_relation_count,
                     "recovery_relations": shadow.recovery_relation_count,
+                    "stop_pressure_bps": belief.stop_pressure_bps,
+                    "target_capacity_bps": belief.target_capacity_bps,
+                    "recovery_strength_bps": belief.recovery_strength_bps,
+                    "uncertainty_bps": belief.uncertainty_bps,
+                    "stop_hazard_proxy_bps": belief.stop_hazard_proxy_bps,
+                    "target_hazard_proxy_bps": belief.target_hazard_proxy_bps,
+                    "risk_separation_margin_bps": belief.separation_margin_bps,
                     "path_state": path.state.value,
                     "path_evidence_count": path.evidence_count,
                     "path_support_bps": path.path_support_bps,
@@ -294,6 +324,23 @@ def _shadow_trade(
         "hypothesis_counts": dict(
             sorted(Counter(str(row["hypothesis"]) for row in rows).items())
         ),
+        "competing_risk_summary": {
+            "max_stop_hazard_proxy_bps": max(
+                int(row["stop_hazard_proxy_bps"]) for row in rows
+            ),
+            "max_target_hazard_proxy_bps": max(
+                int(row["target_hazard_proxy_bps"]) for row in rows
+            ),
+            "max_recovery_strength_bps": max(
+                int(row["recovery_strength_bps"]) for row in rows
+            ),
+            "min_uncertainty_bps": min(
+                int(row["uncertainty_bps"]) for row in rows
+            ),
+            "max_separation_margin_bps": max(
+                int(row["risk_separation_margin_bps"]) for row in rows
+            ),
+        },
         "observations": rows,
     }
 
@@ -393,6 +440,31 @@ def _window(
         int(row["first_stop_forming"]["bars_before_canonical_exit"])
         for row in losses_forming
     ]
+    loss_stop_hazards = [
+        int(row["competing_risk_summary"]["max_stop_hazard_proxy_bps"])
+        for row in losses
+    ]
+    winner_stop_hazards = [
+        int(row["competing_risk_summary"]["max_stop_hazard_proxy_bps"])
+        for row in winners
+    ]
+    winner_target_hazards = [
+        int(row["competing_risk_summary"]["max_target_hazard_proxy_bps"])
+        for row in winners
+    ]
+    loss_target_hazards = [
+        int(row["competing_risk_summary"]["max_target_hazard_proxy_bps"])
+        for row in losses
+    ]
+    winner_recovery = [
+        int(row["competing_risk_summary"]["max_recovery_strength_bps"])
+        for row in winners
+    ]
+    loss_recovery = [
+        int(row["competing_risk_summary"]["max_recovery_strength_bps"])
+        for row in losses
+    ]
+
     stop_leads = [
         int(row["first_stop"]["bars_before_canonical_exit"])
         for row in losses_detected
@@ -464,6 +536,28 @@ def _window(
             ),
             "median_stop_lead_bars": None if not stop_leads else str(median(stop_leads)),
             "median_target_lead_bars": None if not target_leads else str(median(target_leads)),
+        },
+        "competing_risk_diagnostics": {
+            "calibrated_probability": False,
+            "management_authority": False,
+            "median_max_stop_hazard_loss_bps": (
+                None if not loss_stop_hazards else str(median(loss_stop_hazards))
+            ),
+            "median_max_stop_hazard_win_bps": (
+                None if not winner_stop_hazards else str(median(winner_stop_hazards))
+            ),
+            "median_max_target_hazard_win_bps": (
+                None if not winner_target_hazards else str(median(winner_target_hazards))
+            ),
+            "median_max_target_hazard_loss_bps": (
+                None if not loss_target_hazards else str(median(loss_target_hazards))
+            ),
+            "median_max_recovery_win_bps": (
+                None if not winner_recovery else str(median(winner_recovery))
+            ),
+            "median_max_recovery_loss_bps": (
+                None if not loss_recovery else str(median(loss_recovery))
+            ),
         },
         "entry_hypothesis_counts": dict(
             sorted(Counter(str(row["entry_hypothesis"]) for row in rows).items())
