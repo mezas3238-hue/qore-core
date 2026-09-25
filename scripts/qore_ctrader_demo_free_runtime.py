@@ -443,7 +443,21 @@ def _log(path: Path, event: dict[str, object]) -> None:
     value["logged_at"] = datetime.now(UTC).isoformat()
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(value, sort_keys=True, default=str) + "\n")
-    _behavior_ledger_for(path).record_raw(value, source="runtime")
+    try:
+        _behavior_ledger_for(path).record_raw(value, source="runtime")
+    except Exception as error:
+        # Observability must never acquire execution authority by failure.
+        mirror_error = {
+            "event": "BEHAVIOR_LAB_MIRROR_ERROR",
+            "source_event": str(value.get("event", "UNKNOWN")),
+            "reason": type(error).__name__,
+            "message": str(error),
+            "logged_at": datetime.now(UTC).isoformat(),
+        }
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(
+                json.dumps(mirror_error, sort_keys=True, default=str) + "\n"
+            )
 
 
 def _latency_ms(started_at: datetime, finished_at: datetime) -> int:
