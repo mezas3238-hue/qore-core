@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from qore.infrastructure.core_stack_v2.architecture_freeze import (
     superintelligence_freeze_contract,
