@@ -200,6 +200,7 @@ jobs:
               assert phase["signal_suppression_used"] is False
               assert phase["future_outcome_input_used"] is False
               assert phase["realized_outcome_used_for_scoring_only"] is True
+              assert phase["canonical_exit_bar_excluded_from_runtime_classification"] is True
 
           g=p["governance"]
           assert g["trailing_used"] is False
