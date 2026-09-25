@@ -5,8 +5,6 @@ projection anomalies. It never changes trader methodology, signal validity,
 target selection, sizing economics or risk intent.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
