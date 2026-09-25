@@ -274,8 +274,10 @@ def position_path_observation_payload(
     ):
         if not isinstance(value, Decimal) or not value.is_finite():
             raise ValueError(f"position path {name} must be finite Decimal")
-    if min(entry_price, bid, ask, stop_loss, take_profit, volume) <= 0:
-        raise ValueError("position path price/volume values must be positive")
+    if min(entry_price, bid, ask, volume) <= 0:
+        raise ValueError("position path market price/volume values must be positive")
+    if stop_loss < 0 or take_profit < 0:
+        raise ValueError("position path protection values cannot be negative")
 
     mark = bid if side == "long" else ask
     directional_delta = (
