@@ -29,13 +29,13 @@ from typing import Any
 from qore.infrastructure.trader_lab import (
     vt08_crt_pure_r2bz_usdjpy_cognitive_experience_wf as r2bz,
 )
-from qore.infrastructure.trader_lab.vt08_crt_pure_r2bc_usdjpy_confirmation_geometry_atlas import (
-    END,
-    START,
-)
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2_model1_reference_lab import (
     M15Bar,
     aggregate_complete_m15,
+)
+from qore.infrastructure.trader_lab.vt08_crt_pure_r2bc_usdjpy_confirmation_geometry_atlas import (
+    END,
+    START,
 )
 from qore.infrastructure.trader_lab.vt08_crt_pure_window_evidence import (
     load_m5_window,
