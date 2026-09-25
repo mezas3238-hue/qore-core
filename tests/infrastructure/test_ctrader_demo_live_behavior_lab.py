@@ -5,7 +5,9 @@ from qore.infrastructure.ctrader_demo_live_behavior_lab import (
     CTraderDemoLiveBehaviorLedger,
     build_case_reports,
     classify_stage,
+    management_observation_payload,
     normalize_runtime_event,
+    sizing_path_for,
 )
 
 
@@ -137,3 +139,36 @@ def test_stage_classifier_keeps_management_distinct_from_execution():
     assert classify_stage("VT31_NAS100_DOL1_QUARTER_BANKED") is BehaviorStage.MANAGEMENT
     assert classify_stage("CTRADER_DEMO_FREE_SUBMIT") is BehaviorStage.EXECUTION
     assert classify_stage("RISK_REJECT_MINIMUM_BROKER_VOLUME") is BehaviorStage.FAULT
+
+
+
+def test_management_observation_is_passive_and_preserves_vt31_state():
+    class Opened:
+        signal_fingerprint = "d" * 64
+        client_order_id = "qore-vt31-1"
+        current_stop = "30670"
+        initial_stop = "30620"
+        base_runner_be_active = True
+        runner_active = False
+        ps_confirmations = 1
+
+    class State:
+        open_trade = Opened()
+
+    payload = management_observation_payload(
+        trader="VT31_NAS100",
+        symbol="NAS100",
+        state=State(),
+        reason="vt31-base-runner-hold",
+        observed_at=NOW,
+    )
+
+    assert payload["event"] == "CTRADER_DEMO_MANAGEMENT_OBSERVATION"
+    assert payload["signal_fingerprint"] == "d" * 64
+    assert payload["base_runner_be_active"] is True
+    assert payload["runner_active"] is False
+    assert payload["ps_confirmations"] == 1
+    assert (
+        sizing_path_for("VT31_NAS100")
+        == "VT31_CERTIFIED_RISK_RESOLUTION_THEN_DEMO_NATIVE_VOLUME"
+    )
