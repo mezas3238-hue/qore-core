@@ -349,11 +349,6 @@ def _simulate(
         "density_retention": "1",
         "metrics": metrics,
         "control_metrics": control_metrics,
-        "mode_counts": {
-            arm: selection_counts[(symbol, arm)]
-            for arm in ARMS
-            for symbol in ()
-        },
         "aggregate_mode_counts": {
             arm: sum(
                 count
