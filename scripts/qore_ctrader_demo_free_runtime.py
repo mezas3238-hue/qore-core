@@ -2108,17 +2108,21 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     mutations_enabled=True,
                     cache=audjpy_r42_cache,
                 )
+                # VT31 reads a fresh broker tick inside reconcile/management.
+                # Do not compare that tick with cycle_at captured several seconds
+                # earlier after other trader management and API work.
+                vt31_management_at = datetime.now(UTC)
                 reconcile_vt31_pending(
                     mt5_api=demo_management_api,
                     transport=transport,
                     risk=risk,
                     store=vt31_store,
-                    now=cycle_at,
+                    now=vt31_management_at,
                     log=lambda event: _log(log_path, event),
                 )
                 vt31_live_state, vt31_manage_reason = manage_vt31_open_trade(
                     mt5_api=demo_management_api,
-                    now=cycle_at,
+                    now=datetime.now(UTC),
                     cache=vt31_cache,
                     store=vt31_store,
                     mutations_enabled=True,
@@ -2299,7 +2303,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         take_profit=Decimal(str(getattr(position, "tp", 0))),
                         volume=Decimal(str(getattr(position, "volume"))),
                         unrealized_pnl=Decimal(str(getattr(position, "profit", 0))),
-                        observed_at=cycle_at,
+                        observed_at=datetime.now(UTC),
                     ),
                 )
         except Exception as behavior_sample_error:
@@ -2309,7 +2313,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "event": "BEHAVIOR_LAB_POSITION_SAMPLE_ERROR",
                     "reason": type(behavior_sample_error).__name__,
                     "message": str(behavior_sample_error),
-                    "observed_at": cycle_at.isoformat(),
+                    "observed_at": datetime.now(UTC).isoformat(),
                 },
             )
 
