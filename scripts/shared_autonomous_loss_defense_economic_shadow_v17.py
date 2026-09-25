@@ -32,14 +32,14 @@ from pathlib import Path
 from typing import Any
 
 import vt08_index_shared_competing_risk_calibration_v9 as v9
-import vt08_index_shared_context_conditioned_economic_shadow_v16 as v16
 import vt08_index_shared_context_conditioned_competing_risk_v15 as v15
+import vt08_index_shared_context_conditioned_economic_shadow_v16 as v16
 import vt08_index_shared_terminal_failure_economic_shadow_v7 as v7
 
 from qore.infrastructure.core_stack_v2.autonomous_loss_defense import (
+    assess_autonomous_loss_defense,
     AutonomousDefenseAction,
     AutonomousLossDefenseEvidence,
-    assess_autonomous_loss_defense,
 )
 from qore.infrastructure.core_stack_v2.environment_intelligence import (
     MarketEnvironmentState,
