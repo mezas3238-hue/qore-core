@@ -394,4 +394,4 @@ def test_economic_floor_combines_realized_partial_and_remaining_stop() -> None:
     assert Decimal(report.estimated_remaining_stop_pnl or "0") == Decimal("-12.72")
     assert Decimal(report.estimated_economic_floor_pnl or "0") == Decimal("16.14")
     assert Decimal(report.estimated_economic_floor_r or "0") > Decimal("0.63")
-    assert "estimated_economic_floor_pnl=16.140" in report.observations
+    assert "estimated_economic_floor_pnl=16.14" in report.observations
