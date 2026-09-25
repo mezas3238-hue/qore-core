@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_economic_rebase_2r_v1 as rebase,
 )
@@ -79,7 +81,7 @@ def _row(
 
 def test_true_2r_collision_atlas_is_outcome_blind(
     tmp_path: Path,
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(rebase, "EXPECTED_TRADES", 5)
     rebase_root = tmp_path / "rebase"
