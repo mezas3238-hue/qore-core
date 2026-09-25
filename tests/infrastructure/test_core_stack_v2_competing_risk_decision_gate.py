@@ -18,11 +18,13 @@ def _belief(
     target: int,
     recovery: int,
     uncertainty: int,
+    formation: int | None = None,
     path: bool = True,
 ) -> CompetingRiskBeliefState:
     return CompetingRiskBeliefState(
         as_of=datetime(2026, 9, 25, 12, 0, tzinfo=UTC) + timedelta(minutes=minute),
         stop_pressure_bps=stop,
+        stop_formation_bps=stop if formation is None else formation,
         target_capacity_bps=target,
         recovery_strength_bps=recovery,
         uncertainty_bps=uncertainty,
@@ -56,6 +58,40 @@ def test_persistent_stop_separation_confirms_stop_likely() -> None:
     assert result.stop_persistence_bps == 10000
     assert "STOP_HAZARD_PERSISTENT" in result.reasons
 
+
+
+def test_early_formation_can_prearm_before_confirmed_stop_hazard() -> None:
+    result = assess_competing_risk_decision(
+        (
+            _belief(
+                1,
+                stop=4600,
+                target=2600,
+                recovery=1800,
+                uncertainty=7000,
+                formation=6200,
+            ),
+        )
+    )
+
+    assert result.decision is CompetingRiskDecision.STOP_FORMING
+    assert result.latest_stop_hazard_bps < 6500
+    assert result.latest_stop_formation_bps >= 5000
+    assert "CONFIRMED_STOP_HAZARD_NOT_YET_ESTABLISHED" in result.reasons
+
+
+def test_persistent_formation_alone_never_becomes_confirmed_stop() -> None:
+    result = assess_competing_risk_decision(
+        (
+            _belief(1, stop=4600, target=2500, recovery=1600, uncertainty=7000, formation=6200),
+            _belief(2, stop=4700, target=2400, recovery=1500, uncertainty=6900, formation=6400),
+            _belief(3, stop=4800, target=2300, recovery=1400, uncertainty=6800, formation=6600),
+        )
+    )
+
+    assert result.decision is CompetingRiskDecision.STOP_FORMING
+    assert result.stop_formation_persistence_bps == 10000
+    assert result.stop_persistence_bps == 0
 
 def test_recovery_veto_blocks_terminal_confirmation() -> None:
     result = assess_competing_risk_decision(
