@@ -46,11 +46,8 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2bj_audusd_root_cause_expecte
     MIN_CELL_SUPPORT,
     PRIOR_STRENGTH,
 )
-from qore.infrastructure.trader_lab.vt08_crt_pure_r2bt_audusd_passive_opportunity_expected_r_wf import (
-    OpportunityRecord,
-    _metrics,
-    _opportunity_slice,
-    run_walk_forward as run_bt,
+from qore.infrastructure.trader_lab import (
+    vt08_crt_pure_r2bt_audusd_passive_opportunity_expected_r_wf as r2bt,
 )
 
 IDENTITY = "VT08_CRT_PURE_R2BW_AUDUSD_PASSIVE_OVERLAP_EXPECTED_R_WF_001"
@@ -66,7 +63,7 @@ class CellModel:
     cell_expected_r: tuple[tuple[str, float], ...]
     threshold: float
 
-    def score(self, record: OpportunityRecord) -> float:
+    def score(self, record: r2bt.OpportunityRecord) -> float:
         return dict(self.cell_expected_r).get(
             _cell_key(record),
             self.baseline_mean_r,
@@ -83,7 +80,7 @@ def _coarse_delay(value: str) -> str:
     return "D3_PLUS"
 
 
-def _overlap_flag(record: OpportunityRecord) -> str:
+def _overlap_flag(record: r2bt.OpportunityRecord) -> str:
     return (
         "OVERLAP_TOXIC_050_075"
         if record.feature("confirmation_source_overlap")
@@ -92,7 +89,7 @@ def _overlap_flag(record: OpportunityRecord) -> str:
     )
 
 
-def _cell_key(record: OpportunityRecord) -> str:
+def _cell_key(record: r2bt.OpportunityRecord) -> str:
     return "|".join(
         (
             _coarse_ref(record.feature("source_reference_count")),
@@ -104,7 +101,7 @@ def _cell_key(record: OpportunityRecord) -> str:
 
 
 def _fit(
-    training: tuple[OpportunityRecord, ...],
+    training: tuple[r2bt.OpportunityRecord, ...],
 ) -> tuple[CellModel, dict[str, Any]]:
     if not training:
         return (
@@ -163,26 +160,26 @@ def _fit(
         "training_retained": len(retained),
         "training_rejected": len(rejected),
         "training_retention": round(len(retained) / len(training), 8),
-        "training_baseline_metrics": _metrics(training),
-        "training_retained_metrics": _metrics(retained),
-        "training_rejected_metrics": _metrics(rejected),
+        "training_baseline_metrics": r2bt._metrics(training),
+        "training_retained_metrics": r2bt._metrics(retained),
+        "training_rejected_metrics": r2bt._metrics(rejected),
     }
 
 
 def _run(
-    records: tuple[OpportunityRecord, ...],
+    records: tuple[r2bt.OpportunityRecord, ...],
 ) -> dict[str, Any]:
-    baseline_oos: list[OpportunityRecord] = []
-    retained_oos: list[OpportunityRecord] = []
+    baseline_oos: list[r2bt.OpportunityRecord] = []
+    retained_oos: list[r2bt.OpportunityRecord] = []
     folds: list[dict[str, Any]] = []
 
     for oos_year in range(START.year + TRAINING_YEARS, END.year):
-        training = _opportunity_slice(
+        training = r2bt._opportunity_slice(
             records,
             _year_start(oos_year - TRAINING_YEARS),
             _year_start(oos_year),
         )
-        oos = _opportunity_slice(
+        oos = r2bt._opportunity_slice(
             records,
             _year_start(oos_year),
             _year_start(oos_year + 1),
@@ -200,8 +197,8 @@ def _run(
                 ).isoformat(),
                 "oos_start": _year_start(oos_year).isoformat(),
                 "fit": fit,
-                "oos_baseline": _metrics(oos),
-                "oos_retained": _metrics(retained),
+                "oos_baseline": r2bt._metrics(oos),
+                "oos_retained": r2bt._metrics(retained),
                 "oos_retention": (
                     None if not oos else round(len(retained) / len(oos), 8)
                 ),
@@ -220,8 +217,8 @@ def _run(
             key=lambda row: row.base.trade.entry_opened_at,
         )
     )
-    baseline_metrics = _metrics(baseline)
-    retained_metrics = _metrics(retained)
+    baseline_metrics = r2bt._metrics(baseline)
+    retained_metrics = r2bt._metrics(retained)
     years = len(folds)
     fills_per_year = (
         0.0
@@ -273,10 +270,10 @@ def _run(
 
 
 def run_walk_forward() -> tuple[
-    tuple[OpportunityRecord, ...],
+    tuple[r2bt.OpportunityRecord, ...],
     dict[str, Any],
 ]:
-    records, bt_report = run_bt()
+    records, bt_report = r2bt.run_walk_forward()
     result = _run(records)
     report: dict[str, Any] = {
         "schema": SCHEMA,
