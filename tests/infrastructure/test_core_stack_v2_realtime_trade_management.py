@@ -256,6 +256,31 @@ def test_owner_law_absolutely_forbids_shared_sizing_everywhere() -> None:
     assert phase_b["shared_results_must_continue_to_be_reported_at_identical_sizing"] is True
 
 
+def test_universal_drawdown_phenotype_memory_retains_ambiguous_forms() -> None:
+    contract = superintelligence_freeze_contract()
+    memory = contract["shared_essential_intelligence"]["universal_drawdown_phenotype_memory"]
+    phase_1 = contract["drawdown_intelligence_sequence"]["phase_1_natural_dd_intelligence"]
+
+    assert memory["required"] is True
+    assert memory["knowledge_not_actuation_in_phase_1"] is True
+    assert memory["exact_sequence_memory_required"] is True
+    assert memory["morphology_memory_required"] is True
+    assert memory["temporal_stability_tracking_required"] is True
+    assert memory["winner_overlap_tracking_required"] is True
+    assert memory["pure_loss_forms_retained"] is True
+    assert memory["loss_dominant_forms_retained"] is True
+    assert memory["ambiguous_forms_retained"] is True
+    assert memory["winner_dominant_forms_retained_for_disambiguation"] is True
+    assert memory["ambiguous_forms_must_not_be_silently_discarded"] is True
+    assert memory["runtime_must_be_able_to_mark_unknown_or_unseen_form"] is True
+    assert memory["sizing_dependency_forbidden"] is True
+    assert memory["phase_1_actuation_authority"] is False
+
+    assert phase_1["universal_drawdown_form_capture_required"] is True
+    assert phase_1["pure_and_ambiguous_dd_forms_must_both_be_retained"] is True
+    assert phase_1["ambiguous_form_may_inform_perception_but_not_actuation"] is True
+
+
 def test_realtime_management_hot_path_is_submillisecond_p95() -> None:
     instinct = _instinct(
         situation=InstinctSituation.RAPID_DETERIORATION,
