@@ -48,6 +48,7 @@ jobs:
             intelligence.py \
             analog_memory.py \
             competing_future_intelligence.py \
+            competing_risk_decision_gate.py \
             competing_risk_path_core.py \
             drawdown_phenotype_memory.py \
             environment_intelligence.py \
