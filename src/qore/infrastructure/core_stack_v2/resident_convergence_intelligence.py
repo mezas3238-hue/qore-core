@@ -19,6 +19,7 @@ The purpose of this layer is to prevent two failure modes:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 
@@ -85,7 +86,7 @@ class ResidentConvergencePolicy:
 
 @dataclass(frozen=True, slots=True)
 class ResidentConvergenceAssessment:
-    as_of: object
+    as_of: datetime
     state: ResidentConvergenceState
     active_head_count: int
     terminal_vote_count: int
