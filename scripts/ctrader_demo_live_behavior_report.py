@@ -37,6 +37,27 @@ def _read_jsonl(path: Path, *, source: str) -> tuple[LiveBehaviorEvent, ...]:
     return tuple(rows)
 
 
+def _read_normalized_jsonl(path: Path) -> tuple[LiveBehaviorEvent, ...]:
+    if not path.exists():
+        return ()
+    rows: list[LiveBehaviorEvent] = []
+    with path.open("r", encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            stripped = line.strip()
+            if not stripped:
+                continue
+            try:
+                raw = json.loads(stripped)
+            except json.JSONDecodeError as error:
+                raise RuntimeError(
+                    f"{path}:{line_number}: invalid normalized JSONL row"
+                ) from error
+            if not isinstance(raw, dict):
+                raise RuntimeError(f"{path}:{line_number}: row must be object")
+            rows.append(LiveBehaviorEvent.from_json(raw))
+    return tuple(rows)
+
+
 def _deduplicate(events: Iterable[LiveBehaviorEvent]) -> tuple[LiveBehaviorEvent, ...]:
     seen: set[str] = set()
     rows: list[LiveBehaviorEvent] = []
@@ -93,6 +114,19 @@ def _markdown(reports) -> str:
                 ),
                 f"- Exit events: {', '.join(report.exit_events) or 'NOT_OBSERVED'}",
                 f"- Fault events: {', '.join(report.fault_events) or 'NONE'}",
+                (
+                    "- Settlement events: "
+                    f"{', '.join(report.settlement_events) or 'NOT_OBSERVED'}"
+                ),
+                f"- Realized net PnL: {report.realized_net_pnl or 'NOT_OBSERVED'}",
+                (
+                    "- Settlement prices: "
+                    f"{', '.join(report.settlement_prices) or 'NOT_OBSERVED'}"
+                ),
+                (
+                    "- Settled source volumes: "
+                    f"{', '.join(report.settled_source_volumes) or 'NOT_OBSERVED'}"
+                ),
                 f"- Position path samples: {report.path_sample_count}",
                 f"- Max unrealized PnL: {report.max_unrealized_pnl or 'NOT_OBSERVED'}",
                 f"- Min unrealized PnL: {report.min_unrealized_pnl or 'NOT_OBSERVED'}",
@@ -136,6 +170,12 @@ def main() -> int:
         help="Override cTrader DEMO execution JSONL path.",
     )
     parser.add_argument(
+        "--settlement-events",
+        type=Path,
+        default=None,
+        help="Override normalized settlement JSONL path.",
+    )
+    parser.add_argument(
         "--output-dir",
         type=Path,
         default=None,
@@ -150,6 +190,12 @@ def main() -> int:
     sink_path = args.sink_events or (
         root / "var" / "ctrader_demo_free" / "events.jsonl"
     )
+    settlement_path = args.settlement_events or (
+        root
+        / "artifacts"
+        / "ctrader_demo_live_behavior_lab"
+        / "settlement-events.normalized.jsonl"
+    )
     output = args.output_dir or (
         root / "artifacts" / "ctrader_demo_live_behavior_lab"
     )
@@ -159,6 +205,7 @@ def main() -> int:
         (
             *_read_jsonl(runtime_path, source="runtime"),
             *_read_jsonl(sink_path, source="sink"),
+            *_read_normalized_jsonl(settlement_path),
         )
     )
     reports = build_case_reports(events)
@@ -192,6 +239,7 @@ def main() -> int:
             {
                 "runtime_events": str(runtime_path),
                 "sink_events": str(sink_path),
+                "settlement_events": str(settlement_path),
                 "event_count": len(events),
                 "case_count": len(reports),
                 "output_dir": str(output),
