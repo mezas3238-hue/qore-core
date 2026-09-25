@@ -225,6 +225,9 @@ jobs:
               assert "terminal_confirmed_precision_for_diagnostics_only" in risk
               assert "terminal_confirmed_winner_mark_rate" in risk
               assert "median_terminal_confirmed_lead_bars" in risk
+              assert "terminal_saved_loss_benefit_r" in risk
+              assert "terminal_winner_harm_r" in risk
+              assert "terminal_net_shadow_utility_r" in risk
 
           g=p["governance"]
           assert g["trailing_used"] is False
