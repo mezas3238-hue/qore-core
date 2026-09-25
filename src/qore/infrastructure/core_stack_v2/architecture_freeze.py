@@ -503,6 +503,57 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                     },
                     "economic_shadow_required_before_any_next_stage": True,
                 },
+                "v16_context_conditioned_economic_shadow": {
+                    "run": 36142389500,
+                    "source_head": "8e5c655d706f7335942f9ef1c500ffefe690b168",
+                    "technical_status": "GREEN",
+                    "research_status": "PASS_CONSUMED_ECONOMIC_SHADOW",
+                    "frozen_policy": (
+                        "path_state=CONTESTED&environment_state=FRAGILE|P>=0.900"
+                    ),
+                    "five_year": {
+                        "profit_factor_baseline": "1.054938767167265909292113468",
+                        "profit_factor_v7": "1.068213535906512411638513740",
+                        "profit_factor_v16": "1.070315233045422671860214354",
+                        "total_r_baseline": "97.2852788843938552474073051",
+                        "total_r_v16": "122.4175369478676890534361026",
+                        "dd_baseline_r": "78.0553763440860215053763441",
+                        "dd_v16_r": "69.8779158527927651790336077",
+                        "incremental_total_r_vs_v7": "3.2689093206987270174497558",
+                        "incremental_dd_improvement_vs_v7_r": (
+                            "1.2604837532196119499579546"
+                        ),
+                    },
+                    "recent_two_year": {
+                        "profit_factor_baseline": "0.8309069330400005647176860112",
+                        "profit_factor_v7": "0.8434901864794885386065425394",
+                        "profit_factor_v16": "0.8464813998911797952119753136",
+                        "total_r_baseline": "-134.1194559206100328041863099",
+                        "total_r_v16": "-119.5422015046477768235966857",
+                        "dd_baseline_r": "165.6482414152415061031938269",
+                        "dd_v16_r": "151.6314450668245451480452397",
+                        "incremental_total_r_vs_v7": "2.7613891446769264232838268",
+                        "incremental_dd_improvement_vs_v7_r": (
+                            "2.7613891446769264232838268"
+                        ),
+                    },
+                    "r66": {
+                        "profit_factor_baseline": "1.123516419390067616104232183",
+                        "profit_factor_v7": "1.143244582971129366911798944",
+                        "profit_factor_v16": "1.151123963651911168688097279",
+                        "total_r_baseline": "67.97521836577722696574846911",
+                        "total_r_v16": "80.79863826055231718669228381",
+                        "dd_baseline_r": "42.98427860773343563396329440",
+                        "dd_v16_r": "42.87789562901003137864414546",
+                        "incremental_total_r_vs_v7": "3.68488243886073948735689129",
+                        "incremental_dd_improvement_vs_v7_r": "0",
+                    },
+                    "same_trade_count": True,
+                    "same_initial_position_size": True,
+                    "sizing_used": False,
+                    "fresh_holdout_opened": False,
+                    "phase_2_actuation_unlocked": False,
+                },
                 "do_not_repeat_as_primary_frontier": (
                     "LOWER_GLOBAL_TERMINAL_THRESHOLDS",
                     "SIMPLE_POSTERIOR_PERSISTENCE",
