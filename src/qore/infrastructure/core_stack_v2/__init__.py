@@ -21,6 +21,12 @@ from qore.infrastructure.core_stack_v2.architecture_freeze import (
     superintelligence_freeze_fingerprint,
 )
 from qore.infrastructure.core_stack_v2.audit import CoreAuditRecord, make_audit_record
+from qore.infrastructure.core_stack_v2.compatibility import (
+    CompatibilityEntry,
+    CompatibilityStatus,
+    compatibility_manifest,
+    compatibility_manifest_fingerprint,
+)
 from qore.infrastructure.core_stack_v2.competing_future_intelligence import (
     CausalHorizonSnapshot,
     CompetingFutureAssessment,
@@ -28,12 +34,6 @@ from qore.infrastructure.core_stack_v2.competing_future_intelligence import (
     HorizonFutureState,
     HorizonFutureVote,
     assess_competing_futures,
-)
-from qore.infrastructure.core_stack_v2.compatibility import (
-    CompatibilityEntry,
-    CompatibilityStatus,
-    compatibility_manifest,
-    compatibility_manifest_fingerprint,
 )
 from qore.infrastructure.core_stack_v2.contracts import (
     CORE_STACK_VERSION,
