@@ -27,6 +27,7 @@ from collections import Counter, defaultdict
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
+from enum import Enum
 from pathlib import Path
 
 import vt08_index_shared_cognitive_challenge_v2 as v2
@@ -119,8 +120,8 @@ def _jsonable(value: object) -> object:
         return value.astimezone(UTC).isoformat()
     if isinstance(value, Decimal):
         return str(value)
-    if hasattr(value, "value"):
-        return getattr(value, "value")
+    if isinstance(value, Enum):
+        return value.value
     if isinstance(value, tuple):
         return [_jsonable(item) for item in value]
     if isinstance(value, list):
