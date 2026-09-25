@@ -8,7 +8,6 @@ from qore.infrastructure.core_stack_v2.adversity_challenge_intelligence import (
     assess_adversity_challenge,
 )
 
-
 BASE = datetime(2026, 9, 25, 15, 0, tzinfo=UTC)
 
 
