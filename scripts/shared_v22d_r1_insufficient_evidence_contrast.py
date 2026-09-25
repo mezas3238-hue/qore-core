@@ -23,7 +23,6 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
-import numpy as np
 import shared_relational_adversity_challenge_survival_v21 as v21
 
 from qore.infrastructure.core_stack_v2.adversity_challenge_intelligence import (
