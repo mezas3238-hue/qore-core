@@ -35,6 +35,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.trader_lab import (
+    vt08_crt_pure_r2bt_audusd_passive_opportunity_expected_r_wf as r2bt,
+)
 from qore.infrastructure.trader_lab.vt08_crt_pure_r2bh_audusd_entry_viability_wf import (
     END,
     START,
@@ -45,9 +48,6 @@ from qore.infrastructure.trader_lab.vt08_crt_pure_r2bj_audusd_root_cause_expecte
     ABSTENTION_FRACTION,
     MIN_CELL_SUPPORT,
     PRIOR_STRENGTH,
-)
-from qore.infrastructure.trader_lab import (
-    vt08_crt_pure_r2bt_audusd_passive_opportunity_expected_r_wf as r2bt,
 )
 
 IDENTITY = "VT08_CRT_PURE_R2BW_AUDUSD_PASSIVE_OVERLAP_EXPECTED_R_WF_001"
