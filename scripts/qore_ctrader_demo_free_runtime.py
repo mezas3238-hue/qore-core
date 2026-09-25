@@ -155,6 +155,7 @@ from qore.infrastructure.ctrader_demo_vt08_sizing import (
 from qore.infrastructure.ctrader_demo_live_behavior_lab import (
     CTraderDemoLiveBehaviorLedger,
     management_observation_payload,
+    position_path_observation_payload,
 )
 
 # Load only the cTrader DEMO VT31 adapter.  The frozen VT31 strategy remains
@@ -2266,6 +2267,51 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             gbpjpy_r38_live_state = gbpjpy_r38_store.load()
             audjpy_r42_live_state = audjpy_r42_store.load()
             vt31_live_state = vt31_store.load()
+
+        try:
+            for position in demo_management_api.positions_get():
+                position_id = int(getattr(position, "ticket"))
+                registry_entry = demo_sink.registry.by_position(position_id)
+                if registry_entry is None:
+                    continue
+                symbol = str(getattr(position, "symbol"))
+                tick = demo_management_api.symbol_info_tick(symbol)
+                if tick is None:
+                    continue
+                side = (
+                    "long"
+                    if int(getattr(position, "type"))
+                    == int(demo_management_api.POSITION_TYPE_BUY)
+                    else "short"
+                )
+                _log(
+                    log_path,
+                    position_path_observation_payload(
+                        trader=registry_entry.trader,
+                        symbol=symbol,
+                        signal_fingerprint=registry_entry.signal_fingerprint,
+                        position_id=position_id,
+                        side=side,
+                        entry_price=Decimal(str(getattr(position, "price_open"))),
+                        bid=Decimal(str(getattr(tick, "bid"))),
+                        ask=Decimal(str(getattr(tick, "ask"))),
+                        stop_loss=Decimal(str(getattr(position, "sl", 0))),
+                        take_profit=Decimal(str(getattr(position, "tp", 0))),
+                        volume=Decimal(str(getattr(position, "volume"))),
+                        unrealized_pnl=Decimal(str(getattr(position, "profit", 0))),
+                        observed_at=cycle_at,
+                    ),
+                )
+        except Exception as behavior_sample_error:
+            _log(
+                log_path,
+                {
+                    "event": "BEHAVIOR_LAB_POSITION_SAMPLE_ERROR",
+                    "reason": type(behavior_sample_error).__name__,
+                    "message": str(behavior_sample_error),
+                    "observed_at": cycle_at.isoformat(),
+                },
+            )
 
         # DEMO_FREE: no FundedNext trailing MLL, prop capital budget, or mission gate.
         highest = max(highest, account_state.balance)
