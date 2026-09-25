@@ -503,3 +503,83 @@ def case_reports_as_json(
     reports: Iterable[LiveBehaviorCaseReport],
 ) -> list[dict[str, object]]:
     return [report.as_json() for report in reports]
+
+
+
+_MANAGEMENT_STATE_FIELDS = (
+    "client_order_id",
+    "signal_fingerprint",
+    "entry_at",
+    "filled_at",
+    "side",
+    "entry_price",
+    "initial_stop",
+    "current_stop",
+    "take_profit",
+    "posture",
+    "target_rank",
+    "target_route",
+    "base_risk_usd",
+    "risk_scale",
+    "initial_volume",
+    "remaining_volume",
+    "dol1",
+    "three_r",
+    "base_partial_done",
+    "base_partial_first",
+    "base_three_r_be_armed",
+    "base_runner_be_active",
+    "dol1_bank_done",
+    "dol1_acceptance_pending",
+    "dol1_touch_closed_at",
+    "runner_active",
+    "runner_target",
+    "ps_confirmations",
+    "breaker_lock_armed",
+    "equilibrium_bank_done",
+    "equilibrium_overlay_active",
+    "target_plan",
+)
+
+
+def sizing_path_for(trader: str) -> str:
+    contract = TRADER_BEHAVIOR_CONTRACTS.get(trader)
+    return "UNDECLARED" if contract is None else contract.sizing_path
+
+
+def management_observation_payload(
+    *,
+    trader: str,
+    symbol: str,
+    state: object,
+    reason: str,
+    observed_at: datetime | None = None,
+) -> dict[str, object]:
+    """Return passive management telemetry without invoking broker mutations."""
+
+    now = observed_at or datetime.now(UTC)
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("management observation time must be timezone-aware")
+    payload: dict[str, object] = {
+        "event": "CTRADER_DEMO_MANAGEMENT_OBSERVATION",
+        "trader": trader,
+        "symbol": symbol,
+        "reason": reason,
+        "observed_at": now.astimezone(UTC).isoformat(),
+    }
+    contract = TRADER_BEHAVIOR_CONTRACTS.get(trader)
+    if contract is not None:
+        payload["management_contract"] = contract.management_contract
+        payload["sizing_path"] = contract.sizing_path
+    opened = getattr(state, "open_trade", None)
+    payload["open_trade_present"] = opened is not None
+    if opened is None:
+        return payload
+    for field in _MANAGEMENT_STATE_FIELDS:
+        if not hasattr(opened, field):
+            continue
+        value = getattr(opened, field)
+        if value is None:
+            continue
+        payload[field] = value
+    return payload
