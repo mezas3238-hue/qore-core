@@ -54,6 +54,7 @@ jobs:
             path_intelligence.py \
             perception_engine.py \
             realtime_trade_management.py \
+            resident_convergence_intelligence.py \
             stability_intelligence.py \
             transition_intelligence.py
           do
