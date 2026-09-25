@@ -319,7 +319,26 @@ class CTraderDemoFreeSink:
         row.setdefault("recorded_at", datetime.now(UTC).isoformat())
         with self._events.open("a", encoding="utf-8") as stream:
             stream.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
-        self._behavior.record_raw(row, source="sink")
+        try:
+            self._behavior.record_raw(row, source="sink")
+        except Exception as error:
+            # The behavior lab is observational and must never block execution.
+            mirror_error = {
+                "event": "BEHAVIOR_LAB_MIRROR_ERROR",
+                "source_event": str(row.get("event", "UNKNOWN")),
+                "reason": type(error).__name__,
+                "message": str(error),
+                "recorded_at": datetime.now(UTC).isoformat(),
+            }
+            with self._events.open("a", encoding="utf-8") as stream:
+                stream.write(
+                    json.dumps(
+                        mirror_error,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    )
+                    + "\n"
+                )
 
     def close(self) -> None:
         self._runtime.close()
