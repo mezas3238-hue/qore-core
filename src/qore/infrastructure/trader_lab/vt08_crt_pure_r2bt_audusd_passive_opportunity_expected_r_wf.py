@@ -400,20 +400,25 @@ def run_walk_forward() -> tuple[
 
     base_keys = {_base_key(record) for record in base_records}
     orphan_passive = set(passive_by_key) - base_keys
-    if orphan_passive:
-        raise RuntimeError(
-            f"passive trades missing from base opportunity population: "
-            f"{len(orphan_passive)}"
-        )
+    # A tiny number of passive-valid rows can lack a homologous BH next-open
+    # record because the original next-open geometry and passive geometry are
+    # not identical. Do not fabricate features or leak the passive outcome back
+    # into feature construction. Keep the causal common population and report
+    # the mismatch explicitly.
+    joined_passive_by_key = {
+        key: trade
+        for key, trade in passive_by_key.items()
+        if key in base_keys
+    }
 
     opportunities = tuple(
         OpportunityRecord(
             base=record,
-            passive_trade=passive_by_key.get(_base_key(record)),
+            passive_trade=joined_passive_by_key.get(_base_key(record)),
             opportunity_r=(
                 0.0
-                if _base_key(record) not in passive_by_key
-                else passive_by_key[_base_key(record)].r_multiple
+                if _base_key(record) not in joined_passive_by_key
+                else joined_passive_by_key[_base_key(record)].r_multiple
             ),
         )
         for record in base_records
@@ -451,7 +456,15 @@ def run_walk_forward() -> tuple[
         ],
         "base_diagnostics": base_diagnostics,
         "opportunity_count": len(opportunities),
-        "passive_fill_count": len(passive),
+        "passive_fill_count_full_bm": len(passive),
+        "passive_fill_count_joined": len(joined_passive_by_key),
+        "passive_fill_orphan_count": len(orphan_passive),
+        "passive_fill_orphan_fraction": (
+            0.0
+            if not passive
+            else round(len(orphan_passive) / len(passive), 8)
+        ),
+        "orphan_policy": "EXCLUDE_NO_FEATURE_FABRICATION",
         "heads": heads,
         "new_feature_dimensions_added": False,
         "automatic_winner_ranking": False,
