@@ -163,6 +163,25 @@ def _profile(
     return _risk_bundle(selected)
 
 
+def _context_predicate(
+    context: ContextSpec,
+) -> Callable[[dict[str, Any]], bool]:
+    def predicate(row: dict[str, Any]) -> bool:
+        return _matches(row, context)
+
+    return predicate
+
+
+def _pair_predicate(
+    left: ContextSpec,
+    right: ContextSpec,
+) -> Callable[[dict[str, Any]], bool]:
+    def predicate(row: dict[str, Any]) -> bool:
+        return _matches(row, left) and _matches(row, right)
+
+    return predicate
+
+
 def _context_profiles(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for context in CONTEXTS:
@@ -170,7 +189,7 @@ def _context_profiles(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
             "dimension": context.dimension,
             "label": context.label,
             "family": context.family,
-            **_profile(rows, lambda row, c=context: _matches(row, c)),
+            **_profile(rows, _context_predicate(context)),
         }
     return result
 
@@ -182,10 +201,7 @@ def _pairwise(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
             key = f"{left.context_id}&{right.context_id}"
             result[key] = _profile(
                 rows,
-                lambda row, left_ctx=left, right_ctx=right: (
-                    _matches(row, left_ctx)
-                    and _matches(row, right_ctx)
-                ),
+                _pair_predicate(left, right),
             )
     return result
 
