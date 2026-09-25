@@ -155,6 +155,10 @@ class LiveBehaviorCaseReport:
     realized_net_pnl: str | None
     settlement_prices: tuple[str, ...]
     settled_source_volumes: tuple[str, ...]
+    estimated_initial_risk_pnl: str | None
+    estimated_remaining_stop_pnl: str | None
+    estimated_economic_floor_pnl: str | None
+    estimated_economic_floor_r: str | None
     path_sample_count: int
     max_unrealized_pnl: str | None
     min_unrealized_pnl: str | None
@@ -184,6 +188,10 @@ class LiveBehaviorCaseReport:
             "realized_net_pnl": self.realized_net_pnl,
             "settlement_prices": list(self.settlement_prices),
             "settled_source_volumes": list(self.settled_source_volumes),
+            "estimated_initial_risk_pnl": self.estimated_initial_risk_pnl,
+            "estimated_remaining_stop_pnl": self.estimated_remaining_stop_pnl,
+            "estimated_economic_floor_pnl": self.estimated_economic_floor_pnl,
+            "estimated_economic_floor_r": self.estimated_economic_floor_r,
             "path_sample_count": self.path_sample_count,
             "max_unrealized_pnl": self.max_unrealized_pnl,
             "min_unrealized_pnl": self.min_unrealized_pnl,
@@ -527,6 +535,17 @@ def _build_case_report(
     directional = _decimal_payload_series(path_samples, "directional_price_delta")
     stop_history = _unique_payload_values(path_samples, "stop_loss")
     volume_history = _unique_payload_values(path_samples, "volume")
+    (
+        estimated_initial_risk,
+        estimated_remaining_stop,
+        estimated_floor,
+        estimated_floor_r,
+    ) = _economic_floor_estimate(
+        events=events,
+        path_samples=path_samples,
+        settlements=settlements,
+        realized_pnl=sum(settlement_pnl, Decimal("0")),
+    )
     observations = _observations(
         trader=trader,
         names=names,
@@ -536,6 +555,8 @@ def _build_case_report(
         requested_volumes=requested_volumes,
         settlements=settlements,
         settlement_pnl=settlement_pnl,
+        estimated_floor=estimated_floor,
+        estimated_floor_r=estimated_floor_r,
     )
     return LiveBehaviorCaseReport(
         case_id=case_id,
@@ -558,6 +579,12 @@ def _build_case_report(
         ),
         settlement_prices=settlement_prices,
         settled_source_volumes=settled_source_volumes,
+        estimated_initial_risk_pnl=_format_optional_decimal(estimated_initial_risk),
+        estimated_remaining_stop_pnl=_format_optional_decimal(
+            estimated_remaining_stop
+        ),
+        estimated_economic_floor_pnl=_format_optional_decimal(estimated_floor),
+        estimated_economic_floor_r=_format_optional_decimal(estimated_floor_r),
         path_sample_count=len(path_samples),
         max_unrealized_pnl=_format_optional_decimal(max(unrealized) if unrealized else None),
         min_unrealized_pnl=_format_optional_decimal(min(unrealized) if unrealized else None),
@@ -583,6 +610,8 @@ def _observations(
     requested_volumes: tuple[str, ...],
     settlements: tuple[LiveBehaviorEvent, ...],
     settlement_pnl: tuple[Decimal, ...],
+    estimated_floor: Decimal | None,
+    estimated_floor_r: Decimal | None,
 ) -> tuple[str, ...]:
     notes: list[str] = []
     contract = TRADER_BEHAVIOR_CONTRACTS.get(trader or "")
@@ -604,6 +633,10 @@ def _observations(
         notes.append(f"realized_settlement_net_pnl={format(realized, 'f')}")
         if any("PARTIAL" in item.event.upper() for item in settlements):
             notes.append("realized_partial_settlement_observed")
+    if estimated_floor is not None:
+        notes.append(f"estimated_economic_floor_pnl={format(estimated_floor, 'f')}")
+    if estimated_floor_r is not None:
+        notes.append(f"estimated_economic_floor_r={format(estimated_floor_r, 'f')}")
     if exits and not protection:
         notes.append("position_exited_without_observed_protection_event")
     if stages[BehaviorStage.FAULT.value] > 0:
@@ -611,6 +644,88 @@ def _observations(
     if any("STOP" in name.upper() for name in exits):
         notes.append("stop_exit_observed")
     return tuple(notes)
+
+
+def _economic_floor_estimate(
+    *,
+    events: tuple[LiveBehaviorEvent, ...],
+    path_samples: tuple[LiveBehaviorEvent, ...],
+    settlements: tuple[LiveBehaviorEvent, ...],
+    realized_pnl: Decimal,
+) -> tuple[Decimal | None, Decimal | None, Decimal | None, Decimal | None]:
+    if not path_samples:
+        return None, None, None, None
+
+    first = path_samples[0].payload
+    latest = path_samples[-1].payload
+    try:
+        entry = Decimal(str(first["entry_price"]))
+        initial_stop = Decimal(str(first["stop_loss"]))
+        current_stop = Decimal(str(latest["stop_loss"]))
+        current_volume = Decimal(str(latest["volume"]))
+        current_unrealized = Decimal(str(latest["unrealized_pnl"]))
+        current_delta = Decimal(str(latest["directional_price_delta"]))
+    except (KeyError, InvalidOperation):
+        return None, None, None, None
+    side = str(first.get("side", ""))
+    if side not in {"long", "short"}:
+        return None, None, None, None
+    if min(entry, initial_stop, current_stop, current_volume) <= 0:
+        return None, None, None, None
+    if current_delta == 0 or current_volume <= 0:
+        return None, None, None, None
+
+    requested_volume: Decimal | None = None
+    for event in events:
+        if event.event != "CTRADER_DEMO_FREE_SUBMIT":
+            continue
+        raw = event.payload.get("requested_volume")
+        if raw is None:
+            continue
+        try:
+            candidate = Decimal(str(raw))
+        except InvalidOperation:
+            continue
+        if candidate.is_finite() and candidate > 0:
+            requested_volume = candidate
+            break
+    if requested_volume is None:
+        try:
+            requested_volume = Decimal(str(first["volume"]))
+        except (KeyError, InvalidOperation):
+            return None, None, None, None
+
+    money_per_price_per_volume = abs(
+        current_unrealized / (current_delta * current_volume)
+    )
+    if not money_per_price_per_volume.is_finite() or money_per_price_per_volume <= 0:
+        return None, None, None, None
+
+    if side == "long":
+        initial_stop_delta = initial_stop - entry
+        current_stop_delta = current_stop - entry
+    else:
+        initial_stop_delta = entry - initial_stop
+        current_stop_delta = entry - current_stop
+
+    initial_risk = abs(
+        initial_stop_delta * requested_volume * money_per_price_per_volume
+    )
+    if initial_risk <= 0:
+        return None, None, None, None
+
+    has_exit = any("EXIT_SETTLEMENT" in item.event.upper() for item in settlements)
+    if has_exit:
+        remaining_stop_pnl = Decimal("0")
+        floor = realized_pnl
+    else:
+        remaining_stop_pnl = (
+            current_stop_delta
+            * current_volume
+            * money_per_price_per_volume
+        )
+        floor = realized_pnl + remaining_stop_pnl
+    return initial_risk, remaining_stop_pnl, floor, floor / initial_risk
 
 
 def _decimal_payload_series(
