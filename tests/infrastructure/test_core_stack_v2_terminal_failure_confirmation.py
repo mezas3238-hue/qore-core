@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
 from qore.infrastructure.core_stack_v2.architecture_freeze import (
@@ -19,6 +20,7 @@ from qore.infrastructure.core_stack_v2.recovery_failure_intelligence import (
 from qore.infrastructure.core_stack_v2.terminal_failure_confirmation import (
     TerminalFailureState,
     assess_terminal_failure,
+    resolve_terminal_failure_sequence,
 )
 
 NOW = datetime(2026, 9, 25, 12, 0, tzinfo=UTC)
@@ -124,6 +126,34 @@ def test_extreme_adversity_on_contested_path_stays_ambiguous() -> None:
 
     assert result.state is TerminalFailureState.EXTREME_ADVERSE_AMBIGUITY
     assert "TERMINAL_CONFIRMATION_DEFERRED" in result.reasons
+
+
+
+
+def test_single_extreme_ambiguity_is_not_terminal() -> None:
+    first = assess_terminal_failure(
+        _belief(stop_formation=7400, uncertainty=6800),
+        _path(PositionPathState.CONTESTED, terminal=6600, adverse=5500),
+        _recovery(RecoveryChallengeState.RECOVERY_FAILED),
+    )
+
+    result = resolve_terminal_failure_sequence((first,))
+
+    assert result.state is TerminalFailureState.EXTREME_ADVERSE_AMBIGUITY
+
+
+def test_persistent_extreme_ambiguity_can_confirm_causally() -> None:
+    first = assess_terminal_failure(
+        _belief(stop_formation=7400, uncertainty=6800),
+        _path(PositionPathState.CONTESTED, terminal=6600, adverse=5500),
+        _recovery(RecoveryChallengeState.RECOVERY_FAILED),
+    )
+    second = replace(first, as_of=NOW + timedelta(minutes=15))
+
+    result = resolve_terminal_failure_sequence((first, second))
+
+    assert result.state is TerminalFailureState.TERMINAL_CONFIRMED
+    assert "TERMINAL_CONFIRMATION_PROMOTED_BY_CAUSAL_PERSISTENCE" in result.reasons
 
 
 def test_extreme_adversity_with_adverse_dominance_can_confirm() -> None:
