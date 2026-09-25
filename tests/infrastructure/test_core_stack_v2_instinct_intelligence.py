@@ -11,6 +11,8 @@ from qore.infrastructure.core_stack_v2 import (
     MarketTrajectoryState,
     PositionPathAssessment,
     PositionPathState,
+    ResidentConvergenceAssessment,
+    ResidentConvergenceState,
     SupportMethodology,
     assess_instinct,
     superintelligence_freeze_contract,
@@ -289,3 +291,100 @@ def test_instinct_microbenchmark_is_submillisecond_p95_on_ci() -> None:
     timings.sort()
     p95_ns = timings[int(len(timings) * 0.95)]
     assert p95_ns < 1_000_000
+
+
+def test_instinct_uses_resident_terminal_convergence_before_path_matures() -> None:
+    path = PositionPathAssessment(
+        as_of=NOW,
+        state=PositionPathState.INSUFFICIENT,
+        evidence_count=1,
+        path_support_bps=3000,
+        adverse_dominance_bps=6500,
+        adverse_persistence_bps=0,
+        recovery_persistence_bps=0,
+        winner_protection_bps=1500,
+        terminal_failure_risk_bps=7000,
+        reasons=("PATH_EVIDENCE_INSUFFICIENT",),
+    )
+    convergence = ResidentConvergenceAssessment(
+        as_of=NOW,
+        state=ResidentConvergenceState.TERMINAL_FAILURE,
+        active_head_count=6,
+        terminal_vote_count=5,
+        recovery_vote_count=1,
+        support_vote_count=0,
+        terminal_risk_bps=7800,
+        recovery_strength_bps=2600,
+        support_strength_bps=2400,
+        head_agreement_bps=8333,
+        reasons=("TEST",),
+    )
+
+    result = assess_instinct(
+        _environment(
+            state=MarketEnvironmentState.DEGRADING,
+            support=3500,
+            adverse=6500,
+            velocity=6200,
+            persistence=6500,
+        ),
+        _trajectory(
+            state=MarketTrajectoryState.DETERIORATING,
+            support=3300,
+            adverse=6700,
+            pressure=6600,
+            velocity=6400,
+            persistence=6600,
+        ),
+        path=path,
+        convergence=convergence,
+        opportunity_quality_bps=3000,
+        expansion_capacity_bps=2500,
+    )
+
+    assert result.situation is InstinctSituation.TERMINAL_FAILURE_RISK
+    assert result.support_methodology is SupportMethodology.IMMEDIATE_DEFENSE
+    assert "FAST_DEFENSE_WITHOUT_WAITING_FOR_SLOW_PATH" in result.reasons
+
+
+def test_instinct_recovery_convergence_blocks_false_defense() -> None:
+    convergence = ResidentConvergenceAssessment(
+        as_of=NOW,
+        state=ResidentConvergenceState.RECOVERABLE_ADVERSITY,
+        active_head_count=6,
+        terminal_vote_count=1,
+        recovery_vote_count=4,
+        support_vote_count=3,
+        terminal_risk_bps=4200,
+        recovery_strength_bps=7200,
+        support_strength_bps=6800,
+        head_agreement_bps=6666,
+        reasons=("TEST",),
+    )
+
+    result = assess_instinct(
+        _environment(
+            state=MarketEnvironmentState.FRAGILE,
+            support=5200,
+            adverse=5600,
+            velocity=5200,
+            persistence=5600,
+            recovery=6500,
+        ),
+        _trajectory(
+            state=MarketTrajectoryState.WEAKENING,
+            support=5000,
+            adverse=5600,
+            pressure=5600,
+            velocity=5200,
+            persistence=5600,
+            recovery=6500,
+        ),
+        convergence=convergence,
+        opportunity_quality_bps=6000,
+        expansion_capacity_bps=6000,
+    )
+
+    assert result.situation is InstinctSituation.RECOVERY_BUILDING
+    assert result.support_methodology is SupportMethodology.RECOVERY_SUPPORT
+    assert "FALSE_DEFENSE_BLOCKED_BY_RECOVERY_EVIDENCE" in result.reasons
