@@ -256,6 +256,28 @@ def test_owner_law_absolutely_forbids_shared_sizing_everywhere() -> None:
     assert phase_b["shared_results_must_continue_to_be_reported_at_identical_sizing"] is True
 
 
+def test_multi_horizon_competing_futures_is_required_before_actuation() -> None:
+    contract = superintelligence_freeze_contract()
+    engine = contract["shared_essential_intelligence"]["multi_horizon_competing_futures"]
+    phase_1 = contract["drawdown_intelligence_sequence"]["phase_1_natural_dd_intelligence"]
+
+    assert engine["required"] is True
+    assert engine["terminal_and_recovery_futures_must_be_explicit_and_competing"] is True
+    assert engine["multi_horizon_state_required"] is True
+    assert engine["minimum_distinct_horizons"] == 2
+    assert engine["preferred_horizons_minutes"] == (5, 15, 30, 60)
+    assert engine["scalar_average_cannot_be_primary_discriminator"] is True
+    assert engine["forced_binary_guess_when_futures_conflict_forbidden"] is True
+    assert engine["runtime_outcome_input_forbidden"] is True
+    assert engine["sizing_dependency_forbidden"] is True
+    assert engine["phase_1_actuation_authority"] is False
+
+    assert phase_1["must_use_competing_terminal_vs_recoverable_futures"] is True
+    assert phase_1["must_use_multi_horizon_causal_state"] is True
+    assert phase_1["single_short_window_as_primary_discriminator_forbidden"] is True
+    assert phase_1["scalar_threat_average_as_primary_discriminator_forbidden"] is True
+
+
 def test_universal_drawdown_phenotype_memory_retains_ambiguous_forms() -> None:
     contract = superintelligence_freeze_contract()
     memory = contract["shared_essential_intelligence"]["universal_drawdown_phenotype_memory"]
