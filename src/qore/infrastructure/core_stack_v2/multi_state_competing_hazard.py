@@ -91,6 +91,7 @@ def assess_competing_hazards(
     favorable = min(10_000, evidence.target_hazard_bps + evidence.recovery_hazard_bps)
     margin = abs(adverse - favorable)
     veto = evidence.winner_veto_bps >= p.winner_veto_threshold_bps
+    reasons: tuple[str, ...]
 
     if evidence.data_integrity_bps < p.minimum_integrity_bps:
         decision = CompetingHazardDecision.INSUFFICIENT
