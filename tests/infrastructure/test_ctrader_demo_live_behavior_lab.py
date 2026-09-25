@@ -12,7 +12,6 @@ from qore.infrastructure.ctrader_demo_live_behavior_lab import (
     sizing_path_for,
 )
 
-
 NOW = datetime(2026, 9, 25, 15, 0, tzinfo=UTC)
 
 
