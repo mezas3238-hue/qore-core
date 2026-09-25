@@ -457,7 +457,14 @@ def manage_open_trade(
     if tick is None:
         raise Vt31Nas100LiveError("VT31 journey tick unavailable")
     tick_at = _tick_at(tick)
-    tick_age = now.astimezone(UTC) - tick_at
+    tick_checked_at = now.astimezone(UTC)
+    observed_now = getattr(mt5_api, "observed_now", None)
+    if callable(observed_now):
+        live_now = observed_now()
+        if live_now.tzinfo is None or live_now.utcoffset() is None:
+            raise Vt31Nas100LiveError("VT31 journey clock is timezone-naive")
+        tick_checked_at = live_now.astimezone(UTC)
+    tick_age = tick_checked_at - tick_at
     if tick_age < timedelta(seconds=-0.5):
         raise Vt31Nas100LiveError("VT31 journey tick is from the future")
     if tick_age > MAX_BROKER_TICK_AGE:
