@@ -11,11 +11,12 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
 from statistics import median
-from typing import Any, Callable
+from typing import Any
 
 IDENTITY = "QORE_SHARED_VT08_TERMINAL_RECALL_FRONTIER_V8"
 SCHEMA = "qore.shared.vt08_terminal_recall_frontier.v8"
