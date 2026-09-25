@@ -45,6 +45,7 @@ from qore.infrastructure.core_stack_v2.stop_target_discrimination import (
 from qore.infrastructure.core_stack_v2.terminal_failure_confirmation import (
     TerminalFailureState,
     assess_terminal_failure,
+    resolve_terminal_failure_sequence,
 )
 
 SCHEMA = "qore.shared.vt08_index.stop_target_discrimination.v6"
@@ -163,6 +164,7 @@ def _shadow_trade(
     observed = tuple(all_bars[start:end])
 
     path_history: list[PositionPathObservation] = []
+    terminal_failure_history = []
     rows: list[dict[str, object]] = [
         {
             "stage": "ENTRY",
@@ -190,6 +192,7 @@ def _shadow_trade(
             "ccrpc_recovery_persistence_bps": entry_gate.recovery_persistence_bps,
             "recovery_challenge_state": entry_recovery.state.value,
             "terminal_failure_state": TerminalFailureState.INSUFFICIENT.value,
+            "terminal_failure_raw_state": TerminalFailureState.INSUFFICIENT.value,
             "recovery_challenge_observations": entry_recovery.observations_since_formation,
             "recovery_challenge_formation_persistence_bps": entry_recovery.formation_persistence_bps,
         }
@@ -250,10 +253,14 @@ def _shadow_trade(
             belief_history.append(belief)
             gate = assess_competing_risk_decision(tuple(belief_history))
             recovery_challenge = assess_recovery_failure(tuple(belief_history))
-            terminal_failure = assess_terminal_failure(
+            terminal_failure_raw = assess_terminal_failure(
                 belief,
                 path,
                 recovery_challenge,
+            )
+            terminal_failure_history.append(terminal_failure_raw)
+            terminal_failure = resolve_terminal_failure_sequence(
+                tuple(terminal_failure_history)
             )
             rows.append(
                 {
@@ -282,6 +289,7 @@ def _shadow_trade(
                     "ccrpc_recovery_persistence_bps": gate.recovery_persistence_bps,
                     "recovery_challenge_state": recovery_challenge.state.value,
                     "terminal_failure_state": terminal_failure.state.value,
+                    "terminal_failure_raw_state": terminal_failure_raw.state.value,
                     "terminal_failure_stop_formation_bps": terminal_failure.stop_formation_bps,
                     "terminal_failure_path_risk_bps": terminal_failure.terminal_failure_bps,
                     "terminal_failure_adverse_dominance_bps": terminal_failure.adverse_dominance_bps,
@@ -441,6 +449,11 @@ def _shadow_trade(
         "terminal_failure_counts": dict(
             sorted(
                 Counter(str(row["terminal_failure_state"]) for row in rows).items()
+            )
+        ),
+        "terminal_failure_raw_counts": dict(
+            sorted(
+                Counter(str(row["terminal_failure_raw_state"]) for row in rows).items()
             )
         ),
         "competing_risk_summary": {
