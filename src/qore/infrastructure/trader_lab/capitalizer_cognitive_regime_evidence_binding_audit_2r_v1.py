@@ -21,6 +21,7 @@ import json
 from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -111,7 +112,11 @@ def _load_micro_context(
     root: Path,
 ) -> dict[tuple[str, str], dict[str, Any]]:
     summaries = sorted(
-        root.rglob("capitalizer-*-v3-m3-microstructure-context-2y-v1.json")
+        path
+        for path in root.rglob(
+            "capitalizer-*-v3-m3-microstructure-context-2y-v1.json"
+        )
+        if not path.name.startswith("capitalizer-nine-market-")
     )
     row_paths = sorted(
         root.rglob("capitalizer-*-v3-m3-microstructure-context-2y-v1-rows.jsonl")
@@ -267,8 +272,10 @@ def build_report(
         "control_trades": len(rows),
         "regime_evidence_bound_trades": len(bound),
         "regime_evidence_unbound_trades": len(rows) - len(bound),
-        "regime_evidence_coverage": str(
-            len(bound) / len(rows) if rows else 0
+        "regime_evidence_coverage": (
+            "0"
+            if not rows
+            else str(Decimal(len(bound)) / Decimal(len(rows)))
         ),
         "by_provenance": by_provenance,
         "bound_signature_counts": dict(
