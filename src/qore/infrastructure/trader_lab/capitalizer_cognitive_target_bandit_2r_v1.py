@@ -17,6 +17,7 @@ import argparse
 import json
 from collections import Counter
 from dataclasses import asdict, dataclass
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -68,7 +69,7 @@ class TargetDecision:
     unchosen_target_outcomes_visible_to_decision: bool = False
 
 
-def _aware(value: object, *, field: str):
+def _aware(value: object, *, field: str) -> datetime:
     return stability._aware(value, field=field)
 
 
