@@ -112,11 +112,12 @@ class LiveBehaviorEvent:
         if observed.tzinfo is None or observed.utcoffset() is None:
             raise ValueError("behavior event observed_at must be timezone-aware")
         raw_position = value.get("position_id")
-        position_id = (
-            int(raw_position)
-            if raw_position is not None and str(raw_position).strip()
-            else None
-        )
+        if raw_position is None or not str(raw_position).strip():
+            position_id = None
+        elif isinstance(raw_position, (int, str)):
+            position_id = int(raw_position)
+        else:
+            raise ValueError("behavior event position_id must be int/string/null")
         payload = value.get("payload")
         if not isinstance(payload, dict):
             raise ValueError("behavior event payload must be object")
