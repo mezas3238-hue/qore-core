@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# ruff: noqa: I001
+
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -86,15 +88,15 @@ def test_recovery_sequence_can_overturn_old_adverse_prior() -> None:
 def test_high_uncertainty_tempers_current_emission() -> None:
     low_uncertainty = filter_causal_state_sequence(
         (
-            _frame(0, stop=2_000, terminal=1_000, recovery=2_000, target=2_000, no_event=3_000),
-            _frame(1, stop=8_000, terminal=1_000, recovery=300, target=200, no_event=500, uncertainty=500),
+            _frame(\n                0, stop=2_000, terminal=1_000, recovery=2_000,\n                target=2_000, no_event=3_000,\n            ),
+            _frame(\n                1, stop=8_000, terminal=1_000, recovery=300, target=200,\n                no_event=500, uncertainty=500,\n            ),
         ),
         transition_bps=TRANSITIONS,
     )[-1]
     high_uncertainty = filter_causal_state_sequence(
         (
             _frame(0, stop=2_000, terminal=1_000, recovery=2_000, target=2_000, no_event=3_000),
-            _frame(1, stop=8_000, terminal=1_000, recovery=300, target=200, no_event=500, uncertainty=9_000),
+            _frame(\n                1, stop=8_000, terminal=1_000, recovery=300, target=200,\n                no_event=500, uncertainty=9_000,\n            ),
         ),
         transition_bps=TRANSITIONS,
     )[-1]
