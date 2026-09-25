@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
