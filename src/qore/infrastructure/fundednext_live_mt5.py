@@ -59,7 +59,7 @@ from qore.infrastructure.market_test_environment import (
 from qore.infrastructure.order_intent import OrderSide, OrderType
 from qore.infrastructure.trader_execution_profile import M1_PROFILE
 
-_OUTCOME_UNKNOWN_ABSENCE_CONFIRMATION_DELAY = timedelta(seconds=60)
+_OUTCOME_UNKNOWN_ABSENCE_CONFIRMATION_DELAY = timedelta(minutes=5)
 
 
 class Mt5CheckResultLike(Protocol):
