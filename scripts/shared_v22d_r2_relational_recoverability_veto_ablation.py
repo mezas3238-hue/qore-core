@@ -25,7 +25,8 @@ import json
 from decimal import Decimal
 from pathlib import Path
 from statistics import median
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import shared_relational_adversity_challenge_survival_v21 as v21
