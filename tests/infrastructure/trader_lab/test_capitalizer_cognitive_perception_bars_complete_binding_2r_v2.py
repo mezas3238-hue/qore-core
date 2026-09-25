@@ -5,14 +5,8 @@ from pathlib import Path
 
 from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_historical_bar_completeness_audit_2r_v1 as bars,
-)
-from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_perception_bars_complete_binding_2r_v2 as perception_v2,
-)
-from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_perception_evidence_binding_audit_2r_v1 as perception_v1,
-)
-from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_provider_absence_tick_revalidation_2r_v1 as ticks,
 )
 
