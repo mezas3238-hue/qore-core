@@ -35,15 +35,15 @@ from qore.infrastructure.core_stack_v2.competing_future_intelligence import (
     HorizonFutureVote,
     assess_competing_futures,
 )
-from qore.infrastructure.core_stack_v2.competing_risk_path_core import (
-    CompetingRiskBeliefState,
-    assess_competing_risk_path,
-)
 from qore.infrastructure.core_stack_v2.competing_risk_decision_gate import (
     CompetingRiskDecision,
     CompetingRiskDecisionPolicy,
     CompetingRiskDecisionState,
     assess_competing_risk_decision,
+)
+from qore.infrastructure.core_stack_v2.competing_risk_path_core import (
+    CompetingRiskBeliefState,
+    assess_competing_risk_path,
 )
 from qore.infrastructure.core_stack_v2.contracts import (
     CORE_STACK_VERSION,
