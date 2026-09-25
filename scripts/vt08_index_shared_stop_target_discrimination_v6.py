@@ -133,7 +133,9 @@ def _shadow_trade(
     all_bars = bars_by_symbol[symbol]
     closed = closed_by_symbol[symbol]
     start = bisect.bisect_right(closed, signal.signal_at.astimezone(UTC))
-    end = bisect.bisect_right(closed, item.exited_at.astimezone(UTC))
+    # The canonical exit bar is excluded. If stop/target was touched
+    # intrabar, its close is not causally available before the outcome.
+    end = bisect.bisect_left(closed, item.exited_at.astimezone(UTC))
     observed = tuple(all_bars[start:end])
 
     path_history: list[PositionPathObservation] = []
@@ -368,6 +370,7 @@ def _window(
             "signal_suppression_used": False,
             "future_outcome_input_used": False,
             "realized_outcome_used_for_scoring_only": True,
+            "canonical_exit_bar_excluded_from_runtime_classification": True,
         },
         "discrimination": {
             "losses": len(losses),
