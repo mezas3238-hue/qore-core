@@ -642,8 +642,8 @@ def superintelligence_freeze_contract() -> dict[str, object]:
             },
             "realtime_trade_management": {
                 "required": True,
-                "research_status": "DEFERRED_UNTIL_NATURAL_DD_INTELLIGENCE_PASSES",
-                "may_contribute_to_current_primary_dd_claim": False,
+                "research_status": "ACTIVE_RESEARCH_ONLY_AFTER_PHASE_1_CONSUMED_PASS",
+                "may_contribute_to_current_primary_dd_claim": True,
                 "unlock_requires_possible_stop_possible_target_discrimination_pass": True,
                 "trailing_and_target_extension_forbidden_for_phase_1_primary_claim": True,
                 "purpose": (
