@@ -261,9 +261,12 @@ def test_live_runtime_binds_qore_imports_to_exact_release_tree() -> None:
 
 def test_fallback_traders_preserve_strategy_before_execution_block() -> None:
     source = _RUNTIME.read_text(encoding="utf-8-sig")
-    assert "r34_anchor is not None and armed_m5_snapshots is not None and not new_order_blocked" not in source
-    assert "r38_anchor is not None and armed_m5_snapshots is not None and not new_order_blocked" not in source
-    assert "r43_anchor is not None and armed_m5_snapshots is not None and not new_order_blocked" not in source
+    forbidden_guards = (
+        "r34_anchor is not None and armed_m5_snapshots is not None and not new_order_blocked",
+        "r38_anchor is not None and armed_m5_snapshots is not None and not new_order_blocked",
+        "r43_anchor is not None and armed_m5_snapshots is not None and not new_order_blocked",
+    )
+    assert all(guard not in source for guard in forbidden_guards)
     for event in (
         "R34_CANDIDATE_EXECUTION_BLOCKED",
         "R38_CANDIDATE_EXECUTION_BLOCKED",
