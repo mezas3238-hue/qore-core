@@ -484,6 +484,7 @@ def _unknown_mutation(
     *,
     client_order_id: str = "qore-reconcile-test",
     state: FundedNextMt5MutationState = FundedNextMt5MutationState.OUTCOME_UNKNOWN,
+    transitioned_at: datetime | None = None,
 ) -> FundedNextMt5MutationRecord:
     return FundedNextMt5MutationRecord(
         idempotency_key="mutation-reconcile-test",
@@ -491,7 +492,7 @@ def _unknown_mutation(
         submission_digest="sha256:" + "d" * 64,
         client_order_id=client_order_id,
         state=state,
-        transitioned_at=_NOW - timedelta(seconds=10),
+        transitioned_at=transitioned_at or _NOW - timedelta(minutes=2),
         risk_authorization_id="risk-reconcile-test",
         risk_authorization_fingerprint="e" * 64,
         risk_reservation_id="risk-reconcile-test",
@@ -516,6 +517,27 @@ def test_conclusive_broker_absence_resolves_unknown_without_send() -> None:
     record = ledger.records()[0]
     assert record.state is FundedNextMt5MutationState.NOT_SUBMITTED
     assert record.reason == "provider-history-confirmed-order-absent"
+    assert api.sent == 0
+
+
+def test_recent_conclusive_absence_stays_unknown_during_settlement_window() -> None:
+    api = _Api()
+    ledger = InMemoryFundedNextMt5MutationLedger()
+    ledger.upsert(
+        _unknown_mutation(
+            transitioned_at=_NOW - timedelta(seconds=10),
+        )
+    )
+    gateway = _gateway(
+        api,
+        complete=False,
+        submission_enabled=False,
+        mutation_ledger=ledger,
+    )
+
+    assert gateway.reconcile_unknown(now=_NOW) == ()
+    assert gateway.has_unresolved_mutations is True
+    assert ledger.records()[0].state is FundedNextMt5MutationState.OUTCOME_UNKNOWN
     assert api.sent == 0
 
 
