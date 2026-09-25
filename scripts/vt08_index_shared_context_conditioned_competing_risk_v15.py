@@ -189,24 +189,38 @@ def _cell_crossings(
     by_cell: dict[str, dict[int, Crossing]] = {
         cell.key(): {} for cell in cells
     }
+    cells_by_context: dict[
+        tuple[tuple[str, ...], tuple[str, ...]],
+        list[Cell],
+    ] = defaultdict(list)
+    for cell in cells:
+        cells_by_context[(cell.fields, cell.values)].append(cell)
+    for matching_cells in cells_by_context.values():
+        matching_cells.sort(key=lambda cell: cell.probability_floor)
+
+    specs = _context_specs()
     for probability_float, (trade_index, row) in zip(
         probabilities,
         meta,
         strict=True,
     ):
         probability = Decimal(str(float(probability_float)))
-        for cell in cells:
-            if (
-                probability < cell.probability_floor
-                or trade_index in by_cell[cell.key()]
-                or not _matches(row, cell)
-            ):
+        for fields in specs:
+            if not all(field in row for field in fields):
                 continue
-            by_cell[cell.key()][trade_index] = Crossing(
-                row=row,
-                probability=probability,
-                cell_key=cell.key(),
-            )
+            values = tuple(str(row[field]) for field in fields)
+            matching_cells = cells_by_context.get((fields, values), ())
+            for cell in matching_cells:
+                if probability < cell.probability_floor:
+                    break
+                key = cell.key()
+                if trade_index in by_cell[key]:
+                    continue
+                by_cell[key][trade_index] = Crossing(
+                    row=row,
+                    probability=probability,
+                    cell_key=key,
+                )
     return by_cell
 
 
