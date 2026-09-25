@@ -135,6 +135,11 @@ from qore.infrastructure.core_stack_v2.runtime import (
     SnapshotConsumer,
     SnapshotDelivery,
 )
+from qore.infrastructure.core_stack_v2.stop_target_discrimination import (
+    StopTargetDiscrimination,
+    StopTargetHypothesis,
+    assess_stop_target_path,
+)
 from qore.infrastructure.core_stack_v2.stability_intelligence import (
     DrawdownStabilityAssessment,
     MarketStabilityEvidence,
@@ -188,6 +193,8 @@ __all__ = [
     "ResidentConvergencePolicy",
     "ResidentConvergenceState",
     "StabilityMode",
+    "StopTargetDiscrimination",
+    "StopTargetHypothesis",
     "StopManagementMode",
     "TargetManagementMode",
     "SupportMethodology",
@@ -245,6 +252,7 @@ __all__ = [
     "UncertaintyState",
     "WorldState",
     "assess_drawdown_stability",
+    "assess_stop_target_path",
     "assess_competing_futures",
     "assess_instinct",
     "assess_market_environment",
