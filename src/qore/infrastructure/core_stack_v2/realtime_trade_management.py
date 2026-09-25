@@ -251,6 +251,22 @@ def assess_realtime_trade_management(
         maximum_remaining_loss_r = Decimal("0.50")
         reasons.append("EARLY_TRADE_RAPID_DETERIORATION")
     elif (
+        instinct.support_methodology is SupportMethodology.RECOVERY_SUPPORT
+        and path.state
+        in {
+            PositionPathState.RECOVERING,
+            PositionPathState.HEALTHY_PULLBACK,
+            PositionPathState.CONTESTED,
+        }
+    ):
+        action = RealtimeTradeAction.HOLD
+        reasons.extend(
+            (
+                "RECOVERABLE_ADVERSITY_MUST_NOT_BE_CHOKED",
+                "WAIT_FOR_RECOVERY_OR_FAILURE_RESOLUTION",
+            )
+        )
+    elif (
         progress_bps >= effective.established_progress_bps
         and (
             path.winner_protection_bps >= effective.winner_protection_bps
@@ -263,7 +279,7 @@ def assess_realtime_trade_management(
     ):
         extension_supported = (
             journey.disposition is JourneyDisposition.EXTEND
-            or instinct.support_methodology is SupportMethodology.EXTENSION_SUPPORT
+            and instinct.support_methodology is SupportMethodology.EXTENSION_SUPPORT
         )
         if (
             extension_supported
@@ -271,8 +287,8 @@ def assess_realtime_trade_management(
             and instinct.expansion_capacity_bps >= effective.medium_extension_capacity_bps
         ):
             action = RealtimeTradeAction.TRAIL_AND_EXTEND
-            stop_mode = StopManagementMode.TRAIL_TIGHT
-            trail_distance_r = Decimal("0.50")
+            stop_mode = StopManagementMode.TRAIL_WIDE
+            trail_distance_r = Decimal("0.75")
             target_mode, target_multiplier = _target_mode(
                 instinct.expansion_capacity_bps,
                 effective,
