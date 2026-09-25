@@ -127,6 +127,22 @@ def _markdown(reports) -> str:
                     "- Settled source volumes: "
                     f"{', '.join(report.settled_source_volumes) or 'NOT_OBSERVED'}"
                 ),
+                (
+                    "- Estimated initial risk PnL: "
+                    f"{report.estimated_initial_risk_pnl or 'NOT_OBSERVED'}"
+                ),
+                (
+                    "- Estimated remaining-stop PnL: "
+                    f"{report.estimated_remaining_stop_pnl or 'NOT_OBSERVED'}"
+                ),
+                (
+                    "- Estimated economic floor PnL: "
+                    f"{report.estimated_economic_floor_pnl or 'NOT_OBSERVED'}"
+                ),
+                (
+                    "- Estimated economic floor R: "
+                    f"{report.estimated_economic_floor_r or 'NOT_OBSERVED'}"
+                ),
                 f"- Position path samples: {report.path_sample_count}",
                 f"- Max unrealized PnL: {report.max_unrealized_pnl or 'NOT_OBSERVED'}",
                 f"- Min unrealized PnL: {report.min_unrealized_pnl or 'NOT_OBSERVED'}",
