@@ -7,6 +7,7 @@ from qore.infrastructure.ctrader_demo_live_behavior_lab import (
     classify_stage,
     management_observation_payload,
     normalize_runtime_event,
+    position_path_observation_payload,
     sizing_path_for,
 )
 
@@ -172,3 +173,76 @@ def test_management_observation_is_passive_and_preserves_vt31_state():
         sizing_path_for("VT31_NAS100")
         == "VT31_CERTIFIED_RISK_RESOLUTION_THEN_DEMO_NATIVE_VOLUME"
     )
+
+
+
+def test_position_path_samples_measure_favorable_adverse_and_protection_history():
+    signal = "e" * 64
+    samples = (
+        position_path_observation_payload(
+            trader="VT31_NAS100",
+            symbol="NAS100",
+            signal_fingerprint=signal,
+            position_id=202,
+            side="long",
+            entry_price=Decimal("100"),
+            bid=Decimal("102"),
+            ask=Decimal("102.2"),
+            stop_loss=Decimal("99"),
+            take_profit=Decimal("105"),
+            volume=Decimal("1"),
+            unrealized_pnl=Decimal("20"),
+            observed_at=NOW,
+        ),
+        position_path_observation_payload(
+            trader="VT31_NAS100",
+            symbol="NAS100",
+            signal_fingerprint=signal,
+            position_id=202,
+            side="long",
+            entry_price=Decimal("100"),
+            bid=Decimal("98.5"),
+            ask=Decimal("98.7"),
+            stop_loss=Decimal("100"),
+            take_profit=Decimal("105"),
+            volume=Decimal("0.5"),
+            unrealized_pnl=Decimal("-15"),
+            observed_at=NOW + timedelta(seconds=1),
+        ),
+    )
+    events = tuple(
+        normalize_runtime_event(sample, source="runtime")
+        for sample in samples
+    )
+
+    report = build_case_reports(events)[0]
+
+    assert report.path_sample_count == 2
+    assert report.max_unrealized_pnl == "20"
+    assert report.min_unrealized_pnl == "-15"
+    assert report.max_favorable_price_delta == "2"
+    assert report.max_adverse_price_delta == "-1.5"
+    assert report.stop_history == ("99", "100")
+    assert report.volume_history == ("1", "0.5")
+
+
+def test_position_path_preserves_zero_missing_protection():
+    payload = position_path_observation_payload(
+        trader="R34_XAUUSD",
+        symbol="XAUUSD",
+        signal_fingerprint="f" * 64,
+        position_id=303,
+        side="short",
+        entry_price=Decimal("4000"),
+        bid=Decimal("3998"),
+        ask=Decimal("3999"),
+        stop_loss=Decimal("0"),
+        take_profit=Decimal("0"),
+        volume=Decimal("0.01"),
+        unrealized_pnl=Decimal("1.25"),
+        observed_at=NOW,
+    )
+
+    assert payload["stop_loss"] == "0"
+    assert payload["take_profit"] == "0"
+    assert payload["directional_price_delta"] == "1"
