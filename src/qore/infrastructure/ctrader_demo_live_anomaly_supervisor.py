@@ -10,11 +10,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TypeVar
-
-T = TypeVar("T")
-
-
 class AnomalyClass(StrEnum):
     FEED_OR_CLOCK = "FEED_OR_CLOCK"
     BROKER_PROJECTION = "BROKER_PROJECTION"
@@ -109,7 +104,7 @@ def is_auto_repairable(anomaly_class: AnomalyClass) -> bool:
     }
 
 
-def run_with_bounded_repair(
+def run_with_bounded_repair[T](
     *,
     trader: str,
     operation: Callable[[], T],
