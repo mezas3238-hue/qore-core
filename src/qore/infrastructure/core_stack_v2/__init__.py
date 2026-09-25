@@ -122,6 +122,12 @@ from qore.infrastructure.core_stack_v2.realtime_trade_management import (
     TargetManagementMode,
     assess_realtime_trade_management,
 )
+from qore.infrastructure.core_stack_v2.resident_convergence_intelligence import (
+    ResidentConvergenceAssessment,
+    ResidentConvergencePolicy,
+    ResidentConvergenceState,
+    assess_resident_convergence,
+)
 from qore.infrastructure.core_stack_v2.runtime import (
     CoreRuntimeCheckpoint,
     CoreRuntimeResult,
@@ -178,6 +184,9 @@ __all__ = [
     "RealtimeManagementPolicy",
     "RealtimeTradeAction",
     "RealtimeTradeManagementDirective",
+    "ResidentConvergenceAssessment",
+    "ResidentConvergencePolicy",
+    "ResidentConvergenceState",
     "StabilityMode",
     "StopManagementMode",
     "TargetManagementMode",
@@ -243,6 +252,7 @@ __all__ = [
     "assess_position_journey",
     "assess_position_path",
     "assess_realtime_trade_management",
+    "assess_resident_convergence",
     "build_global_market_universe",
     "build_shared_context",
     "build_snapshot",
