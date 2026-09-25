@@ -10,7 +10,7 @@ on:
       - scripts/vt08_index_shared_cognitive_challenge_v2.py
       - src/qore/infrastructure/core_stack_v2/**
       - tests/infrastructure/test_core_stack_v2_specialist_boundary.py
-      - .github/workflows/qore-shared-vt08-index-full-stack-economic-no-sizing-v4.yml
+      - .github/workflows/qore-shared-vt08-index-resident-convergence-economic-no-sizing-v5.yml
   workflow_dispatch:
 
 permissions:
