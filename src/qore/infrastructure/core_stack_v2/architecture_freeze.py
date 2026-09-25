@@ -552,7 +552,37 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                     "same_initial_position_size": True,
                     "sizing_used": False,
                     "fresh_holdout_opened": False,
-                    "phase_2_actuation_unlocked": False,
+                    "phase_2_actuation_unlocked": True,
+                    "phase_2_unlock_scope": "RESEARCH_ONLY",
+                },
+                "v17_recovery_veto_context_expansion": {
+                    "run": 36145490454,
+                    "technical_status": "GREEN",
+                    "research_status": "REJECT_NO_ROBUST_RECOVERY_VETO",
+                    "base_cell": (
+                        "path_state=CONTESTED&environment_state=FRAGILE|P>=0.900"
+                    ),
+                    "expansion_cell": (
+                        "trajectory_state=DIVERGING&geometry_state="
+                        "TERMINAL_COLLAPSE|P>=0.900"
+                    ),
+                    "selected_veto": None,
+                    "five_year_beats_v15_recall": False,
+                    "recent_two_year": {
+                        "loss_recall": "0.09224598930481283422459893048",
+                        "precision": "0.9857142857142857142857142857",
+                        "incremental_false_winner_vs_v15": 1,
+                    },
+                    "r66": {
+                        "loss_recall": "0.1173076923076923076923076923",
+                        "precision": "0.9384615384615384615384615385",
+                        "incremental_false_winner_vs_v15": 2,
+                    },
+                    "validation_pass": False,
+                    "decision": (
+                        "REJECT_EXPANSION;HIGHER_RECALL_DID_NOT_GENERALIZE_WITH_"
+                        "REQUIRED_WINNER_PROTECTION"
+                    ),
                 },
                 "v17_autonomous_loss_defense_economic_shadow": {
                     "run": 36145156033,
