@@ -39,6 +39,12 @@ from qore.infrastructure.core_stack_v2.competing_risk_path_core import (
     CompetingRiskBeliefState,
     assess_competing_risk_path,
 )
+from qore.infrastructure.core_stack_v2.competing_risk_decision_gate import (
+    CompetingRiskDecision,
+    CompetingRiskDecisionPolicy,
+    CompetingRiskDecisionState,
+    assess_competing_risk_decision,
+)
 from qore.infrastructure.core_stack_v2.contracts import (
     CORE_STACK_VERSION,
     CognitiveState,
@@ -165,6 +171,9 @@ __all__ = [
     "CausalHorizonSnapshot",
     "CompetingFutureAssessment",
     "CompetingRiskBeliefState",
+    "CompetingRiskDecision",
+    "CompetingRiskDecisionPolicy",
+    "CompetingRiskDecisionState",
     "CompetingFutureState",
     "DrawdownPhenotype",
     "DrawdownPhenotypeAssessment",
@@ -260,6 +269,7 @@ __all__ = [
     "assess_stop_target_path",
     "assess_competing_futures",
     "assess_competing_risk_path",
+    "assess_competing_risk_decision",
     "assess_instinct",
     "assess_market_environment",
     "assess_market_trajectory",
