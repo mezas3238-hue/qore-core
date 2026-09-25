@@ -132,6 +132,12 @@ from qore.infrastructure.core_stack_v2.realtime_trade_management import (
     TargetManagementMode,
     assess_realtime_trade_management,
 )
+from qore.infrastructure.core_stack_v2.recovery_failure_intelligence import (
+    RecoveryChallengeState,
+    RecoveryFailureAssessment,
+    RecoveryFailurePolicy,
+    assess_recovery_failure,
+)
 from qore.infrastructure.core_stack_v2.resident_convergence_intelligence import (
     ResidentConvergenceAssessment,
     ResidentConvergencePolicy,
@@ -201,6 +207,9 @@ __all__ = [
     "PositionPathPolicy",
     "PositionPathState",
     "RealtimeManagementPolicy",
+    "RecoveryChallengeState",
+    "RecoveryFailureAssessment",
+    "RecoveryFailurePolicy",
     "RealtimeTradeAction",
     "RealtimeTradeManagementDirective",
     "ResidentConvergenceAssessment",
@@ -276,6 +285,7 @@ __all__ = [
     "assess_position_journey",
     "assess_position_path",
     "assess_realtime_trade_management",
+    "assess_recovery_failure",
     "assess_resident_convergence",
     "build_global_market_universe",
     "build_shared_context",
