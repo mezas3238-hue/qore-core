@@ -347,6 +347,8 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "terminal_confirmation_requires_bounded_uncertainty": True,
                 "extreme_adversity_on_contested_path_is_ambiguous": True,
                 "extreme_adversity_cannot_confirm_without_structural_path_dominance": True,
+                "extreme_ambiguity_requires_persistence_or_path_transition": True,
+                "raw_adversity_intensity_cannot_be_terminal_authority": True,
                 "thresholds_are_consumed_window_research_only": True,
                 "fresh_holdout_required_before_actuation": True,
                 "positive_shadow_net_utility_required_before_actuation": True,
