@@ -294,3 +294,62 @@ V1 is accepted when:
 V2 is accepted only after state-transition evidence allows precise
 ELIGIBLE_BUT_NOT_EXECUTED diagnosis for every trader with dynamic position
 management.
+
+
+## 11. Runtime integration — continuous monitoring
+
+The laboratory is now integrated into the cTrader DEMO FREE runtime source.
+
+When this branch is the running runtime identity:
+
+1. every existing runtime event is mirrored into:
+   `artifacts/ctrader_demo_live_behavior_lab/runtime-events.normalized.jsonl`;
+2. every cTrader DEMO sink/execution event is mirrored into:
+   `artifacts/ctrader_demo_live_behavior_lab/sink-events.normalized.jsonl`;
+3. every open QORE DEMO position is sampled on the runtime loop with:
+   - trader identity;
+   - signal fingerprint;
+   - broker position id;
+   - side;
+   - entry price;
+   - bid / ask;
+   - executable-side mark price;
+   - directional price delta from entry;
+   - current stop loss;
+   - current take profit;
+   - current volume;
+   - unrealized PnL;
+4. management-state telemetry remains transition-deduplicated so the laboratory
+   preserves meaningful state changes without creating duplicate semantic
+   events every loop;
+5. raw position-path samples intentionally remain time-series observations so
+   MFE, MAE, profit giveback, stop history and volume history can be reconstructed.
+
+### Non-interference
+
+Behavior-ledger mirroring is explicitly fail-open.
+
+A behavior-lab write failure:
+
+- does not reject a candidate;
+- does not stop an order;
+- does not cancel a position;
+- does not prevent a stop amendment;
+- does not change sizing;
+- does not acquire Risk authority.
+
+The operational runtime writes a `BEHAVIOR_LAB_MIRROR_ERROR` diagnostic to the
+original runtime/sink telemetry and continues its trading path.
+
+Position-path sampling is also fail-open. A sampling error is recorded as
+`BEHAVIOR_LAB_POSITION_SAMPLE_ERROR` and cannot stop the trader lifecycle.
+
+### Continuous evidence versus continuous mutation
+
+"Continuous monitoring" means the laboratory observes the running positions
+through the runtime loop. It does not mean that the laboratory continuously
+changes stops or sizes.
+
+Traders retain their frozen lifecycle. The laboratory records when their rules
+become eligible, what they actually do, and how price moves before and after
+those decisions.
