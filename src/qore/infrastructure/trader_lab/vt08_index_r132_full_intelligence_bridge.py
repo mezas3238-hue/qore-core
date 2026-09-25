@@ -362,11 +362,19 @@ def _window(
     if expected != EXPECTED_CANONICAL[window_id]:
         raise ValueError(f"R132 {window_id} canonical contract drift")
 
-    bars_by_symbol = {
+    bars_by_symbol: dict[
+        str, Sequence[Vt08IndexC2R1Bar]
+    ] = {
         symbol: tuple(bars)
         for symbol, bars in bars_raw.items()
     }
-    states = {
+    states: dict[
+        str,
+        tuple[
+            Sequence[Vt08IndexC2R1Bar],
+            Sequence[datetime],
+        ],
+    ] = {
         symbol: (
             bars,
             tuple(bar.closed_at.astimezone(UTC) for bar in bars),
