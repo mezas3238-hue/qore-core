@@ -213,6 +213,68 @@ def assess_stop_target_path(
     if core_insufficient:
         hypothesis = StopTargetHypothesis.INSUFFICIENT
         reasons.append("CORE_CAUSAL_EVIDENCE_INSUFFICIENT")
+    elif (
+        path is not None
+        and path.state is PositionPathState.FAILURE_RISK
+        and not (
+            geometry_recovery
+            and futures_recovery
+            and (environment_recovering or trajectory_recovering)
+        )
+    ):
+        hypothesis = StopTargetHypothesis.STOP_LIKELY
+        reasons.extend(
+            (
+                "POSITION_PATH_FAILURE_RISK_PRIMARY",
+                "TRADE_SPECIFIC_PATH_OVERRIDES_BROAD_AMBIGUITY",
+            )
+        )
+        if geometry_terminal or futures_terminal:
+            reasons.append("PROSPECTIVE_TERMINAL_CONFIRMATION_PRESENT")
+    elif (
+        path is not None
+        and path.state is PositionPathState.ADVERSE_DOMINANCE
+        and (
+            environment_terminal
+            or trajectory_terminal
+            or geometry_terminal
+            or futures_terminal
+        )
+        and not explicit_recovery
+    ):
+        hypothesis = StopTargetHypothesis.STOP_LIKELY
+        reasons.extend(
+            (
+                "POSITION_PATH_ADVERSE_DOMINANCE_PRIMARY",
+                "ADVERSE_CONTEXT_CONFIRMS_STOP_PATH",
+            )
+        )
+    elif path_recovery and not future_terminal_pair:
+        hypothesis = StopTargetHypothesis.RECOVERABLE
+        reasons.extend(
+            (
+                "POSITION_PATH_RECOVERY_PRIMARY",
+                "STOP_HYPOTHESIS_VETOED_BY_TRADE_PATH_RECOVERY",
+            )
+        )
+    elif (
+        path_target
+        and not future_terminal_pair
+        and not current_terminal_pair
+        and (
+            geometry_target
+            or futures_target
+            or environment_supportive
+            or trajectory_supportive
+        )
+    ):
+        hypothesis = StopTargetHypothesis.TARGET_LIKELY
+        reasons.extend(
+            (
+                "POSITION_PATH_FAVORABLE_EXPANSION_PRIMARY",
+                "TARGET_CAPACITY_CONFIRMED_BY_MARKET_CONTEXT",
+            )
+        )
     elif explicit_recovery and not future_terminal_pair:
         hypothesis = StopTargetHypothesis.RECOVERABLE
         reasons.extend(
@@ -221,65 +283,14 @@ def assess_stop_target_path(
                 "STOP_HYPOTHESIS_VETOED_BY_RECOVERY",
             )
         )
-    elif (
-        future_terminal_pair
-        and current_terminal_pair
-        and not explicit_recovery
-        and not path_target
-    ):
+    elif future_terminal_pair and current_terminal_pair and not path_target:
         hypothesis = StopTargetHypothesis.STOP_LIKELY
         reasons.extend(
             (
                 "FUTURE_GEOMETRY_TERMINAL",
                 "COMPETING_FUTURES_TERMINAL",
                 "CURRENT_MARKET_FAILURE_CONFIRMED",
-            )
-        )
-        if path_terminal:
-            reasons.append("POSITION_PATH_CONFIRMS_TERMINAL_RISK")
-    elif (
-        future_target_pair
-        and current_target_pair
-        and path_target
-        and not path_terminal
-        and not explicit_recovery
-    ):
-        hypothesis = StopTargetHypothesis.TARGET_LIKELY
-        reasons.extend(
-            (
-                "FUTURE_GEOMETRY_SUPPORTIVE",
-                "COMPETING_FUTURES_SUPPORTIVE",
-                "CURRENT_MARKET_SUPPORT_CONFIRMED",
-            )
-        )
-        if path_target:
-            reasons.append("POSITION_PATH_CONFIRMS_TARGET_CAPACITY")
-    elif (
-        path_terminal
-        and (environment_terminal or trajectory_terminal)
-        and (geometry_terminal or futures_terminal)
-        and not explicit_recovery
-        and not path_target
-    ):
-        hypothesis = StopTargetHypothesis.STOP_LIKELY
-        reasons.extend(
-            (
-                "POSITION_PATH_TERMINAL_RELATION_PRESENT",
-                "CURRENT_AND_PROSPECTIVE_TERMINAL_EVIDENCE_CONFIRM",
-            )
-        )
-    elif (
-        path_target
-        and (environment_supportive or trajectory_supportive)
-        and (geometry_target or futures_target)
-        and not path_terminal
-        and not explicit_recovery
-    ):
-        hypothesis = StopTargetHypothesis.TARGET_LIKELY
-        reasons.extend(
-            (
-                "POSITION_PATH_FAVORABLE_EXPANSION_PRESENT",
-                "CURRENT_AND_PROSPECTIVE_TARGET_EVIDENCE_CONFIRM",
+                "PREENTRY_TERMINAL_RELATION_ONLY",
             )
         )
     else:
