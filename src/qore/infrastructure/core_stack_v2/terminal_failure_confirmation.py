@@ -33,6 +33,7 @@ from qore.infrastructure.core_stack_v2.recovery_failure_intelligence import (
 
 class TerminalFailureState(StrEnum):
     TERMINAL_CONFIRMED = "TERMINAL_CONFIRMED"
+    EXTREME_ADVERSE_AMBIGUITY = "EXTREME_ADVERSE_AMBIGUITY"
     TERMINAL_FORMING = "TERMINAL_FORMING"
     RECOVERY_VETO = "RECOVERY_VETO"
     CONTESTED = "CONTESTED"
@@ -46,6 +47,7 @@ class TerminalFailurePolicy:
     minimum_adverse_dominance_bps: int = 5_000
     maximum_target_hazard_bps: int = 3_500
     maximum_uncertainty_bps: int = 7_000
+    extreme_stop_formation_bps: int = 7_000
 
     def __post_init__(self) -> None:
         for name in (
@@ -54,6 +56,7 @@ class TerminalFailurePolicy:
             "minimum_adverse_dominance_bps",
             "maximum_target_hazard_bps",
             "maximum_uncertainty_bps",
+            "extreme_stop_formation_bps",
         ):
             value = int(getattr(self, name))
             if not 0 <= value <= 10_000:
@@ -152,7 +155,23 @@ def assess_terminal_failure(
             <= effective.maximum_target_hazard_bps
             and belief.uncertainty_bps <= effective.maximum_uncertainty_bps
         )
-        if confirmed:
+        extreme_contested_adversity = (
+            confirmed
+            and path.state is PositionPathState.CONTESTED
+            and belief.stop_formation_bps > effective.extreme_stop_formation_bps
+        )
+        if extreme_contested_adversity:
+            state = TerminalFailureState.EXTREME_ADVERSE_AMBIGUITY
+            reasons.extend(
+                (
+                    "RECOVERY_FAILED",
+                    "EXTREME_ADVERSE_PRESSURE_PRESENT",
+                    "TRADE_PATH_STILL_CONTESTED",
+                    "EXTREME_PRESSURE_MAY_BE_EXHAUSTION_OR_LIQUIDITY_SWEEP",
+                    "TERMINAL_CONFIRMATION_DEFERRED",
+                )
+            )
+        elif confirmed:
             state = TerminalFailureState.TERMINAL_CONFIRMED
             reasons.extend(
                 (
