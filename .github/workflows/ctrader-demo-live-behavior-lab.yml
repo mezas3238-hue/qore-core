@@ -50,4 +50,6 @@ jobs:
 
       - name: Pytest
         run: |
-          pytest -q tests/infrastructure/test_ctrader_demo_live_behavior_lab.py
+          pytest -q \
+            tests/infrastructure/test_ctrader_demo_live_behavior_lab.py \
+            tests/infrastructure/test_vt31_nas100_live_runtime.py
