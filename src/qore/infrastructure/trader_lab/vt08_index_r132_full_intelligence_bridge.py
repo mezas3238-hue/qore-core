@@ -56,9 +56,6 @@ from qore.infrastructure.trader_lab import (
 from qore.infrastructure.trader_lab import (
     vt08_index_r102_source_confidence_risk_ablation as r102,
 )
-from qore.infrastructure.trader_lab import (
-    vt08_index_v7_ttrades_source_corrected as v7,
-)
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 from qore.infrastructure.traders.vt08_index_c2_positional_r1 import (
     Vt08IndexC2R1Bar,
