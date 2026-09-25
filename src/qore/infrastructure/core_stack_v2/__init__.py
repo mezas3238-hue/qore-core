@@ -27,6 +27,10 @@ from qore.infrastructure.core_stack_v2.compatibility import (
     compatibility_manifest,
     compatibility_manifest_fingerprint,
 )
+from qore.infrastructure.core_stack_v2.competing_risk_path_core import (
+    CompetingRiskBeliefState,
+    assess_competing_risk_path,
+)
 from qore.infrastructure.core_stack_v2.competing_future_intelligence import (
     CausalHorizonSnapshot,
     CompetingFutureAssessment,
@@ -160,6 +164,7 @@ __all__ = [
     "CORE_STACK_VERSION",
     "CausalHorizonSnapshot",
     "CompetingFutureAssessment",
+    "CompetingRiskBeliefState",
     "CompetingFutureState",
     "DrawdownPhenotype",
     "DrawdownPhenotypeAssessment",
@@ -254,6 +259,7 @@ __all__ = [
     "assess_drawdown_stability",
     "assess_stop_target_path",
     "assess_competing_futures",
+    "assess_competing_risk_path",
     "assess_instinct",
     "assess_market_environment",
     "assess_market_trajectory",
