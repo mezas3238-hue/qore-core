@@ -10,6 +10,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
+
+
 class AnomalyClass(StrEnum):
     FEED_OR_CLOCK = "FEED_OR_CLOCK"
     BROKER_PROJECTION = "BROKER_PROJECTION"
