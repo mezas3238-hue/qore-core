@@ -1,0 +1,145 @@
+name: QORE Capitalizer Recovery Trajectory Trigger V18
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/qore-capitalizer-recovery-trajectory-trigger-v18.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_recovery_trajectory_trigger_v18.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_recovery_trajectory_trigger_v18.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_factor_journey_probe_ranker_v11.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_causal_probe_ranker_v10.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-recovery-trajectory-trigger-v18-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  DEV_DIRECT_RUN_ID: '36196002610'
+  DEV_DIRECT_SHA: 'ddd00209e50d5ec16c8cb94f34e9e5e95f401839'
+  DEV_CONTEXT_RUN_ID: '36211415438'
+  DEV_CONTEXT_SHA: 'c652b1e5a5181ba95ac6f10ea5c95bf808a0c8a7'
+  RESERVED_SOURCE_RUN_ID: '36215082659'
+  RESERVED_SOURCE_SHA: '9132b8b74938b8f142d946ab8717bf66840a18d2'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_recovery_trajectory_trigger_v18.py \
+            tests/infrastructure/trader_lab/test_capitalizer_recovery_trajectory_trigger_v18.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_recovery_trajectory_trigger_v18.py \
+            tests/infrastructure/trader_lab/test_capitalizer_recovery_trajectory_trigger_v18.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_recovery_trajectory_trigger_v18.py
+
+  experiment:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download development ledgers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-max-recovery-direct-m1-dev-*-${{ env.DEV_DIRECT_SHA }}
+          path: development-input
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DEV_DIRECT_RUN_ID }}
+      - name: Download validation ledgers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-max-recovery-direct-m1-holdout-*-${{ env.DEV_DIRECT_SHA }}
+          path: validation-input
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DEV_DIRECT_RUN_ID }}
+      - name: Download development and validation contexts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-native-market-context-v1-*-${{ env.DEV_CONTEXT_SHA }}
+          path: development-validation-context
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DEV_CONTEXT_RUN_ID }}
+      - name: Download consumed reserved ledgers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-max-recovery-direct-m1-reserved-*-${{ env.RESERVED_SOURCE_SHA }}
+          path: reserved-input
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.RESERVED_SOURCE_RUN_ID }}
+      - name: Download consumed reserved contexts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-native-market-context-v1-reserved-*-${{ env.RESERVED_SOURCE_SHA }}
+          path: reserved-context
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.RESERVED_SOURCE_RUN_ID }}
+      - name: Run V18 post-entry trajectory trigger
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_recovery_trajectory_trigger_v18 \
+            development-input validation-input reserved-input \
+            development-validation-context reserved-context experiment-output
+      - name: Enforce V18 common-path causal contract
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "experiment-output/"
+                  "capitalizer-recovery-trajectory-trigger-v18.json"
+              ).read_text()
+          )
+          assert report["evaluation"] == (
+              "DUAL_PERIOD_COMMON_PATH_POST_ENTRY_TRIGGER"
+          )
+          assert report["all_entries_preserved"] is True
+          assert Decimal(report["density_retention"]) == Decimal("1")
+          assert report["surface_risk_multiplier_preserved"] is True
+          assert report["same_trigger_family_required"] is True
+          assert report["common_path_before_trigger_required"] is True
+          assert report["both_other_period_models_must_agree"] is True
+          assert report["scored_period_counterfactual_outcomes_visible"] is False
+          assert report["future_after_trigger_visible_to_decision"] is False
+          assert report["current_outcome_visible_to_decision"] is False
+          assert report["target_r"] == "2.00"
+          assert report["max3_ceiling_preserved"] is True
+          assert report["automatic_policy_promotion"] is False
+          assert report["trader_certified"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-recovery-trajectory-trigger-v18-${{ github.sha }}
+          path: experiment-output
+          retention-days: 90
