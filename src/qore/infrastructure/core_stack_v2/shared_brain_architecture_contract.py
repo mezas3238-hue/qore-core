@@ -9,14 +9,23 @@ from __future__ import annotations
 
 from typing import Final
 
-SHARED_BRAIN_ARCHITECTURE_VERSION: Final = "QORE_META_COGNITIVE_SCIENTIFIC_INTELLIGENCE_003"
+from qore.infrastructure.core_stack_v2.shared_cognitive_os_contract import (
+    shared_cognitive_os_contract,
+)
+
+SHARED_BRAIN_ARCHITECTURE_VERSION: Final = "QORE_META_COGNITIVE_SCIENTIFIC_INTELLIGENCE_004"
 
 _COGNITIVE_PIPELINE: Final = (
-    "MARKET_OBSERVATION",
+    "MARKET_CORE_COGNITIVE_OBSERVATION",
+    "SENSORY_SYSTEM",
+    "PROBABILISTIC_MARKET_DIGITAL_TWIN",
+    "QORE_CORE_DIGITAL_TWIN",
     "HIERARCHICAL_WORLD_MODEL",
     "MULTI_WORLD_COMPETITION",
     "LATENT_STATE_RECONSTRUCTION",
     "PREDICTIVE_CODING",
+    "NEGATIVE_EVIDENCE",
+    "ACTIVE_PERCEPTION_AND_VALUE_OF_INFORMATION",
     "DYNAMIC_CAUSAL_GRAPH",
     "COMPETING_CAUSAL_HYPOTHESES",
     "ACTIVE_PERCEPTION",
@@ -27,12 +36,15 @@ _COGNITIVE_PIPELINE: Final = (
     "COUNTERFACTUAL_WORLD_SIMULATION",
     "UNCERTAINTY_DECOMPOSITION",
     "METACOGNITION",
+    "SELF_MODEL",
+    "VALUE_OF_COMPUTATION",
     "EPISODIC_AND_SEMANTIC_MEMORY",
     "TRAJECTORY_INTELLIGENCE",
     "STABILITY_INTELLIGENCE",
     "DECISION_INTELLIGENCE",
     "AUTONOMOUS_RESEARCH",
     "GOVERNED_KNOWLEDGE_PROMOTION",
+    "COGNITIVE_FIREWALL",
     "SHARED_SITUATION",
 )
 
@@ -75,6 +87,21 @@ _REQUIRED_CAPABILITIES: Final = (
     "MACHINE_SCIENTIFIC_DISCOVERY",
     "AUTONOMOUS_RESEARCH_ENGINE",
     "GOVERNED_KNOWLEDGE_PROMOTION",
+    "QORE_CORE_DIGITAL_TWIN",
+    "INFRASTRUCTURE_INTELLIGENCE",
+    "BROKER_INTELLIGENCE",
+    "BLINDSPOT_ENGINE",
+    "NEGATIVE_EVIDENCE_ENGINE",
+    "VALUE_OF_INFORMATION_ENGINE",
+    "VALUE_OF_COMPUTATION_ENGINE",
+    "COGNITIVE_FAILURE_MEMORY",
+    "KNOWLEDGE_HALF_LIFE",
+    "KNOWLEDGE_TRANSPORTABILITY",
+    "ONTOLOGY_EVOLUTION",
+    "REFLEXIVITY_ENGINE",
+    "SELF_MODEL",
+    "DEGRADED_MODE",
+    "COGNITIVE_FIREWALL",
 )
 
 _KNOWLEDGE_TIERS: Final = (
@@ -90,20 +117,20 @@ def shared_brain_architecture_contract() -> dict[str, object]:
     return {
         "schema": "qore.shared_brain.architecture_contract.v2",
         "version": SHARED_BRAIN_ARCHITECTURE_VERSION,
-        "role": "QORE_META_COGNITIVE_SCIENTIFIC_MARKET_OPERATING_SYSTEM",
+        "role": "QORE_COGNITIVE_SCIENTIFIC_EPISTEMIC_OPERATING_SYSTEM",
         "objective": (
-            "Continuously reconstruct the most plausible hidden market state, "
-            "maintain competing internal world models, predict state transitions, "
-            "measure prediction error and uncertainty, falsify its own beliefs, "
-            "simulate plausible futures, learn without destroying certified "
-            "knowledge, and communicate generic market intelligence to sovereign "
-            "specialist traders."
+            "Continuously reconstruct the most justifiable state of market reality, "
+            "QORE Core reality and cognitive reality; maintain competing world models, "
+            "uncertainty and unknowns; diagnose its own errors; conduct governed "
+            "science; and communicate context without seizing trader, CIBO, Risk or "
+            "Execution authority."
         ),
         "pipeline": _COGNITIVE_PIPELINE,
         "maximum_ceiling_program": "docs/shared/QORE_SHARED_MAXIMUM_COGNITIVE_CEILING_ROADMAP.md",
         "maximum_ceiling_master_issue": 638,
         "maximum_ceiling_work_packages": tuple(range(639, 651)),
         "required_capabilities": _REQUIRED_CAPABILITIES,
+        "cognitive_os_contract": shared_cognitive_os_contract(),
         "hierarchical_world_model_law": {
             "multiple_temporal_levels_required": True,
             "minimum_levels": (
