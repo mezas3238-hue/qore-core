@@ -1,9 +1,9 @@
 # QORE Shared Brain — Maximum Cognitive Ceiling Program
 
-**Program identity:** `QORE_META_COGNITIVE_SCIENTIFIC_INTELLIGENCE_004`  
+**Program identity:** `QORE_META_COGNITIVE_SCIENTIFIC_INTELLIGENCE_005`  
 **Repository:** `mezas3238-hue/qore-core`  
 **Primary PR:** #635  
-**Governance:** DRAFT / research-first / no LIVE or production authority.\n**Owner Cognitive OS directive:** `docs/shared/QORE_SHARED_COGNITIVE_OS_OWNER_DIRECTIVE_004.md`
+**Governance:** DRAFT / research-first / no LIVE or production authority.\n**Owner Cognitive OS directive:** `docs/shared/QORE_SHARED_COGNITIVE_OS_OWNER_DIRECTIVE_005.md`
 
 ## Mission
 
@@ -88,7 +88,7 @@ replication → holdout → stress → shadow → certification → knowledge pr
 ## Transversal Owner laws
 
 The ordered WP-01..WP-12 chain remains unchanged, but every work package is
-constrained by the Owner Cognitive OS directive 004.
+constrained by the Owner Maximum Cognitive Architecture directive 005.
 
 In particular:
 
@@ -105,6 +105,12 @@ In particular:
   discovery and ontology evolution are governed capabilities.
 - Blindspot Engine and sovereign adapters materialize Shared as the third eye
   without contaminating trader methodology.
+- Shared must also search for second-order blindspots: information or phenomena
+  that no current QORE component knows it is failing to observe.
+- Market, Core, broker and cognitive stability remain distinct from systemic
+  stress; all are descriptive cognition, never trading authority.
+- The maximum read-only Shared API is explicit, and actuation-shaped API methods
+  remain forbidden by contract.
 - The primary Shared scorecard measures understanding/calibration/reliability;
   PF/DD/Total R remain downstream economic certification effects.
 
