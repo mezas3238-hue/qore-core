@@ -34,6 +34,10 @@ from qore.infrastructure.cibo_ce2i_expansion_proposal import (
     CmaExpansionProposal,
     reserve_expansion_proposal,
 )
+from qore.infrastructure.cibo_ce2i_multi_source import (
+    CmaMultiSourceExpansionProposal,
+    reserve_multi_source_expansion,
+)
 from qore.infrastructure.cibo_ce2i_tool_registry import tool_by_code
 from qore.infrastructure.cibo_cma_capital_observation import CmaCapitalObservation
 
@@ -42,7 +46,7 @@ from qore.infrastructure.cibo_cma_capital_observation import CmaCapitalObservati
 class Ce2iExpansionPolicyDecision:
     applied_tools: tuple[str, ...]
     execution_cap: ExecutionEfficientCap
-    proposal: CmaExpansionProposal | None
+    proposal: CmaExpansionProposal | CmaMultiSourceExpansionProposal | None
     reason: str
 
     def __post_init__(self) -> None:
@@ -106,13 +110,34 @@ def propose_ce2i_expansion(
         margin_headroom_usd=margin_headroom_usd,
     )
     if candidate is None:
+        try:
+            proposal = reserve_multi_source_expansion(
+                reservation_group_id=reservation_id,
+                request_id=request_id,
+                opportunity=opportunity,
+                observation=observation,
+                assigned_capital_usd=assigned_capital_usd,
+                hard_risk_headroom_usd=hard_risk_headroom_usd,
+                margin_headroom_usd=margin_headroom_usd,
+                requested_at=requested_at,
+                expires_at=expires_at,
+                ledger_store=ledger_store,
+                maximum_expansion_volume=cap.volume_cap,
+            )
+        except CiboCapitalManagementError as error:
+            return Ce2iExpansionPolicyDecision(
+                applied_tools=("T11",),
+                execution_cap=cap,
+                proposal=None,
+                reason=f"no executable funding path: {error}",
+            )
         return Ce2iExpansionPolicyDecision(
-            applied_tools=("T11",),
+            applied_tools=("T11", "T06", "T07", "T19"),
             execution_cap=cap,
-            proposal=None,
+            proposal=proposal,
             reason=(
-                "no single reconciled economic source can fund executable "
-                "expansion; multi-source policy not yet enabled"
+                "execution-efficient multi-source self-financing expansion "
+                "reserved atomically for Risk review"
             ),
         )
 
