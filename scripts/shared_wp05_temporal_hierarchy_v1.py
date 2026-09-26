@@ -118,19 +118,19 @@ def _scale_state(
         short = max(1, horizon // 3)
         medium = max(short, (2 * horizon) // 3)
         full_sign = _sign(primary_metric.net_bps)
-        tail_metrics = (
-            _metric(primary_rows[-short:]),
-            _metric(primary_rows[-medium:]),
-            primary_metric,
+        tail_signed = (
+            _signed_efficiency(primary_rows[-short:]),
+            _signed_efficiency(primary_rows[-medium:]),
+            signed_eff,
         )
         persistence = sum(
-            metric.efficiency
+            abs(value)
             * float(
                 full_sign != 0
-                and _sign(metric.net_bps) == full_sign
+                and _sign(value) == full_sign
             )
-            for metric in tail_metrics
-        ) / len(tail_metrics)
+            for value in tail_signed
+        ) / len(tail_signed)
 
     peer_signed = [
         _signed_efficiency(windows[market][-horizon:])
