@@ -5,7 +5,8 @@ economic comparison. The only experimental delta is an enriched pre-entry
 vector built from causally available state:
 - prior entries that are still open at the current decision;
 - canonical Exposure Graph factor alignment/conflict;
-- same-day and prior-session journey from trades already closed.
+- same-day and prior-session journey from trades already closed;
+- exact-timestamp factor competition among simultaneously decision-ready tickets.
 
 Open trades contribute structure only, never their future outcome. V10's
 _pretrade hook is replaced only inside build_report() and restored in finally.
@@ -15,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections import defaultdict
 from dataclasses import asdict, replace
 from decimal import Decimal
 from pathlib import Path
@@ -35,6 +37,12 @@ IDENTITY = "QORE_CAPITALIZER_FACTOR_JOURNEY_PROBE_RANKER_V11"
 SESSION_ORDER = {"ASIA": 0, "LONDON": 1, "NEW_YORK": 2}
 _BASE_PRETRADE = v10._pretrade
 
+# Bound only while build_report() is running. Keys are period/session/entry timestamp.
+# Rows expose symbol/side/time structure only; peer outcomes are never read.
+_SIMULTANEOUS: dict[
+    tuple[str, str, str], tuple[milestone.SimulatedTrade, ...]
+] = {}
+
 
 def _factor_map(
     *,
@@ -49,6 +57,67 @@ def _factor_map(
     return {
         row.factor: row
         for row in exposure.factor_exposures((position,))
+    }
+
+
+def _competition_features(
+    *,
+    period: str,
+    trade: milestone.SimulatedTrade,
+) -> tuple[float, ...]:
+    """Describe simultaneous factor competition without selecting a winner."""
+
+    peers = tuple(
+        row
+        for row in _SIMULTANEOUS.get(
+            (period, trade.session, trade.entry_at),
+            (),
+        )
+        if row.symbol != trade.symbol
+    )
+    candidate = _factor_map(symbol=trade.symbol, side=trade.side)
+    same_factor_peers = 0
+    aligned_peers = 0
+    opposed_peers = 0
+    shared_factors: set[str] = set()
+
+    for peer in peers:
+        other = _factor_map(symbol=peer.symbol, side=peer.side)
+        shared = frozenset(candidate) & frozenset(other)
+        if not shared:
+            continue
+        same_factor_peers += 1
+        shared_factors.update(shared)
+        products = tuple(candidate[f].net_r * other[f].net_r for f in shared)
+        if any(value > 0 for value in products):
+            aligned_peers += 1
+        if any(value < 0 for value in products):
+            opposed_peers += 1
+
+    return (
+        v10._clip(len(peers) / 3.0, 0.0, 2.0),
+        v10._clip(same_factor_peers / 3.0, 0.0, 2.0),
+        v10._clip(aligned_peers / 3.0, 0.0, 2.0),
+        v10._clip(opposed_peers / 3.0, 0.0, 2.0),
+        v10._clip(len(shared_factors) / 3.0, 0.0, 2.0),
+    )
+
+
+def _simultaneous_map(
+    *,
+    period: str,
+    ledgers: dict[str, tuple[milestone.SimulatedTrade, ...]],
+) -> dict[tuple[str, str, str], tuple[milestone.SimulatedTrade, ...]]:
+    grouped: dict[
+        tuple[str, str, str], list[milestone.SimulatedTrade]
+    ] = defaultdict(list)
+    baseline = ledgers[milestone.ProtectionMode.ORIGINAL.value]
+    for row in baseline:
+        grouped[(period, row.session, row.entry_at)].append(row)
+    return {
+        key: tuple(sorted(rows, key=lambda item: item.symbol))
+        for key, rows in grouped.items()
+        if len(rows) > 1
     }
 
 
@@ -206,6 +275,7 @@ def _pretrade(
         vector=(
             *base.point.vector,
             *_factor_features(chosen_scaled, trade=trade),
+            *_competition_features(period=period, trade=trade),
             *_journey_features(chosen_scaled, trade=trade),
         ),
     )
@@ -219,8 +289,50 @@ def build_report(
     development_validation_context_root: Path,
     reserved_context_root: Path,
 ) -> tuple[dict[str, Any], tuple[v10.RankDecision, ...]]:
+    development = v10.router._load_selected(
+        development_root,
+        expected=v10.EXPECTED_DEVELOPMENT_TRADES,
+    )
+    validation = v10.router._load_selected(
+        validation_root,
+        expected=v10.EXPECTED_VALIDATION_TRADES,
+    )
+    raw_reserved = {
+        mode.value: direct._load_mode(reserved_root, mode=mode)
+        for mode in milestone.ProtectionMode
+    }
+    reserved = {
+        mode: direct._max3_milestone(rows)
+        for mode, rows in raw_reserved.items()
+    }
+
+    simultaneous: dict[
+        tuple[str, str, str], tuple[milestone.SimulatedTrade, ...]
+    ] = {}
+    simultaneous.update(
+        _simultaneous_map(
+            period=v10.DEVELOPMENT_PERIOD,
+            ledgers=development,
+        )
+    )
+    simultaneous.update(
+        _simultaneous_map(
+            period="CONSUMED_VALIDATION_2022_2024",
+            ledgers=validation,
+        )
+    )
+    simultaneous.update(
+        _simultaneous_map(
+            period="CONSUMED_RESERVED_2020_2022",
+            ledgers=reserved,
+        )
+    )
+
     original = v10._pretrade
+    previous_simultaneous = dict(_SIMULTANEOUS)
     try:
+        _SIMULTANEOUS.clear()
+        _SIMULTANEOUS.update(simultaneous)
         v10._pretrade = _pretrade
         report, audits = v10.build_report(
             development_root,
@@ -231,6 +343,8 @@ def build_report(
         )
     finally:
         v10._pretrade = original
+        _SIMULTANEOUS.clear()
+        _SIMULTANEOUS.update(previous_simultaneous)
 
     report = dict(report)
     report.pop("all_windows_consumed_before_v10", None)
@@ -244,6 +358,10 @@ def build_report(
     report["ranker_policies_inherited_from_v10"] = True
     report["open_exposure_uses_structural_unit_risk_only"] = True
     report["active_trade_outcomes_visible_to_features"] = False
+    report["exact_timestamp_competition_bound"] = True
+    report["simultaneous_peer_outcomes_visible_to_features"] = False
+    report["competition_selects_winner"] = False
+    report["simultaneous_factor_cluster_count"] = len(simultaneous)
     report["journey_outcomes_require_prior_close"] = True
     report["next_phase"] = (
         "FREEZE_V11_CANDIDATE_THEN_OPEN_2018_2020_FRESH_HOLDOUT"
