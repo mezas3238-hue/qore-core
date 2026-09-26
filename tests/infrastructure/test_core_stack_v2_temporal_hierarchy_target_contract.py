@@ -9,6 +9,7 @@ from qore.infrastructure.core_stack_v2.temporal_hierarchy_engine import (
 )
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_target_contract import (
     assess_temporal_hierarchy_target_semantics,
+    higher_timeframe_anchor_direction,
     higher_timeframe_structural_failure_target,
 )
 
@@ -130,6 +131,28 @@ def test_structural_failure_target_v2_requires_close_acceptance() -> None:
 
 
 def test_structural_failure_target_v2_abstains_without_anchor() -> None:
+    assert higher_timeframe_structural_failure_target(
+        anchor_direction=0,
+        prior_peak=110.0,
+        prior_floor=100.0,
+        future_high=120.0,
+        future_low=90.0,
+        future_final_close=95.0,
+    ) is False
+
+
+
+def test_higher_anchor_exact_cancellation_remains_unidentifiable() -> None:
+    snapshot = _snapshot(m15=-500, h1=-72, h4=-24, daily=96)
+
+    assert higher_timeframe_anchor_direction(snapshot) == 0
+
+    audit = assess_temporal_hierarchy_target_semantics(snapshot)
+    assert audit.directionally_identifiable is False
+    assert audit.expected_structural_failure_break_direction == 0
+    assert audit.directionally_aligned is False
+    assert audit.directionally_inverted is False
+
     assert higher_timeframe_structural_failure_target(
         anchor_direction=0,
         prior_peak=110.0,
