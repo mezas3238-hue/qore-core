@@ -1300,7 +1300,7 @@ from retained evidence.
 
 ## PHASE 19 — Integrated portfolio replay
 
-**Status: IN PROGRESS — 7/7 CHRONOLOGY REPLAY AUTHORIZED / USD CAPITAL REPLAY BLOCKED_PROVIDER_ECONOMICS**
+**Status: IN PROGRESS — 7/7 CHRONOLOGY GREEN / PHASE 19C NORMALIZED-CAPITAL CONTRACT IMPLEMENTED / USD CAPITAL REPLAY BLOCKED_PROVIDER_ECONOMICS**
 
 The Phase-19 readiness and chronology contract now exists in:
 
@@ -1319,11 +1319,66 @@ Phase 19 is deliberately split into two scientific depths:
 Current invariant:
 
 ```text
-PHASE18_POPULATION_COMPLETE            = TRUE
-CHRONOLOGY_REPLAY_AUTHORIZED           = TRUE
-USD_PORTFOLIO_REPLAY_AUTHORIZED        = FALSE
-CROSS_TRADER_R_AGGREGATION_AUTHORIZED  = FALSE
-BLOCKER                                 = PROVIDER_ECONOMICS
+PHASE18_POPULATION_COMPLETE                    = TRUE
+CHRONOLOGY_REPLAY_AUTHORIZED                   = TRUE
+
+HISTORICAL_USD_REPLAY_AUTHORIZED               = FALSE
+HISTORICAL_PROVIDER_REPLAY_AUTHORIZED          = FALSE
+CROSS_TRADER_RAW_R_AGGREGATION_AUTHORIZED      = FALSE
+
+NORMALIZED_CAPITAL_REPLAY_CONTRACT_IMPLEMENTED = TRUE
+NORMALIZED_CAPITAL_REPLAY_AUTHORIZED           = PENDING_EMPIRICAL_7_OF_7_BINDING
+
+PARTIAL_PROVIDER_IDENTIFICATION_AUTHORIZED      = PENDING_PHASE20_ENVELOPES
+COUNTERFACTUAL_PROVIDER_STRESS_AUTHORIZED       = TRUE
+COUNTERFACTUAL_PROVIDER_STRESS_LABEL            = COUNTERFACTUAL
+
+FORWARD_PROVIDER_ECONOMIC_CAPTURE_REQUIRED      = TRUE
+LIVE_PROVIDER_CERTIFICATION                     = REQUIRES_FORWARD_OBSERVED_ECONOMICS
+
+HISTORICAL_USD_BLOCKER                          = PROVIDER_ECONOMICS
+```
+
+### Phase 19C — CIBO normalized capital numeraire
+
+The first dimensionless capital-policy contract now exists in:
+
+```text
+src/qore/infrastructure/cibo_ce2i_phase19_normalized_capital.py
+tests/infrastructure/test_cibo_ce2i_phase19_normalized_capital.py
+```
+
+Scientific purpose:
+
+- continue CIBO capital-policy science without fabricating historical USD;
+- preserve the ban on summing heterogeneous Trader R directly;
+- express every accepted opportunity through an ex-ante CIBO-owned normalized
+  risk-capacity budget;
+- apply the post-trade R outcome only when the historical exit event is reached;
+- reserve/release normalized capacity chronologically;
+- reject an allocation when normalized capacity is insufficient rather than
+  silently clipping the requested budget;
+- forbid same-timestamp exit recycling because provider settlement ordering is
+  not proven historically;
+- surface a capacity breach when realized loss exceeds the intended structural
+  risk budget instead of manufacturing recapitalization.
+
+The contract makes no USD, margin or historical-provider claim and has no
+allocation, Risk or execution authority.
+
+Current Phase-19 scientific sequence is therefore:
+
+```text
+19A  INTEGRATED CHRONOLOGY                  GREEN
+19B  TEMPORAL STABILITY                     MEASURED / OBSERVATIONAL ONLY
+19C  CAPITAL NUMERAIRE CONTRACT              IMPLEMENTED / CI PENDING
+19D  NORMALIZED CAPITAL LEDGER 7/7           NEXT
+19E  TEMPORAL NULL MODEL                     PENDING
+19F  TAIL / DEPENDENCE EVIDENCE              PENDING
+19G  CAPITAL COLLISION + SHADOW PRICE        PENDING
+19H  RESOURCE / DEPENDENCE HYPERGRAPH        PENDING
+19I  SIMPLE CAPITAL POLICY BASELINES          PENDING
+19J  CAUSAL NORMALIZED WFO                    PENDING
 ```
 
 The chronology-only motor sorts opportunities causally, validates all seven Trader populations,
@@ -1430,22 +1485,27 @@ USD-dependent study remains fail-closed until provider-economic evidence is cali
 
 ---
 
-## PHASE 20 — WFO / Monte Carlo / Stress
+## PHASE 20 — Robust capital-policy validation under uncertainty
 
-**Status: PENDING**
+**Status: STARTED — COUNTERFACTUAL PROVIDER STRESS CONTRACT EXISTS / FULL VALIDATION PENDING**
 
-Required:
+Required sequence:
 
-- WFO;
-- temporal segmentation;
-- execution cost stress;
-- margin stress;
-- spread/slippage stress;
-- correlation break;
-- rapid opportunity clustering;
-- loss clusters;
-- reservation/reconciliation faults;
-- Monte Carlo survivability.
+- 20A provider ambiguity sets;
+- 20B partial-identification bounds;
+- 20C permanently-labelled counterfactual provider stress;
+- 20D causal WFO;
+- 20E capital-state Monte Carlo;
+- 20F independent CE2I mechanism certification;
+- 20G ablation / interaction studies;
+- 20H robust constrained allocator candidates;
+- 20I receding-horizon optionality / MPC research;
+- 20J failure engineering: execution cost, margin, spread/slippage,
+  correlation break, opportunity clustering, loss clusters,
+  reservation/reconciliation faults, stale state and restart.
+
+Phase 20 may use current observed provider facts plus explicit adverse scenarios,
+but must never relabel them as historical economics.
 
 ---
 
@@ -1520,13 +1580,14 @@ PR #651 alone never authorizes LIVE.
 Current sequence:
 
 ```text
-1. Build and run PHASE 18 per-Trader chronological replay from retained evidence.
-2. Build and run PHASE 19 integrated portfolio replay with one coherent capital pool.
-3. Feed empirical replay evidence back into PHASE 3 cost calibration and PHASE 13 interaction edges.
-4. Validate PHASE 15/16/17 policies chronologically; reject any policy that improves one metric by hiding worse strategy outcomes.
-5. Run PHASE 20 WFO / Monte Carlo / execution-margin-correlation stress.
-6. Freeze the surviving CMA/CE2I policy in PHASE 21.
-7. Run one sealed PHASE 22 holdout before any Owner-gated DEMO execution change.
+1. Preserve the sealed PHASE 18 7/7 causal geometry evidence unchanged.
+2. Complete PHASE 19C/19D: bind all seven lineages to the CIBO normalized capital numeraire and normalized transactional ledger.
+3. Build PHASE 19E/19F: temporal null models plus dependence/tail evidence without historical sizing contamination.
+4. Build PHASE 19G/19H: capital-collision/shadow-price evidence and the resource/dependence hypergraph.
+5. Compare simple frozen capital-policy baselines before introducing advanced optimizers.
+6. Run PHASE 20 partial identification, counterfactual provider stress, WFO, capital-state Monte Carlo, ablations and failure engineering.
+7. Freeze the surviving CMA/CE2I policy in PHASE 21.
+8. Run one genuinely fresh sealed PHASE 22 holdout before any Owner-gated DEMO execution change.
 ```
 
 Do not spend research time optimizing legacy Trader sizing. It is deprecated as authority.
