@@ -148,6 +148,22 @@ class RiskCapitalConstraintEnvelope:
 
 
 @dataclass(frozen=True, slots=True)
+class CiboCapitalProvenanceLot:
+    """Non-authoritative capital-source metadata carried through Risk."""
+
+    source_kind: str
+    source_id: str
+    amount_usd: Decimal
+
+    def __post_init__(self) -> None:
+        if not self.source_kind or not self.source_id:
+            raise AccountWideRiskError(
+                "capital provenance source kind/id must be non-empty"
+            )
+        _positive(self.amount_usd, "capital provenance amount_usd")
+
+
+@dataclass(frozen=True, slots=True)
 class CiboRiskRequest:
     request_id: str
     trader_id: TraderLineage
@@ -168,6 +184,7 @@ class CiboRiskRequest:
     expires_at: datetime
     strategy_requested_risk_usd: Decimal | None = None
     minimum_volume_uplifted: bool = False
+    capital_provenance: tuple[CiboCapitalProvenanceLot, ...] = ()
 
     def __post_init__(self) -> None:
         for name, text_value in (
@@ -203,6 +220,26 @@ class CiboRiskRequest:
             _positive(self.strategy_requested_risk_usd, "strategy_requested_risk_usd")
         if type(self.minimum_volume_uplifted) is not bool:
             raise AccountWideRiskError("minimum_volume_uplifted must be bool")
+        if not isinstance(self.capital_provenance, tuple):
+            raise AccountWideRiskError(
+                "capital_provenance must be tuple"
+            )
+        if any(
+            not isinstance(item, CiboCapitalProvenanceLot)
+            for item in self.capital_provenance
+        ):
+            raise AccountWideRiskError(
+                "capital_provenance entries must be canonical lots"
+            )
+        if self.capital_provenance:
+            provenance_total = sum(
+                (item.amount_usd for item in self.capital_provenance),
+                Decimal(0),
+            )
+            if provenance_total != self.requested_stop_risk:
+                raise AccountWideRiskError(
+                    "request capital provenance must sum to requested stop risk"
+                )
         if (
             self.minimum_volume_uplifted
             and self.strategy_requested_risk_usd is not None
@@ -254,6 +291,7 @@ class RiskAuthorization:
     authorization_fingerprint: str
     strategy_requested_risk_usd: Decimal | None = None
     minimum_volume_uplifted: bool = False
+    capital_provenance: tuple[CiboCapitalProvenanceLot, ...] = ()
 
     def __post_init__(self) -> None:
         if type(self.decision) is not RiskDecision:
@@ -270,6 +308,30 @@ class RiskAuthorization:
             raise AccountWideRiskError("REDUCE must lower requested volume")
         if len(self.authorization_fingerprint) != 64:
             raise AccountWideRiskError("authorization_fingerprint must be SHA-256")
+        if not isinstance(self.capital_provenance, tuple):
+            raise AccountWideRiskError(
+                "authorization capital_provenance must be tuple"
+            )
+        if any(
+            not isinstance(item, CiboCapitalProvenanceLot)
+            for item in self.capital_provenance
+        ):
+            raise AccountWideRiskError(
+                "authorization provenance entries must be canonical lots"
+            )
+        if self.decision is RiskDecision.REJECT and self.capital_provenance:
+            raise AccountWideRiskError(
+                "rejected authorization cannot carry deployed capital provenance"
+            )
+        if self.capital_provenance:
+            provenance_total = sum(
+                (item.amount_usd for item in self.capital_provenance),
+                Decimal(0),
+            )
+            if provenance_total != self.monetary_stop_loss:
+                raise AccountWideRiskError(
+                    "authorization capital provenance must sum to monetary stop loss"
+                )
         _aware(self.issued_at, "issued_at")
         _aware(self.expires_at, "expires_at")
 
@@ -625,6 +687,14 @@ def _authorization(
     decision: RiskDecision,
     reason: str,
 ) -> RiskAuthorization:
+    authorized_provenance = _scale_capital_provenance(
+        request,
+        authorized_volume=authorized_volume,
+    )
+    provenance_material = ";".join(
+        f"{item.source_kind}:{item.source_id}:{item.amount_usd}"
+        for item in authorized_provenance
+    )
     canonical = "|".join(
         (
             snapshot.account_binding_id,
@@ -637,6 +707,7 @@ def _authorization(
             str(request.stop_loss),
             str(request.take_profit),
             str(authorized_volume),
+            provenance_material,
             issued_at.astimezone(UTC).isoformat(timespec="microseconds"),
         )
     )
@@ -670,7 +741,44 @@ def _authorization(
         authorization_fingerprint=fingerprint,
         strategy_requested_risk_usd=request.strategy_requested_risk_usd,
         minimum_volume_uplifted=request.minimum_volume_uplifted,
+        capital_provenance=authorized_provenance,
     )
+
+
+def _scale_capital_provenance(
+    request: CiboRiskRequest,
+    *,
+    authorized_volume: Decimal,
+) -> tuple[CiboCapitalProvenanceLot, ...]:
+    if authorized_volume <= 0 or not request.capital_provenance:
+        return ()
+    if authorized_volume == request.requested_volume:
+        return request.capital_provenance
+
+    authorized_risk = authorized_volume * request.stop_loss_per_volume
+    fraction = authorized_volume / request.requested_volume
+    retained: list[CiboCapitalProvenanceLot] = []
+    allocated = Decimal(0)
+    for index, item in enumerate(request.capital_provenance):
+        if index == len(request.capital_provenance) - 1:
+            amount = authorized_risk - allocated
+        else:
+            amount = item.amount_usd * fraction
+            allocated += amount
+        if amount <= 0:
+            continue
+        retained.append(
+            CiboCapitalProvenanceLot(
+                source_kind=item.source_kind,
+                source_id=item.source_id,
+                amount_usd=amount,
+            )
+        )
+    if sum((item.amount_usd for item in retained), Decimal(0)) != authorized_risk:
+        raise AccountWideRiskError(
+            "scaled capital provenance does not match authorized stop risk"
+        )
+    return tuple(retained)
 
 
 def _floor_to_step(value: Decimal, step: Decimal) -> Decimal:
