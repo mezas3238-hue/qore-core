@@ -37,7 +37,7 @@ def _signal(*, risk_scale: str = "1") -> Any:
 
 def test_r34_direct_opportunity_has_no_volume_authority() -> None:
     opportunity = build_r34_opportunity(
-        signal=_signal(risk_scale="999"),  # type: ignore[arg-type]
+        signal=_signal(risk_scale="999"),
         provider_spec=_provider("XAUUSD"),
     )
 
@@ -47,11 +47,11 @@ def test_r34_direct_opportunity_has_no_volume_authority() -> None:
 
 def test_r38_direct_opportunity_ignores_legacy_risk_scale() -> None:
     low = build_r38_opportunity(
-        signal=_signal(risk_scale="0.01"),  # type: ignore[arg-type]
+        signal=_signal(risk_scale="0.01"),
         provider_spec=_provider("EURUSD"),
     )
     high = build_r38_opportunity(
-        signal=_signal(risk_scale="999"),  # type: ignore[arg-type]
+        signal=_signal(risk_scale="999"),
         provider_spec=_provider("EURUSD"),
     )
 
@@ -61,11 +61,11 @@ def test_r38_direct_opportunity_ignores_legacy_risk_scale() -> None:
 
 def test_r43_direct_opportunity_ignores_legacy_risk_scale() -> None:
     low = build_r43_opportunity(
-        signal=_signal(risk_scale="0.01"),  # type: ignore[arg-type]
+        signal=_signal(risk_scale="0.01"),
         provider_spec=_provider("GBPUSD"),
     )
     high = build_r43_opportunity(
-        signal=_signal(risk_scale="999"),  # type: ignore[arg-type]
+        signal=_signal(risk_scale="999"),
         provider_spec=_provider("GBPUSD"),
     )
 
