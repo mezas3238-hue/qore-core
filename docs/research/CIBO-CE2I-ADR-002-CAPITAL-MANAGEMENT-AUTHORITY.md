@@ -192,6 +192,62 @@ Risk does not decide which CE2I tool is economically best.
 
 Execution only applies a CIBO capital action after Risk authorization.
 
+## 2.3 Certification evidence separation — 26-SEP-2026
+
+The capital authority remains unchanged, but certification evidence is now
+constitutionally separated into four scientific layers:
+
+```text
+STRATEGY GEOMETRY
+!=
+NORMALIZED CAPITAL POLICY
+!=
+PROVIDER ECONOMICS
+!=
+EXECUTION REALIZATION
+```
+
+Consequences:
+
+- absence of exact historical provider economics **continues to block** exact
+  historical USD/margin/execution replay;
+- that absence **does not block** causal research of CIBO capital policy in a
+  dimensionless CIBO-owned capital numeraire;
+- heterogeneous Trader R must never be summed directly into a portfolio;
+- a common normalized capital result is legal only after CIBO assigns an
+  ex-ante normalized risk-capacity budget to the opportunity and the
+  post-trade R outcome is revealed only at settlement time;
+- current provider snapshots must never be promoted to historical truth;
+- provider uncertainty must be represented through explicit evidence classes,
+  partial-identification bounds or permanently-labelled counterfactual stress;
+- provider-specific economic certification ultimately requires forward,
+  causally captured provider observations.
+
+Canonical evidence depths:
+
+```text
+E0  STRATEGY_GEOMETRY_HISTORICAL
+E1  NORMALIZED_CAPITAL_POLICY_HISTORICAL
+E2  PARTIALLY_IDENTIFIED_PROVIDER
+E3  COUNTERFACTUAL_PROVIDER_STRESS
+E4  FORWARD_PROVIDER_OBSERVED
+```
+
+E0/E1 may exist without a historical USD claim. E2/E3 may never be relabelled
+as exact historical provider replay. E4 is the required destination for
+provider-real certification.
+
+The first implementation of the E1 numeraire contract is:
+
+```text
+src/qore/infrastructure/cibo_ce2i_phase19_normalized_capital.py
+```
+
+Its normalized unit is not USD, margin, lot size or legacy Trader R authority.
+It is a CIBO-owned ex-ante structural-stop risk-capacity budget. The ledger is
+explicitly unable to claim historical provider economics, raw cross-Trader R
+aggregation, QORE Risk authority or execution authority.
+
 ## 3. Core operating doctrine
 
 Every valid Trader opportunity begins with the **lowest executable capital exposure compatible with
