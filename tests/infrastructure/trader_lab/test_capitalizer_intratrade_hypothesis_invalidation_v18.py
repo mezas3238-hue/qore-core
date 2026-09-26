@@ -77,7 +77,7 @@ def test_sustained_adverse_acceptance_triggers_without_departure() -> None:
         )
     by_name = {event.trigger: event for event in events}
     assert "STALL5_A025" in by_name
-    assert by_name["STALL5_A025"].trigger_r <= "-0.25"
+    assert Decimal(by_name["STALL5_A025"].trigger_r) <= Decimal("-0.25")
     assert Decimal(by_name["STALL5_A025"].max_favorable_r_before_trigger) < (
         lab.DEPARTURE_R
     )
