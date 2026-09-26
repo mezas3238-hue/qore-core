@@ -576,7 +576,9 @@ def build_market_report(
         "current_outcome_visible_to_transition": False,
         "future_bars_visible_to_transition": False,
         "original_exit_bar_excluded": True,
+        "same_bar_stop_target_ambiguity_can_trigger": False,
         "market_session_specific_thresholds_used": False,
+        "strategy_rules_changed": False,
         "trader_certified": False,
     }, triggers, transitions
 
