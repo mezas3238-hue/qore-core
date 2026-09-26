@@ -14,6 +14,8 @@ def _report(
     *,
     realized: str | None,
     settled: bool,
+    remaining_stop: str | None = None,
+    estimated_floor: str | None = None,
 ) -> LiveBehaviorCaseReport:
     return LiveBehaviorCaseReport(
         case_id="signal:" + "a" * 64,
@@ -35,8 +37,8 @@ def _report(
         settlement_prices=(),
         settled_source_volumes=(),
         estimated_initial_risk_pnl="10",
-        estimated_remaining_stop_pnl=None,
-        estimated_economic_floor_pnl=None,
+        estimated_remaining_stop_pnl=remaining_stop,
+        estimated_economic_floor_pnl=estimated_floor,
         estimated_economic_floor_r=None,
         path_sample_count=0,
         max_unrealized_pnl=None,
@@ -66,9 +68,12 @@ def test_closed_loss_does_not_recover_base() -> None:
 
 
 def test_open_case_remains_insufficient_even_with_historical_estimate() -> None:
-    report = _report(realized="20", settled=False)
-    object.__setattr__(report, "estimated_remaining_stop_pnl", "5")
-    object.__setattr__(report, "estimated_economic_floor_pnl", "25")
+    report = _report(
+        realized="20",
+        settled=False,
+        remaining_stop="5",
+        estimated_floor="25",
+    )
 
     observation = classify_behavior_case(report)
 
