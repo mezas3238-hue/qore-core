@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from qore.infrastructure.core_stack_v2.architecture_freeze import (\n    superintelligence_freeze_contract,\n)\nfrom qore.infrastructure.core_stack_v2.shared_brain_architecture_contract import (
+from qore.infrastructure.core_stack_v2.architecture_freeze import (
+    superintelligence_freeze_contract,
+)
+from qore.infrastructure.core_stack_v2.shared_brain_architecture_contract import (
     SHARED_BRAIN_ARCHITECTURE_VERSION,
     shared_brain_architecture_contract,
 )
