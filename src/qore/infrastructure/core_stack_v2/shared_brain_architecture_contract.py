@@ -13,7 +13,7 @@ from qore.infrastructure.core_stack_v2.shared_cognitive_os_contract import (
     shared_cognitive_os_contract,
 )
 
-SHARED_BRAIN_ARCHITECTURE_VERSION: Final = "QORE_META_COGNITIVE_SCIENTIFIC_INTELLIGENCE_004"
+SHARED_BRAIN_ARCHITECTURE_VERSION: Final = "QORE_META_COGNITIVE_SCIENTIFIC_INTELLIGENCE_005"
 
 _COGNITIVE_PIPELINE: Final = (
     "MARKET_CORE_COGNITIVE_OBSERVATION",
@@ -26,6 +26,8 @@ _COGNITIVE_PIPELINE: Final = (
     "PREDICTIVE_CODING",
     "NEGATIVE_EVIDENCE",
     "ACTIVE_PERCEPTION_AND_VALUE_OF_INFORMATION",
+    "SURPRISE_AND_NOVELTY",
+    "UNKNOWN_UNKNOWN_DISCOVERY",
     "DYNAMIC_CAUSAL_GRAPH",
     "COMPETING_CAUSAL_HYPOTHESES",
     "ACTIVE_PERCEPTION",
@@ -41,10 +43,13 @@ _COGNITIVE_PIPELINE: Final = (
     "EPISODIC_AND_SEMANTIC_MEMORY",
     "TRAJECTORY_INTELLIGENCE",
     "STABILITY_INTELLIGENCE",
+    "SYSTEMIC_STRESS_INTELLIGENCE",
+    "DISTRIBUTED_COGNITIVE_ATTENTION",
     "DECISION_INTELLIGENCE",
     "AUTONOMOUS_RESEARCH",
     "GOVERNED_KNOWLEDGE_PROMOTION",
     "COGNITIVE_FIREWALL",
+    "MAXIMUM_READ_ONLY_COGNITIVE_API",
     "SHARED_SITUATION",
 )
 
@@ -102,6 +107,12 @@ _REQUIRED_CAPABILITIES: Final = (
     "SELF_MODEL",
     "DEGRADED_MODE",
     "COGNITIVE_FIREWALL",
+    "UNKNOWN_UNKNOWN_DISCOVERY",
+    "SYSTEMIC_STRESS_MODEL",
+    "DISTRIBUTED_COGNITIVE_ATTENTION",
+    "SURPRISE_ENGINE",
+    "NOVELTY_ENGINE",
+    "MAXIMUM_READ_ONLY_COGNITIVE_API",
 )
 
 _KNOWLEDGE_TIERS: Final = (
@@ -115,7 +126,7 @@ def shared_brain_architecture_contract() -> dict[str, object]:
     """Return the frozen ceiling architecture for Shared cognition."""
 
     return {
-        "schema": "qore.shared_brain.architecture_contract.v2",
+        "schema": "qore.shared_brain.architecture_contract.v3",
         "version": SHARED_BRAIN_ARCHITECTURE_VERSION,
         "role": "QORE_COGNITIVE_SCIENTIFIC_EPISTEMIC_OPERATING_SYSTEM",
         "objective": (
@@ -126,6 +137,9 @@ def shared_brain_architecture_contract() -> dict[str, object]:
             "Execution authority."
         ),
         "pipeline": _COGNITIVE_PIPELINE,
+        "owner_maximum_architecture_directive": (
+            "docs/shared/QORE_SHARED_COGNITIVE_OS_OWNER_DIRECTIVE_005.md"
+        ),
         "maximum_ceiling_program": "docs/shared/QORE_SHARED_MAXIMUM_COGNITIVE_CEILING_ROADMAP.md",
         "maximum_ceiling_master_issue": 638,
         "maximum_ceiling_work_packages": tuple(range(639, 651)),
@@ -170,7 +184,7 @@ def shared_brain_architecture_contract() -> dict[str, object]:
             "minimum_latent_concepts": (
                 "hidden_liquidity_pressure",
                 "latent_directional_intent",
-                "institutional_participation_probability",
+                "participation_intensity",
                 "absorption_probability",
                 "inventory_imbalance",
                 "liquidity_vulnerability",
