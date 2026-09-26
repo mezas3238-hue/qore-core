@@ -27,7 +27,7 @@ jobs:
 
       - name: Announce REPLICATION_D preregistration
         run: |
-          gh issue comment 642 --body "WP-04 V3B REPLICATION_D preregistration started — Git SHA `${GITHUB_SHA}`, run `${GITHUB_RUN_ID}`. Zero cTrader data access; D remains sealed."
+          gh issue comment 642 --body "WP-04 V3B REPLICATION_D strict preregistration started — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Zero cTrader data access; D remains sealed. Evaluator must bind the exact HOLDOUT_E PASS artifact and frozen V3/V3B fingerprints."
 
       - uses: actions/setup-python@v5
         with:
@@ -54,6 +54,7 @@ jobs:
       - name: Validate frozen REPLICATION_D contract
         run: |
           PYTHONPATH=scripts python - <<'PY'
+          import inspect
           import shared_wp04_predictive_replication_d_probe_v3b as collector
           import shared_wp04_predictive_nonlinear_replication_d_eval_v3b as evaluator
 
@@ -67,6 +68,12 @@ jobs:
           assert evaluator.REPLICATION_END_EXCLUSIVE.isoformat() == "2026-07-13T00:00:00+00:00"
           assert evaluator.MINIMUM_POOLED_INCREMENTAL_BPS == 100
           assert evaluator.MINIMUM_POSITIVE_TARGETS == 4
+
+          signature=inspect.signature(evaluator.run)
+          assert "holdout_e_result_path" in signature.parameters
+          assert "freeze_path" in signature.parameters
+          assert "consumed" in signature.parameters
+          assert "replication" in signature.parameters
           PY
 
       - name: Assert zero fresh evidence access
@@ -81,4 +88,4 @@ jobs:
 
       - name: Report REPLICATION_D preregistration GREEN
         run: |
-          gh issue comment 642 --body "WP-04 V3B REPLICATION_D preregistration GREEN — Git SHA `${GITHUB_SHA}`, run `${GITHUB_RUN_ID}`. D locked to 2025-07-14..2026-07-13 with >=340 days provider span; gate unchanged at >=100 bps pooled + >=4/8 targets positive; exact frozen V3/V3B fingerprints required. No cTrader credentials or D evidence were opened."
+          gh issue comment 642 --body "WP-04 V3B REPLICATION_D strict preregistration GREEN — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. D locked to 2025-07-14..2026-07-13 with >=340 days provider span; gate unchanged at >=100 bps pooled + >=4/8 targets positive; evaluator requires exact HOLDOUT_E PASS plus frozen V3/V3B fingerprints. No cTrader credentials or D evidence were opened."
