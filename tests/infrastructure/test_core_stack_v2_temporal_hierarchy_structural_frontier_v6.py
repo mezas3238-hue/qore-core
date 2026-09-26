@@ -4,12 +4,21 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from qore.infrastructure.core_stack_v2.hierarchical_world_model import WorldScale
+from qore.infrastructure.core_stack_v2.temporal_hierarchy_engine import (
+    TemporalHierarchySnapshot,
+    TemporalScaleState,
+)
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_structural_frontier_v6 import (
     StructuralFrontierSourceState,
     StructuralFrontierTrainingEpisode,
     assess_structural_frontier,
     evaluate_structural_frontier,
     fit_structural_frontier_model,
+    structural_frontier_hierarchy_motif,
+)
+from qore.infrastructure.core_stack_v2.temporal_hierarchy_transition_v2 import (
+    TemporalHierarchyTrajectory,
 )
 
 BASE = datetime(2020, 1, 1, tzinfo=UTC)
@@ -141,4 +150,82 @@ def test_v6_rejects_future_fit_evidence() -> None:
             - timedelta(days=1),
             fit_partition="r8",
             episodes=training,
+        )
+
+
+
+def _hierarchy_level(scale: WorldScale, direction: int) -> TemporalScaleState:
+    return TemporalScaleState(
+        scale=scale,
+        direction_milli=direction,
+        persistence_bps=7_000,
+        coherence_bps=7_000,
+        efficiency_bps=6_000,
+        fragility_bps=2_000,
+        transition_bps=2_000,
+    )
+
+
+def _hierarchy_snapshot(
+    *,
+    minute: int,
+    m1: int,
+    m3: int,
+    h1: int = 900,
+    h4: int = 900,
+    daily: int = -100,
+) -> TemporalHierarchySnapshot:
+    return TemporalHierarchySnapshot(
+        episode_id=f"motif-{minute}",
+        as_of=BASE + timedelta(minutes=minute),
+        levels=(
+            _hierarchy_level(WorldScale.M1, m1),
+            _hierarchy_level(WorldScale.M3, m3),
+            _hierarchy_level(WorldScale.M5, 100),
+            _hierarchy_level(WorldScale.M15, 100),
+            _hierarchy_level(WorldScale.H1, h1),
+            _hierarchy_level(WorldScale.H4, h4),
+            _hierarchy_level(WorldScale.DAILY, daily),
+        ),
+    )
+
+
+def test_v6_hierarchy_motif_uses_one_fixed_target_v2_anchor() -> None:
+    # Source H1/H4/D1 mean is positive even though D1 alone is negative.
+    # V4's D1-priority coordinate would invert the interpretation. V6 must
+    # hold the Target-V2 positive source anchor fixed across the whole path.
+    trajectory = TemporalHierarchyTrajectory(
+        episode_id="fixed-anchor",
+        snapshots=(
+            _hierarchy_snapshot(minute=0, m1=-700, m3=300),
+            _hierarchy_snapshot(minute=15, m1=-700, m3=-600),
+            _hierarchy_snapshot(minute=30, m1=300, m3=300),
+        ),
+    )
+
+    motif = structural_frontier_hierarchy_motif(
+        trajectory=trajectory,
+        anchor_direction=1,
+    )
+
+    assert motif.depth_path == (1, 2, 0)
+    assert motif.current_depth == 0
+    assert motif.advance_count == 1
+    assert motif.recession_count == 1
+
+
+def test_v6_hierarchy_motif_rejects_unidentifiable_anchor() -> None:
+    trajectory = TemporalHierarchyTrajectory(
+        episode_id="neutral-anchor",
+        snapshots=(
+            _hierarchy_snapshot(minute=0, m1=-700, m3=300),
+            _hierarchy_snapshot(minute=15, m1=-700, m3=-600),
+            _hierarchy_snapshot(minute=30, m1=300, m3=300),
+        ),
+    )
+
+    with pytest.raises(ValueError, match="identifiable anchor"):
+        structural_frontier_hierarchy_motif(
+            trajectory=trajectory,
+            anchor_direction=0,
         )
