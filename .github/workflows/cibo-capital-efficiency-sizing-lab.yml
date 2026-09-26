@@ -49,6 +49,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase19_temporal_null.py \
             src/qore/infrastructure/cibo_ce2i_phase19_dependence.py \
             src/qore/infrastructure/cibo_ce2i_phase19_capital_collision.py \
+            src/qore/infrastructure/cibo_ce2i_phase19_hypergraph.py \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py \
             src/qore/infrastructure/cibo_account_capital_mission.py \
             src/qore/infrastructure/cibo_trader_opportunity_adapter.py \
@@ -92,6 +93,7 @@ jobs:
             scripts/cibo_phase19_temporal_null_validation.py \
             scripts/cibo_phase19_overlap_dependence_validation.py \
             scripts/cibo_phase19_capital_collision_stress.py \
+            scripts/cibo_phase19_hypergraph_validation.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
@@ -112,6 +114,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase19_temporal_null.py \
             tests/infrastructure/test_cibo_ce2i_phase19_dependence.py \
             tests/infrastructure/test_cibo_ce2i_phase19_capital_collision.py \
+            tests/infrastructure/test_cibo_ce2i_phase19_hypergraph.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py \
             tests/infrastructure/test_cibo_account_capital_mission.py \
             tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
@@ -194,6 +197,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase19_temporal_null.py \
             src/qore/infrastructure/cibo_ce2i_phase19_dependence.py \
             src/qore/infrastructure/cibo_ce2i_phase19_capital_collision.py \
+            src/qore/infrastructure/cibo_ce2i_phase19_hypergraph.py \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py \
             src/qore/infrastructure/cibo_account_capital_mission.py \
             src/qore/infrastructure/cibo_trader_opportunity_adapter.py \
@@ -236,6 +240,7 @@ jobs:
             scripts/cibo_phase19_temporal_null_validation.py \
             scripts/cibo_phase19_overlap_dependence_validation.py \
             scripts/cibo_phase19_capital_collision_stress.py \
+            scripts/cibo_phase19_hypergraph_validation.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
@@ -256,6 +261,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase19_temporal_null.py \
             tests/infrastructure/test_cibo_ce2i_phase19_dependence.py \
             tests/infrastructure/test_cibo_ce2i_phase19_capital_collision.py \
+            tests/infrastructure/test_cibo_ce2i_phase19_hypergraph.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py \
             tests/infrastructure/test_cibo_account_capital_mission.py \
             tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
@@ -319,6 +325,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase19_temporal_null.py \
             tests/infrastructure/test_cibo_ce2i_phase19_dependence.py \
             tests/infrastructure/test_cibo_ce2i_phase19_capital_collision.py \
+            tests/infrastructure/test_cibo_ce2i_phase19_hypergraph.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py \
             tests/infrastructure/test_cibo_account_capital_mission.py \
             tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
