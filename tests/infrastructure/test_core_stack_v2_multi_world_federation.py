@@ -5,12 +5,25 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from qore.infrastructure.core_stack_v2.market_digital_twin import (
+    BehaviorHypothesis,
+    ExpectedStateTransition,
+    LiquidityTopology,
+    RegimeStructure,
+    TwinObservation,
+    TwinPrediction,
+    TwinStateValue,
+    TwinUncertainty,
+    VolatilityTopology,
+    build_market_digital_twin,
+)
 from qore.infrastructure.core_stack_v2.multi_world_engine import (
     WorldModelFamily,
 )
 from qore.infrastructure.core_stack_v2.multi_world_federation import (
     WorldDiagnostic,
     WorldEvidence,
+    build_world_evidence_from_twin,
     update_world_federation,
 )
 
@@ -181,3 +194,120 @@ def test_world_diagnostic_supports_all_required_dimensions() -> None:
 
     assert diagnostic.family is WorldModelFamily.AGENCY_INVENTORY
     assert diagnostic.integrity_bps == 9_000
+
+
+
+def test_federation_consumes_prediction_error_from_market_digital_twin() -> None:
+    prediction = TwinPrediction(
+        prediction_id="momentum-p1",
+        channel="EXPECTED_DISPLACEMENT",
+        made_at=BASE - timedelta(minutes=2),
+        target_at=BASE - timedelta(minutes=1),
+        expected_bps=8_000,
+        tolerance_bps=1_000,
+        model_family="MOMENTUM_WORLD",
+    )
+    observation = TwinObservation(
+        prediction_id="momentum-p1",
+        channel="EXPECTED_DISPLACEMENT",
+        observed_at=BASE - timedelta(seconds=30),
+        observed_bps=3_000,
+    )
+    twin = build_market_digital_twin(
+        as_of=BASE,
+        evidence_cutoff_at=BASE - timedelta(seconds=1),
+        observable_state=(
+            TwinStateValue(
+                "OBSERVED_STRUCTURE",
+                6_000,
+                7_000,
+                BASE - timedelta(seconds=2),
+            ),
+        ),
+        latent_state=(
+            TwinStateValue(
+                "LATENT_PRESSURE",
+                5_500,
+                5_000,
+                BASE - timedelta(seconds=2),
+            ),
+        ),
+        behavior_hypotheses=(
+            BehaviorHypothesis(
+                "UNKNOWN_AGENCY",
+                5_000,
+                2_000,
+                ("OBSERVED_STRUCTURE",),
+            ),
+        ),
+        liquidity_topology=LiquidityTopology(
+            5_000,
+            5_000,
+            5_000,
+            5_000,
+            5_000,
+            9_000,
+        ),
+        volatility_topology=VolatilityTopology(
+            5_000,
+            5_000,
+            5_000,
+            5_000,
+            5_000,
+            9_000,
+        ),
+        cross_market_dependencies=(),
+        regime_structure=RegimeStructure(
+            "UNKNOWN",
+            5_000,
+            5_000,
+            5_000,
+            5_000,
+        ),
+        uncertainty=TwinUncertainty(
+            3_000,
+            3_000,
+            3_000,
+            2_000,
+        ),
+        expected_transitions=(
+            ExpectedStateTransition(
+                3,
+                "UNKNOWN",
+                5_000,
+                2_000,
+            ),
+        ),
+        predictions=(prediction,),
+        observations=(observation,),
+    )
+    diagnostics = tuple(
+        WorldDiagnostic(
+            family=family,
+            as_of=BASE,
+            causal_consistency_bps=5_000,
+            calibration_bps=5_000,
+            trajectory_accuracy_bps=5_000,
+            current_evidence_bps=5_000,
+        )
+        for family in WorldModelFamily
+    )
+
+    evidence = build_world_evidence_from_twin(
+        twin=twin,
+        diagnostics=diagnostics,
+    )
+    by_family = {item.family: item for item in evidence}
+
+    assert (
+        by_family[WorldModelFamily.MOMENTUM_DRIVEN].prediction_error_bps
+        == 10_000
+    )
+    assert (
+        by_family[WorldModelFamily.MOMENTUM_DRIVEN].prediction_observation_count
+        == 1
+    )
+    assert (
+        by_family[WorldModelFamily.LIQUIDITY_DRIVEN].prediction_error_bps
+        == 5_000
+    )
