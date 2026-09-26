@@ -79,7 +79,8 @@ jobs:
             scripts/cibo_phase19_provider_economics_inventory.py \
             src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py \
             src/qore/infrastructure/cibo_ce2i_phase19_interaction_evidence.py \
-            src/qore/infrastructure/cibo_ce2i_phase19_temporal_stability.py
+            src/qore/infrastructure/cibo_ce2i_phase19_temporal_stability.py \
+            src/qore/infrastructure/cibo_ce2i_phase19_provider_evidence_audit.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py \
             tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py \
