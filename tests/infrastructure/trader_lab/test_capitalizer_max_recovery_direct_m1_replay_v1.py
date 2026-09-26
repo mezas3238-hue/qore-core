@@ -22,45 +22,45 @@ from qore.infrastructure.trader_lab import (
 
 def test_window_restores_all_global_contracts() -> None:
     frozen_before = (
-        getattr(frozen_v3, "WINDOW_START"),
-        getattr(frozen_v3, "WINDOW_END"),
-        getattr(frozen_v3, "LOOKBACK_START"),
+        frozen_v3.__dict__["WINDOW_START"],
+        frozen_v3.__dict__["WINDOW_END"],
+        frozen_v3.__dict__["LOOKBACK_START"],
     )
     wait_before = (
-        getattr(wait5, "WINDOW_START"),
-        getattr(wait5, "WINDOW_END"),
-        getattr(wait5, "LOOKBACK_START"),
+        wait5.__dict__["WINDOW_START"],
+        wait5.__dict__["WINDOW_END"],
+        wait5.__dict__["LOOKBACK_START"],
     )
     v3_before = (
-        getattr(v3, "WINDOW_START"),
-        getattr(v3, "WINDOW_END"),
-        getattr(v3, "LOOKBACK_START"),
+        v3.__dict__["WINDOW_START"],
+        v3.__dict__["WINDOW_END"],
+        v3.__dict__["LOOKBACK_START"],
     )
     start = datetime(2022, 9, 17, tzinfo=UTC)
     end = datetime(2024, 9, 17, tzinfo=UTC)
 
     with direct._window(start=start, end=end):
-        assert getattr(frozen_v3, "WINDOW_START") == start
-        assert getattr(frozen_v3, "WINDOW_END") == end
-        assert getattr(wait5, "WINDOW_START") == start
-        assert getattr(wait5, "WINDOW_END") == end
-        assert getattr(v3, "WINDOW_START") == start
-        assert getattr(v3, "WINDOW_END") == end
+        assert frozen_v3.__dict__["WINDOW_START"] == start
+        assert frozen_v3.__dict__["WINDOW_END"] == end
+        assert wait5.__dict__["WINDOW_START"] == start
+        assert wait5.__dict__["WINDOW_END"] == end
+        assert v3.__dict__["WINDOW_START"] == start
+        assert v3.__dict__["WINDOW_END"] == end
 
     assert (
-        getattr(frozen_v3, "WINDOW_START"),
-        getattr(frozen_v3, "WINDOW_END"),
-        getattr(frozen_v3, "LOOKBACK_START"),
+        frozen_v3.__dict__["WINDOW_START"],
+        frozen_v3.__dict__["WINDOW_END"],
+        frozen_v3.__dict__["LOOKBACK_START"],
     ) == frozen_before
     assert (
-        getattr(wait5, "WINDOW_START"),
-        getattr(wait5, "WINDOW_END"),
-        getattr(wait5, "LOOKBACK_START"),
+        wait5.__dict__["WINDOW_START"],
+        wait5.__dict__["WINDOW_END"],
+        wait5.__dict__["LOOKBACK_START"],
     ) == wait_before
     assert (
-        getattr(v3, "WINDOW_START"),
-        getattr(v3, "WINDOW_END"),
-        getattr(v3, "LOOKBACK_START"),
+        v3.__dict__["WINDOW_START"],
+        v3.__dict__["WINDOW_END"],
+        v3.__dict__["LOOKBACK_START"],
     ) == v3_before
 
 
