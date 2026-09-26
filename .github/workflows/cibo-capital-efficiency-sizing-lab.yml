@@ -43,6 +43,7 @@ jobs:
             src/qore/infrastructure/cibo_cma_behavior_binding.py \
             src/qore/infrastructure/cibo_cma_shadow_floor.py \
             src/qore/infrastructure/cibo_cma_capital_observation.py \
+            src/qore/infrastructure/cibo_cma_position_floor.py \
             src/qore/infrastructure/cibo_cma_shadow_floor_report.py \
             scripts/cibo_ce2i_sizing_reconstruction_report.py \
             scripts/cibo_cma_shadow_floor_report.py \
@@ -65,6 +66,7 @@ jobs:
             tests/infrastructure/test_cibo_cma_behavior_binding.py \
             tests/infrastructure/test_cibo_cma_shadow_floor.py \
             tests/infrastructure/test_cibo_cma_capital_observation.py \
+            tests/infrastructure/test_cibo_cma_position_floor.py \
             tests/infrastructure/test_cibo_cma_shadow_floor_report.py
 
       - name: Compile integration surface
@@ -101,6 +103,7 @@ jobs:
             src/qore/infrastructure/cibo_cma_behavior_binding.py \
             src/qore/infrastructure/cibo_cma_shadow_floor.py \
             src/qore/infrastructure/cibo_cma_capital_observation.py \
+            src/qore/infrastructure/cibo_cma_position_floor.py \
             src/qore/infrastructure/cibo_cma_shadow_floor_report.py \
             scripts/cibo_ce2i_sizing_reconstruction_report.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
@@ -122,6 +125,7 @@ jobs:
             tests/infrastructure/test_cibo_cma_behavior_binding.py \
             tests/infrastructure/test_cibo_cma_shadow_floor.py \
             tests/infrastructure/test_cibo_cma_capital_observation.py \
+            tests/infrastructure/test_cibo_cma_position_floor.py \
             tests/infrastructure/test_cibo_cma_shadow_floor_report.py
 
       - name: Pytest
@@ -146,4 +150,5 @@ jobs:
             tests/infrastructure/test_cibo_cma_behavior_binding.py \
             tests/infrastructure/test_cibo_cma_shadow_floor.py \
             tests/infrastructure/test_cibo_cma_capital_observation.py \
+            tests/infrastructure/test_cibo_cma_position_floor.py \
             tests/infrastructure/test_cibo_cma_shadow_floor_report.py
