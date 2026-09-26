@@ -601,7 +601,8 @@ def _process_candidate(
         request_id=f"vt08-{setup.signal_fingerprint[:24]}",
         opportunity=opportunity,
         assigned_capital_usd=demo_capital,
-        observed_free_margin_usd=account.free_margin,
+        hard_risk_headroom_usd=demo_capital,
+        margin_headroom_usd=account.free_margin,
         requested_at=request_at,
         expires_at=setup.expires_at,
     )
@@ -647,7 +648,8 @@ def _process_r34_candidate(
         request_id=f"r34-{signal.signal_fingerprint[:24]}",
         opportunity=opportunity,
         assigned_capital_usd=demo_capital_for(TraderLineage.R34_XAUUSD),
-        observed_free_margin_usd=account.free_margin,
+        hard_risk_headroom_usd=demo_capital_for(TraderLineage.R34_XAUUSD),
+        margin_headroom_usd=account.free_margin,
         requested_at=request_at,
         expires_at=request_at + timedelta(seconds=30),
     )
@@ -700,7 +702,8 @@ def _process_r38_candidate(
         request_id=f"r38-{signal.signal_fingerprint[:24]}",
         opportunity=opportunity,
         assigned_capital_usd=demo_capital_for(TraderLineage.R38_EURUSD),
-        observed_free_margin_usd=account.free_margin,
+        hard_risk_headroom_usd=demo_capital_for(TraderLineage.R38_EURUSD),
+        margin_headroom_usd=account.free_margin,
         requested_at=request_at,
         expires_at=request_at + timedelta(seconds=30),
     )
@@ -753,7 +756,8 @@ def _process_r43_candidate(
         request_id=f"r43-{signal.signal_fingerprint[:24]}",
         opportunity=opportunity,
         assigned_capital_usd=demo_capital_for(TraderLineage.R43_GBPUSD),
-        observed_free_margin_usd=account.free_margin,
+        hard_risk_headroom_usd=demo_capital_for(TraderLineage.R43_GBPUSD),
+        margin_headroom_usd=account.free_margin,
         requested_at=request_at,
         expires_at=request_at + timedelta(seconds=30),
     )
@@ -806,7 +810,8 @@ def _process_gbpjpy_r38_candidate(
         request_id=f"gbpjpy-r38-{signal.signal_fingerprint[:24]}",
         opportunity=opportunity,
         assigned_capital_usd=demo_capital_for(TraderLineage.R38_GBPJPY),
-        observed_free_margin_usd=account.free_margin,
+        hard_risk_headroom_usd=demo_capital_for(TraderLineage.R38_GBPJPY),
+        margin_headroom_usd=account.free_margin,
         requested_at=request_at,
         expires_at=request_at + timedelta(seconds=30),
     )
@@ -891,7 +896,8 @@ def _process_audjpy_r42_candidate(
         request_id=f"audjpy-r42-{signal.signal_fingerprint[:24]}",
         opportunity=opportunity,
         assigned_capital_usd=demo_capital_for(TraderLineage.R42_AUDJPY),
-        observed_free_margin_usd=account.free_margin,
+        hard_risk_headroom_usd=demo_capital_for(TraderLineage.R42_AUDJPY),
+        margin_headroom_usd=account.free_margin,
         requested_at=request_at,
         expires_at=deadline,
     )
