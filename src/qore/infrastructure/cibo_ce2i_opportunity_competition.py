@@ -10,11 +10,16 @@ No capital reservation and no broker mutation occur here.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
+)
+from qore.infrastructure.cibo_ce2i_causal_expectation import (
+    CausalOpportunityExpectation,
+    validate_expectation_before_decision,
 )
 
 
@@ -24,10 +29,10 @@ class CapitalOpportunityCandidate:
     trader_id: TraderLineage
     qore_symbol: str
     provider_symbol: str
-    expected_net_value_usd: Decimal
+    decision_as_of: datetime
+    expectation: CausalOpportunityExpectation
     stop_risk_usd: Decimal
     margin_usd: Decimal
-    expected_capital_minutes: Decimal
     concentration_group: str
     concentration_risk_usd: Decimal
     optionality_cost_usd: Decimal = Decimal(0)
@@ -46,11 +51,13 @@ class CapitalOpportunityCandidate:
             raise CiboCapitalManagementError(
                 "trader_id must be TraderLineage"
             )
+        validate_expectation_before_decision(
+            expectation=self.expectation,
+            decision_as_of=self.decision_as_of,
+        )
         for name in (
-            "expected_net_value_usd",
             "stop_risk_usd",
             "margin_usd",
-            "expected_capital_minutes",
             "concentration_risk_usd",
             "optionality_cost_usd",
         ):
@@ -62,7 +69,6 @@ class CapitalOpportunityCandidate:
         for name in (
             "stop_risk_usd",
             "margin_usd",
-            "expected_capital_minutes",
             "concentration_risk_usd",
         ):
             if getattr(self, name) <= 0:
@@ -77,6 +83,14 @@ class CapitalOpportunityCandidate:
             raise CiboCapitalManagementError(
                 "concentration risk cannot exceed stop risk"
             )
+
+    @property
+    def expected_net_value_usd(self) -> Decimal:
+        return self.expectation.expected_net_value_usd
+
+    @property
+    def expected_capital_minutes(self) -> Decimal:
+        return self.expectation.expected_capital_minutes
 
     @property
     def adjusted_net_value_usd(self) -> Decimal:
