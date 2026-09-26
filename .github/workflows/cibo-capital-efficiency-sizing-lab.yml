@@ -41,6 +41,7 @@ jobs:
             src/qore/infrastructure/cibo_cma_initial_seed.py \
             src/qore/infrastructure/cibo_cma_behavior_binding.py \
             src/qore/infrastructure/cibo_cma_shadow_floor.py \
+            src/qore/infrastructure/cibo_cma_capital_observation.py \
             scripts/cibo_ce2i_sizing_reconstruction_report.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
@@ -58,7 +59,8 @@ jobs:
             tests/infrastructure/test_cibo_cma_runtime_authority_switch.py \
             tests/infrastructure/test_cibo_cma_sizing_telemetry.py \
             tests/infrastructure/test_cibo_cma_behavior_binding.py \
-            tests/infrastructure/test_cibo_cma_shadow_floor.py
+            tests/infrastructure/test_cibo_cma_shadow_floor.py \
+            tests/infrastructure/test_cibo_cma_capital_observation.py
 
       - name: Compile integration surface
         run: |
@@ -91,6 +93,7 @@ jobs:
             src/qore/infrastructure/cibo_cma_initial_seed.py \
             src/qore/infrastructure/cibo_cma_behavior_binding.py \
             src/qore/infrastructure/cibo_cma_shadow_floor.py \
+            src/qore/infrastructure/cibo_cma_capital_observation.py \
             scripts/cibo_ce2i_sizing_reconstruction_report.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
@@ -108,7 +111,8 @@ jobs:
             tests/infrastructure/test_cibo_cma_runtime_authority_switch.py \
             tests/infrastructure/test_cibo_cma_sizing_telemetry.py \
             tests/infrastructure/test_cibo_cma_behavior_binding.py \
-            tests/infrastructure/test_cibo_cma_shadow_floor.py
+            tests/infrastructure/test_cibo_cma_shadow_floor.py \
+            tests/infrastructure/test_cibo_cma_capital_observation.py
 
       - name: Pytest
         run: |
@@ -129,4 +133,5 @@ jobs:
             tests/infrastructure/test_cibo_cma_runtime_authority_switch.py \
             tests/infrastructure/test_cibo_cma_sizing_telemetry.py \
             tests/infrastructure/test_cibo_cma_behavior_binding.py \
-            tests/infrastructure/test_cibo_cma_shadow_floor.py
+            tests/infrastructure/test_cibo_cma_shadow_floor.py \
+            tests/infrastructure/test_cibo_cma_capital_observation.py
