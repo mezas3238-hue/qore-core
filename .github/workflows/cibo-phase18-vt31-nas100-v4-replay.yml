@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/cibo-phase18-vt31-nas100-v4-replay.yml'
       - 'scripts/cibo_phase18_vt31_v4_geometry_patch.py'
+      - 'scripts/cibo_phase18_vt31_rearm_geometry_patch.py'
       - 'scripts/cibo_phase18_vt31_bind.py'
       - 'scripts/cibo_phase18_vt31_score.py'
       - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
@@ -17,6 +18,7 @@ on:
     paths:
       - '.github/workflows/cibo-phase18-vt31-nas100-v4-replay.yml'
       - 'scripts/cibo_phase18_vt31_v4_geometry_patch.py'
+      - 'scripts/cibo_phase18_vt31_rearm_geometry_patch.py'
       - 'scripts/cibo_phase18_vt31_bind.py'
       - 'scripts/cibo_phase18_vt31_score.py'
       - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
@@ -48,6 +50,7 @@ jobs:
         run: |
           ruff check \
             scripts/cibo_phase18_vt31_v4_geometry_patch.py \
+            scripts/cibo_phase18_vt31_rearm_geometry_patch.py \
             scripts/cibo_phase18_vt31_bind.py \
             scripts/cibo_phase18_vt31_score.py \
             src/qore/infrastructure/cibo_ce2i_chronological_replay.py \
@@ -55,6 +58,7 @@ jobs:
             tests/infrastructure/trader_lab/test_cibo_phase18_vt31_v4_geometry_patch.py
           mypy \
             scripts/cibo_phase18_vt31_v4_geometry_patch.py \
+            scripts/cibo_phase18_vt31_rearm_geometry_patch.py \
             scripts/cibo_phase18_vt31_bind.py \
             scripts/cibo_phase18_vt31_score.py \
             src/qore/infrastructure/cibo_ce2i_chronological_replay.py
@@ -94,7 +98,12 @@ jobs:
           python scripts/cibo_phase18_vt31_v4_geometry_patch.py \
             "vt31-code/scripts/vt31_nas100_structural_target_execution_binding_5y_v4.py" \
             "vt31-code/scripts/cibo_phase18_vt31_v4_replay.py"
-          python -m py_compile vt31-code/scripts/cibo_phase18_vt31_v4_replay.py
+          python scripts/cibo_phase18_vt31_rearm_geometry_patch.py \
+            "vt31-code/scripts/vt31_nas100_r5_corrective_management_frontier_v1.py" \
+            "vt31-code/scripts/vt31_nas100_r5_corrective_management_frontier_v1.py"
+          python -m py_compile \
+            vt31-code/scripts/cibo_phase18_vt31_v4_replay.py \
+            vt31-code/scripts/vt31_nas100_r5_corrective_management_frontier_v1.py
 
       - name: Recover immutable VT31 and authoritative V4 evidence
         run: |
