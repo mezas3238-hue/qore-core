@@ -274,11 +274,7 @@ def _scan_symbol(
     if not states:
         raise ValueError("V18 has no market states")
 
-    roots = tuple(
-        path.parent
-        for path in m1_root.rglob("RAW_M1_LEDGER")
-        if symbol in str(path.parent).upper()
-    )
+    roots = tuple(path.parent for path in m1_root.rglob("RAW_M1_LEDGER"))
     if len(roots) != 1:
         raise ValueError(f"V18 requires one native-M1 root for {symbol}")
 
