@@ -1,0 +1,73 @@
+name: QORE Shared WP04 V3 Holdout Preregistration
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/shared_wp04_predictive_holdout_probe_v3.py
+      - scripts/shared_wp04_predictive_holdout_eval_v3.py
+      - .github/workflows/qore-shared-wp04-v3-holdout-preregistration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  holdout-preregistration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared without broker acquisition
+        run: pip install -e ".[dev,ctrader]"
+
+      - name: Static-only validation
+        run: |
+          ruff check \
+            scripts/shared_wp04_predictive_holdout_probe_v3.py \
+            scripts/shared_wp04_predictive_holdout_eval_v3.py
+          python -m py_compile \
+            scripts/shared_wp04_predictive_holdout_probe_v3.py \
+            scripts/shared_wp04_predictive_holdout_eval_v3.py
+
+      - name: Validate frozen preregistration contract without data access
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          import shared_wp04_predictive_holdout_eval_v3 as evaluation
+          import shared_wp04_predictive_holdout_probe_v3 as collector
+
+          expected_start = "2022-07-18T00:00:00+00:00"
+          expected_end = "2023-07-17T00:00:00+00:00"
+
+          assert collector.HOLDOUT_START.isoformat() == expected_start
+          assert collector.HOLDOUT_END_EXCLUSIVE.isoformat() == expected_end
+          assert evaluation.HOLDOUT_START.isoformat() == expected_start
+          assert evaluation.HOLDOUT_END_EXCLUSIVE.isoformat() == expected_end
+          assert evaluation.MINIMUM_POOLED_INCREMENTAL_BPS == 100
+          assert evaluation.MINIMUM_POSITIVE_TARGETS == 4
+          assert evaluation.HOLDOUT_PARTITION == "holdout_a"
+          assert collector.PURPOSE == "WP04_V3_ONE_SHOT_HOLDOUT_A"
+          PY
+
+      - name: Assert no evidence acquisition in preregistration workflow
+        run: |
+          test -z "${QORE_CTRADER_ACCESS_TOKEN:-}"
+          test -z "${QORE_CTRADER_REFRESH_TOKEN:-}"
+          test ! -d fresh
+          test ! -d input
+          test ! -d result
+
+      - name: Report preregistration GREEN
+        run: |
+          gh issue comment 642 --body "WP-04 V3 HOLDOUT_A preregistration GREEN — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Collector/evaluator compile; window is locked to 2022-07-18 through 2023-07-17; final gate remains >=100 bps pooled and >=4/8 targets positive. No cTrader credentials were exposed and no fresh evidence was acquired/opened."
