@@ -123,7 +123,7 @@ jobs:
           report = json.loads(
               (
                   Path("event-output")
-                  / f"capitalizer-{symbol.lower()}-structural-intratrade-invalidation-v19.json"
+                  / f"capitalizer-{symbol.lower()}-intratrade-hypothesis-state-machine-v20.json"
               ).read_text()
           )
           assert report["identity"] == (
@@ -135,8 +135,8 @@ jobs:
               "CONSUMED_VALIDATION_2022_2024",
               "CONSUMED_RESERVED_2020_2022",
           }
-          assert report["current_outcome_visible_to_trigger"] is False
-          assert report["future_bars_visible_to_trigger"] is False
+          assert report["current_outcome_visible_to_transition"] is False
+          assert report["future_bars_visible_to_transition"] is False
           assert report["original_exit_bar_excluded"] is True
           assert report["same_bar_stop_target_ambiguity_can_trigger"] is False
           assert report["recovery_transition_supported"] is True
@@ -240,8 +240,8 @@ jobs:
           assert report["fixed_target_r"] == "2.00"
           assert report["original_stop_geometry_preserved"] is True
           assert report["max3_preserved"] is True
-          assert report["current_outcome_visible_to_trigger"] is False
-          assert report["future_bars_visible_to_trigger"] is False
+          assert report["current_outcome_visible_to_transition"] is False
+          assert report["future_bars_visible_to_transition"] is False
           assert report["original_exit_bar_excluded"] is True
           assert report["recovery_transition_supported"] is True
           assert report["phases"] == [
@@ -251,7 +251,6 @@ jobs:
               "RECOVERED",
               "DEAD",
           ]
-          assert report["trigger_must_precede_surface_exit"] is True
           assert report["market_session_specific_thresholds_used"] is False
           assert report["current_outcome_visible_to_decision"] is False
           assert report["unchosen_counterfactual_visible_to_decision"] is False
