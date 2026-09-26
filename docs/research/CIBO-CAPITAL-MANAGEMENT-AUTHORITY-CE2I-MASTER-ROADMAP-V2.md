@@ -822,7 +822,7 @@ Each mechanism requires separate evidence/certification.
 
 ## PHASE 18 — Per-Trader chronological replay
 
-**Status: IN PROGRESS — CAUSAL REPLAY CONTRACT GREEN / GBPJPY + GBPUSD + AUDJPY EVIDENCE BOUND (3/7)**
+**Status: IN PROGRESS — CAUSAL REPLAY CONTRACT GREEN / GBPJPY + GBPUSD + AUDJPY + EURUSD EVIDENCE BOUND (4/7)**
 
 The shared replay primitive now exists in:
 
@@ -1110,8 +1110,60 @@ The retained evidence does not prove exact historical provider spread, commissio
 margin-per-volume or tick-value. Those economics are therefore not fabricated or inferred.
 
 Phase 18 now has exact R-denominated geometry/baseline replay evidence for **3/7 Traders**:
-R38 GBPJPY, R43 GBPUSD and R42 AUDJPY. The remaining four Traders still require independent
-evidence binding and cannot inherit acceptance from these three cases.
+R38 GBPJPY, R43 GBPUSD and R42 AUDJPY.
+
+### EURUSD R38 Phase-18 checkpoint — 26-SEP-2026
+
+The fourth independent Trader replay is now bound directly to the authoritative final R38
+structural-risk correction. PR #651 does not vendor the EURUSD research lineage: the workflow
+checks out the exact immutable source SHA and adds only serialization-only geometry fields before
+replaying the original source program.
+
+```text
+workflow_run: 36256063185  SUCCESS
+head_sha:     12dae850fac23a92c73a7c4dbf6097afe45f0c6b
+artifact_id:  10910397898
+artifact:     qore-cibo-phase18-eurusd-r38-geometry-12dae850fac23a92c73a7c4dbf6097afe45f0c6b
+digest:       sha256:71bb5ce12b7cfc8f2d17b89dcf907b8b74f4a2257f2055adbe9e9d619c324774
+rows:         863
+source_code:  324fb91d44a6fa328e66de2e22ace7386630c7aa
+```
+
+Every independent replay gate completed GREEN:
+
+```text
+focused quality:                    GREEN
+immutable source SHA verification:  GREEN
+R38 exact replay:                   GREEN
+R38 row-for-row parity:             GREEN
+same causal signal/entry/stop/target GREEN
+risk arithmetic reproduction:       GREEN
+generic Phase-18 scorer parity:     GREEN
+artifact SHA256 manifest:           GREEN
+```
+
+Generic Phase-18 scoring reproduces the authoritative EURUSD R38 5Y baseline exactly:
+
+```text
+trades:          863
+profit_factor:   2.958703779880710298093151891
+total_r:         294.8274112858301220583196574
+max_drawdown_r:  5.824645307409961208739068649
+```
+
+EURUSD also remains deliberately fail-closed for the USD CIBO sizing comparison:
+
+```text
+R_DENOMINATED_ONLY
+CALIBRATION_REQUIRED
+USD_CIBO_SIZING_COMPARISON_AUTHORIZED = FALSE
+```
+
+No historical spread, commission, slippage, margin-per-volume or tick-value value was fabricated.
+
+Phase 18 now has exact R-denominated geometry/baseline replay evidence for **4/7 Traders**:
+R38 GBPJPY, R43 GBPUSD, R42 AUDJPY and R38 EURUSD. The remaining three Traders still require
+independent evidence binding and cannot inherit acceptance from the first four.
 
 Replay each Trader with:
 
