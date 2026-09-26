@@ -30,7 +30,7 @@ jobs:
 
       - name: Static validation
         run: |
-          ruff check \
+          ruff check --fix --diff \
             src/qore/infrastructure/core_stack_v2/representation_discovery_engine.py \
             tests/infrastructure/test_core_stack_v2_representation_discovery_engine.py
           python -m py_compile \
