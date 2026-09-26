@@ -43,6 +43,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_causal_expectation.py \
             src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py \
             src/qore/infrastructure/cibo_ce2i_phase19_interaction_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_phase19_temporal_stability.py \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py \
             src/qore/infrastructure/cibo_account_capital_mission.py \
             src/qore/infrastructure/cibo_trader_opportunity_adapter.py \
@@ -80,6 +81,7 @@ jobs:
             scripts/cibo_ce2i_sizing_reconstruction_report.py \
             scripts/cibo_cma_shadow_floor_report.py \
             scripts/cibo_phase19_temporal_interaction_atlas.py \
+            scripts/cibo_phase19_temporal_stability_validation.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
@@ -94,6 +96,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_causal_expectation.py \
             tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py \
             tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_phase19_temporal_stability.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py \
             tests/infrastructure/test_cibo_account_capital_mission.py \
             tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
@@ -170,6 +173,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_causal_expectation.py \
             src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py \
             src/qore/infrastructure/cibo_ce2i_phase19_interaction_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_phase19_temporal_stability.py \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py \
             src/qore/infrastructure/cibo_account_capital_mission.py \
             src/qore/infrastructure/cibo_trader_opportunity_adapter.py \
@@ -206,6 +210,7 @@ jobs:
             src/qore/infrastructure/cibo_cma_shadow_floor_report.py \
             scripts/cibo_ce2i_sizing_reconstruction_report.py \
             scripts/cibo_phase19_temporal_interaction_atlas.py \
+            scripts/cibo_phase19_temporal_stability_validation.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
@@ -220,6 +225,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_causal_expectation.py \
             tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py \
             tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_phase19_temporal_stability.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py \
             tests/infrastructure/test_cibo_account_capital_mission.py \
             tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
@@ -277,6 +283,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_causal_expectation.py \
             tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py \
             tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_phase19_temporal_stability.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py \
             tests/infrastructure/test_cibo_account_capital_mission.py \
             tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
