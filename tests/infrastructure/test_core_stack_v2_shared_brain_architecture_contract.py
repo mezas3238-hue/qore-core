@@ -148,3 +148,69 @@ def test_legacy_freeze_cannot_reintroduce_shared_actuation() -> None:
     assert governance["shared_capital_allocation_authority"] is False
     assert governance["shared_trade_block_authority"] is False
     assert governance["shared_trade_force_authority"] is False
+
+
+def test_maximum_architecture_005_requires_unknown_unknown_discovery() -> None:
+    contract = shared_brain_architecture_contract()
+    os_contract = contract["cognitive_os_contract"]
+
+    assert contract["version"] == "QORE_META_COGNITIVE_SCIENTIFIC_INTELLIGENCE_005"
+    assert (
+        os_contract["version"]
+        == "QORE_COGNITIVE_SCIENTIFIC_EPISTEMIC_OS_005"
+    )
+    unknowns = os_contract["unknown_unknown_discovery"]
+    assert unknowns["second_order_blindspot_detection_required"] is True
+    assert unknowns["must_search_for_uninstrumented_observation_spaces"] is True
+    assert unknowns["must_search_for_unmodeled_dependencies"] is True
+    assert unknowns["must_not_force_unknown_unknown_into_known_ontology"] is True
+
+
+def test_maximum_architecture_005_separates_systemic_stability_planes() -> None:
+    os_contract = shared_brain_architecture_contract()["cognitive_os_contract"]
+    stability = os_contract["systemic_stability"]
+
+    assert stability["market_stability_required"] is True
+    assert stability["core_stability_required"] is True
+    assert stability["broker_stability_required"] is True
+    assert stability["cognitive_stability_required"] is True
+    assert stability["systemic_stress_required"] is True
+    assert stability["stability_state_is_not_trading_command"] is True
+    assert "SYSTEM_DEGRADED" in stability["descriptive_states"]
+
+
+def test_maximum_cognitive_api_is_read_only_and_non_actuating() -> None:
+    os_contract = shared_brain_architecture_contract()["cognitive_os_contract"]
+    api = os_contract["maximum_cognitive_api"]
+
+    assert "world" in api["read_only_surface"]
+    assert "get_blindspots" in api["read_only_surface"]
+    assert "knowledge_status" in api["read_only_surface"]
+    assert set(api["forbidden_actuation_surface"]) == {
+        "enter",
+        "exit",
+        "resize",
+        "block",
+        "send_order",
+        "allocate_capital",
+        "authorize_risk",
+    }
+    assert api["api_may_mutate_broker"] is False
+    assert api["api_may_allocate_capital"] is False
+    assert api["api_may_authorize_risk"] is False
+    assert api["api_may_mutate_trader_methodology"] is False
+
+
+def test_shared_maximum_objective_is_understanding_not_outcome_ownership() -> None:
+    os_contract = shared_brain_architecture_contract()["cognitive_os_contract"]
+    objective = os_contract["objective_law"]
+
+    assert "WorldUnderstanding" in objective["primary_objectives"]
+    assert "UnknownUnknownDiscovery" in objective["primary_objectives"]
+    assert objective["profit_factor_is_primary_objective"] is False
+    assert objective["drawdown_is_primary_objective"] is False
+    assert objective["price_prediction_is_primary_objective"] is False
+    assert objective["no_trading_authority"] is True
+    assert objective["no_risk_authority"] is True
+    assert objective["no_capital_authority"] is True
+    assert objective["no_execution_authority"] is True
