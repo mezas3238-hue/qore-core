@@ -44,7 +44,7 @@ from qore.infrastructure.core_stack_v2.temporal_hierarchy_engine import (
 )
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_transition_v2 import (
     TemporalHierarchyTrajectory,
-    TemporalHierarchyTrajectoryEvaluation,
+    TemporalHierarchyTransitionEvaluation,
     TemporalHierarchyTrajectoryTrainingEpisode,
     evaluate_temporal_hierarchy_transition,
     fit_temporal_hierarchy_transition_model,
@@ -210,7 +210,7 @@ def _prepare_partition(
 
 
 def _evaluation_payload(
-    evaluation: TemporalHierarchyTrajectoryEvaluation,
+    evaluation: TemporalHierarchyTransitionEvaluation,
 ) -> dict[str, int | str]:
     return {
         "partition": evaluation.partition,
