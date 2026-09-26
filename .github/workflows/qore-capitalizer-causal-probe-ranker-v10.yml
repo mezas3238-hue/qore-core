@@ -15,7 +15,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: qore-capitalizer-causal-probe-ranker-v10-\${{ github.sha }}
+  group: qore-capitalizer-causal-probe-ranker-v10-${{ github.sha }}
   cancel-in-progress: false
 
 env:
@@ -64,43 +64,43 @@ jobs:
       - name: Download development ledgers
         uses: actions/download-artifact@v4
         with:
-          pattern: qore-capitalizer-max-recovery-direct-m1-dev-*-\${{ env.DEV_DIRECT_SHA }}
+          pattern: qore-capitalizer-max-recovery-direct-m1-dev-*-${{ env.DEV_DIRECT_SHA }}
           path: development-input
           merge-multiple: false
-          github-token: \${{ github.token }}
-          run-id: \${{ env.DEV_DIRECT_RUN_ID }}
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DEV_DIRECT_RUN_ID }}
       - name: Download validation ledgers
         uses: actions/download-artifact@v4
         with:
-          pattern: qore-capitalizer-max-recovery-direct-m1-holdout-*-\${{ env.DEV_DIRECT_SHA }}
+          pattern: qore-capitalizer-max-recovery-direct-m1-holdout-*-${{ env.DEV_DIRECT_SHA }}
           path: validation-input
           merge-multiple: false
-          github-token: \${{ github.token }}
-          run-id: \${{ env.DEV_DIRECT_RUN_ID }}
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DEV_DIRECT_RUN_ID }}
       - name: Download development and validation contexts
         uses: actions/download-artifact@v4
         with:
-          pattern: qore-capitalizer-native-market-context-v1-*-\${{ env.DEV_CONTEXT_SHA }}
+          pattern: qore-capitalizer-native-market-context-v1-*-${{ env.DEV_CONTEXT_SHA }}
           path: development-validation-context
           merge-multiple: false
-          github-token: \${{ github.token }}
-          run-id: \${{ env.DEV_CONTEXT_RUN_ID }}
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DEV_CONTEXT_RUN_ID }}
       - name: Download consumed reserved ledgers
         uses: actions/download-artifact@v4
         with:
-          pattern: qore-capitalizer-max-recovery-direct-m1-reserved-*-\${{ env.RESERVED_SOURCE_SHA }}
+          pattern: qore-capitalizer-max-recovery-direct-m1-reserved-*-${{ env.RESERVED_SOURCE_SHA }}
           path: reserved-input
           merge-multiple: false
-          github-token: \${{ github.token }}
-          run-id: \${{ env.RESERVED_SOURCE_RUN_ID }}
+          github-token: ${{ github.token }}
+          run-id: ${{ env.RESERVED_SOURCE_RUN_ID }}
       - name: Download consumed reserved contexts
         uses: actions/download-artifact@v4
         with:
-          pattern: qore-capitalizer-native-market-context-v1-reserved-*-\${{ env.RESERVED_SOURCE_SHA }}
+          pattern: qore-capitalizer-native-market-context-v1-reserved-*-${{ env.RESERVED_SOURCE_SHA }}
           path: reserved-context
           merge-multiple: false
-          github-token: \${{ github.token }}
-          run-id: \${{ env.RESERVED_SOURCE_RUN_ID }}
+          github-token: ${{ github.token }}
+          run-id: ${{ env.RESERVED_SOURCE_RUN_ID }}
       - name: Run V10 continuous dual-model LOO
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_causal_probe_ranker_v10 \
@@ -146,6 +146,6 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: qore-capitalizer-causal-probe-ranker-v10-\${{ github.sha }}
+          name: qore-capitalizer-causal-probe-ranker-v10-${{ github.sha }}
           path: experiment-output
           retention-days: 90
