@@ -1,14 +1,20 @@
 # ruff: noqa: I001
 from decimal import Decimal
 
+import pytest
+
 from qore.infrastructure.account_wide_risk import TraderLineage
-from qore.infrastructure.cibo_capital_management_authority import CapitalSource
+from qore.infrastructure.cibo_capital_management_authority import (
+    CapitalSource,
+    CiboCapitalManagementError,
+)
 from qore.infrastructure.cibo_capital_source_ledger import CapitalSourceLedger
 from qore.infrastructure.cibo_ce2i_opportunity_competition import (
     CapitalOpportunityCandidate,
 )
 from qore.infrastructure.cibo_ce2i_opportunity_graph import (
     OpportunityGraphEdgeKind,
+    OpportunityInteractionEvidence,
     OpportunityGraphNodeKind,
     build_capital_opportunity_graph,
 )
@@ -106,3 +112,84 @@ def test_simultaneous_opportunities_have_risk_and_margin_competition_edges() -> 
     assert len(
         graph.edges_of_kind(OpportunityGraphEdgeKind.SHARES_CONCENTRATION)
     ) == 2
+
+
+
+def test_graph_adds_causal_factor_correlation_provider_and_temporal_edges() -> None:
+    graph = build_capital_opportunity_graph(
+        candidates=(
+            _candidate("a", TraderLineage.R38_EURUSD, group="USD"),
+            _candidate("b", TraderLineage.R43_GBPUSD, group="USD"),
+        ),
+        capital_sources=(),
+        interaction_evidence=(
+            OpportunityInteractionEvidence(
+                left_signal_fingerprint="a",
+                right_signal_fingerprint="b",
+                factor_overlap=Decimal("0.70"),
+                observed_abs_correlation=Decimal("0.80"),
+                same_provider_group=True,
+                temporal_overlap=Decimal("0.50"),
+                hedge_offset=Decimal("0.10"),
+            ),
+        ),
+    )
+
+    assert len(graph.edges_of_kind(OpportunityGraphEdgeKind.FACTOR_OVERLAP)) == 1
+    assert len(
+        graph.edges_of_kind(OpportunityGraphEdgeKind.CORRELATED_EXPOSURE)
+    ) == 1
+    assert len(
+        graph.edges_of_kind(OpportunityGraphEdgeKind.PROVIDER_CONCENTRATION)
+    ) == 1
+    assert len(
+        graph.edges_of_kind(OpportunityGraphEdgeKind.TEMPORAL_OVERLAP)
+    ) == 1
+    assert len(graph.edges_of_kind(OpportunityGraphEdgeKind.HEDGE_OFFSET)) == 1
+
+
+def test_interaction_evidence_must_reference_current_causal_candidates() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="references missing candidate",
+    ):
+        build_capital_opportunity_graph(
+            candidates=(
+                _candidate("a", TraderLineage.R38_EURUSD, group="USD"),
+            ),
+            capital_sources=(),
+            interaction_evidence=(
+                OpportunityInteractionEvidence(
+                    left_signal_fingerprint="a",
+                    right_signal_fingerprint="missing",
+                    observed_abs_correlation=Decimal("0.50"),
+                ),
+            ),
+        )
+
+
+def test_duplicate_unordered_interaction_pair_fails_closed() -> None:
+    candidates = (
+        _candidate("a", TraderLineage.R38_EURUSD, group="USD"),
+        _candidate("b", TraderLineage.R43_GBPUSD, group="USD"),
+    )
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="duplicate interaction evidence pair",
+    ):
+        build_capital_opportunity_graph(
+            candidates=candidates,
+            capital_sources=(),
+            interaction_evidence=(
+                OpportunityInteractionEvidence(
+                    left_signal_fingerprint="a",
+                    right_signal_fingerprint="b",
+                    factor_overlap=Decimal("0.20"),
+                ),
+                OpportunityInteractionEvidence(
+                    left_signal_fingerprint="b",
+                    right_signal_fingerprint="a",
+                    factor_overlap=Decimal("0.30"),
+                ),
+            ),
+        )
