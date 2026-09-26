@@ -27,11 +27,11 @@ one-shot holdout.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from hashlib import sha256
 from math import isfinite, sqrt, tanh
-from collections.abc import Mapping, Sequence
 from statistics import median
 from typing import Final
 
