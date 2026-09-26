@@ -1331,6 +1331,76 @@ detects duplicate signal identities, computes maximum concurrent positions and o
 position pairs, and returns an object that is constitutionally unable to perform USD arithmetic or
 cross-Trader R aggregation.
 
+### Phase-19 integrated chronology empirical checkpoint — 26-SEP-2026
+
+The first seven-Trader integrated replay is now independently GREEN in both push and PR workflows.
+It consumes only the seven sealed Phase-18 artifacts and verifies each artifact ZIP digest plus its
+internal SHA256 manifest before replay.
+
+```text
+head_sha:        e0cddeefab144a49c48de9df0d7c117e1456f3b0
+push_run:        36262706237  SUCCESS
+pr_run:          36262709115  SUCCESS
+artifact_id:     10912847765
+artifact:        qore-cibo-phase19-integrated-chronology-e0cddeefab144a49c48de9df0d7c117e1456f3b0
+artifact_digest: sha256:208d5ca523735273e9f40026bab1a0da041147a610f7c3af50d82c9873ff4072
+report_sha256:   18dfde3bc8975db3604d20aff3b61d73d29ea7bec76dfd2b640f5bc92b5b9fb6
+```
+
+Strict fully-observed seven-Trader common window:
+
+```text
+start: 2021-09-23T05:00:00+00:00
+end:   2022-06-29T09:00:00+00:00
+
+R34_XAUUSD: 132
+R38_EURUSD: 130
+R38_GBPJPY: 152
+R42_AUDJPY: 133
+R43_GBPUSD: 147
+VT08_FOREX:  45
+VT31_NAS100: 116
+TOTAL:       855
+```
+
+Observed chronology/concurrency evidence:
+
+```text
+max_concurrent_positions:          5
+overlapping_position_pairs:        254
+cross_trader_overlapping_pairs:    250
+same_trader_overlapping_pairs:       4
+multi_trader_entry_days:           183
+```
+
+Largest observed pair overlaps in the common window include:
+
+```text
+R38_GBPJPY | R42_AUDJPY  30
+R34_XAUUSD | R43_GBPUSD  22
+R38_EURUSD | R43_GBPUSD  22
+R34_XAUUSD | R42_AUDJPY  19
+R42_AUDJPY | R43_GBPUSD  19
+R38_EURUSD | R38_GBPJPY  17
+R38_GBPJPY | R43_GBPUSD  17
+```
+
+This proves temporal competition is material and gives Phase 13/19 an empirical interaction graph,
+but it **does not** prove common USD risk, correlation-adjusted capital weights or portfolio
+expectancy. Those remain separate claims.
+
+The provider-economic evidence gate is also hardened with explicit evidence classes:
+
+```text
+EXACT_HISTORICAL
+PERIOD_STATIC_VERIFIED
+CURRENT_SNAPSHOT_ONLY
+MISSING
+```
+
+A current snapshot cannot be promoted to historical replay evidence. Historical spread must be
+EXACT_HISTORICAL before Phase 19 can authorize integrated USD capital arithmetic.
+
 This allows immediate study of:
 
 - simultaneous opportunities;
