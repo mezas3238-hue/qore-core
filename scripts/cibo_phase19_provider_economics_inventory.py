@@ -18,6 +18,7 @@ from cibo_phase19_integrated_chronology_replay import (
     SOURCE_SPECS,
     _jsonl,
 )
+from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_ce2i_chronological_replay import (
     ReplayEconomicsStatus,
 )
@@ -31,6 +32,7 @@ from qore.infrastructure.cibo_ce2i_phase19_portfolio_replay import (
 )
 from qore.infrastructure.cibo_ce2i_phase19_provider_evidence_audit import (
     HISTORICAL_PROVIDER_ECONOMIC_FIELDS,
+    HistoricalProviderEconomicsRowAudit,
     audit_historical_provider_economics_rows,
 )
 
@@ -45,7 +47,7 @@ def build_inventory(
     if set(paths) != set(SOURCE_SPECS):
         raise ValueError("Phase 19 provider-evidence source set drift")
 
-    audits = {}
+    audits: dict[TraderLineage, HistoricalProviderEconomicsRowAudit] = {}
     trader_evidence: list[Phase19TraderEvidence] = []
     for key, spec in SOURCE_SPECS.items():
         rows = _jsonl(paths[key])
