@@ -48,9 +48,6 @@ from qore.infrastructure.core_stack_v2.temporal_hierarchy_structural_frontier_v6
     evaluate_structural_frontier,
     fit_structural_frontier_model,
 )
-from qore.infrastructure.core_stack_v2.temporal_hierarchy_target_contract import (
-    higher_timeframe_anchor_direction,
-)
 
 SCHEMA = "qore.shared.wp05.structural_frontier_survival_consumed.v6"
 IDENTITY = "QORE_SHARED_WP05_STRUCTURAL_FRONTIER_SURVIVAL_V6_001"
@@ -101,9 +98,21 @@ def _build_source_state(
     indexes: dict[str, dict[str, int]],
 ) -> StructuralFrontierSourceState:
     snapshot = item.trajectory.snapshots[-1]
-    anchor = higher_timeframe_anchor_direction(snapshot)
+    levels = _scale_map(snapshot)
+    high_values = [
+        levels[scale].direction_milli
+        for scale in (WorldScale.H1, WorldScale.H4, WorldScale.DAILY)
+        if scale in levels
+    ]
+    high_mean = 0.0 if not high_values else fmean(high_values)
+    anchor = 1 if high_mean > 0 else -1 if high_mean < 0 else 0
     if anchor == 0:
-        raise ValueError("baseline opposition requires identifiable higher anchor")
+        raise ValueError(
+            "baseline opposition requires identifiable higher anchor: "
+            f"episode={item.trajectory.episode_id} "
+            f"high_values={high_values} "
+            f"baseline={baseline_local_opposition(snapshot)}"
+        )
 
     key = _source_key(item)
     nas_index = indexes["NAS100"].get(key)
