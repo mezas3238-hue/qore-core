@@ -48,8 +48,8 @@ PARTITIONS = ("r8", "r6", "r5")
 SAMPLE_MINUTES = (0, 30)
 TARGET_HORIZON_MINUTES = 30
 PRE_WINDOW_MINUTES = 90
-EXPOSED_BPS = 6_500
-CONTROL_BPS = 3_500
+SOURCE_CONTROL_QUANTILE = 0.25
+SOURCE_EXPOSED_QUANTILE = 0.75
 MATCHED_CONTROL_MINIMUM = 50
 PROTOCOL_MINIMUM_SAMPLES = 7_000
 
@@ -80,36 +80,28 @@ TARGET_CONCEPTS = (
     CausalConcept.MOMENTUM_PERSISTENCE,
 )
 
-SINGLE_PARTITION_POLICY = CausalDiscoveryPolicy(
-    exposed_threshold_bps=EXPOSED_BPS,
-    control_threshold_bps=CONTROL_BPS,
-    minimum_effect_bps=500,
-    minimum_group_count=250,
-    minimum_stratum_group_count=20,
-    minimum_conditional_strata=4,
-    minimum_regimes=2,
-    minimum_replication_partitions=2,
-    minimum_intervention_group_count=30,
-    minimum_counterfactual_pairs=100,
-    minimum_integrity_bps=9_500,
-    sign_stability_gate_bps=8_000,
-    temporal_precedence_gate_bps=10_000,
-)
-COMBINED_POLICY = CausalDiscoveryPolicy(
-    exposed_threshold_bps=EXPOSED_BPS,
-    control_threshold_bps=CONTROL_BPS,
-    minimum_effect_bps=500,
-    minimum_group_count=500,
-    minimum_stratum_group_count=30,
-    minimum_conditional_strata=4,
-    minimum_regimes=2,
-    minimum_replication_partitions=3,
-    minimum_intervention_group_count=50,
-    minimum_counterfactual_pairs=200,
-    minimum_integrity_bps=9_500,
-    sign_stability_gate_bps=8_000,
-    temporal_precedence_gate_bps=10_000,
-)
+def _policy(
+    *,
+    control_threshold_bps: int,
+    exposed_threshold_bps: int,
+    combined: bool,
+) -> CausalDiscoveryPolicy:
+    return CausalDiscoveryPolicy(
+        exposed_threshold_bps=exposed_threshold_bps,
+        control_threshold_bps=control_threshold_bps,
+        minimum_effect_bps=500,
+        minimum_group_count=500 if combined else 250,
+        minimum_stratum_group_count=30 if combined else 20,
+        minimum_conditional_strata=4,
+        minimum_regimes=2,
+        minimum_replication_partitions=3 if combined else 2,
+        minimum_intervention_group_count=50 if combined else 30,
+        minimum_counterfactual_pairs=200 if combined else 100,
+        minimum_integrity_bps=9_500,
+        sign_stability_gate_bps=8_000,
+        temporal_precedence_gate_bps=10_000,
+    )
+
 
 
 @dataclass(frozen=True, slots=True)
