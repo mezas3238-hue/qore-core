@@ -369,6 +369,7 @@ def _process_observation_bar(
             track.phase = v20.Phase.WEAKENING
             state.recovered_since_deterioration = False
 
+        displacement_this_bar = False
         if (
             track.phase in {v20.Phase.ALIVE, v20.Phase.WEAKENING}
             and state.elapsed >= minimum_bars
@@ -392,39 +393,41 @@ def _process_observation_bar(
                 track.invalidating_age = 0
                 track.phase = v20.Phase.INVALIDATING
                 state.recovered_since_deterioration = False
-            elif track.phase is v20.Phase.INVALIDATING:
-                track.invalidating_age += 1
-                if v20._reclaim(
-                    bar=bar,
-                    track=track,
-                    trade=state.trade,
-                    close_r=close_r,
-                ):
-                    midpoint_reclaimed = True
-                    track.phase = v20.Phase.RECOVERED
-                    state.recovered_since_deterioration = True
-                    v20._reset_track(track)
-                else:
-                    track.acceptance_count += 1
-                    if track.adverse_extreme is not None:
-                        pending = v19._Pending(
-                            midpoint=(
-                                track.midpoint
-                                if track.midpoint is not None
-                                else Decimal(state.trade.entry_price)
-                            ),
-                            adverse_extreme=track.adverse_extreme,
-                        )
-                        if v19._extends(
+                displacement_this_bar = True
+
+        if track.phase is v20.Phase.INVALIDATING and not displacement_this_bar:
+            track.invalidating_age += 1
+            if v20._reclaim(
+                bar=bar,
+                track=track,
+                trade=state.trade,
+                close_r=close_r,
+            ):
+                midpoint_reclaimed = True
+                track.phase = v20.Phase.RECOVERED
+                state.recovered_since_deterioration = True
+                v20._reset_track(track)
+            else:
+                track.acceptance_count += 1
+                if track.adverse_extreme is not None:
+                    pending = v19._Pending(
+                        midpoint=(
+                            track.midpoint
+                            if track.midpoint is not None
+                            else Decimal(state.trade.entry_price)
+                        ),
+                        adverse_extreme=track.adverse_extreme,
+                    )
+                    if v19._extends(
+                        bar,
+                        pending=pending,
+                        trade=state.trade,
+                    ):
+                        track.extension_seen = True
+                        track.adverse_extreme = v19._adverse_extreme(
                             bar,
-                            pending=pending,
-                            trade=state.trade,
-                        ):
-                            track.extension_seen = True
-                            track.adverse_extreme = v19._adverse_extreme(
-                                bar,
-                                state.trade,
-                            )
+                            state.trade,
+                        )
 
     displacement_observed = (
         displacement_seen_before
