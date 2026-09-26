@@ -255,12 +255,12 @@ def allocate_competing_opportunities(
             )
         )
 
-    selected = tuple(
+    selected_fingerprints = tuple(
         row.signal_fingerprint for row in rows if row.selected
     )
     return OpportunityAllocationDecision(
         rows=tuple(rows),
-        selected_signal_fingerprints=selected,
+        selected_signal_fingerprints=selected_fingerprints,
         used_stop_risk_usd=used_risk,
         used_margin_usd=used_margin,
         concentration_used_by_group=tuple(sorted(concentration_used.items())),
