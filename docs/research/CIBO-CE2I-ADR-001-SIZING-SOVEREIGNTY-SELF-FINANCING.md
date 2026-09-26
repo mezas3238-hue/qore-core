@@ -1,3 +1,6 @@
+> **SUPERSEDED BY ADR-002 — CIBO Capital Management Authority.**  
+> Retained only as architectural history. Do not use ADR-001 as the current authority model.
+>
 # CE2I ADR-001 — CIBO Sizing Sovereignty and Self-Financing Capitalization
 
 Status: **OWNER-DIRECTED / ACTIVE ARCHITECTURE / RESEARCH IMPLEMENTATION**
