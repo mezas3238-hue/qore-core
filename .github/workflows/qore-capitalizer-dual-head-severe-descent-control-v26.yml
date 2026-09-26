@@ -1,13 +1,6 @@
 name: QORE Capitalizer Dual Head Severe Descent Control V26
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/qore-capitalizer-dual-head-severe-descent-control-v26.yml'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_dual_head_severe_descent_control_v26.py'
-      - 'tests/infrastructure/trader_lab/test_capitalizer_dual_head_severe_descent_control_v26.py'
   workflow_dispatch:
 
 permissions:
