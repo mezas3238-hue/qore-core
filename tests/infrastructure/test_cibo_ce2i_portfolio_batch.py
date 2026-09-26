@@ -9,7 +9,10 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CapitalSource,
     CiboCapitalManagementError,
 )
-from qore.infrastructure.cibo_capital_source_ledger import CapitalSourceLedger
+from qore.infrastructure.cibo_capital_source_ledger import (
+    CapitalSourceAccount,
+    CapitalSourceLedger,
+)
 from qore.infrastructure.cibo_ce2i_opportunity_competition import (
     CapitalOpportunityCandidate,
 )
@@ -61,7 +64,7 @@ def _allocation_store(tmp_path: Path) -> DurablePortfolioAllocationStore:
     return store
 
 
-def _capital_sources():
+def _capital_sources() -> tuple[CapitalSourceAccount, ...]:
     return (
         CapitalSourceLedger()
         .add_source(
