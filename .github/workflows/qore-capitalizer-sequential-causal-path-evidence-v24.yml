@@ -1,0 +1,151 @@
+name: QORE Capitalizer Sequential Causal Path Evidence V24
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/qore-capitalizer-sequential-causal-path-evidence-v24.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_sequential_causal_path_evidence_v24.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_sequential_causal_path_evidence_v24.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-sequential-causal-path-evidence-v24-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_sequential_causal_path_evidence_v24.py \
+            tests/infrastructure/trader_lab/test_capitalizer_sequential_causal_path_evidence_v24.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_sequential_causal_path_evidence_v24.py \
+            tests/infrastructure/trader_lab/test_capitalizer_sequential_causal_path_evidence_v24.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_sequential_causal_path_evidence_v24.py
+
+  aggregate:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download authoritative V21 reconstructed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Run V24 sequential path model
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_sequential_causal_path_evidence_v24 \
+            reconstructed/development-input \
+            reconstructed/validation-input \
+            reconstructed/reserved-input \
+            reconstructed/development-validation-context \
+            reconstructed/reserved-context \
+            reconstructed/v21-evidence \
+            experiment-output
+      - name: Enforce V24 causal/economic contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "experiment-output/"
+                  "capitalizer-sequential-causal-path-evidence-v24.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_SEQUENTIAL_CAUSAL_PATH_EVIDENCE_V24"
+          )
+          assert report["evaluation"] == (
+              "SEQUENTIAL_CAUSAL_PATH_LIKELIHOOD_RATIO"
+          )
+          assert report["policy"] == (
+              "INVALIDATING_SEQ_BF3_POSMEAN_N30_T3"
+          )
+          assert report[
+              "minimum_unique_trade_support_per_external_model"
+          ] == 30
+          assert report["minimum_supported_transitions"] == 3
+          assert report["bayes_factor_minimum_each_external_model"] == "3.0"
+          assert report["entry_regime_hierarchy"] == ["R0", "R1", "R2", "R3"]
+          assert report["all_entries_preserved"] is True
+          assert report["density_retention"] == "1"
+          assert report["surface_multiplier_preserved"] is True
+          assert report["fixed_target_r"] == "2.00"
+          assert report["original_stop_geometry_preserved"] is True
+          assert report["max3_preserved"] is True
+          assert report["symbol_session_side_time_features_used"] is False
+          assert report["current_outcome_visible_to_decision"] is False
+          assert report["future_bars_visible_to_decision"] is False
+          assert report["original_exit_bar_excluded"] is True
+          assert report["unchosen_counterfactual_visible_to_decision"] is False
+          assert report["heldout_training_label_visible_to_decision"] is False
+          assert report["training_label_visible_to_heldout_inference"] is False
+          assert report["historical_fresh_oos_available"] is False
+          assert report["2018_2020_status"] == "CONSUMED_NOT_FRESH"
+          assert report["automatic_policy_promotion"] is False
+          assert report["trader_certified"] is False
+
+          control = next(
+              row for row in report["results"]
+              if row["policy"] == "SURFACE_CONTROL"
+          )
+          expected = {
+              "DEVELOPMENT_2024_2026": (
+                  948, "6.214605199866807668753081488"
+              ),
+              "CONSUMED_VALIDATION_2022_2024": (
+                  1034, "6.770051846347247537620893924"
+              ),
+              "CONSUMED_RESERVED_2020_2022": (
+                  1088, "8.74798816650617431130479348"
+              ),
+          }
+          for period, (trades, dd) in expected.items():
+              row = control["heldouts"][period]
+              assert row["trades"] == trades
+              assert row["metrics"]["max_drawdown_r"] == dd
+
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Upload V24 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-sequential-causal-path-evidence-v24-${{ github.sha }}
+          path: experiment-output
+          if-no-files-found: error
+          retention-days: 90
