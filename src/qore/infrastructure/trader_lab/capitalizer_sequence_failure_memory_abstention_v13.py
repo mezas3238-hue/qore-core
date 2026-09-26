@@ -122,12 +122,12 @@ def _fingerprint(
     pre: v10.Pretrade,
     chosen: tuple[milestone.SimulatedTrade, ...],
 ) -> str:
-    base = (
+    base: tuple[str, ...] = (
         trade.session,
         pre.ctx.context_signature,
     )
     if family == "STATE":
-        parts = base
+        parts: tuple[str, ...] = base
     elif family == "FACTOR":
         parts = (*base, _factor_relation(chosen, trade=trade))
     else:
