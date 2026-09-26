@@ -38,9 +38,6 @@ from qore.infrastructure.core_stack_v2.temporal_hierarchy_engine import (
     TemporalHierarchySnapshot,
     baseline_local_opposition,
 )
-from qore.infrastructure.core_stack_v2.temporal_hierarchy_target_contract import (
-    higher_timeframe_anchor_direction,
-)
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_recovery_veto_v4 import (
     recovery_motif_signature,
 )
@@ -50,6 +47,9 @@ from qore.infrastructure.core_stack_v2.temporal_hierarchy_structural_frontier_v6
     StructuralFrontierTrainingEpisode,
     evaluate_structural_frontier,
     fit_structural_frontier_model,
+)
+from qore.infrastructure.core_stack_v2.temporal_hierarchy_target_contract import (
+    higher_timeframe_anchor_direction,
 )
 
 SCHEMA = "qore.shared.wp05.structural_frontier_survival_consumed.v6"
