@@ -9,6 +9,7 @@ cross-Trader R aggregation is used.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from datetime import timedelta
 from pathlib import Path
@@ -24,6 +25,10 @@ from cibo_phase19_integrated_chronology_replay import (
     _parse_row,
 )
 from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_ce2i_phase19_interaction_evidence import (
+    Phase19TemporalOverlapAtlas,
+    Phase19TraderPairOverlap,
+)
 from qore.infrastructure.cibo_ce2i_phase19_portfolio_replay import (
     PHASE19_REQUIRED_TRADERS,
     Phase19ChronologicalOpportunity,
@@ -49,6 +54,7 @@ def run_validation(
     *,
     paths: dict[str, Path],
     output_path: Path,
+    training_atlas_output_path: Path,
 ) -> dict[str, Any]:
     if set(paths) != set(SOURCE_SPECS):
         raise ValueError("Phase 19 temporal stability source set drift")
@@ -147,6 +153,77 @@ def run_validation(
     ):
         raise ValueError("Phase 19 weighted-Jaccard drift")
 
+    source_evidence = {
+        key: {
+            "trader_id": spec.trader_id.value,
+            "artifact_id": spec.artifact_id,
+            "artifact_digest": spec.artifact_digest,
+        }
+        for key, spec in SOURCE_SPECS.items()
+    }
+    source_manifest_bytes = json.dumps(
+        source_evidence,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    source_manifest_sha256 = hashlib.sha256(source_manifest_bytes).hexdigest()
+
+    training_atlas = Phase19TemporalOverlapAtlas(
+        source_evidence_id=f"sha256:{source_manifest_sha256}",
+        common_window_start=common_start,
+        common_window_end=split_at,
+        total_cross_trader_overlap_pairs=(
+            evidence.training_cross_trader_overlap_pairs
+        ),
+        pair_overlaps=tuple(
+            Phase19TraderPairOverlap(
+                left_trader=item.left_trader,
+                right_trader=item.right_trader,
+                overlapping_pairs=item.training_overlap_pairs,
+            )
+            for item in evidence.pair_stability
+        ),
+    )
+    training_atlas_payload: dict[str, Any] = {
+        "schema": "qore.cibo.phase19.frozen_training_overlap_atlas.v1",
+        "identity": "CIBO_PHASE19_FROZEN_TRAINING_OVERLAP_ATLAS_V1",
+        "source_manifest_sha256": source_manifest_sha256,
+        "training_window": {
+            "start": training_atlas.common_window_start.isoformat(),
+            "end": training_atlas.common_window_end.isoformat(),
+        },
+        "total_cross_trader_overlap_pairs": (
+            training_atlas.total_cross_trader_overlap_pairs
+        ),
+        "pair_weights": [
+            {
+                "left_trader": item.unordered_key[0].value,
+                "right_trader": item.unordered_key[1].value,
+                "overlapping_pairs": item.overlapping_pairs,
+                "temporal_overlap_weight": str(
+                    training_atlas.overlap_share(*item.unordered_key)
+                ),
+            }
+            for item in training_atlas.pair_overlaps
+        ],
+        "governance": {
+            "training_only": True,
+            "validation_rows_used": False,
+            "strategy_outcomes_used": False,
+            "observational_only": True,
+            "allocator_authority_changed": False,
+            "sizing_authority_changed": False,
+            "qore_risk_authority_changed": False,
+            "execution_authority_changed": False,
+        },
+    }
+    training_atlas_output_path.parent.mkdir(parents=True, exist_ok=True)
+    training_atlas_bytes = (
+        json.dumps(training_atlas_payload, indent=2, sort_keys=True) + "\n"
+    ).encode("utf-8")
+    training_atlas_output_path.write_bytes(training_atlas_bytes)
+    training_atlas_sha256 = hashlib.sha256(training_atlas_bytes).hexdigest()
+
     report: dict[str, Any] = {
         "schema": "qore.cibo.phase19.temporal_stability_validation.v1",
         "identity": "CIBO_PHASE19_TEMPORAL_STABILITY_VALIDATION_V1",
@@ -196,13 +273,13 @@ def run_validation(
             }
             for item in evidence.pair_stability
         ],
-        "source_evidence": {
-            key: {
-                "trader_id": spec.trader_id.value,
-                "artifact_id": spec.artifact_id,
-                "artifact_digest": spec.artifact_digest,
-            }
-            for key, spec in SOURCE_SPECS.items()
+        "source_evidence": source_evidence,
+        "frozen_training_atlas": {
+            "schema": training_atlas_payload["schema"],
+            "sha256": training_atlas_sha256,
+            "training_only": True,
+            "validation_rows_used": False,
+            "allocator_authority_changed": False,
         },
         "interpretation": {
             "observational_only": True,
@@ -235,11 +312,16 @@ def main() -> None:
     for key in SOURCE_SPECS:
         parser.add_argument(f"--{key}", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--training-atlas-output", type=Path, required=True)
     args = parser.parse_args()
     paths = {key: getattr(args, key) for key in SOURCE_SPECS}
     print(
         json.dumps(
-            run_validation(paths=paths, output_path=args.output),
+            run_validation(
+                paths=paths,
+                output_path=args.output,
+                training_atlas_output_path=args.training_atlas_output,
+            ),
             sort_keys=True,
         )
     )
