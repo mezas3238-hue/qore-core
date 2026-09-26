@@ -19,11 +19,40 @@ def test_shared_brain_architecture_preserves_sovereignty() -> None:
     assert sovereignty["shared_sizing_authority"] is False
 
 
-def test_shared_brain_architecture_requires_falsifiable_world_model() -> None:
+def test_shared_brain_architecture_requires_cognitive_market_os() -> None:
     contract = shared_brain_architecture_contract()
 
-    assert contract["world_model_law"]["continuous_market_world_state_required"] is True
-    assert contract["reasoning_law"]["multiple_competing_hypotheses_required"] is True
+    assert (
+        contract["hierarchical_world_model_law"][
+            "multiple_temporal_levels_required"
+        ]
+        is True
+    )
+    assert (
+        contract["multi_world_law"]["multiple_internal_world_models_required"]
+        is True
+    )
+    assert (
+        contract["reasoning_law"]["multiple_competing_hypotheses_required"]
+        is True
+    )
     assert contract["reasoning_law"]["hypothesis_falsification_required"] is True
-    assert contract["metacognition_law"]["epistemic_uncertainty_required"] is True
-    assert (\n        contract["scientific_discovery_law"][\n            "holdout_required_before_knowledge_promotion"\n        ]\n        is True\n    )
+    assert contract["uncertainty_law"]["epistemic_uncertainty_required"] is True
+    assert contract["uncertainty_law"]["aleatoric_uncertainty_required"] is True
+    assert contract["autonomous_research_law"]["holdout_required"] is True
+    assert contract["autonomous_research_law"]["replication_required"] is True
+
+
+def test_experimental_knowledge_cannot_self_promote() -> None:
+    contract = shared_brain_architecture_contract()
+
+    continual = contract["continual_learning_law"]
+    research = contract["autonomous_research_law"]
+    assert (
+        continual[
+            "experimental_knowledge_cannot_replace_certified_knowledge_directly"
+        ]
+        is True
+    )
+    assert research["research_may_not_self_promote_to_runtime"] is True
+    assert research["validated_to_certified_requires_owner_governed_gate"] is True
