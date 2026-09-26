@@ -771,7 +771,7 @@ def build_report(
             and row["dd_below_surface_control"]
             for row in heldouts.values()
         )
-        robust_full = all(
+        robust_full_window = all(
             row["pf_at_least_surface_control"]
             and row["dd_below_surface_control"]
             and row["total_r_at_least_surface_control"]
@@ -784,7 +784,7 @@ def build_report(
                 "heldouts": heldouts,
                 "model_diagnostics": diagnostics,
                 "robust_pf_up_dd_down_all_loo_windows": robust_pf_dd,
-                "robust_pf_dd_total_r_all_loo_windows": robust_full,
+                "robust_pf_dd_total_r_all_loo_windows": robust_full_window,
                 "all_loo_windows_dd6": all_dd6,
             }
         )
@@ -792,10 +792,10 @@ def build_report(
     robust = tuple(
         row for row in results if row["robust_pf_up_dd_down_all_loo_windows"]
     )
-    robust_full = tuple(
+    robust_full_rows = tuple(
         row for row in results if row["robust_pf_dd_total_r_all_loo_windows"]
     )
-    dd6 = tuple(row for row in robust_full if row["all_loo_windows_dd6"])
+    dd6 = tuple(row for row in robust_full_rows if row["all_loo_windows_dd6"])
     next_phase = (
         "FREEZE_V10_ON_ALL_CONSUMED_THEN_OPEN_2018_2020"
         if dd6
@@ -816,7 +816,7 @@ def build_report(
         "policy_count": len(POLICIES),
         "results": results,
         "robust_pf_up_dd_down_policy_count": len(robust),
-        "robust_pf_dd_total_r_policy_count": len(robust_full),
+        "robust_pf_dd_total_r_policy_count": len(robust_full_rows),
         "robust_full_and_all_windows_dd6_policy_count": len(dd6),
         "heldout_outcomes_visible_to_models": False,
         "each_model_uses_exactly_one_other_period": True,
