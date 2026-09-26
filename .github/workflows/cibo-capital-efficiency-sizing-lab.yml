@@ -53,6 +53,8 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_recycling.py \
             src/qore/infrastructure/cibo_ce2i_execution_efficiency.py \
             src/qore/infrastructure/cibo_ce2i_policy_pipeline.py \
+            src/qore/infrastructure/cibo_ce2i_multi_source.py \
+            src/qore/infrastructure/cibo_ce2i_opportunity_competition.py \
             src/qore/infrastructure/cibo_cma_shadow_floor_report.py \
             scripts/cibo_ce2i_sizing_reconstruction_report.py \
             scripts/cibo_cma_shadow_floor_report.py \
@@ -85,6 +87,8 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_recycling.py \
             tests/infrastructure/test_cibo_ce2i_execution_efficiency.py \
             tests/infrastructure/test_cibo_ce2i_policy_pipeline.py \
+            tests/infrastructure/test_cibo_ce2i_multi_source.py \
+            tests/infrastructure/test_cibo_ce2i_opportunity_competition.py \
             tests/infrastructure/test_cibo_cma_shadow_floor_report.py
 
       - name: Compile integration surface
@@ -131,6 +135,8 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_recycling.py \
             src/qore/infrastructure/cibo_ce2i_execution_efficiency.py \
             src/qore/infrastructure/cibo_ce2i_policy_pipeline.py \
+            src/qore/infrastructure/cibo_ce2i_multi_source.py \
+            src/qore/infrastructure/cibo_ce2i_opportunity_competition.py \
             src/qore/infrastructure/cibo_cma_shadow_floor_report.py \
             scripts/cibo_ce2i_sizing_reconstruction_report.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
@@ -162,6 +168,8 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_recycling.py \
             tests/infrastructure/test_cibo_ce2i_execution_efficiency.py \
             tests/infrastructure/test_cibo_ce2i_policy_pipeline.py \
+            tests/infrastructure/test_cibo_ce2i_multi_source.py \
+            tests/infrastructure/test_cibo_ce2i_opportunity_competition.py \
             tests/infrastructure/test_cibo_cma_shadow_floor_report.py
 
       - name: Pytest
@@ -196,4 +204,6 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_recycling.py \
             tests/infrastructure/test_cibo_ce2i_execution_efficiency.py \
             tests/infrastructure/test_cibo_ce2i_policy_pipeline.py \
+            tests/infrastructure/test_cibo_ce2i_multi_source.py \
+            tests/infrastructure/test_cibo_ce2i_opportunity_competition.py \
             tests/infrastructure/test_cibo_cma_shadow_floor_report.py
