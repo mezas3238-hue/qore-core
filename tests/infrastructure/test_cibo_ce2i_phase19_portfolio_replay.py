@@ -146,12 +146,12 @@ def test_phase19_current_snapshot_cannot_be_promoted_to_historical_usd() -> None
 
 def test_phase19_provider_evidence_requires_exact_historical_spread() -> None:
     period_static_spread = _provider_economics(
-        TraderLineage.R38_GBPUSD,
+        TraderLineage.R43_GBPUSD,
         spread=ProviderEconomicsEvidenceClass.PERIOD_STATIC_VERIFIED,
     )
     assert period_static_spread.historical_usd_complete is False
 
-    exact_spread = _provider_economics(TraderLineage.R38_GBPUSD)
+    exact_spread = _provider_economics(TraderLineage.R43_GBPUSD)
     assert exact_spread.historical_usd_complete is True
 
 
