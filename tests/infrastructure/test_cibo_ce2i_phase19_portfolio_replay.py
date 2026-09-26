@@ -15,6 +15,7 @@ from qore.infrastructure.cibo_ce2i_phase19_portfolio_replay import (
     PHASE19_REQUIRED_TRADERS,
     Phase19ChronologicalOpportunity,
     Phase19ProviderEconomicsEvidence,
+    Phase19Readiness,
     Phase19ReadinessStatus,
     Phase19TraderEvidence,
     ProviderEconomicsEvidenceClass,
@@ -65,7 +66,7 @@ def _evidence(
 
 def _full_readiness(
     status: ReplayEconomicsStatus = ReplayEconomicsStatus.R_DENOMINATED_ONLY,
-):
+) -> Phase19Readiness:
     return assess_phase19_readiness(
         tuple(_evidence(trader, status=status) for trader in PHASE19_REQUIRED_TRADERS)
     )
