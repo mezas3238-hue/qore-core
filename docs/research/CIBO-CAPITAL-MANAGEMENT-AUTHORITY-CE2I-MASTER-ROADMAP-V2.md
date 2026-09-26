@@ -421,7 +421,7 @@ Equivalent economic exposure is comparable across all supported markets/provider
 
 ## PHASE 4 — TraderOpportunityEnvelope migration
 
-**Status: BRIDGE IMPLEMENTED / DIRECT TRADER ADAPTER MIGRATION PENDING**
+**Status: DIRECT OPPORTUNITY BUILDERS IMPLEMENTED 7/7 / RUNTIME SWITCH PENDING**
 
 Goal:
 
@@ -447,10 +447,25 @@ Explicitly absent:
 - risk multiplier as authority;
 - final monetary risk allocation.
 
+Current direct builders:
+
+- VT08 FOREX: `build_ctrader_demo_vt08_opportunity`
+- R34 XAUUSD: `build_r34_opportunity`
+- R38 EURUSD: `build_r38_opportunity`
+- R43 GBPUSD: `build_r43_opportunity`
+- R38 GBPJPY: `build_r38_gbpjpy_opportunity`
+- R42 AUDJPY: `build_r42_audjpy_opportunity`
+- VT31 NAS100: `build_vt31_opportunity`
+
+These builders preserve market/broker geometry and deliberately do not consume Trader risk scale,
+risk BPS or certified-risk-R as volume authority.
+
+Runtime still calls the legacy request builders today, so the final authority switch is not complete.
+
 Exit gate:
 
-Adapters exist for all active Traders and reproduce their opportunity geometry without consuming
-their legacy sizing output.
+Runtime adapters call these opportunity builders before any sizing and final requested volume is
+produced only by CIBO CMA.
 
 ---
 
