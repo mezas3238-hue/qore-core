@@ -84,10 +84,10 @@ def _candidate(
             as_of=DECISION_AS_OF,
             basis=CausalExpectationBasis.FROZEN_HISTORICAL_PRIOR,
             expected_net_value_usd=Decimal("10"),
-            ),
+            expected_capital_minutes=Decimal("10"),
+        ),
         stop_risk_usd=Decimal("5"),
         margin_usd=Decimal("8"),
-        expected_capital_minutes=Decimal("10"),
         concentration_group="TEST",
         concentration_risk_usd=Decimal("4"),
     )
