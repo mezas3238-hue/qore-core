@@ -7,11 +7,14 @@ on:
       - '.github/workflows/cibo-phase19-integrated-chronology.yml'
       - 'scripts/cibo_phase19_integrated_chronology_replay.py'
       - 'scripts/cibo_phase19_temporal_interaction_atlas.py'
+      - 'scripts/cibo_phase19_temporal_stability_validation.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_interaction_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase19_temporal_stability.py'
       - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase19_temporal_stability.py'
   push:
     branches:
       - agent/cibo-capital-efficiency-sizing-lab-001
@@ -19,11 +22,14 @@ on:
       - '.github/workflows/cibo-phase19-integrated-chronology.yml'
       - 'scripts/cibo_phase19_integrated_chronology_replay.py'
       - 'scripts/cibo_phase19_temporal_interaction_atlas.py'
+      - 'scripts/cibo_phase19_temporal_stability_validation.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_interaction_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase19_temporal_stability.py'
       - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase19_temporal_stability.py'
 
 permissions:
   contents: read
@@ -50,18 +56,23 @@ jobs:
           ruff check \
             scripts/cibo_phase19_integrated_chronology_replay.py \
             scripts/cibo_phase19_temporal_interaction_atlas.py \
+            scripts/cibo_phase19_temporal_stability_validation.py \
             src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py \
             src/qore/infrastructure/cibo_ce2i_phase19_interaction_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_phase19_temporal_stability.py \
             tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py \
-            tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py
+            tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_phase19_temporal_stability.py
           mypy \
             scripts/cibo_phase19_integrated_chronology_replay.py \
             scripts/cibo_phase19_temporal_interaction_atlas.py \
+            scripts/cibo_phase19_temporal_stability_validation.py \
             src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py \
             src/qore/infrastructure/cibo_ce2i_phase19_interaction_evidence.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py \
-            tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py
+            tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_phase19_temporal_stability.py
 
   replay:
     needs: quality
@@ -133,6 +144,19 @@ jobs:
             --output phase19-output/phase19-temporal-interaction-atlas.json \
             > phase19-output/interaction-atlas-stdout.json
 
+      - name: Run forward temporal stability validation
+        run: |
+          python scripts/cibo_phase19_temporal_stability_validation.py \
+            --gbpjpy source/gbpjpy/phase18-gbpjpy-r38-bound-trades.jsonl \
+            --gbpusd source/gbpusd/phase18-gbpusd-r43-bound-trades.jsonl \
+            --audjpy source/audjpy/phase18-audjpy-r42-bound-trades.jsonl \
+            --eurusd source/eurusd/phase18-eurusd-r38-bound-trades.jsonl \
+            --xauusd source/xauusd/phase18-xauusd-r34-bound-trades.jsonl \
+            --vt08 source/vt08/phase18-vt08-r315-fundednext-trades.jsonl \
+            --vt31 source/vt31/phase18-vt31-v4-bound-trades.jsonl \
+            --output phase19-output/phase19-temporal-stability-validation.json \
+            > phase19-output/temporal-stability-stdout.json
+
       - name: Seal Phase-19 evidence
         run: |
           printf '%s\n' "$EVIDENCE_SHA" > phase19-output/git-sha.txt
@@ -140,8 +164,10 @@ jobs:
           sha256sum \
             phase19-integrated-chronology-report.json \
             phase19-temporal-interaction-atlas.json \
+            phase19-temporal-stability-validation.json \
             replay-stdout.json \
             interaction-atlas-stdout.json \
+            temporal-stability-stdout.json \
             git-sha.txt > SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
 
