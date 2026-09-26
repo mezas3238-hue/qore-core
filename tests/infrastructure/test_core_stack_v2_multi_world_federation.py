@@ -123,6 +123,75 @@ def test_sequential_federation_can_replace_a_failing_world() -> None:
     assert second.previous_dominant_world is WorldModelFamily.MOMENTUM_DRIVEN
 
 
+def test_regime_transition_prior_prevents_absorbing_world_monopoly() -> None:
+    state = None
+    for minute in range(50):
+        as_of = BASE + timedelta(minutes=minute)
+        state = update_world_federation(
+            as_of=as_of,
+            evidence=_evidence(
+                as_of=as_of,
+                winner=WorldModelFamily.MOMENTUM_DRIVEN,
+            ),
+            epistemic_uncertainty_bps=1_000,
+            ood_risk_bps=500,
+            previous=state,
+        )
+
+    assert state is not None
+    assert state.regime_transition_bps == 500
+    assert _probability(state, WorldModelFamily.MOMENTUM_DRIVEN) < 10_000
+    assert all(item.probability_bps > 0 for item in state.posteriors)
+
+    first_shift_at = BASE + timedelta(minutes=50)
+    first_shift = update_world_federation(
+        as_of=first_shift_at,
+        evidence=_evidence(
+            as_of=first_shift_at,
+            winner=WorldModelFamily.LIQUIDITY_DRIVEN,
+            loser=WorldModelFamily.MOMENTUM_DRIVEN,
+        ),
+        epistemic_uncertainty_bps=1_000,
+        ood_risk_bps=500,
+        previous=state,
+    )
+    second_shift_at = BASE + timedelta(minutes=51)
+    second_shift = update_world_federation(
+        as_of=second_shift_at,
+        evidence=_evidence(
+            as_of=second_shift_at,
+            winner=WorldModelFamily.LIQUIDITY_DRIVEN,
+            loser=WorldModelFamily.MOMENTUM_DRIVEN,
+        ),
+        epistemic_uncertainty_bps=1_000,
+        ood_risk_bps=500,
+        previous=first_shift,
+    )
+
+    assert _probability(
+        second_shift,
+        WorldModelFamily.LIQUIDITY_DRIVEN,
+    ) > _probability(
+        second_shift,
+        WorldModelFamily.MOMENTUM_DRIVEN,
+    )
+    assert second_shift.dominant_world is WorldModelFamily.LIQUIDITY_DRIVEN
+
+
+def test_regime_transition_prior_is_bounded() -> None:
+    with pytest.raises(ValueError, match="regime_transition_bps"):
+        update_world_federation(
+            as_of=BASE,
+            evidence=_evidence(
+                as_of=BASE,
+                winner=WorldModelFamily.MOMENTUM_DRIVEN,
+            ),
+            epistemic_uncertainty_bps=1_000,
+            ood_risk_bps=500,
+            regime_transition_bps=10_001,
+        )
+
+
 def test_epistemic_uncertainty_increases_unresolved_world_probability() -> None:
     evidence = _evidence(
         as_of=BASE,
