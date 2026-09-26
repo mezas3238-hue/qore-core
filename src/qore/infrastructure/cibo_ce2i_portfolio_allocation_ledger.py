@@ -128,8 +128,8 @@ class PortfolioAllocationLedger:
                 "portfolio allocation exceeds margin capacity"
             )
         for group, used in self.active_concentration_by_group:
-            limit = self.concentration_limit(group)
-            if limit is not None and used > limit:
+            active_limit = self.concentration_limit(group)
+            if active_limit is not None and used > active_limit:
                 raise CiboCapitalManagementError(
                     "portfolio allocation exceeds concentration capacity"
                 )
