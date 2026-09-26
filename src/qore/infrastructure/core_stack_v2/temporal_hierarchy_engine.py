@@ -562,20 +562,53 @@ def fit_temporal_hierarchy_model(
         for item in opposed
     )
     intercept, coefficients = _ridge_fit(rows, targets, ridge=ridge)
-    scores = tuple(
+
+    centers_micros = tuple(
+        int(round(value * 1_000_000))
+        for value in centers
+    )
+    scales_micros = tuple(
+        max(1, int(round(value * 1_000_000)))
+        for value in scales
+    )
+    coefficients_micros = tuple(
+        int(round(value * 1_000_000))
+        for value in coefficients
+    )
+    intercept_micros = int(round(intercept * 1_000_000))
+
+    frozen_centers = tuple(
+        value / 1_000_000.0
+        for value in centers_micros
+    )
+    frozen_scales = tuple(
+        value / 1_000_000.0
+        for value in scales_micros
+    )
+    frozen_coefficients = tuple(
+        value / 1_000_000.0
+        for value in coefficients_micros
+    )
+    frozen_intercept = intercept_micros / 1_000_000.0
+
+    frozen_scores = tuple(
         _probability_micros(
             _predict_raw(
-                intercept=intercept,
-                coefficients=coefficients,
-                row=row,
+                intercept=frozen_intercept,
+                coefficients=frozen_coefficients,
+                row=_standardize(
+                    raw_row,
+                    frozen_centers,
+                    frozen_scales,
+                ),
             )
         )
-        for row in rows
+        for raw_row in raw_rows_tuple
     )
 
     positive_scores = sorted(
         score
-        for score, item in zip(scores, opposed, strict=True)
+        for score, item in zip(frozen_scores, opposed, strict=True)
         if item.terminal_failure
     )
     calibration_recall_bps = max(minimum_training_recall_bps, 9_900)
@@ -589,19 +622,10 @@ def fit_temporal_hierarchy_model(
         fitted_at=cutoff,
         fit_partition=fit_partition,
         feature_names=names,
-        feature_centers_micros=tuple(
-            int(round(value * 1_000_000))
-            for value in centers
-        ),
-        feature_scales_micros=tuple(
-            max(1, int(round(value * 1_000_000)))
-            for value in scales
-        ),
-        coefficients_micros=tuple(
-            int(round(value * 1_000_000))
-            for value in coefficients
-        ),
-        intercept_micros=int(round(intercept * 1_000_000)),
+        feature_centers_micros=centers_micros,
+        feature_scales_micros=scales_micros,
+        coefficients_micros=coefficients_micros,
+        intercept_micros=intercept_micros,
         declaration_threshold_micros=threshold,
         minimum_training_recall_bps=minimum_training_recall_bps,
         threshold_calibration_recall_bps=calibration_recall_bps,
