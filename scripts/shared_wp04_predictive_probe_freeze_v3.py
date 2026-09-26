@@ -123,6 +123,7 @@ def _pooled_summary(
 
 def _probe_payload(probe: Any) -> dict[str, Any]:
     return {
+        "fitted_at": probe.fitted_at.isoformat(),
         "target_name": probe.target_name,
         "calibration_partitions": list(probe.calibration_partitions),
         "representation_fingerprint": probe.representation_fingerprint,
