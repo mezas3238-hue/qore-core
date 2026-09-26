@@ -240,6 +240,92 @@ def _augmented_design(
     return result
 
 
+@dataclass(slots=True)
+class PreparedSecondOrderDesign:
+    partitions: tuple[str, ...]
+    episode_ids: tuple[str, ...]
+    as_of: tuple[datetime, ...]
+    baseline: np.ndarray
+    augmented: np.ndarray
+
+    def __post_init__(self) -> None:
+        if not self.partitions:
+            raise ValueError("prepared design requires partitions")
+        if len(self.episode_ids) != len(self.as_of):
+            raise ValueError("prepared design id/time shape mismatch")
+        if self.baseline.shape[0] != len(self.episode_ids):
+            raise ValueError("prepared baseline row mismatch")
+        if self.augmented.shape[0] != len(self.episode_ids):
+            raise ValueError("prepared augmented row mismatch")
+        if self.baseline.ndim != 2 or self.augmented.ndim != 2:
+            raise ValueError("prepared designs must be matrices")
+
+
+def prepare_second_order_design(
+    *,
+    model: PredictiveRepresentationModel,
+    episodes: tuple[RepresentationEpisode, ...],
+) -> PreparedSecondOrderDesign:
+    if not episodes:
+        raise ValueError("cannot prepare empty V3B design")
+    partitions = tuple(dict.fromkeys(item.partition for item in episodes))
+    episode_ids = tuple(item.episode_id for item in episodes)
+    if len(set(episode_ids)) != len(episode_ids):
+        raise ValueError("prepared episode ids must be unique")
+    baseline = np.asarray(
+        [_baseline_design(model, episode) for episode in episodes],
+        dtype=np.float64,
+    )
+    augmented = np.asarray(
+        [_augmented_design(model, episode) for episode in episodes],
+        dtype=np.float64,
+    )
+    baseline.setflags(write=False)
+    augmented.setflags(write=False)
+    return PreparedSecondOrderDesign(
+        partitions=partitions,
+        episode_ids=episode_ids,
+        as_of=tuple(item.as_of for item in episodes),
+        baseline=baseline,
+        augmented=augmented,
+    )
+
+
+def combine_second_order_designs(
+    designs: Sequence[PreparedSecondOrderDesign],
+) -> PreparedSecondOrderDesign:
+    if not designs:
+        raise ValueError("cannot combine empty V3B design set")
+    episode_ids = tuple(
+        episode_id
+        for design in designs
+        for episode_id in design.episode_ids
+    )
+    if len(set(episode_ids)) != len(episode_ids):
+        raise ValueError("combined prepared episode ids must be unique")
+    baseline = np.vstack([design.baseline for design in designs])
+    augmented = np.vstack([design.augmented for design in designs])
+    baseline.setflags(write=False)
+    augmented.setflags(write=False)
+    return PreparedSecondOrderDesign(
+        partitions=tuple(
+            dict.fromkeys(
+                partition
+                for design in designs
+                for partition in design.partitions
+            )
+        ),
+        episode_ids=episode_ids,
+        as_of=tuple(
+            as_of
+            for design in designs
+            for as_of in design.as_of
+        ),
+        baseline=baseline,
+        augmented=augmented,
+    )
+
+
 def _matched(
     *,
     episodes: Sequence[RepresentationEpisode],
@@ -281,6 +367,118 @@ def _probe_fingerprint(
         augmented,
     )
     return sha256(repr(payload).encode()).hexdigest()
+
+
+def _prepared_target_vector(
+    prepared: PreparedSecondOrderDesign,
+    targets: Sequence[RepresentationEvaluationTarget],
+    *,
+    fitted_at: datetime | None = None,
+) -> np.ndarray:
+    target_by_id = {item.episode_id: item for item in targets}
+    if len(target_by_id) != len(targets):
+        raise ValueError("target episode ids must be unique")
+    missing = [
+        episode_id
+        for episode_id in prepared.episode_ids
+        if episode_id not in target_by_id
+    ]
+    if missing:
+        raise ValueError("prepared design is missing target rows")
+    if fitted_at is not None:
+        if any(
+            target_by_id[episode_id].observed_at > fitted_at
+            for episode_id in prepared.episode_ids
+        ):
+            raise ValueError("future calibration target is forbidden")
+    for episode_id, as_of in zip(
+        prepared.episode_ids,
+        prepared.as_of,
+        strict=True,
+    ):
+        if target_by_id[episode_id].observed_at <= as_of:
+            raise ValueError("target must mature after source episode")
+    return np.asarray(
+        [target_by_id[episode_id].value for episode_id in prepared.episode_ids],
+        dtype=np.float64,
+    )
+
+
+def _ridge_fit_array(
+    design: np.ndarray,
+    response: np.ndarray,
+    *,
+    ridge: float,
+) -> tuple[float, ...]:
+    gram = design.T @ design
+    gram += ridge * design.shape[0] * np.eye(
+        design.shape[1],
+        dtype=np.float64,
+    )
+    rhs = design.T @ response
+    coefficients = np.linalg.solve(gram, rhs)
+    return tuple(float(value) for value in coefficients)
+
+
+def fit_predictive_second_order_probe_prepared(
+    *,
+    model: PredictiveRepresentationModel,
+    fitted_at: datetime,
+    calibration_partitions: tuple[str, ...],
+    target_name: str,
+    prepared: PreparedSecondOrderDesign,
+    targets: tuple[RepresentationEvaluationTarget, ...],
+    ridge: float = 1.0,
+) -> PredictiveSecondOrderProbe:
+    if fitted_at.tzinfo is None or fitted_at.utcoffset() is None:
+        raise ValueError("fitted_at must be timezone-aware")
+    if ridge <= 0:
+        raise ValueError("ridge must be positive")
+    if tuple(prepared.partitions) != calibration_partitions:
+        raise ValueError("prepared calibration partition drift")
+    response = _prepared_target_vector(
+        prepared,
+        targets,
+        fitted_at=fitted_at,
+    )
+    minimum = 4 * prepared.augmented.shape[1]
+    if prepared.augmented.shape[0] < minimum:
+        raise ValueError("insufficient calibration rows for V3B probe")
+    baseline_float = _ridge_fit_array(
+        prepared.baseline,
+        response,
+        ridge=ridge,
+    )
+    augmented_float = _ridge_fit_array(
+        prepared.augmented,
+        response,
+        ridge=ridge,
+    )
+    baseline = tuple(int(round(value * 1_000_000)) for value in baseline_float)
+    augmented = tuple(int(round(value * 1_000_000)) for value in augmented_float)
+    representation_fingerprint = predictive_representation_fingerprint(model)
+    concept_ids = tuple(item.concept_id for item in model.concepts)
+    probe_fingerprint = _probe_fingerprint(
+        representation_fingerprint=representation_fingerprint,
+        calibration_partitions=calibration_partitions,
+        target_name=target_name,
+        ontology_names=model.ontology_names,
+        concept_ids=concept_ids,
+        baseline=baseline,
+        augmented=augmented,
+    )
+    return PredictiveSecondOrderProbe(
+        fitted_at=fitted_at,
+        calibration_partitions=calibration_partitions,
+        target_name=target_name,
+        representation_fingerprint=representation_fingerprint,
+        ontology_names=model.ontology_names,
+        concept_ids=concept_ids,
+        basis_id=BASIS_ID,
+        baseline_coefficients_micros=baseline,
+        augmented_coefficients_micros=augmented,
+        probe_fingerprint=probe_fingerprint,
+    )
 
 
 def fit_predictive_second_order_probe(
@@ -362,6 +560,63 @@ def _predict(coefficients: tuple[int, ...], row: list[float]) -> float:
     if not isfinite(prediction):
         raise ValueError("non-finite V3B prediction")
     return prediction
+
+
+def evaluate_predictive_second_order_probe_prepared(
+    *,
+    model: PredictiveRepresentationModel,
+    probe: PredictiveSecondOrderProbe,
+    partition: str,
+    prepared: PreparedSecondOrderDesign,
+    targets: tuple[RepresentationEvaluationTarget, ...],
+) -> PredictiveSecondOrderEvaluation:
+    if partition in probe.calibration_partitions:
+        raise ValueError("evaluation partition was used for probe fitting")
+    if prepared.partitions != (partition,):
+        raise ValueError("prepared evaluation partition drift")
+    if probe.representation_fingerprint != predictive_representation_fingerprint(
+        model
+    ):
+        raise ValueError("representation fingerprint drift")
+    if probe.basis_id != BASIS_ID:
+        raise ValueError("basis drift")
+    if probe.ontology_names != model.ontology_names:
+        raise ValueError("ontology drift")
+    if probe.concept_ids != tuple(item.concept_id for item in model.concepts):
+        raise ValueError("concept drift")
+
+    response = _prepared_target_vector(prepared, targets)
+    baseline_coefficients = np.asarray(
+        probe.baseline_coefficients_micros,
+        dtype=np.float64,
+    ) / 1_000_000.0
+    augmented_coefficients = np.asarray(
+        probe.augmented_coefficients_micros,
+        dtype=np.float64,
+    ) / 1_000_000.0
+    if prepared.baseline.shape[1] != baseline_coefficients.shape[0]:
+        raise ValueError("V3B prepared baseline coefficient shape mismatch")
+    if prepared.augmented.shape[1] != augmented_coefficients.shape[0]:
+        raise ValueError("V3B prepared augmented coefficient shape mismatch")
+
+    baseline_error = response - prepared.baseline @ baseline_coefficients
+    augmented_error = response - prepared.augmented @ augmented_coefficients
+    baseline_mse = float(np.mean(baseline_error * baseline_error))
+    augmented_mse = float(np.mean(augmented_error * augmented_error))
+    incremental = 0
+    if baseline_mse > 1e-12:
+        incremental = int(
+            round((baseline_mse - augmented_mse) / baseline_mse * 10_000)
+        )
+    return PredictiveSecondOrderEvaluation(
+        partition=partition,
+        target_name=probe.target_name,
+        sample_count=prepared.baseline.shape[0],
+        baseline_mse_micros=max(0, int(round(baseline_mse * 1_000_000))),
+        augmented_mse_micros=max(0, int(round(augmented_mse * 1_000_000))),
+        incremental_information_bps=incremental,
+        probe_fingerprint=probe.probe_fingerprint,
+    )
 
 
 def evaluate_predictive_second_order_probe(
