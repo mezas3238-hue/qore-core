@@ -300,3 +300,40 @@ def test_v6_source_state_requires_identifiable_anchor() -> None:
                 base.hierarchy_recession_minus_advance
             ),
         )
+
+
+
+def test_v6_fit_protocol_is_frozen() -> None:
+    training = _population(300)
+    fitted_at = max(item.observed_at for item in training)
+
+    with pytest.raises(ValueError, match="fit partition is frozen"):
+        fit_structural_frontier_model(
+            fitted_at=fitted_at,
+            fit_partition="r6",
+            episodes=training,
+        )
+
+    with pytest.raises(ValueError, match="discovery split is frozen"):
+        fit_structural_frontier_model(
+            fitted_at=fitted_at,
+            fit_partition="r8",
+            episodes=training,
+            discovery_fraction_bps=7_500,
+        )
+
+    with pytest.raises(ValueError, match="calibration recall is frozen"):
+        fit_structural_frontier_model(
+            fitted_at=fitted_at,
+            fit_partition="r8",
+            episodes=training,
+            calibration_recall_bps=9_700,
+        )
+
+    with pytest.raises(ValueError, match="ridge is frozen"):
+        fit_structural_frontier_model(
+            fitted_at=fitted_at,
+            fit_partition="r8",
+            episodes=training,
+            ridge=3.0,
+        )
