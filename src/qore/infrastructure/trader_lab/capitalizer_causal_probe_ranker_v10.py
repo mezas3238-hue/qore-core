@@ -341,21 +341,27 @@ def _predict(
     training: tuple[ProbePoint, ...],
     query: ProbePoint,
     *,
-    exclude_entry_at: str | None = None,
+    exclude_key: tuple[str, str] | None = None,
 ) -> float:
     candidates = tuple(
         row
         for row in training
         if row.realized_r is not None
-        and (exclude_entry_at is None or row.entry_at != exclude_entry_at)
+        and (
+            exclude_key is None
+            or (row.symbol, row.entry_at) != exclude_key
+        )
     )
     if len(candidates) < NEIGHBOURS:
         raise ValueError("V10 ranker has insufficient training neighbours")
-    ranked = sorted((_distance(row, query), row) for row in candidates)
-    selected = ranked[:NEIGHBOURS]
+    selected = sorted(
+        candidates,
+        key=lambda row: _distance(row, query),
+    )[:NEIGHBOURS]
     numerator = 0.0
     denominator = 0.0
-    for distance, row in selected:
+    for row in selected:
+        distance = _distance(row, query)
         weight = 1.0 / (0.05 + distance)
         numerator += weight * float(Decimal(row.realized_r or "0"))
         denominator += weight
@@ -379,7 +385,11 @@ def _fit_period(
     if len(selected) < 40:
         raise ValueError(f"{period} has too few 0.20R examples")
     loo_scores = tuple(
-        _predict(selected, row, exclude_entry_at=row.entry_at)
+        _predict(
+            selected,
+            row,
+            exclude_key=(row.symbol, row.entry_at),
+        )
         for row in selected
     )
     tail_mean: dict[str, float] = {}
