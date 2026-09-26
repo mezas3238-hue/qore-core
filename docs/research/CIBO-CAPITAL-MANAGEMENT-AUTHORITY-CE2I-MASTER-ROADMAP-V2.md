@@ -1366,14 +1366,45 @@ Scientific purpose:
 The contract makes no USD, margin or historical-provider claim and has no
 allocation, Risk or execution authority.
 
+
+### Phase 19D mechanics baseline
+
+The sealed-evidence workflow now runs a deliberately non-optimized 7/7 mechanics
+baseline:
+
+```text
+initial normalized capital: 100 NCU
+risk budget per opportunity: 1 NCU
+training used:               FALSE
+outcome-aware ranking:        FALSE
+allocator policy certified:   FALSE
+```
+
+This baseline exists only to prove normalized reservation, settlement and
+capital accounting across the 855 common-window opportunities. Its performance
+must not be used to choose a production sizing policy.
+
+### Phase 19E temporal coincidence null
+
+The workflow also runs a 1,000-permutation deterministic null model with a
+frozen seed. Each opportunity preserves Trader identity, weekday, UTC
+time-of-day and observed duration while its calendar date is independently
+reassigned inside the common window.
+
+The null answers only whether observed cross-Trader temporal overlap exceeds
+calendar/session coincidence under that explicit null. It consumes no outcomes,
+sizing, provider economics or USD and has zero allocation/Risk/execution
+authority.
+
+
 Current Phase-19 scientific sequence is therefore:
 
 ```text
 19A  INTEGRATED CHRONOLOGY                  GREEN
 19B  TEMPORAL STABILITY                     MEASURED / OBSERVATIONAL ONLY
 19C  CAPITAL NUMERAIRE CONTRACT              IMPLEMENTED / CI PENDING
-19D  NORMALIZED CAPITAL LEDGER 7/7           NEXT
-19E  TEMPORAL NULL MODEL                     PENDING
+19D  NORMALIZED CAPITAL LEDGER 7/7           IMPLEMENTED / EMPIRICAL CI PENDING
+19E  TEMPORAL NULL MODEL                     IMPLEMENTED / EMPIRICAL CI PENDING
 19F  TAIL / DEPENDENCE EVIDENCE              PENDING
 19G  CAPITAL COLLISION + SHADOW PRICE        PENDING
 19H  RESOURCE / DEPENDENCE HYPERGRAPH        PENDING
