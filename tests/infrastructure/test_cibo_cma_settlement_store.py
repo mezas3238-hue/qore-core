@@ -1,4 +1,5 @@
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 
@@ -26,7 +27,7 @@ def _record(
     )
 
 
-def test_store_survives_restart_and_preserves_realized_pnl(tmp_path) -> None:
+def test_store_survives_restart_and_preserves_realized_pnl(tmp_path: Path) -> None:
     path = tmp_path / "settlements.json"
     store = DurableCmaSettlementStore(path)
     version = store.apply(_record(), expected_generation=0)
@@ -43,7 +44,7 @@ def test_store_survives_restart_and_preserves_realized_pnl(tmp_path) -> None:
     assert state.realized_net_pnl_usd == Decimal("5")
 
 
-def test_exact_duplicate_is_idempotent_without_generation_bump(tmp_path) -> None:
+def test_exact_duplicate_is_idempotent_without_generation_bump(tmp_path: Path) -> None:
     store = DurableCmaSettlementStore(tmp_path / "settlements.json")
     first = store.apply(_record(), expected_generation=0)
     duplicate = store.apply(_record(), expected_generation=first.generation)
@@ -52,7 +53,7 @@ def test_exact_duplicate_is_idempotent_without_generation_bump(tmp_path) -> None
     assert len(duplicate.states[0].records) == 1
 
 
-def test_conflicting_duplicate_fails_closed(tmp_path) -> None:
+def test_conflicting_duplicate_fails_closed(tmp_path: Path) -> None:
     store = DurableCmaSettlementStore(tmp_path / "settlements.json")
     first = store.apply(_record(), expected_generation=0)
 
@@ -63,7 +64,7 @@ def test_conflicting_duplicate_fails_closed(tmp_path) -> None:
         )
 
 
-def test_stale_generation_cannot_overwrite_settlement_book(tmp_path) -> None:
+def test_stale_generation_cannot_overwrite_settlement_book(tmp_path: Path) -> None:
     store = DurableCmaSettlementStore(tmp_path / "settlements.json")
     store.apply(_record(), expected_generation=0)
 
@@ -71,7 +72,7 @@ def test_stale_generation_cannot_overwrite_settlement_book(tmp_path) -> None:
         store.apply(_record(deal_id=2), expected_generation=0)
 
 
-def test_terminal_exit_persists_closed_state(tmp_path) -> None:
+def test_terminal_exit_persists_closed_state(tmp_path: Path) -> None:
     store = DurableCmaSettlementStore(tmp_path / "settlements.json")
     first = store.apply(_record(), expected_generation=0)
     second = store.apply(
@@ -89,7 +90,7 @@ def test_terminal_exit_persists_closed_state(tmp_path) -> None:
     assert state.realized_net_pnl_usd == Decimal("8")
 
 
-def test_corrupt_store_fails_closed(tmp_path) -> None:
+def test_corrupt_store_fails_closed(tmp_path: Path) -> None:
     path = tmp_path / "settlements.json"
     path.write_text("{not-json", encoding="utf-8")
 
