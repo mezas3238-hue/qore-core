@@ -418,7 +418,7 @@ Sufficient chronological baseline evidence to compare CMA against the old archit
 
 ## PHASE 3 — Provider economic normalization
 
-**Status: PENDING**
+**Status: COMMON CTRADER-DEMO + FUNDEDNEXT CONTRACT GREEN / EMPIRICAL COST CALIBRATION PENDING**
 
 Normalize:
 
@@ -514,7 +514,7 @@ All Traders can be represented with minimum viable capital without corrupting op
 
 ## PHASE 6 — Capital Source Ledger
 
-**Status: DURABLE CAS + ATOMIC SINGLE/MULTI-SOURCE RESERVATION GREEN / RUNTIME SOURCE-PROVENANCE INTEGRATION PENDING**
+**Status: DURABLE CAS + ATOMIC RESERVATION + REQUEST/FILL SOURCE-PROVENANCE GREEN / SETTLEMENT FEED COMPLETION PENDING**
 
 Implement atomic accounting of:
 
@@ -531,6 +531,24 @@ Exit gate:
 Adversarial concurrency/restart tests prove no capacity can be double-spent.
 
 ---
+
+
+### CIBO provenance checkpoint — 26-SEP-2026
+
+CI-gated provenance now preserves capital-source identity through:
+
+```text
+CIBO CAPITAL PLAN
+-> CiboRiskRequest capital provenance lots
+-> QORE Risk ALLOW/REDUCE
+-> proportional provenance scaling on REDUCE
+-> durable Risk reservation ledger (FundedNext)
+-> durable DEMO trade registry / broker position binding
+```
+
+The provenance metadata is fingerprinted but non-authoritative: it cannot choose volume or bypass
+Risk. Single-source expansion preserves the exact durable ledger source id; multi-source expansion
+preserves every funding slice. Legacy registry rows without provenance remain readable.
 
 ## PHASE 7 — Economic Floor / Base Recovery Engine
 
@@ -690,7 +708,7 @@ Find where marginal exposure stops being economically useful.
 
 ## PHASE 13 — Capital Opportunity Graph
 
-**Status: GRAPH V1 GREEN / DEEP FACTOR-CORRELATION-PROVIDER EDGES PENDING**
+**Status: CAUSAL FACTOR/CORRELATION/PROVIDER/TEMPORAL/HEDGE EDGES CONTRACT GREEN / EMPIRICAL EDGE FEEDS PENDING**
 
 Represent all simultaneous opportunities, capital sources and interactions.
 
@@ -751,7 +769,7 @@ contracts.
 
 ## PHASE 15 — Regime-Adaptive Capital Management
 
-**Status: ACCOUNT-MISSION CONTEXT IMPLEMENTED / MARKET-REGIME TOOL SELECTION PENDING**
+**Status: ACCOUNT-MISSION + CAUSAL MARKET/ACCOUNT REGIME SELECTOR GREEN / REPLAY CALIBRATION PENDING**
 
 Market/account state selects capital tools, not Trader size.
 
@@ -777,7 +795,7 @@ Inputs may include:
 
 ## PHASE 16 — Reserve / Optionality Intelligence
 
-**Status: PENDING**
+**Status: CAUSAL KNOWN-OPTION RESERVE CONTRACT GREEN / CHRONOLOGICAL VALUE VALIDATION PENDING**
 
 Research when **not using capital** is optimal.
 
@@ -787,7 +805,7 @@ Measure value of maintaining capacity for future opportunities and survival.
 
 ## PHASE 17 — Dynamic De-risking / Risk Transfer
 
-**Status: PENDING**
+**Status: T14 STEP-ALIGNED DE-RISKING CONTRACT GREEN / T16 HEDGE + T17 CONVEXITY REMAIN GATED**
 
 Research:
 
@@ -939,13 +957,13 @@ PR #651 alone never authorizes LIVE.
 Current sequence:
 
 ```text
-1. Finish PHASE 3 provider-economic normalization across supported providers/markets.
-2. Complete runtime source-provenance binding for PHASE 6/7 settlements and releases.
-3. Persist PHASE 14 portfolio-allocation reservations with durable CAS/restart safety.
-4. Enrich PHASE 13 graph with causal factor/correlation/provider/temporal edges.
-5. Build PHASE 15 regime-adaptive tool selection.
-6. Build PHASE 16 reserve/optionality intelligence.
-7. Then run PHASE 18/19 chronological Trader + integrated portfolio replay.
+1. Build and run PHASE 18 per-Trader chronological replay from retained evidence.
+2. Build and run PHASE 19 integrated portfolio replay with one coherent capital pool.
+3. Feed empirical replay evidence back into PHASE 3 cost calibration and PHASE 13 interaction edges.
+4. Validate PHASE 15/16/17 policies chronologically; reject any policy that improves one metric by hiding worse strategy outcomes.
+5. Run PHASE 20 WFO / Monte Carlo / execution-margin-correlation stress.
+6. Freeze the surviving CMA/CE2I policy in PHASE 21.
+7. Run one sealed PHASE 22 holdout before any Owner-gated DEMO execution change.
 ```
 
 Do not spend research time optimizing legacy Trader sizing. It is deprecated as authority.
