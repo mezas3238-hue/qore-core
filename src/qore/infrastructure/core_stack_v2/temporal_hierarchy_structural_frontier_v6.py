@@ -18,6 +18,11 @@ from datetime import UTC, datetime
 from math import sqrt
 from statistics import fmean
 
+from qore.infrastructure.core_stack_v2.hierarchical_world_model import WorldScale
+from qore.infrastructure.core_stack_v2.temporal_hierarchy_transition_v2 import (
+    TemporalHierarchyTrajectory,
+)
+
 
 def _utc(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
@@ -166,6 +171,77 @@ class StructuralFrontierEvaluation:
     hierarchy_missed_terminal_count: int
     false_declaration_reduction_bps: int
     terminal_detection_preservation_bps: int
+
+
+_HIERARCHY_SCALES = (
+    WorldScale.M1,
+    WorldScale.M3,
+    WorldScale.M5,
+    WorldScale.M15,
+    WorldScale.H1,
+    WorldScale.H4,
+    WorldScale.DAILY,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class StructuralFrontierHierarchyMotif:
+    depth_path: tuple[int, ...]
+    current_depth: int
+    recession_count: int
+    advance_count: int
+
+    def __post_init__(self) -> None:
+        if len(self.depth_path) < 3:
+            raise ValueError("frontier hierarchy motif requires a causal trajectory")
+        if self.current_depth != self.depth_path[-1]:
+            raise ValueError("current_depth must equal final depth")
+        if any(not 0 <= value <= len(_HIERARCHY_SCALES) for value in self.depth_path):
+            raise ValueError("hierarchy depth out of range")
+
+
+def structural_frontier_hierarchy_motif(
+    *,
+    trajectory: TemporalHierarchyTrajectory,
+    anchor_direction: int,
+) -> StructuralFrontierHierarchyMotif:
+    """Interpret the entire pre-source trajectory in one Target-V2 coordinate.
+
+    The anchor is the identifiable higher-timeframe direction at the final
+    source timestamp. It remains fixed while reading earlier causal snapshots,
+    so depth/recession/advance cannot silently switch coordinate systems.
+    """
+
+    if anchor_direction not in (-1, 1):
+        raise ValueError("structural-frontier motif requires identifiable anchor")
+
+    depths: list[int] = []
+    for snapshot in trajectory.snapshots:
+        levels = {item.scale: item for item in snapshot.levels}
+        depth = 0
+        for index, scale in enumerate(_HIERARCHY_SCALES, start=1):
+            level = levels.get(scale)
+            if level is None:
+                continue
+            if anchor_direction * level.direction_milli < 0:
+                depth = max(depth, index)
+        depths.append(depth)
+
+    depth_path = tuple(depths)
+    recession = sum(
+        right < left
+        for left, right in zip(depth_path, depth_path[1:], strict=False)
+    )
+    advance = sum(
+        right > left
+        for left, right in zip(depth_path, depth_path[1:], strict=False)
+    )
+    return StructuralFrontierHierarchyMotif(
+        depth_path=depth_path,
+        current_depth=depth_path[-1],
+        recession_count=recession,
+        advance_count=advance,
+    )
 
 
 _BASE_NAMES = (
