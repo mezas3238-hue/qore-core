@@ -28,6 +28,10 @@ from qore.infrastructure.trader_lab import (
 from qore.infrastructure.trader_lab import (
     capitalizer_cross_market_stability_governor_2r_v1 as governor,
 )
+from qore.infrastructure.trader_lab import (
+    capitalizer_max_recovery_direct_m1_replay_v1 as direct,
+)
+from qore.infrastructure.trader_lab import capitalizer_native_market_context_v1 as context
 
 IDENTITY = "QORE_CAPITALIZER_CONTEXTUAL_RESIDUAL_DD_FORENSICS_V1"
 POLICY = "CONTEXT_STABILITY_STAGE"
@@ -58,7 +62,7 @@ def _selected_path(
     *,
     role: str,
     ledgers: dict[str, tuple[milestone.SimulatedTrade, ...]],
-    contexts: dict[tuple[str, str], router.context.NativeContextRow],
+    contexts: dict[tuple[str, str], context.NativeContextRow],
     model: dict[str, Any],
 ) -> tuple[PathRow, ...]:
     by_mode = {
@@ -69,7 +73,7 @@ def _selected_path(
     ordered = tuple(
         sorted(
             baseline,
-            key=lambda row: (router.direct._aware(row.entry_at), row.symbol),
+            key=lambda row: (direct._aware(row.entry_at), row.symbol),
         )
     )
 
