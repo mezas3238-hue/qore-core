@@ -126,11 +126,15 @@ class Phase19TemporalStabilityEvidence:
 
 
 def _complete_pair_keys() -> tuple[tuple[TraderLineage, TraderLineage], ...]:
-    return tuple(
-        tuple(sorted((left, right), key=lambda trader: trader.value))
-        for index, left in enumerate(PHASE19_REQUIRED_TRADERS)
-        for right in PHASE19_REQUIRED_TRADERS[index + 1 :]
-    )
+    pairs: list[tuple[TraderLineage, TraderLineage]] = []
+    for index, left in enumerate(PHASE19_REQUIRED_TRADERS):
+        for right in PHASE19_REQUIRED_TRADERS[index + 1 :]:
+            first, second = sorted(
+                (left, right),
+                key=lambda trader: trader.value,
+            )
+            pairs.append((first, second))
+    return tuple(pairs)
 
 
 def _cross_trader_pair_counts(
@@ -154,13 +158,11 @@ def _cross_trader_pair_counts(
             if left.trader_id is right.trader_id:
                 continue
             if left.entry_at < right.exit_at and right.entry_at < left.exit_at:
-                key = tuple(
-                    sorted(
-                        (left.trader_id, right.trader_id),
-                        key=lambda trader: trader.value,
-                    )
+                first, second = sorted(
+                    (left.trader_id, right.trader_id),
+                    key=lambda trader: trader.value,
                 )
-                counts[key] += 1  # type: ignore[index]
+                counts[(first, second)] += 1
     return counts
 
 
