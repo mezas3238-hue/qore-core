@@ -494,10 +494,28 @@ def _simulate(
     if open_positions:
         raise ValueError("VT08 policy replay left open positions")
 
-    realized_total_r25 = (balance - STARTING_EQUITY) / REFERENCE_RISK_USD
+    realized_pnl_usd = balance - STARTING_EQUITY
+    serialized_pnl_usd = sum(
+        (_dec(row["legacy_pnl_usd_zero_cost"]) for row in output),
+        Decimal(0),
+    )
+    usd_accounting_delta = realized_pnl_usd - serialized_pnl_usd
+    if abs(usd_accounting_delta) > Decimal("0.000001"):
+        raise ValueError(
+            "VT08 capital accounting drift exceeds one micro-dollar: "
+            f"{usd_accounting_delta}"
+        )
+
+    realized_total_r25 = realized_pnl_usd / REFERENCE_RISK_USD
     strategy = _strategy_metrics(output)
-    if _dec(strategy["total_r25"]) != realized_total_r25:
-        raise ValueError("VT08 capital accounting drift")
+    r25_accounting_delta = (
+        _dec(strategy["total_r25"]) - realized_total_r25
+    )
+    if abs(r25_accounting_delta) > Decimal("0.000000000000000001"):
+        raise ValueError(
+            "VT08 R25 accounting drift exceeds Decimal rounding tolerance: "
+            f"{r25_accounting_delta}"
+        )
 
     return {
         "profile_id": profile_id,
@@ -505,6 +523,8 @@ def _simulate(
         "risk_outcomes": counts,
         "ending_balance_usd": str(balance),
         "realized_total_r25": str(realized_total_r25),
+        "usd_accounting_delta": str(usd_accounting_delta),
+        "r25_accounting_delta": str(r25_accounting_delta),
         "realized_max_drawdown_r25": str(
             realized_max_dd / REFERENCE_RISK_USD
         ),
