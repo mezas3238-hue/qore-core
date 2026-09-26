@@ -1,10 +1,11 @@
 # QORE Shared WP-05 — Structural Failure Target Contract V2
 
-**Status:** preregistered / pending target-semantics audit  
+**Status:** ACTIVE FOR CONSUMED DEVELOPMENT — activated after preregistered audit  
 **Primary PR:** #635  
 **Work package:** #643 — WP-05 Temporal Hierarchical Brain  
-**Supersedes V1 target only if the consumed target-semantics audit proves
-material directional inconsistency.**
+**Activation evidence:** GitHub Actions run `36259738096`, Git SHA `d7b6830d957a6dee12959236b6cef42d3b162f96`  
+**Audit result:** `WP05_TARGET_CONTRACT_DIRECTIONALLY_INCONSISTENT`  
+**V1–V4 remain immutable falsification history of the prior M15-oriented proxy.**
 
 ## 1. Scientific question
 
@@ -153,17 +154,29 @@ authorize_risk
 send_order
 ```
 
-## 10. Activation condition
+## 10. Activation condition — SATISFIED 26-SEP-2026
 
-This contract is activated only if the GitHub target-semantics audit shows
-material directional inconsistency between:
+The preregistered activation condition has been satisfied by consumed-evidence audit run
+`36259738096` at Git SHA `d7b6830d957a6dee12959236b6cef42d3b162f96`.
+
+The audit did not change labels or fit a model. It measured the pre-existing target against the
+higher-timeframe structural-failure question and found material directional inconsistency:
 
 ```text
-current terminal direction = opposite M15
-expected WP05 failure direction = opposite higher-timeframe anchor
+R8 directional inversion: 5452 bps
+R6 directional inversion: 5432 bps
+R5 directional inversion: 5419 bps
+material inversion threshold: 500 bps
 ```
 
-Until that audit completes, this document is preregistration only.
+Therefore Target V2 is now the active WP-05 target for new consumed-development experiments:
+
+```text
+current terminal direction = opposite M15                  -> historical V1–V4 only
+Target V2 terminal direction = opposite higher-timeframe anchor -> active new experiments
+```
+
+No prior artifact is rewritten or reinterpreted as Target V2 evidence.
 
 ## 11. Fresh evidence law
 
@@ -181,3 +194,4 @@ preregistered before acquisition.
 - No merge authority.
 - No knowledge auto-promotion.
 - Existing WP-05 gate remains unchanged.
+- Target V2 activation does not itself pass WP-05; a new corrected-target model must pass R6 and R5 before any fresh holdout may open.
