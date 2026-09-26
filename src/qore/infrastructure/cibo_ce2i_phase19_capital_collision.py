@@ -308,7 +308,7 @@ def measure_phase19_capital_collisions(
             active = by_signal[active_signal]
             if active.opportunity.entry_at > entry_at:
                 continue
-            if active.opportunity.exit_at <= entry_at:
+            if active.opportunity.exit_at < entry_at:
                 continue
             # For equal timestamps, only entries ordered before the rejected
             # signal may have consumed capacity.
