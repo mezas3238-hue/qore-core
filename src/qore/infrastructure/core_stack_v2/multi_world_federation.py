@@ -7,9 +7,11 @@ coherence, calibration, trajectory accuracy and current evidence.
 
 The federation is sequential: the previous posterior becomes the next prior.
 A bounded regime-transition prior prevents absorbing posterior states so a
-previously weak world can recover when market evidence changes. High epistemic
-uncertainty/OOD evidence increases the unresolved world instead of forcing
-false certainty.
+previously weak world can recover when market evidence changes. Posterior
+memory also decays toward the uniform prior as wall-clock time passes, so a
+stale world belief cannot survive a long observation gap merely because no
+updates were emitted. High epistemic uncertainty/OOD evidence increases the
+unresolved world instead of forcing false certainty.
 
 No world has methodology, sizing, Risk, stop, target, order or execution
 authority.
@@ -114,6 +116,9 @@ class WorldFederationState:
     world_diversity_bps: int
     revision_pressure_bps: int
     regime_transition_bps: int
+    effective_prior_transition_bps: int
+    prior_memory_half_life_seconds: int
+    previous_elapsed_seconds: int
     previous_dominant_world: WorldModelFamily | None
     dominant_world_changed: bool
     outcome_used: bool = False
@@ -137,10 +142,15 @@ class WorldFederationState:
             "world_diversity_bps",
             "revision_pressure_bps",
             "regime_transition_bps",
+            "effective_prior_transition_bps",
         ):
             value = int(getattr(self, name))
             if not 0 <= value <= 10_000:
                 raise ValueError(f"{name} must be within 0..10000")
+        if self.prior_memory_half_life_seconds <= 0:
+            raise ValueError("prior memory half life must be positive")
+        if self.previous_elapsed_seconds < 0:
+            raise ValueError("previous elapsed seconds cannot be negative")
         if sum(item.probability_bps for item in self.posteriors) != 10_000:
             raise ValueError("world posterior mass must sum to 10000 bps")
         if (
@@ -266,6 +276,7 @@ def update_world_federation(
     ood_risk_bps: int,
     previous: WorldFederationState | None = None,
     regime_transition_bps: int = 500,
+    prior_memory_half_life_seconds: int = 3_600,
 ) -> WorldFederationState:
     """Update posterior weights for all competing internal worlds."""
 
@@ -278,6 +289,8 @@ def update_world_federation(
     ):
         if not 0 <= value <= 10_000:
             raise ValueError(f"{name} must be within 0..10000")
+    if prior_memory_half_life_seconds <= 0:
+        raise ValueError("prior_memory_half_life_seconds must be positive")
     if any(item.as_of > as_of for item in evidence):
         raise ValueError("future world evidence is forbidden")
 
@@ -292,10 +305,26 @@ def update_world_federation(
     if previous is None:
         prior = {family: uniform_prior for family in families}
         previous_dominant = None
+        previous_elapsed_seconds = 0
+        effective_prior_transition_bps = regime_transition_bps
     else:
         if previous.as_of >= as_of:
             raise ValueError("world federation must advance in time")
-        transition = regime_transition_bps / 10_000.0
+        previous_elapsed_seconds = int(
+            (as_of - previous.as_of).total_seconds()
+        )
+        base_transition = regime_transition_bps / 10_000.0
+        time_transition = 1.0 - 0.5 ** (
+            previous_elapsed_seconds / prior_memory_half_life_seconds
+        )
+        transition = 1.0 - (
+            (1.0 - base_transition) * (1.0 - time_transition)
+        )
+        effective_prior_transition_bps = max(
+            regime_transition_bps,
+            min(10_000, int(round(transition * 10_000))),
+        )
+        transition = effective_prior_transition_bps / 10_000.0
         retained = 1.0 - transition
         prior = {
             item.family: (
@@ -368,6 +397,9 @@ def update_world_federation(
         world_diversity_bps=diversity,
         revision_pressure_bps=revision_pressure,
         regime_transition_bps=regime_transition_bps,
+        effective_prior_transition_bps=effective_prior_transition_bps,
+        prior_memory_half_life_seconds=prior_memory_half_life_seconds,
+        previous_elapsed_seconds=previous_elapsed_seconds,
         previous_dominant_world=previous_dominant,
         dominant_world_changed=(
             previous_dominant is not None and previous_dominant is not dominant
