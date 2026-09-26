@@ -218,10 +218,6 @@ class Phase19MarginalCapacityEvidence:
             raise CiboCapitalManagementError(
                 "marginal rejection accounting drift"
             )
-        if self.additional_accepted_opportunities < 0:
-            raise CiboCapitalManagementError(
-                "higher capacity cannot report negative additional accepts"
-            )
         if (
             not self.ex_post_only
             or self.causal_forecast
