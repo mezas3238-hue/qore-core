@@ -14,8 +14,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: qore-capitalizer-intratrade-hypothesis-state-machine-v20-${{ github.sha }}
-  cancel-in-progress: false
+  group: qore-capitalizer-intratrade-hypothesis-state-machine-v20-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 env:
   QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
@@ -23,7 +23,7 @@ env:
   QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
   QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
   QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
-  M1_START: '2020-09-12T00:00:00+00:00'
+  M1_START: '2020-08-27T00:00:00+00:00'
   M1_END: '2026-09-17T00:00:00+00:00'
   DEV_START: '2024-09-17T00:00:00+00:00'
   DEV_END: '2026-09-17T00:00:00+00:00'
@@ -78,6 +78,17 @@ jobs:
               exit 2
             }
           done
+      - name: Enforce causal lookback coverage
+        run: |
+          python - <<'PY'
+          import os
+          from datetime import datetime, timedelta
+
+          m1_start = datetime.fromisoformat(os.environ["M1_START"])
+          reserved_start = datetime.fromisoformat(os.environ["RESERVED_START"])
+          required = reserved_start - timedelta(days=21)
+          assert m1_start <= required, (m1_start, required)
+          PY
       - name: Discover DEMO account when not configured
         shell: bash
         run: |
