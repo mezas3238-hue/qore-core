@@ -6,7 +6,7 @@ on:
       - agent/qore-core-stack-v2-shared-001
     paths:
       - scripts/shared_wp04_predictive_replication_d_probe_v3b.py
-      - scripts/shared_wp04_predictive_replication_d_eval_v3b.py
+      - scripts/shared_wp04_predictive_nonlinear_replication_d_eval_v3b.py
       - .github/workflows/qore-shared-wp04-v3b-replication-d-preregistration.yml
   workflow_dispatch:
 
@@ -40,12 +40,12 @@ jobs:
         run: |
           ruff check \
             scripts/shared_wp04_predictive_replication_d_probe_v3b.py \
-            scripts/shared_wp04_predictive_replication_d_eval_v3b.py \
+            scripts/shared_wp04_predictive_nonlinear_replication_d_eval_v3b.py \
             src/qore/infrastructure/ctrader_demo_lab_vt31_v2_probe.py \
             tests/infrastructure/test_ctrader_demo_lab_vt31_v2_probe.py
           python -m py_compile \
             scripts/shared_wp04_predictive_replication_d_probe_v3b.py \
-            scripts/shared_wp04_predictive_replication_d_eval_v3b.py
+            scripts/shared_wp04_predictive_nonlinear_replication_d_eval_v3b.py
           pytest -q \
             tests/infrastructure/test_ctrader_demo_lab_vt31_v2_probe.py \
             tests/infrastructure/test_core_stack_v2_representation_predictive_v3.py \
@@ -55,7 +55,7 @@ jobs:
         run: |
           PYTHONPATH=scripts python - <<'PY'
           import shared_wp04_predictive_replication_d_probe_v3b as collector
-          import shared_wp04_predictive_replication_d_eval_v3b as evaluator
+          import shared_wp04_predictive_nonlinear_replication_d_eval_v3b as evaluator
 
           assert collector.REPLICATION_START.isoformat() == "2025-07-14T00:00:00+00:00"
           assert collector.REPLICATION_END_EXCLUSIVE.isoformat() == "2026-07-13T00:00:00+00:00"
