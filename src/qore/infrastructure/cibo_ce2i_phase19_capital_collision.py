@@ -230,6 +230,10 @@ class Phase19MarginalCapacityEvidence:
                 "marginal capacity evidence governance drift"
             )
 
+    @property
+    def marginal_realized_delta_per_ncu(self) -> Decimal:
+        return self.marginal_realized_delta_ncu / self.capacity_step_ncu
+
 
 def _decision_by_signal(
     replay: Phase19NormalizedCapitalReplay,
