@@ -64,15 +64,46 @@ jobs:
           set -euo pipefail
           mkdir -p input/r8 input/r6 input/r5 result
 
-          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          download_artifact() {
+            local artifact_id="$1"
+            local output="$2"
+            local tmp="${output}.tmp"
+            rm -f "$tmp"
+
+            for attempt in 1 2 3 4; do
+              if gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$tmp"; then
+                mv "$tmp" "$output"
+                return 0
+              fi
+
+              rm -f "$tmp"
+              reset_at="$(gh api /rate_limit --jq '.resources.core.reset' 2>/dev/null || true)"
+              now="$(date +%s)"
+              if [[ "$reset_at" =~ ^[0-9]+$ ]] && [ "$reset_at" -gt "$now" ]; then
+                sleep_for=$((reset_at - now + 5))
+                if [ "$sleep_for" -gt 900 ]; then
+                  sleep_for=900
+                fi
+              else
+                sleep_for=$((attempt * 30))
+              fi
+              echo "artifact ${artifact_id} download blocked; retrying after rate-limit backoff" >&2
+              sleep "$sleep_for"
+            done
+
+            echo "artifact ${artifact_id} could not be recovered after bounded retries" >&2
+            return 1
+          }
+
+          download_artifact 10402199719 r8.zip
           unzip -q r8.zip -d input/r8
           (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
 
-          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          download_artifact 10389112524 r6.zip
           unzip -q r6.zip -d input/r6
           (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
 
-          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          download_artifact 10380044761 r5.zip
           unzip -q r5.zip -d input/r5
           (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
 
