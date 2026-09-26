@@ -226,12 +226,15 @@ Every source needs:
 - reconciliation timestamp;
 - evidence references.
 
-Hard invariant:
+Hard stock invariant:
 
 ```text
-AVAILABLE + RESERVED + CONSUMED + RELEASED
-must reconcile to the source ledger semantics
+AVAILABLE + RESERVED + DEPLOYED = PROVEN_AMOUNT
 ```
+
+`CUMULATIVE_RELEASED` is a historical flow counter only and is never added back into that stock
+identity. A release moves capacity from RESERVED/DEPLOYED back to AVAILABLE and increments the
+historical release counter.
 
 No double-spend.
 
