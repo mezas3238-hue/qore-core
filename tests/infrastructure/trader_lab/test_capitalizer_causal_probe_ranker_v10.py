@@ -88,3 +88,12 @@ def test_low_rank_probe_stays_defensive() -> None:
         policy="RANK_Q80_035",
     )
     assert release == Decimal("0.20")
+
+
+def test_strict_oos_contract_excludes_development() -> None:
+    assert lab.DEVELOPMENT_PERIOD == "DEVELOPMENT_2024_2026"
+    assert lab.DEVELOPMENT_PERIOD not in lab.STRICT_OOS_PERIODS
+    assert lab.STRICT_OOS_PERIODS == (
+        "CONSUMED_VALIDATION_2022_2024",
+        "CONSUMED_RESERVED_2020_2022",
+    )
