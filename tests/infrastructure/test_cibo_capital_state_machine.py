@@ -116,3 +116,18 @@ def test_release_is_terminal_in_v1() -> None:
 
     with pytest.raises(CmaStateMachineError):
         validate_transition(CapitalStage.RELEASE, CapitalStage.CAPITALIZE)
+
+
+def test_capitalize_can_fail_closed_back_to_observe() -> None:
+    validate_transition(CapitalStage.CAPITALIZE, CapitalStage.OBSERVE)
+
+
+def test_capitalize_can_return_to_protect_base_if_floor_deteriorates() -> None:
+    validate_transition(CapitalStage.CAPITALIZE, CapitalStage.PROTECT_BASE)
+
+
+def test_compound_can_return_to_base_recovered_when_capacity_is_exhausted() -> None:
+    validate_transition(
+        CapitalStage.COMPOUND_OR_RESERVE,
+        CapitalStage.BASE_RECOVERED,
+    )
