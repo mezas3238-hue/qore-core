@@ -23,7 +23,6 @@ from datetime import datetime
 from hashlib import sha256
 from math import isfinite, sqrt
 
-
 _BANNED_IDENTITY_TOKENS = (
     "TRADER",
     "STRATEGY",
