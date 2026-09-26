@@ -35,7 +35,14 @@ _REARM_SPEC.loader.exec_module(rearm_patcher)
 
 
 def _minimal_source() -> str:
-    return """payload = {
+    return """    selected = [
+        row for row in adjusted
+        if START_DATE
+        <= date.fromisoformat(cast(str, row["local_date"]))
+        < END_EXCLUSIVE_DATE
+    ]
+    metrics = _metrics(selected)
+    payload = {
         "five_year_result": {
             "trade_count": len(selected),
             "metrics": metrics,
@@ -52,7 +59,9 @@ def test_vt31_source_commit_is_frozen() -> None:
 
 def test_vt31_patch_serializes_selected_rows_only() -> None:
     patched = patcher.patch_source(_minimal_source())
-    assert '"trade_rows": selected' in patched
+    assert '"trade_rows": phase18_trade_rows' in patched
+    assert "phase18_trade_rows = selected" in patched
+    assert 'authoritative_row.pop("entry", None)' in patched
     assert '"trade_count": len(selected)' in patched
     assert '"metrics": metrics' in patched
 
@@ -80,6 +89,7 @@ def test_vt31_rearm_source_commit_is_frozen() -> None:
 
 def test_vt31_rearm_patch_exposes_existing_setup_geometry_only() -> None:
     patched = rearm_patcher.patch_source(_minimal_rearm_source())
+    assert '"_phase18_rearm_geometry_instrumented": True' in patched
     assert '"entry": format(setup.entry_price, "f")' in patched
     assert '"initial_stop": format(setup.stop_price, "f")' in patched
     assert '"structural_target": format(setup.target_price, "f")' in patched
