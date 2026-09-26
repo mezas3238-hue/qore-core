@@ -822,7 +822,7 @@ Each mechanism requires separate evidence/certification.
 
 ## PHASE 18 — Per-Trader chronological replay
 
-**Status: IN PROGRESS — CAUSAL REPLAY CONTRACT GREEN / GBPJPY + GBPUSD + AUDJPY + EURUSD EVIDENCE BOUND (4/7)**
+**Status: IN PROGRESS — CAUSAL REPLAY CONTRACT GREEN / GBPJPY + GBPUSD + AUDJPY + EURUSD + XAUUSD EVIDENCE BOUND (5/7)**
 
 The shared replay primitive now exists in:
 
@@ -1162,8 +1162,63 @@ USD_CIBO_SIZING_COMPARISON_AUTHORIZED = FALSE
 No historical spread, commission, slippage, margin-per-volume or tick-value value was fabricated.
 
 Phase 18 now has exact R-denominated geometry/baseline replay evidence for **4/7 Traders**:
-R38 GBPJPY, R43 GBPUSD, R42 AUDJPY and R38 EURUSD. The remaining three Traders still require
-independent evidence binding and cannot inherit acceptance from the first four.
+R38 GBPJPY, R43 GBPUSD, R42 AUDJPY and R38 EURUSD.
+
+### XAUUSD R34 Phase-18 checkpoint — 26-SEP-2026
+
+The fifth independent Trader replay now reproduces the frozen R34 five-year validation directly from
+the exact immutable XAUUSD source code and retained Raw M5 / Target Destination V2 / Cognitive V3 /
+R33 freeze artifacts.
+
+```text
+workflow_run: 36256317379  SUCCESS
+head_sha:     9a729d1fd5ee5b4bfa783656a45c58f4581bfd7b
+artifact_id:  10910328640
+artifact:     qore-cibo-phase18-xauusd-r34-geometry-9a729d1fd5ee5b4bfa783656a45c58f4581bfd7b
+digest:       sha256:aade958d597032bad08c56043a6c48c145b8ab263f032f2b65c147fd3db7aadd
+rows:         921
+source_code:  56ef138ee5ea1cde6d0bcf4c9e25e8b661c04e84
+```
+
+The first workflow attempt was rejected only by Ruff E501 formatting. Commit
+`9a729d1fd5ee5b4bfa783656a45c58f4581bfd7b` corrected that technical defect without changing
+the replay mechanism, geometry, evidence or economics. The successful run then completed:
+
+```text
+focused quality:                    GREEN
+immutable source SHA verification:  GREEN
+R34 exact replay:                   GREEN
+R34 row-for-row parity:             GREEN
+same causal signal/entry/stop/target GREEN
+risk arithmetic reproduction:       GREEN
+generic Phase-18 scorer parity:     GREEN
+artifact SHA256 manifest:           GREEN
+```
+
+Generic Phase-18 scoring reproduces the authoritative XAUUSD R34 5Y baseline exactly:
+
+```text
+trades:          921
+profit_factor:   1.529741881717934130030753380
+total_r:         103.6427513069166048428626309
+max_drawdown_r:  9.19605447572090219358745533
+positive annual: 4/5
+```
+
+XAUUSD remains fail-closed for the USD CIBO sizing comparison:
+
+```text
+R_DENOMINATED_ONLY
+CALIBRATION_REQUIRED
+USD_CIBO_SIZING_COMPARISON_AUTHORIZED = FALSE
+```
+
+No historical spread, commission, slippage, margin-per-volume or tick-value value was fabricated.
+
+Phase 18 now has exact R-denominated geometry/baseline replay evidence for **5/7 Traders**:
+R38 GBPJPY, R43 GBPUSD, R42 AUDJPY, R38 EURUSD and R34 XAUUSD. VT31 NAS100 and VT08 FOREX
+still require their own independent evidence binding and cannot inherit acceptance from the first
+five.
 
 Replay each Trader with:
 
