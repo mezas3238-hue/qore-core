@@ -15,12 +15,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from qore.infrastructure.account_wide_risk import TraderLineage
-from qore.infrastructure.cibo_capital_management_authority import (
-    CiboCapitalManagementError,
-)
-from qore.infrastructure.cibo_ce2i_chronological_replay import (
-    ReplayEconomicsStatus,
-)
+from qore.infrastructure.cibo_ce2i_chronological_replay import ReplayEconomicsStatus
+from qore.infrastructure.cibo_capital_management_authority import CiboCapitalManagementError
 
 
 PHASE19_REQUIRED_TRADERS = (
