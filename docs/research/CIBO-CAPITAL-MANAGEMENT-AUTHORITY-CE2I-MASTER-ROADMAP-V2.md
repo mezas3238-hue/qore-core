@@ -421,7 +421,7 @@ Equivalent economic exposure is comparable across all supported markets/provider
 
 ## PHASE 4 — TraderOpportunityEnvelope migration
 
-**Status: IMPLEMENTATION STARTED**
+**Status: BRIDGE IMPLEMENTED / DIRECT TRADER ADAPTER MIGRATION PENDING**
 
 Goal:
 
@@ -456,7 +456,7 @@ their legacy sizing output.
 
 ## PHASE 5 — Minimal Seed Engine
 
-**Status: IMPLEMENTATION STARTED**
+**Status: CONTRACT IMPLEMENTED / CROSS-PROVIDER REPLAY PENDING**
 
 Goal:
 
@@ -480,7 +480,7 @@ All Traders can be represented with minimum viable capital without corrupting op
 
 ## PHASE 6 — Capital Source Ledger
 
-**Status: PENDING**
+**Status: CONTRACT IMPLEMENTED / ADVERSARIAL PERSISTENCE-CONCURRENCY PENDING**
 
 Implement atomic accounting of:
 
@@ -500,7 +500,7 @@ Adversarial concurrency/restart tests prove no capacity can be double-spent.
 
 ## PHASE 7 — Economic Floor / Base Recovery Engine
 
-**Status: PENDING**
+**Status: CONTRACT IMPLEMENTED / REAL POSITION BINDING PENDING**
 
 Compute the worst reconciled economic outcome if the position were to continue/close according to
 current protection state.
@@ -531,7 +531,7 @@ Position-state faults cannot create fictitious recovered capital.
 
 ## PHASE 8 — CMA State Machine
 
-**Status: PENDING**
+**Status: IMPLEMENTATION STARTED**
 
 States:
 
@@ -548,6 +548,41 @@ Every transition requires explicit evidence.
 No outcome-aware transition.
 
 ---
+
+### Current implementation notes
+
+The Phase-4 migration currently includes a transitional bridge from the legacy
+`CiboRiskRequest` to a volume-free `TraderOpportunityEnvelope`. The bridge intentionally discards
+legacy `requested_volume` and legacy strategy risk-budget authority.
+
+This is not the final runtime migration: each Trader must eventually emit the opportunity envelope
+before any legacy sizing function runs.
+
+The CMA-to-Risk handoff is also implemented as a research contract:
+
+```text
+TraderOpportunityEnvelope
+-> CIBO CapitalActionPlan
+-> CiboRiskRequest(requested_volume = CIBO plan volume)
+-> QORE Risk
+```
+
+The Capital Source Ledger now distinguishes:
+
+- unused reservation release;
+- deployed-capital settlement;
+- returned capacity;
+- consumed/lost capacity.
+
+A deployed loss is **not** automatically recycled back into available capital.
+
+The Economic Floor engine fails closed on:
+
+- unresolved mutation outcome;
+- unreconciled broker position;
+- unreconciled protection state.
+
+Only a reconciled non-negative worst-case economic floor can mark base capital as recovered.
 
 ## PHASE 9 — CE2I Tool Registry
 
