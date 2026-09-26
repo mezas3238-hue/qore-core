@@ -1,17 +1,8 @@
 name: QORE Capitalizer Protection Mode Survival Router V16
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/qore-capitalizer-protection-mode-survival-router-v16.yml'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_protection_mode_survival_router_v16.py'
-      - 'tests/infrastructure/trader_lab/test_capitalizer_protection_mode_survival_router_v16.py'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_failure_state_transition_survival_v15.py'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_factor_journey_probe_ranker_v11.py'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_sequence_failure_memory_abstention_v13.py'
   workflow_dispatch:
+
 
 permissions:
   contents: read
