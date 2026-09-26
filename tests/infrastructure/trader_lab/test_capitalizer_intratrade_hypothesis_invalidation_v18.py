@@ -4,10 +4,10 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab import (
-    capitalizer_intratrade_hypothesis_invalidation_v18 as lab,
+    capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
 )
 from qore.infrastructure.trader_lab import (
-    capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
+    capitalizer_intratrade_hypothesis_invalidation_v18 as lab,
 )
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
