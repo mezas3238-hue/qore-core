@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import Final
 
 COGNITIVE_OS_CONTRACT_VERSION: Final = (
-    "QORE_COGNITIVE_SCIENTIFIC_EPISTEMIC_OS_004"
+    "QORE_COGNITIVE_SCIENTIFIC_EPISTEMIC_OS_005"
 )
 
 _ALLOWED_SHARED_VERBS: Final = (
@@ -94,13 +94,74 @@ _KNOWLEDGE_STORES: Final = (
     "EXPERIMENTAL_KNOWLEDGE",
 )
 
+_STABILITY_STATES: Final = (
+    "STABLE",
+    "WATCH",
+    "DEFENSIVE_CONTEXT",
+    "DISLOCATION",
+    "UNKNOWN",
+    "RECOVERY",
+    "SYSTEM_DEGRADED",
+)
+
+_MAXIMUM_COGNITIVE_API: Final = (
+    "world",
+    "market",
+    "cross_market",
+    "regime",
+    "hypotheses",
+    "beliefs",
+    "uncertainty",
+    "unknowns",
+    "anomalies",
+    "novelty",
+    "transitions",
+    "counterfactuals",
+    "similar_episodes",
+    "causal_context",
+    "agency_state",
+    "stability",
+    "core_health",
+    "broker_state",
+    "feed_state",
+    "get_blindspots",
+    "explain",
+    "research_state",
+    "knowledge_status",
+)
+
+_FORBIDDEN_COGNITIVE_API: Final = (
+    "enter",
+    "exit",
+    "resize",
+    "block",
+    "send_order",
+    "allocate_capital",
+    "authorize_risk",
+)
+
+_MAXIMUM_COGNITIVE_OBJECTIVES: Final = (
+    "WorldUnderstanding",
+    "InformationQuality",
+    "Calibration",
+    "KnowledgeReliability",
+    "BlindspotReduction",
+    "UnknownUnknownDiscovery",
+    "ScientificDiscovery",
+    "SystemAwareness",
+)
+
 
 def shared_cognitive_os_contract() -> dict[str, object]:
     """Return the Owner-frozen transversal Cognitive OS ceiling."""
 
     return {
-        "schema": "qore.shared.cognitive_os_contract.v1",
+        "schema": "qore.shared.cognitive_os_contract.v2",
         "version": COGNITIVE_OS_CONTRACT_VERSION,
+        "owner_directive": (
+            "docs/shared/QORE_SHARED_COGNITIVE_OS_OWNER_DIRECTIVE_005.md"
+        ),
+        "supersedes": "QORE_COGNITIVE_SCIENTIFIC_EPISTEMIC_OS_004",
         "identity": "QORE_SHARED_COGNITIVE_SCIENTIFIC_EPISTEMIC_OPERATING_SYSTEM",
         "mission": (
             "Maintain the best currently justifiable representation of market, "
@@ -632,6 +693,42 @@ def shared_cognitive_os_contract() -> dict[str, object]:
                 "operational_reliability",
             ),
             "downstream_effects_are_not_shared_identity": True,
+        },
+        "unknown_unknown_discovery": {
+            "second_order_blindspot_detection_required": True,
+            "must_search_for_uninstrumented_observation_spaces": True,
+            "must_search_for_unmodeled_dependencies": True,
+            "must_distinguish_unknown_unknown_from_data_corruption": True,
+            "must_not_force_unknown_unknown_into_known_ontology": True,
+            "unknown_unknown_discovery_remains_research_until_validated": True,
+        },
+        "systemic_stability": {
+            "market_stability_required": True,
+            "core_stability_required": True,
+            "broker_stability_required": True,
+            "cognitive_stability_required": True,
+            "systemic_stress_required": True,
+            "descriptive_states": _STABILITY_STATES,
+            "stability_state_is_not_trading_command": True,
+        },
+        "maximum_cognitive_api": {
+            "read_only_surface": _MAXIMUM_COGNITIVE_API,
+            "forbidden_actuation_surface": _FORBIDDEN_COGNITIVE_API,
+            "api_may_mutate_broker": False,
+            "api_may_allocate_capital": False,
+            "api_may_authorize_risk": False,
+            "api_may_mutate_trader_methodology": False,
+        },
+        "objective_law": {
+            "primary_objectives": _MAXIMUM_COGNITIVE_OBJECTIVES,
+            "profit_factor_is_primary_objective": False,
+            "drawdown_is_primary_objective": False,
+            "price_prediction_is_primary_objective": False,
+            "downstream_economic_effects_remain_certification_evidence": True,
+            "no_trading_authority": True,
+            "no_risk_authority": True,
+            "no_capital_authority": True,
+            "no_execution_authority": True,
         },
         "explanation_contract": {
             "every_material_output_must_answer": (
