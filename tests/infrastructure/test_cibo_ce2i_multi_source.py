@@ -111,6 +111,16 @@ def test_multi_source_combines_realized_then_protected_atomically(
     assert proposal.volume == Decimal("6")
     assert proposal.stop_risk_usd == Decimal("12")
     assert proposal.risk_request.requested_volume == Decimal("6")
+    assert tuple(
+        item.source_id for item in proposal.risk_request.capital_provenance
+    ) == ("realized-1", "protected-1")
+    assert sum(
+        (
+            item.amount_usd
+            for item in proposal.risk_request.capital_provenance
+        ),
+        Decimal(0),
+    ) == proposal.stop_risk_usd
     assert tuple(item.amount_usd for item in proposal.funding_slices) == (
         Decimal("5"),
         Decimal("7"),
