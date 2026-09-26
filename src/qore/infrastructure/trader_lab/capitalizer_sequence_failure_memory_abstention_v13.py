@@ -238,6 +238,9 @@ def _simulate(
             chosen=tuple(chosen),
         )
         state = states.setdefault(fp, FailureState())
+        prior_loss_streak = state.loss_streak
+        prior_last_loss = state.last_loss
+        prior_last_stop = state.last_stop
         reject = (
             spec is not None
             and pre.base_multiplier <= cap
@@ -258,9 +261,9 @@ def _simulate(
                 entry_at=trade.entry_at,
                 fingerprint=fp,
                 base_multiplier=str(pre.base_multiplier),
-                prior_loss_streak=state.loss_streak if not reject else 0,
-                prior_last_loss=state.last_loss if not reject else False,
-                prior_last_stop=state.last_stop if not reject else False,
+                prior_loss_streak=prior_loss_streak,
+                prior_last_loss=prior_last_loss,
+                prior_last_stop=prior_last_stop,
                 abstain=reject,
                 reason=reason,
             )
