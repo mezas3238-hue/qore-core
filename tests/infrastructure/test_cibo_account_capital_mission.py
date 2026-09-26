@@ -8,6 +8,7 @@ from qore.infrastructure.cibo_account_capital_mission import (
     CiboCapitalObjective,
     ce2i_tool_allowed_for_mission,
     derive_cibo_capital_mission,
+    eligible_ce2i_tool_codes_for_mission,
     fundednext_stellar_instant_identity,
     identity_from_market_test_account,
 )
@@ -167,14 +168,44 @@ def test_runtime_derives_account_mission_from_binding_not_issue() -> None:
     assert "derive_cibo_capital_mission(cibo_account_identity)" in demo
     assert '"cibo_account_context_source": "ACCOUNT_BINDING"' in demo
     assert '"cibo_capital_mission": cibo_capital_mission.mission.value' in demo
+    assert '"cibo_enabled_ce2i_tools": list(cibo_enabled_ce2i_tools)' in demo
 
     assert "fundednext_stellar_instant_identity(" in funded
     assert "derive_cibo_capital_mission(cibo_account_identity)" in funded
     assert '"cibo_account_context_source": "ACCOUNT_BINDING"' in funded
     assert '"cibo_capital_mission": cibo_capital_mission.mission.value' in funded
+    assert '"cibo_enabled_ce2i_tools": list(cibo_enabled_ce2i_tools)' in funded
 
     mission_module = Path(
         "src/qore/infrastructure/cibo_account_capital_mission.py"
     ).read_text(encoding="utf-8")
     assert "issue_id" not in mission_module
     assert "github_issue" not in mission_module
+
+
+
+def test_account_mission_exposes_different_ce2i_surfaces() -> None:
+    funded = derive_cibo_capital_mission(
+        fundednext_stellar_instant_identity(
+            account_ref="stellar-instant-2k"
+        )
+    )
+    demo = derive_cibo_capital_mission(
+        CiboAccountCapitalIdentity(
+            provider_key="ctrader-demo",
+            account_ref="demo-free",
+            environment=MarketRuntimeEnvironment.DEMO,
+        )
+    )
+
+    assert eligible_ce2i_tool_codes_for_mission(funded) == (
+        "T01",
+        "T19",
+        "T20",
+    )
+
+    demo_tools = eligible_ce2i_tool_codes_for_mission(demo)
+    for code in ("T01", "T05", "T06", "T07", "T09", "T11", "T18", "T19", "T20"):
+        assert code in demo_tools
+
+    assert len(demo_tools) > len(eligible_ce2i_tool_codes_for_mission(funded))
