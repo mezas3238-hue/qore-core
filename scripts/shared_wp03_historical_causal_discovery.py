@@ -150,6 +150,101 @@ class _Observation:
         raise KeyError(concept)
 
 
+@dataclass(frozen=True, slots=True)
+class _SourceThreshold:
+    control_bps: int
+    exposed_bps: int
+    sample_count: int
+    distinct_count: int
+    minimum_bps: int
+    maximum_bps: int
+
+    def __post_init__(self) -> None:
+        if not 0 <= self.control_bps < self.exposed_bps <= 10_000:
+            raise ValueError("source thresholds must be ordered within 0..10000")
+        if self.sample_count < 1 or self.distinct_count < 1:
+            raise ValueError("source threshold calibration requires samples")
+
+
+def _empirical_threshold(
+    values: list[int],
+) -> _SourceThreshold:
+    if not values:
+        raise ValueError("source threshold calibration requires values")
+    ordered = sorted(values)
+    control_index = int(
+        math.floor((len(ordered) - 1) * SOURCE_CONTROL_QUANTILE)
+    )
+    exposed_index = int(
+        math.ceil((len(ordered) - 1) * SOURCE_EXPOSED_QUANTILE)
+    )
+    control = ordered[control_index]
+    exposed = ordered[exposed_index]
+    distinct = sorted(set(ordered))
+
+    if control >= exposed:
+        if len(distinct) == 1:
+            only = distinct[0]
+            if only <= 0:
+                control, exposed = 0, 1
+            elif only >= 10_000:
+                control, exposed = 9_999, 10_000
+            else:
+                control, exposed = only - 1, only + 1
+        else:
+            control = distinct[
+                int(
+                    math.floor(
+                        (len(distinct) - 1) * SOURCE_CONTROL_QUANTILE
+                    )
+                )
+            ]
+            exposed = distinct[
+                int(
+                    math.ceil(
+                        (len(distinct) - 1) * SOURCE_EXPOSED_QUANTILE
+                    )
+                )
+            ]
+            if control >= exposed:
+                control, exposed = distinct[0], distinct[-1]
+
+    return _SourceThreshold(
+        control_bps=control,
+        exposed_bps=exposed,
+        sample_count=len(ordered),
+        distinct_count=len(distinct),
+        minimum_bps=ordered[0],
+        maximum_bps=ordered[-1],
+    )
+
+
+def _fit_r8_source_thresholds(
+    observations: tuple[_Observation, ...],
+) -> dict[CausalConcept, _SourceThreshold]:
+    """Fit source-state scale only; target/future values are never inspected."""
+
+    return {
+        source: _empirical_threshold(
+            [item.source(source) for item in observations]
+        )
+        for source in SOURCE_CONCEPTS
+    }
+
+
+def _threshold_payload(
+    threshold: _SourceThreshold,
+) -> dict[str, int]:
+    return {
+        "control_bps": threshold.control_bps,
+        "exposed_bps": threshold.exposed_bps,
+        "sample_count": threshold.sample_count,
+        "distinct_count": threshold.distinct_count,
+        "minimum_bps": threshold.minimum_bps,
+        "maximum_bps": threshold.maximum_bps,
+    }
+
+
 def _clamp_bps(value: float) -> int:
     return max(0, min(10_000, int(round(value))))
 
