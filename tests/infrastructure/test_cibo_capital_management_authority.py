@@ -28,6 +28,7 @@ def _opportunity(
         qore_symbol="EURUSD",
         provider_symbol="EURUSD",
         side="long",
+        entry_type="MARKET",
         intended_entry=Decimal("1.1000"),
         stop_loss=Decimal("1.0950"),
         take_profit=Decimal("1.1100"),
