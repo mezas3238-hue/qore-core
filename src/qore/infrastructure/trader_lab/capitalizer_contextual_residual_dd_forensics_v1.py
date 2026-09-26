@@ -20,13 +20,13 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.trader_lab import (
+    capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_contextual_stability_router_2r_v1 as router,
 )
 from qore.infrastructure.trader_lab import (
     capitalizer_cross_market_stability_governor_2r_v1 as governor,
-)
-from qore.infrastructure.trader_lab import (
-    capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
 )
 
 IDENTITY = "QORE_CAPITALIZER_CONTEXTUAL_RESIDUAL_DD_FORENSICS_V1"
