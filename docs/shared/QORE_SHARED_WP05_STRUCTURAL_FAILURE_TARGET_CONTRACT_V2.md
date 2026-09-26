@@ -195,3 +195,24 @@ preregistered before acquisition.
 - No knowledge auto-promotion.
 - Existing WP-05 gate remains unchanged.
 - Target V2 activation does not itself pass WP-05; a new corrected-target model must pass R6 and R5 before any fresh holdout may open.
+
+
+## 13. Activation evidence
+
+The consumed target-semantics audit activated this contract without opening
+fresh evidence.
+
+Authoritative audit:
+- Git SHA: `d7b6830d957a6dee12959236b6cef42d3b162f96`
+- GitHub Actions run: `36259738096`
+- status: `WP05_TARGET_CONTRACT_DIRECTIONALLY_INCONSISTENT`
+- protocol: PASS
+- current target directionally inverted on the majority of identifiable baseline
+  episodes in R8, R6 and R5.
+
+Therefore all new WP-05 experiments must use
+`HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2`. The old M15-oriented target is
+forbidden for new claims about higher-timeframe structural failure.
+
+Fresh holdout remains CLOSED until a V2-target model passes the unchanged
+consumed-development gate on both R6 and R5.
