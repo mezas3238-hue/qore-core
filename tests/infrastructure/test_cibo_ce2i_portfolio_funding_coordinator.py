@@ -4,6 +4,11 @@ from decimal import Decimal
 from pathlib import Path
 
 from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_account_capital_mission import (
+    CiboAccountCapitalIdentity,
+    CiboCapitalMissionPolicy,
+    derive_cibo_capital_mission,
+)
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalSource,
     CapitalStage,
@@ -29,13 +34,52 @@ from qore.infrastructure.cibo_ce2i_portfolio_allocation_store import (
 from qore.infrastructure.cibo_ce2i_portfolio_funding_coordinator import (
     reserve_portfolio_and_funding,
 )
+from qore.infrastructure.cibo_ce2i_regime_selector import (
+    CiboCapitalRegimeState,
+    CiboRegimeToolSelection,
+    CorrelationState,
+    LiquidityState,
+    ProviderCondition,
+    VolatilityState,
+    select_ce2i_tools_for_regime,
+)
 from qore.infrastructure.cibo_ce2i_portfolio_funding_saga import (
     DurablePortfolioFundingSagaStore,
     PortfolioFundingSagaState,
 )
+from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
 
 NOW = datetime(2026, 9, 26, 13, 30, tzinfo=UTC)
+
+
+
+def _mission() -> CiboCapitalMissionPolicy:
+    return derive_cibo_capital_mission(
+        CiboAccountCapitalIdentity(
+            provider_key="ctrader-demo",
+            account_ref="demo-free",
+            environment=MarketRuntimeEnvironment.DEMO,
+        )
+    )
+
+
+def _regime(
+    mission: CiboCapitalMissionPolicy,
+) -> CiboRegimeToolSelection:
+    return select_ce2i_tools_for_regime(
+        mission=mission,
+        state=CiboCapitalRegimeState(
+            liquidity=LiquidityState.NORMAL,
+            volatility=VolatilityState.NORMAL,
+            correlation=CorrelationState.NORMAL,
+            provider_condition=ProviderCondition.HEALTHY,
+            risk_utilization=Decimal("0.20"),
+            margin_utilization=Decimal("0.20"),
+            drawdown_utilization=Decimal("0.20"),
+            opportunity_count=2,
+        ),
+    )
 
 
 def _opportunity() -> TraderOpportunityEnvelope:
@@ -140,11 +184,14 @@ def test_happy_path_reaches_ready_for_risk_with_both_reservations(
     funding = _funding_store(tmp_path)
     saga = DurablePortfolioFundingSagaStore(tmp_path / "saga.json")
 
+    mission = _mission()
     result = reserve_portfolio_and_funding(
         transaction_id="tx-1",
         candidate=_candidate(),
         opportunity=_opportunity(),
         observation=_observation(),
+        mission=mission,
+        regime=_regime(mission),
         execution_curve=_curve(),
         assigned_capital_usd=Decimal("10000"),
         hard_risk_headroom_usd=Decimal("20"),
@@ -179,11 +226,14 @@ def test_unselected_candidate_rolls_back_without_resource_reservation(
     funding = _funding_store(tmp_path)
     saga = DurablePortfolioFundingSagaStore(tmp_path / "saga.json")
 
+    mission = _mission()
     result = reserve_portfolio_and_funding(
         transaction_id="tx-2",
         candidate=_candidate(),
         opportunity=_opportunity(),
         observation=_observation(),
+        mission=mission,
+        regime=_regime(mission),
         execution_curve=_curve(),
         assigned_capital_usd=Decimal("10000"),
         hard_risk_headroom_usd=Decimal("20"),
@@ -209,11 +259,14 @@ def test_funding_hold_releases_portfolio_reservation(
     funding = _funding_store(tmp_path, amount="0.5")
     saga = DurablePortfolioFundingSagaStore(tmp_path / "saga.json")
 
+    mission = _mission()
     result = reserve_portfolio_and_funding(
         transaction_id="tx-3",
         candidate=_candidate(),
         opportunity=_opportunity(),
         observation=_observation(capacity="0.5"),
+        mission=mission,
+        regime=_regime(mission),
         execution_curve=_curve(),
         assigned_capital_usd=Decimal("10000"),
         hard_risk_headroom_usd=Decimal("20"),
@@ -239,11 +292,14 @@ def test_economic_mismatch_compensates_both_known_reservations(
     funding = _funding_store(tmp_path)
     saga = DurablePortfolioFundingSagaStore(tmp_path / "saga.json")
 
+    mission = _mission()
     result = reserve_portfolio_and_funding(
         transaction_id="tx-4",
         candidate=_candidate(risk="10", margin="15"),
         opportunity=_opportunity(),
         observation=_observation(),
+        mission=mission,
+        regime=_regime(mission),
         execution_curve=_curve(),
         assigned_capital_usd=Decimal("10000"),
         hard_risk_headroom_usd=Decimal("20"),
