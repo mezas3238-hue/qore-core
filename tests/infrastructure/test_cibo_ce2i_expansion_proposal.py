@@ -282,3 +282,27 @@ def test_deployed_expansion_settlement_does_not_recycle_consumed_loss(
         proposal,
         ledger_store=store,
     ) is ReservationState.SETTLED
+
+
+def test_execution_cap_is_applied_before_capital_reservation(
+    tmp_path: Path,
+) -> None:
+    store = _store(tmp_path)
+    proposal = reserve_expansion_proposal(
+        reservation_id="expansion-cap",
+        source_id="source-1",
+        opportunity=_opportunity(),
+        observation=_observation(realized="20", capacity="20"),
+        hard_risk_headroom_usd=Decimal("50"),
+        margin_headroom_usd=Decimal("1000"),
+        assigned_capital_usd=Decimal("10000"),
+        requested_at=NOW,
+        expires_at=NOW + timedelta(seconds=30),
+        request_id="risk-expansion-cap",
+        ledger_store=store,
+        maximum_expansion_volume=Decimal("0.04"),
+    )
+
+    assert proposal.plan.volume == Decimal("0.04")
+    assert proposal.plan.stop_risk_usd == Decimal("4")
+    assert store.load().ledger.accounts[0].reserved_usd == Decimal("4")
