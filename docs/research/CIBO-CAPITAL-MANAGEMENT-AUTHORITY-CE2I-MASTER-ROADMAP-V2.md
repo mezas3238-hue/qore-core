@@ -822,7 +822,7 @@ Each mechanism requires separate evidence/certification.
 
 ## PHASE 18 — Per-Trader chronological replay
 
-**Status: IN PROGRESS — CAUSAL REPLAY CONTRACT GREEN / GBPJPY + GBPUSD EVIDENCE BOUND (2/7)**
+**Status: IN PROGRESS — CAUSAL REPLAY CONTRACT GREEN / GBPJPY + GBPUSD + AUDJPY EVIDENCE BOUND (3/7)**
 
 The shared replay primitive now exists in:
 
@@ -1042,9 +1042,76 @@ USD_CIBO_SIZING_COMPARISON_AUTHORIZED = FALSE
 ```
 
 No provider spread, commission, slippage, margin-per-volume or tick-value value is fabricated.
-Phase 18 now has exact R-denominated geometry/baseline replay evidence for **2/7 Traders**:
-R38 GBPJPY and R43 GBPUSD. The remaining Traders still require their own independent evidence
-binding and cannot inherit acceptance from these two cases.
+
+### AUDJPY R42 Phase-18 checkpoint — 26-SEP-2026
+
+The third independent Trader replay is now bound end-to-end without importing the AUDJPY research
+branch into CIBO authority code. The workflow checks out the exact immutable R40 source commit only
+as historical research evidence, instruments serialization-only technical geometry, then verifies the
+result against the retained R40 and final R41/R42 ledgers before scoring through the generic CIBO
+Phase-18 primitive.
+
+```text
+workflow_run: 36255646543  SUCCESS
+head_sha:     9483aada1f5798843450877e002e760725df00ff
+artifact_id:  10910875686
+artifact:     qore-cibo-phase18-audjpy-r42-geometry-9483aada1f5798843450877e002e760725df00ff
+digest:       sha256:7b40e1be53ce0508106b036c68ce4ebb3155bc5c14875144634e365cfb988de5
+rows:         1039
+```
+
+Immutable AUDJPY research bindings:
+
+```text
+R40 source SHA: a332b077598e070a42b2497b3766d55e731f7dca
+Raw M5 run:     35166210458
+Target V2 run:  35204892665
+Cognitive R27:  35383377176
+R39 freeze:     35397198837
+R40 baseline:   35397390781
+R41 correction: 35399430491
+```
+
+Bound replay invariants:
+
+```text
+R40 row-for-row parity:                    TRUE
+R41/R42 population row parity:             TRUE
+same signals:                              TRUE
+same entry:                                TRUE
+same structural stop:                      TRUE
+same technical target:                     TRUE
+same market path:                          TRUE
+same R40 base risk scale:                  TRUE
+R41 second-layer overlay reproduced:       TRUE
+generic CIBO Phase-18 scoring:             TRUE
+artifact checksum manifest:                TRUE
+```
+
+Generic Phase-18 scoring reproduces the final R42 5Y baseline exactly:
+
+```text
+trades:          1039
+profit_factor:   1.957251590510384151212372667
+total_r:         68.02344279137424925740640205
+max_drawdown_r:  5.293573269867727808258117465
+positive annual: 5/5
+```
+
+AUDJPY remains deliberately fail-closed for the USD CIBO sizing comparison:
+
+```text
+R_DENOMINATED_ONLY
+CALIBRATION_REQUIRED
+USD_CIBO_SIZING_COMPARISON_AUTHORIZED = FALSE
+```
+
+The retained evidence does not prove exact historical provider spread, commission, slippage,
+margin-per-volume or tick-value. Those economics are therefore not fabricated or inferred.
+
+Phase 18 now has exact R-denominated geometry/baseline replay evidence for **3/7 Traders**:
+R38 GBPJPY, R43 GBPUSD and R42 AUDJPY. The remaining four Traders still require independent
+evidence binding and cannot inherit acceptance from these three cases.
 
 Replay each Trader with:
 
