@@ -3,10 +3,10 @@ from __future__ import annotations
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab import (
-    capitalizer_cross_market_stability_governor_2r_v1 as governor,
+    capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
 )
 from qore.infrastructure.trader_lab import (
-    capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
+    capitalizer_cross_market_stability_governor_2r_v1 as governor,
 )
 
 
