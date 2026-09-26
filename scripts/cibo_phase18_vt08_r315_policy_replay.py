@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from zoneinfo import ZoneInfo
 
 RISK_SOURCE_SHA = "6a09be314a5c8b6a17822ea141a41d521aaf8655"
@@ -274,7 +274,7 @@ def _verify_policy(path: Path) -> dict[str, Any]:
     for key, value in expected.items():
         if str(policy[key]) != value:
             raise ValueError(f"R3.12 policy drift: {key}")
-    return payload
+    return cast(dict[str, Any], payload)
 
 
 def _strategy_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
