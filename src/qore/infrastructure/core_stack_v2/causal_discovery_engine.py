@@ -263,18 +263,20 @@ def _stability_bps(
     reference_effect: int,
     minimum_effect_bps: int,
 ) -> int:
-    material = [
-        effect
-        for effect in effects
-        if abs(effect) >= minimum_effect_bps
-    ]
-    if not material:
+    """Measure support across every eligible stratum, regime or partition.
+
+    Near-zero effects are evidence that the relation is not stable there.
+    Excluding them from the denominator can manufacture 100% stability from
+    one strong slice while the remaining slices carry no material effect.
+    """
+    if not effects:
         return 0
     consistent = sum(
-        _same_sign(effect, reference_effect)
-        for effect in material
+        abs(effect) >= minimum_effect_bps
+        and _same_sign(effect, reference_effect)
+        for effect in effects
     )
-    return consistent * 10_000 // len(material)
+    return consistent * 10_000 // len(effects)
 
 
 def _conditioned_effects(
