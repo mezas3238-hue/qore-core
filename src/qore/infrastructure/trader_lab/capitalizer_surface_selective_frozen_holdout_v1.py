@@ -337,9 +337,23 @@ def build_report(
     counts = {len(rows) for rows in selected_reserved.values()}
     if len(counts) != 1:
         raise ValueError("reserved mode populations differ")
-    reserved_context = _load_contexts_reserved(reserved_context_root)
+    reserved_context_all = _load_contexts_reserved(reserved_context_root)
+    baseline_keys = {
+        (row.symbol, row.entry_at)
+        for row in selected_reserved[milestone.ProtectionMode.ORIGINAL.value]
+    }
+    missing_context = baseline_keys - set(reserved_context_all)
+    if missing_context:
+        raise ValueError(
+            f"reserved MAX3 identities missing context: {len(missing_context)}"
+        )
+    reserved_context = {
+        key: row
+        for key, row in reserved_context_all.items()
+        if key in baseline_keys
+    }
     if len(reserved_context) != next(iter(counts)):
-        raise ValueError("reserved context population differs from MAX3")
+        raise ValueError("reserved MAX3 context filtering failed")
 
     result, decisions, _ledger = _simulate_reserved(
         ledgers=selected_reserved,
