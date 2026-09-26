@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 import importlib.util
+import sys
 from pathlib import Path
 
 _PATH = (
@@ -16,6 +17,7 @@ _SPEC = importlib.util.spec_from_file_location(
 if _SPEC is None or _SPEC.loader is None:
     raise RuntimeError("unable to load VT08 Phase-18 policy replay")
 policy = importlib.util.module_from_spec(_SPEC)
+sys.modules[_SPEC.name] = policy
 _SPEC.loader.exec_module(policy)
 
 
