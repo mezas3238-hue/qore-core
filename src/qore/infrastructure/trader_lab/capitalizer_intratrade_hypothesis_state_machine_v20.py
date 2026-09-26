@@ -595,14 +595,16 @@ def write_market(
         encoding="utf-8",
     )
     with (output / f"{stem}-events.jsonl").open("w", encoding="utf-8") as handle:
-        for row in triggers:
-            handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+        for trigger_row in triggers:
+            handle.write(json.dumps(asdict(trigger_row), sort_keys=True) + "\n")
     with (output / f"{stem}-transitions.jsonl").open(
         "w",
         encoding="utf-8",
     ) as handle:
-        for row in transitions:
-            handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+        for transition_row in transitions:
+            handle.write(
+                json.dumps(asdict(transition_row), sort_keys=True) + "\n"
+            )
 
 
 def _load_events(
