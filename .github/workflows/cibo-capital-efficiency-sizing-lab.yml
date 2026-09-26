@@ -43,6 +43,7 @@ jobs:
             src/qore/infrastructure/cibo_cma_shadow_floor.py \
             src/qore/infrastructure/cibo_cma_capital_observation.py \
             scripts/cibo_ce2i_sizing_reconstruction_report.py \
+            scripts/cibo_cma_shadow_floor_report.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
             tests/infrastructure/test_cibo_capital_management_authority.py \
@@ -60,7 +61,8 @@ jobs:
             tests/infrastructure/test_cibo_cma_sizing_telemetry.py \
             tests/infrastructure/test_cibo_cma_behavior_binding.py \
             tests/infrastructure/test_cibo_cma_shadow_floor.py \
-            tests/infrastructure/test_cibo_cma_capital_observation.py
+            tests/infrastructure/test_cibo_cma_capital_observation.py \
+            tests/infrastructure/test_cibo_cma_shadow_floor_report.py
 
       - name: Compile integration surface
         run: |
@@ -75,7 +77,8 @@ jobs:
             src/qore/infrastructure/ctrader_demo_vt08_sizing.py \
             scripts/qore_ctrader_demo_free_runtime.py \
             scripts/vt31_nas100_ctrader_demo_adapter.py \
-            scripts/cibo_ce2i_sizing_reconstruction_report.py
+            scripts/cibo_ce2i_sizing_reconstruction_report.py \
+            scripts/cibo_cma_shadow_floor_report.py
 
       - name: Mypy
         run: |
@@ -95,6 +98,7 @@ jobs:
             src/qore/infrastructure/cibo_cma_shadow_floor.py \
             src/qore/infrastructure/cibo_cma_capital_observation.py \
             scripts/cibo_ce2i_sizing_reconstruction_report.py \
+            scripts/cibo_cma_shadow_floor_report.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
             tests/infrastructure/test_cibo_capital_management_authority.py \
@@ -112,7 +116,8 @@ jobs:
             tests/infrastructure/test_cibo_cma_sizing_telemetry.py \
             tests/infrastructure/test_cibo_cma_behavior_binding.py \
             tests/infrastructure/test_cibo_cma_shadow_floor.py \
-            tests/infrastructure/test_cibo_cma_capital_observation.py
+            tests/infrastructure/test_cibo_cma_capital_observation.py \
+            tests/infrastructure/test_cibo_cma_shadow_floor_report.py
 
       - name: Pytest
         run: |
@@ -134,4 +139,5 @@ jobs:
             tests/infrastructure/test_cibo_cma_sizing_telemetry.py \
             tests/infrastructure/test_cibo_cma_behavior_binding.py \
             tests/infrastructure/test_cibo_cma_shadow_floor.py \
-            tests/infrastructure/test_cibo_cma_capital_observation.py
+            tests/infrastructure/test_cibo_cma_capital_observation.py \
+            tests/infrastructure/test_cibo_cma_shadow_floor_report.py
