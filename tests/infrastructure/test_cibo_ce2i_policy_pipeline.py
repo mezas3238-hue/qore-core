@@ -17,6 +17,10 @@ from qore.infrastructure.cibo_cma_capital_observation import CmaCapitalObservati
 from qore.infrastructure.cibo_ce2i_execution_efficiency import (
     ExecutionCostCurveInput,
 )
+from qore.infrastructure.cibo_ce2i_expansion_proposal import CmaExpansionProposal
+from qore.infrastructure.cibo_ce2i_multi_source import (
+    CmaMultiSourceExpansionProposal,
+)
 from qore.infrastructure.cibo_ce2i_policy_pipeline import (
     Ce2iExpansionPolicyDecision,
     propose_ce2i_expansion,
@@ -142,7 +146,7 @@ def test_pipeline_applies_execution_cap_before_reservation(tmp_path: Path) -> No
 
     assert decision.applied_tools == ("T11", "T06", "T19")
     assert decision.execution_cap.volume_cap == Decimal("4")
-    assert decision.proposal is not None
+    assert isinstance(decision.proposal, CmaExpansionProposal)
     assert decision.proposal.plan.volume == Decimal("4")
     assert decision.proposal.plan.stop_risk_usd == Decimal("8")
     realized = next(
@@ -158,7 +162,7 @@ def test_realized_profit_has_conservative_priority_over_protected_floor(
 ) -> None:
     _, decision = _propose(tmp_path)
 
-    assert decision.proposal is not None
+    assert isinstance(decision.proposal, CmaExpansionProposal)
     assert decision.proposal.source is CapitalSource.REALIZED_PROFIT
 
 
@@ -173,7 +177,7 @@ def test_protected_floor_is_fallback_when_realized_lot_cannot_express_minimum(
     )
 
     assert decision.applied_tools == ("T11", "T07", "T19")
-    assert decision.proposal is not None
+    assert isinstance(decision.proposal, CmaExpansionProposal)
     assert decision.proposal.source is CapitalSource.PROTECTED_ECONOMIC_FLOOR
 
 
@@ -201,7 +205,7 @@ def test_ineligible_capital_observation_creates_no_reservation(
     assert store.load().ledger.reservations == ()
 
 
-def test_no_single_source_above_provider_minimum_holds_without_double_spend(
+def test_fragmented_sources_fund_minimum_atomically(
     tmp_path: Path,
 ) -> None:
     store, decision = _propose(
@@ -211,6 +215,11 @@ def test_no_single_source_above_provider_minimum_holds_without_double_spend(
         observation=_observation(realized="1", protected="1", capacity="2"),
     )
 
-    assert decision.proposal is None
-    assert "multi-source" in decision.reason
-    assert store.load().ledger.reservations == ()
+    assert decision.applied_tools == ("T11", "T06", "T07", "T19")
+    assert isinstance(decision.proposal, CmaMultiSourceExpansionProposal)
+    assert decision.proposal.volume == Decimal("1")
+    assert decision.proposal.stop_risk_usd == Decimal("2")
+    assert tuple(
+        item.amount_usd for item in decision.proposal.funding_slices
+    ) == (Decimal("1"), Decimal("1"))
+    assert len(store.load().ledger.reservations) == 2
