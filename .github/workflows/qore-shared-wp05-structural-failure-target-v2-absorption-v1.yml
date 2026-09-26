@@ -33,7 +33,7 @@ jobs:
 
       - name: Announce corrected-target consumed-development run
         run: |
-          gh issue comment 643 --body "WP-05 Target V2 absorption V1 started — Git SHA `${GITHUB_SHA}`, run `${GITHUB_RUN_ID}`. Target V2 was preregistered before audit and activated only after audit run 36259738096 proved material directional inconsistency. R8 fit only; R6/R5 consumed falsification only; fresh holdout remains closed; gate unchanged at 20%/95%."
+          gh issue comment 643 --body "WP-05 Target V2 absorption V1 started — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Target V2 was preregistered before audit and activated only after audit run 36259738096 proved material directional inconsistency. R8 fit only; R6/R5 consumed falsification only; fresh holdout remains closed; gate unchanged at 20%/95%."
 
       - uses: actions/setup-python@v5
         with:
@@ -178,7 +178,7 @@ jobs:
         if: always()
         run: |
           if [ ! -f result/wp05-target-v2-absorption-v1.json ]; then
-            gh issue comment 643 --body "WP-05 Target V2 absorption V1 run `${GITHUB_RUN_ID}` produced no scientific payload. Fresh holdout remains closed; inspect technical failure."
+            gh issue comment 643 --body "WP-05 Target V2 absorption V1 run \`${GITHUB_RUN_ID}\` produced no scientific payload. Fresh holdout remains closed; inspect technical failure."
             exit 0
           fi
           python - <<'PY'
