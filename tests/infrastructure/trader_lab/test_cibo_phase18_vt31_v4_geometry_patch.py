@@ -35,7 +35,8 @@ _REARM_SPEC.loader.exec_module(rearm_patcher)
 
 
 def _minimal_source() -> str:
-    return """    selected = [
+    return """    adjusted, binding_diag = physical._physicalize(rows, by_day=by_day)
+    selected = [
         row for row in adjusted
         if START_DATE
         <= date.fromisoformat(cast(str, row["local_date"]))
@@ -60,8 +61,10 @@ def test_vt31_source_commit_is_frozen() -> None:
 def test_vt31_patch_serializes_selected_rows_only() -> None:
     patched = patcher.patch_source(_minimal_source())
     assert '"trade_rows": phase18_trade_rows' in patched
-    assert "phase18_trade_rows = selected" in patched
-    assert 'authoritative_row.pop("entry", None)' in patched
+    assert "phase18_rearm_geometry = {}" in patched
+    assert "authoritative_rows = []" in patched
+    assert 'authoritative_row.pop("entry")' in patched
+    assert "phase18_adjusted = []" in patched
     assert '"trade_count": len(selected)' in patched
     assert '"metrics": metrics' in patched
 
