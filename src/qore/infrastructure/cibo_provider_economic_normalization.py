@@ -15,6 +15,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
     TraderOpportunityEnvelope,
 )
+from qore.infrastructure.cibo_fundednext_provider import (
+    FundedNextCiboSymbolSpecification,
+)
 from qore.infrastructure.ctrader_demo_compat import CTraderDemoSymbolSpecification
 
 
@@ -312,6 +315,39 @@ def ctrader_demo_economic_observation(
     if not isinstance(spec, CTraderDemoSymbolSpecification):
         raise CiboCapitalManagementError(
             "spec must be CTraderDemoSymbolSpecification"
+        )
+    return ProviderEconomicObservation(
+        provider_key=provider_key,
+        qore_symbol=qore_symbol,
+        provider_symbol=spec.provider_symbol,
+        bid=spec.bid,
+        ask=spec.ask,
+        contract_size=spec.contract_size,
+        tick_size=spec.tick_size,
+        tick_value=spec.tick_value,
+        minimum_volume=spec.minimum_volume,
+        maximum_volume=spec.maximum_volume,
+        volume_step=spec.volume_step,
+        margin_per_volume=spec.margin_per_volume,
+        commission_per_volume_usd=spec.open_commission_per_lot_usd,
+        slippage_reserve_per_volume_usd=slippage_reserve_per_volume_usd,
+        observed_at=spec.observed_at,
+    )
+
+
+
+def fundednext_economic_observation(
+    *,
+    qore_symbol: str,
+    provider_key: str,
+    spec: FundedNextCiboSymbolSpecification,
+    slippage_reserve_per_volume_usd: Decimal = Decimal(0),
+) -> ProviderEconomicObservation:
+    """Adapt normalized FundedNext MT5 facts into the common CIBO envelope."""
+
+    if not isinstance(spec, FundedNextCiboSymbolSpecification):
+        raise CiboCapitalManagementError(
+            "spec must be FundedNextCiboSymbolSpecification"
         )
     return ProviderEconomicObservation(
         provider_key=provider_key,
