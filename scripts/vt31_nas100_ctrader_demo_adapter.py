@@ -38,6 +38,7 @@ from qore.infrastructure.ctrader_demo_free_sink import (
     demo_capital_for,
     submit_demo_request,
 )
+from qore.infrastructure.cibo_cma_initial_seed import build_initial_seed_request
 from qore.infrastructure.vt31_nas100_live import (
     CIBO_MEMORY_FINGERPRINT,
     COGNITIVE_MEMORY_FINGERPRINT,
@@ -60,7 +61,7 @@ from qore.infrastructure.vt31_nas100_live import (
     Vt31RiskContext,
     Vt31VirtualCandidate,
     assert_deadline,
-    build_risk_request,
+    build_vt31_opportunity,
     pre_close_spread_exit_at,
     resolve_certified_risk,
     virtual_oco_trigger,
@@ -1217,22 +1218,29 @@ def _authorize_and_check(
             else Decimal(order.current_path_vs_previous)
         ),
     )
-    resolution = resolve_certified_risk(context)
+    legacy_resolution = resolve_certified_risk(context)
     request_at = stage("before-risk-request")
-    request, _one_r = build_risk_request(
-        request_id=f"vt31-{order.signal_fingerprint[:24]}",
+    account = gateway.read_account(now=request_at)
+    opportunity = build_vt31_opportunity(
         signal_fingerprint=order.signal_fingerprint,
         side=order.side,
         entry=Decimal(order.entry_price),
         stop_loss=Decimal(order.stop_loss),
         take_profit=_broker_guard_target(order),
-        certified_risk_r=resolution.final_risk_r,
         provider_spec=spec,
-        account_equity=demo_capital_for(TraderLineage.VT31_NAS100),
         decision_anchor=trigger_at,
-        reservation_expires_at=expires_at,
         now=request_at,
     )
+    seed = build_initial_seed_request(
+        request_id=f"vt31-{order.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        assigned_capital_usd=demo_capital_for(TraderLineage.VT31_NAS100),
+        hard_risk_headroom_usd=demo_capital_for(TraderLineage.VT31_NAS100),
+        margin_headroom_usd=account.free_margin,
+        requested_at=request_at,
+        expires_at=expires_at,
+    )
+    request = seed.request
     demo_result = submit_demo_request(request)
     log({
         "event": "CTRADER_DEMO_FREE_EXECUTION",
@@ -1264,7 +1272,7 @@ def _authorize_and_check(
             stop_loss=order.stop_loss,
             dol1=order.dol1,
             three_r=order.three_r,
-            requested_risk_r=format(resolution.final_risk_r, "f"),
+            requested_risk_r=format(legacy_resolution.final_risk_r, "f"),
             authorized_volume=format(request.requested_volume, "f"),
             reference_high=order.reference_high,
             reference_low=order.reference_low,

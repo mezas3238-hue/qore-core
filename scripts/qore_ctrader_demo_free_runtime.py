@@ -1,8 +1,9 @@
 """Independent QORE cTrader DEMO FREE-CIBO runtime.
 
 Market data, account state, execution, position management, persistence and
-watchdog ownership are cTrader DEMO-only. QORE Risk allocates capital; Trader/CIBO
-retain setup, sizing and position-management authority.
+watchdog ownership are cTrader DEMO-only. Traders retain market-methodology
+authority; CIBO CMA owns sizing/capital management; QORE Risk remains the hard
+survivability governor.
 """
 
 from __future__ import annotations
@@ -47,6 +48,11 @@ from qore.infrastructure.account_wide_risk_ledger import (
     DurableAccountWideRiskEngine,
     DurableAccountWideRiskLedger,
 )
+from qore.infrastructure.cibo_account_capital_mission import (
+    derive_cibo_capital_mission,
+    eligible_ce2i_tool_codes_for_mission,
+    identity_from_market_test_account,
+)
 from qore.infrastructure.ctrader_demo_compat import (
     CTraderDemoAccountState,
     CTraderDemoSymbolSpecification,
@@ -85,7 +91,7 @@ from qore.infrastructure.r34_xauusd_live import (
     R34LiveState,
     R34LiveStateStore,
     build_live_signal as build_r34_live_signal,
-    build_r34_risk_request,
+    build_r34_opportunity,
     current_anchor as current_r34_anchor,
     load_cognitive as load_r34_cognitive,
 )
@@ -94,7 +100,7 @@ from qore.infrastructure.r38_eurusd_live import (
     R38LiveState,
     R38LiveStateStore,
     build_live_signal as build_r38_live_signal,
-    build_r38_risk_request,
+    build_r38_opportunity,
     current_anchor as current_r38_anchor,
     load_cognitive as load_r38_cognitive,
     manage_open_position as manage_r38_open_position,
@@ -104,7 +110,7 @@ from qore.infrastructure.r43_gbpusd_live import (
     R43LiveState,
     R43LiveStateStore,
     build_live_signal as build_r43_live_signal,
-    build_r43_risk_request,
+    build_r43_opportunity,
     current_anchor as current_r43_anchor,
     load_memory as load_r43_memory,
     manage_open_position as manage_r43_open_position,
@@ -114,7 +120,7 @@ from qore.infrastructure.r38_gbpjpy_live import (
     R38GbpJpyLiveState,
     R38GbpJpyLiveStateStore,
     build_live_signal as build_gbpjpy_r38_live_signal,
-    build_r38_gbpjpy_risk_request,
+    build_r38_gbpjpy_opportunity,
     current_anchor as current_gbpjpy_r38_anchor,
     load_memory as load_gbpjpy_r38_memory,
     manage_open_position as manage_gbpjpy_r38_open_position,
@@ -128,7 +134,7 @@ from qore.infrastructure.r42_audjpy_live import (
     R42AudJpyLiveState,
     R42AudJpyLiveStateStore,
     build_live_signal as build_audjpy_r42_live_signal,
-    build_r42_audjpy_risk_request,
+    build_r42_audjpy_opportunity,
     load_memory as load_audjpy_r42_memory,
     manage_open_position as manage_audjpy_r42_open_position,
 )
@@ -150,8 +156,15 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
     evaluate_vt08_forex_cibo,
 )
 from qore.infrastructure.ctrader_demo_vt08_sizing import (
-    build_ctrader_demo_vt08_cibo_request,
+    build_ctrader_demo_vt08_opportunity,
 )
+from qore.infrastructure.cibo_cma_initial_seed import build_initial_seed_request
+from qore.infrastructure.cibo_cma_lifecycle_store import DurableCmaLifecycleStore
+from qore.infrastructure.cibo_cma_runtime_observer import (
+    CmaRuntimePositionSnapshot,
+    observe_runtime_position,
+)
+from qore.infrastructure.cibo_cma_settlement_store import DurableCmaSettlementStore
 from qore.infrastructure.ctrader_demo_live_anomaly_supervisor import (
     run_with_bounded_repair,
 )
@@ -582,13 +595,23 @@ def _process_candidate(
     if cibo.decision is not Vt08ForexCiboDecision.ALLOW:
         _log(log_path, {"event": "CIBO_DENY", "symbol": candidate.symbol, "reason": cibo.reason})
         return
-    spec = gateway.read_symbol(candidate.symbol, now=datetime.now(UTC))
-    request = build_ctrader_demo_vt08_cibo_request(
-        request_id=f"vt08-{setup.signal_fingerprint[:24]}",
+    request_at = datetime.now(UTC)
+    spec = gateway.read_symbol(candidate.symbol, now=request_at)
+    account = gateway.read_account(now=request_at)
+    opportunity = build_ctrader_demo_vt08_opportunity(
         cibo_authorization=cibo,
         provider_spec=spec,
-        account_equity=demo_capital,
     )
+    seed = build_initial_seed_request(
+        request_id=f"vt08-{setup.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        assigned_capital_usd=demo_capital,
+        hard_risk_headroom_usd=demo_capital,
+        margin_headroom_usd=account.free_margin,
+        requested_at=request_at,
+        expires_at=setup.expires_at,
+    )
+    request = seed.request
     demo_result = submit_demo_request(request)
     _log(
         log_path,
@@ -622,14 +645,21 @@ def _process_r34_candidate(
     preflight_snapshot: AccountRiskSnapshot | None = None,
     preflight_spec: CTraderDemoSymbolSpecification | None = None,
 ) -> None:
-    spec = gateway.read_symbol("XAUUSD", now=datetime.now(UTC))
-    request, base_risk_usd = build_r34_risk_request(
+    request_at = datetime.now(UTC)
+    spec = gateway.read_symbol("XAUUSD", now=request_at)
+    account = gateway.read_account(now=request_at)
+    opportunity = build_r34_opportunity(signal=signal, provider_spec=spec)
+    seed = build_initial_seed_request(
         request_id=f"r34-{signal.signal_fingerprint[:24]}",
-        signal=signal,
-        provider_spec=spec,
-        account_equity=demo_capital_for(TraderLineage.R34_XAUUSD),
-        now=datetime.now(UTC),
+        opportunity=opportunity,
+        assigned_capital_usd=demo_capital_for(TraderLineage.R34_XAUUSD),
+        hard_risk_headroom_usd=demo_capital_for(TraderLineage.R34_XAUUSD),
+        margin_headroom_usd=account.free_margin,
+        requested_at=request_at,
+        expires_at=request_at + timedelta(seconds=30),
     )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
     demo_result = submit_demo_request(request)
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         r34_store.mark_open(
@@ -669,14 +699,21 @@ def _process_r38_candidate(
     preflight_snapshot: AccountRiskSnapshot | None = None,
     preflight_spec: CTraderDemoSymbolSpecification | None = None,
 ) -> None:
-    spec = gateway.read_symbol("EURUSD", now=datetime.now(UTC))
-    request, base_risk_usd = build_r38_risk_request(
+    request_at = datetime.now(UTC)
+    spec = gateway.read_symbol("EURUSD", now=request_at)
+    account = gateway.read_account(now=request_at)
+    opportunity = build_r38_opportunity(signal=signal, provider_spec=spec)
+    seed = build_initial_seed_request(
         request_id=f"r38-{signal.signal_fingerprint[:24]}",
-        signal=signal,
-        provider_spec=spec,
-        account_equity=demo_capital_for(TraderLineage.R38_EURUSD),
-        now=datetime.now(UTC),
+        opportunity=opportunity,
+        assigned_capital_usd=demo_capital_for(TraderLineage.R38_EURUSD),
+        hard_risk_headroom_usd=demo_capital_for(TraderLineage.R38_EURUSD),
+        margin_headroom_usd=account.free_margin,
+        requested_at=request_at,
+        expires_at=request_at + timedelta(seconds=30),
     )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
     demo_result = submit_demo_request(request)
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         r38_store.mark_open(
@@ -716,14 +753,21 @@ def _process_r43_candidate(
     preflight_snapshot: AccountRiskSnapshot | None = None,
     preflight_spec: CTraderDemoSymbolSpecification | None = None,
 ) -> None:
-    spec = gateway.read_symbol("GBPUSD", now=datetime.now(UTC))
-    request, base_risk_usd = build_r43_risk_request(
+    request_at = datetime.now(UTC)
+    spec = gateway.read_symbol("GBPUSD", now=request_at)
+    account = gateway.read_account(now=request_at)
+    opportunity = build_r43_opportunity(signal=signal, provider_spec=spec)
+    seed = build_initial_seed_request(
         request_id=f"r43-{signal.signal_fingerprint[:24]}",
-        signal=signal,
-        provider_spec=spec,
-        account_equity=demo_capital_for(TraderLineage.R43_GBPUSD),
-        now=datetime.now(UTC),
+        opportunity=opportunity,
+        assigned_capital_usd=demo_capital_for(TraderLineage.R43_GBPUSD),
+        hard_risk_headroom_usd=demo_capital_for(TraderLineage.R43_GBPUSD),
+        margin_headroom_usd=account.free_margin,
+        requested_at=request_at,
+        expires_at=request_at + timedelta(seconds=30),
     )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
     demo_result = submit_demo_request(request)
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         r43_store.mark_open(
@@ -763,14 +807,21 @@ def _process_gbpjpy_r38_candidate(
     preflight_snapshot: AccountRiskSnapshot | None = None,
     preflight_spec: CTraderDemoSymbolSpecification | None = None,
 ) -> None:
-    spec = gateway.read_symbol("GBPJPY", now=datetime.now(UTC))
-    request, base_risk_usd = build_r38_gbpjpy_risk_request(
+    request_at = datetime.now(UTC)
+    spec = gateway.read_symbol("GBPJPY", now=request_at)
+    account = gateway.read_account(now=request_at)
+    opportunity = build_r38_gbpjpy_opportunity(signal=signal, provider_spec=spec)
+    seed = build_initial_seed_request(
         request_id=f"gbpjpy-r38-{signal.signal_fingerprint[:24]}",
-        signal=signal,
-        provider_spec=spec,
-        account_equity=demo_capital_for(TraderLineage.R38_GBPJPY),
-        now=datetime.now(UTC),
+        opportunity=opportunity,
+        assigned_capital_usd=demo_capital_for(TraderLineage.R38_GBPJPY),
+        hard_risk_headroom_usd=demo_capital_for(TraderLineage.R38_GBPJPY),
+        margin_headroom_usd=account.free_margin,
+        requested_at=request_at,
+        expires_at=request_at + timedelta(seconds=30),
     )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
     demo_result = submit_demo_request(request)
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         gbpjpy_r38_store.mark_open(
@@ -840,13 +891,23 @@ def _process_audjpy_r42_candidate(
     request_at = stage_time("before-risk-request")
     if request_at is None:
         return
-    request, base_risk_usd = build_r42_audjpy_risk_request(
-        request_id=f"audjpy-r42-{signal.signal_fingerprint[:24]}",
+    account = gateway.read_account(now=request_at)
+    opportunity = build_r42_audjpy_opportunity(
         signal=signal,
         provider_spec=spec,
-        account_equity=demo_capital_for(TraderLineage.R42_AUDJPY),
         now=request_at,
     )
+    seed = build_initial_seed_request(
+        request_id=f"audjpy-r42-{signal.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        assigned_capital_usd=demo_capital_for(TraderLineage.R42_AUDJPY),
+        hard_risk_headroom_usd=demo_capital_for(TraderLineage.R42_AUDJPY),
+        margin_headroom_usd=account.free_margin,
+        requested_at=request_at,
+        expires_at=deadline,
+    )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
 
     demo_result = submit_demo_request(request)
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
@@ -932,7 +993,22 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         account_ref=str(account_info.login),
         environment=MarketRuntimeEnvironment.DEMO,
     )
+    cibo_account_identity = identity_from_market_test_account(account)
+    cibo_capital_mission = derive_cibo_capital_mission(cibo_account_identity)
+    cibo_enabled_ce2i_tools = eligible_ce2i_tool_codes_for_mission(
+        cibo_capital_mission
+    )
     state_dir = root / "var" / "ctrader_demo_signal_runtime"
+    cma_settlement_store = DurableCmaSettlementStore(
+        state_dir / "cibo-cma-settlements.json"
+    )
+    cma_lifecycle_store = DurableCmaLifecycleStore(
+        state_dir / "cibo-cma-lifecycle.json"
+    )
+    # Fail startup if durable CMA evidence is corrupt. Observational CMA must
+    # never manufacture fresh capacity by silently discarding restart state.
+    cma_settlement_store.load()
+    cma_lifecycle_store.load()
     startup_memory = ThreadPoolExecutor(
         max_workers=6,
         thread_name_prefix="qore-startup-memory",
@@ -1122,6 +1198,16 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             ],
             "execution_environment": "CTRADER_DEMO_FREE",
             "market_data_provider": "CTRADER_DEMO",
+            "cibo_account_context_source": "ACCOUNT_BINDING",
+            "cibo_capital_mission": cibo_capital_mission.mission.value,
+            "cibo_capital_primary_objective": (
+                cibo_capital_mission.primary_objective.value
+            ),
+            "cibo_ce2i_activation_scope": cibo_capital_mission.ce2i_scope.value,
+            "cibo_enabled_ce2i_tools": list(cibo_enabled_ce2i_tools),
+            "cibo_capability_measurement_enabled": (
+                cibo_capital_mission.capability_measurement_enabled
+            ),
             "ctrader_demo_writer": True,
             "account_wide_risk_active": False,
             "risk_role": "CAPITAL_ALLOCATOR_ONLY",
@@ -2440,19 +2526,24 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         try:
             for position in demo_management_api.positions_get():
                 position_id = int(getattr(position, "ticket"))
-                registry_entry = demo_sink.registry.by_position(position_id)
-                if registry_entry is None:
+                registry_entries = demo_sink.registry.entries_by_position(position_id)
+                if not registry_entries:
                     continue
+                registry_entry = registry_entries[0]
                 symbol = str(getattr(position, "symbol"))
                 tick = demo_management_api.symbol_info_tick(symbol)
                 if tick is None:
                     continue
+                observed_at = datetime.now(UTC)
                 side = (
                     "long"
                     if int(getattr(position, "type"))
                     == int(demo_management_api.POSITION_TYPE_BUY)
                     else "short"
                 )
+                entry_price = Decimal(str(getattr(position, "price_open")))
+                stop_loss = Decimal(str(getattr(position, "sl", 0)))
+                remaining_volume = Decimal(str(getattr(position, "volume")))
                 _log(
                     log_path,
                     position_path_observation_payload(
@@ -2461,16 +2552,48 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         signal_fingerprint=registry_entry.signal_fingerprint,
                         position_id=position_id,
                         side=side,
-                        entry_price=Decimal(str(getattr(position, "price_open"))),
+                        entry_price=entry_price,
                         bid=Decimal(str(getattr(tick, "bid"))),
                         ask=Decimal(str(getattr(tick, "ask"))),
-                        stop_loss=Decimal(str(getattr(position, "sl", 0))),
+                        stop_loss=stop_loss,
                         take_profit=Decimal(str(getattr(position, "tp", 0))),
-                        volume=Decimal(str(getattr(position, "volume"))),
+                        volume=remaining_volume,
                         unrealized_pnl=Decimal(str(getattr(position, "profit", 0))),
-                        observed_at=datetime.now(UTC),
+                        observed_at=observed_at,
                     ),
                 )
+
+                cma_spec = gateway.read_symbol(
+                    registry_entry.qore_symbol,
+                    now=observed_at,
+                )
+                cma_result = observe_runtime_position(
+                    CmaRuntimePositionSnapshot(
+                        trader_id=TraderLineage(registry_entry.trader),
+                        signal_fingerprint=registry_entry.signal_fingerprint,
+                        qore_symbol=registry_entry.qore_symbol,
+                        position_id=position_id,
+                        registry_leg_count=len(registry_entries),
+                        side=side,
+                        entry_price=entry_price,
+                        current_stop=stop_loss,
+                        initial_volume=Decimal(registry_entry.requested_volume),
+                        remaining_volume=remaining_volume,
+                        tick_size=cma_spec.tick_size,
+                        tick_value=cma_spec.tick_value,
+                        broker_position_reconciled=True,
+                        broker_stop_reconciled=stop_loss > 0,
+                        mutation_outcome_unknown=gateway.has_unresolved_mutations,
+                        observed_at=observed_at,
+                    ),
+                    settlement_store=cma_settlement_store,
+                    lifecycle_store=cma_lifecycle_store,
+                )
+                if cma_result.failure_payload is not None:
+                    _log(log_path, cma_result.failure_payload)
+                else:
+                    assert cma_result.observation is not None
+                    _log(log_path, cma_result.observation.as_payload())
         except Exception as behavior_sample_error:
             _log(
                 log_path,

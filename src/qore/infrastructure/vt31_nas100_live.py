@@ -30,6 +30,10 @@ from zoneinfo import ZoneInfo
 
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
 from qore.infrastructure.broker_risk_sizing import size_volume_for_risk
+from qore.infrastructure.cibo_capital_management_authority import (
+    TraderOpportunityEnvelope,
+)
+from qore.infrastructure.cibo_live_opportunity import build_live_opportunity
 from qore.infrastructure.ctrader_demo_compat import normalise_legacy_server_epoch
 from qore.infrastructure.market_data import (
     Instrument,
@@ -645,6 +649,73 @@ def resolve_certified_risk(context: Vt31RiskContext) -> Vt31RiskResolution:
         breaker_regime_multiplier=breaker_regime,
         final_risk_r=final,
         reasons=tuple(reasons),
+    )
+
+
+def build_vt31_opportunity(
+    *,
+    signal_fingerprint: str,
+    side: str,
+    entry: Decimal,
+    stop_loss: Decimal,
+    take_profit: Decimal,
+    provider_spec: Any,
+    decision_anchor: datetime,
+    now: datetime,
+) -> TraderOpportunityEnvelope:
+    """Build VT31 opportunity without certified-risk sizing authority."""
+
+    decision_anchor = _utc(decision_anchor, "decision_anchor")
+    now = _utc(now, "now")
+    assert_deadline(anchor=decision_anchor, now=now, stage="opportunity")
+    if not provider_spec.trade_enabled or not provider_spec.session_open:
+        raise Vt31Nas100LiveError("VT31 broker trading unavailable")
+    if provider_spec.provider_symbol != PROVIDER_SYMBOL:
+        raise Vt31Nas100LiveError("VT31 provider symbol binding drift")
+    if now - provider_spec.observed_at > MAX_BROKER_TICK_AGE:
+        raise Vt31Nas100LiveError("VT31 broker symbol snapshot older than 2s")
+
+    for name, value in (
+        ("volume_min", provider_spec.minimum_volume),
+        ("volume_step", provider_spec.volume_step),
+        ("volume_max", provider_spec.maximum_volume),
+        ("tick_size", provider_spec.tick_size),
+        ("tick_value", provider_spec.tick_value),
+        ("contract_size", provider_spec.contract_size),
+        ("point", provider_spec.point),
+        ("margin_per_volume", provider_spec.margin_per_volume),
+    ):
+        if value <= 0:
+            raise ValueError(f"VT31 broker {name} invalid")
+
+    stop_points = abs(entry - stop_loss) / provider_spec.point
+    target_points = abs(take_profit - entry) / provider_spec.point
+    if stop_points < provider_spec.minimum_stop_distance_points:
+        raise Vt31Nas100LiveError("VT31 stop inside broker stops level")
+    if target_points < provider_spec.minimum_stop_distance_points:
+        raise Vt31Nas100LiveError("VT31 target inside broker stops level")
+
+    return build_live_opportunity(
+        trader_id=TraderLineage.VT31_NAS100,
+        signal_fingerprint=signal_fingerprint,
+        qore_symbol=SYMBOL,
+        provider_symbol=provider_spec.provider_symbol,
+        side=side,
+        entry_type="limit",
+        certified_entry=entry,
+        execution_entry=entry,
+        stop_loss=stop_loss,
+        take_profit=take_profit,
+        tick_size=provider_spec.tick_size,
+        tick_value=provider_spec.tick_value,
+        margin_per_volume=provider_spec.margin_per_volume,
+        volume_step=provider_spec.volume_step,
+        minimum_volume=provider_spec.minimum_volume,
+        maximum_volume=provider_spec.maximum_volume,
+        broker_risk_buffer=BROKER_RISK_BUFFER,
+        commission_per_volume_usd=Decimal("0"),
+        maximum_adverse_entry_drift_r=None,
+        minimum_execution_steps=4,
     )
 
 

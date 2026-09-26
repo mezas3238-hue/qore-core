@@ -68,6 +68,18 @@ class CTraderDemoFreeSinkError(RuntimeError):
     pass
 
 
+def assert_cibo_sizing_authority(request: CiboRiskRequest) -> None:
+    """Reject any execution request that still carries Trader-owned sizing."""
+
+    if not isinstance(request, CiboRiskRequest):
+        raise CTraderDemoFreeSinkError("request must be CiboRiskRequest")
+    if request.strategy_requested_risk_usd is not None:
+        raise CTraderDemoFreeSinkError(
+            "legacy Trader sizing authority is forbidden; "
+            "CIBO CMA must own requested volume"
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class CTraderDemoFreeSubmitResult:
     state: str
@@ -206,6 +218,7 @@ class CTraderDemoFreeSink:
         )
 
     def submit(self, request: CiboRiskRequest, *, now: datetime | None = None) -> CTraderDemoFreeSubmitResult:
+        assert_cibo_sizing_authority(request)
         observed = now or datetime.now(UTC)
         if observed.tzinfo is None or observed.utcoffset() is None:
             raise CTraderDemoFreeSinkError("submit time must be timezone-aware")
@@ -258,6 +271,14 @@ class CTraderDemoFreeSink:
                     submitted_at=recorded_at.isoformat(),
                     expires_at=request.expires_at.isoformat(),
                     position_id=position_id,
+                    capital_provenance=tuple(
+                        (
+                            item.source_kind,
+                            item.source_id,
+                            format(item.amount_usd, "f"),
+                        )
+                        for item in request.capital_provenance
+                    ),
                 )
             )
             result = CTraderDemoFreeSubmitResult(
@@ -309,7 +330,28 @@ class CTraderDemoFreeSink:
                 "stop_loss": format(request.stop_loss, "f"),
                 "take_profit": format(request.take_profit, "f"),
                 "requested_stop_risk": format(request.requested_stop_risk, "f"),
+                "strategy_requested_risk_usd": (
+                    None
+                    if request.strategy_requested_risk_usd is None
+                    else format(request.strategy_requested_risk_usd, "f")
+                ),
+                "stop_loss_per_volume": format(request.stop_loss_per_volume, "f"),
+                "requested_margin": format(request.requested_margin, "f"),
+                "margin_per_volume": format(request.margin_per_volume, "f"),
+                "volume_step": format(request.volume_step, "f"),
+                "minimum_volume": format(request.minimum_volume, "f"),
+                "minimum_volume_uplifted": request.minimum_volume_uplifted,
                 "sizing_path": sizing_path_for(result.trader_id.value),
+                "sizing_authority": "CIBO_CMA",
+                "capital_management_authority": "CIBO_CMA",
+                "capital_provenance": [
+                    {
+                        "source_kind": item.source_kind,
+                        "source_id": item.source_id,
+                        "amount_usd": format(item.amount_usd, "f"),
+                    }
+                    for item in request.capital_provenance
+                ],
                 "recorded_at": result.recorded_at.isoformat(),
             }
         )

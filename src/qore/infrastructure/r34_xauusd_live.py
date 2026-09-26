@@ -20,6 +20,10 @@ from zoneinfo import ZoneInfo
 
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
 from qore.infrastructure.broker_risk_sizing import size_volume_for_risk
+from qore.infrastructure.cibo_capital_management_authority import (
+    TraderOpportunityEnvelope,
+)
+from qore.infrastructure.cibo_live_opportunity import build_live_opportunity
 from qore.infrastructure.m5_boundary_cache import M5BoundarySnapshot
 from qore.infrastructure.trader_execution_profile import M5_PROFILE
 from qore.infrastructure.trader_lab import cibo_market_atlas_target_destination_v2 as td
@@ -588,6 +592,42 @@ def build_live_signal(
 def _floor_to_step(value: Decimal, step: Decimal) -> Decimal:
     units = (value / step).to_integral_value(rounding=ROUND_FLOOR)
     return units * step
+
+
+def build_r34_opportunity(
+    *,
+    signal: R34LiveSignal,
+    provider_spec: Any,
+) -> TraderOpportunityEnvelope:
+    """Build R34 market opportunity with no Trader sizing authority."""
+
+    executable = provider_spec.ask if signal.side == "long" else provider_spec.bid
+    commission_per_lot = getattr(provider_spec, "open_commission_per_lot_usd", None)
+    if commission_per_lot is None:
+        commission_per_lot = (
+            executable * provider_spec.contract_size * Decimal("0.000016")
+        )
+    return build_live_opportunity(
+        trader_id=TraderLineage.R34_XAUUSD,
+        signal_fingerprint=signal.signal_fingerprint,
+        qore_symbol=SYMBOL,
+        provider_symbol=provider_spec.provider_symbol,
+        side=signal.side,
+        entry_type="market",
+        certified_entry=signal.certified_entry,
+        execution_entry=executable,
+        stop_loss=signal.stop_loss,
+        take_profit=signal.take_profit,
+        tick_size=provider_spec.tick_size,
+        tick_value=provider_spec.tick_value,
+        margin_per_volume=provider_spec.margin_per_volume,
+        volume_step=provider_spec.volume_step,
+        minimum_volume=provider_spec.minimum_volume,
+        maximum_volume=provider_spec.maximum_volume,
+        broker_risk_buffer=BROKER_RISK_BUFFER,
+        commission_per_volume_usd=commission_per_lot,
+        maximum_adverse_entry_drift_r=MAX_SOURCE_ENTRY_DRIFT_R,
+    )
 
 
 def build_r34_risk_request(
