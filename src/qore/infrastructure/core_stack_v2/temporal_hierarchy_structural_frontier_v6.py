@@ -17,11 +17,14 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from math import sqrt
 from statistics import fmean
+from typing import TYPE_CHECKING
 
 from qore.infrastructure.core_stack_v2.hierarchical_world_model import WorldScale
-from qore.infrastructure.core_stack_v2.temporal_hierarchy_transition_v2 import (
-    TemporalHierarchyTrajectory,
-)
+
+if TYPE_CHECKING:
+    from qore.infrastructure.core_stack_v2.temporal_hierarchy_transition_v2 import (
+        TemporalHierarchyTrajectory,
+    )
 
 
 V6_DISCOVERY_FRACTION_BPS = 7_000
