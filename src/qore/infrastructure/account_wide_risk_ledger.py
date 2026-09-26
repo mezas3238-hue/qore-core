@@ -23,6 +23,7 @@ from qore.infrastructure.account_wide_risk import (
     CiboRiskRequest,
     ReservationState,
     RiskAuthorization,
+    RiskCapitalConstraintEnvelope,
     RiskDecision,
     RiskReservation,
     TraderLineage,
@@ -148,6 +149,18 @@ class DurableAccountWideRiskEngine(AccountWideRiskEngine):
         if active_accounts and active_accounts != {snapshot.account_binding_id}:
             raise AccountWideRiskError("boot reconciliation account binding mismatch")
         self._recovery_required = False
+
+    def capital_constraint_envelope(
+        self,
+        snapshot: AccountRiskSnapshot,
+        *,
+        now: datetime,
+    ) -> RiskCapitalConstraintEnvelope:
+        if self._recovery_required:
+            raise AccountWideRiskError(
+                "restart-reconciliation-required-before-capital-envelope"
+            )
+        return super().capital_constraint_envelope(snapshot, now=now)
 
     def authorize(
         self,
