@@ -1,0 +1,132 @@
+name: QORE CIBO Phase 19 Integrated Chronology Replay
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase19-integrated-chronology.yml'
+      - 'scripts/cibo_phase19_integrated_chronology_replay.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py'
+      - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py'
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-phase19-integrated-chronology.yml'
+      - 'scripts/cibo_phase19_integrated_chronology_replay.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py'
+      - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Focused quality
+        run: |
+          ruff check \
+            scripts/cibo_phase19_integrated_chronology_replay.py \
+            src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py \
+            tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py
+          mypy \
+            scripts/cibo_phase19_integrated_chronology_replay.py \
+            src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py
+
+  replay:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+
+      - name: Recover and verify immutable Phase-18 evidence
+        run: |
+          set -euo pipefail
+          mkdir -p source/{gbpjpy,gbpusd,audjpy,eurusd,xauusd,vt08,vt31} phase19-output
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10909937201/zip" > gbpjpy.zip
+          echo "b59d8c045a0e86f0e22fb0044dc04eb6dff0f17de4c9f7c7389b903adc443956  gbpjpy.zip" | sha256sum -c -
+          unzip -q gbpjpy.zip -d source/gbpjpy
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10910093452/zip" > gbpusd.zip
+          echo "93c9c4872543938571eb6ab12e242bde4ec9e7682f056593efde59f88b4579c9  gbpusd.zip" | sha256sum -c -
+          unzip -q gbpusd.zip -d source/gbpusd
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10910875686/zip" > audjpy.zip
+          echo "7b40e1be53ce0508106b036c68ce4ebb3155bc5c14875144634e365cfb988de5  audjpy.zip" | sha256sum -c -
+          unzip -q audjpy.zip -d source/audjpy
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10910397898/zip" > eurusd.zip
+          echo "71bb5ce12b7cfc8f2d17b89dcf907b8b74f4a2257f2055adbe9e9d619c324774  eurusd.zip" | sha256sum -c -
+          unzip -q eurusd.zip -d source/eurusd
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10910328640/zip" > xauusd.zip
+          echo "aade958d597032bad08c56043a6c48c145b8ab263f032f2b65c147fd3db7aadd  xauusd.zip" | sha256sum -c -
+          unzip -q xauusd.zip -d source/xauusd
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10913050112/zip" > vt08.zip
+          echo "8543a33962d24d3f5346981328df78d145286fc8af9387d73eca85519922f568  vt08.zip" | sha256sum -c -
+          unzip -q vt08.zip -d source/vt08
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10912945588/zip" > vt31.zip
+          echo "2200392deeb081525720430a816e8f82b18d7333c61a05eb197632ed24849e15  vt31.zip" | sha256sum -c -
+          unzip -q vt31.zip -d source/vt31
+
+          for directory in gbpjpy gbpusd audjpy eurusd xauusd vt08 vt31; do
+            (cd "source/${directory}" && sha256sum -c SHA256SUMS.txt)
+          done
+
+      - name: Run integrated chronology replay
+        run: |
+          python scripts/cibo_phase19_integrated_chronology_replay.py \
+            --gbpjpy source/gbpjpy/phase18-gbpjpy-r38-bound-trades.jsonl \
+            --gbpusd source/gbpusd/phase18-gbpusd-r43-bound-trades.jsonl \
+            --audjpy source/audjpy/phase18-audjpy-r42-bound-trades.jsonl \
+            --eurusd source/eurusd/phase18-eurusd-r38-bound-trades.jsonl \
+            --xauusd source/xauusd/phase18-xauusd-r34-bound-trades.jsonl \
+            --vt08 source/vt08/phase18-vt08-r315-fundednext-trades.jsonl \
+            --vt31 source/vt31/phase18-vt31-v4-bound-trades.jsonl \
+            --output phase19-output/phase19-integrated-chronology-report.json \
+            > phase19-output/replay-stdout.json
+
+      - name: Seal Phase-19 evidence
+        run: |
+          printf '%s\n' "$EVIDENCE_SHA" > phase19-output/git-sha.txt
+          cd phase19-output
+          sha256sum \
+            phase19-integrated-chronology-report.json \
+            replay-stdout.json \
+            git-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase19-integrated-chronology-${{ env.EVIDENCE_SHA }}
+          path: phase19-output
+          if-no-files-found: error
+          retention-days: 90
