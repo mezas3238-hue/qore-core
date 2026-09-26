@@ -38,15 +38,13 @@ from qore.infrastructure.core_stack_v2.temporal_hierarchy_engine import (
     TemporalHierarchySnapshot,
     baseline_local_opposition,
 )
-from qore.infrastructure.core_stack_v2.temporal_hierarchy_recovery_veto_v4 import (
-    recovery_motif_signature,
-)
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_structural_frontier_v6 import (
     StructuralFrontierEvaluation,
     StructuralFrontierSourceState,
     StructuralFrontierTrainingEpisode,
     evaluate_structural_frontier,
     fit_structural_frontier_model,
+    structural_frontier_hierarchy_motif,
 )
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_target_contract import (
     higher_timeframe_anchor_direction,
@@ -178,7 +176,10 @@ def _build_source_state(
             values.append(max(-5.0, min(5.0, -anchor * ret_bps / 100.0)))
         peer_adverse[horizon] = fmean(values)
 
-    motif = recovery_motif_signature(item.trajectory)
+    motif = structural_frontier_hierarchy_motif(
+        trajectory=item.trajectory,
+        anchor_direction=anchor,
+    )
     depth = motif.current_depth / 7.0
     recession_minus_advance = max(
         -1.0,
@@ -434,6 +435,7 @@ def run(*, evidence: dict[str, dict[str, Path]]) -> dict[str, Any]:
         "governance": {
             "target_v2_required": True,
             "frontier_matches_target_coordinate_system": True,
+            "fixed_source_anchor_for_hierarchy_trajectory": True,
             "source_time_frontier_only": True,
             "unidentifiable_higher_anchor_abstains": True,
             "r8_chronological_discovery_calibration_only": True,
