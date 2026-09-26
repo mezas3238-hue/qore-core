@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from qore.infrastructure.trader_lab import capitalizer_dd_path_state_machine_v8 as lab
 from qore.infrastructure.trader_lab import (
     capitalizer_causal_loss_pressure_surface_v7 as pressure_v7,
 )
+from qore.infrastructure.trader_lab import capitalizer_dd_path_state_machine_v8 as lab
 
 
 def _clear_pressure() -> pressure_v7.PressureState:
