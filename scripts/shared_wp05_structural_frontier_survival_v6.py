@@ -189,6 +189,7 @@ def _build_source_state(
     return StructuralFrontierSourceState(
         episode_id=item.trajectory.episode_id,
         as_of=snapshot.as_of,
+        anchor_direction=anchor,
         distance_now=max(-5.0, min(10.0, now)),
         approach_5m=max(-5.0, min(5.0, d5 - now)),
         approach_15m=max(-5.0, min(5.0, d15 - now)),
