@@ -51,3 +51,32 @@ def test_runtime_records_cibo_seed_risk_as_position_base_risk() -> None:
     source = RUNTIME.read_text(encoding="utf-8")
 
     assert source.count("base_risk_usd = seed.plan.stop_risk_usd") == 5
+
+
+def test_runtime_wires_passive_cma_position_observer_without_expansion() -> None:
+    source = RUNTIME.read_text(encoding="utf-8")
+
+    assert "observe_runtime_position(" in source
+    assert "CmaRuntimePositionSnapshot(" in source
+    assert "entries_by_position(position_id)" in source
+    assert "registry_leg_count=len(registry_entries)" in source
+    assert "cma_result.observation.as_payload()" in source
+    assert "plan_self_financing_expansion(" not in source
+
+
+def test_runtime_cma_observation_has_no_broker_mutation_path() -> None:
+    observer = Path(
+        "src/qore/infrastructure/cibo_cma_runtime_observer.py"
+    ).read_text(encoding="utf-8")
+
+    forbidden = (
+        "order_send(",
+        "submit_demo_request(",
+        "submit_authorized(",
+        "plan_self_financing_expansion(",
+    )
+    for call in forbidden:
+        assert call not in observer
+
+    assert '"mutation_authority": "NONE_OBSERVATIONAL"' in observer
+    assert "NETTED_MULTI_LEG_POSITION_REQUIRES_ALLOCATION_DECOMPOSITION" in observer
