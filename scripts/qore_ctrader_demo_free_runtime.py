@@ -1,8 +1,9 @@
 """Independent QORE cTrader DEMO FREE-CIBO runtime.
 
 Market data, account state, execution, position management, persistence and
-watchdog ownership are cTrader DEMO-only. QORE Risk allocates capital; Trader/CIBO
-retain setup, sizing and position-management authority.
+watchdog ownership are cTrader DEMO-only. Traders retain market-methodology
+authority; CIBO CMA owns sizing/capital management; QORE Risk remains the hard
+survivability governor.
 """
 
 from __future__ import annotations
