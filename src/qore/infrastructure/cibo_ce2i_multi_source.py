@@ -12,7 +12,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import ROUND_FLOOR, Decimal
 
-from qore.infrastructure.account_wide_risk import CiboRiskRequest
+from qore.infrastructure.account_wide_risk import (
+    CiboCapitalProvenanceLot,
+    CiboRiskRequest,
+)
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalCapacityDimension,
     CapitalSource,
@@ -278,6 +281,14 @@ def reserve_multi_source_expansion(
         expires_at=expires_at,
         strategy_requested_risk_usd=None,
         minimum_volume_uplifted=False,
+        capital_provenance=tuple(
+            CiboCapitalProvenanceLot(
+                source_kind=item.source.value,
+                source_id=item.source_id,
+                amount_usd=item.amount_usd,
+            )
+            for item in slices
+        ),
     )
     return CmaMultiSourceExpansionProposal(
         reservation_group_id=reservation_group_id,
