@@ -178,6 +178,93 @@ def test_regime_transition_prior_prevents_absorbing_world_monopoly() -> None:
     assert second_shift.dominant_world is WorldModelFamily.LIQUIDITY_DRIVEN
 
 
+def test_prior_memory_decays_after_long_observation_gap() -> None:
+    state = None
+    for minute in range(20):
+        as_of = BASE + timedelta(minutes=minute)
+        state = update_world_federation(
+            as_of=as_of,
+            evidence=_evidence(
+                as_of=as_of,
+                winner=WorldModelFamily.MOMENTUM_DRIVEN,
+            ),
+            epistemic_uncertainty_bps=1_000,
+            ood_risk_bps=500,
+            previous=state,
+        )
+
+    assert state is not None
+    stale_time = BASE + timedelta(days=1)
+    stale = update_world_federation(
+        as_of=stale_time,
+        evidence=_evidence(
+            as_of=stale_time,
+            winner=WorldModelFamily.LIQUIDITY_DRIVEN,
+        ),
+        epistemic_uncertainty_bps=1_000,
+        ood_risk_bps=500,
+        previous=state,
+    )
+    fresh = update_world_federation(
+        as_of=stale_time,
+        evidence=_evidence(
+            as_of=stale_time,
+            winner=WorldModelFamily.LIQUIDITY_DRIVEN,
+        ),
+        epistemic_uncertainty_bps=1_000,
+        ood_risk_bps=500,
+    )
+
+    assert stale.previous_elapsed_seconds > 80_000
+    assert stale.effective_prior_transition_bps == 10_000
+    assert tuple(
+        item.probability_bps for item in stale.posteriors
+    ) == tuple(
+        item.probability_bps for item in fresh.posteriors
+    )
+
+
+def test_prior_memory_decay_is_bounded_for_one_minute_update() -> None:
+    first = update_world_federation(
+        as_of=BASE,
+        evidence=_evidence(
+            as_of=BASE,
+            winner=WorldModelFamily.MOMENTUM_DRIVEN,
+        ),
+        epistemic_uncertainty_bps=1_000,
+        ood_risk_bps=500,
+    )
+    second_time = BASE + timedelta(minutes=1)
+    second = update_world_federation(
+        as_of=second_time,
+        evidence=_evidence(
+            as_of=second_time,
+            winner=WorldModelFamily.MOMENTUM_DRIVEN,
+        ),
+        epistemic_uncertainty_bps=1_000,
+        ood_risk_bps=500,
+        previous=first,
+    )
+
+    assert second.previous_elapsed_seconds == 60
+    assert second.regime_transition_bps == 500
+    assert 500 < second.effective_prior_transition_bps < 1_000
+
+
+def test_prior_memory_half_life_must_be_positive() -> None:
+    with pytest.raises(ValueError, match="prior_memory_half_life_seconds"):
+        update_world_federation(
+            as_of=BASE,
+            evidence=_evidence(
+                as_of=BASE,
+                winner=WorldModelFamily.MOMENTUM_DRIVEN,
+            ),
+            epistemic_uncertainty_bps=1_000,
+            ood_risk_bps=500,
+            prior_memory_half_life_seconds=0,
+        )
+
+
 def test_regime_transition_prior_is_bounded() -> None:
     with pytest.raises(ValueError, match="regime_transition_bps"):
         update_world_federation(
