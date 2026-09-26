@@ -46,6 +46,7 @@ class Phase19ProviderEconomicsEvidence:
     provider_key: str
     evidence_id: str
     contract_terms: ProviderEconomicsEvidenceClass
+    tick_value: ProviderEconomicsEvidenceClass
     spread: ProviderEconomicsEvidenceClass
     commission: ProviderEconomicsEvidenceClass
     slippage: ProviderEconomicsEvidenceClass
@@ -60,7 +61,14 @@ class Phase19ProviderEconomicsEvidence:
             raise CiboCapitalManagementError(
                 "Phase 19 provider evidence identity must be non-empty"
             )
-        for name in ("contract_terms", "spread", "commission", "slippage", "margin"):
+        for name in (
+            "contract_terms",
+            "tick_value",
+            "spread",
+            "commission",
+            "slippage",
+            "margin",
+        ):
             value = getattr(self, name)
             if type(value) is not ProviderEconomicsEvidenceClass:
                 raise CiboCapitalManagementError(
@@ -75,6 +83,7 @@ class Phase19ProviderEconomicsEvidence:
         }
         return (
             self.contract_terms in reusable
+            and self.tick_value in reusable
             and self.spread is ProviderEconomicsEvidenceClass.EXACT_HISTORICAL
             and self.commission in reusable
             and self.slippage in reusable
