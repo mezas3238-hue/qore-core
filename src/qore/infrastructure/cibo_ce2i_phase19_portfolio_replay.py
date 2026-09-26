@@ -34,6 +34,55 @@ PHASE19_REQUIRED_TRADERS = (
 )
 
 
+class ProviderEconomicsEvidenceClass(StrEnum):
+    EXACT_HISTORICAL = "EXACT_HISTORICAL"
+    PERIOD_STATIC_VERIFIED = "PERIOD_STATIC_VERIFIED"
+    CURRENT_SNAPSHOT_ONLY = "CURRENT_SNAPSHOT_ONLY"
+    MISSING = "MISSING"
+
+
+@dataclass(frozen=True, slots=True)
+class Phase19ProviderEconomicsEvidence:
+    trader_id: TraderLineage
+    provider_key: str
+    evidence_id: str
+    contract_terms: ProviderEconomicsEvidenceClass
+    spread: ProviderEconomicsEvidenceClass
+    commission: ProviderEconomicsEvidenceClass
+    slippage: ProviderEconomicsEvidenceClass
+    margin: ProviderEconomicsEvidenceClass
+
+    def __post_init__(self) -> None:
+        if self.trader_id not in PHASE19_REQUIRED_TRADERS:
+            raise CiboCapitalManagementError(
+                "Phase 19 provider evidence trader is outside supported CMA portfolio"
+            )
+        if not self.provider_key or not self.evidence_id:
+            raise CiboCapitalManagementError(
+                "Phase 19 provider evidence identity must be non-empty"
+            )
+        for name in ("contract_terms", "spread", "commission", "slippage", "margin"):
+            value = getattr(self, name)
+            if type(value) is not ProviderEconomicsEvidenceClass:
+                raise CiboCapitalManagementError(
+                    f"Phase 19 provider evidence {name} classification is invalid"
+                )
+
+    @property
+    def historical_usd_complete(self) -> bool:
+        reusable = {
+            ProviderEconomicsEvidenceClass.EXACT_HISTORICAL,
+            ProviderEconomicsEvidenceClass.PERIOD_STATIC_VERIFIED,
+        }
+        return (
+            self.contract_terms in reusable
+            and self.spread is ProviderEconomicsEvidenceClass.EXACT_HISTORICAL
+            and self.commission in reusable
+            and self.slippage in reusable
+            and self.margin in reusable
+        )
+
+
 class Phase19ReadinessStatus(StrEnum):
     BLOCKED_PHASE18_COVERAGE = "BLOCKED_PHASE18_COVERAGE"
     BLOCKED_PROVIDER_ECONOMICS = "BLOCKED_PROVIDER_ECONOMICS"
@@ -46,6 +95,7 @@ class Phase19TraderEvidence:
     evidence_id: str
     row_count: int
     economics_status: ReplayEconomicsStatus
+    provider_economics: Phase19ProviderEconomicsEvidence | None = None
 
     def __post_init__(self) -> None:
         if self.trader_id not in PHASE19_REQUIRED_TRADERS:
@@ -63,6 +113,25 @@ class Phase19TraderEvidence:
         if type(self.economics_status) is not ReplayEconomicsStatus:
             raise CiboCapitalManagementError(
                 "Phase 19 economics_status must be ReplayEconomicsStatus"
+            )
+        if (
+            self.provider_economics is not None
+            and self.provider_economics.trader_id is not self.trader_id
+        ):
+            raise CiboCapitalManagementError(
+                "Phase 19 provider economics Trader mismatch"
+            )
+        historical_complete = (
+            self.provider_economics is not None
+            and self.provider_economics.historical_usd_complete
+        )
+        status_complete = (
+            self.economics_status
+            is ReplayEconomicsStatus.PROVIDER_ECONOMICS_COMPLETE
+        )
+        if historical_complete != status_complete:
+            raise CiboCapitalManagementError(
+                "Phase 19 provider economics evidence/status mismatch"
             )
 
 
