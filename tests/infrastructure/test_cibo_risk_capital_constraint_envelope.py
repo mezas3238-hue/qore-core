@@ -10,6 +10,7 @@ from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
     AccountWideRiskEngine,
     AccountWideRiskError,
+    CiboCapitalProvenanceLot,
     CiboRiskRequest,
     RiskDecision,
     TraderLineage,
@@ -60,6 +61,7 @@ def _request(
     volume: str = "1",
     stop_per_volume: str = "20",
     margin_per_volume: str = "50",
+    with_provenance: bool = False,
 ) -> CiboRiskRequest:
     return CiboRiskRequest(
         request_id=f"request-{signal}",
@@ -80,6 +82,17 @@ def _request(
         requested_at=NOW,
         expires_at=NOW + timedelta(minutes=2),
         strategy_requested_risk_usd=None,
+        capital_provenance=(
+            (
+                CiboCapitalProvenanceLot(
+                    source_kind="ORIGINAL_BASE_CAPITAL",
+                    source_id=f"base:{signal}",
+                    amount_usd=Decimal(volume) * Decimal(stop_per_volume),
+                ),
+            )
+            if with_provenance
+            else ()
+        ),
     )
 
 
@@ -201,3 +214,50 @@ def test_durable_risk_never_exposes_headroom_before_restart_reconciliation(
     )
     assert constraints.hard_risk_headroom_usd == Decimal("40")
     assert constraints.margin_headroom_usd == Decimal("450")
+
+
+
+def test_risk_reduce_scales_capital_provenance_exactly() -> None:
+    engine = AccountWideRiskEngine()
+    authorization = engine.authorize(
+        _request(
+            "reduced",
+            volume="1",
+            stop_per_volume="20",
+            with_provenance=True,
+        ),
+        _snapshot(qore_headroom="10"),
+        now=NOW,
+    )
+
+    assert authorization.decision is RiskDecision.REDUCE
+    assert authorization.authorized_volume == Decimal("0.50")
+    assert authorization.monetary_stop_loss == Decimal("10.00")
+    assert len(authorization.capital_provenance) == 1
+    assert authorization.capital_provenance[0].source_id == "base:reduced"
+    assert authorization.capital_provenance[0].amount_usd == Decimal("10.00")
+
+
+def test_durable_risk_restores_capital_provenance_after_restart(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "risk-provenance.json"
+    ledger = DurableAccountWideRiskLedger(path)
+    first = DurableAccountWideRiskEngine(ledger)
+    authorization = first.authorize(
+        _request("durable", with_provenance=True),
+        _snapshot(),
+        now=NOW,
+    )
+
+    restored = ledger.load()
+    assert len(restored) == 1
+    assert (
+        restored[0].authorization.capital_provenance
+        == authorization.capital_provenance
+    )
+
+    restarted = DurableAccountWideRiskEngine(
+        DurableAccountWideRiskLedger(path)
+    )
+    assert restarted.recovery_required is True
