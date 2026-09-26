@@ -7,6 +7,7 @@ on:
     paths:
       - src/qore/infrastructure/core_stack_v2/representation_discovery_engine.py
       - src/qore/infrastructure/core_stack_v2/representation_discovery_evaluation.py
+      - scripts/shared_wp03_historical_causal_discovery.py
       - scripts/shared_wp04_historical_representation_discovery.py
       - tests/infrastructure/test_core_stack_v2_representation_discovery_engine.py
       - tests/infrastructure/test_core_stack_v2_representation_discovery_evaluation.py
@@ -28,6 +29,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Announce authoritative WP04 historical run
+        run: |
+          gh issue comment 642 --body "WP-04 historical run started — Git SHA \`${GITHUB_SHA}\`, GitHub Actions run \`${GITHUB_RUN_ID}\`. This run is R8 discovery → frozen R6 holdout → frozen R5 replication; no VPS/runtime mutation."
 
       - uses: actions/setup-python@v5
         with:
