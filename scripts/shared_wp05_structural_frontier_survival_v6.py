@@ -372,7 +372,7 @@ def run(*, evidence: dict[str, dict[str, Path]]) -> dict[str, Any]:
         "calibration_terminal_preservation_bps": (
             model.calibration_terminal_preservation_bps
         ),
-        "representation": "STRUCTURAL_FRONTIER_SURVIVAL_V1",
+        "representation": "STRUCTURAL_FRONTIER_SURVIVAL_V2_FIXED_ANCHOR",
     }
     frozen_model_fingerprint = hashlib.sha256(
         json.dumps(
