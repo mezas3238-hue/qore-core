@@ -105,7 +105,7 @@ def test_v12_simulation_binds_and_restores_v11_simultaneous_state(
 ) -> None:
     left = _trade("EURUSD", "LONG")
     right = _trade("GBPUSD", "LONG")
-    ledgers = {
+    ledgers: dict[str, tuple[milestone.SimulatedTrade, ...]] = {
         milestone.ProtectionMode.ORIGINAL.value: (left, right),
     }
     seen: list[dict[tuple[str, str, str], tuple[milestone.SimulatedTrade, ...]]] = []
