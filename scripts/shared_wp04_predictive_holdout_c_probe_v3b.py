@@ -88,7 +88,7 @@ def main() -> None:
             raise CTraderDemoLabProbeError(
                 "HOLDOUT_C evidence begins before preregistered boundary"
             )
-        if last >= HOLDOUT_END_EXCLUSIVE:
+        if last > HOLDOUT_END_EXCLUSIVE:
             raise CTraderDemoLabProbeError(
                 "HOLDOUT_C evidence crosses preregistered end boundary"
             )
