@@ -245,10 +245,13 @@ class CiboChronologicalReplayTrade:
 
     causal: CiboReplayCausalTrade
     outcome: CiboReplayOutcome
+    legacy_net_outcome_r: Decimal | None = None
 
     def __post_init__(self) -> None:
         if self.outcome.exit_at < self.causal.entry_at:
             raise CiboChronologicalReplayError("exit_at cannot precede entry_at")
+        if self.legacy_net_outcome_r is not None:
+            _finite(self.legacy_net_outcome_r, "legacy_net_outcome_r")
 
 
 def reconstructed_signal_fingerprint(
@@ -450,7 +453,11 @@ def score_legacy_replay(
             )
         prior_entry = trade.causal.entry_at
 
-        weighted_r = trade.outcome.net_outcome_r * trade.causal.legacy_risk_scale
+        weighted_r = (
+            trade.legacy_net_outcome_r
+            if trade.legacy_net_outcome_r is not None
+            else trade.outcome.net_outcome_r * trade.causal.legacy_risk_scale
+        )
         if weighted_r > 0:
             gross_profit += weighted_r
             current_loss_streak = 0
