@@ -234,6 +234,7 @@ CE2I_TOOL_REGISTRY: tuple[Ce2iToolContract, ...] = (
         "TOOL_DEPENDENT",
         "REGIME_EVIDENCE_STALE_OR_TOOL_INELIGIBLE",
         15,
+        ToolMaturity.CONTRACT_IMPLEMENTED,
     ),
     _tool(
         "T13",
@@ -246,6 +247,7 @@ CE2I_TOOL_REGISTRY: tuple[Ce2iToolContract, ...] = (
         "INCREASE_RESERVE_AND_SURVIVAL_CAPACITY",
         "RESERVE_POLICY_UNDERPERFORMS_OUT_OF_SAMPLE",
         16,
+        ToolMaturity.CONTRACT_IMPLEMENTED,
     ),
     _tool(
         "T14",
@@ -258,6 +260,7 @@ CE2I_TOOL_REGISTRY: tuple[Ce2iToolContract, ...] = (
         "RELEASE_CAPACITY",
         "DE_RISKING_DESTROYS_EXPECTANCY_BEYOND_GATE",
         17,
+        ToolMaturity.CONTRACT_IMPLEMENTED,
     ),
     _tool(
         "T15",
@@ -270,6 +273,7 @@ CE2I_TOOL_REGISTRY: tuple[Ce2iToolContract, ...] = (
         "MAXIMIZE_NEXT_OPPORTUNITY_CAPACITY",
         "OPTIONALITY_SIGNAL_HAS_NO_OUT_OF_SAMPLE_VALUE",
         16,
+        ToolMaturity.CONTRACT_IMPLEMENTED,
     ),
     _tool(
         "T16",
