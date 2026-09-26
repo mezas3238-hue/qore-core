@@ -31,9 +31,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Announce WP05 V3 consumed propagation run
+      - name: Announce WP05 V3 consumed absorption run
         run: |
-          gh issue comment 643 --body "WP-05 V3 hierarchy-propagation run started — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. R8 fit only; R6/R5 consumed falsification only; fresh holdout remains closed. Gate unchanged from V1: >=20% false structural-failure reduction while preserving >=95% terminal detections on BOTH R6 and R5."
+          gh issue comment 643 --body "WP-05 V3 hierarchy-absorption run started — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. R8 fit only; R6/R5 consumed falsification only; fresh holdout remains closed. Gate unchanged from V1: >=20% false structural-failure reduction while preserving >=95% terminal detections on BOTH R6 and R5."
 
       - uses: actions/setup-python@v5
         with:
@@ -89,7 +89,7 @@ jobs:
           unzip -q r5.zip -d input/r5
           (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
 
-      - name: Run WP05 V3 consumed hierarchy propagation falsification
+      - name: Run WP05 V3 consumed hierarchy absorption falsification
         run: |
           python scripts/shared_wp05_temporal_hierarchy_absorption_v3.py \
             --r8-nas input/r8/fresh/NAS100/market-evidence.json \
@@ -196,7 +196,7 @@ jobs:
               Path("result/wp05-temporal-hierarchy-absorption-v3.json").read_text()
           )
           lines=[
-              "## WP-05 V3 hierarchy propagation result",
+              "## WP-05 V3 hierarchy absorption result",
               "",
               f"- Git SHA: \`{os.environ['GITHUB_SHA']}\`",
               f"- GitHub Actions run: \`{os.environ['GITHUB_RUN_ID']}\`",
