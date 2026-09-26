@@ -61,10 +61,10 @@ def test_vt31_source_commit_is_frozen() -> None:
 def test_vt31_patch_serializes_selected_rows_only() -> None:
     patched = patcher.patch_source(_minimal_source())
     assert '"trade_rows": phase18_trade_rows' in patched
-    assert "phase18_rearm_geometry = {}" in patched
-    assert "authoritative_rows = []" in patched
-    assert 'authoritative_row.pop("entry")' in patched
+    assert 'getattr(residual.corrective, "_PHASE18_REARM_GEOMETRY", {})' in patched
     assert "phase18_adjusted = []" in patched
+    assert "authoritative_rows = []" not in patched
+    assert 'authoritative_row.pop("entry")' not in patched
     assert '"trade_count": len(selected)' in patched
     assert '"metrics": metrics' in patched
 
@@ -75,12 +75,15 @@ def test_vt31_patch_fails_closed_on_source_drift() -> None:
 
 
 def _minimal_rearm_source() -> str:
-    return """        row.update(
+    return """    policy = Vt31R22ExecutionPolicy()
+    raw_rows: list[dict[str, object]] = []
+        row.update(
             {
                 "local_date": local_day.isoformat(),
-                "rearm_quality_score": score,
+                "used_for_runtime_decision": False,
             }
         )
+        raw_rows.append(row)
 """
 
 
@@ -90,13 +93,17 @@ def test_vt31_rearm_source_commit_is_frozen() -> None:
     )
 
 
-def test_vt31_rearm_patch_exposes_existing_setup_geometry_only() -> None:
+def test_vt31_rearm_patch_captures_geometry_without_mutating_row() -> None:
     patched = rearm_patcher.patch_source(_minimal_rearm_source())
-    assert '"_phase18_rearm_geometry_instrumented": True' in patched
-    assert '"entry": format(setup.entry_price, "f")' in patched
-    assert '"initial_stop": format(setup.stop_price, "f")' in patched
-    assert '"structural_target": format(setup.target_price, "f")' in patched
-    assert '"rearm_quality_score": score' in patched
+    assert "global _PHASE18_REARM_GEOMETRY" in patched
+    assert "_PHASE18_REARM_GEOMETRY = {}" in patched
+    assert 'format(setup.entry_price, "f")' in patched
+    assert 'format(setup.stop_price, "f")' in patched
+    assert 'format(setup.target_price, "f")' in patched
+    assert '"_phase18_rearm_geometry_instrumented"' not in patched
+    assert '"entry": format(setup.entry_price, "f")' not in patched
+    assert '"initial_stop": format(setup.stop_price, "f")' not in patched
+    assert '"structural_target": format(setup.target_price, "f")' not in patched
 
 
 def test_vt31_rearm_patch_fails_closed_on_source_drift() -> None:
