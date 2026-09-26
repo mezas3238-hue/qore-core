@@ -1,4 +1,5 @@
 """CIBO CMA sizing-authority telemetry invariants."""
+# ruff: noqa: I001
 
 from __future__ import annotations
 
