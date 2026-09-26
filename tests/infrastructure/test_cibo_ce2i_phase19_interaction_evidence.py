@@ -9,6 +9,10 @@ from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
+from qore.infrastructure.cibo_ce2i_causal_expectation import (
+    CausalExpectationBasis,
+    CausalOpportunityExpectation,
+)
 from qore.infrastructure.cibo_ce2i_opportunity_competition import (
     CapitalOpportunityCandidate,
 )
@@ -74,7 +78,13 @@ def _candidate(
         trader_id=trader,
         qore_symbol=fingerprint.upper(),
         provider_symbol=fingerprint.upper(),
-        expected_net_value_usd=Decimal("10"),
+        decision_as_of=DECISION_AS_OF,
+        expectation=CausalOpportunityExpectation(
+            evidence_id=f"test:expectation:{fingerprint}",
+            as_of=DECISION_AS_OF,
+            basis=CausalExpectationBasis.FROZEN_HISTORICAL_PRIOR,
+            expected_net_value_usd=Decimal("10"),
+            ),
         stop_risk_usd=Decimal("5"),
         margin_usd=Decimal("8"),
         expected_capital_minutes=Decimal("10"),
