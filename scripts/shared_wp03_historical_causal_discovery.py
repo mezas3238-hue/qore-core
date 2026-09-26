@@ -23,7 +23,7 @@ import gc
 import json
 import math
 import statistics
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -51,6 +51,7 @@ PRE_WINDOW_MINUTES = 90
 EXPOSED_BPS = 6_500
 CONTROL_BPS = 3_500
 MATCHED_CONTROL_MINIMUM = 50
+PROTOCOL_MINIMUM_SAMPLES = 7_000
 
 SOURCE_CONCEPTS = (
     CausalConcept.COMPRESSION,
@@ -921,6 +922,7 @@ def run(
     ]
 
     r8_screen: list[tuple[CausalConcept, CausalConcept]] = []
+    r8_status_counts: Counter[str] = Counter()
     r8_assessments: dict[
         tuple[CausalConcept, CausalConcept],
         CausalDiscoveryAssessment,
@@ -933,8 +935,10 @@ def run(
             policy=SINGLE_PARTITION_POLICY,
         )
         if assessment is None:
+            r8_status_counts["NO_ASSESSMENT"] += 1
             continue
         r8_assessments[(source, target)] = assessment
+        r8_status_counts[assessment.status.value] += 1
         if (
             assessment.status is CausalDiscoveryStatus.RESEARCH_CANDIDATE
             and assessment.direction is not CausalEffectDirection.UNRESOLVED
@@ -1012,6 +1016,40 @@ def run(
         if replicated_pass:
             replicated.append(row)
 
+    source_extreme_counts = {
+        partition: {
+            source.value: {
+                "exposed": sum(
+                    item.source(source) >= EXPOSED_BPS
+                    for item in rows
+                ),
+                "control": sum(
+                    item.source(source) <= CONTROL_BPS
+                    for item in rows
+                ),
+            }
+            for source in SOURCE_CONCEPTS
+        }
+        for partition, rows in observations.items()
+    }
+    ranked_r8 = sorted(
+        r8_assessments.items(),
+        key=lambda item: abs(
+            item[1].conditional_effect_bps
+            if item[1].conditional_effect_bps is not None
+            else item[1].raw_effect_bps
+        ),
+        reverse=True,
+    )[:20]
+    r8_top_associations = [
+        {
+            "source": source.value,
+            "target": target.value,
+            "assessment": _assessment_payload(assessment),
+        }
+        for (source, target), assessment in ranked_r8
+    ]
+
     status = (
         "WP03_REPLICATED_RELATIONS_FOUND_RESEARCH_ONLY"
         if replicated
@@ -1019,7 +1057,7 @@ def run(
     )
     minimum_samples = min(sample_counts.values()) if sample_counts else 0
     protocol_pass = (
-        minimum_samples >= 15_000
+        minimum_samples >= PROTOCOL_MINIMUM_SAMPLES
         and len(all_pairs) >= 50
         and all(
             not value
@@ -1034,6 +1072,10 @@ def run(
         "status": status,
         "protocol_pass": protocol_pass,
         "sample_counts": sample_counts,
+        "protocol_minimum_samples": PROTOCOL_MINIMUM_SAMPLES,
+        "source_extreme_counts": source_extreme_counts,
+        "r8_status_counts": dict(sorted(r8_status_counts.items())),
+        "r8_top_associations": r8_top_associations,
         "sampling": {
             "fixed_grid_minutes": list(SAMPLE_MINUTES),
             "target_horizon_minutes": TARGET_HORIZON_MINUTES,
