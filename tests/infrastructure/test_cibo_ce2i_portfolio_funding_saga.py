@@ -8,6 +8,7 @@ from qore.infrastructure.cibo_ce2i_portfolio_funding_saga import (
     DurablePortfolioFundingSagaError,
     DurablePortfolioFundingSagaStore,
     PortfolioFundingSagaState,
+    VersionedPortfolioFundingSagaBook,
 )
 
 
@@ -16,7 +17,7 @@ NOW = datetime(2026, 9, 26, 13, 0, tzinfo=UTC)
 
 def _prepare(
     store: DurablePortfolioFundingSagaStore,
-):
+) -> VersionedPortfolioFundingSagaBook:
     return store.prepare(
         transaction_id="tx-1",
         signal_fingerprint="signal-1",
