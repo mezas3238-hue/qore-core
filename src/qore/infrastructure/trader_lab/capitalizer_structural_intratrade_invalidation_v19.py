@@ -175,8 +175,6 @@ def _qualifying_displacement(
         return False
     if bar.body / bar.range < MIN_BODY_FRACTION:
         return False
-    if close_r > -close_r.copy_abs():
-        return False
     return _breaks_prior_extreme(bar, prior, trade)
 
 
