@@ -53,7 +53,8 @@ jobs:
             tests/infrastructure/test_cibo_direct_trader_opportunities.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py \
             tests/infrastructure/test_cibo_cma_initial_seed.py \
-            tests/infrastructure/test_cibo_cma_runtime_authority_switch.py
+            tests/infrastructure/test_cibo_cma_runtime_authority_switch.py \
+            tests/infrastructure/test_cibo_cma_sizing_telemetry.py
 
       - name: Compile integration surface
         run: |
@@ -98,7 +99,8 @@ jobs:
             tests/infrastructure/test_cibo_direct_trader_opportunities.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py \
             tests/infrastructure/test_cibo_cma_initial_seed.py \
-            tests/infrastructure/test_cibo_cma_runtime_authority_switch.py
+            tests/infrastructure/test_cibo_cma_runtime_authority_switch.py \
+            tests/infrastructure/test_cibo_cma_sizing_telemetry.py
 
       - name: Pytest
         run: |
@@ -116,4 +118,5 @@ jobs:
             tests/infrastructure/test_cibo_direct_trader_opportunities.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py \
             tests/infrastructure/test_cibo_cma_initial_seed.py \
-            tests/infrastructure/test_cibo_cma_runtime_authority_switch.py
+            tests/infrastructure/test_cibo_cma_runtime_authority_switch.py \
+            tests/infrastructure/test_cibo_cma_sizing_telemetry.py
