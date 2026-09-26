@@ -1,4 +1,4 @@
-name: CIBO Capital Efficiency Sizing Lab
+name: CIBO Capital Management Authority CE2I
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - agent/ctrader-demo-live-behavior-lab-001
 
 jobs:
-  capital-efficiency-sizing:
+  cibo-capital-management:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -27,7 +27,7 @@ jobs:
 
       - name: Ruff
         run: |
-          ruff check             src/qore/infrastructure/cibo_capital_efficiency_sizing_lab.py             src/qore/infrastructure/cibo_capital_efficiency_reconstruction.py             scripts/cibo_ce2i_sizing_reconstruction_report.py             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py
+          ruff check             src/qore/infrastructure/cibo_capital_efficiency_sizing_lab.py             src/qore/infrastructure/cibo_capital_efficiency_reconstruction.py             src/qore/infrastructure/cibo_capital_management_authority.py             src/qore/infrastructure/cibo_capital_source_ledger.py             scripts/cibo_ce2i_sizing_reconstruction_report.py             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py             tests/infrastructure/test_cibo_capital_management_authority.py             tests/infrastructure/test_cibo_capital_source_ledger.py
 
       - name: Compile passive integration
         run: |
@@ -35,8 +35,8 @@ jobs:
 
       - name: Mypy
         run: |
-          mypy             src/qore/infrastructure/cibo_capital_efficiency_sizing_lab.py             src/qore/infrastructure/cibo_capital_efficiency_reconstruction.py             scripts/cibo_ce2i_sizing_reconstruction_report.py             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py
+          mypy             src/qore/infrastructure/cibo_capital_efficiency_sizing_lab.py             src/qore/infrastructure/cibo_capital_efficiency_reconstruction.py             src/qore/infrastructure/cibo_capital_management_authority.py             src/qore/infrastructure/cibo_capital_source_ledger.py             scripts/cibo_ce2i_sizing_reconstruction_report.py             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py             tests/infrastructure/test_cibo_capital_management_authority.py             tests/infrastructure/test_cibo_capital_source_ledger.py
 
       - name: Pytest
         run: |
-          pytest -q             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py
+          pytest -q             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py             tests/infrastructure/test_cibo_capital_management_authority.py             tests/infrastructure/test_cibo_capital_source_ledger.py
