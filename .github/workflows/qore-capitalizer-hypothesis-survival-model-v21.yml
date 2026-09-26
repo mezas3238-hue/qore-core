@@ -1,13 +1,6 @@
 name: QORE Capitalizer Hypothesis Survival Model V21
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/qore-capitalizer-hypothesis-survival-model-v21.yml'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_hypothesis_survival_model_v21.py'
-      - 'tests/infrastructure/trader_lab/test_capitalizer_hypothesis_survival_model_v21.py'
   workflow_dispatch:
 
 permissions:

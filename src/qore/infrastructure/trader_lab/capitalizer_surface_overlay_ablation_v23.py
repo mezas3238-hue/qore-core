@@ -18,9 +18,6 @@ from qore.infrastructure.trader_lab import (
     capitalizer_causal_probe_ranker_v10 as v10,
 )
 from qore.infrastructure.trader_lab import (
-    capitalizer_contextual_stability_router_2r_v1 as router,
-)
-from qore.infrastructure.trader_lab import (
     capitalizer_factor_journey_probe_ranker_v11 as v11,
 )
 from qore.infrastructure.trader_lab import (

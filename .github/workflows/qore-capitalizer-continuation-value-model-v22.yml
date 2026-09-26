@@ -1,13 +1,6 @@
 name: QORE Capitalizer Continuation Value Model V22
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/qore-capitalizer-continuation-value-model-v22.yml'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_continuation_value_model_v22.py'
-      - 'tests/infrastructure/trader_lab/test_capitalizer_continuation_value_model_v22.py'
   workflow_dispatch:
 
 permissions:
