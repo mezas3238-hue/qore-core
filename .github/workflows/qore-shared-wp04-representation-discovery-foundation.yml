@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   representation-discovery-foundation:
@@ -98,3 +99,25 @@ jobs:
               }
           )
           PY
+
+      - name: Report WP04 foundation GREEN
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > /tmp/wp04-foundation.md <<EOF
+          ## WP-04 representation-discovery foundation GREEN
+
+          - Git SHA: \`${GITHUB_SHA}\`
+          - GitHub Actions run: \`${GITHUB_RUN_ID}\`
+          - source-only ontology residualization: PASS
+          - provisional latent concepts + interpretable probes: PASS
+          - deterministic projection/schema-drift gates: PASS
+          - separate incremental-information evaluator: PASS
+          - synthetic OOS ontology-vs-ontology+latent contract: PASS
+          - target/identity leakage: FAIL-CLOSED
+          - knowledge promotion / methodology / sizing / Risk / order / execution authority: NONE
+
+          Historical R8 discovery → frozen R6/R5 evaluation is still required before WP-04 completion.
+          EOF
+          gh issue comment 642 --body-file /tmp/wp04-foundation.md
