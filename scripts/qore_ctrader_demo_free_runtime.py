@@ -154,6 +154,12 @@ from qore.infrastructure.ctrader_demo_vt08_sizing import (
     build_ctrader_demo_vt08_opportunity,
 )
 from qore.infrastructure.cibo_cma_initial_seed import build_initial_seed_request
+from qore.infrastructure.cibo_cma_lifecycle_store import DurableCmaLifecycleStore
+from qore.infrastructure.cibo_cma_runtime_observer import (
+    CmaRuntimePositionSnapshot,
+    observe_runtime_position,
+)
+from qore.infrastructure.cibo_cma_settlement_store import DurableCmaSettlementStore
 from qore.infrastructure.ctrader_demo_live_anomaly_supervisor import (
     run_with_bounded_repair,
 )
@@ -977,6 +983,16 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         environment=MarketRuntimeEnvironment.DEMO,
     )
     state_dir = root / "var" / "ctrader_demo_signal_runtime"
+    cma_settlement_store = DurableCmaSettlementStore(
+        state_dir / "cibo-cma-settlements.json"
+    )
+    cma_lifecycle_store = DurableCmaLifecycleStore(
+        state_dir / "cibo-cma-lifecycle.json"
+    )
+    # Fail startup if durable CMA evidence is corrupt. Observational CMA must
+    # never manufacture fresh capacity by silently discarding restart state.
+    cma_settlement_store.load()
+    cma_lifecycle_store.load()
     startup_memory = ThreadPoolExecutor(
         max_workers=6,
         thread_name_prefix="qore-startup-memory",
@@ -2484,19 +2500,24 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         try:
             for position in demo_management_api.positions_get():
                 position_id = int(getattr(position, "ticket"))
-                registry_entry = demo_sink.registry.by_position(position_id)
-                if registry_entry is None:
+                registry_entries = demo_sink.registry.entries_by_position(position_id)
+                if not registry_entries:
                     continue
+                registry_entry = registry_entries[0]
                 symbol = str(getattr(position, "symbol"))
                 tick = demo_management_api.symbol_info_tick(symbol)
                 if tick is None:
                     continue
+                observed_at = datetime.now(UTC)
                 side = (
                     "long"
                     if int(getattr(position, "type"))
                     == int(demo_management_api.POSITION_TYPE_BUY)
                     else "short"
                 )
+                entry_price = Decimal(str(getattr(position, "price_open")))
+                stop_loss = Decimal(str(getattr(position, "sl", 0)))
+                remaining_volume = Decimal(str(getattr(position, "volume")))
                 _log(
                     log_path,
                     position_path_observation_payload(
@@ -2505,16 +2526,48 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         signal_fingerprint=registry_entry.signal_fingerprint,
                         position_id=position_id,
                         side=side,
-                        entry_price=Decimal(str(getattr(position, "price_open"))),
+                        entry_price=entry_price,
                         bid=Decimal(str(getattr(tick, "bid"))),
                         ask=Decimal(str(getattr(tick, "ask"))),
-                        stop_loss=Decimal(str(getattr(position, "sl", 0))),
+                        stop_loss=stop_loss,
                         take_profit=Decimal(str(getattr(position, "tp", 0))),
-                        volume=Decimal(str(getattr(position, "volume"))),
+                        volume=remaining_volume,
                         unrealized_pnl=Decimal(str(getattr(position, "profit", 0))),
-                        observed_at=datetime.now(UTC),
+                        observed_at=observed_at,
                     ),
                 )
+
+                cma_spec = gateway.read_symbol(
+                    registry_entry.qore_symbol,
+                    now=observed_at,
+                )
+                cma_result = observe_runtime_position(
+                    CmaRuntimePositionSnapshot(
+                        trader_id=TraderLineage(registry_entry.trader),
+                        signal_fingerprint=registry_entry.signal_fingerprint,
+                        qore_symbol=registry_entry.qore_symbol,
+                        position_id=position_id,
+                        registry_leg_count=len(registry_entries),
+                        side=side,
+                        entry_price=entry_price,
+                        current_stop=stop_loss,
+                        initial_volume=Decimal(registry_entry.requested_volume),
+                        remaining_volume=remaining_volume,
+                        tick_size=cma_spec.tick_size,
+                        tick_value=cma_spec.tick_value,
+                        broker_position_reconciled=True,
+                        broker_stop_reconciled=stop_loss > 0,
+                        mutation_outcome_unknown=gateway.has_unresolved_mutations,
+                        observed_at=observed_at,
+                    ),
+                    settlement_store=cma_settlement_store,
+                    lifecycle_store=cma_lifecycle_store,
+                )
+                if cma_result.failure_payload is not None:
+                    _log(log_path, cma_result.failure_payload)
+                else:
+                    assert cma_result.observation is not None
+                    _log(log_path, cma_result.observation.as_payload())
         except Exception as behavior_sample_error:
             _log(
                 log_path,
