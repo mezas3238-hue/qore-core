@@ -42,6 +42,26 @@ The Trader does **not** own the final capital allocation.
 
 Legacy Trader risk multipliers/sizing formulas become evidence, not authority.
 
+## 2.1 Owner sizing-authority ratification — 26-SEP-2026
+
+The Owner ratified the following binding architecture law:
+
+> **All active Trader sizing authority is retired. CIBO CMA is the sole runtime authority that may
+> determine requested volume for every Trader opportunity.**
+
+Consequences:
+
+- Trader sizing/risk formulas may remain only as `LEGACY_SIZING_BASELINE` evidence for replay,
+  reconstruction and certification comparison;
+- active Trader runtime paths must emit a volume-free `TraderOpportunityEnvelope`;
+- a Trader-provided monetary risk budget must never reach execution as sizing authority;
+- execution boundaries must fail closed if a request still carries
+  `strategy_requested_risk_usd`;
+- QORE Risk may reduce or reject a CIBO request for survival constraints, but it does not restore
+  Trader sizing authority;
+- removing sizing authority does not remove Trader ownership of technical stop/invalidation,
+  target, side or setup validity.
+
 ### CIBO CMA owns capital management
 
 CIBO owns every capital decision inside the Risk-authorized envelope:
