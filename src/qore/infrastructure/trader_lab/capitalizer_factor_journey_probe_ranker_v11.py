@@ -28,6 +28,9 @@ from qore.infrastructure.trader_lab import (
 from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
 )
+from qore.infrastructure.trader_lab import (
+    capitalizer_contextual_stability_router_2r_v1 as router,
+)
 from qore.infrastructure.trader_lab import capitalizer_exposure_graph as exposure
 from qore.infrastructure.trader_lab import (
     capitalizer_max_recovery_direct_m1_replay_v1 as direct,
@@ -289,11 +292,11 @@ def build_report(
     development_validation_context_root: Path,
     reserved_context_root: Path,
 ) -> tuple[dict[str, Any], tuple[v10.RankDecision, ...]]:
-    development = v10.router._load_selected(
+    development = router._load_selected(
         development_root,
         expected=v10.EXPECTED_DEVELOPMENT_TRADES,
     )
-    validation = v10.router._load_selected(
+    validation = router._load_selected(
         validation_root,
         expected=v10.EXPECTED_VALIDATION_TRADES,
     )
