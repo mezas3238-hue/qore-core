@@ -24,6 +24,19 @@ import json
 from pathlib import Path
 from typing import Any
 
+from shared_wp03_historical_causal_discovery import (
+    MARKETS,
+    PRE_WINDOW_MINUTES,
+    SOURCE_CONCEPTS,
+    TARGET_CONCEPTS,
+    TARGET_HORIZON_MINUTES,
+    _load_bars,
+    _metric,
+    _parse_key,
+    _source_state,
+    _target_state,
+)
+
 from qore.infrastructure.core_stack_v2.representation_discovery_engine import (
     RepresentationDiscoveryPolicy,
     RepresentationEpisode,
@@ -36,19 +49,6 @@ from qore.infrastructure.core_stack_v2.representation_discovery_evaluation impor
     RepresentationEvaluationTarget,
     evaluate_incremental_representation,
     fit_incremental_representation_probe,
-)
-
-from shared_wp03_historical_causal_discovery import (
-    MARKETS,
-    PRE_WINDOW_MINUTES,
-    SOURCE_CONCEPTS,
-    TARGET_CONCEPTS,
-    TARGET_HORIZON_MINUTES,
-    _load_bars,
-    _metric,
-    _parse_key,
-    _source_state,
-    _target_state,
 )
 
 
@@ -470,6 +470,7 @@ def run(
     ]
     r6_activation = _activation_summary(model=model, episodes=r6)
     r6_summary = _partition_summary(r6_evaluations)
+    r6_count = len(r6)
     del r6
     del r6_targets
     gc.collect()
@@ -490,6 +491,7 @@ def run(
     ]
     r5_activation = _activation_summary(model=model, episodes=r5)
     r5_summary = _partition_summary(r5_evaluations)
+    r5_count = len(r5)
 
     temporal_pass = bool(
         r8_range["target_max"]
@@ -501,8 +503,8 @@ def run(
     )
     sample_pass = (
         model.episode_count >= MINIMUM_SAMPLES
-        and len(r6) >= MINIMUM_SAMPLES
-        and len(r5) >= MINIMUM_SAMPLES
+        and r6_count >= MINIMUM_SAMPLES
+        and r5_count >= MINIMUM_SAMPLES
     )
     activation_pass = all(
         summary
