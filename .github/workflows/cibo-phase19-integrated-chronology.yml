@@ -8,13 +8,16 @@ on:
       - 'scripts/cibo_phase19_integrated_chronology_replay.py'
       - 'scripts/cibo_phase19_temporal_interaction_atlas.py'
       - 'scripts/cibo_phase19_temporal_stability_validation.py'
+      - 'scripts/cibo_phase19_provider_economics_inventory.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_interaction_evidence.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_temporal_stability.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase19_provider_evidence_audit.py'
       - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_temporal_stability.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase19_provider_evidence_audit.py'
   push:
     branches:
       - agent/cibo-capital-efficiency-sizing-lab-001
@@ -23,13 +26,16 @@ on:
       - 'scripts/cibo_phase19_integrated_chronology_replay.py'
       - 'scripts/cibo_phase19_temporal_interaction_atlas.py'
       - 'scripts/cibo_phase19_temporal_stability_validation.py'
+      - 'scripts/cibo_phase19_provider_economics_inventory.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_interaction_evidence.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_temporal_stability.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase19_provider_evidence_audit.py'
       - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_temporal_stability.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase19_provider_evidence_audit.py'
 
 permissions:
   contents: read
@@ -57,23 +63,28 @@ jobs:
             scripts/cibo_phase19_integrated_chronology_replay.py \
             scripts/cibo_phase19_temporal_interaction_atlas.py \
             scripts/cibo_phase19_temporal_stability_validation.py \
+            scripts/cibo_phase19_provider_economics_inventory.py \
             src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py \
             src/qore/infrastructure/cibo_ce2i_phase19_interaction_evidence.py \
             src/qore/infrastructure/cibo_ce2i_phase19_temporal_stability.py \
+            src/qore/infrastructure/cibo_ce2i_phase19_provider_evidence_audit.py \
             tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py \
             tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py \
-            tests/infrastructure/test_cibo_ce2i_phase19_temporal_stability.py
+            tests/infrastructure/test_cibo_ce2i_phase19_temporal_stability.py \
+            tests/infrastructure/test_cibo_ce2i_phase19_provider_evidence_audit.py
           mypy \
             scripts/cibo_phase19_integrated_chronology_replay.py \
             scripts/cibo_phase19_temporal_interaction_atlas.py \
             scripts/cibo_phase19_temporal_stability_validation.py \
+            scripts/cibo_phase19_provider_economics_inventory.py \
             src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py \
             src/qore/infrastructure/cibo_ce2i_phase19_interaction_evidence.py \
             src/qore/infrastructure/cibo_ce2i_phase19_temporal_stability.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py \
             tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py \
-            tests/infrastructure/test_cibo_ce2i_phase19_temporal_stability.py
+            tests/infrastructure/test_cibo_ce2i_phase19_temporal_stability.py \
+            tests/infrastructure/test_cibo_ce2i_phase19_provider_evidence_audit.py
 
   replay:
     needs: quality
@@ -125,6 +136,19 @@ jobs:
             (cd "source/${directory}" && sha256sum -c SHA256SUMS.txt)
           done
 
+      - name: Build historical provider-economics evidence inventory
+        run: |
+          python scripts/cibo_phase19_provider_economics_inventory.py \
+            --gbpjpy source/gbpjpy/phase18-gbpjpy-r38-bound-trades.jsonl \
+            --gbpusd source/gbpusd/phase18-gbpusd-r43-bound-trades.jsonl \
+            --audjpy source/audjpy/phase18-audjpy-r42-bound-trades.jsonl \
+            --eurusd source/eurusd/phase18-eurusd-r38-bound-trades.jsonl \
+            --xauusd source/xauusd/phase18-xauusd-r34-bound-trades.jsonl \
+            --vt08 source/vt08/phase18-vt08-r315-fundednext-trades.jsonl \
+            --vt31 source/vt31/phase18-vt31-v4-bound-trades.jsonl \
+            --output phase19-output/phase19-provider-economics-inventory.json \
+            > phase19-output/provider-economics-inventory-stdout.json
+
       - name: Run integrated chronology replay
         run: |
           python scripts/cibo_phase19_integrated_chronology_replay.py \
@@ -168,9 +192,11 @@ jobs:
             phase19-temporal-interaction-atlas.json \
             phase19-temporal-stability-validation.json \
             phase19-frozen-training-overlap-atlas.json \
+            phase19-provider-economics-inventory.json \
             replay-stdout.json \
             interaction-atlas-stdout.json \
             temporal-stability-stdout.json \
+            provider-economics-inventory-stdout.json \
             git-sha.txt > SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
 
