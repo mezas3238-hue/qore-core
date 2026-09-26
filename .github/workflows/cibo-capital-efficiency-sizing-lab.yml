@@ -27,19 +27,83 @@ jobs:
 
       - name: Ruff
         run: |
-          ruff check             src/qore/infrastructure/cibo_capital_efficiency_sizing_lab.py             src/qore/infrastructure/cibo_capital_efficiency_reconstruction.py             src/qore/infrastructure/cibo_capital_management_authority.py             src/qore/infrastructure/cibo_capital_source_ledger.py             src/qore/infrastructure/cibo_ce2i_tool_registry.py             src/qore/infrastructure/cibo_trader_opportunity_adapter.py             src/qore/infrastructure/cibo_economic_floor.py             src/qore/infrastructure/cibo_capital_state_machine.py             src/qore/infrastructure/cibo_cma_risk_request.py             scripts/cibo_ce2i_sizing_reconstruction_report.py             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py             tests/infrastructure/test_cibo_capital_management_authority.py             tests/infrastructure/test_cibo_capital_source_ledger.py             tests/infrastructure/test_cibo_ce2i_tool_registry.py             tests/infrastructure/test_cibo_trader_opportunity_adapter.py             tests/infrastructure/test_cibo_economic_floor.py             tests/infrastructure/test_cibo_capital_state_machine.py             tests/infrastructure/test_cibo_cma_risk_request.py \
+          ruff check \
+            src/qore/infrastructure/cibo_capital_efficiency_sizing_lab.py \
+            src/qore/infrastructure/cibo_capital_efficiency_reconstruction.py \
+            src/qore/infrastructure/cibo_capital_management_authority.py \
+            src/qore/infrastructure/cibo_capital_source_ledger.py \
+            src/qore/infrastructure/cibo_ce2i_tool_registry.py \
+            src/qore/infrastructure/cibo_trader_opportunity_adapter.py \
+            src/qore/infrastructure/cibo_economic_floor.py \
+            src/qore/infrastructure/cibo_capital_state_machine.py \
+            src/qore/infrastructure/cibo_cma_risk_request.py \
+            src/qore/infrastructure/cibo_live_opportunity.py \
+            scripts/cibo_ce2i_sizing_reconstruction_report.py \
+            tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
+            tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
+            tests/infrastructure/test_cibo_capital_management_authority.py \
+            tests/infrastructure/test_cibo_capital_source_ledger.py \
+            tests/infrastructure/test_cibo_ce2i_tool_registry.py \
+            tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
+            tests/infrastructure/test_cibo_economic_floor.py \
+            tests/infrastructure/test_cibo_capital_state_machine.py \
+            tests/infrastructure/test_cibo_cma_risk_request.py \
             tests/infrastructure/test_cibo_live_opportunity.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py
 
-      - name: Compile passive integration
+      - name: Compile integration surface
         run: |
-          python -m py_compile             src/qore/infrastructure/ctrader_demo_free_sink.py             scripts/cibo_ce2i_sizing_reconstruction_report.py
+          python -m py_compile \
+            src/qore/infrastructure/ctrader_demo_free_sink.py \
+            src/qore/infrastructure/r34_xauusd_live.py \
+            src/qore/infrastructure/r38_eurusd_live.py \
+            src/qore/infrastructure/r43_gbpusd_live.py \
+            src/qore/infrastructure/r38_gbpjpy_live.py \
+            src/qore/infrastructure/r42_audjpy_live.py \
+            src/qore/infrastructure/vt31_nas100_live.py \
+            src/qore/infrastructure/ctrader_demo_vt08_sizing.py \
+            scripts/cibo_ce2i_sizing_reconstruction_report.py
 
       - name: Mypy
         run: |
-          mypy             src/qore/infrastructure/cibo_capital_efficiency_sizing_lab.py             src/qore/infrastructure/cibo_capital_efficiency_reconstruction.py             src/qore/infrastructure/cibo_capital_management_authority.py             src/qore/infrastructure/cibo_capital_source_ledger.py             src/qore/infrastructure/cibo_ce2i_tool_registry.py             src/qore/infrastructure/cibo_trader_opportunity_adapter.py             src/qore/infrastructure/cibo_economic_floor.py             src/qore/infrastructure/cibo_capital_state_machine.py             src/qore/infrastructure/cibo_cma_risk_request.py             scripts/cibo_ce2i_sizing_reconstruction_report.py             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py             tests/infrastructure/test_cibo_capital_management_authority.py             tests/infrastructure/test_cibo_capital_source_ledger.py             tests/infrastructure/test_cibo_ce2i_tool_registry.py             tests/infrastructure/test_cibo_trader_opportunity_adapter.py             tests/infrastructure/test_cibo_economic_floor.py             tests/infrastructure/test_cibo_capital_state_machine.py             tests/infrastructure/test_cibo_cma_risk_request.py
+          mypy \
+            src/qore/infrastructure/cibo_capital_efficiency_sizing_lab.py \
+            src/qore/infrastructure/cibo_capital_efficiency_reconstruction.py \
+            src/qore/infrastructure/cibo_capital_management_authority.py \
+            src/qore/infrastructure/cibo_capital_source_ledger.py \
+            src/qore/infrastructure/cibo_ce2i_tool_registry.py \
+            src/qore/infrastructure/cibo_trader_opportunity_adapter.py \
+            src/qore/infrastructure/cibo_economic_floor.py \
+            src/qore/infrastructure/cibo_capital_state_machine.py \
+            src/qore/infrastructure/cibo_cma_risk_request.py \
+            src/qore/infrastructure/cibo_live_opportunity.py \
+            scripts/cibo_ce2i_sizing_reconstruction_report.py \
+            tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
+            tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
+            tests/infrastructure/test_cibo_capital_management_authority.py \
+            tests/infrastructure/test_cibo_capital_source_ledger.py \
+            tests/infrastructure/test_cibo_ce2i_tool_registry.py \
+            tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
+            tests/infrastructure/test_cibo_economic_floor.py \
+            tests/infrastructure/test_cibo_capital_state_machine.py \
+            tests/infrastructure/test_cibo_cma_risk_request.py \
+            tests/infrastructure/test_cibo_live_opportunity.py \
+            tests/infrastructure/test_cibo_direct_trader_opportunities.py \
+            tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py
 
       - name: Pytest
         run: |
-          pytest -q             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py             tests/infrastructure/test_cibo_capital_management_authority.py             tests/infrastructure/test_cibo_capital_source_ledger.py             tests/infrastructure/test_cibo_ce2i_tool_registry.py             tests/infrastructure/test_cibo_trader_opportunity_adapter.py             tests/infrastructure/test_cibo_economic_floor.py             tests/infrastructure/test_cibo_capital_state_machine.py             tests/infrastructure/test_cibo_cma_risk_request.py
+          pytest -q \
+            tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
+            tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
+            tests/infrastructure/test_cibo_capital_management_authority.py \
+            tests/infrastructure/test_cibo_capital_source_ledger.py \
+            tests/infrastructure/test_cibo_ce2i_tool_registry.py \
+            tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
+            tests/infrastructure/test_cibo_economic_floor.py \
+            tests/infrastructure/test_cibo_capital_state_machine.py \
+            tests/infrastructure/test_cibo_cma_risk_request.py \
+            tests/infrastructure/test_cibo_live_opportunity.py \
+            tests/infrastructure/test_cibo_direct_trader_opportunities.py \
+            tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py
