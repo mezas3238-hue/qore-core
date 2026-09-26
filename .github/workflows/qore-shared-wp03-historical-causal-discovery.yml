@@ -14,6 +14,7 @@ on:
 permissions:
   contents: read
   actions: read
+  issues: write
 
 env:
   GH_TOKEN: ${{ github.token }}
@@ -91,6 +92,16 @@ jobs:
           assert p["protocol_minimum_samples"] == 7000
           assert p["screened_pair_count"] >= 50
 
+          ranges = p["partition_ranges"]
+          assert ranges["r8"]["source_min"] is not None
+          assert ranges["r8"]["target_max"] is not None
+          assert ranges["r6"]["source_min"] is not None
+          assert ranges["r6"]["target_max"] is not None
+          assert ranges["r5"]["source_min"] is not None
+          assert ranges["r5"]["target_max"] is not None
+          assert ranges["r8"]["target_max"] < ranges["r6"]["source_min"]
+          assert ranges["r6"]["target_max"] < ranges["r5"]["source_min"]
+
           s = p["sampling"]
           assert s["trader_event_timestamps_used"] is False
           assert s["full_market_grid_sampling"] is True
@@ -133,3 +144,33 @@ jobs:
           path: result/
           if-no-files-found: error
           retention-days: 90
+
+      - name: Report successful historical result to WP03
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p = json.loads(
+              Path("result/wp03-historical-causal-discovery.json").read_text()
+          )
+          ranges = p["partition_ranges"]
+          body = f"""## WP-03 historical causal-discovery run GREEN
+
+          - Git SHA: `{os.environ['GITHUB_SHA']}`
+          - GitHub Actions run: `{os.environ['GITHUB_RUN_ID']}`
+          - status: **{p['status']}**
+          - protocol_pass: **{p['protocol_pass']}**
+          - samples: R8={p['sample_counts']['r8']}, R6={p['sample_counts']['r6']}, R5={p['sample_counts']['r5']}
+          - screened pairs: {p['screened_pair_count']}
+          - R8 candidates: {p['r8_research_candidate_count']}
+          - holdout falsified: {p['holdout_falsified_count']}
+          - replicated research relations: {p['replicated_research_relation_count']}
+          - temporal split: R8 target max `{ranges['r8']['target_max']}` < R6 source min `{ranges['r6']['source_min']}`; R6 target max `{ranges['r6']['target_max']}` < R5 source min `{ranges['r5']['source_min']}`
+          - neutral/weak strata count against causal stability
+          - no knowledge auto-promotion; no methodology/Risk/sizing/order/execution authority
+          """
+          Path("result/wp03-issue-update.md").write_text(body)
+          PY
+          gh issue comment 641 --body-file result/wp03-issue-update.md
