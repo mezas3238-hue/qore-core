@@ -253,7 +253,7 @@ def build_phase19_temporal_hyperedges(
         }
     )
     raw: list[Phase19TemporalConcurrencyHyperedge] = []
-    for start, end in zip(event_times, event_times[1:], strict=True):
+    for start, end in zip(event_times, event_times[1:]):
         if end <= start:
             continue
         active = tuple(
