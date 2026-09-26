@@ -6,7 +6,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from scripts.cibo_cma_shadow_floor_report import build_summary, load_reports
+from qore.infrastructure.cibo_cma_shadow_floor_report import (
+    build_summary,
+    load_reports,
+)
 
 
 def _row(*, realized: str, settled: bool) -> dict[str, object]:
