@@ -15,7 +15,6 @@ from qore.infrastructure.core_stack_v2.world_federation_calibration import (
     summarize_world_calibration,
 )
 
-
 BASE = datetime(2026, 1, 1, tzinfo=UTC)
 
 
