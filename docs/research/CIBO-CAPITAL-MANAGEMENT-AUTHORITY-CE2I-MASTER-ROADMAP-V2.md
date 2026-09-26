@@ -822,7 +822,50 @@ Each mechanism requires separate evidence/certification.
 
 ## PHASE 18 — Per-Trader chronological replay
 
-**Status: PENDING**
+**Status: IN PROGRESS — CAUSAL REPLAY CONTRACT GREEN / GBPJPY PILOT EVIDENCE BOUND**
+
+The shared replay primitive now exists in:
+
+```text
+src/qore/infrastructure/cibo_ce2i_chronological_replay.py
+```
+
+It enforces:
+
+- strict separation of PRE-TRADE causal evidence from POST-TRADE outcome;
+- no outcome object is accepted by the CIBO sizing-input builder;
+- deterministic replay-only signal fingerprints when the historical Trader did not persist one;
+- explicit evidence IDs;
+- exact technical geometry;
+- legacy risk scale retained as baseline evidence only;
+- R-denominated replay may proceed without fabricated provider economics;
+- USD/CIBO sizing replay fails closed until exact provider economics are calibrated.
+
+The first pilot is R38 GBPJPY. The final R38 artifact has been re-located directly in GitHub Actions:
+
+```text
+run_id:      35374273535
+artifact_id: 10559826734
+artifact:    qore-turtle-soup-gbpjpy-r38-5y-fragility-dda5ab344a122b875e68548cb4e9825acb7b1c27
+digest:      sha256:a999feaf90c5fbf2c23a006faff6d591d7f3ede697c34f11dafa510afa5d5846
+source_sha:  dda5ab344a122b875e68548cb4e9825acb7b1c27
+```
+
+Final R38 5Y evidence:
+
+```text
+trades:                 897
+profit_factor:          1.852918712035185462516517131
+total_scaled_net_010_r: +92.83988286566161467727272231R
+max_drawdown:           5.06150896610739539086014902R
+positive_annual_blocks: 5/5
+acceptance_pass:        true
+```
+
+This is distinct from the R37 source artifact and must not be replaced by R37 metrics.
+R38 preserves the 897-trade source population and applies its pre-entry structural-fragility risk
+overlay. The next GBPJPY step is to reproduce the frozen path and serialize the exact
+entry/protected-swing/technical-target geometry beside the R38 final risk scale and causal state.
 
 Replay each Trader with:
 
