@@ -5,6 +5,7 @@ import pytest
 from qore.infrastructure.cibo_capital_efficiency_reconstruction import (
     SIZING_PATH_CONTRACTS,
     ReconstructionStatus,
+    SizingAuthority,
     SizingReconstructionError,
     reconstruct_sizing_decision,
     reconstruct_sizing_ledger,
@@ -36,6 +37,7 @@ def test_complete_row_reconstructs_unused_risk_and_margin_fraction() -> None:
 
     assert row.status is ReconstructionStatus.COMPLETE
     assert row.sizing_path_observed is True
+    assert row.sizing_authority is SizingAuthority.LEGACY_TRADER_SIZING
     assert row.risk_budget_utilization == Decimal("0.95")
     assert row.unused_strategy_risk_usd == Decimal("1")
     assert row.margin_fraction_of_assigned_capital == Decimal("0.0038")
@@ -60,6 +62,7 @@ def test_historical_pre_enrichment_row_is_explicitly_partial() -> None:
 
     assert row.status is ReconstructionStatus.PARTIAL
     assert row.sizing_path_observed is False
+    assert row.sizing_authority is SizingAuthority.LEGACY_TRADER_SIZING
     assert "sizing_path" in row.missing_fields
     assert "strategy_requested_risk_usd" in row.missing_fields
     assert "requested_margin" in row.missing_fields
@@ -109,3 +112,30 @@ def test_zero_requested_stop_risk_is_invalid_evidence() -> None:
 
     with pytest.raises(SizingReconstructionError, match="requested_stop_risk"):
         reconstruct_sizing_decision(event)
+
+
+
+def test_cma_submit_is_complete_without_strategy_risk_budget() -> None:
+    event = _event("R38_EURUSD")
+    contract = SIZING_PATH_CONTRACTS["R38_EURUSD"]
+    event["sizing_path"] = contract.cma_sizing_path
+    event["strategy_requested_risk_usd"] = None
+    event["requested_volume"] = "0.01"
+    event["requested_stop_risk"] = "1"
+    event["requested_margin"] = "2"
+
+    row = reconstruct_sizing_decision(event)
+
+    assert row.status is ReconstructionStatus.COMPLETE
+    assert row.sizing_authority is SizingAuthority.CIBO_CMA
+    assert row.strategy_requested_risk_usd is None
+    assert row.risk_budget_utilization is None
+    assert row.unused_strategy_risk_usd is None
+    assert row.missing_fields == ()
+
+
+def test_cma_path_is_frozen_for_all_seven_traders() -> None:
+    assert {
+        contract.cma_sizing_path
+        for contract in SIZING_PATH_CONTRACTS.values()
+    } == {"CIBO_CMA_MINIMAL_SEED"}
