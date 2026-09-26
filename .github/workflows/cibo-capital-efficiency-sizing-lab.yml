@@ -32,6 +32,7 @@ jobs:
             src/qore/infrastructure/cibo_capital_efficiency_reconstruction.py \
             src/qore/infrastructure/cibo_capital_management_authority.py \
             src/qore/infrastructure/cibo_capital_source_ledger.py \
+            src/qore/infrastructure/cibo_capital_source_ledger_store.py \
             src/qore/infrastructure/cibo_ce2i_tool_registry.py \
             src/qore/infrastructure/cibo_trader_opportunity_adapter.py \
             src/qore/infrastructure/cibo_economic_floor.py \
@@ -49,6 +50,7 @@ jobs:
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
             tests/infrastructure/test_cibo_capital_management_authority.py \
             tests/infrastructure/test_cibo_capital_source_ledger.py \
+            tests/infrastructure/test_cibo_capital_source_ledger_store.py \
             tests/infrastructure/test_cibo_ce2i_tool_registry.py \
             tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
             tests/infrastructure/test_cibo_economic_floor.py \
@@ -88,6 +90,7 @@ jobs:
             src/qore/infrastructure/cibo_capital_efficiency_reconstruction.py \
             src/qore/infrastructure/cibo_capital_management_authority.py \
             src/qore/infrastructure/cibo_capital_source_ledger.py \
+            src/qore/infrastructure/cibo_capital_source_ledger_store.py \
             src/qore/infrastructure/cibo_ce2i_tool_registry.py \
             src/qore/infrastructure/cibo_trader_opportunity_adapter.py \
             src/qore/infrastructure/cibo_economic_floor.py \
@@ -104,6 +107,7 @@ jobs:
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
             tests/infrastructure/test_cibo_capital_management_authority.py \
             tests/infrastructure/test_cibo_capital_source_ledger.py \
+            tests/infrastructure/test_cibo_capital_source_ledger_store.py \
             tests/infrastructure/test_cibo_ce2i_tool_registry.py \
             tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
             tests/infrastructure/test_cibo_economic_floor.py \
@@ -127,6 +131,7 @@ jobs:
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
             tests/infrastructure/test_cibo_capital_management_authority.py \
             tests/infrastructure/test_cibo_capital_source_ledger.py \
+            tests/infrastructure/test_cibo_capital_source_ledger_store.py \
             tests/infrastructure/test_cibo_ce2i_tool_registry.py \
             tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
             tests/infrastructure/test_cibo_economic_floor.py \
