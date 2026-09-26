@@ -7,6 +7,7 @@ It contains no Trader risk fraction and chooses no volume.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 
 from qore.infrastructure.account_wide_risk import AccountWideRiskError, TraderLineage
@@ -43,7 +44,7 @@ class FundedNextCiboSymbolSpecification:
     margin_per_volume: Decimal
     trade_enabled: bool
     session_open: bool
-    observed_at: object
+    observed_at: datetime
     open_commission_per_lot_usd: Decimal
 
 
