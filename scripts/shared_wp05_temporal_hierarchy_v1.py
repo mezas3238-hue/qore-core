@@ -100,10 +100,11 @@ def _scale_state(
 ) -> TemporalScaleState:
     primary_rows = windows["NAS100"][-horizon:]
     signed_eff = _signed_efficiency(primary_rows)
+    primary_metric = None if horizon == 1 else _metric(primary_rows)
     primary_efficiency = (
         abs(signed_eff)
-        if horizon == 1
-        else float(_metric(primary_rows).efficiency)
+        if primary_metric is None
+        else float(primary_metric.efficiency)
     )
     direction_milli = int(
         round(max(-1.0, min(1.0, signed_eff)) * 1_000)
@@ -112,6 +113,8 @@ def _scale_state(
     if horizon <= 1:
         persistence = abs(signed_eff)
     else:
+        if primary_metric is None:
+            raise AssertionError("multi-bar scale requires metric")
         short = max(1, horizon // 3)
         medium = max(short, (2 * horizon) // 3)
         full_sign = _sign(primary_metric.net_bps)
