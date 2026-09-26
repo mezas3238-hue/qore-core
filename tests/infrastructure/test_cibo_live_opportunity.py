@@ -5,11 +5,12 @@ import pytest
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
+    TraderOpportunityEnvelope,
 )
 from qore.infrastructure.cibo_live_opportunity import build_live_opportunity
 
 
-def _build(**overrides: object):
+def _build(**overrides: object) -> TraderOpportunityEnvelope:
     values: dict[str, object] = {
         "trader_id": TraderLineage.R34_XAUUSD,
         "signal_fingerprint": "signal-1",
