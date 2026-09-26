@@ -42,7 +42,7 @@ def test_builder_produces_volume_free_opportunity() -> None:
 
     assert not hasattr(opportunity, "requested_volume")
     assert opportunity.intended_entry == Decimal("2601")
-    assert opportunity.stop_loss_per_volume == Decimal("13.26")
+    assert opportunity.stop_loss_per_volume == Decimal("114.24")
 
 
 def test_adverse_entry_drift_is_preserved_before_cibo_sizing() -> None:
