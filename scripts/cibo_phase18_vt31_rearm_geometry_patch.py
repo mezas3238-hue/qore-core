@@ -22,6 +22,7 @@ _OLD = '''            {
 '''
 _NEW = '''            {
                 "local_date": local_day.isoformat(),
+                "_phase18_rearm_geometry_instrumented": True,
                 "entry": format(setup.entry_price, "f"),
                 "initial_stop": format(setup.stop_price, "f"),
                 "structural_target": format(setup.target_price, "f"),
