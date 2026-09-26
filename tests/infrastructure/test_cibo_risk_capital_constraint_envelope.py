@@ -23,7 +23,7 @@ from qore.infrastructure.account_wide_risk_ledger import (
 NOW = datetime(2026, 9, 26, 14, 0, tzinfo=UTC)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class _ProviderBudget:
     provider_headroom: Decimal = Decimal("120")
     max_risk_at_any_time: Decimal = Decimal("120")
