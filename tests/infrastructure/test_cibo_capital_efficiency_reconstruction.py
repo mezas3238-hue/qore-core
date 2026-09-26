@@ -35,6 +35,7 @@ def test_complete_row_reconstructs_unused_risk_and_margin_fraction() -> None:
     row = reconstruct_sizing_decision(_event())
 
     assert row.status is ReconstructionStatus.COMPLETE
+    assert row.sizing_path_observed is True
     assert row.risk_budget_utilization == Decimal("0.95")
     assert row.unused_strategy_risk_usd == Decimal("1")
     assert row.margin_fraction_of_assigned_capital == Decimal("0.0038")
@@ -44,6 +45,7 @@ def test_complete_row_reconstructs_unused_risk_and_margin_fraction() -> None:
 def test_historical_pre_enrichment_row_is_explicitly_partial() -> None:
     event = _event("R34_XAUUSD")
     for key in (
+        "sizing_path",
         "strategy_requested_risk_usd",
         "stop_loss_per_volume",
         "requested_margin",
@@ -57,6 +59,8 @@ def test_historical_pre_enrichment_row_is_explicitly_partial() -> None:
     row = reconstruct_sizing_decision(event)
 
     assert row.status is ReconstructionStatus.PARTIAL
+    assert row.sizing_path_observed is False
+    assert "sizing_path" in row.missing_fields
     assert "strategy_requested_risk_usd" in row.missing_fields
     assert "requested_margin" in row.missing_fields
     assert row.risk_budget_utilization is None
