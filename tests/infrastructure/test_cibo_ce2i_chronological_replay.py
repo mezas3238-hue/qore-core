@@ -156,21 +156,30 @@ def test_post_trade_fields_are_rejected_from_pre_trade_state() -> None:
 
 
 def test_reconstructed_fingerprint_is_outcome_independent_and_deterministic() -> None:
-    kwargs = {
-        "trader_id": TraderLineage.R38_GBPJPY,
-        "qore_symbol": "GBPJPY",
-        "side": "short",
-        "signal_at": NOW,
-        "entry_at": NOW + timedelta(minutes=5),
-        "entry_price": Decimal("201.000"),
-        "structural_stop": Decimal("201.200"),
-        "technical_target": Decimal("200.500"),
-        "source_evidence_ids": ("raw", "target"),
-    }
-
-    assert reconstructed_signal_fingerprint(**kwargs) == (
-        reconstructed_signal_fingerprint(**kwargs)
+    first = reconstructed_signal_fingerprint(
+        trader_id=TraderLineage.R38_GBPJPY,
+        qore_symbol="GBPJPY",
+        side="short",
+        signal_at=NOW,
+        entry_at=NOW + timedelta(minutes=5),
+        entry_price=Decimal("201.000"),
+        structural_stop=Decimal("201.200"),
+        technical_target=Decimal("200.500"),
+        source_evidence_ids=("raw", "target"),
     )
+    second = reconstructed_signal_fingerprint(
+        trader_id=TraderLineage.R38_GBPJPY,
+        qore_symbol="GBPJPY",
+        side="short",
+        signal_at=NOW,
+        entry_at=NOW + timedelta(minutes=5),
+        entry_price=Decimal("201.000"),
+        structural_stop=Decimal("201.200"),
+        technical_target=Decimal("200.500"),
+        source_evidence_ids=("raw", "target"),
+    )
+
+    assert first == second
 
 
 def test_invalid_geometry_and_temporal_order_fail_closed() -> None:
