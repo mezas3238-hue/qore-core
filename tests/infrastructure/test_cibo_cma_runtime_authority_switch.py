@@ -1,3 +1,7 @@
+"""CIBO CMA runtime authority-switch invariants."""
+
+from __future__ import annotations
+
 from pathlib import Path
 
 
