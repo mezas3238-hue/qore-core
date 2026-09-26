@@ -1,10 +1,15 @@
 # ruff: noqa: I001
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
 import pytest
 
 from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_ce2i_causal_expectation import (
+    CausalExpectationBasis,
+    CausalOpportunityExpectation,
+)
 from qore.infrastructure.cibo_ce2i_opportunity_competition import (
     CapitalOpportunityCandidate,
 )
@@ -35,7 +40,13 @@ def _candidate() -> CapitalOpportunityCandidate:
         trader_id=TraderLineage.R38_EURUSD,
         qore_symbol="EURUSD",
         provider_symbol="EURUSD",
-        expected_net_value_usd=Decimal("10"),
+        decision_as_of=datetime(2026, 9, 26, 12, 0, tzinfo=UTC),
+        expectation=CausalOpportunityExpectation(
+            evidence_id="test:expectation:signal-1",
+            as_of=datetime(2026, 9, 26, 12, 0, tzinfo=UTC),
+            basis=CausalExpectationBasis.FROZEN_HISTORICAL_PRIOR,
+            expected_net_value_usd=Decimal("10"),
+            ),
         stop_risk_usd=Decimal("5"),
         margin_usd=Decimal("10"),
         expected_capital_minutes=Decimal("10"),
