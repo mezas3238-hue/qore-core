@@ -18,7 +18,11 @@ from qore.infrastructure.cibo_ce2i_tool_registry import (
     Ce2iToolContract,
     ToolMaturity,
 )
-from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
+from qore.infrastructure.fundednext_stellar_instant import PROGRAM as FUNDEDNEXT_PROGRAM
+from qore.infrastructure.market_test_environment import (
+    MarketRuntimeEnvironment,
+    MarketTestAccountIdentity,
+)
 
 
 class CiboAccountMissionError(ValueError):
@@ -322,4 +326,37 @@ def _sandbox_policy() -> CiboCapitalMissionPolicy:
         capability_measurement_enabled=True,
         preserve_optionality_priority=False,
         rationale="SANDBOX permits simulation of the complete CIBO toolbox",
+    )
+
+
+
+def identity_from_market_test_account(
+    account: MarketTestAccountIdentity,
+) -> CiboAccountCapitalIdentity:
+    """Bind CIBO mission identity directly from the authoritative test account."""
+
+    if not isinstance(account, MarketTestAccountIdentity):
+        raise CiboAccountMissionError(
+            "account must be MarketTestAccountIdentity"
+        )
+    return CiboAccountCapitalIdentity(
+        provider_key=account.provider_key,
+        account_ref=account.account_ref,
+        environment=account.environment,
+    )
+
+
+def fundednext_stellar_instant_identity(
+    *,
+    account_ref: str,
+) -> CiboAccountCapitalIdentity:
+    """Canonical FundedNext Stellar Instant production identity for CIBO."""
+
+    if not account_ref:
+        raise CiboAccountMissionError("account_ref is required")
+    return CiboAccountCapitalIdentity(
+        provider_key="fundednext",
+        account_ref=account_ref,
+        environment=MarketRuntimeEnvironment.PRODUCTION,
+        provider_program=FUNDEDNEXT_PROGRAM.lower().replace("_", "-"),
     )
