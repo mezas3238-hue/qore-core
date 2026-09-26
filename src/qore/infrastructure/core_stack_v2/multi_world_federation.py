@@ -118,6 +118,7 @@ class WorldFederationState:
     regime_transition_bps: int
     effective_prior_transition_bps: int
     prior_memory_half_life_seconds: int
+    posterior_temperature_bps: int
     previous_elapsed_seconds: int
     previous_dominant_world: WorldModelFamily | None
     dominant_world_changed: bool
@@ -149,6 +150,8 @@ class WorldFederationState:
                 raise ValueError(f"{name} must be within 0..10000")
         if self.prior_memory_half_life_seconds <= 0:
             raise ValueError("prior memory half life must be positive")
+        if not 1 <= self.posterior_temperature_bps <= 100_000:
+            raise ValueError("posterior temperature must be within 1..100000")
         if self.previous_elapsed_seconds < 0:
             raise ValueError("previous elapsed seconds cannot be negative")
         if sum(item.probability_bps for item in self.posteriors) != 10_000:
@@ -277,6 +280,7 @@ def update_world_federation(
     previous: WorldFederationState | None = None,
     regime_transition_bps: int = 500,
     prior_memory_half_life_seconds: int = 3_600,
+    posterior_temperature_bps: int = 10_000,
 ) -> WorldFederationState:
     """Update posterior weights for all competing internal worlds."""
 
@@ -291,6 +295,8 @@ def update_world_federation(
             raise ValueError(f"{name} must be within 0..10000")
     if prior_memory_half_life_seconds <= 0:
         raise ValueError("prior_memory_half_life_seconds must be positive")
+    if not 1 <= posterior_temperature_bps <= 100_000:
+        raise ValueError("posterior_temperature_bps must be within 1..100000")
     if any(item.as_of > as_of for item in evidence):
         raise ValueError("future world evidence is forbidden")
 
@@ -343,7 +349,10 @@ def update_world_federation(
 
     for family in families:
         score = log(prior[family])
-        score += (qualities[family] - 5_000) / 2_000.0
+        evidence_logit = (qualities[family] - 5_000) / 2_000.0
+        score += evidence_logit * (
+            10_000.0 / posterior_temperature_bps
+        )
         if family is WorldModelFamily.UNRESOLVED:
             score += unknown_boost
         log_scores.append(score)
@@ -399,6 +408,7 @@ def update_world_federation(
         regime_transition_bps=regime_transition_bps,
         effective_prior_transition_bps=effective_prior_transition_bps,
         prior_memory_half_life_seconds=prior_memory_half_life_seconds,
+        posterior_temperature_bps=posterior_temperature_bps,
         previous_elapsed_seconds=previous_elapsed_seconds,
         previous_dominant_world=previous_dominant,
         dominant_world_changed=(
