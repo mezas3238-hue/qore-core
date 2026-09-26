@@ -12,6 +12,7 @@ only. No fresh holdout is opened here.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 from statistics import fmean
@@ -339,6 +340,34 @@ def run(*, evidence: dict[str, dict[str, Path]]) -> dict[str, Any]:
         >= MINIMUM_TERMINAL_PRESERVATION_BPS
         for partition in ("r6", "r5")
     )
+    frozen_model_payload = {
+        "fit_partition": model.fit_partition,
+        "fit_count": model.fit_count,
+        "fit_terminal_count": model.fit_terminal_count,
+        "calibration_count": model.calibration_count,
+        "calibration_terminal_count": model.calibration_terminal_count,
+        "feature_names": list(model.feature_names),
+        "feature_centers_micros": list(model.feature_centers_micros),
+        "feature_scales_micros": list(model.feature_scales_micros),
+        "coefficients_micros": list(model.coefficients_micros),
+        "intercept_micros": model.intercept_micros,
+        "declaration_threshold_micros": model.declaration_threshold_micros,
+        "calibration_false_reduction_bps": (
+            model.calibration_false_reduction_bps
+        ),
+        "calibration_terminal_preservation_bps": (
+            model.calibration_terminal_preservation_bps
+        ),
+        "representation": "STRUCTURAL_FRONTIER_SURVIVAL_V1",
+    }
+    frozen_model_fingerprint = hashlib.sha256(
+        json.dumps(
+            frozen_model_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+
     protocol_pass = (
         sample_gate
         and target_gate
@@ -372,23 +401,9 @@ def run(*, evidence: dict[str, dict[str, Path]]) -> dict[str, Any]:
         "wp05_exit_gate_pass": False,
         "partition_ranges": ranges,
         "model": {
-            "fit_partition": model.fit_partition,
-            "fit_count": model.fit_count,
-            "fit_terminal_count": model.fit_terminal_count,
-            "calibration_count": model.calibration_count,
-            "calibration_terminal_count": model.calibration_terminal_count,
-            "declaration_threshold_micros": (
-                model.declaration_threshold_micros
-            ),
-            "calibration_false_reduction_bps": (
-                model.calibration_false_reduction_bps
-            ),
-            "calibration_terminal_preservation_bps": (
-                model.calibration_terminal_preservation_bps
-            ),
+            **frozen_model_payload,
             "feature_count": len(model.feature_names),
-            "feature_names": list(model.feature_names),
-            "representation": "STRUCTURAL_FRONTIER_SURVIVAL_V1",
+            "fingerprint_sha256": frozen_model_fingerprint,
         },
         "evaluations": {
             partition: _evaluation_payload(evaluation)
