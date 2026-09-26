@@ -42,6 +42,8 @@ jobs:
             src/qore/infrastructure/cibo_cma_risk_request.py \
             src/qore/infrastructure/cibo_live_opportunity.py \
             src/qore/infrastructure/cibo_provider_economic_normalization.py \
+            src/qore/infrastructure/cibo_fundednext_provider.py \
+            src/qore/infrastructure/cibo_fundednext_seed.py \
             src/qore/infrastructure/cibo_cma_initial_seed.py \
             src/qore/infrastructure/cibo_cma_behavior_binding.py \
             src/qore/infrastructure/cibo_cma_shadow_floor.py \
@@ -80,6 +82,9 @@ jobs:
             tests/infrastructure/test_cibo_cma_risk_request.py \
             tests/infrastructure/test_cibo_live_opportunity.py \
             tests/infrastructure/test_cibo_provider_economic_normalization.py \
+            tests/infrastructure/test_cibo_fundednext_provider.py \
+            tests/infrastructure/test_cibo_fundednext_seed.py \
+            tests/infrastructure/test_cibo_fundednext_runtime_authority_switch.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py \
             tests/infrastructure/test_cibo_cma_initial_seed.py \
@@ -121,6 +126,8 @@ jobs:
             src/qore/infrastructure/ctrader_demo_vt08_sizing.py \
             scripts/qore_ctrader_demo_free_runtime.py \
             scripts/vt31_nas100_ctrader_demo_adapter.py \
+            scripts/qore_fundednext_runtime.py \
+            scripts/vt31_nas100_runtime_adapter.py \
             scripts/cibo_ce2i_sizing_reconstruction_report.py \
             scripts/cibo_cma_shadow_floor_report.py
 
@@ -141,6 +148,8 @@ jobs:
             src/qore/infrastructure/cibo_cma_risk_request.py \
             src/qore/infrastructure/cibo_live_opportunity.py \
             src/qore/infrastructure/cibo_provider_economic_normalization.py \
+            src/qore/infrastructure/cibo_fundednext_provider.py \
+            src/qore/infrastructure/cibo_fundednext_seed.py \
             src/qore/infrastructure/cibo_cma_initial_seed.py \
             src/qore/infrastructure/cibo_cma_behavior_binding.py \
             src/qore/infrastructure/cibo_cma_shadow_floor.py \
@@ -178,6 +187,9 @@ jobs:
             tests/infrastructure/test_cibo_cma_risk_request.py \
             tests/infrastructure/test_cibo_live_opportunity.py \
             tests/infrastructure/test_cibo_provider_economic_normalization.py \
+            tests/infrastructure/test_cibo_fundednext_provider.py \
+            tests/infrastructure/test_cibo_fundednext_seed.py \
+            tests/infrastructure/test_cibo_fundednext_runtime_authority_switch.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py \
             tests/infrastructure/test_cibo_cma_initial_seed.py \
@@ -222,6 +234,9 @@ jobs:
             tests/infrastructure/test_cibo_cma_risk_request.py \
             tests/infrastructure/test_cibo_live_opportunity.py \
             tests/infrastructure/test_cibo_provider_economic_normalization.py \
+            tests/infrastructure/test_cibo_fundednext_provider.py \
+            tests/infrastructure/test_cibo_fundednext_seed.py \
+            tests/infrastructure/test_cibo_fundednext_runtime_authority_switch.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py \
             tests/infrastructure/test_cibo_cma_initial_seed.py \
