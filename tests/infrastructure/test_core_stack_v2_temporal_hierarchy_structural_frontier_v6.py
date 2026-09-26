@@ -174,7 +174,7 @@ def _hierarchy_snapshot(
     m3: int,
     h1: int = 900,
     h4: int = 900,
-    daily: int = -100,
+    daily: int = 900,
 ) -> TemporalHierarchySnapshot:
     return TemporalHierarchySnapshot(
         episode_id=f"motif-{minute}",
@@ -191,12 +191,56 @@ def _hierarchy_snapshot(
     )
 
 
-def test_v6_hierarchy_motif_uses_one_fixed_target_v2_anchor() -> None:
-    # Source H1/H4/D1 mean is positive even though D1 alone is negative.
-    # V4's D1-priority coordinate would invert the interpretation. V6 must
-    # hold the Target-V2 positive source anchor fixed across the whole path.
+def test_v6_hierarchy_motif_honors_explicit_target_v2_anchor() -> None:
+    # H1/H4 dominate the mean positively while D1 alone is negative. Under the
+    # Target-V2 positive anchor, D1 is itself adverse (depth 7). Under the old
+    # D1-priority negative coordinate, H1/H4 are adverse instead (depth 6).
     trajectory = TemporalHierarchyTrajectory(
-        episode_id="fixed-anchor",
+        episode_id="explicit-anchor",
+        snapshots=(
+            _hierarchy_snapshot(
+                minute=0,
+                m1=300,
+                m3=300,
+                h1=900,
+                h4=900,
+                daily=-100,
+            ),
+            _hierarchy_snapshot(
+                minute=15,
+                m1=300,
+                m3=300,
+                h1=900,
+                h4=900,
+                daily=-100,
+            ),
+            _hierarchy_snapshot(
+                minute=30,
+                m1=300,
+                m3=300,
+                h1=900,
+                h4=900,
+                daily=-100,
+            ),
+        ),
+    )
+
+    target_v2 = structural_frontier_hierarchy_motif(
+        trajectory=trajectory,
+        anchor_direction=1,
+    )
+    d1_priority = structural_frontier_hierarchy_motif(
+        trajectory=trajectory,
+        anchor_direction=-1,
+    )
+
+    assert target_v2.depth_path == (7, 7, 7)
+    assert d1_priority.depth_path == (6, 6, 6)
+
+
+def test_v6_hierarchy_motif_tracks_recession_and_advance() -> None:
+    trajectory = TemporalHierarchyTrajectory(
+        episode_id="fixed-anchor-path",
         snapshots=(
             _hierarchy_snapshot(minute=0, m1=-700, m3=300),
             _hierarchy_snapshot(minute=15, m1=-700, m3=-600),
