@@ -38,6 +38,7 @@ class CmaCapitalObservationInput:
     broker_position_reconciled: bool
     protection_reconciled: bool
     mutation_outcome_unknown: bool
+    settlement_reconciled: bool = True
 
     def __post_init__(self) -> None:
         if type(self.trader_id) is not TraderLineage:
@@ -50,8 +51,14 @@ class CmaCapitalObservationInput:
             raise CmaCapitalObservationError("position_id must be int")
         if self.position_id <= 0:
             raise CmaCapitalObservationError("position_id must be positive")
-        for name in ("seed_deployed", "position_open", "broker_position_reconciled",
-                     "protection_reconciled", "mutation_outcome_unknown"):
+        for name in (
+            "seed_deployed",
+            "position_open",
+            "broker_position_reconciled",
+            "protection_reconciled",
+            "mutation_outcome_unknown",
+            "settlement_reconciled",
+        ):
             if type(getattr(self, name)) is not bool:
                 raise CmaCapitalObservationError(f"{name} must be bool")
         if not isinstance(self.realized_net_pnl_usd, Decimal):
@@ -162,6 +169,19 @@ def observe_capital_state(
 
 
 def _floor(evidence: CmaCapitalObservationInput) -> EconomicFloorResult:
+    if not evidence.settlement_reconciled:
+        return EconomicFloorResult(
+            trader_id=evidence.trader_id,
+            signal_fingerprint=evidence.signal_fingerprint,
+            evidence_sufficient=False,
+            realized_net_pnl_usd=None,
+            net_economic_floor_usd=None,
+            base_capital_at_risk_usd=None,
+            protected_open_floor_usd=None,
+            proven_self_financing_capacity_usd=None,
+            base_recovered=False,
+            reason="realized settlement state not reconciled",
+        )
     if evidence.position_open and evidence.remaining_stop_worst_case_pnl_usd is None:
         return EconomicFloorResult(
             trader_id=evidence.trader_id,
