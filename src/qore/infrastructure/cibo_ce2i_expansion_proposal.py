@@ -18,11 +18,13 @@ from decimal import Decimal
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalAction,
+    CapitalCapacityDimension,
     CapitalSource,
     CiboCapitalActionPlan,
     CiboCapitalManagementError,
     CiboCapitalState,
     TraderOpportunityEnvelope,
+    capital_source_dimension,
     plan_self_financing_expansion,
 )
 from qore.infrastructure.cibo_capital_source_ledger import (
@@ -115,7 +117,11 @@ def reserve_expansion_proposal(
 
     version = ledger_store.load()
     account = _source_account(version, source_id)
-    if account.source not in _ELIGIBLE_EXPANSION_SOURCES:
+    if (
+        account.source not in _ELIGIBLE_EXPANSION_SOURCES
+        or capital_source_dimension(account.source)
+        is not CapitalCapacityDimension.ECONOMIC_PROFIT_CAPITAL
+    ):
         raise CiboCapitalManagementError(
             "ledger source is not eligible for self-financing expansion"
         )
