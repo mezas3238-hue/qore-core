@@ -14,6 +14,7 @@ from qore.infrastructure.trader_lab import (
     capitalizer_factor_journey_probe_ranker_v11 as lab,
 )
 
+
 def test_exposure_graph_preserves_fx_leg_direction() -> None:
     long_eurusd = lab._factor_map(symbol="EURUSD", side="LONG")
     long_gbpusd = lab._factor_map(symbol="GBPUSD", side="LONG")
