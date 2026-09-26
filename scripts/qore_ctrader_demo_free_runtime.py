@@ -583,13 +583,22 @@ def _process_candidate(
     if cibo.decision is not Vt08ForexCiboDecision.ALLOW:
         _log(log_path, {"event": "CIBO_DENY", "symbol": candidate.symbol, "reason": cibo.reason})
         return
-    spec = gateway.read_symbol(candidate.symbol, now=datetime.now(UTC))
-    request = build_ctrader_demo_vt08_cibo_request(
-        request_id=f"vt08-{setup.signal_fingerprint[:24]}",
+    request_at = datetime.now(UTC)
+    spec = gateway.read_symbol(candidate.symbol, now=request_at)
+    account = gateway.read_account(now=request_at)
+    opportunity = build_ctrader_demo_vt08_opportunity(
         cibo_authorization=cibo,
         provider_spec=spec,
-        account_equity=demo_capital,
     )
+    seed = build_initial_seed_request(
+        request_id=f"vt08-{setup.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        assigned_capital_usd=demo_capital,
+        observed_free_margin_usd=account.free_margin,
+        requested_at=request_at,
+        expires_at=setup.expires_at,
+    )
+    request = seed.request
     demo_result = submit_demo_request(request)
     _log(
         log_path,
@@ -623,14 +632,20 @@ def _process_r34_candidate(
     preflight_snapshot: AccountRiskSnapshot | None = None,
     preflight_spec: CTraderDemoSymbolSpecification | None = None,
 ) -> None:
-    spec = gateway.read_symbol("XAUUSD", now=datetime.now(UTC))
-    request, base_risk_usd = build_r34_risk_request(
+    request_at = datetime.now(UTC)
+    spec = gateway.read_symbol("XAUUSD", now=request_at)
+    account = gateway.read_account(now=request_at)
+    opportunity = build_r34_opportunity(signal=signal, provider_spec=spec)
+    seed = build_initial_seed_request(
         request_id=f"r34-{signal.signal_fingerprint[:24]}",
-        signal=signal,
-        provider_spec=spec,
-        account_equity=demo_capital_for(TraderLineage.R34_XAUUSD),
-        now=datetime.now(UTC),
+        opportunity=opportunity,
+        assigned_capital_usd=demo_capital_for(TraderLineage.R34_XAUUSD),
+        observed_free_margin_usd=account.free_margin,
+        requested_at=request_at,
+        expires_at=request_at + timedelta(seconds=30),
     )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
     demo_result = submit_demo_request(request)
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         r34_store.mark_open(
@@ -670,14 +685,20 @@ def _process_r38_candidate(
     preflight_snapshot: AccountRiskSnapshot | None = None,
     preflight_spec: CTraderDemoSymbolSpecification | None = None,
 ) -> None:
-    spec = gateway.read_symbol("EURUSD", now=datetime.now(UTC))
-    request, base_risk_usd = build_r38_risk_request(
+    request_at = datetime.now(UTC)
+    spec = gateway.read_symbol("EURUSD", now=request_at)
+    account = gateway.read_account(now=request_at)
+    opportunity = build_r38_opportunity(signal=signal, provider_spec=spec)
+    seed = build_initial_seed_request(
         request_id=f"r38-{signal.signal_fingerprint[:24]}",
-        signal=signal,
-        provider_spec=spec,
-        account_equity=demo_capital_for(TraderLineage.R38_EURUSD),
-        now=datetime.now(UTC),
+        opportunity=opportunity,
+        assigned_capital_usd=demo_capital_for(TraderLineage.R38_EURUSD),
+        observed_free_margin_usd=account.free_margin,
+        requested_at=request_at,
+        expires_at=request_at + timedelta(seconds=30),
     )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
     demo_result = submit_demo_request(request)
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         r38_store.mark_open(
@@ -717,14 +738,20 @@ def _process_r43_candidate(
     preflight_snapshot: AccountRiskSnapshot | None = None,
     preflight_spec: CTraderDemoSymbolSpecification | None = None,
 ) -> None:
-    spec = gateway.read_symbol("GBPUSD", now=datetime.now(UTC))
-    request, base_risk_usd = build_r43_risk_request(
+    request_at = datetime.now(UTC)
+    spec = gateway.read_symbol("GBPUSD", now=request_at)
+    account = gateway.read_account(now=request_at)
+    opportunity = build_r43_opportunity(signal=signal, provider_spec=spec)
+    seed = build_initial_seed_request(
         request_id=f"r43-{signal.signal_fingerprint[:24]}",
-        signal=signal,
-        provider_spec=spec,
-        account_equity=demo_capital_for(TraderLineage.R43_GBPUSD),
-        now=datetime.now(UTC),
+        opportunity=opportunity,
+        assigned_capital_usd=demo_capital_for(TraderLineage.R43_GBPUSD),
+        observed_free_margin_usd=account.free_margin,
+        requested_at=request_at,
+        expires_at=request_at + timedelta(seconds=30),
     )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
     demo_result = submit_demo_request(request)
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         r43_store.mark_open(
@@ -764,14 +791,20 @@ def _process_gbpjpy_r38_candidate(
     preflight_snapshot: AccountRiskSnapshot | None = None,
     preflight_spec: CTraderDemoSymbolSpecification | None = None,
 ) -> None:
-    spec = gateway.read_symbol("GBPJPY", now=datetime.now(UTC))
-    request, base_risk_usd = build_r38_gbpjpy_risk_request(
+    request_at = datetime.now(UTC)
+    spec = gateway.read_symbol("GBPJPY", now=request_at)
+    account = gateway.read_account(now=request_at)
+    opportunity = build_r38_gbpjpy_opportunity(signal=signal, provider_spec=spec)
+    seed = build_initial_seed_request(
         request_id=f"gbpjpy-r38-{signal.signal_fingerprint[:24]}",
-        signal=signal,
-        provider_spec=spec,
-        account_equity=demo_capital_for(TraderLineage.R38_GBPJPY),
-        now=datetime.now(UTC),
+        opportunity=opportunity,
+        assigned_capital_usd=demo_capital_for(TraderLineage.R38_GBPJPY),
+        observed_free_margin_usd=account.free_margin,
+        requested_at=request_at,
+        expires_at=request_at + timedelta(seconds=30),
     )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
     demo_result = submit_demo_request(request)
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         gbpjpy_r38_store.mark_open(
@@ -841,13 +874,22 @@ def _process_audjpy_r42_candidate(
     request_at = stage_time("before-risk-request")
     if request_at is None:
         return
-    request, base_risk_usd = build_r42_audjpy_risk_request(
-        request_id=f"audjpy-r42-{signal.signal_fingerprint[:24]}",
+    account = gateway.read_account(now=request_at)
+    opportunity = build_r42_audjpy_opportunity(
         signal=signal,
         provider_spec=spec,
-        account_equity=demo_capital_for(TraderLineage.R42_AUDJPY),
         now=request_at,
     )
+    seed = build_initial_seed_request(
+        request_id=f"audjpy-r42-{signal.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        assigned_capital_usd=demo_capital_for(TraderLineage.R42_AUDJPY),
+        observed_free_margin_usd=account.free_margin,
+        requested_at=request_at,
+        expires_at=deadline,
+    )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
 
     demo_result = submit_demo_request(request)
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
