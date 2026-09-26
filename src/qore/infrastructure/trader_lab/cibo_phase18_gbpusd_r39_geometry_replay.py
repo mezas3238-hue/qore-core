@@ -120,7 +120,9 @@ def _load_freeze(root: Path) -> dict[str, Any]:
         "ecbdb5953730ab6e6f704c335639a5cd"
     ):
         raise ValueError("R37 source digest drift")
-    if source["git_sha"] != "75b70f877794f018a41e02f91626262079bbf15d":
+    if source["git_sha"] != (
+        "75b70f877794f018a41e02f91626262079bbf15d"
+    ):
         raise ValueError("R37 source git drift")
     contract = manifest["frozen_contract"]
     if contract["family_set"] != FAMILY_SET:
