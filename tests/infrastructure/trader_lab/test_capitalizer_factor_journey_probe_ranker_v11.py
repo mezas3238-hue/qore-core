@@ -4,17 +4,15 @@ from dataclasses import replace
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab import (
-    capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
-)
-from qore.infrastructure.trader_lab import capitalizer_exposure_graph as exposure
-
-from qore.infrastructure.trader_lab import (
     capitalizer_causal_probe_ranker_v10 as v10,
 )
 from qore.infrastructure.trader_lab import (
+    capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
+)
+from qore.infrastructure.trader_lab import capitalizer_exposure_graph as exposure
+from qore.infrastructure.trader_lab import (
     capitalizer_factor_journey_probe_ranker_v11 as lab,
 )
-
 
 def test_exposure_graph_preserves_fx_leg_direction() -> None:
     long_eurusd = lab._factor_map(symbol="EURUSD", side="LONG")
