@@ -4,6 +4,12 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab import (
+    capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
+)
+from qore.infrastructure.trader_lab import (
+    capitalizer_intratrade_hypothesis_invalidation_v18 as v18,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_structural_intratrade_invalidation_v19 as lab,
 )
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
@@ -11,8 +17,8 @@ from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
 )
 
 
-def _trade() -> lab.milestone.SimulatedTrade:
-    return lab.milestone.SimulatedTrade(
+def _trade() -> milestone.SimulatedTrade:
+    return milestone.SimulatedTrade(
         symbol="EURUSD",
         session="LONDON",
         operating_date="2026-01-05",
@@ -101,8 +107,8 @@ def test_structural_trigger_requires_acceptance_extension_and_failed_reclaim() -
         _bar(3, open_="99.60", high="99.72", low="99.40", close="99.50"),
         _bar(4, open_="99.50", high="99.60", low="99.30", close="99.40"),
     )
-    first = ()
-    second = ()
+    first: tuple[v18.TriggerEvent, ...] = ()
+    second: tuple[v18.TriggerEvent, ...] = ()
     for index, bar in enumerate(bars):
         events = lab._process_bar(state, bar)
         if index == 3:
