@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 import json
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
