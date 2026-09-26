@@ -12,7 +12,6 @@ from qore.infrastructure.core_stack_v2.representation_discovery_engine import (
     project_representation,
 )
 
-
 BASE = datetime(2026, 9, 26, 12, 0, tzinfo=UTC)
 
 
