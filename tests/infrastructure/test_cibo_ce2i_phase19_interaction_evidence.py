@@ -19,6 +19,9 @@ from qore.infrastructure.cibo_ce2i_phase19_interaction_evidence import (
 )
 
 
+DECISION_AS_OF = datetime(2026, 9, 26, 18, 0, tzinfo=UTC)
+
+
 PAIR_COUNTS = (
     (TraderLineage.R34_XAUUSD, TraderLineage.R38_EURUSD, 15),
     (TraderLineage.R34_XAUUSD, TraderLineage.R38_GBPJPY, 16),
@@ -109,6 +112,7 @@ def test_phase19_projection_adds_observational_temporal_edges_only() -> None:
             _candidate("xauusd", TraderLineage.R34_XAUUSD),
         ),
         atlas=_atlas(),
+        decision_as_of=DECISION_AS_OF,
     )
 
     by_pair = {
@@ -130,6 +134,7 @@ def test_phase19_zero_historical_pair_creates_no_temporal_edge() -> None:
             _candidate("nas100", TraderLineage.VT31_NAS100),
         ),
         atlas=_atlas(),
+        decision_as_of=DECISION_AS_OF,
     )
 
     assert evidence == ()
@@ -157,6 +162,19 @@ def test_phase19_atlas_fails_closed_on_pair_population_or_total_drift() -> None:
         )
 
 
+def test_phase19_projection_rejects_noncausal_atlas_age() -> None:
+    atlas = _atlas()
+    with pytest.raises(CiboCapitalManagementError, match="predate"):
+        project_phase19_temporal_overlap_evidence(
+            candidates=(
+                _candidate("eurusd", TraderLineage.R38_EURUSD),
+                _candidate("nas100", TraderLineage.VT31_NAS100),
+            ),
+            atlas=atlas,
+            decision_as_of=atlas.common_window_end,
+        )
+
+
 def test_phase19_projection_rejects_unsupported_or_duplicate_candidates() -> None:
     atlas = _atlas()
     duplicate = _candidate("dup", TraderLineage.R38_EURUSD)
@@ -165,6 +183,7 @@ def test_phase19_projection_rejects_unsupported_or_duplicate_candidates() -> Non
         project_phase19_temporal_overlap_evidence(
             candidates=(duplicate, duplicate),
             atlas=atlas,
+            decision_as_of=DECISION_AS_OF,
         )
 
     with pytest.raises(CiboCapitalManagementError, match="outside CMA portfolio"):
@@ -173,4 +192,5 @@ def test_phase19_projection_rejects_unsupported_or_duplicate_candidates() -> Non
                 _candidate("index", TraderLineage.VT08_INDEX),
             ),
             atlas=atlas,
+            decision_as_of=DECISION_AS_OF,
         )
