@@ -279,6 +279,123 @@ jobs:
               json.dumps(report, indent=2, sort_keys=True) + '\n'
           )
           PY
+      - name: Validate generic Phase 18 scorer against R38
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from decimal import Decimal
+          from pathlib import Path
+
+          from qore.infrastructure.account_wide_risk import TraderLineage
+          from qore.infrastructure.cibo_ce2i_chronological_replay import (
+              CiboChronologicalReplayTrade,
+              CiboReplayCausalTrade,
+              CiboReplayOutcome,
+              ReplayEconomicsStatus,
+              ReplaySignalFingerprintOrigin,
+              reconstructed_signal_fingerprint,
+              score_legacy_replay,
+          )
+
+          rows = [
+              json.loads(line)
+              for line in Path(
+                  'phase18-output/phase18-gbpjpy-r38-bound-trades.jsonl'
+              ).read_text().splitlines()
+              if line.strip()
+          ]
+          evidence_ids = (
+              'github-actions:raw:10475453293',
+              'github-actions:r37:10558603038',
+              'github-actions:r38:10559826734',
+          )
+          trades = []
+          for row in rows:
+              signal_at = datetime.fromisoformat(row['signal_at'])
+              entry_at = datetime.fromisoformat(row['entry_at'])
+              exit_at = datetime.fromisoformat(row['exit_at'])
+              entry = Decimal(row['entry_price'])
+              stop = Decimal(row['structural_stop'])
+              target = Decimal(row['technical_target'])
+              side = row['side']
+              fingerprint = reconstructed_signal_fingerprint(
+                  trader_id=TraderLineage.R38_GBPJPY,
+                  qore_symbol='GBPJPY',
+                  side=side,
+                  signal_at=signal_at,
+                  entry_at=entry_at,
+                  entry_price=entry,
+                  structural_stop=stop,
+                  technical_target=target,
+                  source_evidence_ids=evidence_ids,
+              )
+              causal = CiboReplayCausalTrade(
+                  trader_id=TraderLineage.R38_GBPJPY,
+                  signal_fingerprint=fingerprint,
+                  signal_fingerprint_origin=(
+                      ReplaySignalFingerprintOrigin.PHASE18_RECONSTRUCTED
+                  ),
+                  qore_symbol='GBPJPY',
+                  side=side,
+                  signal_at=signal_at,
+                  entry_at=entry_at,
+                  entry_price=entry,
+                  structural_stop=stop,
+                  technical_target=target,
+                  legacy_risk_scale=Decimal(
+                      row['legacy_r38_final_risk_scale']
+                  ),
+                  minimum_execution_steps=1,
+                  pre_trade_state=(),
+                  source_evidence_ids=evidence_ids,
+                  economics_status=ReplayEconomicsStatus.R_DENOMINATED_ONLY,
+              )
+              outcome = CiboReplayOutcome(
+                  exit_at=exit_at,
+                  raw_outcome_r=Decimal(row['raw_net_010_r']),
+                  net_outcome_r=Decimal(row['raw_net_010_r']),
+                  exit_reason=row['exit_reason'],
+              )
+              trades.append(
+                  CiboChronologicalReplayTrade(
+                      causal=causal,
+                      outcome=outcome,
+                      legacy_net_outcome_r=Decimal(
+                          row['legacy_r38_corrected_scaled_net_010_r']
+                      ),
+                  )
+              )
+
+          metrics = score_legacy_replay(tuple(trades))
+          assert metrics.trades == 897
+          assert metrics.profit_factor == Decimal(
+              '1.852918712035185462516517131'
+          )
+          assert metrics.total_r == Decimal(
+              '92.83988286566161467727272231'
+          )
+          assert metrics.max_drawdown_r == Decimal(
+              '5.06150896610739539086014902'
+          )
+          assert metrics.max_loss_streak == 7
+
+          report = {
+              'schema': 'qore.cibo.phase18.generic_legacy_score.v1',
+              'trader_id': TraderLineage.R38_GBPJPY.value,
+              'trades': metrics.trades,
+              'profit_factor': str(metrics.profit_factor),
+              'total_r': str(metrics.total_r),
+              'max_drawdown_r': str(metrics.max_drawdown_r),
+              'max_loss_streak': metrics.max_loss_streak,
+              'stop_count': metrics.stop_count,
+              'provider_economics_status': 'R_DENOMINATED_ONLY',
+              'usd_cibo_sizing_comparison_authorized': False,
+          }
+          Path(
+              'phase18-output/phase18-gbpjpy-r38-generic-score.json'
+          ).write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+          PY
       - name: Hash Phase 18 evidence
         run: |
           printf '%s\n' "$EVIDENCE_SHA" > phase18-output/git-sha.txt
@@ -288,6 +405,7 @@ jobs:
             phase18-gbpjpy-r37-geometry-trades.jsonl \
             phase18-gbpjpy-r38-bound-report.json \
             phase18-gbpjpy-r38-bound-trades.jsonl \
+            phase18-gbpjpy-r38-generic-score.json \
             replay-stdout.json \
             git-sha.txt > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
