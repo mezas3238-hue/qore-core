@@ -26,4 +26,4 @@ def test_shared_brain_architecture_requires_falsifiable_world_model() -> None:
     assert contract["reasoning_law"]["multiple_competing_hypotheses_required"] is True
     assert contract["reasoning_law"]["hypothesis_falsification_required"] is True
     assert contract["metacognition_law"]["epistemic_uncertainty_required"] is True
-    assert contract["scientific_discovery_law"]["holdout_required_before_knowledge_promotion"] is True
+    assert (\n        contract["scientific_discovery_law"][\n            "holdout_required_before_knowledge_promotion"\n        ]\n        is True\n    )
