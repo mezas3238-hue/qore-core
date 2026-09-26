@@ -100,7 +100,12 @@ def _single(root: Path, name: str) -> Path:
 
 
 def _load_freeze(root: Path) -> dict[str, Any]:
-    manifest = cast(dict[str, Any], json.loads(_single(root, "r38-candidate-freeze-manifest.json").read_text()))
+    manifest = cast(
+        dict[str, Any],
+        json.loads(
+            _single(root, "r38-candidate-freeze-manifest.json").read_text()
+        ),
+    )
     if manifest["identity"] != CANDIDATE_IDENTITY:
         raise ValueError("candidate identity drift")
     if manifest["status"] != "FROZEN_FOR_5Y_VALIDATION":
@@ -110,7 +115,10 @@ def _load_freeze(root: Path) -> dict[str, Any]:
         raise ValueError("R37 source run drift")
     if source["artifact_id"] != 10550221115:
         raise ValueError("R37 source artifact drift")
-    if source["artifact_digest"] != "sha256:544471a071b772e395d3ec9c4b54fa0aecbdb5953730ab6e6f704c335639a5cd":
+    if source["artifact_digest"] != (
+        "sha256:544471a071b772e395d3ec9c4b54fa0a"
+        "ecbdb5953730ab6e6f704c335639a5cd"
+    ):
         raise ValueError("R37 source digest drift")
     if source["git_sha"] != "75b70f877794f018a41e02f91626262079bbf15d":
         raise ValueError("R37 source git drift")
