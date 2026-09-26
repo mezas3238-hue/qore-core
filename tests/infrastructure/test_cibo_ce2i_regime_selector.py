@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
+    CiboCapitalMissionPolicy,
     derive_cibo_capital_mission,
     fundednext_stellar_instant_identity,
 )
@@ -18,7 +19,7 @@ from qore.infrastructure.cibo_ce2i_regime_selector import (
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
 
-def _demo():
+def _demo() -> CiboCapitalMissionPolicy:
     return derive_cibo_capital_mission(
         CiboAccountCapitalIdentity(
             provider_key="ctrader-demo",
@@ -28,7 +29,7 @@ def _demo():
     )
 
 
-def _funded():
+def _funded() -> CiboCapitalMissionPolicy:
     return derive_cibo_capital_mission(
         fundednext_stellar_instant_identity(
             account_ref="stellar-instant-2k"
