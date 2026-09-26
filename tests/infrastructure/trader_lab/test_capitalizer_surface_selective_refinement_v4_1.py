@@ -3,10 +3,10 @@ from __future__ import annotations
 from dataclasses import replace
 from decimal import Decimal
 
+from qore.infrastructure.trader_lab import capitalizer_native_market_context_v1 as context
 from qore.infrastructure.trader_lab import (
     capitalizer_surface_selective_refinement_v4_1 as lab,
 )
-from qore.infrastructure.trader_lab import capitalizer_native_market_context_v1 as context
 
 
 def _ctx() -> context.NativeContextRow:
