@@ -8,10 +8,10 @@ and are explicitly marked PARTIAL instead of being silently completed.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
-from collections.abc import Mapping
 
 
 class SizingReconstructionError(ValueError):
