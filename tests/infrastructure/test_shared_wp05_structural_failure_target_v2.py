@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 
 import pytest
 
 
 def _load_target_module():
+    scripts_dir = str(Path("scripts").resolve())
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
     path = Path("scripts/shared_wp05_structural_failure_target_v2.py")
     spec = importlib.util.spec_from_file_location("shared_wp05_target_v2_test", path)
     if spec is None or spec.loader is None:
