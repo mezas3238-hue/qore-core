@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -16,7 +17,10 @@ from qore.infrastructure.cibo_cma_capital_observation import CmaCapitalObservati
 from qore.infrastructure.cibo_ce2i_execution_efficiency import (
     ExecutionCostCurveInput,
 )
-from qore.infrastructure.cibo_ce2i_policy_pipeline import propose_ce2i_expansion
+from qore.infrastructure.cibo_ce2i_policy_pipeline import (
+    Ce2iExpansionPolicyDecision,
+    propose_ce2i_expansion,
+)
 
 
 NOW = datetime(2026, 9, 26, 12, 0, tzinfo=UTC)
@@ -111,7 +115,7 @@ def _propose(
     curve: ExecutionCostCurveInput | None = None,
     realized_amount: str = "20",
     protected_amount: str = "20",
-):
+) -> tuple[DurableCapitalSourceLedgerStore, Ce2iExpansionPolicyDecision]:
     store = _store(
         tmp_path,
         realized_amount=realized_amount,
