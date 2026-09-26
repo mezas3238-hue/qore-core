@@ -15,7 +15,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: qore-capitalizer-hypothesis-survival-model-v21-${{ github.event.pull_request.head.sha || github.sha }}
+  group: qore-capitalizer-hypothesis-survival-model-v21-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
