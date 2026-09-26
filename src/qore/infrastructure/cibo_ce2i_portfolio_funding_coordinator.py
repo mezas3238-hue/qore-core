@@ -41,15 +41,15 @@ from qore.infrastructure.cibo_ce2i_policy_pipeline import (
     Ce2iExpansionPolicyDecision,
     propose_ce2i_expansion,
 )
-from qore.infrastructure.cibo_ce2i_regime_selector import (
-    CiboRegimeToolSelection,
-)
 from qore.infrastructure.cibo_ce2i_portfolio_allocation_store import (
     DurablePortfolioAllocationStore,
 )
 from qore.infrastructure.cibo_ce2i_portfolio_funding_saga import (
     DurablePortfolioFundingSagaStore,
     PortfolioFundingSagaState,
+)
+from qore.infrastructure.cibo_ce2i_regime_selector import (
+    CiboRegimeToolSelection,
 )
 from qore.infrastructure.cibo_cma_capital_observation import CmaCapitalObservation
 
