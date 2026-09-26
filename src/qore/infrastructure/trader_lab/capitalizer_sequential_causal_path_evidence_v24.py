@@ -770,13 +770,17 @@ def write_report(
     with (
         output / "capitalizer-sequential-causal-path-evidence-v24-decisions.jsonl"
     ).open("w", encoding="utf-8") as handle:
-        for row in sequential_audits:
-            handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+        for sequential_row in sequential_audits:
+            handle.write(
+                json.dumps(asdict(sequential_row), sort_keys=True) + "\n"
+            )
     with (
         output / "capitalizer-sequential-causal-path-evidence-v24-economics.jsonl"
     ).open("w", encoding="utf-8") as handle:
-        for row in economic_audits:
-            handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+        for economic_row in economic_audits:
+            handle.write(
+                json.dumps(asdict(economic_row), sort_keys=True) + "\n"
+            )
 
 
 def main() -> None:
