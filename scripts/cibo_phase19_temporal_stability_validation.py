@@ -35,6 +35,14 @@ from qore.infrastructure.cibo_ce2i_phase19_temporal_stability import (
 
 TRAINING_FRACTION_NUMERATOR = 3
 TRAINING_FRACTION_DENOMINATOR = 5
+EXPECTED_SPLIT_AT = "2022-03-09T17:00:00+00:00"
+EXPECTED_TRAINING_OPPORTUNITIES = 523
+EXPECTED_VALIDATION_OPPORTUNITIES = 332
+EXPECTED_BOUNDARY_CROSSING_EXCLUDED = 0
+EXPECTED_TRAINING_CROSS_TRADER_OVERLAPS = 155
+EXPECTED_VALIDATION_CROSS_TRADER_OVERLAPS = 95
+EXPECTED_TOTAL_VARIATION_DISTANCE = "0.2258064516129032258064516130"
+EXPECTED_WEIGHTED_JACCARD_SIMILARITY = "0.6315789473684210526315789475"
 
 
 def run_validation(
@@ -110,6 +118,34 @@ def run_validation(
         raise ValueError(
             "Phase 19 temporal stability lacks full seven-Trader segment coverage"
         )
+    if split_at.isoformat() != EXPECTED_SPLIT_AT:
+        raise ValueError("Phase 19 temporal stability split drift")
+    if evidence.training_opportunities != EXPECTED_TRAINING_OPPORTUNITIES:
+        raise ValueError("Phase 19 training opportunity-count drift")
+    if evidence.validation_opportunities != EXPECTED_VALIDATION_OPPORTUNITIES:
+        raise ValueError("Phase 19 validation opportunity-count drift")
+    if (
+        evidence.boundary_crossing_opportunities_excluded
+        != EXPECTED_BOUNDARY_CROSSING_EXCLUDED
+    ):
+        raise ValueError("Phase 19 split-boundary exclusion drift")
+    if (
+        evidence.training_cross_trader_overlap_pairs
+        != EXPECTED_TRAINING_CROSS_TRADER_OVERLAPS
+    ):
+        raise ValueError("Phase 19 training overlap-count drift")
+    if (
+        evidence.validation_cross_trader_overlap_pairs
+        != EXPECTED_VALIDATION_CROSS_TRADER_OVERLAPS
+    ):
+        raise ValueError("Phase 19 validation overlap-count drift")
+    if str(evidence.total_variation_distance) != EXPECTED_TOTAL_VARIATION_DISTANCE:
+        raise ValueError("Phase 19 total-variation drift")
+    if (
+        str(evidence.weighted_jaccard_similarity)
+        != EXPECTED_WEIGHTED_JACCARD_SIMILARITY
+    ):
+        raise ValueError("Phase 19 weighted-Jaccard drift")
 
     report: dict[str, Any] = {
         "schema": "qore.cibo.phase19.temporal_stability_validation.v1",
