@@ -123,7 +123,7 @@ def _should_abstain(
     return decision, (percentiles[0], percentiles[1]), means, support
 
 
-def _simulate(
+def _simulate_bound(
     *,
     period: str,
     policy: str,
@@ -230,6 +230,66 @@ def _simulate(
     }, tuple(decisions)
 
 
+
+def _simulate(
+    *,
+    period: str,
+    policy: str,
+    ledgers: dict[str, tuple[milestone.SimulatedTrade, ...]],
+    contexts: dict[tuple[str, str], Any],
+    contextual_model: dict[str, Any],
+    models: tuple[v10.PeriodModel, v10.PeriodModel] | None,
+) -> tuple[dict[str, Any], tuple[AbstainDecision, ...]]:
+    """Run one period with V11 simultaneous competition actually bound."""
+
+    previous = dict(v11._SIMULTANEOUS)
+    try:
+        v11._SIMULTANEOUS.clear()
+        v11._SIMULTANEOUS.update(
+            v11._simultaneous_map(period=period, ledgers=ledgers)
+        )
+        return _simulate_bound(
+            period=period,
+            policy=policy,
+            ledgers=ledgers,
+            contexts=contexts,
+            contextual_model=contextual_model,
+            models=models,
+        )
+    finally:
+        v11._SIMULTANEOUS.clear()
+        v11._SIMULTANEOUS.update(previous)
+
+
+def _surface_examples(
+    *,
+    period: str,
+    ledgers: dict[str, tuple[milestone.SimulatedTrade, ...]],
+    contexts: dict[tuple[str, str], Any],
+    contextual_model: dict[str, Any],
+) -> tuple[v10.ProbePoint, ...]:
+    """Fit V12 labels with the exact same V11 concurrent-state binding."""
+
+    original_pretrade = v10._pretrade
+    previous = dict(v11._SIMULTANEOUS)
+    try:
+        v11._SIMULTANEOUS.clear()
+        v11._SIMULTANEOUS.update(
+            v11._simultaneous_map(period=period, ledgers=ledgers)
+        )
+        v10._pretrade = v11._pretrade
+        return v10._surface_examples(
+            period=period,
+            ledgers=ledgers,
+            contexts=contexts,
+            contextual_model=contextual_model,
+        )
+    finally:
+        v10._pretrade = original_pretrade
+        v11._SIMULTANEOUS.clear()
+        v11._SIMULTANEOUS.update(previous)
+
+
 def _load_windows(
     development_root: Path,
     validation_root: Path,
@@ -300,20 +360,15 @@ def build_report(
         development_validation_context_root,
         reserved_context_root,
     )
-    original_pretrade = v10._pretrade
-    try:
-        v10._pretrade = v11._pretrade
-        examples = {
-            period: v10._surface_examples(
-                period=period,
-                ledgers=ledgers,
-                contexts=contexts,
-                contextual_model=contextual_model,
-            )
-            for period, (ledgers, contexts) in windows.items()
-        }
-    finally:
-        v10._pretrade = original_pretrade
+    examples = {
+        period: _surface_examples(
+            period=period,
+            ledgers=ledgers,
+            contexts=contexts,
+            contextual_model=contextual_model,
+        )
+        for period, (ledgers, contexts) in windows.items()
+    }
     models = {
         period: v10._fit_period(points, period=period)
         for period, points in examples.items()
@@ -407,6 +462,13 @@ def build_report(
         "current_outcome_visible_to_decision": False,
         "heldout_outcomes_visible_to_models": False,
         "abstention_only_when_both_training_lower_tails_negative": True,
+        "exact_timestamp_competition_bound": True,
+        "simultaneous_peer_outcomes_visible_to_features": False,
+        "competition_selects_winner": False,
+        "simultaneous_cluster_count": sum(
+            len(v11._simultaneous_map(period=period, ledgers=ledgers))
+            for period, (ledgers, _contexts) in windows.items()
+        ),
         "target_r": "2.00",
         "max3_ceiling_preserved": True,
         "automatic_policy_promotion": False,
