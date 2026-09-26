@@ -9,9 +9,13 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
     TraderOpportunityEnvelope,
 )
+from qore.infrastructure.cibo_fundednext_provider import (
+    FundedNextCiboSymbolSpecification,
+)
 from qore.infrastructure.cibo_provider_economic_normalization import (
     ProviderEconomicObservation,
     ctrader_demo_economic_observation,
+    fundednext_economic_observation,
     evaluate_minimum_seed_feasibility,
     normalize_provider_economics,
 )
@@ -226,4 +230,42 @@ def test_ctrader_adapter_preserves_native_economic_facts() -> None:
 
     assert observation.contract_size == Decimal("100000")
     assert observation.commission_per_volume_usd == Decimal("3")
+    assert observation.slippage_reserve_per_volume_usd == Decimal("1")
+
+
+
+def test_fundednext_adapter_uses_same_common_economic_contract() -> None:
+    spec = FundedNextCiboSymbolSpecification(
+        provider_symbol="EURUSD",
+        bid=Decimal("1.1000"),
+        ask=Decimal("1.1002"),
+        spread_points=Decimal("2"),
+        digits=5,
+        point=Decimal("0.0001"),
+        contract_size=Decimal("100000"),
+        tick_size=Decimal("0.0001"),
+        tick_value=Decimal("10"),
+        minimum_volume=Decimal("0.01"),
+        maximum_volume=Decimal("100"),
+        volume_step=Decimal("0.01"),
+        minimum_stop_distance_points=Decimal("0"),
+        freeze_level_points=Decimal("0"),
+        margin_per_volume=Decimal("1000"),
+        trade_enabled=True,
+        session_open=True,
+        observed_at=NOW,
+        open_commission_per_lot_usd=Decimal("7"),
+    )
+
+    observation = fundednext_economic_observation(
+        qore_symbol="EURUSD",
+        provider_key="fundednext",
+        spec=spec,
+        slippage_reserve_per_volume_usd=Decimal("1"),
+    )
+
+    assert isinstance(observation, ProviderEconomicObservation)
+    assert observation.provider_key == "fundednext"
+    assert observation.contract_size == Decimal("100000")
+    assert observation.commission_per_volume_usd == Decimal("7")
     assert observation.slippage_reserve_per_volume_usd == Decimal("1")
