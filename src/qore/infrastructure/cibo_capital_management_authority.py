@@ -208,13 +208,25 @@ def plan_minimal_seed(
 
     volume = minimum_seed_volume(opportunity)
     if volume > opportunity.maximum_volume:
-        return _hold(opportunity, CapitalStage.MINIMAL_SEED, "minimum seed exceeds provider maximum")
+        return _hold(
+            opportunity,
+            CapitalStage.MINIMAL_SEED,
+            "minimum seed exceeds provider maximum",
+        )
     risk = volume * opportunity.stop_loss_per_volume
     margin = volume * opportunity.margin_per_volume
     if risk > capital.hard_risk_headroom_usd:
-        return _hold(opportunity, CapitalStage.MINIMAL_SEED, "minimum seed exceeds hard risk headroom")
+        return _hold(
+            opportunity,
+            CapitalStage.MINIMAL_SEED,
+            "minimum seed exceeds hard risk headroom",
+        )
     if margin > capital.margin_headroom_usd:
-        return _hold(opportunity, CapitalStage.MINIMAL_SEED, "minimum seed exceeds margin headroom")
+        return _hold(
+            opportunity,
+            CapitalStage.MINIMAL_SEED,
+            "minimum seed exceeds margin headroom",
+        )
     return CiboCapitalActionPlan(
         trader_id=opportunity.trader_id,
         qore_symbol=opportunity.qore_symbol,
