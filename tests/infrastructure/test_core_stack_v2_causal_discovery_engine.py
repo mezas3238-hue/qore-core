@@ -130,6 +130,49 @@ def test_confounder_created_association_cannot_be_called_causal() -> None:
     assert "OBSERVATIONAL_ASSOCIATION_NOT_CAUSAL" in assessment.reasons
 
 
+def test_neutral_strata_count_against_causal_stability() -> None:
+    rows: list[CausalDiscoveryEpisode] = []
+    for confounder, exposed_target, control_target in (
+        ("A", 8_000, 2_000),
+        ("B", 5_000, 5_000),
+        ("C", 5_000, 5_000),
+        ("D", 5_000, 5_000),
+    ):
+        for _ in range(2):
+            rows.append(
+                _episode(
+                    exposed=True,
+                    target_bps=exposed_target,
+                    confounder=confounder,
+                    regime="TREND",
+                    partition="CAL",
+                    intervention=False,
+                )
+            )
+            rows.append(
+                _episode(
+                    exposed=False,
+                    target_bps=control_target,
+                    confounder=confounder,
+                    regime="TREND",
+                    partition="CAL",
+                    intervention=False,
+                )
+            )
+
+    assessment = discover_causal_relation(
+        as_of=NOW,
+        episodes=tuple(rows),
+    )
+
+    assert assessment.raw_effect_bps == 1_500
+    assert assessment.conditional_effect_bps == 1_500
+    assert assessment.conditional_strata_count == 4
+    assert assessment.conditional_sign_stability_bps == 2_500
+    assert assessment.status is CausalDiscoveryStatus.ASSOCIATION_ONLY
+    assert "OBSERVATIONAL_ASSOCIATION_NOT_CAUSAL" in assessment.reasons
+
+
 def test_temporal_precedence_failure_falsifies_candidate() -> None:
     rows = list(_replicated_positive_relation())
     rows[0] = replace(
