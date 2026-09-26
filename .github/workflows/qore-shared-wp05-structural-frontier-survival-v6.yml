@@ -122,7 +122,7 @@ jobs:
           }
           m=p["model"]
           assert m["fit_partition"] == "r8"
-          assert m["representation"] == "STRUCTURAL_FRONTIER_SURVIVAL_V1"
+          assert m["representation"] == "STRUCTURAL_FRONTIER_SURVIVAL_V2_FIXED_ANCHOR"
           assert m["calibration_terminal_preservation_bps"] >= 9800
           assert m["feature_count"] >= 20
           assert len(m["fingerprint_sha256"]) == 64
@@ -145,6 +145,7 @@ jobs:
           g=p["governance"]
           assert g["target_v2_required"] is True
           assert g["frontier_matches_target_coordinate_system"] is True
+          assert g["fixed_source_anchor_for_hierarchy_trajectory"] is True
           assert g["source_time_frontier_only"] is True
           assert g["unidentifiable_higher_anchor_abstains"] is True
           assert g["r8_chronological_discovery_calibration_only"] is True
@@ -211,7 +212,7 @@ jobs:
               f"- protocol_pass: **{p['protocol_pass']}**",
               f"- development_gate_pass: **{p['development_gate_pass']}**",
               "- target: **HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2**",
-              "- representation: **source-time structural frontier + approach/rejection + cross-market + hierarchy survival**",
+              "- representation: **source-time structural frontier + approach/rejection + cross-market + fixed-anchor hierarchy survival**",
               f"- feature count: **{m['feature_count']}**",
               f"- frozen model fingerprint: \`{m['fingerprint_sha256']}\`",
               f"- R8 calibration false reduction: **{m['calibration_false_reduction_bps']} bps**",
