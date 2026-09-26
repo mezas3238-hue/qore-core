@@ -38,6 +38,7 @@ _ALLOWED_TRANSITIONS: dict[CapitalStage, frozenset[CapitalStage]] = {
     ),
     CapitalStage.PROTECT_BASE: frozenset(
         {
+            CapitalStage.OBSERVE,
             CapitalStage.PROTECT_BASE,
             CapitalStage.BASE_RECOVERED,
             CapitalStage.CAPITALIZE,
@@ -46,6 +47,8 @@ _ALLOWED_TRANSITIONS: dict[CapitalStage, frozenset[CapitalStage]] = {
     ),
     CapitalStage.BASE_RECOVERED: frozenset(
         {
+            CapitalStage.OBSERVE,
+            CapitalStage.PROTECT_BASE,
             CapitalStage.BASE_RECOVERED,
             CapitalStage.CAPITALIZE,
             CapitalStage.COMPOUND_OR_RESERVE,
@@ -54,6 +57,9 @@ _ALLOWED_TRANSITIONS: dict[CapitalStage, frozenset[CapitalStage]] = {
     ),
     CapitalStage.CAPITALIZE: frozenset(
         {
+            CapitalStage.OBSERVE,
+            CapitalStage.PROTECT_BASE,
+            CapitalStage.BASE_RECOVERED,
             CapitalStage.CAPITALIZE,
             CapitalStage.COMPOUND_OR_RESERVE,
             CapitalStage.RELEASE,
@@ -61,6 +67,9 @@ _ALLOWED_TRANSITIONS: dict[CapitalStage, frozenset[CapitalStage]] = {
     ),
     CapitalStage.COMPOUND_OR_RESERVE: frozenset(
         {
+            CapitalStage.OBSERVE,
+            CapitalStage.PROTECT_BASE,
+            CapitalStage.BASE_RECOVERED,
             CapitalStage.COMPOUND_OR_RESERVE,
             CapitalStage.CAPITALIZE,
             CapitalStage.RELEASE,
