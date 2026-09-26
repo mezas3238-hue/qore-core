@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_capital_management_authority import CiboCapitalState
 
 
 class EconomicFloorError(ValueError):
@@ -60,6 +61,7 @@ class EconomicFloorResult:
     trader_id: TraderLineage
     signal_fingerprint: str
     evidence_sufficient: bool
+    realized_net_pnl_usd: Decimal | None
     net_economic_floor_usd: Decimal | None
     base_capital_at_risk_usd: Decimal | None
     protected_open_floor_usd: Decimal | None
@@ -100,6 +102,7 @@ def evaluate_economic_floor(
         trader_id=economics.trader_id,
         signal_fingerprint=economics.signal_fingerprint,
         evidence_sufficient=True,
+        realized_net_pnl_usd=economics.realized_net_pnl_usd,
         net_economic_floor_usd=net_floor,
         base_capital_at_risk_usd=base_at_risk,
         protected_open_floor_usd=protected_open,
@@ -121,10 +124,48 @@ def _insufficient(
         trader_id=economics.trader_id,
         signal_fingerprint=economics.signal_fingerprint,
         evidence_sufficient=False,
+        realized_net_pnl_usd=None,
         net_economic_floor_usd=None,
         base_capital_at_risk_usd=None,
         protected_open_floor_usd=None,
         proven_self_financing_capacity_usd=None,
         base_recovered=False,
         reason=reason,
+    )
+
+
+
+def build_cibo_capital_state(
+    result: EconomicFloorResult,
+    *,
+    assigned_capital_usd: Decimal,
+    hard_risk_headroom_usd: Decimal,
+    margin_headroom_usd: Decimal,
+    reserved_expansion_risk_usd: Decimal = Decimal(0),
+    cost_reserve_usd: Decimal = Decimal(0),
+) -> CiboCapitalState:
+    """Promote only sufficient reconciled floor evidence into CMA capital state."""
+
+    if not isinstance(result, EconomicFloorResult):
+        raise EconomicFloorError("result must be EconomicFloorResult")
+    if not result.evidence_sufficient:
+        raise EconomicFloorError("insufficient floor evidence cannot create capital state")
+    if (
+        result.base_capital_at_risk_usd is None
+        or result.protected_open_floor_usd is None
+        or result.proven_self_financing_capacity_usd is None
+        or result.realized_net_pnl_usd is None
+    ):
+        raise EconomicFloorError("sufficient floor result missing required economics")
+
+    return CiboCapitalState(
+        assigned_capital_usd=assigned_capital_usd,
+        hard_risk_headroom_usd=hard_risk_headroom_usd,
+        margin_headroom_usd=margin_headroom_usd,
+        base_capital_at_risk_usd=result.base_capital_at_risk_usd,
+        realized_net_profit_usd=max(Decimal(0), result.realized_net_pnl_usd),
+        protected_open_economic_floor_usd=result.protected_open_floor_usd,
+        proven_self_financing_capacity_usd=result.proven_self_financing_capacity_usd,
+        reserved_expansion_risk_usd=reserved_expansion_risk_usd,
+        cost_reserve_usd=cost_reserve_usd,
     )
