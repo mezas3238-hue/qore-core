@@ -10,7 +10,9 @@ on:
       - src/qore/infrastructure/core_stack_v2/predictive_coding_engine.py
       - src/qore/infrastructure/core_stack_v2/uncertainty_decomposition.py
       - src/qore/infrastructure/core_stack_v2/knowledge_governance.py
+      - src/qore/infrastructure/core_stack_v2/shared_cognitive_os_contract.py
       - src/qore/infrastructure/core_stack_v2/shared_brain_architecture_contract.py
+      - src/qore/infrastructure/core_stack_v2/architecture_freeze.py
       - src/qore/infrastructure/core_stack_v2/shared_brain_ceiling_program.py
       - tests/infrastructure/test_core_stack_v2_hierarchical_world_model.py
       - tests/infrastructure/test_core_stack_v2_multi_world_engine.py
@@ -48,7 +50,9 @@ jobs:
             src/qore/infrastructure/core_stack_v2/predictive_coding_engine.py \
             src/qore/infrastructure/core_stack_v2/uncertainty_decomposition.py \
             src/qore/infrastructure/core_stack_v2/knowledge_governance.py \
+            src/qore/infrastructure/core_stack_v2/shared_cognitive_os_contract.py \
             src/qore/infrastructure/core_stack_v2/shared_brain_architecture_contract.py \
+            src/qore/infrastructure/core_stack_v2/architecture_freeze.py \
             src/qore/infrastructure/core_stack_v2/shared_brain_ceiling_program.py \
             tests/infrastructure/test_core_stack_v2_hierarchical_world_model.py \
             tests/infrastructure/test_core_stack_v2_multi_world_engine.py \
@@ -63,7 +67,9 @@ jobs:
             src/qore/infrastructure/core_stack_v2/predictive_coding_engine.py \
             src/qore/infrastructure/core_stack_v2/uncertainty_decomposition.py \
             src/qore/infrastructure/core_stack_v2/knowledge_governance.py \
+            src/qore/infrastructure/core_stack_v2/shared_cognitive_os_contract.py \
             src/qore/infrastructure/core_stack_v2/shared_brain_architecture_contract.py \
+            src/qore/infrastructure/core_stack_v2/architecture_freeze.py \
             src/qore/infrastructure/core_stack_v2/shared_brain_ceiling_program.py
 
       - name: Run cognitive ceiling tests
