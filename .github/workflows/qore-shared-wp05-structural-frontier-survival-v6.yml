@@ -7,6 +7,8 @@ on:
     paths:
       - src/qore/infrastructure/core_stack_v2/temporal_hierarchy_structural_frontier_v6.py
       - tests/infrastructure/test_core_stack_v2_temporal_hierarchy_structural_frontier_v6.py
+      - tests/infrastructure/test_core_stack_v2_temporal_hierarchy_target_contract.py
+      - tests/infrastructure/test_shared_wp05_structural_failure_target_v2.py
       - scripts/shared_wp05_structural_frontier_survival_v6.py
       - scripts/shared_wp05_structural_failure_target_v2.py
       - .github/workflows/qore-shared-wp05-structural-frontier-survival-v6.yml
