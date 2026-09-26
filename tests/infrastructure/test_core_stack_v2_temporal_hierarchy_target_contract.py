@@ -9,6 +9,7 @@ from qore.infrastructure.core_stack_v2.temporal_hierarchy_engine import (
 )
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_target_contract import (
     assess_temporal_hierarchy_target_semantics,
+    higher_timeframe_structural_failure_target,
 )
 
 
@@ -88,3 +89,52 @@ def test_target_semantics_has_no_trading_authority() -> None:
     assert audit.risk_authority is False
     assert audit.order_authority is False
     assert audit.execution_authority is False
+
+
+def test_structural_failure_target_v2_uses_higher_anchor_direction() -> None:
+    assert higher_timeframe_structural_failure_target(
+        anchor_direction=1,
+        prior_peak=110.0,
+        prior_floor=100.0,
+        future_high=109.0,
+        future_low=99.0,
+        future_final_close=99.5,
+    ) is True
+    assert higher_timeframe_structural_failure_target(
+        anchor_direction=-1,
+        prior_peak=110.0,
+        prior_floor=100.0,
+        future_high=111.0,
+        future_low=101.0,
+        future_final_close=110.5,
+    ) is True
+
+
+def test_structural_failure_target_v2_requires_close_acceptance() -> None:
+    assert higher_timeframe_structural_failure_target(
+        anchor_direction=1,
+        prior_peak=110.0,
+        prior_floor=100.0,
+        future_high=109.0,
+        future_low=99.0,
+        future_final_close=101.0,
+    ) is False
+    assert higher_timeframe_structural_failure_target(
+        anchor_direction=-1,
+        prior_peak=110.0,
+        prior_floor=100.0,
+        future_high=111.0,
+        future_low=101.0,
+        future_final_close=109.0,
+    ) is False
+
+
+def test_structural_failure_target_v2_abstains_without_anchor() -> None:
+    assert higher_timeframe_structural_failure_target(
+        anchor_direction=0,
+        prior_peak=110.0,
+        prior_floor=100.0,
+        future_high=120.0,
+        future_low=90.0,
+        future_final_close=95.0,
+    ) is False
