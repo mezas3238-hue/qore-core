@@ -37,6 +37,11 @@ from qore.infrastructure.account_wide_risk_ledger import (
     DurableAccountWideRiskEngine,
     DurableAccountWideRiskLedger,
 )
+from qore.infrastructure.cibo_fundednext_provider import (
+    build_fundednext_vt08_opportunity,
+    fundednext_cibo_symbol_spec,
+)
+from qore.infrastructure.cibo_fundednext_seed import build_fundednext_cibo_seed
 from qore.infrastructure.fundednext_capitalization_mission import (
     CapitalizationMissionSnapshot,
     CapitalizationMissionState,
@@ -128,7 +133,7 @@ from qore.infrastructure.r34_xauusd_live import (
     R34LiveState,
     R34LiveStateStore,
     build_live_signal as build_r34_live_signal,
-    build_r34_risk_request,
+    build_r34_opportunity,
     current_anchor as current_r34_anchor,
     load_cognitive as load_r34_cognitive,
 )
@@ -137,7 +142,7 @@ from qore.infrastructure.r38_eurusd_live import (
     R38LiveState,
     R38LiveStateStore,
     build_live_signal as build_r38_live_signal,
-    build_r38_risk_request,
+    build_r38_opportunity,
     current_anchor as current_r38_anchor,
     load_cognitive as load_r38_cognitive,
     manage_open_position as manage_r38_open_position,
@@ -147,7 +152,7 @@ from qore.infrastructure.r43_gbpusd_live import (
     R43LiveState,
     R43LiveStateStore,
     build_live_signal as build_r43_live_signal,
-    build_r43_risk_request,
+    build_r43_opportunity,
     current_anchor as current_r43_anchor,
     load_memory as load_r43_memory,
     manage_open_position as manage_r43_open_position,
@@ -157,7 +162,7 @@ from qore.infrastructure.r38_gbpjpy_live import (
     R38GbpJpyLiveState,
     R38GbpJpyLiveStateStore,
     build_live_signal as build_gbpjpy_r38_live_signal,
-    build_r38_gbpjpy_risk_request,
+    build_r38_gbpjpy_opportunity,
     current_anchor as current_gbpjpy_r38_anchor,
     load_memory as load_gbpjpy_r38_memory,
     manage_open_position as manage_gbpjpy_r38_open_position,
@@ -171,7 +176,7 @@ from qore.infrastructure.r42_audjpy_live import (
     R42AudJpyLiveState,
     R42AudJpyLiveStateStore,
     build_live_signal as build_audjpy_r42_live_signal,
-    build_r42_audjpy_risk_request,
+    build_r42_audjpy_opportunity,
     load_memory as load_audjpy_r42_memory,
     manage_open_position as manage_audjpy_r42_open_position,
 )
@@ -192,9 +197,6 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
     Vt08ForexCiboDecision,
     Vt08ForexCiboPosture,
     evaluate_vt08_forex_cibo,
-)
-from qore.infrastructure.vt08_forex_fundednext_sizing import (
-    build_certified_vt08_forex_cibo_request,
 )
 from qore.kernel.result import Failure
 
@@ -816,15 +818,21 @@ def _process_candidate(
         now=refresh_at,
     )
     spec = gateway.read_symbol(candidate.symbol, now=datetime.now(UTC))
-    request = build_certified_vt08_forex_cibo_request(
-        request_id=f"vt08-{setup.signal_fingerprint[:24]}",
+    opportunity = build_fundednext_vt08_opportunity(
         cibo_authorization=cibo,
         provider_spec=spec,
-        account_equity=fresh_equity,
     )
     authorize_at = datetime.now(UTC)
-    if risk.recovery_required:
-        risk.complete_boot_reconciliation(snapshot, now=authorize_at)
+    seed = build_fundednext_cibo_seed(
+        request_id=f"vt08-{setup.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        risk=risk,
+        snapshot=snapshot,
+        assigned_capital_usd=fresh_equity,
+        requested_at=authorize_at,
+        expires_at=setup.expires_at,
+    )
+    request = seed.request
     authorization = risk.authorize(request, snapshot, now=authorize_at)
     if authorization.decision is RiskDecision.REJECT:
         _log(
@@ -964,16 +972,28 @@ def _process_r34_candidate(
         now=refresh_started_at,
     )
     spec = gateway.read_symbol("XAUUSD", now=datetime.now(UTC))
-    request, base_risk_usd = build_r34_risk_request(
-        request_id=f"r34-{signal.signal_fingerprint[:24]}",
+    opportunity = build_r34_opportunity(
         signal=signal,
-        provider_spec=spec,
-        account_equity=fresh_equity,
-        now=datetime.now(UTC),
+        provider_spec=fundednext_cibo_symbol_spec(
+            qore_symbol="XAUUSD",
+            side=signal.side,
+            spec=spec,
+        ),
     )
     authorize_at = datetime.now(UTC)
-    if risk.recovery_required:
-        risk.complete_boot_reconciliation(snapshot, now=authorize_at)
+    seed = build_fundednext_cibo_seed(
+        request_id=f"r34-{signal.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        risk=risk,
+        snapshot=snapshot,
+        assigned_capital_usd=fresh_equity,
+        requested_at=authorize_at,
+        expires_at=(
+            signal.entry_at.astimezone(UTC) + M5_PROFILE.order_send_deadline
+        ),
+    )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
     authorization = risk.authorize(request, snapshot, now=authorize_at)
     if authorization.decision is RiskDecision.REJECT:
         _log(
@@ -1137,16 +1157,28 @@ def _process_r38_candidate(
         now=refresh_started_at,
     )
     spec = gateway.read_symbol("EURUSD", now=datetime.now(UTC))
-    request, base_risk_usd = build_r38_risk_request(
-        request_id=f"r38-{signal.signal_fingerprint[:24]}",
+    opportunity = build_r38_opportunity(
         signal=signal,
-        provider_spec=spec,
-        account_equity=fresh_equity,
-        now=datetime.now(UTC),
+        provider_spec=fundednext_cibo_symbol_spec(
+            qore_symbol="EURUSD",
+            side=signal.side,
+            spec=spec,
+        ),
     )
     authorize_at = datetime.now(UTC)
-    if risk.recovery_required:
-        risk.complete_boot_reconciliation(snapshot, now=authorize_at)
+    seed = build_fundednext_cibo_seed(
+        request_id=f"r38-{signal.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        risk=risk,
+        snapshot=snapshot,
+        assigned_capital_usd=fresh_equity,
+        requested_at=authorize_at,
+        expires_at=(
+            signal.entry_at.astimezone(UTC) + M5_PROFILE.order_send_deadline
+        ),
+    )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
     authorization = risk.authorize(request, snapshot, now=authorize_at)
     if authorization.decision is RiskDecision.REJECT:
         _log(
@@ -1308,16 +1340,28 @@ def _process_r43_candidate(
         now=refresh_started_at,
     )
     spec = gateway.read_symbol("GBPUSD", now=datetime.now(UTC))
-    request, base_risk_usd = build_r43_risk_request(
-        request_id=f"r43-{signal.signal_fingerprint[:24]}",
+    opportunity = build_r43_opportunity(
         signal=signal,
-        provider_spec=spec,
-        account_equity=fresh_equity,
-        now=datetime.now(UTC),
+        provider_spec=fundednext_cibo_symbol_spec(
+            qore_symbol="GBPUSD",
+            side=signal.side,
+            spec=spec,
+        ),
     )
     authorize_at = datetime.now(UTC)
-    if risk.recovery_required:
-        risk.complete_boot_reconciliation(snapshot, now=authorize_at)
+    seed = build_fundednext_cibo_seed(
+        request_id=f"r43-{signal.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        risk=risk,
+        snapshot=snapshot,
+        assigned_capital_usd=fresh_equity,
+        requested_at=authorize_at,
+        expires_at=(
+            signal.entry_at.astimezone(UTC) + M5_PROFILE.order_send_deadline
+        ),
+    )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
     authorization = risk.authorize(request, snapshot, now=authorize_at)
     if authorization.decision is RiskDecision.REJECT:
         _log(
@@ -1481,16 +1525,28 @@ def _process_gbpjpy_r38_candidate(
         now=refresh_started_at,
     )
     spec = gateway.read_symbol("GBPJPY", now=datetime.now(UTC))
-    request, base_risk_usd = build_r38_gbpjpy_risk_request(
-        request_id=f"gbpjpy-r38-{signal.signal_fingerprint[:24]}",
+    opportunity = build_r38_gbpjpy_opportunity(
         signal=signal,
-        provider_spec=spec,
-        account_equity=fresh_equity,
-        now=datetime.now(UTC),
+        provider_spec=fundednext_cibo_symbol_spec(
+            qore_symbol="GBPJPY",
+            side=signal.side,
+            spec=spec,
+        ),
     )
     authorize_at = datetime.now(UTC)
-    if risk.recovery_required:
-        risk.complete_boot_reconciliation(snapshot, now=authorize_at)
+    seed = build_fundednext_cibo_seed(
+        request_id=f"gbpjpy-r38-{signal.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        risk=risk,
+        snapshot=snapshot,
+        assigned_capital_usd=fresh_equity,
+        requested_at=authorize_at,
+        expires_at=(
+            signal.entry_at.astimezone(UTC) + M5_PROFILE.order_send_deadline
+        ),
+    )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
     authorization = risk.authorize(request, snapshot, now=authorize_at)
     if authorization.decision is RiskDecision.REJECT:
         _log(
@@ -1688,19 +1744,30 @@ def _process_audjpy_r42_candidate(
     request_at = stage_time("before-risk-request")
     if request_at is None:
         return
-    request, base_risk_usd = build_r42_audjpy_risk_request(
-        request_id=f"audjpy-r42-{signal.signal_fingerprint[:24]}",
+    opportunity = build_r42_audjpy_opportunity(
         signal=signal,
-        provider_spec=spec,
-        account_equity=fresh_equity,
+        provider_spec=fundednext_cibo_symbol_spec(
+            qore_symbol="AUDJPY",
+            side=signal.side,
+            spec=spec,
+        ),
         now=request_at,
     )
+    seed = build_fundednext_cibo_seed(
+        request_id=f"audjpy-r42-{signal.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        risk=risk,
+        snapshot=snapshot,
+        assigned_capital_usd=fresh_equity,
+        requested_at=request_at,
+        expires_at=deadline,
+    )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
 
     authorize_at = stage_time("before-account-wide-risk")
     if authorize_at is None:
         return
-    if risk.recovery_required:
-        risk.complete_boot_reconciliation(snapshot, now=authorize_at)
     authorization = risk.authorize(request, snapshot, now=authorize_at)
     if authorization.decision is RiskDecision.REJECT:
         _log(
