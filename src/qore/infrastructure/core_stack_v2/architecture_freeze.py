@@ -5,7 +5,7 @@ import hashlib
 import json
 from typing import Final
 
-SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_011"
+SUPERINTELLIGENCE_FREEZE_VERSION: Final = "QORE_CORE_STACK_V2_SUPERINTELLIGENCE_012"
 
 _CAPABILITIES: Final = (
     "PERCEPTION_INTEGRITY",
@@ -44,13 +44,14 @@ _MARKET_UNIVERSE_SOURCES: Final = (
 )
 
 _AUTHORITY_CHAIN: Final = (
-    "MARKET_AND_CIBO",
-    "SHARED_CORE_V2",
+    "REAL_WORLD",
+    "SHARED_BRAIN",
     "COGNITIVE_ADAPTER",
-    "TRADER_COGNITION",
-    "TRADER_METHODOLOGY",
+    "SOVEREIGN_TRADER",
+    "CIBO",
     "QORE_RISK",
     "EXECUTION",
+    "BROKER",
 )
 
 
@@ -60,8 +61,9 @@ def superintelligence_freeze_contract() -> dict[str, object]:
         "schema": "qore.core_stack_v2.superintelligence_freeze.v1",
         "freeze_version": SUPERINTELLIGENCE_FREEZE_VERSION,
         "objective": (
-            "shared causal market intelligence that materially improves specialist "
-            "trader quality without owning specialist methodology"
+            "central cognitive, scientific and epistemic intelligence substrate for "
+            "QORE Core that improves information quality without seizing sovereign "
+            "trader, CIBO, Risk or Execution authority"
         ),
         "authority_chain": _AUTHORITY_CHAIN,
         "capabilities": _CAPABILITIES,
@@ -144,9 +146,11 @@ def superintelligence_freeze_contract() -> dict[str, object]:
             "shared_core_may_rewrite_entry": False,
             "shared_core_may_rewrite_stop": False,
             "shared_core_may_rewrite_target": False,
-            "shared_may_issue_stop_improvement_directive": True,
-            "shared_may_issue_target_extension_directive": True,
-            "shared_may_issue_realtime_trade_management_directive": True,
+            "shared_may_issue_stop_improvement_directive": False,
+            "shared_may_issue_target_extension_directive": False,
+            "shared_may_issue_realtime_trade_management_directive": False,
+            "shared_may_communicate_position_context": True,
+            "shared_may_describe_recovery_or_failure_probability": True,
             "direct_broker_mutation_by_shared_forbidden": True,
             "shared_core_may_authorize_order": False,
             "shared_core_may_authorize_risk": False,
@@ -154,12 +158,16 @@ def superintelligence_freeze_contract() -> dict[str, object]:
             "execution_single_authority": True,
         },
         "position_law": {
-            "stop_can_improve_or_hold": True,
-            "stop_can_widen": False,
-            "trailing_stop_management_required": True,
-            "target_extension_when_causally_supported": True,
-            "target_reduction_not_required_for_dd_claim": True,
-            "same_position_size_throughout_trade": True,
+            "shared_may_manage_stop": False,
+            "shared_may_manage_target": False,
+            "shared_may_trail_position": False,
+            "shared_may_close_position": False,
+            "shared_may_block_trade": False,
+            "shared_may_force_trade": False,
+            "shared_may_communicate_position_journey_context": True,
+            "shared_may_communicate_recovery_probability": True,
+            "shared_may_communicate_irreversibility_probability": True,
+            "same_position_size_required_for_shared_comparison": True,
             "shared_sizing_use_forbidden": True,
             "shared_sizing_change_forbidden": True,
             "shared_position_quantity_change_forbidden": True,
@@ -899,20 +907,21 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "fresh_holdout_remains_closed_during_development": True,
             },
             "phase_2_realtime_dd_actuation": {
-                "status": "ACTIVE_RESEARCH_ONLY",
+                "status": "SUPERSEDED_BY_OWNER_COGNITIVE_FIREWALL",
                 "unlock_requires_phase_1_pass": True,
                 "unlocked_by_consumed_phase_1_evidence": True,
                 "formal_acceptance_still_required": True,
                 "live_production_authority": False,
-                "trailing_stop_allowed_after_unlock": True,
-                "loss_compression_allowed_after_unlock": True,
-                "target_extension_allowed_after_unlock": True,
+                "trailing_stop_allowed_after_unlock": False,
+                "loss_compression_allowed_after_unlock": False,
+                "target_extension_allowed_after_unlock": False,
+                "shared_position_actuation_permanently_forbidden": True,
                 "sizing_remains_forbidden": True,
                 "capital_weighting_remains_forbidden": True,
                 "same_initial_position_size_required": True,
                 "purpose": (
-                    "Apply already-proven Shared intelligence to the live trade "
-                    "path through defense, trailing and target extension."
+                    "Expose already-proven Shared journey intelligence as cognitive "
+                    "context while sovereign downstream components retain all actuation."
                 ),
             },
         },
@@ -925,6 +934,7 @@ def superintelligence_freeze_contract() -> dict[str, object]:
                 "journey_intelligence_required_in_phase": True,
                 "target_extension_intelligence_required_in_phase": False,
                 "loss_defense_actuation_required_in_phase": False,
+                "shared_position_actuation_forbidden": True,
                 "natural_drawdown_intelligence_must_pass_first": True,
                 "must_be_formally_accepted_before_phase_b": True,
                 "formal_acceptance_requires_temporal_falsification_pass": True,
@@ -1089,6 +1099,12 @@ def superintelligence_freeze_contract() -> dict[str, object]:
         "governance": {
             "research_authorized": True,
             "shadow_first": True,
+            "owner_cognitive_firewall_version": "QORE_COGNITIVE_SCIENTIFIC_EPISTEMIC_OS_004",
+            "shared_broker_mutation_authority": False,
+            "shared_position_mutation_authority": False,
+            "shared_capital_allocation_authority": False,
+            "shared_trade_block_authority": False,
+            "shared_trade_force_authority": False,
             "vt08_forex_integration": False,
             "vt08_forex_excluded": True,
             "capitalizer_deferred_until_frozen": True,
