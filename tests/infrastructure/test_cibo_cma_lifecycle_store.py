@@ -7,13 +7,16 @@ from qore.infrastructure.cibo_capital_management_authority import CapitalStage
 from qore.infrastructure.cibo_cma_lifecycle_store import (
     DurableCmaLifecycleError,
     DurableCmaLifecycleStore,
+    VersionedCmaLifecycleBook,
 )
 
 
 NOW = datetime(2026, 9, 26, 12, 0, tzinfo=UTC)
 
 
-def _register(store: DurableCmaLifecycleStore):
+def _register(
+    store: DurableCmaLifecycleStore,
+) -> VersionedCmaLifecycleBook:
     return store.register_seed(
         signal_fingerprint="signal-1",
         position_id=101,
