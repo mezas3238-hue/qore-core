@@ -1,10 +1,10 @@
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab import (
-    capitalizer_intratrade_hypothesis_state_machine_v20 as v20,
+    capitalizer_hypothesis_survival_model_v21 as v21,
 )
 from qore.infrastructure.trader_lab import (
-    capitalizer_hypothesis_survival_model_v21 as v21,
+    capitalizer_intratrade_hypothesis_state_machine_v20 as v20,
 )
 
 
