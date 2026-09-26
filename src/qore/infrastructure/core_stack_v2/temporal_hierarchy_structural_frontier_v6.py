@@ -24,6 +24,11 @@ from qore.infrastructure.core_stack_v2.temporal_hierarchy_transition_v2 import (
 )
 
 
+V6_DISCOVERY_FRACTION_BPS = 7_000
+V6_CALIBRATION_RECALL_BPS = 9_800
+V6_RIDGE = 4.0
+
+
 def _utc(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError("timestamps must be timezone-aware")
@@ -408,17 +413,19 @@ def fit_structural_frontier_model(
     fitted_at: datetime,
     fit_partition: str,
     episodes: tuple[StructuralFrontierTrainingEpisode, ...],
-    discovery_fraction_bps: int = 7_000,
-    calibration_recall_bps: int = 9_800,
-    ridge: float = 4.0,
+    discovery_fraction_bps: int = V6_DISCOVERY_FRACTION_BPS,
+    calibration_recall_bps: int = V6_CALIBRATION_RECALL_BPS,
+    ridge: float = V6_RIDGE,
 ) -> StructuralFrontierModel:
     cutoff = _utc(fitted_at)
-    if not 5_000 <= discovery_fraction_bps <= 8_500:
-        raise ValueError("discovery_fraction_bps out of range")
-    if not 9_500 <= calibration_recall_bps <= 10_000:
-        raise ValueError("calibration_recall_bps out of range")
-    if ridge <= 0:
-        raise ValueError("ridge must be positive")
+    if fit_partition != "r8":
+        raise ValueError("V6 fit partition is frozen to r8")
+    if discovery_fraction_bps != V6_DISCOVERY_FRACTION_BPS:
+        raise ValueError("V6 discovery split is frozen at 7000 bps")
+    if calibration_recall_bps != V6_CALIBRATION_RECALL_BPS:
+        raise ValueError("V6 calibration recall is frozen at 9800 bps")
+    if ridge != V6_RIDGE:
+        raise ValueError("V6 ridge is frozen at 4.0")
     if any(_utc(item.observed_at) > cutoff for item in episodes):
         raise ValueError("future training evidence beyond fitted_at")
     ordered = tuple(sorted(episodes, key=lambda item: item.source.as_of))
