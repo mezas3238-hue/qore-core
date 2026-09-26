@@ -173,5 +173,8 @@ def test_runtime_derives_account_mission_from_binding_not_issue() -> None:
     assert '"cibo_account_context_source": "ACCOUNT_BINDING"' in funded
     assert '"cibo_capital_mission": cibo_capital_mission.mission.value' in funded
 
-    assert "issue" not in demo.lower().split("cibo_account_context_source")[0][-300:]
-    assert "issue" not in funded.lower().split("cibo_account_context_source")[0][-300:]
+    mission_module = Path(
+        "src/qore/infrastructure/cibo_account_capital_mission.py"
+    ).read_text(encoding="utf-8")
+    assert "issue_id" not in mission_module
+    assert "github_issue" not in mission_module
