@@ -56,18 +56,20 @@ class CapitalEfficiencySizingInput:
     baseline_volume: Decimal | None = None
 
     def __post_init__(self) -> None:
-        for name, value in (
+        for text_name, text_value in (
             ("experiment_id", self.experiment_id),
             ("qore_symbol", self.qore_symbol),
             ("geometry_provenance", self.geometry_provenance),
         ):
-            if not isinstance(value, str) or not value.strip():
-                raise CapitalEfficiencySizingError(f"{name} must be non-empty")
+            if not isinstance(text_value, str) or not text_value.strip():
+                raise CapitalEfficiencySizingError(
+                    f"{text_name} must be non-empty"
+                )
         if type(self.structural_stop_verified) is not bool:
             raise CapitalEfficiencySizingError(
                 "structural_stop_verified must be bool"
             )
-        for name, value in (
+        for decimal_name, decimal_value in (
             ("assigned_capital", self.assigned_capital),
             ("risk_budget_usd", self.risk_budget_usd),
             ("margin_budget_usd", self.margin_budget_usd),
@@ -78,7 +80,7 @@ class CapitalEfficiencySizingInput:
             ("maximum_volume", self.maximum_volume),
             ("volume_step", self.volume_step),
         ):
-            _positive_decimal(value, name)
+            _positive_decimal(decimal_value, decimal_name)
         if self.maximum_volume < self.minimum_volume:
             raise CapitalEfficiencySizingError(
                 "maximum_volume cannot be below minimum_volume"
