@@ -1,14 +1,8 @@
 name: QORE Capitalizer Structural Intratrade Invalidation V19
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/qore-capitalizer-structural-intratrade-invalidation-v19.yml'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_structural_intratrade_invalidation_v19.py'
-      - 'tests/infrastructure/trader_lab/test_capitalizer_structural_intratrade_invalidation_v19.py'
   workflow_dispatch:
+
 
 permissions:
   contents: read
