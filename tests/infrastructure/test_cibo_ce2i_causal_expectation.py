@@ -14,7 +14,6 @@ from qore.infrastructure.cibo_ce2i_causal_expectation import (
     validate_expectation_before_decision,
 )
 
-
 NOW = datetime(2026, 9, 26, 18, 0, tzinfo=UTC)
 
 
