@@ -321,6 +321,8 @@ class CTraderDemoFreeSink:
                 "minimum_volume": format(request.minimum_volume, "f"),
                 "minimum_volume_uplifted": request.minimum_volume_uplifted,
                 "sizing_path": sizing_path_for(result.trader_id.value),
+                "sizing_authority": "CIBO_CMA",
+                "capital_management_authority": "CIBO_CMA",
                 "recorded_at": result.recorded_at.isoformat(),
             }
         )
