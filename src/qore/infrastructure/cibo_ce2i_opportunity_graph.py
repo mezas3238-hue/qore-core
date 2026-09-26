@@ -34,6 +34,11 @@ class OpportunityGraphEdgeKind(StrEnum):
     COMPETES_FOR_RISK = "COMPETES_FOR_RISK"
     COMPETES_FOR_MARGIN = "COMPETES_FOR_MARGIN"
     SHARES_CONCENTRATION = "SHARES_CONCENTRATION"
+    FACTOR_OVERLAP = "FACTOR_OVERLAP"
+    CORRELATED_EXPOSURE = "CORRELATED_EXPOSURE"
+    PROVIDER_CONCENTRATION = "PROVIDER_CONCENTRATION"
+    TEMPORAL_OVERLAP = "TEMPORAL_OVERLAP"
+    HEDGE_OFFSET = "HEDGE_OFFSET"
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +92,62 @@ class OpportunityGraphEdge:
             )
 
 
+
+
+@dataclass(frozen=True, slots=True)
+class OpportunityInteractionEvidence:
+    """Past/current causal interaction evidence for one unordered opportunity pair."""
+
+    left_signal_fingerprint: str
+    right_signal_fingerprint: str
+    factor_overlap: Decimal = Decimal(0)
+    observed_abs_correlation: Decimal = Decimal(0)
+    same_provider_group: bool = False
+    temporal_overlap: Decimal = Decimal(0)
+    hedge_offset: Decimal = Decimal(0)
+
+    def __post_init__(self) -> None:
+        if (
+            not self.left_signal_fingerprint
+            or not self.right_signal_fingerprint
+            or self.left_signal_fingerprint == self.right_signal_fingerprint
+        ):
+            raise CiboCapitalManagementError(
+                "interaction evidence requires two distinct fingerprints"
+            )
+        for name in (
+            "factor_overlap",
+            "observed_abs_correlation",
+            "temporal_overlap",
+            "hedge_offset",
+        ):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, Decimal)
+                or not value.is_finite()
+                or value < 0
+                or value > 1
+            ):
+                raise CiboCapitalManagementError(
+                    f"{name} must be finite Decimal in [0, 1]"
+                )
+        if type(self.same_provider_group) is not bool:
+            raise CiboCapitalManagementError(
+                "same_provider_group must be bool"
+            )
+
+    @property
+    def unordered_key(self) -> tuple[str, str]:
+        return tuple(
+            sorted(
+                (
+                    self.left_signal_fingerprint,
+                    self.right_signal_fingerprint,
+                )
+            )
+        )  # type: ignore[return-value]
+
+
 @dataclass(frozen=True, slots=True)
 class CapitalOpportunityGraph:
     nodes: tuple[OpportunityGraphNode, ...]
@@ -117,6 +178,7 @@ def build_capital_opportunity_graph(
     *,
     candidates: tuple[CapitalOpportunityCandidate, ...],
     capital_sources: tuple[CapitalSourceAccount, ...],
+    interaction_evidence: tuple[OpportunityInteractionEvidence, ...] = (),
 ) -> CapitalOpportunityGraph:
     """Build deterministic portfolio interaction graph from causal inputs."""
 
@@ -125,6 +187,23 @@ def build_capital_opportunity_graph(
         raise CiboCapitalManagementError(
             "duplicate candidate fingerprint in opportunity graph"
         )
+    interaction_keys = tuple(
+        item.unordered_key for item in interaction_evidence
+    )
+    if len(interaction_keys) != len(set(interaction_keys)):
+        raise CiboCapitalManagementError(
+            "duplicate interaction evidence pair"
+        )
+    candidate_set = set(candidate_ids)
+    for item in interaction_evidence:
+        if (
+            item.left_signal_fingerprint not in candidate_set
+            or item.right_signal_fingerprint not in candidate_set
+        ):
+            raise CiboCapitalManagementError(
+                "interaction evidence references missing candidate"
+            )
+
     source_ids = tuple(item.source_id for item in capital_sources)
     if len(source_ids) != len(set(source_ids)):
         raise CiboCapitalManagementError(
@@ -216,6 +295,50 @@ def build_capital_opportunity_graph(
                     target_node_id=right_id,
                     kind=OpportunityGraphEdgeKind.COMPETES_FOR_MARGIN,
                     weight=min(left.margin_usd, right.margin_usd),
+                )
+            )
+
+    for interaction in sorted(
+        interaction_evidence,
+        key=lambda item: item.unordered_key,
+    ):
+        left, right = interaction.unordered_key
+        left_id = f"opportunity:{left}"
+        right_id = f"opportunity:{right}"
+        for kind, weight in (
+            (
+                OpportunityGraphEdgeKind.FACTOR_OVERLAP,
+                interaction.factor_overlap,
+            ),
+            (
+                OpportunityGraphEdgeKind.CORRELATED_EXPOSURE,
+                interaction.observed_abs_correlation,
+            ),
+            (
+                OpportunityGraphEdgeKind.TEMPORAL_OVERLAP,
+                interaction.temporal_overlap,
+            ),
+            (
+                OpportunityGraphEdgeKind.HEDGE_OFFSET,
+                interaction.hedge_offset,
+            ),
+        ):
+            if weight > 0:
+                edges.append(
+                    OpportunityGraphEdge(
+                        source_node_id=left_id,
+                        target_node_id=right_id,
+                        kind=kind,
+                        weight=weight,
+                    )
+                )
+        if interaction.same_provider_group:
+            edges.append(
+                OpportunityGraphEdge(
+                    source_node_id=left_id,
+                    target_node_id=right_id,
+                    kind=OpportunityGraphEdgeKind.PROVIDER_CONCENTRATION,
+                    weight=Decimal(1),
                 )
             )
 
