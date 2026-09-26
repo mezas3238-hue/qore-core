@@ -4,14 +4,17 @@ V9 falsified sparse categorical lookup for deciding when SURFACE_SELECTIVE may
 release its sticky 0.20R defensive state. V10 replaces cells with a continuous
 nearest-neighbour ranker over causal pre-entry state.
 
-For each consumed window held out, TWO independent models are calibrated:
-one from each of the other consumed windows. The held-out window contributes no
-labels, thresholds, examples, or calibration. A probe can release only when
-both models rank it above the same predeclared percentile and both corresponding
-training tails have positive expectancy.
+The probe-rank labels are cross-period: for each scored period, TWO independent
+rank models are calibrated from the other consumed periods. However the
+upstream contextual position router is the already-frozen development router
+trained on 2024-2026 economic outcomes. Therefore DEVELOPMENT_2024_2026 is a
+development diagnostic, not a strict full-pipeline holdout. The strict OOS
+pipeline periods are 2022-2024 and 2020-2022.
 
 All entries, true 2R target, contextual position routing, and MAX3 are preserved.
 Only exposure on an existing 0.20R decision may be released to 0.35R/0.55R.
+No candidate may open the fresh 2018-2020 holdout unless all consumed windows
+pass the frozen economic envelope and both strict OOS periods pass explicitly.
 """
 
 from __future__ import annotations
@@ -61,6 +64,11 @@ BASE_POSITION_POLICY = "CONTEXT_STABILITY_STAGE"
 EXPECTED_DEVELOPMENT_TRADES = 948
 EXPECTED_VALIDATION_TRADES = 1034
 EXPECTED_RESERVED_TRADES = 1088
+DEVELOPMENT_PERIOD = "DEVELOPMENT_2024_2026"
+STRICT_OOS_PERIODS = (
+    "CONSUMED_VALIDATION_2022_2024",
+    "CONSUMED_RESERVED_2020_2022",
+)
 NEIGHBOURS = 24
 MIN_TAIL_SUPPORT = 8
 QUANTILES = (0.60, 0.70, 0.80, 0.90)
@@ -778,26 +786,52 @@ def build_report(
             for row in heldouts.values()
         )
         all_dd6 = all(row["dd_at_or_below_6r"] for row in heldouts.values())
+        strict_oos = tuple(heldouts[period] for period in STRICT_OOS_PERIODS)
+        strict_oos_pf_dd = all(
+            row["pf_at_least_surface_control"]
+            and row["dd_below_surface_control"]
+            for row in strict_oos
+        )
+        strict_oos_full = all(
+            row["pf_at_least_surface_control"]
+            and row["dd_below_surface_control"]
+            and row["total_r_at_least_surface_control"]
+            for row in strict_oos
+        )
+        strict_oos_dd6 = all(row["dd_at_or_below_6r"] for row in strict_oos)
         results.append(
             {
                 "policy": policy,
                 "heldouts": heldouts,
                 "model_diagnostics": diagnostics,
-                "robust_pf_up_dd_down_all_loo_windows": robust_pf_dd,
-                "robust_pf_dd_total_r_all_loo_windows": robust_full_window,
-                "all_loo_windows_dd6": all_dd6,
+                "robust_pf_up_dd_down_all_consumed_windows": robust_pf_dd,
+                "robust_pf_dd_total_r_all_consumed_windows": robust_full_window,
+                "all_consumed_windows_dd6": all_dd6,
+                "strict_oos_pf_up_dd_down": strict_oos_pf_dd,
+                "strict_oos_pf_dd_total_r": strict_oos_full,
+                "strict_oos_dd6": strict_oos_dd6,
             }
         )
 
     robust = tuple(
-        row for row in results if row["robust_pf_up_dd_down_all_loo_windows"]
+        row
+        for row in results
+        if row["robust_pf_up_dd_down_all_consumed_windows"]
+        and row["strict_oos_pf_up_dd_down"]
     )
     robust_full_rows = tuple(
-        row for row in results if row["robust_pf_dd_total_r_all_loo_windows"]
+        row
+        for row in results
+        if row["robust_pf_dd_total_r_all_consumed_windows"]
+        and row["strict_oos_pf_dd_total_r"]
     )
-    dd6 = tuple(row for row in robust_full_rows if row["all_loo_windows_dd6"])
+    dd6 = tuple(
+        row
+        for row in robust_full_rows
+        if row["all_consumed_windows_dd6"] and row["strict_oos_dd6"]
+    )
     next_phase = (
-        "FREEZE_V10_ON_ALL_CONSUMED_THEN_OPEN_2018_2020"
+        "FREEZE_V10_CANDIDATE_THEN_OPEN_2018_2020_FRESH_HOLDOUT"
         if dd6
         else (
             "BUILD_FACTOR_GRAPH_PROBE_VALUE_WITH_CONCURRENT_EXPOSURE_"
@@ -806,7 +840,12 @@ def build_report(
     )
     return {
         "identity": IDENTITY,
-        "evaluation": "THREE_WAY_DUAL_MODEL_CONTINUOUS_LOO",
+        "evaluation": "CROSS_PERIOD_DUAL_MODEL_WITH_FIXED_DEVELOPMENT_ROUTER",
+        "development_period": DEVELOPMENT_PERIOD,
+        "strict_oos_periods": list(STRICT_OOS_PERIODS),
+        "base_contextual_router_source_period": DEVELOPMENT_PERIOD,
+        "base_contextual_router_uses_outcome_trained_arm_selection": True,
+        "development_is_strict_full_pipeline_holdout": False,
         "windows": list(windows),
         "all_windows_consumed_before_v10": True,
         "next_holdout_reserved": "2018-09-17_TO_2020-09-17",
@@ -818,8 +857,9 @@ def build_report(
         "robust_pf_up_dd_down_policy_count": len(robust),
         "robust_pf_dd_total_r_policy_count": len(robust_full_rows),
         "robust_full_and_all_windows_dd6_policy_count": len(dd6),
-        "heldout_outcomes_visible_to_models": False,
-        "each_model_uses_exactly_one_other_period": True,
+        "heldout_outcomes_visible_to_probe_rank_models": False,
+        "probe_rank_labels_exclude_scored_period": True,
+        "each_probe_rank_model_uses_exactly_one_other_period": True,
         "release_requires_cross_period_model_agreement": True,
         "continuous_preentry_features_used": True,
         "runtime_decisions_use_preentry_or_prior_closed_only": True,
