@@ -9,6 +9,7 @@ on:
       - 'src/qore/infrastructure/trader_lab/capitalizer_factor_journey_probe_ranker_v11.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_factor_journey_probe_ranker_v11.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_causal_probe_ranker_v10.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_exposure_graph.py'
   workflow_dispatch:
 
 permissions:
@@ -124,6 +125,10 @@ jobs:
           assert report["ranker_policies_inherited_from_v10"] is True
           assert report["open_exposure_uses_structural_unit_risk_only"] is True
           assert report["active_trade_outcomes_visible_to_features"] is False
+          assert report["exact_timestamp_competition_bound"] is True
+          assert report["simultaneous_peer_outcomes_visible_to_features"] is False
+          assert report["competition_selects_winner"] is False
+          assert int(report["simultaneous_factor_cluster_count"]) >= 0
           assert report["journey_outcomes_require_prior_close"] is True
           assert report["strict_oos_periods"] == [
               "CONSUMED_VALIDATION_2022_2024",
