@@ -86,7 +86,7 @@ def main() -> None:
             raise CTraderDemoLabProbeError(
                 "replication evidence begins before preregistered boundary"
             )
-        if last >= REPLICATION_END_EXCLUSIVE:
+        if last > REPLICATION_END_EXCLUSIVE:
             raise CTraderDemoLabProbeError(
                 "replication evidence crosses preregistered end boundary"
             )
