@@ -6,6 +6,7 @@ from pathlib import Path
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
+    CiboCapitalMissionPolicy,
     derive_cibo_capital_mission,
     fundednext_stellar_instant_identity,
 )
@@ -28,6 +29,7 @@ from qore.infrastructure.cibo_ce2i_multi_source import (
 )
 from qore.infrastructure.cibo_ce2i_regime_selector import (
     CiboCapitalRegimeState,
+    CiboRegimeToolSelection,
     CorrelationState,
     LiquidityState,
     ProviderCondition,
@@ -45,7 +47,7 @@ NOW = datetime(2026, 9, 26, 12, 0, tzinfo=UTC)
 
 
 
-def _demo_mission():
+def _demo_mission() -> CiboCapitalMissionPolicy:
     return derive_cibo_capital_mission(
         CiboAccountCapitalIdentity(
             provider_key="ctrader-demo",
@@ -55,7 +57,7 @@ def _demo_mission():
     )
 
 
-def _funded_mission():
+def _funded_mission() -> CiboCapitalMissionPolicy:
     return derive_cibo_capital_mission(
         fundednext_stellar_instant_identity(
             account_ref="stellar-instant-2k"
@@ -63,7 +65,9 @@ def _funded_mission():
     )
 
 
-def _regime(mission):
+def _regime(
+    mission: CiboCapitalMissionPolicy,
+) -> CiboRegimeToolSelection:
     return select_ce2i_tools_for_regime(
         mission=mission,
         state=CiboCapitalRegimeState(
