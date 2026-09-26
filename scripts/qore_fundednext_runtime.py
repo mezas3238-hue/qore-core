@@ -37,6 +37,10 @@ from qore.infrastructure.account_wide_risk_ledger import (
     DurableAccountWideRiskEngine,
     DurableAccountWideRiskLedger,
 )
+from qore.infrastructure.cibo_account_capital_mission import (
+    derive_cibo_capital_mission,
+    fundednext_stellar_instant_identity,
+)
 from qore.infrastructure.cibo_fundednext_provider import (
     build_fundednext_vt08_opportunity,
     fundednext_cibo_symbol_spec,
@@ -1930,6 +1934,10 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         account_ref=_ACCOUNT_REF,
         environment=MarketRuntimeEnvironment.PRODUCTION,
     )
+    cibo_account_identity = fundednext_stellar_instant_identity(
+        account_ref=_ACCOUNT_REF
+    )
+    cibo_capital_mission = derive_cibo_capital_mission(cibo_account_identity)
     activation = load_verified_live_activation(
         root=root,
         activation_path=activation_path,
@@ -2217,6 +2225,15 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             ],
             "single_mt5_writer": True,
             "account_wide_risk_active": True,
+            "cibo_account_context_source": "ACCOUNT_BINDING",
+            "cibo_capital_mission": cibo_capital_mission.mission.value,
+            "cibo_capital_primary_objective": (
+                cibo_capital_mission.primary_objective.value
+            ),
+            "cibo_ce2i_activation_scope": cibo_capital_mission.ce2i_scope.value,
+            "cibo_capability_measurement_enabled": (
+                cibo_capital_mission.capability_measurement_enabled
+            ),
             "certified_prop_policy_active": True,
             "certified_prop_policy_observed_at": (certified_policy.observed_at.isoformat()),
             "certified_prop_policy_default_open_risk_fraction": str(
