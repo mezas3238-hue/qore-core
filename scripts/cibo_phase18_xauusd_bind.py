@@ -19,7 +19,13 @@ def _jsonl(path: Path) -> list[dict[str, Any]]:
     return [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
 
 
-def bind(*, geometry_path: Path, r34_path: Path, r34_report_path: Path, output_dir: Path) -> dict[str, Any]:
+def bind(
+    *,
+    geometry_path: Path,
+    r34_path: Path,
+    r34_report_path: Path,
+    output_dir: Path,
+) -> dict[str, Any]:
     generated = _jsonl(geometry_path)
     authoritative = _jsonl(r34_path)
     if not len(generated) == len(authoritative) == EXPECTED_TRADES:
@@ -39,7 +45,12 @@ def bind(*, geometry_path: Path, r34_path: Path, r34_report_path: Path, output_d
         stop = Decimal(str(geometry["structural_stop"]))
         target = Decimal(str(geometry["technical_target"]))
         side = str(geometry["side"])
-        valid = stop < entry < target if side == "long" else target < entry < stop if side == "short" else False
+        if side == "long":
+            valid = stop < entry < target
+        elif side == "short":
+            valid = target < entry < stop
+        else:
+            valid = False
         if not valid:
             raise ValueError("invalid technical geometry")
 
