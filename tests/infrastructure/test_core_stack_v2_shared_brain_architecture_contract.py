@@ -56,3 +56,68 @@ def test_experimental_knowledge_cannot_self_promote() -> None:
     )
     assert research["research_may_not_self_promote_to_runtime"] is True
     assert research["validated_to_certified_requires_owner_governed_gate"] is True
+
+
+def test_owner_cognitive_firewall_forbids_shared_actuation() -> None:
+    contract = shared_brain_architecture_contract()
+    os_contract = contract["cognitive_os_contract"]
+    firewall = os_contract["cognitive_firewall"]
+
+    assert firewall["read_only_by_default"] is True
+    assert firewall["shared_may_seize_sovereign_authority"] is False
+    assert set(firewall["forbidden_shared_authorities"]) == {
+        "order_send",
+        "position_close",
+        "modify_stop",
+        "modify_tp",
+        "position_size",
+        "capital_allocate",
+        "risk_authorize",
+        "trade_block",
+        "trade_force",
+    }
+    assert firewall["trader_decides_setup"] is True
+    assert firewall["cibo_decides_allocation_and_sizing"] is True
+    assert firewall["qore_risk_authorizes_capital_risk"] is True
+    assert firewall["execution_mutates_broker_state"] is True
+
+
+def test_shared_cognitive_os_observes_three_realities_and_can_abstain() -> None:
+    contract = shared_brain_architecture_contract()["cognitive_os_contract"]
+
+    assert set(contract["reality_planes"]["required"]) == {
+        "MARKET_REALITY",
+        "CORE_REALITY",
+        "COGNITIVE_REALITY",
+    }
+    assert contract["digital_twins"]["core_digital_twin_required"] is True
+    assert (
+        contract["core_infrastructure_and_broker_intelligence"][
+            "core_stability_separate_from_market_stability"
+        ]
+        is True
+    )
+    assert contract["interfaces_and_blindspots"]["blindspot_engine_required"] is True
+    assert (
+        contract["trust_and_failure_modes"][
+            "anti_hallucination_architecture_required"
+        ]
+        is True
+    )
+    assert "NO_SUPPORTED_HYPOTHESIS" in contract["trust_and_failure_modes"][
+        "abstention_states"
+    ]
+
+
+def test_shared_cognitive_os_requires_self_model_and_scientific_memory() -> None:
+    contract = shared_brain_architecture_contract()["cognitive_os_contract"]
+
+    assert contract["metacognition"]["self_model_required"] is True
+    assert contract["metacognition"]["value_of_computation_required"] is True
+    assert contract["memory_and_knowledge"]["cognitive_failure_memory_required"] is True
+    assert contract["memory_and_knowledge"]["knowledge_half_life_required"] is True
+    assert (
+        contract["memory_and_knowledge"]["knowledge_transportability_required"]
+        is True
+    )
+    assert contract["representation_and_ontology"]["ontology_evolution_required"] is True
