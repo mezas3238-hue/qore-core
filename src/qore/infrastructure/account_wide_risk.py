@@ -85,9 +85,13 @@ class AccountRiskSnapshot:
             _nonnegative(decimal_value, name)
         _aware(self.reconciled_at, "reconciled_at")
         provider = self.provider_budget
-        for name in ("provider_headroom", "max_risk_at_any_time", "active_mll"):
-            _nonnegative(getattr(provider, name, None), f"provider_budget.{name}")
-        if type(getattr(provider, "hard_breach", None)) is not bool:
+        for name, decimal_value in (
+            ("provider_headroom", provider.provider_headroom),
+            ("max_risk_at_any_time", provider.max_risk_at_any_time),
+            ("active_mll", provider.active_mll),
+        ):
+            _nonnegative(decimal_value, f"provider_budget.{name}")
+        if type(provider.hard_breach) is not bool:
             raise AccountWideRiskError("provider_budget.hard_breach must be bool")
         if self.qore_authorizable_headroom > provider.provider_headroom:
             raise AccountWideRiskError("QORE headroom cannot exceed provider headroom")
