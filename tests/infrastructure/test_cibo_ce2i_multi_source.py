@@ -245,7 +245,10 @@ def test_release_unused_multi_source_returns_every_slice(tmp_path: Path) -> None
         proposal,
         ledger_store=store,
     ) == (ReservationState.RELEASED, ReservationState.RELEASED)
-    assert all(account.available_usd == account.proven_amount_usd for account in version.ledger.accounts)
+    assert all(
+        account.available_usd == account.proven_amount_usd
+        for account in version.ledger.accounts
+    )
 
 
 def test_multi_source_settlement_consumes_loss_proportionally(
