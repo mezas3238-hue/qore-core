@@ -484,3 +484,26 @@ def test_capital_path_surfaces_false_recovery_and_fails_on_bad_evidence() -> Non
             exit_at=exit_at,
             samples=(*samples[:-1], decreasing_release),
         )
+
+
+def test_legacy_replay_prefers_authoritative_observed_scaled_outcome() -> None:
+    causal = replace(
+        _causal(),
+        signal_fingerprint="precision-bound",
+        legacy_risk_scale=Decimal("0.25"),
+    )
+    trade = CiboChronologicalReplayTrade(
+        causal=causal,
+        outcome=CiboReplayOutcome(
+            exit_at=NOW + timedelta(hours=1),
+            raw_outcome_r=Decimal("1.172727272727272727272727273"),
+            net_outcome_r=Decimal("1.172727272727272727272727273"),
+            exit_reason="TARGET",
+        ),
+        legacy_net_outcome_r=Decimal("0.2931818181818181818181818182"),
+    )
+
+    metrics = score_legacy_replay((trade,))
+
+    assert metrics.total_r == Decimal("0.2931818181818181818181818182")
+    assert metrics.gross_profit_r == Decimal("0.2931818181818181818181818182")
