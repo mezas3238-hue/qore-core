@@ -374,7 +374,7 @@ def _feature_vector(
     if len(ordered_directions) >= 2:
         adjacent_disagreement = fmean(
             abs(right - left) / 2.0
-            for left, right in zip(ordered_directions, ordered_directions[1:])
+            for left, right in zip(ordered_directions, ordered_directions[1:], strict=True)
         )
 
     names.extend(
@@ -431,7 +431,7 @@ def _solve_linear(matrix: list[list[float]], vector: list[float]) -> list[float]
                 continue
             augmented[row] = [
                 left - factor * right
-                for left, right in zip(augmented[row], augmented[column])
+                for left, right in zip(augmented[row], augmented[column], strict=True)
             ]
     return [augmented[row][-1] for row in range(width)]
 
@@ -452,7 +452,7 @@ def _ridge_fit(
     full_width = width + 1
     matrix = [[0.0] * full_width for _ in range(full_width)]
     vector = [0.0] * full_width
-    for row, target in zip(design, targets):
+    for row, target in zip(design, targets, strict=True):
         for left in range(full_width):
             vector[left] += row[left] * target
             for right in range(full_width):
@@ -489,7 +489,7 @@ def _standardize(
 ) -> tuple[float, ...]:
     return tuple(
         (value - center) / scale
-        for value, center, scale in zip(row, centers, scales)
+        for value, center, scale in zip(row, centers, scales, strict=True)
     )
 
 
@@ -501,7 +501,7 @@ def _predict_raw(
 ) -> float:
     return intercept + sum(
         coefficient * value
-        for coefficient, value in zip(coefficients, row)
+        for coefficient, value in zip(coefficients, row, strict=True)
     )
 
 
@@ -568,7 +568,7 @@ def fit_temporal_hierarchy_model(
 
     positive_scores = sorted(
         score
-        for score, item in zip(scores, opposed)
+        for score, item in zip(scores, opposed, strict=True)
         if item.terminal_failure
     )
     allowed_misses = (
