@@ -4,6 +4,11 @@ from decimal import Decimal
 from pathlib import Path
 
 from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_account_capital_mission import (
+    CiboAccountCapitalIdentity,
+    derive_cibo_capital_mission,
+    fundednext_stellar_instant_identity,
+)
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalSource,
     CapitalStage,
@@ -21,13 +26,57 @@ from qore.infrastructure.cibo_ce2i_expansion_proposal import CmaExpansionProposa
 from qore.infrastructure.cibo_ce2i_multi_source import (
     CmaMultiSourceExpansionProposal,
 )
+from qore.infrastructure.cibo_ce2i_regime_selector import (
+    CiboCapitalRegimeState,
+    CorrelationState,
+    LiquidityState,
+    ProviderCondition,
+    VolatilityState,
+    select_ce2i_tools_for_regime,
+)
 from qore.infrastructure.cibo_ce2i_policy_pipeline import (
     Ce2iExpansionPolicyDecision,
     propose_ce2i_expansion,
 )
+from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
 
 NOW = datetime(2026, 9, 26, 12, 0, tzinfo=UTC)
+
+
+
+def _demo_mission():
+    return derive_cibo_capital_mission(
+        CiboAccountCapitalIdentity(
+            provider_key="ctrader-demo",
+            account_ref="demo-free",
+            environment=MarketRuntimeEnvironment.DEMO,
+        )
+    )
+
+
+def _funded_mission():
+    return derive_cibo_capital_mission(
+        fundednext_stellar_instant_identity(
+            account_ref="stellar-instant-2k"
+        )
+    )
+
+
+def _regime(mission):
+    return select_ce2i_tools_for_regime(
+        mission=mission,
+        state=CiboCapitalRegimeState(
+            liquidity=LiquidityState.NORMAL,
+            volatility=VolatilityState.NORMAL,
+            correlation=CorrelationState.NORMAL,
+            provider_condition=ProviderCondition.HEALTHY,
+            risk_utilization=Decimal("0.20"),
+            margin_utilization=Decimal("0.20"),
+            drawdown_utilization=Decimal("0.20"),
+            opportunity_count=2,
+        ),
+    )
 
 
 def _opportunity() -> TraderOpportunityEnvelope:
@@ -125,11 +174,14 @@ def _propose(
         realized_amount=realized_amount,
         protected_amount=protected_amount,
     )
+    mission = _demo_mission()
     decision = propose_ce2i_expansion(
         reservation_id="policy-r1",
         request_id="policy-risk-1",
         opportunity=_opportunity(),
         observation=observation or _observation(),
+        mission=mission,
+        regime=_regime(mission),
         execution_curve=curve or _curve(),
         assigned_capital_usd=Decimal("10000"),
         hard_risk_headroom_usd=Decimal("100"),
@@ -223,3 +275,32 @@ def test_fragmented_sources_fund_minimum_atomically(
         item.amount_usd for item in decision.proposal.funding_slices
     ) == (Decimal("1"), Decimal("1"))
     assert len(store.load().ledger.reservations) == 2
+
+
+
+def test_funded_mission_blocks_research_expansion_before_reservation(
+    tmp_path: Path,
+) -> None:
+    store = _store(tmp_path)
+    mission = _funded_mission()
+
+    decision = propose_ce2i_expansion(
+        reservation_id="funded-r1",
+        request_id="funded-risk-1",
+        opportunity=_opportunity(),
+        observation=_observation(),
+        mission=mission,
+        regime=_regime(mission),
+        execution_curve=_curve(),
+        assigned_capital_usd=Decimal("2000"),
+        hard_risk_headroom_usd=Decimal("60"),
+        margin_headroom_usd=Decimal("500"),
+        requested_at=NOW,
+        expires_at=NOW + timedelta(seconds=30),
+        ledger_store=store,
+    )
+
+    assert decision.proposal is None
+    assert decision.applied_tools == ()
+    assert "blocks" in decision.reason
+    assert store.load().ledger.reservations == ()
