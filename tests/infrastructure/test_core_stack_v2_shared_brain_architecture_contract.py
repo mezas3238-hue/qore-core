@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from qore.infrastructure.core_stack_v2.shared_brain_architecture_contract import (
+from qore.infrastructure.core_stack_v2.architecture_freeze import (\n    superintelligence_freeze_contract,\n)\nfrom qore.infrastructure.core_stack_v2.shared_brain_architecture_contract import (
     SHARED_BRAIN_ARCHITECTURE_VERSION,
     shared_brain_architecture_contract,
 )
@@ -121,3 +121,27 @@ def test_shared_cognitive_os_requires_self_model_and_scientific_memory() -> None
         is True
     )
     assert contract["representation_and_ontology"]["ontology_evolution_required"] is True
+
+
+def test_legacy_freeze_cannot_reintroduce_shared_actuation() -> None:
+    freeze = superintelligence_freeze_contract()
+
+    sovereignty = freeze["specialist_sovereignty"]
+    assert sovereignty["shared_may_issue_stop_improvement_directive"] is False
+    assert sovereignty["shared_may_issue_target_extension_directive"] is False
+    assert sovereignty["shared_may_issue_realtime_trade_management_directive"] is False
+
+    position = freeze["position_law"]
+    assert position["shared_may_manage_stop"] is False
+    assert position["shared_may_manage_target"] is False
+    assert position["shared_may_trail_position"] is False
+    assert position["shared_may_close_position"] is False
+    assert position["shared_may_block_trade"] is False
+    assert position["shared_may_force_trade"] is False
+
+    governance = freeze["governance"]
+    assert governance["shared_broker_mutation_authority"] is False
+    assert governance["shared_position_mutation_authority"] is False
+    assert governance["shared_capital_allocation_authority"] is False
+    assert governance["shared_trade_block_authority"] is False
+    assert governance["shared_trade_force_authority"] is False
