@@ -126,6 +126,12 @@ def test_realized_profit_expansion_is_reserved_before_risk_handoff(
     assert proposal.plan.stop_risk_usd == Decimal("10")
     assert proposal.plan.volume == Decimal("0.10")
     assert proposal.risk_request.requested_volume == Decimal("0.10")
+    assert len(proposal.risk_request.capital_provenance) == 1
+    assert proposal.risk_request.capital_provenance[0].source_id == "source-1"
+    assert (
+        proposal.risk_request.capital_provenance[0].amount_usd
+        == proposal.plan.stop_risk_usd
+    )
     assert reservation_state(
         proposal,
         ledger_store=store,
