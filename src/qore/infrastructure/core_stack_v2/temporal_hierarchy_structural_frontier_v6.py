@@ -102,6 +102,9 @@ class StructuralFrontierModel:
     fit_terminal_count: int
     calibration_count: int
     calibration_terminal_count: int
+    purged_discovery_count: int
+    discovery_observed_max: datetime
+    calibration_source_min: datetime
     target_used_for_training_only: bool = True
     runtime_future_market_used: bool = False
     outcome_used_at_runtime: bool = False
@@ -130,6 +133,15 @@ class StructuralFrontierModel:
             raise ValueError("structural-frontier fit evidence is insufficient")
         if self.calibration_count < 50 or self.calibration_terminal_count < 5:
             raise ValueError("structural-frontier calibration evidence is insufficient")
+        if self.purged_discovery_count < 0:
+            raise ValueError("purged_discovery_count cannot be negative")
+        discovery_observed_max = _utc(self.discovery_observed_max)
+        calibration_source_min = _utc(self.calibration_source_min)
+        if discovery_observed_max >= calibration_source_min:
+            raise ValueError(
+                "chronological purge requires discovery labels to mature "
+                "before calibration source begins"
+            )
         if not 0 <= self.declaration_threshold_micros <= 1_000_000:
             raise ValueError("declaration threshold out of range")
         if not 0 <= self.calibration_terminal_preservation_bps <= 10_000:
@@ -435,8 +447,20 @@ def fit_structural_frontier_model(
     split = len(ordered) * discovery_fraction_bps // 10_000
     if split < 100 or len(ordered) - split < 50:
         raise ValueError("insufficient chronological discovery/calibration evidence")
-    discovery = ordered[:split]
+    raw_discovery = ordered[:split]
     calibration = ordered[split:]
+    calibration_source_min = _utc(calibration[0].source.as_of)
+    discovery = tuple(
+        item
+        for item in raw_discovery
+        if _utc(item.observed_at) < calibration_source_min
+    )
+    purged_discovery_count = len(raw_discovery) - len(discovery)
+    if len(discovery) < 100:
+        raise ValueError("chronological purge leaves insufficient discovery evidence")
+    discovery_observed_max = max(_utc(item.observed_at) for item in discovery)
+    if discovery_observed_max >= calibration_source_min:
+        raise AssertionError("chronological purge boundary is not strict")
 
     names, first = _expanded_features(discovery[0].source)
     raw_rows = [first]
@@ -535,6 +559,9 @@ def fit_structural_frontier_model(
         fit_terminal_count=fit_terminal_count,
         calibration_count=len(calibration),
         calibration_terminal_count=terminal_count,
+        purged_discovery_count=purged_discovery_count,
+        discovery_observed_max=discovery_observed_max,
+        calibration_source_min=calibration_source_min,
     )
 
 
