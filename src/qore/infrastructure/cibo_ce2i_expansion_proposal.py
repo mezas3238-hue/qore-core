@@ -11,9 +11,9 @@ It never mutates broker state and never bypasses QORE Risk.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
-from decimal import Decimal
+from decimal import ROUND_FLOOR, Decimal
 
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
 from qore.infrastructure.cibo_capital_management_authority import (
@@ -81,6 +81,7 @@ def reserve_expansion_proposal(
     expires_at: datetime,
     request_id: str,
     ledger_store: DurableCapitalSourceLedgerStore,
+    maximum_expansion_volume: Decimal | None = None,
 ) -> CmaExpansionProposal:
     """Atomically reserve one proven source and construct the Risk request."""
 
@@ -115,6 +116,11 @@ def reserve_expansion_proposal(
             "CMA observation is not eligible for expansion"
         )
 
+    bounded_opportunity = _bounded_opportunity(
+        opportunity,
+        maximum_expansion_volume=maximum_expansion_volume,
+    )
+
     version = ledger_store.load()
     account = _source_account(version, source_id)
     if (
@@ -147,7 +153,7 @@ def reserve_expansion_proposal(
         hard_risk_headroom_usd=hard_risk_headroom_usd,
         margin_headroom_usd=margin_headroom_usd,
     )
-    plan = plan_self_financing_expansion(opportunity, capital)
+    plan = plan_self_financing_expansion(bounded_opportunity, capital)
     if plan.action is not CapitalAction.EXPAND:
         raise CiboCapitalManagementError(
             f"CIBO expansion unavailable: {plan.reason}"
@@ -163,7 +169,7 @@ def reserve_expansion_proposal(
 
     risk_request = build_cma_risk_request(
         request_id=request_id,
-        opportunity=opportunity,
+        opportunity=bounded_opportunity,
         plan=plan,
         requested_at=requested_at,
         expires_at=expires_at,
@@ -323,3 +329,31 @@ def _capital_state_for_source(
         reserved_expansion_risk_usd=Decimal(0),
         cost_reserve_usd=Decimal(0),
     )
+
+
+
+def _bounded_opportunity(
+    opportunity: TraderOpportunityEnvelope,
+    *,
+    maximum_expansion_volume: Decimal | None,
+) -> TraderOpportunityEnvelope:
+    if maximum_expansion_volume is None:
+        return opportunity
+    if (
+        not isinstance(maximum_expansion_volume, Decimal)
+        or not maximum_expansion_volume.is_finite()
+        or maximum_expansion_volume < 0
+    ):
+        raise CiboCapitalManagementError(
+            "maximum_expansion_volume must be finite non-negative Decimal/null"
+        )
+    raw = min(maximum_expansion_volume, opportunity.maximum_volume)
+    steps = (raw / opportunity.volume_step).to_integral_value(
+        rounding=ROUND_FLOOR
+    )
+    bounded = steps * opportunity.volume_step
+    if bounded < opportunity.minimum_volume:
+        raise CiboCapitalManagementError(
+            "execution-efficient cap cannot express provider minimum volume"
+        )
+    return replace(opportunity, maximum_volume=bounded)
