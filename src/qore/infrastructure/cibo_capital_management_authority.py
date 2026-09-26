@@ -205,7 +205,7 @@ def minimum_seed_volume(opportunity: TraderOpportunityEnvelope) -> Decimal:
     """Smallest step-aligned volume compatible with provider/methodology constraints."""
 
     lifecycle_floor = (
-        opportunity.volume_step * Decimal(opportunity.minimum_execution_steps)
+        opportunity.minimum_volume * Decimal(opportunity.minimum_execution_steps)
     )
     raw = max(opportunity.minimum_volume, lifecycle_floor)
     steps = (raw / opportunity.volume_step).to_integral_value(rounding=ROUND_CEILING)
