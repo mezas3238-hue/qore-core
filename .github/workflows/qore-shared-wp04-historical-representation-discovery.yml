@@ -1,0 +1,210 @@
+name: QORE Shared WP04 Historical Representation Discovery
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/representation_discovery_engine.py
+      - src/qore/infrastructure/core_stack_v2/representation_discovery_evaluation.py
+      - scripts/shared_wp03_historical_causal_discovery.py
+      - scripts/shared_wp04_historical_representation_discovery.py
+      - tests/infrastructure/test_core_stack_v2_representation_discovery_engine.py
+      - tests/infrastructure/test_core_stack_v2_representation_discovery_evaluation.py
+      - .github/workflows/qore-shared-wp04-historical-representation-discovery.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  historical-representation-discovery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Announce authoritative WP04 historical run
+        run: |
+          gh issue comment 642 --body "WP-04 historical run started — Git SHA \`${GITHUB_SHA}\`, GitHub Actions run \`${GITHUB_RUN_ID}\`. This run is R8 discovery → frozen R6 holdout → frozen R5 replication; no VPS/runtime mutation."
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Static and contract validation
+        run: |
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/representation_discovery_engine.py \
+            src/qore/infrastructure/core_stack_v2/representation_discovery_evaluation.py \
+            scripts/shared_wp04_historical_representation_discovery.py \
+            tests/infrastructure/test_core_stack_v2_representation_discovery_engine.py \
+            tests/infrastructure/test_core_stack_v2_representation_discovery_evaluation.py
+          python -m py_compile \
+            src/qore/infrastructure/core_stack_v2/representation_discovery_engine.py \
+            src/qore/infrastructure/core_stack_v2/representation_discovery_evaluation.py \
+            scripts/shared_wp04_historical_representation_discovery.py
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_representation_discovery_engine.py \
+            tests/infrastructure/test_core_stack_v2_representation_discovery_evaluation.py
+
+      - name: Recover immutable R8 R6 R5 market evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/r8 input/r6 input/r5 result
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Run R8 discovery R6 holdout R5 replication
+        run: |
+          python scripts/shared_wp04_historical_representation_discovery.py \
+            --r8-nas input/r8/fresh/NAS100/market-evidence.json \
+            --r8-sp input/r8/fresh/SP500/market-evidence.json \
+            --r8-us input/r8/fresh/US30/market-evidence.json \
+            --r6-nas input/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp input/r6/fresh/SP500/market-evidence.json \
+            --r6-us input/r6/fresh/US30/market-evidence.json \
+            --r5-nas input/r5/fresh/NAS100/market-evidence.json \
+            --r5-sp input/r5/fresh/SP500/market-evidence.json \
+            --r5-us input/r5/fresh/US30/market-evidence.json \
+            --output result/wp04-historical-representation-discovery.json \
+            | tee result/summary.json
+
+      - name: Bind result
+        run: |
+          echo "${GITHUB_SHA}" > result/git-sha.txt
+          (
+            cd result
+            find . -type f ! -name SHA256SUMS -print0 \
+              | sort -z \
+              | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-wp04-historical-representation-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Validate scientific protocol and sovereignty
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(
+              Path(
+                  "result/wp04-historical-representation-discovery.json"
+              ).read_text()
+          )
+          assert p["protocol_pass"] is True
+          assert p["status"] in {
+              "WP04_OOS_INCREMENTAL_INFORMATION_PASS",
+              "WP04_OOS_INCREMENTAL_INFORMATION_FALSIFIED",
+          }
+
+          d = p["discovery"]
+          assert d["partition"] == "r8"
+          assert d["episode_count"] >= 7000
+          assert d["concept_count"] >= 1
+          assert d["feature_count"] >= 50
+          assert d["ontology_count"] >= 10
+          assert d["target_used"] is False
+          assert d["future_market_used"] is False
+          assert d["trader_identity_used"] is False
+
+          ranges = p["partition_ranges"]
+          assert ranges["r8"]["target_max"] < ranges["r6"]["source_min"]
+          assert ranges["r6"]["target_max"] < ranges["r5"]["source_min"]
+
+          for section in ("r6_holdout", "r5_replication"):
+              result = p[section]
+              assert result["target_count"] >= 4
+              assert result["minimum_incremental_information_bps"] == 100
+              assert result["minimum_positive_target_count"] >= 4
+              for target in result["targets"]:
+                  assert target["holdout_refit"] is False
+                  assert target["identity_used"] is False
+                  assert target["knowledge_promotion_authority"] is False
+
+          g = p["governance"]
+          assert g["representation_fit_partition"] == "r8_only"
+          assert g["representation_target_blind"] is True
+          assert g["probe_fit_partition"] == "r8_only"
+          assert g["r6_refit"] is False
+          assert g["r5_refit"] is False
+          assert g["trader_event_timestamps_used"] is False
+          assert g["symbol_identity_feature_used"] is False
+          assert g["knowledge_auto_promotion"] is False
+          assert g["shared_methodology_authority"] is False
+          assert g["shared_sizing_authority"] is False
+          assert g["shared_risk_authority"] is False
+          assert g["shared_order_authority"] is False
+          assert g["shared_execution_authority"] is False
+          assert g["live_authorized"] is False
+          assert g["production_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["merge_authorized"] is False
+          PY
+
+      - name: Report historical result to WP04
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p = json.loads(
+              Path(
+                  "result/wp04-historical-representation-discovery.json"
+              ).read_text()
+          )
+          d = p["discovery"]
+          r6 = p["r6_holdout"]
+          r5 = p["r5_replication"]
+          body = f"""## WP-04 historical representation run
+
+          - Git SHA: `{os.environ['GITHUB_SHA']}`
+          - GitHub Actions run: `{os.environ['GITHUB_RUN_ID']}`
+          - status: **{p['status']}**
+          - protocol_pass: **{p['protocol_pass']}**
+          - exit_gate_pass: **{p['exit_gate_pass']}**
+          - R8 discovery episodes: {d['episode_count']}
+          - provisional residual concepts: {d['concept_count']}
+          - sequence features: {d['feature_count']}
+          - existing ontology dimensions: {d['ontology_count']}
+          - R6 pooled incremental information: **{r6['pooled_incremental_information_bps']} bps**
+          - R6 positive targets: {r6['positive_target_count']}/{r6['target_count']}
+          - R5 pooled incremental information: **{r5['pooled_incremental_information_bps']} bps**
+          - R5 positive targets: {r5['positive_target_count']}/{r5['target_count']}
+          - discovery target-blind: **True**
+          - R6/R5 refit: **False**
+          - trader/symbol identity feature leakage: **False**
+          - knowledge auto-promotion and methodology/Risk/sizing/order/execution authority: **False**
+
+          Scientific PASS requires >=100 bps pooled MSE improvement and at least half the frozen targets positive in **both** R6 and R5. A valid falsification keeps WP-04 open for representation redesign; gates are not relaxed after seeing holdout results.
+          """
+          Path("result/wp04-issue-update.md").write_text(body)
+          PY
+          gh issue comment 642 --body-file result/wp04-issue-update.md

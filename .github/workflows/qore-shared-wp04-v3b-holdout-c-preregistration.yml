@@ -1,0 +1,94 @@
+name: QORE Shared WP04 V3B HOLDOUT_C Preregistration
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/ctrader_demo_lab_vt31_v2_probe.py
+      - tests/infrastructure/test_ctrader_demo_lab_vt31_v2_probe.py
+      - scripts/shared_wp04_predictive_holdout_c_probe_v3b.py
+      - scripts/shared_wp04_predictive_nonlinear_holdout_c_eval_v3b.py
+      - .github/workflows/qore-shared-wp04-v3b-holdout-c-preregistration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  holdout-c-preregistration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Announce HOLDOUT_C preregistration run
+        run: |
+          gh issue comment 642 --body "WP-04 V3B replacement HOLDOUT_C preregistration started — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Zero cTrader data access; HOLDOUT_C remains sealed."
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install research dependencies without broker credentials
+        run: pip install -e ".[dev,ctrader]"
+
+      - name: Static and bounded-window coverage validation
+        run: |
+          ruff check \
+            src/qore/infrastructure/ctrader_demo_lab_vt31_v2_probe.py \
+            tests/infrastructure/test_ctrader_demo_lab_vt31_v2_probe.py \
+            scripts/shared_wp04_predictive_holdout_c_probe_v3b.py \
+            scripts/shared_wp04_predictive_nonlinear_holdout_c_eval_v3b.py
+          python -m py_compile \
+            src/qore/infrastructure/ctrader_demo_lab_vt31_v2_probe.py \
+            scripts/shared_wp04_predictive_holdout_c_probe_v3b.py \
+            scripts/shared_wp04_predictive_nonlinear_holdout_c_eval_v3b.py
+          pytest -q tests/infrastructure/test_ctrader_demo_lab_vt31_v2_probe.py
+
+      - name: Validate frozen replacement-holdout contract
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          import inspect
+
+          import shared_wp04_predictive_holdout_c_probe_v3b as collector
+          import shared_wp04_predictive_nonlinear_holdout_c_eval_v3b as evaluator
+          from qore.infrastructure.ctrader_demo_lab_vt31_v2_probe import (
+              _REQUIRED_COVERAGE_DAYS,
+              collect_vt31_v2_m1_evidence,
+          )
+
+          assert _REQUIRED_COVERAGE_DAYS == 730
+          signature=inspect.signature(collect_vt31_v2_m1_evidence)
+          assert signature.parameters["minimum_coverage_days"].default == 730
+
+          assert collector.HOLDOUT_START.isoformat() == "2024-07-15T00:00:00+00:00"
+          assert collector.HOLDOUT_END_EXCLUSIVE.isoformat() == "2025-07-14T00:00:00+00:00"
+          assert collector.MINIMUM_COVERAGE_DAYS == 340
+          assert collector.PURPOSE == "WP04_V3B_REPLACEMENT_ONE_SHOT_HOLDOUT_C"
+
+          assert evaluator.HOLDOUT_PARTITION == "holdout_c"
+          assert evaluator.HOLDOUT_START.isoformat() == "2024-07-15T00:00:00+00:00"
+          assert evaluator.HOLDOUT_END_EXCLUSIVE.isoformat() == "2025-07-14T00:00:00+00:00"
+          assert evaluator.MINIMUM_POOLED_INCREMENTAL_BPS == 100
+          assert evaluator.MINIMUM_POSITIVE_TARGETS == 4
+          PY
+
+      - name: Assert preregistration has zero evidence access
+        run: |
+          test -z "${QORE_CTRADER_ACCESS_TOKEN:-}"
+          test -z "${QORE_CTRADER_REFRESH_TOKEN:-}"
+          test -z "${QORE_CTRADER_DEMO_ACCESS_TOKEN:-}"
+          test -z "${QORE_CTRADER_DEMO_REFRESH_TOKEN:-}"
+          test ! -d fresh
+          test ! -d input
+          test ! -d result
+
+      - name: Report HOLDOUT_C preregistration GREEN
+        run: |
+          gh issue comment 642 --body "WP-04 V3B replacement HOLDOUT_C preregistration GREEN — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. HOLDOUT_A remains consumed/invalid after technical acquisition defect; REPLICATION_B remains sealed. New independent HOLDOUT_C is locked to 2024-07-15..2025-07-14 with >=340 days provider coverage; final gate remains >=100 bps pooled + >=4/8 targets positive. VT31 default coverage remains 730 days. No cTrader credentials or fresh evidence were opened."

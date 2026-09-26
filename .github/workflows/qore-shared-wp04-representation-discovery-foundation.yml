@@ -1,0 +1,123 @@
+name: QORE Shared WP04 Representation Discovery Foundation
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/representation_discovery_engine.py
+      - src/qore/infrastructure/core_stack_v2/representation_discovery_evaluation.py
+      - tests/infrastructure/test_core_stack_v2_representation_discovery_engine.py
+      - tests/infrastructure/test_core_stack_v2_representation_discovery_evaluation.py
+      - .github/workflows/qore-shared-wp04-representation-discovery-foundation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  representation-discovery-foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Static validation
+        run: |
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/representation_discovery_engine.py \
+            src/qore/infrastructure/core_stack_v2/representation_discovery_evaluation.py \
+            tests/infrastructure/test_core_stack_v2_representation_discovery_engine.py \
+            tests/infrastructure/test_core_stack_v2_representation_discovery_evaluation.py
+          python -m py_compile \
+            src/qore/infrastructure/core_stack_v2/representation_discovery_engine.py \
+            src/qore/infrastructure/core_stack_v2/representation_discovery_evaluation.py
+
+      - name: Run WP04 representation-discovery contract tests
+        run: |
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_representation_discovery_engine.py \
+            tests/infrastructure/test_core_stack_v2_representation_discovery_evaluation.py
+
+      - name: Validate authority and leakage boundary
+        run: |
+          python - <<'PY'
+          from datetime import UTC, datetime, timedelta
+
+          from qore.infrastructure.core_stack_v2.representation_discovery_engine import (
+              RepresentationEpisode,
+              RepresentationValue,
+              fit_representation_discovery,
+          )
+
+          now = datetime.now(UTC)
+          episodes = tuple(
+              RepresentationEpisode(
+                  episode_id=f"R8-{index}",
+                  as_of=now - timedelta(minutes=600-index),
+                  partition="R8",
+                  features=(
+                      RepresentationValue("GENERIC_PATH_A", float(index % 7)),
+                      RepresentationValue("GENERIC_PATH_B", float((index % 5) - 2)),
+                  ),
+                  ontology=(
+                      RepresentationValue("ONTOLOGY_A", float(index % 3)),
+                  ),
+              )
+              for index in range(500)
+          )
+          model = fit_representation_discovery(
+              fitted_at=now,
+              episodes=episodes,
+          )
+          assert model.target_used is False
+          assert model.future_market_used is False
+          assert model.outcome_used is False
+          assert model.pnl_used is False
+          assert model.trader_identity_used is False
+          assert model.methodology_authority is False
+          assert model.knowledge_promotion_authority is False
+          assert model.sizing_authority is False
+          assert model.risk_authority is False
+          assert model.order_authority is False
+          assert model.execution_authority is False
+          print(
+              {
+                  "concept_count": len(model.concepts),
+                  "target_blind": True,
+                  "identity_blind": True,
+                  "authority_free": True,
+              }
+          )
+          PY
+
+      - name: Report WP04 foundation GREEN
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > /tmp/wp04-foundation.md <<EOF
+          ## WP-04 representation-discovery foundation GREEN
+
+          - Git SHA: \`${GITHUB_SHA}\`
+          - GitHub Actions run: \`${GITHUB_RUN_ID}\`
+          - source-only ontology residualization: PASS
+          - provisional latent concepts + interpretable probes: PASS
+          - deterministic projection/schema-drift gates: PASS
+          - separate incremental-information evaluator: PASS
+          - synthetic OOS ontology-vs-ontology+latent contract: PASS
+          - target/identity leakage: FAIL-CLOSED
+          - knowledge promotion / methodology / sizing / Risk / order / execution authority: NONE
+
+          Historical R8 discovery → frozen R6/R5 evaluation is still required before WP-04 completion.
+          EOF
+          gh issue comment 642 --body-file /tmp/wp04-foundation.md

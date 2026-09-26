@@ -1,0 +1,216 @@
+name: QORE Shared WP05 Structural Failure Target V2 Absorption V1
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - docs/shared/QORE_SHARED_WP05_STRUCTURAL_FAILURE_TARGET_CONTRACT_V2.md
+      - scripts/shared_wp05_structural_failure_target_v2.py
+      - scripts/shared_wp05_structural_failure_target_v2_absorption_v1.py
+      - scripts/shared_wp05_temporal_hierarchy_absorption_v3.py
+      - src/qore/infrastructure/core_stack_v2/temporal_hierarchy_absorption_v3.py
+      - src/qore/infrastructure/core_stack_v2/temporal_hierarchy_target_contract.py
+      - tests/infrastructure/test_shared_wp05_structural_failure_target_v2.py
+      - .github/workflows/qore-shared-wp05-structural-failure-target-v2-absorption-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  target-v2-absorption-v1:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Announce corrected-target consumed-development run
+        run: |
+          gh issue comment 643 --body "WP-05 Target V2 absorption V1 started — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Target V2 was preregistered before audit and activated only after audit run 36259738096 proved material directional inconsistency. R8 fit only; R6/R5 consumed falsification only; fresh holdout remains closed; gate unchanged at 20%/95%."
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Static and target-contract validation
+        run: |
+          ruff check \
+            scripts/shared_wp05_structural_failure_target_v2.py \
+            scripts/shared_wp05_structural_failure_target_v2_absorption_v1.py \
+            tests/infrastructure/test_shared_wp05_structural_failure_target_v2.py \
+            src/qore/infrastructure/core_stack_v2/temporal_hierarchy_target_contract.py \
+            src/qore/infrastructure/core_stack_v2/temporal_hierarchy_absorption_v3.py
+          python -m py_compile \
+            scripts/shared_wp05_structural_failure_target_v2.py \
+            scripts/shared_wp05_structural_failure_target_v2_absorption_v1.py
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_temporal_hierarchy_target_contract.py \
+            tests/infrastructure/test_shared_wp05_structural_failure_target_v2.py \
+            tests/infrastructure/test_core_stack_v2_temporal_hierarchy_absorption_v3.py
+
+      - name: Recover immutable consumed R8 R6 R5 market evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/r8 input/r6 input/r5 result
+
+          download_artifact() {
+            local artifact_id="$1"
+            local output="$2"
+            local tmp="${output}.tmp"
+            rm -f "$tmp"
+            for attempt in 1 2 3 4; do
+              if gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$tmp"; then
+                mv "$tmp" "$output"
+                return 0
+              fi
+              rm -f "$tmp"
+              sleep $((attempt * 30))
+            done
+            return 1
+          }
+
+          download_artifact 10402199719 r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          download_artifact 10389112524 r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          download_artifact 10380044761 r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Run Target V2 absorption consumed-development falsification
+        run: |
+          python scripts/shared_wp05_structural_failure_target_v2_absorption_v1.py \
+            --r8-nas input/r8/fresh/NAS100/market-evidence.json \
+            --r8-sp input/r8/fresh/SP500/market-evidence.json \
+            --r8-us input/r8/fresh/US30/market-evidence.json \
+            --r6-nas input/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp input/r6/fresh/SP500/market-evidence.json \
+            --r6-us input/r6/fresh/US30/market-evidence.json \
+            --r5-nas input/r5/fresh/NAS100/market-evidence.json \
+            --r5-sp input/r5/fresh/SP500/market-evidence.json \
+            --r5-us input/r5/fresh/US30/market-evidence.json \
+            --output result/wp05-target-v2-absorption-v1.json \
+            | tee result/summary.json
+
+      - name: Validate scientific protocol
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(Path("result/wp05-target-v2-absorption-v1.json").read_text())
+          assert p["protocol_pass"] is True
+          assert p["fresh_holdout_opened"] is False
+          assert p["wp05_exit_gate_pass"] is False
+          assert p["status"] in {
+              "WP05_TARGET_V2_ABSORPTION_V1_FROZEN_FOR_FRESH_HOLDOUT",
+              "WP05_TARGET_V2_ABSORPTION_V1_FALSIFIED",
+          }
+          target=p["target_contract"]
+          assert target["identity"]=="HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2"
+          assert target["activated"] is True
+          assert target["activation_audit_run_id"]==36259738096
+          assert target["prior_v1_v4_history_rewritten"] is False
+          assert target["runtime_target_access"] is False
+          assert p["model"]["fit_partition"]=="r8"
+          assert p["model"]["representation"]=="SEMI_MARKOV_HIERARCHY_FRONT_TARGET_V2"
+          gate=p["frozen_development_gate"]
+          assert gate["minimum_false_declaration_reduction_bps"]==2000
+          assert gate["minimum_terminal_detection_preservation_bps"]==9500
+          assert gate["must_pass_partitions"]==["r6","r5"]
+          for partition in ("r8","r6","r5"):
+              assert p["partition_ranges"][partition]["target_contract"]=="HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2"
+              assert p["partition_ranges"][partition]["target_runtime_allowed"]==0
+              assert p["partition_ranges"][partition]["fresh_holdout_opened"]==0
+          g=p["governance"]
+          assert g["target_v2_activated_after_preregistered_audit"] is True
+          assert g["v1_v4_old_proxy_history_preserved"] is True
+          assert g["r8_fit_only"] is True
+          assert g["r6_refit"] is False
+          assert g["r5_refit"] is False
+          assert g["runtime_future_market_used"] is False
+          assert g["fresh_holdout_opened"] is False
+          assert g["knowledge_auto_promotion"] is False
+          assert g["shared_methodology_authority"] is False
+          assert g["shared_sizing_authority"] is False
+          assert g["shared_risk_authority"] is False
+          assert g["shared_order_authority"] is False
+          assert g["shared_execution_authority"] is False
+          assert g["live_authorized"] is False
+          assert g["production_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["merge_authorized"] is False
+          PY
+
+      - name: Bind result
+        run: |
+          echo "${GITHUB_SHA}" > result/git-sha.txt
+          (
+            cd result
+            find . -type f ! -name SHA256SUMS -print0 \
+              | sort -z \
+              | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-wp05-target-v2-absorption-v1-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report corrected-target result
+        if: always()
+        run: |
+          if [ ! -f result/wp05-target-v2-absorption-v1.json ]; then
+            gh issue comment 643 --body "WP-05 Target V2 absorption V1 run \`${GITHUB_RUN_ID}\` produced no scientific payload. Fresh holdout remains closed; inspect technical failure."
+            exit 0
+          fi
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(Path("result/wp05-target-v2-absorption-v1.json").read_text())
+          lines=[
+              "## WP-05 Target V2 absorption V1 result",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- GitHub Actions run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- status: **{p['status']}**",
+              f"- protocol_pass: **{p['protocol_pass']}**",
+              f"- development_gate_pass: **{p['development_gate_pass']}**",
+              "- target: **HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2**",
+              "- activation audit: **36259738096**",
+              "- V1-V4 rewritten: **False**",
+              "- gate unchanged: **>=20% false-declaration reduction + >=95% terminal preservation on BOTH R6/R5**",
+              "- fresh holdout opened: **False**",
+              "",
+              "Corrected-target partition results:",
+          ]
+          for partition in ("r8","r6","r5"):
+              e=p["evaluations"][partition]
+              r=p["partition_ranges"][partition]
+              lines.append(
+                  f"- {partition.upper()}: episodes={r['episode_count']}; old terminals={r['original_terminal_count']}; Target-V2 terminals={r['v2_terminal_count']}; relabeled={r['changed_target_count']}; false reduction={e['false_declaration_reduction_bps']} bps; terminal preservation={e['terminal_detection_preservation_bps']} bps"
+              )
+          if p["development_gate_pass"]:
+              lines.append("Target V2 + absorption V1 survives consumed development. Freeze exact fingerprint and preregister a new independent holdout before reading any fresh evidence.")
+          else:
+              lines.append("Target V2 + absorption V1 is falsified on consumed development. Keep fresh holdout closed and continue structural model research under Target V2.")
+          Path("result/issue-update.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 643 --body-file result/issue-update.md

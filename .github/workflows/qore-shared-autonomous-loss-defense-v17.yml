@@ -1,0 +1,243 @@
+name: QORE Shared Autonomous Loss Defense Economic V17
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/autonomous_loss_defense.py
+      - tests/infrastructure/test_core_stack_v2_autonomous_loss_defense.py
+      - scripts/shared_autonomous_loss_defense_economic_shadow_v17.py
+      - .github/workflows/qore-shared-autonomous-loss-defense-v17.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  autonomous-loss-defense-v17:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - name: Checkout Shared
+        uses: actions/checkout@v4
+        with:
+          path: shared
+
+      - name: Checkout frozen external falsification surface
+        uses: actions/checkout@v4
+        with:
+          ref: agent/vt08-index-deep-behavior-lab-final
+          path: surface
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compose external scorer with autonomous Shared intelligence
+        run: |
+          set -euo pipefail
+          mkdir -p surface/src/qore/infrastructure/core_stack_v2 surface/scripts
+          : > surface/src/qore/infrastructure/core_stack_v2/__init__.py
+          for file in \
+            autonomous_loss_defense.py \
+            contracts.py \
+            intelligence.py \
+            analog_memory.py \
+            competing_future_intelligence.py \
+            competing_risk_decision_gate.py \
+            competing_risk_path_core.py \
+            drawdown_phenotype_memory.py \
+            environment_intelligence.py \
+            future_geometry_intelligence.py \
+            instinct_intelligence.py \
+            journey_intelligence.py \
+            path_intelligence.py \
+            perception_engine.py \
+            realtime_trade_management.py \
+            recovery_failure_intelligence.py \
+            terminal_failure_confirmation.py \
+            resident_convergence_intelligence.py \
+            stop_target_discrimination.py \
+            stability_intelligence.py \
+            transition_intelligence.py
+          do
+            cp "shared/src/qore/infrastructure/core_stack_v2/$file" \
+               "surface/src/qore/infrastructure/core_stack_v2/$file"
+          done
+          for script in \
+            vt08_index_shared_cognitive_challenge_v2.py \
+            vt08_index_shared_full_stack_no_sizing_v3.py \
+            vt08_index_shared_stop_target_discrimination_v6.py \
+            vt08_index_shared_terminal_failure_economic_shadow_v7.py \
+            vt08_index_shared_competing_risk_calibration_v9.py \
+            vt08_index_shared_context_conditioned_competing_risk_v15.py \
+            vt08_index_shared_context_conditioned_economic_shadow_v16.py \
+            shared_autonomous_loss_defense_economic_shadow_v17.py
+          do
+            cp "shared/scripts/$script" "surface/scripts/$script"
+          done
+          cp shared/tests/infrastructure/test_core_stack_v2_autonomous_loss_defense.py \
+             surface/tests/infrastructure/test_core_stack_v2_autonomous_loss_defense.py
+
+      - name: Install composite research tree
+        run: |
+          cd surface
+          pip install -e ".[dev]"
+          pip install "numpy>=2,<3" "scikit-learn>=1.5,<2"
+
+      - name: Static and unit validation
+        run: |
+          set -euo pipefail
+          cd surface
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/autonomous_loss_defense.py \
+            tests/infrastructure/test_core_stack_v2_autonomous_loss_defense.py \
+            scripts/shared_autonomous_loss_defense_economic_shadow_v17.py
+          python -m py_compile \
+            src/qore/infrastructure/core_stack_v2/autonomous_loss_defense.py \
+            scripts/shared_autonomous_loss_defense_economic_shadow_v17.py
+          mypy src/qore/infrastructure/core_stack_v2/autonomous_loss_defense.py
+          pytest -q tests/infrastructure/test_core_stack_v2_autonomous_loss_defense.py
+
+      - name: Download frozen consumed Shared path ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-shared-vt08-stop-target-discrimination-v6-1a534d0ae735efef4dcbc0c0be4b110ceaa80501
+          path: surface/artifacts/v6
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 36131607443
+
+      - name: Download market evidence A
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: surface/artifacts/NAS100
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download market evidence B
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-SP500-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: surface/artifacts/SP500
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Download market evidence C
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-US30-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+          path: surface/artifacts/US30
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 35166210458
+
+      - name: Run autonomous Shared V17 economic shadow
+        run: |
+          set -euo pipefail
+          cd surface
+          mkdir -p artifacts/shared-v17
+          python scripts/shared_autonomous_loss_defense_economic_shadow_v17.py \
+            --ledger-json artifacts/v6/vt08-index-shared-stop-target-discrimination-v6.json \
+            --market-root NAS100=artifacts/NAS100 \
+            --market-root SP500=artifacts/SP500 \
+            --market-root US30=artifacts/US30 \
+            --out artifacts/shared-v17/shared-autonomous-loss-defense-v17.json \
+            | tee artifacts/shared-v17/summary.json
+
+      - name: Validate autonomous Shared governance
+        run: |
+          set -euo pipefail
+          cd surface
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path(
+                  "artifacts/shared-v17/"
+                  "shared-autonomous-loss-defense-v17.json"
+              ).read_text()
+          )
+          assert p["identity"] == "QORE_SHARED_AUTONOMOUS_LOSS_DEFENSE_ECONOMIC_SHADOW_V17"
+          assert p["shared_autonomous_policy"] is True
+          assert p["trader_specific_inference"] is False
+          assert p["research_only"] is True
+          assert p["consumed_evidence_only"] is True
+          assert p["fresh_holdout_opened"] is False
+
+          expected={
+              "five_year":2448,
+              "recent_two_year":1017,
+              "r66_consumed_failed_holdout":773,
+          }
+          for key,sample in expected.items():
+              w=p["windows"][key]
+              assert w["sample"] == sample
+              assert w["density_retained_shadow"] == "1"
+              c=w["contract"]
+              assert c["shared_policy_is_trader_agnostic"] is True
+              assert c["symbol_identity_in_inference_rule"] is False
+              assert c["calendar_identity_in_inference_rule"] is False
+              assert c["fold_identity_in_inference_rule"] is False
+              assert c["same_trade_count"] is True
+              assert c["same_initial_position_size"] is True
+              assert c["sizing_used"] is False
+              assert c["risk_weighting_used"] is False
+              assert c["signal_suppression_used"] is False
+              assert c["stop_improvement_research_used"] is True
+              assert c["stop_widening_used"] is False
+              assert c["target_mutation_used"] is False
+              assert c["target_extension_used"] is False
+              assert c["future_outcome_input_used"] is False
+              assert c["future_market_input_used_by_runtime_policy"] is False
+              assert c["future_path_used_for_offline_scoring_only"] is True
+              assert c["broker_execution_authority"] is False
+
+          g=p["governance"]
+          assert g["phase"] == "PHASE_2_AUTONOMOUS_DEFENSE_RESEARCH_ONLY"
+          assert g["runtime_actuation"] is False
+          assert g["live_authorized"] is False
+          assert g["production_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["merge_authorized"] is False
+          assert g["sizing_used"] is False
+          assert g["risk_weighting_used"] is False
+          assert g["broker_execution_authority"] is False
+
+          print(json.dumps({
+              "consumed_economic_pass":p["consumed_economic_pass"],
+              "windows":{
+                  key:{
+                      "pass_window":value["pass_window"],
+                      "defense_exit_count":value["defense_exit_count"],
+                      "winner_retention":value["winner_retention"],
+                      "vs_baseline":value["economic_delta_vs_baseline"],
+                      "vs_v16":value["economic_delta_vs_v16"],
+                  }
+                  for key,value in p["windows"].items()
+              },
+          },sort_keys=True))
+          PY
+
+      - name: Bind result
+        run: |
+          cd surface/artifacts/shared-v17
+          echo "$GITHUB_SHA" > shared-git-sha.txt
+          echo "36131607443" > source-v6-run.txt
+          echo "36141968333" > source-v15-run.txt
+          echo "36142389500" > source-v16-run.txt
+          find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          sha256sum -c SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-autonomous-loss-defense-v17-${{ github.sha }}
+          path: surface/artifacts/shared-v17/
+          if-no-files-found: error
+          retention-days: 90

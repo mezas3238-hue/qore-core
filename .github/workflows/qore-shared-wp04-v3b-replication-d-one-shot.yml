@@ -1,0 +1,422 @@
+name: QORE Shared WP04 V3B REPLICATION_D One-Shot
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - .github/workflows/qore-shared-wp04-v3b-replication-d-one-shot.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  V3B_FREEZE_RUN_ID: "36244726347"
+  V3B_FREEZE_ARTIFACT_ID: "10906064254"
+  V3B_FREEZE_SHA: "8c0b4c3e37419ab55557ed3f333f59c452b9f79d"
+  HOLDOUT_E_RUN_ID: "36247407353"
+  HOLDOUT_E_ARTIFACT_ID: "10908500161"
+  HOLDOUT_E_SHA: "182302a6c9dde2d3a78bb3b5dd96f28bb9968867"
+  CANARY_RUN_ID: "36247239704"
+  CANARY_ARTIFACT_ID: "10907836709"
+  CANARY_SHA: "9015cd4f7874416f9e2e4b87da111f327e7d4073"
+  PREREG_RUN_ID: "36247901048"
+
+jobs:
+  replication-d-v3b-one-shot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Announce REPLICATION_D one-shot preflight
+        run: |
+          gh issue comment 642 --body "WP-04 V3B REPLICATION_D one-shot preflight started — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. D remains sealed until strict preregistration, HOLDOUT_E PASS, frozen V3B artifact, real-provider canary and technical contracts all pass."
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install research and cTrader dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,ctrader]"
+
+      - name: Validate all code before opening D
+        run: |
+          ruff check \
+            src/qore/infrastructure/ctrader_demo_lab_vt31_v2_probe.py \
+            tests/infrastructure/test_ctrader_demo_lab_vt31_v2_probe.py \
+            scripts/shared_wp04_bounded_provider_canary.py \
+            scripts/shared_wp04_predictive_replication_d_probe_v3b.py \
+            scripts/shared_wp04_predictive_nonlinear_replication_d_eval_v3b.py \
+            src/qore/infrastructure/core_stack_v2/representation_predictive_v3.py \
+            src/qore/infrastructure/core_stack_v2/representation_predictive_nonlinear_probe_v3b.py
+          python -m py_compile \
+            scripts/shared_wp04_predictive_replication_d_probe_v3b.py \
+            scripts/shared_wp04_predictive_nonlinear_replication_d_eval_v3b.py
+          pytest -q \
+            tests/infrastructure/test_ctrader_demo_lab_vt31_v2_probe.py \
+            tests/infrastructure/test_core_stack_v2_representation_predictive_v3.py \
+            tests/infrastructure/test_core_stack_v2_representation_predictive_nonlinear_probe_v3b.py
+
+      - name: Wait for and require strict GREEN REPLICATION_D preregistration
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 40); do
+            status="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${PREREG_RUN_ID}" --jq '.status')"
+            conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${PREREG_RUN_ID}" --jq '.conclusion // ""')"
+            if [ "$status" = "completed" ]; then
+              test "$conclusion" = "success"
+              break
+            fi
+            sleep 30
+          done
+          status="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${PREREG_RUN_ID}" --jq '.status')"
+          conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${PREREG_RUN_ID}" --jq '.conclusion // ""')"
+          test "$status" = "completed"
+          test "$conclusion" = "success"
+
+      - name: Recover and verify exact frozen V3B artifact
+        run: |
+          set -euo pipefail
+          mkdir -p input/freeze input/holdout_e input/canary result fresh
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${V3B_FREEZE_ARTIFACT_ID}/zip" > freeze.zip
+          unzip -q freeze.zip -d input/freeze
+          (cd input/freeze && sha256sum -c SHA256SUMS)
+          test "$(cat input/freeze/git-sha.txt)" = "${V3B_FREEZE_SHA}"
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("input/freeze/wp04-predictive-nonlinear-probe-v3b.json").read_text())
+          assert p["status"] == "WP04_V3B_PROBE_FROZEN_FOR_ONE_SHOT_HOLDOUT"
+          assert p["protocol_pass"] is True
+          assert p["development_gate_pass"] is True
+          assert p["probe_frozen_for_holdout"] is True
+          assert p["decoder"]["basis_id"] == "SYMMETRIC_SECOND_ORDER_V1"
+          assert p["decoder"]["target_specific_representation_retune"] is False
+          assert len(p["final_frozen_probes"]) == 8
+          assert len({x["probe_fingerprint"] for x in p["final_frozen_probes"]}) == 8
+          g=p["governance"]
+          assert g["representation_unchanged_from_v3"] is True
+          assert g["final_wp04_gate_minimum_incremental_bps_unchanged"] == 100
+          assert g["final_wp04_gate_minimum_positive_targets_unchanged"] == 4
+          PY
+
+      - name: Recover and bind exact HOLDOUT_E PASS
+        run: |
+          set -euo pipefail
+          status="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${HOLDOUT_E_RUN_ID}" --jq '.status')"
+          conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${HOLDOUT_E_RUN_ID}" --jq '.conclusion // ""')"
+          test "$status" = "completed"
+          test "$conclusion" = "success"
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${HOLDOUT_E_ARTIFACT_ID}/zip" > holdout-e.zip
+          unzip -q holdout-e.zip -d input/holdout_e
+          (cd input/holdout_e/result && sha256sum -c SHA256SUMS)
+          test "$(cat input/holdout_e/result/git-sha.txt)" = "${HOLDOUT_E_SHA}"
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          e=json.loads(Path("input/holdout_e/result/wp04-v3b-holdout-e.json").read_text())
+          f=json.loads(Path("input/freeze/wp04-predictive-nonlinear-probe-v3b.json").read_text())
+          assert e["status"] == "WP04_V3B_HOLDOUT_E_PASS_REPLICATION_REQUIRED"
+          assert e["protocol_pass"] is True
+          assert e["holdout_e_pass"] is True
+          assert e["replication_required"] is True
+          assert e["evaluation"]["pooled_incremental_information_bps"] >= 100
+          assert e["evaluation"]["positive_target_count"] >= 4
+          assert e["evaluation"]["minimum_pooled_incremental_bps"] == 100
+          assert e["evaluation"]["minimum_positive_target_count"] == 4
+          assert e["representation_fingerprint"] == f["representation"]["fingerprint"]
+          assert set(e["probe_fingerprints"]) == {
+              item["probe_fingerprint"] for item in f["final_frozen_probes"]
+          }
+          assert e["decoder"]["basis_id"] == "SYMMETRIC_SECOND_ORDER_V1"
+          assert e["decoder"]["representation_changed_from_v3"] is False
+          assert e["decoder"]["target_specific_representation_retune"] is False
+          PY
+
+      - name: Recover and require GREEN real-provider boundary canary
+        run: |
+          set -euo pipefail
+          status="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${CANARY_RUN_ID}" --jq '.status')"
+          conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${CANARY_RUN_ID}" --jq '.conclusion // ""')"
+          test "$status" = "completed"
+          test "$conclusion" = "success"
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${CANARY_ARTIFACT_ID}/zip" > canary.zip
+          unzip -q canary.zip -d input/canary
+          (cd input/canary && sha256sum -c SHA256SUMS)
+          test "$(cat input/canary/git-sha.txt)" = "${CANARY_SHA}"
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for market in ("NAS100","SP500","US30"):
+              p=json.loads(Path(f"input/canary/{market}.json").read_text())
+              assert p["consumed_r5_evidence_only"] is True
+              assert p["fresh_scientific_evidence_consumed"] is False
+              assert p["target_outcomes_read"] is False
+              assert p["boundary_contract_pass"] is True
+              assert p["last_closed_at"] <= p["end_exclusive"]
+          PY
+
+      - name: Verify D unopened and prior evidence governance
+        run: |
+          set -euo pipefail
+          a_count="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=qore-shared-wp04-v3b-holdout-a-open-marker" --jq '.artifacts | length')"
+          c_count="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=qore-shared-wp04-v3b-holdout-c-open-marker" --jq '.artifacts | length')"
+          e_count="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=qore-shared-wp04-v3b-holdout-e-open-marker" --jq '.artifacts | length')"
+          d_count="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=qore-shared-wp04-v3b-replication-d-open-marker" --jq '.artifacts | length')"
+          test "$a_count" -ge 1
+          test "$c_count" -ge 1
+          test "$e_count" -ge 1
+          test "$d_count" = "0"
+
+      - name: Verify cTrader credentials before D marker
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}"
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Create irreversible REPLICATION_D open marker
+        run: |
+          cat > replication-d-open-marker.json <<'JSON'
+          {
+            "identity": "QORE_SHARED_WP04_PREDICTIVE_REPLICATION_D_V3B_001",
+            "partition": "TEMPORAL_REPLICATION_D",
+            "start_inclusive": "2025-07-14T00:00:00+00:00",
+            "end_exclusive": "2026-07-13T00:00:00+00:00",
+            "minimum_provider_coverage_days": 340,
+            "holdout_e_run_id": "36247407353",
+            "holdout_e_artifact_id": "10908500161",
+            "holdout_e_sha": "182302a6c9dde2d3a78bb3b5dd96f28bb9968867",
+            "freeze_run_id": "36244726347",
+            "freeze_artifact_id": "10906064254",
+            "freeze_sha": "8c0b4c3e37419ab55557ed3f333f59c452b9f79d",
+            "canary_run_id": "36247239704",
+            "canary_artifact_id": "10907836709",
+            "basis_id": "SYMMETRIC_SECOND_ORDER_V1",
+            "minimum_pooled_incremental_bps": 100,
+            "minimum_positive_targets": 4,
+            "holdout_e_pass_bound": true,
+            "representation_refit": false,
+            "probe_refit": false,
+            "threshold_retuning": false,
+            "live_authorized": false,
+            "production_authorized": false,
+            "real_capital_authorized": false,
+            "merge_authorized": false
+          }
+          JSON
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-wp04-v3b-replication-d-open-marker
+          path: replication-d-open-marker.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report REPLICATION_D irreversible opening
+        run: |
+          gh issue comment 642 --body "WP-04 V3B TEMPORAL_REPLICATION_D OPENED one-shot — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Window 2025-07-14..2026-07-13, provider span floor 340 days, exact HOLDOUT_E PASS + frozen V3B fingerprints + GREEN provider canary bound; gate unchanged at >=100 bps pooled + >=4/8 positive. No refit or retuning."
+
+      - name: Recover immutable consumed R8 R6 R5 evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/r8 input/r6 input/r5
+          download_artifact() {
+            local artifact_id="$1"
+            local output="$2"
+            local tmp="${output}.tmp"
+            rm -f "$tmp"
+            for attempt in 1 2 3 4; do
+              if gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$tmp"; then
+                mv "$tmp" "$output"
+                return 0
+              fi
+              rm -f "$tmp"
+              sleep $((attempt * 30))
+            done
+            return 1
+          }
+          download_artifact 10402199719 r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          download_artifact 10389112524 r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          download_artifact 10380044761 r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Acquire preregistered REPLICATION_D exactly once
+        env:
+          QORE_WP04_HOLDOUT_E_PASS: "1"
+        run: |
+          set -euo pipefail
+          mkdir -p fresh/{NAS100,SP500,US30}
+          for market in NAS100 SP500 US30
+          do
+            QORE_DEMO_LAB_SYMBOL="$market" \
+              python scripts/shared_wp04_predictive_replication_d_probe_v3b.py \
+              > "fresh/$market/market-evidence.json"
+          done
+          sha256sum fresh/*/market-evidence.json > fresh/EVIDENCE-SHA256SUMS
+
+      - name: Evaluate exact frozen V3B probes on REPLICATION_D
+        run: |
+          python scripts/shared_wp04_predictive_nonlinear_replication_d_eval_v3b.py \
+            --freeze input/freeze/wp04-predictive-nonlinear-probe-v3b.json \
+            --holdout-e-result input/holdout_e/result/wp04-v3b-holdout-e.json \
+            --r8-nas input/r8/fresh/NAS100/market-evidence.json \
+            --r8-sp input/r8/fresh/SP500/market-evidence.json \
+            --r8-us input/r8/fresh/US30/market-evidence.json \
+            --r6-nas input/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp input/r6/fresh/SP500/market-evidence.json \
+            --r6-us input/r6/fresh/US30/market-evidence.json \
+            --r5-nas input/r5/fresh/NAS100/market-evidence.json \
+            --r5-sp input/r5/fresh/SP500/market-evidence.json \
+            --r5-us input/r5/fresh/US30/market-evidence.json \
+            --replication-nas fresh/NAS100/market-evidence.json \
+            --replication-sp fresh/SP500/market-evidence.json \
+            --replication-us fresh/US30/market-evidence.json \
+            --output result/wp04-v3b-replication-d.json \
+            | tee result/summary.json
+
+      - name: Validate REPLICATION_D scientific result
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(Path("result/wp04-v3b-replication-d.json").read_text())
+          assert p["protocol_pass"] is True
+          assert p["holdout_e_pass_bound"] is True
+          assert p["status"] in {
+              "WP04_V3B_REPLICATION_D_PASS",
+              "WP04_V3B_REPLICATION_D_FALSIFIED",
+          }
+          assert p["decoder"]["basis_id"] == "SYMMETRIC_SECOND_ORDER_V1"
+          assert p["decoder"]["representation_changed_from_v3"] is False
+          assert p["decoder"]["target_specific_representation_retune"] is False
+          r=p["replication"]
+          assert r["partition"] == "replication_d"
+          assert r["preregistered_start_inclusive"] == "2025-07-14T00:00:00+00:00"
+          assert r["preregistered_end_exclusive"] == "2026-07-13T00:00:00+00:00"
+          e=p["evaluation"]
+          assert e["target_count"] == 8
+          assert e["minimum_pooled_incremental_bps"] == 100
+          assert e["minimum_positive_target_count"] == 4
+          for target in e["targets"]:
+              assert target["holdout_refit"] is False
+              assert target["runtime_future_market_used"] is False
+              assert target["identity_used"] is False
+              assert target["knowledge_promotion_authority"] is False
+          g=p["governance"]
+          assert g["replication_window_frozen_before_holdout_e_acquisition"] is True
+          assert g["holdout_e_pass_required_before_replication"] is True
+          assert g["consumed_representation_refit_on_replication"] is False
+          assert g["probe_refit_on_replication"] is False
+          assert g["replication_used_for_threshold_selection"] is False
+          assert g["threshold_retuning_on_replication"] is False
+          assert g["runtime_future_market_used"] is False
+          assert g["identity_shortcut_used"] is False
+          assert g["live_authorized"] is False
+          assert g["production_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["merge_authorized"] is False
+          PY
+
+      - name: Bind REPLICATION_D evidence and result
+        run: |
+          echo "${GITHUB_SHA}" > result/git-sha.txt
+          cp replication-d-open-marker.json result/replication-d-open-marker.json
+          cp fresh/EVIDENCE-SHA256SUMS result/REPLICATION-D-EVIDENCE-SHA256SUMS
+          (
+            cd result
+            find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-wp04-v3b-replication-d-${{ github.sha }}
+          path: |
+            result/
+            fresh/NAS100/market-evidence.json
+            fresh/SP500/market-evidence.json
+            fresh/US30/market-evidence.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report REPLICATION_D V3B result
+        if: always()
+        run: |
+          if [ ! -f result/wp04-v3b-replication-d.json ]; then
+            gh issue comment 642 --body "WP-04 V3B REPLICATION_D run \`${GITHUB_RUN_ID}\` did not produce a scientific payload. If marker artifact \`qore-shared-wp04-v3b-replication-d-open-marker\` exists, D is consumed and must not be reacquired."
+            exit 0
+          fi
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          p=json.loads(Path("result/wp04-v3b-replication-d.json").read_text())
+          e=p["evaluation"]
+          lines=[
+              "## WP-04 V3B TEMPORAL_REPLICATION_D result",
+              "",
+              f"- Git SHA: \`{os.environ['GITHUB_SHA']}\`",
+              f"- GitHub Actions run: \`{os.environ['GITHUB_RUN_ID']}\`",
+              f"- status: **{p['status']}**",
+              f"- protocol_pass: **{p['protocol_pass']}**",
+              f"- HOLDOUT_E PASS bound: **{p['holdout_e_pass_bound']}**",
+              f"- REPLICATION_D pass: **{p['replication_d_pass']}**",
+              f"- pooled incremental information: **{e['pooled_incremental_information_bps']} bps**",
+              f"- positive targets: **{e['positive_target_count']}/{e['target_count']}**",
+              "- frozen gate: **>=100 bps pooled + >=4/8 positive**",
+              "- basis: **SYMMETRIC_SECOND_ORDER_V1**",
+              "- representation refit: **False**",
+              "- probe refit: **False**",
+              "- threshold retuning: **False**",
+              "- identity shortcut: **False**",
+          ]
+          if p["replication_d_pass"]:
+              lines.append(
+                  "REPLICATION_D passed. V3B now has consumed-development PASS, independent HOLDOUT_E PASS and independent temporal replication PASS. Perform the formal WP-04 exit audit against issue #642 before closing the work package."
+              )
+          else:
+              lines.append(
+                  "REPLICATION_D falsified V3B temporal transfer. WP-04 remains open; do not weaken the gate or retune on D."
+              )
+          Path("result/wp04-v3b-replication-d-issue-update.md").write_text(
+              "\n".join(lines)+"\n"
+          )
+          PY
+          gh issue comment 642 --body-file result/wp04-v3b-replication-d-issue-update.md

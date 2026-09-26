@@ -1,0 +1,115 @@
+name: QORE Core Stack V2 VT31 Full Decision AB V1
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - "src/qore/infrastructure/core_stack_v2/**"
+      - "src/qore/infrastructure/traders/vt31_core_stack_v2_adapter.py"
+      - "scripts/vt31_core_stack_v2_full_decision_ab_v1.py"
+      - ".github/workflows/qore-core-stack-v2-vt31-full-decision-ab-v1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  full-decision-ab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_core_stack_v2_full_decision_ab_v1.py
+          ruff check scripts/vt31_core_stack_v2_full_decision_ab_v1.py
+          mypy src/qore/infrastructure/core_stack_v2 src/qore/infrastructure/traders/vt31_core_stack_v2_adapter.py
+      - name: Recover immutable five-year evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/r8 input/r6 input/r5 result
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          test -f input/r8/fresh/NAS100/market-evidence.json
+          echo "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb  input/r8/fresh/NAS100/market-evidence.json" | sha256sum -c -
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          test -f input/r6/fresh/NAS100/market-evidence.json
+          echo "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581  input/r6/fresh/NAS100/market-evidence.json" | sha256sum -c -
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          test -f input/r5/fresh/NAS100/market-evidence.json
+          echo "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7  input/r5/fresh/NAS100/market-evidence.json" | sha256sum -c -
+      - name: Run full cognitive decision universe AB
+        run: |
+          set -euo pipefail
+          python scripts/vt31_core_stack_v2_full_decision_ab_v1.py             --r8 input/r8/fresh/NAS100/market-evidence.json             --r6 input/r6/fresh/NAS100/market-evidence.json             --r5 input/r5/fresh/NAS100/market-evidence.json             --output result/vt31-core-v2-full-decision-ab.json             | tee result/summary.json
+      - name: Full decision governance gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(Path("result/vt31-core-v2-full-decision-ab.json").read_text())
+          q = p["full_decision_universe"]
+          c = p["coverage"]
+          g = p["governance"]
+
+          assert q["action_counts_exact"] is True
+          assert q["decision_deltas"] == 0
+          assert q["wait_deltas"] == 0
+          assert q["abstain_deltas"] == 0
+          assert q["invalidated_deltas"] == 0
+          assert q["invalid_core_contexts"] == 0
+          assert q["authority_violations"] == 0
+          assert q["latency_p99_le_2s"] is True
+
+          assert c["execute_measured"] > 0
+          assert c["wait_measured"] > 0
+          assert c["abstain_measured"] > 0 or c["invalidated_measured"] > 0
+          assert c["full_decision_universe_ab_complete"] is True
+
+          assert g["vt31_methodology_changed"] is False
+          assert g["core_is_context_only"] is True
+          assert g["core_action_input_forbidden"] is True
+          assert g["future_outcome_fields_used_by_core"] is False
+          assert g["same_source_reuse_after_abstain"] is False
+          assert g["new_raid_confirmation_required_after_terminal"] is True
+          assert g["vt08_forex_touched"] is False
+          assert g["capitalizer_touched"] is False
+          assert g["live_authorized"] is False
+          assert g["production_authorized"] is False
+          assert g["merge_authorized"] is False
+          assert p["passes_full_decision_universe_gate"] is True
+          PY
+      - name: Bind evidence
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          {
+            echo "r8_artifact=10402199719"
+            echo "r6_artifact=10389112524"
+            echo "r5_artifact=10380044761"
+          } > result/bindings.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-core-stack-v2-vt31-full-decision-ab-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90

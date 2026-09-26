@@ -1,0 +1,111 @@
+name: QORE Shared WP03 Causal Discovery Foundation
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/causal_discovery_engine.py
+      - src/qore/infrastructure/core_stack_v2/dynamic_causal_graph.py
+      - tests/infrastructure/test_core_stack_v2_causal_discovery_engine.py
+      - tests/infrastructure/test_core_stack_v2_dynamic_causal_graph.py
+      - .github/workflows/qore-shared-wp03-causal-discovery-foundation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  causal-discovery-foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Static validation
+        run: |
+          ruff check             src/qore/infrastructure/core_stack_v2/causal_discovery_engine.py             src/qore/infrastructure/core_stack_v2/dynamic_causal_graph.py             tests/infrastructure/test_core_stack_v2_causal_discovery_engine.py             tests/infrastructure/test_core_stack_v2_dynamic_causal_graph.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/causal_discovery_engine.py             src/qore/infrastructure/core_stack_v2/dynamic_causal_graph.py
+
+      - name: Run WP03 causal-discovery contract tests
+        run: |
+          pytest -q             tests/infrastructure/test_core_stack_v2_causal_discovery_engine.py             tests/infrastructure/test_core_stack_v2_dynamic_causal_graph.py
+
+      - name: Validate authority boundary
+        run: |
+          python - <<'PY'
+          from datetime import UTC, datetime, timedelta
+
+          from qore.infrastructure.core_stack_v2.causal_discovery_engine import (
+              CausalDiscoveryEpisode,
+              discover_causal_relation,
+          )
+          from qore.infrastructure.core_stack_v2.dynamic_causal_graph import (
+              CausalConcept,
+          )
+
+          now = datetime.now(UTC)
+          episodes = []
+          for confounder in ("A", "B"):
+              for regime in ("R1", "R2"):
+                  for partition in ("P1", "P2"):
+                      for _ in range(2):
+                          episodes.append(
+                              CausalDiscoveryEpisode(
+                                  source=CausalConcept.COMPRESSION,
+                                  target=CausalConcept.EXPANSION_READINESS,
+                                  source_at=now - timedelta(minutes=2),
+                                  target_at=now - timedelta(minutes=1),
+                                  source_state_bps=8000,
+                                  target_state_bps=8000,
+                                  confounder_key=confounder,
+                                  regime_key=regime,
+                                  replication_partition=partition,
+                                  natural_intervention=True,
+                                  counterfactual_target_without_source_bps=2500,
+                              )
+                          )
+                          episodes.append(
+                              CausalDiscoveryEpisode(
+                                  source=CausalConcept.COMPRESSION,
+                                  target=CausalConcept.EXPANSION_READINESS,
+                                  source_at=now - timedelta(minutes=2),
+                                  target_at=now - timedelta(minutes=1),
+                                  source_state_bps=2000,
+                                  target_state_bps=2000,
+                                  confounder_key=confounder,
+                                  regime_key=regime,
+                                  replication_partition=partition,
+                                  natural_intervention=True,
+                              )
+                          )
+
+          assessment = discover_causal_relation(
+              as_of=now,
+              episodes=tuple(episodes),
+          )
+          assert assessment.status.value == "RESEARCH_REPLICATED"
+          assert assessment.knowledge_promotion_authority is False
+          assert assessment.methodology_authority is False
+          assert assessment.risk_authority is False
+          assert assessment.sizing_authority is False
+          assert assessment.order_authority is False
+          assert assessment.execution_authority is False
+          print(
+              {
+                  "status": assessment.status.value,
+                  "raw_effect_bps": assessment.raw_effect_bps,
+                  "conditional_effect_bps": assessment.conditional_effect_bps,
+                  "replication_stability_bps": assessment.replication_stability_bps,
+                  "authority_free": True,
+              }
+          )
+          PY

@@ -1,0 +1,188 @@
+name: QORE Shared WP03 Historical Causal Discovery
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/causal_discovery_engine.py
+      - scripts/shared_wp03_historical_causal_discovery.py
+      - tests/infrastructure/test_core_stack_v2_causal_discovery_engine.py
+      - .github/workflows/qore-shared-wp03-historical-causal-discovery.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  historical-causal-discovery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Static validation
+        run: |
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/causal_discovery_engine.py \
+            scripts/shared_wp03_historical_causal_discovery.py \
+            tests/infrastructure/test_core_stack_v2_causal_discovery_engine.py
+          python -m py_compile \
+            src/qore/infrastructure/core_stack_v2/causal_discovery_engine.py \
+            scripts/shared_wp03_historical_causal_discovery.py
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_causal_discovery_engine.py
+
+      - name: Recover immutable R8 R6 R5 market evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/r8 input/r6 input/r5 result
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Run R8 discovery R6 holdout R5 replication
+        run: |
+          python scripts/shared_wp03_historical_causal_discovery.py \
+            --r8-nas input/r8/fresh/NAS100/market-evidence.json \
+            --r8-sp input/r8/fresh/SP500/market-evidence.json \
+            --r8-us input/r8/fresh/US30/market-evidence.json \
+            --r6-nas input/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp input/r6/fresh/SP500/market-evidence.json \
+            --r6-us input/r6/fresh/US30/market-evidence.json \
+            --r5-nas input/r5/fresh/NAS100/market-evidence.json \
+            --r5-sp input/r5/fresh/SP500/market-evidence.json \
+            --r5-us input/r5/fresh/US30/market-evidence.json \
+            --output result/wp03-historical-causal-discovery.json \
+            | tee result/summary.json
+
+      - name: Validate research governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(
+              Path("result/wp03-historical-causal-discovery.json").read_text()
+          )
+          assert p["protocol_pass"] is True
+          assert min(p["sample_counts"].values()) >= 7000
+          assert p["protocol_minimum_samples"] == 7000
+          assert p["screened_pair_count"] >= 50
+
+          ranges = p["partition_ranges"]
+          assert ranges["r8"]["source_min"] is not None
+          assert ranges["r8"]["target_max"] is not None
+          assert ranges["r6"]["source_min"] is not None
+          assert ranges["r6"]["target_max"] is not None
+          assert ranges["r5"]["source_min"] is not None
+          assert ranges["r5"]["target_max"] is not None
+          assert ranges["r8"]["target_max"] < ranges["r6"]["source_min"]
+          assert ranges["r6"]["target_max"] < ranges["r5"]["source_min"]
+
+          s = p["sampling"]
+          assert s["trader_event_timestamps_used"] is False
+          assert s["full_market_grid_sampling"] is True
+
+          thresholds = p["r8_source_thresholds"]
+          assert len(thresholds) >= 10
+          assert all(
+              row["control_bps"] < row["exposed_bps"]
+              for row in thresholds.values()
+          )
+
+          g = p["governance"]
+          assert g["r8_only_used_for_candidate_discovery"] is True
+          assert g["source_thresholds_fit_partition"] == "r8_only"
+          assert g["source_thresholds_target_blind"] is True
+          assert g["r6_used_for_source_threshold_fit"] is False
+          assert g["r5_used_for_source_threshold_fit"] is False
+          assert g["r6_used_for_candidate_selection"] is False
+          assert g["r5_used_for_candidate_selection"] is False
+          assert g["r6_temporally_after_r8"] is True
+          assert g["r5_temporally_after_r6"] is True
+          assert g["matched_counterfactuals_partition_local"] is True
+          assert g["knowledge_auto_promotion"] is False
+          assert g["trade_pnl_used"] is False
+          assert g["trade_terminal_outcome_used"] is False
+          assert g["shared_methodology_authority"] is False
+          assert g["shared_sizing_authority"] is False
+          assert g["shared_risk_authority"] is False
+          assert g["shared_order_authority"] is False
+          assert g["shared_execution_authority"] is False
+          assert g["live_authorized"] is False
+          assert g["production_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["merge_authorized"] is False
+          PY
+
+      - name: Bind result
+        run: |
+          echo "${GITHUB_SHA}" > result/git-sha.txt
+          (
+            cd result
+            find . -type f ! -name SHA256SUMS -print0 \
+              | sort -z \
+              | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-wp03-historical-causal-discovery-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report successful historical result to WP03
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p = json.loads(
+              Path("result/wp03-historical-causal-discovery.json").read_text()
+          )
+          ranges = p["partition_ranges"]
+          body = f"""## WP-03 historical causal-discovery run GREEN
+
+          - Git SHA: `{os.environ['GITHUB_SHA']}`
+          - GitHub Actions run: `{os.environ['GITHUB_RUN_ID']}`
+          - status: **{p['status']}**
+          - protocol_pass: **{p['protocol_pass']}**
+          - samples: R8={p['sample_counts']['r8']}, R6={p['sample_counts']['r6']}, R5={p['sample_counts']['r5']}
+          - screened pairs: {p['screened_pair_count']}
+          - R8 candidates: {p['r8_research_candidate_count']}
+          - source exposure/control thresholds: R8-only, target-blind, frozen into R6/R5
+          - holdout falsified: {p['holdout_falsified_count']}
+          - replicated research relations: {p['replicated_research_relation_count']}
+          - temporal split: R8 target max `{ranges['r8']['target_max']}` < R6 source min `{ranges['r6']['source_min']}`; R6 target max `{ranges['r6']['target_max']}` < R5 source min `{ranges['r5']['source_min']}`
+          - neutral/weak strata count against causal stability
+          - no knowledge auto-promotion; no methodology/Risk/sizing/order/execution authority
+          """
+          Path("result/wp03-issue-update.md").write_text(body)
+          PY
+          gh issue comment 641 --body-file result/wp03-issue-update.md

@@ -327,6 +327,7 @@ def _validate_m1_coverage(
     *,
     requested_opened_at: datetime,
     checked_at: datetime,
+    minimum_coverage_days: int = _REQUIRED_COVERAGE_DAYS,
 ) -> None:
     if not bars:
         raise CTraderDemoLabProbeError("VT-31 V2 M1 evidence is empty")
@@ -341,9 +342,14 @@ def _validate_m1_coverage(
     last = bars[-1].closed_at.astimezone(UTC)
     opened = requested_opened_at.astimezone(UTC)
     checked = checked_at.astimezone(UTC)
-    if last - first < timedelta(days=_REQUIRED_COVERAGE_DAYS):
+    if type(minimum_coverage_days) is not int or minimum_coverage_days < 1:
         raise CTraderDemoLabProbeError(
-            "VT-31 V2 M1 evidence has less than 730 days between actual bars"
+            "minimum_coverage_days must be a positive integer"
+        )
+    if last - first < timedelta(days=minimum_coverage_days):
+        raise CTraderDemoLabProbeError(
+            "VT-31 V2 M1 evidence has less than "
+            f"{minimum_coverage_days} days between actual bars"
         )
     if first < opened:
         raise CTraderDemoLabProbeError(
@@ -391,6 +397,7 @@ def collect_vt31_v2_m1_evidence(
     checked_at: datetime,
     timeout_seconds: float = 15.0,
     market: str = _SYMBOL,
+    minimum_coverage_days: int = _REQUIRED_COVERAGE_DAYS,
 ) -> dict[str, object]:
     """Collect source-required two-year M1 evidence for canonical NAS100 only."""
 
@@ -444,6 +451,7 @@ def collect_vt31_v2_m1_evidence(
         ordered,
         requested_opened_at=opened,
         checked_at=checked,
+        minimum_coverage_days=minimum_coverage_days,
     )
     return {
         "schema": _SCHEMA,
@@ -456,7 +464,7 @@ def collect_vt31_v2_m1_evidence(
         "provider_symbol_name": provider_symbol_name,
         "checked_at": checked.isoformat(timespec="microseconds"),
         "requested_opened_at": opened.isoformat(timespec="microseconds"),
-        "required_coverage_days": _REQUIRED_COVERAGE_DAYS,
+        "required_coverage_days": minimum_coverage_days,
         "historical_chunk_days": _VT31_M1_CHUNK_DAYS,
         "historical_page_count": _HISTORICAL_PAGE_COUNT,
         "decision_timeframe": "M1",

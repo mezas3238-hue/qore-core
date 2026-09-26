@@ -1,0 +1,136 @@
+name: QORE Shared WP04 Provider Boundary Canary
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/shared_wp04_bounded_provider_canary.py
+      - .github/workflows/qore-shared-wp04-provider-boundary-canary.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  consumed-r5-boundary-canary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install research dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,ctrader]"
+
+      - name: Static validation
+        run: |
+          ruff check scripts/shared_wp04_bounded_provider_canary.py
+          python -m py_compile scripts/shared_wp04_bounded_provider_canary.py
+          pytest -q tests/infrastructure/test_ctrader_demo_lab_vt31_v2_probe.py
+
+      - name: Verify credentials
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}"
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Run consumed R5 provider-boundary canary
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          for market in NAS100 SP500 US30
+          do
+            QORE_DEMO_LAB_SYMBOL="$market" \
+              python scripts/shared_wp04_bounded_provider_canary.py \
+              > "result/$market.json"
+          done
+
+      - name: Require corrected boundary semantics on all markets
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          exact=0
+          for market in ("NAS100","SP500","US30"):
+              p=json.loads(Path(f"result/{market}.json").read_text())
+              assert p["market"] == market
+              assert p["consumed_r5_evidence_only"] is True
+              assert p["fresh_scientific_evidence_consumed"] is False
+              assert p["model_or_probe_fit"] is False
+              assert p["target_outcomes_read"] is False
+              assert p["boundary_contract_pass"] is True
+              assert p["last_closed_at"] <= p["end_exclusive"]
+              exact += int(p["last_equals_end_exclusive"])
+          assert exact >= 1, "provider canary did not exercise exact end-boundary equality"
+          PY
+
+      - name: Bind canary
+        run: |
+          echo "${GITHUB_SHA}" > result/git-sha.txt
+          (
+            cd result
+            find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-wp04-provider-boundary-canary-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report canary result
+        if: always()
+        run: |
+          if [ ! -f result/NAS100.json ] || [ ! -f result/SP500.json ] || [ ! -f result/US30.json ]; then
+            gh issue comment 642 --body "WP-04 provider-boundary canary run `${GITHUB_RUN_ID}` failed before complete three-market evidence. HOLDOUT_E remains SEALED."
+            exit 0
+          fi
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          rows=[]
+          for market in ("NAS100","SP500","US30"):
+              p=json.loads(Path(f"result/{market}.json").read_text())
+              rows.append(
+                  f"- {market}: first={p['first_opened_at']}, last={p['last_closed_at']}, exact_end={p['last_equals_end_exclusive']}"
+              )
+          Path("result/comment.md").write_text(
+              "## WP-04 bounded provider canary GREEN\n\n"
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`\n"
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`\n"
+              "- interval is previously consumed R5 only; no fresh scientific evidence was used\n"
+              "- corrected rule: final M1 bar may close exactly at end_exclusive; only `>` is forbidden\n"
+              + "\n".join(rows)
+              + "\n- HOLDOUT_E remains sealed until this GREEN result is bound into its one-shot preflight.\n"
+          )
+          PY
+          gh issue comment 642 --body-file result/comment.md

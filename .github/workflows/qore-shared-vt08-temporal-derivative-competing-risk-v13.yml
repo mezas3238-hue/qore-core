@@ -1,0 +1,122 @@
+name: QORE Shared VT08 Temporal Derivative Competing Risk V13
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/vt08_index_shared_temporal_derivative_competing_risk_v13.py
+      - .github/workflows/qore-shared-vt08-temporal-derivative-competing-risk-v13.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  temporal-derivative-competing-risk-v13:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout Shared
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install research dependencies
+        run: |
+          pip install -e ".[dev]"
+          pip install "numpy>=2,<3" "scikit-learn>=1.5,<2"
+
+      - name: Static validation
+        run: |
+          ruff check scripts/vt08_index_shared_temporal_derivative_competing_risk_v13.py
+          python -m py_compile scripts/vt08_index_shared_temporal_derivative_competing_risk_v13.py
+
+      - name: Download frozen V6 consumed ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-shared-vt08-stop-target-discrimination-v6-1a534d0ae735efef4dcbc0c0be4b110ceaa80501
+          path: artifacts/v6
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 36131607443
+
+      - name: Run V13 temporal derivative competing risk
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/v13
+          python scripts/vt08_index_shared_temporal_derivative_competing_risk_v13.py \
+            --v6-json artifacts/v6/vt08-index-shared-stop-target-discrimination-v6.json \
+            --out artifacts/v13/vt08-index-shared-temporal-derivative-competing-risk-v13.json \
+            | tee artifacts/v13/summary.json
+
+      - name: Validate V13 governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path(
+                  "artifacts/v13/"
+                  "vt08-index-shared-temporal-derivative-competing-risk-v13.json"
+              ).read_text()
+          )
+          assert p["identity"] == "QORE_SHARED_VT08_TEMPORAL_DERIVATIVE_COMPETING_RISK_V13"
+          assert p["source_v6_run"] == 36131607443
+          assert p["source_v9_run"] == 36134739656
+          assert p["source_v11_run"] == 36140165499
+          assert p["source_v12_run"] == 36140837830
+          assert p["research_only"] is True
+          assert p["consumed_evidence_only"] is True
+          assert p["temporal_derivative_representation"] is True
+          assert p["fixed_model_family_before_validation"] is True
+          assert p["outcome_used_for_offline_training_only"] is True
+          assert p["runtime_outcome_input"] is False
+          assert p["future_market_input"] is False
+          assert p["sizing_used"] is False
+          assert p["risk_weighting_used"] is False
+          assert p["trailing_used"] is False
+          assert p["target_extension_used"] is False
+          assert p["runtime_actuation"] is False
+
+          expected = {
+              "five_year": 2448,
+              "recent_two_year": 1017,
+              "r66_consumed_failed_holdout": 773,
+          }
+          for key, sample in expected.items():
+              w=p["windows"][key]
+              assert p["windows"][key]["status"] in {
+                  "ADMIT_FOR_NEXT_RESEARCH",
+                  "REJECT",
+              }
+              assert w["observations"] > 0
+              assert "weighted_auc" in w
+              assert "beats_control_v7_recall" in w
+          print(json.dumps({
+              "validation_pass": p["validation_pass"],
+              "threshold": p["model"]["threshold"],
+              "training": p["training_threshold_metrics"],
+              "windows": p["windows"],
+              "top_coefficients": p["model"]["coefficients_by_absolute_magnitude"][:12],
+          }, sort_keys=True))
+          PY
+
+      - name: Bind result
+        run: |
+          cd artifacts/v13
+          echo "$GITHUB_SHA" > shared-git-sha.txt
+          echo "36131607443" > source-v6-run.txt
+          find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          sha256sum -c SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-vt08-temporal-derivative-competing-risk-v13-${{ github.sha }}
+          path: artifacts/v13/
+          if-no-files-found: error
+          retention-days: 90

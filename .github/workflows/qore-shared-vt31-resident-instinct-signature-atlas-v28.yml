@@ -1,0 +1,105 @@
+name: QORE Shared VT31 Resident Instinct Signature Atlas V28
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/vt31_core_stack_v4_resident_instinct_signature_atlas_v28.py
+      - src/qore/infrastructure/core_stack_v2/instinct_intelligence.py
+      - .github/workflows/qore-shared-vt31-resident-instinct-signature-atlas-v28.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  resident-instinct-signature-atlas:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Static validation
+        run: |
+          ruff check scripts/vt31_core_stack_v4_resident_instinct_signature_atlas_v28.py
+          python -m py_compile scripts/vt31_core_stack_v4_resident_instinct_signature_atlas_v28.py
+      - name: Recover immutable R8/R6 three-index evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/pure input/cibo input/r8 input/r6 result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10799064861/zip" > pure.zip
+          unzip -q pure.zip -d input/pure
+          (cd input/pure && sha256sum -c SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10478487667/zip" > cibo.zip
+          unzip -q cibo.zip -d input/cibo
+          (cd input/cibo && sha256sum -c SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+      - name: Run resident instinct signature atlas
+        run: |
+          python scripts/vt31_core_stack_v4_resident_instinct_signature_atlas_v28.py \
+            --r8-trades input/pure/r8.json \
+            --r6-trades input/pure/r6.json \
+            --r8-nas input/r8/fresh/NAS100/market-evidence.json \
+            --r8-sp input/r8/fresh/SP500/market-evidence.json \
+            --r8-us input/r8/fresh/US30/market-evidence.json \
+            --r6-nas input/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp input/r6/fresh/SP500/market-evidence.json \
+            --r6-us input/r6/fresh/US30/market-evidence.json \
+            --daily-path input/cibo/DAILY_PATH_LEDGER.jsonl \
+            --output result/resident-instinct-signature-atlas-v28.json \
+            | tee result/summary.json
+      - name: Governance validation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(Path("result/resident-instinct-signature-atlas-v28.json").read_text())
+          assert p["economic_status"] == "DIAGNOSTIC_ONLY_NO_POLICY_FREEZE"
+          assert p["challenge_set"] == {"r8":228,"r6":278}
+          assert p["r5_opened"] is False
+          assert p["new_holdout_opened"] is False
+          for fold in ("r8","r6"):
+              assert p[fold]["runtime_outcome_used_by_instinct"] is False
+              assert p[fold]["offline_outcome_used_for_evaluation_only"] is True
+          g=p["governance"]
+          assert g["generic_instinct_engine_used"] is True
+          assert g["resident_preentry_state_used"] is True
+          assert g["runtime_outcome_used_by_instinct"] is False
+          assert g["future_m1_used"] is False
+          assert g["entry_abstention_used"] is False
+          assert g["r5_opened"] is False
+          assert g["new_holdout_opened"] is False
+          assert g["live_authorized"] is False
+          assert g["production_authorized"] is False
+          assert g["merge_authorized"] is False
+          print(json.dumps({
+              "economic_status":p["economic_status"],
+              "r8_groups":p["r8"]["group_stats"],
+              "r6_groups":p["r6"]["group_stats"],
+          },sort_keys=True))
+          PY
+      - name: Bind result
+        run: |
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-vt31-resident-instinct-signature-atlas-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
