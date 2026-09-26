@@ -28,6 +28,8 @@ jobs:
       - name: Ruff
         run: |
           ruff check \
+            src/qore/infrastructure/account_wide_risk.py \
+            src/qore/infrastructure/account_wide_risk_ledger.py \
             src/qore/infrastructure/cibo_capital_efficiency_sizing_lab.py \
             src/qore/infrastructure/cibo_capital_efficiency_reconstruction.py \
             src/qore/infrastructure/cibo_capital_management_authority.py \
@@ -65,6 +67,7 @@ jobs:
             src/qore/infrastructure/cibo_cma_shadow_floor_report.py \
             scripts/cibo_ce2i_sizing_reconstruction_report.py \
             scripts/cibo_cma_shadow_floor_report.py \
+            tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
             tests/infrastructure/test_cibo_capital_management_authority.py \
@@ -124,6 +127,8 @@ jobs:
       - name: Mypy
         run: |
           mypy \
+            src/qore/infrastructure/account_wide_risk.py \
+            src/qore/infrastructure/account_wide_risk_ledger.py \
             src/qore/infrastructure/cibo_capital_efficiency_sizing_lab.py \
             src/qore/infrastructure/cibo_capital_efficiency_reconstruction.py \
             src/qore/infrastructure/cibo_capital_management_authority.py \
@@ -160,6 +165,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_portfolio_funding_coordinator.py \
             src/qore/infrastructure/cibo_cma_shadow_floor_report.py \
             scripts/cibo_ce2i_sizing_reconstruction_report.py \
+            tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
             tests/infrastructure/test_cibo_capital_management_authority.py \
@@ -203,6 +209,7 @@ jobs:
       - name: Pytest
         run: |
           pytest -q \
+            tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
             tests/infrastructure/test_cibo_capital_management_authority.py \
