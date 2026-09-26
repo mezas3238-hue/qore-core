@@ -36,6 +36,9 @@ jobs:
             src/qore/infrastructure/cibo_capital_source_ledger.py \
             src/qore/infrastructure/cibo_capital_source_ledger_store.py \
             src/qore/infrastructure/cibo_ce2i_tool_registry.py \
+            src/qore/infrastructure/cibo_ce2i_regime_selector.py \
+            src/qore/infrastructure/cibo_ce2i_optionality.py \
+            src/qore/infrastructure/cibo_ce2i_dynamic_derisking.py \
             src/qore/infrastructure/cibo_account_capital_mission.py \
             src/qore/infrastructure/cibo_trader_opportunity_adapter.py \
             src/qore/infrastructure/cibo_economic_floor.py \
@@ -77,6 +80,9 @@ jobs:
             tests/infrastructure/test_cibo_capital_source_ledger.py \
             tests/infrastructure/test_cibo_capital_source_ledger_store.py \
             tests/infrastructure/test_cibo_ce2i_tool_registry.py \
+            tests/infrastructure/test_cibo_ce2i_regime_selector.py \
+            tests/infrastructure/test_cibo_ce2i_optionality.py \
+            tests/infrastructure/test_cibo_ce2i_dynamic_derisking.py \
             tests/infrastructure/test_cibo_account_capital_mission.py \
             tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
             tests/infrastructure/test_cibo_economic_floor.py \
