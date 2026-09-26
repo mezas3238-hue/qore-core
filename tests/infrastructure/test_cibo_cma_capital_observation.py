@@ -93,3 +93,17 @@ def test_closed_position_moves_to_release_even_after_profit() -> None:
     assert observation.evidence_sufficient is True
     assert observation.expansion_eligible is False
     assert observation.self_financing_capacity_usd == Decimal("12")
+
+
+def test_unreconciled_realized_settlement_fails_closed() -> None:
+    observation = observe_capital_state(
+        _evidence(
+            realized_net_pnl_usd=Decimal("20"),
+            remaining_stop_worst_case_pnl_usd=Decimal("5"),
+            settlement_reconciled=False,
+        )
+    )
+
+    assert observation.stage is CapitalStage.OBSERVE
+    assert observation.evidence_sufficient is False
+    assert observation.expansion_eligible is False
