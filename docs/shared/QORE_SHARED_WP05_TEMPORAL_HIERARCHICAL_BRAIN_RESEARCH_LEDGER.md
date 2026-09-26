@@ -185,9 +185,12 @@ Frozen geometry:
 - threshold frozen on R8 calibration with >=98% terminal-preservation buffer;
 - R6/R5 no refit and no threshold retuning.
 
-The currently authoritative fixed-anchor rerun is generated from the latest
-V6 scientific code. Its result must be recorded here only after the workflow
-produces a protocol-valid payload.
+Authoritative fixed-anchor candidate:
+- Git SHA: `3e402c81fc5f095dc2e4177af0798f63378ce617`;
+- GitHub Actions run: `36273602499`.
+
+Its result must be recorded here only after the workflow produces a
+protocol-valid payload.
 
 ## 6. Scientific governance
 
