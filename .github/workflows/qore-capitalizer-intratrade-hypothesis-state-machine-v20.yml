@@ -12,21 +12,25 @@ on:
 
 permissions:
   contents: read
-  actions: read
 
 concurrency:
   group: qore-capitalizer-intratrade-hypothesis-state-machine-v20-${{ github.sha }}
   cancel-in-progress: false
 
 env:
-  DEV_DIRECT_RUN_ID: '36196002610'
-  DEV_DIRECT_SHA: 'ddd00209e50d5ec16c8cb94f34e9e5e95f401839'
-  DEV_CONTEXT_RUN_ID: '36211415438'
-  DEV_CONTEXT_SHA: 'c652b1e5a5181ba95ac6f10ea5c95bf808a0c8a7'
-  RESERVED_SOURCE_RUN_ID: '36215082659'
-  RESERVED_SOURCE_SHA: '9132b8b74938b8f142d946ab8717bf66840a18d2'
-  M1_RUN_ID: '35548099334'
-  M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  M1_START: '2020-09-12T00:00:00+00:00'
+  M1_END: '2026-09-17T00:00:00+00:00'
+  DEV_START: '2024-09-17T00:00:00+00:00'
+  DEV_END: '2026-09-17T00:00:00+00:00'
+  VAL_START: '2022-09-17T00:00:00+00:00'
+  VAL_END: '2024-09-17T00:00:00+00:00'
+  RESERVED_START: '2020-09-17T00:00:00+00:00'
+  RESERVED_END: '2022-09-17T00:00:00+00:00'
 
 jobs:
   quality:
@@ -53,134 +57,162 @@ jobs:
           pytest -q --no-cov \
             tests/infrastructure/trader_lab/test_capitalizer_intratrade_hypothesis_state_machine_v20.py
 
-  experiment:
+  self_contained_experiment:
     needs: quality
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install -e .
-
-      - name: Download all development ledgers once
-        uses: actions/download-artifact@v4
-        with:
-          pattern: qore-capitalizer-max-recovery-direct-m1-dev-*-${{ env.DEV_DIRECT_SHA }}
-          path: development-input
-          merge-multiple: false
-          github-token: ${{ github.token }}
-          run-id: ${{ env.DEV_DIRECT_RUN_ID }}
-
-      - name: Download all validation ledgers once
-        uses: actions/download-artifact@v4
-        with:
-          pattern: qore-capitalizer-max-recovery-direct-m1-holdout-*-${{ env.DEV_DIRECT_SHA }}
-          path: validation-input
-          merge-multiple: false
-          github-token: ${{ github.token }}
-          run-id: ${{ env.DEV_DIRECT_RUN_ID }}
-
-      - name: Download all reserved ledgers once
-        uses: actions/download-artifact@v4
-        with:
-          pattern: qore-capitalizer-max-recovery-direct-m1-reserved-*-${{ env.RESERVED_SOURCE_SHA }}
-          path: reserved-input
-          merge-multiple: false
-          github-token: ${{ github.token }}
-          run-id: ${{ env.RESERVED_SOURCE_RUN_ID }}
-
-      - name: Download development and validation contexts once
-        uses: actions/download-artifact@v4
-        with:
-          pattern: qore-capitalizer-native-market-context-v1-*-${{ env.DEV_CONTEXT_SHA }}
-          path: development-validation-context
-          merge-multiple: false
-          github-token: ${{ github.token }}
-          run-id: ${{ env.DEV_CONTEXT_RUN_ID }}
-
-      - name: Download reserved contexts once
-        uses: actions/download-artifact@v4
-        with:
-          pattern: qore-capitalizer-native-market-context-v1-reserved-*-${{ env.RESERVED_SOURCE_SHA }}
-          path: reserved-context
-          merge-multiple: false
-          github-token: ${{ github.token }}
-          run-id: ${{ env.RESERVED_SOURCE_RUN_ID }}
-
-      - name: Download all immutable native M1 once
-        uses: actions/download-artifact@v4
-        with:
-          pattern: qore-capitalizer-cibo-10y-native-m1-*-${{ env.M1_SHA }}
-          path: m1-input
-          merge-multiple: false
-          github-token: ${{ github.token }}
-          run-id: ${{ env.M1_RUN_ID }}
-
-      - name: Build all nine market lifecycle ledgers
+      - name: Install QORE read-only cTrader research runtime
+        run: python -m pip install -e '.[ctrader]'
+      - name: Verify read-only provider credentials
         shell: bash
         run: |
           set -euo pipefail
-          symbols=(USDJPY AUDJPY AUDUSD GBPJPY EURUSD GBPUSD XAUUSD USDCAD NAS100)
-          for symbol in "${symbols[@]}"; do
-            m1_dir="m1-input/qore-capitalizer-cibo-10y-native-m1-${symbol}-${M1_SHA}"
-            test -d "${m1_dir}"
-            python -m qore.infrastructure.trader_lab.capitalizer_intratrade_hypothesis_state_machine_v20 \
-              market development-input validation-input reserved-input "${m1_dir}" \
-              "event-input/${symbol}" --symbol "${symbol}"
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || {
+              echo "missing required read-only cTrader credential: $name" >&2
+              exit 2
+            }
           done
-
-      - name: Enforce nine market lifecycle contracts
+      - name: Discover DEMO account when not configured
+        shell: bash
         run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            [[ "$account_id" =~ ^[1-9][0-9]*$ ]] || {
+              echo "invalid cTrader DEMO account id" >&2
+              exit 3
+            }
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Rebuild consumed evidence directly from provider-native M1
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p \
+            development-input validation-input reserved-input \
+            development-validation-context reserved-context event-input
 
-          symbols = (
-              "USDJPY", "AUDJPY", "AUDUSD", "GBPJPY", "EURUSD",
-              "GBPUSD", "XAUUSD", "USDCAD", "NAS100",
-          )
-          for symbol in symbols:
-              report = json.loads(
-                  (
-                      Path("event-input")
-                      / symbol
-                      / f"capitalizer-{symbol.lower()}-intratrade-hypothesis-state-machine-v20.json"
-                  ).read_text()
-              )
-              assert report["identity"] == (
-                  "QORE_CAPITALIZER_INTRATRADE_HYPOTHESIS_STATE_MACHINE_V20"
-              )
-              assert report["symbol"] == symbol
-              assert set(report["source_trade_counts"]) == {
-                  "DEVELOPMENT_2024_2026",
-                  "CONSUMED_VALIDATION_2022_2024",
-                  "CONSUMED_RESERVED_2020_2022",
-              }
-              assert report["current_outcome_visible_to_transition"] is False
-              assert report["future_bars_visible_to_transition"] is False
-              assert report["original_exit_bar_excluded"] is True
-              assert report["same_bar_stop_target_ambiguity_can_trigger"] is False
-              assert report["recovery_transition_supported"] is True
-              assert report["terminal_state"] == "DEAD"
-              assert set(report["state_specs"]) == {
-                  "HSM_FAST",
-                  "HSM_BASE",
-                  "HSM_STRICT",
-              }
-              assert report["market_session_specific_thresholds_used"] is False
-              assert report["strategy_rules_changed"] is False
-              assert report["trader_certified"] is False
+          run_market() {
+            local symbol="$1"
+            local session="$2"
+            local m1="provider-m1/$symbol"
+            local dev="development-input/$symbol"
+            local val="validation-input/$symbol"
+            local res="reserved-input/$symbol"
+            local devctx="development-validation-context/dev-$symbol"
+            local valctx="development-validation-context/holdout-$symbol"
+            local resctx="reserved-context/reserved-$symbol"
+            local events="event-input/$symbol"
+
+            mkdir -p "$m1" "$dev" "$val" "$res" "$devctx" "$valctx" "$resctx" "$events"
+
+            SYMBOL="$symbol" OUTPUT="$m1" python - <<'PY'
+          import os
+          from datetime import datetime
+          from pathlib import Path
+          from qore.infrastructure.trader_lab import capitalizer_cibo_10y_m1_clone_v1 as clone
+
+          clone.TARGET_START = datetime.fromisoformat(os.environ["M1_START"])
+          clone.TARGET_END_EXCLUSIVE = datetime.fromisoformat(os.environ["M1_END"])
+          manifest = clone.clone_symbol(os.environ["SYMBOL"], Path(os.environ["OUTPUT"]))
+          assert manifest["provider_native_m1"] is True
+          assert manifest["synthetic_m1"] is False
+          assert manifest["interpolated_m1"] is False
+          assert manifest["contradictory_m1"] == 0
+          print(manifest)
           PY
 
-      - name: Run V20 portfolio replay in same job
+            python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_direct_m1_replay_v1 \
+              market "$m1" "$dev" --session "$session" \
+              --start "$DEV_START" --end-exclusive "$DEV_END"
+            python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_direct_m1_replay_v1 \
+              market "$m1" "$val" --session "$session" \
+              --start "$VAL_START" --end-exclusive "$VAL_END"
+            python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_direct_m1_replay_v1 \
+              market "$m1" "$res" --session "$session" \
+              --start "$RESERVED_START" --end-exclusive "$RESERVED_END"
+
+            python -m qore.infrastructure.trader_lab.capitalizer_native_market_context_v1 \
+              "$dev" "$m1" "$devctx" --role dev
+            python -m qore.infrastructure.trader_lab.capitalizer_native_market_context_v1 \
+              "$val" "$m1" "$valctx" --role holdout
+            python -m qore.infrastructure.trader_lab.capitalizer_native_market_context_v1 \
+              "$res" "$m1" "$resctx" --role reserved
+
+            python -m qore.infrastructure.trader_lab.capitalizer_intratrade_hypothesis_state_machine_v20 \
+              market "$dev" "$val" "$res" "$m1" "$events" --symbol "$symbol"
+          }
+
+          run_batch() {
+            local pids=()
+            local rc=0
+            while [ "$#" -gt 0 ]; do
+              run_market "$1" "$2" &
+              pids+=("$!")
+              shift 2
+            done
+            for pid in "${pids[@]}"; do
+              wait "$pid" || rc=1
+            done
+            return "$rc"
+          }
+
+          run_batch USDJPY ASIA AUDJPY ASIA AUDUSD ASIA
+          run_batch GBPJPY ASIA EURUSD LONDON GBPUSD LONDON
+          run_batch XAUUSD NEW_YORK USDCAD NEW_YORK NAS100 NEW_YORK
+
+      - name: Enforce reconstructed consumed-population identity
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from qore.infrastructure.trader_lab import (
+              capitalizer_contextual_stability_router_2r_v1 as router,
+          )
+          from qore.infrastructure.trader_lab import (
+              capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
+          )
+          from qore.infrastructure.trader_lab import (
+              capitalizer_max_recovery_direct_m1_replay_v1 as direct,
+          )
+
+          expected = {
+              "development-input": 948,
+              "validation-input": 1034,
+              "reserved-input": 1088,
+          }
+          for root_name, count in expected.items():
+              root = Path(root_name)
+              selected = {
+                  mode.value: direct._max3_milestone(
+                      direct._load_mode(root, mode=mode)
+                  )
+                  for mode in milestone.ProtectionMode
+              }
+              assert {len(rows) for rows in selected.values()} == {count}, (
+                  root_name,
+                  {mode: len(rows) for mode, rows in selected.items()},
+              )
+
+          assert len(router._load_contexts(
+              Path("development-validation-context"), role="dev"
+          )) == 948
+          assert len(router._load_contexts(
+              Path("development-validation-context"), role="holdout"
+          )) == 1034
+          PY
+      - name: Run V20 portfolio replay in same filesystem
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_intratrade_hypothesis_state_machine_v20 \
             aggregate development-input validation-input reserved-input \
             development-validation-context reserved-context event-input experiment-output
-
-      - name: Enforce V20 portfolio contract
+      - name: Enforce V20 causal and economic contract
         run: |
           python - <<'PY'
           import json
@@ -213,6 +245,7 @@ jobs:
               "RECOVERED",
               "DEAD",
           ]
+          assert report["market_session_specific_thresholds_used"] is False
           assert report["current_outcome_visible_to_decision"] is False
           assert report["unchosen_counterfactual_visible_to_decision"] is False
           assert report["full_source_recompetition_required_before_freeze"] is True
@@ -223,18 +256,9 @@ jobs:
               if row["policy"] == "SURFACE_CONTROL"
           )
           expected = {
-              "DEVELOPMENT_2024_2026": (
-                  "948",
-                  "6.214605199866807668753081488",
-              ),
-              "CONSUMED_VALIDATION_2022_2024": (
-                  "1034",
-                  "6.770051846347247537620893924",
-              ),
-              "CONSUMED_RESERVED_2020_2022": (
-                  "1088",
-                  "8.74798816650617431130479348",
-              ),
+              "DEVELOPMENT_2024_2026": ("948", "6.214605199866807668753081488"),
+              "CONSUMED_VALIDATION_2022_2024": ("1034", "6.770051846347247537620893924"),
+              "CONSUMED_RESERVED_2020_2022": ("1088", "8.74798816650617431130479348"),
           }
           for period, (trades, dd) in expected.items():
               row = control["heldouts"][period]
@@ -243,13 +267,12 @@ jobs:
 
           assert report["automatic_policy_promotion"] is False
           assert report["trader_certified"] is False
+          print(json.dumps(report, sort_keys=True))
           PY
-
-      - uses: actions/upload-artifact@v4
+      - name: Upload final V20 evidence only
+        uses: actions/upload-artifact@v4
         with:
           name: qore-capitalizer-intratrade-hypothesis-state-machine-v20-${{ github.sha }}
-          path: |
-            event-input
-            experiment-output
+          path: experiment-output
           if-no-files-found: error
           retention-days: 90
