@@ -302,9 +302,9 @@ def build_capital_opportunity_graph(
         interaction_evidence,
         key=lambda item: item.unordered_key,
     ):
-        left, right = interaction.unordered_key
-        left_id = f"opportunity:{left}"
-        right_id = f"opportunity:{right}"
+        left_fingerprint, right_fingerprint = interaction.unordered_key
+        left_id = f"opportunity:{left_fingerprint}"
+        right_id = f"opportunity:{right_fingerprint}"
         for kind, weight in (
             (
                 OpportunityGraphEdgeKind.FACTOR_OVERLAP,
