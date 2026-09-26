@@ -5,12 +5,14 @@ import pytest
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalAction,
+    CapitalCapacityDimension,
     CapitalSource,
     CapitalStage,
     CiboCapitalActionPlan,
     CiboCapitalManagementError,
     CiboCapitalState,
     TraderOpportunityEnvelope,
+    capital_source_dimension,
     minimum_seed_volume,
     plan_minimal_seed,
     plan_self_financing_expansion,
@@ -193,3 +195,26 @@ def test_mixed_sources_hold_until_multi_source_ledger_reservation_exists() -> No
 
     assert plan.action is CapitalAction.HOLD
     assert "multi-source" in plan.reason
+
+
+def test_capital_source_dimensions_are_nonfungible() -> None:
+    assert (
+        capital_source_dimension(CapitalSource.REALIZED_PROFIT)
+        is CapitalCapacityDimension.ECONOMIC_PROFIT_CAPITAL
+    )
+    assert (
+        capital_source_dimension(CapitalSource.PROTECTED_ECONOMIC_FLOOR)
+        is CapitalCapacityDimension.ECONOMIC_PROFIT_CAPITAL
+    )
+    assert (
+        capital_source_dimension(CapitalSource.RELEASED_RISK_CAPACITY)
+        is CapitalCapacityDimension.RELEASED_RISK_HEADROOM
+    )
+    assert (
+        capital_source_dimension(CapitalSource.RELEASED_MARGIN_CAPACITY)
+        is CapitalCapacityDimension.MARGIN_HEADROOM
+    )
+    assert (
+        capital_source_dimension(CapitalSource.TRUE_PORTFOLIO_NETTING)
+        is CapitalCapacityDimension.PORTFOLIO_OFFSET
+    )
