@@ -85,6 +85,7 @@ jobs:
             scripts/cibo_phase19_temporal_interaction_atlas.py \
             scripts/cibo_phase19_temporal_stability_validation.py \
             scripts/cibo_phase19_provider_economics_inventory.py \
+            scripts/cibo_phase19_normalized_capital_mechanics.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
@@ -219,6 +220,7 @@ jobs:
             scripts/cibo_phase19_temporal_interaction_atlas.py \
             scripts/cibo_phase19_temporal_stability_validation.py \
             scripts/cibo_phase19_provider_economics_inventory.py \
+            scripts/cibo_phase19_normalized_capital_mechanics.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
