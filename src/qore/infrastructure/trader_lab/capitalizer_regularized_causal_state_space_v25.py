@@ -303,7 +303,7 @@ def _training_examples(
         )
         raw.append((_feature_vector(item, pretrade), target, key))
 
-    counts = defaultdict(int)
+    counts: dict[tuple[str, str], int] = defaultdict(int)
     for _features, _target, key in raw:
         counts[key] += 1
     if not counts:
