@@ -344,3 +344,266 @@ def build_replay_opportunity(
         maximum_volume=economics.maximum_volume,
         minimum_execution_steps=causal.minimum_execution_steps,
     )
+
+
+@dataclass(frozen=True, slots=True)
+class ReplayStrategyMetrics:
+    """Chronological legacy-strategy economics on the frozen signal population."""
+
+    trades: int
+    gross_profit_r: Decimal
+    gross_loss_r: Decimal
+    total_r: Decimal
+    profit_factor: Decimal | None
+    max_drawdown_r: Decimal
+    max_loss_streak: int
+    stop_count: int
+    first_entry_at: datetime
+    last_exit_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class CiboReplayCapitalSample:
+    """One reconciled chronological CMA capital state for a replayed trade."""
+
+    observed_at: datetime
+    original_base_capital_at_risk_usd: Decimal
+    margin_in_use_usd: Decimal
+    hard_risk_headroom_usd: Decimal
+    margin_headroom_usd: Decimal
+    self_financing_capacity_usd: Decimal
+    available_future_capacity_usd: Decimal
+    cumulative_released_capacity_usd: Decimal
+    evidence_id: str
+    reconciled: bool = True
+
+    def __post_init__(self) -> None:
+        _aware(self.observed_at, "observed_at")
+        for name in (
+            "original_base_capital_at_risk_usd",
+            "margin_in_use_usd",
+            "hard_risk_headroom_usd",
+            "margin_headroom_usd",
+            "self_financing_capacity_usd",
+            "available_future_capacity_usd",
+            "cumulative_released_capacity_usd",
+        ):
+            _nonnegative(getattr(self, name), name)
+        if not self.evidence_id:
+            raise CiboChronologicalReplayError(
+                "capital sample evidence_id must be non-empty"
+            )
+        if type(self.reconciled) is not bool:
+            raise CiboChronologicalReplayError(
+                "capital sample reconciled must be bool"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class ReplayCapitalMetrics:
+    """Capital-efficiency metrics produced from one complete CMA trade lifecycle."""
+
+    samples: int
+    peak_original_capital_at_risk_usd: Decimal
+    peak_margin_in_use_usd: Decimal
+    peak_self_financing_capacity_usd: Decimal
+    ending_available_future_capacity_usd: Decimal
+    cumulative_released_capacity_usd: Decimal
+    peak_risk_utilization: Decimal
+    peak_margin_utilization: Decimal
+    base_recovery_seconds: Decimal | None
+    base_recovered_before_exit: bool
+    base_capital_block_seconds: Decimal
+    false_recovery_incidents: int
+
+
+def score_legacy_replay(
+    trades: tuple[CiboChronologicalReplayTrade, ...],
+) -> ReplayStrategyMetrics:
+    """Score the frozen legacy capital baseline without changing signal identity."""
+
+    if not trades:
+        raise CiboChronologicalReplayError("legacy replay requires at least one trade")
+
+    fingerprints: set[str] = set()
+    prior_entry: datetime | None = None
+    gross_profit = Decimal(0)
+    gross_loss = Decimal(0)
+    equity = Decimal(0)
+    peak = Decimal(0)
+    max_drawdown = Decimal(0)
+    max_loss_streak = 0
+    current_loss_streak = 0
+    stop_count = 0
+
+    for trade in trades:
+        fingerprint = trade.causal.signal_fingerprint
+        if fingerprint in fingerprints:
+            raise CiboChronologicalReplayError(
+                f"duplicate replay signal fingerprint: {fingerprint}"
+            )
+        fingerprints.add(fingerprint)
+
+        if prior_entry is not None and trade.causal.entry_at < prior_entry:
+            raise CiboChronologicalReplayError(
+                "legacy replay trades must remain in chronological entry order"
+            )
+        prior_entry = trade.causal.entry_at
+
+        weighted_r = trade.outcome.net_outcome_r * trade.causal.legacy_risk_scale
+        if weighted_r > 0:
+            gross_profit += weighted_r
+            current_loss_streak = 0
+        elif weighted_r < 0:
+            gross_loss += weighted_r
+            current_loss_streak += 1
+            max_loss_streak = max(max_loss_streak, current_loss_streak)
+        else:
+            current_loss_streak = 0
+
+        if trade.outcome.exit_reason.strip().upper().startswith("STOP"):
+            stop_count += 1
+
+        equity += weighted_r
+        peak = max(peak, equity)
+        max_drawdown = max(max_drawdown, peak - equity)
+
+    profit_factor = (
+        gross_profit / abs(gross_loss)
+        if gross_loss < 0
+        else None
+    )
+    return ReplayStrategyMetrics(
+        trades=len(trades),
+        gross_profit_r=gross_profit,
+        gross_loss_r=gross_loss,
+        total_r=equity,
+        profit_factor=profit_factor,
+        max_drawdown_r=max_drawdown,
+        max_loss_streak=max_loss_streak,
+        stop_count=stop_count,
+        first_entry_at=trades[0].causal.entry_at,
+        last_exit_at=max(trade.outcome.exit_at for trade in trades),
+    )
+
+
+def _utilization(used: Decimal, remaining: Decimal) -> Decimal:
+    total = used + remaining
+    if total == 0:
+        return Decimal(0)
+    return used / total
+
+
+def score_cibo_capital_path(
+    *,
+    entry_at: datetime,
+    exit_at: datetime,
+    samples: tuple[CiboReplayCapitalSample, ...],
+) -> ReplayCapitalMetrics:
+    """Score a fully reconciled CMA lifecycle without interpolating missing edges."""
+
+    _aware(entry_at, "entry_at")
+    _aware(exit_at, "exit_at")
+    if exit_at < entry_at:
+        raise CiboChronologicalReplayError("exit_at cannot precede entry_at")
+    if not samples:
+        raise CiboChronologicalReplayError("capital path requires samples")
+    if samples[0].observed_at != entry_at:
+        raise CiboChronologicalReplayError(
+            "capital path must start exactly at entry_at"
+        )
+    if samples[-1].observed_at != exit_at:
+        raise CiboChronologicalReplayError(
+            "capital path must end exactly at exit_at"
+        )
+
+    prior_at: datetime | None = None
+    prior_release = Decimal(0)
+    recovered = False
+    positive_after_recovery = False
+    false_recovery_incidents = 0
+    recovery_at: datetime | None = None
+    block_seconds = Decimal(0)
+
+    peak_original = Decimal(0)
+    peak_margin = Decimal(0)
+    peak_self_financing = Decimal(0)
+    peak_risk_utilization = Decimal(0)
+    peak_margin_utilization = Decimal(0)
+
+    for index, sample in enumerate(samples):
+        if not sample.reconciled:
+            raise CiboChronologicalReplayError(
+                f"unreconciled capital sample: {sample.evidence_id}"
+            )
+        if prior_at is not None and sample.observed_at < prior_at:
+            raise CiboChronologicalReplayError(
+                "capital samples must remain chronological"
+            )
+        if sample.cumulative_released_capacity_usd < prior_release:
+            raise CiboChronologicalReplayError(
+                "cumulative released capacity cannot decrease"
+            )
+
+        if index > 0:
+            previous = samples[index - 1]
+            if previous.original_base_capital_at_risk_usd > 0:
+                interval = sample.observed_at - previous.observed_at
+                block_seconds += Decimal(str(interval.total_seconds()))
+
+        base_risk = sample.original_base_capital_at_risk_usd
+        if base_risk == 0 and not recovered:
+            recovered = True
+            recovery_at = sample.observed_at
+        elif recovered and base_risk > 0 and not positive_after_recovery:
+            false_recovery_incidents += 1
+            positive_after_recovery = True
+        elif recovered and base_risk == 0:
+            positive_after_recovery = False
+
+        peak_original = max(peak_original, base_risk)
+        peak_margin = max(peak_margin, sample.margin_in_use_usd)
+        peak_self_financing = max(
+            peak_self_financing,
+            sample.self_financing_capacity_usd,
+        )
+        peak_risk_utilization = max(
+            peak_risk_utilization,
+            _utilization(base_risk, sample.hard_risk_headroom_usd),
+        )
+        peak_margin_utilization = max(
+            peak_margin_utilization,
+            _utilization(
+                sample.margin_in_use_usd,
+                sample.margin_headroom_usd,
+            ),
+        )
+        prior_at = sample.observed_at
+        prior_release = sample.cumulative_released_capacity_usd
+
+    recovery_seconds = None
+    if recovery_at is not None:
+        recovery_seconds = Decimal(
+            str((recovery_at - entry_at).total_seconds())
+        )
+
+    return ReplayCapitalMetrics(
+        samples=len(samples),
+        peak_original_capital_at_risk_usd=peak_original,
+        peak_margin_in_use_usd=peak_margin,
+        peak_self_financing_capacity_usd=peak_self_financing,
+        ending_available_future_capacity_usd=(
+            samples[-1].available_future_capacity_usd
+        ),
+        cumulative_released_capacity_usd=(
+            samples[-1].cumulative_released_capacity_usd
+        ),
+        peak_risk_utilization=peak_risk_utilization,
+        peak_margin_utilization=peak_margin_utilization,
+        base_recovery_seconds=recovery_seconds,
+        base_recovered_before_exit=(
+            recovery_at is not None and recovery_at < exit_at
+        ),
+        base_capital_block_seconds=block_seconds,
+        false_recovery_incidents=false_recovery_incidents,
+    )
