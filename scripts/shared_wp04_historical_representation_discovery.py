@@ -36,7 +36,6 @@ from shared_wp03_historical_causal_discovery import (
     _source_state,
     _target_state,
 )
-
 from qore.infrastructure.core_stack_v2.representation_discovery_engine import (
     RepresentationDiscoveryPolicy,
     RepresentationEpisode,
