@@ -12,26 +12,24 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: qore-capitalizer-intratrade-hypothesis-state-machine-v20-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 env:
-  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
-  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
-  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
-  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
-  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
-  M1_START: '2020-08-27T00:00:00+00:00'
-  M1_END: '2026-09-17T00:00:00+00:00'
+  M1_SOURCE_RUN_ID: '35548099334'
+  M1_SOURCE_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+  M1_CANONICAL_START: '2016-09-17T00:00:00+00:00'
+  M1_CANONICAL_END: '2026-09-17T00:00:00+00:00'
+  REQUIRED_LOOKBACK_START: '2020-08-27T00:00:00+00:00'
   DEV_START: '2024-09-17T00:00:00+00:00'
   DEV_END: '2026-09-17T00:00:00+00:00'
   VAL_START: '2022-09-17T00:00:00+00:00'
   VAL_END: '2024-09-17T00:00:00+00:00'
   RESERVED_START: '2020-09-17T00:00:00+00:00'
   RESERVED_END: '2022-09-17T00:00:00+00:00'
-
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -63,7 +61,7 @@ jobs:
     timeout-minutes: 240
     strategy:
       fail-fast: false
-      max-parallel: 3
+      max-parallel: 9
       matrix:
         include:
           - {symbol: USDJPY, session: ASIA}
@@ -80,51 +78,56 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install QORE read-only cTrader research runtime
-        run: python -m pip install -e '.[ctrader]'
-      - name: Verify read-only provider credentials
-        shell: bash
-        run: |
-          set -euo pipefail
-          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
-            value="$(printenv "$name" || true)"
-            test -n "$value" || {
-              echo "missing required read-only cTrader credential: $name" >&2
-              exit 2
-            }
-          done
-      - name: Enforce causal lookback coverage
+      - name: Install QORE research runtime
+        run: python -m pip install -e .
+      - name: Download immutable canonical 10Y provider-native M1
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.M1_SOURCE_SHA }}
+          path: m1-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.M1_SOURCE_RUN_ID }}
+      - name: Enforce immutable M1 manifest and causal coverage
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
         run: |
           python - <<'PY'
+          import json
           import os
-          from datetime import datetime, timedelta
+          from datetime import datetime
+          from pathlib import Path
 
-          m1_start = datetime.fromisoformat(os.environ["M1_START"])
-          reserved_start = datetime.fromisoformat(os.environ["RESERVED_START"])
-          required = reserved_start - timedelta(days=21)
-          assert m1_start <= required, (m1_start, required)
+          manifest = json.loads(
+              Path("m1-source/m1-clone-manifest.json").read_text()
+          )
+          assert manifest["identity"] == "QORE_CAPITALIZER_CIBO_10Y_NATIVE_M1_CLONE_V1"
+          assert manifest["canonical_symbol"] == os.environ["EXPECTED_SYMBOL"]
+          assert manifest["target_start"] == os.environ["M1_CANONICAL_START"]
+          assert manifest["target_end_exclusive"] == os.environ["M1_CANONICAL_END"]
+          assert manifest["provider_native_m1"] is True
+          assert manifest["synthetic_m1"] is False
+          assert manifest["interpolated_m1"] is False
+          assert int(manifest["contradictory_m1"]) == 0
+          assert datetime.fromisoformat(manifest["target_start"]) <= datetime.fromisoformat(
+              os.environ["REQUIRED_LOOKBACK_START"]
+          )
+          assert int(manifest["retained_m1"]) > 0
+          print(json.dumps({
+              "symbol": manifest["canonical_symbol"],
+              "target_start": manifest["target_start"],
+              "target_end_exclusive": manifest["target_end_exclusive"],
+              "retained_m1": manifest["retained_m1"],
+              "provider_native_m1": manifest["provider_native_m1"],
+          }, sort_keys=True))
           PY
-      - name: Discover DEMO account when not configured
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -z "$QORE_CTRADER_DEMO_ACCOUNT_ID" ]; then
-            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
-            [[ "$account_id" =~ ^[1-9][0-9]*$ ]] || {
-              echo "invalid cTrader DEMO account id" >&2
-              exit 3
-            }
-            echo "::add-mask::$account_id"
-            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
-          fi
-      - name: Rebuild one market directly from provider-native M1
+      - name: Rebuild one market from immutable provider-native M1
         shell: bash
         env:
           SYMBOL: ${{ matrix.symbol }}
           SESSION: ${{ matrix.session }}
         run: |
           set -euo pipefail
-          m1="provider-m1/$SYMBOL"
+          m1="m1-source"
           root="shard-output"
           dev="$root/development-input/$SYMBOL"
           val="$root/validation-input/$SYMBOL"
@@ -134,26 +137,7 @@ jobs:
           resctx="$root/reserved-context/reserved-$SYMBOL"
           events="$root/event-input/$SYMBOL"
 
-          mkdir -p "$m1" "$dev" "$val" "$res" "$devctx" "$valctx" "$resctx" "$events"
-
-          python - <<'PY'
-          import os
-          from datetime import datetime
-          from pathlib import Path
-          from qore.infrastructure.trader_lab import capitalizer_cibo_10y_m1_clone_v1 as clone
-
-          clone.TARGET_START = datetime.fromisoformat(os.environ["M1_START"])
-          clone.TARGET_END_EXCLUSIVE = datetime.fromisoformat(os.environ["M1_END"])
-          manifest = clone.clone_symbol(
-              os.environ["SYMBOL"],
-              Path("provider-m1") / os.environ["SYMBOL"],
-          )
-          assert manifest["provider_native_m1"] is True
-          assert manifest["synthetic_m1"] is False
-          assert manifest["interpolated_m1"] is False
-          assert manifest["contradictory_m1"] == 0
-          print(manifest)
-          PY
+          mkdir -p "$dev" "$val" "$res" "$devctx" "$valctx" "$resctx" "$events"
 
           python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_direct_m1_replay_v1 \
             market "$m1" "$dev" --session "$SESSION" \
