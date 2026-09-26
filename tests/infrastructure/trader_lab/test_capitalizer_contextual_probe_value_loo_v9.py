@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from decimal import Decimal
-
 from qore.infrastructure.trader_lab import capitalizer_contextual_probe_value_loo_v9 as lab
 
 
