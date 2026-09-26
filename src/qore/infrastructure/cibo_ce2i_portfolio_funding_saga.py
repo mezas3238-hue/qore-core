@@ -24,10 +24,7 @@ from enum import StrEnum
 from pathlib import Path
 from threading import RLock
 
-from qore.infrastructure.cibo_capital_management_authority import (
-    CiboCapitalManagementError,
-)
-
+from qore.infrastructure.cibo_capital_management_authority import CiboCapitalManagementError
 
 _SCHEMA = "CIBO_CE2I_PORTFOLIO_FUNDING_SAGA_V1"
 
