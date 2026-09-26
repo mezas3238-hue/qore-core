@@ -283,9 +283,10 @@ def _simulate(
             and pre.base_multiplier <= MAX_BASE_MULTIPLIER
         )
         final_mode = pre.mode
-        override = recovery and selected_arm is not None
-        if override:
+        override = False
+        if recovery and selected_arm is not None:
             final_mode = selected_arm
+            override = True
             override_count += 1
 
         key = (trade.symbol, trade.entry_at)
