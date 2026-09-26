@@ -122,6 +122,10 @@ jobs:
           assert m["representation"] == "STRUCTURAL_FRONTIER_SURVIVAL_V1"
           assert m["calibration_terminal_preservation_bps"] >= 9800
           assert m["feature_count"] >= 20
+          assert len(m["fingerprint_sha256"]) == 64
+          assert len(m["feature_centers_micros"]) == m["feature_count"]
+          assert len(m["feature_scales_micros"]) == m["feature_count"]
+          assert len(m["coefficients_micros"]) == m["feature_count"]
           gate=p["frozen_development_gate"]
           assert gate["minimum_false_declaration_reduction_bps"] == 2000
           assert gate["minimum_terminal_detection_preservation_bps"] == 9500
@@ -198,6 +202,7 @@ jobs:
               "- target: **HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2**",
               "- representation: **source-time structural frontier + approach/rejection + cross-market + hierarchy survival**",
               f"- feature count: **{m['feature_count']}**",
+              f"- frozen model fingerprint: \`{m['fingerprint_sha256']}\`",
               f"- R8 calibration false reduction: **{m['calibration_false_reduction_bps']} bps**",
               f"- R8 calibration terminal preservation: **{m['calibration_terminal_preservation_bps']} bps**",
               "- frozen gate unchanged: **>=20% false-declaration reduction + >=95% terminal preservation on BOTH R6/R5**",
