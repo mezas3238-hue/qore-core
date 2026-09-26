@@ -22,6 +22,7 @@ class DemoTradeRegistryEntry:
     submitted_at: str
     expires_at: str
     position_id: int | None = None
+    capital_provenance: tuple[tuple[str, str, str], ...] = ()
 
     def as_json(self) -> dict[str, object]:
         return {
@@ -36,6 +37,14 @@ class DemoTradeRegistryEntry:
             "submitted_at": self.submitted_at,
             "expires_at": self.expires_at,
             "position_id": self.position_id,
+            "capital_provenance": [
+                {
+                    "source_kind": source_kind,
+                    "source_id": source_id,
+                    "amount_usd": amount_usd,
+                }
+                for source_kind, source_id, amount_usd in self.capital_provenance
+            ],
         }
 
 
@@ -50,7 +59,7 @@ class CTraderDemoTradeRegistry:
             return {}
         raw = json.loads(self._path.read_text(encoding="utf-8"))
         return {
-            item["client_order_id"]: DemoTradeRegistryEntry(**item)
+            item["client_order_id"]: _entry_from_json(item)
             for item in raw.get("entries", ())
         }
 
@@ -144,3 +153,41 @@ class CTraderDemoTradeRegistry:
         finally:
             if tmp.exists():
                 tmp.unlink()
+
+
+
+def _entry_from_json(value: object) -> DemoTradeRegistryEntry:
+    if not isinstance(value, dict):
+        raise RuntimeError("cTrader DEMO registry entry must be object")
+    provenance_raw = value.get("capital_provenance", ())
+    if not isinstance(provenance_raw, (list, tuple)):
+        raise RuntimeError("cTrader DEMO registry provenance must be sequence")
+    provenance: list[tuple[str, str, str]] = []
+    for item in provenance_raw:
+        if not isinstance(item, dict):
+            raise RuntimeError("cTrader DEMO registry provenance row invalid")
+        provenance.append(
+            (
+                str(item["source_kind"]),
+                str(item["source_id"]),
+                str(item["amount_usd"]),
+            )
+        )
+    return DemoTradeRegistryEntry(
+        trader=str(value["trader"]),
+        signal_fingerprint=str(value["signal_fingerprint"]),
+        request_id=str(value["request_id"]),
+        client_order_id=str(value["client_order_id"]),
+        provider_order_ref=str(value["provider_order_ref"]),
+        qore_symbol=str(value["qore_symbol"]),
+        requested_volume=str(value["requested_volume"]),
+        requested_stop_risk=str(value["requested_stop_risk"]),
+        submitted_at=str(value["submitted_at"]),
+        expires_at=str(value["expires_at"]),
+        position_id=(
+            None
+            if value.get("position_id") is None
+            else int(str(value["position_id"]))
+        ),
+        capital_provenance=tuple(provenance),
+    )
