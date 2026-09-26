@@ -71,6 +71,9 @@ def test_risk_request_volume_comes_from_cibo_plan() -> None:
     assert request.requested_stop_risk == Decimal("0.10")
     assert request.requested_margin == Decimal("0.25")
     assert request.strategy_requested_risk_usd is None
+    assert len(request.capital_provenance) == 1
+    assert request.capital_provenance[0].source_kind == "ORIGINAL_BASE_CAPITAL"
+    assert request.capital_provenance[0].amount_usd == Decimal("0.10")
 
 
 def test_hold_plan_cannot_reach_risk_engine() -> None:
@@ -121,3 +124,20 @@ def test_plan_economics_must_match_opportunity() -> None:
             requested_at=now,
             expires_at=now + timedelta(minutes=1),
         )
+
+
+
+def test_expansion_request_can_bind_exact_durable_source_id() -> None:
+    now = datetime(2026, 9, 26, 12, 0, tzinfo=UTC)
+    request = build_cma_risk_request(
+        request_id="cma-expansion",
+        opportunity=_opportunity(),
+        plan=_plan(CapitalAction.EXPAND),
+        requested_at=now,
+        expires_at=now + timedelta(minutes=1),
+        capital_source_id="profit-ledger-source-7",
+    )
+
+    assert request.capital_provenance[0].source_kind == "REALIZED_PROFIT"
+    assert request.capital_provenance[0].source_id == "profit-ledger-source-7"
+    assert request.capital_provenance[0].amount_usd == request.requested_stop_risk
