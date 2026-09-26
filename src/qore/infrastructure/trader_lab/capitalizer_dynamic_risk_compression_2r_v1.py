@@ -33,6 +33,10 @@ from qore.infrastructure.trader_lab import (
 from qore.infrastructure.trader_lab import (
     capitalizer_cross_market_stability_governor_2r_v1 as governor,
 )
+from qore.infrastructure.trader_lab import (
+    capitalizer_max_recovery_direct_m1_replay_v1 as direct,
+)
+from qore.infrastructure.trader_lab import capitalizer_native_market_context_v1 as context
 
 IDENTITY = "QORE_CAPITALIZER_DYNAMIC_RISK_COMPRESSION_2R_V1"
 BASE_POLICY = "CONTEXT_STABILITY_STAGE"
@@ -136,7 +140,7 @@ def _simulate(
     role: str,
     policy: str,
     ledgers: dict[str, tuple[milestone.SimulatedTrade, ...]],
-    contexts: dict[tuple[str, str], router.context.NativeContextRow],
+    contexts: dict[tuple[str, str], context.NativeContextRow],
     model: dict[str, Any],
 ) -> tuple[dict[str, Any], tuple[RiskDecision, ...]]:
     by_mode = {
@@ -147,7 +151,7 @@ def _simulate(
     ordered = tuple(
         sorted(
             baseline,
-            key=lambda row: (router.direct._aware(row.entry_at), row.symbol),
+            key=lambda row: (direct._aware(row.entry_at), row.symbol),
         )
     )
 
@@ -162,7 +166,7 @@ def _simulate(
         ctx = contexts[key]
         history = governor._closed_history(
             tuple(chosen_scaled),
-            entry_at=router.direct._aware(trade.entry_at),
+            entry_at=direct._aware(trade.entry_at),
         )
         state, _eq, _pk, _dd, _ls = governor._state(history)
         base_mode, _level, _support = router._lookup(model, ctx)
