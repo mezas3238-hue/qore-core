@@ -314,23 +314,23 @@ def _prediction_errors(
     for prediction in predictions:
         if prediction.made_at > as_of:
             raise ValueError("future prediction supplied to digital twin")
-        observation = observation_by_id.get(prediction.prediction_id)
+        matched_observation = observation_by_id.get(prediction.prediction_id)
 
         if prediction.target_at > as_of:
             unresolved.append(prediction.prediction_id)
-            if observation is not None:
+            if matched_observation is not None:
                 raise ValueError("observation cannot mature before prediction target")
             continue
 
-        if observation is None:
+        if matched_observation is None:
             unresolved.append(prediction.prediction_id)
             continue
-        if observation.channel != prediction.channel:
+        if matched_observation.channel != prediction.channel:
             raise ValueError("prediction/observation channel mismatch")
-        if observation.observed_at < prediction.target_at:
+        if matched_observation.observed_at < prediction.target_at:
             raise ValueError("observation predates matured prediction target")
 
-        signed = observation.observed_bps - prediction.expected_bps
+        signed = matched_observation.observed_bps - prediction.expected_bps
         absolute = abs(signed)
         tolerance = max(1, prediction.tolerance_bps)
         normalized = _clamp_bps(absolute * 10_000 // tolerance)
@@ -342,9 +342,9 @@ def _prediction_errors(
                 model_family=prediction.model_family,
                 made_at=prediction.made_at,
                 target_at=prediction.target_at,
-                observed_at=observation.observed_at,
+                observed_at=matched_observation.observed_at,
                 expected_bps=prediction.expected_bps,
-                observed_bps=observation.observed_bps,
+                observed_bps=matched_observation.observed_bps,
                 signed_error_bps=signed,
                 absolute_error_bps=absolute,
                 normalized_error_bps=normalized,
