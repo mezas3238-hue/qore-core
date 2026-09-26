@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 """Machine-readable maximum cognitive ceiling program for Shared Brain.
 
 This manifest turns the owner-approved architecture into an ordered engineering
