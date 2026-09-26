@@ -320,6 +320,47 @@ def release_multi_source_expansion(
     )
 
 
+def settle_multi_source_expansion(
+    proposal: CmaMultiSourceExpansionProposal,
+    *,
+    returned_capacity_usd: Decimal,
+    ledger_store: DurableCapitalSourceLedgerStore,
+) -> VersionedCapitalSourceLedger:
+    """Settle returned multi-source capacity pro-rata across deployed slices."""
+
+    if (
+        not isinstance(returned_capacity_usd, Decimal)
+        or not returned_capacity_usd.is_finite()
+        or returned_capacity_usd < 0
+        or returned_capacity_usd > proposal.stop_risk_usd
+    ):
+        raise CiboCapitalManagementError(
+            "returned multi-source capacity outside deployed stop risk"
+        )
+
+    version = ledger_store.load()
+    ledger = version.ledger
+    remaining_returned = returned_capacity_usd
+    total = proposal.stop_risk_usd
+    for index, item in enumerate(proposal.funding_slices):
+        if index == len(proposal.funding_slices) - 1:
+            slice_returned = remaining_returned
+        else:
+            slice_returned = (
+                returned_capacity_usd * item.amount_usd / total
+            )
+            remaining_returned -= slice_returned
+        ledger = ledger.settle_deployment(
+            item.reservation_id,
+            returned_capacity_usd=slice_returned,
+        )
+
+    return ledger_store.store(
+        ledger,
+        expected_generation=version.generation,
+    )
+
+
 def multi_source_reservation_states(
     proposal: CmaMultiSourceExpansionProposal,
     *,
