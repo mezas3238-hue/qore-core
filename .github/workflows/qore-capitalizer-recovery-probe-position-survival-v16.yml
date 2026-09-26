@@ -113,7 +113,7 @@ jobs:
         run: |
           python - <<'PY'
           import json
-          from Decimal import Decimal
+          from decimal import Decimal
           from pathlib import Path
 
           report = json.loads(
