@@ -68,6 +68,18 @@ class CTraderDemoFreeSinkError(RuntimeError):
     pass
 
 
+def assert_cibo_sizing_authority(request: CiboRiskRequest) -> None:
+    """Reject any execution request that still carries Trader-owned sizing."""
+
+    if not isinstance(request, CiboRiskRequest):
+        raise CTraderDemoFreeSinkError("request must be CiboRiskRequest")
+    if request.strategy_requested_risk_usd is not None:
+        raise CTraderDemoFreeSinkError(
+            "legacy Trader sizing authority is forbidden; "
+            "CIBO CMA must own requested volume"
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class CTraderDemoFreeSubmitResult:
     state: str
@@ -206,6 +218,7 @@ class CTraderDemoFreeSink:
         )
 
     def submit(self, request: CiboRiskRequest, *, now: datetime | None = None) -> CTraderDemoFreeSubmitResult:
+        assert_cibo_sizing_authority(request)
         observed = now or datetime.now(UTC)
         if observed.tzinfo is None or observed.utcoffset() is None:
             raise CTraderDemoFreeSinkError("submit time must be timezone-aware")
