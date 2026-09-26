@@ -279,6 +279,52 @@ def test_regime_transition_prior_is_bounded() -> None:
         )
 
 
+def test_posterior_temperature_controls_assertiveness_without_reordering() -> None:
+    evidence = _evidence(
+        as_of=BASE,
+        winner=WorldModelFamily.MOMENTUM_DRIVEN,
+    )
+    baseline = update_world_federation(
+        as_of=BASE,
+        evidence=evidence,
+        epistemic_uncertainty_bps=1_000,
+        ood_risk_bps=500,
+    )
+    flatter = update_world_federation(
+        as_of=BASE,
+        evidence=evidence,
+        epistemic_uncertainty_bps=1_000,
+        ood_risk_bps=500,
+        posterior_temperature_bps=25_000,
+    )
+
+    assert baseline.dominant_world is WorldModelFamily.MOMENTUM_DRIVEN
+    assert flatter.dominant_world is WorldModelFamily.MOMENTUM_DRIVEN
+    assert flatter.posterior_temperature_bps == 25_000
+    assert _probability(
+        flatter,
+        WorldModelFamily.MOMENTUM_DRIVEN,
+    ) < _probability(
+        baseline,
+        WorldModelFamily.MOMENTUM_DRIVEN,
+    )
+
+
+def test_posterior_temperature_must_be_positive_and_bounded() -> None:
+    for invalid in (0, 100_001):
+        with pytest.raises(ValueError, match="posterior_temperature_bps"):
+            update_world_federation(
+                as_of=BASE,
+                evidence=_evidence(
+                    as_of=BASE,
+                    winner=WorldModelFamily.MOMENTUM_DRIVEN,
+                ),
+                epistemic_uncertainty_bps=1_000,
+                ood_risk_bps=500,
+                posterior_temperature_bps=invalid,
+            )
+
+
 def test_epistemic_uncertainty_increases_unresolved_world_probability() -> None:
     evidence = _evidence(
         as_of=BASE,
