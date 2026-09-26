@@ -822,7 +822,7 @@ Each mechanism requires separate evidence/certification.
 
 ## PHASE 18 — Per-Trader chronological replay
 
-**Status: IN PROGRESS — CAUSAL REPLAY CONTRACT GREEN / GBPJPY PILOT EVIDENCE BOUND**
+**Status: IN PROGRESS — CAUSAL REPLAY CONTRACT GREEN / GBPJPY + GBPUSD EVIDENCE BOUND (2/7)**
 
 The shared replay primitive now exists in:
 
@@ -977,6 +977,74 @@ No historical spread, commission, slippage, margin or tick-value value has been 
 The next GBPJPY research step is to locate and bind retained provider-economic evidence; if exact
 historical economics are unavailable, the USD replay remains incomplete while the exact
 R-denominated strategy/geometry replay stays valid.
+
+### GBPUSD R43 Phase-18 checkpoint — 26-SEP-2026
+
+The second per-Trader replay is now bound end-to-end to retained GitHub Actions evidence.
+
+```text
+workflow_run: 36254251565  SUCCESS
+head_sha:     ee98f0250e0475ee98f4be8236f5451c3bde542d
+artifact_id:  10910093452
+artifact:     qore-cibo-phase18-gbpusd-r43-geometry-ee98f0250e0475ee98f4be8236f5451c3bde542d
+digest:       sha256:93c9c4872543938571eb6ab12e242bde4ec9e7682f056593efde59f88b4579c9
+rows:         907
+```
+
+The geometry reproducer rebuilds the exact frozen R39 opportunity path from immutable Raw M5,
+Target Destination V2, Cognitive V2 R27 and R38 freeze evidence, then binds that population
+row-for-row to the final R43 risk-correction ledger.
+
+Bound parity:
+
+```text
+R39 row-for-row parity:                    TRUE
+R43 population row parity:                 TRUE
+same signals:                              TRUE
+same entry:                                TRUE
+same structural stop:                      TRUE
+same technical target:                     TRUE
+same market path:                          TRUE
+same frozen structural scale:              TRUE
+same capital policy as R39:                FALSE (EXPECTED)
+R43 drawdown recomputed on corrected equity TRUE
+```
+
+The R43 policy binding was explicitly corrected after a falsification: R43 does not inherit the R39
+drawdown scale. For every trade it causally computes:
+
+```text
+pretrade_overlay = min(short_scale, rank_scale)
+drawdown_scale   = DD governor(current corrected R43 equity)
+corrected_scale  = frozen_structural_scale * pretrade_overlay * drawdown_scale
+corrected_result = raw_net_010_r * corrected_scale
+```
+
+This is the exact retained R43 logic and is verified against all 907 authoritative corrected rows.
+
+Generic Phase-18 scoring reproduces the final R43 5Y baseline exactly:
+
+```text
+trades:          907
+profit_factor:   1.713624514596208498825398640
+total_r:         35.40396721533287699752413575
+max_drawdown_r:  4.401231922815307849576052766
+max_loss_streak: 7
+positive annual: 5/5
+```
+
+GBPUSD remains deliberately fail-closed for the USD CIBO sizing comparison:
+
+```text
+R_DENOMINATED_ONLY
+CALIBRATION_REQUIRED
+USD_CIBO_SIZING_COMPARISON_AUTHORIZED = FALSE
+```
+
+No provider spread, commission, slippage, margin-per-volume or tick-value value is fabricated.
+Phase 18 now has exact R-denominated geometry/baseline replay evidence for **2/7 Traders**:
+R38 GBPJPY and R43 GBPUSD. The remaining Traders still require their own independent evidence
+binding and cannot inherit acceptance from these two cases.
 
 Replay each Trader with:
 
