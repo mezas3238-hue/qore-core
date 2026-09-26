@@ -876,7 +876,7 @@ def fit_invariant_representation(
 
     concepts: list[InvariantLatentConcept] = []
     discovery_episodes = eligible[discovery_partition]
-    for source_invariance, variance_bps, vector, diagnostics in selected:
+    for source_invariance, variance_bps, vector, selected_diagnostics in selected:
         scores = _activation(
             residual_rows[discovery_partition],
             vector,
@@ -917,7 +917,7 @@ def fit_invariant_representation(
                     discovery_episodes[index].episode_id
                     for index in negative
                 ),
-                diagnostics=diagnostics,
+                diagnostics=selected_diagnostics,
             )
         )
 
