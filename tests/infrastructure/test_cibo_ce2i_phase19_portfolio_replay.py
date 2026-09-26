@@ -26,6 +26,9 @@ from qore.infrastructure.cibo_ce2i_phase19_portfolio_replay import (
 def _provider_economics(
     trader: TraderLineage,
     *,
+    tick_value: ProviderEconomicsEvidenceClass = (
+        ProviderEconomicsEvidenceClass.PERIOD_STATIC_VERIFIED
+    ),
     spread: ProviderEconomicsEvidenceClass = (
         ProviderEconomicsEvidenceClass.EXACT_HISTORICAL
     ),
@@ -35,6 +38,7 @@ def _provider_economics(
         provider_key="historical-provider",
         evidence_id=f"provider:{trader.value}",
         contract_terms=ProviderEconomicsEvidenceClass.PERIOD_STATIC_VERIFIED,
+        tick_value=tick_value,
         spread=spread,
         commission=ProviderEconomicsEvidenceClass.PERIOD_STATIC_VERIFIED,
         slippage=ProviderEconomicsEvidenceClass.PERIOD_STATIC_VERIFIED,
@@ -141,6 +145,23 @@ def test_phase19_current_snapshot_cannot_be_promoted_to_historical_usd() -> None
             row_count=863,
             economics_status=ReplayEconomicsStatus.PROVIDER_ECONOMICS_COMPLETE,
             provider_economics=current_only,
+        )
+
+
+def test_phase19_current_tick_value_cannot_be_promoted_to_historical_usd() -> None:
+    current_tick = _provider_economics(
+        TraderLineage.R42_AUDJPY,
+        tick_value=ProviderEconomicsEvidenceClass.CURRENT_SNAPSHOT_ONLY,
+    )
+    assert current_tick.historical_usd_complete is False
+
+    with pytest.raises(CiboCapitalManagementError, match="evidence/status mismatch"):
+        Phase19TraderEvidence(
+            trader_id=TraderLineage.R42_AUDJPY,
+            evidence_id="artifact:audjpy",
+            row_count=1039,
+            economics_status=ReplayEconomicsStatus.PROVIDER_ECONOMICS_COMPLETE,
+            provider_economics=current_tick,
         )
 
 
