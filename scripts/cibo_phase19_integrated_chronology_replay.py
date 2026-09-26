@@ -200,8 +200,8 @@ def replay(
             _parse_row(row, spec=spec).opportunity for row in rows
         ]
 
-    if tuple(parsed_by_trader) != PHASE19_REQUIRED_TRADERS:
-        raise ValueError("Phase 19 Trader source ordering drift")
+    if set(parsed_by_trader) != set(PHASE19_REQUIRED_TRADERS):
+        raise ValueError("Phase 19 Trader source population drift")
 
     common_start = max(
         min(item.entry_at for item in items)
@@ -283,10 +283,10 @@ def replay(
                     same_trader_overlap_pairs += 1
                     continue
                 cross_trader_overlap_pairs += 1
-                key = tuple(
-                    sorted((left.trader_id.value, right.trader_id.value))
+                left_id, right_id = sorted(
+                    (left.trader_id.value, right.trader_id.value)
                 )
-                pair_counts[key] += 1
+                pair_counts[(left_id, right_id)] += 1
 
     if cross_trader_overlap_pairs != EXPECTED_CROSS_TRADER_OVERLAP_PAIRS:
         raise ValueError("Phase 19 cross-Trader overlap drift")
