@@ -1122,7 +1122,7 @@ def fit_predictive_representation(
         strength_bps,
         source_loading,
         future_profile,
-        diagnostics,
+        selected_diagnostics,
     ) in selected:
         scores = _activation(
             source_rows[discovery_partition],
@@ -1174,7 +1174,7 @@ def fit_predictive_representation(
                     discovery_transitions[index].source.episode_id
                     for index in negative
                 ),
-                diagnostics=diagnostics,
+                diagnostics=selected_diagnostics,
             )
         )
 
