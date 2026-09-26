@@ -1419,6 +1419,43 @@ measure whether adverse dependence is present and whether it survives temporal
 validation before Phase 19G may study actual capital collisions.
 
 
+### Phase 19G capital collision and marginal-capacity evidence
+
+Temporal coexistence is now separated from actual normalized-capital scarcity.
+
+A `capital collision` exists only when:
+
+- a frozen normalized policy rejects an opportunity for insufficient capacity;
+- one or more previously accepted opportunities still reserve normalized
+  capacity at that exact entry event;
+- the rejection has a positive normalized-capacity shortfall.
+
+Insufficient-capacity rejection with no active reservation blocker is classified
+separately as realized-capital depletion, not collision.
+
+The empirical workflow runs the unchanged Phase-19D one-NCU mechanics policy on
+predeclared normalized-capacity scenarios:
+
+```text
+2 / 3 / 4 / 5 / 10 / 100 NCU
+```
+
+The 2-5 NCU region brackets the observed maximum concurrency of five positions;
+10 and 100 NCU are loose-capacity references. The grid is frozen by structural
+reasoning, not outcome tuning.
+
+For adjacent capacity scenarios the workflow reports a finite-difference
+`marginal_realized_delta_per_ncu`. This is explicitly **ex-post evaluation**,
+not a causal forecast and not a claimed mathematical dual/shadow price. More
+initial capacity is allowed to have negative marginal realized value because
+the system is path-dependent: extra capacity may admit an additional losing
+trade and reduce later feasible capacity.
+
+TRAIN and VALIDATION are replayed separately with the Phase-19B split and
+capital reset at each segment boundary for stability research only.
+
+No Phase-19G output has sizing/allocation/QORE-Risk/execution authority.
+
 Current Phase-19 scientific sequence is therefore:
 
 ```text
@@ -1428,7 +1465,7 @@ Current Phase-19 scientific sequence is therefore:
 19D  NORMALIZED CAPITAL LEDGER 7/7           IMPLEMENTED / EMPIRICAL CI PENDING
 19E  TEMPORAL NULL MODEL                     IMPLEMENTED / EMPIRICAL CI PENDING
 19F  OVERLAP DEPENDENCE TRAIN/VALIDATION     IMPLEMENTED / EMPIRICAL CI PENDING
-19G  CAPITAL COLLISION + SHADOW PRICE        PENDING
+19G  CAPITAL COLLISION + MARGINAL CAPACITY   IMPLEMENTED / EMPIRICAL CI PENDING
 19H  RESOURCE / DEPENDENCE HYPERGRAPH        PENDING
 19I  SIMPLE CAPITAL POLICY BASELINES          PENDING
 19J  CAUSAL NORMALIZED WFO                    PENDING
