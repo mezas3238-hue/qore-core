@@ -25,6 +25,7 @@ from qore.infrastructure.cibo_ce2i_multi_source import (
     multi_source_reservation_states,
     release_multi_source_expansion,
     reserve_multi_source_expansion,
+    settle_multi_source_expansion,
 )
 
 
@@ -245,3 +246,41 @@ def test_release_unused_multi_source_returns_every_slice(tmp_path: Path) -> None
         ledger_store=store,
     ) == (ReservationState.RELEASED, ReservationState.RELEASED)
     assert all(account.available_usd == account.proven_amount_usd for account in version.ledger.accounts)
+
+
+def test_multi_source_settlement_consumes_loss_proportionally(
+    tmp_path: Path,
+) -> None:
+    store = _store(tmp_path)
+    proposal = reserve_multi_source_expansion(
+        reservation_group_id="group-6",
+        request_id="risk-6",
+        opportunity=_opportunity(),
+        observation=_observation(),
+        assigned_capital_usd=Decimal("10000"),
+        hard_risk_headroom_usd=Decimal("100"),
+        margin_headroom_usd=Decimal("100"),
+        requested_at=NOW,
+        expires_at=NOW + timedelta(seconds=30),
+        ledger_store=store,
+        maximum_expansion_volume=Decimal("6"),
+    )
+    deploy_multi_source_expansion(proposal, ledger_store=store)
+    settled = settle_multi_source_expansion(
+        proposal,
+        returned_capacity_usd=Decimal("6"),
+        ledger_store=store,
+    )
+
+    by_source = {
+        account.source_id: account
+        for account in settled.ledger.accounts
+    }
+    assert by_source["realized-1"].consumed_usd == Decimal("2.5")
+    assert by_source["protected-1"].consumed_usd == Decimal("3.5")
+    assert by_source["realized-1"].available_usd == Decimal("2.5")
+    assert by_source["protected-1"].available_usd == Decimal("3.5")
+    assert multi_source_reservation_states(
+        proposal,
+        ledger_store=store,
+    ) == (ReservationState.SETTLED, ReservationState.SETTLED)
