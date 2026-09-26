@@ -25,7 +25,6 @@ from qore.infrastructure.cibo_capital_source_ledger import CapitalSourceAccount
 from qore.infrastructure.cibo_capital_source_ledger_store import (
     DurableCapitalSourceLedgerStore,
 )
-from qore.infrastructure.cibo_cma_capital_observation import CmaCapitalObservation
 from qore.infrastructure.cibo_ce2i_execution_efficiency import (
     ExecutionCostCurveInput,
     ExecutionEfficientCap,
@@ -36,6 +35,7 @@ from qore.infrastructure.cibo_ce2i_expansion_proposal import (
     reserve_expansion_proposal,
 )
 from qore.infrastructure.cibo_ce2i_tool_registry import tool_by_code
+from qore.infrastructure.cibo_cma_capital_observation import CmaCapitalObservation
 
 
 @dataclass(frozen=True, slots=True)
