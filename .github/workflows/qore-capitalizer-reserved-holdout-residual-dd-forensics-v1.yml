@@ -1,0 +1,113 @@
+name: QORE Capitalizer Reserved Holdout Residual DD Forensics V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-reserved-holdout-residual-dd-forensics-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_reserved_holdout_residual_dd_forensics_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_reserved_holdout_residual_dd_forensics_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-reserved-holdout-residual-dd-forensics-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  DEV_DIRECT_RUN_ID: '36196002610'
+  DEV_DIRECT_SHA: 'ddd00209e50d5ec16c8cb94f34e9e5e95f401839'
+  DEV_CONTEXT_RUN_ID: '36211415438'
+  DEV_CONTEXT_SHA: 'c652b1e5a5181ba95ac6f10ea5c95bf808a0c8a7'
+  RESERVED_SOURCE_RUN_ID: '36215082659'
+  RESERVED_SOURCE_SHA: '9132b8b74938b8f142d946ab8717bf66840a18d2'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e '.[dev]'
+      - run: |
+          ruff check             src/qore/infrastructure/trader_lab/capitalizer_reserved_holdout_residual_dd_forensics_v1.py             tests/infrastructure/trader_lab/test_capitalizer_reserved_holdout_residual_dd_forensics_v1.py
+      - run: mypy src/qore/infrastructure/trader_lab/capitalizer_reserved_holdout_residual_dd_forensics_v1.py
+      - run: pytest -q --no-cov tests/infrastructure/trader_lab/test_capitalizer_reserved_holdout_residual_dd_forensics_v1.py
+
+  forensics:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e .
+      - name: Download development direct ledgers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-max-recovery-direct-m1-dev-*-${{ env.DEV_DIRECT_SHA }}
+          path: development-input
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DEV_DIRECT_RUN_ID }}
+      - name: Download development contexts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-native-market-context-v1-dev-*-${{ env.DEV_CONTEXT_SHA }}
+          path: development-context
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DEV_CONTEXT_RUN_ID }}
+      - name: Download reserved direct ledgers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-max-recovery-direct-m1-reserved-*-${{ env.RESERVED_SOURCE_SHA }}
+          path: reserved-input
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.RESERVED_SOURCE_RUN_ID }}
+      - name: Download reserved contexts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-native-market-context-v1-reserved-*-${{ env.RESERVED_SOURCE_SHA }}
+          path: reserved-context
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.RESERVED_SOURCE_RUN_ID }}
+      - name: Isolate residual drawdown mechanics
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_reserved_holdout_residual_dd_forensics_v1             development-input development-context reserved-input reserved-context forensics-output
+      - name: Enforce forensic integrity
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "forensics-output/"
+                  "capitalizer-reserved-holdout-residual-dd-forensics-v1.json"
+              ).read_text()
+          )
+          assert report["window_role"] == "CONSUMED_RESERVED_HOLDOUT_FORENSICS"
+          assert report["current_outcome_used_to_make_original_decision"] is False
+          assert report["current_outcome_used_for_posthoc_forensics"] is True
+          assert report["candidate_reselected_after_holdout"] is False
+          assert report["rule_promotion_allowed"] is False
+          assert report["trader_certified"] is False
+          assert Decimal(report["max_dd_r_reproduced"]) > 0
+          assert report["max_dd_segment_trades"] > 0
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-reserved-holdout-residual-dd-forensics-v1-${{ github.sha }}
+          path: forensics-output
+          retention-days: 90
