@@ -122,11 +122,24 @@ jobs:
                   "experiment-output/capitalizer-causal-probe-ranker-v10.json"
               ).read_text()
           )
-          assert report["evaluation"] == "THREE_WAY_DUAL_MODEL_CONTINUOUS_LOO"
+          assert report["evaluation"] == (
+              "CROSS_PERIOD_DUAL_MODEL_WITH_FIXED_DEVELOPMENT_ROUTER"
+          )
           assert report["all_windows_consumed_before_v10"] is True
           assert report["next_holdout_reserved"] == "2018-09-17_TO_2020-09-17"
-          assert report["heldout_outcomes_visible_to_models"] is False
-          assert report["each_model_uses_exactly_one_other_period"] is True
+          assert report["development_period"] == "DEVELOPMENT_2024_2026"
+          assert report["strict_oos_periods"] == [
+              "CONSUMED_VALIDATION_2022_2024",
+              "CONSUMED_RESERVED_2020_2022",
+          ]
+          assert report["base_contextual_router_source_period"] == (
+              "DEVELOPMENT_2024_2026"
+          )
+          assert report["base_contextual_router_uses_outcome_trained_arm_selection"] is True
+          assert report["development_is_strict_full_pipeline_holdout"] is False
+          assert report["heldout_outcomes_visible_to_probe_rank_models"] is False
+          assert report["probe_rank_labels_exclude_scored_period"] is True
+          assert report["each_probe_rank_model_uses_exactly_one_other_period"] is True
           assert report["release_requires_cross_period_model_agreement"] is True
           assert report["continuous_preentry_features_used"] is True
           assert report["runtime_decisions_use_preentry_or_prior_closed_only"] is True
