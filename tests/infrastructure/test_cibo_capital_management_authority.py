@@ -47,7 +47,8 @@ def _capital(**overrides: Decimal) -> CiboCapitalState:
         "margin_headroom_usd": Decimal("1000"),
         "base_capital_at_risk_usd": Decimal("0"),
         "realized_net_profit_usd": Decimal("0"),
-        "protected_economic_floor_usd": Decimal("0"),
+        "protected_open_economic_floor_usd": Decimal("0"),
+        "proven_self_financing_capacity_usd": Decimal("0"),
         "reserved_expansion_risk_usd": Decimal("0"),
         "cost_reserve_usd": Decimal("0"),
     }
@@ -93,6 +94,7 @@ def test_expansion_is_locked_while_base_capital_remains_at_risk() -> None:
         _capital(
             base_capital_at_risk_usd=Decimal("1"),
             realized_net_profit_usd=Decimal("20"),
+            proven_self_financing_capacity_usd=Decimal("20"),
         ),
     )
 
@@ -103,7 +105,10 @@ def test_expansion_is_locked_while_base_capital_remains_at_risk() -> None:
 def test_realized_profit_can_fund_expansion_after_base_recovery() -> None:
     plan = plan_self_financing_expansion(
         _opportunity(),
-        _capital(realized_net_profit_usd=Decimal("10")),
+        _capital(
+            realized_net_profit_usd=Decimal("10"),
+            proven_self_financing_capacity_usd=Decimal("10"),
+        ),
     )
 
     assert plan.action is CapitalAction.EXPAND
@@ -116,7 +121,8 @@ def test_protected_economic_floor_can_fund_bounded_expansion() -> None:
     plan = plan_self_financing_expansion(
         _opportunity(),
         _capital(
-            protected_economic_floor_usd=Decimal("12"),
+            protected_open_economic_floor_usd=Decimal("12"),
+            proven_self_financing_capacity_usd=Decimal("10"),
             cost_reserve_usd=Decimal("2"),
         ),
     )
@@ -131,6 +137,7 @@ def test_reserved_expansion_risk_is_subtracted_from_available_capacity() -> None
         _opportunity(),
         _capital(
             realized_net_profit_usd=Decimal("20"),
+            proven_self_financing_capacity_usd=Decimal("20"),
             reserved_expansion_risk_usd=Decimal("15"),
         ),
     )
@@ -153,3 +160,35 @@ def test_expansion_cannot_claim_original_base_capital_source() -> None:
             capital_source_amount_usd=Decimal("1"),
             reason="invalid",
         )
+
+
+def test_zero_hard_headroom_is_representable_and_holds_seed() -> None:
+    plan = plan_minimal_seed(
+        _opportunity(),
+        _capital(hard_risk_headroom_usd=Decimal("0")),
+    )
+
+    assert plan.action is CapitalAction.HOLD
+
+
+def test_self_financing_capacity_cannot_exceed_proven_sources() -> None:
+    with pytest.raises(CiboCapitalManagementError, match="cannot exceed"):
+        _capital(
+            realized_net_profit_usd=Decimal("5"),
+            protected_open_economic_floor_usd=Decimal("5"),
+            proven_self_financing_capacity_usd=Decimal("11"),
+        )
+
+
+def test_mixed_sources_hold_until_multi_source_ledger_reservation_exists() -> None:
+    plan = plan_self_financing_expansion(
+        _opportunity(),
+        _capital(
+            realized_net_profit_usd=Decimal("5"),
+            protected_open_economic_floor_usd=Decimal("5"),
+            proven_self_financing_capacity_usd=Decimal("10"),
+        ),
+    )
+
+    assert plan.action is CapitalAction.HOLD
+    assert "multi-source" in plan.reason
