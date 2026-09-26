@@ -54,6 +54,25 @@ Trader does not own final volume.
 
 Legacy Trader risk scales are diagnostic evidence only.
 
+## Account-aware mission layer
+
+Before CIBO selects capital actions, it derives a capital mission from the authoritative account
+binding.
+
+Current canonical missions:
+
+- `FUNDED_SURVIVAL_COMPOUND` — external funded/production capital;
+- `PRODUCTION_SURVIVAL_COMPOUND` — other production capital;
+- `DEMO_CAPABILITY_DISCOVERY` — DEMO account used to measure full CIBO capability;
+- `TEST_VALIDATION` — validation environment;
+- `SANDBOX_SIMULATION` — simulation only.
+
+Mission selection is automatic from account/provider/environment facts and **must not depend on
+issues, Trader sizing, per-trade flags or manual operator choices**.
+
+DEMO capability discovery permits all implemented non-rejected CE2I tools to be studied/exercised,
+while Risk/provider/accounting/anti-cheating constraints remain active.
+
 ## CIBO CMA authority
 
 CIBO Capital Management Authority owns:
@@ -732,9 +751,15 @@ contracts.
 
 ## PHASE 15 — Regime-Adaptive Capital Management
 
-**Status: PENDING**
+**Status: ACCOUNT-MISSION CONTEXT IMPLEMENTED / MARKET-REGIME TOOL SELECTION PENDING**
 
 Market/account state selects capital tools, not Trader size.
+
+Account mission is now a first-class input:
+
+- FundedNext production -> survival/robust-compounding posture;
+- cTrader DEMO -> capability-discovery posture;
+- unknown production -> conservative production-survival fallback.
 
 Inputs may include:
 
