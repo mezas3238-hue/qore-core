@@ -7,6 +7,8 @@ on:
     paths:
       - scripts/shared_wp04_predictive_holdout_probe_v3.py
       - scripts/shared_wp04_predictive_holdout_eval_v3.py
+      - scripts/shared_wp04_predictive_replication_probe_v3.py
+      - scripts/shared_wp04_predictive_replication_eval_v3.py
       - .github/workflows/qore-shared-wp04-v3-holdout-preregistration.yml
   workflow_dispatch:
 
@@ -36,38 +38,49 @@ jobs:
         run: |
           ruff check \
             scripts/shared_wp04_predictive_holdout_probe_v3.py \
-            scripts/shared_wp04_predictive_holdout_eval_v3.py
+            scripts/shared_wp04_predictive_holdout_eval_v3.py \
+            scripts/shared_wp04_predictive_replication_probe_v3.py \
+            scripts/shared_wp04_predictive_replication_eval_v3.py
           python -m py_compile \
             scripts/shared_wp04_predictive_holdout_probe_v3.py \
-            scripts/shared_wp04_predictive_holdout_eval_v3.py
+            scripts/shared_wp04_predictive_holdout_eval_v3.py \
+            scripts/shared_wp04_predictive_replication_probe_v3.py \
+            scripts/shared_wp04_predictive_replication_eval_v3.py
 
-      - name: Validate frozen preregistration contract without data access
+      - name: Validate frozen preregistration contracts without data access
         run: |
           PYTHONPATH=scripts python - <<'PY'
-          import shared_wp04_predictive_holdout_eval_v3 as evaluation
-          import shared_wp04_predictive_holdout_probe_v3 as collector
+          import shared_wp04_predictive_holdout_eval_v3 as holdout_eval
+          import shared_wp04_predictive_holdout_probe_v3 as holdout_probe
+          import shared_wp04_predictive_replication_eval_v3 as repl_eval
+          import shared_wp04_predictive_replication_probe_v3 as repl_probe
 
-          expected_start = "2022-07-18T00:00:00+00:00"
-          expected_end = "2023-07-17T00:00:00+00:00"
+          assert holdout_probe.HOLDOUT_START.isoformat() == "2022-07-18T00:00:00+00:00"
+          assert holdout_probe.HOLDOUT_END_EXCLUSIVE.isoformat() == "2023-07-17T00:00:00+00:00"
+          assert holdout_eval.HOLDOUT_START == holdout_probe.HOLDOUT_START
+          assert holdout_eval.HOLDOUT_END_EXCLUSIVE == holdout_probe.HOLDOUT_END_EXCLUSIVE
+          assert holdout_eval.MINIMUM_POOLED_INCREMENTAL_BPS == 100
+          assert holdout_eval.MINIMUM_POSITIVE_TARGETS == 4
+          assert holdout_eval.HOLDOUT_PARTITION == "holdout_a"
+          assert holdout_probe.PURPOSE == "WP04_V3_ONE_SHOT_HOLDOUT_A"
 
-          assert collector.HOLDOUT_START.isoformat() == expected_start
-          assert collector.HOLDOUT_END_EXCLUSIVE.isoformat() == expected_end
-          assert evaluation.HOLDOUT_START.isoformat() == expected_start
-          assert evaluation.HOLDOUT_END_EXCLUSIVE.isoformat() == expected_end
-          assert evaluation.MINIMUM_POOLED_INCREMENTAL_BPS == 100
-          assert evaluation.MINIMUM_POSITIVE_TARGETS == 4
-          assert evaluation.HOLDOUT_PARTITION == "holdout_a"
-          assert collector.PURPOSE == "WP04_V3_ONE_SHOT_HOLDOUT_A"
+          assert repl_probe.REPLICATION_START.isoformat() == "2023-07-17T00:00:00+00:00"
+          assert repl_probe.REPLICATION_END_EXCLUSIVE.isoformat() == "2024-07-15T00:00:00+00:00"
+          assert repl_eval.REPLICATION_START == repl_probe.REPLICATION_START
+          assert repl_eval.REPLICATION_END_EXCLUSIVE == repl_probe.REPLICATION_END_EXCLUSIVE
+          assert repl_eval.REPLICATION_PARTITION == "replication_b"
+          assert repl_probe.PURPOSE == "WP04_V3_TEMPORAL_REPLICATION_B"
           PY
 
       - name: Assert no evidence acquisition in preregistration workflow
         run: |
           test -z "${QORE_CTRADER_ACCESS_TOKEN:-}"
           test -z "${QORE_CTRADER_REFRESH_TOKEN:-}"
+          test -z "${QORE_WP04_HOLDOUT_A_PASS:-}"
           test ! -d fresh
           test ! -d input
           test ! -d result
 
       - name: Report preregistration GREEN
         run: |
-          gh issue comment 642 --body "WP-04 V3 HOLDOUT_A preregistration GREEN — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Collector/evaluator compile; window is locked to 2022-07-18 through 2023-07-17; final gate remains >=100 bps pooled and >=4/8 targets positive. No cTrader credentials were exposed and no fresh evidence was acquired/opened."
+          gh issue comment 642 --body "WP-04 V3 independent-evidence preregistration GREEN — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. HOLDOUT_A and REPLICATION_B collectors/evaluators compile; A is locked to 2022-07-18..2023-07-17 and B to 2023-07-17..2024-07-15; gate remains >=100 bps pooled + >=4/8 targets. No cTrader credentials, fresh evidence or outcomes were opened."
