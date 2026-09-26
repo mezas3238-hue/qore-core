@@ -20,9 +20,9 @@ import json
 import os
 from dataclasses import dataclass, replace
 from datetime import datetime
+from enum import StrEnum
 from pathlib import Path
 from threading import RLock
-from enum import StrEnum
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
