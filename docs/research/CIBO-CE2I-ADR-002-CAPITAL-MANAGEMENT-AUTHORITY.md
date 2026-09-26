@@ -62,6 +62,88 @@ Consequences:
 - removing sizing authority does not remove Trader ownership of technical stop/invalidation,
   target, side or setup validity.
 
+## 2.2 Account-aware capital mission intelligence
+
+CIBO must know **what kind of account it is managing from authoritative account/provider context**.
+The capital mission is derived from the account binding and environment; it is never selected by a
+GitHub issue, per-trade switch, Trader preference or manual sizing flag.
+
+Canonical examples:
+
+```text
+FundedNext + PRODUCTION + Stellar Instant
+-> FUNDED_SURVIVAL_COMPOUND
+
+cTrader + DEMO
+-> DEMO_CAPABILITY_DISCOVERY
+```
+
+The same CIBO brain therefore changes its capital objective by account context while preserving the
+same Trader methodology sovereignty and the same anti-cheating/accounting laws.
+
+### FUNDED_SURVIVAL_COMPOUND
+
+External funded capital prioritizes:
+
+- account survival;
+- provider rule compliance;
+- minimum viable seed;
+- preservation of optionality;
+- capital competition;
+- robust compounding;
+- advanced CE2I execution only after sufficient validation.
+
+Research-only capital tools must not become LIVE authority merely because they exist in the registry.
+
+### DEMO_CAPABILITY_DISCOVERY
+
+DEMO exists to measure the maximum causal capability of CIBO.
+
+CIBO may exercise every **implemented, executable and non-rejected** CE2I tool so that QORE can
+measure:
+
+- capital productivity;
+- cross-Trader allocation;
+- multi-tool composition;
+- expansion/de-risk behavior;
+- capital velocity;
+- optionality;
+- portfolio interactions;
+- failure/rollback behavior.
+
+DEMO capability discovery is **not an absence of controls**. Provider constraints, QORE Risk,
+durable capital accounting, reconciliation, no-double-spend, no martingale, causal evidence and
+execution economics remain mandatory.
+
+### Architecture consequence
+
+Account context becomes an input to capital intelligence:
+
+```text
+ACCOUNT / PROVIDER BINDING
+        |
+        v
+CIBO ACCOUNT CAPITAL IDENTITY
+        |
+        v
+CIBO CAPITAL MISSION
+        |
+        +--> objective function
+        +--> CE2I activation scope
+        +--> reserve/optionality priority
+        +--> experimentation eligibility
+        +--> capital deployment posture
+        |
+        v
+CIBO CMA DECISIONS
+        |
+        v
+QORE RISK HARD GOVERNOR
+```
+
+This mission layer may change **how CIBO uses capital**. It never changes the Trader's setup,
+technical stop, target or signal validity.
+
 ### CIBO CMA owns capital management
 
 CIBO owns every capital decision inside the Risk-authorized envelope:
