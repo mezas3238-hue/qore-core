@@ -604,14 +604,14 @@ def write_market(
         "w",
         encoding="utf-8",
     ) as handle:
-        for row in observations:
-            handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+        for observation in observations:
+            handle.write(json.dumps(asdict(observation), sort_keys=True) + "\n")
     with (output / f"{stem}-training-labels.jsonl").open(
         "w",
         encoding="utf-8",
     ) as handle:
-        for row in labels:
-            handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+        for label in labels:
+            handle.write(json.dumps(asdict(label), sort_keys=True) + "\n")
 
 
 def _load_market_evidence(
@@ -1120,13 +1120,17 @@ def write_report(
     with (
         output / "capitalizer-hypothesis-survival-model-v21-decisions.jsonl"
     ).open("w", encoding="utf-8") as handle:
-        for row in survival_audits:
-            handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+        for survival_row in survival_audits:
+            handle.write(
+                json.dumps(asdict(survival_row), sort_keys=True) + "\n"
+            )
     with (
         output / "capitalizer-hypothesis-survival-model-v21-economics.jsonl"
     ).open("w", encoding="utf-8") as handle:
-        for row in economic_audits:
-            handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+        for economic_row in economic_audits:
+            handle.write(
+                json.dumps(asdict(economic_row), sort_keys=True) + "\n"
+            )
 
 
 def main() -> None:
