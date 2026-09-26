@@ -300,15 +300,20 @@ def build_report(
         development_validation_context_root,
         reserved_context_root,
     )
-    examples = {
-        period: v10._surface_examples(
-            period=period,
-            ledgers=ledgers,
-            contexts=contexts,
-            contextual_model=contextual_model,
-        )
-        for period, (ledgers, contexts) in windows.items()
-    }
+    original_pretrade = v10._pretrade
+    try:
+        v10._pretrade = v11._pretrade
+        examples = {
+            period: v10._surface_examples(
+                period=period,
+                ledgers=ledgers,
+                contexts=contexts,
+                contextual_model=contextual_model,
+            )
+            for period, (ledgers, contexts) in windows.items()
+        }
+    finally:
+        v10._pretrade = original_pretrade
     models = {
         period: v10._fit_period(points, period=period)
         for period, points in examples.items()
