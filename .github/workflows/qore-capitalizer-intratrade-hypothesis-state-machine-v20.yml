@@ -57,10 +57,24 @@ jobs:
           pytest -q --no-cov \
             tests/infrastructure/trader_lab/test_capitalizer_intratrade_hypothesis_state_machine_v20.py
 
-  self_contained_experiment:
+  market_rebuild:
     needs: quality
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - {symbol: USDJPY, session: ASIA}
+          - {symbol: AUDJPY, session: ASIA}
+          - {symbol: AUDUSD, session: ASIA}
+          - {symbol: GBPJPY, session: ASIA}
+          - {symbol: EURUSD, session: LONDON}
+          - {symbol: GBPUSD, session: LONDON}
+          - {symbol: XAUUSD, session: NEW_YORK}
+          - {symbol: USDCAD, session: NEW_YORK}
+          - {symbol: NAS100, session: NEW_YORK}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -73,7 +87,8 @@ jobs:
         run: |
           set -euo pipefail
           for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
-            test -n "${!name:-}" || {
+            value="$(printenv "$name" || true)"
+            test -n "$value" || {
               echo "missing required read-only cTrader credential: $name" >&2
               exit 2
             }
@@ -93,7 +108,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+          if [ -z "$QORE_CTRADER_DEMO_ACCOUNT_ID" ]; then
             account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
             [[ "$account_id" =~ ^[1-9][0-9]*$ ]] || {
               echo "invalid cTrader DEMO account id" >&2
@@ -102,29 +117,26 @@ jobs:
             echo "::add-mask::$account_id"
             printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
           fi
-      - name: Rebuild consumed evidence directly from provider-native M1
+      - name: Rebuild one market directly from provider-native M1
         shell: bash
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+          SESSION: ${{ matrix.session }}
         run: |
           set -euo pipefail
-          mkdir -p \
-            development-input validation-input reserved-input \
-            development-validation-context reserved-context event-input
+          m1="provider-m1/$SYMBOL"
+          root="shard-output"
+          dev="$root/development-input/$SYMBOL"
+          val="$root/validation-input/$SYMBOL"
+          res="$root/reserved-input/$SYMBOL"
+          devctx="$root/development-validation-context/dev-$SYMBOL"
+          valctx="$root/development-validation-context/holdout-$SYMBOL"
+          resctx="$root/reserved-context/reserved-$SYMBOL"
+          events="$root/event-input/$SYMBOL"
 
-          run_market() {
-            local symbol="$1"
-            local session="$2"
-            local m1="provider-m1/$symbol"
-            local dev="development-input/$symbol"
-            local val="validation-input/$symbol"
-            local res="reserved-input/$symbol"
-            local devctx="development-validation-context/dev-$symbol"
-            local valctx="development-validation-context/holdout-$symbol"
-            local resctx="reserved-context/reserved-$symbol"
-            local events="event-input/$symbol"
+          mkdir -p "$m1" "$dev" "$val" "$res" "$devctx" "$valctx" "$resctx" "$events"
 
-            mkdir -p "$m1" "$dev" "$val" "$res" "$devctx" "$valctx" "$resctx" "$events"
-
-            SYMBOL="$symbol" OUTPUT="$m1" python - <<'PY'
+          python - <<'PY'
           import os
           from datetime import datetime
           from pathlib import Path
@@ -132,7 +144,10 @@ jobs:
 
           clone.TARGET_START = datetime.fromisoformat(os.environ["M1_START"])
           clone.TARGET_END_EXCLUSIVE = datetime.fromisoformat(os.environ["M1_END"])
-          manifest = clone.clone_symbol(os.environ["SYMBOL"], Path(os.environ["OUTPUT"]))
+          manifest = clone.clone_symbol(
+              os.environ["SYMBOL"],
+              Path("provider-m1") / os.environ["SYMBOL"],
+          )
           assert manifest["provider_native_m1"] is True
           assert manifest["synthetic_m1"] is False
           assert manifest["interpolated_m1"] is False
@@ -140,45 +155,92 @@ jobs:
           print(manifest)
           PY
 
-            python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_direct_m1_replay_v1 \
-              market "$m1" "$dev" --session "$session" \
-              --start "$DEV_START" --end-exclusive "$DEV_END"
-            python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_direct_m1_replay_v1 \
-              market "$m1" "$val" --session "$session" \
-              --start "$VAL_START" --end-exclusive "$VAL_END"
-            python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_direct_m1_replay_v1 \
-              market "$m1" "$res" --session "$session" \
-              --start "$RESERVED_START" --end-exclusive "$RESERVED_END"
+          python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_direct_m1_replay_v1 \
+            market "$m1" "$dev" --session "$SESSION" \
+            --start "$DEV_START" --end-exclusive "$DEV_END"
+          python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_direct_m1_replay_v1 \
+            market "$m1" "$val" --session "$SESSION" \
+            --start "$VAL_START" --end-exclusive "$VAL_END"
+          python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_direct_m1_replay_v1 \
+            market "$m1" "$res" --session "$SESSION" \
+            --start "$RESERVED_START" --end-exclusive "$RESERVED_END"
 
-            python -m qore.infrastructure.trader_lab.capitalizer_native_market_context_v1 \
-              "$dev" "$m1" "$devctx" --role dev
-            python -m qore.infrastructure.trader_lab.capitalizer_native_market_context_v1 \
-              "$val" "$m1" "$valctx" --role holdout
-            python -m qore.infrastructure.trader_lab.capitalizer_native_market_context_v1 \
-              "$res" "$m1" "$resctx" --role reserved
+          python -m qore.infrastructure.trader_lab.capitalizer_native_market_context_v1 \
+            "$dev" "$m1" "$devctx" --role dev
+          python -m qore.infrastructure.trader_lab.capitalizer_native_market_context_v1 \
+            "$val" "$m1" "$valctx" --role holdout
+          python -m qore.infrastructure.trader_lab.capitalizer_native_market_context_v1 \
+            "$res" "$m1" "$resctx" --role reserved
 
-            python -m qore.infrastructure.trader_lab.capitalizer_intratrade_hypothesis_state_machine_v20 \
-              market "$dev" "$val" "$res" "$m1" "$events" --symbol "$symbol"
+          python -m qore.infrastructure.trader_lab.capitalizer_intratrade_hypothesis_state_machine_v20 \
+            market "$dev" "$val" "$res" "$m1" "$events" --symbol "$SYMBOL"
+      - name: Enforce per-market causal contract
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          report = json.loads(
+              (
+                  Path("shard-output")
+                  / "event-input"
+                  / symbol
+                  / f"capitalizer-{symbol.lower()}-intratrade-hypothesis-state-machine-v20.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_INTRATRADE_HYPOTHESIS_STATE_MACHINE_V20"
+          )
+          assert report["symbol"] == symbol
+          assert set(report["source_trade_counts"]) == {
+              "DEVELOPMENT_2024_2026",
+              "CONSUMED_VALIDATION_2022_2024",
+              "CONSUMED_RESERVED_2020_2022",
           }
-
-          run_batch() {
-            local pids=()
-            local rc=0
-            while [ "$#" -gt 0 ]; do
-              run_market "$1" "$2" &
-              pids+=("$!")
-              shift 2
-            done
-            for pid in "${pids[@]}"; do
-              wait "$pid" || rc=1
-            done
-            return "$rc"
+          assert all(int(value) > 0 for value in report["source_trade_counts"].values())
+          assert report["current_outcome_visible_to_transition"] is False
+          assert report["future_bars_visible_to_transition"] is False
+          assert report["original_exit_bar_excluded"] is True
+          assert report["same_bar_stop_target_ambiguity_can_trigger"] is False
+          assert report["recovery_transition_supported"] is True
+          assert report["terminal_state"] == "DEAD"
+          assert set(report["state_specs"]) == {
+              "HSM_FAST",
+              "HSM_BASE",
+              "HSM_STRICT",
           }
+          assert report["market_session_specific_thresholds_used"] is False
+          assert report["strategy_rules_changed"] is False
+          assert report["trader_certified"] is False
+          PY
+      - name: Upload reconstructed market shard
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v20-reconstructed-${{ matrix.symbol }}-${{ github.sha }}
+          path: shard-output
+          if-no-files-found: error
+          retention-days: 7
 
-          run_batch USDJPY ASIA AUDJPY ASIA AUDUSD ASIA
-          run_batch GBPJPY ASIA EURUSD LONDON GBPUSD LONDON
-          run_batch XAUUSD NEW_YORK USDCAD NEW_YORK NAS100 NEW_YORK
-
+  aggregate:
+    needs: market_rebuild
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download same-run reconstructed market shards
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v20-reconstructed-*-${{ github.sha }}
+          path: reconstructed
+          merge-multiple: true
       - name: Enforce reconstructed consumed-population identity
         run: |
           python - <<'PY'
@@ -194,26 +256,27 @@ jobs:
               capitalizer_max_recovery_direct_m1_replay_v1 as direct,
           )
 
+          base = Path("reconstructed")
           windows = {
               "development-input": (
                   948,
-                  Path("development-validation-context"),
+                  base / "development-validation-context",
                   "dev",
               ),
               "validation-input": (
                   1034,
-                  Path("development-validation-context"),
+                  base / "development-validation-context",
                   "holdout",
               ),
               "reserved-input": (
                   1088,
-                  Path("reserved-context"),
+                  base / "reserved-context",
                   "reserved",
               ),
           }
           audit = {}
           for root_name, (count, context_root, role) in windows.items():
-              root = Path(root_name)
+              root = base / root_name
               selected = {
                   mode.value: direct._max3_milestone(
                       direct._load_mode(root, mode=mode)
@@ -240,9 +303,6 @@ jobs:
               contexts = router._load_contexts(context_root, role=role)
               context_keys = set(contexts)
 
-              # Native context is intentionally built per-market before
-              # portfolio MAX3. It must match the raw ORIGINAL population
-              # exactly, then fully cover the post-MAX3 selected population.
               assert context_keys == raw_keys, (
                   root_name,
                   role,
@@ -266,11 +326,17 @@ jobs:
 
           print(json.dumps(audit, sort_keys=True))
           PY
-      - name: Run V20 portfolio replay in same filesystem
+      - name: Run V20 portfolio replay from reconstructed shards
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_intratrade_hypothesis_state_machine_v20 \
-            aggregate development-input validation-input reserved-input \
-            development-validation-context reserved-context event-input experiment-output
+            aggregate \
+            reconstructed/development-input \
+            reconstructed/validation-input \
+            reconstructed/reserved-input \
+            reconstructed/development-validation-context \
+            reconstructed/reserved-context \
+            reconstructed/event-input \
+            experiment-output
       - name: Enforce V20 causal and economic contract
         run: |
           python - <<'PY'
