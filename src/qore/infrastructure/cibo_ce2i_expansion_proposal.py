@@ -173,6 +173,7 @@ def reserve_expansion_proposal(
         plan=plan,
         requested_at=requested_at,
         expires_at=expires_at,
+        capital_source_id=source_id,
     )
 
     reserved = version.ledger.reserve(
