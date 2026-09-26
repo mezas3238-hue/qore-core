@@ -94,6 +94,56 @@ class AccountRiskSnapshot:
 
 
 @dataclass(frozen=True, slots=True)
+class RiskCapitalConstraintEnvelope:
+    """Read-only hard constraints CIBO may size inside; Risk selects no volume."""
+
+    account_binding_id: str
+    aggregate_pre_order_worst_case_usd: Decimal
+    active_reserved_stop_risk_usd: Decimal
+    active_reserved_margin_usd: Decimal
+    provider_remaining_headroom_usd: Decimal
+    internal_qore_remaining_headroom_usd: Decimal
+    max_risk_remaining_usd: Decimal
+    hard_risk_headroom_usd: Decimal
+    margin_headroom_usd: Decimal
+    provider_hard_breach: bool
+    survival_blocked: bool
+    reason: str
+    reconciled_at: datetime
+
+    def __post_init__(self) -> None:
+        if not self.account_binding_id:
+            raise AccountWideRiskError(
+                "constraint envelope account binding is required"
+            )
+        for name in (
+            "aggregate_pre_order_worst_case_usd",
+            "active_reserved_stop_risk_usd",
+            "active_reserved_margin_usd",
+            "provider_remaining_headroom_usd",
+            "internal_qore_remaining_headroom_usd",
+            "max_risk_remaining_usd",
+            "hard_risk_headroom_usd",
+            "margin_headroom_usd",
+        ):
+            _nonnegative(getattr(self, name), name)
+        if type(self.provider_hard_breach) is not bool:
+            raise AccountWideRiskError("provider_hard_breach must be bool")
+        if type(self.survival_blocked) is not bool:
+            raise AccountWideRiskError("survival_blocked must be bool")
+        if not self.reason:
+            raise AccountWideRiskError("constraint envelope reason is required")
+        _aware(self.reconciled_at, "reconciled_at")
+        if self.survival_blocked and (
+            self.hard_risk_headroom_usd != 0
+            or self.margin_headroom_usd != 0
+        ):
+            raise AccountWideRiskError(
+                "blocked survival envelope cannot expose allocatable headroom"
+            )
+
+
+@dataclass(frozen=True, slots=True)
 class CiboRiskRequest:
     request_id: str
     trader_id: TraderLineage
@@ -241,6 +291,23 @@ class AccountWideRiskEngine:
         self._reservations: dict[str, RiskReservation] = {}
         self._signal_to_authorization: dict[str, str] = {}
 
+    def capital_constraint_envelope(
+        self,
+        snapshot: AccountRiskSnapshot,
+        *,
+        now: datetime,
+    ) -> RiskCapitalConstraintEnvelope:
+        """Expose only current hard constraints; CIBO remains sizing authority."""
+
+        _aware(now, "now")
+        if not isinstance(snapshot, AccountRiskSnapshot):
+            raise AccountWideRiskError(
+                "constraint envelope requires AccountRiskSnapshot"
+            )
+        with self._lock:
+            self._expire_locked(now)
+            return self._constraint_envelope_locked(snapshot)
+
     def authorize(
         self,
         request: CiboRiskRequest,
@@ -358,26 +425,22 @@ class AccountWideRiskEngine:
         snapshot: AccountRiskSnapshot,
         now: datetime,
     ) -> RiskAuthorization:
-        pre = (
-            snapshot.open_stop_worst_case_loss
-            + snapshot.pending_broker_worst_case_loss
-            + self._active_risk_locked()
-        )
+        constraints = self._constraint_envelope_locked(snapshot)
+        pre = constraints.aggregate_pre_order_worst_case_usd
         provider = snapshot.provider_budget
         if now > request.expires_at:
             return self._reject(request, snapshot, now, pre, "request-expired")
-        if provider.hard_breach:
-            return self._reject(request, snapshot, now, pre, "provider-hard-breach")
-        if snapshot.equity <= provider.active_mll:
-            return self._reject(request, snapshot, now, pre, "no-provider-equity-headroom")
+        if constraints.survival_blocked:
+            return self._reject(
+                request,
+                snapshot,
+                now,
+                pre,
+                constraints.reason,
+            )
 
-        risk_capacity = min(
-            max(Decimal(0), provider.provider_headroom - pre),
-            max(Decimal(0), snapshot.qore_authorizable_headroom - pre),
-            max(Decimal(0), provider.max_risk_at_any_time - pre),
-        )
-        margin_reserved = self._active_margin_locked()
-        margin_capacity = max(Decimal(0), snapshot.free_margin - margin_reserved)
+        risk_capacity = constraints.hard_risk_headroom_usd
+        margin_capacity = constraints.margin_headroom_usd
         by_risk = risk_capacity / request.stop_loss_per_volume
         by_margin = margin_capacity / request.margin_per_volume
         raw_volume = min(request.requested_volume, by_risk, by_margin)
@@ -438,6 +501,71 @@ class AccountWideRiskEngine:
             margin_reserved=Decimal(0),
             decision=RiskDecision.REJECT,
             reason=reason,
+        )
+
+    def _constraint_envelope_locked(
+        self,
+        snapshot: AccountRiskSnapshot,
+    ) -> RiskCapitalConstraintEnvelope:
+        active_risk = self._active_risk_locked()
+        active_margin = self._active_margin_locked()
+        pre = (
+            snapshot.open_stop_worst_case_loss
+            + snapshot.pending_broker_worst_case_loss
+            + active_risk
+        )
+        provider = snapshot.provider_budget
+        provider_remaining = max(
+            Decimal(0),
+            provider.provider_headroom - pre,
+        )
+        qore_remaining = max(
+            Decimal(0),
+            snapshot.qore_authorizable_headroom - pre,
+        )
+        max_risk_remaining = max(
+            Decimal(0),
+            provider.max_risk_at_any_time - pre,
+        )
+        margin_remaining = max(
+            Decimal(0),
+            snapshot.free_margin - active_margin,
+        )
+
+        blocked = bool(
+            provider.hard_breach
+            or snapshot.equity <= provider.active_mll
+        )
+        if provider.hard_breach:
+            reason = "provider-hard-breach"
+        elif snapshot.equity <= provider.active_mll:
+            reason = "no-provider-equity-headroom"
+        else:
+            reason = "hard-constraints-observed"
+
+        hard_risk = (
+            Decimal(0)
+            if blocked
+            else min(
+                provider_remaining,
+                qore_remaining,
+                max_risk_remaining,
+            )
+        )
+        return RiskCapitalConstraintEnvelope(
+            account_binding_id=snapshot.account_binding_id,
+            aggregate_pre_order_worst_case_usd=pre,
+            active_reserved_stop_risk_usd=active_risk,
+            active_reserved_margin_usd=active_margin,
+            provider_remaining_headroom_usd=provider_remaining,
+            internal_qore_remaining_headroom_usd=qore_remaining,
+            max_risk_remaining_usd=max_risk_remaining,
+            hard_risk_headroom_usd=hard_risk,
+            margin_headroom_usd=Decimal(0) if blocked else margin_remaining,
+            provider_hard_breach=provider.hard_breach,
+            survival_blocked=blocked,
+            reason=reason,
+            reconciled_at=snapshot.reconciled_at,
         )
 
     def _active_risk_locked(self) -> Decimal:
