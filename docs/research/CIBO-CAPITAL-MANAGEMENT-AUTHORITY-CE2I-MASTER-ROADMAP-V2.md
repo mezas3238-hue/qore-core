@@ -822,7 +822,7 @@ Each mechanism requires separate evidence/certification.
 
 ## PHASE 18 — Per-Trader chronological replay
 
-**Status: IN PROGRESS — CAUSAL REPLAY CONTRACT GREEN / GBPJPY + GBPUSD + AUDJPY + EURUSD + XAUUSD EVIDENCE BOUND (5/7)**
+**Status: COMPLETE — CAUSAL REPLAY CONTRACT GREEN / ALL SEVEN CMA TRADER LINEAGES EVIDENCE-BOUND (7/7) / HISTORICAL USD PROVIDER CALIBRATION REMAINS SEPARATE**
 
 The shared replay primitive now exists in:
 
@@ -1215,51 +1215,148 @@ USD_CIBO_SIZING_COMPARISON_AUTHORIZED = FALSE
 
 No historical spread, commission, slippage, margin-per-volume or tick-value value was fabricated.
 
-Phase 18 now has exact R-denominated geometry/baseline replay evidence for **5/7 Traders**:
-R38 GBPJPY, R43 GBPUSD, R42 AUDJPY, R38 EURUSD and R34 XAUUSD. VT31 NAS100 and VT08 FOREX
-still require their own independent evidence binding and cannot inherit acceptance from the first
-five.
+Phase 18 now has exact causal replay evidence for **7/7 CMA Trader lineages**:
+R38 GBPJPY, R43 GBPUSD, R42 AUDJPY, R38 EURUSD, R34 XAUUSD, VT08 FOREX and VT31 NAS100.
+Each lineage passed independently; no Trader inherited acceptance from another.
 
-Replay each Trader with:
+### VT08 FOREX R3.15 Phase-18 checkpoint — 26-SEP-2026
+
+The final independent VT08 replay authenticates the frozen B_COMBINED holdout and R3.12
+capital-policy source, proves exact legacy risk-formula parity, preserves the 124 certified
+opportunities, and keeps broker execution economics separate from the pre-broker capital policy.
 
 ```text
-same signals
-same technical geometry
-legacy sizing baseline
-vs
-CIBO CMA
+workflow_run: 36261289169  SUCCESS
+head_sha:     251f7e282417dbbf5eb820b42da7ae3de3b1d5e4
+artifact_id:  10913050112
+artifact:     qore-cibo-phase18-vt08-r315-251f7e282417dbbf5eb820b42da7ae3de3b1d5e4
+digest:       sha256:8543a33962d24d3f5346981328df78d145286fc8af9387d73eca85519922f568
+rows:         124
 ```
 
-Measure:
+Generic legacy-policy scoring:
 
-- initial base capital risk;
-- time to base recovery;
-- self-financed expansion;
-- PF;
-- Total R;
-- DD;
-- capital velocity;
-- future capacity.
+```text
+trades:                    124
+profit_factor:             1.188909111149905336636134137
+total_r25:                 9.288150320501074848855803027
+max_drawdown_r25:          5.901218670573083195516115149
+max_loss_streak:           7
+provider_economics_status: R_DENOMINATED_ONLY
+```
 
-No Trader is accepted because another Trader passes.
+The FundedNext and FTMO profile replays produce the same causal risk sequence. Decimal accounting
+residue is explicitly measured and bounded rather than silently rounded. Historical broker
+spread/slippage/quantity economics remain unproven, so:
+
+```text
+CALIBRATION_REQUIRED
+USD_CIBO_SIZING_COMPARISON_AUTHORIZED = FALSE
+```
+
+### VT31 NAS100 V4 Phase-18 checkpoint — 26-SEP-2026
+
+VT31 is now bound to the immutable V4 execution source and authoritative five-year artifact.
+A serialization defect was resolved without touching the historical row pipeline: missing REARM
+geometry is captured in a side channel while the causal setup exists, then merged only into the
+separate Phase-18 serialization after the original historical physicalization completes.
+
+```text
+workflow_run: 36261289233  SUCCESS
+head_sha:     251f7e282417dbbf5eb820b42da7ae3de3b1d5e4
+artifact_id:  10912945588
+artifact:     qore-cibo-phase18-vt31-v4-251f7e282417dbbf5eb820b42da7ae3de3b1d5e4
+digest:       sha256:2200392deeb081525720430a816e8f82b18d7333c61a05eb197632ed24849e15
+rows:         806
+source_sha:   cac38ed14f20e066536910145027426fd23f5939
+```
+
+Authoritative V4 parity and metrics:
+
+```text
+authoritative JSON exact without serialized rows: TRUE
+same signals/entry/stop/target/path:              TRUE
+same legacy capital-weighted result:              TRUE
+profit_factor:                                    3.455321118486999415676978877
+total_r:                                          61.38049535416448786455402411
+max_drawdown_r:                                   3.70898490728154195122908861
+max_loss_streak:                                  11
+```
+
+VT31 likewise remains:
+
+```text
+R_DENOMINATED_ONLY
+CALIBRATION_REQUIRED
+USD_CIBO_SIZING_COMPARISON_AUTHORIZED = FALSE
+```
+
+**Phase-18 closure rule:** the seven Trader histories are now independently reproducible and
+causally serializable. This closes the per-Trader evidence-binding phase. It does **not** authorize
+cross-Trader R summation and does **not** claim historical USD provider economics that are absent
+from retained evidence.
 
 ---
 
 ## PHASE 19 — Integrated portfolio replay
 
-**Status: PENDING**
+**Status: IN PROGRESS — 7/7 CHRONOLOGY REPLAY AUTHORIZED / USD CAPITAL REPLAY BLOCKED_PROVIDER_ECONOMICS**
 
-All supported Traders compete for one coherent capital pool.
+The Phase-19 readiness and chronology contract now exists in:
 
-Study:
+```text
+src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py
+```
+
+Phase 19 is deliberately split into two scientific depths:
+
+1. **Integrated chronology/concurrency replay** — authorized once all seven Phase-18 lineages are
+   independently bound. This may merge timestamps, detect simultaneous positions, measure overlap
+   and build competition structure.
+2. **Integrated USD capital replay** — authorized only when every lineage has provider economics
+   sufficient for comparable historical USD risk, margin and execution-cost arithmetic.
+
+Current invariant:
+
+```text
+PHASE18_POPULATION_COMPLETE            = TRUE
+CHRONOLOGY_REPLAY_AUTHORIZED           = TRUE
+USD_PORTFOLIO_REPLAY_AUTHORIZED        = FALSE
+CROSS_TRADER_R_AGGREGATION_AUTHORIZED  = FALSE
+BLOCKER                                 = PROVIDER_ECONOMICS
+```
+
+The chronology-only motor sorts opportunities causally, validates all seven Trader populations,
+detects duplicate signal identities, computes maximum concurrent positions and overlapping
+position pairs, and returns an object that is constitutionally unable to perform USD arithmetic or
+cross-Trader R aggregation.
+
+This allows immediate study of:
 
 - simultaneous opportunities;
-- factor concentration;
-- risk/margin reservations;
-- capital recycling;
-- opportunity starvation;
-- aggregate DD;
-- peak original capital at risk.
+- temporal opportunity clustering;
+- cross-Trader overlap;
+- candidate competition windows;
+- opportunity starvation structure;
+- factor/correlation research hooks;
+- reservation ordering;
+
+without fabricating:
+
+- historical spread;
+- historical commission;
+- historical slippage;
+- historical margin-per-volume;
+- historical tick value;
+- or a false common R unit.
+
+USD-dependent study remains fail-closed until provider-economic evidence is calibrated:
+
+- risk/margin reservations in real USD;
+- capital recycling in real USD;
+- aggregate USD drawdown;
+- peak original capital at risk;
+- minimum executable quantity and broker granularity under historical conditions.
 
 ---
 
