@@ -248,6 +248,7 @@ def _fit_model(
             records=tuple(records),
         )
         key = (trade.symbol, trade.entry_at)
+        surface = by_mode[pre.mode][key]
         recovery = (
             pre.current_dd >= RECOVERY_DD
             and pre.base_multiplier <= MAX_BASE_MULTIPLIER
@@ -389,7 +390,6 @@ def _simulate(
             records=tuple(records),
         )
         key = (trade.symbol, trade.entry_at)
-        surface = by_mode[pre.mode][key]
         recovery = (
             policy != "SURFACE_CONTROL"
             and pre.current_dd >= RECOVERY_DD
