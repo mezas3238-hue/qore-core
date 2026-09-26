@@ -1,3 +1,5 @@
+from pathlib import Path
+
 # ruff: noqa: I001
 from qore.infrastructure.cibo_account_capital_mission import (
     Ce2iActivationScope,
@@ -150,3 +152,26 @@ def test_fundednext_identity_maps_directly_to_survival_mission() -> None:
     assert identity.provider_program == "stellar-instant"
     assert identity.environment is MarketRuntimeEnvironment.PRODUCTION
     assert policy.mission is CiboCapitalMission.FUNDED_SURVIVAL_COMPOUND
+
+
+
+def test_runtime_derives_account_mission_from_binding_not_issue() -> None:
+    demo = Path("scripts/qore_ctrader_demo_free_runtime.py").read_text(
+        encoding="utf-8"
+    )
+    funded = Path("scripts/qore_fundednext_runtime.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "identity_from_market_test_account(account)" in demo
+    assert "derive_cibo_capital_mission(cibo_account_identity)" in demo
+    assert '"cibo_account_context_source": "ACCOUNT_BINDING"' in demo
+    assert '"cibo_capital_mission": cibo_capital_mission.mission.value' in demo
+
+    assert "fundednext_stellar_instant_identity(" in funded
+    assert "derive_cibo_capital_mission(cibo_account_identity)" in funded
+    assert '"cibo_account_context_source": "ACCOUNT_BINDING"' in funded
+    assert '"cibo_capital_mission": cibo_capital_mission.mission.value' in funded
+
+    assert "issue" not in demo.lower().split("cibo_account_context_source")[0][-300:]
+    assert "issue" not in funded.lower().split("cibo_account_context_source")[0][-300:]
