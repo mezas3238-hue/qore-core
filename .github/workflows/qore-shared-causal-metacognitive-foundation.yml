@@ -1,0 +1,42 @@
+name: QORE Shared Causal Metacognitive Foundation
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/dynamic_causal_graph.py
+      - src/qore/infrastructure/core_stack_v2/active_perception.py
+      - src/qore/infrastructure/core_stack_v2/metacognition_engine.py
+      - tests/infrastructure/test_core_stack_v2_dynamic_causal_graph.py
+      - tests/infrastructure/test_core_stack_v2_active_perception.py
+      - tests/infrastructure/test_core_stack_v2_metacognition_engine.py
+      - .github/workflows/qore-shared-causal-metacognitive-foundation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  causal-metacognitive-foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: |
+          pip install -e ".[dev]"
+
+      - name: Static validation
+        run: |
+          ruff check             src/qore/infrastructure/core_stack_v2/dynamic_causal_graph.py             src/qore/infrastructure/core_stack_v2/active_perception.py             src/qore/infrastructure/core_stack_v2/metacognition_engine.py             tests/infrastructure/test_core_stack_v2_dynamic_causal_graph.py             tests/infrastructure/test_core_stack_v2_active_perception.py             tests/infrastructure/test_core_stack_v2_metacognition_engine.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/dynamic_causal_graph.py             src/qore/infrastructure/core_stack_v2/active_perception.py             src/qore/infrastructure/core_stack_v2/metacognition_engine.py
+
+      - name: Run cognitive-contract tests
+        run: |
+          pytest -q             tests/infrastructure/test_core_stack_v2_dynamic_causal_graph.py             tests/infrastructure/test_core_stack_v2_active_perception.py             tests/infrastructure/test_core_stack_v2_metacognition_engine.py
