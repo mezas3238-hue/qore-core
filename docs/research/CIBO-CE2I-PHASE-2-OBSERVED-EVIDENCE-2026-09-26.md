@@ -127,6 +127,142 @@ Read-only inspection of the active VPS source confirms the frozen Phase-2 base-r
 The active workspace HEAD is local/unpublished relative to GitHub at this checkpoint, so CE2I records
 the observed runtime identity separately instead of pretending GitHub can resolve that SHA.
 
+## First source-proven CE2I economic finding — VT31 minimum-volume uplift
+
+The active runtime source predates the two 25-SEP submits and the current uncommitted diff does not
+modify VT31's `nominal_risk_r`, `resolve_certified_risk` or `build_risk_request` sizing logic.
+
+Therefore the source-defined upper bound of the pre-broker strategy risk budget can be compared
+against the observed submitted stop risk.
+
+### Case 1 — SECONDARY
+
+Observed:
+
+- assigned capital: USD 142857.19;
+- QORE 1R account fraction: 0.002;
+- 1R: USD 285.71438;
+- tier: SECONDARY;
+- observed submitted stop risk: USD 10.2408;
+- observed volume: 0.04.
+
+Source upper bound before any protective shields:
+
+```text
+SECONDARY nominal risk = 0.05R
+max SECONDARY allocation multiplier = 1.00
+global scalar = 0.60
+
+maximum strategy requested risk
+= 285.71438 * 0.05 * 1.00 * 0.60
+= USD 8.5714314
+```
+
+The actual submitted stop risk is therefore at least:
+
+```text
+10.2408 / 8.5714314 = 1.1947596x
+```
+
+or approximately **19.48% above the maximum possible strategy-requested budget** before any
+additional state/loss/breaker shields, which can only reduce that budget further.
+
+Derived stop-risk per 1.00 source volume:
+
+```text
+10.2408 / 0.04 = USD 256.02
+```
+
+The maximum raw risk-sized volume under the upper-bound strategy budget is:
+
+```text
+8.5714314 / 256.02 = 0.03348
+```
+
+which is below the observed 0.04 execution volume.
+
+### Case 2 — REARM_MID
+
+Observed runtime decision reason: `AUTHORIZED_REARM_MID`.
+
+Observed:
+
+- assigned capital: USD 142857.19;
+- 1R: USD 285.71438;
+- REARM MID nominal risk: 0.05R;
+- REARM allocation multiplier: 0.50;
+- global scalar: 0.60;
+- observed submitted stop risk: USD 26.0712;
+- observed volume: 0.04.
+
+Source upper bound before any further shields:
+
+```text
+maximum strategy requested risk
+= 285.71438 * 0.05 * 0.50 * 0.60
+= USD 4.2857157
+```
+
+The actual submitted stop risk is at least:
+
+```text
+26.0712 / 4.2857157 = 6.083278x
+```
+
+or approximately **508.33% above the maximum pre-broker strategy budget**.
+
+Derived stop-risk per 1.00 source volume:
+
+```text
+26.0712 / 0.04 = USD 651.78
+```
+
+The maximum raw risk-sized volume under the upper-bound strategy budget is:
+
+```text
+4.2857157 / 651.78 = 0.006575
+```
+
+which is far below 0.04.
+
+### Why 0.04 matters
+
+The active cTrader DEMO contract normalizes NAS100 minimum source volume to 0.01.
+
+VT31's frozen four-leg management requires:
+
+```text
+execution_minimum_volume = broker minimum volume * 4
+                         = 0.01 * 4
+                         = 0.04
+```
+
+Both observed submits are exactly 0.04.
+
+Given the source risk bounds above, both cases necessarily mapped below 0.04 before the broker/management
+minimum was applied.
+
+**CE2I finding:**
+
+```text
+VT31 MANAGEMENT GRANULARITY FLOOR
+-> MINIMUM VOLUME UPLIFT
+-> ACTUAL STOP RISK > STRATEGY REQUESTED RISK
+```
+
+This is the opposite of capital efficiency. It is not yet a policy defect verdict because the
+four-leg management structure may itself create compensating economic value. It is, however, a
+proven inefficiency family that Phase 2/3 must quantify across a larger sample.
+
+CE2I must later test alternatives such as:
+
+- provider/contract granularity with smaller executable legs;
+- economically equivalent exposure representation;
+- management structures that preserve certified behavior at finer granularity;
+- explicit Risk accounting for mandatory minimum-volume uplift.
+
+No runtime change is authorized by this finding.
+
 ## Engineering response added to PR #651
 
 Phase 2 now adds:
