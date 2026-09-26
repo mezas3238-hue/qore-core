@@ -186,8 +186,8 @@ Frozen geometry:
 - R6/R5 no refit and no threshold retuning.
 
 Authoritative fixed-anchor candidate:
-- Git SHA: `3e402c81fc5f095dc2e4177af0798f63378ce617`;
-- GitHub Actions run: `36273602499`.
+- Git SHA: `1012c7989250cd39be7c590c36af89c2fe1ad815`;
+- GitHub Actions run: `36273700139`.
 
 Its result must be recorded here only after the workflow produces a
 protocol-valid payload.
