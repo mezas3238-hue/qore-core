@@ -495,7 +495,7 @@ All Traders can be represented with minimum viable capital without corrupting op
 
 ## PHASE 6 — Capital Source Ledger
 
-**Status: CONTRACT IMPLEMENTED / ADVERSARIAL PERSISTENCE-CONCURRENCY PENDING**
+**Status: DURABLE CAS + ATOMIC SINGLE/MULTI-SOURCE RESERVATION GREEN / RUNTIME SOURCE-PROVENANCE INTEGRATION PENDING**
 
 Implement atomic accounting of:
 
@@ -515,7 +515,7 @@ Adversarial concurrency/restart tests prove no capacity can be double-spent.
 
 ## PHASE 7 — Economic Floor / Base Recovery Engine
 
-**Status: CONTRACT IMPLEMENTED / REAL POSITION BINDING ACTIVE NEXT**
+**Status: REAL-POSITION BINDING + DURABLE SETTLEMENT EVIDENCE GREEN / BROKER SETTLEMENT FEED COMPLETION PENDING**
 
 Compute the worst reconciled economic outcome if the position were to continue/close according to
 current protection state.
@@ -546,7 +546,7 @@ Position-state faults cannot create fictitious recovered capital.
 
 ## PHASE 8 — CMA State Machine
 
-**Status: IMPLEMENTATION STARTED**
+**Status: DURABLE LIFECYCLE + FAIL-CLOSED DE-ESCALATION GREEN / PASSIVE RUNTIME OBSERVER WIRED**
 
 States:
 
@@ -566,14 +566,13 @@ No outcome-aware transition.
 
 ### Current implementation notes
 
-The Phase-4 migration currently includes a transitional bridge from the legacy
-`CiboRiskRequest` to a volume-free `TraderOpportunityEnvelope`. The bridge intentionally discards
-legacy `requested_volume` and legacy strategy risk-budget authority.
+Phase 4 runtime authority switch is complete in the research branch: all seven active Trader paths
+produce volume-free opportunity facts and CIBO CMA owns requested volume before QORE Risk.
 
-This is not the final runtime migration: each Trader must eventually emit the opportunity envelope
-before any legacy sizing function runs.
+The transitional legacy-request bridge is retained only for reconstruction/baseline compatibility
+and is not the target authority path.
 
-The CMA-to-Risk handoff is also implemented as a research contract:
+The CMA-to-Risk handoff is implemented as a research contract:
 
 ```text
 TraderOpportunityEnvelope
@@ -623,7 +622,7 @@ No tool can be invoked without a deterministic eligibility contract.
 
 ## PHASE 10 — Capital Recycling
 
-**Status: PENDING**
+**Status: DIMENSION-SAFE CONTRACT IMPLEMENTED / REPLAY + RUNTIME RELEASE EVIDENCE PENDING**
 
 Use only reconciled released risk/margin.
 
@@ -639,7 +638,7 @@ Must survive:
 
 ## PHASE 11 — Profit / Protected-Capacity Expansion
 
-**Status: PENDING**
+**Status: SINGLE + ATOMIC MULTI-SOURCE FUNDING GREEN / BROKER EXPANSION EXECUTION NOT ENABLED**
 
 Research scaling from:
 
@@ -662,7 +661,7 @@ Original base capital cannot silently become expansion funding.
 
 ## PHASE 12 — Execution-Efficient Capitalization
 
-**Status: PENDING**
+**Status: MARGINAL EXECUTION-COST CURVE + PRE-RESERVATION VOLUME CAP GREEN / EMPIRICAL CALIBRATION PENDING**
 
 Build volume -> execution cost -> net expectancy curves.
 
@@ -672,7 +671,7 @@ Find where marginal exposure stops being economically useful.
 
 ## PHASE 13 — Capital Opportunity Graph
 
-**Status: PENDING**
+**Status: GRAPH V1 GREEN / DEEP FACTOR-CORRELATION-PROVIDER EDGES PENDING**
 
 Represent all simultaneous opportunities, capital sources and interactions.
 
@@ -699,7 +698,7 @@ Edges:
 
 ## PHASE 14 — Opportunity Competition / Cross-Trader Allocation
 
-**Status: PENDING**
+**Status: DETERMINISTIC COMPETITION + PORTFOLIO RESERVATION LEDGER V1 GREEN / DURABLE CAS + RUNTIME BATCH INTEGRATION PENDING**
 
 CIBO decides where scarce capital produces the best portfolio-level use.
 
@@ -708,6 +707,27 @@ Trader identity does not reserve a fixed risk fraction merely because an opportu
 Must preserve fairness/anti-starvation evidence and density reporting.
 
 ---
+
+### CE2I portfolio checkpoint — 26-SEP-2026
+
+Implemented and CI-gated:
+
+- atomic `reserve_many` across capital-source slices;
+- single-source and multi-source self-financing expansion;
+- proportional multi-source settlement without false recycling;
+- non-fungible capital dimensions for profit/risk-headroom/margin/offset;
+- T05 released-capacity recycling contracts;
+- T11 marginal execution-efficiency cap applied before capital reservation;
+- CE2I policy pipeline `T11 -> T06/T07 -> T19 -> QORE Risk request`;
+- Capital Opportunity Graph V1;
+- T09/T18 deterministic cross-Trader opportunity competition;
+- portfolio allocation ledger reserving stop-risk, margin and concentration capacity.
+
+Current V1 opportunity competition is deterministic and causal but explicitly **not claimed to be a
+globally optimal portfolio solver**. It is a research baseline for later graph-based optimization.
+
+No expansion broker mutation, DEMO expansion execution or LIVE authorization is granted by these
+contracts.
 
 ## PHASE 15 — Regime-Adaptive Capital Management
 
@@ -893,16 +913,16 @@ PR #651 alone never authorizes LIVE.
 Current sequence:
 
 ```text
-1. Finish enough PHASE 2 legacy evidence to establish baseline.
-2. Complete PHASE 4 TraderOpportunityEnvelope adapters.
-3. Complete PHASE 5 Minimal Seed Engine.
-4. Build PHASE 6 Capital Source Ledger.
-5. Build PHASE 7 Economic Floor / Base Recovery.
-6. Build PHASE 8 CMA State Machine.
-7. Then implement CE2I tools behind the state machine.
+1. Finish PHASE 3 provider-economic normalization across supported providers/markets.
+2. Complete runtime source-provenance binding for PHASE 6/7 settlements and releases.
+3. Persist PHASE 14 portfolio-allocation reservations with durable CAS/restart safety.
+4. Enrich PHASE 13 graph with causal factor/correlation/provider/temporal edges.
+5. Build PHASE 15 regime-adaptive tool selection.
+6. Build PHASE 16 reserve/optionality intelligence.
+7. Then run PHASE 18/19 chronological Trader + integrated portfolio replay.
 ```
 
-Do not spend research time optimizing legacy Trader sizing. It is being deprecated as authority.
+Do not spend research time optimizing legacy Trader sizing. It is deprecated as authority.
 
 ---
 
