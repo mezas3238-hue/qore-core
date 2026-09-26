@@ -145,10 +145,16 @@ class _Observation:
     target_states: tuple[tuple[CausalConcept, int], ...]
 
     def source(self, concept: CausalConcept) -> int:
-        return dict(self.source_states)[concept]
+        for candidate, value in self.source_states:
+            if candidate is concept:
+                return value
+        raise KeyError(concept)
 
     def target(self, concept: CausalConcept) -> int:
-        return dict(self.target_states)[concept]
+        for candidate, value in self.target_states:
+            if candidate is concept:
+                return value
+        raise KeyError(concept)
 
 
 def _clamp_bps(value: float) -> int:
