@@ -698,7 +698,7 @@ Edges:
 
 ## PHASE 14 — Opportunity Competition / Cross-Trader Allocation
 
-**Status: DETERMINISTIC COMPETITION + PORTFOLIO RESERVATION LEDGER V1 GREEN / DURABLE CAS + RUNTIME BATCH INTEGRATION PENDING**
+**Status: DETERMINISTIC COMPETITION + DURABLE CAS PORTFOLIO RESERVATION V1 GREEN / RUNTIME BATCH INTEGRATION PENDING**
 
 CIBO decides where scarce capital produces the best portfolio-level use.
 
@@ -721,7 +721,8 @@ Implemented and CI-gated:
 - CE2I policy pipeline `T11 -> T06/T07 -> T19 -> QORE Risk request`;
 - Capital Opportunity Graph V1;
 - T09/T18 deterministic cross-Trader opportunity competition;
-- portfolio allocation ledger reserving stop-risk, margin and concentration capacity.
+- portfolio allocation ledger reserving stop-risk, margin and concentration capacity;
+- restart-safe portfolio allocation reservations with generation CAS + writer lock.
 
 Current V1 opportunity competition is deterministic and causal but explicitly **not claimed to be a
 globally optimal portfolio solver**. It is a research baseline for later graph-based optimization.
