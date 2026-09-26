@@ -38,12 +38,12 @@ from qore.infrastructure.cibo_ce2i_expansion_proposal import (
     CmaExpansionProposal,
     reserve_expansion_proposal,
 )
-from qore.infrastructure.cibo_ce2i_regime_selector import (
-    CiboRegimeToolSelection,
-)
 from qore.infrastructure.cibo_ce2i_multi_source import (
     CmaMultiSourceExpansionProposal,
     reserve_multi_source_expansion,
+)
+from qore.infrastructure.cibo_ce2i_regime_selector import (
+    CiboRegimeToolSelection,
 )
 from qore.infrastructure.cibo_ce2i_tool_registry import tool_by_code
 from qore.infrastructure.cibo_cma_capital_observation import CmaCapitalObservation
