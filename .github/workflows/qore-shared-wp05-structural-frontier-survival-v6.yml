@@ -119,6 +119,7 @@ jobs:
           assert p["protocol_pass"] is True
           assert p["fresh_holdout_opened"] is False
           assert p["wp05_exit_gate_pass"] is False
+          assert p["partition_temporal_order_gate"] is True
           assert p["target_contract"] == "HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2"
           assert p["status"] in {
               "WP05_V6_STRUCTURAL_FRONTIER_FROZEN_FOR_FRESH_HOLDOUT",
@@ -155,6 +156,7 @@ jobs:
           assert g["source_time_frontier_only"] is True
           assert g["unidentifiable_higher_anchor_abstains"] is True
           assert g["r8_chronological_discovery_calibration_only"] is True
+          assert g["r8_r6_r5_temporally_ordered_nonoverlap_required"] is True
           assert g["r6_refit"] is False
           assert g["r5_refit"] is False
           assert g["r6_threshold_retuning"] is False
@@ -227,6 +229,7 @@ jobs:
               f"- discovery labels mature through: `{m['discovery_observed_max']}`",
               f"- calibration source begins: `{m['calibration_source_min']}`",
               "- frozen gate unchanged: **>=20% false-declaration reduction + >=95% terminal preservation on BOTH R6/R5**",
+              "- partition temporal-order/non-overlap gate: **PASS**",
               "- fresh holdout opened: **False**",
               "",
               "Partition results:",
