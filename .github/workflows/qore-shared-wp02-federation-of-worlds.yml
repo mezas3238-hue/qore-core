@@ -1,0 +1,96 @@
+name: QORE Shared WP02 Federation of Worlds
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/multi_world_engine.py
+      - src/qore/infrastructure/core_stack_v2/multi_world_federation.py
+      - tests/infrastructure/test_core_stack_v2_multi_world_engine.py
+      - tests/infrastructure/test_core_stack_v2_multi_world_federation.py
+      - .github/workflows/qore-shared-wp02-federation-of-worlds.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  federation-of-worlds:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: |
+          pip install -e ".[dev]"
+
+      - name: Static validation
+        run: |
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/multi_world_engine.py \
+            src/qore/infrastructure/core_stack_v2/multi_world_federation.py \
+            tests/infrastructure/test_core_stack_v2_multi_world_engine.py \
+            tests/infrastructure/test_core_stack_v2_multi_world_federation.py
+          python -m py_compile \
+            src/qore/infrastructure/core_stack_v2/multi_world_engine.py \
+            src/qore/infrastructure/core_stack_v2/multi_world_federation.py
+
+      - name: Run WP-02 cognitive-contract tests
+        run: |
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_multi_world_engine.py \
+            tests/infrastructure/test_core_stack_v2_multi_world_federation.py
+
+      - name: Validate federation contract
+        run: |
+          python - <<'PY'
+          from datetime import UTC, datetime
+
+          from qore.infrastructure.core_stack_v2.multi_world_engine import (
+              WorldModelFamily,
+          )
+          from qore.infrastructure.core_stack_v2.multi_world_federation import (
+              WorldEvidence,
+              update_world_federation,
+          )
+
+          now = datetime.now(UTC)
+          evidence = tuple(
+              WorldEvidence(
+                  family=family,
+                  as_of=now,
+                  prediction_error_bps=5000,
+                  prediction_observation_count=0,
+                  causal_consistency_bps=5000,
+                  calibration_bps=5000,
+                  trajectory_accuracy_bps=5000,
+                  current_evidence_bps=5000,
+                  integrity_bps=10000,
+              )
+              for family in WorldModelFamily
+          )
+          state = update_world_federation(
+              as_of=now,
+              evidence=evidence,
+              epistemic_uncertainty_bps=5000,
+              ood_risk_bps=5000,
+          )
+
+          assert len(state.posteriors) == len(WorldModelFamily)
+          assert sum(item.probability_bps for item in state.posteriors) == 10000
+          assert state.execution_authority is False
+          assert state.risk_authority is False
+          assert state.sizing_authority is False
+          print({
+              "dominant_world": state.dominant_world.value,
+              "disagreement_bps": state.disagreement_bps,
+              "world_diversity_bps": state.world_diversity_bps,
+              "authority_free": True,
+          })
+          PY
