@@ -166,6 +166,9 @@ beyond existing ontology without identity leakage.
 
 ### WP-05 — Temporal Hierarchical Brain
 
+Canonical research ledger:
+`docs/shared/QORE_SHARED_WP05_TEMPORAL_HIERARCHICAL_BRAIN_RESEARCH_LEDGER.md`
+
 Reason jointly across microstructure/ticks, seconds, M1, M3, M5, M15, H1, H4,
 daily, weekly and macro regime.
 
