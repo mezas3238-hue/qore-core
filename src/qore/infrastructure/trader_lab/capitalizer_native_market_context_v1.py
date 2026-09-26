@@ -31,10 +31,7 @@ from typing import Any
 from qore.infrastructure.trader_lab import (
     capitalizer_max_recovery_direct_m1_replay_v1 as direct,
 )
-from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
-    CapitalizerM1Bar,
-    iter_cibo_m1,
-)
+from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import iter_cibo_m1
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     _aggregate_tf,
     _pivots,
