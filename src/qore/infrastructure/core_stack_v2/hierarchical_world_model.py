@@ -15,11 +15,13 @@ class WorldScale(StrEnum):
     MICROSTRUCTURE = "MICROSTRUCTURE"
     SECONDS = "SECONDS"
     M1 = "M1"
+    M3 = "M3"
     M5 = "M5"
     M15 = "M15"
     H1 = "H1"
     H4 = "H4"
     DAILY = "DAILY"
+    WEEKLY = "WEEKLY"
     CROSS_MARKET_REGIME = "CROSS_MARKET_REGIME"
     MACRO_REGIME = "MACRO_REGIME"
 
@@ -88,11 +90,13 @@ _SCALE_WEIGHT: dict[WorldScale, int] = {
     WorldScale.MICROSTRUCTURE: 1,
     WorldScale.SECONDS: 1,
     WorldScale.M1: 2,
+    WorldScale.M3: 2,
     WorldScale.M5: 3,
     WorldScale.M15: 4,
     WorldScale.H1: 5,
     WorldScale.H4: 6,
     WorldScale.DAILY: 7,
+    WorldScale.WEEKLY: 8,
     WorldScale.CROSS_MARKET_REGIME: 5,
     WorldScale.MACRO_REGIME: 7,
 }
@@ -134,6 +138,7 @@ def reconcile_world_levels(
             WorldScale.H1,
             WorldScale.H4,
             WorldScale.DAILY,
+            WorldScale.WEEKLY,
             WorldScale.MACRO_REGIME,
         }:
             high_timeframe.append(level)
