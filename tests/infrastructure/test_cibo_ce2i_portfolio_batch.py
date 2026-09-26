@@ -1,4 +1,5 @@
 # ruff: noqa: I001
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -12,6 +13,10 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_capital_source_ledger import (
     CapitalSourceAccount,
     CapitalSourceLedger,
+)
+from qore.infrastructure.cibo_ce2i_causal_expectation import (
+    CausalExpectationBasis,
+    CausalOpportunityExpectation,
 )
 from qore.infrastructure.cibo_ce2i_opportunity_competition import (
     CapitalOpportunityCandidate,
@@ -40,7 +45,13 @@ def _candidate(
         trader_id=trader,
         qore_symbol=fingerprint.upper(),
         provider_symbol=fingerprint.upper(),
-        expected_net_value_usd=Decimal(net),
+        decision_as_of=datetime(2026, 9, 26, 12, 0, tzinfo=UTC),
+        expectation=CausalOpportunityExpectation(
+            evidence_id=f"test:expectation:{fingerprint}",
+            as_of=datetime(2026, 9, 26, 12, 0, tzinfo=UTC),
+            basis=CausalExpectationBasis.FROZEN_HISTORICAL_PRIOR,
+            expected_net_value_usd=Decimal(net),
+            ),
         stop_risk_usd=Decimal("5"),
         margin_usd=Decimal("10"),
         expected_capital_minutes=Decimal(minutes),
