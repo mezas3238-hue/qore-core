@@ -38,6 +38,7 @@ jobs:
             src/qore/infrastructure/cibo_capital_state_machine.py \
             src/qore/infrastructure/cibo_cma_risk_request.py \
             src/qore/infrastructure/cibo_live_opportunity.py \
+            src/qore/infrastructure/cibo_cma_initial_seed.py \
             scripts/cibo_ce2i_sizing_reconstruction_report.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
@@ -50,7 +51,9 @@ jobs:
             tests/infrastructure/test_cibo_cma_risk_request.py \
             tests/infrastructure/test_cibo_live_opportunity.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities.py \
-            tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py
+            tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py \
+            tests/infrastructure/test_cibo_cma_initial_seed.py \
+            tests/infrastructure/test_cibo_cma_runtime_authority_switch.py
 
       - name: Compile integration surface
         run: |
@@ -63,6 +66,8 @@ jobs:
             src/qore/infrastructure/r42_audjpy_live.py \
             src/qore/infrastructure/vt31_nas100_live.py \
             src/qore/infrastructure/ctrader_demo_vt08_sizing.py \
+            scripts/qore_ctrader_demo_free_runtime.py \
+            scripts/vt31_nas100_ctrader_demo_adapter.py \
             scripts/cibo_ce2i_sizing_reconstruction_report.py
 
       - name: Mypy
@@ -78,6 +83,7 @@ jobs:
             src/qore/infrastructure/cibo_capital_state_machine.py \
             src/qore/infrastructure/cibo_cma_risk_request.py \
             src/qore/infrastructure/cibo_live_opportunity.py \
+            src/qore/infrastructure/cibo_cma_initial_seed.py \
             scripts/cibo_ce2i_sizing_reconstruction_report.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
@@ -90,7 +96,9 @@ jobs:
             tests/infrastructure/test_cibo_cma_risk_request.py \
             tests/infrastructure/test_cibo_live_opportunity.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities.py \
-            tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py
+            tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py \
+            tests/infrastructure/test_cibo_cma_initial_seed.py \
+            tests/infrastructure/test_cibo_cma_runtime_authority_switch.py
 
       - name: Pytest
         run: |
@@ -106,4 +114,6 @@ jobs:
             tests/infrastructure/test_cibo_cma_risk_request.py \
             tests/infrastructure/test_cibo_live_opportunity.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities.py \
-            tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py
+            tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py \
+            tests/infrastructure/test_cibo_cma_initial_seed.py \
+            tests/infrastructure/test_cibo_cma_runtime_authority_switch.py
