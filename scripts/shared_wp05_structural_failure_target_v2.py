@@ -18,6 +18,7 @@ from shared_wp05_temporal_hierarchy_absorption_v3 import _prepare_partition
 
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_target_contract import (
     higher_timeframe_anchor_direction,
+    higher_timeframe_structural_failure_target,
 )
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_transition_v2 import (
     TemporalHierarchyTrajectoryTrainingEpisode,
@@ -26,32 +27,6 @@ from qore.infrastructure.core_stack_v2.temporal_hierarchy_transition_v2 import (
 
 def _source_key(item: TemporalHierarchyTrajectoryTrainingEpisode) -> str:
     return item.trajectory.snapshots[-1].as_of.strftime("%Y-%m-%dT%H:%M:%S")
-
-
-def higher_timeframe_structural_failure_target(
-    *,
-    anchor_direction: int,
-    prior_peak: float,
-    prior_floor: float,
-    future_high: float,
-    future_low: float,
-    future_final_close: float,
-) -> bool:
-    """Return the matured V2 research target.
-
-    The function is intentionally future-aware because it is a historical
-    label builder. It must never be called by runtime projection.
-    """
-
-    if anchor_direction not in (-1, 0, 1):
-        raise ValueError("anchor_direction must be -1, 0 or 1")
-    if prior_peak < prior_floor:
-        raise ValueError("prior structural frontier is invalid")
-    if anchor_direction == 0:
-        return False
-    if anchor_direction > 0:
-        return future_low < prior_floor and future_final_close < prior_floor
-    return future_high > prior_peak and future_final_close > prior_peak
 
 
 def relabel_partition_with_structural_failure_v2(
