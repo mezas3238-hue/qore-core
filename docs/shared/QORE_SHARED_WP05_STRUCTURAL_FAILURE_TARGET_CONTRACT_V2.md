@@ -36,6 +36,20 @@ direction, position, PnL or outcome participates in the anchor.
 If the anchor is zero/unidentifiable, the episode is not permitted to fabricate
 a structural-failure direction.
 
+### 2.1 Unidentifiable-anchor abstention law
+
+`anchor == 0` means **directionally unidentifiable**, not "recoverable",
+"non-terminal" or "safe".
+
+The low-level boolean label function returns `False` for `anchor == 0` only as
+a fail-closed non-fabrication behavior. Any experiment that estimates
+recoverable-vs-terminal discrimination under Target V2 must therefore exclude
+zero-anchor episodes from its directionally identified evaluation universe and
+report the excluded count explicitly.
+
+Historical V1-V5 artifacts are not rewritten by this clarification. New
+experiments must preserve this abstention semantics.
+
 ## 3. Structural frontier
 
 Using only market state available at the source timestamp:
