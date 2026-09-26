@@ -1,3 +1,7 @@
+"""CIBO CMA sizing-authority telemetry invariants."""
+
+from __future__ import annotations
+
 from pathlib import Path
 
 from qore.infrastructure.ctrader_demo_live_behavior_lab import sizing_path_for
