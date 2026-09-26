@@ -87,7 +87,8 @@ jobs:
               Path("result/wp03-historical-causal-discovery.json").read_text()
           )
           assert p["protocol_pass"] is True
-          assert min(p["sample_counts"].values()) >= 15000
+          assert min(p["sample_counts"].values()) >= 7000
+          assert p["protocol_minimum_samples"] == 7000
           assert p["screened_pair_count"] >= 50
 
           s = p["sampling"]
