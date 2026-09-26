@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Final
 
-SHARED_BRAIN_ARCHITECTURE_VERSION: Final = "QORE_COGNITIVE_MARKET_OS_002"
+SHARED_BRAIN_ARCHITECTURE_VERSION: Final = "QORE_META_COGNITIVE_SCIENTIFIC_INTELLIGENCE_003"
 
 _COGNITIVE_PIPELINE: Final = (
     "MARKET_OBSERVATION",
@@ -37,6 +37,14 @@ _COGNITIVE_PIPELINE: Final = (
 )
 
 _REQUIRED_CAPABILITIES: Final = (
+    "PROBABILISTIC_MARKET_DIGITAL_TWIN",
+    "FEDERATION_OF_WORLDS",
+    "CAUSAL_DISCOVERY_ENGINE",
+    "MARKET_REPRESENTATION_DISCOVERY",
+    "MARKET_AGENCY_MODEL",
+    "SCIENTIFIC_SOCIETY",
+    "COGNITIVE_ARBITRATION",
+    "META_COGNITIVE_SCIENTIFIC_INTELLIGENCE",
     "HIERARCHICAL_MULTI_TIMESCALE_WORLD_MODEL",
     "MULTI_WORLD_ENGINE",
     "LATENT_STATE_RECONSTRUCTION",
@@ -82,7 +90,7 @@ def shared_brain_architecture_contract() -> dict[str, object]:
     return {
         "schema": "qore.shared_brain.architecture_contract.v2",
         "version": SHARED_BRAIN_ARCHITECTURE_VERSION,
-        "role": "QORE_COGNITIVE_MARKET_OPERATING_SYSTEM",
+        "role": "QORE_META_COGNITIVE_SCIENTIFIC_MARKET_OPERATING_SYSTEM",
         "objective": (
             "Continuously reconstruct the most plausible hidden market state, "
             "maintain competing internal world models, predict state transitions, "
@@ -92,6 +100,9 @@ def shared_brain_architecture_contract() -> dict[str, object]:
             "specialist traders."
         ),
         "pipeline": _COGNITIVE_PIPELINE,
+        "maximum_ceiling_program": "docs/shared/QORE_SHARED_MAXIMUM_COGNITIVE_CEILING_ROADMAP.md",
+        "maximum_ceiling_master_issue": 638,
+        "maximum_ceiling_work_packages": tuple(range(639, 651)),
         "required_capabilities": _REQUIRED_CAPABILITIES,
         "hierarchical_world_model_law": {
             "multiple_temporal_levels_required": True,
