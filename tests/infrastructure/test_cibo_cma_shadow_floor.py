@@ -1,3 +1,6 @@
+"""CMA shadow-floor invariants."""
+# ruff: noqa: I001
+
 from datetime import UTC, datetime
 
 from qore.infrastructure.cibo_cma_shadow_floor import (
