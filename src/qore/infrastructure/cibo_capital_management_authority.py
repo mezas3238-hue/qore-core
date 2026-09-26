@@ -126,39 +126,44 @@ class CiboCapitalState:
     margin_headroom_usd: Decimal
     base_capital_at_risk_usd: Decimal
     realized_net_profit_usd: Decimal
-    protected_economic_floor_usd: Decimal
+    protected_open_economic_floor_usd: Decimal
+    proven_self_financing_capacity_usd: Decimal
     reserved_expansion_risk_usd: Decimal
     cost_reserve_usd: Decimal
 
     def __post_init__(self) -> None:
+        _positive(self.assigned_capital_usd, "assigned_capital_usd")
         for name in (
-            "assigned_capital_usd",
             "hard_risk_headroom_usd",
             "margin_headroom_usd",
-        ):
-            _positive(getattr(self, name), name)
-        for name in (
             "base_capital_at_risk_usd",
             "realized_net_profit_usd",
-            "protected_economic_floor_usd",
+            "protected_open_economic_floor_usd",
+            "proven_self_financing_capacity_usd",
             "reserved_expansion_risk_usd",
             "cost_reserve_usd",
         ):
             _nonnegative(getattr(self, name), name)
+        gross_proven_sources = (
+            self.realized_net_profit_usd
+            + self.protected_open_economic_floor_usd
+        )
+        if self.proven_self_financing_capacity_usd > gross_proven_sources:
+            raise CiboCapitalManagementError(
+                "self-financing capacity cannot exceed proven profit/protection sources"
+            )
 
     @property
     def base_recovered(self) -> bool:
         return self.base_capital_at_risk_usd == 0
 
     @property
-    def proven_self_financing_capacity_usd(self) -> Decimal:
-        gross = (
-            self.realized_net_profit_usd
-            + self.protected_economic_floor_usd
-            - self.reserved_expansion_risk_usd
-            - self.cost_reserve_usd
+    def available_self_financing_capacity_usd(self) -> Decimal:
+        return max(
+            Decimal(0),
+            self.proven_self_financing_capacity_usd
+            - self.reserved_expansion_risk_usd,
         )
-        return max(Decimal(0), gross)
 
 
 @dataclass(frozen=True, slots=True)
@@ -255,7 +260,7 @@ def plan_self_financing_expansion(
         )
 
     capacity = min(
-        capital.proven_self_financing_capacity_usd,
+        capital.available_self_financing_capacity_usd,
         capital.hard_risk_headroom_usd,
     )
     if capacity <= 0:
@@ -281,11 +286,16 @@ def plan_self_financing_expansion(
 
     risk = volume * opportunity.stop_loss_per_volume
     margin = volume * opportunity.margin_per_volume
-    source = (
-        CapitalSource.REALIZED_PROFIT
-        if capital.realized_net_profit_usd > 0
-        else CapitalSource.PROTECTED_ECONOMIC_FLOOR
-    )
+    if capital.realized_net_profit_usd >= risk:
+        source = CapitalSource.REALIZED_PROFIT
+    elif capital.protected_open_economic_floor_usd >= risk:
+        source = CapitalSource.PROTECTED_ECONOMIC_FLOOR
+    else:
+        return _hold(
+            opportunity,
+            CapitalStage.BASE_RECOVERED,
+            "expansion requires multi-source ledger reservation",
+        )
     return CiboCapitalActionPlan(
         trader_id=opportunity.trader_id,
         qore_symbol=opportunity.qore_symbol,
