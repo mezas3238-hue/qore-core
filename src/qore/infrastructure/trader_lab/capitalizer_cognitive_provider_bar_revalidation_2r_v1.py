@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import time
 from collections import Counter
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
@@ -37,7 +36,6 @@ SOURCE_REBASE_RUN_ID = 36078677895
 SOURCE_REBASE_SHA = "cfc04849c8bbfd6565310d89456f5e367ea880f7"
 SOURCE_M1_RUN_ID = 35548099334
 SOURCE_M1_SHA = "18c338aedd5013ce65a6cb6408ffbc2e904a6217"
-REQUEST_THROTTLE_SECONDS = 0.22
 EXPECTED_SYMBOLS = set(clone.TARGET_SYMBOLS)
 
 
@@ -261,7 +259,7 @@ def build_market_report(
         provider_symbol, symbol_id, digits = clone._selected_symbol(client, symbol)
 
         rows: list[ProviderBarRevalidationRow] = []
-        for index, source in enumerate(source_rows):
+        for source in source_rows:
             h1_open = _aware(source["h1_open"], field="h1_open")
             entry_at = _aware(source["entry_at"], field="entry_at")
             provider_minutes, has_more = _provider_window(
@@ -285,8 +283,6 @@ def build_market_report(
                     provider_has_more=has_more,
                 )
             )
-            if index + 1 < len(source_rows):
-                time.sleep(REQUEST_THROTTLE_SECONDS)
     finally:
         client.close()
 
