@@ -16,6 +16,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import ROUND_FLOOR, Decimal
 
+from qore.infrastructure.cibo_account_capital_mission import (
+    CiboCapitalMissionPolicy,
+    eligible_ce2i_tool_codes_for_mission,
+)
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalSource,
     CiboCapitalManagementError,
@@ -33,6 +37,9 @@ from qore.infrastructure.cibo_ce2i_execution_efficiency import (
 from qore.infrastructure.cibo_ce2i_expansion_proposal import (
     CmaExpansionProposal,
     reserve_expansion_proposal,
+)
+from qore.infrastructure.cibo_ce2i_regime_selector import (
+    CiboRegimeToolSelection,
 )
 from qore.infrastructure.cibo_ce2i_multi_source import (
     CmaMultiSourceExpansionProposal,
@@ -68,6 +75,8 @@ def propose_ce2i_expansion(
     request_id: str,
     opportunity: TraderOpportunityEnvelope,
     observation: CmaCapitalObservation,
+    mission: CiboCapitalMissionPolicy,
+    regime: CiboRegimeToolSelection,
     execution_curve: ExecutionCostCurveInput,
     assigned_capital_usd: Decimal,
     hard_risk_headroom_usd: Decimal,
@@ -78,12 +87,38 @@ def propose_ce2i_expansion(
 ) -> Ce2iExpansionPolicyDecision:
     """Select and reserve one bounded expansion source deterministically."""
 
+    if not isinstance(mission, CiboCapitalMissionPolicy):
+        raise CiboCapitalManagementError(
+            "mission must be CiboCapitalMissionPolicy"
+        )
+    if not isinstance(regime, CiboRegimeToolSelection):
+        raise CiboCapitalManagementError(
+            "regime must be CiboRegimeToolSelection"
+        )
+    mission_tools = set(eligible_ce2i_tool_codes_for_mission(mission))
+    if not set(regime.enabled_tools).issubset(mission_tools):
+        raise CiboCapitalManagementError(
+            "regime tool surface exceeds account mission"
+        )
+    allowed_tools = set(regime.enabled_tools)
+
     if execution_curve.volume_step != opportunity.volume_step:
         raise CiboCapitalManagementError(
             "execution curve volume step does not match opportunity"
         )
+    cap = execution_efficient_volume_cap(execution_curve)
+    if "T11" not in allowed_tools:
+        return Ce2iExpansionPolicyDecision(
+            applied_tools=(),
+            execution_cap=cap,
+            proposal=None,
+            reason=(
+                "account mission/regime blocks execution-efficient "
+                "expansion tooling"
+            ),
+        )
+
     if not observation.expansion_eligible or not observation.evidence_sufficient:
-        cap = execution_efficient_volume_cap(execution_curve)
         return Ce2iExpansionPolicyDecision(
             applied_tools=("T11",),
             execution_cap=cap,
@@ -91,7 +126,6 @@ def propose_ce2i_expansion(
             reason="CMA capital observation is not expansion eligible",
         )
 
-    cap = execution_efficient_volume_cap(execution_curve)
     if cap.volume_cap < opportunity.minimum_volume:
         return Ce2iExpansionPolicyDecision(
             applied_tools=("T11",),
@@ -110,6 +144,17 @@ def propose_ce2i_expansion(
         margin_headroom_usd=margin_headroom_usd,
     )
     if candidate is None:
+        required_multi = {"T06", "T07", "T19"}
+        if not required_multi.issubset(allowed_tools):
+            return Ce2iExpansionPolicyDecision(
+                applied_tools=("T11",),
+                execution_cap=cap,
+                proposal=None,
+                reason=(
+                    "mission/regime blocks required multi-source "
+                    "expansion tools"
+                ),
+            )
         try:
             multi_proposal = reserve_multi_source_expansion(
                 reservation_group_id=reservation_id,
@@ -146,6 +191,17 @@ def propose_ce2i_expansion(
         if candidate.source is CapitalSource.REALIZED_PROFIT
         else "T07"
     )
+    required_single = {source_code, "T19"}
+    if not required_single.issubset(allowed_tools):
+        return Ce2iExpansionPolicyDecision(
+            applied_tools=("T11",),
+            execution_cap=cap,
+            proposal=None,
+            reason=(
+                "mission/regime blocks required single-source "
+                "expansion tools"
+            ),
+        )
     single_proposal = reserve_expansion_proposal(
         reservation_id=reservation_id,
         source_id=candidate.source_id,
