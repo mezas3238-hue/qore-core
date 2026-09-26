@@ -209,6 +209,38 @@ def test_counterfactual_contradiction_falsifies_relation() -> None:
     assert "COUNTERFACTUAL_EVIDENCE_CONTRADICTS" in assessment.reasons
 
 
+def test_low_integrity_evidence_is_excluded_from_causal_inference() -> None:
+    rows = list(_replicated_positive_relation())
+    poisoned = replace(
+        rows[0],
+        target_state_bps=0,
+        integrity_bps=1_000,
+    )
+    rows[0] = poisoned
+
+    assessment = discover_causal_relation(
+        as_of=NOW,
+        episodes=tuple(rows),
+    )
+
+    assert assessment.excluded_low_integrity_count == 1
+    assert assessment.sample_count == len(rows) - 1
+    assert assessment.status is CausalDiscoveryStatus.RESEARCH_REPLICATED
+
+
+def test_all_low_integrity_evidence_fails_closed() -> None:
+    rows = tuple(
+        replace(item, integrity_bps=1_000)
+        for item in _replicated_positive_relation()
+    )
+
+    with pytest.raises(ValueError, match="integrity gate"):
+        discover_causal_relation(
+            as_of=NOW,
+            episodes=rows,
+        )
+
+
 def test_future_discovery_evidence_fails_closed() -> None:
     row = replace(
         _replicated_positive_relation()[0],
