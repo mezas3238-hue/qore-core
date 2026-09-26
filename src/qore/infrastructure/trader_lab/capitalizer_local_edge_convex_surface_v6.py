@@ -268,8 +268,12 @@ def _simulate(
     ordered = tuple(
         sorted(baseline, key=lambda row: (direct._aware(row.entry_at), row.symbol))
     )
-    if {(row.symbol, row.entry_at) for row in ordered} != set(contexts):
-        raise ValueError(f"{role} direct/context identities differ")
+    baseline_keys = {(row.symbol, row.entry_at) for row in ordered}
+    missing_context = baseline_keys - set(contexts)
+    if missing_context:
+        raise ValueError(
+            f"{role} missing context for {len(missing_context)} MAX3 identities"
+        )
 
     chosen_scaled: list[milestone.SimulatedTrade] = []
     records: list[memory.MemoryRecord] = []
