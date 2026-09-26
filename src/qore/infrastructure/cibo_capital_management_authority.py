@@ -48,6 +48,41 @@ class CapitalSource(StrEnum):
     CERTIFIED_LIMITED_DOWNSIDE_CAPACITY = "CERTIFIED_LIMITED_DOWNSIDE_CAPACITY"
 
 
+class CapitalCapacityDimension(StrEnum):
+    BASE_RISK_CAPITAL = "BASE_RISK_CAPITAL"
+    ECONOMIC_PROFIT_CAPITAL = "ECONOMIC_PROFIT_CAPITAL"
+    RELEASED_RISK_HEADROOM = "RELEASED_RISK_HEADROOM"
+    MARGIN_HEADROOM = "MARGIN_HEADROOM"
+    PORTFOLIO_OFFSET = "PORTFOLIO_OFFSET"
+    RISK_TRANSFER_CAPACITY = "RISK_TRANSFER_CAPACITY"
+
+
+def capital_source_dimension(source: CapitalSource) -> CapitalCapacityDimension:
+    """Return the non-fungible economic dimension of one capital source."""
+
+    if type(source) is not CapitalSource:
+        raise CiboCapitalManagementError("source must be CapitalSource")
+    mapping = {
+        CapitalSource.ORIGINAL_BASE_CAPITAL:
+            CapitalCapacityDimension.BASE_RISK_CAPITAL,
+        CapitalSource.REALIZED_PROFIT:
+            CapitalCapacityDimension.ECONOMIC_PROFIT_CAPITAL,
+        CapitalSource.PROTECTED_ECONOMIC_FLOOR:
+            CapitalCapacityDimension.ECONOMIC_PROFIT_CAPITAL,
+        CapitalSource.RELEASED_RISK_CAPACITY:
+            CapitalCapacityDimension.RELEASED_RISK_HEADROOM,
+        CapitalSource.RELEASED_MARGIN_CAPACITY:
+            CapitalCapacityDimension.MARGIN_HEADROOM,
+        CapitalSource.TRUE_PORTFOLIO_NETTING:
+            CapitalCapacityDimension.PORTFOLIO_OFFSET,
+        CapitalSource.REDUCED_OTHER_EXPOSURE:
+            CapitalCapacityDimension.RELEASED_RISK_HEADROOM,
+        CapitalSource.CERTIFIED_LIMITED_DOWNSIDE_CAPACITY:
+            CapitalCapacityDimension.RISK_TRANSFER_CAPACITY,
+    }
+    return mapping[source]
+
+
 @dataclass(frozen=True, slots=True)
 class TraderOpportunityEnvelope:
     """Trader-owned opportunity facts with intentionally no sizing field."""
