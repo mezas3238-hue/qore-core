@@ -20,7 +20,6 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_capital_source_ledger_store import (
     DurableCapitalSourceLedgerStore,
 )
-from qore.infrastructure.cibo_cma_capital_observation import CmaCapitalObservation
 from qore.infrastructure.cibo_ce2i_execution_efficiency import (
     ExecutionCostCurveInput,
 )
@@ -46,6 +45,7 @@ from qore.infrastructure.cibo_ce2i_portfolio_funding_saga import (
     DurablePortfolioFundingSagaStore,
     PortfolioFundingSagaState,
 )
+from qore.infrastructure.cibo_cma_capital_observation import CmaCapitalObservation
 
 
 @dataclass(frozen=True, slots=True)
