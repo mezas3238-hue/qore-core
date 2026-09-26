@@ -4,6 +4,7 @@ This bridge is transitional. It deliberately discards the legacy Trader-selected
 requested volume and strategy risk budget. The remaining geometry/economics become
 inputs to CIBO Capital Management Authority.
 """
+# ruff: noqa: I001
 
 from __future__ import annotations
 
