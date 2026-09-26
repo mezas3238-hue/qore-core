@@ -421,7 +421,7 @@ Equivalent economic exposure is comparable across all supported markets/provider
 
 ## PHASE 4 — TraderOpportunityEnvelope migration
 
-**Status: DIRECT OPPORTUNITY BUILDERS IMPLEMENTED 7/7 / RUNTIME SWITCH PENDING**
+**Status: COMPLETE / RUNTIME AUTHORITY SWITCH GREEN 7/7**
 
 Goal:
 
@@ -460,7 +460,7 @@ Current direct builders:
 These builders preserve market/broker geometry and deliberately do not consume Trader risk scale,
 risk BPS or certified-risk-R as volume authority.
 
-Runtime still calls the legacy request builders today, so the final authority switch is not complete.
+Runtime authority switch is now complete in the PR #651 research branch: all seven DEMO Trader paths build volume-free opportunities and final requested volume is produced by CIBO CMA minimal-seed planning. Legacy sizing builders remain only as baseline/reconstruction code and are no longer called by the switched runtime path.
 
 Exit gate:
 
@@ -471,7 +471,7 @@ produced only by CIBO CMA.
 
 ## PHASE 5 — Minimal Seed Engine
 
-**Status: CONTRACT IMPLEMENTED / CROSS-PROVIDER REPLAY PENDING**
+**Status: RUNTIME-WIRED 7/7 / HISTORICAL-CROSS-PROVIDER VALIDATION PENDING**
 
 Goal:
 
@@ -515,7 +515,7 @@ Adversarial concurrency/restart tests prove no capacity can be double-spent.
 
 ## PHASE 7 — Economic Floor / Base Recovery Engine
 
-**Status: CONTRACT IMPLEMENTED / REAL POSITION BINDING PENDING**
+**Status: CONTRACT IMPLEMENTED / REAL POSITION BINDING ACTIVE NEXT**
 
 Compute the worst reconciled economic outcome if the position were to continue/close according to
 current protection state.
