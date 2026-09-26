@@ -6,7 +6,9 @@ on:
       - agent/qore-core-stack-v2-shared-001
     paths:
       - src/qore/infrastructure/core_stack_v2/representation_discovery_engine.py
+      - src/qore/infrastructure/core_stack_v2/representation_discovery_evaluation.py
       - tests/infrastructure/test_core_stack_v2_representation_discovery_engine.py
+      - tests/infrastructure/test_core_stack_v2_representation_discovery_evaluation.py
       - .github/workflows/qore-shared-wp04-representation-discovery-foundation.yml
   workflow_dispatch:
 
@@ -30,16 +32,20 @@ jobs:
 
       - name: Static validation
         run: |
-          ruff check --fix --diff \
+          ruff check \
             src/qore/infrastructure/core_stack_v2/representation_discovery_engine.py \
-            tests/infrastructure/test_core_stack_v2_representation_discovery_engine.py
+            src/qore/infrastructure/core_stack_v2/representation_discovery_evaluation.py \
+            tests/infrastructure/test_core_stack_v2_representation_discovery_engine.py \
+            tests/infrastructure/test_core_stack_v2_representation_discovery_evaluation.py
           python -m py_compile \
-            src/qore/infrastructure/core_stack_v2/representation_discovery_engine.py
+            src/qore/infrastructure/core_stack_v2/representation_discovery_engine.py \
+            src/qore/infrastructure/core_stack_v2/representation_discovery_evaluation.py
 
       - name: Run WP04 representation-discovery contract tests
         run: |
           pytest -q \
-            tests/infrastructure/test_core_stack_v2_representation_discovery_engine.py
+            tests/infrastructure/test_core_stack_v2_representation_discovery_engine.py \
+            tests/infrastructure/test_core_stack_v2_representation_discovery_evaluation.py
 
       - name: Validate authority and leakage boundary
         run: |
