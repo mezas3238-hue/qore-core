@@ -262,17 +262,19 @@ def _select_cell(
 
 def _fit_model(samples: tuple[TrainingSample, ...]) -> dict[str, FrozenCell]:
     cells: dict[str, FrozenCell] = {}
-    specs = {
-        "EXACT": lambda row: row.exact_key,
-        "STATE": lambda row: row.state_key,
-        "DD": lambda row: row.dd_key,
-        "GLOBAL": lambda row: ("GLOBAL",),
-    }
     minimums = dict(LEVELS)
-    for level, getter in specs.items():
+    for level, _minimum in LEVELS:
         grouped: dict[tuple[str, ...], list[TrainingSample]] = defaultdict(list)
         for sample in samples:
-            grouped[getter(sample)].append(sample)
+            if level == "EXACT":
+                key = sample.exact_key
+            elif level == "STATE":
+                key = sample.state_key
+            elif level == "DD":
+                key = sample.dd_key
+            else:
+                key = ("GLOBAL",)
+            grouped[key].append(sample)
         for key, rows in grouped.items():
             if len(rows) < minimums[level]:
                 continue
