@@ -11,7 +11,7 @@ from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_ce2i_phase19_temporal_null import (
     measure_phase19_temporal_null,
 )
-from scripts.cibo_phase19_integrated_chronology_replay import (
+from cibo_phase19_integrated_chronology_replay import (
     EXPECTED_COMMON_END,
     EXPECTED_COMMON_ROWS,
     EXPECTED_COMMON_START,
