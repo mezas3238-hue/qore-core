@@ -1,13 +1,11 @@
 """Phase-18 serialization instrumentation for immutable VT31 V4 binding.
 
 The historical V4 validator must remain byte-for-byte equivalent in economic
-behavior. Rearm geometry needed by Phase 18 is therefore captured from the
-already-computed setup, removed before the original physical execution binding
-runs, and merged back only into the serialized Phase-18 trade rows.
+behavior. Rearm geometry needed by Phase 18 is captured out-of-band while the
+frozen rearm setup already exists, then merged only into a separate serialized
+copy after the original physical execution binding has completed.
 
-This preserves authoritative V4 metrics, Monte Carlo inputs, binding
-diagnostics, selection, ordering and outcomes while exposing causal geometry for
-the separate CIBO replay.
+Historical rows are never enriched before any historical transform.
 """
 
 from __future__ import annotations
@@ -19,7 +17,7 @@ SOURCE_RELATIVE_PATH = (
     "scripts/vt31_nas100_structural_target_execution_binding_5y_v4.py"
 )
 
-_PHYSICALIZE_OLD = '''    adjusted, binding_diag = physical._physicalize(rows, by_day=by_day)
+_PHYSICALIZE_OLD = """    adjusted, binding_diag = physical._physicalize(rows, by_day=by_day)
     selected = [
         row for row in adjusted
         if START_DATE
@@ -27,30 +25,12 @@ _PHYSICALIZE_OLD = '''    adjusted, binding_diag = physical._physicalize(rows, b
         < END_EXCLUSIVE_DATE
     ]
     metrics = _metrics(selected)
-'''
+"""
 
-_PHYSICALIZE_NEW = '''    phase18_rearm_geometry = {}
-    authoritative_rows = []
-    for phase18_source_row in rows:
-        authoritative_row = dict(phase18_source_row)
-        if authoritative_row.pop(
-            "_phase18_rearm_geometry_instrumented",
-            False,
-        ):
-            signal_key = str(authoritative_row["signal_at"])
-            if signal_key in phase18_rearm_geometry:
-                raise ValueError("duplicate VT31 Phase-18 rearm signal")
-            phase18_rearm_geometry[signal_key] = (
-                authoritative_row.pop("entry"),
-                authoritative_row.pop("initial_stop"),
-                authoritative_row.pop("structural_target"),
-            )
-        authoritative_rows.append(authoritative_row)
-
-    adjusted, binding_diag = physical._physicalize(
-        authoritative_rows,
-        by_day=by_day,
+_PHYSICALIZE_NEW = """    phase18_rearm_geometry = dict(
+        getattr(residual.corrective, "_PHASE18_REARM_GEOMETRY", {})
     )
+    adjusted, binding_diag = physical._physicalize(rows, by_day=by_day)
     phase18_adjusted = []
     for authoritative_row in adjusted:
         phase18_row = dict(authoritative_row)
@@ -78,18 +58,18 @@ _PHYSICALIZE_NEW = '''    phase18_rearm_geometry = {}
     if len(phase18_trade_rows) != len(selected):
         raise ValueError("VT31 Phase-18 row population drift")
     metrics = _metrics(selected)
-'''
+"""
 
-_RESULT_OLD = '''        "five_year_result": {
+_RESULT_OLD = """        "five_year_result": {
             "trade_count": len(selected),
             "metrics": metrics,
-'''
+"""
 
-_RESULT_NEW = '''        "five_year_result": {
+_RESULT_NEW = """        "five_year_result": {
             "trade_count": len(selected),
             "trade_rows": phase18_trade_rows,
             "metrics": metrics,
-'''
+"""
 
 
 def patch_source(source: str) -> str:
