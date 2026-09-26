@@ -131,11 +131,20 @@ def settlement_record_from_payload(
         raise CmaSettlementLedgerError("settlement payload must be mapping")
     event = str(payload.get("event", ""))
     signal = str(payload.get("signal_fingerprint", ""))
+    raw_deal_id = payload.get("deal_id")
+    raw_position_id = payload.get("position_id")
+    if (
+        not isinstance(raw_deal_id, (int, str))
+        or isinstance(raw_deal_id, bool)
+        or not isinstance(raw_position_id, (int, str))
+        or isinstance(raw_position_id, bool)
+    ):
+        raise CmaSettlementLedgerError("settlement ids must be int/string")
     try:
-        deal_id = int(payload["deal_id"])
-        position_id = int(payload["position_id"])
+        deal_id = int(raw_deal_id)
+        position_id = int(raw_position_id)
         net_profit = Decimal(str(payload["net_profit"]))
-    except (KeyError, TypeError, ValueError, InvalidOperation) as error:
+    except (KeyError, ValueError, InvalidOperation) as error:
         raise CmaSettlementLedgerError("settlement payload fields invalid") from error
     open_after = payload.get("position_open_after")
     if type(open_after) is not bool:
