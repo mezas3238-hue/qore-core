@@ -38,6 +38,9 @@ from qore.infrastructure.core_stack_v2.temporal_hierarchy_engine import (
     TemporalHierarchySnapshot,
     baseline_local_opposition,
 )
+from qore.infrastructure.core_stack_v2.temporal_hierarchy_target_contract import (
+    higher_timeframe_anchor_direction,
+)
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_recovery_veto_v4 import (
     recovery_motif_signature,
 )
@@ -98,20 +101,10 @@ def _build_source_state(
     indexes: dict[str, dict[str, int]],
 ) -> StructuralFrontierSourceState:
     snapshot = item.trajectory.snapshots[-1]
-    levels = _scale_map(snapshot)
-    high_values = [
-        levels[scale].direction_milli
-        for scale in (WorldScale.H1, WorldScale.H4, WorldScale.DAILY)
-        if scale in levels
-    ]
-    high_mean = 0.0 if not high_values else fmean(high_values)
-    anchor = 1 if high_mean > 0 else -1 if high_mean < 0 else 0
+    anchor = higher_timeframe_anchor_direction(snapshot)
     if anchor == 0:
         raise ValueError(
-            "baseline opposition requires identifiable higher anchor: "
-            f"episode={item.trajectory.episode_id} "
-            f"high_values={high_values} "
-            f"baseline={baseline_local_opposition(snapshot)}"
+            "unidentifiable higher anchor must be filtered before source-state build"
         )
 
     key = _source_key(item)
@@ -232,8 +225,13 @@ def _prepare_frontier_partition(
     }
 
     rows = []
+    frontier_unidentifiable_anchor_count = 0
     for item in corrected:
-        if not baseline_local_opposition(item.trajectory.snapshots[-1]):
+        snapshot = item.trajectory.snapshots[-1]
+        if not baseline_local_opposition(snapshot):
+            continue
+        if higher_timeframe_anchor_direction(snapshot) == 0:
+            frontier_unidentifiable_anchor_count += 1
             continue
         source = _build_source_state(item=item, bars=bars, indexes=indexes)
         rows.append(
@@ -263,6 +261,12 @@ def _prepare_frontier_partition(
         ),
         "v2_terminal_count": sum(item.terminal_failure for item in rows),
         "changed_target_count": target_range["changed_target_count"],
+        "target_unidentifiable_anchor_count": target_range[
+            "unidentifiable_anchor_count"
+        ],
+        "frontier_unidentifiable_anchor_count": (
+            frontier_unidentifiable_anchor_count
+        ),
         "target_contract": TARGET_CONTRACT,
         "fresh_holdout_opened": 0,
     }
@@ -431,6 +435,7 @@ def run(*, evidence: dict[str, dict[str, Path]]) -> dict[str, Any]:
             "target_v2_required": True,
             "frontier_matches_target_coordinate_system": True,
             "source_time_frontier_only": True,
+            "unidentifiable_higher_anchor_abstains": True,
             "r8_chronological_discovery_calibration_only": True,
             "r6_refit": False,
             "r5_refit": False,
