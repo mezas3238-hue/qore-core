@@ -4,57 +4,69 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab import (
+    capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_max_recovery_direct_m1_replay_v1 as direct,
+)
+from qore.infrastructure.trader_lab import (
+    capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 as v3,
+)
+from qore.infrastructure.trader_lab import (
+    capitalizer_v3_frozen_replay_2y_v1 as frozen_v3,
+)
+from qore.infrastructure.trader_lab import (
+    capitalizer_v3_source_first_wait5_2y_v1 as wait5,
 )
 
 
 def test_window_restores_all_global_contracts() -> None:
     frozen_before = (
-        direct.frozen_v3.WINDOW_START,
-        direct.frozen_v3.WINDOW_END,
-        direct.frozen_v3.LOOKBACK_START,
+        frozen_v3.WINDOW_START,
+        frozen_v3.WINDOW_END,
+        frozen_v3.LOOKBACK_START,
     )
     wait_before = (
-        direct.wait5.WINDOW_START,
-        direct.wait5.WINDOW_END,
-        direct.wait5.LOOKBACK_START,
+        wait5.WINDOW_START,
+        wait5.WINDOW_END,
+        wait5.LOOKBACK_START,
     )
     v3_before = (
-        direct.v3.WINDOW_START,
-        direct.v3.WINDOW_END,
-        direct.v3.LOOKBACK_START,
+        v3.WINDOW_START,
+        v3.WINDOW_END,
+        v3.LOOKBACK_START,
     )
     start = datetime(2022, 9, 17, tzinfo=UTC)
     end = datetime(2024, 9, 17, tzinfo=UTC)
 
     with direct._window(start=start, end=end):
-        assert direct.frozen_v3.WINDOW_START == start
-        assert direct.frozen_v3.WINDOW_END == end
-        assert direct.wait5.WINDOW_START == start
-        assert direct.wait5.WINDOW_END == end
-        assert direct.v3.WINDOW_START == start
-        assert direct.v3.WINDOW_END == end
+        assert frozen_v3.WINDOW_START == start
+        assert frozen_v3.WINDOW_END == end
+        assert wait5.WINDOW_START == start
+        assert wait5.WINDOW_END == end
+        assert v3.WINDOW_START == start
+        assert v3.WINDOW_END == end
 
     assert (
-        direct.frozen_v3.WINDOW_START,
-        direct.frozen_v3.WINDOW_END,
-        direct.frozen_v3.LOOKBACK_START,
+        frozen_v3.WINDOW_START,
+        frozen_v3.WINDOW_END,
+        frozen_v3.LOOKBACK_START,
     ) == frozen_before
     assert (
-        direct.wait5.WINDOW_START,
-        direct.wait5.WINDOW_END,
-        direct.wait5.LOOKBACK_START,
+        wait5.WINDOW_START,
+        wait5.WINDOW_END,
+        wait5.LOOKBACK_START,
     ) == wait_before
     assert (
-        direct.v3.WINDOW_START,
-        direct.v3.WINDOW_END,
-        direct.v3.LOOKBACK_START,
+        v3.WINDOW_START,
+        v3.WINDOW_END,
+        v3.LOOKBACK_START,
     ) == v3_before
 
 
 def test_dd_utility_matches_frozen_router_semantics() -> None:
     rows = (
-        direct.milestone.SimulatedTrade(
+        milestone.SimulatedTrade(
             symbol="NAS100",
             session="NEW_YORK",
             operating_date="2026-01-05",
@@ -73,7 +85,7 @@ def test_dd_utility_matches_frozen_router_semantics() -> None:
             max_milestone_r_seen_before_exit="2",
             same_minute_stop_target_ambiguity=False,
         ),
-        direct.milestone.SimulatedTrade(
+        milestone.SimulatedTrade(
             symbol="NAS100",
             session="NEW_YORK",
             operating_date="2026-01-06",
