@@ -1,5 +1,11 @@
 # CIBO Capital Efficiency / Leverage Intelligence Lab — Slice 001
 
+> **PROGRAM CONTINUITY:** This Slice 001 contract is now governed by the master CE2I roadmap:
+> `docs/research/CIBO-CAPITAL-EFFICIENCY-EXPOSURE-INTELLIGENCE-MASTER-ROADMAP-V1.md`
+>
+> This file remains the authoritative contract for the first static sizing slice. The roadmap is the
+> authoritative source for program scope, future phases, capitalization tools and continuity order.
+>
 Status: **RESEARCH ONLY / DRAFT / NO EXECUTION AUTHORITY**
 
 ## Objective
