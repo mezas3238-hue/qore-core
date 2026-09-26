@@ -5,17 +5,16 @@ import pytest
 
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_ce2i_chronological_replay import (
-    build_replay_opportunity,
     CiboChronologicalReplayError,
     CiboChronologicalReplayTrade,
     CiboReplayCausalTrade,
     CiboReplayOutcome,
-    reconstructed_signal_fingerprint,
     ReplayEconomicsStatus,
     ReplayProviderEconomics,
     ReplaySignalFingerprintOrigin,
+    build_replay_opportunity,
+    reconstructed_signal_fingerprint,
 )
-
 
 NOW = datetime(2026, 1, 5, 10, 0, tzinfo=UTC)
 
