@@ -665,13 +665,13 @@ def write_report(
     with (
         output / "capitalizer-continuation-value-model-v22-decisions.jsonl"
     ).open("w", encoding="utf-8") as handle:
-        for row in value_audits:
-            handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+        for value_row in value_audits:
+            handle.write(json.dumps(asdict(value_row), sort_keys=True) + "\n")
     with (
         output / "capitalizer-continuation-value-model-v22-economics.jsonl"
     ).open("w", encoding="utf-8") as handle:
-        for row in economic_audits:
-            handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+        for economic_row in economic_audits:
+            handle.write(json.dumps(asdict(economic_row), sort_keys=True) + "\n")
 
 
 def main() -> None:
