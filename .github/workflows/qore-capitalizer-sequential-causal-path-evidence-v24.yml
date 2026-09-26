@@ -1,13 +1,6 @@
 name: QORE Capitalizer Sequential Causal Path Evidence V24
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/qore-capitalizer-sequential-causal-path-evidence-v24.yml'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_sequential_causal_path_evidence_v24.py'
-      - 'tests/infrastructure/trader_lab/test_capitalizer_sequential_causal_path_evidence_v24.py'
   workflow_dispatch:
 
 permissions:
