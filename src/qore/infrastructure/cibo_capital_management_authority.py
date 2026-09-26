@@ -57,6 +57,7 @@ class TraderOpportunityEnvelope:
     qore_symbol: str
     provider_symbol: str
     side: str
+    entry_type: str
     intended_entry: Decimal
     stop_loss: Decimal
     take_profit: Decimal
@@ -70,7 +71,13 @@ class TraderOpportunityEnvelope:
     def __post_init__(self) -> None:
         if type(self.trader_id) is not TraderLineage:
             raise CiboCapitalManagementError("trader_id must be TraderLineage")
-        for name in ("signal_fingerprint", "qore_symbol", "provider_symbol", "side"):
+        for name in (
+            "signal_fingerprint",
+            "qore_symbol",
+            "provider_symbol",
+            "side",
+            "entry_type",
+        ):
             value = getattr(self, name)
             if not isinstance(value, str) or not value.strip():
                 raise CiboCapitalManagementError(f"{name} must be non-empty")
