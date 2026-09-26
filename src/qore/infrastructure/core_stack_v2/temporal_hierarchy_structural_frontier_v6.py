@@ -34,6 +34,7 @@ def _utc(value: datetime) -> datetime:
 class StructuralFrontierSourceState:
     episode_id: str
     as_of: datetime
+    anchor_direction: int
     distance_now: float
     approach_5m: float
     approach_15m: float
@@ -55,6 +56,8 @@ class StructuralFrontierSourceState:
         if not self.episode_id:
             raise ValueError("episode_id must be non-empty")
         _utc(self.as_of)
+        if self.anchor_direction not in (-1, 1):
+            raise ValueError("source state requires identifiable anchor")
         if (
             self.future_market_used
             or self.target_used
@@ -144,6 +147,7 @@ class StructuralFrontierModel:
 class StructuralFrontierAssessment:
     episode_id: str
     as_of: datetime
+    anchor_direction: int
     failure_probability_micros: int
     structural_failure_declared: bool
     recoverable_pullback: bool
@@ -152,6 +156,8 @@ class StructuralFrontierAssessment:
 
     def __post_init__(self) -> None:
         _utc(self.as_of)
+        if self.anchor_direction not in (-1, 1):
+            raise ValueError("assessment requires identifiable anchor")
         if not 0 <= self.failure_probability_micros <= 1_000_000:
             raise ValueError("failure probability out of range")
         if self.structural_failure_declared and self.recoverable_pullback:
@@ -544,6 +550,7 @@ def assess_structural_frontier(
     return StructuralFrontierAssessment(
         episode_id=source.episode_id,
         as_of=source.as_of,
+        anchor_direction=source.anchor_direction,
         failure_probability_micros=probability,
         structural_failure_declared=declared,
         recoverable_pullback=not declared,
