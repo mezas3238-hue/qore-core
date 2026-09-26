@@ -44,8 +44,8 @@ from qore.infrastructure.core_stack_v2.temporal_hierarchy_engine import (
 )
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_transition_v2 import (
     TemporalHierarchyTrajectory,
-    TemporalHierarchyTransitionEvaluation,
     TemporalHierarchyTrajectoryTrainingEpisode,
+    TemporalHierarchyTransitionEvaluation,
     evaluate_temporal_hierarchy_transition,
     fit_temporal_hierarchy_transition_model,
 )
