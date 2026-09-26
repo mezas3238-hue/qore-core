@@ -18,9 +18,7 @@ from qore.infrastructure.cibo_ce2i_phase19_interaction_evidence import (
     project_phase19_temporal_overlap_evidence,
 )
 
-
 DECISION_AS_OF = datetime(2026, 9, 26, 18, 0, tzinfo=UTC)
-
 
 PAIR_COUNTS = (
     (TraderLineage.R34_XAUUSD, TraderLineage.R38_EURUSD, 15),
