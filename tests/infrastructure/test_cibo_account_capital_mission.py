@@ -6,12 +6,17 @@ from qore.infrastructure.cibo_account_capital_mission import (
     CiboCapitalObjective,
     ce2i_tool_allowed_for_mission,
     derive_cibo_capital_mission,
+    fundednext_stellar_instant_identity,
+    identity_from_market_test_account,
 )
 from qore.infrastructure.cibo_ce2i_tool_registry import (
     CE2I_TOOL_REGISTRY,
     ToolMaturity,
 )
-from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
+from qore.infrastructure.market_test_environment import (
+    MarketRuntimeEnvironment,
+    MarketTestAccountIdentity,
+)
 
 
 def _tool(code: str):
@@ -117,3 +122,30 @@ def test_unknown_production_provider_fails_to_conservative_production_mission() 
     assert policy.mission is CiboCapitalMission.PRODUCTION_SURVIVAL_COMPOUND
     assert policy.allow_research_tool_execution is False
     assert policy.preserve_optionality_priority is True
+
+
+
+def test_ctrader_demo_binding_identity_maps_directly_to_capability_mission() -> None:
+    identity = identity_from_market_test_account(
+        MarketTestAccountIdentity(
+            provider_key="ctrader-demo",
+            account_ref="demo-free",
+            environment=MarketRuntimeEnvironment.DEMO,
+        )
+    )
+    policy = derive_cibo_capital_mission(identity)
+
+    assert identity.provider_key == "ctrader-demo"
+    assert policy.mission is CiboCapitalMission.DEMO_CAPABILITY_DISCOVERY
+
+
+def test_fundednext_identity_maps_directly_to_survival_mission() -> None:
+    identity = fundednext_stellar_instant_identity(
+        account_ref="stellar-instant-2k"
+    )
+    policy = derive_cibo_capital_mission(identity)
+
+    assert identity.provider_key == "fundednext"
+    assert identity.provider_program == "stellar-instant"
+    assert identity.environment is MarketRuntimeEnvironment.PRODUCTION
+    assert policy.mission is CiboCapitalMission.FUNDED_SURVIVAL_COMPOUND
