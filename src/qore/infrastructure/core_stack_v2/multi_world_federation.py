@@ -6,8 +6,10 @@ keeps posterior probability and is scored from prediction error, causal
 coherence, calibration, trajectory accuracy and current evidence.
 
 The federation is sequential: the previous posterior becomes the next prior.
-High epistemic uncertainty/OOD evidence increases the unresolved world instead
-of forcing false certainty.
+A bounded regime-transition prior prevents absorbing posterior states so a
+previously weak world can recover when market evidence changes. High epistemic
+uncertainty/OOD evidence increases the unresolved world instead of forcing
+false certainty.
 
 No world has methodology, sizing, Risk, stop, target, order or execution
 authority.
@@ -111,6 +113,7 @@ class WorldFederationState:
     disagreement_bps: int
     world_diversity_bps: int
     revision_pressure_bps: int
+    regime_transition_bps: int
     previous_dominant_world: WorldModelFamily | None
     dominant_world_changed: bool
     outcome_used: bool = False
@@ -133,6 +136,7 @@ class WorldFederationState:
             "disagreement_bps",
             "world_diversity_bps",
             "revision_pressure_bps",
+            "regime_transition_bps",
         ):
             value = int(getattr(self, name))
             if not 0 <= value <= 10_000:
@@ -261,6 +265,7 @@ def update_world_federation(
     epistemic_uncertainty_bps: int,
     ood_risk_bps: int,
     previous: WorldFederationState | None = None,
+    regime_transition_bps: int = 500,
 ) -> WorldFederationState:
     """Update posterior weights for all competing internal worlds."""
 
@@ -269,6 +274,7 @@ def update_world_federation(
     for name, value in (
         ("epistemic_uncertainty_bps", epistemic_uncertainty_bps),
         ("ood_risk_bps", ood_risk_bps),
+        ("regime_transition_bps", regime_transition_bps),
     ):
         if not 0 <= value <= 10_000:
             raise ValueError(f"{name} must be within 0..10000")
@@ -281,21 +287,27 @@ def update_world_federation(
     if set(by_family) != set(WorldModelFamily):
         raise ValueError("world evidence must cover every family")
 
+    families = list(WorldModelFamily)
+    uniform_prior = 1.0 / len(families)
     if previous is None:
-        prior = {family: 1.0 / len(WorldModelFamily) for family in WorldModelFamily}
+        prior = {family: uniform_prior for family in families}
         previous_dominant = None
     else:
         if previous.as_of >= as_of:
             raise ValueError("world federation must advance in time")
+        transition = regime_transition_bps / 10_000.0
+        retained = 1.0 - transition
         prior = {
-            item.family: max(1, item.probability_bps) / 10_000.0
+            item.family: (
+                retained * (max(1, item.probability_bps) / 10_000.0)
+                + transition * uniform_prior
+            )
             for item in previous.posteriors
         }
         previous_dominant = previous.dominant_world
 
-    qualities = {family: _quality(by_family[family]) for family in WorldModelFamily}
+    qualities = {family: _quality(by_family[family]) for family in families}
     log_scores: list[float] = []
-    families = list(WorldModelFamily)
     unknown_boost = (
         epistemic_uncertainty_bps + ood_risk_bps
     ) / 10_000.0
@@ -355,6 +367,7 @@ def update_world_federation(
         disagreement_bps=disagreement,
         world_diversity_bps=diversity,
         revision_pressure_bps=revision_pressure,
+        regime_transition_bps=regime_transition_bps,
         previous_dominant_world=previous_dominant,
         dominant_world_changed=(
             previous_dominant is not None and previous_dominant is not dominant
