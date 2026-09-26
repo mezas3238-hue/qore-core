@@ -14,11 +14,32 @@ from qore.infrastructure.cibo_ce2i_chronological_replay import (
 from qore.infrastructure.cibo_ce2i_phase19_portfolio_replay import (
     PHASE19_REQUIRED_TRADERS,
     Phase19ChronologicalOpportunity,
+    Phase19ProviderEconomicsEvidence,
     Phase19ReadinessStatus,
     Phase19TraderEvidence,
+    ProviderEconomicsEvidenceClass,
     assess_phase19_readiness,
     build_phase19_integrated_timeline,
 )
+
+
+def _provider_economics(
+    trader: TraderLineage,
+    *,
+    spread: ProviderEconomicsEvidenceClass = (
+        ProviderEconomicsEvidenceClass.EXACT_HISTORICAL
+    ),
+) -> Phase19ProviderEconomicsEvidence:
+    return Phase19ProviderEconomicsEvidence(
+        trader_id=trader,
+        provider_key="historical-provider",
+        evidence_id=f"provider:{trader.value}",
+        contract_terms=ProviderEconomicsEvidenceClass.PERIOD_STATIC_VERIFIED,
+        spread=spread,
+        commission=ProviderEconomicsEvidenceClass.PERIOD_STATIC_VERIFIED,
+        slippage=ProviderEconomicsEvidenceClass.PERIOD_STATIC_VERIFIED,
+        margin=ProviderEconomicsEvidenceClass.PERIOD_STATIC_VERIFIED,
+    )
 
 
 def _evidence(
@@ -26,11 +47,15 @@ def _evidence(
     *,
     status: ReplayEconomicsStatus,
 ) -> Phase19TraderEvidence:
+    provider_economics = None
+    if status is ReplayEconomicsStatus.PROVIDER_ECONOMICS_COMPLETE:
+        provider_economics = _provider_economics(trader)
     return Phase19TraderEvidence(
         trader_id=trader,
         evidence_id=f"artifact:{trader.value}",
         row_count=100,
         economics_status=status,
+        provider_economics=provider_economics,
     )
 
 
@@ -89,7 +114,7 @@ def test_phase19_seven_of_seven_r_only_allows_chronology_but_blocks_usd() -> Non
     assert result.provider_economics_incomplete == PHASE19_REQUIRED_TRADERS
 
 
-def test_phase19_requires_all_provider_economics_complete_for_usd() -> None:
+def test_phase19_requires_auditable_provider_economics_for_usd() -> None:
     result = _full_readiness(ReplayEconomicsStatus.PROVIDER_ECONOMICS_COMPLETE)
 
     assert (
@@ -100,6 +125,34 @@ def test_phase19_requires_all_provider_economics_complete_for_usd() -> None:
     assert result.chronology_replay_authorized is True
     assert result.usd_portfolio_replay_authorized is True
     assert result.provider_economics_incomplete == ()
+
+
+def test_phase19_current_snapshot_cannot_be_promoted_to_historical_usd() -> None:
+    current_only = _provider_economics(
+        TraderLineage.R38_EURUSD,
+        spread=ProviderEconomicsEvidenceClass.CURRENT_SNAPSHOT_ONLY,
+    )
+    assert current_only.historical_usd_complete is False
+
+    with pytest.raises(CiboCapitalManagementError, match="evidence/status mismatch"):
+        Phase19TraderEvidence(
+            trader_id=TraderLineage.R38_EURUSD,
+            evidence_id="artifact:eurusd",
+            row_count=863,
+            economics_status=ReplayEconomicsStatus.PROVIDER_ECONOMICS_COMPLETE,
+            provider_economics=current_only,
+        )
+
+
+def test_phase19_provider_evidence_requires_exact_historical_spread() -> None:
+    period_static_spread = _provider_economics(
+        TraderLineage.R38_GBPUSD,
+        spread=ProviderEconomicsEvidenceClass.PERIOD_STATIC_VERIFIED,
+    )
+    assert period_static_spread.historical_usd_complete is False
+
+    exact_spread = _provider_economics(TraderLineage.R38_GBPUSD)
+    assert exact_spread.historical_usd_complete is True
 
 
 def test_phase19_rejects_duplicate_or_unsupported_trader_evidence() -> None:
