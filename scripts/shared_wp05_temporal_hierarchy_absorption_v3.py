@@ -38,13 +38,13 @@ from shared_wp05_temporal_hierarchy_v1 import (
     _terminal_failure,
 )
 
-from qore.infrastructure.core_stack_v2.temporal_hierarchy_engine import (
-    TemporalHierarchySnapshot,
-)
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_absorption_v3 import (
     TemporalHierarchyAbsorptionEvaluation,
     evaluate_temporal_hierarchy_absorption,
     fit_temporal_hierarchy_absorption_model,
+)
+from qore.infrastructure.core_stack_v2.temporal_hierarchy_engine import (
+    TemporalHierarchySnapshot,
 )
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_transition_v2 import (
     TemporalHierarchyTrajectory,
