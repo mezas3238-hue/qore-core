@@ -136,8 +136,7 @@ def _run_segment(
     marginal: list[dict[str, Any]] = []
     for lower, higher in zip(
         CAPACITY_SCENARIOS_NCU,
-        CAPACITY_SCENARIOS_NCU[1:],
-        strict=True,
+        CAPACITY_SCENARIOS_NCU[1:]
     ):
         evidence = compare_phase19_marginal_capacity(
             contract=contract,
