@@ -1,8 +1,23 @@
 from __future__ import annotations
 
+import importlib.util
+from pathlib import Path
+
 import pytest
 
-from scripts import cibo_phase18_audjpy_geometry_patch as patcher
+_PATCHER_PATH = (
+    Path(__file__).parents[3]
+    / "scripts"
+    / "cibo_phase18_audjpy_geometry_patch.py"
+)
+_SPEC = importlib.util.spec_from_file_location(
+    "cibo_phase18_audjpy_geometry_patch",
+    _PATCHER_PATH,
+)
+if _SPEC is None or _SPEC.loader is None:
+    raise RuntimeError("unable to load AUDJPY geometry patcher")
+patcher = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(patcher)
 
 
 def _minimal_r40_source() -> str:
