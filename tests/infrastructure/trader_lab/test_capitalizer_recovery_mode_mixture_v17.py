@@ -5,6 +5,9 @@ from decimal import Decimal
 from qore.infrastructure.trader_lab import (
     capitalizer_recovery_mode_mixture_v17 as lab,
 )
+from qore.infrastructure.trader_lab import (
+    capitalizer_recovery_probe_position_survival_v16 as v16,
+)
 
 
 def test_dominance_requires_minimum_support() -> None:
@@ -49,7 +52,7 @@ def test_cell_hierarchy_is_predeclared_and_coarse() -> None:
 
 def test_mixture_keeps_surface_risk_and_existing_arms() -> None:
     assert lab.MAX_BASE_MULTIPLIER == Decimal("0.35")
-    assert lab.ARMS == lab.v16.ARMS
+    assert lab.ARMS == v16.ARMS
     assert set(lab.POLICY_DD) == {
         "SURVIVAL_DD3",
         "SURVIVAL_DD4",
