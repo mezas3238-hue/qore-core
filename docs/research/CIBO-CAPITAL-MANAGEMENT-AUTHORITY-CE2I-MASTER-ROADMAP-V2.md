@@ -551,7 +551,7 @@ No outcome-aware transition.
 
 ## PHASE 9 — CE2I Tool Registry
 
-**Status: PENDING**
+**Status: IMPLEMENTATION STARTED — 20 canonical tool contracts registered**
 
 Each tool declares:
 
