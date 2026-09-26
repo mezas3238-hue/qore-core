@@ -7,8 +7,10 @@ on:
     paths:
       - src/qore/infrastructure/core_stack_v2/multi_world_engine.py
       - src/qore/infrastructure/core_stack_v2/multi_world_federation.py
+      - src/qore/infrastructure/core_stack_v2/world_federation_calibration.py
       - tests/infrastructure/test_core_stack_v2_multi_world_engine.py
       - tests/infrastructure/test_core_stack_v2_multi_world_federation.py
+      - tests/infrastructure/test_core_stack_v2_world_federation_calibration.py
       - .github/workflows/qore-shared-wp02-federation-of-worlds.yml
   workflow_dispatch:
 
@@ -35,17 +37,21 @@ jobs:
           ruff check \
             src/qore/infrastructure/core_stack_v2/multi_world_engine.py \
             src/qore/infrastructure/core_stack_v2/multi_world_federation.py \
+            src/qore/infrastructure/core_stack_v2/world_federation_calibration.py \
             tests/infrastructure/test_core_stack_v2_multi_world_engine.py \
-            tests/infrastructure/test_core_stack_v2_multi_world_federation.py
+            tests/infrastructure/test_core_stack_v2_multi_world_federation.py \
+            tests/infrastructure/test_core_stack_v2_world_federation_calibration.py
           python -m py_compile \
             src/qore/infrastructure/core_stack_v2/multi_world_engine.py \
-            src/qore/infrastructure/core_stack_v2/multi_world_federation.py
+            src/qore/infrastructure/core_stack_v2/multi_world_federation.py \
+            src/qore/infrastructure/core_stack_v2/world_federation_calibration.py
 
       - name: Run WP-02 cognitive-contract tests
         run: |
           pytest -q \
             tests/infrastructure/test_core_stack_v2_multi_world_engine.py \
-            tests/infrastructure/test_core_stack_v2_multi_world_federation.py
+            tests/infrastructure/test_core_stack_v2_multi_world_federation.py \
+            tests/infrastructure/test_core_stack_v2_world_federation_calibration.py
 
       - name: Validate federation contract
         run: |
