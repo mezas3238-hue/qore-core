@@ -164,7 +164,20 @@ jobs:
               assert final['target_route'] == base['target_route']
               assert final['raw_net_010_r'] == base['raw_net_010_r']
               assert final['frozen_structural_scale'] == base['structural_scale']
-              assert final['drawdown_scale'] == base['drawdown_scale']
+
+              overlay = min(
+                  Decimal(final['short_scale']),
+                  Decimal(final['rank_scale']),
+              )
+              corrected_risk = (
+                  Decimal(final['frozen_structural_scale'])
+                  * overlay
+                  * Decimal(final['drawdown_scale'])
+              )
+              assert Decimal(final['corrected_risk_scale']) == corrected_risk
+              assert Decimal(final['corrected_net_010_r']) == (
+                  Decimal(final['raw_net_010_r']) * corrected_risk
+              )
 
               signal_at = datetime.fromisoformat(geometry['signal_at'])
               entry_at = datetime.fromisoformat(geometry['entry_at'])
@@ -188,6 +201,7 @@ jobs:
                       ],
                       'legacy_r43_short_scale': final['short_scale'],
                       'legacy_r43_rank_scale': final['rank_scale'],
+                      'legacy_r43_drawdown_scale': final['drawdown_scale'],
                       'economics_status': 'R_DENOMINATED_ONLY',
                   }
               )
@@ -240,6 +254,9 @@ jobs:
                   'same_structural_stop': True,
                   'same_technical_target': True,
                   'same_market_path': True,
+                  'same_structural_scale': True,
+                  'same_capital_policy': False,
+                  'r43_drawdown_recomputed_on_corrected_equity': True,
               },
               'provider_economics': {
                   'status': 'CALIBRATION_REQUIRED',
