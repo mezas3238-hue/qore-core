@@ -108,6 +108,7 @@ class SizingDecisionReconstruction:
     trader: str
     symbol: str
     sizing_path: str
+    sizing_path_observed: bool
     status: ReconstructionStatus
     requested_volume: Decimal
     assigned_capital: Decimal
@@ -136,6 +137,8 @@ class SizingDecisionReconstruction:
         expected = SIZING_PATH_CONTRACTS[self.trader].sizing_path
         if self.sizing_path != expected:
             raise SizingReconstructionError("sizing_path differs from frozen source contract")
+        if type(self.sizing_path_observed) is not bool:
+            raise SizingReconstructionError("sizing_path_observed must be bool")
         if self.status is ReconstructionStatus.COMPLETE and self.missing_fields:
             raise SizingReconstructionError("complete reconstruction cannot have missing fields")
         if self.status is ReconstructionStatus.PARTIAL and not self.missing_fields:
@@ -168,7 +171,13 @@ def reconstruct_sizing_decision(
     contract = SIZING_PATH_CONTRACTS.get(trader)
     if contract is None:
         raise SizingReconstructionError("trader is outside CE2I reconstruction scope")
-    sizing_path = _required_text(event, "sizing_path")
+    raw_sizing_path = event.get("sizing_path")
+    if raw_sizing_path is None or raw_sizing_path == "":
+        sizing_path = contract.sizing_path
+        sizing_path_observed = False
+    else:
+        sizing_path = _required_text(event, "sizing_path")
+        sizing_path_observed = True
 
     requested_volume = _required_decimal(event, "requested_volume")
     assigned_capital = _required_decimal(event, "assigned_capital")
@@ -187,7 +196,10 @@ def reconstruct_sizing_decision(
     }
     uplift = _optional_bool(event, "minimum_volume_uplifted")
 
-    missing = tuple(
+    missing_items: list[str] = []
+    if not sizing_path_observed:
+        missing_items.append("sizing_path")
+    missing_items.extend(
         name
         for name in _REQUIRED_COMPLETE_FIELDS
         if (
@@ -196,6 +208,7 @@ def reconstruct_sizing_decision(
             else optional_decimals[name] is None
         )
     )
+    missing = tuple(missing_items)
     status = (
         ReconstructionStatus.COMPLETE
         if not missing
@@ -225,6 +238,7 @@ def reconstruct_sizing_decision(
         trader=trader,
         symbol=symbol,
         sizing_path=sizing_path,
+        sizing_path_observed=sizing_path_observed,
         status=status,
         requested_volume=requested_volume,
         assigned_capital=assigned_capital,
