@@ -1,0 +1,150 @@
+name: QORE Capitalizer Surface Overlay Ablation V23
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/qore-capitalizer-surface-overlay-ablation-v23.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_surface_overlay_ablation_v23.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_surface_overlay_ablation_v23.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-surface-overlay-ablation-v23-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_surface_overlay_ablation_v23.py \
+            tests/infrastructure/trader_lab/test_capitalizer_surface_overlay_ablation_v23.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_surface_overlay_ablation_v23.py \
+            tests/infrastructure/trader_lab/test_capitalizer_surface_overlay_ablation_v23.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_surface_overlay_ablation_v23.py
+
+  aggregate:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download authoritative consumed replay/context evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Run V23 existing-overlay ablation
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_surface_overlay_ablation_v23 \
+            reconstructed/development-input \
+            reconstructed/validation-input \
+            reconstructed/reserved-input \
+            reconstructed/development-validation-context \
+            reconstructed/reserved-context \
+            experiment-output
+      - name: Enforce V23 contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "experiment-output/"
+                  "capitalizer-surface-overlay-ablation-v23.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_SURFACE_OVERLAY_ABLATION_V23"
+          )
+          assert report["evaluation"] == "EXISTING_SURFACE_OVERLAY_ABLATION"
+          assert report["control_policy"] == "CONTEXT_STABILITY_STAGE"
+          assert report["policies"] == [
+              "CONTEXT_STABILITY_STAGE",
+              "CONTEXT_ONLY",
+              "CONTEXT_DEFENSIVE_STAGE",
+              "CONTEXT_LOCK_STABILITY",
+          ]
+          assert report["policy_count"] == 4
+          assert report["all_entries_preserved"] is True
+          assert report["density_retention"] == "1"
+          assert report["development_context_model_unchanged"] is True
+          assert report["adaptive_memory_unchanged"] is True
+          assert report["surface_risk_multiplier_logic_unchanged"] is True
+          assert report["simultaneous_factor_state_preserved"] is True
+          assert report["fixed_target_r"] == "2.00"
+          assert report["original_stop_geometry_preserved"] is True
+          assert report["max3_preserved"] is True
+          assert report["new_overlay_policy_created"] is False
+          assert report["new_threshold_created"] is False
+          assert report["current_trade_outcome_visible_to_decision"] is False
+          assert report["open_trade_future_visible_to_decision"] is False
+          assert report["unchosen_counterfactual_visible_to_decision"] is False
+          assert report[
+              "validation_reserved_outcomes_visible_to_context_training"
+          ] is False
+          assert report["historical_fresh_oos_available"] is False
+          assert report["2018_2020_status"] == "CONSUMED_NOT_FRESH"
+          assert report["trader_certified"] is False
+
+          control = next(
+              row for row in report["results"]
+              if row["overlay_policy"] == "CONTEXT_STABILITY_STAGE"
+          )
+          expected = {
+              "DEVELOPMENT_2024_2026": (
+                  948, "6.214605199866807668753081488"
+              ),
+              "CONSUMED_VALIDATION_2022_2024": (
+                  1034, "6.770051846347247537620893924"
+              ),
+              "CONSUMED_RESERVED_2020_2022": (
+                  1088, "8.74798816650617431130479348"
+              ),
+          }
+          for period, (trades, dd) in expected.items():
+              row = control["heldouts"][period]
+              assert row["trades"] == trades
+              assert row["metrics"]["max_drawdown_r"] == dd
+
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Upload V23 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-surface-overlay-ablation-v23-${{ github.sha }}
+          path: experiment-output
+          if-no-files-found: error
+          retention-days: 90
