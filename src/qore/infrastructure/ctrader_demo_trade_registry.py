@@ -137,12 +137,22 @@ class CTraderDemoTradeRegistry:
 
     def _commit(self, entries: dict[str, DemoTradeRegistryEntry]) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        fd, name = tempfile.mkstemp(prefix=f".{self._path.name}.", suffix=".tmp", dir=self._path.parent)
+        fd, name = tempfile.mkstemp(
+            prefix=f".{self._path.name}.",
+            suffix=".tmp",
+            dir=self._path.parent,
+        )
         tmp = Path(name)
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as stream:
                 json.dump(
-                    {"schema": "qore.ctrader-demo.trade-registry.v1", "entries": [entries[k].as_json() for k in sorted(entries)]},
+                    {
+                        "schema": "qore.ctrader-demo.trade-registry.v1",
+                        "entries": [
+                            entries[key].as_json()
+                            for key in sorted(entries)
+                        ],
+                    },
                     stream,
                     sort_keys=True,
                     separators=(",", ":"),
