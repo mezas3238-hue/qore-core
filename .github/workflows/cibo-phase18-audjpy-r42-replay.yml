@@ -55,11 +55,15 @@ jobs:
         run: |
           ruff check \
             scripts/cibo_phase18_audjpy_geometry_patch.py \
+            scripts/cibo_phase18_audjpy_bind.py \
+            scripts/cibo_phase18_audjpy_score.py \
             src/qore/infrastructure/cibo_ce2i_chronological_replay.py \
             tests/infrastructure/test_cibo_ce2i_chronological_replay.py \
             tests/infrastructure/trader_lab/test_cibo_phase18_audjpy_geometry_patch.py
           mypy \
             scripts/cibo_phase18_audjpy_geometry_patch.py \
+            scripts/cibo_phase18_audjpy_bind.py \
+            scripts/cibo_phase18_audjpy_score.py \
             src/qore/infrastructure/cibo_ce2i_chronological_replay.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ce2i_chronological_replay.py \
@@ -157,60 +161,42 @@ jobs:
             source-audjpy target-audjpy v2-r27 r39-freeze phase18-output \
             > phase18-output/replay-stdout.json
 
-      - name: Bind geometry to R40 and final R41/R42 evidence
+
+      - name: Bind exact geometry to R40 and R41/R42
         run: |
-          python - <<'PY'
-          import json
-          from datetime import datetime
-          from decimal import Decimal
-          from pathlib import Path
+          python scripts/cibo_phase18_audjpy_bind.py \
+            --geometry phase18-output/phase18-audjpy-r40-geometry-trades.jsonl \
+            --r40 r40-source/r40-5y-scaled-trades.jsonl \
+            --r41 r41-final/r41-5y-corrected-trades.jsonl \
+            --r41-report r41-final/r41-5y-structural-fragility-correction-report.json \
+            --output phase18-output
 
-          def load_jsonl(path: Path):
-              return [
-                  json.loads(line)
-                  for line in path.read_text().splitlines()
-                  if line.strip()
-              ]
+      - name: Score R42 with generic CIBO Phase 18 replay
+        run: |
+          python scripts/cibo_phase18_audjpy_score.py \
+            --bound phase18-output/phase18-audjpy-r42-bound-trades.jsonl \
+            --final-report r41-final/r41-5y-structural-fragility-correction-report.json \
+            --output phase18-output/phase18-audjpy-r42-generic-score.json
 
-          generated = load_jsonl(
-              Path('phase18-output/phase18-audjpy-r40-geometry-trades.jsonl')
-          )
-          r40 = load_jsonl(Path('r40-source/r40-5y-scaled-trades.jsonl'))
-          r41 = load_jsonl(Path('r41-final/r41-5y-corrected-trades.jsonl'))
+      - name: Hash Phase 18 evidence
+        run: |
+          printf '%s\n' "$EVIDENCE_SHA" > phase18-output/git-sha.txt
+          printf '%s\n' "$AUDJPY_SOURCE_SHA" > phase18-output/audjpy-source-sha.txt
+          cd phase18-output
+          sha256sum \
+            phase18-audjpy-r40-geometry-report.json \
+            phase18-audjpy-r40-geometry-trades.jsonl \
+            phase18-audjpy-r42-bound-report.json \
+            phase18-audjpy-r42-bound-trades.jsonl \
+            phase18-audjpy-r42-generic-score.json \
+            replay-stdout.json \
+            git-sha.txt \
+            audjpy-source-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
 
-          assert len(generated) == len(r40) == len(r41) == 1039
-
-          bound = []
-          for index, (geometry, base, final) in enumerate(
-              zip(generated, r40, r41, strict=True)
-          ):
-              for key, value in base.items():
-                  assert geometry[key] == value, (index, key, geometry[key], value)
-
-              for key in (
-                  'entry_at',
-                  'exit_at',
-                  'side',
-                  'source_scheme',
-                  'authority_tier',
-                  'validation_class',
-                  'target_rank',
-                  'target_route',
-                  'exit_reason',
-                  'raw_net_010_r',
-              ):
-                  assert final[key] == base[key], (index, key)
-
-              assert final['base_risk_scale'] == base['risk_scale']
-              assert final['base_scaled_net_010_r'] == base['scaled_net_010_r']
-
-              overlay = Decimal(final['second_layer_overlay_scale'])
-              expected_scale = Decimal(base['risk_scale']) * overlay
-              expected_result = Decimal(base['scaled_net_010_r']) * overlay
-              assert Decimal(final['final_risk_scale']) == expected_scale
-              assert Decimal(final['corrected_scaled_net_010_r']) == expected_result
-
-              signal_at = datetime.fromisoformat(geometry['signal_at'])
-              entry_at = datetime.fromisoformat(geometry['entry_at'])
-              assert signal_at <= entry_at
-              entry = Decimal(geometry['entry_price'])
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase18-audjpy-r42-geometry-${{ env.EVIDENCE_SHA }}
+          path: phase18-output
+          if-no-files-found: error
+          retention-days: 90
