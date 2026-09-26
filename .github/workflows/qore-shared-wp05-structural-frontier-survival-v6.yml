@@ -52,6 +52,7 @@ jobs:
             scripts/shared_wp05_structural_frontier_survival_v6.py
           pytest -q \
             tests/infrastructure/test_core_stack_v2_temporal_hierarchy_structural_frontier_v6.py \
+            tests/infrastructure/test_core_stack_v2_temporal_hierarchy_target_contract.py \
             tests/infrastructure/test_shared_wp05_structural_failure_target_v2.py
 
       - name: Recover immutable consumed R8 R6 R5 market evidence
