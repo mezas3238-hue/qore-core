@@ -700,7 +700,7 @@ Exit gate: COMPLETE.
 
 ## PHASE 2 — Real sizing-path reconstruction
 
-**Status: NEXT**
+**Status: IN PROGRESS — source contracts implemented; observed submit coverage 1/7**
 
 Primary dependency: PR #637 behavioral evidence.
 
