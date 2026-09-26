@@ -23,11 +23,17 @@ class ReconstructionStatus(StrEnum):
     PARTIAL = "PARTIAL"
 
 
+class SizingAuthority(StrEnum):
+    LEGACY_TRADER_SIZING = "LEGACY_TRADER_SIZING"
+    CIBO_CMA = "CIBO_CMA"
+
+
 @dataclass(frozen=True, slots=True)
 class SizingPathContract:
     trader: str
     symbol: str
     sizing_path: str
+    cma_sizing_path: str
     budget_model: str
     base_risk_model: str
     strategy_scaler_model: str
@@ -39,6 +45,7 @@ SIZING_PATH_CONTRACTS: dict[str, SizingPathContract] = {
         trader="VT08_FOREX",
         symbol="MULTI",
         sizing_path="VT08_CIBO_AUTHORIZATION_PLUS_DEMO_NATIVE_RISK_SIZING",
+        cma_sizing_path="CIBO_CMA_MINIMAL_SEED",
         budget_model="SYMBOL_BPS_X_ASSIGNED_CAPITAL",
         base_risk_model="AUDJPY_25BPS_GBPUSD_25BPS_GBPJPY_20BPS",
         strategy_scaler_model="VT08_CIBO_ALLOW_DENY_POSTURE_NO_EXTRA_VOLUME_SCALER",
@@ -48,6 +55,7 @@ SIZING_PATH_CONTRACTS: dict[str, SizingPathContract] = {
         trader="R34_XAUUSD",
         symbol="XAUUSD",
         sizing_path="R34_BASE_RISK_X_GOVERNOR_SCALE_THEN_DEMO_NATIVE_VOLUME",
+        cma_sizing_path="CIBO_CMA_MINIMAL_SEED",
         budget_model="BASE_RISK_X_GOVERNOR_SCALE",
         base_risk_model="ASSIGNED_CAPITAL_X_0.002",
         strategy_scaler_model="R34_STATE_RISK_SCALE",
@@ -57,6 +65,7 @@ SIZING_PATH_CONTRACTS: dict[str, SizingPathContract] = {
         trader="R38_EURUSD",
         symbol="EURUSD",
         sizing_path="R38_EURUSD_BASE_RISK_X_COGNITIVE_SCALE_THEN_DEMO_NATIVE_VOLUME",
+        cma_sizing_path="CIBO_CMA_MINIMAL_SEED",
         budget_model="BASE_RISK_X_FRAGILITY_X_STRUCTURAL_OVERLAY",
         base_risk_model="ASSIGNED_CAPITAL_X_0.002",
         strategy_scaler_model="FRAGILITY_SCALE_X_F5_SHORT_X_UNSTABLE_LONG_ROUTE",
@@ -66,6 +75,7 @@ SIZING_PATH_CONTRACTS: dict[str, SizingPathContract] = {
         trader="R43_GBPUSD",
         symbol="GBPUSD",
         sizing_path="R43_GBPUSD_BASE_RISK_X_COGNITIVE_SCALE_THEN_DEMO_NATIVE_VOLUME",
+        cma_sizing_path="CIBO_CMA_MINIMAL_SEED",
         budget_model="BASE_RISK_X_STRUCTURAL_X_OVERLAY_X_DRAWDOWN",
         base_risk_model="ASSIGNED_CAPITAL_X_0.002",
         strategy_scaler_model="STRUCTURAL_X_MIN_SIDE_RANK_X_DRAWDOWN",
@@ -75,6 +85,7 @@ SIZING_PATH_CONTRACTS: dict[str, SizingPathContract] = {
         trader="R38_GBPJPY",
         symbol="GBPJPY",
         sizing_path="R38_GBPJPY_BASE_RISK_X_COGNITIVE_SCALE_THEN_DEMO_NATIVE_VOLUME",
+        cma_sizing_path="CIBO_CMA_MINIMAL_SEED",
         budget_model="BASE_RISK_X_POLICY_X_FRAGILITY_OVERLAY",
         base_risk_model="ASSIGNED_CAPITAL_X_0.002",
         strategy_scaler_model="SELECTED_POLICY_X_FRAGILITY_OVERLAY",
@@ -84,6 +95,7 @@ SIZING_PATH_CONTRACTS: dict[str, SizingPathContract] = {
         trader="R42_AUDJPY",
         symbol="AUDJPY",
         sizing_path="R42_AUDJPY_BASE_RISK_X_COGNITIVE_SCALE_THEN_DEMO_NATIVE_VOLUME",
+        cma_sizing_path="CIBO_CMA_MINIMAL_SEED",
         budget_model="BASE_RISK_X_AUTHORITY_X_TWO_FRAGILITY_LAYERS",
         base_risk_model="ASSIGNED_CAPITAL_X_0.002",
         strategy_scaler_model="AUTHORITY_SCALE_X_FIRST_OVERLAY_X_SECOND_OVERLAY",
@@ -93,6 +105,7 @@ SIZING_PATH_CONTRACTS: dict[str, SizingPathContract] = {
         trader="VT31_NAS100",
         symbol="NAS100",
         sizing_path="VT31_CERTIFIED_RISK_RESOLUTION_THEN_DEMO_NATIVE_VOLUME",
+        cma_sizing_path="CIBO_CMA_MINIMAL_SEED",
         budget_model="ONE_R_X_CERTIFIED_RISK_RESOLUTION",
         base_risk_model="ASSIGNED_CAPITAL_X_0.002",
         strategy_scaler_model=(
@@ -109,6 +122,7 @@ class SizingDecisionReconstruction:
     symbol: str
     sizing_path: str
     sizing_path_observed: bool
+    sizing_authority: SizingAuthority
     status: ReconstructionStatus
     requested_volume: Decimal
     assigned_capital: Decimal
@@ -134,9 +148,19 @@ class SizingDecisionReconstruction:
             raise SizingReconstructionError("assigned_capital must be positive")
         if self.requested_stop_risk <= 0:
             raise SizingReconstructionError("requested_stop_risk must be positive")
-        expected = SIZING_PATH_CONTRACTS[self.trader].sizing_path
-        if self.sizing_path != expected:
+        contract = SIZING_PATH_CONTRACTS[self.trader]
+        if self.sizing_path not in {
+            contract.sizing_path,
+            contract.cma_sizing_path,
+        }:
             raise SizingReconstructionError("sizing_path differs from frozen source contract")
+        expected_authority = (
+            SizingAuthority.CIBO_CMA
+            if self.sizing_path == contract.cma_sizing_path
+            else SizingAuthority.LEGACY_TRADER_SIZING
+        )
+        if self.sizing_authority is not expected_authority:
+            raise SizingReconstructionError("sizing_authority differs from sizing_path")
         if type(self.sizing_path_observed) is not bool:
             raise SizingReconstructionError("sizing_path_observed must be bool")
         if self.status is ReconstructionStatus.COMPLETE and self.missing_fields:
@@ -146,7 +170,6 @@ class SizingDecisionReconstruction:
 
 
 _REQUIRED_COMPLETE_FIELDS = (
-    "strategy_requested_risk_usd",
     "stop_loss_per_volume",
     "requested_margin",
     "margin_per_volume",
@@ -175,9 +198,18 @@ def reconstruct_sizing_decision(
     if raw_sizing_path is None or raw_sizing_path == "":
         sizing_path = contract.sizing_path
         sizing_path_observed = False
+        sizing_authority = SizingAuthority.LEGACY_TRADER_SIZING
     else:
         sizing_path = _required_text(event, "sizing_path")
         sizing_path_observed = True
+        if sizing_path == contract.cma_sizing_path:
+            sizing_authority = SizingAuthority.CIBO_CMA
+        elif sizing_path == contract.sizing_path:
+            sizing_authority = SizingAuthority.LEGACY_TRADER_SIZING
+        else:
+            raise SizingReconstructionError(
+                "sizing_path differs from frozen source contract"
+            )
 
     requested_volume = _required_decimal(event, "requested_volume")
     assigned_capital = _required_decimal(event, "assigned_capital")
@@ -199,6 +231,11 @@ def reconstruct_sizing_decision(
     missing_items: list[str] = []
     if not sizing_path_observed:
         missing_items.append("sizing_path")
+    if (
+        sizing_authority is SizingAuthority.LEGACY_TRADER_SIZING
+        and optional_decimals["strategy_requested_risk_usd"] is None
+    ):
+        missing_items.append("strategy_requested_risk_usd")
     missing_items.extend(
         name
         for name in _REQUIRED_COMPLETE_FIELDS
@@ -239,6 +276,7 @@ def reconstruct_sizing_decision(
         symbol=symbol,
         sizing_path=sizing_path,
         sizing_path_observed=sizing_path_observed,
+        sizing_authority=sizing_authority,
         status=status,
         requested_volume=requested_volume,
         assigned_capital=assigned_capital,
