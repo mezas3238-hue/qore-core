@@ -1,5 +1,9 @@
 from types import SimpleNamespace
+from typing import cast
 
+from qore.infrastructure.trader_lab import (
+    capitalizer_causal_probe_ranker_v10 as v10,
+)
 from qore.infrastructure.trader_lab import (
     capitalizer_hypothesis_survival_model_v21 as v21,
 )
@@ -88,7 +92,7 @@ def test_feature_vector_excludes_identity_and_includes_mode() -> None:
         base_multiplier=0.75,
         mode=v25.MODE_VALUES[0],
     )
-    features = v25._feature_vector(item, pretrade)
+    features = v25._feature_vector(item, cast(v10.Pretrade, pretrade))
     assert features[:3] == (0.1, 0.2, 0.3)
     assert features[3] == 0.75
     assert len(features) == (
