@@ -1,16 +1,8 @@
 name: QORE Capitalizer Recovery Trajectory Trigger V18
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/qore-capitalizer-recovery-trajectory-trigger-v18.yml'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_recovery_trajectory_trigger_v18.py'
-      - 'tests/infrastructure/trader_lab/test_capitalizer_recovery_trajectory_trigger_v18.py'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_factor_journey_probe_ranker_v11.py'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_causal_probe_ranker_v10.py'
   workflow_dispatch:
+
 
 permissions:
   contents: read
