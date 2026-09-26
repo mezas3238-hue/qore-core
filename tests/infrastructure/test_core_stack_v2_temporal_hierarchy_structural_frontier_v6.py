@@ -65,6 +65,7 @@ def _episode(
     source = StructuralFrontierSourceState(
         episode_id=f"e-{index}",
         as_of=at,
+        anchor_direction=1,
         distance_now=distance,
         approach_5m=approach5,
         approach_15m=approach15,
@@ -228,4 +229,30 @@ def test_v6_hierarchy_motif_rejects_unidentifiable_anchor() -> None:
         structural_frontier_hierarchy_motif(
             trajectory=trajectory,
             anchor_direction=0,
+        )
+
+
+
+def test_v6_source_state_requires_identifiable_anchor() -> None:
+    base = _episode(20, terminal=True).source
+
+    with pytest.raises(ValueError, match="identifiable anchor"):
+        StructuralFrontierSourceState(
+            episode_id=base.episode_id,
+            as_of=base.as_of,
+            anchor_direction=0,
+            distance_now=base.distance_now,
+            approach_5m=base.approach_5m,
+            approach_15m=base.approach_15m,
+            rejection_5m=base.rejection_5m,
+            rejection_15m=base.rejection_15m,
+            adverse_close_fraction_5m=base.adverse_close_fraction_5m,
+            volatility_ratio_5m_20m=base.volatility_ratio_5m_20m,
+            peer_adverse_5m=base.peer_adverse_5m,
+            peer_adverse_15m=base.peer_adverse_15m,
+            higher_resilience_minus_fragility=base.higher_resilience_minus_fragility,
+            hierarchy_depth=base.hierarchy_depth,
+            hierarchy_recession_minus_advance=(
+                base.hierarchy_recession_minus_advance
+            ),
         )
