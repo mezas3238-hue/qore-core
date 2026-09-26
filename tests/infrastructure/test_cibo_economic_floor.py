@@ -1,8 +1,12 @@
 from decimal import Decimal
 
+import pytest
+
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_economic_floor import (
+    EconomicFloorError,
     ReconciledPositionEconomics,
+    build_cibo_capital_state,
     evaluate_economic_floor,
 )
 
@@ -104,3 +108,42 @@ def test_cost_reserve_can_keep_base_unrecovered() -> None:
     assert result.net_economic_floor_usd == Decimal("-1")
     assert result.base_capital_at_risk_usd == Decimal("1")
     assert result.base_recovered is False
+
+
+def test_reconciled_floor_builds_cma_capital_state_without_double_counting() -> None:
+    result = evaluate_economic_floor(
+        _economics(
+            realized_net_pnl_usd=Decimal("20"),
+            remaining_stop_worst_case_pnl_usd=Decimal("-5"),
+            future_cost_reserve_usd=Decimal("1"),
+            slippage_reserve_usd=Decimal("1"),
+        )
+    )
+
+    state = build_cibo_capital_state(
+        result,
+        assigned_capital_usd=Decimal("10000"),
+        hard_risk_headroom_usd=Decimal("50"),
+        margin_headroom_usd=Decimal("1000"),
+        cost_reserve_usd=Decimal("2"),
+    )
+
+    assert state.base_capital_at_risk_usd == 0
+    assert state.realized_net_profit_usd == Decimal("20")
+    assert state.protected_open_economic_floor_usd == 0
+    assert state.proven_self_financing_capacity_usd == Decimal("13")
+    assert state.available_self_financing_capacity_usd == Decimal("13")
+
+
+def test_insufficient_floor_cannot_create_cma_capital_state() -> None:
+    result = evaluate_economic_floor(
+        _economics(protection_reconciled=False)
+    )
+
+    with pytest.raises(EconomicFloorError, match="insufficient"):
+        build_cibo_capital_state(
+            result,
+            assigned_capital_usd=Decimal("10000"),
+            hard_risk_headroom_usd=Decimal("50"),
+            margin_headroom_usd=Decimal("1000"),
+        )
