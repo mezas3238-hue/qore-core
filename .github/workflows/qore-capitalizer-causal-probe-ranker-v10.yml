@@ -1,9 +1,9 @@
 name: QORE Capitalizer Causal Probe Ranker V10
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/qore-capitalizer-cognitive-v1-001
+      - main
     paths:
       - '.github/workflows/qore-capitalizer-causal-probe-ranker-v10.yml'
       - 'src/qore/infrastructure/trader_lab/capitalizer_causal_probe_ranker_v10.py'
