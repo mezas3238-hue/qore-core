@@ -142,3 +142,32 @@ def test_time_cannot_move_backwards(tmp_path: Path) -> None:
             observed_at=NOW - timedelta(seconds=1),
             expected_generation=book.generation,
         )
+
+
+def test_persisted_capitalize_can_deescalate_on_evidence_loss(
+    tmp_path: Path,
+) -> None:
+    store = DurableCmaLifecycleStore(tmp_path / "lifecycle.json")
+    book = _register(store)
+    for offset, stage in enumerate(
+        (
+            CapitalStage.OBSERVE,
+            CapitalStage.CAPITALIZE,
+            CapitalStage.OBSERVE,
+        ),
+        start=1,
+    ):
+        book = store.advance(
+            signal_fingerprint="signal-1",
+            position_id=101,
+            target_stage=stage,
+            observed_at=NOW + timedelta(seconds=offset),
+            expected_generation=book.generation,
+        )
+
+    record = book.record_for(
+        signal_fingerprint="signal-1",
+        position_id=101,
+    )
+    assert record is not None
+    assert record.stage is CapitalStage.OBSERVE
