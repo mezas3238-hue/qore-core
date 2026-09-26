@@ -1,9 +1,13 @@
 """Phase-18 serialization instrumentation for immutable VT31 V4 binding.
 
-The source program is the exact historical Execution Binding V4 five-year
-validator. The patch exposes selected trade rows while preserving the exact
-authoritative metrics/Monte Carlo input shape. Geometry added only for Phase 18
-is stripped from the rows used by certified V4 calculations.
+The historical V4 validator must remain byte-for-byte equivalent in economic
+behavior. Rearm geometry needed by Phase 18 is therefore captured from the
+already-computed setup, removed before the original physical execution binding
+runs, and merged back only into the serialized Phase-18 trade rows.
+
+This preserves authoritative V4 metrics, Monte Carlo inputs, binding
+diagnostics, selection, ordering and outcomes while exposing causal geometry for
+the separate CIBO replay.
 """
 
 from __future__ import annotations
@@ -15,7 +19,8 @@ SOURCE_RELATIVE_PATH = (
     "scripts/vt31_nas100_structural_target_execution_binding_5y_v4.py"
 )
 
-_SELECTED_OLD = '''    selected = [
+_PHYSICALIZE_OLD = '''    adjusted, binding_diag = physical._physicalize(rows, by_day=by_day)
+    selected = [
         row for row in adjusted
         if START_DATE
         <= date.fromisoformat(cast(str, row["local_date"]))
@@ -24,24 +29,54 @@ _SELECTED_OLD = '''    selected = [
     metrics = _metrics(selected)
 '''
 
-_SELECTED_NEW = '''    selected = [
+_PHYSICALIZE_NEW = '''    phase18_rearm_geometry = {}
+    authoritative_rows = []
+    for phase18_source_row in rows:
+        authoritative_row = dict(phase18_source_row)
+        if authoritative_row.pop(
+            "_phase18_rearm_geometry_instrumented",
+            False,
+        ):
+            signal_key = str(authoritative_row["signal_at"])
+            if signal_key in phase18_rearm_geometry:
+                raise ValueError("duplicate VT31 Phase-18 rearm signal")
+            phase18_rearm_geometry[signal_key] = (
+                authoritative_row.pop("entry"),
+                authoritative_row.pop("initial_stop"),
+                authoritative_row.pop("structural_target"),
+            )
+        authoritative_rows.append(authoritative_row)
+
+    adjusted, binding_diag = physical._physicalize(
+        authoritative_rows,
+        by_day=by_day,
+    )
+    phase18_adjusted = []
+    for authoritative_row in adjusted:
+        phase18_row = dict(authoritative_row)
+        geometry = phase18_rearm_geometry.get(str(authoritative_row["signal_at"]))
+        if geometry is not None:
+            (
+                phase18_row["entry"],
+                phase18_row["initial_stop"],
+                phase18_row["structural_target"],
+            ) = geometry
+        phase18_adjusted.append(phase18_row)
+
+    selected = [
         row for row in adjusted
         if START_DATE
         <= date.fromisoformat(cast(str, row["local_date"]))
         < END_EXCLUSIVE_DATE
     ]
-    phase18_trade_rows = selected
-    selected = []
-    for phase18_row in phase18_trade_rows:
-        authoritative_row = dict(phase18_row)
-        if authoritative_row.pop(
-            "_phase18_rearm_geometry_instrumented",
-            False,
-        ):
-            authoritative_row.pop("entry", None)
-            authoritative_row.pop("initial_stop", None)
-            authoritative_row.pop("structural_target", None)
-        selected.append(authoritative_row)
+    phase18_trade_rows = [
+        row for row in phase18_adjusted
+        if START_DATE
+        <= date.fromisoformat(cast(str, row["local_date"]))
+        < END_EXCLUSIVE_DATE
+    ]
+    if len(phase18_trade_rows) != len(selected):
+        raise ValueError("VT31 Phase-18 row population drift")
     metrics = _metrics(selected)
 '''
 
@@ -58,14 +93,15 @@ _RESULT_NEW = '''        "five_year_result": {
 
 
 def patch_source(source: str) -> str:
-    selected_count = source.count(_SELECTED_OLD)
+    physicalize_count = source.count(_PHYSICALIZE_OLD)
     result_count = source.count(_RESULT_OLD)
-    if selected_count != 1 or result_count != 1:
+    if physicalize_count != 1 or result_count != 1:
         raise ValueError(
-            "VT31 V4 source drift: expected one selected block and one "
-            f"five_year_result block, got {selected_count}/{result_count}"
+            "VT31 V4 source drift: expected one physicalize/selected block "
+            f"and one five_year_result block, got "
+            f"{physicalize_count}/{result_count}"
         )
-    source = source.replace(_SELECTED_OLD, _SELECTED_NEW, 1)
+    source = source.replace(_PHYSICALIZE_OLD, _PHYSICALIZE_NEW, 1)
     return source.replace(_RESULT_OLD, _RESULT_NEW, 1)
 
 
