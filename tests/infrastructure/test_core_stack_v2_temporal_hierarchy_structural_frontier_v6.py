@@ -337,3 +337,18 @@ def test_v6_fit_protocol_is_frozen() -> None:
             episodes=training,
             ridge=3.0,
         )
+
+
+
+def test_v6_chronological_split_purges_maturing_discovery_labels() -> None:
+    training = _population(300)
+    model = fit_structural_frontier_model(
+        fitted_at=max(item.observed_at for item in training),
+        fit_partition="r8",
+        episodes=training,
+    )
+
+    assert model.purged_discovery_count == 1
+    assert model.discovery_observed_max < model.calibration_source_min
+    assert model.fit_count == 209
+    assert model.calibration_count == 90
