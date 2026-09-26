@@ -772,6 +772,7 @@ def build_report(
         "current_outcome_visible_to_transition": False,
         "future_bars_visible_to_transition": False,
         "original_exit_bar_excluded": True,
+        "market_session_specific_thresholds_used": False,
         "current_outcome_visible_to_decision": False,
         "unchosen_counterfactual_visible_to_decision": False,
         "full_source_recompetition_required_before_freeze": True,
