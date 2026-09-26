@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from qore.infrastructure.trader_lab import (
+    capitalizer_causal_probe_ranker_v10 as v10,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_factor_journey_probe_ranker_v11 as lab,
 )
 
@@ -13,11 +16,11 @@ def test_exposure_graph_preserves_fx_leg_direction() -> None:
 
 
 def test_v11_reuses_v10_pretrade_as_base() -> None:
-    assert lab._BASE_PRETRADE is lab.v10._pretrade
+    assert lab._BASE_PRETRADE is v10._pretrade
 
 
 def test_strict_oos_contract_is_unchanged() -> None:
-    assert lab.v10.STRICT_OOS_PERIODS == (
+    assert v10.STRICT_OOS_PERIODS == (
         "CONSUMED_VALIDATION_2022_2024",
         "CONSUMED_RESERVED_2020_2022",
     )
