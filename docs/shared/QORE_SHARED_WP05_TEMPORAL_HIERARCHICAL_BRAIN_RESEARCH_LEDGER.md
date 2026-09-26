@@ -21,6 +21,30 @@ The frozen consumed-development gate is unchanged:
 - R6 and R5 are consumed falsification only;
 - no fresh holdout may open before a frozen candidate passes both consumed gates.
 
+## 1.1 Immutable consumed market partitions
+
+The V6 workflow recovers these retained evidence artifacts and verifies their
+embedded SHA256 manifests before use:
+
+| Partition | Artifact ID | Raw M1 coverage (NAS100/SP500/US30) |
+| --- | ---: | --- |
+| R8 | `10402199719` | 2016-04-19 00:00 UTC -> 2018-05-18 20:55 UTC |
+| R6 | `10389112524` | 2018-05-20 22:00 UTC -> 2020-06-17 00:00 UTC |
+| R5 | `10380044761` | 2020-06-17 00:00 UTC -> 2022-07-15 20:59 UTC |
+
+All three symbols inside each artifact share the same raw coverage boundaries.
+R8 and R6 are separated by a market-closure gap. R6 ends exactly where R5 raw
+coverage begins; the WP-05 episode builder requires historical lookback plus a
+matured future target, so V6 additionally enforces at the episode level:
+
+```text
+R8.target_max < R6.source_min
+R6.target_max < R5.source_min
+```
+
+Any future evidence replacement that violates this ordered non-overlap gate
+fails the V6 protocol closed.
+
 ## 2. Immutable experiment chain
 
 ### V1 — single-snapshot temporal hierarchy
@@ -187,8 +211,8 @@ Frozen geometry:
 - R6/R5 no refit and no threshold retuning.
 
 Authoritative fixed-anchor candidate:
-- Git SHA: `8838a63d52cb2efdcc84f148623418cbf36b8bfd`;
-- GitHub Actions run: `36273972709`.
+- Git SHA: `f65aeb568a113148017e11429fb0a2370324fe17`;
+- GitHub Actions run: `36274152871`.
 
 Its result must be recorded here only after the workflow produces a
 protocol-valid payload.
