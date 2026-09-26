@@ -106,8 +106,19 @@ jobs:
           assert s["trader_event_timestamps_used"] is False
           assert s["full_market_grid_sampling"] is True
 
+          thresholds = p["r8_source_thresholds"]
+          assert len(thresholds) >= 10
+          assert all(
+              row["control_bps"] < row["exposed_bps"]
+              for row in thresholds.values()
+          )
+
           g = p["governance"]
           assert g["r8_only_used_for_candidate_discovery"] is True
+          assert g["source_thresholds_fit_partition"] == "r8_only"
+          assert g["source_thresholds_target_blind"] is True
+          assert g["r6_used_for_source_threshold_fit"] is False
+          assert g["r5_used_for_source_threshold_fit"] is False
           assert g["r6_used_for_candidate_selection"] is False
           assert g["r5_used_for_candidate_selection"] is False
           assert g["r6_temporally_after_r8"] is True
@@ -165,6 +176,7 @@ jobs:
           - samples: R8={p['sample_counts']['r8']}, R6={p['sample_counts']['r6']}, R5={p['sample_counts']['r5']}
           - screened pairs: {p['screened_pair_count']}
           - R8 candidates: {p['r8_research_candidate_count']}
+          - source exposure/control thresholds: R8-only, target-blind, frozen into R6/R5
           - holdout falsified: {p['holdout_falsified_count']}
           - replicated research relations: {p['replicated_research_relation_count']}
           - temporal split: R8 target max `{ranges['r8']['target_max']}` < R6 source min `{ranges['r6']['source_min']}`; R6 target max `{ranges['r6']['target_max']}` < R5 source min `{ranges['r5']['source_min']}`
