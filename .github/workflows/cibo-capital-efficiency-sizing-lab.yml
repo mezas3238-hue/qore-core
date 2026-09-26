@@ -42,6 +42,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_chronological_replay.py \
             src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py \
             src/qore/infrastructure/cibo_ce2i_phase19_interaction_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py \
             src/qore/infrastructure/cibo_account_capital_mission.py \
             src/qore/infrastructure/cibo_trader_opportunity_adapter.py \
             src/qore/infrastructure/cibo_economic_floor.py \
@@ -91,6 +92,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_chronological_replay.py \
             tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py \
             tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py \
             tests/infrastructure/test_cibo_account_capital_mission.py \
             tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
             tests/infrastructure/test_cibo_economic_floor.py \
@@ -165,6 +167,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_chronological_replay.py \
             src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py \
             src/qore/infrastructure/cibo_ce2i_phase19_interaction_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py \
             src/qore/infrastructure/cibo_account_capital_mission.py \
             src/qore/infrastructure/cibo_trader_opportunity_adapter.py \
             src/qore/infrastructure/cibo_economic_floor.py \
@@ -213,6 +216,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_chronological_replay.py \
             tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py \
             tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py \
             tests/infrastructure/test_cibo_account_capital_mission.py \
             tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
             tests/infrastructure/test_cibo_economic_floor.py \
@@ -268,6 +272,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_chronological_replay.py \
             tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py \
             tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py \
             tests/infrastructure/test_cibo_account_capital_mission.py \
             tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
             tests/infrastructure/test_cibo_economic_floor.py \
