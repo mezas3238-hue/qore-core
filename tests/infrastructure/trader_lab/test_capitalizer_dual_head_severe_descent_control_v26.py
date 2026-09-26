@@ -1,4 +1,5 @@
 from dataclasses import replace
+from decimal import Decimal
 
 from qore.infrastructure.trader_lab import (
     capitalizer_dual_head_severe_descent_control_v26 as v26,
@@ -54,11 +55,11 @@ def test_severe_descent_labels_peak_to_trough_only() -> None:
 
 def test_scaled_control_r_uses_multiplier() -> None:
     row = replace(_decision(0, "-0.5"), base_multiplier="0.5")
-    assert v26._scaled_control_r(row) == v26.Decimal("-0.25")
+    assert v26._scaled_control_r(row) == Decimal("-0.25")
 
 
 def test_v26_frozen_contract() -> None:
     assert v26.POLICY == "INVALIDATING_POSBOTH_SEVEREBOTH_P2"
-    assert v26.SEVERE_DD_R == v26.Decimal("4")
+    assert v26.SEVERE_DD_R == Decimal("4")
     assert v26.SEVERE_CLASS_BOUNDARY == 0.50
     assert v26.PERSISTENCE_REQUIRED == 2
