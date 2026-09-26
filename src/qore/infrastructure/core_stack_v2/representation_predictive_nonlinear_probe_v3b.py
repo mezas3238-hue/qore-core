@@ -23,6 +23,8 @@ from datetime import datetime
 from hashlib import sha256
 from math import isfinite, tanh
 
+import numpy as np
+
 from qore.infrastructure.core_stack_v2.representation_discovery_engine import (
     RepresentationEpisode,
 )
@@ -162,17 +164,13 @@ def _ridge_fit(
     *,
     ridge: float,
 ) -> tuple[float, ...]:
-    width = len(rows[0])
-    gram = [[0.0 for _ in range(width)] for _ in range(width)]
-    rhs = [0.0 for _ in range(width)]
-    for row, value in zip(rows, target, strict=True):
-        for left in range(width):
-            rhs[left] += row[left] * value
-            for right in range(width):
-                gram[left][right] += row[left] * row[right]
-    for index in range(width):
-        gram[index][index] += ridge * len(rows)
-    return tuple(_solve(gram, rhs))
+    design = np.asarray(rows, dtype=np.float64)
+    response = np.asarray(target, dtype=np.float64)
+    gram = design.T @ design
+    gram += ridge * len(rows) * np.eye(design.shape[1], dtype=np.float64)
+    rhs = design.T @ response
+    coefficients = np.linalg.solve(gram, rhs)
+    return tuple(float(value) for value in coefficients)
 
 
 def _bounded_ontology(
