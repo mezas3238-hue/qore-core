@@ -111,7 +111,7 @@ def propose_ce2i_expansion(
     )
     if candidate is None:
         try:
-            proposal = reserve_multi_source_expansion(
+            multi_proposal = reserve_multi_source_expansion(
                 reservation_group_id=reservation_id,
                 request_id=request_id,
                 opportunity=opportunity,
@@ -134,7 +134,7 @@ def propose_ce2i_expansion(
         return Ce2iExpansionPolicyDecision(
             applied_tools=("T11", "T06", "T07", "T19"),
             execution_cap=cap,
-            proposal=proposal,
+            proposal=multi_proposal,
             reason=(
                 "execution-efficient multi-source self-financing expansion "
                 "reserved atomically for Risk review"
@@ -146,7 +146,7 @@ def propose_ce2i_expansion(
         if candidate.source is CapitalSource.REALIZED_PROFIT
         else "T07"
     )
-    proposal = reserve_expansion_proposal(
+    single_proposal = reserve_expansion_proposal(
         reservation_id=reservation_id,
         source_id=candidate.source_id,
         opportunity=opportunity,
@@ -163,7 +163,7 @@ def propose_ce2i_expansion(
     return Ce2iExpansionPolicyDecision(
         applied_tools=("T11", source_code, "T19"),
         execution_cap=cap,
-        proposal=proposal,
+        proposal=single_proposal,
         reason=(
             "execution-efficient self-financing expansion reserved for Risk review"
         ),
