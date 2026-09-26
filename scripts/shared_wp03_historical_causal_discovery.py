@@ -898,6 +898,33 @@ def _same_material_direction(
     )
 
 
+def _partition_range(
+    rows: tuple[_Observation, ...],
+) -> dict[str, str | None]:
+    if not rows:
+        return {
+            "source_min": None,
+            "source_max": None,
+            "target_max": None,
+        }
+    return {
+        "source_min": min(item.source_at for item in rows).isoformat(),
+        "source_max": max(item.source_at for item in rows).isoformat(),
+        "target_max": max(item.target_at for item in rows).isoformat(),
+    }
+
+
+def _strictly_after(
+    earlier: tuple[_Observation, ...],
+    later: tuple[_Observation, ...],
+) -> bool:
+    if not earlier or not later:
+        return False
+    earlier_target_max = max(item.target_at for item in earlier)
+    later_source_min = min(item.source_at for item in later)
+    return earlier_target_max < later_source_min
+
+
 def run(
     *,
     evidence: dict[str, dict[str, Path]],
@@ -913,6 +940,18 @@ def run(
         partition: len(rows)
         for partition, rows in observations.items()
     }
+    partition_ranges = {
+        partition: _partition_range(rows)
+        for partition, rows in observations.items()
+    }
+    r6_temporally_after_r8 = _strictly_after(
+        observations["r8"],
+        observations["r6"],
+    )
+    r5_temporally_after_r6 = _strictly_after(
+        observations["r6"],
+        observations["r5"],
+    )
 
     all_pairs = [
         (source, target)
@@ -1058,6 +1097,8 @@ def run(
     minimum_samples = min(sample_counts.values()) if sample_counts else 0
     protocol_pass = (
         minimum_samples >= PROTOCOL_MINIMUM_SAMPLES
+        and r6_temporally_after_r8
+        and r5_temporally_after_r6
         and len(all_pairs) >= 50
         and all(
             not value
@@ -1072,6 +1113,7 @@ def run(
         "status": status,
         "protocol_pass": protocol_pass,
         "sample_counts": sample_counts,
+        "partition_ranges": partition_ranges,
         "protocol_minimum_samples": PROTOCOL_MINIMUM_SAMPLES,
         "source_extreme_counts": source_extreme_counts,
         "r8_status_counts": dict(sorted(r8_status_counts.items())),
@@ -1096,8 +1138,8 @@ def run(
             "r8_only_used_for_candidate_discovery": True,
             "r6_used_for_candidate_selection": False,
             "r5_used_for_candidate_selection": False,
-            "r6_temporally_after_r8": True,
-            "r5_temporally_after_r6": True,
+            "r6_temporally_after_r8": r6_temporally_after_r8,
+            "r5_temporally_after_r6": r5_temporally_after_r6,
             "matched_counterfactuals_partition_local": True,
             "future_target_used_for_research_evaluation_only": True,
             "trade_direction_used": False,
