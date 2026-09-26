@@ -174,7 +174,7 @@ def test_management_observation_is_passive_and_preserves_vt31_state() -> None:
     assert payload["ps_confirmations"] == 1
     assert (
         sizing_path_for("VT31_NAS100")
-        == "VT31_CERTIFIED_RISK_RESOLUTION_THEN_DEMO_NATIVE_VOLUME"
+        == "CIBO_CMA_MINIMAL_SEED"
     )
 
 
