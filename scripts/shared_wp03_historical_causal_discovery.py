@@ -830,10 +830,11 @@ def _relation_episodes(
     *,
     source: CausalConcept,
     target: CausalConcept,
+    policy: CausalDiscoveryPolicy,
 ) -> tuple[CausalDiscoveryEpisode, ...]:
     controls: dict[tuple[str, str], list[int]] = defaultdict(list)
     for item in observations:
-        if item.source(source) <= CONTROL_BPS:
+        if item.source(source) <= policy.control_threshold_bps:
             controls[(item.confounder_key, item.regime_key)].append(
                 item.target(target)
             )
@@ -847,7 +848,11 @@ def _relation_episodes(
     previous: _Observation | None = None
     for item in observations:
         source_bps = item.source(source)
-        if CONTROL_BPS < source_bps < EXPOSED_BPS:
+        if (
+            policy.control_threshold_bps
+            < source_bps
+            < policy.exposed_threshold_bps
+        ):
             previous = item
             continue
 
@@ -859,18 +864,18 @@ def _relation_episodes(
                 and item.regime_key == previous.regime_key
             )
             switched = (
-                source_bps >= EXPOSED_BPS
-                and previous.source(source) <= CONTROL_BPS
+                source_bps >= policy.exposed_threshold_bps
+                and previous.source(source) <= policy.control_threshold_bps
             ) or (
-                source_bps <= CONTROL_BPS
-                and previous.source(source) >= EXPOSED_BPS
+                source_bps <= policy.control_threshold_bps
+                and previous.source(source) >= policy.exposed_threshold_bps
             )
             natural_intervention = bool(
                 0 < gap <= 35 * 60 and stable_context and switched
             )
 
         counterfactual = None
-        if source_bps >= EXPOSED_BPS:
+        if source_bps >= policy.exposed_threshold_bps:
             counterfactual = matched_control.get(
                 (item.confounder_key, item.regime_key)
             )
@@ -955,6 +960,7 @@ def _assess(
         observations,
         source=source,
         target=target,
+        policy=policy,
     )
     if not episodes:
         return None, ()
