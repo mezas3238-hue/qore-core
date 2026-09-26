@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
-from typing import Mapping
+from collections.abc import Mapping
 
 
 class SizingReconstructionError(ValueError):
