@@ -1,10 +1,12 @@
-"""Phase-18 geometry instrumentation for immutable VT31 rearm rows.
+"""Phase-18 side-channel geometry instrumentation for immutable VT31 rearm rows.
 
 The frozen VT31 V4 lineage already computes each rearm setup's entry, initial
 stop and structural target before the terminal outcome is simulated. Historical
-rearm rows omitted those three causal fields from serialization. This patch
-copies the already-computed setup geometry into the row; it does not change
-authorization, selection, management, sizing, outcomes, or ordering.
+rearm rows omitted those three causal fields from serialization.
+
+This patch captures that already-computed geometry in a module side channel
+keyed by signal_at. It deliberately does not add fields to the historical row,
+so every downstream historical transform sees the exact original row shape.
 """
 
 from __future__ import annotations
@@ -16,28 +18,45 @@ SOURCE_RELATIVE_PATH = (
     "scripts/vt31_nas100_r5_corrective_management_frontier_v1.py"
 )
 
-_OLD = '''            {
-                "local_date": local_day.isoformat(),
-                "rearm_quality_score": score,
-'''
-_NEW = '''            {
-                "local_date": local_day.isoformat(),
-                "_phase18_rearm_geometry_instrumented": True,
-                "entry": format(setup.entry_price, "f"),
-                "initial_stop": format(setup.stop_price, "f"),
-                "structural_target": format(setup.target_price, "f"),
-                "rearm_quality_score": score,
-'''
+_INIT_OLD = """    policy = Vt31R22ExecutionPolicy()
+    raw_rows: list[dict[str, object]] = []
+"""
+_INIT_NEW = """    policy = Vt31R22ExecutionPolicy()
+    global _PHASE18_REARM_GEOMETRY
+    _PHASE18_REARM_GEOMETRY = {}
+    raw_rows: list[dict[str, object]] = []
+"""
+
+_CAPTURE_OLD = """                "used_for_runtime_decision": False,
+            }
+        )
+        raw_rows.append(row)
+"""
+_CAPTURE_NEW = """                "used_for_runtime_decision": False,
+            }
+        )
+        phase18_signal_key = str(row["signal_at"])
+        if phase18_signal_key in _PHASE18_REARM_GEOMETRY:
+            raise ValueError("duplicate VT31 Phase-18 rearm signal")
+        _PHASE18_REARM_GEOMETRY[phase18_signal_key] = (
+            format(setup.entry_price, "f"),
+            format(setup.stop_price, "f"),
+            format(setup.target_price, "f"),
+        )
+        raw_rows.append(row)
+"""
 
 
 def patch_source(source: str) -> str:
-    count = source.count(_OLD)
-    if count != 1:
+    init_count = source.count(_INIT_OLD)
+    capture_count = source.count(_CAPTURE_OLD)
+    if init_count != 1 or capture_count != 1:
         raise ValueError(
-            "VT31 rearm source drift: expected one rearm row-update block, "
-            f"got {count}"
+            "VT31 rearm source drift: expected one init/capture block, "
+            f"got {init_count}/{capture_count}"
         )
-    return source.replace(_OLD, _NEW, 1)
+    source = source.replace(_INIT_OLD, _INIT_NEW, 1)
+    return source.replace(_CAPTURE_OLD, _CAPTURE_NEW, 1)
 
 
 def patch_file(source_path: Path, output_path: Path) -> None:
