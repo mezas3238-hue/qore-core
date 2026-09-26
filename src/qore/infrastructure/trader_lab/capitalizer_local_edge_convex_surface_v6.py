@@ -50,10 +50,10 @@ from qore.infrastructure.trader_lab import (
 from qore.infrastructure.trader_lab import (
     capitalizer_max_recovery_direct_m1_replay_v1 as direct,
 )
+from qore.infrastructure.trader_lab import capitalizer_native_market_context_v1 as context
 from qore.infrastructure.trader_lab import (
     capitalizer_surface_selective_frozen_holdout_v1 as frozen,
 )
-from qore.infrastructure.trader_lab import capitalizer_native_market_context_v1 as context
 
 IDENTITY = "QORE_CAPITALIZER_LOCAL_EDGE_CONVEX_SURFACE_V6"
 BASE_POSITION_POLICY = "CONTEXT_STABILITY_STAGE"
