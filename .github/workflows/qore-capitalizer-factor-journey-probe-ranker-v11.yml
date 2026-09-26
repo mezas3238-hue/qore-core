@@ -1,0 +1,147 @@
+name: QORE Capitalizer Factor Journey Probe Ranker V11
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/qore-capitalizer-factor-journey-probe-ranker-v11.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_factor_journey_probe_ranker_v11.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_factor_journey_probe_ranker_v11.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_causal_probe_ranker_v10.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-factor-journey-probe-ranker-v11-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  DEV_DIRECT_RUN_ID: '36196002610'
+  DEV_DIRECT_SHA: 'ddd00209e50d5ec16c8cb94f34e9e5e95f401839'
+  DEV_CONTEXT_RUN_ID: '36211415438'
+  DEV_CONTEXT_SHA: 'c652b1e5a5181ba95ac6f10ea5c95bf808a0c8a7'
+  RESERVED_SOURCE_RUN_ID: '36215082659'
+  RESERVED_SOURCE_SHA: '9132b8b74938b8f142d946ab8717bf66840a18d2'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_factor_journey_probe_ranker_v11.py \
+            tests/infrastructure/trader_lab/test_capitalizer_factor_journey_probe_ranker_v11.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_factor_journey_probe_ranker_v11.py \
+            tests/infrastructure/trader_lab/test_capitalizer_factor_journey_probe_ranker_v11.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_factor_journey_probe_ranker_v11.py
+
+  experiment:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download development ledgers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-max-recovery-direct-m1-dev-*-${{ env.DEV_DIRECT_SHA }}
+          path: development-input
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DEV_DIRECT_RUN_ID }}
+      - name: Download validation ledgers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-max-recovery-direct-m1-holdout-*-${{ env.DEV_DIRECT_SHA }}
+          path: validation-input
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DEV_DIRECT_RUN_ID }}
+      - name: Download development and validation contexts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-native-market-context-v1-*-${{ env.DEV_CONTEXT_SHA }}
+          path: development-validation-context
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DEV_CONTEXT_RUN_ID }}
+      - name: Download consumed reserved ledgers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-max-recovery-direct-m1-reserved-*-${{ env.RESERVED_SOURCE_SHA }}
+          path: reserved-input
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.RESERVED_SOURCE_RUN_ID }}
+      - name: Download consumed reserved contexts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-native-market-context-v1-reserved-*-${{ env.RESERVED_SOURCE_SHA }}
+          path: reserved-context
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.RESERVED_SOURCE_RUN_ID }}
+      - name: Run V11
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_factor_journey_probe_ranker_v11 \
+            development-input validation-input reserved-input \
+            development-validation-context reserved-context experiment-output
+      - name: Enforce V11 causal contract
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "experiment-output/capitalizer-factor-journey-probe-ranker-v11.json"
+              ).read_text()
+          )
+          assert report["feature_delta_only_vs_v10"] is True
+          assert report["ranker_hyperparameters_inherited_from_v10"] is True
+          assert report["ranker_policies_inherited_from_v10"] is True
+          assert report["open_exposure_uses_structural_unit_risk_only"] is True
+          assert report["active_trade_outcomes_visible_to_features"] is False
+          assert report["journey_outcomes_require_prior_close"] is True
+          assert report["strict_oos_periods"] == [
+              "CONSUMED_VALIDATION_2022_2024",
+              "CONSUMED_RESERVED_2020_2022",
+          ]
+          assert report["current_outcome_visible_to_decision"] is False
+          assert report["unchosen_counterfactual_visible_to_decision"] is False
+          assert report["all_entries_preserved"] is True
+          assert report["target_r"] == "2.00"
+          assert report["max3_preserved"] is True
+          for result in report["results"]:
+              for row in result["heldouts"].values():
+                  assert Decimal(row["density_retention"]) == Decimal("1")
+          assert report["automatic_policy_promotion"] is False
+          assert report["trader_certified"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-factor-journey-probe-ranker-v11-${{ github.sha }}
+          path: experiment-output
+          retention-days: 90
