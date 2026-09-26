@@ -3,6 +3,9 @@ from __future__ import annotations
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab import (
+    capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_recovery_probe_position_survival_v16 as lab,
 )
 
@@ -27,13 +30,13 @@ def _model(period: str, arm: str | None) -> lab.PeriodArmModel:
 
 
 def test_pair_consensus_requires_same_non_null_arm() -> None:
-    arm = lab.milestone.ProtectionMode.BE_AFTER_075.value
+    arm = milestone.ProtectionMode.BE_AFTER_075.value
     assert lab._pair_consensus(_model("A", arm), _model("B", arm)) == arm
     assert lab._pair_consensus(_model("A", arm), _model("B", None)) is None
     assert (
         lab._pair_consensus(
             _model("A", arm),
-            _model("B", lab.milestone.ProtectionMode.STAGED_050_100_150.value),
+            _model("B", milestone.ProtectionMode.STAGED_050_100_150.value),
         )
         is None
     )
@@ -50,6 +53,6 @@ def test_recovery_policy_grid_preserves_surface_risk() -> None:
 
 
 def test_arms_are_existing_position_intelligence_modes() -> None:
-    allowed = {mode.value for mode in lab.milestone.ProtectionMode}
+    allowed = {mode.value for mode in milestone.ProtectionMode}
     assert set(lab.ARMS).issubset(allowed)
-    assert lab.milestone.ProtectionMode.ORIGINAL.value not in lab.ARMS
+    assert milestone.ProtectionMode.ORIGINAL.value not in lab.ARMS
