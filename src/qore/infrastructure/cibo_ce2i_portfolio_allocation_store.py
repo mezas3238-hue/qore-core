@@ -125,21 +125,6 @@ class DurablePortfolioAllocationStore:
             finally:
                 self._release_writer_lock()
 
-    def allocate_and_store(
-        self,
-        candidates: tuple,
-        *,
-        expected_generation: int,
-    ) -> tuple[VersionedPortfolioAllocationLedger, object]:
-        """Deprecated generic surface intentionally forbidden.
-
-        Callers must load, type-check candidates in the competition layer,
-        invoke ledger.allocate_and_reserve(), then store with CAS.
-        """
-        raise DurablePortfolioAllocationError(
-            "typed allocation must occur before durable store mutation"
-        )
-
     def _load_existing_unlocked(self) -> VersionedPortfolioAllocationLedger:
         if not self._path.exists():
             raise DurablePortfolioAllocationError(
