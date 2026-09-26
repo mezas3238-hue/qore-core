@@ -31,8 +31,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from hashlib import sha256
 from math import isfinite, sqrt, tanh
+from collections.abc import Mapping, Sequence
 from statistics import median
-from typing import Final, Mapping, Sequence
+from typing import Final
 
 from qore.infrastructure.core_stack_v2.representation_discovery_engine import (
     LatentConceptActivation,
