@@ -134,6 +134,7 @@ class TemporalHierarchyModel:
     intercept_micros: int
     declaration_threshold_micros: int
     minimum_training_recall_bps: int
+    threshold_calibration_recall_bps: int
     baseline_training_count: int
     baseline_terminal_count: int
     target_used_for_training_only: bool = True
@@ -166,6 +167,12 @@ class TemporalHierarchyModel:
             raise ValueError("feature scales must be positive")
         if not 0 <= self.minimum_training_recall_bps <= 10_000:
             raise ValueError("minimum_training_recall_bps out of range")
+        if not (
+            self.minimum_training_recall_bps
+            <= self.threshold_calibration_recall_bps
+            <= 10_000
+        ):
+            raise ValueError("threshold calibration recall must dominate gate")
         if self.baseline_training_count < 1:
             raise ValueError("baseline training population must be non-empty")
         if self.baseline_terminal_count < 1:
@@ -571,8 +578,9 @@ def fit_temporal_hierarchy_model(
         for score, item in zip(scores, opposed, strict=True)
         if item.terminal_failure
     )
+    calibration_recall_bps = max(minimum_training_recall_bps, 9_900)
     allowed_misses = (
-        terminal_count * (10_000 - minimum_training_recall_bps) // 10_000
+        terminal_count * (10_000 - calibration_recall_bps) // 10_000
     )
     rank = min(len(positive_scores) - 1, allowed_misses)
     threshold = positive_scores[rank]
@@ -596,6 +604,7 @@ def fit_temporal_hierarchy_model(
         intercept_micros=int(round(intercept * 1_000_000)),
         declaration_threshold_micros=threshold,
         minimum_training_recall_bps=minimum_training_recall_bps,
+        threshold_calibration_recall_bps=calibration_recall_bps,
         baseline_training_count=len(opposed),
         baseline_terminal_count=terminal_count,
     )
