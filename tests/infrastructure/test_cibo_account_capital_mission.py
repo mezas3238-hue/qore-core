@@ -11,6 +11,7 @@ from qore.infrastructure.cibo_account_capital_mission import (
 )
 from qore.infrastructure.cibo_ce2i_tool_registry import (
     CE2I_TOOL_REGISTRY,
+    Ce2iToolContract,
     ToolMaturity,
 )
 from qore.infrastructure.market_test_environment import (
@@ -19,7 +20,7 @@ from qore.infrastructure.market_test_environment import (
 )
 
 
-def _tool(code: str):
+def _tool(code: str) -> Ce2iToolContract:
     return next(item for item in CE2I_TOOL_REGISTRY if item.code == code)
 
 
