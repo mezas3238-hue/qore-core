@@ -13,7 +13,35 @@ from dataclasses import dataclass
 from typing import Final
 
 
-PROGRAM_ID: Final = "QORE_META_COGNITIVE_SCIENTIFIC_INTELLIGENCE_003"
+PROGRAM_ID: Final = "QORE_META_COGNITIVE_SCIENTIFIC_INTELLIGENCE_004"
+
+
+TRANSVERSAL_ARCHITECTURE_REQUIREMENTS: Final = (
+    "COGNITIVE_FIREWALL",
+    "MARKET_CORE_COGNITIVE_REALITY_PLANES",
+    "QORE_CORE_DIGITAL_TWIN",
+    "INFRASTRUCTURE_INTELLIGENCE",
+    "BROKER_INTELLIGENCE",
+    "UNKNOWN_WORLD_FIRST_CLASS",
+    "REFLEXIVITY_ENGINE",
+    "NEGATIVE_EVIDENCE_ENGINE",
+    "ACTIVE_PERCEPTION",
+    "VALUE_OF_INFORMATION",
+    "SELF_MODEL",
+    "VALUE_OF_COMPUTATION",
+    "COGNITIVE_FAILURE_MEMORY",
+    "KNOWLEDGE_HALF_LIFE",
+    "KNOWLEDGE_TRANSPORTABILITY",
+    "MARKET_INVARIANT_DISCOVERY",
+    "ONTOLOGY_EVOLUTION",
+    "BLINDSPOT_ENGINE",
+    "PROVENANCE_GRAPH",
+    "ANTI_HALLUCINATION_ABSTENTION",
+    "SECURITY_TRUST_BOUNDARIES",
+    "DEGRADED_MODE",
+    "RUNTIME_COGNITIVE_TIERS",
+    "DISTRIBUTED_COGNITIVE_ATTENTION",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +70,10 @@ WORK_CHAIN: Final = (
         (),
         (
             "continuous_market_world_state",
+            "market_core_cognitive_reality_planes",
+            "qore_core_digital_twin",
+            "infrastructure_observation_state",
+            "broker_observation_state",
             "observable_state",
             "latent_state",
             "behavior_state",
@@ -71,6 +103,7 @@ WORK_CHAIN: Final = (
             "inventory_or_agency_world",
             "macro_or_event_world",
             "unknown_regime_world",
+            "reflexive_or_crowding_world",
             "posterior_world_weights",
             "world_model_disagreement",
         ),
@@ -110,6 +143,8 @@ WORK_CHAIN: Final = (
             "episode_clusters",
             "predictive_contribution",
             "interpretable_probes",
+            "ontology_evolution_candidates",
+            "market_invariant_candidates",
         ),
         (
             "out_of_sample_incremental_information",
@@ -134,6 +169,10 @@ WORK_CHAIN: Final = (
             "weekly_state",
             "macro_regime_state",
             "cross_level_reconciliation",
+            "bottom_up_causal_propagation",
+            "top_down_context_conditioning",
+            "critical_transition_state",
+            "recovery_and_irreversibility_state",
         ),
         (
             "local_pressure_not_equal_structural_reversal",
@@ -186,6 +225,9 @@ WORK_CHAIN: Final = (
         ("WP-07",),
         (
             "belief_provenance",
+            "negative_evidence",
+            "active_perception_requests",
+            "value_of_information",
             "supporting_evidence",
             "contradicting_evidence",
             "assumptions",
@@ -256,6 +298,9 @@ WORK_CHAIN: Final = (
         ("WP-10",),
         (
             "stable_certified_knowledge",
+            "knowledge_half_life",
+            "knowledge_transportability",
+            "cognitive_failure_memory",
             "recent_validated_adaptation",
             "experimental_knowledge",
             "versioning",
@@ -277,6 +322,13 @@ WORK_CHAIN: Final = (
         ("WP-11",),
         (
             "self_prediction_diagnosis",
+            "self_model",
+            "meta_reasoning_policy",
+            "value_of_computation",
+            "runtime_cognitive_tiers",
+            "distributed_cognitive_attention",
+            "blindspot_engine",
+            "core_health_cognition",
             "misunderstanding_detection",
             "overconfidence_detection",
             "failing_world_model_detection",
