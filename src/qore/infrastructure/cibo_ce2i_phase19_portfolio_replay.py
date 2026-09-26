@@ -1,17 +1,21 @@
-"""Phase 19 integrated-portfolio replay readiness contract.
+"""Phase 19 integrated-portfolio replay readiness and chronology contracts.
 
-Phase 19 may combine Traders only when every required Phase-18 lineage is bound
-and its provider economics are comparable in USD.  R-denominated Trader results
-remain valid evidence, but their heterogeneous R units must never be summed into
-one portfolio capital pool.
+Phase 19 may combine Traders in one chronological market timeline when every
+required Phase-18 lineage is bound. USD capital arithmetic is a stronger claim:
+it is authorized only when every lineage also carries comparable provider
+economics.
 
-Research-only.  This module does not reserve capital, call QORE Risk, or mutate
+R-denominated Trader results remain valid evidence, but heterogeneous R units
+must never be summed into one portfolio capital pool.
+
+Research-only. This module does not reserve capital, call QORE Risk, or mutate
 broker state.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 
 from qore.infrastructure.account_wide_risk import TraderLineage
@@ -66,6 +70,7 @@ class Phase19TraderEvidence:
 class Phase19Readiness:
     status: Phase19ReadinessStatus
     phase18_population_complete: bool
+    chronology_replay_authorized: bool
     usd_portfolio_replay_authorized: bool
     cross_trader_r_aggregation_authorized: bool
     bound_traders: tuple[TraderLineage, ...]
@@ -76,6 +81,10 @@ class Phase19Readiness:
         if self.cross_trader_r_aggregation_authorized:
             raise CiboCapitalManagementError(
                 "heterogeneous cross-Trader R aggregation is forbidden"
+            )
+        if self.chronology_replay_authorized != self.phase18_population_complete:
+            raise CiboCapitalManagementError(
+                "Phase 19 chronology authorization/population mismatch"
             )
         if self.usd_portfolio_replay_authorized != (
             self.status
@@ -90,10 +99,58 @@ class Phase19Readiness:
             )
 
 
+@dataclass(frozen=True, slots=True)
+class Phase19ChronologicalOpportunity:
+    trader_id: TraderLineage
+    signal_fingerprint: str
+    qore_symbol: str
+    entry_at: datetime
+    exit_at: datetime
+
+    def __post_init__(self) -> None:
+        if self.trader_id not in PHASE19_REQUIRED_TRADERS:
+            raise CiboCapitalManagementError(
+                "Phase 19 opportunity trader is outside supported CMA portfolio"
+            )
+        if not self.signal_fingerprint or not self.qore_symbol:
+            raise CiboCapitalManagementError(
+                "Phase 19 opportunity identity must be non-empty"
+            )
+        for name, value in (("entry_at", self.entry_at), ("exit_at", self.exit_at)):
+            if value.tzinfo is None or value.utcoffset() is None:
+                raise CiboCapitalManagementError(
+                    f"Phase 19 {name} must be timezone-aware"
+                )
+        if self.exit_at <= self.entry_at:
+            raise CiboCapitalManagementError(
+                "Phase 19 opportunity exit must be strictly after entry"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class Phase19IntegratedTimeline:
+    opportunities: tuple[Phase19ChronologicalOpportunity, ...]
+    trader_population: tuple[TraderLineage, ...]
+    max_concurrent_positions: int
+    overlapping_position_pairs: int
+    usd_capital_arithmetic_performed: bool
+    cross_trader_r_aggregation_performed: bool
+
+    def __post_init__(self) -> None:
+        if self.usd_capital_arithmetic_performed:
+            raise CiboCapitalManagementError(
+                "chronology-only Phase 19 timeline cannot perform USD arithmetic"
+            )
+        if self.cross_trader_r_aggregation_performed:
+            raise CiboCapitalManagementError(
+                "chronology-only Phase 19 timeline cannot aggregate Trader R"
+            )
+
+
 def assess_phase19_readiness(
     evidence: tuple[Phase19TraderEvidence, ...],
 ) -> Phase19Readiness:
-    """Assess whether integrated USD portfolio replay is scientifically legal."""
+    """Assess legal replay depth from independently bound Phase-18 evidence."""
 
     trader_ids = tuple(item.trader_id for item in evidence)
     if len(trader_ids) != len(set(trader_ids)):
@@ -125,9 +182,11 @@ def assess_phase19_readiness(
     else:
         status = Phase19ReadinessStatus.READY_FOR_USD_PORTFOLIO_REPLAY
 
+    population_complete = not missing
     return Phase19Readiness(
         status=status,
-        phase18_population_complete=not missing,
+        phase18_population_complete=population_complete,
+        chronology_replay_authorized=population_complete,
         usd_portfolio_replay_authorized=(
             status is Phase19ReadinessStatus.READY_FOR_USD_PORTFOLIO_REPLAY
         ),
@@ -135,4 +194,88 @@ def assess_phase19_readiness(
         bound_traders=bound,
         missing_traders=missing,
         provider_economics_incomplete=incomplete,
+    )
+
+
+def build_phase19_integrated_timeline(
+    opportunities: tuple[Phase19ChronologicalOpportunity, ...],
+    *,
+    readiness: Phase19Readiness,
+) -> Phase19IntegratedTimeline:
+    """Merge seven Trader paths without performing capital or R arithmetic."""
+
+    if not isinstance(readiness, Phase19Readiness):
+        raise CiboCapitalManagementError(
+            "Phase 19 readiness must be Phase19Readiness"
+        )
+    if not readiness.chronology_replay_authorized:
+        raise CiboCapitalManagementError(
+            "Phase 19 chronology replay requires complete Phase-18 population"
+        )
+    if not opportunities:
+        raise CiboCapitalManagementError(
+            "Phase 19 integrated timeline requires opportunities"
+        )
+
+    keys = tuple(
+        (item.trader_id, item.signal_fingerprint) for item in opportunities
+    )
+    if len(keys) != len(set(keys)):
+        raise CiboCapitalManagementError(
+            "duplicate Phase 19 Trader signal fingerprint"
+        )
+
+    population_set = {item.trader_id for item in opportunities}
+    missing_population = tuple(
+        trader for trader in PHASE19_REQUIRED_TRADERS if trader not in population_set
+    )
+    if missing_population:
+        raise CiboCapitalManagementError(
+            "Phase 19 integrated timeline is missing Trader population"
+        )
+
+    ordered = tuple(
+        sorted(
+            opportunities,
+            key=lambda item: (
+                item.entry_at,
+                item.trader_id.value,
+                item.signal_fingerprint,
+            ),
+        )
+    )
+
+    events: list[tuple[datetime, int]] = []
+    for item in ordered:
+        events.append((item.entry_at, 1))
+        events.append((item.exit_at, -1))
+    events.sort(key=lambda event: (event[0], event[1]))
+
+    concurrent = 0
+    max_concurrent = 0
+    for _at, delta in events:
+        concurrent += delta
+        if concurrent < 0:
+            raise CiboCapitalManagementError(
+                "Phase 19 timeline concurrency accounting drift"
+            )
+        max_concurrent = max(max_concurrent, concurrent)
+    if concurrent != 0:
+        raise CiboCapitalManagementError(
+            "Phase 19 timeline did not return to zero concurrency"
+        )
+
+    overlap_pairs = 0
+    for left_index, left in enumerate(ordered):
+        for right in ordered[left_index + 1 :]:
+            if left.entry_at < right.exit_at and right.entry_at < left.exit_at:
+                overlap_pairs += 1
+
+    return Phase19IntegratedTimeline(
+        opportunities=ordered,
+        trader_population=PHASE19_REQUIRED_TRADERS,
+        max_concurrent_positions=max_concurrent,
+        overlapping_position_pairs=overlap_pairs,
+        usd_capital_arithmetic_performed=False,
+        cross_trader_r_aggregation_performed=False,
     )
