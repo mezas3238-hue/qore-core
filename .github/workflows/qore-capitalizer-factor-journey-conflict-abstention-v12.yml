@@ -132,6 +132,10 @@ jobs:
           assert report[
               "abstention_only_when_both_training_lower_tails_negative"
           ] is True
+          assert report["exact_timestamp_competition_bound"] is True
+          assert report["simultaneous_peer_outcomes_visible_to_features"] is False
+          assert report["competition_selects_winner"] is False
+          assert int(report["simultaneous_cluster_count"]) > 0
           assert report["target_r"] == "2.00"
           assert report["max3_ceiling_preserved"] is True
           for result in report["results"]:
