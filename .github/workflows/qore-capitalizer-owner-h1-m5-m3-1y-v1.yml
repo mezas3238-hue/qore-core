@@ -1,0 +1,189 @@
+name: QORE Capitalizer Owner H1-M5-M3 1Y V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-owner-h1-m5-m3-1y-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_owner_h1_m5_m3_1y_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_owner_h1_m5_m3_1y_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-owner-h1-m5-m3-1y-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_M1_RUN_ID: '35548099334'
+  SOURCE_M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_owner_h1_m5_m3_1y_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_owner_h1_m5_m3_1y_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_owner_h1_m5_m3_1y_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_owner_h1_m5_m3_1y_v1.py
+
+  market:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - {symbol: USDJPY, session: ASIA}
+          - {symbol: AUDJPY, session: ASIA}
+          - {symbol: AUDUSD, session: ASIA}
+          - {symbol: GBPJPY, session: ASIA}
+          - {symbol: EURUSD, session: LONDON}
+          - {symbol: GBPUSD, session: LONDON}
+          - {symbol: XAUUSD, session: NEW_YORK}
+          - {symbol: USDCAD, session: NEW_YORK}
+          - {symbol: NAS100, session: NEW_YORK}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download immutable native-M1 clone
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.SOURCE_M1_SHA }}
+          path: m1-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M1_RUN_ID }}
+      - name: Run frozen B-M3 replay
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_owner_h1_m5_m3_1y_v1 \
+            market m1-source replay-output --session ${{ matrix.session }}
+      - name: Enforce research boundary
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+          EXPECTED_SESSION: ${{ matrix.session }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          path = Path("replay-output") / (
+              f"capitalizer-{symbol.lower()}-owner-h1-m5-m3-1y-v1.json"
+          )
+          report = json.loads(path.read_text())
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_OWNER_H1_M5_M3_1Y_V1"
+          )
+          assert report["symbol"] == symbol
+          assert report["session"] == os.environ["EXPECTED_SESSION"]
+          assert report["parent_structure_timeframe"] == "M5"
+          assert report["entry_timeframe"] == "M3"
+          assert report["m5_cisd_required"] is True
+          assert report["m5_mss_required"] is True
+          assert report["m3_mss_required"] is False
+          assert report["m3_trigger_logic"] == "INVERSION_FVG_OR_CISD"
+          assert report["entry_mode_logic"] == "FVG_CE_50_OR_OB_FVG_RETEST"
+          assert report["time_exit"] == "NEXT_H1_OPEN"
+          assert report["m1_intrabar_only"] is True
+          assert report["m15_gate_required"] is False
+          assert report["architecture_predeclared"] is True
+          assert report["max3_is_ceiling_not_quota"] is True
+          assert report["methodology_research_only"] is True
+          assert report["m1_can_originate_trade"] is False
+          assert report["fresh_holdout_claimed"] is False
+          assert report["rule_promotion_allowed"] is False
+          assert report["economic_candidate"] is False
+          assert report["trader_certified"] is False
+          assert report["live_authorized"] is False
+          assert report["real_capital_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-owner-h1-m5-m3-1y-${{ matrix.symbol }}-${{ github.sha }}
+          path: replay-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-owner-h1-m5-m3-1y-*-${{ github.sha }}
+          path: replay-input
+          merge-multiple: false
+      - name: Build nine-market matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_owner_h1_m5_m3_1y_v1 \
+            matrix replay-input matrix-output
+      - name: Enforce aggregate boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path(
+              "matrix-output/"
+              "capitalizer-nine-market-owner-h1-m5-m3-1y-matrix-v1.json"
+          )
+          report = json.loads(path.read_text())
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_NINE_MARKET_"
+              "OWNER_H1_M5_M3_1Y_MATRIX_V1"
+          )
+          assert report["architecture"] == "H1_BIAS_TO_LIQUIDITY_SWEEP_TO_M5_CISD_MSS_TSPOT_TO_M3"
+          assert report["architecture_predeclared"] is True
+          assert report["parent_structure_timeframe"] == "M5"
+          assert report["entry_timeframe"] == "M3"
+          assert report["m5_cisd_required"] is True
+          assert report["m5_mss_required"] is True
+          assert report["m1_intrabar_only"] is True
+          assert report["m15_gate_required"] is False
+          assert report["market_count"] == 9
+          assert report["max3_is_ceiling_not_quota"] is True
+          assert report["methodology_research_only"] is True
+          assert report["m1_can_originate_trade"] is False
+          assert report["fresh_holdout_claimed"] is False
+          assert report["economic_candidate"] is False
+          assert report["trader_certified"] is False
+          assert report["live_authorized"] is False
+          assert report["real_capital_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-nine-market-owner-h1-m5-m3-1y-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90

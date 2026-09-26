@@ -1,0 +1,269 @@
+name: QORE Capitalizer Native M1 Nine Market Replay V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-native-m1-nine-market-replay-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_cibo_10y_m1_clone_v1.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_cibo_m1_reader_v1.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_native_m1_entry_replay_v1.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_dual_source_entry_acceptance_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_native_m1_entry_replay_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_dual_source_entry_acceptance_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_source_observation_engine_v2.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_source_ftm_observation_engine_v2.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-native-m1-nine-market-replay-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  SOURCE_REPLAY_RUN_ID: '35528346941'
+  SOURCE_REPLAY_SHA: 'e0338846170003fd7b346c98883f63257b6cdf45'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev,ctrader]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_cibo_10y_m1_clone_v1.py \
+            src/qore/infrastructure/trader_lab/capitalizer_cibo_m1_reader_v1.py \
+            src/qore/infrastructure/trader_lab/capitalizer_native_m1_entry_replay_v1.py \
+            src/qore/infrastructure/trader_lab/capitalizer_dual_source_entry_acceptance_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_native_m1_entry_replay_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_dual_source_entry_acceptance_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_source_observation_engine_v2.py \
+            tests/infrastructure/trader_lab/test_capitalizer_source_ftm_observation_engine_v2.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_cibo_10y_m1_clone_v1.py \
+            src/qore/infrastructure/trader_lab/capitalizer_cibo_m1_reader_v1.py \
+            src/qore/infrastructure/trader_lab/capitalizer_native_m1_entry_replay_v1.py \
+            src/qore/infrastructure/trader_lab/capitalizer_dual_source_entry_acceptance_v1.py \
+            src/qore/infrastructure/ctrader_demo_account_discovery.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_native_m1_entry_replay_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_dual_source_entry_acceptance_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_source_observation_engine_v2.py \
+            tests/infrastructure/trader_lab/test_capitalizer_source_ftm_observation_engine_v2.py
+
+  replay:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 480
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - symbol: USDJPY
+            session: ASIA
+          - symbol: AUDJPY
+            session: ASIA
+          - symbol: AUDUSD
+            session: ASIA
+          - symbol: GBPJPY
+            session: ASIA
+          - symbol: EURUSD
+            session: LONDON
+          - symbol: GBPUSD
+            session: LONDON
+          - symbol: XAUUSD
+            session: NEW_YORK
+          - symbol: USDCAD
+            session: NEW_YORK
+          - symbol: NAS100
+            session: NEW_YORK
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE cTrader runtime
+        run: python -m pip install -e '.[ctrader]'
+      - name: Verify read-only cTrader inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || { echo "missing required read-only DEMO input: $name" >&2; exit 2; }
+          done
+      - name: Discover DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Download unchanged higher-level Capitalizer candidate ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-three-session-replay-cell-${{ matrix.symbol }}-${{ env.SOURCE_REPLAY_SHA }}
+          path: higher-setup
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_REPLAY_RUN_ID }}
+      - name: Clone ten-year provider-native M1 companion
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cibo_10y_m1_clone_v1             "${{ matrix.symbol }}" m1-source
+      - name: Verify native M1 clone provenance
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          payload = json.loads(Path("m1-source/m1-clone-manifest.json").read_text())
+          assert payload["identity"] == "QORE_CAPITALIZER_CIBO_10Y_NATIVE_M1_CLONE_V1"
+          assert payload["canonical_symbol"] == os.environ["EXPECTED_SYMBOL"]
+          assert payload["target_start"] == "2016-09-17T00:00:00+00:00"
+          assert payload["target_end_exclusive"] == "2026-09-17T00:00:00+00:00"
+          assert payload["retained_m1"] > 0
+          assert payload["provider_native_m1"] is True
+          assert payload["synthetic_m1"] is False
+          assert payload["interpolated_m1"] is False
+          assert payload["contradictory_m1"] == 0
+          assert payload["read_only"] is True
+          assert payload["live_authorized"] is False
+          assert payload["real_capital_authorized"] is False
+          PY
+      - name: Run unchanged-methodology native M1 entry replay
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_native_m1_entry_replay_v1             market higher-setup m1-source market-output
+      - name: Enforce methodology and M1 entry invariants
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+          EXPECTED_SESSION: ${{ matrix.session }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          session = os.environ["EXPECTED_SESSION"]
+          path = Path("market-output") / f"capitalizer-{symbol.lower()}-native-m1-entry-replay-v1.json"
+          result = json.loads(path.read_text())
+          assert result["identity"] == "QORE_CAPITALIZER_NATIVE_M1_ENTRY_REPLAY_V1"
+          assert result["symbol"] == symbol
+          assert result["session"] == session
+          assert result["higher_level_candidates"] > 0
+          assert result["methodology_changed"] is False
+          assert result["higher_level_setup_changed"] is False
+          assert result["session_contract_changed"] is False
+          assert result["target_contract_changed"] is False
+          assert result["stop_contract_changed"] is False
+          assert result["entry_timeframe"] == "M1_NATIVE"
+          assert result["m1_mss_required"] is True
+          assert result["m1_fvg_required"] is True
+          assert result["m1_order_block_required"] is True
+          assert result["synthetic_m1_used"] is False
+          assert result["interpolated_m1_used"] is False
+          assert result["outcome_aware_selection"] is False
+          assert result["fresh_holdout_claimed"] is False
+          assert result["economic_candidate"] is False
+          assert result["trader_certified"] is False
+          assert result["m1_entries"] >= 0
+          assert result["sessions_over_max3"] >= 0
+          assert result["max_entries_one_session"] >= 0
+          assert result["live_authorized"] is False
+          assert result["real_capital_authorized"] is False
+          PY
+      - name: Upload immutable native M1 clone
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ github.sha }}
+          path: m1-source
+          if-no-files-found: error
+          retention-days: 90
+      - name: Upload native M1 replay report
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-native-m1-entry-replay-${{ matrix.symbol }}-${{ github.sha }}
+          path: market-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: replay
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download nine native M1 replay reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-native-m1-entry-replay-*-${{ github.sha }}
+          path: market-reports
+          merge-multiple: false
+      - name: Build nine-market native M1 matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_native_m1_entry_replay_v1             matrix market-reports matrix-output
+      - name: Enforce unchanged methodology matrix
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          result = json.loads(
+              Path("matrix-output/capitalizer-nine-market-native-m1-entry-replay-v1.json").read_text()
+          )
+          assert result["identity"] == "QORE_CAPITALIZER_NINE_MARKET_NATIVE_M1_ENTRY_REPLAY_V1"
+          assert len(result["markets"]) == 9
+          assert result["total_higher_level_candidates"] == 55532
+          assert result["methodology_changed"] is False
+          assert result["entry_timeframe"] == "M1_NATIVE"
+          assert result["m1_mss_required"] is True
+          assert result["m1_fvg_required"] is True
+          assert result["m1_order_block_required"] is True
+          assert result["synthetic_m1_used"] is False
+          assert result["interpolated_m1_used"] is False
+          assert result["fresh_holdout_claimed"] is False
+          assert result["economic_candidate"] is False
+          assert result["trader_certified"] is False
+          assert result["max3_selected_trades"] <= result["total_m1_entries"]
+          assert result["same_timestamp_competition_rejected"] >= 0
+          PY
+      - name: Upload nine-market native M1 replay matrix
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-nine-market-native-m1-entry-replay-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90

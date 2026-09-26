@@ -1,0 +1,773 @@
+name: QORE Capitalizer 9-Market Target Capacity V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-target-capacity-matrix-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_target_context.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_target_capacity_forensics.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_target_capacity_matrix.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_cross_market_economic_falsification.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_cross_market_economic_matrix.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_session_flow_viability.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_portfolio_session_flow_viability.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_session_flow_economics.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_portfolio_exposure_forensics.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_portfolio_competition_forensics.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_pair_session_compatibility.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_triad_session_compatibility.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_session_compatibility_routing.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_triad_compatibility_routing.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_routing_drawdown_forensics.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_daily_loss_forensics.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_target_context.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_falsification.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_matrix.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_session_flow_viability.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_portfolio_session_flow_viability.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_session_flow_economics.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_portfolio_exposure_forensics.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_portfolio_competition_forensics.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_pair_session_compatibility.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_triad_session_compatibility.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_session_compatibility_routing.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_triad_compatibility_routing.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_routing_drawdown_forensics.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_daily_loss_forensics.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-target-capacity-matrix-v1-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_M5_RUN_ID: '35166210458'
+  SOURCE_JOURNEY_RUN_ID: '35175979474'
+  SOURCE_TARGET_RUN_ID: '35204892665'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check --ignore E501 \
+            src/qore/infrastructure/trader_lab/capitalizer_target_context.py \
+            src/qore/infrastructure/trader_lab/capitalizer_target_capacity_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_target_capacity_matrix.py \
+            src/qore/infrastructure/trader_lab/capitalizer_cross_market_economic_falsification.py \
+            src/qore/infrastructure/trader_lab/capitalizer_cross_market_economic_matrix.py \
+            src/qore/infrastructure/trader_lab/capitalizer_session_flow_viability.py \
+            src/qore/infrastructure/trader_lab/capitalizer_portfolio_session_flow_viability.py \
+            src/qore/infrastructure/trader_lab/capitalizer_session_flow_economics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_portfolio_exposure_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_portfolio_competition_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_pair_session_compatibility.py \
+            src/qore/infrastructure/trader_lab/capitalizer_triad_session_compatibility.py \
+            src/qore/infrastructure/trader_lab/capitalizer_session_compatibility_routing.py \
+            src/qore/infrastructure/trader_lab/capitalizer_triad_compatibility_routing.py \
+            src/qore/infrastructure/trader_lab/capitalizer_routing_drawdown_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_daily_loss_forensics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_target_context.py \
+            tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py \
+            tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_falsification.py \
+            tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_matrix.py \
+            tests/infrastructure/trader_lab/test_capitalizer_session_flow_viability.py \
+            tests/infrastructure/trader_lab/test_capitalizer_portfolio_session_flow_viability.py \
+            tests/infrastructure/trader_lab/test_capitalizer_session_flow_economics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_portfolio_exposure_forensics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_portfolio_competition_forensics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_pair_session_compatibility.py \
+            tests/infrastructure/trader_lab/test_capitalizer_triad_session_compatibility.py \
+            tests/infrastructure/trader_lab/test_capitalizer_session_compatibility_routing.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_target_context.py \
+            src/qore/infrastructure/trader_lab/capitalizer_target_capacity_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_target_capacity_matrix.py \
+            src/qore/infrastructure/trader_lab/capitalizer_cross_market_economic_falsification.py \
+            src/qore/infrastructure/trader_lab/capitalizer_cross_market_economic_matrix.py \
+            src/qore/infrastructure/trader_lab/capitalizer_session_flow_viability.py \
+            src/qore/infrastructure/trader_lab/capitalizer_portfolio_session_flow_viability.py \
+            src/qore/infrastructure/trader_lab/capitalizer_session_flow_economics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_portfolio_exposure_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_portfolio_competition_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_pair_session_compatibility.py \
+            src/qore/infrastructure/trader_lab/capitalizer_triad_session_compatibility.py \
+            src/qore/infrastructure/trader_lab/capitalizer_session_compatibility_routing.py \
+            src/qore/infrastructure/trader_lab/capitalizer_triad_compatibility_routing.py \
+            src/qore/infrastructure/trader_lab/capitalizer_routing_drawdown_forensics.py \
+            src/qore/infrastructure/trader_lab/capitalizer_daily_loss_forensics.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_target_context.py \
+            tests/infrastructure/trader_lab/test_capitalizer_target_capacity_matrix.py \
+            tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_falsification.py \
+            tests/infrastructure/trader_lab/test_capitalizer_cross_market_economic_matrix.py \
+            tests/infrastructure/trader_lab/test_capitalizer_session_flow_viability.py \
+            tests/infrastructure/trader_lab/test_capitalizer_portfolio_session_flow_viability.py \
+            tests/infrastructure/trader_lab/test_capitalizer_session_flow_economics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_portfolio_exposure_forensics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_portfolio_competition_forensics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_pair_session_compatibility.py \
+            tests/infrastructure/trader_lab/test_capitalizer_triad_session_compatibility.py \
+            tests/infrastructure/trader_lab/test_capitalizer_session_compatibility_routing.py \
+            tests/infrastructure/trader_lab/test_capitalizer_triad_compatibility_routing.py \
+            tests/infrastructure/trader_lab/test_capitalizer_routing_drawdown_forensics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_daily_loss_forensics.py
+
+  scan:
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - symbol: USDJPY
+            m5: qore-cibo-market-atlas-10y-windowed-USDJPY-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+            journey: qore-cibo-market-journey-USDJPY-9cc0f17a2f30846d61b242132547f39391909656
+            target: qore-cibo-target-destination-v2-USDJPY-2f510461b3360e91d5ee70a72716a76cd6561f16
+          - symbol: AUDJPY
+            m5: qore-cibo-market-atlas-10y-windowed-AUDJPY-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+            journey: qore-cibo-market-journey-AUDJPY-9cc0f17a2f30846d61b242132547f39391909656
+            target: qore-cibo-target-destination-v2-AUDJPY-2f510461b3360e91d5ee70a72716a76cd6561f16
+          - symbol: AUDUSD
+            m5: qore-cibo-market-atlas-10y-windowed-AUDUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+            journey: qore-cibo-market-journey-AUDUSD-9cc0f17a2f30846d61b242132547f39391909656
+            target: qore-cibo-target-destination-v2-AUDUSD-2f510461b3360e91d5ee70a72716a76cd6561f16
+          - symbol: GBPJPY
+            m5: qore-cibo-market-atlas-10y-windowed-GBPJPY-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+            journey: qore-cibo-market-journey-GBPJPY-9cc0f17a2f30846d61b242132547f39391909656
+            target: qore-cibo-target-destination-v2-GBPJPY-2f510461b3360e91d5ee70a72716a76cd6561f16
+          - symbol: EURUSD
+            m5: qore-cibo-market-atlas-10y-windowed-EURUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+            journey: qore-cibo-market-journey-EURUSD-9cc0f17a2f30846d61b242132547f39391909656
+            target: qore-cibo-target-destination-v2-EURUSD-2f510461b3360e91d5ee70a72716a76cd6561f16
+          - symbol: GBPUSD
+            m5: qore-cibo-market-atlas-10y-windowed-GBPUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+            journey: qore-cibo-market-journey-GBPUSD-9cc0f17a2f30846d61b242132547f39391909656
+            target: qore-cibo-target-destination-v2-GBPUSD-2f510461b3360e91d5ee70a72716a76cd6561f16
+          - symbol: XAUUSD
+            m5: qore-cibo-market-atlas-10y-windowed-XAUUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+            journey: qore-cibo-market-journey-XAUUSD-9cc0f17a2f30846d61b242132547f39391909656
+            target: qore-cibo-target-destination-v2-XAUUSD-2f510461b3360e91d5ee70a72716a76cd6561f16
+          - symbol: USDCAD
+            m5: qore-cibo-market-atlas-10y-windowed-USDCAD-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+            journey: qore-cibo-market-journey-USDCAD-9cc0f17a2f30846d61b242132547f39391909656
+            target: qore-cibo-target-destination-v2-USDCAD-2f510461b3360e91d5ee70a72716a76cd6561f16
+          - symbol: NAS100
+            m5: qore-cibo-market-atlas-10y-windowed-NAS100-ab782b8e9f890f86a2b6500070f0556b4b685e3d
+            journey: qore-cibo-market-journey-NAS100-9cc0f17a2f30846d61b242132547f39391909656
+            target: qore-cibo-target-destination-v2-NAS100-2f510461b3360e91d5ee70a72716a76cd6561f16
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download immutable consumed M5
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.m5 }}
+          path: m5-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M5_RUN_ID }}
+      - name: Download immutable consumed Journey
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.journey }}
+          path: journey-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_JOURNEY_RUN_ID }}
+      - name: Download immutable consumed Target V2
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: target-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_TARGET_RUN_ID }}
+      - name: Build causal target-capacity report
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_target_capacity_forensics \
+            m5-source journey-source target-source cell-output
+      - name: Build cross-market economic falsification cell
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cross_market_economic_falsification \
+            m5-source journey-source target-source cell-output
+      - name: Build session-flow viability cell
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_session_flow_viability \
+            m5-source journey-source target-source cell-output
+      - name: Build session-flow economic diagnostics
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_session_flow_economics \
+            cell-output cell-output
+      - name: Enforce no-threshold/no-outcome cell governance
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ.get('MATRIX_SYMBOL')
+          files = list(Path('cell-output').glob('capitalizer-*-target-capacity-v1.json'))
+          assert len(files) == 1
+          result = json.loads(files[0].read_text())
+          assert result['symbol'] == symbol
+          assert result['minimum_r_filter_defined'] is False
+          assert result['final_stop_contract_defined'] is False
+          assert result['target_outcomes_used'] is False
+          assert result['economic_candidate'] is False
+          assert result['rule_promotion_allowed'] is False
+
+          economic_files = list(
+              Path('cell-output').glob(
+                  'capitalizer-*-cross-market-economic-v1.json'
+              )
+          )
+          assert len(economic_files) == 1
+          economic = json.loads(economic_files[0].read_text())
+          assert economic['symbol'] == symbol
+          assert economic['identity'] == (
+              'QORE_CAPITALIZER_CROSS_MARKET_ECONOMIC_FALSIFICATION_V1'
+          )
+          assert economic['cross_market_falsification_only'] is True
+          assert economic['market_specific_tuning_used'] is False
+          assert economic['numeric_threshold_optimization_used'] is False
+          assert economic['h1_duration_minutes'] == 60
+          assert economic['timing_boundary_semantics'] == (
+              'SOURCE_TIMEFRAME_DURATION'
+          )
+          assert economic['candidate_frozen'] is False
+          assert economic['fresh_holdout_claimed'] is False
+          assert economic['rule_selected'] is False
+          assert economic['promotion_allowed'] is False
+          assert {row['name'] for row in economic['variants']} == {
+              'R0_GROSS',
+              'STRUCTURAL_V2',
+              'STRUCTURAL_V2_PROFITABLE_SWING_LOCK',
+              'DROP_NORECLAIM_CISD_CROSS_H1',
+              'DROP_NORECLAIM_CISD_CROSS_H1_PROFITABLE_SWING_LOCK',
+          }
+
+          flow_files = list(
+              Path('cell-output').glob(
+                  'capitalizer-*-session-flow-viability-v1.json'
+              )
+          )
+          assert len(flow_files) == 1
+          flow = json.loads(flow_files[0].read_text())
+          assert flow['symbol'] == symbol
+          assert flow['identity'] == 'QORE_CAPITALIZER_SESSION_FLOW_VIABILITY_V1'
+          assert flow['max_executions_per_session'] == 3
+          assert flow['same_session_exit_verified'] is True
+          assert flow['positive_pnl_is_not_stop_condition'] is True
+          assert flow['governed_profit_objective_not_modeled'] is True
+          assert flow['candidate_frozen'] is False
+          assert flow['fresh_holdout_claimed'] is False
+          assert flow['rule_selected'] is False
+          assert flow['promotion_allowed'] is False
+          ledgers = list(
+              Path('cell-output').glob(
+                  'capitalizer-*-session-flow-trades-v1.jsonl'
+              )
+          )
+          assert len(ledgers) == 1
+
+          flow_economics = json.loads(
+              Path(
+                  'cell-output/capitalizer-session-flow-economics-v1.json'
+              ).read_text()
+          )
+          assert flow_economics['identity'] == (
+              'QORE_CAPITALIZER_SESSION_FLOW_ECONOMICS_V1'
+          )
+          assert flow_economics['symbol_count'] == 1
+          assert flow_economics['max_executions_per_session'] == 3
+          assert flow_economics['positive_pnl_is_not_stop_condition'] is True
+          assert flow_economics['governed_profit_objective_not_modeled'] is True
+          assert flow_economics['realized_equity_peak_is_not_intrabar_mfe'] is True
+          assert flow_economics['candidate_frozen'] is False
+          assert flow_economics['fresh_holdout_claimed'] is False
+          assert flow_economics['rule_selected'] is False
+          assert flow_economics['promotion_allowed'] is False
+          assert {row['policy'] for row in flow_economics['policy_economics']} == {
+              'UNCAPPED_RESEARCH',
+              'MAX2',
+              'MAX3_ANY_VALID',
+              'MAX3_POSITIVE_REALIZED_CONTINUATION',
+          }
+          PY
+        env:
+          MATRIX_SYMBOL: ${{ matrix.symbol }}
+      - name: Upload immutable target-capacity cell
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-target-capacity-cell-${{ matrix.symbol }}-${{ github.sha }}
+          path: cell-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download all nine capacity cells
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-target-capacity-cell-*-${{ github.sha }}
+          path: matrix-input
+          merge-multiple: false
+      - name: Build nine-market capacity matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_target_capacity_matrix \
+            matrix-input matrix-output
+      - name: Build nine-market economic falsification matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cross_market_economic_matrix \
+            matrix-input matrix-output
+      - name: Build portfolio three-scalp session-flow viability
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_portfolio_session_flow_viability \
+            matrix-input matrix-output
+      - name: Build nine-market session-flow economic diagnostics
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_session_flow_economics \
+            matrix-input matrix-output
+      - name: Build causal portfolio exposure falsification
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_portfolio_exposure_forensics \
+            matrix-input matrix-output
+      - name: Build categorical candidate-competition falsification
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_portfolio_competition_forensics \
+            matrix-input matrix-output
+      - name: Build pair-session-side compatibility characterization
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_pair_session_compatibility \
+            matrix-input matrix-output
+      - name: Build three-slot session compatibility characterization
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_triad_session_compatibility \
+            matrix-input matrix-output
+      - name: Build causal session compatibility routing falsification
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_session_compatibility_routing \
+            matrix-input matrix-output
+      - name: Build triad-aware compatibility routing falsification
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_triad_compatibility_routing \
+            matrix-input matrix-output
+      - name: Build residual routing drawdown forensics
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_routing_drawdown_forensics \
+            matrix-input matrix-output
+      - name: Build daily-loss and cross-session path forensics
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_daily_loss_forensics \
+            matrix-input matrix-output
+      - name: Enforce matrix governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          result = json.loads(
+              Path('matrix-output/capitalizer-target-capacity-matrix-v1.json').read_text()
+          )
+          assert result['identity'] == 'QORE_CAPITALIZER_TARGET_CAPACITY_MATRIX_V1'
+          assert result['market_count'] == 9
+          assert result['complete_frozen_universe'] is True
+          assert result['aligned_departure_events'] > 0
+          assert result['geometry_observations'] > 0
+          assert result['minimum_r_filter_defined'] is False
+          assert result['final_stop_contract_defined'] is False
+          assert result['target_outcomes_used'] is False
+          assert result['economic_candidate'] is False
+          assert result['rule_promotion_allowed'] is False
+
+          economic = json.loads(
+              Path(
+                  'matrix-output/'
+                  'capitalizer-cross-market-economic-matrix-v1.json'
+              ).read_text()
+          )
+          assert economic['identity'] == (
+              'QORE_CAPITALIZER_CROSS_MARKET_ECONOMIC_MATRIX_V1'
+          )
+          assert economic['market_count'] == 9
+          assert economic['complete_frozen_universe'] is True
+          assert economic['cross_market_falsification_only'] is True
+          assert economic['market_specific_tuning_used'] is False
+          assert economic['numeric_threshold_optimization_used'] is False
+          assert economic['candidate_frozen'] is False
+          assert economic['fresh_holdout_claimed'] is False
+          assert economic['rule_selected'] is False
+          assert economic['promotion_allowed'] is False
+
+          flow = json.loads(
+              Path(
+                  'matrix-output/'
+                  'capitalizer-portfolio-session-flow-viability-v1.json'
+              ).read_text()
+          )
+          assert flow['identity'] == (
+              'QORE_CAPITALIZER_PORTFOLIO_SESSION_FLOW_VIABILITY_V1'
+          )
+          assert flow['market_count'] == 9
+          assert flow['complete_frozen_universe'] is True
+          assert flow['max_executions_per_session'] == 3
+          assert flow['same_session_exit_verified'] is True
+          assert flow['positive_pnl_is_not_stop_condition'] is True
+          assert flow['simultaneous_ordering_sensitivity_tested'] is True
+          assert flow['qore_risk_allocator_applied'] is False
+          assert flow['cross_market_exposure_allocator_applied'] is False
+          assert flow['governed_profit_objective_not_modeled'] is True
+          assert flow['candidate_frozen'] is False
+          assert flow['fresh_holdout_claimed'] is False
+          assert flow['rule_selected'] is False
+          assert flow['promotion_allowed'] is False
+          assert {row['name'] for row in flow['variants']} == {
+              'MAX2',
+              'MAX3_ANY_VALID',
+              'MAX3_POSITIVE_REALIZED_CONTINUATION',
+          }
+          assert {row['tie_policy'] for row in flow['variants']} == {
+              'SYMBOL_ASC',
+              'SYMBOL_DESC',
+          }
+
+          flow_economics = json.loads(
+              Path(
+                  'matrix-output/capitalizer-session-flow-economics-v1.json'
+              ).read_text()
+          )
+          assert flow_economics['identity'] == (
+              'QORE_CAPITALIZER_SESSION_FLOW_ECONOMICS_V1'
+          )
+          assert flow_economics['symbol_count'] == 9
+          assert flow_economics['max_executions_per_session'] == 3
+          assert flow_economics['positive_pnl_is_not_stop_condition'] is True
+          assert flow_economics['governed_profit_objective_not_modeled'] is True
+          assert flow_economics['qore_risk_allocator_applied'] is False
+          assert flow_economics['cross_market_exposure_allocator_applied'] is False
+          assert flow_economics['costs_applied'] is False
+          assert flow_economics['candidate_frozen'] is False
+          assert flow_economics['fresh_holdout_claimed'] is False
+          assert flow_economics['rule_selected'] is False
+          assert flow_economics['promotion_allowed'] is False
+
+          exposure = json.loads(
+              Path(
+                  'matrix-output/'
+                  'capitalizer-portfolio-exposure-forensics-v1.json'
+              ).read_text()
+          )
+          assert exposure['identity'] == (
+              'QORE_CAPITALIZER_PORTFOLIO_EXPOSURE_FORENSICS_V1'
+          )
+          assert exposure['market_count'] == 9
+          assert exposure['unit_r_exposure_proxy'] is True
+          assert exposure['causal_active_position_state_only'] is True
+          assert exposure['numeric_exposure_threshold_used'] is False
+          assert exposure['outcome_aware_ranking_used'] is False
+          assert exposure['max_executions_per_session'] == 3
+          assert exposure['positive_pnl_is_not_stop_condition'] is True
+          assert exposure['governed_profit_objective_not_modeled'] is True
+          assert exposure['qore_risk_authority_granted'] is False
+          assert exposure['costs_applied'] is False
+          assert exposure['candidate_frozen'] is False
+          assert exposure['fresh_holdout_claimed'] is False
+          assert exposure['rule_selected'] is False
+          assert exposure['promotion_allowed'] is False
+          assert {row['policy'] for row in exposure['policy_results']} == {
+              'MAX3_BASELINE',
+              'MAX3_BLOCK_SAME_DIRECTION_SHARED_FACTOR',
+              'MAX3_BLOCK_ANY_SHARED_FACTOR',
+          }
+          assert {row['tie_policy'] for row in exposure['policy_results']} == {
+              'SYMBOL_ASC',
+              'SYMBOL_DESC',
+          }
+
+          competition = json.loads(
+              Path(
+                  'matrix-output/'
+                  'capitalizer-portfolio-competition-forensics-v1.json'
+              ).read_text()
+          )
+          assert competition['identity'] == (
+              'QORE_CAPITALIZER_PORTFOLIO_COMPETITION_FORENSICS_V1'
+          )
+          assert competition['market_count'] == 9
+          assert competition['max_executions_per_session'] == 3
+          assert competition['categorical_hypotheses_only'] is True
+          assert competition['numeric_threshold_optimization_used'] is False
+          assert competition['outcome_aware_ranking_used'] is False
+          assert competition['positive_pnl_is_not_stop_condition'] is True
+          assert competition['governed_profit_objective_not_modeled'] is True
+          assert competition['qore_risk_authority_granted'] is False
+          assert competition['costs_applied'] is False
+          assert competition['candidate_frozen'] is False
+          assert competition['fresh_holdout_claimed'] is False
+          assert competition['rule_selected'] is False
+          assert competition['promotion_allowed'] is False
+          assert {row['tie_policy'] for row in competition['policies']} == {
+              'SYMBOL_ASC',
+              'SYMBOL_DESC',
+          }
+          assert {row['policy'] for row in competition['policies']} == {
+              'MAX3_BASELINE',
+              'BLOCK_XAUUSD_NY_ORD2_SAME_DIRECTION_SHARED_FACTOR',
+              'BLOCK_XAUUSD_NY_ORD2_ANY_SHARED_FACTOR',
+              'BLOCK_GBPJPY_ASIA_ORD3',
+              'BLOCK_ASIA_JPY_ORD3',
+              'COMBINED_XAUUSD_ANY_SHARED_AND_GBPJPY_ORD3',
+              'COMBINED_XAUUSD_ANY_SHARED_AND_ASIA_JPY_ORD3',
+          }
+
+          pairs = json.loads(
+              Path(
+                  'matrix-output/'
+                  'capitalizer-pair-session-compatibility-v1.json'
+              ).read_text()
+          )
+          assert pairs['identity'] == (
+              'QORE_CAPITALIZER_PAIR_SESSION_COMPATIBILITY_V1'
+          )
+          assert pairs['market_count'] == 9
+          assert pairs['max_executions_per_session'] == 3
+          assert pairs['same_session_copresence_profiled'] is True
+          assert pairs['active_position_overlap_profiled'] is True
+          assert pairs['sides_profiled'] is True
+          assert pairs['chronological_order_profiled'] is True
+          assert pairs['shared_factor_relation_profiled'] is True
+          assert pairs['categorical_characterization_only'] is True
+          assert pairs['numeric_threshold_optimization_used'] is False
+          assert pairs['outcome_aware_ranking_used'] is False
+          assert pairs['pair_ranking_selected'] is False
+          assert pairs['positive_pnl_is_not_stop_condition'] is True
+          assert pairs['governed_profit_objective_not_modeled'] is True
+          assert pairs['qore_risk_authority_granted'] is False
+          assert pairs['costs_applied'] is False
+          assert pairs['candidate_frozen'] is False
+          assert pairs['fresh_holdout_claimed'] is False
+          assert pairs['promotion_allowed'] is False
+          assert set(pairs['max3_selected_trades_by_tie_policy']) == {
+              'SYMBOL_ASC',
+              'SYMBOL_DESC',
+          }
+          assert pairs['pair_aggregate_cells']
+          assert pairs['pair_side_cells']
+          assert pairs['transition_cells']
+
+          triads = json.loads(
+              Path(
+                  'matrix-output/'
+                  'capitalizer-triad-session-compatibility-v1.json'
+              ).read_text()
+          )
+          assert triads['identity'] == (
+              'QORE_CAPITALIZER_TRIAD_SESSION_COMPATIBILITY_V1'
+          )
+          assert triads['market_count'] == 9
+          assert triads['max_executions_per_session'] == 3
+          assert triads['complete_triad_only'] is True
+          assert triads['sides_profiled'] is True
+          assert triads['chronological_order_profiled'] is True
+          assert triads['active_position_overlap_profiled'] is True
+          assert triads['exposure_relation_profiled'] is True
+          assert triads['categorical_characterization_only'] is True
+          assert triads['numeric_threshold_optimization_used'] is False
+          assert triads['outcome_aware_routing_used'] is False
+          assert triads['triad_routing_selected'] is False
+          assert triads['positive_pnl_is_not_stop_condition'] is True
+          assert triads['governed_profit_objective_not_modeled'] is True
+          assert triads['qore_risk_authority_granted'] is False
+          assert triads['costs_applied'] is False
+          assert triads['candidate_frozen'] is False
+          assert triads['fresh_holdout_claimed'] is False
+          assert triads['promotion_allowed'] is False
+          assert set(triads['complete_three_trade_sessions_by_tie_policy']) == {
+              'SYMBOL_ASC',
+              'SYMBOL_DESC',
+          }
+          assert triads['triad_side_cells']
+          assert triads['triad_path_cells']
+
+          routing = json.loads(
+              Path(
+                  'matrix-output/'
+                  'capitalizer-session-compatibility-routing-v1.json'
+              ).read_text()
+          )
+          assert routing['identity'] == (
+              'QORE_CAPITALIZER_SESSION_COMPATIBILITY_ROUTING_FORENSICS_V1'
+          )
+          assert routing['market_count'] == 9
+          assert routing['max_executions_per_session'] == 3
+          assert routing['prior_session_acceptances_only'] is True
+          assert routing['active_position_state_is_causal'] is True
+          assert routing['future_candidates_visible'] is False
+          assert routing['pair_states_are_categorical'] is True
+          assert routing['numeric_threshold_optimization_used'] is False
+          assert routing['outcome_aware_runtime_ranking_used'] is False
+          assert routing['positive_pnl_is_not_stop_condition'] is True
+          assert routing['governed_profit_objective_not_modeled'] is True
+          assert routing['qore_risk_authority_granted'] is False
+          assert routing['costs_applied'] is False
+          assert routing['candidate_frozen'] is False
+          assert routing['fresh_holdout_claimed'] is False
+          assert routing['rule_selected'] is False
+          assert routing['promotion_allowed'] is False
+          assert {row['tie_policy'] for row in routing['policy_results']} == {
+              'SYMBOL_ASC',
+              'SYMBOL_DESC',
+          }
+          assert {row['policy'] for row in routing['policy_results']} == {
+              'MAX3_BASELINE',
+              'BLOCK_ASIA_WEAK_SIDE_PAIR_ONLY_V1',
+              'BLOCK_LONDON_WEAK_SIDE_PAIR_ONLY_V1',
+              'BLOCK_NEW_YORK_WEAK_SIDE_PAIR_ONLY_V1',
+              'BLOCK_LONDON_PLUS_NEW_YORK_WEAK_PAIRS_V1',
+              'BLOCK_CORE_WEAK_SIDE_PAIRS_V1',
+              'BLOCK_EXTENDED_WEAK_SIDE_PAIRS_V1',
+              'BLOCK_CORE_WEAK_SIDE_PAIRS_PLUS_XAUUSD_ORD2_SHARED_V1',
+          }
+
+          triad_routing = json.loads(
+              Path(
+                  'matrix-output/'
+                  'capitalizer-triad-compatibility-routing-v1.json'
+              ).read_text()
+          )
+          assert triad_routing['identity'] == (
+              'QORE_CAPITALIZER_TRIAD_COMPATIBILITY_ROUTING_FORENSICS_V1'
+          )
+          assert triad_routing['market_count'] == 9
+          assert triad_routing['max_executions_per_session'] == 3
+          assert triad_routing['asia_jpy_split_state_categorical'] is True
+          assert triad_routing['mirror_orientations_share_one_rule'] is True
+          assert triad_routing['third_admission_only'] is True
+          assert triad_routing['prior_session_acceptances_only'] is True
+          assert triad_routing['future_candidates_visible'] is False
+          assert triad_routing['numeric_threshold_optimization_used'] is False
+          assert triad_routing['outcome_aware_runtime_ranking_used'] is False
+          assert triad_routing['positive_pnl_is_not_stop_condition'] is True
+          assert triad_routing['governed_profit_objective_not_modeled'] is True
+          assert triad_routing['qore_risk_authority_granted'] is False
+          assert triad_routing['costs_applied'] is False
+          assert triad_routing['candidate_frozen'] is False
+          assert triad_routing['fresh_holdout_claimed'] is False
+          assert triad_routing['rule_selected'] is False
+          assert triad_routing['promotion_allowed'] is False
+          assert {row['tie_policy'] for row in triad_routing['policy_results']} == {
+              'SYMBOL_ASC',
+              'SYMBOL_DESC',
+          }
+          assert {row['policy'] for row in triad_routing['policy_results']} == {
+              'MAX3_BASELINE',
+              'BLOCK_ASIA_JPY_SPLIT_GBP_OPPOSES_V1',
+              'BLOCK_LONDON_PLUS_NEW_YORK_WEAK_PAIRS_V1',
+              'BLOCK_LONDON_NY_PLUS_ASIA_JPY_SPLIT_V1',
+              'BLOCK_EXTENDED_WEAK_SIDE_PAIRS_V1',
+              'BLOCK_EXTENDED_WEAK_PAIRS_PLUS_ASIA_JPY_SPLIT_V1',
+          }
+
+          drawdown = json.loads(
+              Path(
+                  'matrix-output/'
+                  'capitalizer-routing-drawdown-forensics-v1.json'
+              ).read_text()
+          )
+          assert drawdown['identity'] == (
+              'QORE_CAPITALIZER_ROUTING_DRAWDOWN_FORENSICS_V1'
+          )
+          assert drawdown['market_count'] == 9
+          assert drawdown['realized_exit_order_used'] is True
+          assert drawdown['max3_contract_preserved'] is True
+          assert drawdown['exact_peak_to_trough_only'] is True
+          assert drawdown['diagnostic_only'] is True
+          assert drawdown['numeric_threshold_optimization_used'] is False
+          assert drawdown['outcome_aware_runtime_ranking_used'] is False
+          assert drawdown['new_rule_selected'] is False
+          assert drawdown['qore_risk_authority_granted'] is False
+          assert drawdown['costs_applied'] is False
+          assert drawdown['candidate_frozen'] is False
+          assert drawdown['fresh_holdout_claimed'] is False
+          assert drawdown['promotion_allowed'] is False
+          assert {row['tie_policy'] for row in drawdown['episodes']} == {
+              'SYMBOL_ASC',
+              'SYMBOL_DESC',
+          }
+          assert {row['policy'] for row in drawdown['episodes']} == {
+              'MAX3_BASELINE',
+              'BLOCK_LONDON_PLUS_NEW_YORK_WEAK_PAIRS_V1',
+              'BLOCK_EXTENDED_WEAK_SIDE_PAIRS_V1',
+          }
+          assert drawdown['contribution_cells']
+          assert drawdown['session_contributions']
+
+          daily = json.loads(
+              Path(
+                  'matrix-output/'
+                  'capitalizer-daily-loss-forensics-v1.json'
+              ).read_text()
+          )
+          assert daily['identity'] == 'QORE_CAPITALIZER_DAILY_LOSS_FORENSICS_V1'
+          assert daily['market_count'] == 9
+          assert daily['daily_realized_r_only'] is True
+          assert daily['cross_session_path_profiled'] is True
+          assert daily['funded_percent_conversion_applied'] is False
+          assert daily['qore_risk_sizing_applied'] is False
+          assert daily['daily_stop_rule_selected'] is False
+          assert daily['max3_contract_preserved'] is True
+          assert daily['positive_pnl_is_not_stop_condition'] is True
+          assert daily['numeric_threshold_optimization_used'] is False
+          assert daily['outcome_aware_runtime_gating_used'] is False
+          assert daily['candidate_frozen'] is False
+          assert daily['fresh_holdout_claimed'] is False
+          assert daily['promotion_allowed'] is False
+          assert {row['tie_policy'] for row in daily['policies']} == {
+              'SYMBOL_ASC',
+              'SYMBOL_DESC',
+          }
+          assert {row['policy'] for row in daily['policies']} == {
+              'MAX3_BASELINE',
+              'BLOCK_LONDON_PLUS_NEW_YORK_WEAK_PAIRS_V1',
+              'BLOCK_EXTENDED_WEAK_SIDE_PAIRS_V1',
+          }
+          assert daily['annual']
+          PY
+      - name: Upload immutable target-capacity matrix
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-target-capacity-matrix-v1-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90

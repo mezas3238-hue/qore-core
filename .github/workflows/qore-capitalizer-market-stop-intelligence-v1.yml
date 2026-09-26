@@ -1,0 +1,200 @@
+name: QORE Capitalizer Market Stop Intelligence V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-market-stop-intelligence-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_market_stop_intelligence_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_market_stop_intelligence_v1.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_ict_ttrades_dual_source_fidelity_audit_v1.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_source_strategy_review_v2.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-market-stop-intelligence-v1-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CAUSE_RUN_ID: '35533153568'
+  CAUSE_SHA: '08b30aa9723e685b3f4ef754ecbef73854ed7094'
+  BREATHING_RUN_ID: '35533478626'
+  BREATHING_SHA: '2e3623eee635d6ee8735fe3ef0ce681c01550ebd'
+  CORRECTION_RUN_ID: '35534453379'
+  CORRECTION_SHA: '52f622e330cc623d6c434d2fb97d2793453a3c04'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check             src/qore/infrastructure/trader_lab/capitalizer_market_stop_intelligence_v1.py             tests/infrastructure/trader_lab/test_capitalizer_market_stop_intelligence_v1.py
+      - name: Mypy
+        run: mypy src/qore/infrastructure/trader_lab/capitalizer_market_stop_intelligence_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_capitalizer_market_stop_intelligence_v1.py
+
+  market:
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - symbol: USDJPY
+            session: ASIA
+          - symbol: AUDJPY
+            session: ASIA
+          - symbol: AUDUSD
+            session: ASIA
+          - symbol: GBPJPY
+            session: ASIA
+          - symbol: EURUSD
+            session: LONDON
+          - symbol: GBPUSD
+            session: LONDON
+          - symbol: XAUUSD
+            session: NEW_YORK
+          - symbol: USDCAD
+            session: NEW_YORK
+          - symbol: NAS100
+            session: NEW_YORK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download immutable STOP cause report
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-stop-loss-causal-v1-${{ matrix.symbol }}-${{ env.CAUSE_SHA }}
+          path: cause
+          github-token: ${{ github.token }}
+          run-id: ${{ env.CAUSE_RUN_ID }}
+      - name: Download immutable breathing report
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-structural-stop-breathing-v1-${{ matrix.symbol }}-${{ env.BREATHING_SHA }}
+          path: breathing
+          github-token: ${{ github.token }}
+          run-id: ${{ env.BREATHING_RUN_ID }}
+      - name: Download immutable protected-swing correction report
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-protected-swing-correction-v1-${{ matrix.symbol }}-${{ env.CORRECTION_SHA }}
+          path: correction
+          github-token: ${{ github.token }}
+          run-id: ${{ env.CORRECTION_RUN_ID }}
+      - name: Build market STOP intelligence dossier
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_market_stop_intelligence_v1             market cause breathing correction market-output
+      - name: Enforce market dossier governance
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+          EXPECTED_SESSION: ${{ matrix.session }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ['EXPECTED_SYMBOL']
+          session = os.environ['EXPECTED_SESSION']
+          result = json.loads(
+              (
+                  Path('market-output')
+                  / f"capitalizer-{symbol.lower()}-stop-intelligence-v1.json"
+              ).read_text()
+          )
+          assert result['identity'] == 'QORE_CAPITALIZER_MARKET_STOP_INTELLIGENCE_LAB_V1'
+          assert result['symbol'] == symbol
+          assert result['session'] == session
+          assert result['ict_original_primary'] is True
+          assert result['ttrades_secondary_refinement'] is True
+          assert result['structural_stop_anchor_dual_source_compatible'] is True
+          assert result['exact_stop_expression_universal'] is False
+          assert result['native_m1_required'] is True
+          assert result['native_m1_present'] is False
+          assert result['full_source_faithful_stop_replay_complete'] is False
+          assert result['replay_trades'] > 0
+          assert result['stop_exits'] > 0
+          assert result['causal_cohorts']
+          assert result['breathing_modes']
+          assert result['protected_swing_corrected_matched_metrics']
+          assert result['rule_promotion_allowed'] is False
+          assert result['stop_rule_frozen'] is False
+          assert result['economic_candidate'] is False
+          assert result['trader_certified'] is False
+          PY
+      - name: Upload immutable market STOP intelligence dossier
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-stop-intelligence-v1-${{ matrix.symbol }}-${{ github.sha }}
+          path: market-output
+          if-no-files-found: error
+          retention-days: 90
+
+  matrix:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download nine market dossiers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-stop-intelligence-v1-*-${{ github.sha }}
+          path: market-dossiers
+          merge-multiple: false
+      - name: Build nine-market STOP intelligence matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_market_stop_intelligence_v1             matrix market-dossiers matrix-output
+      - name: Enforce matrix governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          result = json.loads(
+              Path(
+                  'matrix-output/capitalizer-nine-market-stop-intelligence-matrix-v1.json'
+              ).read_text()
+          )
+          assert result['identity'] == 'QORE_CAPITALIZER_NINE_MARKET_STOP_INTELLIGENCE_MATRIX_V1'
+          assert result['complete_nine_market_universe'] is True
+          assert len(result['markets']) == 9
+          assert result['native_m1_required'] is True
+          assert result['native_m1_present'] is False
+          assert result['rule_promotion_allowed'] is False
+          assert result['economic_candidate'] is False
+          assert result['trader_certified'] is False
+          PY
+      - name: Upload immutable nine-market STOP intelligence matrix
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-nine-market-stop-intelligence-matrix-v1-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,461 @@
+name: QORE Capitalizer Native M1 5Y Dev Holdout V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-native-m1-5y-dev-holdout-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_candidate_window_filter_v1.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_cibo_m1_window_clone_v1.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_native_m1_entry_replay_v1.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_dual_source_entry_acceptance_v1.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_source_strategy_review_v2.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_5y_dev_holdout_split_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-native-m1-5y-dev-holdout-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  SOURCE_REPLAY_RUN_ID: '35528346941'
+  SOURCE_REPLAY_SHA: 'e0338846170003fd7b346c98883f63257b6cdf45'
+  DEV_START: '2016-09-17T00:00:00+00:00'
+  DEV_END: '2021-09-17T00:00:00+00:00'
+  HOLDOUT_START: '2021-09-17T00:00:00+00:00'
+  HOLDOUT_END: '2026-09-17T00:00:00+00:00'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev,ctrader]'
+      - name: Ruff
+        run: |
+          ruff check             src/qore/infrastructure/trader_lab/capitalizer_candidate_window_filter_v1.py             src/qore/infrastructure/trader_lab/capitalizer_cibo_m1_window_clone_v1.py             src/qore/infrastructure/trader_lab/capitalizer_native_m1_entry_replay_v1.py             src/qore/infrastructure/trader_lab/capitalizer_dual_source_entry_acceptance_v1.py             tests/infrastructure/trader_lab/test_capitalizer_5y_dev_holdout_split_v1.py
+      - name: Mypy
+        run: |
+          mypy             src/qore/infrastructure/trader_lab/capitalizer_candidate_window_filter_v1.py             src/qore/infrastructure/trader_lab/capitalizer_cibo_m1_window_clone_v1.py             src/qore/infrastructure/trader_lab/capitalizer_native_m1_entry_replay_v1.py             src/qore/infrastructure/trader_lab/capitalizer_dual_source_entry_acceptance_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_capitalizer_5y_dev_holdout_split_v1.py             tests/infrastructure/trader_lab/test_capitalizer_native_m1_entry_replay_v1.py             tests/infrastructure/trader_lab/test_capitalizer_dual_source_entry_acceptance_v1.py
+
+  development:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 480
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - {symbol: USDJPY, session: ASIA}
+          - {symbol: AUDJPY, session: ASIA}
+          - {symbol: AUDUSD, session: ASIA}
+          - {symbol: GBPJPY, session: ASIA}
+          - {symbol: EURUSD, session: LONDON}
+          - {symbol: GBPUSD, session: LONDON}
+          - {symbol: XAUUSD, session: NEW_YORK}
+          - {symbol: USDCAD, session: NEW_YORK}
+          - {symbol: NAS100, session: NEW_YORK}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[ctrader]'
+      - name: Verify read-only credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || exit 2
+          done
+      - name: Discover DEMO account
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            [[ "$account_id" =~ ^[1-9][0-9]*$ ]] || exit 3
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-three-session-replay-cell-${{ matrix.symbol }}-${{ env.SOURCE_REPLAY_SHA }}
+          path: higher-setup-10y
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_REPLAY_RUN_ID }}
+      - name: Window candidates to development 5Y
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_candidate_window_filter_v1             higher-setup-10y higher-setup-dev --start "$DEV_START" --end-exclusive "$DEV_END"
+      - name: Clone provider-native M1 development 5Y
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cibo_m1_window_clone_v1             "${{ matrix.symbol }}" m1-dev             --start "$DEV_START" --end-exclusive "$DEV_END" --role DEVELOPMENT
+      - name: Verify development provenance
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = json.loads(Path("m1-dev/m1-window-manifest.json").read_text())
+          assert p["role"] == "DEVELOPMENT"
+          assert p["canonical_symbol"] == os.environ["EXPECTED_SYMBOL"]
+          assert p["target_start"] == os.environ["DEV_START"]
+          assert p["target_end_exclusive"] == os.environ["DEV_END"]
+          assert p["provider_native_m1"] is True
+          assert p["synthetic_m1"] is False
+          assert p["interpolated_m1"] is False
+          assert p["methodology_changed"] is False
+          PY
+      - name: Run development 5Y replay
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_native_m1_entry_replay_v1             market higher-setup-dev m1-dev dev-output
+      - name: Enforce development invariants
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+          EXPECTED_SESSION: ${{ matrix.session }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          p = json.loads((Path("dev-output") / f"capitalizer-{symbol.lower()}-native-m1-entry-replay-v1.json").read_text())
+          assert p["symbol"] == symbol
+          assert p["session"] == os.environ["EXPECTED_SESSION"]
+          assert p["methodology_changed"] is False
+          assert p["higher_level_setup_changed"] is False
+          assert p["entry_timeframe"] == "M1_NATIVE"
+          assert p["m1_mss_required"] is True
+          assert p["m1_fvg_required"] is True
+          assert p["m1_order_block_required"] is True
+          assert p["outcome_aware_selection"] is False
+          assert p["economic_candidate"] is False
+          assert p["trader_certified"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-5y-dev-replay-${{ matrix.symbol }}-${{ github.sha }}
+          path: dev-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate_development:
+    needs: development
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-5y-dev-replay-*-${{ github.sha }}
+          path: dev-reports
+          merge-multiple: false
+      - run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_native_m1_entry_replay_v1             matrix dev-reports dev-matrix
+      - name: Bind development window
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = Path("dev-matrix/capitalizer-nine-market-native-m1-entry-replay-v1.json")
+          data = json.loads(p.read_text())
+          data["evaluation_role"] = "DEVELOPMENT"
+          data["window_start"] = os.environ["DEV_START"]
+          data["window_end_exclusive"] = os.environ["DEV_END"]
+          data["fresh_holdout_claimed"] = False
+          p.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-5y-development-matrix-${{ github.sha }}
+          path: dev-matrix
+          retention-days: 90
+
+  freeze:
+    needs: aggregate_development
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Freeze exact contract
+        run: |
+          mkdir -p freeze
+          sha256sum             src/qore/infrastructure/trader_lab/capitalizer_native_m1_entry_replay_v1.py             src/qore/infrastructure/trader_lab/capitalizer_dual_source_entry_acceptance_v1.py             src/qore/infrastructure/trader_lab/capitalizer_source_strategy_review_v2.py             src/qore/infrastructure/trader_lab/capitalizer_candidate_window_filter_v1.py             src/qore/infrastructure/trader_lab/capitalizer_cibo_m1_window_clone_v1.py             > freeze/CONTRACT_SHA256SUMS.txt
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          payload = {
+              "identity": "QORE_CAPITALIZER_M1_5Y_HOLDOUT_FREEZE_V1",
+              "git_sha": os.environ["GITHUB_SHA"],
+              "development_start": os.environ["DEV_START"],
+              "development_end_exclusive": os.environ["DEV_END"],
+              "holdout_start": os.environ["HOLDOUT_START"],
+              "holdout_end_exclusive": os.environ["HOLDOUT_END"],
+              "methodology_changed": False,
+              "entry_timeframe": "M1_NATIVE",
+              "m1_mss_required": True,
+              "m1_fvg_required": True,
+              "m1_order_block_required": True,
+              "holdout_may_modify_contract": False,
+              "holdout_may_tune_parameters": False,
+              "holdout_may_use_outcomes_for_selection": False,
+          }
+          Path("freeze/freeze-manifest.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-5y-entry-freeze-${{ github.sha }}
+          path: freeze
+          retention-days: 90
+
+  fresh_holdout:
+    needs: freeze
+    runs-on: ubuntu-latest
+    timeout-minutes: 480
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - {symbol: USDJPY, session: ASIA}
+          - {symbol: AUDJPY, session: ASIA}
+          - {symbol: AUDUSD, session: ASIA}
+          - {symbol: GBPJPY, session: ASIA}
+          - {symbol: EURUSD, session: LONDON}
+          - {symbol: GBPUSD, session: LONDON}
+          - {symbol: XAUUSD, session: NEW_YORK}
+          - {symbol: USDCAD, session: NEW_YORK}
+          - {symbol: NAS100, session: NEW_YORK}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e '.[ctrader]'
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-5y-entry-freeze-${{ github.sha }}
+          path: freeze
+      - name: Prove exact frozen contract
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = json.loads(Path("freeze/freeze-manifest.json").read_text())
+          assert p["git_sha"] == os.environ["GITHUB_SHA"]
+          assert p["holdout_may_modify_contract"] is False
+          assert p["holdout_may_tune_parameters"] is False
+          assert p["holdout_may_use_outcomes_for_selection"] is False
+          PY
+          sha256sum -c freeze/CONTRACT_SHA256SUMS.txt
+      - name: Verify read-only credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || exit 2
+          done
+      - name: Discover DEMO account
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            [[ "$account_id" =~ ^[1-9][0-9]*$ ]] || exit 3
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-three-session-replay-cell-${{ matrix.symbol }}-${{ env.SOURCE_REPLAY_SHA }}
+          path: higher-setup-10y
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_REPLAY_RUN_ID }}
+      - name: Window candidates to fresh holdout
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_candidate_window_filter_v1             higher-setup-10y higher-setup-holdout --start "$HOLDOUT_START" --end-exclusive "$HOLDOUT_END"
+      - name: Clone provider-native M1 holdout 5Y
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cibo_m1_window_clone_v1             "${{ matrix.symbol }}" m1-holdout             --start "$HOLDOUT_START" --end-exclusive "$HOLDOUT_END" --role FRESH_HOLDOUT
+      - name: Run untouched fresh holdout
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_native_m1_entry_replay_v1             market higher-setup-holdout m1-holdout holdout-output
+      - name: Enforce holdout invariants
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+          EXPECTED_SESSION: ${{ matrix.session }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          p = json.loads((Path("holdout-output") / f"capitalizer-{symbol.lower()}-native-m1-entry-replay-v1.json").read_text())
+          assert p["symbol"] == symbol
+          assert p["session"] == os.environ["EXPECTED_SESSION"]
+          assert p["methodology_changed"] is False
+          assert p["entry_timeframe"] == "M1_NATIVE"
+          assert p["m1_mss_required"] is True
+          assert p["m1_fvg_required"] is True
+          assert p["m1_order_block_required"] is True
+          assert p["outcome_aware_selection"] is False
+          assert p["economic_candidate"] is False
+          assert p["trader_certified"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-5y-holdout-replay-${{ matrix.symbol }}-${{ github.sha }}
+          path: holdout-output
+          retention-days: 90
+
+  aggregate_holdout:
+    needs: fresh_holdout
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-5y-holdout-replay-*-${{ github.sha }}
+          path: holdout-reports
+          merge-multiple: false
+      - run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_native_m1_entry_replay_v1             matrix holdout-reports holdout-matrix
+      - name: Mark untouched fresh holdout
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = Path("holdout-matrix/capitalizer-nine-market-native-m1-entry-replay-v1.json")
+          data = json.loads(p.read_text())
+          data["evaluation_role"] = "FRESH_HOLDOUT"
+          data["window_start"] = os.environ["HOLDOUT_START"]
+          data["window_end_exclusive"] = os.environ["HOLDOUT_END"]
+          data["fresh_holdout_claimed"] = True
+          data["same_frozen_sha_as_development"] = True
+          data["parameter_tuning_on_holdout"] = False
+          p.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-5y-fresh-holdout-matrix-${{ github.sha }}
+          path: holdout-matrix
+          retention-days: 90
+
+  compare:
+    needs: [aggregate_development, aggregate_holdout]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-5y-development-matrix-${{ github.sha }}
+          path: dev
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-5y-fresh-holdout-matrix-${{ github.sha }}
+          path: holdout
+      - name: Compare frozen development and holdout
+        run: |
+          mkdir -p comparison
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d = json.loads(Path("dev/capitalizer-nine-market-native-m1-entry-replay-v1.json").read_text())
+          h = json.loads(Path("holdout/capitalizer-nine-market-native-m1-entry-replay-v1.json").read_text())
+          assert d["evaluation_role"] == "DEVELOPMENT"
+          assert h["evaluation_role"] == "FRESH_HOLDOUT"
+          assert h["fresh_holdout_claimed"] is True
+          assert h["same_frozen_sha_as_development"] is True
+          assert h["parameter_tuning_on_holdout"] is False
+          assert d["methodology_changed"] is h["methodology_changed"] is False
+          assert d["entry_timeframe"] == h["entry_timeframe"] == "M1_NATIVE"
+          assert d["m1_mss_required"] is h["m1_mss_required"] is True
+          assert d["m1_fvg_required"] is h["m1_fvg_required"] is True
+          assert d["m1_order_block_required"] is h["m1_order_block_required"] is True
+
+          dev = {m["symbol"]: m for m in d["markets"]}
+          hold = {m["symbol"]: m for m in h["markets"]}
+          rows = []
+          for symbol in sorted(dev):
+              dm, hm = dev[symbol], hold[symbol]
+              rows.append({
+                  "symbol": symbol,
+                  "development_entries": dm["m1_entries"],
+                  "holdout_entries": hm["m1_entries"],
+                  "development_pf": None if dm["metrics"] is None else dm["metrics"]["profit_factor"],
+                  "holdout_pf": None if hm["metrics"] is None else hm["metrics"]["profit_factor"],
+                  "development_dd_r": None if dm["metrics"] is None else dm["metrics"]["max_drawdown_r"],
+                  "holdout_dd_r": None if hm["metrics"] is None else hm["metrics"]["max_drawdown_r"],
+                  "development_ls": None if dm["metrics"] is None else dm["metrics"]["max_losing_streak"],
+                  "holdout_ls": None if hm["metrics"] is None else hm["metrics"]["max_losing_streak"],
+              })
+          payload = {
+              "identity": "QORE_CAPITALIZER_NATIVE_M1_5Y_DEV_HOLDOUT_COMPARISON_V1",
+              "development_window": [d["window_start"], d["window_end_exclusive"]],
+              "fresh_holdout_window": [h["window_start"], h["window_end_exclusive"]],
+              "same_frozen_sha": True,
+              "methodology_changed": False,
+              "entry_timeframe": "M1_NATIVE",
+              "m1_mss_required": True,
+              "m1_fvg_required": True,
+              "m1_order_block_required": True,
+              "development_total_entries": d["total_m1_entries"],
+              "holdout_total_entries": h["total_m1_entries"],
+              "development_aggregate_pf": d["aggregate_pf"],
+              "holdout_aggregate_pf": h["aggregate_pf"],
+              "development_max3_metrics": d["max3_metrics"],
+              "holdout_max3_metrics": h["max3_metrics"],
+              "markets": rows,
+              "holdout_fresh": True,
+              "holdout_used_for_tuning": False,
+              "economic_candidate": False,
+              "trader_certified": False,
+          }
+          Path("comparison/dev-vs-fresh-holdout.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n"
+          )
+          lines = [
+              "# QORE Capitalizer — Native M1 5Y Development vs Fresh Holdout",
+              "",
+              "Methodology unchanged. M1 entry requires MSS + FVG + validated Order Block.",
+              "",
+              "| Market | Dev entries | Holdout entries | Dev PF | Holdout PF | Dev DD | Holdout DD |",
+              "|---|---:|---:|---:|---:|---:|---:|",
+          ]
+          for row in rows:
+              lines.append(
+                  f"| {row['symbol']} | {row['development_entries']} | {row['holdout_entries']} | "
+                  f"{row['development_pf']} | {row['holdout_pf']} | "
+                  f"{row['development_dd_r']}R | {row['holdout_dd_r']}R |"
+              )
+          Path("comparison/dev-vs-fresh-holdout.md").write_text("\n".join(lines) + "\n")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-native-m1-5y-dev-holdout-comparison-${{ github.sha }}
+          path: comparison
+          retention-days: 90

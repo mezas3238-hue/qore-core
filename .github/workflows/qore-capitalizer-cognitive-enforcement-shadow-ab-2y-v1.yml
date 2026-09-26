@@ -1,0 +1,93 @@
+name: QORE Capitalizer Cognitive Enforcement Shadow AB 2Y V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-cognitive-enforcement-shadow-ab-2y-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_cognitive_enforcement_shadow_ab_2y_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_cognitive_enforcement_shadow_ab_2y_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  SOURCE_RUN_ID: '36055792484'
+  SOURCE_SHA: 'a66ab11c22efbefb61756db3f0062c3c51a2a825'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_cognitive_enforcement_shadow_ab_2y_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_cognitive_enforcement_shadow_ab_2y_v1.py
+      - run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_cognitive_enforcement_shadow_ab_2y_v1.py
+      - run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_cognitive_enforcement_shadow_ab_2y_v1.py
+
+  shadow:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-max-recovery-target1-stability-2y-v1-${{ env.SOURCE_SHA }}
+          path: source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - name: Force cognition over frozen 1R ledger
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cognitive_enforcement_shadow_ab_2y_v1 \
+            source output
+      - name: Enforce zero strategy mutation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "output/capitalizer-cognitive-enforcement-shadow-ab-2y-v1.json"
+              ).read_text()
+          )
+          assert report["control_trades"] == 948
+          assert report["target_r"] == "1.00"
+          assert report["existing_cognitive_engine_used"] is True
+          assert report["cognitive_rules_changed"] is False
+          assert report["strategy_rules_changed"] is False
+          assert report["entry_changed"] is False
+          assert report["stop_changed"] is False
+          assert report["target_changed"] is False
+          assert report["max3_changed"] is False
+          assert report["new_numeric_thresholds_added"] is False
+          assert report["outcome_visible_to_gate"] is False
+          assert report["missing_evidence_fabricated"] is False
+          assert report["rule_promotion_allowed"] is False
+          assert report["live_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-enforcement-shadow-ab-2y-v1-${{ github.sha }}
+          path: output
+          if-no-files-found: error
+          retention-days: 90

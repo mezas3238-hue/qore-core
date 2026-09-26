@@ -28,6 +28,7 @@ from qore.infrastructure.ports import (
 from qore.kernel.result import Failure, Result, Success
 
 _CTRADER_RELATIVE_PRICE_SCALE = Decimal(100_000)
+_M1_SECONDS = 60
 _M5_SECONDS = 300
 
 
@@ -50,12 +51,15 @@ class CTraderDemoMarketDataUnsupportedError(CTraderDemoMarketDataError):
 
 
 class CTraderTrendbarPeriod(StrEnum):
-    """cTrader trendbar periods admitted by the first QORE delivery."""
+    """cTrader trendbar periods admitted by the QORE candle delivery."""
 
+    M1 = "M1"
     M5 = "M5"
 
     @property
     def seconds(self) -> int:
+        if self is CTraderTrendbarPeriod.M1:
+            return _M1_SECONDS
         return _M5_SECONDS
 
 
@@ -284,10 +288,14 @@ class CTraderDemoMarketDataPayloadAdapter:
             return Failure(
                 CTraderDemoMarketDataValidationError("cTrader OHLC read requires OhlcRequest")
             )
-        if request.timeframe.seconds != _M5_SECONDS:
+        period = {
+            _M1_SECONDS: CTraderTrendbarPeriod.M1,
+            _M5_SECONDS: CTraderTrendbarPeriod.M5,
+        }.get(request.timeframe.seconds)
+        if period is None:
             return Failure(
                 CTraderDemoMarketDataUnsupportedError(
-                    "cTrader first delivery supports native M5 only"
+                    "cTrader candle delivery supports native M1 and M5 only"
                 )
             )
         try:
@@ -311,10 +319,10 @@ class CTraderDemoMarketDataPayloadAdapter:
                     "cTrader result instrument must match requested instrument"
                 )
             )
-        if response.period is not CTraderTrendbarPeriod.M5:
+        if response.period is not period:
             return Failure(
                 CTraderDemoMarketDataValidationError(
-                    "cTrader trendbar period must match requested M5 timeframe"
+                    "cTrader trendbar period must match requested timeframe"
                 )
             )
         if response.has_more:
@@ -335,7 +343,7 @@ class CTraderDemoMarketDataPayloadAdapter:
         if isinstance(opened_at_result, Failure):
             return opened_at_result
         opened_at = opened_at_result.value
-        closed_at = opened_at + timedelta(seconds=_M5_SECONDS)
+        closed_at = opened_at + timedelta(seconds=period.seconds)
         if opened_at != request.opened_at or closed_at != request.closed_at:
             return Failure(
                 CTraderDemoMarketDataValidationError(
@@ -361,7 +369,7 @@ class CTraderDemoMarketDataPayloadAdapter:
             ExternalOhlcPayload(
                 source=self.descriptor,
                 instrument=response.instrument,
-                timeframe_seconds=_M5_SECONDS,
+                timeframe_seconds=period.seconds,
                 opened_at=opened_at,
                 closed_at=closed_at,
                 open=normalized["open"],
