@@ -62,6 +62,32 @@ def m15_source_direction(snapshot: TemporalHierarchySnapshot) -> int:
     return 0 if level is None else _sign(level.direction_milli)
 
 
+def higher_timeframe_structural_failure_target(
+    *,
+    anchor_direction: int,
+    prior_peak: float,
+    prior_floor: float,
+    future_high: float,
+    future_low: float,
+    future_final_close: float,
+) -> bool:
+    """Return the matured WP-05 structural-failure target V2.
+
+    This function is for offline historical labeling/evaluation only. Runtime
+    projection must never receive the future arguments used here.
+    """
+
+    if anchor_direction not in (-1, 0, 1):
+        raise ValueError("anchor_direction must be -1, 0 or 1")
+    if prior_peak < prior_floor:
+        raise ValueError("prior structural frontier is invalid")
+    if anchor_direction == 0:
+        return False
+    if anchor_direction > 0:
+        return future_low < prior_floor and future_final_close < prior_floor
+    return future_high > prior_peak and future_final_close > prior_peak
+
+
 @dataclass(frozen=True, slots=True)
 class TemporalHierarchyTargetSemantics:
     baseline_local_opposition: bool
