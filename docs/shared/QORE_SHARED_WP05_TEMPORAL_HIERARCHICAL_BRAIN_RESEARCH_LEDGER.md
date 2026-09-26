@@ -181,13 +181,14 @@ Frozen geometry:
 - fixed-anchor hierarchy penetration depth;
 - fixed-anchor recession versus advance;
 - bounded second-order terms / interactions;
-- R8 70% chronological discovery / 30% calibration;
+- R8 70% source-time discovery / 30% calibration boundary;
+- chronological purge between discovery labels and calibration source: every discovery episode with `observed_at >= first_calibration_source_as_of` is excluded;
 - threshold frozen on R8 calibration with >=98% terminal-preservation buffer;
 - R6/R5 no refit and no threshold retuning.
 
 Authoritative fixed-anchor candidate:
-- Git SHA: `52dc9b0f9c8747dc3969ab0ecddc7fbbbd91f799`;
-- GitHub Actions run: `36273873969`.
+- Git SHA: `8838a63d52cb2efdcc84f148623418cbf36b8bfd`;
+- GitHub Actions run: `36273972709`.
 
 Its result must be recorded here only after the workflow produces a
 protocol-valid payload.
