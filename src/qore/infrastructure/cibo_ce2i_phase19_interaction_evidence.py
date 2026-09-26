@@ -156,16 +156,26 @@ def project_phase19_temporal_overlap_evidence(
     *,
     candidates: tuple[CapitalOpportunityCandidate, ...],
     atlas: Phase19TemporalOverlapAtlas,
+    decision_as_of: datetime,
 ) -> tuple[OpportunityInteractionEvidence, ...]:
     """Project past cross-Trader overlap burden onto current candidate pairs.
 
     This is observational evidence only. A zero historical share creates no
-    edge, and no score/risk/margin field on the candidate is changed.
+    edge, and no score/risk/margin field on the candidate is changed. The
+    historical evidence window must close strictly before the current decision.
     """
 
     if not isinstance(atlas, Phase19TemporalOverlapAtlas):
         raise CiboCapitalManagementError(
             "Phase 19 temporal atlas must be Phase19TemporalOverlapAtlas"
+        )
+    if decision_as_of.tzinfo is None or decision_as_of.utcoffset() is None:
+        raise CiboCapitalManagementError(
+            "Phase 19 temporal projection decision_as_of must be timezone-aware"
+        )
+    if atlas.common_window_end >= decision_as_of:
+        raise CiboCapitalManagementError(
+            "Phase 19 temporal atlas must predate current decision"
         )
 
     fingerprints = tuple(item.signal_fingerprint for item in candidates)
