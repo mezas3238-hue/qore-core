@@ -864,8 +864,62 @@ acceptance_pass:        true
 
 This is distinct from the R37 source artifact and must not be replaced by R37 metrics.
 R38 preserves the 897-trade source population and applies its pre-entry structural-fragility risk
-overlay. The next GBPJPY step is to reproduce the frozen path and serialize the exact
-entry/protected-swing/technical-target geometry beside the R38 final risk scale and causal state.
+overlay.
+
+The exact frozen GBPJPY geometry replay is now GREEN. GitHub Actions reproduced the historical
+path from the immutable Raw M5 + Target Destination V2 + R27 memory + R36 freeze inputs, then
+verified every generated row against the retained R37 ledger and bound the same population to the
+final R38 corrected ledger.
+
+Phase 18 GBPJPY replay evidence:
+
+```text
+workflow_run: 36252780843
+head_sha:     743291bb6fe02c90831bf9104fa195dba6381e65
+artifact_id:  10909937201
+artifact:     qore-cibo-phase18-gbpjpy-r38-geometry-743291bb6fe02c90831bf9104fa195dba6381e65
+digest:       sha256:b59d8c045a0e86f0e22fb0044dc04eb6dff0f17de4c9f7c7389b903adc443956
+rows:         897
+```
+
+The bound replay proves:
+
+```text
+R37 row-for-row parity:       TRUE
+R38 population row parity:    TRUE
+same signals:                 TRUE
+same entry:                   TRUE
+same structural stop:         TRUE
+same technical target:        TRUE
+same market path:             TRUE
+```
+
+Each row now retains exact:
+
+- causal signal timestamp;
+- entry timestamp and entry price;
+- exact protected-swing structural stop;
+- active CIBO DOL technical target;
+- R37 baseline risk scale;
+- final R38 corrected risk scale;
+- pre-entry setup context;
+- pre-entry regime state;
+- final post-trade outcome kept separately for scoring/baseline comparison.
+
+The Phase 18 artifact checksum manifest has been independently revalidated after download.
+
+GBPJPY provider-economic status remains deliberately:
+
+```text
+R_DENOMINATED_ONLY
+CALIBRATION_REQUIRED
+USD_CIBO_SIZING_COMPARISON_AUTHORIZED = FALSE
+```
+
+No historical spread, commission, slippage, margin or tick-value value has been fabricated.
+The next GBPJPY research step is to locate and bind retained provider-economic evidence; if exact
+historical economics are unavailable, the USD replay remains incomplete while the exact
+R-denominated strategy/geometry replay stays valid.
 
 Replay each Trader with:
 
