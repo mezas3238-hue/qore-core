@@ -86,7 +86,7 @@ def _selected_path(
         ctx = contexts[key]
         history = governor._closed_history(
             tuple(chosen),
-            entry_at=router.direct._aware(trade.entry_at),
+            entry_at=direct._aware(trade.entry_at),
         )
         state, _eq, _pk, _dd, _ls = governor._state(history)
         base_mode, level, support = router._lookup(model, ctx)
