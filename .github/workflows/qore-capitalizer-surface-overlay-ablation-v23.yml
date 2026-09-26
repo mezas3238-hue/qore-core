@@ -1,13 +1,6 @@
 name: QORE Capitalizer Surface Overlay Ablation V23
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/qore-capitalizer-surface-overlay-ablation-v23.yml'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_surface_overlay_ablation_v23.py'
-      - 'tests/infrastructure/trader_lab/test_capitalizer_surface_overlay_ablation_v23.py'
   workflow_dispatch:
 
 permissions:
