@@ -98,7 +98,6 @@ jobs:
             src/qore/infrastructure/cibo_cma_shadow_floor.py \
             src/qore/infrastructure/cibo_cma_capital_observation.py \
             scripts/cibo_ce2i_sizing_reconstruction_report.py \
-            scripts/cibo_cma_shadow_floor_report.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
             tests/infrastructure/test_cibo_capital_management_authority.py \
