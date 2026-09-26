@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from decimal import Decimal
+
+from qore.infrastructure.trader_lab import (
+    capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
+)
+from qore.infrastructure.trader_lab import capitalizer_exposure_graph as exposure
 
 from qore.infrastructure.trader_lab import (
     capitalizer_causal_probe_ranker_v10 as v10,
@@ -42,8 +48,8 @@ def _trade(
     *,
     entry_at: str = "2026-01-01T15:00:00+00:00",
     exit_at: str = "2026-01-01T16:00:00+00:00",
-) -> lab.milestone.SimulatedTrade:
-    return lab.milestone.SimulatedTrade(
+) -> milestone.SimulatedTrade:
+    return milestone.SimulatedTrade(
         symbol=symbol,
         session="NEW_YORK",
         operating_date="2026-01-01",
@@ -100,7 +106,7 @@ def test_open_factor_exposure_does_not_read_active_trade_outcome() -> None:
         entry_at="2026-01-01T15:00:00+00:00",
         exit_at="2026-01-01T16:00:00+00:00",
     )
-    altered = lab.replace(active, realized_gross_r="-999")
+    altered = replace(active, realized_gross_r="-999")
     assert lab._factor_features((active,), trade=current) == lab._factor_features(
         (altered,),
         trade=current,
@@ -108,9 +114,9 @@ def test_open_factor_exposure_does_not_read_active_trade_outcome() -> None:
 
 
 def test_unit_exposure_is_explicitly_structural_not_capital_sizing() -> None:
-    position = lab.exposure.CapitalizerExposurePosition(
+    position = exposure.CapitalizerExposurePosition(
         symbol="EURUSD",
-        side=lab.exposure.CapitalizerSide.LONG,
+        side=exposure.CapitalizerSide.LONG,
         risk_r=Decimal("1"),
     )
     assert position.risk_r == Decimal("1")
