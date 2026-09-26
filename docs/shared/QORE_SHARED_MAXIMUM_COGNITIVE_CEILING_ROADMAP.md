@@ -1,13 +1,13 @@
 # QORE Shared Brain — Maximum Cognitive Ceiling Program
 
-**Program identity:** `QORE_META_COGNITIVE_SCIENTIFIC_INTELLIGENCE_003`  
+**Program identity:** `QORE_META_COGNITIVE_SCIENTIFIC_INTELLIGENCE_004`  
 **Repository:** `mezas3238-hue/qore-core`  
 **Primary PR:** #635  
-**Governance:** DRAFT / research-first / no LIVE or production authority.
+**Governance:** DRAFT / research-first / no LIVE or production authority.\n**Owner Cognitive OS directive:** `docs/shared/QORE_SHARED_COGNITIVE_OS_OWNER_DIRECTIVE_004.md`
 
 ## Mission
 
-Build Shared as the central scientific nervous system of QORE Core.
+Build Shared as the cognitive, scientific and epistemic operating system of QORE Core.
 
 Shared does **not** replace specialist methodology, QORE Risk or Execution. It
 observes, reconstructs hidden market state, maintains competing explanations,
@@ -84,6 +84,32 @@ replication → holdout → stress → shadow → certification → knowledge pr
 - Execution remains sovereign.
 - Specialist traders remain methodologically sovereign.
 - Shared outputs generic market cognition and explicit uncertainty.
+
+## Transversal Owner laws
+
+The ordered WP-01..WP-12 chain remains unchanged, but every work package is
+constrained by the Owner Cognitive OS directive 004.
+
+In particular:
+
+- Cognitive Firewall is mandatory: Shared observes/reasons/communicates but
+  never sends orders, closes positions, modifies stops/targets, sizes,
+  allocates capital, authorizes Risk, blocks or forces trades.
+- Shared observes Market Reality, Core Reality and Cognitive Reality.
+- Market Digital Twin and QORE Core Digital Twin coexist.
+- Unknown World, abstention and degraded mode are first-class.
+- Negative Evidence, Active Perception, Value of Information and Value of
+  Computation are required.
+- Infrastructure/Broker intelligence diagnose but never mutate runtime.
+- Cognitive Failure Memory, knowledge half-life, transportability, invariant
+  discovery and ontology evolution are governed capabilities.
+- Blindspot Engine and sovereign adapters materialize Shared as the third eye
+  without contaminating trader methodology.
+- The primary Shared scorecard measures understanding/calibration/reliability;
+  PF/DD/Total R remain downstream economic certification effects.
+
+The machine-readable source is
+`src/qore/infrastructure/core_stack_v2/shared_cognitive_os_contract.py`.
 
 ## Ordered work chain
 
