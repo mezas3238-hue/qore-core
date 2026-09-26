@@ -22,6 +22,10 @@ from qore.infrastructure.cibo_cma_capital_observation import CmaCapitalObservati
 from qore.infrastructure.cibo_ce2i_execution_efficiency import (
     ExecutionCostCurveInput,
 )
+from qore.infrastructure.cibo_ce2i_causal_expectation import (
+    CausalExpectationBasis,
+    CausalOpportunityExpectation,
+)
 from qore.infrastructure.cibo_ce2i_opportunity_competition import (
     CapitalOpportunityCandidate,
 )
@@ -141,7 +145,13 @@ def _candidate(*, risk: str = "8", margin: str = "12") -> CapitalOpportunityCand
         trader_id=TraderLineage.R38_EURUSD,
         qore_symbol="EURUSD",
         provider_symbol="EURUSD",
-        expected_net_value_usd=Decimal("10"),
+        decision_as_of=NOW,
+        expectation=CausalOpportunityExpectation(
+            evidence_id="test:expectation:signal-1",
+            as_of=NOW,
+            basis=CausalExpectationBasis.FROZEN_HISTORICAL_PRIOR,
+            expected_net_value_usd=Decimal("10"),
+            ),
         stop_risk_usd=Decimal(risk),
         margin_usd=Decimal(margin),
         expected_capital_minutes=Decimal("10"),
