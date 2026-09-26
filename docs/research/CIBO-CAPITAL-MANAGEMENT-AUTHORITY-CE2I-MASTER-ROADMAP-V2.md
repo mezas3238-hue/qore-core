@@ -1456,6 +1456,36 @@ capital reset at each segment boundary for stability research only.
 
 No Phase-19G output has sizing/allocation/QORE-Risk/execution authority.
 
+### Phase 19H resource / dependence hypergraph
+
+Pairwise overlap is no longer the only representation of concurrent portfolio
+structure.
+
+Phase 19H introduces two explicitly distinct hyperedge families:
+
+```text
+TEMPORAL_CONCURRENCY
+NORMALIZED_CAPITAL_COLLISION
+```
+
+A temporal hyperedge represents a positive-duration active set with at least two
+distinct Traders. It is pure chronology and makes no correlation or harmful
+interaction claim.
+
+A resource-collision hyperedge exists only under a predeclared normalized
+capacity scenario when one rejected opportunity collides with one or more
+active reservations. It retains the rejected opportunity, all blockers and the
+normalized capacity shortfall.
+
+The empirical workflow measures the full-window temporal hypergraph and
+TRAIN/VALIDATION temporal/resource structures separately. Collision hyperedges
+are evaluated on the same 2/3/4/5/10/100 NCU scenarios used by Phase 19G.
+
+Hypergraph centrality, clique size or membership has **no automatic sizing
+meaning**. Phase 19H has zero sizing-penalty, allocation, QORE-Risk or execution
+authority. Later WFO must demonstrate incremental capital relevance before any
+hypergraph feature can become actionable.
+
 Current Phase-19 scientific sequence is therefore:
 
 ```text
@@ -1466,7 +1496,7 @@ Current Phase-19 scientific sequence is therefore:
 19E  TEMPORAL NULL MODEL                     IMPLEMENTED / EMPIRICAL CI PENDING
 19F  OVERLAP DEPENDENCE TRAIN/VALIDATION     IMPLEMENTED / EMPIRICAL CI PENDING
 19G  CAPITAL COLLISION + MARGINAL CAPACITY   IMPLEMENTED / EMPIRICAL CI PENDING
-19H  RESOURCE / DEPENDENCE HYPERGRAPH        PENDING
+19H  RESOURCE / DEPENDENCE HYPERGRAPH        IMPLEMENTED / EMPIRICAL CI PENDING
 19I  SIMPLE CAPITAL POLICY BASELINES          PENDING
 19J  CAUSAL NORMALIZED WFO                    PENDING
 ```
