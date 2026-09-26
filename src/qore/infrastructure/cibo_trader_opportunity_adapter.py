@@ -9,8 +9,13 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
-from qore.infrastructure.cibo_capital_management_authority import TraderOpportunityEnvelope
+from qore.infrastructure.account_wide_risk import (
+    CiboRiskRequest,
+    TraderLineage,
+)
+from qore.infrastructure.cibo_capital_management_authority import (
+    TraderOpportunityEnvelope,
+)
 
 
 ACTIVE_CMA_TRADERS: tuple[TraderLineage, ...] = (
