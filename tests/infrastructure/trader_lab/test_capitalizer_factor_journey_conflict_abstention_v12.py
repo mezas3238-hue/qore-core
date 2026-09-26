@@ -1,12 +1,21 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Any
+
+import pytest
 
 from qore.infrastructure.trader_lab import (
     capitalizer_causal_probe_ranker_v10 as v10,
 )
 from qore.infrastructure.trader_lab import (
+    capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_factor_journey_conflict_abstention_v12 as lab,
+)
+from qore.infrastructure.trader_lab import (
+    capitalizer_factor_journey_probe_ranker_v11 as v11,
 )
 
 
@@ -67,3 +76,54 @@ def test_abstention_requires_two_period_agreement() -> None:
 
 def test_density_floor_is_predeclared() -> None:
     assert lab.MIN_DENSITY_RETENTION == Decimal("0.90")
+
+
+def _trade(symbol: str, side: str) -> milestone.SimulatedTrade:
+    return milestone.SimulatedTrade(
+        symbol=symbol,
+        session="NEW_YORK",
+        operating_date="2026-01-01",
+        side=side,
+        entry_at="2026-01-01T15:00:00+00:00",
+        exit_at="2026-01-01T16:00:00+00:00",
+        entry_price="100",
+        original_stop_price="99",
+        final_stop_price="99",
+        target_price="102",
+        realized_gross_r="2",
+        exit_reason="TARGET",
+        mode="ORIGINAL",
+        protection_updates=0,
+        first_protection_at=None,
+        max_milestone_r_seen_before_exit="2",
+        same_minute_stop_target_ambiguity=False,
+    )
+
+
+def test_v12_simulation_binds_and_restores_v11_simultaneous_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    left = _trade("EURUSD", "LONG")
+    right = _trade("GBPUSD", "LONG")
+    ledgers = {
+        milestone.ProtectionMode.ORIGINAL.value: (left, right),
+    }
+    seen: list[dict[tuple[str, str, str], tuple[milestone.SimulatedTrade, ...]]] = []
+
+    def fake_bound(**_kwargs: Any) -> tuple[dict[str, Any], tuple[lab.AbstainDecision, ...]]:
+        seen.append(dict(v11._SIMULTANEOUS))
+        return {}, ()
+
+    before = dict(v11._SIMULTANEOUS)
+    monkeypatch.setattr(lab, "_simulate_bound", fake_bound)
+    lab._simulate(
+        period="P",
+        policy="SURFACE_CONTROL",
+        ledgers=ledgers,
+        contexts={},
+        contextual_model={},
+        models=None,
+    )
+
+    assert ("P", "NEW_YORK", left.entry_at) in seen[0]
+    assert v11._SIMULTANEOUS == before
