@@ -114,7 +114,7 @@ def test_boundary_crossing_position_is_excluded_from_both_segments() -> None:
     assert evidence.total_variation_distance == Decimal(0)
 
 
-def test_incomplete_validation_population_remains_observationally_insufficient(\n    ) -> None:
+def test_incomplete_validation_population_is_insufficient() -> None:
     training = _fully_overlapping_segment(
         at=START + timedelta(days=2),
         suffix="train",
