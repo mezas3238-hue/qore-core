@@ -374,7 +374,7 @@ def _feature_vector(
     if len(ordered_directions) >= 2:
         adjacent_disagreement = fmean(
             abs(right - left) / 2.0
-            for left, right in zip(ordered_directions, ordered_directions[1:], strict=True)
+            for left, right in zip(ordered_directions, ordered_directions[1:], strict=False)
         )
 
     names.extend(
