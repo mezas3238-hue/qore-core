@@ -8,9 +8,11 @@ from qore.infrastructure.cibo_fundednext_provider import (
 )
 from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
 from qore.infrastructure.vt08_forex_cibo_operational import (
+    R315_METHOD_FINGERPRINT,
+    R315_RISK_FINGERPRINT,
     Vt08ForexCiboAuthorization,
-    Vt08ForexCiboDecision,
     Vt08ForexCiboSetup,
+    evaluate_vt08_forex_cibo,
 )
 
 
@@ -50,17 +52,16 @@ def _authorization() -> Vt08ForexCiboAuthorization:
         intended_entry=Decimal("1.2500"),
         stop_loss=Decimal("1.2450"),
         take_profit=Decimal("1.2600"),
-        methodology_fingerprint="method",
-        risk_policy_fingerprint="risk",
+        methodology_fingerprint=R315_METHOD_FINGERPRINT,
+        risk_policy_fingerprint=R315_RISK_FINGERPRINT,
         decided_at=NOW,
         expires_at=NOW + timedelta(minutes=2),
     )
-    return Vt08ForexCiboAuthorization(
-        decision=Vt08ForexCiboDecision.ALLOW,
-        setup=setup,
-        posture="NORMAL",
-        reason="test",
-        decided_at=NOW,
+    return evaluate_vt08_forex_cibo(
+        setup,
+        enabled=True,
+        certification_current=True,
+        now=NOW,
     )
 
 
