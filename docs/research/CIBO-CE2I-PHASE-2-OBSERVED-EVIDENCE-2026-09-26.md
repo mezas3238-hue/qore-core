@@ -112,6 +112,21 @@ The Behavior Lab contains substantial position/runtime evidence, including:
 That evidence is valuable for later CE2I capital-recycling and path-aware phases, but it does not
 replace missing decision-time sizing economics.
 
+## Active-runtime source verification
+
+Read-only inspection of the active VPS source confirms the frozen Phase-2 base-risk contracts:
+
+- VT08: AUDJPY 25 bps, GBPUSD 25 bps, GBPJPY 20 bps of assigned capital.
+- R34 XAUUSD: base risk fraction 0.002; broker-risk buffer 1.02; max source-entry drift 0.10R.
+- R38 EURUSD: base risk fraction 0.002; broker-risk buffer 1.02; max source-entry drift 0.10R.
+- R43 GBPUSD: base risk fraction 0.002; broker-risk buffer 1.02; max source-entry drift 0.10R.
+- R38 GBPJPY: base risk fraction 0.002; broker-risk buffer 1.02; max source-entry drift 0.10R.
+- R42 AUDJPY: base risk fraction 0.002; broker-risk buffer 1.02; max source-entry drift 0.10R.
+- VT31 NAS100: QORE 1R account fraction 0.002; broker-risk buffer 1.02.
+
+The active workspace HEAD is local/unpublished relative to GitHub at this checkpoint, so CE2I records
+the observed runtime identity separately instead of pretending GitHub can resolve that SHA.
+
 ## Engineering response added to PR #651
 
 Phase 2 now adds:
