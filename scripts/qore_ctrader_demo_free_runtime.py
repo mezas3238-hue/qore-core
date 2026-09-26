@@ -48,6 +48,10 @@ from qore.infrastructure.account_wide_risk_ledger import (
     DurableAccountWideRiskEngine,
     DurableAccountWideRiskLedger,
 )
+from qore.infrastructure.cibo_account_capital_mission import (
+    derive_cibo_capital_mission,
+    identity_from_market_test_account,
+)
 from qore.infrastructure.ctrader_demo_compat import (
     CTraderDemoAccountState,
     CTraderDemoSymbolSpecification,
@@ -988,6 +992,8 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         account_ref=str(account_info.login),
         environment=MarketRuntimeEnvironment.DEMO,
     )
+    cibo_account_identity = identity_from_market_test_account(account)
+    cibo_capital_mission = derive_cibo_capital_mission(cibo_account_identity)
     state_dir = root / "var" / "ctrader_demo_signal_runtime"
     cma_settlement_store = DurableCmaSettlementStore(
         state_dir / "cibo-cma-settlements.json"
@@ -1188,6 +1194,15 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             ],
             "execution_environment": "CTRADER_DEMO_FREE",
             "market_data_provider": "CTRADER_DEMO",
+            "cibo_account_context_source": "ACCOUNT_BINDING",
+            "cibo_capital_mission": cibo_capital_mission.mission.value,
+            "cibo_capital_primary_objective": (
+                cibo_capital_mission.primary_objective.value
+            ),
+            "cibo_ce2i_activation_scope": cibo_capital_mission.ce2i_scope.value,
+            "cibo_capability_measurement_enabled": (
+                cibo_capital_mission.capability_measurement_enabled
+            ),
             "ctrader_demo_writer": True,
             "account_wide_risk_active": False,
             "risk_role": "CAPITAL_ALLOCATOR_ONLY",
