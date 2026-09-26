@@ -321,7 +321,7 @@ def _load_windows(
     reserved_root: Path,
     development_validation_context_root: Path,
     reserved_context_root: Path,
-) -> tuple[dict[str, tuple[dict[str, tuple[milestone.SimulatedTrade, ...]], dict[Any, Any]]], dict[str, Any]]:
+) -> tuple[dict[str, Any], dict[str, Any]]:
     development = router._load_selected(
         development_root,
         expected=v10.EXPECTED_DEVELOPMENT_TRADES,
