@@ -1,13 +1,6 @@
 name: QORE Capitalizer Robust Counterfactual Protection Policy V27
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/qore-capitalizer-robust-counterfactual-protection-policy-v27.yml'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_robust_counterfactual_protection_policy_v27.py'
-      - 'tests/infrastructure/trader_lab/test_capitalizer_robust_counterfactual_protection_policy_v27.py'
   workflow_dispatch:
 
 permissions:
