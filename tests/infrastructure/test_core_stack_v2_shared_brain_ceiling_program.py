@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from qore.infrastructure.core_stack_v2.shared_brain_architecture_contract import (
+    SHARED_BRAIN_ARCHITECTURE_VERSION,
+)
 from qore.infrastructure.core_stack_v2.shared_brain_ceiling_program import (
     FINAL_CERTIFICATION_GATES,
     PROGRAM_ID,
@@ -12,7 +15,8 @@ from qore.infrastructure.core_stack_v2.shared_brain_ceiling_program import (
 def test_maximum_ceiling_program_is_complete_and_ordered() -> None:
     validate_work_chain()
 
-    assert PROGRAM_ID == "QORE_META_COGNITIVE_SCIENTIFIC_INTELLIGENCE_004"
+    assert PROGRAM_ID == "QORE_META_COGNITIVE_SCIENTIFIC_INTELLIGENCE_005"
+    assert PROGRAM_ID == SHARED_BRAIN_ARCHITECTURE_VERSION
     assert tuple(package.work_id for package in WORK_CHAIN) == tuple(
         f"WP-{index:02d}" for index in range(1, 13)
     )
