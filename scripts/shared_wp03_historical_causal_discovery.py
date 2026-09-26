@@ -1046,6 +1046,10 @@ def run(
         observations["r5"],
     )
 
+    r8_source_thresholds = _fit_r8_source_thresholds(
+        observations["r8"]
+    )
+
     all_pairs = [
         (source, target)
         for source in SOURCE_CONCEPTS
@@ -1060,11 +1064,17 @@ def run(
         CausalDiscoveryAssessment,
     ] = {}
     for source, target in all_pairs:
+        threshold = r8_source_thresholds[source]
+        source_policy = _policy(
+            control_threshold_bps=threshold.control_bps,
+            exposed_threshold_bps=threshold.exposed_bps,
+            combined=False,
+        )
         assessment, _ = _assess(
             observations["r8"],
             source=source,
             target=target,
-            policy=SINGLE_PARTITION_POLICY,
+            policy=source_policy,
         )
         if assessment is None:
             r8_status_counts["NO_ASSESSMENT"] += 1
@@ -1083,23 +1093,34 @@ def run(
 
     for source, target in r8_screen:
         r8 = r8_assessments[(source, target)]
+        threshold = r8_source_thresholds[source]
+        source_policy = _policy(
+            control_threshold_bps=threshold.control_bps,
+            exposed_threshold_bps=threshold.exposed_bps,
+            combined=False,
+        )
+        combined_policy = _policy(
+            control_threshold_bps=threshold.control_bps,
+            exposed_threshold_bps=threshold.exposed_bps,
+            combined=True,
+        )
         r6, r6_episodes = _assess(
             observations["r6"],
             source=source,
             target=target,
-            policy=SINGLE_PARTITION_POLICY,
+            policy=source_policy,
         )
         r5, r5_episodes = _assess(
             observations["r5"],
             source=source,
             target=target,
-            policy=SINGLE_PARTITION_POLICY,
+            policy=source_policy,
         )
         _, r8_episodes = _assess(
             observations["r8"],
             source=source,
             target=target,
-            policy=SINGLE_PARTITION_POLICY,
+            policy=source_policy,
         )
 
         if r6 is None or r5 is None:
@@ -1109,7 +1130,7 @@ def run(
         combined = discover_causal_relation(
             as_of=max(item.target_at for item in combined_episodes),
             episodes=combined_episodes,
-            policy=COMBINED_POLICY,
+            policy=combined_policy,
         )
 
         r6_direction_pass = _same_material_direction(r8, r6)
