@@ -1235,7 +1235,8 @@ def _authorize_and_check(
         request_id=f"vt31-{order.signal_fingerprint[:24]}",
         opportunity=opportunity,
         assigned_capital_usd=demo_capital_for(TraderLineage.VT31_NAS100),
-        observed_free_margin_usd=account.free_margin,
+        hard_risk_headroom_usd=demo_capital_for(TraderLineage.VT31_NAS100),
+        margin_headroom_usd=account.free_margin,
         requested_at=request_at,
         expires_at=expires_at,
     )
