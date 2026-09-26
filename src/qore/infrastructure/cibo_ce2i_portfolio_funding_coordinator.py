@@ -13,6 +13,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
+from qore.infrastructure.cibo_account_capital_mission import (
+    CiboCapitalMissionPolicy,
+)
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
     TraderOpportunityEnvelope,
@@ -37,6 +40,9 @@ from qore.infrastructure.cibo_ce2i_opportunity_competition import (
 from qore.infrastructure.cibo_ce2i_policy_pipeline import (
     Ce2iExpansionPolicyDecision,
     propose_ce2i_expansion,
+)
+from qore.infrastructure.cibo_ce2i_regime_selector import (
+    CiboRegimeToolSelection,
 )
 from qore.infrastructure.cibo_ce2i_portfolio_allocation_store import (
     DurablePortfolioAllocationStore,
@@ -74,6 +80,8 @@ def reserve_portfolio_and_funding(
     candidate: CapitalOpportunityCandidate,
     opportunity: TraderOpportunityEnvelope,
     observation: CmaCapitalObservation,
+    mission: CiboCapitalMissionPolicy,
+    regime: CiboRegimeToolSelection,
     execution_curve: ExecutionCostCurveInput,
     assigned_capital_usd: Decimal,
     hard_risk_headroom_usd: Decimal,
@@ -151,6 +159,8 @@ def reserve_portfolio_and_funding(
             request_id=f"{transaction_id}:risk",
             opportunity=opportunity,
             observation=observation,
+            mission=mission,
+            regime=regime,
             execution_curve=execution_curve,
             assigned_capital_usd=assigned_capital_usd,
             hard_risk_headroom_usd=hard_risk_headroom_usd,
