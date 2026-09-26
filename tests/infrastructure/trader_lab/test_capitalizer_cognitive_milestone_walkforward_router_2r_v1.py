@@ -5,6 +5,9 @@ from decimal import Decimal
 from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_milestone_walkforward_router_2r_v1 as router,
 )
+from qore.infrastructure.trader_lab import (
+    capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
+)
 
 
 def test_score_policies_penalize_downside() -> None:
@@ -30,7 +33,7 @@ def test_score_policies_penalize_downside() -> None:
 
 def test_split_keys_is_disjoint_and_complete() -> None:
     rows = tuple(
-        router.milestone.SimulatedTrade(
+        milestone.SimulatedTrade(
             symbol="NAS100",
             session="NEW_YORK",
             operating_date=f"2026-01-{index + 1:02d}",
