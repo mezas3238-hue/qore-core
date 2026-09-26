@@ -128,6 +128,8 @@ jobs:
           assert m["fit_partition"] == "r8"
           assert m["representation"] == "STRUCTURAL_FRONTIER_SURVIVAL_V2_FIXED_ANCHOR"
           assert m["calibration_terminal_preservation_bps"] >= 9800
+          assert m["purged_discovery_count"] > 0
+          assert m["discovery_observed_max"] < m["calibration_source_min"]
           assert m["feature_count"] >= 20
           assert len(m["fingerprint_sha256"]) == 64
           assert len(m["feature_centers_micros"]) == m["feature_count"]
@@ -221,6 +223,9 @@ jobs:
               f"- frozen model fingerprint: \`{m['fingerprint_sha256']}\`",
               f"- R8 calibration false reduction: **{m['calibration_false_reduction_bps']} bps**",
               f"- R8 calibration terminal preservation: **{m['calibration_terminal_preservation_bps']} bps**",
+              f"- chronological purge: **{m['purged_discovery_count']} discovery episodes removed**",
+              f"- discovery labels mature through: `{m['discovery_observed_max']}`",
+              f"- calibration source begins: `{m['calibration_source_min']}`",
               "- frozen gate unchanged: **>=20% false-declaration reduction + >=95% terminal preservation on BOTH R6/R5**",
               "- fresh holdout opened: **False**",
               "",
