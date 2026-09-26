@@ -71,6 +71,10 @@ def _prepare_partition(
     }
 
     episodes: list[TemporalHierarchyTrajectoryTrainingEpisode] = []
+    snapshot_cache: dict[
+        tuple[int, int, int],
+        TemporalHierarchySnapshot,
+    ] = {}
     nas = bars["NAS100"]
     for nas_index in range(
         MAX_SEQUENCE_LOOKBACK,
@@ -98,42 +102,64 @@ def _prepare_partition(
         snapshot_times = []
 
         for offset in TRAJECTORY_OFFSETS_MINUTES:
-            windows: dict[str, tuple[Any, ...]] = {}
-            for market in MARKETS:
-                end_index = indexes[market] - offset
-                if end_index < MAX_LOOKBACK - 1:
-                    valid = False
-                    break
-                rows = tuple(
-                    bars[market][
-                        end_index - MAX_LOOKBACK + 1 : end_index + 1
-                    ]
-                )
-                if len(rows) != MAX_LOOKBACK:
-                    valid = False
-                    break
-                windows[market] = rows
-            if not valid:
+            end_indexes = {
+                market: indexes[market] - offset
+                for market in MARKETS
+            }
+            if any(
+                end_index < MAX_LOOKBACK - 1
+                for end_index in end_indexes.values()
+            ):
+                valid = False
                 break
 
-            source_at = _parse_key(windows["NAS100"][-1].closed_key)
-            snapshot_times.append(source_at)
-            levels = tuple(
-                _scale_state(
-                    scale=scale,
-                    horizon=horizon,
-                    windows=windows,
+            cache_key = tuple(end_indexes[market] for market in MARKETS)
+            cached = snapshot_cache.get(cache_key)
+            windows: dict[str, tuple[Any, ...]] | None = None
+
+            # Current pre-window is still required for the independently matured
+            # terminal label. Historical trajectory states can reuse an exactly
+            # identical source snapshot calculated by a neighboring grid point.
+            if cached is None or offset == 0:
+                windows = {}
+                for market in MARKETS:
+                    end_index = end_indexes[market]
+                    rows = tuple(
+                        bars[market][
+                            end_index - MAX_LOOKBACK + 1 : end_index + 1
+                        ]
+                    )
+                    if len(rows) != MAX_LOOKBACK:
+                        valid = False
+                        break
+                    windows[market] = rows
+                if not valid:
+                    break
+
+            if cached is None:
+                if windows is None:
+                    raise AssertionError("uncached hierarchy state needs windows")
+                source_at = _parse_key(windows["NAS100"][-1].closed_key)
+                levels = tuple(
+                    _scale_state(
+                        scale=scale,
+                        horizon=horizon,
+                        windows=windows,
+                    )
+                    for scale, horizon in SCALE_HORIZONS
                 )
-                for scale, horizon in SCALE_HORIZONS
-            )
-            snapshots.append(
-                TemporalHierarchySnapshot(
-                    episode_id=f"{partition}:{key}:offset-{offset}",
+                cached = TemporalHierarchySnapshot(
+                    episode_id=f"{partition}:{source_at.isoformat()}:state",
                     as_of=source_at,
                     levels=levels,
                 )
-            )
+                snapshot_cache[cache_key] = cached
+
+            snapshots.append(cached)
+            snapshot_times.append(cached.as_of)
             if offset == 0:
+                if windows is None:
+                    raise AssertionError("current hierarchy state needs pre-window")
                 current_pre = windows
 
         if not valid or len(snapshots) != len(TRAJECTORY_OFFSETS_MINUTES):
@@ -187,6 +213,7 @@ def _prepare_partition(
 
     del bars
     del peer_indexes
+    del snapshot_cache
     gc.collect()
 
     return tuple(episodes), {
@@ -207,7 +234,6 @@ def _prepare_partition(
             else None
         ),
     }
-
 
 def _evaluation_payload(
     evaluation: TemporalHierarchyTransitionEvaluation,
