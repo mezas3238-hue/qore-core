@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
+    CiboCapitalMissionPolicy,
     derive_cibo_capital_mission,
     fundednext_stellar_instant_identity,
 )
@@ -12,6 +13,7 @@ from qore.infrastructure.cibo_ce2i_optionality import (
 )
 from qore.infrastructure.cibo_ce2i_regime_selector import (
     CiboCapitalRegimeState,
+    CiboRegimeToolSelection,
     CorrelationState,
     LiquidityState,
     ProviderCondition,
@@ -21,7 +23,7 @@ from qore.infrastructure.cibo_ce2i_regime_selector import (
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
 
-def _mission_demo():
+def _mission_demo() -> CiboCapitalMissionPolicy:
     return derive_cibo_capital_mission(
         CiboAccountCapitalIdentity(
             provider_key="ctrader-demo",
@@ -31,7 +33,7 @@ def _mission_demo():
     )
 
 
-def _mission_funded():
+def _mission_funded() -> CiboCapitalMissionPolicy:
     return derive_cibo_capital_mission(
         fundednext_stellar_instant_identity(
             account_ref="stellar-instant-2k"
@@ -39,7 +41,12 @@ def _mission_funded():
     )
 
 
-def _regime(mission, *, dd: str = "0.20", adverse: bool = False):
+def _regime(
+    mission: CiboCapitalMissionPolicy,
+    *,
+    dd: str = "0.20",
+    adverse: bool = False,
+) -> CiboRegimeToolSelection:
     return select_ce2i_tools_for_regime(
         mission=mission,
         state=CiboCapitalRegimeState(
