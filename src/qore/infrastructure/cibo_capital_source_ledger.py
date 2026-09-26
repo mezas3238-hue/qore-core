@@ -64,6 +64,25 @@ class CapitalSourceAccount:
 
 
 @dataclass(frozen=True, slots=True)
+class CapitalReservationRequest:
+    reservation_id: str
+    source_id: str
+    amount_usd: Decimal
+
+    def __post_init__(self) -> None:
+        if not self.reservation_id or not self.source_id:
+            raise CiboCapitalManagementError("reservation/source id required")
+        if (
+            not isinstance(self.amount_usd, Decimal)
+            or not self.amount_usd.is_finite()
+            or self.amount_usd <= 0
+        ):
+            raise CiboCapitalManagementError(
+                "reservation amount must be finite positive Decimal"
+            )
+
+
+@dataclass(frozen=True, slots=True)
 class CapitalReservation:
     reservation_id: str
     source_id: str
@@ -132,6 +151,64 @@ class CapitalSourceLedger:
         return CapitalSourceLedger(
             accounts=self._replace_account(updated),
             reservations=self.reservations + (reservation,),
+        )
+
+    def reserve_many(
+        self,
+        requests: tuple[CapitalReservationRequest, ...],
+    ) -> CapitalSourceLedger:
+        """Atomically reserve multiple source slices or reserve none."""
+
+        if not requests:
+            raise CiboCapitalManagementError(
+                "multi-source reservation requires at least one request"
+            )
+        reservation_ids = tuple(item.reservation_id for item in requests)
+        if len(reservation_ids) != len(set(reservation_ids)):
+            raise CiboCapitalManagementError(
+                "duplicate reservation_id inside multi-source request"
+            )
+        if any(
+            existing.reservation_id in set(reservation_ids)
+            for existing in self.reservations
+        ):
+            raise CiboCapitalManagementError("duplicate reservation_id")
+
+        requested_by_source: dict[str, Decimal] = {}
+        for item in requests:
+            self._account(item.source_id)
+            requested_by_source[item.source_id] = (
+                requested_by_source.get(item.source_id, Decimal(0))
+                + item.amount_usd
+            )
+        for source_id, amount in requested_by_source.items():
+            if amount > self._account(source_id).available_usd:
+                raise CiboCapitalManagementError(
+                    "insufficient available capital capacity"
+                )
+
+        updated_accounts = tuple(
+            replace(
+                account,
+                reserved_usd=(
+                    account.reserved_usd
+                    + requested_by_source.get(account.source_id, Decimal(0))
+                ),
+            )
+            for account in self.accounts
+        )
+        new_reservations = tuple(
+            CapitalReservation(
+                reservation_id=item.reservation_id,
+                source_id=item.source_id,
+                amount_usd=item.amount_usd,
+                state=ReservationState.RESERVED,
+            )
+            for item in requests
+        )
+        return CapitalSourceLedger(
+            accounts=updated_accounts,
+            reservations=self.reservations + new_reservations,
         )
 
     def deploy(self, reservation_id: str) -> CapitalSourceLedger:
