@@ -1,17 +1,8 @@
 name: QORE Capitalizer Recovery Mode Mixture V17
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/qore-capitalizer-recovery-mode-mixture-v17.yml'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_recovery_mode_mixture_v17.py'
-      - 'tests/infrastructure/trader_lab/test_capitalizer_recovery_mode_mixture_v17.py'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_recovery_probe_position_survival_v16.py'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_factor_journey_probe_ranker_v11.py'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_causal_probe_ranker_v10.py'
   workflow_dispatch:
+
 
 permissions:
   contents: read
