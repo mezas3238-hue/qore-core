@@ -57,7 +57,7 @@ def _signal(now: datetime, risk_scale: str = "999") -> Any:
 def test_gbpjpy_direct_builder_has_no_sizing_authority() -> None:
     now = datetime(2026, 9, 26, 12, 0, tzinfo=UTC)
     opportunity = build_r38_gbpjpy_opportunity(
-        signal=_signal(now),  # type: ignore[arg-type]
+        signal=_signal(now),
         provider_spec=_broker("GBPJPY", now),
     )
 
@@ -68,12 +68,12 @@ def test_gbpjpy_direct_builder_has_no_sizing_authority() -> None:
 def test_audjpy_direct_builder_preserves_deadline_but_not_risk_scale() -> None:
     now = datetime(2026, 9, 26, 12, 0, tzinfo=UTC)
     low = build_r42_audjpy_opportunity(
-        signal=_signal(now, "0.01"),  # type: ignore[arg-type]
+        signal=_signal(now, "0.01"),
         provider_spec=_broker("AUDJPY", now),
         now=now,
     )
     high = build_r42_audjpy_opportunity(
-        signal=_signal(now, "999"),  # type: ignore[arg-type]
+        signal=_signal(now, "999"),
         provider_spec=_broker("AUDJPY", now),
         now=now,
     )
