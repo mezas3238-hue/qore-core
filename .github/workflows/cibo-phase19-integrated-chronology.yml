@@ -156,6 +156,7 @@ jobs:
             --vt08 source/vt08/phase18-vt08-r315-fundednext-trades.jsonl \
             --vt31 source/vt31/phase18-vt31-v4-bound-trades.jsonl \
             --output phase19-output/phase19-temporal-stability-validation.json \
+            --training-atlas-output phase19-output/phase19-frozen-training-overlap-atlas.json \
             > phase19-output/temporal-stability-stdout.json
 
       - name: Seal Phase-19 evidence
@@ -166,6 +167,7 @@ jobs:
             phase19-integrated-chronology-report.json \
             phase19-temporal-interaction-atlas.json \
             phase19-temporal-stability-validation.json \
+            phase19-frozen-training-overlap-atlas.json \
             replay-stdout.json \
             interaction-atlas-stdout.json \
             temporal-stability-stdout.json \
