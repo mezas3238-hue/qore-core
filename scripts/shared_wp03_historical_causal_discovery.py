@@ -1173,17 +1173,23 @@ def run(
         partition: {
             source.value: {
                 "exposed": sum(
-                    item.source(source) >= EXPOSED_BPS
+                    item.source(source)
+                    >= r8_source_thresholds[source].exposed_bps
                     for item in rows
                 ),
                 "control": sum(
-                    item.source(source) <= CONTROL_BPS
+                    item.source(source)
+                    <= r8_source_thresholds[source].control_bps
                     for item in rows
                 ),
             }
             for source in SOURCE_CONCEPTS
         }
         for partition, rows in observations.items()
+    }
+    source_threshold_payload = {
+        source.value: _threshold_payload(r8_source_thresholds[source])
+        for source in SOURCE_CONCEPTS
     }
     ranked_r8 = sorted(
         r8_assessments.items(),
@@ -1229,6 +1235,7 @@ def run(
         "sample_counts": sample_counts,
         "partition_ranges": partition_ranges,
         "protocol_minimum_samples": PROTOCOL_MINIMUM_SAMPLES,
+        "r8_source_thresholds": source_threshold_payload,
         "source_extreme_counts": source_extreme_counts,
         "r8_status_counts": dict(sorted(r8_status_counts.items())),
         "r8_top_associations": r8_top_associations,
@@ -1250,6 +1257,10 @@ def run(
         "evaluated_r8_candidates": evaluated,
         "governance": {
             "r8_only_used_for_candidate_discovery": True,
+            "source_thresholds_fit_partition": "r8_only",
+            "source_thresholds_target_blind": True,
+            "r6_used_for_source_threshold_fit": False,
+            "r5_used_for_source_threshold_fit": False,
             "r6_used_for_candidate_selection": False,
             "r5_used_for_candidate_selection": False,
             "r6_temporally_after_r8": r6_temporally_after_r8,
