@@ -8,9 +8,11 @@ on:
       - src/qore/infrastructure/core_stack_v2/dynamic_causal_graph.py
       - src/qore/infrastructure/core_stack_v2/active_perception.py
       - src/qore/infrastructure/core_stack_v2/metacognition_engine.py
+      - src/qore/infrastructure/core_stack_v2/shared_brain_architecture_contract.py
       - tests/infrastructure/test_core_stack_v2_dynamic_causal_graph.py
       - tests/infrastructure/test_core_stack_v2_active_perception.py
       - tests/infrastructure/test_core_stack_v2_metacognition_engine.py
+      - tests/infrastructure/test_core_stack_v2_shared_brain_architecture_contract.py
       - .github/workflows/qore-shared-causal-metacognitive-foundation.yml
   workflow_dispatch:
 
@@ -34,9 +36,12 @@ jobs:
 
       - name: Static validation
         run: |
-          ruff check             src/qore/infrastructure/core_stack_v2/dynamic_causal_graph.py             src/qore/infrastructure/core_stack_v2/active_perception.py             src/qore/infrastructure/core_stack_v2/metacognition_engine.py             tests/infrastructure/test_core_stack_v2_dynamic_causal_graph.py             tests/infrastructure/test_core_stack_v2_active_perception.py             tests/infrastructure/test_core_stack_v2_metacognition_engine.py
-          python -m py_compile             src/qore/infrastructure/core_stack_v2/dynamic_causal_graph.py             src/qore/infrastructure/core_stack_v2/active_perception.py             src/qore/infrastructure/core_stack_v2/metacognition_engine.py
+          ruff check             src/qore/infrastructure/core_stack_v2/dynamic_causal_graph.py             src/qore/infrastructure/core_stack_v2/active_perception.py             src/qore/infrastructure/core_stack_v2/metacognition_engine.py             tests/infrastructure/test_core_stack_v2_dynamic_causal_graph.py             tests/infrastructure/test_core_stack_v2_active_perception.py             tests/infrastructure/test_core_stack_v2_metacognition_engine.py \
+            tests/infrastructure/test_core_stack_v2_shared_brain_architecture_contract.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/dynamic_causal_graph.py             src/qore/infrastructure/core_stack_v2/active_perception.py             src/qore/infrastructure/core_stack_v2/metacognition_engine.py \
+            src/qore/infrastructure/core_stack_v2/shared_brain_architecture_contract.py
 
       - name: Run cognitive-contract tests
         run: |
-          pytest -q             tests/infrastructure/test_core_stack_v2_dynamic_causal_graph.py             tests/infrastructure/test_core_stack_v2_active_perception.py             tests/infrastructure/test_core_stack_v2_metacognition_engine.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_dynamic_causal_graph.py             tests/infrastructure/test_core_stack_v2_active_perception.py             tests/infrastructure/test_core_stack_v2_metacognition_engine.py \
+            tests/infrastructure/test_core_stack_v2_shared_brain_architecture_contract.py
