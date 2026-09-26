@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from datetime import datetime
 from pathlib import Path
 from statistics import fmean
 from typing import Any
@@ -274,6 +275,23 @@ def _prepare_frontier_partition(
     }
 
 
+def _partition_temporal_order_pass(
+    ranges: dict[str, dict[str, int | str | None]],
+) -> bool:
+    required = (
+        ("r8", "target_max", "r6", "source_min"),
+        ("r6", "target_max", "r5", "source_min"),
+    )
+    for left_partition, left_key, right_partition, right_key in required:
+        left = ranges[left_partition][left_key]
+        right = ranges[right_partition][right_key]
+        if not isinstance(left, str) or not isinstance(right, str):
+            return False
+        if datetime.fromisoformat(left) >= datetime.fromisoformat(right):
+            return False
+    return True
+
+
 def _evaluation_payload(
     evaluation: StructuralFrontierEvaluation,
 ) -> dict[str, int | str]:
@@ -315,20 +333,22 @@ def run(*, evidence: dict[str, dict[str, Path]]) -> dict[str, Any]:
         len(partitions[partition]) >= MINIMUM_EPISODES
         for partition in PARTITIONS
     )
+    partition_temporal_order_gate = _partition_temporal_order_pass(ranges)
     target_gate = all(
         ranges[partition]["target_contract"] == TARGET_CONTRACT
         and ranges[partition]["fresh_holdout_opened"] == 0
         and int(ranges[partition]["changed_target_count"] or 0) > 0
         for partition in PARTITIONS
     )
-    if not sample_gate or not target_gate:
+    if not sample_gate or not target_gate or not partition_temporal_order_gate:
         return {
             "schema": SCHEMA,
             "identity": IDENTITY,
-            "status": "WP05_V6_SAMPLE_OR_TARGET_GATE_FAILED",
+            "status": "WP05_V6_SAMPLE_TARGET_OR_TEMPORAL_GATE_FAILED",
             "protocol_pass": False,
             "development_gate_pass": False,
             "fresh_holdout_opened": False,
+            "partition_temporal_order_gate": partition_temporal_order_gate,
             "partition_ranges": ranges,
         }
 
@@ -389,6 +409,7 @@ def run(*, evidence: dict[str, dict[str, Path]]) -> dict[str, Any]:
     protocol_pass = (
         sample_gate
         and target_gate
+        and partition_temporal_order_gate
         and model.fit_partition == "r8"
         and model.calibration_terminal_preservation_bps >= 9_800
         and model.target_used_for_training_only is True
@@ -417,6 +438,7 @@ def run(*, evidence: dict[str, dict[str, Path]]) -> dict[str, Any]:
         "development_gate_pass": development_gate_pass,
         "fresh_holdout_opened": False,
         "wp05_exit_gate_pass": False,
+        "partition_temporal_order_gate": partition_temporal_order_gate,
         "partition_ranges": ranges,
         "model": {
             **frozen_model_payload,
@@ -443,6 +465,7 @@ def run(*, evidence: dict[str, dict[str, Path]]) -> dict[str, Any]:
             "source_time_frontier_only": True,
             "unidentifiable_higher_anchor_abstains": True,
             "r8_chronological_discovery_calibration_only": True,
+            "r8_r6_r5_temporally_ordered_nonoverlap_required": True,
             "r6_refit": False,
             "r5_refit": False,
             "r6_threshold_retuning": False,
