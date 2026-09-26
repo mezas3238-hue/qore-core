@@ -50,6 +50,7 @@ from qore.infrastructure.account_wide_risk_ledger import (
 )
 from qore.infrastructure.cibo_account_capital_mission import (
     derive_cibo_capital_mission,
+    eligible_ce2i_tool_codes_for_mission,
     identity_from_market_test_account,
 )
 from qore.infrastructure.ctrader_demo_compat import (
@@ -994,6 +995,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     )
     cibo_account_identity = identity_from_market_test_account(account)
     cibo_capital_mission = derive_cibo_capital_mission(cibo_account_identity)
+    cibo_enabled_ce2i_tools = eligible_ce2i_tool_codes_for_mission(
+        cibo_capital_mission
+    )
     state_dir = root / "var" / "ctrader_demo_signal_runtime"
     cma_settlement_store = DurableCmaSettlementStore(
         state_dir / "cibo-cma-settlements.json"
@@ -1200,6 +1204,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 cibo_capital_mission.primary_objective.value
             ),
             "cibo_ce2i_activation_scope": cibo_capital_mission.ce2i_scope.value,
+            "cibo_enabled_ce2i_tools": list(cibo_enabled_ce2i_tools),
             "cibo_capability_measurement_enabled": (
                 cibo_capital_mission.capability_measurement_enabled
             ),
