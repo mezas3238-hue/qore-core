@@ -8,11 +8,11 @@ from collections import Counter
 from dataclasses import asdict
 from decimal import Decimal
 from pathlib import Path
-from typing import Mapping
+from collections.abc import Mapping
 
 from qore.infrastructure.cibo_capital_efficiency_reconstruction import (
-    ReconstructionStatus,
     SIZING_PATH_CONTRACTS,
+    ReconstructionStatus,
     SizingDecisionReconstruction,
     reconstruct_sizing_ledger,
 )
