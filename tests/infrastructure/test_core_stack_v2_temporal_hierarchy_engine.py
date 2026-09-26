@@ -44,6 +44,7 @@ def _snapshot(
     *,
     terminal_shape: bool,
     partition: str,
+    time_offset_days: int = 0,
 ) -> TemporalHierarchySnapshot:
     jitter = (index % 7) * 20
     if terminal_shape:
@@ -63,7 +64,7 @@ def _snapshot(
 
     return TemporalHierarchySnapshot(
         episode_id=f"{partition}-{index}",
-        as_of=BASE + timedelta(days=index),
+        as_of=BASE + timedelta(days=index + time_offset_days),
         levels=(
             _level(
                 WorldScale.M1,
@@ -143,9 +144,10 @@ def _episodes(
     for index in range(count):
         terminal = index % terminal_every == 0
         snapshot = _snapshot(
-            index + start_days,
+            index,
             terminal_shape=terminal,
             partition=partition,
+            time_offset_days=start_days,
         )
         rows.append(
             TemporalHierarchyTrainingEpisode(
