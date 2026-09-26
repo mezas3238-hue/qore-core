@@ -301,16 +301,11 @@ def _as_v25_examples(
 ) -> tuple[v25.TrainingExample, ...]:
     if target_index not in {1, 2}:
         raise ValueError("V26 target index must be continuation or severe")
-    return tuple(
-        (
-            features,
-            float(row[target_index]),
-            weight,
-            key,
-        )
-        for row in examples
-        for features, _continuation, _severe, weight, key in (row,)
-    )
+    result: list[v25.TrainingExample] = []
+    for features, continuation, severe, weight, key in examples:
+        target = continuation if target_index == 1 else severe
+        result.append((features, target, weight, key))
+    return tuple(result)
 
 
 def _fit_models(

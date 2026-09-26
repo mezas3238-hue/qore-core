@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from qore.infrastructure.trader_lab import (
     capitalizer_dual_head_severe_descent_control_v26 as v26,
 )
@@ -51,13 +53,7 @@ def test_severe_descent_labels_peak_to_trough_only() -> None:
 
 
 def test_scaled_control_r_uses_multiplier() -> None:
-    row = _decision(0, "-0.5")
-    row = v18.InvalidationDecision(
-        **{
-            **row.__dict__,
-            "base_multiplier": "0.5",
-        }
-    )
+    row = replace(_decision(0, "-0.5"), base_multiplier="0.5")
     assert v26._scaled_control_r(row) == v26.Decimal("-0.25")
 
 
