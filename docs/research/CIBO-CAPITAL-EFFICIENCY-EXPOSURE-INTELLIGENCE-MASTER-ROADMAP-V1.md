@@ -1,3 +1,6 @@
+> **SUPERSEDED BY MASTER ROADMAP V2 — CIBO Capital Management Authority + CE2I.**  
+> Canonical continuation: `docs/research/CIBO-CAPITAL-MANAGEMENT-AUTHORITY-CE2I-MASTER-ROADMAP-V2.md`
+>
 # CIBO CAPITAL EFFICIENCY & EXPOSURE INTELLIGENCE — MASTER ROADMAP V1
 
 **Program identity:** CIBO Capital Efficiency & Exposure Intelligence  
