@@ -78,6 +78,15 @@ def _clamp_bps(value: float) -> int:
 
 
 def _signed_efficiency(rows: tuple[Any, ...]) -> float:
+    if not rows:
+        raise ValueError("signed efficiency requires closed bars")
+    if len(rows) == 1:
+        bar = rows[0]
+        width = max(0.0, float(bar.high) - float(bar.low))
+        body = float(bar.close) - float(bar.opened)
+        if width <= 0.0:
+            return 0.0
+        return max(-1.0, min(1.0, body / width))
     metric = _metric(rows)
     sign = _sign(metric.net_bps)
     return float(sign) * float(metric.efficiency)
@@ -90,8 +99,12 @@ def _scale_state(
     windows: dict[str, tuple[Any, ...]],
 ) -> TemporalScaleState:
     primary_rows = windows["NAS100"][-horizon:]
-    primary_metric = _metric(primary_rows)
     signed_eff = _signed_efficiency(primary_rows)
+    primary_efficiency = (
+        abs(signed_eff)
+        if horizon == 1
+        else float(_metric(primary_rows).efficiency)
+    )
     direction_milli = int(
         round(max(-1.0, min(1.0, signed_eff)) * 1_000)
     )
@@ -137,7 +150,7 @@ def _scale_state(
         direction_milli=direction_milli,
         persistence_bps=_clamp_bps(persistence * 10_000.0),
         coherence_bps=_clamp_bps(coherence * 10_000.0),
-        efficiency_bps=_clamp_bps(primary_metric.efficiency * 10_000.0),
+        efficiency_bps=_clamp_bps(primary_efficiency * 10_000.0),
         fragility_bps=_clamp_bps(fragility * 10_000.0),
         transition_bps=_clamp_bps(transition * 10_000.0),
     )
