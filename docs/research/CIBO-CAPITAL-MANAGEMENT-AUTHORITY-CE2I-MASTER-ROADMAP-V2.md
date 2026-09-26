@@ -908,6 +908,63 @@ Each row now retains exact:
 
 The Phase 18 artifact checksum manifest has been independently revalidated after download.
 
+### Generic Phase-18 scoring checkpoint — 26-SEP-2026
+
+The shared replay primitive now also produces reusable, Trader-agnostic metrics for:
+
+- legacy baseline PF / Total R / max drawdown / loss streak / stop count;
+- peak original base capital at risk;
+- peak margin in use;
+- base-recovery latency;
+- base-capital block time;
+- self-financing capacity;
+- ending future capacity / optionality;
+- cumulative released capacity;
+- risk/margin utilization;
+- explicit false-recovery incidents.
+
+A precision defect was falsified during binding: recomputing an already-observed legacy result as
+`raw R * risk scale` can differ from the authoritative historical ledger because the historical
+Trader stored a corrected/scaled Decimal result. Phase 18 therefore preserves an authoritative
+`legacy_net_outcome_r` when retained evidence provides it, and only reconstructs from raw R and
+risk scale when that authoritative value is absent.
+
+The generic scorer is now bound to the real 897-row R38 artifact in GitHub Actions and reproduces:
+
+```text
+trades:          897
+profit_factor:   1.852918712035185462516517131
+total_r:         92.83988286566161467727272231
+max_drawdown_r:  5.06150896610739539086014902
+max_loss_streak: 7
+```
+
+Current evidence checkpoint:
+
+```text
+head_sha:      7cbfe9ab6b0e37d49411f6b722b02274311af664
+main_ci_push:  36253442660  SUCCESS
+main_ci_pr:    36253445694  SUCCESS
+replay_push:   36253442514  SUCCESS
+replay_pr:     36253445726  SUCCESS
+artifact_id:   10909537936
+artifact:      qore-cibo-phase18-gbpjpy-r38-geometry-7cbfe9ab6b0e37d49411f6b722b02274311af664
+digest:        sha256:b508feb4fcedcfd5c4e5ef6eeb0fd027c20373ad061c06443687215b63507039
+```
+
+Provider-economics search also inspected the retained 10Y GBPJPY Raw M5 GitHub Actions artifact:
+
+```text
+run_id:      35166210458
+artifact_id: 10475453293
+digest:      sha256:b68e74b2afa54295f891c11cde19e12e92db4192930496036c7ebb372474e415
+```
+
+Its historical Raw M5 schema carries OHLC, volume, digits, pip position, provider symbol/id and
+timestamps, but does not carry historical bid/ask spread, commission, slippage, margin-per-volume or
+tick-value evidence. Therefore it cannot be promoted into provider-economic calibration and the
+USD CIBO comparison remains correctly fail-closed.
+
 GBPJPY provider-economic status remains deliberately:
 
 ```text
