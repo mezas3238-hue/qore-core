@@ -25,7 +25,10 @@ from qore.infrastructure.cibo_capital_management_authority import (
     TraderOpportunityEnvelope,
     plan_self_financing_expansion,
 )
-from qore.infrastructure.cibo_capital_source_ledger import ReservationState
+from qore.infrastructure.cibo_capital_source_ledger import (
+    CapitalSourceAccount,
+    ReservationState,
+)
 from qore.infrastructure.cibo_capital_source_ledger_store import (
     DurableCapitalSourceLedgerStore,
     VersionedCapitalSourceLedger,
@@ -249,7 +252,7 @@ def reservation_state(
 def _source_account(
     version: VersionedCapitalSourceLedger,
     source_id: str,
-):
+) -> CapitalSourceAccount:
     found = tuple(
         item for item in version.ledger.accounts if item.source_id == source_id
     )
