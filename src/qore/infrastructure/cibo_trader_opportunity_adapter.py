@@ -61,6 +61,7 @@ def legacy_request_to_cma_opportunity(
         qore_symbol=request.qore_symbol,
         provider_symbol=request.provider_symbol,
         side=request.side,
+        entry_type=request.entry_type,
         intended_entry=request.intended_entry,
         stop_loss=request.stop_loss,
         take_profit=request.take_profit,
