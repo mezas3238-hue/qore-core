@@ -15,7 +15,6 @@ from qore.infrastructure.core_stack_v2.dynamic_causal_graph import (
     CausalConcept,
 )
 
-
 NOW = datetime(2026, 9, 26, 11, 0, tzinfo=UTC)
 
 
