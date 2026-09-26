@@ -7,8 +7,10 @@ on:
     paths:
       - src/qore/infrastructure/core_stack_v2/market_digital_twin.py
       - src/qore/infrastructure/core_stack_v2/market_digital_twin_history.py
+      - src/qore/infrastructure/core_stack_v2/market_digital_twin_runtime.py
       - tests/infrastructure/test_core_stack_v2_market_digital_twin.py
       - tests/infrastructure/test_core_stack_v2_market_digital_twin_history.py
+      - tests/infrastructure/test_core_stack_v2_market_digital_twin_runtime.py
       - .github/workflows/qore-shared-wp01-market-digital-twin.yml
   workflow_dispatch:
 
@@ -35,17 +37,21 @@ jobs:
           ruff check \
             src/qore/infrastructure/core_stack_v2/market_digital_twin.py \
             src/qore/infrastructure/core_stack_v2/market_digital_twin_history.py \
+            src/qore/infrastructure/core_stack_v2/market_digital_twin_runtime.py \
             tests/infrastructure/test_core_stack_v2_market_digital_twin.py \
-            tests/infrastructure/test_core_stack_v2_market_digital_twin_history.py
+            tests/infrastructure/test_core_stack_v2_market_digital_twin_history.py \
+            tests/infrastructure/test_core_stack_v2_market_digital_twin_runtime.py
           python -m py_compile \
             src/qore/infrastructure/core_stack_v2/market_digital_twin.py \
-            src/qore/infrastructure/core_stack_v2/market_digital_twin_history.py
+            src/qore/infrastructure/core_stack_v2/market_digital_twin_history.py \
+            src/qore/infrastructure/core_stack_v2/market_digital_twin_runtime.py
 
       - name: Run WP-01 causal-contract tests
         run: |
           pytest -q \
             tests/infrastructure/test_core_stack_v2_market_digital_twin.py \
-            tests/infrastructure/test_core_stack_v2_market_digital_twin_history.py
+            tests/infrastructure/test_core_stack_v2_market_digital_twin_history.py \
+            tests/infrastructure/test_core_stack_v2_market_digital_twin_runtime.py
 
       - name: Validate WP-01 architecture contract
         run: |
