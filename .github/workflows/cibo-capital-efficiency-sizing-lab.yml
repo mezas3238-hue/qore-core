@@ -39,6 +39,7 @@ jobs:
             src/qore/infrastructure/cibo_capital_state_machine.py \
             src/qore/infrastructure/cibo_cma_risk_request.py \
             src/qore/infrastructure/cibo_live_opportunity.py \
+            src/qore/infrastructure/cibo_provider_economic_normalization.py \
             src/qore/infrastructure/cibo_cma_initial_seed.py \
             src/qore/infrastructure/cibo_cma_behavior_binding.py \
             src/qore/infrastructure/cibo_cma_shadow_floor.py \
@@ -75,6 +76,7 @@ jobs:
             tests/infrastructure/test_cibo_capital_state_machine.py \
             tests/infrastructure/test_cibo_cma_risk_request.py \
             tests/infrastructure/test_cibo_live_opportunity.py \
+            tests/infrastructure/test_cibo_provider_economic_normalization.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py \
             tests/infrastructure/test_cibo_cma_initial_seed.py \
@@ -133,6 +135,7 @@ jobs:
             src/qore/infrastructure/cibo_capital_state_machine.py \
             src/qore/infrastructure/cibo_cma_risk_request.py \
             src/qore/infrastructure/cibo_live_opportunity.py \
+            src/qore/infrastructure/cibo_provider_economic_normalization.py \
             src/qore/infrastructure/cibo_cma_initial_seed.py \
             src/qore/infrastructure/cibo_cma_behavior_binding.py \
             src/qore/infrastructure/cibo_cma_shadow_floor.py \
@@ -168,6 +171,7 @@ jobs:
             tests/infrastructure/test_cibo_capital_state_machine.py \
             tests/infrastructure/test_cibo_cma_risk_request.py \
             tests/infrastructure/test_cibo_live_opportunity.py \
+            tests/infrastructure/test_cibo_provider_economic_normalization.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py \
             tests/infrastructure/test_cibo_cma_initial_seed.py \
@@ -210,6 +214,7 @@ jobs:
             tests/infrastructure/test_cibo_capital_state_machine.py \
             tests/infrastructure/test_cibo_cma_risk_request.py \
             tests/infrastructure/test_cibo_live_opportunity.py \
+            tests/infrastructure/test_cibo_provider_economic_normalization.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py \
             tests/infrastructure/test_cibo_cma_initial_seed.py \
