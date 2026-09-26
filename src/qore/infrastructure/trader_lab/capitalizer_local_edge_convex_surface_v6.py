@@ -502,7 +502,7 @@ def build_report(
             and window["dd_below_surface_control"]
             for window in policy_windows.values()
         )
-        robust_full = all(
+        robust_full_window = all(
             window["pf_at_least_surface_control"]
             and window["dd_below_surface_control"]
             and window["total_r_at_least_surface_control"]
@@ -517,7 +517,7 @@ def build_report(
                 "policy": policy,
                 "windows": policy_windows,
                 "robust_pf_up_dd_down_all_consumed_windows": robust_pf_dd,
-                "robust_pf_dd_total_r_all_consumed_windows": robust_full,
+                "robust_pf_dd_total_r_all_consumed_windows": robust_full_window,
                 "all_consumed_windows_dd6": all_dd6,
             }
         )
@@ -526,7 +526,7 @@ def build_report(
         row for row in results
         if row["robust_pf_up_dd_down_all_consumed_windows"]
     )
-    robust_full = tuple(
+    robust_full_rows = tuple(
         row for row in results
         if row["robust_pf_dd_total_r_all_consumed_windows"]
     )
@@ -547,7 +547,7 @@ def build_report(
         "policy_count": len(POLICIES),
         "results": results,
         "robust_pf_up_dd_down_policy_count": len(robust),
-        "robust_pf_dd_total_r_policy_count": len(robust_full),
+        "robust_pf_dd_total_r_policy_count": len(robust_full_rows),
         "robust_all_windows_dd6_policy_count": len(dd6),
         "session_memory_uses_prior_closed_chosen_outcomes_only": True,
         "context_memory_uses_prior_closed_chosen_outcomes_only": True,
