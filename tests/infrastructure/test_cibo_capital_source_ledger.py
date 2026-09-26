@@ -7,6 +7,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_capital_source_ledger import (
+    CapitalReservationRequest,
     CapitalSourceLedger,
     ReservationState,
 )
@@ -163,4 +164,95 @@ def test_duplicate_reservation_id_is_rejected() -> None:
             reservation_id="r1",
             source_id="profit-1",
             amount_usd=Decimal("1"),
+        )
+
+
+def test_multi_source_reservation_is_atomic() -> None:
+    ledger = (
+        CapitalSourceLedger()
+        .add_source(
+            source_id="profit-1",
+            source=CapitalSource.REALIZED_PROFIT,
+            proven_amount_usd=Decimal("5"),
+        )
+        .add_source(
+            source_id="protected-1",
+            source=CapitalSource.PROTECTED_ECONOMIC_FLOOR,
+            proven_amount_usd=Decimal("7"),
+        )
+    )
+
+    reserved = ledger.reserve_many(
+        (
+            CapitalReservationRequest(
+                reservation_id="multi-1-a",
+                source_id="profit-1",
+                amount_usd=Decimal("5"),
+            ),
+            CapitalReservationRequest(
+                reservation_id="multi-1-b",
+                source_id="protected-1",
+                amount_usd=Decimal("3"),
+            ),
+        )
+    )
+
+    by_source = {item.source_id: item for item in reserved.accounts}
+    assert by_source["profit-1"].reserved_usd == Decimal("5")
+    assert by_source["protected-1"].reserved_usd == Decimal("3")
+    assert len(reserved.reservations) == 2
+
+
+def test_multi_source_failure_reserves_nothing() -> None:
+    ledger = (
+        CapitalSourceLedger()
+        .add_source(
+            source_id="profit-1",
+            source=CapitalSource.REALIZED_PROFIT,
+            proven_amount_usd=Decimal("5"),
+        )
+        .add_source(
+            source_id="protected-1",
+            source=CapitalSource.PROTECTED_ECONOMIC_FLOOR,
+            proven_amount_usd=Decimal("2"),
+        )
+    )
+
+    with pytest.raises(CiboCapitalManagementError, match="insufficient"):
+        ledger.reserve_many(
+            (
+                CapitalReservationRequest(
+                    reservation_id="multi-1-a",
+                    source_id="profit-1",
+                    amount_usd=Decimal("5"),
+                ),
+                CapitalReservationRequest(
+                    reservation_id="multi-1-b",
+                    source_id="protected-1",
+                    amount_usd=Decimal("3"),
+                ),
+            )
+        )
+
+    assert all(item.reserved_usd == 0 for item in ledger.accounts)
+    assert ledger.reservations == ()
+
+
+def test_multi_source_duplicate_ids_fail_closed() -> None:
+    ledger = _ledger()
+
+    with pytest.raises(CiboCapitalManagementError, match="duplicate reservation_id"):
+        ledger.reserve_many(
+            (
+                CapitalReservationRequest(
+                    reservation_id="dup",
+                    source_id="profit-1",
+                    amount_usd=Decimal("2"),
+                ),
+                CapitalReservationRequest(
+                    reservation_id="dup",
+                    source_id="profit-1",
+                    amount_usd=Decimal("2"),
+                ),
+            )
         )
