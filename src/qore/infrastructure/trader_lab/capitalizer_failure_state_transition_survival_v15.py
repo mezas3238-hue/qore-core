@@ -241,6 +241,7 @@ def _simulate(
             chosen_scaled=tuple(chosen),
             records=tuple(records),
         )
+        changed: tuple[str, ...]
         if active_failure is None:
             novelty, changed = 99, ()
         else:
