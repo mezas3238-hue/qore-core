@@ -160,10 +160,9 @@ def test_ready_for_risk_is_not_terminal_when_compensation_is_needed(
         expected_generation=book.generation,
         reason="Risk rejected before deployment",
     )
-    assert compensated.record_for("tx-1") is not None
-    assert compensated.record_for("tx-1").state is (
-        PortfolioFundingSagaState.COMPENSATION_REQUIRED
-    )
+    record = compensated.record_for("tx-1")
+    assert record is not None
+    assert record.state is PortfolioFundingSagaState.COMPENSATION_REQUIRED
 
 
 def test_stale_generation_cannot_rewrite_saga(tmp_path: Path) -> None:
