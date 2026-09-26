@@ -309,6 +309,17 @@ class CTraderDemoFreeSink:
                 "stop_loss": format(request.stop_loss, "f"),
                 "take_profit": format(request.take_profit, "f"),
                 "requested_stop_risk": format(request.requested_stop_risk, "f"),
+                "strategy_requested_risk_usd": (
+                    None
+                    if request.strategy_requested_risk_usd is None
+                    else format(request.strategy_requested_risk_usd, "f")
+                ),
+                "stop_loss_per_volume": format(request.stop_loss_per_volume, "f"),
+                "requested_margin": format(request.requested_margin, "f"),
+                "margin_per_volume": format(request.margin_per_volume, "f"),
+                "volume_step": format(request.volume_step, "f"),
+                "minimum_volume": format(request.minimum_volume, "f"),
+                "minimum_volume_uplifted": request.minimum_volume_uplifted,
                 "sizing_path": sizing_path_for(result.trader_id.value),
                 "recorded_at": result.recorded_at.isoformat(),
             }
