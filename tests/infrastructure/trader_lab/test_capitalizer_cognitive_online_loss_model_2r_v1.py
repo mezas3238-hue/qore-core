@@ -3,6 +3,9 @@ from __future__ import annotations
 from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_online_loss_model_2r_v1 as lab,
 )
+from qore.infrastructure.trader_lab import (
+    capitalizer_cognitive_stability_intelligence_2r_v1 as stability,
+)
 
 
 def test_logistic_updates_toward_observed_loss() -> None:
@@ -30,7 +33,7 @@ def test_blocking_stays_disabled_during_model_warmup() -> None:
         policy="BANDIT_GATE_075_GLOBAL",
         prediction=0.99,
         trained=lab.MIN_TRAINED - 1,
-        state=lab.stability.StabilityState.DEFENSIVE,
+        state=stability.StabilityState.DEFENSIVE,
     )
     assert allow is True
     assert reason == "MODEL_WARMUP"
