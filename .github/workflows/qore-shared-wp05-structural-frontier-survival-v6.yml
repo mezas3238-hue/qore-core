@@ -14,6 +14,10 @@ on:
       - .github/workflows/qore-shared-wp05-structural-frontier-survival-v6.yml
   workflow_dispatch:
 
+concurrency:
+  group: qore-shared-wp05-v6-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   actions: read
