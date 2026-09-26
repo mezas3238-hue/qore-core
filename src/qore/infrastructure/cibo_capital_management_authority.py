@@ -220,6 +220,7 @@ class CiboCapitalActionPlan:
     capital_source: CapitalSource | None
     capital_source_amount_usd: Decimal
     reason: str
+    capital_source_lots: tuple[CapitalSourceLot, ...] = ()
 
     def __post_init__(self) -> None:
         for name in ("volume", "stop_risk_usd", "margin_usd", "capital_source_amount_usd"):
@@ -227,12 +228,32 @@ class CiboCapitalActionPlan:
         if self.action in {CapitalAction.OPEN_MINIMAL_SEED, CapitalAction.EXPAND}:
             if self.volume <= 0:
                 raise CiboCapitalManagementError("capital deployment requires positive volume")
-            if self.capital_source is None:
+            if self.capital_source is None and not self.capital_source_lots:
                 raise CiboCapitalManagementError("capital deployment requires source")
+        if self.capital_source_lots:
+            total = sum(
+                (lot.amount_usd for lot in self.capital_source_lots),
+                Decimal(0),
+            )
+            if total != self.capital_source_amount_usd:
+                raise CiboCapitalManagementError(
+                    "capital source lots must sum to source amount"
+                )
+            if self.capital_source is not None and len(self.capital_source_lots) > 1:
+                raise CiboCapitalManagementError(
+                    "multi-source deployment must not claim one primary source"
+                )
         if self.action is CapitalAction.EXPAND:
             if self.capital_source is CapitalSource.ORIGINAL_BASE_CAPITAL:
                 raise CiboCapitalManagementError(
                     "expansion cannot consume original base capital in CMA V1"
+                )
+            if any(
+                lot.source is CapitalSource.ORIGINAL_BASE_CAPITAL
+                for lot in self.capital_source_lots
+            ):
+                raise CiboCapitalManagementError(
+                    "expansion lots cannot consume original base capital in CMA V1"
                 )
 
 
