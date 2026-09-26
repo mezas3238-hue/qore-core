@@ -12,12 +12,12 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_interaction_evidence.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_temporal_stability.py'
-      - 'src/qore/infrastructure/cibo_ce2i_phase19_provider_evidence_audit.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase19_provider_evidence_audit.py'\n      - 'src/qore/infrastructure/cibo_ce2i_phase19_normalized_capital.py'
       - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_temporal_stability.py'
-      - 'tests/infrastructure/test_cibo_ce2i_phase19_provider_evidence_audit.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase19_provider_evidence_audit.py'\n      - 'tests/infrastructure/test_cibo_ce2i_phase19_normalized_capital.py'
   push:
     branches:
       - agent/cibo-capital-efficiency-sizing-lab-001
@@ -30,12 +30,12 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_interaction_evidence.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_temporal_stability.py'
-      - 'src/qore/infrastructure/cibo_ce2i_phase19_provider_evidence_audit.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase19_provider_evidence_audit.py'\n      - 'src/qore/infrastructure/cibo_ce2i_phase19_normalized_capital.py'
       - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_temporal_stability.py'
-      - 'tests/infrastructure/test_cibo_ce2i_phase19_provider_evidence_audit.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase19_provider_evidence_audit.py'\n      - 'tests/infrastructure/test_cibo_ce2i_phase19_normalized_capital.py'
 
 permissions:
   contents: read
@@ -71,7 +71,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py \
             tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py \
             tests/infrastructure/test_cibo_ce2i_phase19_temporal_stability.py \
-            tests/infrastructure/test_cibo_ce2i_phase19_provider_evidence_audit.py
+            tests/infrastructure/test_cibo_ce2i_phase19_provider_evidence_audit.py \\\n            tests/infrastructure/test_cibo_ce2i_phase19_normalized_capital.py
           mypy \
             scripts/cibo_phase19_integrated_chronology_replay.py \
             scripts/cibo_phase19_temporal_interaction_atlas.py \
@@ -85,7 +85,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py \
             tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py \
             tests/infrastructure/test_cibo_ce2i_phase19_temporal_stability.py \
-            tests/infrastructure/test_cibo_ce2i_phase19_provider_evidence_audit.py
+            tests/infrastructure/test_cibo_ce2i_phase19_provider_evidence_audit.py \\\n            tests/infrastructure/test_cibo_ce2i_phase19_normalized_capital.py
 
   replay:
     needs: quality
