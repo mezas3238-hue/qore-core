@@ -271,6 +271,14 @@ class CTraderDemoFreeSink:
                     submitted_at=recorded_at.isoformat(),
                     expires_at=request.expires_at.isoformat(),
                     position_id=position_id,
+                    capital_provenance=tuple(
+                        (
+                            item.source_kind,
+                            item.source_id,
+                            format(item.amount_usd, "f"),
+                        )
+                        for item in request.capital_provenance
+                    ),
                 )
             )
             result = CTraderDemoFreeSubmitResult(
@@ -336,6 +344,14 @@ class CTraderDemoFreeSink:
                 "sizing_path": sizing_path_for(result.trader_id.value),
                 "sizing_authority": "CIBO_CMA",
                 "capital_management_authority": "CIBO_CMA",
+                "capital_provenance": [
+                    {
+                        "source_kind": item.source_kind,
+                        "source_id": item.source_id,
+                        "amount_usd": format(item.amount_usd, "f"),
+                    }
+                    for item in request.capital_provenance
+                ],
                 "recorded_at": result.recorded_at.isoformat(),
             }
         )
