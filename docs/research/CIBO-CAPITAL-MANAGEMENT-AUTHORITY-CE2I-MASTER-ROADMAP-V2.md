@@ -1397,6 +1397,28 @@ sizing, provider economics or USD and has zero allocation/Risk/execution
 authority.
 
 
+
+### Phase 19F overlap-conditioned dependence
+
+The sealed workflow now measures, separately in the frozen 60% TRAIN segment
+and the 40% VALIDATION segment:
+
+- overlap-pair count;
+- left/right loss frequency inside overlap pairs;
+- joint-loss frequency;
+- independence-implied joint-loss frequency;
+- joint-loss excess;
+- same-nonzero-sign frequency.
+
+This layer uses post-trade outcomes only after chronology has fixed the overlap
+pairs. It never consumes historical sizing, USD PnL or provider economics, and
+it remains descriptive-only with zero allocation/Risk/execution authority.
+
+No threshold such as "correlation > X" is frozen here. Phase 19F exists to
+measure whether adverse dependence is present and whether it survives temporal
+validation before Phase 19G may study actual capital collisions.
+
+
 Current Phase-19 scientific sequence is therefore:
 
 ```text
@@ -1405,7 +1427,7 @@ Current Phase-19 scientific sequence is therefore:
 19C  CAPITAL NUMERAIRE CONTRACT              IMPLEMENTED / CI PENDING
 19D  NORMALIZED CAPITAL LEDGER 7/7           IMPLEMENTED / EMPIRICAL CI PENDING
 19E  TEMPORAL NULL MODEL                     IMPLEMENTED / EMPIRICAL CI PENDING
-19F  TAIL / DEPENDENCE EVIDENCE              PENDING
+19F  OVERLAP DEPENDENCE TRAIN/VALIDATION     IMPLEMENTED / EMPIRICAL CI PENDING
 19G  CAPITAL COLLISION + SHADOW PRICE        PENDING
 19H  RESOURCE / DEPENDENCE HYPERGRAPH        PENDING
 19I  SIMPLE CAPITAL POLICY BASELINES          PENDING
