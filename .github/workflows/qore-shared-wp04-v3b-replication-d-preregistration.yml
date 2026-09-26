@@ -1,0 +1,84 @@
+name: QORE Shared WP04 V3B REPLICATION_D Preregistration
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/shared_wp04_predictive_replication_d_probe_v3b.py
+      - scripts/shared_wp04_predictive_replication_d_eval_v3b.py
+      - .github/workflows/qore-shared-wp04-v3b-replication-d-preregistration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  replication-d-preregistration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Announce REPLICATION_D preregistration
+        run: |
+          gh issue comment 642 --body "WP-04 V3B REPLICATION_D preregistration started — Git SHA `${GITHUB_SHA}`, run `${GITHUB_RUN_ID}`. Zero cTrader data access; D remains sealed."
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies without broker access
+        run: pip install -e ".[dev,ctrader]"
+
+      - name: Static and unit validation
+        run: |
+          ruff check \
+            scripts/shared_wp04_predictive_replication_d_probe_v3b.py \
+            scripts/shared_wp04_predictive_replication_d_eval_v3b.py \
+            src/qore/infrastructure/ctrader_demo_lab_vt31_v2_probe.py \
+            tests/infrastructure/test_ctrader_demo_lab_vt31_v2_probe.py
+          python -m py_compile \
+            scripts/shared_wp04_predictive_replication_d_probe_v3b.py \
+            scripts/shared_wp04_predictive_replication_d_eval_v3b.py
+          pytest -q \
+            tests/infrastructure/test_ctrader_demo_lab_vt31_v2_probe.py \
+            tests/infrastructure/test_core_stack_v2_representation_predictive_v3.py \
+            tests/infrastructure/test_core_stack_v2_representation_predictive_nonlinear_probe_v3b.py
+
+      - name: Validate frozen REPLICATION_D contract
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          import shared_wp04_predictive_replication_d_probe_v3b as collector
+          import shared_wp04_predictive_replication_d_eval_v3b as evaluator
+
+          assert collector.REPLICATION_START.isoformat() == "2025-07-14T00:00:00+00:00"
+          assert collector.REPLICATION_END_EXCLUSIVE.isoformat() == "2026-07-13T00:00:00+00:00"
+          assert collector.MINIMUM_COVERAGE_DAYS == 340
+          assert collector.PURPOSE == "WP04_V3B_TEMPORAL_REPLICATION_D"
+
+          assert evaluator.REPLICATION_PARTITION == "replication_d"
+          assert evaluator.REPLICATION_START.isoformat() == "2025-07-14T00:00:00+00:00"
+          assert evaluator.REPLICATION_END_EXCLUSIVE.isoformat() == "2026-07-13T00:00:00+00:00"
+          assert evaluator.MINIMUM_POOLED_INCREMENTAL_BPS == 100
+          assert evaluator.MINIMUM_POSITIVE_TARGETS == 4
+          PY
+
+      - name: Assert zero fresh evidence access
+        run: |
+          test -z "${QORE_CTRADER_ACCESS_TOKEN:-}"
+          test -z "${QORE_CTRADER_REFRESH_TOKEN:-}"
+          test -z "${QORE_CTRADER_DEMO_ACCESS_TOKEN:-}"
+          test -z "${QORE_CTRADER_DEMO_REFRESH_TOKEN:-}"
+          test ! -d fresh
+          test ! -d input
+          test ! -d result
+
+      - name: Report REPLICATION_D preregistration GREEN
+        run: |
+          gh issue comment 642 --body "WP-04 V3B REPLICATION_D preregistration GREEN — Git SHA `${GITHUB_SHA}`, run `${GITHUB_RUN_ID}`. D locked to 2025-07-14..2026-07-13 with >=340 days provider span; gate unchanged at >=100 bps pooled + >=4/8 targets positive; exact frozen V3/V3B fingerprints required. No cTrader credentials or D evidence were opened."
