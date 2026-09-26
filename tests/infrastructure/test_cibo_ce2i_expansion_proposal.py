@@ -20,6 +20,7 @@ from qore.infrastructure.cibo_capital_source_ledger_store import (
 )
 from qore.infrastructure.cibo_cma_capital_observation import CmaCapitalObservation
 from qore.infrastructure.cibo_ce2i_expansion_proposal import (
+    CmaExpansionProposal,
     deploy_reserved_expansion,
     release_rejected_expansion,
     reserve_expansion_proposal,
@@ -97,7 +98,7 @@ def _reserve(
     *,
     source: CapitalSource = CapitalSource.REALIZED_PROFIT,
     observation: CmaCapitalObservation | None = None,
-):
+) -> tuple[DurableCapitalSourceLedgerStore, CmaExpansionProposal]:
     store = _store(tmp_path, source=source)
     proposal = reserve_expansion_proposal(
         reservation_id="expansion-1",
