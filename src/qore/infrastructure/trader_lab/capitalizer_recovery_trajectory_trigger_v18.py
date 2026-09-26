@@ -295,9 +295,9 @@ def _fit_model(
         )
 
     cells: dict[str, TriggerCell] = {}
-    for cid, values in controls.items():
+    for cid, control_values_list in controls.items():
         level, key_values = meta[cid]
-        control = tuple(values)
+        control = tuple(control_values_list)
         eligible: list[tuple[str, Decimal, Decimal, Decimal]] = []
         for arm in family_arms:
             candidate = tuple(arms[(cid, arm)])

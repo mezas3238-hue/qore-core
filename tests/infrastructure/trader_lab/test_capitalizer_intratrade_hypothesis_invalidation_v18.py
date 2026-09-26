@@ -60,7 +60,7 @@ def _bar(
 
 def test_sustained_adverse_acceptance_triggers_without_departure() -> None:
     state = lab._PathState(period="DEV", trade=_trade())
-    events = []
+    events: list[lab.TriggerEvent] = []
     for minute, close in enumerate(
         ("100", "100", "99.9", "99.7", "99.7", "99.7")
     ):
@@ -90,7 +90,7 @@ def test_favorable_departure_disables_invalidation() -> None:
         _bar(0, high="100.30", low="99.95", close="100.05"),
     )
     assert state.departed is True
-    events = []
+    events: list[lab.TriggerEvent] = []
     for minute in range(1, 10):
         events.extend(
             lab._process_bar(
