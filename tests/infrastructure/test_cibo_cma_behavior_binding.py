@@ -1,3 +1,6 @@
+"""Passive CMA behavior-floor binding invariants."""
+# ruff: noqa: I001
+
 from datetime import UTC, datetime
 from decimal import Decimal
 
