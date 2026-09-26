@@ -85,7 +85,7 @@ from qore.infrastructure.r34_xauusd_live import (
     R34LiveState,
     R34LiveStateStore,
     build_live_signal as build_r34_live_signal,
-    build_r34_risk_request,
+    build_r34_opportunity,
     current_anchor as current_r34_anchor,
     load_cognitive as load_r34_cognitive,
 )
@@ -94,7 +94,7 @@ from qore.infrastructure.r38_eurusd_live import (
     R38LiveState,
     R38LiveStateStore,
     build_live_signal as build_r38_live_signal,
-    build_r38_risk_request,
+    build_r38_opportunity,
     current_anchor as current_r38_anchor,
     load_cognitive as load_r38_cognitive,
     manage_open_position as manage_r38_open_position,
@@ -104,7 +104,7 @@ from qore.infrastructure.r43_gbpusd_live import (
     R43LiveState,
     R43LiveStateStore,
     build_live_signal as build_r43_live_signal,
-    build_r43_risk_request,
+    build_r43_opportunity,
     current_anchor as current_r43_anchor,
     load_memory as load_r43_memory,
     manage_open_position as manage_r43_open_position,
@@ -114,7 +114,7 @@ from qore.infrastructure.r38_gbpjpy_live import (
     R38GbpJpyLiveState,
     R38GbpJpyLiveStateStore,
     build_live_signal as build_gbpjpy_r38_live_signal,
-    build_r38_gbpjpy_risk_request,
+    build_r38_gbpjpy_opportunity,
     current_anchor as current_gbpjpy_r38_anchor,
     load_memory as load_gbpjpy_r38_memory,
     manage_open_position as manage_gbpjpy_r38_open_position,
@@ -128,7 +128,7 @@ from qore.infrastructure.r42_audjpy_live import (
     R42AudJpyLiveState,
     R42AudJpyLiveStateStore,
     build_live_signal as build_audjpy_r42_live_signal,
-    build_r42_audjpy_risk_request,
+    build_r42_audjpy_opportunity,
     load_memory as load_audjpy_r42_memory,
     manage_open_position as manage_audjpy_r42_open_position,
 )
@@ -150,8 +150,9 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
     evaluate_vt08_forex_cibo,
 )
 from qore.infrastructure.ctrader_demo_vt08_sizing import (
-    build_ctrader_demo_vt08_cibo_request,
+    build_ctrader_demo_vt08_opportunity,
 )
+from qore.infrastructure.cibo_cma_initial_seed import build_initial_seed_request
 from qore.infrastructure.ctrader_demo_live_anomaly_supervisor import (
     run_with_bounded_repair,
 )
