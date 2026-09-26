@@ -196,7 +196,7 @@ CE2I_TOOL_REGISTRY: tuple[Ce2iToolContract, ...] = (
         "PORTFOLIO_LEVEL_ALLOCATION",
         "STARVATION_OR_TAIL_RISK_GATE_FAILS",
         14,
-    ),
+        ToolMaturity.CONTRACT_IMPLEMENTED,\n    ),
     _tool(
         "T10",
         "Capital Velocity",
@@ -220,7 +220,7 @@ CE2I_TOOL_REGISTRY: tuple[Ce2iToolContract, ...] = (
         "PREVENT_OVER-SIZING",
         "MARGINAL_NET_EXPECTANCY_NON_POSITIVE",
         12,
-    ),
+        ToolMaturity.CONTRACT_IMPLEMENTED,\n    ),
     _tool(
         "T12",
         "Regime-Adaptive Capitalization",
@@ -304,7 +304,7 @@ CE2I_TOOL_REGISTRY: tuple[Ce2iToolContract, ...] = (
         "REALLOCATE_ACROSS_TRADERS",
         "PORTFOLIO_TAIL_OR_STARVATION_GATE_FAILS",
         14,
-    ),
+        ToolMaturity.CONTRACT_IMPLEMENTED,\n    ),
     _tool(
         "T19",
         "Capacity Reservation",
