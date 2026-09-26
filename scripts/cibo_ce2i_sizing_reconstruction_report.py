@@ -5,10 +5,10 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
+from collections.abc import Mapping
 from dataclasses import asdict
 from decimal import Decimal
 from pathlib import Path
-from collections.abc import Mapping
 
 from qore.infrastructure.cibo_capital_efficiency_reconstruction import (
     SIZING_PATH_CONTRACTS,
