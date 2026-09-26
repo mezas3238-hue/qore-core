@@ -15,6 +15,7 @@ from enum import StrEnum
 from re import fullmatch
 
 from qore.infrastructure.cibo_ce2i_tool_registry import (
+    CE2I_TOOL_REGISTRY,
     Ce2iToolContract,
     ToolMaturity,
 )
@@ -359,4 +360,21 @@ def fundednext_stellar_instant_identity(
         account_ref=account_ref,
         environment=MarketRuntimeEnvironment.PRODUCTION,
         provider_program=FUNDEDNEXT_PROGRAM.lower().replace("_", "-"),
+    )
+
+
+
+def eligible_ce2i_tool_codes_for_mission(
+    policy: CiboCapitalMissionPolicy,
+) -> tuple[str, ...]:
+    """Return the deterministic executable CE2I tool surface for one account mission."""
+
+    if not isinstance(policy, CiboCapitalMissionPolicy):
+        raise CiboAccountMissionError(
+            "policy must be CiboCapitalMissionPolicy"
+        )
+    return tuple(
+        tool.code
+        for tool in CE2I_TOOL_REGISTRY
+        if ce2i_tool_allowed_for_mission(tool, policy)
     )
