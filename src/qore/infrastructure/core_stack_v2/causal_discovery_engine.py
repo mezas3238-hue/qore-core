@@ -97,6 +97,7 @@ class CausalDiscoveryPolicy:
     minimum_replication_partitions: int = 2
     minimum_intervention_group_count: int = 4
     minimum_counterfactual_pairs: int = 4
+    minimum_integrity_bps: int = 8_000
     sign_stability_gate_bps: int = 7_500
     temporal_precedence_gate_bps: int = 10_000
 
@@ -105,6 +106,7 @@ class CausalDiscoveryPolicy:
             "exposed_threshold_bps",
             "control_threshold_bps",
             "minimum_effect_bps",
+            "minimum_integrity_bps",
             "sign_stability_gate_bps",
             "temporal_precedence_gate_bps",
         ):
@@ -149,6 +151,7 @@ class CausalDiscoveryAssessment:
     conditional_strata_count: int
     regime_count: int
     replication_partition_count: int
+    excluded_low_integrity_count: int
     intervention_evidence_available: bool
     counterfactual_evidence_available: bool
     replicated: bool
@@ -192,6 +195,7 @@ class CausalDiscoveryAssessment:
             "conditional_strata_count",
             "regime_count",
             "replication_partition_count",
+            "excluded_low_integrity_count",
         ):
             if int(getattr(self, name)) < 0:
                 raise ValueError(f"{name} cannot be negative")
@@ -387,27 +391,36 @@ def discover_causal_relation(
     if any(item.target_at > as_of or item.source_at > as_of for item in episodes):
         raise ValueError("future causal-discovery evidence is forbidden")
 
-    temporal_hits = sum(item.source_at < item.target_at for item in episodes)
-    temporal_precedence_bps = temporal_hits * 10_000 // len(episodes)
+    usable = tuple(
+        item
+        for item in episodes
+        if item.integrity_bps >= effective.minimum_integrity_bps
+    )
+    excluded_low_integrity_count = len(episodes) - len(usable)
+    if not usable:
+        raise ValueError("no causal-discovery evidence meets integrity gate")
+
+    temporal_hits = sum(item.source_at < item.target_at for item in usable)
+    temporal_precedence_bps = temporal_hits * 10_000 // len(usable)
 
     raw_effect, exposed_count, control_count = _signed_effect(
-        list(episodes),
+        list(usable),
         effective,
     )
     raw_direction = _direction(raw_effect, effective.minimum_effect_bps)
 
     conditional_effects, conditional_effect = _conditioned_effects(
-        episodes,
+        usable,
         key_name="confounder_key",
         policy=effective,
     )
     regime_effects, _ = _conditioned_effects(
-        episodes,
+        usable,
         key_name="regime_key",
         policy=effective,
     )
     replication_effects, _ = _conditioned_effects(
-        episodes,
+        usable,
         key_name="replication_partition",
         policy=effective,
     )
@@ -433,8 +446,8 @@ def discover_causal_relation(
             effective.minimum_effect_bps,
         )
 
-    intervention_effect = _intervention_effect(episodes, effective)
-    counterfactual_effect = _counterfactual_effect(episodes, effective)
+    intervention_effect = _intervention_effect(usable, effective)
+    counterfactual_effect = _counterfactual_effect(usable, effective)
 
     conditional_gate = (
         raw_effect is not None
@@ -549,7 +562,7 @@ def discover_causal_relation(
         as_of=as_of,
         status=status,
         direction=raw_direction,
-        sample_count=len(episodes),
+        sample_count=len(usable),
         exposed_count=exposed_count,
         control_count=control_count,
         raw_effect_bps=0 if raw_effect is None else raw_effect,
@@ -565,6 +578,7 @@ def discover_causal_relation(
         conditional_strata_count=len(conditional_effects),
         regime_count=len(regime_effects),
         replication_partition_count=len(replication_effects),
+        excluded_low_integrity_count=excluded_low_integrity_count,
         intervention_evidence_available=intervention_effect is not None,
         counterfactual_evidence_available=counterfactual_effect is not None,
         replicated=status is CausalDiscoveryStatus.RESEARCH_REPLICATED,
