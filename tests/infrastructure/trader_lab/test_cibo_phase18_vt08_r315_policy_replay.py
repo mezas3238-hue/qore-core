@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from decimal import Decimal
 import importlib.util
 import sys
+from decimal import Decimal
 from pathlib import Path
 
 _PATH = (
