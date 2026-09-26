@@ -38,9 +38,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Announce Cognitive OS 004 validation
+      - name: Announce Cognitive OS 005 validation
         run: |
-          gh issue comment 638 --body "Cognitive OS 004 architecture validation started — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Validating Owner Cognitive Firewall, sovereignty, transversal requirements and ceiling program; no runtime authority or deployment involved."
+          gh issue comment 638 --body "Cognitive OS 005 architecture validation started — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Validating Owner Cognitive Firewall, sovereignty, transversal requirements and ceiling program; no runtime authority or deployment involved."
 
       - uses: actions/setup-python@v5
         with:
@@ -91,12 +91,12 @@ jobs:
             tests/infrastructure/test_core_stack_v2_shared_brain_architecture_contract.py \
             tests/infrastructure/test_core_stack_v2_shared_brain_ceiling_program.py
 
-      - name: Report Cognitive OS 004 validation GREEN
+      - name: Report Cognitive OS 005 validation GREEN
         if: success()
         run: |
-          gh issue comment 638 --body "Cognitive OS 004 architecture validation GREEN — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Owner Cognitive Firewall, three-reality/Core-Twin contract, metacognitive/knowledge requirements, legacy freeze anti-actuation tests and ordered WP-01..WP-12 ceiling program all passed. PR remains DRAFT; no LIVE/production/real-capital/merge authority."
+          gh issue comment 638 --body "Cognitive OS 005 architecture validation GREEN — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Owner Cognitive Firewall, three-reality/Core-Twin contract, metacognitive/knowledge requirements, legacy freeze anti-actuation tests and ordered WP-01..WP-12 ceiling program all passed. PR remains DRAFT; no LIVE/production/real-capital/merge authority."
 
-      - name: Report Cognitive OS 004 validation failure
+      - name: Report Cognitive OS 005 validation failure
         if: failure()
         run: |
-          gh issue comment 638 --body "Cognitive OS 004 architecture validation FAILED — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Treat this as a technical/contract defect; do not weaken Cognitive Firewall or sovereignty laws. PR remains DRAFT with no deployment authority."
+          gh issue comment 638 --body "Cognitive OS 005 architecture validation FAILED — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Treat this as a technical/contract defect; do not weaken Cognitive Firewall or sovereignty laws. PR remains DRAFT with no deployment authority."
