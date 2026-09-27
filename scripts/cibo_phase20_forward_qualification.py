@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import os
+import re
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +25,7 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification import (
 
 def _report_json(report: Phase20QualificationReport) -> dict[str, Any]:
     return {
-        "schema": "qore.cibo.phase20d.v2-qualification.v3",
+        "schema": "qore.cibo.phase20d.v2-qualification.v4",
         "status": report.status.value,
         "plan_id": report.plan_id,
         "plan_sha256": report.plan_sha256,
@@ -196,6 +200,11 @@ def _report_json(report: Phase20QualificationReport) -> dict[str, Any]:
                         "f",
                     )
                 ),
+                "capital_minutes": (
+                    None
+                    if item.capital_minutes is None
+                    else format(item.capital_minutes, "f")
+                ),
                 "outcome_observed_at": (
                     None
                     if item.outcome_observed_at is None
@@ -212,6 +221,7 @@ def _report_json(report: Phase20QualificationReport) -> dict[str, Any]:
             "provider_cost_proxy_subtracted_after_settlement": False,
             "drawdown_metric_is_terminal_settlement_cash_path": True,
             "drawdown_metric_is_mark_to_market_equity_mdd": False,
+            "capital_productivity_uses_realized_risk_minutes": True,
             "demo_execution_authorized": False,
             "live_authorized": False,
             "real_capital_authorized": False,
@@ -220,13 +230,38 @@ def _report_json(report: Phase20QualificationReport) -> dict[str, Any]:
     }
 
 
+_GIT_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+
+
+def _sha256_path(path: Path) -> str:
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    return f"sha256:{digest}"
+
+
+def _resolve_git_sha(explicit: str | None) -> str:
+    value = explicit or os.getenv("GITHUB_SHA")
+    if value is None:
+        value = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            text=True,
+        ).strip()
+    normalized = value.strip().lower()
+    if _GIT_SHA_RE.fullmatch(normalized) is None:
+        raise ValueError("qualification git SHA must be 40 lowercase hex")
+    return normalized
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--evidence-store", type=Path, required=True)
     parser.add_argument("--policy-store", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--git-sha")
     args = parser.parse_args()
 
+    git_sha = _resolve_git_sha(args.git_sha)
+    evidence_store_sha256 = _sha256_path(args.evidence_store)
+    policy_store_sha256 = _sha256_path(args.policy_store)
     evidence = DurablePhase20ForwardEvidenceStore(
         args.evidence_store
     ).load()
@@ -236,6 +271,16 @@ def main() -> None:
         policy_book=policy,
     )
     payload = _report_json(report)
+    payload["provenance"] = {
+        "git_sha": git_sha,
+        "evidence_store_sha256": evidence_store_sha256,
+        "policy_store_sha256": policy_store_sha256,
+        "evidence_generation": evidence.generation,
+        "policy_generation": policy.generation,
+        "decision_count": len(evidence.decisions),
+        "outcome_count": len(evidence.outcomes),
+        "policy_decision_count": len(policy.decisions),
+    }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
