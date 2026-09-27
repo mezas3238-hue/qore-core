@@ -242,6 +242,7 @@ def test_v33_frozen_contract() -> None:
     assert v33.L2_PRIOR_STRENGTH == 12.0
     assert v33.SOURCE_TRIGGER_STATE_RUN_ID == 36283499014
     assert v33.CHRONOLOGICAL_FOLDS == 5
+    assert v33.MIN_CHRONOLOGICAL_CALIBRATION_EXAMPLES == 10
     assert v33.RESIDUAL_QUANTILE == 0.20
     assert v33.EXPECTED_FEATURE_DIMENSION == 95
     assert len(v33.ACTION_ORDER) == 9
