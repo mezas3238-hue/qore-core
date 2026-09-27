@@ -18,8 +18,11 @@ def _load_harness(monkeypatch: pytest.MonkeyPatch):
 def _range() -> dict[str, int | str]:
     return {
         "episode_count": 6_000,
+        "eligible_source_count": 6_100,
         "complete_evidence_count": 6_000,
-        "incomplete_evidence_count": 0,
+        "incomplete_evidence_count": 100,
+        "checkpoint_incomplete_count": 100,
+        "checkpoint_complete_coverage_bps": 9_836,
         "terminal_event_count": 1_000,
         "nonterminal_event_count": 5_000,
         "source_min": "2016-01-01T00:00:00+00:00",
@@ -31,6 +34,43 @@ def _range() -> dict[str, int | str]:
         "target_contract": "HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2",
         "fresh_holdout_opened": 0,
     }
+
+
+def test_v10_asof_index_is_causal_and_handles_missing_minutes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    harness = _load_harness(monkeypatch)
+    keys = (
+        "2020-01-01T10:00:00",
+        "2020-01-01T10:01:00",
+        "2020-01-01T10:03:00",
+        "2020-01-01T10:05:00",
+    )
+
+    assert harness._asof_index(
+        closed_keys=keys,
+        target_key="2020-01-01T10:02:00",
+        source_index=0,
+        require_new_observation=True,
+    ) == 1
+    assert harness._asof_index(
+        closed_keys=keys,
+        target_key="2020-01-01T10:04:00",
+        source_index=0,
+        require_new_observation=True,
+    ) == 2
+    assert harness._asof_index(
+        closed_keys=keys,
+        target_key="2020-01-01T10:00:00",
+        source_index=0,
+        require_new_observation=True,
+    ) is None
+    assert harness._asof_index(
+        closed_keys=keys,
+        target_key="2020-01-01T10:00:00",
+        source_index=0,
+        require_new_observation=False,
+    ) == 0
 
 
 def test_v10_does_not_read_r6_r5_when_r8_gate_fails(
