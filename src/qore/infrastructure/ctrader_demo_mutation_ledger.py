@@ -58,11 +58,11 @@ class CTraderDemoDurableFillRecord:
                 raise CTraderDemoMutationLedgerError(
                     f"durable fill {field_name} must be non-empty"
                 )
-        for value, field_name in (
+        for timestamp, field_name in (
             (self.provider_timestamp, "provider_timestamp"),
             (self.received_at, "received_at"),
         ):
-            if value.tzinfo is None or value.utcoffset() is None:
+            if timestamp.tzinfo is None or timestamp.utcoffset() is None:
                 raise CTraderDemoMutationLedgerError(
                     f"durable fill {field_name} must be timezone-aware"
                 )
