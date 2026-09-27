@@ -763,11 +763,11 @@ def _simulate_period(
         for key, pretrade in new_pretrades.items():
             trade = modes[milestone.ProtectionMode.ORIGINAL.value][key]
             selected = modes[pretrade.mode][key]
-            family = v30._mode_family(pretrade.mode)
+            entry_family: str | None = v30._mode_family(pretrade.mode)
             audit_data[key] = {
                 "causal_surface_mode": pretrade.mode,
                 "chosen_mode": pretrade.mode,
-                "surface_first_family": family,
+                "surface_first_family": entry_family,
                 "surface_first_protection_at": selected.first_protection_at,
                 "base_multiplier": str(pretrade.base_multiplier),
                 "decision_made": False,
