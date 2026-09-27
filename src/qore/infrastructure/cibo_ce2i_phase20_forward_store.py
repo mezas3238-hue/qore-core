@@ -36,6 +36,7 @@ class DurablePhase20ForwardEvidenceError(CiboCapitalManagementError):
 @dataclass(frozen=True, slots=True)
 class Phase20ForwardDecisionSeal:
     evidence_id: str
+    decision_epoch_id: str
     evidence_sha256: str
     decision_at: datetime
     candidate_id: str
@@ -45,9 +46,13 @@ class Phase20ForwardDecisionSeal:
     canonical_payload_json: str
 
     def __post_init__(self) -> None:
-        if not self.evidence_id or not self.candidate_id:
+        if (
+            not self.evidence_id
+            or not self.decision_epoch_id
+            or not self.candidate_id
+        ):
             raise DurablePhase20ForwardEvidenceError(
-                "forward decision seal identity is required"
+                "forward decision seal evidence/epoch identity is required"
             )
         if not self.evidence_sha256.startswith("sha256:"):
             raise DurablePhase20ForwardEvidenceError(
@@ -127,6 +132,9 @@ class VersionedPhase20ForwardEvidenceBook:
                 "forward evidence generation must be non-negative int"
             )
         decision_ids = tuple(item.evidence_id for item in self.decisions)
+        decision_epoch_ids = tuple(
+            item.decision_epoch_id for item in self.decisions
+        )
         decision_shas = tuple(item.evidence_sha256 for item in self.decisions)
         outcome_ids = tuple(item.evidence_id for item in self.outcomes)
         outcome_keys = tuple(
@@ -136,6 +144,10 @@ class VersionedPhase20ForwardEvidenceBook:
         if len(decision_ids) != len(set(decision_ids)):
             raise DurablePhase20ForwardEvidenceError(
                 "duplicate forward decision evidence_id"
+            )
+        if len(decision_epoch_ids) != len(set(decision_epoch_ids)):
+            raise DurablePhase20ForwardEvidenceError(
+                "duplicate forward decision epoch identity"
             )
         if len(decision_shas) != len(set(decision_shas)):
             raise DurablePhase20ForwardEvidenceError(
@@ -217,6 +229,17 @@ class DurablePhase20ForwardEvidenceStore:
                         return current
                     raise DurablePhase20ForwardEvidenceError(
                         "conflicting forward decision rewrite"
+                    )
+                same_epoch = tuple(
+                    item
+                    for item in current.decisions
+                    if item.decision_epoch_id == seal.decision_epoch_id
+                )
+                if same_epoch:
+                    if same_epoch[0] == seal:
+                        return current
+                    raise DurablePhase20ForwardEvidenceError(
+                        "conflicting forward decision epoch rewrite"
                     )
                 if current.decision_for_sha(seal.evidence_sha256) is not None:
                     raise DurablePhase20ForwardEvidenceError(
@@ -411,6 +434,7 @@ def _decision_seal(
     payload = phase20_forward_evidence_json(evidence)
     return Phase20ForwardDecisionSeal(
         evidence_id=evidence.evidence_id,
+        decision_epoch_id=evidence.decision_epoch_id,
         evidence_sha256=phase20_forward_evidence_sha256(evidence),
         decision_at=evidence.decision_at,
         candidate_id=evidence.lineage.candidate_id,
@@ -439,6 +463,7 @@ def _decision_to_json(
 ) -> dict[str, object]:
     return {
         "evidence_id": value.evidence_id,
+        "decision_epoch_id": value.decision_epoch_id,
         "evidence_sha256": value.evidence_sha256,
         "decision_at": value.decision_at.isoformat(),
         "candidate_id": value.candidate_id,
@@ -457,6 +482,7 @@ def _decision_from_json(value: object) -> Phase20ForwardDecisionSeal:
         raise TypeError("forward signal_fingerprints must be list")
     return Phase20ForwardDecisionSeal(
         evidence_id=str(value["evidence_id"]),
+        decision_epoch_id=str(value["decision_epoch_id"]),
         evidence_sha256=str(value["evidence_sha256"]),
         decision_at=datetime.fromisoformat(str(value["decision_at"])),
         candidate_id=str(value["candidate_id"]),
