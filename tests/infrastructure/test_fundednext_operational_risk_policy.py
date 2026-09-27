@@ -7,7 +7,9 @@ from qore.infrastructure.fundednext_operational_risk_policy import (
     QORE_INTERNAL_BANK_HEAT_FRACTION,
     QORE_INTERNAL_NORMAL_HEAT_FRACTION,
     CapitalBudgetDecision,
+    CiboAccountCapitalPosture,
     QoreOperationalCapitalBudget,
+    derive_cibo_account_capital_posture,
     evaluate_qore_operational_capital_budget,
 )
 from qore.infrastructure.fundednext_stellar_instant import (
@@ -15,9 +17,6 @@ from qore.infrastructure.fundednext_stellar_instant import (
     StellarInstantRiskBudget,
     evaluate_stellar_instant_budget,
 )
-from qore.infrastructure.vt08_forex_cibo_operational import Vt08ForexCiboPosture
-
-
 def _provider(
     *,
     balance: str = "2000",
@@ -37,7 +36,7 @@ def _provider(
 
 
 def _budget(
-    posture: Vt08ForexCiboPosture,
+    posture: CiboAccountCapitalPosture,
     *,
     balance: str = "2000",
     equity: str = "2000",
@@ -69,7 +68,7 @@ def _budget(
 
 
 def test_normal_policy_uses_provider_6pct_mll_without_second_trailing_wall() -> None:
-    budget = _budget(Vt08ForexCiboPosture.NORMAL)
+    budget = _budget(CiboAccountCapitalPosture.NORMAL)
     assert budget.provider_maximum_loss_fraction == Decimal("0.06")
     assert budget.provider_active_mll == Decimal("1880")
     assert budget.qore_internal_floor == budget.provider_active_mll
@@ -80,9 +79,9 @@ def test_normal_policy_uses_provider_6pct_mll_without_second_trailing_wall() -> 
 
 
 def test_attack_without_earned_cushion_is_reduced_to_normal() -> None:
-    budget = _budget(Vt08ForexCiboPosture.ATTACK)
+    budget = _budget(CiboAccountCapitalPosture.ATTACK)
     assert budget.decision is CapitalBudgetDecision.REDUCE
-    assert budget.authorized_posture is Vt08ForexCiboPosture.NORMAL
+    assert budget.authorized_posture is CiboAccountCapitalPosture.NORMAL
     assert budget.attack_authorized is False
     assert budget.aggregate_heat_cap == Decimal("60.00")
     assert QORE_INTERNAL_NORMAL_HEAT_FRACTION == Decimal("0.03")
@@ -90,13 +89,13 @@ def test_attack_without_earned_cushion_is_reduced_to_normal() -> None:
 
 def test_attack_requires_earned_closed_balance_cushion_and_never_uses_provider_wall() -> None:
     budget = _budget(
-        Vt08ForexCiboPosture.ATTACK,
+        CiboAccountCapitalPosture.ATTACK,
         balance="2025",
         equity="2025",
         high="2025",
     )
     assert budget.decision is CapitalBudgetDecision.ALLOW
-    assert budget.authorized_posture is Vt08ForexCiboPosture.ATTACK
+    assert budget.authorized_posture is CiboAccountCapitalPosture.ATTACK
     assert budget.attack_authorized is True
     assert budget.earned_closed_balance_cushion == Decimal("25")
     assert budget.aggregate_heat_cap == Decimal("60.00")
@@ -105,7 +104,7 @@ def test_attack_requires_earned_closed_balance_cushion_and_never_uses_provider_w
 
 
 def test_bank_preserves_shared_sixty_dollar_account_budget() -> None:
-    budget = _budget(Vt08ForexCiboPosture.BANK)
+    budget = _budget(CiboAccountCapitalPosture.BANK)
     assert budget.decision is CapitalBudgetDecision.ALLOW
     assert budget.aggregate_heat_cap == Decimal("60.00")
     assert QORE_INTERNAL_BANK_HEAT_FRACTION == Decimal("0.03")
@@ -113,11 +112,11 @@ def test_bank_preserves_shared_sixty_dollar_account_budget() -> None:
 
 
 def test_existing_account_heat_is_deducted_from_shared_budget() -> None:
-    budget = _budget(Vt08ForexCiboPosture.NORMAL, current_risk="20")
+    budget = _budget(CiboAccountCapitalPosture.NORMAL, current_risk="20")
     assert budget.decision is CapitalBudgetDecision.ALLOW
     assert budget.available_risk_budget == Decimal("40.00")
 
-    exhausted = _budget(Vt08ForexCiboPosture.NORMAL, current_risk="60")
+    exhausted = _budget(CiboAccountCapitalPosture.NORMAL, current_risk="60")
     assert exhausted.decision is CapitalBudgetDecision.REJECT
     assert exhausted.available_risk_budget == 0
     assert exhausted.reason == "qore-account-wide-heat-or-dd-budget-exhausted"
@@ -126,7 +125,7 @@ def test_existing_account_heat_is_deducted_from_shared_budget() -> None:
 def test_provider_or_qore_safety_buffer_breach_rejects_new_risk() -> None:
     # Equity is above the provider 1880 MLL but inside QORE's 10 USD safety buffer.
     budget = _budget(
-        Vt08ForexCiboPosture.NORMAL,
+        CiboAccountCapitalPosture.NORMAL,
         balance="1889",
         equity="1889",
         high="2000",
@@ -138,13 +137,37 @@ def test_provider_or_qore_safety_buffer_breach_rejects_new_risk() -> None:
 
 def test_unknown_clarity_classification_can_be_capped_at_strictest_one_percent() -> None:
     budget = _budget(
-        Vt08ForexCiboPosture.ATTACK,
+        CiboAccountCapitalPosture.ATTACK,
         balance="2025",
         equity="2025",
         high="2025",
         certified_open_risk_fraction="0.01",
     )
     assert budget.decision is CapitalBudgetDecision.ALLOW
-    assert budget.authorized_posture is Vt08ForexCiboPosture.ATTACK
+    assert budget.authorized_posture is CiboAccountCapitalPosture.ATTACK
     assert budget.aggregate_heat_cap == Decimal("20.00")
     assert budget.qore_authorizable_headroom == Decimal("20.00")
+
+
+
+def test_account_posture_is_derived_without_any_trader_identity() -> None:
+    assert derive_cibo_account_capital_posture(
+        initial_balance=Decimal("2000"),
+        balance=Decimal("2000"),
+        equity=Decimal("2000"),
+        current_aggregate_stop_risk=Decimal("0"),
+    ) is CiboAccountCapitalPosture.NORMAL
+
+    assert derive_cibo_account_capital_posture(
+        initial_balance=Decimal("2000"),
+        balance=Decimal("2025"),
+        equity=Decimal("2025"),
+        current_aggregate_stop_risk=Decimal("0"),
+    ) is CiboAccountCapitalPosture.ATTACK
+
+    assert derive_cibo_account_capital_posture(
+        initial_balance=Decimal("2000"),
+        balance=Decimal("2025"),
+        equity=Decimal("2010"),
+        current_aggregate_stop_risk=Decimal("0"),
+    ) is CiboAccountCapitalPosture.BANK
