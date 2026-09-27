@@ -150,6 +150,7 @@ def test_registry_committed_risk_counts_open_and_live_pending_only(
     registry.register(expired)
 
     assert registry.committed_stop_risk(now=NOW) == Decimal("40.00")
+    assert registry.pending_stop_risk(now=NOW) == Decimal("15.00")
 
     closed = registry.mark_position_closed(
         99,
@@ -158,6 +159,9 @@ def test_registry_committed_risk_counts_open_and_live_pending_only(
     assert len(closed) == 1
     assert closed[0].closed_at == (NOW + timedelta(minutes=5)).isoformat()
     assert registry.committed_stop_risk(now=NOW + timedelta(minutes=6)) == (
+        Decimal("15.00")
+    )
+    assert registry.pending_stop_risk(now=NOW + timedelta(minutes=6)) == (
         Decimal("15.00")
     )
 
