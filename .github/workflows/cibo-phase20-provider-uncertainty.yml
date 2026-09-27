@@ -12,6 +12,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_interaction_ablation.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_robust_allocator.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_mpc.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_policy_candidate.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_evidence.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py'
       - 'scripts/cibo_phase20_provider_uncertainty_contract.py'
@@ -23,6 +24,7 @@ on:
       - 'scripts/cibo_phase20_interaction_ablation.py'
       - 'scripts/cibo_phase20_robust_allocator_contract.py'
       - 'scripts/cibo_phase20_forecastless_mpc_contract.py'
+      - 'scripts/cibo_phase20_policy_candidate_freeze.py'
       - 'scripts/cibo_phase20_forward_evidence_contract.py'
       - 'scripts/cibo_phase20_failure_engineering.py'
       - 'scripts/cibo_phase20_failure_engineering_b.py'
@@ -35,6 +37,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase20_interaction_ablation.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_robust_allocator.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_mpc.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_policy_candidate.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py'
@@ -50,6 +53,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_interaction_ablation.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_robust_allocator.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_mpc.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_policy_candidate.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_evidence.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py'
       - 'scripts/cibo_phase20_provider_uncertainty_contract.py'
@@ -61,6 +65,7 @@ on:
       - 'scripts/cibo_phase20_interaction_ablation.py'
       - 'scripts/cibo_phase20_robust_allocator_contract.py'
       - 'scripts/cibo_phase20_forecastless_mpc_contract.py'
+      - 'scripts/cibo_phase20_policy_candidate_freeze.py'
       - 'scripts/cibo_phase20_forward_evidence_contract.py'
       - 'scripts/cibo_phase20_failure_engineering.py'
       - 'scripts/cibo_phase20_failure_engineering_b.py'
@@ -73,6 +78,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase20_interaction_ablation.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_robust_allocator.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_mpc.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_policy_candidate.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py'
@@ -104,6 +110,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_interaction_ablation.py \
             src/qore/infrastructure/cibo_ce2i_phase20_robust_allocator.py \
             src/qore/infrastructure/cibo_ce2i_phase20_mpc.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_policy_candidate.py \
             src/qore/infrastructure/cibo_ce2i_phase20_forward_evidence.py \
             src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py \
             scripts/cibo_phase20_provider_uncertainty_contract.py \
@@ -115,6 +122,7 @@ jobs:
             scripts/cibo_phase20_interaction_ablation.py \
             scripts/cibo_phase20_robust_allocator_contract.py \
             scripts/cibo_phase20_forecastless_mpc_contract.py \
+            scripts/cibo_phase20_policy_candidate_freeze.py \
             scripts/cibo_phase20_forward_evidence_contract.py \
             scripts/cibo_phase20_failure_engineering.py \
             scripts/cibo_phase20_failure_engineering_b.py \
@@ -127,6 +135,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_interaction_ablation.py \
             tests/infrastructure/test_cibo_ce2i_phase20_robust_allocator.py \
             tests/infrastructure/test_cibo_ce2i_phase20_mpc.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_policy_candidate.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py
@@ -138,6 +147,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_interaction_ablation.py \
             src/qore/infrastructure/cibo_ce2i_phase20_robust_allocator.py \
             src/qore/infrastructure/cibo_ce2i_phase20_mpc.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_policy_candidate.py \
             src/qore/infrastructure/cibo_ce2i_phase20_forward_evidence.py \
             src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py \
             scripts/cibo_phase20_provider_uncertainty_contract.py \
@@ -149,6 +159,7 @@ jobs:
             scripts/cibo_phase20_interaction_ablation.py \
             scripts/cibo_phase20_robust_allocator_contract.py \
             scripts/cibo_phase20_forecastless_mpc_contract.py \
+            scripts/cibo_phase20_policy_candidate_freeze.py \
             scripts/cibo_phase20_forward_evidence_contract.py \
             scripts/cibo_phase20_failure_engineering.py \
             scripts/cibo_phase20_failure_engineering_b.py
@@ -162,6 +173,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_interaction_ablation.py \
             tests/infrastructure/test_cibo_ce2i_phase20_robust_allocator.py \
             tests/infrastructure/test_cibo_ce2i_phase20_mpc.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_policy_candidate.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py
@@ -207,6 +219,9 @@ jobs:
           python scripts/cibo_phase20_forecastless_mpc_contract.py \
             --output phase20-output/phase20-forecastless-mpc-contract.json \
             > phase20-output/forecastless-mpc-stdout.json
+          python scripts/cibo_phase20_policy_candidate_freeze.py \
+            --output phase20-output/phase20-policy-candidate-freeze.json \
+            > phase20-output/policy-candidate-freeze-stdout.json
           python scripts/cibo_phase20_forward_evidence_contract.py \
             --output phase20-output/phase20-forward-evidence-contract.json \
             > phase20-output/forward-evidence-stdout.json
@@ -239,6 +254,8 @@ jobs:
             robust-allocator-stdout.json \
             phase20-forecastless-mpc-contract.json \
             forecastless-mpc-stdout.json \
+            phase20-policy-candidate-freeze.json \
+            policy-candidate-freeze-stdout.json \
             phase20-forward-evidence-contract.json \
             forward-evidence-stdout.json \
             phase20-failure-engineering.json \
