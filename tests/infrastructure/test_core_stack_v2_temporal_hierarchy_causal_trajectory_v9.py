@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_causal_trajectory_v9 import (
     V9_FEATURE_NAMES,
     CausalTrajectorySourceState,
@@ -234,6 +236,16 @@ def test_v9_incomplete_evidence_abstains_and_has_no_authority() -> None:
     assert model.risk_authority is False
     assert model.order_authority is False
     assert model.execution_authority is False
+
+
+def test_v9_fit_partition_is_hard_frozen_to_r8() -> None:
+    rows = _episodes(300)
+    with pytest.raises(ValueError, match="fit partition must be r8"):
+        fit_causal_trajectory_model(
+            fitted_at=max(item.observed_at for item in rows),
+            fit_partition="r6",
+            episodes=rows,
+        )
 
 
 def test_v9_fingerprints_are_deterministic() -> None:
