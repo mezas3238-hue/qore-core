@@ -232,9 +232,10 @@ class CTraderDemoFreeSink:
                 book=self._book,
                 now=observed,
             )
+            contract = self._contract(request)
             submission = build_allocation_only_submission(
                 allocation,
-                contract=self._contract(request),
+                contract=contract,
                 submitted_at=observed,
             )
             auth_id, auth_fingerprint, reservation_id = allocation_fence_values(allocation)
@@ -271,6 +272,31 @@ class CTraderDemoFreeSink:
                     submitted_at=recorded_at.isoformat(),
                     expires_at=request.expires_at.isoformat(),
                     position_id=position_id,
+                    receipt_id=str(submission.receipt_id.value),
+                    idempotency_key=str(submission.idempotency_key.value),
+                    provider_symbol=request.provider_symbol,
+                    side=request.side,
+                    entry_type=request.entry_type,
+                    intended_entry=format(request.intended_entry, "f"),
+                    stop_loss=format(request.stop_loss, "f"),
+                    take_profit=format(request.take_profit, "f"),
+                    volume_step=format(request.volume_step, "f"),
+                    minimum_volume=format(request.minimum_volume, "f"),
+                    stop_loss_per_volume=format(
+                        request.stop_loss_per_volume,
+                        "f",
+                    ),
+                    margin_per_volume=format(request.margin_per_volume, "f"),
+                    requested_at=request.requested_at.isoformat(),
+                    minimum_volume_uplifted=request.minimum_volume_uplifted,
+                    source_contract_size_units=format(
+                        contract.source_contract_size_units,
+                        "f",
+                    ),
+                    ctrader_lot_size_units=format(
+                        contract.ctrader_lot_size_units,
+                        "f",
+                    ),
                     capital_provenance=tuple(
                         (
                             item.source_kind,
