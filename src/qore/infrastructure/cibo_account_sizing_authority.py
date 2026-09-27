@@ -194,10 +194,10 @@ def plan_account_sizing(
                 opportunity=opportunity,
                 capital=capital,
                 action=CapitalAction.EXPAND,
-                source=CapitalSource.CERTIFIED_LIMITED_DOWNSIDE_CAPACITY,
+                source=CapitalSource.REALIZED_PROFIT,
                 reason=(
-                    "base survival capital protected: CIBO may use full "
-                    "remaining account-constrained capacity"
+                    "realized closed profit covers survival capital: CIBO may "
+                    "use full remaining account-constrained capacity"
                 ),
             )
             mode = CiboAccountSizingMode.PROTECTED_FULL_CAPACITY
