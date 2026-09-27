@@ -9,11 +9,11 @@ no sequential pseudo-competition is manufactured.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal
 from hashlib import sha256
-from typing import Any, Callable
+from typing import Any
 
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_capital_management_authority import (
@@ -25,11 +25,11 @@ from qore.infrastructure.cibo_ce2i_phase20_epoch_aggregator import (
     Phase20DecisionEpochBatch,
     Phase20DecisionEpochSlot,
 )
-from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
-    Phase20ForwardPopulationDisposition,
-)
 from qore.infrastructure.cibo_ce2i_phase20_forward_epoch import (
     Phase20ForwardObservedOpportunity,
+)
+from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
+    Phase20ForwardPopulationDisposition,
 )
 from qore.infrastructure.cibo_provider_economic_normalization import (
     ctrader_demo_economic_observation,
