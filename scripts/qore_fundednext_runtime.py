@@ -89,7 +89,9 @@ from qore.infrastructure.fundednext_mt5_mutation_ledger import (
 from qore.infrastructure.fundednext_operational import build_account_bound_submission
 from qore.infrastructure.fundednext_operational_risk_policy import (
     CapitalBudgetDecision,
+    CiboAccountCapitalPosture,
     QoreOperationalCapitalBudget,
+    derive_cibo_account_capital_posture,
     evaluate_qore_operational_capital_budget,
 )
 from qore.infrastructure.fundednext_position_exit_ledger import (
@@ -2492,14 +2494,14 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         defend=False,
                         payout_eligible=False,
                     )
-                    arm_posture = request_cibo_posture(
+                    arm_posture = derive_cibo_account_capital_posture(
                         initial_balance=PILOT_INITIAL_BALANCE,
                         balance=arm_account.balance,
                         equity=arm_account.equity,
-                        current_aggregate_risk=arm_aggregate,
+                        current_aggregate_stop_risk=arm_aggregate,
                     )
                     if mission_snapshot.state is CapitalizationMissionState.BANK:
-                        arm_posture = Vt08ForexCiboPosture.BANK
+                        arm_posture = CiboAccountCapitalPosture.BANK
                     arm_capital = evaluate_qore_operational_capital_budget(
                         provider_budget=arm_provider,
                         initial_balance=PILOT_INITIAL_BALANCE,
@@ -3229,14 +3231,14 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     defend=False,
                     payout_eligible=False,
                 )
-                vt31_posture = request_cibo_posture(
+                vt31_posture = derive_cibo_account_capital_posture(
                     initial_balance=PILOT_INITIAL_BALANCE,
                     balance=vt31_account.balance,
                     equity=vt31_account.equity,
-                    current_aggregate_risk=vt31_aggregate,
+                    current_aggregate_stop_risk=vt31_aggregate,
                 )
                 if mission_snapshot.state is CapitalizationMissionState.BANK:
-                    vt31_posture = Vt08ForexCiboPosture.BANK
+                    vt31_posture = CiboAccountCapitalPosture.BANK
                 vt31_capital = evaluate_qore_operational_capital_budget(
                     provider_budget=vt31_provider,
                     initial_balance=PILOT_INITIAL_BALANCE,
@@ -3690,14 +3692,14 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             defend=False,
             payout_eligible=False,
         )
-        posture = request_cibo_posture(
+        posture = derive_cibo_account_capital_posture(
             initial_balance=PILOT_INITIAL_BALANCE,
             balance=account_state.balance,
             equity=account_state.equity,
-            current_aggregate_risk=aggregate,
+            current_aggregate_stop_risk=aggregate,
         )
         if mission_snapshot.state is CapitalizationMissionState.BANK:
-            posture = Vt08ForexCiboPosture.BANK
+            posture = CiboAccountCapitalPosture.BANK
         capital = evaluate_qore_operational_capital_budget(
             provider_budget=provider,
             initial_balance=PILOT_INITIAL_BALANCE,
