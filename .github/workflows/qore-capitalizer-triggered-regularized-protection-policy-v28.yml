@@ -1,13 +1,6 @@
 name: QORE Capitalizer Triggered Regularized Protection Policy V28
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/qore-capitalizer-triggered-regularized-protection-policy-v28.yml'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_triggered_regularized_protection_policy_v28.py'
-      - 'tests/infrastructure/trader_lab/test_capitalizer_triggered_regularized_protection_policy_v28.py'
   workflow_dispatch:
 
 permissions:

@@ -1,13 +1,6 @@
 name: QORE Capitalizer Sequential Protect-or-Defer V32
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/qore-capitalizer-sequential-protect-or-defer-v32.yml'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_sequential_protect_or_defer_v32.py'
-      - 'tests/infrastructure/trader_lab/test_capitalizer_sequential_protect_or_defer_v32.py'
   workflow_dispatch:
 
 permissions:

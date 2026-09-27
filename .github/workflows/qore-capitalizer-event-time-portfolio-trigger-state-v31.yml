@@ -1,13 +1,6 @@
 name: QORE Capitalizer Event-Time Portfolio Trigger State V31
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/qore-capitalizer-event-time-portfolio-trigger-state-v31.yml'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_event_time_portfolio_trigger_state_v31.py'
-      - 'tests/infrastructure/trader_lab/test_capitalizer_event_time_portfolio_trigger_state_v31.py'
   workflow_dispatch:
 
 permissions:
