@@ -1,6 +1,6 @@
 """WP-05 V10 causal sequential change-point consumed-development experiment.
 
-V9 is an online early-warning experiment. It compares source-only cognition with
+V10 is an online early-warning experiment. It compares source-only cognition with
 causal evidence accumulated at 0/3/5/10/15 minutes after source. The matured
 30-minute Target-V2 label is offline-only. R8 is fitted/calibrated before R6/R5
 may be scientifically opened. Fresh holdout remains closed.
@@ -190,7 +190,7 @@ def _prepare_partition(
         "target_unidentifiable_anchor_count": target_range[
             "unidentifiable_anchor_count"
         ],
-        "v9_unidentifiable_anchor_count": unidentifiable_anchor_count,
+        "v10_unidentifiable_anchor_count": unidentifiable_anchor_count,
         "target_contract": TARGET_CONTRACT,
         "fresh_holdout_opened": 0,
     }
