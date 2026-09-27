@@ -122,7 +122,11 @@ def _reconciliation(
             if status is CTraderDemoFillReconciliationStatus.MATCHED
             else Decimal("50")
         ),
-        issues=(),
+        issues=(
+            ()
+            if status is CTraderDemoFillReconciliationStatus.MATCHED
+            else ("fill_quantity_below_requested_quantity",)
+        ),
     )
 
 
@@ -173,6 +177,7 @@ def test_ctrader_executed_risk_rejects_partial_reconciliation() -> None:
         build_ctrader_phase20_executed_risk(
             decision_evidence_sha256="sha256:" + "a" * 64,
             position_id=77,
+            authorized_source_volume=Decimal("1"),
             request=_request(),
             contract=_contract(),
             fills=(
@@ -199,6 +204,7 @@ def test_ctrader_executed_risk_rejects_nonterminal_fill() -> None:
         build_ctrader_phase20_executed_risk(
             decision_evidence_sha256="sha256:" + "a" * 64,
             position_id=77,
+            authorized_source_volume=Decimal("1"),
             request=_request(),
             contract=_contract(),
             fills=(
@@ -223,6 +229,7 @@ def test_ctrader_executed_risk_rejects_fill_through_stop() -> None:
         build_ctrader_phase20_executed_risk(
             decision_evidence_sha256="sha256:" + "a" * 64,
             position_id=77,
+            authorized_source_volume=Decimal("1"),
             request=_request(),
             contract=_contract(),
             fills=(
