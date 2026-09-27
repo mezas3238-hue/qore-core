@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+import qore.infrastructure.core_stack_v2.temporal_hierarchy_event_manifold_v8 as event_manifold_v8
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_competing_survival_v7 import (
     RECOVERY_FEATURE_NAMES,
     TERMINAL_FEATURE_NAMES,
@@ -212,6 +213,39 @@ def test_v8_runtime_uses_source_only_and_incomplete_evidence_abstains() -> None:
     assert model.risk_authority is False
     assert model.order_authority is False
     assert model.execution_authority is False
+
+
+def test_v8_calibration_selects_max_reduction_subject_to_preservation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    rows = _episodes(600)
+
+    monkeypatch.setattr(
+        event_manifold_v8,
+        "_quantile",
+        lambda values, bps: bps / 1_000,
+    )
+
+    def metrics(*, rows, recovery_radius_micros, recovery_advantage_margin_micros):
+        del rows, recovery_advantage_margin_micros
+        if recovery_radius_micros == 1_000_000:
+            return 10_000, 100
+        if recovery_radius_micros == 1_500_000:
+            return 9_800, 500
+        return 9_700, 900
+
+    monkeypatch.setattr(event_manifold_v8, "_metrics", metrics)
+
+    model = fit_event_manifold_model(
+        fitted_at=max(item.observed_at for item in rows),
+        fit_partition="r8",
+        episodes=rows,
+    )
+
+    assert model.calibration_gate_pass is True
+    assert model.recovery_radius_quantile_bps == 1_500
+    assert model.calibration_false_reduction_bps == 500
+    assert model.calibration_terminal_preservation_bps == 9_800
 
 
 def test_v8_model_and_representation_fingerprints_are_deterministic() -> None:
