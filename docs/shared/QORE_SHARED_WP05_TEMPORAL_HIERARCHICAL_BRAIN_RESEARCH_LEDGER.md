@@ -210,12 +210,35 @@ Frozen geometry:
 - threshold frozen on R8 calibration with >=98% terminal-preservation buffer;
 - R6/R5 no refit and no threshold retuning.
 
-Authoritative fixed-anchor candidate:
-- Git SHA: `f65aeb568a113148017e11429fb0a2370324fe17`;
-- GitHub Actions run: `36274152871`.
+Authoritative scientific candidate:
+- model/source Git SHA: `f65aeb568a113148017e11429fb0a2370324fe17`;
+- first protocol-valid scientific run: `36274152871`;
+- clean archival validation Git SHA: `89f13a98ae10dbcbb99cbfa8b9dfb0b9a6a31409`;
+- clean archival run: `36282138635`;
+- retained artifact: `10919710889`;
+- artifact digest:
+  `sha256:4583706bb005066ffdda53ca213c60eca453c27d17112640fe66a511a9d3760b`.
 
-Its result must be recorded here only after the workflow produces a
-protocol-valid payload.
+Clean archival status: `WP05_V6_STRUCTURAL_FRONTIER_FALSIFIED`.
+
+The corrected workflow passed technically with `protocol_pass=True` and
+`development_gate_pass=False`. The archive reproduces the frozen scientific
+outcome exactly:
+
+- R8 evaluation: 874 bps false-declaration reduction; 9880 bps terminal
+  preservation;
+- R6: 888 / 9796 bps;
+- R5: 825 / 9897 bps;
+- R8 calibration: 911 / 9802 bps;
+- frozen model fingerprint:
+  `5846796895fbfdb33e0e86f24d87d17b4038f8bfbb55fe3d4a8c45e4d7158396`;
+- `purged_discovery_count=0` is valid because discovery labels mature through
+  `2017-11-03T19:00:00+00:00` and calibration source begins at
+  `2017-11-03T19:30:00+00:00`;
+- fresh holdout remained CLOSED.
+
+The GREEN archival workflow is technical evidence integrity, not a scientific
+pass. V6 remains permanently falsified and must not be retuned against R6/R5.
 
 ## 6. Scientific governance
 
