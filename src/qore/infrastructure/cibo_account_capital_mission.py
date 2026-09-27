@@ -364,6 +364,35 @@ def fundednext_stellar_instant_identity(
 
 
 
+def eligible_ce2i_tool_codes_for_account_state(
+    policy: CiboCapitalMissionPolicy,
+    *,
+    base_protected: bool,
+) -> tuple[str, ...]:
+    """Resolve executable CE2I surface from mission plus protection state.
+
+    External capital remains on the survival core until the survival capital is
+    covered by proven protection. Protection never promotes an immature tool:
+    after protection the normal mission/maturity gate still applies.
+    """
+
+    if not isinstance(policy, CiboCapitalMissionPolicy):
+        raise CiboAccountMissionError(
+            "policy must be CiboCapitalMissionPolicy"
+        )
+    if type(base_protected) is not bool:
+        raise CiboAccountMissionError("base_protected must be bool")
+
+    mission_codes = eligible_ce2i_tool_codes_for_mission(policy)
+    if policy.ce2i_scope is Ce2iActivationScope.EXTERNAL_CAPITAL_GATED:
+        if not base_protected:
+            survival_core = {"T01", "T19", "T20"}
+            return tuple(
+                code for code in mission_codes if code in survival_core
+            )
+    return mission_codes
+
+
 def eligible_ce2i_tool_codes_for_mission(
     policy: CiboCapitalMissionPolicy,
 ) -> tuple[str, ...]:
