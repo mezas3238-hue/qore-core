@@ -1539,6 +1539,8 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     }
                     ready_snapshots: dict[str, M5BoundarySnapshot] = {}
                     m5_terminal_identities: set[str] = set()
+                    phase20_terminals: list[Phase20M5ShadowTerminal] = []
+                    phase20_staged_results: list[MarketBoundaryResult] = []
                     m5_ctx: dict[str, Any] = {
                         "anchor": audjpy_arm_anchor,
                         "deadline": m5_deadline,
@@ -1554,7 +1556,36 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         "arm_account": arm_account,
                         "arm_snapshot": arm_snapshot,
                         "arm_specs": arm_specs,
+                        "phase20_terminals": phase20_terminals,
+                        "phase20_staged_results": phase20_staged_results,
+                        "phase20_eligible": True,
                     }
+
+                    def record_phase20_terminal(
+                        *,
+                        identity: str,
+                        symbol: str,
+                        observed_at: datetime,
+                        disposition: Phase20ForwardPopulationDisposition,
+                        reason: str,
+                        opportunity: Any | None = None,
+                        _ctx: dict[str, Any] = m5_ctx,
+                    ) -> None:
+                        terminals: list[Phase20M5ShadowTerminal] = (
+                            _ctx["phase20_terminals"]
+                        )
+                        if any(item.identity == identity for item in terminals):
+                            return
+                        terminals.append(
+                            Phase20M5ShadowTerminal(
+                                identity=identity,
+                                symbol=symbol,
+                                observed_at=observed_at,
+                                disposition=disposition,
+                                reason=reason,
+                                opportunity=opportunity,
+                            )
+                        )
 
                     def mark_m5_terminal(
                         identity: str,
