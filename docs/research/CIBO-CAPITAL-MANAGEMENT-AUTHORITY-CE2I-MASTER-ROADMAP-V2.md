@@ -73,6 +73,44 @@ issues, Trader sizing, per-trade flags or manual operator choices**.
 DEMO capability discovery permits all implemented non-rejected CE2I tools to be studied/exercised,
 while Risk/provider/accounting/anti-cheating constraints remain active.
 
+## Owner account-scoped sizing law — 27-SEP-2026
+
+Runtime sizing is now defined per **account**, never per Trader.
+
+```text
+TRADER
+  -> opportunity / entry / stop / target / exit methodology only
+  -> NO runtime risk fraction / NO volume authority
+
+ACCOUNT IDENTITY
+  -> CIBO mission
+  -> account capital + committed capacity + provider economics
+  -> CIBO sizing
+  -> QORE Risk hard governor
+  -> Execution
+```
+
+Current seven VPS lineages are all in scope: VT08_FOREX, R34_XAUUSD, R38_EURUSD, R43_GBPUSD, R38_GBPJPY, R42_AUDJPY, VT31_NAS100.
+
+Mission-specific law:
+
+```text
+cTrader DEMO
+  = DEMO_CAPABILITY_DISCOVERY
+  = CAPABILITY_MAXIMUM over remaining account capacity
+  = no 1/7 Trader budget
+  = no double-spend
+  = positive floating PnL cannot fund new size
+
+FundedNext
+  = FUNDED_SURVIVAL_COMPOUND
+  = SURVIVAL_MINIMAL_SEED until realized/protected cushion >= survival budget
+  = PROTECTED_FULL_CAPACITY afterwards
+  = still bounded by live Risk / margin / provider headroom
+```
+
+The current FundedNext 2K profile exposes an account-wide heat ceiling of about USD 60 when fully available; this value is **derived at runtime**, never hard-coded into CIBO.
+
 ## CIBO CMA authority
 
 CIBO Capital Management Authority owns:
