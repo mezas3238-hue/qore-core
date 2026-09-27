@@ -279,10 +279,6 @@ def seal_phase20_forward_observed_epoch(
         raise CiboCapitalManagementError(
             "Phase20D forward epoch requires complete population manifest"
         )
-    if not opportunities:
-        raise CiboCapitalManagementError(
-            "Phase20D forward epoch requires at least one valid opportunity"
-        )
     if not isinstance(regime_state, CiboCapitalRegimeState):
         raise CiboCapitalManagementError(
             "Phase20D forward epoch regime state must be canonical"
