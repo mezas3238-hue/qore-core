@@ -40,6 +40,7 @@ def build_cma_risk_request(
         raise CiboCapitalManagementError("plan must be CiboCapitalActionPlan")
     if plan.action not in {
         CapitalAction.OPEN_MINIMAL_SEED,
+        CapitalAction.OPEN_CAPABILITY_MAX,
         CapitalAction.EXPAND,
     }:
         raise CiboCapitalManagementError("only capital-deployment plans can reach Risk")
