@@ -17,6 +17,9 @@ from hashlib import sha256
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
+from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
+    prior_digest_sha256,
+)
 
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 
@@ -32,6 +35,8 @@ class Phase20FrozenPolicyCandidate:
     composition_order: tuple[str, ...]
     active_ce2i_tools: tuple[str, ...]
     accounting_dependencies: tuple[str, ...]
+    expectation_policy: str
+    expectation_prior_sha256: str
     outcome_aware: bool = False
     validation_tuned: bool = False
     phase19j_burned_validation_reused: bool = False
@@ -88,6 +93,14 @@ class Phase20FrozenPolicyCandidate:
             raise CiboCapitalManagementError(
                 "Phase20 accounting dependency list must be unique"
             )
+        if not self.expectation_policy:
+            raise CiboCapitalManagementError(
+                "Phase20 expectation policy is required"
+            )
+        if self.expectation_prior_sha256 != prior_digest_sha256():
+            raise CiboCapitalManagementError(
+                "Phase20 expectation prior digest drift"
+            )
         if (
             self.outcome_aware
             or self.validation_tuned
@@ -120,6 +133,8 @@ class Phase20FrozenPolicyCandidate:
             "composition_order": list(self.composition_order),
             "active_ce2i_tools": list(self.active_ce2i_tools),
             "accounting_dependencies": list(self.accounting_dependencies),
+            "expectation_policy": self.expectation_policy,
+            "expectation_prior_sha256": self.expectation_prior_sha256,
             "regime_thresholds": {
                 "drawdown_defensive": "0.50",
                 "drawdown_recovery": "0.75",
@@ -147,10 +162,21 @@ class Phase20FrozenPolicyCandidate:
         return f"sha256:{sha256(payload).hexdigest()}"
 
 
+SUPERSEDED_PHASE20_POLICY_CANDIDATE_V1 = {
+    "candidate_id": "CIBO_PHASE20H20I_FORWARD_CANDIDATE_V1",
+    "code_sha": "a0a9759a5bbe30fb21e1aee154fadc6509136937",
+    "parameter_sha256": (
+        "sha256:9341670393b6c8926172bc6ac7102ceee6c23f4b100ba7238aafc72afa4dbe58"
+    ),
+    "status": "SUPERSEDED_BEFORE_FORWARD_COLLECTION",
+    "fresh_forward_observations_collected": 0,
+    "reason": "causal expectation source was not frozen in candidate V1",
+}
+
 FROZEN_PHASE20_POLICY_CANDIDATE = Phase20FrozenPolicyCandidate(
-    candidate_id="CIBO_PHASE20H20I_FORWARD_CANDIDATE_V1",
-    code_sha="a0a9759a5bbe30fb21e1aee154fadc6509136937",
-    frozen_at=datetime(2026, 9, 27, 13, 24, tzinfo=UTC),
+    candidate_id="CIBO_PHASE20H20I_FORWARD_CANDIDATE_V2",
+    code_sha="7acce68c6ece61fae1adacf3f8e60815839b6f6a",
+    frozen_at=datetime(2026, 9, 27, 14, 0, tzinfo=UTC),
     mpc_horizon_steps=2,
     snapshot_max_age_seconds=Decimal("2"),
     current_forecast_max_age_seconds=Decimal("2"),
@@ -163,4 +189,8 @@ FROZEN_PHASE20_POLICY_CANDIDATE = Phase20FrozenPolicyCandidate(
     ),
     active_ce2i_tools=("T09", "T12", "T13", "T15", "T18"),
     accounting_dependencies=("T19", "T20"),
+    expectation_policy=(
+        "FROZEN_TRAIN_MOM5_STRUCTURAL_R_X_CURRENT_STOP_RISK"
+    ),
+    expectation_prior_sha256=prior_digest_sha256(),
 )

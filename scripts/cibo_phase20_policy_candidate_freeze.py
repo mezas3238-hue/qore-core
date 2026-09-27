@@ -9,6 +9,7 @@ from typing import Any
 
 from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
     FROZEN_PHASE20_POLICY_CANDIDATE,
+    SUPERSEDED_PHASE20_POLICY_CANDIDATE_V1,
 )
 
 
@@ -22,6 +23,7 @@ def build_report() -> dict[str, Any]:
         "frozen_at": candidate.frozen_at.isoformat(),
         "parameter_sha256": candidate.parameter_sha256(),
         "parameters": candidate.parameter_payload(),
+        "superseded_candidate": SUPERSEDED_PHASE20_POLICY_CANDIDATE_V1,
         "governance": {
             "outcome_aware": candidate.outcome_aware,
             "validation_tuned": candidate.validation_tuned,
