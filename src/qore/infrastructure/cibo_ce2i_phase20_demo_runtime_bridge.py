@@ -8,6 +8,7 @@ submission or broker mutation.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 
 from qore.infrastructure.account_wide_risk_ledger import (
@@ -88,8 +89,8 @@ class Phase20DemoM5RuntimeObservation:
 def observe_ctrader_demo_m5_phase20_epoch(
     *,
     epoch_scope: str,
-    opened_at,
-    deadline_at,
+    opened_at: datetime,
+    deadline_at: datetime,
     terminals: tuple[Phase20M5ShadowTerminal, ...],
     snapshots: tuple[M5BoundarySnapshot, ...],
     provider_specs: tuple[CTraderDemoSymbolSpecification, ...],
