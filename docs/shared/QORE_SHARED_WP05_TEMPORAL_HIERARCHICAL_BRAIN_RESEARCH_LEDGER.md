@@ -569,3 +569,74 @@ The experiment transition is deterministic:
 
 Fresh holdout remains CLOSED until the corresponding consumed-development gate
 is passed.
+
+
+### Authoritative V9 result
+
+Authoritative run: `36288203952`  
+Git SHA: `4ab1a248e27c44e3a83abaf7dfde178ca86e14e7`  
+Status: `WP05_V9_CAUSAL_TRAJECTORY_FALSIFIED`  
+Protocol: PASS  
+Development gate: FAIL  
+Fresh holdout: CLOSED
+
+Frozen identities:
+
+- model fingerprint:
+  `54053ab1613a3337b8297aaf27f82a324b8e0fde9a441cdc57778453f9045c2e`;
+- representation fingerprint:
+  `6d0b918c0925159b83103da75620b0e2c516fe30bc70dc0091735fb167a1ce6c`;
+- artifact: `10921603629`;
+- artifact digest:
+  `sha256:9a6106c0017b196e69f504891df59ac885a215bd391cdd3befe784bd2fd0e6de`.
+
+R8 calibration:
+
+- false-declaration reduction: **99 bps**;
+- terminal preservation: **9856 bps**.
+
+Consumed evaluation:
+
+- R8: false reduction **58 bps**; terminal preservation **9958 bps**;
+- R6: false reduction **77 bps**; terminal preservation **9863 bps**;
+- R5: false reduction **95 bps**; terminal preservation **9844 bps**.
+
+V9 preserved terminal events well but produced even less useful false suppression
+than V8. The causal 30m pre-source trajectory therefore did not recover the
+missing discrimination. This is evidence against continuing source-time
+classifier engineering.
+
+Per the frozen anti-loop law, V9 is permanently falsified. No V9.1, threshold
+repair, feature mining, ridge change or gate lowering is permitted.
+
+## 10. V10 — Causal Sequential Change-Point
+
+Promoted identity:
+
+`QORE_SHARED_WP05_CAUSAL_SEQUENTIAL_CHANGEPOINT_V10_001`
+
+Promotion is scientifically authorized by the authoritative V9 falsification.
+The sequential hypothesis was preregistered pre-outcome as a reserved candidate
+before V9 completed; promotion changes identity/governance only and preserves
+its frozen scientific design.
+
+Frozen design:
+
+- checkpoints: 0m / 3m / 5m / 10m / 15m;
+- Target-V2 source frontier fixed at source time;
+- checkpoint evidence may consume only bars available by that checkpoint;
+- terminal detection is absorbing;
+- `UNRESOLVED` is a true abstention/no-declaration state;
+- source-only and sequential discrimination are reported separately;
+- R8 discovery/calibration only;
+- R6/R5 consumed falsification only;
+- calibration requires >=9800 bps terminal preservation by the 15m deadline;
+- WP-05 consumed gate remains >=2000 bps false reduction AND >=9500 bps
+  terminal preservation independently on BOTH R6 and R5;
+- fresh holdout remains CLOSED.
+
+The purpose of V10 is not another threshold search. It measures whether new
+causal observations after source materially increase observability. If V10
+fails without material source-to-sequential discrimination gain, classifier
+iteration stops and WP-05 escalates to Active Perception / new-sensor
+observability engineering.
