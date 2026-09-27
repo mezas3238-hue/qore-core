@@ -42,6 +42,8 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_readiness import (
 class Phase20QualificationStatus(StrEnum):
     PASS = "PASS"
     FAIL = "FAIL"
+    NOT_READY = "NOT_READY"
+    INVALID = "INVALID"
 
 
 @dataclass(frozen=True, slots=True)
@@ -347,41 +349,64 @@ def run_phase20d_v2_qualification(
         Decimal(len(frozen_rows)),
     )
 
-    failures = list(dict.fromkeys(safety_failures))
+    safety_failures = list(dict.fromkeys(safety_failures))
+    readiness_reasons: list[str] = []
     if not readiness.ready:
-        failures.append("MINIMUM_POPULATION_AND_TEMPORAL_COVERAGE_MET")
-    if any(item.policy_net_delta_usd <= 0 for item in folds):
-        failures.append("ALL_TEMPORAL_FOLDS_POLICY_DELTA_POSITIVE")
-    if policy_net <= 0:
-        failures.append("AGGREGATE_POLICY_DELTA_POSITIVE")
-    if policy_net < baseline_net:
-        failures.append("POLICY_DELTA_NOT_BELOW_FIXED_BASELINE")
-    if policy_dd > baseline_dd:
-        failures.append("POLICY_MAX_DRAWDOWN_NOT_ABOVE_FIXED_BASELINE")
-    if policy_productivity <= baseline_productivity:
-        failures.append(
-            "POLICY_CAPITAL_PRODUCTIVITY_STRICTLY_ABOVE_FIXED_BASELINE"
-        )
-    if (
-        policy_coverage
-        < plan.required_selected_outcome_coverage
-    ):
-        failures.append("SELECTED_OUTCOME_COVERAGE_COMPLETE")
+        readiness_reasons.extend(readiness.reasons)
     if (
         baseline_coverage
         < plan.required_baseline_selected_outcome_coverage
     ):
-        failures.append("BASELINE_SELECTED_OUTCOME_COVERAGE_COMPLETE")
-    if candidate_coverage < plan.minimum_candidate_outcome_coverage:
-        failures.append("CANDIDATE_OUTCOME_COVERAGE_AT_LEAST_95_PERCENT")
+        readiness_reasons.append(
+            "BASELINE_SELECTED_OUTCOME_COVERAGE_COMPLETE"
+        )
+    readiness_reasons = list(dict.fromkeys(readiness_reasons))
 
-    failures = list(dict.fromkeys(failures))
+    economic_failures: list[str] = []
+    if not safety_failures and not readiness_reasons:
+        if any(item.policy_net_delta_usd <= 0 for item in folds):
+            economic_failures.append(
+                "ALL_TEMPORAL_FOLDS_POLICY_DELTA_POSITIVE"
+            )
+        if policy_net <= 0:
+            economic_failures.append("AGGREGATE_POLICY_DELTA_POSITIVE")
+        if policy_net < baseline_net:
+            economic_failures.append(
+                "POLICY_DELTA_NOT_BELOW_FIXED_BASELINE"
+            )
+        if policy_dd > baseline_dd:
+            economic_failures.append(
+                "POLICY_MAX_DRAWDOWN_NOT_ABOVE_FIXED_BASELINE"
+            )
+        if policy_productivity <= baseline_productivity:
+            economic_failures.append(
+                "POLICY_CAPITAL_PRODUCTIVITY_STRICTLY_ABOVE_FIXED_BASELINE"
+            )
+        if (
+            policy_coverage
+            < plan.required_selected_outcome_coverage
+        ):
+            economic_failures.append("SELECTED_OUTCOME_COVERAGE_COMPLETE")
+        if candidate_coverage < plan.minimum_candidate_outcome_coverage:
+            economic_failures.append(
+                "CANDIDATE_OUTCOME_COVERAGE_AT_LEAST_95_PERCENT"
+            )
+
+    if safety_failures:
+        status = Phase20QualificationStatus.INVALID
+        failures = safety_failures
+    elif readiness_reasons:
+        status = Phase20QualificationStatus.NOT_READY
+        failures = readiness_reasons
+    elif economic_failures:
+        status = Phase20QualificationStatus.FAIL
+        failures = list(dict.fromkeys(economic_failures))
+    else:
+        status = Phase20QualificationStatus.PASS
+        failures = []
+
     return Phase20QualificationReport(
-        status=(
-            Phase20QualificationStatus.PASS
-            if not failures
-            else Phase20QualificationStatus.FAIL
-        ),
+        status=status,
         plan_id=plan.plan_id,
         plan_sha256=phase20d_qualification_plan_sha256(),
         candidate_id=plan.candidate_id,
