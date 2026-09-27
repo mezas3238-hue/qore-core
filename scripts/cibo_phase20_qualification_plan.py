@@ -69,6 +69,8 @@ def build_report() -> dict[str, Any]:
                 plan.realized_execution_economics_required
             ),
             "fresh_forward_outcomes_consumed_when_frozen": 0,
+            "drawdown_metric_is_terminal_settlement_cash_path": True,
+            "drawdown_metric_is_mark_to_market_equity_mdd": False,
             "policy_certified": False,
             "demo_execution_authorized": False,
             "live_authorized": False,
