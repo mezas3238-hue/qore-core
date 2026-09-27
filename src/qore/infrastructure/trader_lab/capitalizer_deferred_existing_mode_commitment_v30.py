@@ -36,9 +36,6 @@ from qore.infrastructure.trader_lab import (
     capitalizer_factor_journey_probe_ranker_v11 as v11,
 )
 from qore.infrastructure.trader_lab import (
-    capitalizer_hypothesis_survival_model_v21 as v21,
-)
-from qore.infrastructure.trader_lab import (
     capitalizer_recovery_trajectory_trigger_v18 as recovery,
 )
 from qore.infrastructure.trader_lab import (
