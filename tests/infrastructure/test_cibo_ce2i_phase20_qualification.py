@@ -249,7 +249,7 @@ def test_phase20d_runner_fails_if_baseline_outcome_is_missing() -> None:
         policy_book=policy,
     )
 
-    assert report.status is Phase20QualificationStatus.FAIL
+    assert report.status is Phase20QualificationStatus.NOT_READY
     assert (
         "BASELINE_SELECTED_OUTCOME_COVERAGE_COMPLETE"
         in report.failures
