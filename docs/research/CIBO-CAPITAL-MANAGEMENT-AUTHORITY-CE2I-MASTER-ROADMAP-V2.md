@@ -1851,7 +1851,7 @@ USD-dependent study remains fail-closed until provider-economic evidence is cali
 
 ## PHASE 20 — Robust capital-policy validation under uncertainty
 
-**Status: IN PROGRESS — 20A/B CONTRACT GREEN / 20C COUNTERFACTUAL CONTRACT GREEN / EMPIRICAL CALIBRATION PENDING / POLICY VALIDATION BLOCKED**
+**Status: IN PROGRESS — 20A/B + 20C + 20E CONTRACTS GREEN / EMPIRICAL CALIBRATION PENDING / 20D POLICY WFO BLOCKED ON FRESH EVIDENCE**
 
 Required sequence:
 
@@ -1999,6 +1999,77 @@ PHASE20C_POLICY_CERTIFIED                      = FALSE
 
 Phase 20C therefore hardens the provider-uncertainty/failure machinery but does not rescue the
 falsified Phase-19I allocator family and does not unblock Phase 21/22.
+
+### Phase 20E — Capital-state block-bootstrap Monte Carlo checkpoint — 27-SEP-2026
+
+Phase 20E now has a deterministic state-preserving Monte Carlo contract. It intentionally does
+**not** shuffle individual trades. The bootstrap unit is an overlap-aware temporal component, with
+optional grouping of adjacent components into larger chronological blocks.
+
+Evidence:
+
+```text
+evidence_head:       a9f87cd6406e1c0d4d4f63c26d40781b61af7af6
+main_push_run:       36287519123  SUCCESS
+main_pr_run:         36287522187  SUCCESS
+phase20_pr_run:      36287522146  SUCCESS
+artifact_id:         10921765049
+artifact_digest:     sha256:3994c882e53a9eb14d3d55a72af602882d833a98311c3d8957ab50fab8a65abd
+internal_manifest:   SHA256SUMS 7/7 VERIFIED
+```
+
+The contract preserves inside each sampled block:
+
+- Trader identity;
+- decision -> entry -> exit lags;
+- trade duration;
+- normalized outcome;
+- normalized risk budget;
+- allocation priority;
+- overlap / concurrency structure;
+- entry-before-exit ordering at equal timestamps;
+- reservation and release behavior through the normalized-capital ledger.
+
+Blocks are sampled with replacement and rebased sequentially without creating artificial overlap
+between independently sampled blocks. Repeated source blocks receive new synthetic signal identity,
+so repeated draws remain auditable without duplicate-signal collisions.
+
+The sealed synthetic proof uses:
+
+```text
+source opportunities:         5
+source temporal blocks:       3
+block opportunity counts:     [2, 2, 1]
+simulations:                   100
+draws per path:                6
+initial capital:               2 NCU
+base seed:                     20020
+min ending capital:            0 NCU
+max ending capital:            8 NCU
+p95 max drawdown:              5 NCU
+positive-ending-delta paths:   30 / 100
+maximum rejected opportunities: 10
+capital-breach paths:          0 / 100
+```
+
+Those numbers are **synthetic mechanics evidence only**. They are useful because the low-capital
+fixture proves that the bootstrap actually propagates path-dependent capital depletion and later
+capacity rejection. They are not market probabilities, not Trader performance estimates and not a
+policy-selection result.
+
+```text
+PHASE20E_CAPITAL_STATE_BLOCK_BOOTSTRAP_CONTRACT_GREEN = TRUE
+PHASE20E_EMPIRICAL_POLICY_MONTE_CARLO_COMPLETE         = FALSE
+PHASE20E_INDEPENDENT_TRADE_SHUFFLE                     = FORBIDDEN
+PHASE20E_MARKET_PROBABILITY_CLAIMED                    = FALSE
+PHASE20E_HISTORICAL_PROVIDER_ECONOMICS_CLAIMED         = FALSE
+PHASE20E_PHASE19J_VALIDATION_REUSED                    = FALSE
+PHASE20E_POLICY_CERTIFIED                              = FALSE
+```
+
+Phase 20D remains blocked for policy qualification because the Phase-19J validation interval has
+already been consumed. A redesigned allocator may be researched from burned evidence, but it needs
+genuinely fresh forward evidence before qualification. Phase 20E does not alter that rule.
 
 ---
 
