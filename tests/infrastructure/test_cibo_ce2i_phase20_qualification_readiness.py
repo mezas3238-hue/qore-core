@@ -106,7 +106,19 @@ def test_phase20d_readiness_passes_only_mature_complete_population() -> None:
                     ),
                     decision_evidence_sha256=evidence_sha,
                     signal_fingerprint=fingerprint,
+                    position_id=decision_index * 10 + candidate_index + 1,
+                    execution_risk_evidence_id=(
+                        f"risk-{decision_index}-{candidate_index}"
+                    ),
+                    settlement_deal_ids=(
+                        decision_index * 10 + candidate_index + 20001,
+                    ),
+                    fill_evidence_refs=(
+                        f"fill-{decision_index}-{candidate_index}",
+                    ),
                     observed_at=decision_at + timedelta(hours=1),
+                    realized_net_pnl_usd=Decimal("0"),
+                    executed_initial_stop_risk_usd=Decimal("10"),
                     realized_structural_outcome_r=Decimal("0"),
                 )
             )
@@ -167,7 +179,13 @@ def test_phase20d_readiness_requires_policy_record_for_every_epoch() -> None:
         evidence_id="outcome-one",
         decision_evidence_sha256=decision.evidence_sha256,
         signal_fingerprint="signal-one",
+        position_id=1,
+        execution_risk_evidence_id="risk-one",
+        settlement_deal_ids=(30001,),
+        fill_evidence_refs=("fill-one",),
         observed_at=decision_at + timedelta(hours=1),
+        realized_net_pnl_usd=Decimal("10"),
+        executed_initial_stop_risk_usd=Decimal("10"),
         realized_structural_outcome_r=Decimal("1"),
     )
 
