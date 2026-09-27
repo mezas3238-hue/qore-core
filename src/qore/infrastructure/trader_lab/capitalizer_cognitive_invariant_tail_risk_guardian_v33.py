@@ -61,6 +61,7 @@ POLICY = "SURFACE_DEFAULT_COGNITIVE_INVARIANT_TAIL_RISK_OVERRIDE"
 L2_PRIOR_STRENGTH = v25.L2_PRIOR_STRENGTH
 SOURCE_TRIGGER_STATE_RUN_ID = 36283499014
 CHRONOLOGICAL_FOLDS = 5
+MIN_CHRONOLOGICAL_CALIBRATION_EXAMPLES = CHRONOLOGICAL_FOLDS * 2
 RESIDUAL_QUANTILE = 0.20
 EXPECTED_FEATURE_DIMENSION = v31.EXPECTED_FEATURE_DIMENSION
 
@@ -682,45 +683,65 @@ def _fit_models(
                 ledgers=ledgers,
                 control_ledger=control_ledgers[period],
             )
-            action_models = _fit_family_heads(
-                period=period,
-                family=family,
-                features=features,
-                keys=keys,
-                targets=targets,
-            )
             action_diagnostics: dict[str, Any] = {}
-
-            for action, heads in action_models.items():
-                action_diagnostics[action] = {
-                    "available": True,
-                    "training_trades": heads.episode_relief.model.unique_training_trades,
-                    "feature_dimension": heads.episode_relief.model.feature_dimension,
-                    "episode_target_mean": str(
-                        heads.episode_relief.model.weighted_target_mean
-                    ),
-                    "episode_rmse": str(
-                        heads.episode_relief.model.weighted_training_rmse
-                    ),
-                    "episode_residual_q20": str(
-                        heads.episode_relief.residual_q20
-                    ),
-                    "episode_oof_residuals": (
-                        heads.episode_relief.chronological_residual_count
-                    ),
-                    "total_target_mean": str(
-                        heads.total_delta.model.weighted_target_mean
-                    ),
-                    "total_residual_q20": str(
-                        heads.total_delta.residual_q20
-                    ),
-                    "downside_target_mean": str(
-                        heads.downside_delta.model.weighted_target_mean
-                    ),
-                    "downside_residual_q20": str(
-                        heads.downside_delta.residual_q20
-                    ),
-                }
+            if len(features) < MIN_CHRONOLOGICAL_CALIBRATION_EXAMPLES:
+                action_models: dict[str, ActionHeads] = {}
+                for action in v30._eligible_actions(family):
+                    action_diagnostics[action] = {
+                        "available": False,
+                        "training_trades": len(keys),
+                        "feature_dimension": (
+                            len(features[0]) if features else 0
+                        ),
+                        "reason": (
+                            "INSUFFICIENT_CHRONOLOGICAL_CALIBRATION_SUPPORT"
+                        ),
+                        "minimum_required": (
+                            MIN_CHRONOLOGICAL_CALIBRATION_EXAMPLES
+                        ),
+                    }
+            else:
+                action_models = _fit_family_heads(
+                    period=period,
+                    family=family,
+                    features=features,
+                    keys=keys,
+                    targets=targets,
+                )
+                for action, heads in action_models.items():
+                    action_diagnostics[action] = {
+                        "available": True,
+                        "training_trades": (
+                            heads.episode_relief.model.unique_training_trades
+                        ),
+                        "feature_dimension": (
+                            heads.episode_relief.model.feature_dimension
+                        ),
+                        "episode_target_mean": str(
+                            heads.episode_relief.model.weighted_target_mean
+                        ),
+                        "episode_rmse": str(
+                            heads.episode_relief.model.weighted_training_rmse
+                        ),
+                        "episode_residual_q20": str(
+                            heads.episode_relief.residual_q20
+                        ),
+                        "episode_oof_residuals": (
+                            heads.episode_relief.chronological_residual_count
+                        ),
+                        "total_target_mean": str(
+                            heads.total_delta.model.weighted_target_mean
+                        ),
+                        "total_residual_q20": str(
+                            heads.total_delta.residual_q20
+                        ),
+                        "downside_target_mean": str(
+                            heads.downside_delta.model.weighted_target_mean
+                        ),
+                        "downside_residual_q20": str(
+                            heads.downside_delta.residual_q20
+                        ),
+                    }
 
             period_models[family] = action_models
             period_diagnostics[family] = action_diagnostics
@@ -1267,6 +1288,10 @@ def build_report(
         "cross_era_invariant_subspace": True,
         "conflicting_sign_features_zeroed": True,
         "chronological_calibration_folds": CHRONOLOGICAL_FOLDS,
+        "minimum_chronological_calibration_examples": (
+            MIN_CHRONOLOGICAL_CALIBRATION_EXAMPLES
+        ),
+        "sparse_family_policy": "FAIL_CLOSED_KEEP_SURFACE",
         "residual_lower_quantile": str(RESIDUAL_QUANTILE),
         "metacognitive_uncertainty_can_only_preserve_surface": True,
         "l2_prior_strength_effective_trades": str(L2_PRIOR_STRENGTH),
