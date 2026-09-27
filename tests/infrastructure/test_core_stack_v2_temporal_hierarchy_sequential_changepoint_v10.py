@@ -156,7 +156,7 @@ def _checkpoint(
         for feature_index in range(16)
     )
     return SequentialCheckpointEvidence(
-        episode_id=f"v9-{episode_index}",
+        episode_id=f"v10-{episode_index}",
         checkpoint_minutes=minute,
         as_of=BASE
         + timedelta(minutes=30 * episode_index + minute),
