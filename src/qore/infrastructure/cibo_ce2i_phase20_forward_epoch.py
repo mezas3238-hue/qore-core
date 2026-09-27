@@ -36,17 +36,17 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
     Phase20PolicyCandidateLineage,
     build_phase20_forward_decision_record,
 )
-from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
-    DurablePhase20ForwardEvidenceStore,
-)
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
     DurablePhase20ForwardPolicyStore,
 )
-from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
-    FROZEN_PHASE20_POLICY_CANDIDATE,
-)
 from qore.infrastructure.cibo_ce2i_phase20_forward_snapshots import (
     Phase20ForwardSnapshotBundle,
+)
+from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
+    DurablePhase20ForwardEvidenceStore,
+)
+from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
+    FROZEN_PHASE20_POLICY_CANDIDATE,
 )
 from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
     build_frozen_train_expectation,
@@ -106,7 +106,7 @@ class Phase20ForwardCollectedEpoch:
 
     evidence_generation: int
     policy_generation: int
-    result: "Phase20ForwardEpochResult"
+    result: Phase20ForwardEpochResult
 
     def __post_init__(self) -> None:
         for name in ("evidence_generation", "policy_generation"):
