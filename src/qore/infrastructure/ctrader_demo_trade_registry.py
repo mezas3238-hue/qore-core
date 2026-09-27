@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import datetime
 from decimal import Decimal
@@ -227,21 +228,42 @@ class CTraderDemoTradeRegistry:
             total += Decimal(item.requested_stop_risk)
         return total
 
-    def pending_stop_risk(self, *, now: datetime) -> Decimal:
-        """Return conservative stop risk for live unbound broker submissions."""
+    def pending_stop_risk(
+        self,
+        *,
+        now: datetime,
+        provider_order_status: Callable[[str], int],
+    ) -> Decimal:
+        """Return provider-confirmed worst-case risk for unbound submissions.
+
+        Expiry is not evidence of broker cancellation. An expired order that
+        the provider still reports PENDING remains risk-bearing until the
+        provider reports a terminal state.
+        """
 
         if now.tzinfo is None or now.utcoffset() is None:
             raise ValueError("now must be timezone-aware")
+        if not callable(provider_order_status):
+            raise TypeError("provider_order_status must be callable")
         total = Decimal("0")
         with self._lock:
             entries = tuple(self._entries.values())
         for item in entries:
             if item.closed_at is not None or item.position_id is not None:
                 continue
-            expires_at = datetime.fromisoformat(item.expires_at)
-            if expires_at < now:
+            status = provider_order_status(item.provider_order_ref)
+            if status in {3, 4, 5}:
                 continue
-            total += Decimal(item.requested_stop_risk)
+            if status not in {1, 2}:
+                raise RuntimeError(
+                    "cTrader DEMO pending order status is unsupported"
+                )
+            risk = Decimal(item.requested_stop_risk)
+            if not risk.is_finite() or risk <= 0:
+                raise RuntimeError(
+                    "cTrader DEMO pending stop risk must be positive"
+                )
+            total += risk
         return total
 
     def latest_for_trader(self, trader: str) -> DemoTradeRegistryEntry | None:
