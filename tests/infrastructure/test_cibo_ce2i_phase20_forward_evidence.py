@@ -26,6 +26,8 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
     Phase20ForwardEvidenceKind,
     Phase20ForwardKnownOptionEvidence,
     Phase20ForwardOutcomeEvidence,
+    Phase20ForwardPopulationDisposition,
+    Phase20ForwardPopulationSlotEvidence,
     Phase20PolicyCandidateLineage,
     assess_phase20d_forward_qualification,
     build_phase20_forward_decision_record,
@@ -171,6 +173,7 @@ def _decision(
     account = _account()
     return Phase20ForwardDecisionEvidence(
         evidence_id="phase20d-decision-1",
+        decision_epoch_id="phase20d-epoch-1",
         evidence_kind=kind,
         decision_at=DECISION_AT,
         lineage=_lineage(),
