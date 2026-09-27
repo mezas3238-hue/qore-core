@@ -26,7 +26,7 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
     phase20_forward_evidence_sha256,
 )
 
-_SCHEMA = "CIBO_PHASE20D_FORWARD_EVIDENCE_BOOK_V2"
+_SCHEMA = "CIBO_PHASE20D_FORWARD_EVIDENCE_BOOK_V3"
 
 
 class DurablePhase20ForwardEvidenceError(CiboCapitalManagementError):
@@ -91,7 +91,13 @@ class Phase20ForwardOutcomeSeal:
     evidence_id: str
     decision_evidence_sha256: str
     signal_fingerprint: str
+    position_id: int
+    execution_risk_evidence_id: str
+    settlement_deal_ids: tuple[int, ...]
+    fill_evidence_refs: tuple[str, ...]
     observed_at: datetime
+    realized_net_pnl_usd: Decimal
+    executed_initial_stop_risk_usd: Decimal
     realized_structural_outcome_r: Decimal
 
     def __post_init__(self) -> None:
@@ -103,16 +109,68 @@ class Phase20ForwardOutcomeSeal:
             raise DurablePhase20ForwardEvidenceError(
                 "forward outcome decision SHA256 is required"
             )
+        if (
+            not isinstance(self.position_id, int)
+            or isinstance(self.position_id, bool)
+            or self.position_id <= 0
+        ):
+            raise DurablePhase20ForwardEvidenceError(
+                "forward outcome position_id must be positive int"
+            )
+        if not self.execution_risk_evidence_id:
+            raise DurablePhase20ForwardEvidenceError(
+                "forward outcome risk evidence id is required"
+            )
+        if (
+            not self.settlement_deal_ids
+            or len(self.settlement_deal_ids)
+            != len(set(self.settlement_deal_ids))
+            or any(
+                not isinstance(item, int)
+                or isinstance(item, bool)
+                or item <= 0
+                for item in self.settlement_deal_ids
+            )
+        ):
+            raise DurablePhase20ForwardEvidenceError(
+                "forward outcome settlement deal ids invalid"
+            )
+        if (
+            not self.fill_evidence_refs
+            or len(self.fill_evidence_refs) != len(set(self.fill_evidence_refs))
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.fill_evidence_refs
+            )
+        ):
+            raise DurablePhase20ForwardEvidenceError(
+                "forward outcome fill evidence refs invalid"
+            )
         if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
             raise DurablePhase20ForwardEvidenceError(
                 "forward outcome timestamp must be timezone-aware"
             )
+        for name in (
+            "realized_net_pnl_usd",
+            "executed_initial_stop_risk_usd",
+            "realized_structural_outcome_r",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, Decimal) or not value.is_finite():
+                raise DurablePhase20ForwardEvidenceError(
+                    f"forward outcome {name} must be finite Decimal"
+                )
+        if self.executed_initial_stop_risk_usd <= 0:
+            raise DurablePhase20ForwardEvidenceError(
+                "forward outcome executed risk must be positive"
+            )
         if (
-            not isinstance(self.realized_structural_outcome_r, Decimal)
-            or not self.realized_structural_outcome_r.is_finite()
+            self.realized_net_pnl_usd
+            / self.executed_initial_stop_risk_usd
+            != self.realized_structural_outcome_r
         ):
             raise DurablePhase20ForwardEvidenceError(
-                "forward outcome must be finite Decimal"
+                "forward outcome structural R identity mismatch"
             )
 
 
@@ -298,7 +356,17 @@ class DurablePhase20ForwardEvidenceStore:
                     evidence_id=outcome.evidence_id,
                     decision_evidence_sha256=outcome.decision_evidence_sha256,
                     signal_fingerprint=outcome.signal_fingerprint,
+                    position_id=outcome.position_id,
+                    execution_risk_evidence_id=(
+                        outcome.execution_risk_evidence_id
+                    ),
+                    settlement_deal_ids=outcome.settlement_deal_ids,
+                    fill_evidence_refs=outcome.fill_evidence_refs,
                     observed_at=outcome.observed_at,
+                    realized_net_pnl_usd=outcome.realized_net_pnl_usd,
+                    executed_initial_stop_risk_usd=(
+                        outcome.executed_initial_stop_risk_usd
+                    ),
                     realized_structural_outcome_r=(
                         outcome.realized_structural_outcome_r
                     ),
@@ -500,7 +568,19 @@ def _outcome_to_json(
         "evidence_id": value.evidence_id,
         "decision_evidence_sha256": value.decision_evidence_sha256,
         "signal_fingerprint": value.signal_fingerprint,
+        "position_id": value.position_id,
+        "execution_risk_evidence_id": value.execution_risk_evidence_id,
+        "settlement_deal_ids": list(value.settlement_deal_ids),
+        "fill_evidence_refs": list(value.fill_evidence_refs),
         "observed_at": value.observed_at.isoformat(),
+        "realized_net_pnl_usd": format(
+            value.realized_net_pnl_usd,
+            "f",
+        ),
+        "executed_initial_stop_risk_usd": format(
+            value.executed_initial_stop_risk_usd,
+            "f",
+        ),
         "realized_structural_outcome_r": format(
             value.realized_structural_outcome_r,
             "f",
@@ -511,11 +591,25 @@ def _outcome_to_json(
 def _outcome_from_json(value: object) -> Phase20ForwardOutcomeSeal:
     if not isinstance(value, dict):
         raise TypeError("forward outcome row must be object")
+    deal_ids = value["settlement_deal_ids"]
+    fill_refs = value["fill_evidence_refs"]
+    if not isinstance(deal_ids, list) or not isinstance(fill_refs, list):
+        raise TypeError("forward outcome provenance must be lists")
     return Phase20ForwardOutcomeSeal(
         evidence_id=str(value["evidence_id"]),
         decision_evidence_sha256=str(value["decision_evidence_sha256"]),
         signal_fingerprint=str(value["signal_fingerprint"]),
+        position_id=int(str(value["position_id"])),
+        execution_risk_evidence_id=str(
+            value["execution_risk_evidence_id"]
+        ),
+        settlement_deal_ids=tuple(int(str(item)) for item in deal_ids),
+        fill_evidence_refs=tuple(str(item) for item in fill_refs),
         observed_at=datetime.fromisoformat(str(value["observed_at"])),
+        realized_net_pnl_usd=Decimal(str(value["realized_net_pnl_usd"])),
+        executed_initial_stop_risk_usd=Decimal(
+            str(value["executed_initial_stop_risk_usd"])
+        ),
         realized_structural_outcome_r=Decimal(
             str(value["realized_structural_outcome_r"])
         ),
