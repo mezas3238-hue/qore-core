@@ -21,6 +21,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_policy_store.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_qualification_plan.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_shadow_observer.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py'
       - 'scripts/cibo_phase20_provider_uncertainty_contract.py'
       - 'scripts/cibo_phase20_counterfactual_stress_matrix.py'
@@ -56,6 +57,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_collector.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_qualification_plan.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_qualification_readiness.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_shadow_observer.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py'
   push:
@@ -79,6 +81,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_policy_store.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_qualification_plan.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_shadow_observer.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py'
       - 'scripts/cibo_phase20_provider_uncertainty_contract.py'
       - 'scripts/cibo_phase20_counterfactual_stress_matrix.py'
@@ -114,6 +117,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_collector.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_qualification_plan.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_qualification_readiness.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_shadow_observer.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py'
 
@@ -153,6 +157,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_forward_policy_store.py \
             src/qore/infrastructure/cibo_ce2i_phase20_qualification_plan.py \
             src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_shadow_observer.py \
             src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py \
             scripts/cibo_phase20_provider_uncertainty_contract.py \
             scripts/cibo_phase20_counterfactual_stress_matrix.py \
@@ -188,6 +193,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_forward_collector.py \
             tests/infrastructure/test_cibo_ce2i_phase20_qualification_plan.py \
             tests/infrastructure/test_cibo_ce2i_phase20_qualification_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_shadow_observer.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py
           mypy \
@@ -207,6 +213,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_forward_policy_store.py \
             src/qore/infrastructure/cibo_ce2i_phase20_qualification_plan.py \
             src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_shadow_observer.py \
             src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py \
             scripts/cibo_phase20_provider_uncertainty_contract.py \
             scripts/cibo_phase20_counterfactual_stress_matrix.py \
