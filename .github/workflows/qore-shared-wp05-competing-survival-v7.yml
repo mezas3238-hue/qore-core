@@ -53,6 +53,7 @@ jobs:
             src/qore/infrastructure/core_stack_v2/temporal_hierarchy_competing_survival_features_v7.py \
             tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_v7.py \
             tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_features_v7.py \
+            tests/infrastructure/test_shared_wp05_competing_survival_v7_protocol.py \
             scripts/shared_wp05_competing_survival_v7.py
           python -m py_compile \
             src/qore/infrastructure/core_stack_v2/temporal_hierarchy_competing_survival_v7.py \
@@ -61,6 +62,7 @@ jobs:
           pytest -q \
             tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_v7.py \
             tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_features_v7.py \
+            tests/infrastructure/test_shared_wp05_competing_survival_v7_protocol.py \
             tests/infrastructure/test_core_stack_v2_temporal_hierarchy_target_contract.py \
             tests/infrastructure/test_shared_wp05_structural_failure_target_v2.py
 
