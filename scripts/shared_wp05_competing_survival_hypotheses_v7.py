@@ -27,6 +27,9 @@ from shared_wp05_temporal_hierarchy_v1 import (
     MINIMUM_TERMINAL_PRESERVATION_BPS,
 )
 
+from qore.infrastructure.core_stack_v2.temporal_hierarchy_competing_survival_features_v7 import (
+    build_competing_survival_source_state,
+)
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_competing_survival_v7 import (
     CompetingSurvivalEvaluation,
     CompetingSurvivalSourceState,
@@ -34,9 +37,6 @@ from qore.infrastructure.core_stack_v2.temporal_hierarchy_competing_survival_v7 
     competing_survival_model_fingerprint,
     evaluate_competing_survival,
     fit_competing_survival_model,
-)
-from qore.infrastructure.core_stack_v2.temporal_hierarchy_competing_survival_features_v7 import (
-    build_competing_survival_source_state,
 )
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_engine import (
     baseline_local_opposition,
