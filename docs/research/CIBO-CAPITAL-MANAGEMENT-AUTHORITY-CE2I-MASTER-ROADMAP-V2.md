@@ -1851,7 +1851,7 @@ USD-dependent study remains fail-closed until provider-economic evidence is cali
 
 ## PHASE 20 — Robust capital-policy validation under uncertainty
 
-**Status: STARTED — COUNTERFACTUAL PROVIDER STRESS CONTRACT EXISTS / FULL VALIDATION PENDING**
+**Status: IN PROGRESS — 20A/B CONTRACT GREEN / EMPIRICAL CALIBRATION PENDING / 20C COUNTERFACTUAL STRESS STARTED**
 
 Required sequence:
 
@@ -1870,6 +1870,81 @@ Required sequence:
 
 Phase 20 may use current observed provider facts plus explicit adverse scenarios,
 but must never relabel them as historical economics.
+
+### Phase 20A/B — Provider ambiguity + partial identification checkpoint — 27-SEP-2026
+
+The uncertainty engine now exists independently of any allocator candidate. This work is valid even
+though the Phase-19I fixed-policy family was falsified, because it does not choose, rank or tune a
+capital policy.
+
+```text
+evidence_head:       da5514fb2ddfa3a5c8cf4c9e58d3e7a4407474c0
+phase20_push_run:    36286285129  SUCCESS
+phase20_pr_run:      36286287508  SUCCESS
+main_pr_run:         36286287480  SUCCESS
+artifact_id:         10920388754
+artifact_digest:     sha256:ded11006611d0ad6f02fb2359635d6a256a0876cfb611b4af0f3d5283abd67c2
+internal_manifest:   SHA256SUMS 3/3 VERIFIED
+```
+
+Phase 20A now has a typed rectangular ambiguity-set contract over:
+
+- tick size;
+- tick value;
+- spread ticks;
+- commission per volume;
+- slippage reserve per volume;
+- margin per volume;
+- minimum volume;
+- maximum volume;
+- volume step;
+- available liquidity volume;
+- execution delay.
+
+Every set carries explicit evidence provenance and fails closed if it attempts to claim exact
+historical economics, outcome tuning, policy-pass tuning, allocation authority, QORE Risk authority
+or execution authority.
+
+Phase 20B now computes conservative lower/upper bounds for:
+
+- minimum executable volume;
+- stop loss per volume;
+- minimum stop risk;
+- minimum margin;
+- guaranteed/possible maximum volume;
+- guaranteed/possible liquidity;
+- execution delay.
+
+It returns exactly one of:
+
+```text
+ROBUSTLY_FEASIBLE
+ROBUSTLY_INFEASIBLE
+PARTIALLY_IDENTIFIED
+```
+
+The sealed artifact uses **synthetic contract fixtures only** and proves all three classifications.
+It explicitly states:
+
+```text
+provider_calibration_claimed = FALSE
+historical_economics_claimed = FALSE
+outcome_tuned                = FALSE
+policy_pass_tuned            = FALSE
+```
+
+Therefore the implementation status is:
+
+```text
+PHASE20A_AMBIGUITY_CONTRACT_IMPLEMENTED      = TRUE
+PHASE20A_EMPIRICAL_PROVIDER_BOUNDS_CALIBRATED = FALSE
+PHASE20B_PARTIAL_IDENTIFICATION_ENGINE_GREEN = TRUE
+PHASE20B_HISTORICAL_USD_POINT_ESTIMATE       = FORBIDDEN
+```
+
+Actual provider ambiguity ranges must be supplied later by documented bounds, forward observed
+data, or explicitly labelled counterfactual assumptions. They must not be chosen to make a policy
+pass.
 
 ---
 
