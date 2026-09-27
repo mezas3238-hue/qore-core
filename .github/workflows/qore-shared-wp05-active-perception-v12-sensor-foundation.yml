@@ -32,12 +32,6 @@ jobs:
       - name: Install Shared
         run: pip install -e ".[dev]"
 
-      - name: Canonical import diagnostic
-        run: |
-          cp tests/infrastructure/test_ctrader_historical_tick_data.py /tmp/test-before.py
-          ruff check --select I --fix tests/infrastructure/test_ctrader_historical_tick_data.py
-          diff -u /tmp/test-before.py tests/infrastructure/test_ctrader_historical_tick_data.py || true
-
       - name: Validate historical tick sensor boundary
         run: |
           ruff check src/qore/infrastructure/ctrader_open_api_client.py src/qore/infrastructure/ctrader_historical_tick_data.py tests/infrastructure/test_ctrader_historical_tick_data.py
