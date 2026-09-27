@@ -111,6 +111,7 @@ jobs:
             scripts/cibo_phase20_capital_action_certification.py \
             scripts/cibo_phase20_interaction_ablation.py \
             scripts/cibo_phase20_failure_engineering.py \
+            scripts/cibo_phase20_failure_engineering_b.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
@@ -141,6 +142,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_interaction_ablation.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
             tests/infrastructure/test_cibo_account_capital_mission.py \
             tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
@@ -284,6 +286,7 @@ jobs:
             scripts/cibo_phase20_capital_action_certification.py \
             scripts/cibo_phase20_interaction_ablation.py \
             scripts/cibo_phase20_failure_engineering.py \
+            scripts/cibo_phase20_failure_engineering_b.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
@@ -314,6 +317,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_interaction_ablation.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
             tests/infrastructure/test_cibo_account_capital_mission.py \
             tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
@@ -387,6 +391,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_interaction_ablation.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
             tests/infrastructure/test_cibo_account_capital_mission.py \
             tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
