@@ -189,23 +189,32 @@ def build_phase20_demo_regime_state(
         )
 
     stale = set(snapshot_by_symbol) != set(spec_by_symbol)
-    for item in snapshots:
-        _aware(item.observed_at, name="market snapshot observed_at")
-        if item.observed_at > decision_at:
+    for market_snapshot in snapshots:
+        _aware(
+            market_snapshot.observed_at,
+            name="market snapshot observed_at",
+        )
+        if market_snapshot.observed_at > decision_at:
             raise CiboCapitalManagementError(
                 "Phase20D DEMO regime market snapshot postdates decision"
             )
-        if _age_seconds(decision_at, item.observed_at) > _MAX_EVIDENCE_AGE_SECONDS:
+        if (
+            _age_seconds(decision_at, market_snapshot.observed_at)
+            > _MAX_EVIDENCE_AGE_SECONDS
+        ):
             stale = True
-        if len(item.complete_bars) < _REQUIRED_HISTORY:
+        if len(market_snapshot.complete_bars) < _REQUIRED_HISTORY:
             stale = True
-    for item in provider_specs:
-        _aware(item.observed_at, name="provider observed_at")
-        if item.observed_at > decision_at:
+    for provider_spec in provider_specs:
+        _aware(provider_spec.observed_at, name="provider observed_at")
+        if provider_spec.observed_at > decision_at:
             raise CiboCapitalManagementError(
                 "Phase20D DEMO regime provider evidence postdates decision"
             )
-        if _age_seconds(decision_at, item.observed_at) > _MAX_EVIDENCE_AGE_SECONDS:
+        if (
+            _age_seconds(decision_at, provider_spec.observed_at)
+            > _MAX_EVIDENCE_AGE_SECONDS
+        ):
             stale = True
 
     liquidity = _liquidity(snapshot_by_symbol, spec_by_symbol)
