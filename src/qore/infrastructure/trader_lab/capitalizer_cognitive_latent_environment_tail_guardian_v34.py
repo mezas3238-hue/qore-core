@@ -19,6 +19,7 @@ import json
 import math
 from collections import Counter
 from dataclasses import asdict, dataclass
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -142,7 +143,7 @@ class V34Decision:
     symbol_session_side_time_identity_features_used: bool = False
 
 
-def _aware(value: str):
+def _aware(value: str) -> datetime:
     return milestone._aware(value)
 
 
@@ -913,7 +914,7 @@ def _simulate_period(
                 weights_a=weights_a,
                 weights_b=weights_b,
                 metacognitive_state=epistemic,
-                eligible_action_count=len(actions),
+                eligible_action_count=len(v30._eligible_actions(family)),
             )
 
         for key, pretrade in new_pretrades.items():
