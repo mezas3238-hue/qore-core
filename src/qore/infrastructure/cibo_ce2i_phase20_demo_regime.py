@@ -406,7 +406,7 @@ def _returns(
     if len(closes) < count + 1:
         return ()
     values: list[float] = []
-    for prior, current in zip(closes, closes[1:], strict=True):
+    for prior, current in zip(closes[:-1], closes[1:], strict=True):
         if prior <= 0:
             return ()
         values.append(float((current / prior) - Decimal(1)))
