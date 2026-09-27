@@ -263,6 +263,125 @@ def test_forward_epoch_preserves_negative_train_prior_without_tuning(
     )
 
 
+def test_forward_epoch_rejects_provider_account_mismatch_before_seal(
+    tmp_path: Path,
+) -> None:
+    store = _store(tmp_path)
+    base = _observed(
+        TraderLineage.VT31_NAS100,
+        "signal-provider-mismatch",
+        "NAS100",
+    )
+    wrong_provider = Phase20ForwardObservedOpportunity(
+        provider_evidence_id=base.provider_evidence_id,
+        opportunity=base.opportunity,
+        provider_observation=ProviderEconomicObservation(
+            provider_key="fundednext",
+            qore_symbol=base.provider_observation.qore_symbol,
+            provider_symbol=base.provider_observation.provider_symbol,
+            bid=base.provider_observation.bid,
+            ask=base.provider_observation.ask,
+            contract_size=base.provider_observation.contract_size,
+            tick_size=base.provider_observation.tick_size,
+            tick_value=base.provider_observation.tick_value,
+            minimum_volume=base.provider_observation.minimum_volume,
+            maximum_volume=base.provider_observation.maximum_volume,
+            volume_step=base.provider_observation.volume_step,
+            margin_per_volume=base.provider_observation.margin_per_volume,
+            commission_per_volume_usd=(
+                base.provider_observation.commission_per_volume_usd
+            ),
+            slippage_reserve_per_volume_usd=(
+                base.provider_observation.slippage_reserve_per_volume_usd
+            ),
+            observed_at=base.provider_observation.observed_at,
+        ),
+        concentration_group=base.concentration_group,
+        concentration_risk_usd=base.concentration_risk_usd,
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="provider observation must match account provider",
+    ):
+        seal_phase20_forward_observed_epoch(
+            store=store,
+            decision_at=DECISION_AT,
+            account_identity=_account(),
+            capital_snapshot_id="capital:41",
+            capital_snapshot_observed_at=DECISION_AT - timedelta(seconds=1),
+            risk_snapshot_id="risk:77",
+            risk_snapshot_observed_at=DECISION_AT - timedelta(seconds=1),
+            hard_risk_headroom_usd=Decimal("40"),
+            margin_headroom_usd=Decimal("100"),
+            concentration_limit_by_group=(("NAS100", Decimal("20")),),
+            regime_state=_regime(1),
+            current_step=0,
+            opportunities=(wrong_provider,),
+        )
+
+    assert store.load().generation == 0
+
+
+def test_forward_epoch_rejects_provider_relabel_as_conflicting_rewrite(
+    tmp_path: Path,
+) -> None:
+    store = _store(tmp_path)
+    base = _observed(
+        TraderLineage.VT31_NAS100,
+        "signal-provider-relabel",
+        "NAS100",
+    )
+    first = seal_phase20_forward_observed_epoch(
+        store=store,
+        decision_at=DECISION_AT,
+        account_identity=_account(),
+        capital_snapshot_id="capital:41",
+        capital_snapshot_observed_at=DECISION_AT - timedelta(seconds=1),
+        risk_snapshot_id="risk:77",
+        risk_snapshot_observed_at=DECISION_AT - timedelta(seconds=1),
+        hard_risk_headroom_usd=Decimal("40"),
+        margin_headroom_usd=Decimal("100"),
+        concentration_limit_by_group=(("NAS100", Decimal("20")),),
+        regime_state=_regime(1),
+        current_step=0,
+        opportunities=(base,),
+    )
+    relabelled = Phase20ForwardObservedOpportunity(
+        provider_evidence_id="provider:relabelled",
+        opportunity=base.opportunity,
+        provider_observation=base.provider_observation,
+        concentration_group=base.concentration_group,
+        concentration_risk_usd=base.concentration_risk_usd,
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="conflicting forward decision rewrite",
+    ):
+        seal_phase20_forward_observed_epoch(
+            store=store,
+            decision_at=DECISION_AT,
+            account_identity=_account(),
+            capital_snapshot_id="capital:41",
+            capital_snapshot_observed_at=DECISION_AT - timedelta(seconds=1),
+            risk_snapshot_id="risk:77",
+            risk_snapshot_observed_at=DECISION_AT - timedelta(seconds=1),
+            hard_risk_headroom_usd=Decimal("40"),
+            margin_headroom_usd=Decimal("100"),
+            concentration_limit_by_group=(("NAS100", Decimal("20")),),
+            regime_state=_regime(1),
+            current_step=0,
+            opportunities=(relabelled,),
+        )
+
+    assert first.evidence.evidence_id == (
+        "phase20d-forward-epoch:"
+        + first.evidence.evidence_id.split(":", 1)[1]
+    )
+    assert store.load().generation == 1
+
+
 def test_forward_epoch_rejects_stale_provider_before_durable_seal(
     tmp_path: Path,
 ) -> None:
