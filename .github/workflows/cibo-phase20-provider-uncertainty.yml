@@ -15,12 +15,14 @@ on:
       - 'scripts/cibo_phase20_capital_state_monte_carlo_contract.py'
       - 'scripts/cibo_phase20_mechanism_certification.py'
       - 'scripts/cibo_phase20_operational_mechanism_certification.py'
+      - 'scripts/cibo_phase20_capital_action_certification.py'
       - 'scripts/cibo_phase20_failure_engineering.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_mechanism_certification.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_operational_mechanism_certification.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py'
   push:
     branches:
@@ -37,12 +39,14 @@ on:
       - 'scripts/cibo_phase20_capital_state_monte_carlo_contract.py'
       - 'scripts/cibo_phase20_mechanism_certification.py'
       - 'scripts/cibo_phase20_operational_mechanism_certification.py'
+      - 'scripts/cibo_phase20_capital_action_certification.py'
       - 'scripts/cibo_phase20_failure_engineering.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_mechanism_certification.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_operational_mechanism_certification.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py'
 
 permissions:
@@ -75,12 +79,14 @@ jobs:
             scripts/cibo_phase20_capital_state_monte_carlo_contract.py \
             scripts/cibo_phase20_mechanism_certification.py \
             scripts/cibo_phase20_operational_mechanism_certification.py \
+            scripts/cibo_phase20_capital_action_certification.py \
             scripts/cibo_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py \
             tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py \
             tests/infrastructure/test_cibo_ce2i_phase20_mechanism_certification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_operational_mechanism_certification.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py
           mypy \
@@ -94,6 +100,7 @@ jobs:
             scripts/cibo_phase20_capital_state_monte_carlo_contract.py \
             scripts/cibo_phase20_mechanism_certification.py \
             scripts/cibo_phase20_operational_mechanism_certification.py \
+            scripts/cibo_phase20_capital_action_certification.py \
             scripts/cibo_phase20_failure_engineering.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
@@ -101,6 +108,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py \
             tests/infrastructure/test_cibo_ce2i_phase20_mechanism_certification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_operational_mechanism_certification.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py
 
   contract-evidence:
@@ -132,6 +140,9 @@ jobs:
           python scripts/cibo_phase20_operational_mechanism_certification.py \
             --output phase20-output/phase20-operational-mechanism-certification.json \
             > phase20-output/operational-mechanism-certification-stdout.json
+          python scripts/cibo_phase20_capital_action_certification.py \
+            --output phase20-output/phase20-capital-action-certification.json \
+            > phase20-output/capital-action-certification-stdout.json
           python scripts/cibo_phase20_failure_engineering.py \
             --output phase20-output/phase20-failure-engineering.json \
             > phase20-output/failure-engineering-stdout.json
@@ -150,6 +161,8 @@ jobs:
             mechanism-certification-stdout.json \
             phase20-operational-mechanism-certification.json \
             operational-mechanism-certification-stdout.json \
+            phase20-capital-action-certification.json \
+            capital-action-certification-stdout.json \
             phase20-failure-engineering.json \
             failure-engineering-stdout.json \
             git-sha.txt > SHA256SUMS.txt
