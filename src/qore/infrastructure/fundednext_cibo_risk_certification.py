@@ -17,6 +17,7 @@ from qore.infrastructure.fundednext_operational_risk_policy import (
     QORE_INTERNAL_BANK_HEAT_FRACTION,
     QORE_INTERNAL_NORMAL_HEAT_FRACTION,
     QORE_INTERNAL_SAFETY_BUFFER_FRACTION,
+    CiboAccountCapitalPosture,
     QORE_OPERATIONAL_RISK_POLICY_VERSION,
     operational_risk_policy_fingerprint,
 )
@@ -29,7 +30,6 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
     R315_CIBO_VERSION,
     R315_METHOD_FINGERPRINT,
     R315_RISK_FINGERPRINT,
-    Vt08ForexCiboPosture,
     cibo_policy_fingerprint,
 )
 
@@ -88,7 +88,9 @@ def build_certification(*, git_sha: str) -> dict[str, object]:
         "cibo": {
             "version": R315_CIBO_VERSION,
             "policy_fingerprint": cibo_policy_fingerprint(),
-            "postures": [item.value for item in Vt08ForexCiboPosture],
+            "account_capital_postures": [
+                item.value for item in CiboAccountCapitalPosture
+            ],
             "capital_management_authority": True,
             "runtime_sizing_authority": True,
             "legacy_trader_sizing_authority": False,
