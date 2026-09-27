@@ -1041,6 +1041,38 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     # never manufacture fresh capacity by silently discarding restart state.
     cma_settlement_store.load()
     cma_lifecycle_store.load()
+    phase20_evidence_store = DurablePhase20ForwardEvidenceStore(
+        state_dir / "cibo-phase20-forward-evidence.json"
+    )
+    phase20_policy_store = DurablePhase20ForwardPolicyStore(
+        state_dir / "cibo-phase20-forward-policy.json"
+    )
+    phase20_executed_risk_store = DurablePhase20ExecutedRiskStore(
+        state_dir / "cibo-phase20-executed-risk.json"
+    )
+    phase20_capital_store = DurableCapitalSourceLedgerStore(
+        state_dir / "cibo-phase20-assigned-capital.json"
+    )
+    phase20_mutation_ledger = JsonFileCTraderDemoMutationLedger(
+        root / "var" / "ctrader_demo_free" / "mutations.json"
+    )
+    phase20_bootstrap_at = datetime.now(UTC)
+    phase20_bootstrap_account = _account_state_from_demo_api(
+        demo_api,
+        phase20_bootstrap_at,
+    )
+    phase20_assigned_base, phase20_capital_state = (
+        bootstrap_phase20_demo_assigned_capital(
+            store=phase20_capital_store,
+            account=account,
+            account_state=phase20_bootstrap_account,
+            activated_at=phase20_bootstrap_at,
+        )
+    )
+    # Forward stores are authoritative evidence. Corruption must fail startup.
+    phase20_evidence_store.load()
+    phase20_policy_store.load()
+    phase20_executed_risk_store.load()
     startup_memory = ThreadPoolExecutor(
         max_workers=6,
         thread_name_prefix="qore-startup-memory",
