@@ -61,6 +61,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_policy_candidate.py \
             src/qore/infrastructure/cibo_ce2i_phase20_forward_evidence.py \
             src/qore/infrastructure/cibo_ce2i_phase20_forward_store.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_train_prior.py \
             src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py \
             src/qore/infrastructure/cibo_account_capital_mission.py \
@@ -120,6 +121,7 @@ jobs:
             scripts/cibo_phase20_policy_candidate_freeze.py \
             scripts/cibo_phase20_forward_evidence_contract.py \
             scripts/cibo_phase20_forward_store_contract.py \
+            scripts/cibo_phase19_train_expectation_priors.py \
             scripts/cibo_phase20_failure_engineering.py \
             scripts/cibo_phase20_failure_engineering_b.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
@@ -156,6 +158,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_policy_candidate.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_train_prior.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
@@ -252,6 +255,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_policy_candidate.py \
             src/qore/infrastructure/cibo_ce2i_phase20_forward_evidence.py \
             src/qore/infrastructure/cibo_ce2i_phase20_forward_store.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_train_prior.py \
             src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py \
             src/qore/infrastructure/cibo_account_capital_mission.py \
@@ -310,6 +314,7 @@ jobs:
             scripts/cibo_phase20_policy_candidate_freeze.py \
             scripts/cibo_phase20_forward_evidence_contract.py \
             scripts/cibo_phase20_forward_store_contract.py \
+            scripts/cibo_phase19_train_expectation_priors.py \
             scripts/cibo_phase20_failure_engineering.py \
             scripts/cibo_phase20_failure_engineering_b.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
@@ -346,6 +351,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_policy_candidate.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_train_prior.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
@@ -425,6 +431,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_policy_candidate.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_train_prior.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
