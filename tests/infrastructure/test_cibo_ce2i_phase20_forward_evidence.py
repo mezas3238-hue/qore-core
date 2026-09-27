@@ -205,6 +205,9 @@ def test_phase20d_seals_single_candidate_20h_and_20i_inputs() -> None:
     assert record.evidence_sha256 == phase20_forward_evidence_sha256(evidence)
     assert record.mpc_plan.considered_option_ids == ("future-option-1",)
     assert record.mpc_plan.reserve_stop_risk_usd == Decimal("5")
+    assert record.allocator_input_stop_risk_headroom_usd == Decimal("15")
+    assert record.allocator_input_margin_headroom_usd == Decimal("90")
+    assert record.mpc_reserve_applied_before_allocator is True
     assert (
         record.allocator_decision.disposition
         is Phase20AllocatorDisposition.ALLOCATE
@@ -214,7 +217,35 @@ def test_phase20d_seals_single_candidate_20h_and_20i_inputs() -> None:
         "phase20d-signal-1",
     )
     assert record.allocator_decision.applied_tools == ("T15",)
+    assert record.allocator_decision.reserve_stop_risk_usd == 0
     assert record.phase20d_qualified is False
+
+
+def test_phase20d_mpc_reserve_prevents_allocator_capacity_overcommit() -> None:
+    base_candidate = _candidate_evidence()
+    high_risk_candidate = replace(
+        base_candidate.candidate,
+        stop_risk_usd=Decimal("20"),
+        concentration_risk_usd=Decimal("20"),
+    )
+    sealed_candidate = replace(
+        base_candidate,
+        candidate=high_risk_candidate,
+    )
+    decision = replace(
+        _decision(),
+        candidates=(sealed_candidate,),
+    )
+
+    record = build_phase20_forward_decision_record(decision)
+
+    assert record.mpc_plan.reserve_stop_risk_usd == Decimal("5")
+    assert record.allocator_input_stop_risk_headroom_usd == Decimal("15")
+    assert (
+        record.allocator_decision.disposition
+        is Phase20AllocatorDisposition.NO_ELIGIBLE_ALLOCATION
+    )
+    assert record.allocator_decision.allocation is None
 
 
 def test_phase20d_synthetic_contract_cannot_qualify_as_fresh_forward() -> None:

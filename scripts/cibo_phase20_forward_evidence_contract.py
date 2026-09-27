@@ -214,10 +214,26 @@ def build_report() -> dict[str, Any]:
             "known_option_active_expiry_cancel_state_bound": True,
             "outcome_present": False,
         },
+        "composition": {
+            "order": "PHASE20I_RESERVE_THEN_PHASE20H_ALLOCATE",
+            "mpc_reserve_applied_before_allocator": (
+                record.mpc_reserve_applied_before_allocator
+            ),
+            "allocator_input_stop_risk_headroom_usd": str(
+                record.allocator_input_stop_risk_headroom_usd
+            ),
+            "allocator_input_margin_headroom_usd": str(
+                record.allocator_input_margin_headroom_usd
+            ),
+            "double_reservation_authorized": False,
+        },
         "phase20h": {
             "disposition": allocator.disposition.value,
             "applied_tools": list(allocator.applied_tools),
             "selected_signal_fingerprints": selected,
+            "internal_optionality_reserve_stop_risk_usd": str(
+                allocator.reserve_stop_risk_usd
+            ),
         },
         "phase20i": {
             "considered_option_ids": list(record.mpc_plan.considered_option_ids),

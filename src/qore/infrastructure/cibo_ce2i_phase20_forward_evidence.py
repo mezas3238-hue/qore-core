@@ -30,7 +30,6 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_ce2i_opportunity_competition import (
     CapitalOpportunityCandidate,
 )
-from qore.infrastructure.cibo_ce2i_optionality import KnownCapitalOption
 from qore.infrastructure.cibo_ce2i_phase20_mpc import (
     Phase20MpcCapacityPlan,
     Phase20MpcKnownOption,
@@ -316,7 +315,10 @@ class Phase20ForwardDecisionRecord:
     evidence_sha256: str
     regime: CiboRegimeToolSelection
     mpc_plan: Phase20MpcCapacityPlan
+    allocator_input_stop_risk_headroom_usd: Decimal
+    allocator_input_margin_headroom_usd: Decimal
     allocator_decision: Phase20RobustAllocatorDecision
+    mpc_reserve_applied_before_allocator: bool = True
     phase20d_qualified: bool = False
 
     def __post_init__(self) -> None:
@@ -328,12 +330,34 @@ class Phase20ForwardDecisionRecord:
             raise CiboCapitalManagementError("Phase20D regime selection is invalid")
         if not isinstance(self.mpc_plan, Phase20MpcCapacityPlan):
             raise CiboCapitalManagementError("Phase20D MPC plan is invalid")
+        for name in (
+            "allocator_input_stop_risk_headroom_usd",
+            "allocator_input_margin_headroom_usd",
+        ):
+            _nonnegative(getattr(self, name), name=name)
+        if (
+            self.allocator_input_stop_risk_headroom_usd
+            != self.mpc_plan.deployable_stop_risk_usd
+            or self.allocator_input_margin_headroom_usd
+            != self.mpc_plan.deployable_margin_usd
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20D allocator input must equal MPC deployable headroom"
+            )
         if not isinstance(
             self.allocator_decision,
             Phase20RobustAllocatorDecision,
         ):
             raise CiboCapitalManagementError(
                 "Phase20D allocator decision is invalid"
+            )
+        if type(self.mpc_reserve_applied_before_allocator) is not bool:
+            raise CiboCapitalManagementError(
+                "Phase20D MPC composition flag must be bool"
+            )
+        if not self.mpc_reserve_applied_before_allocator:
+            raise CiboCapitalManagementError(
+                "Phase20D policy candidate must reserve MPC capacity first"
             )
         if self.phase20d_qualified:
             raise CiboCapitalManagementError(
@@ -409,28 +433,25 @@ def build_phase20_forward_decision_record(
         margin_headroom_usd=evidence.margin_headroom_usd,
         known_options=tuple(item.option for item in evidence.known_options),
     )
-    allocator_options = tuple(
-        KnownCapitalOption(
-            opportunity_id=item.option.opportunity_id,
-            minimum_stop_risk_usd=item.option.minimum_stop_risk_usd,
-            minimum_margin_usd=item.option.minimum_margin_usd,
-        )
-        for item in evidence.known_options
-    )
     allocator = propose_phase20h_robust_allocation(
         mission=evidence.mission,
         regime=regime,
-        hard_risk_headroom_usd=evidence.hard_risk_headroom_usd,
-        margin_headroom_usd=evidence.margin_headroom_usd,
+        hard_risk_headroom_usd=mpc_plan.deployable_stop_risk_usd,
+        margin_headroom_usd=mpc_plan.deployable_margin_usd,
         concentration_limit_by_group=evidence.concentration_limit_by_group,
         candidates=tuple(item.candidate for item in evidence.candidates),
-        known_options=allocator_options,
+        known_options=(),
     )
     return Phase20ForwardDecisionRecord(
         evidence_sha256=phase20_forward_evidence_sha256(evidence),
         regime=regime,
         mpc_plan=mpc_plan,
+        allocator_input_stop_risk_headroom_usd=(
+            mpc_plan.deployable_stop_risk_usd
+        ),
+        allocator_input_margin_headroom_usd=mpc_plan.deployable_margin_usd,
         allocator_decision=allocator,
+        mpc_reserve_applied_before_allocator=True,
         phase20d_qualified=False,
     )
 
