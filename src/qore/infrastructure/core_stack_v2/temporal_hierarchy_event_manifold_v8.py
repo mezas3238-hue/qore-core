@@ -10,12 +10,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
 from math import isfinite, sqrt
 from statistics import median
-from typing import Protocol, Sequence
+from typing import Protocol
 
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_competing_survival_v7 import (
     RECOVERY_FEATURE_NAMES,
