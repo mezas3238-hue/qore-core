@@ -601,7 +601,16 @@ def _provider_cost_proxy(
 ) -> Decimal:
     minimum_volume = _decimal(provider["minimum_volume"])
     volume_step = _decimal(provider["volume_step"])
-    minimum_steps = int(opportunity.get("minimum_execution_steps", 1))
+    minimum_steps_raw = opportunity.get("minimum_execution_steps", 1)
+    if (
+        not isinstance(minimum_steps_raw, int)
+        or isinstance(minimum_steps_raw, bool)
+        or minimum_steps_raw < 1
+    ):
+        raise CiboCapitalManagementError(
+            "Phase20D minimum_execution_steps must be positive int"
+        )
+    minimum_steps = minimum_steps_raw
     raw_volume = minimum_volume * Decimal(minimum_steps)
     volume_steps = (
         raw_volume / volume_step
@@ -648,6 +657,9 @@ def _inspect_policy_safety(
         failures.append("ZERO_CAPITAL_CONSERVATION_BREACHES")
 
     limits_raw = payload.get("concentration_limit_by_group", [])
+    if not isinstance(limits_raw, list):
+        failures.append("ZERO_CONCENTRATION_BREACHES")
+        return
     limits = {
         str(item[0]): _decimal(item[1])
         for item in limits_raw
@@ -674,6 +686,10 @@ def _policy_operational_metrics(
 ) -> tuple[Decimal, Decimal, Decimal, Decimal, int, int, int]:
     hard_capacity = _decimal(payload["hard_risk_headroom_usd"])
     concentration_limits = payload.get("concentration_limit_by_group", [])
+    if not isinstance(concentration_limits, list):
+        raise CiboCapitalManagementError(
+            "Phase20D concentration limits must be list"
+        )
     concentration_limit_total = sum(
         (
             _decimal(item[1])
