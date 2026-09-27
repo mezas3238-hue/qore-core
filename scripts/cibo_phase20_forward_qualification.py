@@ -21,7 +21,7 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification import (
 
 def _report_json(report: Phase20QualificationReport) -> dict[str, Any]:
     return {
-        "schema": "qore.cibo.phase20d.v2-qualification.v2",
+        "schema": "qore.cibo.phase20d.v2-qualification.v3",
         "status": report.status.value,
         "plan_id": report.plan_id,
         "plan_sha256": report.plan_sha256,
@@ -68,12 +68,12 @@ def _report_json(report: Phase20QualificationReport) -> dict[str, Any]:
                 report.baseline_net_delta_usd,
                 "f",
             ),
-            "policy_max_drawdown_usd": format(
-                report.policy_max_drawdown_usd,
+            "policy_settlement_cash_drawdown_usd": format(
+                report.policy_settlement_cash_drawdown_usd,
                 "f",
             ),
-            "baseline_max_drawdown_usd": format(
-                report.baseline_max_drawdown_usd,
+            "baseline_settlement_cash_drawdown_usd": format(
+                report.baseline_settlement_cash_drawdown_usd,
                 "f",
             ),
             "policy_capital_productivity": format(
@@ -210,6 +210,8 @@ def _report_json(report: Phase20QualificationReport) -> dict[str, Any]:
             "decision_time_provider_cost_proxy_only": True,
             "realized_execution_economics_required": True,
             "provider_cost_proxy_subtracted_after_settlement": False,
+            "drawdown_metric_is_terminal_settlement_cash_path": True,
+            "drawdown_metric_is_mark_to_market_equity_mdd": False,
             "demo_execution_authorized": False,
             "live_authorized": False,
             "real_capital_authorized": False,
