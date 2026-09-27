@@ -112,14 +112,22 @@ V7 may use only source-time market observations and derived causal history.
 
 ### 7.1 Frontier state
 
-- normalized distance to Target-V2 frontier;
-- distance 1m, 5m, 15m and 30m ago;
-- first derivative of distance over 1m/5m/15m;
+- normalized distance to the exact Target-V2 source frontier (the same source
+  `prior20`, including the source closed bar);
+- historical 1m/5m/15m/30m pressure is measured causally against each bar's
+  immediately preceding 20 closed M1 bars, excluding that evaluated bar;
+- first derivative of causal frontier pressure over 1m/5m/15m;
 - second derivative / acceleration over 5m and 15m;
-- source-time breach depth;
-- source-time reclaim distance;
-- number of source-time frontier touches in 15m and 30m;
-- number of source-time breach/reclaim transitions in 15m and 30m.
+- maximum causal breach depth observed in the last 15m/30m;
+- current reclaim distance from the most recent causal breach;
+- number of causal frontier touches in 15m and 30m;
+- number of causal breach/reclaim transitions in 15m and 30m.
+
+This distinction is frozen pre-outcome because Target V2's source `prior20`
+includes the source bar. A "current breach" measured against that same window
+would be mechanically degenerate. V7 therefore preserves the exact Target-V2
+source distance while using only strictly prior information to reconstruct
+historical breach/reclaim dynamics.
 
 ### 7.2 Acceptance versus rejection sequence
 
@@ -180,7 +188,8 @@ discovery:
 Optimizes evidence for the matured Target-V2 terminal label using the terminal
 mechanism feature subset:
 
-- frontier penetration / acceptance;
+- historical causal frontier penetration / acceptance plus exact Target-V2
+  source-frontier distance;
 - adverse persistence;
 - terminal-side acceleration;
 - hierarchy fragility transition;
