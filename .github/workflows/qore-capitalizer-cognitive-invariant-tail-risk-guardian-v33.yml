@@ -1,13 +1,6 @@
 name: QORE Capitalizer Cognitive Invariant Tail-Risk Guardian V33
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/qore-capitalizer-cognitive-invariant-tail-risk-guardian-v33.yml'
-      - 'src/qore/infrastructure/trader_lab/capitalizer_cognitive_invariant_tail_risk_guardian_v33.py'
-      - 'tests/infrastructure/trader_lab/test_capitalizer_cognitive_invariant_tail_risk_guardian_v33.py'
   workflow_dispatch:
 
 permissions:
