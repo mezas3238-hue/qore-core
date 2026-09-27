@@ -199,22 +199,24 @@ def observe_ctrader_demo_phase20_settlements(
     unresolved_at: list[datetime] = []
 
     for deal in deals:
-        if deal.executed_at < initial_cursor:
+        if deal.executed_at < initial_cursor or deal.deal_id in known_deal_ids:
             continue
-        if not deal.is_closing or deal.deal_id in known_deal_ids:
-            continue
-        registry_entry = registry.by_position(deal.position_id)
-        if registry_entry is None:
+        registry_entries = registry.entries_by_position(deal.position_id)
+        if not registry_entries:
             # Non-QORE account activity is outside the qualification population.
             continue
-        if deal.net_profit is None:
+        if len(registry_entries) != 1:
+            raise CiboCapitalManagementError(
+                "Phase20D settlement cannot attribute a netted multi-leg position"
+            )
+        registry_entry = registry_entries[0]
+        if deal.is_closing and deal.net_profit is None:
             unresolved_at.append(deal.executed_at)
             continue
         grouped.setdefault(deal.position_id, []).append(
             (deal, registry_entry.signal_fingerprint)
         )
 
-    applied: list[int] = []
     partials: list[int] = []
     terminals: list[int] = []
     current = book
@@ -231,30 +233,40 @@ def observe_ctrader_demo_phase20_settlements(
             raise CiboCapitalManagementError(
                 "Phase20D settlement found new deal after terminal close"
             )
-        position_still_open = position_id in open_ids
+        closing_indexes = tuple(
+            index for index, (deal, _) in enumerate(rows) if deal.is_closing
+        )
+        final_closing_index = (
+            None
+            if position_id in open_ids or not closing_indexes
+            else closing_indexes[-1]
+        )
         for index, (deal, signal_fingerprint) in enumerate(rows):
-            position_open_after = (
-                True
-                if position_still_open
-                else index < len(rows) - 1
-            )
-            record = CmaSettlementRecord(
-                event=(
+            if not deal.is_closing:
+                event = "CTRADER_DEMO_ENTRY_COST_SETTLEMENT"
+                net_profit = deal.commission
+                position_open_after = True
+            else:
+                assert deal.net_profit is not None
+                position_open_after = index != final_closing_index
+                event = (
                     "CTRADER_DEMO_PARTIAL_SETTLEMENT"
                     if position_open_after
                     else "CTRADER_DEMO_EXIT_SETTLEMENT"
-                ),
+                )
+                net_profit = deal.net_profit
+            record = CmaSettlementRecord(
+                event=event,
                 deal_id=deal.deal_id,
                 signal_fingerprint=signal_fingerprint,
                 position_id=deal.position_id,
-                net_profit_usd=deal.net_profit,
+                net_profit_usd=net_profit,
                 position_open_after=position_open_after,
             )
             current = settlement_store.apply(
                 record,
                 expected_generation=current.generation,
             )
-            applied.append(deal.deal_id)
             if position_open_after:
                 partials.append(deal.deal_id)
             else:
