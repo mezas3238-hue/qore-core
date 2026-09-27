@@ -198,6 +198,17 @@ def _decision(
         ),
         current_step=0,
         horizon_steps=2,
+        population_slots=(
+            Phase20ForwardPopulationSlotEvidence(
+                slot_id="R43_GBPUSD|GBPUSD|phase20d-epoch-1",
+                trader_id=TraderLineage.R43_GBPUSD,
+                qore_symbol="GBPUSD",
+                observed_at=DECISION_AT - timedelta(milliseconds=1),
+                disposition=Phase20ForwardPopulationDisposition.CANDIDATE,
+                reason="synthetic candidate fixture",
+                signal_fingerprint="phase20d-signal-1",
+            ),
+        ),
         candidates=(_candidate_evidence(),),
         known_options=(
             (_known_option(),)
