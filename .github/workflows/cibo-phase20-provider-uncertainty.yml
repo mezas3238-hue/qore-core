@@ -119,6 +119,10 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_policy_candidate.py \
             src/qore/infrastructure/cibo_ce2i_phase20_forward_evidence.py \
             src/qore/infrastructure/cibo_ce2i_phase20_forward_store.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_forward_epoch.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_forward_snapshots.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_forward_policy_store.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_qualification_plan.py \
             src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py \
             scripts/cibo_phase20_provider_uncertainty_contract.py \
             scripts/cibo_phase20_counterfactual_stress_matrix.py \
@@ -132,6 +136,8 @@ jobs:
             scripts/cibo_phase20_policy_candidate_freeze.py \
             scripts/cibo_phase20_forward_evidence_contract.py \
             scripts/cibo_phase20_forward_store_contract.py \
+            scripts/cibo_phase20_forward_collector_contract.py \
+            scripts/cibo_phase20_qualification_plan.py \
             scripts/cibo_phase20_failure_engineering.py \
             scripts/cibo_phase20_failure_engineering_b.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
@@ -146,6 +152,10 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_policy_candidate.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_forward_epoch.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_forward_snapshots.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_forward_collector.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_qualification_plan.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py
           mypy \
@@ -159,6 +169,10 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_policy_candidate.py \
             src/qore/infrastructure/cibo_ce2i_phase20_forward_evidence.py \
             src/qore/infrastructure/cibo_ce2i_phase20_forward_store.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_forward_epoch.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_forward_snapshots.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_forward_policy_store.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_qualification_plan.py \
             src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py \
             scripts/cibo_phase20_provider_uncertainty_contract.py \
             scripts/cibo_phase20_counterfactual_stress_matrix.py \
@@ -172,6 +186,8 @@ jobs:
             scripts/cibo_phase20_policy_candidate_freeze.py \
             scripts/cibo_phase20_forward_evidence_contract.py \
             scripts/cibo_phase20_forward_store_contract.py \
+            scripts/cibo_phase20_forward_collector_contract.py \
+            scripts/cibo_phase20_qualification_plan.py \
             scripts/cibo_phase20_failure_engineering.py \
             scripts/cibo_phase20_failure_engineering_b.py
           pytest -q --no-cov \
@@ -240,6 +256,12 @@ jobs:
           python scripts/cibo_phase20_forward_store_contract.py \
             --output phase20-output/phase20-forward-store-contract.json \
             > phase20-output/forward-store-stdout.json
+          python scripts/cibo_phase20_forward_collector_contract.py \
+            --output phase20-output/phase20-forward-collector-contract.json \
+            > phase20-output/forward-collector-stdout.json
+          python scripts/cibo_phase20_qualification_plan.py \
+            --output phase20-output/phase20-qualification-plan.json \
+            > phase20-output/qualification-plan-stdout.json
           python scripts/cibo_phase20_failure_engineering.py \
             --output phase20-output/phase20-failure-engineering.json \
             > phase20-output/failure-engineering-stdout.json
@@ -275,6 +297,10 @@ jobs:
             forward-evidence-stdout.json \
             phase20-forward-store-contract.json \
             forward-store-stdout.json \
+            phase20-forward-collector-contract.json \
+            forward-collector-stdout.json \
+            phase20-qualification-plan.json \
+            qualification-plan-stdout.json \
             phase20-failure-engineering.json \
             failure-engineering-stdout.json \
             phase20-failure-engineering-b.json \
