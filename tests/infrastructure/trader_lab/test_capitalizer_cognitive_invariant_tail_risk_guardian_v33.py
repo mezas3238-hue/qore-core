@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+import pytest
+
 from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_invariant_tail_risk_guardian_v33 as v33,
 )
@@ -181,6 +183,53 @@ def test_action_fails_closed_when_era_coefficients_conflict() -> None:
     assert lcbs is None
     assert dims == (0, 0, 0)
     assert epistemic == "CONFLICTED"
+
+
+
+def test_batch_ridge_is_mathematically_equivalent_to_v25_fit() -> None:
+    features = (
+        (0.0, 1.0),
+        (1.0, 0.0),
+        (1.0, 1.0),
+        (2.0, -1.0),
+        (-1.0, 2.0),
+        (0.5, -0.5),
+    )
+    keys = tuple(
+        (f"S{index}", f"2026-01-05T08:0{index}:00+00:00")
+        for index in range(len(features))
+    )
+    values = (0.1, -0.2, 0.3, 0.5, -0.4, 0.2)
+    target_id = ("LOCK025_AFTER_075", "TOTAL")
+    actual = v33._fit_many(
+        label="TEST",
+        features=features,
+        keys=keys,
+        targets={target_id: values},
+    )[target_id]
+    expected = v25._fit_model(
+        period="TEST",
+        examples=tuple(
+            (feature, target, 1.0, key)
+            for feature, target, key in zip(
+                features,
+                values,
+                keys,
+                strict=True,
+            )
+        ),
+    )
+
+    assert actual.feature_mean == pytest.approx(expected.feature_mean)
+    assert actual.feature_scale == pytest.approx(expected.feature_scale)
+    assert actual.coefficients == pytest.approx(expected.coefficients)
+    assert actual.weighted_target_mean == pytest.approx(
+        expected.weighted_target_mean
+    )
+    assert actual.weighted_training_rmse == pytest.approx(
+        expected.weighted_training_rmse
+    )
+
 
 
 def test_v33_frozen_contract() -> None:
