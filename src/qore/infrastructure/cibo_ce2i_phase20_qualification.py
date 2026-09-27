@@ -102,8 +102,8 @@ class Phase20QualificationReport:
     folds: tuple[Phase20QualificationFold, ...]
     policy_net_delta_usd: Decimal
     baseline_net_delta_usd: Decimal
-    policy_max_drawdown_usd: Decimal
-    baseline_max_drawdown_usd: Decimal
+    policy_settlement_cash_drawdown_usd: Decimal
+    baseline_settlement_cash_drawdown_usd: Decimal
     policy_capital_productivity: Decimal
     baseline_capital_productivity: Decimal
     policy_acceptance_rate: Decimal
@@ -306,14 +306,14 @@ def run_phase20d_v2_qualification(
         (item.baseline_net_delta_usd for item in frozen_rows),
         Decimal(0),
     )
-    policy_dd = _max_drawdown(
+    policy_dd = _settlement_cash_path_drawdown(
         tuple(
             (item.outcome_observed_at, item.signal_fingerprint, item.policy_net_delta_usd)
             for item in frozen_rows
             if item.policy_selected and item.outcome_observed_at is not None
         )
     )
-    baseline_dd = _max_drawdown(
+    baseline_dd = _settlement_cash_path_drawdown(
         tuple(
             (
                 item.outcome_observed_at,
@@ -384,7 +384,7 @@ def run_phase20d_v2_qualification(
             )
         if policy_dd > baseline_dd:
             economic_failures.append(
-                "POLICY_MAX_DRAWDOWN_NOT_ABOVE_FIXED_BASELINE"
+                "POLICY_SETTLEMENT_CASH_DRAWDOWN_NOT_ABOVE_FIXED_BASELINE"
             )
         if policy_productivity <= baseline_productivity:
             economic_failures.append(
@@ -424,8 +424,8 @@ def run_phase20d_v2_qualification(
         folds=folds,
         policy_net_delta_usd=policy_net,
         baseline_net_delta_usd=baseline_net,
-        policy_max_drawdown_usd=policy_dd,
-        baseline_max_drawdown_usd=baseline_dd,
+        policy_settlement_cash_drawdown_usd=policy_dd,
+        baseline_settlement_cash_drawdown_usd=baseline_dd,
         policy_capital_productivity=policy_productivity,
         baseline_capital_productivity=baseline_productivity,
         policy_acceptance_rate=policy_acceptance,
@@ -817,9 +817,10 @@ def _build_folds(
     return tuple(result)
 
 
-def _max_drawdown(
+def _settlement_cash_path_drawdown(
     events: tuple[tuple[datetime | None, str, Decimal], ...],
 ) -> Decimal:
+    """Drawdown of terminal realized cash events, not mark-to-market equity."""
     ordered = sorted(
         (
             (observed_at, signal, delta)
