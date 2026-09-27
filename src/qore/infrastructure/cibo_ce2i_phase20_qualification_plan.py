@@ -47,6 +47,7 @@ class Phase20ForwardQualificationPlan:
     minimum_fold_lineages: int
     minimum_candidate_outcome_coverage: Decimal
     required_selected_outcome_coverage: Decimal
+    required_baseline_selected_outcome_coverage: Decimal
     no_refit_between_folds: bool
     burned_phase19j_reuse_allowed: bool
     synthetic_evidence_allowed: bool
@@ -98,6 +99,7 @@ class Phase20ForwardQualificationPlan:
         for name in (
             "minimum_candidate_outcome_coverage",
             "required_selected_outcome_coverage",
+            "required_baseline_selected_outcome_coverage",
         ):
             value = getattr(self, name)
             if (
@@ -159,6 +161,7 @@ FROZEN_PHASE20D_QUALIFICATION_PLAN = Phase20ForwardQualificationPlan(
     minimum_fold_lineages=4,
     minimum_candidate_outcome_coverage=Decimal("0.95"),
     required_selected_outcome_coverage=Decimal("1.00"),
+    required_baseline_selected_outcome_coverage=Decimal("1.00"),
     no_refit_between_folds=True,
     burned_phase19j_reuse_allowed=False,
     synthetic_evidence_allowed=False,
@@ -191,6 +194,7 @@ FROZEN_PHASE20D_QUALIFICATION_PLAN = Phase20ForwardQualificationPlan(
         "POLICY_CAPITAL_PRODUCTIVITY_STRICTLY_ABOVE_FIXED_BASELINE",
         "MINIMUM_POPULATION_AND_TEMPORAL_COVERAGE_MET",
         "SELECTED_OUTCOME_COVERAGE_COMPLETE",
+        "BASELINE_SELECTED_OUTCOME_COVERAGE_COMPLETE",
         "CANDIDATE_OUTCOME_COVERAGE_AT_LEAST_95_PERCENT",
     ),
 )
@@ -222,6 +226,10 @@ def phase20d_qualification_plan_sha256() -> str:
         ),
         "required_selected_outcome_coverage": format(
             plan.required_selected_outcome_coverage,
+            "f",
+        ),
+        "required_baseline_selected_outcome_coverage": format(
+            plan.required_baseline_selected_outcome_coverage,
             "f",
         ),
         "no_refit_between_folds": plan.no_refit_between_folds,
