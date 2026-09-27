@@ -34,6 +34,7 @@ from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
     cibo_market_memory_fingerprint,
 )
 from qore.infrastructure.ctrader_demo_free_sink import (
+    demo_committed_stop_risk,
     global_sink,
     submit_demo_request,
 )
@@ -1237,6 +1238,9 @@ def _authorize_and_check(
         opportunity=opportunity,
         account_ref=global_sink().binding.account.account_ref,
         account_state=account,
+        current_committed_stop_risk_usd=demo_committed_stop_risk(
+            now=request_at,
+        ),
         requested_at=request_at,
         expires_at=expires_at,
     )
