@@ -37,6 +37,7 @@ from qore.infrastructure.ctrader_demo_execution_contracts import (
     transition_ctrader_demo_attempt,
 )
 from qore.infrastructure.ctrader_demo_mutation_ledger import (
+    CTraderDemoDurableFillRecord,
     CTraderDemoMutationLedger,
     CTraderDemoMutationLedgerError,
     CTraderDemoMutationLedgerRecord,
@@ -296,6 +297,23 @@ class CTraderDemoExecutionGateway:
             self._outcomes_by_provider_ref[key] for key in sorted(self._outcomes_by_provider_ref)
         )
 
+    def fills_for(
+        self,
+        receipt_id: ExecutionReceiptId,
+    ) -> tuple[CTraderDemoFillObservation, ...]:
+        """Return exact ingested fills for one restored/known submission."""
+
+        if not isinstance(receipt_id, ExecutionReceiptId):
+            raise CTraderDemoExecutionGatewayValidationError(
+                "fills_for requires ExecutionReceiptId"
+            )
+        if receipt_id not in self._submissions:
+            raise ExecutionBoundaryNotFoundError(
+                "gateway cannot expose fills for an unrestored submission"
+            )
+        rows = self._fills_by_receipt.get(receipt_id, {})
+        return tuple(rows[key] for key in sorted(rows))
+
     @property
     def has_unresolved_mutations(self) -> bool:
         return any(
@@ -390,6 +408,50 @@ class CTraderDemoExecutionGateway:
                 )
             )
         self._submissions[submission.receipt_id] = submission
+        if record.fill_observations:
+            if record.provider_order_ref is None:
+                return Failure(
+                    CTraderDemoExecutionGatewayValidationError(
+                        "durable exact fills require provider order reference"
+                    )
+                )
+            identities = dict(record.fill_identities)
+            restored_fills: dict[str, CTraderDemoFillObservation] = {}
+            try:
+                for item in record.fill_observations:
+                    observation = CTraderDemoFillObservation(
+                        receipt_id=submission.receipt_id,
+                        idempotency_key=submission.idempotency_key,
+                        account=self._configuration.account,
+                        instrument=submission.authorized_intent.intent.instrument,
+                        side=submission.authorized_intent.intent.side,
+                        provider_order_ref=record.provider_order_ref,
+                        fill_ref=item.fill_ref,
+                        fill_quantity=Decimal(item.fill_quantity),
+                        cumulative_quantity=Decimal(item.cumulative_quantity),
+                        fill_price=Decimal(item.fill_price),
+                        provider_timestamp=item.provider_timestamp,
+                        received_at=item.received_at,
+                        is_complete=item.is_complete,
+                    )
+                    expected_digest = identities.get(item.fill_ref)
+                    if (
+                        expected_digest is None
+                        or expected_digest != _stable_fill_digest(observation)
+                    ):
+                        return Failure(
+                            CTraderDemoExecutionConflictError(
+                                "durable exact fill does not match persisted identity"
+                            )
+                        )
+                    restored_fills[item.fill_ref] = observation
+            except (ValueError, TypeError) as error:
+                return Failure(
+                    CTraderDemoExecutionGatewayValidationError(
+                        f"durable exact fill could not be restored: {error}"
+                    )
+                )
+            self._fills_by_receipt[submission.receipt_id] = restored_fills
         return Success(None)
 
     def _persist_record(
@@ -426,6 +488,7 @@ class CTraderDemoExecutionGateway:
             outcome=outcome if outcome is not None else (prior.outcome if prior else None),
             fill_refs=prior.fill_refs if prior else (),
             fill_identities=prior.fill_identities if prior else (),
+            fill_observations=prior.fill_observations if prior else (),
             cumulative_quantity=prior.cumulative_quantity if prior else "0",
             is_complete=prior.is_complete if prior else False,
             risk_authorization_id=prior.risk_authorization_id if prior else None,
@@ -494,10 +557,26 @@ class CTraderDemoExecutionGateway:
             )
         receipt_id = submission.receipt_id
         identities = self._fill_identity_digests.get(receipt_id, {})
+        observations = self._fills_by_receipt.get(receipt_id, {})
         record = replace(
             prior,
             fill_refs=tuple(sorted(identities)),
             fill_identities=tuple(sorted(identities.items())),
+            fill_observations=tuple(
+                CTraderDemoDurableFillRecord(
+                    fill_ref=item.fill_ref,
+                    fill_quantity=format(item.fill_quantity, "f"),
+                    cumulative_quantity=format(
+                        item.cumulative_quantity,
+                        "f",
+                    ),
+                    fill_price=format(item.fill_price, "f"),
+                    provider_timestamp=item.provider_timestamp,
+                    received_at=item.received_at,
+                    is_complete=item.is_complete,
+                )
+                for _, item in sorted(observations.items())
+            ),
             cumulative_quantity=format(
                 self._authoritative_filled.get(receipt_id, Decimal("0")), "f"
             ),
