@@ -32,6 +32,7 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
     Vt08ForexCiboPosture,
     cibo_policy_fingerprint,
 )
+
 _SCHEMA = "qore.fundednext.cibo-risk-operational-certification.v5"
 
 _FUNDEDNEXT_CIBO_TRADERS: dict[str, tuple[str, ...]] = {
