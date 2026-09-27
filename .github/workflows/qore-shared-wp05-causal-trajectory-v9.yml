@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: qore-shared-wp05-v9-consumed-${{ github.ref }}
+  group: qore-shared-wp05-causal-trajectory-v9-consumed-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
