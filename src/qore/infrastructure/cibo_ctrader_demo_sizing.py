@@ -100,14 +100,20 @@ def build_ctrader_demo_cibo_sizing(
         raise CiboCapitalManagementError(
             "DEMO committed stop risk must be finite non-negative Decimal"
         )
+    # Floating profit is not cash. Positive open PnL cannot expand new sizing,
+    # while floating loss must reduce current economic capacity.
+    economic_account_capital = min(
+        account_state.balance,
+        account_state.equity,
+    )
     # DEMO capability discovery may use the whole remaining account envelope,
     # but never the same loss capacity twice across concurrent Traders.
     hard_risk_headroom = max(
         Decimal(0),
-        account_state.equity - current_committed_stop_risk_usd,
+        economic_account_capital - current_committed_stop_risk_usd,
     )
     capital = account_capital_state(
-        assigned_capital_usd=account_state.equity,
+        assigned_capital_usd=economic_account_capital,
         hard_risk_headroom_usd=hard_risk_headroom,
         margin_headroom_usd=account_state.free_margin,
         survival_capital_usd=Decimal(0),
@@ -132,5 +138,5 @@ def build_ctrader_demo_cibo_sizing(
         plan=sizing.plan,
         request=request,
         mode=sizing.mode,
-        account_capital_usd=account_state.equity,
+        account_capital_usd=economic_account_capital,
     )
