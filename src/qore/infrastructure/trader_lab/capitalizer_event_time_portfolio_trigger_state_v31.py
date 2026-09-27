@@ -141,7 +141,7 @@ class V31Decision:
     identity_features_used: bool = False
 
 
-def _aware(value: str):
+def _aware(value: str) -> Any:
     return milestone._aware(value)
 
 
@@ -454,7 +454,7 @@ def _next_event_time(
     ordered: tuple[milestone.SimulatedTrade, ...],
     pointer: int,
     pending: dict[tuple[str, str], tuple[Any, str]],
-):
+) -> Any | None:
     next_entry = (
         _aware(ordered[pointer].entry_at)
         if pointer < len(ordered)
