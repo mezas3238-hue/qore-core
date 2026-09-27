@@ -8,6 +8,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py'
       - 'scripts/cibo_phase20_provider_uncertainty_contract.py'
+      - 'scripts/cibo_phase20_counterfactual_stress_matrix.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py'
   push:
@@ -18,6 +19,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py'
       - 'scripts/cibo_phase20_provider_uncertainty_contract.py'
+      - 'scripts/cibo_phase20_counterfactual_stress_matrix.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py'
 
@@ -44,12 +46,14 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py \
             scripts/cibo_phase20_provider_uncertainty_contract.py \
+            scripts/cibo_phase20_counterfactual_stress_matrix.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py
           mypy \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py \
-            scripts/cibo_phase20_provider_uncertainty_contract.py
+            scripts/cibo_phase20_provider_uncertainty_contract.py \
+            scripts/cibo_phase20_counterfactual_stress_matrix.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py
@@ -71,6 +75,9 @@ jobs:
           python scripts/cibo_phase20_provider_uncertainty_contract.py \
             --output phase20-output/phase20-provider-uncertainty-contract.json \
             > phase20-output/provider-uncertainty-stdout.json
+          python scripts/cibo_phase20_counterfactual_stress_matrix.py \
+            --output phase20-output/phase20-counterfactual-stress-matrix.json \
+            > phase20-output/counterfactual-stress-stdout.json
       - name: Seal Phase 20 provider uncertainty evidence
         run: |
           printf '%s\n' "$EVIDENCE_SHA" > phase20-output/git-sha.txt
@@ -78,6 +85,8 @@ jobs:
           sha256sum \
             phase20-provider-uncertainty-contract.json \
             provider-uncertainty-stdout.json \
+            phase20-counterfactual-stress-matrix.json \
+            counterfactual-stress-stdout.json \
             git-sha.txt > SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
