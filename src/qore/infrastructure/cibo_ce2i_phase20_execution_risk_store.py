@@ -241,6 +241,8 @@ def _to_json(item: Phase20ExecutedRiskEvidence) -> dict[str, object]:
         "decision_evidence_sha256": item.decision_evidence_sha256,
         "signal_fingerprint": item.signal_fingerprint,
         "qore_symbol": item.qore_symbol,
+        "provider_order_ref": item.provider_order_ref,
+        "side": item.side,
         "position_id": item.position_id,
         "authorized_source_volume": format(
             item.authorized_source_volume,
@@ -285,6 +287,8 @@ def _from_json(value: object) -> Phase20ExecutedRiskEvidence:
         ),
         signal_fingerprint=str(value["signal_fingerprint"]),
         qore_symbol=str(value["qore_symbol"]),
+        provider_order_ref=str(value["provider_order_ref"]),
+        side=str(value["side"]),
         position_id=int(str(value["position_id"])),
         authorized_source_volume=Decimal(
             str(value["authorized_source_volume"])
