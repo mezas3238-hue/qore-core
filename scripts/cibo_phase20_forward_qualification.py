@@ -290,6 +290,28 @@ def main() -> None:
         "collector_git_shas": sorted(collector_git_shas),
         "missing_collector_git_sha_decisions": missing_collector_git_sha,
     }
+    certification_blockers: list[str] = []
+    if report.status.value != "PASS":
+        certification_blockers.append("QUALIFICATION_NOT_PASS")
+    if report.failures:
+        certification_blockers.append("QUALIFICATION_HAS_FAILURES")
+    if not report.readiness.ready:
+        certification_blockers.append("FORWARD_READINESS_INCOMPLETE")
+    if missing_collector_git_sha:
+        certification_blockers.append("COLLECTOR_GIT_LINEAGE_INCOMPLETE")
+    if len(collector_git_shas) != 1:
+        certification_blockers.append("COLLECTOR_GIT_LINEAGE_NOT_SINGLE_SHA")
+    payload["final_certification"] = {
+        "status": (
+            "CIBO_CERTIFIED"
+            if not certification_blockers
+            else "PENDING"
+        ),
+        "eligible": not certification_blockers,
+        "blockers": certification_blockers,
+        "requires_exact_evidence_and_policy_digests": True,
+        "requires_single_collector_git_sha": True,
+    }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
