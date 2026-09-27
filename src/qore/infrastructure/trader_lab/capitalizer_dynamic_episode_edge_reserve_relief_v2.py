@@ -33,6 +33,9 @@ from qore.infrastructure.trader_lab import (
     capitalizer_factor_journey_probe_ranker_v11 as v11,
 )
 from qore.infrastructure.trader_lab import (
+    capitalizer_first_intervention_cross_trigger_optionality_v30 as v30,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_portfolio_drawdown_feasibility_episode_anatomy_v1 as anatomy,
 )
 from qore.infrastructure.trader_lab import (
@@ -299,7 +302,7 @@ def _replay_extension_from_current_prefix(
         action = trial_plan.get(trade_key)
 
         if action is not None:
-            family = sequence_v1.v30._mode_family(pretrade.mode)
+            family = v30._mode_family(pretrade.mode)
             if family is None:
                 raise sequence_v1.InvalidPlanError(
                     "V2 planned key has no current trigger family: "
@@ -317,12 +320,12 @@ def _replay_extension_from_current_prefix(
                     "V2 planned action became current Surface no-op: "
                     f"{trade_key}"
                 )
-            if action not in sequence_v1.v30._eligible_actions(family):
+            if action not in v30._eligible_actions(family):
                 raise sequence_v1.InvalidPlanError(
                     "V2 planned action no longer reachable after feedback: "
                     f"{trade_key}"
                 )
-            sequence_v1.v30._assert_common_path(
+            v30._assert_common_path(
                 key=trade_key,
                 trigger_at=trigger_at,
                 actions=(action,),
