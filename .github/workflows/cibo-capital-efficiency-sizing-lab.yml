@@ -100,6 +100,7 @@ jobs:
             scripts/cibo_phase19_simple_policy_baselines.py \
             scripts/cibo_phase19_causal_walk_forward.py \
             scripts/cibo_phase20_provider_uncertainty_contract.py \
+            scripts/cibo_phase20_counterfactual_stress_matrix.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
@@ -256,6 +257,7 @@ jobs:
             scripts/cibo_phase19_simple_policy_baselines.py \
             scripts/cibo_phase19_causal_walk_forward.py \
             scripts/cibo_phase20_provider_uncertainty_contract.py \
+            scripts/cibo_phase20_counterfactual_stress_matrix.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
