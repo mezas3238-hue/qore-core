@@ -281,6 +281,33 @@ def _reconcile_bound_outcome(
     )
 
 
+def append_reconciled_phase20_forward_outcome_from_seal(
+    *,
+    store: DurablePhase20ForwardEvidenceStore,
+    decision: Phase20ForwardDecisionSeal,
+    settlement: CmaSettlementState,
+    executed_risk: Phase20ExecutedRiskEvidence,
+    reconciled_at: datetime,
+) -> VersionedPhase20ForwardEvidenceBook:
+    """Append terminal outcome using only restart-safe durable decision evidence."""
+
+    if not isinstance(store, DurablePhase20ForwardEvidenceStore):
+        raise CiboCapitalManagementError(
+            "Phase20D outcome store must be canonical durable store"
+        )
+    outcome = reconcile_phase20_forward_outcome_from_seal(
+        decision=decision,
+        settlement=settlement,
+        executed_risk=executed_risk,
+        reconciled_at=reconciled_at,
+    )
+    current = store.load()
+    return store.append_outcome(
+        outcome,
+        expected_generation=current.generation,
+    )
+
+
 def append_reconciled_phase20_forward_outcome(
     *,
     store: DurablePhase20ForwardEvidenceStore,
