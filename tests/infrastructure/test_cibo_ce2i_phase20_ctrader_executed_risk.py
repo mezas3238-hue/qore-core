@@ -167,6 +167,7 @@ def test_ctrader_executed_risk_uses_weighted_fill_slippage() -> None:
     assert evidence.fill_evidence_refs == ("90001", "90002")
     assert evidence.fill_reconciled is True
     assert evidence.mutation_outcome_known is True
+    assert evidence.capital_deployed_at == NOW + timedelta(milliseconds=200)
 
 
 def test_ctrader_executed_risk_rejects_partial_reconciliation() -> None:
