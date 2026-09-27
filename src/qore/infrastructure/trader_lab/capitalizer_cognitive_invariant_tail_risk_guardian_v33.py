@@ -20,6 +20,7 @@ import json
 import math
 from collections import Counter
 from dataclasses import asdict, dataclass
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -130,7 +131,7 @@ class _Episode:
     control_max_dd: Decimal
 
 
-def _aware(value: str):
+def _aware(value: str) -> datetime:
     return milestone._aware(value)
 
 
@@ -473,7 +474,10 @@ def _masked_predict(
     features: tuple[float, ...],
     mask: tuple[bool, ...],
 ) -> float:
-    if len(features) != model.feature_dimension or len(mask) != model.feature_dimension:
+    if (
+        len(features) != model.feature_dimension
+        or len(mask) != model.feature_dimension
+    ):
         raise ValueError("V33 masked prediction dimension mismatch")
     standardized = tuple(
         (features[index] - model.feature_mean[index])
