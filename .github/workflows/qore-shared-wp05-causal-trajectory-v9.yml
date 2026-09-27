@@ -1,0 +1,252 @@
+name: QORE Shared WP05 Causal Trajectory V9
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - docs/shared/QORE_SHARED_WP05_V9_CAUSAL_TRAJECTORY_DISCRIMINATION_PREREGISTRATION.md
+      - src/qore/infrastructure/core_stack_v2/temporal_hierarchy_causal_trajectory_v9.py
+      - tests/infrastructure/test_core_stack_v2_temporal_hierarchy_causal_trajectory_v9.py
+      - tests/infrastructure/test_shared_wp05_causal_trajectory_v9_protocol.py
+      - scripts/shared_wp05_causal_trajectory_v9.py
+      - scripts/shared_wp05_structural_failure_target_v2.py
+      - .github/workflows/qore-shared-wp05-causal-trajectory-v9.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-wp05-v9-consumed-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  causal-trajectory-v9:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Announce WP05 V9 pre-consumption validation
+        run: |
+          gh issue comment 643 --body "WP-05 V9 consumed-development workflow started — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Pre-consumption tests run before evidence recovery. R8 freezes trajectory representation/model/thresholds before R6/R5 scientific access. Fresh holdout remains CLOSED."
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Pre-consumption static and adversarial gate
+        run: |
+          ruff check             src/qore/infrastructure/core_stack_v2/temporal_hierarchy_causal_trajectory_v9.py             tests/infrastructure/test_core_stack_v2_temporal_hierarchy_causal_trajectory_v9.py             tests/infrastructure/test_shared_wp05_causal_trajectory_v9_protocol.py             scripts/shared_wp05_causal_trajectory_v9.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/temporal_hierarchy_causal_trajectory_v9.py             scripts/shared_wp05_causal_trajectory_v9.py
+          mypy             src/qore/infrastructure/core_stack_v2/temporal_hierarchy_causal_trajectory_v9.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_temporal_hierarchy_causal_trajectory_v9.py             tests/infrastructure/test_shared_wp05_causal_trajectory_v9_protocol.py             tests/infrastructure/test_core_stack_v2_temporal_hierarchy_target_contract.py             tests/infrastructure/test_shared_wp05_structural_failure_target_v2.py
+
+      - name: Recover immutable consumed R8 R6 R5 market evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/r8 input/r6 input/r5 result
+
+          download_artifact() {
+            local artifact_id="$1"
+            local output="$2"
+            local tmp="${output}.tmp"
+            rm -f "$tmp"
+            for attempt in 1 2 3 4; do
+              if gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$tmp"; then
+                mv "$tmp" "$output"
+                return 0
+              fi
+              rm -f "$tmp"
+              sleep $((attempt * 30))
+            done
+            return 1
+          }
+
+          download_artifact 10402199719 r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          download_artifact 10389112524 r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          download_artifact 10380044761 r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Run preregistered WP05 V9 consumed falsification
+        run: |
+          python scripts/shared_wp05_causal_trajectory_v9.py             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/wp05-causal-trajectory-v9.json             | tee result/summary.json
+
+      - name: Validate WP05 V9 scientific protocol
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(Path("result/wp05-causal-trajectory-v9.json").read_text())
+          assert p["fresh_holdout_opened"] is False
+          assert p["wp05_exit_gate_pass"] is False
+          assert p["target_contract"] == "HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2"
+          assert p["representation"] == "CAUSAL_PRE_SOURCE_TRAJECTORY_60_V9_001"
+          assert p["status"] in {
+              "WP05_V9_CAUSAL_TRAJECTORY_FROZEN_FOR_FRESH_HOLDOUT",
+              "WP05_V9_CAUSAL_TRAJECTORY_FALSIFIED",
+              "WP05_V9_PROTOCOL_FAILED",
+          }
+
+          if p["status"] == "WP05_V9_PROTOCOL_FAILED":
+              assert p["protocol_pass"] is False
+              raise AssertionError(f"V9 protocol failed closed: {p.get('reason')}")
+
+          assert p["protocol_pass"] is True
+          m=p["model"]
+          assert m["fit_partition"] == "r8"
+          assert m["feature_count"] == 60
+          assert len(m["fingerprint_sha256"]) == 64
+          assert len(m["representation_fingerprint_sha256"]) == 64
+          assert m["fit_terminal_count"] >= 10
+          assert m["fit_recovery_count"] >= 10
+          assert m["fit_censored_count"] >= 10
+          assert m["purged_discovery_count"] >= 0
+          assert m["discovery_observed_max"] < m["calibration_source_min"]
+          assert m["eventness_threshold_micros"] in {
+              500000,550000,600000,650000,700000,750000,800000
+          }
+          assert m["recovery_threshold_micros"] in {
+              550000,600000,650000,700000,750000,800000,850000,900000
+          }
+
+          g=p["governance"]
+          assert g["target_v2_required"] is True
+          assert g["v8_event_ontology_frozen"] is True
+          assert g["eventness_uses_censored_negative"] is True
+          assert g["recovery_contrast_excludes_censored"] is True
+          assert g["r8_chronological_discovery_calibration_only"] is True
+          assert g["r6_r5_unread_until_r8_model_frozen"] is True
+          assert g["r6_refit"] is False
+          assert g["r5_refit"] is False
+          assert g["r6_threshold_retuning"] is False
+          assert g["r5_threshold_retuning"] is False
+          assert g["runtime_future_market_used"] is False
+          assert g["trade_pnl_used"] is False
+          assert g["fresh_holdout_opened"] is False
+          assert g["knowledge_auto_promotion"] is False
+          assert g["shared_methodology_authority"] is False
+          assert g["shared_sizing_authority"] is False
+          assert g["shared_risk_authority"] is False
+          assert g["shared_order_authority"] is False
+          assert g["shared_execution_authority"] is False
+
+          if m["calibration_gate_pass"]:
+              assert m["calibration_terminal_preservation_bps"] >= 9800
+              assert p["partition_temporal_order_gate"] is True
+              fingerprints=p["partition_model_fingerprints"]
+              assert fingerprints["r8"] == fingerprints["r6"] == fingerprints["r5"]
+              assert fingerprints["r8"] == m["fingerprint_sha256"]
+              gate=p["frozen_development_gate"]
+              assert gate["minimum_false_declaration_reduction_bps"] == 2000
+              assert gate["minimum_terminal_detection_preservation_bps"] == 9500
+              assert gate["must_pass_partitions"] == ["r6","r5"]
+              for partition in ("r8","r6","r5"):
+                  r=p["partition_ranges"][partition]
+                  assert r["episode_count"] >= 6000
+                  assert r["complete_evidence_count"] >= 6000
+                  assert r["terminal_event_count"] > 0
+                  assert r["verified_recovery_event_count"] > 0
+                  assert r["censored_unknown_count"] > 0
+          else:
+              assert p["development_gate_pass"] is False
+              assert set(p["partition_ranges"]) == {"r8"}
+              assert set(p["evaluations"]) == {"r8"}
+              assert set(p["partition_model_fingerprints"]) == {"r8"}
+          PY
+
+      - name: Bind result
+        run: |
+          echo "${GITHUB_SHA}" > result/git-sha.txt
+          (
+            cd result
+            find . -type f ! -name SHA256SUMS -print0               | sort -z               | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-wp05-causal-trajectory-v9-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report WP05 V9 result
+        if: always()
+        run: |
+          if [ ! -f result/wp05-causal-trajectory-v9.json ]; then
+            gh issue comment 643 --body "WP-05 V9 run \`${GITHUB_RUN_ID}\` produced no scientific payload. No V9 result accepted; fresh holdout remains CLOSED. Inspect technical failure."
+            exit 0
+          fi
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          p=json.loads(Path("result/wp05-causal-trajectory-v9.json").read_text())
+          lines=[
+              "## WP-05 V9 causal-trajectory result",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- GitHub Actions run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- status: **{p['status']}**",
+              f"- protocol_pass: **{p['protocol_pass']}**",
+              f"- development_gate_pass: **{p['development_gate_pass']}**",
+              "- target: **HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2**",
+              "- representation: **30m pre-source / 6x5m / 60 features**",
+              "- heads: **eventness + recovery contrast**",
+              "- fresh holdout opened: **False**",
+          ]
+          if "model" in p:
+              m=p["model"]
+              lines.extend([
+                  f"- model fingerprint: `{m['fingerprint_sha256']}`",
+                  f"- representation fingerprint: `{m['representation_fingerprint_sha256']}`",
+                  f"- R8 calibration gate pass: **{m['calibration_gate_pass']}**",
+                  f"- R8 calibration false reduction: **{m['calibration_false_reduction_bps']} bps**",
+                  f"- R8 calibration terminal preservation: **{m['calibration_terminal_preservation_bps']} bps**",
+                  f"- eventness threshold: **{m['eventness_threshold_micros']} micros**",
+                  f"- recovery threshold: **{m['recovery_threshold_micros']} micros**",
+              ])
+          lines.append("")
+          lines.append("Partition results:")
+          for partition in ("r8","r6","r5"):
+              if partition not in p.get("evaluations", {}):
+                  continue
+              e=p["evaluations"][partition]
+              r=p["partition_ranges"][partition]
+              lines.append(
+                  f"- {partition.upper()}: terminal={r['terminal_event_count']}; verified-recovery={r['verified_recovery_event_count']}; censored={r['censored_unknown_count']}; false={e['baseline_false_declaration_count']} -> {e['trajectory_false_declaration_count']}; missed terminals={e['trajectory_missed_terminal_count']}; recovery-supported={e['recovery_supported_count']}; terminal-supported={e['terminal_supported_count']}; unresolved={e['unresolved_count']}; false reduction={e['false_declaration_reduction_bps']} bps; terminal preservation={e['terminal_detection_preservation_bps']} bps"
+              )
+          if p["status"] == "WP05_V9_CAUSAL_TRAJECTORY_FROZEN_FOR_FRESH_HOLDOUT":
+              lines.append(
+                  "V9 survives consumed development. Freeze this exact identity and preregister one independent fresh WP-05 holdout before acquisition."
+              )
+          elif p.get("model", {}).get("calibration_gate_pass") is False:
+              lines.append(
+                  "V9 falsified inside R8 calibration; R6/R5 were not read scientifically. Do not retune V9 and keep fresh holdout closed."
+              )
+          else:
+              lines.append(
+                  "V9 is falsified on consumed development. Do not retune against R6/R5 or weaken the gate; freeze the result and design a structurally new V10."
+              )
+          Path("result/wp05-v9-issue-update.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 643 --body-file result/wp05-v9-issue-update.md
