@@ -209,6 +209,28 @@ def test_forward_store_survives_restart_with_decision_and_outcome(
     assert len(restarted.outcomes) == 1
 
 
+def test_forward_store_persists_physical_seal_timing(tmp_path: Path) -> None:
+    sealed_at = NOW + timedelta(seconds=1)
+    deadline_at = NOW + timedelta(seconds=2)
+    path = tmp_path / "phase20-forward-timing.json"
+    store = DurablePhase20ForwardEvidenceStore(
+        path,
+        clock=lambda: sealed_at,
+    )
+
+    book = store.seal_decision(
+        _decision(),
+        expected_generation=0,
+        seal_deadline_at=deadline_at,
+    )
+    seal = book.decisions[0]
+
+    assert seal.sealed_at == sealed_at
+    assert seal.seal_deadline_at == deadline_at
+    assert seal.sealed_within_deadline is True
+    assert DurablePhase20ForwardEvidenceStore(path).load() == book
+
+
 def test_forward_store_rejects_synthetic_decision(tmp_path: Path) -> None:
     store = DurablePhase20ForwardEvidenceStore(tmp_path / "forward.json")
     with pytest.raises(
