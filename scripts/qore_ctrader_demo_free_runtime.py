@@ -1078,6 +1078,12 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             activated_at=phase20_bootstrap_at,
         )
     )
+    phase20_known_open_position_ids = tuple(
+        sorted(
+            item.position_id
+            for item in demo_sink.position_service.positions()
+        )
+    )
     # Forward stores are authoritative evidence. Corruption must fail startup.
     phase20_evidence_store.load()
     phase20_policy_store.load()
@@ -1444,12 +1450,6 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         symbol: gateway.read_symbol(symbol, now=arm_started_at)
                         for symbol in ("XAUUSD", "EURUSD", "GBPUSD", "GBPJPY", "AUDJPY")
                     }
-                    arm_open_position_ids = tuple(
-                        sorted(
-                            item.position_id
-                            for item in demo_sink.position_service.positions()
-                        )
-                    )
                     arm_lifecycle = SimpleNamespace(value="DEMO_FREE")
                     arm_blocked = False
                     m5_session_open = {
@@ -1572,7 +1572,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         "arm_account": arm_account,
                         "arm_snapshot": arm_snapshot,
                         "arm_specs": arm_specs,
-                        "arm_open_position_ids": arm_open_position_ids,
+                        "arm_open_position_ids": phase20_known_open_position_ids,
                         "phase20_terminals": phase20_terminals,
                         "phase20_staged_results": phase20_staged_results,
                         "phase20_eligible": True,
@@ -2958,6 +2958,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 cursor_store=phase20_settlement_cursor_store,
                 initial_cursor=phase20_assigned_base.activated_at,
                 observed_at=settlement_observed_at,
+            )
+            phase20_known_open_position_ids = (
+                settlement_observation.open_position_ids
             )
             if settlement_observation.applied_deal_ids:
                 _log(
