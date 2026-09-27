@@ -100,3 +100,10 @@ def test_demo_runtime_exposes_no_active_trader_risk_fraction_or_private_capital_
     assert '"trader_runtime_sizing_authority": False' in source
     assert '"cibo_runtime_sizing_authority": True' in source
     assert '"cibo_sizing_scope": "ACCOUNT"' in source
+
+
+def test_phase20_runtime_never_assumes_zero_pending_broker_risk() -> None:
+    source = RUNTIME.read_text(encoding="utf-8")
+
+    assert 'pending_broker_worst_case_loss_usd=Decimal("0")' not in source
+    assert source.count("demo_sink.registry.pending_stop_risk(") == 2
