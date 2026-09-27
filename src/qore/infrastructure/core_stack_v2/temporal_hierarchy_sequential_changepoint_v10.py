@@ -349,15 +349,22 @@ def build_sequential_checkpoint_evidence(
     as_of: datetime,
     nas_bars: Sequence[MarketBarLike],
     nas_source_index: int,
+    nas_checkpoint_index: int,
+    nas_velocity_index: int,
     sp500_bars: Sequence[MarketBarLike],
     sp500_source_index: int,
+    sp500_checkpoint_index: int,
     us30_bars: Sequence[MarketBarLike],
     us30_source_index: int,
+    us30_checkpoint_index: int,
 ) -> SequentialCheckpointEvidence:
-    """Build one checkpoint using no market bar after that checkpoint."""
+    """Build one causal checkpoint from observations available by wall-clock as-of."""
 
     if checkpoint_minutes not in V10_CHECKPOINTS_MINUTES:
         raise ValueError("V10 checkpoint outside frozen schedule")
+    elapsed_minutes = (_utc(as_of) - _utc(source.as_of)).total_seconds() / 60.0
+    if abs(elapsed_minutes - checkpoint_minutes) > 1e-9:
+        raise ValueError("V10 checkpoint as_of must match frozen wall-clock schedule")
     if not source.evidence_complete:
         return SequentialCheckpointEvidence(
             episode_id=source.episode_id,
@@ -371,13 +378,26 @@ def build_sequential_checkpoint_evidence(
         )
     if nas_source_index < 19:
         raise ValueError("V10 source requires 20-bar structural frontier")
-    for bars, index in (
-        (nas_bars, nas_source_index),
-        (sp500_bars, sp500_source_index),
-        (us30_bars, us30_source_index),
-    ):
-        if index < 0 or index + checkpoint_minutes >= len(bars):
+
+    index_triplets = (
+        (nas_bars, nas_source_index, nas_checkpoint_index),
+        (sp500_bars, sp500_source_index, sp500_checkpoint_index),
+        (us30_bars, us30_source_index, us30_checkpoint_index),
+    )
+    for bars, source_index, checkpoint_index in index_triplets:
+        if (
+            source_index < 0
+            or checkpoint_index < source_index
+            or checkpoint_index >= len(bars)
+        ):
             raise ValueError("V10 checkpoint market evidence incomplete")
+        if checkpoint_minutes == 0 and checkpoint_index != source_index:
+            raise ValueError("V10 source checkpoint must use exact source observation")
+        if checkpoint_minutes > 0 and checkpoint_index <= source_index:
+            raise ValueError("V10 post-source checkpoint requires new causal observation")
+
+    if not nas_source_index <= nas_velocity_index <= nas_checkpoint_index:
+        raise ValueError("V10 velocity anchor must be causal and checkpoint-bounded")
 
     prior = nas_bars[nas_source_index - 19 : nas_source_index + 1]
     if len(prior) != 20:
@@ -391,9 +411,9 @@ def build_sequential_checkpoint_evidence(
     source_scale = _safe_range(prior)
     source_bar = nas_bars[nas_source_index]
     post = tuple(
-        nas_bars[nas_source_index + 1 : nas_source_index + checkpoint_minutes + 1]
+        nas_bars[nas_source_index + 1 : nas_checkpoint_index + 1]
     )
-    current = source_bar if not post else post[-1]
+    current = nas_bars[nas_checkpoint_index]
     distances = tuple(
         _fixed_distance(
             bar=item,
@@ -460,19 +480,20 @@ def build_sequential_checkpoint_evidence(
                 break
             safe_reclaim_streak += 1
 
-    all_path = (source_bar,) + post
-    velocity_horizon = min(3, max(0, len(all_path) - 1))
+    velocity_horizon_minutes = min(3, checkpoint_minutes)
     adverse_velocity = 0.0
     favorable_velocity = 0.0
-    if velocity_horizon:
-        past = all_path[-1 - velocity_horizon]
+    if velocity_horizon_minutes:
+        past = nas_bars[nas_velocity_index]
         past_distance = _fixed_distance(
             bar=past,
             frontier=frontier,
             scale=source_scale,
             anchor_direction=anchor,
         )
-        delta = (current_distance - past_distance) / velocity_horizon
+        delta = (
+            current_distance - past_distance
+        ) / velocity_horizon_minutes
         adverse_velocity = max(0.0, -delta)
         favorable_velocity = max(0.0, delta)
 
@@ -480,18 +501,18 @@ def build_sequential_checkpoint_evidence(
         1.0 if not post else _safe_range(post) / source_scale
     )
 
-    peer_adverse: list[float] = []
-    for bars, index in (
-        (sp500_bars, sp500_source_index),
-        (us30_bars, us30_source_index),
-    ):
-        peer_adverse.append(
-            _adverse_return(
-                source_close=bars[index].close,
-                current_close=bars[index + checkpoint_minutes].close,
-                anchor_direction=anchor,
-            )
-        )
+    peer_adverse = (
+        _adverse_return(
+            source_close=sp500_bars[sp500_source_index].close,
+            current_close=sp500_bars[sp500_checkpoint_index].close,
+            anchor_direction=anchor,
+        ),
+        _adverse_return(
+            source_close=us30_bars[us30_source_index].close,
+            current_close=us30_bars[us30_checkpoint_index].close,
+            anchor_direction=anchor,
+        ),
+    )
     peer_adverse_mean = fmean(peer_adverse)
     peer_breadth = fmean(float(value > 0.0) for value in peer_adverse)
     peer_contradiction = fmean(max(0.0, -value) for value in peer_adverse)
@@ -524,7 +545,6 @@ def build_sequential_checkpoint_evidence(
         breach_observed=breach_observed,
         safe_reclaim_streak=safe_reclaim_streak,
     )
-
 
 def _robust_center_scale(
     rows: tuple[tuple[float, ...], ...],
