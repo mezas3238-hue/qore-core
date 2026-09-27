@@ -109,6 +109,8 @@ jobs:
           assert report["cross_era_invariant_subspace"] is True
           assert report["conflicting_sign_features_zeroed"] is True
           assert report["chronological_calibration_folds"] == 5
+          assert report["minimum_chronological_calibration_examples"] == 10
+          assert report["sparse_family_policy"] == "FAIL_CLOSED_KEEP_SURFACE"
           assert report["residual_lower_quantile"] == "0.2"
           assert report["metacognitive_uncertainty_can_only_preserve_surface"] is True
           assert report["l2_prior_strength_effective_trades"] == "12.0"
