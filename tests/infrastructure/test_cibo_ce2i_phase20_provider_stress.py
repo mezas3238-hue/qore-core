@@ -16,7 +16,11 @@ from qore.infrastructure.cibo_ce2i_chronological_replay import (
 )
 from qore.infrastructure.cibo_ce2i_phase20_provider_stress import (
     Phase20ProviderStressScenario,
+    Phase20ProviderStressStatus,
     build_phase20_counterfactual_provider_stress,
+    evaluate_phase20_counterfactual_provider_stress,
+    phase20c_synthetic_predeclared_stress_scenarios,
+    run_phase20c_counterfactual_stress_matrix,
 )
 from qore.infrastructure.cibo_provider_economic_normalization import (
     ProviderEconomicObservation,
@@ -99,6 +103,7 @@ def test_counterfactual_stress_preserves_geometry_and_stresses_economics() -> No
     assert result.economics.stressed_margin_per_volume_usd == Decimal("40")
     assert result.opportunity.stop_loss_per_volume == Decimal("20.90")
     assert result.opportunity.margin_per_volume == Decimal("40")
+    assert result.economics.minimum_executable_volume == Decimal("0.01")
 
 
 def test_current_snapshot_remains_explicitly_counterfactual_for_old_trade() -> None:
@@ -134,6 +139,21 @@ def test_stress_parameters_cannot_improve_provider_economics() -> None:
         )
 
 
+def test_outcome_tuned_counterfactual_scenario_is_rejected() -> None:
+    with pytest.raises(CiboCapitalManagementError, match="governance drift"):
+        Phase20ProviderStressScenario(
+            scenario_id="bad-outcome-tuned",
+            evidence_id="bad",
+            minimum_spread_ticks=Decimal("0"),
+            spread_multiplier=Decimal("1"),
+            commission_multiplier=Decimal("1"),
+            minimum_slippage_reserve_per_volume_usd=Decimal("0"),
+            margin_multiplier=Decimal("1"),
+            broker_risk_buffer=Decimal("1"),
+            outcome_tuned=True,
+        )
+
+
 def test_provider_symbol_mismatch_fails_closed() -> None:
     with pytest.raises(CiboCapitalManagementError, match="QORE symbol mismatch"):
         build_phase20_counterfactual_provider_stress(
@@ -141,3 +161,113 @@ def test_provider_symbol_mismatch_fails_closed() -> None:
             observation=_observation(qore_symbol="GBPUSD"),
             scenario=_scenario(),
         )
+
+
+def test_liquidity_unavailable_is_explicit_fail_closed_result() -> None:
+    scenario = Phase20ProviderStressScenario(
+        scenario_id="no-liquidity",
+        evidence_id="counterfactual",
+        minimum_spread_ticks=Decimal("0"),
+        spread_multiplier=Decimal("1"),
+        commission_multiplier=Decimal("1"),
+        minimum_slippage_reserve_per_volume_usd=Decimal("0"),
+        margin_multiplier=Decimal("1"),
+        broker_risk_buffer=Decimal("1"),
+        available_liquidity_volume_cap=Decimal("0"),
+    )
+    evaluation = evaluate_phase20_counterfactual_provider_stress(
+        causal=_causal(),
+        observation=_observation(),
+        scenario=scenario,
+    )
+
+    assert (
+        evaluation.status
+        is Phase20ProviderStressStatus.FAIL_CLOSED_PROVIDER_CONSTRAINT
+    )
+    assert evaluation.reason == "LIQUIDITY_BELOW_MINIMUM_EXECUTABLE"
+    assert evaluation.result is None
+    with pytest.raises(CiboCapitalManagementError, match="infeasible"):
+        build_phase20_counterfactual_provider_stress(
+            causal=_causal(),
+            observation=_observation(),
+            scenario=scenario,
+        )
+
+
+def test_minimum_volume_cliff_is_explicit_fail_closed_result() -> None:
+    scenario = Phase20ProviderStressScenario(
+        scenario_id="minimum-volume-cliff",
+        evidence_id="counterfactual",
+        minimum_spread_ticks=Decimal("0"),
+        spread_multiplier=Decimal("1"),
+        commission_multiplier=Decimal("1"),
+        minimum_slippage_reserve_per_volume_usd=Decimal("0"),
+        margin_multiplier=Decimal("1"),
+        broker_risk_buffer=Decimal("1"),
+        minimum_volume_floor=Decimal("2"),
+        maximum_volume_cap=Decimal("1"),
+    )
+    evaluation = evaluate_phase20_counterfactual_provider_stress(
+        causal=_causal(),
+        observation=_observation(),
+        scenario=scenario,
+    )
+
+    assert (
+        evaluation.status
+        is Phase20ProviderStressStatus.FAIL_CLOSED_PROVIDER_CONSTRAINT
+    )
+    assert evaluation.reason == "MAXIMUM_VOLUME_BELOW_STRESSED_MINIMUM"
+    assert evaluation.result is None
+
+
+def test_phase20c_predeclared_matrix_is_monotone_and_preserves_geometry() -> None:
+    evaluations = run_phase20c_counterfactual_stress_matrix(
+        causal=_causal(),
+        observation=_observation(),
+        scenarios=phase20c_synthetic_predeclared_stress_scenarios(),
+    )
+    assert len(evaluations) == 9
+    assert evaluations[0].scenario_id == "CF_BASELINE_CURRENT_SNAPSHOT"
+    baseline = evaluations[0].result
+    assert baseline is not None
+
+    failed = [row for row in evaluations if row.result is None]
+    assert {row.scenario_id for row in failed} == {
+        "CF_LIQUIDITY_UNAVAILABLE",
+        "CF_MINIMUM_VOLUME_CLIFF",
+    }
+
+    for row in evaluations:
+        if row.result is None:
+            continue
+        assert (
+            row.result.economics.stressed_execution_cost_per_volume_usd
+            >= baseline.economics.stressed_execution_cost_per_volume_usd
+        )
+        assert (
+            row.result.economics.stressed_margin_per_volume_usd
+            >= baseline.economics.stressed_margin_per_volume_usd
+        )
+        assert (
+            row.result.opportunity.stop_loss_per_volume
+            >= baseline.opportunity.stop_loss_per_volume
+        )
+        assert (
+            row.result.opportunity.intended_entry
+            == baseline.opportunity.intended_entry
+        )
+        assert row.result.opportunity.stop_loss == baseline.opportunity.stop_loss
+        assert (
+            row.result.opportunity.take_profit
+            == baseline.opportunity.take_profit
+        )
+
+    delayed = next(
+        row
+        for row in evaluations
+        if row.scenario_id == "CF_EXECUTION_DELAY_2000MS"
+    )
+    assert delayed.result is not None
+    assert delayed.result.economics.stressed_execution_delay_ms == Decimal("2000")
