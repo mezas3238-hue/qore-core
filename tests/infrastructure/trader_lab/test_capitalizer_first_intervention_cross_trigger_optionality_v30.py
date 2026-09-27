@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from qore.infrastructure.trader_lab import (
-    capitalizer_first_intervention_cross_trigger_optionality_v30 as v30,
+    capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
 )
 from qore.infrastructure.trader_lab import (
-    capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
+    capitalizer_first_intervention_cross_trigger_optionality_v30 as v30,
 )
 from qore.infrastructure.trader_lab import (
     capitalizer_regularized_causal_state_space_v25 as v25,
