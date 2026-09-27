@@ -505,7 +505,8 @@ def fit_competing_survival_model(
     discovery = tuple(
         item
         for item in raw_discovery
-        if _utc(item.observed_at) < calibration_source_min
+        if item.source.evidence_complete
+        and _utc(item.observed_at) < calibration_source_min
     )
     purged_discovery_count = len(raw_discovery) - len(discovery)
     if len(discovery) < 100:
