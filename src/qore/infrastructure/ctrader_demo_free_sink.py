@@ -197,7 +197,14 @@ class CTraderDemoFreeSink:
         return self._book.account_capital
 
     def committed_stop_risk(self, *, now: datetime) -> Decimal:
-        return self._registry.committed_stop_risk(now=now)
+        return self._registry.committed_stop_risk(
+            now=now,
+            provider_order_status=lambda provider_order_ref: (
+                self._positions.order_status(
+                    order_id=int(provider_order_ref),
+                )
+            ),
+        )
 
     def capital_for(self, trader: TraderLineage) -> Decimal:
         """Compatibility alias; no Trader receives a private capital budget."""
