@@ -11,6 +11,7 @@ execution, DEMO, LIVE, real-capital or merge authority.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -174,11 +175,7 @@ def _certification_for(
     )
 
 
-def _expect_capital_error(operation: object) -> bool:
-    if not callable(operation):
-        raise CiboCapitalManagementError(
-            "Phase20F expected-failure operation must be callable"
-        )
+def _expect_capital_error(operation: Callable[[], object]) -> bool:
     try:
         operation()
     except CiboCapitalManagementError:
