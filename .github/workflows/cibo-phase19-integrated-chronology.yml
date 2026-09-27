@@ -15,6 +15,7 @@ on:
       - 'scripts/cibo_phase19_capital_collision_stress.py'
       - 'scripts/cibo_phase19_hypergraph_validation.py'
       - 'scripts/cibo_phase19_simple_policy_baselines.py'
+      - 'scripts/cibo_phase19_causal_walk_forward.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_interaction_evidence.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_temporal_stability.py'
@@ -25,6 +26,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase19_capital_collision.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_hypergraph.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_simple_policy.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase19_walk_forward.py'
       - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py'
@@ -36,6 +38,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase19_capital_collision.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_hypergraph.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_simple_policy.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase19_walk_forward.py'
   push:
     branches:
       - agent/cibo-capital-efficiency-sizing-lab-001
@@ -51,6 +54,7 @@ on:
       - 'scripts/cibo_phase19_capital_collision_stress.py'
       - 'scripts/cibo_phase19_hypergraph_validation.py'
       - 'scripts/cibo_phase19_simple_policy_baselines.py'
+      - 'scripts/cibo_phase19_causal_walk_forward.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_interaction_evidence.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_temporal_stability.py'
@@ -61,6 +65,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase19_capital_collision.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_hypergraph.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_simple_policy.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase19_walk_forward.py'
       - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py'
@@ -72,6 +77,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase19_capital_collision.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_hypergraph.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_simple_policy.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase19_walk_forward.py'
 
 permissions:
   contents: read
@@ -106,6 +112,7 @@ jobs:
             scripts/cibo_phase19_capital_collision_stress.py \
             scripts/cibo_phase19_hypergraph_validation.py \
             scripts/cibo_phase19_simple_policy_baselines.py \
+            scripts/cibo_phase19_causal_walk_forward.py \
             src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py \
             src/qore/infrastructure/cibo_ce2i_phase19_interaction_evidence.py \
             src/qore/infrastructure/cibo_ce2i_phase19_temporal_stability.py \
@@ -116,6 +123,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase19_capital_collision.py \
             src/qore/infrastructure/cibo_ce2i_phase19_hypergraph.py \
             src/qore/infrastructure/cibo_ce2i_phase19_simple_policy.py \
+            src/qore/infrastructure/cibo_ce2i_phase19_walk_forward.py \
             tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py \
             tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py \
             tests/infrastructure/test_cibo_ce2i_phase19_temporal_stability.py \
@@ -125,7 +133,8 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase19_dependence.py \
             tests/infrastructure/test_cibo_ce2i_phase19_capital_collision.py \
             tests/infrastructure/test_cibo_ce2i_phase19_hypergraph.py \
-            tests/infrastructure/test_cibo_ce2i_phase19_simple_policy.py
+            tests/infrastructure/test_cibo_ce2i_phase19_simple_policy.py \
+            tests/infrastructure/test_cibo_ce2i_phase19_walk_forward.py
           mypy \
             scripts/cibo_phase19_integrated_chronology_replay.py \
             scripts/cibo_phase19_temporal_interaction_atlas.py \
@@ -137,6 +146,7 @@ jobs:
             scripts/cibo_phase19_capital_collision_stress.py \
             scripts/cibo_phase19_hypergraph_validation.py \
             scripts/cibo_phase19_simple_policy_baselines.py \
+            scripts/cibo_phase19_causal_walk_forward.py \
             src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py \
             src/qore/infrastructure/cibo_ce2i_phase19_interaction_evidence.py \
             src/qore/infrastructure/cibo_ce2i_phase19_temporal_stability.py \
@@ -146,7 +156,8 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase19_dependence.py \
             src/qore/infrastructure/cibo_ce2i_phase19_capital_collision.py \
             src/qore/infrastructure/cibo_ce2i_phase19_hypergraph.py \
-            src/qore/infrastructure/cibo_ce2i_phase19_simple_policy.py
+            src/qore/infrastructure/cibo_ce2i_phase19_simple_policy.py \
+            src/qore/infrastructure/cibo_ce2i_phase19_walk_forward.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py \
             tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py \
@@ -157,7 +168,8 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase19_dependence.py \
             tests/infrastructure/test_cibo_ce2i_phase19_capital_collision.py \
             tests/infrastructure/test_cibo_ce2i_phase19_hypergraph.py \
-            tests/infrastructure/test_cibo_ce2i_phase19_simple_policy.py
+            tests/infrastructure/test_cibo_ce2i_phase19_simple_policy.py \
+            tests/infrastructure/test_cibo_ce2i_phase19_walk_forward.py
 
   replay:
     needs: quality
@@ -313,6 +325,19 @@ jobs:
             --output phase19-output/phase19-simple-policy-baselines.json \
             > phase19-output/simple-policy-baselines-stdout.json
 
+      - name: Run causal normalized walk-forward
+        run: |
+          python scripts/cibo_phase19_causal_walk_forward.py \
+            --gbpjpy source/gbpjpy/phase18-gbpjpy-r38-bound-trades.jsonl \
+            --gbpusd source/gbpusd/phase18-gbpusd-r43-bound-trades.jsonl \
+            --audjpy source/audjpy/phase18-audjpy-r42-bound-trades.jsonl \
+            --eurusd source/eurusd/phase18-eurusd-r38-bound-trades.jsonl \
+            --xauusd source/xauusd/phase18-xauusd-r34-bound-trades.jsonl \
+            --vt08 source/vt08/phase18-vt08-r315-fundednext-trades.jsonl \
+            --vt31 source/vt31/phase18-vt31-v4-bound-trades.jsonl \
+            --output phase19-output/phase19-causal-walk-forward.json \
+            > phase19-output/causal-walk-forward-stdout.json
+
       - name: Build temporal interaction atlas
         run: |
           python scripts/cibo_phase19_temporal_interaction_atlas.py \
@@ -350,6 +375,7 @@ jobs:
             phase19-capital-collision-stress.json \
             phase19-opportunity-hypergraph.json \
             phase19-simple-policy-baselines.json \
+            phase19-causal-walk-forward.json \
             replay-stdout.json \
             interaction-atlas-stdout.json \
             temporal-stability-stdout.json \
@@ -360,6 +386,7 @@ jobs:
             capital-collision-stress-stdout.json \
             opportunity-hypergraph-stdout.json \
             simple-policy-baselines-stdout.json \
+            causal-walk-forward-stdout.json \
             git-sha.txt > SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
 
