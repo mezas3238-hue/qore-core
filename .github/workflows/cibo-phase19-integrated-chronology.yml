@@ -44,12 +44,18 @@ on:
       - 'scripts/cibo_phase19_provider_economics_inventory.py'
       - 'scripts/cibo_phase19_normalized_capital_mechanics.py'
       - 'scripts/cibo_phase19_temporal_null_validation.py'
+      - 'scripts/cibo_phase19_overlap_dependence_validation.py'
+      - 'scripts/cibo_phase19_capital_collision_stress.py'
+      - 'scripts/cibo_phase19_hypergraph_validation.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_portfolio_replay.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_interaction_evidence.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_temporal_stability.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_provider_evidence_audit.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_normalized_capital.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase19_temporal_null.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase19_dependence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase19_capital_collision.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase19_hypergraph.py'
       - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_portfolio_replay.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_interaction_evidence.py'
@@ -57,6 +63,9 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase19_provider_evidence_audit.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_normalized_capital.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase19_temporal_null.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase19_dependence.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase19_capital_collision.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase19_hypergraph.py'
 
 permissions:
   contents: read
@@ -310,6 +319,11 @@ jobs:
             phase19-temporal-stability-validation.json \
             phase19-frozen-training-overlap-atlas.json \
             phase19-provider-economics-inventory.json \
+            phase19-normalized-capital-mechanics.json \
+            phase19-temporal-null-validation.json \
+            phase19-overlap-dependence-validation.json \
+            phase19-capital-collision-stress.json \
+            phase19-opportunity-hypergraph.json \
             replay-stdout.json \
             interaction-atlas-stdout.json \
             temporal-stability-stdout.json \
