@@ -76,10 +76,14 @@ def test_v10_checkpoint_cannot_read_bars_after_checkpoint() -> None:
         as_of=source.as_of + timedelta(minutes=5),
         nas_bars=nas,
         nas_source_index=source_index,
+        nas_checkpoint_index=source_index + 5,
+        nas_velocity_index=source_index + 2,
         sp500_bars=sp,
         sp500_source_index=source_index,
+        sp500_checkpoint_index=source_index + 5,
         us30_bars=us,
         us30_source_index=source_index,
+        us30_checkpoint_index=source_index + 5,
     )
 
     nas[source_index + 6] = Bar(
@@ -97,10 +101,14 @@ def test_v10_checkpoint_cannot_read_bars_after_checkpoint() -> None:
         as_of=source.as_of + timedelta(minutes=5),
         nas_bars=nas,
         nas_source_index=source_index,
+        nas_checkpoint_index=source_index + 5,
+        nas_velocity_index=source_index + 2,
         sp500_bars=sp,
         sp500_source_index=source_index,
+        sp500_checkpoint_index=source_index + 5,
         us30_bars=us,
         us30_source_index=source_index,
+        us30_checkpoint_index=source_index + 5,
     )
 
     assert first == second
@@ -127,10 +135,14 @@ def test_v10_checkpoint_responds_to_causal_breach_and_reclaim() -> None:
         as_of=source.as_of + timedelta(minutes=5),
         nas_bars=nas,
         nas_source_index=source_index,
+        nas_checkpoint_index=source_index + 5,
+        nas_velocity_index=source_index + 2,
         sp500_bars=sp,
         sp500_source_index=source_index,
+        sp500_checkpoint_index=source_index + 5,
         us30_bars=us,
         us30_source_index=source_index,
+        us30_checkpoint_index=source_index + 5,
     )
 
     assert evidence.breach_observed is True
