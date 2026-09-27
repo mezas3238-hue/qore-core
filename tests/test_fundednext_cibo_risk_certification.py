@@ -48,3 +48,37 @@ def test_component_certification_binds_cibo_as_fundednext_capital_authority() ->
     assert risk["capital_management_strategy_authority"] is False
     assert risk["runtime_sizing_authority"] is False
     assert risk["decisions"] == ["ALLOW", "REDUCE", "REJECT"]
+
+
+
+def test_component_certification_covers_all_seven_cibo_lineages() -> None:
+    payload = build_certification(git_sha=_SHA)
+    scope = payload["scope"]
+    assert isinstance(scope, dict)
+    assert scope["trader_count"] == 7
+    traders = scope["traders"]
+    assert isinstance(traders, dict)
+    assert set(traders) == {
+        "VT08_FOREX",
+        "R34_XAUUSD",
+        "R38_EURUSD",
+        "R43_GBPUSD",
+        "R38_GBPJPY",
+        "R42_AUDJPY",
+        "VT31_NAS100",
+    }
+    assert scope["legacy_trader_sizing_execution_authority"] is False
+
+
+def test_component_certification_binds_survival_then_protected_capacity_law() -> None:
+    payload = build_certification(git_sha=_SHA)
+    cibo = payload["cibo"]
+    assert isinstance(cibo, dict)
+    assert cibo["account_scoped_sizing"] is True
+    assert cibo["all_loaded_traders_use_cibo_sizing"] is True
+    assert cibo["survival_capital_source"] == "QORE_ACCOUNT_HEAT_CAP"
+    assert cibo["protected_capital_source"] == "EARNED_CLOSED_BALANCE_CUSHION"
+    assert cibo["before_base_protection_mode"] == "SURVIVAL_MINIMAL_SEED"
+    assert cibo["after_base_protection_mode"] == "PROTECTED_FULL_CAPACITY"
+    assert cibo["floating_pnl_counts_as_protected_capital"] is False
+    assert cibo["legacy_trader_risk_fraction_execution_authority"] is False
