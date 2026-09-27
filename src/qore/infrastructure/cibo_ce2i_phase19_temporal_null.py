@@ -27,8 +27,17 @@ from qore.infrastructure.cibo_ce2i_phase19_portfolio_replay import (
     Phase19ChronologicalOpportunity,
 )
 
-_PAIR_KEYS = tuple(
-    tuple(sorted((left, right), key=lambda trader: trader.value))
+def _ordered_pair(
+    left: TraderLineage,
+    right: TraderLineage,
+) -> tuple[TraderLineage, TraderLineage]:
+    if left.value <= right.value:
+        return left, right
+    return right, left
+
+
+_PAIR_KEYS: tuple[tuple[TraderLineage, TraderLineage], ...] = tuple(
+    _ordered_pair(left, right)
     for index, left in enumerate(PHASE19_REQUIRED_TRADERS)
     for right in PHASE19_REQUIRED_TRADERS[index + 1 :]
 )
