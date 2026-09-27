@@ -5,8 +5,9 @@ the pre-registered population gate, reconstructs the frozen minimal-seed hard
 constraint baseline, and evaluates four contiguous temporal folds without
 refitting.
 
-Decision-time provider costs are explicit proxies. They are never relabeled as
-realized execution costs.
+Decision-time provider costs are explicit ex-ante diagnostics. Realized policy
+economics use only reconciled net PnL and executed initial stop risk from the
+durable outcome seal; the proxy is never subtracted again after settlement.
 """
 
 from __future__ import annotations
@@ -60,26 +61,22 @@ class Phase20QualificationRow:
     provider_cost_proxy_usd: Decimal
     policy_selected: bool
     baseline_selected: bool
+    realized_net_pnl_usd: Decimal | None
+    executed_initial_stop_risk_usd: Decimal | None
     realized_structural_outcome_r: Decimal | None
     outcome_observed_at: datetime | None
 
     @property
     def policy_net_delta_usd(self) -> Decimal:
-        if not self.policy_selected or self.realized_structural_outcome_r is None:
+        if not self.policy_selected or self.realized_net_pnl_usd is None:
             return Decimal(0)
-        return (
-            self.realized_structural_outcome_r * self.stop_risk_usd
-            - self.provider_cost_proxy_usd
-        )
+        return self.realized_net_pnl_usd
 
     @property
     def baseline_net_delta_usd(self) -> Decimal:
-        if not self.baseline_selected or self.realized_structural_outcome_r is None:
+        if not self.baseline_selected or self.realized_net_pnl_usd is None:
             return Decimal(0)
-        return (
-            self.realized_structural_outcome_r * self.stop_risk_usd
-            - self.provider_cost_proxy_usd
-        )
+        return self.realized_net_pnl_usd
 
 
 @dataclass(frozen=True, slots=True)
@@ -267,6 +264,16 @@ def run_phase20d_v2_qualification(
                     baseline_selected=(
                         candidate.signal_fingerprint in baseline_selected
                     ),
+                    realized_net_pnl_usd=(
+                        None
+                        if outcome is None
+                        else outcome.realized_net_pnl_usd
+                    ),
+                    executed_initial_stop_risk_usd=(
+                        None
+                        if outcome is None
+                        else outcome.executed_initial_stop_risk_usd
+                    ),
                     realized_structural_outcome_r=(
                         None
                         if outcome is None
@@ -319,17 +326,19 @@ def run_phase20d_v2_qualification(
     )
     policy_denominator = sum(
         (
-            item.stop_risk_usd * item.expected_capital_minutes
+            item.executed_initial_stop_risk_usd
+            * item.expected_capital_minutes
             for item in policy_selected_rows
-            if item.realized_structural_outcome_r is not None
+            if item.executed_initial_stop_risk_usd is not None
         ),
         Decimal(0),
     )
     baseline_denominator = sum(
         (
-            item.stop_risk_usd * item.expected_capital_minutes
+            item.executed_initial_stop_risk_usd
+            * item.expected_capital_minutes
             for item in baseline_selected_rows
-            if item.realized_structural_outcome_r is not None
+            if item.executed_initial_stop_risk_usd is not None
         ),
         Decimal(0),
     )
@@ -833,7 +842,13 @@ def _coverage_rows(rows: tuple[Phase20QualificationRow, ...]) -> Decimal:
     if not rows:
         return Decimal(1)
     observed = sum(
-        1 for item in rows if item.realized_structural_outcome_r is not None
+        1
+        for item in rows
+        if (
+            item.realized_net_pnl_usd is not None
+            and item.executed_initial_stop_risk_usd is not None
+            and item.realized_structural_outcome_r is not None
+        )
     )
     return Decimal(observed) / Decimal(len(rows))
 
