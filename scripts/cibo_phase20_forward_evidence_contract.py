@@ -34,6 +34,8 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
     Phase20ForwardEvidenceKind,
     Phase20ForwardKnownOptionEvidence,
     Phase20ForwardOutcomeEvidence,
+    Phase20ForwardPopulationDisposition,
+    Phase20ForwardPopulationSlotEvidence,
     Phase20PolicyCandidateLineage,
     assess_phase20d_forward_qualification,
     build_phase20_forward_decision_record,
@@ -131,6 +133,7 @@ def _build_fixture() -> Phase20ForwardDecisionEvidence:
     )
     return Phase20ForwardDecisionEvidence(
         evidence_id="phase20d-contract-decision",
+        decision_epoch_id="phase20d-contract-epoch",
         evidence_kind=Phase20ForwardEvidenceKind.SYNTHETIC_CONTRACT,
         decision_at=DECISION_AT,
         lineage=Phase20PolicyCandidateLineage(
@@ -162,6 +165,17 @@ def _build_fixture() -> Phase20ForwardDecisionEvidence:
         ),
         current_step=0,
         horizon_steps=2,
+        population_slots=(
+            Phase20ForwardPopulationSlotEvidence(
+                slot_id="R43_GBPUSD|GBPUSD|phase20d-contract-epoch",
+                trader_id=TraderLineage.R43_GBPUSD,
+                qore_symbol="GBPUSD",
+                observed_at=DECISION_AT - timedelta(milliseconds=1),
+                disposition=Phase20ForwardPopulationDisposition.CANDIDATE,
+                reason="synthetic candidate fixture",
+                signal_fingerprint="phase20d-contract-signal",
+            ),
+        ),
         candidates=(
             Phase20ForwardCandidateEvidence(
                 provider_evidence_id="provider-snapshot-1",
