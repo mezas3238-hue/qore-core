@@ -8,12 +8,12 @@ market probabilities or qualify an allocator.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import StrEnum
 from pathlib import Path
-from typing import Callable
 
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_capital_management_authority import (
