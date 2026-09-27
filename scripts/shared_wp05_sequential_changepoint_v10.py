@@ -11,8 +11,8 @@ from __future__ import annotations
 import argparse
 import json
 from bisect import bisect_right
-from datetime import timedelta
 from dataclasses import asdict
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
