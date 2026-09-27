@@ -347,29 +347,11 @@ def run_phase20d_v2_qualification(
             if item.baseline_selected and item.outcome_observed_at is not None
         )
     )
-    policy_denominator = sum(
-        (
-            item.executed_initial_stop_risk_usd
-            * item.capital_minutes
-            for item in policy_selected_rows
-            if (
-                item.executed_initial_stop_risk_usd is not None
-                and item.capital_minutes is not None
-            )
-        ),
-        Decimal(0),
+    policy_denominator = _realized_risk_minute_denominator(
+        policy_selected_rows
     )
-    baseline_denominator = sum(
-        (
-            item.executed_initial_stop_risk_usd
-            * item.capital_minutes
-            for item in baseline_selected_rows
-            if (
-                item.executed_initial_stop_risk_usd is not None
-                and item.capital_minutes is not None
-            )
-        ),
-        Decimal(0),
+    baseline_denominator = _realized_risk_minute_denominator(
+        baseline_selected_rows
     )
     policy_productivity = _ratio(policy_net, policy_denominator)
     baseline_productivity = _ratio(baseline_net, baseline_denominator)
@@ -882,6 +864,19 @@ def _coverage_rows(rows: tuple[Phase20QualificationRow, ...]) -> Decimal:
     )
     return Decimal(observed) / Decimal(len(rows))
 
+
+
+def _realized_risk_minute_denominator(
+    rows: tuple[Phase20QualificationRow, ...],
+) -> Decimal:
+    total = Decimal(0)
+    for item in rows:
+        risk = item.executed_initial_stop_risk_usd
+        minutes = item.capital_minutes
+        if risk is None or minutes is None:
+            continue
+        total += risk * minutes
+    return total
 
 def _ratio(numerator: Decimal, denominator: Decimal) -> Decimal:
     if denominator == 0:
