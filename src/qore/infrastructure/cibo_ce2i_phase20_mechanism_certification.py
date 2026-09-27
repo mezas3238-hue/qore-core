@@ -1,9 +1,10 @@
 """Phase 20F independent CE2I accounting-core mechanism certification.
 
-This harness exercises the real T05/T19/T20 implementation surfaces rather than
-promoting tools from registry metadata alone. It is deliberately limited to
-accounting and reservation/release mechanics that do not require historical
-provider economics or burned Phase-19J validation.
+This harness exercises real CE2I implementation surfaces rather than promoting
+tools from registry metadata alone. Phase20F-A covers T05/T19/T20 accounting
+mechanics. Phase20F-B covers T11/T12/T14/T15 execution/regime/de-risking/
+optionality mechanics. Both tranches avoid historical provider economics and
+burned Phase-19J validation.
 
 The certification is contract-level only. It grants no allocator, QORE Risk,
 execution, DEMO, LIVE, real-capital or merge authority.
@@ -39,7 +40,34 @@ from qore.infrastructure.cibo_ce2i_recycling import (
     reserve_recycled_capacity,
     settle_recycled_capacity,
 )
+from qore.infrastructure.cibo_account_capital_mission import (
+    CiboAccountCapitalIdentity,
+    derive_cibo_capital_mission,
+)
+from qore.infrastructure.cibo_ce2i_dynamic_derisking import (
+    CiboDeRiskAction,
+    CiboDeRiskingInput,
+    plan_dynamic_derisking,
+)
+from qore.infrastructure.cibo_ce2i_execution_efficiency import (
+    ExecutionCostCurveInput,
+    execution_efficient_volume_cap,
+)
+from qore.infrastructure.cibo_ce2i_optionality import (
+    KnownCapitalOption,
+    plan_capital_optionality,
+)
+from qore.infrastructure.cibo_ce2i_regime_selector import (
+    CiboCapitalRegimeState,
+    CiboRegimePosture,
+    CorrelationState,
+    LiquidityState,
+    ProviderCondition,
+    VolatilityState,
+    select_ce2i_tools_for_regime,
+)
 from qore.infrastructure.cibo_ce2i_tool_registry import ToolMaturity, tool_by_code
+from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
 
 class Phase20MechanismCertificationStatus(StrEnum):
@@ -428,6 +456,242 @@ def _t05_recycling_proofs(root: Path) -> tuple[Phase20MechanismProof, ...]:
             settlement_persisted,
             "Returned and consumed recycled risk survive durable-store restart.",
         ),
+    )
+
+
+
+def _demo_mission():
+    return derive_cibo_capital_mission(
+        CiboAccountCapitalIdentity(
+            provider_key="ctrader-demo",
+            account_ref="phase20f-demo",
+            environment=MarketRuntimeEnvironment.DEMO,
+        )
+    )
+
+
+def _regime_state(
+    *,
+    drawdown: str = "0.20",
+    adverse: bool = False,
+    stale: bool = False,
+) -> CiboCapitalRegimeState:
+    return CiboCapitalRegimeState(
+        liquidity=LiquidityState.NORMAL,
+        volatility=VolatilityState.NORMAL,
+        correlation=CorrelationState.NORMAL,
+        provider_condition=ProviderCondition.HEALTHY,
+        risk_utilization=Decimal("0.20"),
+        margin_utilization=Decimal("0.20"),
+        drawdown_utilization=Decimal(drawdown),
+        opportunity_count=3,
+        position_path_adverse=adverse,
+        evidence_stale=stale,
+    )
+
+
+def _t11_execution_efficiency_proofs() -> tuple[Phase20MechanismProof, ...]:
+    blocked = execution_efficient_volume_cap(
+        ExecutionCostCurveInput(
+            evidence_id="phase20f:t11:block",
+            volume_step=Decimal("1"),
+            maximum_volume=Decimal("10"),
+            gross_edge_per_volume_usd=Decimal("2"),
+            spread_cost_per_volume_usd=Decimal("2"),
+            commission_cost_per_volume_usd=Decimal("1"),
+            slippage_cost_per_volume_usd=Decimal("0"),
+            impact_cost_per_volume_squared_usd=Decimal("0"),
+        )
+    )
+    nonlinear = execution_efficient_volume_cap(
+        ExecutionCostCurveInput(
+            evidence_id="phase20f:t11:impact",
+            volume_step=Decimal("1"),
+            maximum_volume=Decimal("10"),
+            gross_edge_per_volume_usd=Decimal("10"),
+            spread_cost_per_volume_usd=Decimal("1"),
+            commission_cost_per_volume_usd=Decimal("1"),
+            slippage_cost_per_volume_usd=Decimal("0"),
+            impact_cost_per_volume_squared_usd=Decimal("1"),
+        )
+    )
+    return (
+        _proof(
+            "T11",
+            "T11_NON_POSITIVE_LINEAR_EDGE_BLOCKS_EXPANSION",
+            blocked.volume_cap == 0
+            and blocked.net_expectancy_usd == 0
+            and blocked.marginal_next_step_net_usd is not None
+            and blocked.marginal_next_step_net_usd < 0,
+            "Execution cost that consumes gross edge yields zero expansion capacity.",
+        ),
+        _proof(
+            "T11",
+            "T11_NEGATIVE_MARGINAL_STEP_CAPS_VOLUME",
+            nonlinear.volume_cap == Decimal("4")
+            and nonlinear.net_expectancy_usd == Decimal("16")
+            and nonlinear.marginal_next_step_net_usd == Decimal("-1"),
+            "Nonlinear impact stops sizing before the next negative marginal step.",
+        ),
+    )
+
+
+def _t12_regime_selector_proofs() -> tuple[Phase20MechanismProof, ...]:
+    mission = _demo_mission()
+    stale = select_ce2i_tools_for_regime(
+        mission=mission,
+        state=_regime_state(stale=True),
+    )
+    recovery = select_ce2i_tools_for_regime(
+        mission=mission,
+        state=_regime_state(drawdown="0.80"),
+    )
+    recovery_blocks = all(
+        code not in recovery.enabled_tools
+        for code in ("T06", "T07", "T09", "T18")
+    )
+    return (
+        _proof(
+            "T12",
+            "T12_STALE_EVIDENCE_FAILS_CLOSED_TO_RELEASE",
+            stale.posture is CiboRegimePosture.HALT_NEW_CAPITAL
+            and stale.enabled_tools == ("T20",),
+            "Stale regime evidence cannot authorize new capital deployment.",
+        ),
+        _proof(
+            "T12",
+            "T12_RECOVERY_POSTURE_BLOCKS_EXPANSION",
+            recovery.posture is CiboRegimePosture.RECOVERY
+            and recovery_blocks
+            and "T11" in recovery.enabled_tools
+            and "T20" in recovery.enabled_tools,
+            "Recovery posture retains defensive/release tools while blocking expansion.",
+        ),
+    )
+
+
+def _t14_dynamic_derisking_proofs() -> tuple[Phase20MechanismProof, ...]:
+    reduced = plan_dynamic_derisking(
+        CiboDeRiskingInput(
+            current_volume=Decimal("1.00"),
+            minimum_retained_volume=Decimal("0.10"),
+            volume_step=Decimal("0.10"),
+            stop_risk_per_volume_usd=Decimal("100"),
+            margin_per_volume_usd=Decimal("200"),
+            maximum_retained_stop_risk_usd=Decimal("55"),
+            maximum_retained_margin_usd=Decimal("500"),
+            methodology_position_valid=True,
+        )
+    )
+    invalidated = plan_dynamic_derisking(
+        CiboDeRiskingInput(
+            current_volume=Decimal("1.00"),
+            minimum_retained_volume=Decimal("0.10"),
+            volume_step=Decimal("0.10"),
+            stop_risk_per_volume_usd=Decimal("100"),
+            margin_per_volume_usd=Decimal("200"),
+            maximum_retained_stop_risk_usd=Decimal("100"),
+            maximum_retained_margin_usd=Decimal("200"),
+            methodology_position_valid=False,
+        )
+    )
+    return (
+        _proof(
+            "T14",
+            "T14_MINIMUM_STEP_ALIGNED_REDUCTION",
+            reduced.action is CiboDeRiskAction.REDUCE
+            and reduced.retained_volume == Decimal("0.50")
+            and reduced.reduction_volume == Decimal("0.50")
+            and reduced.retained_stop_risk_usd == Decimal("50.00")
+            and reduced.released_stop_risk_usd == Decimal("50.00"),
+            "De-risking uses the least step-aligned reduction that restores ceilings.",
+        ),
+        _proof(
+            "T14",
+            "T14_TRADER_INVALIDATION_RELEASES_ALL",
+            invalidated.action is CiboDeRiskAction.RELEASE_ALL
+            and invalidated.retained_volume == 0
+            and invalidated.released_stop_risk_usd == Decimal("100.00"),
+            "Trader methodology invalidation cannot be overridden by CIBO capital logic.",
+        ),
+    )
+
+
+def _t15_optionality_proofs() -> tuple[Phase20MechanismProof, ...]:
+    mission = _demo_mission()
+    options = (
+        KnownCapitalOption(
+            opportunity_id="phase20f-small",
+            minimum_stop_risk_usd=Decimal("4"),
+            minimum_margin_usd=Decimal("20"),
+        ),
+        KnownCapitalOption(
+            opportunity_id="phase20f-large",
+            minimum_stop_risk_usd=Decimal("10"),
+            minimum_margin_usd=Decimal("40"),
+        ),
+    )
+    defensive_regime = select_ce2i_tools_for_regime(
+        mission=mission,
+        state=_regime_state(adverse=True),
+    )
+    defensive = plan_capital_optionality(
+        mission=mission,
+        regime=defensive_regime,
+        hard_risk_headroom_usd=Decimal("60"),
+        margin_headroom_usd=Decimal("500"),
+        known_options=options,
+    )
+    recovery_regime = select_ce2i_tools_for_regime(
+        mission=mission,
+        state=_regime_state(drawdown="0.80"),
+    )
+    recovery = plan_capital_optionality(
+        mission=mission,
+        regime=recovery_regime,
+        hard_risk_headroom_usd=Decimal("60"),
+        margin_headroom_usd=Decimal("500"),
+        known_options=options,
+    )
+    return (
+        _proof(
+            "T15",
+            "T15_DEFENSIVE_PRESERVES_CHEAPEST_KNOWN_OPTION",
+            defensive.reserve_stop_risk_usd == Decimal("4")
+            and defensive.reserve_margin_usd == Decimal("20")
+            and defensive.reserved_for_opportunity_ids == ("phase20f-small",),
+            "Defensive capability-discovery preserves the cheapest known executable option.",
+        ),
+        _proof(
+            "T15",
+            "T15_RECOVERY_PRESERVES_ALL_REMAINING_CAPACITY",
+            recovery.reserve_stop_risk_usd == Decimal("60")
+            and recovery.reserve_margin_usd == Decimal("500")
+            and recovery.deployable_stop_risk_usd == 0
+            and recovery.deployable_margin_usd == 0,
+            "Recovery posture preserves all remaining new-capital capacity.",
+        ),
+    )
+
+
+def run_phase20f_operational_mechanism_certification(
+) -> Phase20MechanismCertificationReport:
+    """Execute independent contract proofs for T11, T12, T14 and T15."""
+
+    proofs = (
+        *_t11_execution_efficiency_proofs(),
+        *_t12_regime_selector_proofs(),
+        *_t14_dynamic_derisking_proofs(),
+        *_t15_optionality_proofs(),
+    )
+    certifications = tuple(
+        _certification_for(code, proofs)
+        for code in ("T11", "T12", "T14", "T15")
+    )
+    return Phase20MechanismCertificationReport(
+        identity="CIBO_PHASE20F_OPERATIONAL_MECHANISM_CERTIFICATION_V1",
+        certifications=certifications,
+        proofs=proofs,
     )
 
 
