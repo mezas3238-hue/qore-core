@@ -1,0 +1,211 @@
+name: QORE Capitalizer Max-DD Dynamic Probe V1
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/qore-capitalizer-max-dd-dynamic-probe-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_counterfactual_max_dd_episode_probe_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_counterfactual_max_dd_episode_probe_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-max-dd-dynamic-probe-v1-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_counterfactual_max_dd_episode_probe_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_counterfactual_max_dd_episode_probe_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_counterfactual_max_dd_episode_probe_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_counterfactual_max_dd_episode_probe_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_counterfactual_max_dd_episode_probe_v1.py
+
+  shard:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - period: DEVELOPMENT_2024_2026
+            slug: development
+          - period: CONSUMED_VALIDATION_2022_2024
+            slug: validation
+          - period: CONSUMED_RESERVED_2020_2022
+            slug: reserved
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download authoritative reconstructed consumed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Run focused max-DD dynamic probe shard
+        env:
+          PERIOD: ${{ matrix.period }}
+          SLUG: ${{ matrix.slug }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from dataclasses import asdict
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab import (
+              capitalizer_counterfactual_max_dd_episode_probe_v1 as probe,
+          )
+          from qore.infrastructure.trader_lab import (
+              capitalizer_factor_journey_probe_ranker_v11 as v11,
+          )
+          from qore.infrastructure.trader_lab import (
+              capitalizer_sequence_failure_memory_abstention_v13 as v13,
+          )
+
+          period = os.environ["PERIOD"]
+          slug = os.environ["SLUG"]
+          windows, contextual_model = v13._load_windows(
+              Path("reconstructed/development-input"),
+              Path("reconstructed/validation-input"),
+              Path("reconstructed/reserved-input"),
+              Path("reconstructed/development-validation-context"),
+              Path("reconstructed/reserved-context"),
+          )
+          ledgers, contexts = windows[period]
+          previous = dict(v11._SIMULTANEOUS)
+          v11._SIMULTANEOUS.clear()
+          v11._SIMULTANEOUS.update(
+              v11._simultaneous_map(period=period, ledgers=ledgers)
+          )
+          try:
+              result, audits = probe._period_probe(
+                  period=period,
+                  ledgers=ledgers,
+                  contexts=contexts,
+                  contextual_model=contextual_model,
+              )
+          finally:
+              v11._SIMULTANEOUS.clear()
+              v11._SIMULTANEOUS.update(previous)
+
+          out = Path("shard-output")
+          out.mkdir(parents=True, exist_ok=True)
+          (out / f"probe-{slug}.json").write_text(
+              json.dumps(result, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          with (out / f"probe-{slug}-transitions.jsonl").open(
+              "w", encoding="utf-8"
+          ) as handle:
+              for row in audits:
+                  handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+          print(json.dumps(result, sort_keys=True))
+          PY
+      - name: Upload shard
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-max-dd-dynamic-probe-v1-${{ matrix.slug }}-${{ github.sha }}
+          path: shard-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: shard
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download probe shards
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-max-dd-dynamic-probe-v1-*-${{ github.sha }}
+          path: shards
+          merge-multiple: true
+      - name: Aggregate focused probe
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          expected = {
+              "DEVELOPMENT_2024_2026",
+              "CONSUMED_VALIDATION_2022_2024",
+              "CONSUMED_RESERVED_2020_2022",
+          }
+          rows = [
+              json.loads(path.read_text())
+              for path in Path("shards").glob("probe-*.json")
+          ]
+          by_period = {row["period"]: row for row in rows}
+          assert set(by_period) == expected
+          results = [by_period[period] for period in sorted(expected)]
+          for row in results:
+              assert row["surface_max_dd_trigger_state_count"] > 0
+              assert row["transition_count"] > 0
+
+          report = {
+              "identity": "QORE_CAPITALIZER_COUNTERFACTUAL_MAX_DD_EPISODE_PROBE_V1",
+              "evaluation": "MAX_DD_DESCENT_SINGLE_DO_ACTION_DYNAMIC_ROLLOUT",
+              "same_simulator_semantics_as_exhaustive_v1": True,
+              "scope": "SURFACE_MAX_DD_PEAK_TO_TROUGH_ONLY",
+              "policy_economics_run": False,
+              "candidate_count": 0,
+              "automatic_policy_promotion": False,
+              "results": results,
+              "trader_certified": False,
+              "live_authorized": False,
+              "real_capital_authorized": False,
+          }
+          out = Path("experiment-output")
+          out.mkdir(parents=True, exist_ok=True)
+          (out / "capitalizer-counterfactual-max-dd-episode-probe-v1.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n"
+          )
+          with (out / "capitalizer-counterfactual-max-dd-episode-probe-v1-transitions.jsonl").open(
+              "w", encoding="utf-8"
+          ) as handle:
+              for path in sorted(Path("shards").glob("probe-*-transitions.jsonl")):
+                  handle.write(path.read_text())
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Upload authoritative focused probe evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-counterfactual-max-dd-episode-probe-v1-${{ github.sha }}
+          path: experiment-output
+          if-no-files-found: error
+          retention-days: 90
