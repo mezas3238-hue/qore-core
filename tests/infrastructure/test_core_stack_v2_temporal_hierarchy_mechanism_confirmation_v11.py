@@ -13,6 +13,7 @@ from qore.infrastructure.core_stack_v2.temporal_hierarchy_mechanism_confirmation
     fit_v11_mechanism_confirmation_model,
     v11_model_fingerprint,
     v11_representation_fingerprint,
+    _support_at_confirmation,
 )
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_sequential_changepoint_v10 import (
     V10_FEATURE_NAMES,
@@ -134,6 +135,32 @@ def test_v11_confirmation_requires_at_least_two_mechanisms() -> None:
 
     assert assessed.first_confirmation_minute is not None
     assert len(assessed.confirmation_support) >= 2
+
+
+def test_v11_frontier_spike_requires_adjacent_persistence() -> None:
+    threshold = 1_000
+
+    support = _support_at_confirmation(
+        frontier_previous=500,
+        frontier_current=2_000,
+        cross_current=2_000,
+        hierarchy_source=500,
+        threshold=threshold,
+    )
+    assert V11Mechanism.FRONTIER_PATH not in support
+    assert support == (V11Mechanism.CROSS_MARKET,)
+
+    persistent_support = _support_at_confirmation(
+        frontier_previous=1_500,
+        frontier_current=2_000,
+        cross_current=2_000,
+        hierarchy_source=500,
+        threshold=threshold,
+    )
+    assert persistent_support == (
+        V11Mechanism.FRONTIER_PATH,
+        V11Mechanism.CROSS_MARKET,
+    )
 
 
 def test_v11_synthetic_mechanism_confirmation_has_high_discrimination() -> None:
