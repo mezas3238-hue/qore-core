@@ -51,7 +51,7 @@ jobs:
   shard:
     needs: quality
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 360
     strategy:
       fail-fast: false
       matrix:
