@@ -288,6 +288,10 @@ class CTraderDemoFreeSink:
                     ),
                     margin_per_volume=format(request.margin_per_volume, "f"),
                     requested_at=request.requested_at.isoformat(),
+                    authorized_source_volume=format(
+                        request.requested_volume,
+                        "f",
+                    ),
                     minimum_volume_uplifted=request.minimum_volume_uplifted,
                     source_contract_size_units=format(
                         contract.source_contract_size_units,
