@@ -35,6 +35,7 @@ from qore.infrastructure.ctrader_demo_execution_contracts import (
 def build_ctrader_phase20_executed_risk(
     *,
     decision_evidence_sha256: str,
+    position_id: int,
     request: CiboRiskRequest,
     contract: CTraderDemoBrokerContract,
     fills: tuple[CTraderDemoFillObservation, ...],
@@ -42,6 +43,14 @@ def build_ctrader_phase20_executed_risk(
 ) -> Phase20ExecutedRiskEvidence:
     """Build a reconciled structural-risk denominator from actual fills."""
 
+    if (
+        not isinstance(position_id, int)
+        or isinstance(position_id, bool)
+        or position_id <= 0
+    ):
+        raise CiboCapitalManagementError(
+            "Phase20D executed risk requires reconciled positive position_id"
+        )
     if not isinstance(request, CiboRiskRequest):
         raise CiboCapitalManagementError(
             "Phase20D executed risk requires canonical CiboRiskRequest"
@@ -204,23 +213,10 @@ def build_ctrader_phase20_executed_risk(
         evidence_id=f"phase20d-executed-risk:{sha256(raw).hexdigest()}",
         decision_evidence_sha256=decision_evidence_sha256,
         signal_fingerprint=request.signal_fingerprint,
-        position_id=_position_id_from_request(request),
+        position_id=position_id,
         executed_initial_stop_risk_usd=executed_initial_risk,
         observed_at=reconciliation.reconciled_at,
         fill_evidence_refs=tuple(item.fill_ref for item in ordered),
         fill_reconciled=True,
         mutation_outcome_known=True,
-    )
-
-
-def _position_id_from_request(request: CiboRiskRequest) -> int:
-    """Position identity must be bound later from the trade registry.
-
-    The CiboRiskRequest itself intentionally has no broker position id. A
-    placeholder is forbidden; callers must bind the returned risk evidence to a
-    reconciled position before outcome append.
-    """
-
-    raise CiboCapitalManagementError(
-        "Phase20D executed risk requires reconciled broker position identity"
     )
