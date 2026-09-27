@@ -1,0 +1,88 @@
+name: QORE CIBO Phase 20 Provider Uncertainty Contract
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase20-provider-uncertainty.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py'
+      - 'scripts/cibo_phase20_provider_uncertainty_contract.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py'
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-phase20-provider-uncertainty.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py'
+      - 'scripts/cibo_phase20_provider_uncertainty_contract.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Phase 20 provider uncertainty quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py \
+            scripts/cibo_phase20_provider_uncertainty_contract.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py
+          mypy \
+            src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py \
+            scripts/cibo_phase20_provider_uncertainty_contract.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py
+
+  contract-evidence:
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Emit provider uncertainty contract evidence
+        run: |
+          mkdir -p phase20-output
+          python scripts/cibo_phase20_provider_uncertainty_contract.py \
+            --output phase20-output/phase20-provider-uncertainty-contract.json \
+            > phase20-output/provider-uncertainty-stdout.json
+      - name: Seal Phase 20 provider uncertainty evidence
+        run: |
+          printf '%s\n' "$EVIDENCE_SHA" > phase20-output/git-sha.txt
+          cd phase20-output
+          sha256sum \
+            phase20-provider-uncertainty-contract.json \
+            provider-uncertainty-stdout.json \
+            git-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase20-provider-uncertainty-${{ env.EVIDENCE_SHA }}
+          path: phase20-output
+          if-no-files-found: error
+          retention-days: 90
