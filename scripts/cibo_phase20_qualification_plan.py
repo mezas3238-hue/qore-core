@@ -49,6 +49,10 @@ def build_report() -> dict[str, Any]:
                 plan.required_selected_outcome_coverage,
                 "f",
             ),
+            "required_baseline_selected_outcome_coverage": format(
+                plan.required_baseline_selected_outcome_coverage,
+                "f",
+            ),
         },
         "metrics": list(plan.metrics),
         "hard_gates": list(plan.hard_gates),
