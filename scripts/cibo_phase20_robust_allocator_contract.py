@@ -39,7 +39,6 @@ from qore.infrastructure.cibo_ce2i_regime_selector import (
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
-
 NOW = datetime(2026, 9, 27, 5, 30, tzinfo=UTC)
 
 
