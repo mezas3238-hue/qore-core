@@ -182,6 +182,8 @@ def run_phase20d_v2_qualification(
     )
     for decision in ordered_decisions:
         payload = _decision_payload(decision)
+        if not decision.sealed_within_deadline:
+            safety_failures.append("ZERO_CAUSAL_CONTAMINATION")
         if payload.get("evidence_kind") != "FORWARD_OBSERVED":
             safety_failures.append("ZERO_CAUSAL_CONTAMINATION")
         policy = policy_by_sha.get(decision.evidence_sha256)
