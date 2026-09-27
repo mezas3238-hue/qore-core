@@ -5,7 +5,9 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-import qore.infrastructure.core_stack_v2.temporal_hierarchy_event_manifold_v8 as event_manifold_v8
+from qore.infrastructure.core_stack_v2 import (
+    temporal_hierarchy_event_manifold_v8 as event_manifold_v8,
+)
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_competing_survival_v7 import (
     RECOVERY_FEATURE_NAMES,
     TERMINAL_FEATURE_NAMES,
