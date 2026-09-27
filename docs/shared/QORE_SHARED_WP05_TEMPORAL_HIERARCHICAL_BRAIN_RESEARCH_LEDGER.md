@@ -640,3 +640,79 @@ causal observations after source materially increase observability. If V10
 fails without material source-to-sequential discrimination gain, classifier
 iteration stops and WP-05 escalates to Active Perception / new-sensor
 observability engineering.
+
+
+### Authoritative V10 result
+
+Identity:
+
+`QORE_SHARED_WP05_CAUSAL_SEQUENTIAL_CHANGEPOINT_V10_001`
+
+Authoritative run: `36325040251`  
+Scientific Git SHA: `58f06282b393f850ff2a0ddf377f92628ed85685`  
+Status: `WP05_V10_CAUSAL_SEQUENTIAL_FALSIFIED`  
+Protocol: PASS  
+Development gate: FAIL  
+Fresh holdout: CLOSED
+
+Frozen identities:
+
+- model fingerprint:
+  `0ce2b73a0b4ece5cf74294b8c24138aaeae141d6967b7109ed8e660712f089c3`;
+- representation fingerprint:
+  `e28ca5c49be817090ddf7c615001246616521fe34055780bb59bd1643632f0b0`;
+- artifact: `10934385098`;
+- artifact digest:
+  `sha256:0ebaf2f595509335c38a8049e3a1058a0b226ee151e9971d4b754de77709e930`.
+
+R8 calibration:
+
+- sequential terminal preservation: **9815 bps**;
+- sequential false reduction: **1837 bps**;
+- source-only false reduction: **878 bps**.
+
+Consumed evaluation:
+
+- R8: source-only **988/9856** bps reduction/preservation; sequential
+  **1717/9830**; incremental observability **+729 bps**;
+- R6: source-only **810/9901**; sequential **1537/9810**; incremental
+  observability **+727 bps**;
+- R5: source-only **814/9883**; sequential **1535/9858**; incremental
+  observability **+721 bps**.
+
+Terminal detection latency:
+
+- R8 p50 **0m**, p95 **3m**;
+- R6 p50 **0m**, p95 **3m**;
+- R5 p50 **0m**, p95 **3m**.
+
+Terminal detections by checkpoint:
+
+- R8: 0m 1554, 3m 223, 5m 41, 10m 22, 15m 13;
+- R6: 0m 2128, 3m 282, 5m 48, 10m 29, 15m 4;
+- R5: 0m 2386, 3m 300, 5m 67, 10m 31, 15m 8.
+
+Interpretation:
+
+V10 proves that post-source sequential observations contain material new
+information: incremental false-declaration reduction exceeds the pre-frozen
+500-bps observability criterion independently in R6 and R5 while terminal
+preservation remains above 9500 bps.
+
+Therefore the current sensor universe is **not** declared observationally
+exhausted. The reserved Active Perception branch does not activate yet.
+
+V10 nevertheless fails the unchanged 2000/9500 WP-05 gate because false
+reduction reaches only 1537 bps on R6 and 1535 bps on R5.
+
+The key structural limitation is that V10 declares terminal support when the
+maximum checkpoint LLR ever crosses one threshold and then makes that
+declaration absorbing. A transient early evidence spike therefore cannot be
+downgraded by later contradictory/recovery evidence. The detection distribution
+also shows that nearly all useful terminal information arrives by 3-5 minutes,
+so merely extending the horizon is not the next hypothesis.
+
+Per the preregistered anti-loop law, V10 is permanently falsified. No V10.1,
+threshold repair, density retuning or R6/R5 feature mining is permitted. Exactly
+one structurally new sequential-state hypothesis is allowed before escalating
+to Active Perception.
