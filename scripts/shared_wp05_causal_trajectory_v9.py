@@ -246,8 +246,10 @@ def _model_payload(model: Any) -> dict[str, Any]:
         "fit_partition": model.fit_partition,
         "feature_names": list(model.feature_names),
         "feature_count": len(model.feature_names),
-        "centers_micros": list(model.centers_micros),
-        "scales_micros": list(model.scales_micros),
+        "eventness_centers_micros": list(model.eventness_centers_micros),
+        "eventness_scales_micros": list(model.eventness_scales_micros),
+        "recovery_centers_micros": list(model.recovery_centers_micros),
+        "recovery_scales_micros": list(model.recovery_scales_micros),
         "eventness_coefficients_micros": list(
             model.eventness_coefficients_micros
         ),
