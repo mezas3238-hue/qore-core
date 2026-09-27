@@ -145,20 +145,26 @@ jobs:
           assert (m["recovery_threshold_micros"] - 500000) % 20000 == 0
 
           fingerprints=p["partition_model_fingerprints"]
-          assert fingerprints["r8"] == fingerprints["r6"] == fingerprints["r5"]
           assert fingerprints["r8"] == m["fingerprint_sha256"]
 
-          gate=p["frozen_development_gate"]
-          assert gate["minimum_false_declaration_reduction_bps"] == 2000
-          assert gate["minimum_terminal_detection_preservation_bps"] == 9500
-          assert gate["must_pass_partitions"] == ["r6","r5"]
-
-          for partition in ("r8","r6","r5"):
-              r=p["partition_ranges"][partition]
-              assert r["episode_count"] >= 6000
-              assert r["complete_evidence_count"] > 0
-              assert r["target_contract"] == "HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2"
-              assert r["fresh_holdout_opened"] == 0
+          early_r8_stop = p.get("reason") == "NO_LEGAL_R8_CALIBRATION_THRESHOLD_PAIR"
+          if early_r8_stop:
+              assert p["development_gate_pass"] is False
+              assert set(fingerprints) == {"r8"}
+              assert set(p["evaluations"]) == {"r8"}
+              assert set(p["partition_ranges"]) == {"r8"}
+          else:
+              assert fingerprints["r8"] == fingerprints["r6"] == fingerprints["r5"]
+              gate=p["frozen_development_gate"]
+              assert gate["minimum_false_declaration_reduction_bps"] == 2000
+              assert gate["minimum_terminal_detection_preservation_bps"] == 9500
+              assert gate["must_pass_partitions"] == ["r6","r5"]
+              for partition in ("r8","r6","r5"):
+                  r=p["partition_ranges"][partition]
+                  assert r["episode_count"] >= 6000
+                  assert r["complete_evidence_count"] > 0
+                  assert r["target_contract"] == "HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2"
+                  assert r["fresh_holdout_opened"] == 0
 
           g=p["governance"]
           assert g["target_v2_required"] is True
@@ -167,6 +173,7 @@ jobs:
           assert g["fixed_source_anchor_for_hierarchy_trajectory"] is True
           assert g["unidentifiable_higher_anchor_abstains"] is True
           assert g["r8_chronological_discovery_calibration_only"] is True
+          assert g["r6_r5_unread_until_r8_model_frozen"] is True
           assert g["r8_r6_r5_temporally_ordered_nonoverlap_required"] is True
           assert g["r6_refit"] is False
           assert g["r5_refit"] is False
@@ -243,11 +250,17 @@ jobs:
               "Partition results:",
           ]
           for partition in ("r8","r6","r5"):
-              e=p["evaluations"][partition]
+              e=p.get("evaluations", {}).get(partition)
+              if e is None:
+                  continue
               lines.append(
                   f"- {partition.upper()}: false={e['baseline_false_declaration_count']} -> {e['competing_false_declaration_count']}; missed terminals={e['competing_missed_terminal_count']}; recovery-supported={e['recovery_supported_count']}; unresolved={e['unresolved_count']}; terminal-supported={e['terminal_supported_count']}; false reduction={e['false_declaration_reduction_bps']} bps; terminal preservation={e['terminal_detection_preservation_bps']} bps"
               )
-          if p["development_gate_pass"]:
+          if p.get("reason") == "NO_LEGAL_R8_CALIBRATION_THRESHOLD_PAIR":
+              lines.append(
+                  "V7 is falsified at the preregistered R8 calibration gate before R6/R5 evaluation. R6/R5 remain unread by the scientific model and fresh holdout remains closed."
+              )
+          elif p["development_gate_pass"]:
               lines.append(
                   "V7 survives consumed development. Do not use R6/R5 again for tuning. Next legal step is to freeze this exact fingerprint and preregister one independent fresh WP-05 holdout before acquisition."
               )
