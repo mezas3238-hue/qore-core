@@ -549,19 +549,25 @@ def assess_phase20d_forward_qualification(
     )
 
 
-def phase20_forward_evidence_sha256(
+def phase20_forward_evidence_json(
     evidence: Phase20ForwardDecisionEvidence,
 ) -> str:
     if not isinstance(evidence, Phase20ForwardDecisionEvidence):
         raise CiboCapitalManagementError(
-            "Phase20D evidence digest requires canonical decision evidence"
+            "Phase20D canonical payload requires decision evidence"
         )
-    payload = json.dumps(
+    return json.dumps(
         _canonicalize(evidence),
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=True,
-    ).encode("utf-8")
+    )
+
+
+def phase20_forward_evidence_sha256(
+    evidence: Phase20ForwardDecisionEvidence,
+) -> str:
+    payload = phase20_forward_evidence_json(evidence).encode("utf-8")
     return f"sha256:{sha256(payload).hexdigest()}"
 
 
