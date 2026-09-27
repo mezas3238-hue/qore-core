@@ -115,7 +115,11 @@ def test_phase20_single_slot_wires_vt08_and_vt31_without_collapsing_oco() -> Non
 
     assert "phase20_after_submit=observe_vt08_phase20_candidate" in source
     assert "phase20_after_submit=observe_vt31_phase20_candidate" in source
-    assert "PHASE20D_VT31_OCO_INELIGIBLE" in source
-    assert "BASKET_AWARE_FORWARD_ADAPTER_REQUIRED" in source
+    assert "phase20_after_submit=observe_vt31_phase20_oco_trigger" in source
+    assert "VIRTUAL_OCO_ARMED_AS_KNOWN_OPTIONS" in source
+    assert "build_ctrader_demo_single_slot_known_option(" in source
+    assert "PHASE20D_VT31_OCO_INELIGIBLE" not in source
+    assert "BASKET_AWARE_FORWARD_ADAPTER_REQUIRED" not in source
     assert "phase20_after_submit: Phase20AfterSubmit | None = None" in adapter
+    assert "build_virtual_order_opportunity(" in adapter
     assert "phase20_after_submit(" in adapter
