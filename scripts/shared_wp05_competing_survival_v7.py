@@ -9,6 +9,7 @@ only. This script never opens fresh holdout evidence.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from dataclasses import asdict
 from datetime import datetime
@@ -167,94 +168,59 @@ def _evaluation_payload(
     return asdict(evaluation)
 
 
-def run(*, evidence: dict[str, dict[str, Path]]) -> dict[str, Any]:
-    partitions: dict[str, tuple[CompetingSurvivalTrainingEpisode, ...]] = {}
-    ranges: dict[str, dict[str, int | str | None]] = {}
-
-    for partition in PARTITIONS:
-        rows, partition_range = _prepare_partition(
-            partition=partition,
-            evidence_paths=evidence[partition],
-        )
-        partitions[partition] = rows
-        ranges[partition] = partition_range
-
-    sample_gate = all(
-        len(partitions[partition]) >= MINIMUM_EPISODES
-        for partition in PARTITIONS
-    )
-    partition_temporal_order_gate = _partition_temporal_order_pass(ranges)
-    target_gate = all(
-        ranges[partition]["target_contract"] == TARGET_CONTRACT
-        and ranges[partition]["fresh_holdout_opened"] == 0
-        and int(ranges[partition]["changed_target_count"] or 0) > 0
-        for partition in PARTITIONS
-    )
-
-    if not sample_gate or not target_gate or not partition_temporal_order_gate:
-        return {
-            "schema": SCHEMA,
-            "identity": IDENTITY,
-            "target_contract": TARGET_CONTRACT,
-            "representation": REPRESENTATION,
-            "status": "WP05_V7_PROTOCOL_FAILED",
-            "protocol_pass": False,
-            "development_gate_pass": False,
-            "fresh_holdout_opened": False,
-            "wp05_exit_gate_pass": False,
-            "partition_temporal_order_gate": partition_temporal_order_gate,
-            "partition_ranges": ranges,
-        }
-
-    model = fit_competing_survival_model(
-        fitted_at=max(item.observed_at for item in partitions["r8"]),
-        fit_partition="r8",
-        episodes=partitions["r8"],
-    )
-    fingerprint = competing_survival_model_fingerprint(model)
-
-    evaluations = {
-        partition: evaluate_competing_survival(
-            model=model,
-            partition=partition,
-            episodes=partitions[partition],
-        )
-        for partition in PARTITIONS
+def _governance_payload() -> dict[str, bool | str]:
+    return {
+        "preregistered_identity": IDENTITY,
+        "target_v2_required": True,
+        "exact_target_v2_source_distance": True,
+        "historical_causal_frontier_excludes_evaluated_bar": True,
+        "fixed_source_anchor_for_hierarchy_trajectory": True,
+        "unidentifiable_higher_anchor_abstains": True,
+        "r8_chronological_discovery_calibration_only": True,
+        "r6_r5_unread_until_r8_model_frozen": True,
+        "r8_r6_r5_temporally_ordered_nonoverlap_required": True,
+        "r6_refit": False,
+        "r5_refit": False,
+        "r6_threshold_retuning": False,
+        "r5_threshold_retuning": False,
+        "runtime_future_market_used": False,
+        "trade_pnl_used": False,
+        "trader_identity_feature_used": False,
+        "symbol_identity_feature_used": False,
+        "setup_identity_feature_used": False,
+        "fresh_holdout_opened": False,
+        "knowledge_auto_promotion": False,
+        "shared_methodology_authority": False,
+        "shared_sizing_authority": False,
+        "shared_risk_authority": False,
+        "shared_order_authority": False,
+        "shared_execution_authority": False,
+        "live_authorized": False,
+        "production_authorized": False,
+        "real_capital_authorized": False,
+        "merge_authorized": False,
     }
-    development_gate_pass = all(
-        evaluations[partition].baseline_terminal_count
-        >= MINIMUM_BASELINE_TERMINALS
-        and evaluations[partition].false_declaration_reduction_bps
-        >= MINIMUM_FALSE_REDUCTION_BPS
-        and evaluations[partition].terminal_detection_preservation_bps
-        >= MINIMUM_TERMINAL_PRESERVATION_BPS
-        for partition in ("r6", "r5")
-    )
 
-    protocol_pass = (
-        sample_gate
-        and target_gate
-        and partition_temporal_order_gate
-        and model.fit_partition == "r8"
-        and model.calibration_gate_pass is True
-        and model.calibration_terminal_preservation_bps >= 9_800
-        and model.discovery_observed_max < model.calibration_source_min
-        and model.target_used_for_training_only is True
-        and model.runtime_future_market_used is False
-        and model.outcome_used_at_runtime is False
-        and model.trader_identity_used is False
-        and model.symbol_identity_used is False
-        and model.setup_identity_used is False
-        and model.pnl_used_at_runtime is False
-        and model.methodology_authority is False
-        and model.knowledge_promotion_authority is False
-        and model.sizing_authority is False
-        and model.risk_authority is False
-        and model.order_authority is False
-        and model.execution_authority is False
-    )
 
-    model_payload = {
+def _representation_fingerprint(model: Any) -> str:
+    payload = {
+        "identity": IDENTITY,
+        "target_contract": TARGET_CONTRACT,
+        "representation": REPRESENTATION,
+        "terminal_feature_names": list(model.terminal_feature_names),
+        "recovery_feature_names": list(model.recovery_feature_names),
+        "causal_source_extractor": (
+            "TARGET_V2_SOURCE_DISTANCE_PLUS_STRICT_PRIOR20_HISTORICAL_FRONTIERS"
+        ),
+        "dual_mechanism": True,
+        "unresolved_preserves_baseline": True,
+    }
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _model_payload(model: Any) -> dict[str, Any]:
+    return {
         "fit_partition": model.fit_partition,
         "fit_count": model.fit_count,
         "fit_terminal_count": model.fit_terminal_count,
@@ -284,10 +250,171 @@ def run(*, evidence: dict[str, dict[str, Path]]) -> dict[str, Any]:
         "calibration_gate_pass": model.calibration_gate_pass,
         "terminal_feature_count": len(model.terminal_feature_names),
         "recovery_feature_count": len(model.recovery_feature_names),
-        "fingerprint_sha256": fingerprint,
+        "fingerprint_sha256": competing_survival_model_fingerprint(model),
+        "representation_fingerprint_sha256": _representation_fingerprint(model),
         "representation": REPRESENTATION,
     }
 
+
+def run(*, evidence: dict[str, dict[str, Path]]) -> dict[str, Any]:
+    # Scientific ordering is intentional: R6/R5 are not even loaded until an
+    # R8-only model and calibration thresholds have been frozen.
+    r8_rows, r8_range = _prepare_partition(
+        partition="r8",
+        evidence_paths=evidence["r8"],
+    )
+    ranges: dict[str, dict[str, int | str | None]] = {"r8": r8_range}
+    r8_fit_rows = tuple(
+        item for item in r8_rows if item.source.evidence_complete
+    )
+    r8_target_gate = (
+        r8_range["target_contract"] == TARGET_CONTRACT
+        and r8_range["fresh_holdout_opened"] == 0
+        and int(r8_range["changed_target_count"] or 0) > 0
+    )
+    if (
+        len(r8_rows) < MINIMUM_EPISODES
+        or len(r8_fit_rows) < MINIMUM_EPISODES
+        or not r8_target_gate
+    ):
+        return {
+            "schema": SCHEMA,
+            "identity": IDENTITY,
+            "target_contract": TARGET_CONTRACT,
+            "representation": REPRESENTATION,
+            "status": "WP05_V7_PROTOCOL_FAILED",
+            "protocol_pass": False,
+            "development_gate_pass": False,
+            "fresh_holdout_opened": False,
+            "wp05_exit_gate_pass": False,
+            "partition_ranges": ranges,
+            "reason": "R8_SAMPLE_OR_TARGET_GATE_FAILED",
+            "governance": _governance_payload(),
+        }
+
+    model = fit_competing_survival_model(
+        fitted_at=max(item.observed_at for item in r8_fit_rows),
+        fit_partition="r8",
+        episodes=r8_fit_rows,
+    )
+    model_payload = _model_payload(model)
+    r8_evaluation = evaluate_competing_survival(
+        model=model,
+        partition="r8",
+        episodes=r8_rows,
+    )
+    if not model.calibration_gate_pass:
+        return {
+            "schema": SCHEMA,
+            "identity": IDENTITY,
+            "target_contract": TARGET_CONTRACT,
+            "representation": REPRESENTATION,
+            "status": "WP05_V7_COMPETING_SURVIVAL_FALSIFIED",
+            "protocol_pass": True,
+            "development_gate_pass": False,
+            "fresh_holdout_opened": False,
+            "wp05_exit_gate_pass": False,
+            "partition_ranges": ranges,
+            "model": model_payload,
+            "partition_model_fingerprints": {"r8": model_payload["fingerprint_sha256"]},
+            "evaluations": {"r8": _evaluation_payload(r8_evaluation)},
+            "reason": "NO_LEGAL_R8_CALIBRATION_THRESHOLD_PAIR",
+            "governance": _governance_payload(),
+        }
+
+    partitions: dict[str, tuple[CompetingSurvivalTrainingEpisode, ...]] = {
+        "r8": r8_rows
+    }
+    for partition in ("r6", "r5"):
+        rows, partition_range = _prepare_partition(
+            partition=partition,
+            evidence_paths=evidence[partition],
+        )
+        partitions[partition] = rows
+        ranges[partition] = partition_range
+
+    sample_gate = all(
+        len(partitions[partition]) >= MINIMUM_EPISODES
+        for partition in PARTITIONS
+    )
+    complete_evidence_gate = all(
+        int(ranges[partition]["complete_evidence_count"] or 0)
+        >= MINIMUM_EPISODES
+        for partition in PARTITIONS
+    )
+    partition_temporal_order_gate = _partition_temporal_order_pass(ranges)
+    target_gate = all(
+        ranges[partition]["target_contract"] == TARGET_CONTRACT
+        and ranges[partition]["fresh_holdout_opened"] == 0
+        and int(ranges[partition]["changed_target_count"] or 0) > 0
+        for partition in PARTITIONS
+    )
+
+    if (
+        not sample_gate
+        or not complete_evidence_gate
+        or not target_gate
+        or not partition_temporal_order_gate
+    ):
+        return {
+            "schema": SCHEMA,
+            "identity": IDENTITY,
+            "target_contract": TARGET_CONTRACT,
+            "representation": REPRESENTATION,
+            "status": "WP05_V7_PROTOCOL_FAILED",
+            "protocol_pass": False,
+            "development_gate_pass": False,
+            "fresh_holdout_opened": False,
+            "wp05_exit_gate_pass": False,
+            "partition_temporal_order_gate": partition_temporal_order_gate,
+            "partition_ranges": ranges,
+            "model": model_payload,
+            "reason": "SAMPLE_EVIDENCE_TARGET_OR_TEMPORAL_GATE_FAILED",
+            "governance": _governance_payload(),
+        }
+
+    evaluations = {
+        partition: evaluate_competing_survival(
+            model=model,
+            partition=partition,
+            episodes=partitions[partition],
+        )
+        for partition in PARTITIONS
+    }
+    development_gate_pass = all(
+        evaluations[partition].baseline_terminal_count
+        >= MINIMUM_BASELINE_TERMINALS
+        and evaluations[partition].false_declaration_reduction_bps
+        >= MINIMUM_FALSE_REDUCTION_BPS
+        and evaluations[partition].terminal_detection_preservation_bps
+        >= MINIMUM_TERMINAL_PRESERVATION_BPS
+        for partition in ("r6", "r5")
+    )
+
+    protocol_pass = (
+        sample_gate
+        and complete_evidence_gate
+        and target_gate
+        and partition_temporal_order_gate
+        and model.fit_partition == "r8"
+        and model.calibration_gate_pass is True
+        and model.calibration_terminal_preservation_bps >= 9_800
+        and model.discovery_observed_max < model.calibration_source_min
+        and model.target_used_for_training_only is True
+        and model.runtime_future_market_used is False
+        and model.outcome_used_at_runtime is False
+        and model.trader_identity_used is False
+        and model.symbol_identity_used is False
+        and model.setup_identity_used is False
+        and model.pnl_used_at_runtime is False
+        and model.methodology_authority is False
+        and model.knowledge_promotion_authority is False
+        and model.sizing_authority is False
+        and model.risk_authority is False
+        and model.order_authority is False
+        and model.execution_authority is False
+    )
+    fingerprint = model_payload["fingerprint_sha256"]
     return {
         "schema": SCHEMA,
         "identity": IDENTITY,
@@ -321,38 +448,8 @@ def run(*, evidence: dict[str, dict[str, Path]]) -> dict[str, Any]:
             ),
             "must_pass_partitions": ["r6", "r5"],
         },
-        "governance": {
-            "preregistered_identity": IDENTITY,
-            "target_v2_required": True,
-            "exact_target_v2_source_distance": True,
-            "historical_causal_frontier_excludes_evaluated_bar": True,
-            "fixed_source_anchor_for_hierarchy_trajectory": True,
-            "unidentifiable_higher_anchor_abstains": True,
-            "r8_chronological_discovery_calibration_only": True,
-            "r8_r6_r5_temporally_ordered_nonoverlap_required": True,
-            "r6_refit": False,
-            "r5_refit": False,
-            "r6_threshold_retuning": False,
-            "r5_threshold_retuning": False,
-            "runtime_future_market_used": False,
-            "trade_pnl_used": False,
-            "trader_identity_feature_used": False,
-            "symbol_identity_feature_used": False,
-            "setup_identity_feature_used": False,
-            "fresh_holdout_opened": False,
-            "knowledge_auto_promotion": False,
-            "shared_methodology_authority": False,
-            "shared_sizing_authority": False,
-            "shared_risk_authority": False,
-            "shared_order_authority": False,
-            "shared_execution_authority": False,
-            "live_authorized": False,
-            "production_authorized": False,
-            "real_capital_authorized": False,
-            "merge_authorized": False,
-        },
+        "governance": _governance_payload(),
     }
-
 
 def main() -> None:
     parser = argparse.ArgumentParser()
