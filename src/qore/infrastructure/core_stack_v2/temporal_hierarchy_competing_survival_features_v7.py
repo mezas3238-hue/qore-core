@@ -24,6 +24,7 @@ from qore.infrastructure.core_stack_v2.temporal_hierarchy_competing_survival_v7 
 )
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_engine import (
     TemporalHierarchySnapshot,
+    TemporalScaleState,
 )
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_transition_v2 import (
     TemporalHierarchyTrajectory,
@@ -244,7 +245,7 @@ def _rejection_fraction(
 
 def _snapshot_levels(
     snapshot: TemporalHierarchySnapshot,
-) -> dict[WorldScale, object]:
+) -> dict[WorldScale, TemporalScaleState]:
     return {item.scale: item for item in snapshot.levels}
 
 
