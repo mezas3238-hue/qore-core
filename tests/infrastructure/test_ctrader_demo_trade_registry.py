@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from decimal import Decimal
 
 from qore.infrastructure.ctrader_demo_trade_registry import (
     CTraderDemoTradeRegistry,
@@ -118,3 +119,59 @@ def test_registry_loads_legacy_entry_without_provenance(
 
     assert len(loaded) == 1
     assert loaded[0].capital_provenance == ()
+
+
+
+def test_registry_committed_risk_counts_open_and_live_pending_only(
+    tmp_path: Path,
+) -> None:
+    registry = CTraderDemoTradeRegistry(tmp_path / "registry.json")
+    registry.register(_entry(position_id=99))
+    pending = replace(
+        _entry(),
+        signal_fingerprint="b" * 64,
+        request_id="request-2",
+        client_order_id="qore-client-2",
+        provider_order_ref="12346",
+        requested_stop_risk="15.00",
+        position_id=None,
+    )
+    expired = replace(
+        _entry(),
+        signal_fingerprint="c" * 64,
+        request_id="request-3",
+        client_order_id="qore-client-3",
+        provider_order_ref="12347",
+        requested_stop_risk="100.00",
+        expires_at=(NOW - timedelta(seconds=1)).isoformat(),
+        position_id=None,
+    )
+    registry.register(pending)
+    registry.register(expired)
+
+    assert registry.committed_stop_risk(now=NOW) == Decimal("40.00")
+
+    closed = registry.mark_position_closed(
+        99,
+        closed_at=NOW + timedelta(minutes=5),
+    )
+    assert len(closed) == 1
+    assert closed[0].closed_at == (NOW + timedelta(minutes=5)).isoformat()
+    assert registry.committed_stop_risk(now=NOW + timedelta(minutes=6)) == (
+        Decimal("15.00")
+    )
+
+
+def test_registry_terminal_close_survives_restart(tmp_path: Path) -> None:
+    path = tmp_path / "registry.json"
+    registry = CTraderDemoTradeRegistry(path)
+    registry.register(_entry(position_id=99))
+    closed_at = NOW + timedelta(minutes=10)
+    registry.mark_position_closed(99, closed_at=closed_at)
+
+    reloaded = CTraderDemoTradeRegistry(path)
+    entry = reloaded.by_position(99)
+
+    assert entry is not None
+    assert entry.closed_at == closed_at.isoformat()
+    assert reloaded.committed_stop_risk(now=closed_at) == Decimal("0")
