@@ -58,7 +58,11 @@ ACCOUNT = MarketTestAccountIdentity(
 )
 
 
-def _forward_store(path: Path) -> DurablePhase20ForwardEvidenceStore:
+def _forward_store(
+    path: Path,
+    *,
+    decision_at: datetime = NOW,
+) -> DurablePhase20ForwardEvidenceStore:
     path.write_text(
         json.dumps(
             {
@@ -69,7 +73,7 @@ def _forward_store(path: Path) -> DurablePhase20ForwardEvidenceStore:
                         "evidence_id": "decision-88",
                         "decision_epoch_id": "epoch-88",
                         "evidence_sha256": DECISION_SHA,
-                        "decision_at": NOW.isoformat(),
+                        "decision_at": decision_at.isoformat(),
                         "candidate_id": (
                             "CIBO_PHASE20H20I_FORWARD_CANDIDATE_V2"
                         ),
@@ -193,7 +197,7 @@ def test_restart_safe_recovery_seals_exact_risk_and_terminal_outcome(
     )
     mutation = _mutation_ledger(tmp_path / "mutations.json")
 
-    result = reconcile_ctrader_demo_phase20_entry(
+    risk_pass = reconcile_ctrader_demo_phase20_entry(
         entry=_entry(),
         account=ACCOUNT,
         mutation_ledger=mutation,
@@ -203,22 +207,21 @@ def test_restart_safe_recovery_seals_exact_risk_and_terminal_outcome(
         reconciled_at=NOW + timedelta(seconds=2),
     )
 
-    assert result.status is Phase20CTraderRecoveryStatus.OUTCOME_SEALED
-    assert result.broker_mutation_performed is False
-    assert result.sizing_authority is False
-    assert result.risk_authority is False
-    assert result.execution_authority is False
+    assert (
+        risk_pass.status
+        is Phase20CTraderRecoveryStatus.RISK_SEALED_OUTCOME_PENDING
+    )
+    assert risk_pass.broker_mutation_performed is False
+    assert risk_pass.sizing_authority is False
+    assert risk_pass.risk_authority is False
+    assert risk_pass.execution_authority is False
     risk_rows = risk.load().evidences
     assert len(risk_rows) == 1
     assert risk_rows[0].weighted_fill_price == Decimal("100.1")
     assert risk_rows[0].executed_initial_stop_risk_usd == Decimal("11")
-    outcomes = forward.load().outcomes
-    assert len(outcomes) == 1
-    assert outcomes[0].realized_net_pnl_usd == Decimal("22")
-    assert outcomes[0].realized_structural_outcome_r == Decimal("2")
+    assert forward.load().outcomes == ()
 
-    # A restart/retry consumes only durable stores and cannot rewrite evidence.
-    retried = reconcile_ctrader_demo_phase20_entry(
+    outcome_pass = reconcile_ctrader_demo_phase20_entry(
         entry=_entry(),
         account=ACCOUNT,
         mutation_ledger=JsonFileCTraderDemoMutationLedger(
@@ -234,6 +237,30 @@ def test_restart_safe_recovery_seals_exact_risk_and_terminal_outcome(
             tmp_path / "settlements.json"
         ),
         reconciled_at=NOW + timedelta(seconds=3),
+    )
+    assert outcome_pass.status is Phase20CTraderRecoveryStatus.OUTCOME_SEALED
+    outcomes = forward.load().outcomes
+    assert len(outcomes) == 1
+    assert outcomes[0].realized_net_pnl_usd == Decimal("22")
+    assert outcomes[0].realized_structural_outcome_r == Decimal("2")
+
+    # A second restart/retry consumes only durable stores and cannot rewrite evidence.
+    retried = reconcile_ctrader_demo_phase20_entry(
+        entry=_entry(),
+        account=ACCOUNT,
+        mutation_ledger=JsonFileCTraderDemoMutationLedger(
+            tmp_path / "mutations.json"
+        ),
+        forward_store=DurablePhase20ForwardEvidenceStore(
+            tmp_path / "forward.json"
+        ),
+        executed_risk_store=DurablePhase20ExecutedRiskStore(
+            tmp_path / "risk.json"
+        ),
+        settlement_store=DurableCmaSettlementStore(
+            tmp_path / "settlements.json"
+        ),
+        reconciled_at=NOW + timedelta(seconds=4),
     )
     assert retried.status is Phase20CTraderRecoveryStatus.ALREADY_COMPLETE
     assert risk.load().generation == 1
@@ -320,3 +347,37 @@ def test_recovery_rejects_tampered_durable_fill_economics(
             ),
             reconciled_at=NOW + timedelta(seconds=2),
         )
+
+
+
+def test_shadow_policy_can_be_sealed_after_demo_fill_without_fill_leakage(
+    tmp_path: Path,
+) -> None:
+    shadow_decision_at = NOW + timedelta(milliseconds=800)
+    forward = _forward_store(
+        tmp_path / "forward.json",
+        decision_at=shadow_decision_at,
+    )
+    risk = DurablePhase20ExecutedRiskStore(tmp_path / "risk.json")
+
+    result = reconcile_ctrader_demo_phase20_entry(
+        entry=_entry(),
+        account=ACCOUNT,
+        mutation_ledger=_mutation_ledger(tmp_path / "mutations.json"),
+        forward_store=forward,
+        executed_risk_store=risk,
+        settlement_store=DurableCmaSettlementStore(
+            tmp_path / "settlements.json"
+        ),
+        reconciled_at=NOW + timedelta(seconds=2),
+    )
+
+    assert (
+        result.status
+        is Phase20CTraderRecoveryStatus.RISK_SEALED_OUTCOME_PENDING
+    )
+    evidence = risk.load().evidences[0]
+    assert evidence.observed_at > shadow_decision_at
+    assert evidence.observed_at > (
+        NOW + timedelta(milliseconds=500)
+    )
