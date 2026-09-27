@@ -35,6 +35,7 @@ def build_ctrader_phase20_executed_risk(
     *,
     decision_evidence_sha256: str,
     position_id: int,
+    authorized_source_volume: Decimal,
     request: CiboRiskRequest,
     contract: CTraderDemoBrokerContract,
     fills: tuple[CTraderDemoFillObservation, ...],
@@ -49,6 +50,14 @@ def build_ctrader_phase20_executed_risk(
     ):
         raise CiboCapitalManagementError(
             "Phase20D executed risk requires reconciled positive position_id"
+        )
+    if (
+        not isinstance(authorized_source_volume, Decimal)
+        or not authorized_source_volume.is_finite()
+        or authorized_source_volume <= 0
+    ):
+        raise CiboCapitalManagementError(
+            "Phase20D executed risk requires positive authorized source volume"
         )
     if not isinstance(request, CiboRiskRequest):
         raise CiboCapitalManagementError(
@@ -74,9 +83,22 @@ def build_ctrader_phase20_executed_risk(
         raise CiboCapitalManagementError(
             "Phase20D executed risk broker/request symbol mismatch"
         )
+    if authorized_source_volume > request.requested_volume:
+        raise CiboCapitalManagementError(
+            "Phase20D authorized source volume cannot exceed CIBO request"
+        )
+    if authorized_source_volume < request.minimum_volume:
+        raise CiboCapitalManagementError(
+            "Phase20D authorized source volume cannot be below provider minimum"
+        )
+    step_units = authorized_source_volume / request.volume_step
+    if step_units != step_units.to_integral_value():
+        raise CiboCapitalManagementError(
+            "Phase20D authorized source volume must align to volume step"
+        )
 
     expected_provider_quantity = (
-        request.requested_volume * contract.source_contract_size_units
+        authorized_source_volume * contract.source_contract_size_units
     )
     if reconciliation.requested_quantity != expected_provider_quantity:
         raise CiboCapitalManagementError(
@@ -195,6 +217,10 @@ def build_ctrader_phase20_executed_risk(
             reconciliation.filled_quantity,
             "f",
         ),
+        "authorized_source_volume": format(
+            authorized_source_volume,
+            "f",
+        ),
         "filled_source_volume": format(filled_source_volume, "f"),
         "executed_initial_stop_risk_usd": format(
             executed_initial_risk,
@@ -212,7 +238,16 @@ def build_ctrader_phase20_executed_risk(
         evidence_id=f"phase20d-executed-risk:{sha256(raw).hexdigest()}",
         decision_evidence_sha256=decision_evidence_sha256,
         signal_fingerprint=request.signal_fingerprint,
+        qore_symbol=request.qore_symbol,
         position_id=position_id,
+        authorized_source_volume=authorized_source_volume,
+        filled_source_volume=filled_source_volume,
+        weighted_fill_price=weighted_price,
+        intended_entry_price=request.intended_entry,
+        structural_stop_price=request.stop_loss,
+        stop_risk_per_volume_at_intended_entry_usd=(
+            request.stop_loss_per_volume
+        ),
         executed_initial_stop_risk_usd=executed_initial_risk,
         observed_at=reconciliation.reconciled_at,
         fill_evidence_refs=tuple(item.fill_ref for item in ordered),
