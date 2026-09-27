@@ -227,6 +227,23 @@ class CTraderDemoTradeRegistry:
             total += Decimal(item.requested_stop_risk)
         return total
 
+    def pending_stop_risk(self, *, now: datetime) -> Decimal:
+        """Return conservative stop risk for live unbound broker submissions."""
+
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("now must be timezone-aware")
+        total = Decimal("0")
+        with self._lock:
+            entries = tuple(self._entries.values())
+        for item in entries:
+            if item.closed_at is not None or item.position_id is not None:
+                continue
+            expires_at = datetime.fromisoformat(item.expires_at)
+            if expires_at < now:
+                continue
+            total += Decimal(item.requested_stop_risk)
+        return total
+
     def latest_for_trader(self, trader: str) -> DemoTradeRegistryEntry | None:
         with self._lock:
             matches = [item for item in self._entries.values() if item.trader == trader]
