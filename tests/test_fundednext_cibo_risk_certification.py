@@ -28,3 +28,23 @@ def test_component_certification_cannot_self_authorize_live_send() -> None:
     assert isinstance(governance, dict)
     assert governance["component_certification_grants_order_send_authority"] is False
     assert governance["component_certification_grants_live_activation"] is False
+
+
+def test_component_certification_binds_cibo_as_fundednext_capital_authority() -> None:
+    payload = build_certification(git_sha=_SHA)
+
+    cibo = payload["cibo"]
+    assert isinstance(cibo, dict)
+    assert cibo["capital_management_authority"] is True
+    assert cibo["runtime_sizing_authority"] is True
+    assert cibo["legacy_trader_sizing_authority"] is False
+    assert cibo["mission"] == "FUNDED_SURVIVAL_COMPOUND"
+    assert cibo["provider"] == "FundedNext"
+    assert cibo["provider_program"] == "STELLAR_INSTANT"
+
+    risk = payload["account_wide_risk"]
+    assert isinstance(risk, dict)
+    assert risk["hard_survivability_governor"] is True
+    assert risk["capital_management_strategy_authority"] is False
+    assert risk["runtime_sizing_authority"] is False
+    assert risk["decisions"] == ["ALLOW", "REDUCE", "REJECT"]
