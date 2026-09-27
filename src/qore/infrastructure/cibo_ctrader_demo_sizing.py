@@ -71,6 +71,7 @@ def build_ctrader_demo_cibo_sizing(
     opportunity: TraderOpportunityEnvelope,
     account_ref: str,
     account_state: CTraderDemoAccountState,
+    current_committed_stop_risk_usd: Decimal,
     requested_at: datetime,
     expires_at: datetime,
 ) -> CTraderDemoCiboSizing:
@@ -91,12 +92,23 @@ def build_ctrader_demo_cibo_sizing(
             environment=MarketRuntimeEnvironment.DEMO,
         )
     )
-    # DEMO capability discovery deliberately uses the whole observed account
-    # equity as loss-capacity ceiling and free margin as the broker-capacity
-    # ceiling. Cross-Trader attribution must not partition this envelope.
+    if (
+        not isinstance(current_committed_stop_risk_usd, Decimal)
+        or not current_committed_stop_risk_usd.is_finite()
+        or current_committed_stop_risk_usd < 0
+    ):
+        raise CiboCapitalManagementError(
+            "DEMO committed stop risk must be finite non-negative Decimal"
+        )
+    # DEMO capability discovery may use the whole remaining account envelope,
+    # but never the same loss capacity twice across concurrent Traders.
+    hard_risk_headroom = max(
+        Decimal(0),
+        account_state.equity - current_committed_stop_risk_usd,
+    )
     capital = account_capital_state(
         assigned_capital_usd=account_state.equity,
-        hard_risk_headroom_usd=account_state.equity,
+        hard_risk_headroom_usd=hard_risk_headroom,
         margin_headroom_usd=account_state.free_margin,
         survival_capital_usd=Decimal(0),
         protected_capital_usd=Decimal(0),
