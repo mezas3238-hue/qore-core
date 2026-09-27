@@ -391,7 +391,6 @@ def seal_phase20_forward_observed_epoch(
         population_slots=ordered_population,
         candidates=candidates,
         known_options=ordered_options,
-        collector_git_sha=collector_git_sha,
     )
 
     current = store.load()
@@ -399,6 +398,7 @@ def seal_phase20_forward_observed_epoch(
         evidence,
         expected_generation=current.generation,
         seal_deadline_at=seal_deadline_at,
+        collector_git_sha=collector_git_sha,
     )
     decision_record = build_phase20_forward_decision_record(evidence)
     return Phase20ForwardEpochResult(
