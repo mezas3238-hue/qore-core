@@ -860,6 +860,8 @@ def _coverage_rows(rows: tuple[Phase20QualificationRow, ...]) -> Decimal:
             item.realized_net_pnl_usd is not None
             and item.executed_initial_stop_risk_usd is not None
             and item.realized_structural_outcome_r is not None
+            and item.capital_minutes is not None
+            and item.capital_minutes > 0
         )
     )
     return Decimal(observed) / Decimal(len(rows))
