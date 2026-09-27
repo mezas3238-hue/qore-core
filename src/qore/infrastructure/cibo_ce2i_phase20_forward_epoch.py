@@ -168,6 +168,7 @@ def collect_phase20_forward_observed_epoch(
     current_step: int,
     population_slots: tuple[Phase20ForwardPopulationSlotEvidence, ...],
     opportunities: tuple[Phase20ForwardObservedOpportunity, ...],
+    seal_deadline_at: datetime | None = None,
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
 ) -> Phase20ForwardCollectedEpoch:
     """Canonical collector: evidence first, policy record second, never broker."""
@@ -187,6 +188,7 @@ def collect_phase20_forward_observed_epoch(
         current_step=current_step,
         population_slots=population_slots,
         opportunities=opportunities,
+        seal_deadline_at=seal_deadline_at,
         known_options=known_options,
     )
     current_policy = policy_store.load()
@@ -214,6 +216,7 @@ def seal_phase20_forward_observed_epoch_from_snapshots(
     current_step: int,
     population_slots: tuple[Phase20ForwardPopulationSlotEvidence, ...],
     opportunities: tuple[Phase20ForwardObservedOpportunity, ...],
+    seal_deadline_at: datetime | None = None,
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
 ) -> Phase20ForwardEpochResult:
     """Seal an epoch using content-bound current capital/Risk snapshots."""
@@ -238,6 +241,7 @@ def seal_phase20_forward_observed_epoch_from_snapshots(
         current_step=current_step,
         population_slots=population_slots,
         opportunities=opportunities,
+        seal_deadline_at=seal_deadline_at,
         known_options=known_options,
     )
 
@@ -258,6 +262,7 @@ def seal_phase20_forward_observed_epoch(
     current_step: int,
     population_slots: tuple[Phase20ForwardPopulationSlotEvidence, ...],
     opportunities: tuple[Phase20ForwardObservedOpportunity, ...],
+    seal_deadline_at: datetime | None = None,
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
 ) -> Phase20ForwardEpochResult:
     """Seal a complete causal epoch, then evaluate V2 observationally.
@@ -387,6 +392,7 @@ def seal_phase20_forward_observed_epoch(
     sealed = store.seal_decision(
         evidence,
         expected_generation=current.generation,
+        seal_deadline_at=seal_deadline_at,
     )
     decision_record = build_phase20_forward_decision_record(evidence)
     return Phase20ForwardEpochResult(
