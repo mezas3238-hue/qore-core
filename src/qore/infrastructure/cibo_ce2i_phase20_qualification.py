@@ -26,7 +26,6 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
 )
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     Phase20ForwardDecisionSeal,
-    Phase20ForwardOutcomeSeal,
     VersionedPhase20ForwardEvidenceBook,
 )
 from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
