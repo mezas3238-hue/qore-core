@@ -1,4 +1,4 @@
-name: QORE Shared WP05 Sequential ChangePoint V9 Foundation
+name: QORE Shared WP05 Sequential ChangePoint V10 Candidate Foundation
 
 on:
   push:
@@ -22,6 +22,8 @@ env:
 
 jobs:
   sequential-changepoint-v9-foundation:
+    # Reserved candidate; activate only after authoritative V9 conclusion.
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
