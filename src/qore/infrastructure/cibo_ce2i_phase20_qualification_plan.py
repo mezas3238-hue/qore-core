@@ -25,7 +25,7 @@ from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
     FROZEN_PHASE20_POLICY_CANDIDATE,
 )
 
-_QUALIFICATION_ID = "CIBO_PHASE20D_V2_FORWARD_QUALIFICATION_PLAN_V1"
+_QUALIFICATION_ID = "CIBO_PHASE20D_V2_FORWARD_QUALIFICATION_PLAN_V2"
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +52,7 @@ class Phase20ForwardQualificationPlan:
     burned_phase19j_reuse_allowed: bool
     synthetic_evidence_allowed: bool
     decision_time_provider_cost_proxy_only: bool
+    realized_execution_economics_required: bool
     metrics: tuple[str, ...]
     hard_gates: tuple[str, ...]
 
@@ -116,6 +117,7 @@ class Phase20ForwardQualificationPlan:
             "burned_phase19j_reuse_allowed",
             "synthetic_evidence_allowed",
             "decision_time_provider_cost_proxy_only",
+            "realized_execution_economics_required",
         ):
             if type(getattr(self, name)) is not bool:
                 raise CiboCapitalManagementError(
@@ -132,6 +134,10 @@ class Phase20ForwardQualificationPlan:
         if not self.decision_time_provider_cost_proxy_only:
             raise CiboCapitalManagementError(
                 "Phase20D cannot relabel provider cost proxy as realized cost"
+            )
+        if not self.realized_execution_economics_required:
+            raise CiboCapitalManagementError(
+                "Phase20D qualification requires reconciled realized execution economics"
             )
         if not self.metrics or not self.hard_gates:
             raise CiboCapitalManagementError(
@@ -166,9 +172,11 @@ FROZEN_PHASE20D_QUALIFICATION_PLAN = Phase20ForwardQualificationPlan(
     burned_phase19j_reuse_allowed=False,
     synthetic_evidence_allowed=False,
     decision_time_provider_cost_proxy_only=True,
+    realized_execution_economics_required=True,
     metrics=(
-        "STRUCTURAL_GROSS_DELTA_USD",
-        "DECISION_TIME_PROVIDER_COST_ADJUSTED_DELTA_USD",
+        "REALIZED_NET_DELTA_USD",
+        "EXECUTED_INITIAL_STOP_RISK_USD",
+        "DECISION_TIME_PROVIDER_COST_PROXY_USD",
         "TEMPORAL_FOLD_DELTA_USD",
         "CAPITAL_MAX_DRAWDOWN_USD",
         "CAPITAL_PRODUCTIVITY_USD_PER_RISK_MINUTE",
@@ -187,6 +195,7 @@ FROZEN_PHASE20D_QUALIFICATION_PLAN = Phase20ForwardQualificationPlan(
         "ZERO_CAPITAL_CONSERVATION_BREACHES",
         "ZERO_CONCENTRATION_BREACHES",
         "ZERO_PROVIDER_CONSTRAINT_BYPASSES",
+        "REALIZED_EXECUTION_ECONOMICS_COMPLETE",
         "ALL_TEMPORAL_FOLDS_POLICY_DELTA_POSITIVE",
         "AGGREGATE_POLICY_DELTA_POSITIVE",
         "POLICY_DELTA_NOT_BELOW_FIXED_BASELINE",
@@ -239,6 +248,9 @@ def phase20d_qualification_plan_sha256() -> str:
         "synthetic_evidence_allowed": plan.synthetic_evidence_allowed,
         "decision_time_provider_cost_proxy_only": (
             plan.decision_time_provider_cost_proxy_only
+        ),
+        "realized_execution_economics_required": (
+            plan.realized_execution_economics_required
         ),
         "metrics": list(plan.metrics),
         "hard_gates": list(plan.hard_gates),
