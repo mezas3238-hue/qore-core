@@ -49,6 +49,7 @@ def test_demo_cibo_uses_full_account_not_one_seventh_trader_slice() -> None:
         opportunity=_opportunity(TraderLineage.R38_EURUSD),
         account_ref="demo-account",
         account_state=_account(),
+        current_committed_stop_risk_usd=Decimal("0"),
         requested_at=NOW,
         expires_at=NOW + timedelta(seconds=30),
     )
@@ -67,6 +68,7 @@ def test_demo_same_geometry_has_same_cibo_size_across_trader_lineages() -> None:
         opportunity=_opportunity(TraderLineage.R38_EURUSD),
         account_ref="demo-account",
         account_state=_account(),
+        current_committed_stop_risk_usd=Decimal("0"),
         requested_at=NOW,
         expires_at=NOW + timedelta(seconds=30),
     )
@@ -75,9 +77,27 @@ def test_demo_same_geometry_has_same_cibo_size_across_trader_lineages() -> None:
         opportunity=_opportunity(TraderLineage.R43_GBPUSD),
         account_ref="demo-account",
         account_state=_account(),
+        current_committed_stop_risk_usd=Decimal("0"),
         requested_at=NOW,
         expires_at=NOW + timedelta(seconds=30),
     )
 
     assert first.plan.volume == second.plan.volume
     assert first.request.requested_stop_risk == second.request.requested_stop_risk
+
+
+
+def test_demo_cibo_subtracts_existing_account_stop_risk_before_maximizing() -> None:
+    sizing = build_ctrader_demo_cibo_sizing(
+        request_id="demo-remaining-risk",
+        opportunity=_opportunity(TraderLineage.R38_EURUSD),
+        account_ref="demo-account",
+        account_state=_account(),
+        current_committed_stop_risk_usd=Decimal("800"),
+        requested_at=NOW,
+        expires_at=NOW + timedelta(seconds=30),
+    )
+
+    # Risk headroom is 200 USD, tighter than the 500 USD margin envelope.
+    assert sizing.plan.volume == Decimal("2.00")
+    assert sizing.plan.stop_risk_usd == Decimal("200.00")
