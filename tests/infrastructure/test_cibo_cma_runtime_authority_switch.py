@@ -107,3 +107,15 @@ def test_phase20_runtime_never_assumes_zero_pending_broker_risk() -> None:
 
     assert 'pending_broker_worst_case_loss_usd=Decimal("0")' not in source
     assert source.count("demo_sink.registry.pending_stop_risk(") == 2
+
+
+def test_phase20_single_slot_wires_vt08_and_vt31_without_collapsing_oco() -> None:
+    source = RUNTIME.read_text(encoding="utf-8")
+    adapter = VT31_ADAPTER.read_text(encoding="utf-8")
+
+    assert "phase20_after_submit=observe_vt08_phase20_candidate" in source
+    assert "phase20_after_submit=observe_vt31_phase20_candidate" in source
+    assert "PHASE20D_VT31_OCO_INELIGIBLE" in source
+    assert "BASKET_AWARE_FORWARD_ADAPTER_REQUIRED" in source
+    assert "phase20_after_submit: Phase20AfterSubmit | None = None" in adapter
+    assert "phase20_after_submit(" in adapter
