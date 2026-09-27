@@ -391,6 +391,7 @@ def prepare_ctrader_demo_single_slot_phase20_epoch(
         current_step=current_step,
         population_slots=batch.population_slots,
         opportunities=batch.opportunities,
+        seal_deadline_at=batch.deadline_at,
     )
     return Phase20DemoSingleSlotPrepared(
         result=result,
