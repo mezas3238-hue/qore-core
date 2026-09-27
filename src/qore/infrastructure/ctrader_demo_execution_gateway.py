@@ -85,13 +85,21 @@ def _stable_fill_identity(observation: CTraderDemoFillObservation) -> tuple[obje
     )
 
 
-def _stable_fill_digest(observation: CTraderDemoFillObservation) -> str:
+def ctrader_fill_identity_digest(
+    observation: CTraderDemoFillObservation,
+) -> str:
+    """Return the canonical immutable provider-fill identity digest."""
+
     canonical = json.dumps(
         _stable_fill_identity(observation),
         default=str,
         separators=(",", ":"),
     ).encode("utf-8")
     return f"sha256:{hashlib.sha256(canonical).hexdigest()}"
+
+
+def _stable_fill_digest(observation: CTraderDemoFillObservation) -> str:
+    return ctrader_fill_identity_digest(observation)
 
 
 class CTraderDemoExecutionGatewayError(ExecutionBoundaryError):
