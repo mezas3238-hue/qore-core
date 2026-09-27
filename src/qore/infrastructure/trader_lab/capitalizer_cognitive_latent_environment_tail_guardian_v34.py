@@ -20,7 +20,6 @@ import math
 from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -526,8 +525,12 @@ def _fit_family_model(
 
     action_heads: dict[str, LatentActionHeads] = {}
     for action in v30._eligible_actions(family):
-        def head(name: str) -> MixtureHead:
-            target_id = (action, name)
+        def head(
+            name: str,
+            *,
+            action_name: str = action,
+        ) -> MixtureHead:
+            target_id = (action_name, name)
             current = tuple(residuals[target_id])
             if not current:
                 raise ValueError("V34 produced no chronological residuals")
