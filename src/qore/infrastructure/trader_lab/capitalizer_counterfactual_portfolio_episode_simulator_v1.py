@@ -100,6 +100,7 @@ class TransitionAudit:
     locally_negative_but_dynamic_positive: bool
     improves_total_r_and_legacy_dd: bool
     diagnostic_single_intervention_full_gate: bool
+    identical_downstream_trajectory_short_circuit: bool
     intervention_outcome_used_for_runtime_decision: bool = False
     future_outcomes_used_for_runtime_decision: bool = False
     outcome_used_for_diagnostic_scoring: bool = True
@@ -132,6 +133,10 @@ def _replay_period(
     contexts: dict[tuple[str, str], Any],
     contextual_model: dict[str, Any],
     intervention: Intervention | None,
+    start_index: int = 0,
+    prefix_chosen: tuple[milestone.SimulatedTrade, ...] = (),
+    prefix_records: tuple[memory.MemoryRecord, ...] = (),
+    prefix_decisions: tuple[ReplayDecision, ...] = (),
 ) -> tuple[
     tuple[milestone.SimulatedTrade, ...],
     tuple[ReplayDecision, ...],
@@ -143,12 +148,21 @@ def _replay_period(
     ordered = _ordered(
         ledgers[milestone.ProtectionMode.ORIGINAL.value]
     )
-    chosen: list[milestone.SimulatedTrade] = []
-    records: list[memory.MemoryRecord] = []
-    decisions: list[ReplayDecision] = []
+    if not 0 <= start_index <= len(ordered):
+        raise ValueError("episode simulator start index outside ledger")
+    if not (
+        len(prefix_chosen)
+        == len(prefix_records)
+        == len(prefix_decisions)
+        == start_index
+    ):
+        raise ValueError("episode simulator prefix length mismatch")
+    chosen: list[milestone.SimulatedTrade] = list(prefix_chosen)
+    records: list[memory.MemoryRecord] = list(prefix_records)
+    decisions: list[ReplayDecision] = list(prefix_decisions)
     intervention_seen = False
 
-    for trade in ordered:
+    for trade in ordered[start_index:]:
         key = (trade.symbol, trade.entry_at)
         pretrade = v11._pretrade(
             period=period,
@@ -233,6 +247,36 @@ def _replay_period(
     if intervention is not None and not intervention_seen:
         raise ValueError("episode simulator intervention key not found")
     return tuple(chosen), tuple(decisions)
+
+
+def _baseline_records(
+    *,
+    ordered: tuple[milestone.SimulatedTrade, ...],
+    decisions: tuple[ReplayDecision, ...],
+    modes: dict[
+        str,
+        dict[tuple[str, str], milestone.SimulatedTrade],
+    ],
+    contexts: dict[tuple[str, str], Any],
+) -> tuple[memory.MemoryRecord, ...]:
+    if len(ordered) != len(decisions):
+        raise ValueError("episode simulator baseline record length drift")
+    records: list[memory.MemoryRecord] = []
+    for trade, decision in zip(ordered, decisions, strict=True):
+        key = (trade.symbol, trade.entry_at)
+        selected = modes[decision.selected_mode][key]
+        ctx = contexts[key]
+        records.append(
+            memory.MemoryRecord(
+                symbol=ctx.symbol,
+                session=ctx.session,
+                destination_state=ctx.destination_state,
+                context_signature=ctx.context_signature,
+                exit_at=selected.exit_at,
+                normalized_realized_r=selected.realized_gross_r,
+            )
+        )
+    return tuple(records)
 
 
 def _decision_map(
@@ -384,10 +428,17 @@ def _period_report(
         (row.symbol, row.entry_at): index
         for index, row in enumerate(ordered_original)
     }
+    baseline_records = _baseline_records(
+        ordered=ordered_original,
+        decisions=replay_decisions,
+        modes=modes,
+        contexts=contexts,
+    )
 
     audits: list[TransitionAudit] = []
     state_count = 0
     no_actual_trigger_count = 0
+    short_circuit_count = 0
     for key, decision in surface_decisions.items():
         surface_mode = str(decision.surface_mode)
         family = v30._mode_family(surface_mode)
@@ -422,13 +473,28 @@ def _period_report(
                 expected_base_multiplier=decision.base_multiplier,
                 action=action,
             )
-            rollout, rollout_decisions = _replay_period(
-                period=period,
-                ledgers=ledgers,
-                contexts=contexts,
-                contextual_model=contextual_model,
-                intervention=spec,
+            action_raw = modes[action][key]
+            identical_downstream = (
+                action_raw.exit_at == surface_raw.exit_at
+                and Decimal(action_raw.realized_gross_r)
+                == Decimal(surface_raw.realized_gross_r)
             )
+            if identical_downstream:
+                short_circuit_count += 1
+                rollout = replay_ledger
+                rollout_decisions = replay_decisions
+            else:
+                rollout, rollout_decisions = _replay_period(
+                    period=period,
+                    ledgers=ledgers,
+                    contexts=contexts,
+                    contextual_model=contextual_model,
+                    intervention=spec,
+                    start_index=baseline_index,
+                    prefix_chosen=replay_ledger[:baseline_index],
+                    prefix_records=baseline_records[:baseline_index],
+                    prefix_decisions=replay_decisions[:baseline_index],
+                )
             rollout_metrics = milestone._metrics(rollout)
             rollout_exit = chronology._exit_batch_metrics(rollout)
             rollout_total = Decimal(rollout_metrics["total_r"])
@@ -523,6 +589,9 @@ def _period_report(
                     ),
                     improves_total_r_and_legacy_dd=improves_both,
                     diagnostic_single_intervention_full_gate=full_gate,
+                    identical_downstream_trajectory_short_circuit=(
+                        identical_downstream
+                    ),
                 )
             )
 
@@ -556,6 +625,9 @@ def _period_report(
                 no_actual_trigger_count
             ),
             "transition_count": len(frozen),
+            "identical_downstream_trajectory_short_circuit_count": (
+                short_circuit_count
+            ),
             "max_dd_descent_transition_count": len(max_dd_rows),
             "feedback_sign_change_count": sum(
                 row.feedback_changed_total_effect_sign for row in frozen
