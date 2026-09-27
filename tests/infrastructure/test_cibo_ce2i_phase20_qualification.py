@@ -244,7 +244,7 @@ def test_phase20d_fixed_runner_can_pass_without_refit() -> None:
     assert len(report.folds) == 4
     assert all(item.policy_net_delta_usd > 0 for item in report.folds)
     assert report.policy_net_delta_usd > report.baseline_net_delta_usd
-    assert report.policy_max_drawdown_usd <= report.baseline_max_drawdown_usd
+    assert report.policy_settlement_cash_drawdown_usd <= report.baseline_settlement_cash_drawdown_usd
     assert (
         report.policy_capital_productivity
         > report.baseline_capital_productivity
