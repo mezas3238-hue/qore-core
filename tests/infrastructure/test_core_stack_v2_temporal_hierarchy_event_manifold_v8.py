@@ -37,7 +37,7 @@ def _future(
 ) -> tuple[Bar, ...]:
     rows = [Bar(high=high, low=low, close=close) for high, low, close in values]
     while len(rows) < 30:
-        rows.append(Bar(high=101.0, low=99.0, close=100.5))
+        rows.append(Bar(high=101.0, low=99.2, close=100.5))
     return tuple(rows[:30])
 
 
