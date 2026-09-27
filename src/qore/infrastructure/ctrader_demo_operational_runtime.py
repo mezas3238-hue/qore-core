@@ -180,6 +180,14 @@ class CTraderDemoOperationalRuntime:
     def has_unresolved_mutations(self) -> bool:
         return self._gateway.has_unresolved_mutations
 
+    def fills_for(
+        self,
+        receipt_id: ExecutionReceiptId,
+    ) -> tuple[CTraderDemoFillObservation, ...]:
+        """Expose exact durable fill evidence for a known/restored submission."""
+
+        return self._gateway.fills_for(receipt_id)
+
     def stage_risk_fence(
         self,
         submission: ExecutionSubmission,
