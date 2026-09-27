@@ -5,9 +5,10 @@ Provider constraints and QORE operating limits are deliberately separate:
 * FundedNext provider wall: exact 6% trailing MLL plus the separate cumulative open-risk cap.
 * QORE does not replace the 6% Maximum Loss with a 3% drawdown rule; internal
   containment uses a safety buffer and shared account heat caps above the provider wall.
-* CIBO may request NORMAL/BANK/ATTACK; this policy either ALLOWs the request,
-  REDUCEs ATTACK to NORMAL when earned cushion is insufficient, or REJECTs new
-  risk. No posture changes VT-08's certified per-trade bps.
+* CIBO owns runtime sizing for every Trader. This policy exposes and enforces
+  account-wide survival headroom and may ALLOW/REDUCE/REJECT a CIBO request.
+  No Trader risk fraction or certified historical sizing baseline has runtime
+  sizing authority.
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ QORE_INTERNAL_BANK_HEAT_FRACTION = Decimal("0.03")
 QORE_INTERNAL_NORMAL_HEAT_FRACTION = Decimal("0.03")
 QORE_INTERNAL_ATTACK_HEAT_FRACTION = Decimal("0.03")
 QORE_INTERNAL_ATTACK_MIN_EARNED_CUSHION_FRACTION = Decimal("0.01")
-QORE_OPERATIONAL_RISK_POLICY_VERSION = "qore-stellar-instant-operational-risk-v3"
+QORE_OPERATIONAL_RISK_POLICY_VERSION = "qore-stellar-instant-operational-risk-v4"
 
 
 class CapitalBudgetDecision(StrEnum):
@@ -108,10 +109,12 @@ def operational_risk_policy_fingerprint() -> str:
         "attack_min_earned_cushion_fraction": str(
             QORE_INTERNAL_ATTACK_MIN_EARNED_CUSHION_FRACTION
         ),
-        "per_trade_vt08_risk_unchanged_by_posture": True,
+        "trader_runtime_sizing_authority": False,
+        "cibo_runtime_sizing_authority": True,
+        "risk_runtime_sizing_authority": False,
         "minimum_broker_volume_uplift_requires_shared_headroom": True,
         "aggregate_heat_shared_by_all_traders": True,
-        "risk_final_capital_authority": True,
+        "risk_is_hard_survivability_governor": True,
     }
     return sha256(
         json.dumps(material, sort_keys=True, separators=(",", ":")).encode("utf-8")
