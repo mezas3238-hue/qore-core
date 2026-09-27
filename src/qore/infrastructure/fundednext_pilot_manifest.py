@@ -28,7 +28,17 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
     cibo_policy_fingerprint,
 )
 
-_SCHEMA = "qore.fundednext.stellar-instant-2k-pilot-readiness.v3"
+_SCHEMA = "qore.fundednext.stellar-instant-2k-pilot-readiness.v4"
+
+_FUNDEDNEXT_CIBO_TRADERS: dict[str, tuple[str, ...]] = {
+    "VT08_FOREX": ("AUDJPY", "GBPUSD", "GBPJPY"),
+    "R34_XAUUSD": ("XAUUSD",),
+    "R38_EURUSD": ("EURUSD",),
+    "R43_GBPUSD": ("GBPUSD",),
+    "R38_GBPJPY": ("GBPJPY",),
+    "R42_AUDJPY": ("AUDJPY",),
+    "VT31_NAS100": ("NAS100",),
+}
 
 
 def _digest(path: Path) -> str:
@@ -66,7 +76,19 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
         "no_send_probe": root / "scripts/fundednext_mt5_no_send_probe.py",
         "order_check_probe": root / "scripts/fundednext_mt5_order_check_probe.py",
         "vt08_forex_cibo": root / "src/qore/infrastructure/vt08_forex_cibo_operational.py",
-        "vt08_forex_sizing": root / "src/qore/infrastructure/vt08_forex_fundednext_sizing.py",
+        "legacy_vt08_sizing_baseline": (
+            root / "src/qore/infrastructure/vt08_forex_fundednext_sizing.py"
+        ),
+        "cibo_account_sizing_authority": (
+            root / "src/qore/infrastructure/cibo_account_sizing_authority.py"
+        ),
+        "cibo_fundednext_provider": (
+            root / "src/qore/infrastructure/cibo_fundednext_provider.py"
+        ),
+        "cibo_fundednext_sizing_bridge": (
+            root / "src/qore/infrastructure/cibo_fundednext_seed.py"
+        ),
+        "vt31_runtime_adapter": root / "scripts/vt31_nas100_runtime_adapter.py",
         "cibo_risk_certification": (
             root / "src/qore/infrastructure/fundednext_cibo_risk_certification.py"
         ),
@@ -114,13 +136,25 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
         "cibo_capital_management": {
             "capital_management_authority": True,
             "runtime_sizing_authority": True,
+            "sizing_scope": "ACCOUNT",
+            "all_loaded_traders_use_cibo_sizing": True,
             "legacy_trader_sizing_authority": False,
+            "legacy_trader_risk_fraction_execution_authority": False,
             "account_mission": "FUNDED_SURVIVAL_COMPOUND",
             "provider": "FUNDEDNEXT",
             "provider_program": "STELLAR_INSTANT",
+            "survival_capital_source": "QORE_ACCOUNT_HEAT_CAP",
+            "protected_capital_source": "EARNED_CLOSED_BALANCE_CUSHION",
+            "before_base_protection_mode": "SURVIVAL_MINIMAL_SEED",
+            "after_base_protection_mode": "PROTECTED_FULL_CAPACITY",
+            "floating_pnl_counts_as_protected_capital": False,
         },
         "topology": {
-            "traders": {"VT08_FOREX": ["AUDJPY", "GBPUSD", "GBPJPY"]},
+            "traders": {
+                trader: list(symbols)
+                for trader, symbols in sorted(_FUNDEDNEXT_CIBO_TRADERS.items())
+            },
+            "trader_count": len(_FUNDEDNEXT_CIBO_TRADERS),
             "certified_live_directions": {
                 symbol: sorted(sides)
                 for symbol, sides in sorted(CERTIFIED_LIVE_DIRECTIONS.items())
@@ -131,14 +165,21 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
                 "TRADER_OPPORTUNITY -> CIBO_CMA_SIZING -> ACCOUNT_WIDE_RISK -> "
                 "RiskAuthorization -> LIVE_RISK_RECHECK -> MT5"
             ),
-            "index_execution_enabled": False,
+            "index_execution_enabled": True,
+            "trader_runtime_sizing_authority": False,
+            "cibo_runtime_sizing_authority": True,
         },
         "certification_state": {
             "vt08_forex_demo_approved": True,
             "vt08_forex_certificate_run_id": 34772576642,
             "vt08_forex_certificate_artifact_id": 10322482424,
             "vt08_forex_methodology_fingerprint": R315_METHOD_FINGERPRINT,
-            "vt08_forex_risk_policy_fingerprint": R315_RISK_FINGERPRINT,
+            "vt08_forex_legacy_risk_policy_fingerprint_baseline_only": (
+                R315_RISK_FINGERPRINT
+            ),
+            "legacy_trader_sizing_execution_authority": False,
+            "cibo_account_scoped_sizing_seven_lineages": True,
+            "funded_survival_then_protected_capacity_transition": True,
             "cibo_forex_policy": "R3.15_OPERATIONAL_POSTURE_UNDER_SOVEREIGN_RISK",
             "cibo_forex_version": R315_CIBO_VERSION,
             "cibo_forex_fingerprint": cibo_policy_fingerprint(),
@@ -157,7 +198,8 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
             "live_safety": "fundednext-live-safety-v1",
             "live_mt5_gateway": "fundednext-production-risk-recheck-gateway-v2",
             "position_exit_ledger": "fundednext-h4-position-exit-ledger-v1",
-            "runtime_service": "fundednext-vt08-cibo-risk-resident-runtime-v2",
+            "runtime_service": "fundednext-seven-lineage-cibo-account-runtime-v3",
+            "cibo_account_sizing": "account-scoped-sizing-v1",
             "vt08_forex_cibo": R315_CIBO_VERSION,
         },
         "component_sha256": {name: _digest(path) for name, path in files.items()},
@@ -177,6 +219,11 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
             "shared_risk_implemented": True,
             "durable_shared_risk_implemented": True,
             "broker_exact_sizing_implemented": True,
+            "cibo_account_scoped_sizing_implemented": True,
+            "all_seven_lineages_cibo_sizing_implemented": True,
+            "trader_sizing_excluded_from_runtime": True,
+            "funded_survival_minimal_seed_implemented": True,
+            "protected_full_capacity_transition_implemented": True,
             "opening_commission_reserved_in_risk_implemented": True,
             "broker_executable_risk_recheck_implemented": True,
             "current_price_open_position_risk_implemented": True,
