@@ -151,7 +151,7 @@ FROZEN_PHASE20D_QUALIFICATION_PLAN = Phase20ForwardQualificationPlan(
     candidate_parameter_sha256=(
         FROZEN_PHASE20_POLICY_CANDIDATE.parameter_sha256()
     ),
-    frozen_at=datetime(2026, 9, 27, 16, 33, tzinfo=UTC),
+    frozen_at=datetime(2026, 9, 27, 17, 22, 12, tzinfo=UTC),
     baseline_policy_id=(
         "CMA_MINIMAL_SEED_HARD_CONSTRAINTS_CANONICAL_ORDER_V1"
     ),
