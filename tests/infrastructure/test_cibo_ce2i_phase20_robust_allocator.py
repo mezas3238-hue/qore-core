@@ -23,6 +23,7 @@ from qore.infrastructure.cibo_ce2i_phase20_robust_allocator import (
 from qore.infrastructure.cibo_ce2i_regime_selector import (
     CiboCapitalRegimeState,
     CiboRegimePosture,
+    CiboRegimeToolSelection,
     CorrelationState,
     LiquidityState,
     ProviderCondition,
@@ -51,7 +52,7 @@ def _regime(
     drawdown: str = "0.20",
     adverse: bool = False,
     stale: bool = False,
-) -> object:
+) -> CiboRegimeToolSelection:
     return select_ce2i_tools_for_regime(
         mission=mission,
         state=CiboCapitalRegimeState(
@@ -264,19 +265,21 @@ def test_phase20h_candidate_order_does_not_change_selection() -> None:
         net="10",
         minutes="20",
     )
-    kwargs = {
-        "mission": mission,
-        "regime": _regime(mission),
-        "hard_risk_headroom_usd": Decimal("5"),
-        "margin_headroom_usd": Decimal("100"),
-        "concentration_limit_by_group": (("USD", Decimal("100")),),
-    }
+    regime = _regime(mission)
     left = propose_phase20h_robust_allocation(
-        **kwargs,
+        mission=mission,
+        regime=regime,
+        hard_risk_headroom_usd=Decimal("5"),
+        margin_headroom_usd=Decimal("100"),
+        concentration_limit_by_group=(("USD", Decimal("100")),),
         candidates=(slow, fast),
     )
     right = propose_phase20h_robust_allocation(
-        **kwargs,
+        mission=mission,
+        regime=regime,
+        hard_risk_headroom_usd=Decimal("5"),
+        margin_headroom_usd=Decimal("100"),
+        concentration_limit_by_group=(("USD", Decimal("100")),),
         candidates=(fast, slow),
     )
 
