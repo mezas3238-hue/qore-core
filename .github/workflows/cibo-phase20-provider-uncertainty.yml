@@ -24,6 +24,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_shadow_observer.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_outcome_reconciliation.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_ctrader_executed_risk.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_execution_risk_store.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_qualification.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py'
       - 'scripts/cibo_phase20_provider_uncertainty_contract.py'
@@ -63,6 +64,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase20_shadow_observer.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_outcome_reconciliation.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_ctrader_executed_risk.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_execution_risk_store.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_qualification.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py'
@@ -90,6 +92,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_shadow_observer.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_outcome_reconciliation.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_ctrader_executed_risk.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_execution_risk_store.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_qualification.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py'
       - 'scripts/cibo_phase20_provider_uncertainty_contract.py'
@@ -129,6 +132,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase20_shadow_observer.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_outcome_reconciliation.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_ctrader_executed_risk.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_execution_risk_store.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_qualification.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py'
@@ -172,6 +176,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_shadow_observer.py \
             src/qore/infrastructure/cibo_ce2i_phase20_outcome_reconciliation.py \
             src/qore/infrastructure/cibo_ce2i_phase20_ctrader_executed_risk.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_execution_risk_store.py \
             src/qore/infrastructure/cibo_ce2i_phase20_qualification.py \
             src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py \
             scripts/cibo_phase20_provider_uncertainty_contract.py \
@@ -211,6 +216,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_shadow_observer.py \
             tests/infrastructure/test_cibo_ce2i_phase20_outcome_reconciliation.py \
             tests/infrastructure/test_cibo_ce2i_phase20_ctrader_executed_risk.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_execution_risk_store.py \
             tests/infrastructure/test_cibo_ce2i_phase20_qualification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py
@@ -234,6 +240,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_shadow_observer.py \
             src/qore/infrastructure/cibo_ce2i_phase20_outcome_reconciliation.py \
             src/qore/infrastructure/cibo_ce2i_phase20_ctrader_executed_risk.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_execution_risk_store.py \
             src/qore/infrastructure/cibo_ce2i_phase20_qualification.py \
             src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py \
             scripts/cibo_phase20_provider_uncertainty_contract.py \
