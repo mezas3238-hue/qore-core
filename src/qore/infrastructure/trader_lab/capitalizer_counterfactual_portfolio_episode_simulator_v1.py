@@ -387,6 +387,7 @@ def _period_report(
 
     audits: list[TransitionAudit] = []
     state_count = 0
+    no_actual_trigger_count = 0
     for key, decision in surface_decisions.items():
         surface_mode = str(decision.surface_mode)
         family = v30._mode_family(surface_mode)
@@ -395,9 +396,8 @@ def _period_report(
         surface_raw = modes[surface_mode][key]
         trigger_at = surface_raw.first_protection_at
         if trigger_at is None:
-            raise ValueError(
-                "episode simulator family has no Surface trigger"
-            )
+            no_actual_trigger_count += 1
+            continue
         state_count += 1
         reachable = v30._eligible_actions(family)
         v30._assert_common_path(
@@ -552,6 +552,9 @@ def _period_report(
             "surface": baseline_metrics,
             "surface_realized_exit_batch_dd_r": str(baseline_exit_dd),
             "surface_trigger_state_count": state_count,
+            "surface_protection_mode_without_actual_trigger_count": (
+                no_actual_trigger_count
+            ),
             "transition_count": len(frozen),
             "max_dd_descent_transition_count": len(max_dd_rows),
             "feedback_sign_change_count": sum(
