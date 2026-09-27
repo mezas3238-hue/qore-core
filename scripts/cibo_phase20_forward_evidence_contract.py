@@ -40,6 +40,9 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
     phase20_forward_evidence_sha256,
 )
 from qore.infrastructure.cibo_ce2i_phase20_mpc import Phase20MpcKnownOption
+from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
+    FROZEN_PHASE20_POLICY_CANDIDATE,
+)
 from qore.infrastructure.cibo_ce2i_regime_selector import (
     CiboCapitalRegimeState,
     CorrelationState,
@@ -52,7 +55,7 @@ from qore.infrastructure.cibo_provider_economic_normalization import (
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
-DECISION_AT = datetime(2026, 9, 27, 12, 30, tzinfo=UTC)
+DECISION_AT = datetime(2026, 9, 27, 13, 30, tzinfo=UTC)
 
 
 def _build_fixture() -> Phase20ForwardDecisionEvidence:
@@ -131,15 +134,19 @@ def _build_fixture() -> Phase20ForwardDecisionEvidence:
         evidence_kind=Phase20ForwardEvidenceKind.SYNTHETIC_CONTRACT,
         decision_at=DECISION_AT,
         lineage=Phase20PolicyCandidateLineage(
-            candidate_id="CIBO_PHASE20H20I_FORWARD_CANDIDATE_V1",
-            code_sha="a" * 40,
-            parameter_sha256="sha256:" + "b" * 64,
-            frozen_at=DECISION_AT - timedelta(days=1),
+            candidate_id=FROZEN_PHASE20_POLICY_CANDIDATE.candidate_id,
+            code_sha=FROZEN_PHASE20_POLICY_CANDIDATE.code_sha,
+            parameter_sha256=(
+                FROZEN_PHASE20_POLICY_CANDIDATE.parameter_sha256()
+            ),
+            frozen_at=FROZEN_PHASE20_POLICY_CANDIDATE.frozen_at,
         ),
         account_identity=account,
         mission=mission,
         capital_snapshot_id="capital-generation-7",
+        capital_snapshot_observed_at=DECISION_AT - timedelta(seconds=1),
         risk_snapshot_id="risk-generation-11",
+        risk_snapshot_observed_at=DECISION_AT - timedelta(seconds=1),
         hard_risk_headroom_usd=Decimal("20"),
         margin_headroom_usd=Decimal("100"),
         concentration_limit_by_group=(("GBPUSD", Decimal("20")),),
@@ -199,6 +206,8 @@ def build_report() -> dict[str, Any]:
         "decision_evidence_kind": decision.evidence_kind.value,
         "lineage": {
             "candidate_id": decision.lineage.candidate_id,
+            "code_sha": decision.lineage.code_sha,
+            "parameter_sha256": decision.lineage.parameter_sha256,
             "policy_frozen_before_decision": (
                 decision.lineage.frozen_at <= decision.decision_at
             ),
@@ -208,7 +217,11 @@ def build_report() -> dict[str, Any]:
             "provider_snapshot_precedes_decision": True,
             "causal_expectation_precedes_decision": True,
             "capital_snapshot_bound": True,
+            "capital_snapshot_fresh_within_seconds": "2",
             "risk_snapshot_bound": True,
+            "risk_snapshot_fresh_within_seconds": "2",
+            "provider_snapshot_fresh_within_seconds": "2",
+            "current_forecast_fresh_within_seconds": "2",
             "regime_inputs_bound": True,
             "known_option_known_before_decision": True,
             "known_option_active_expiry_cancel_state_bound": True,

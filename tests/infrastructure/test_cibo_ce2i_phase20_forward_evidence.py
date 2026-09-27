@@ -32,6 +32,9 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
     phase20_forward_evidence_sha256,
 )
 from qore.infrastructure.cibo_ce2i_phase20_mpc import Phase20MpcKnownOption
+from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
+    FROZEN_PHASE20_POLICY_CANDIDATE,
+)
 from qore.infrastructure.cibo_ce2i_phase20_robust_allocator import (
     Phase20AllocatorDisposition,
 )
@@ -47,7 +50,7 @@ from qore.infrastructure.cibo_provider_economic_normalization import (
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
-DECISION_AT = datetime(2026, 9, 27, 12, 30, tzinfo=UTC)
+DECISION_AT = datetime(2026, 9, 27, 13, 30, tzinfo=UTC)
 
 
 def _account() -> CiboAccountCapitalIdentity:
@@ -59,11 +62,12 @@ def _account() -> CiboAccountCapitalIdentity:
 
 
 def _lineage() -> Phase20PolicyCandidateLineage:
+    candidate = FROZEN_PHASE20_POLICY_CANDIDATE
     return Phase20PolicyCandidateLineage(
-        candidate_id="CIBO_PHASE20H20I_FORWARD_CANDIDATE_V1",
-        code_sha="a" * 40,
-        parameter_sha256="sha256:" + "b" * 64,
-        frozen_at=DECISION_AT - timedelta(days=1),
+        candidate_id=candidate.candidate_id,
+        code_sha=candidate.code_sha,
+        parameter_sha256=candidate.parameter_sha256(),
+        frozen_at=candidate.frozen_at,
     )
 
 
@@ -173,7 +177,9 @@ def _decision(
         account_identity=account,
         mission=derive_cibo_capital_mission(account),
         capital_snapshot_id="capital-generation-7",
+        capital_snapshot_observed_at=DECISION_AT - timedelta(seconds=1),
         risk_snapshot_id="risk-generation-11",
+        risk_snapshot_observed_at=DECISION_AT - timedelta(seconds=1),
         hard_risk_headroom_usd=Decimal("20"),
         margin_headroom_usd=Decimal("100"),
         concentration_limit_by_group=(("GBPUSD", Decimal("20")),),
@@ -249,6 +255,76 @@ def test_phase20d_mpc_reserve_prevents_allocator_capacity_overcommit() -> None:
     assert record.allocator_decision.allocation.selected_signal_fingerprints == ()
     assert record.allocator_decision.allocation.used_stop_risk_usd == 0
     assert record.allocator_decision.allocation.used_margin_usd == 0
+
+
+def test_phase20d_rejects_stale_capital_snapshot() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="capital snapshot exceeds frozen freshness bound",
+    ):
+        replace(
+            _decision(),
+            capital_snapshot_observed_at=DECISION_AT - timedelta(seconds=3),
+        )
+
+
+def test_phase20d_rejects_stale_risk_snapshot() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="Risk snapshot exceeds frozen freshness bound",
+    ):
+        replace(
+            _decision(),
+            risk_snapshot_observed_at=DECISION_AT - timedelta(seconds=3),
+        )
+
+
+def test_phase20d_rejects_stale_provider_snapshot() -> None:
+    stale = _candidate_evidence(
+        provider_observed_at=DECISION_AT - timedelta(seconds=3)
+    )
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="provider snapshot exceeds frozen freshness bound",
+    ):
+        replace(_decision(), candidates=(stale,))
+
+
+def test_phase20d_rejects_stale_current_state_expectation() -> None:
+    base = _candidate_evidence()
+    stale_expectation = replace(
+        base.candidate.expectation,
+        as_of=DECISION_AT - timedelta(seconds=3),
+    )
+    stale_candidate = replace(
+        base.candidate,
+        expectation=stale_expectation,
+    )
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="current causal expectation exceeds frozen freshness bound",
+    ):
+        replace(
+            _decision(),
+            candidates=(replace(base, candidate=stale_candidate),),
+        )
+
+
+def test_phase20d_rejects_lineage_drift() -> None:
+    wrong = replace(_lineage(), code_sha="c" * 40)
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="lineage does not match frozen policy candidate",
+    ):
+        replace(_decision(), lineage=wrong)
+
+
+def test_phase20d_rejects_mpc_horizon_drift() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="horizon_steps drift from frozen policy candidate",
+    ):
+        replace(_decision(), horizon_steps=3)
 
 
 def test_phase20d_synthetic_contract_cannot_qualify_as_fresh_forward() -> None:

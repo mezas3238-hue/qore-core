@@ -27,6 +27,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
     TraderOpportunityEnvelope,
 )
+from qore.infrastructure.cibo_ce2i_causal_expectation import (
+    CausalExpectationBasis,
+)
 from qore.infrastructure.cibo_ce2i_opportunity_competition import (
     CapitalOpportunityCandidate,
 )
@@ -34,6 +37,9 @@ from qore.infrastructure.cibo_ce2i_phase20_mpc import (
     Phase20MpcCapacityPlan,
     Phase20MpcKnownOption,
     plan_phase20i_receding_horizon_capacity,
+)
+from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
+    FROZEN_PHASE20_POLICY_CANDIDATE,
 )
 from qore.infrastructure.cibo_ce2i_phase20_robust_allocator import (
     Phase20RobustAllocatorDecision,
@@ -215,7 +221,9 @@ class Phase20ForwardDecisionEvidence:
     account_identity: CiboAccountCapitalIdentity
     mission: CiboCapitalMissionPolicy
     capital_snapshot_id: str
+    capital_snapshot_observed_at: datetime
     risk_snapshot_id: str
+    risk_snapshot_observed_at: datetime
     hard_risk_headroom_usd: Decimal
     margin_headroom_usd: Decimal
     concentration_limit_by_group: tuple[tuple[str, Decimal], ...]
@@ -234,6 +242,18 @@ class Phase20ForwardDecisionEvidence:
             raise CiboCapitalManagementError(
                 "Phase20D evidence/capital/risk snapshot identities are required"
             )
+        _fresh_snapshot(
+            decision_at=self.decision_at,
+            observed_at=self.capital_snapshot_observed_at,
+            max_age_seconds=FROZEN_PHASE20_POLICY_CANDIDATE.snapshot_max_age_seconds,
+            name="capital snapshot",
+        )
+        _fresh_snapshot(
+            decision_at=self.decision_at,
+            observed_at=self.risk_snapshot_observed_at,
+            max_age_seconds=FROZEN_PHASE20_POLICY_CANDIDATE.snapshot_max_age_seconds,
+            name="Risk snapshot",
+        )
         if type(self.evidence_kind) is not Phase20ForwardEvidenceKind:
             raise CiboCapitalManagementError(
                 "Phase20D evidence_kind must use canonical enum"
@@ -244,6 +264,16 @@ class Phase20ForwardDecisionEvidence:
         if self.decision_at < self.lineage.frozen_at:
             raise CiboCapitalManagementError(
                 "Phase20D decision cannot predate policy freeze"
+            )
+        frozen = FROZEN_PHASE20_POLICY_CANDIDATE
+        if (
+            self.lineage.candidate_id != frozen.candidate_id
+            or self.lineage.code_sha != frozen.code_sha
+            or self.lineage.parameter_sha256 != frozen.parameter_sha256()
+            or self.lineage.frozen_at != frozen.frozen_at
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20D lineage does not match frozen policy candidate"
             )
         if not isinstance(self.account_identity, CiboAccountCapitalIdentity):
             raise CiboCapitalManagementError("Phase20D account identity is invalid")
@@ -265,6 +295,13 @@ class Phase20ForwardDecisionEvidence:
             raise CiboCapitalManagementError(
                 "Phase20D horizon_steps must be positive int"
             )
+        if (
+            self.horizon_steps
+            != FROZEN_PHASE20_POLICY_CANDIDATE.mpc_horizon_steps
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20D horizon_steps drift from frozen policy candidate"
+            )
         if self.regime_state.opportunity_count != len(self.candidates):
             raise CiboCapitalManagementError(
                 "Phase20D regime opportunity_count must equal sealed candidate count"
@@ -280,6 +317,28 @@ class Phase20ForwardDecisionEvidence:
             if candidate_evidence.candidate.decision_as_of != self.decision_at:
                 raise CiboCapitalManagementError(
                     "Phase20D candidate decision timestamp must equal sealed decision_at"
+                )
+            _fresh_snapshot(
+                decision_at=self.decision_at,
+                observed_at=candidate_evidence.provider_observation.observed_at,
+                max_age_seconds=(
+                    FROZEN_PHASE20_POLICY_CANDIDATE.snapshot_max_age_seconds
+                ),
+                name="provider snapshot",
+            )
+            expectation = candidate_evidence.candidate.expectation
+            if expectation.basis in {
+                CausalExpectationBasis.CAUSAL_MODEL_FORECAST,
+                CausalExpectationBasis.CURRENT_STATE_FORECAST,
+            }:
+                _fresh_snapshot(
+                    decision_at=self.decision_at,
+                    observed_at=expectation.as_of,
+                    max_age_seconds=(
+                        FROZEN_PHASE20_POLICY_CANDIDATE
+                        .current_forecast_max_age_seconds
+                    ),
+                    name="current causal expectation",
                 )
         option_ids = tuple(item.option.opportunity_id for item in self.known_options)
         if len(option_ids) != len(set(option_ids)):
@@ -528,6 +587,30 @@ def _canonicalize(value: Any) -> Any:
             for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
         }
     return value
+
+
+def _fresh_snapshot(
+    *,
+    decision_at: datetime,
+    observed_at: datetime,
+    max_age_seconds: Decimal,
+    name: str,
+) -> None:
+    _aware(decision_at, name="decision_at")
+    _aware(observed_at, name=name)
+    if observed_at > decision_at:
+        raise CiboCapitalManagementError(
+            f"Phase20D {name} cannot postdate decision"
+        )
+    delta = decision_at - observed_at
+    age_seconds = (
+        Decimal(delta.days * 86400 + delta.seconds)
+        + Decimal(delta.microseconds) / Decimal(1000000)
+    )
+    if age_seconds > max_age_seconds:
+        raise CiboCapitalManagementError(
+            f"Phase20D {name} exceeds frozen freshness bound"
+        )
 
 
 def _aware(value: datetime, *, name: str) -> None:
