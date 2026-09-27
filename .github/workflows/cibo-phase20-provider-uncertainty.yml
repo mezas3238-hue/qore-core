@@ -189,6 +189,9 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_outcome_reconciliation.py \
             src/qore/infrastructure/cibo_ce2i_phase20_ctrader_executed_risk.py \
             src/qore/infrastructure/cibo_ce2i_phase20_execution_risk_store.py \
+            src/qore/infrastructure/ctrader_demo_mutation_ledger.py \
+            src/qore/infrastructure/ctrader_demo_execution_gateway.py \
+            src/qore/infrastructure/ctrader_demo_operational_runtime.py \
             src/qore/infrastructure/cibo_ce2i_phase20_qualification.py \
             src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py \
             scripts/cibo_phase20_provider_uncertainty_contract.py \
@@ -232,6 +235,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_outcome_reconciliation.py \
             tests/infrastructure/test_cibo_ce2i_phase20_ctrader_executed_risk.py \
             tests/infrastructure/test_cibo_ce2i_phase20_execution_risk_store.py \
+            tests/infrastructure/test_ctrader_demo_execution_gateway.py \
             tests/infrastructure/test_cibo_ce2i_phase20_qualification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py
@@ -258,6 +262,9 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_outcome_reconciliation.py \
             src/qore/infrastructure/cibo_ce2i_phase20_ctrader_executed_risk.py \
             src/qore/infrastructure/cibo_ce2i_phase20_execution_risk_store.py \
+            src/qore/infrastructure/ctrader_demo_mutation_ledger.py \
+            src/qore/infrastructure/ctrader_demo_execution_gateway.py \
+            src/qore/infrastructure/ctrader_demo_operational_runtime.py \
             src/qore/infrastructure/cibo_ce2i_phase20_qualification.py \
             src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py \
             scripts/cibo_phase20_provider_uncertainty_contract.py \
@@ -302,6 +309,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_outcome_reconciliation.py \
             tests/infrastructure/test_cibo_ce2i_phase20_ctrader_executed_risk.py \
             tests/infrastructure/test_cibo_ce2i_phase20_execution_risk_store.py \
+            tests/infrastructure/test_ctrader_demo_execution_gateway.py \
             tests/infrastructure/test_cibo_ce2i_phase20_qualification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py
