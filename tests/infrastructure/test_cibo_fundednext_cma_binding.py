@@ -8,7 +8,7 @@ def test_fundednext_manifest_binds_cibo_cma_and_risk_governor() -> None:
     payload = build_manifest(root=Path.cwd(), git_sha="a" * 40)
 
     assert payload["schema"] == (
-        "qore.fundednext.stellar-instant-2k-pilot-readiness.v3"
+        "qore.fundednext.stellar-instant-2k-pilot-readiness.v4"
     )
 
     cibo = payload["cibo_capital_management"]
@@ -19,6 +19,12 @@ def test_fundednext_manifest_binds_cibo_cma_and_risk_governor() -> None:
     assert cibo["account_mission"] == "FUNDED_SURVIVAL_COMPOUND"
     assert cibo["provider"] == "FUNDEDNEXT"
     assert cibo["provider_program"] == "STELLAR_INSTANT"
+    assert cibo["sizing_scope"] == "ACCOUNT"
+    assert cibo["all_loaded_traders_use_cibo_sizing"] is True
+    assert cibo["legacy_trader_risk_fraction_execution_authority"] is False
+    assert cibo["before_base_protection_mode"] == "SURVIVAL_MINIMAL_SEED"
+    assert cibo["after_base_protection_mode"] == "PROTECTED_FULL_CAPACITY"
+    assert cibo["floating_pnl_counts_as_protected_capital"] is False
 
     risk = payload["qore_internal_risk_policy"]
     assert isinstance(risk, dict)
@@ -28,6 +34,18 @@ def test_fundednext_manifest_binds_cibo_cma_and_risk_governor() -> None:
 
     topology = payload["topology"]
     assert isinstance(topology, dict)
+    assert topology["trader_count"] == 7
+    assert set(topology["traders"]) == {
+        "VT08_FOREX",
+        "R34_XAUUSD",
+        "R38_EURUSD",
+        "R43_GBPUSD",
+        "R38_GBPJPY",
+        "R42_AUDJPY",
+        "VT31_NAS100",
+    }
+    assert topology["trader_runtime_sizing_authority"] is False
+    assert topology["cibo_runtime_sizing_authority"] is True
     assert topology["signal_flow"] == (
         "TRADER_OPPORTUNITY -> CIBO_CMA_SIZING -> ACCOUNT_WIDE_RISK -> "
         "RiskAuthorization -> LIVE_RISK_RECHECK -> MT5"
