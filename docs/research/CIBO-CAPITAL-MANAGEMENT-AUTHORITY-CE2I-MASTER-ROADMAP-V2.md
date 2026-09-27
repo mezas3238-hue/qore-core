@@ -1498,7 +1498,7 @@ Current Phase-19 scientific sequence is therefore:
 19G  CAPITAL COLLISION + MARGINAL CAPACITY   EMPIRICAL GREEN / ZERO COLLISIONS IN TESTED GRID
 19H  RESOURCE / DEPENDENCE HYPERGRAPH        EMPIRICAL GREEN / DESCRIPTIVE
 19I  SIMPLE CAPITAL POLICY BASELINES          EMPIRICAL GREEN / TRAIN ONLY
-19J  CAUSAL NORMALIZED WFO                    NEXT
+19J  CAUSAL NORMALIZED WFO                    FALSIFIED / 0 OF 6 SURVIVED
 ```
 
 The chronology-only motor sorts opportunities causally, validates all seven Trader populations,
@@ -1711,6 +1711,102 @@ capacity cliff; Phase 19J must test whether that behavior survives strictly late
 
 Phase 19J is therefore required to run a frozen causal forward comparison after the 60% TRAIN
 cutoff, with no parameter changes inside validation and no use of future outcomes for allocation.
+
+### Phase-19J causal normalized walk-forward falsification — 27-SEP-2026
+
+Phase 19J completed with its survival rule frozen before validation. The result is a material
+scientific falsification of the Phase-19I fixed-budget/fixed-reserve family as a temporally stable
+capital policy.
+
+```text
+evidence_head:      9cb8bd22ec2cff7f9f113f084820c077b2c8a495
+main_push_run:      36285850063  SUCCESS
+main_pr_run:        36285852552  SUCCESS
+phase19_push_run:   36285849972  SUCCESS
+phase19_pr_run:     36285852475  SUCCESS
+artifact_id:        10920422891
+artifact_digest:    sha256:7c7a8c1f6d5d48fb27c916f9c4c45b6d11c5af83b0db51cdf0826768025e6074
+internal_manifest:  SHA256SUMS 24/24 VERIFIED
+```
+
+Causal validation population:
+
+```text
+training_rows_before_freeze:       523
+entry_based_validation_rows:       332
+causal_decision_validation_rows:   332
+pre_freeze_decision_exclusions:      0
+midpoint_crossing_exclusions:        0
+
+WF1: 2022-03-09T17:00Z -> 2022-05-04T13:00Z   170 opportunities
+WF2: 2022-05-04T13:00Z -> 2022-06-29T09:00Z   162 opportunities
+```
+
+Survival rule was predeclared and not modified after observing validation:
+
+- combined post-freeze realized delta > 0;
+- each forward fold realized delta > 0;
+- no capacity breach;
+- no insolvent rejection;
+- no magnitude threshold;
+- no policy ranking;
+- no refit between folds.
+
+Result:
+
+```text
+surviving_policy_count: 0
+surviving_policy_ids:   []
+```
+
+All six policies fail the same temporal-stability gate:
+
+`FOLD_2_REALIZED_DELTA_NOT_POSITIVE`
+
+Forward evidence:
+
+```text
+POLICY                         COMBINED DELTA      WF1 DELTA          WF2 DELTA
+P19I_EQUAL_100_NO_RESERVE      +3.0485151494      +10.7710520287     -9.0456780230
+P19I_EQUAL_075_NO_RESERVE      +2.2863863620       +8.0782890215     -9.7520319547
+P19I_EQUAL_050_NO_RESERVE      +1.5242575747       +5.3855260144     -3.8612684397
+P19I_EQUAL_025_NO_RESERVE      +0.7621287873       +2.6927630072     -1.9306342198
+P19I_EQUAL_050_RESERVE_2       +1.5242575747       +5.3855260144     -3.8612684397
+P19I_EQUAL_025_RESERVE_2       +0.7621287873       +2.6927630072     -1.9306342198
+```
+
+Important interpretation:
+
+1. The combined 40% validation remains positive for all six policies, but that is insufficient under
+   the predeclared temporal-stability gate.
+2. WF2 is negative for every candidate.
+3. At 0.50 and 0.25 NCU all 162 WF2 opportunities are accepted, so the negative second fold cannot
+   be explained solely by normalized-capital scarcity/rejection.
+4. The 1.00 and 0.75 NCU policies additionally suffer path-dependent capacity starvation in WF2,
+   but relaxing their size would not solve the deeper sign instability demonstrated by 0.50/0.25.
+5. Fixed reserve remains non-incremental in the tested policies.
+
+Therefore:
+
+```text
+PHASE19I_FIXED_POLICY_FAMILY_CERTIFIED = FALSE
+PHASE19J_VALIDATION_BURNED             = TRUE
+PHASE20_POLICY_CERTIFICATION_BLOCKED   = TRUE
+```
+
+The 332-row post-freeze interval must not be reused as OOS evidence for a redesigned policy. Any
+new policy family designed after this result requires genuinely fresh forward evidence for
+qualification. Reusing this validation and changing thresholds/budgets until it passes would be
+validation mining.
+
+This falsification does **not** invalidate the CMA accounting architecture, the normalized capital
+ledger, the source ledger, Risk sovereignty, or the CE2I tool contracts. It falsifies this specific
+simple fixed-budget/fixed-reserve policy family as a stable final allocator.
+
+Work may continue on Phase-20 components that are policy-independent (provider ambiguity,
+partial-identification machinery, counterfactual provider stress, failure engineering primitives),
+but Phase 21 policy freeze and Phase 22 sealed holdout remain blocked until a new policy family is
+developed without mining the burned Phase-19J validation and obtains fresh validation evidence.
 
 The provider-economic evidence gate is also hardened with explicit evidence classes:
 
