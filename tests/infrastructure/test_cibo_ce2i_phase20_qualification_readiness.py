@@ -79,6 +79,8 @@ def test_phase20d_readiness_passes_only_mature_complete_population() -> None:
                 decision_epoch_id=f"epoch-{decision_index}",
                 evidence_sha256=evidence_sha,
                 decision_at=decision_at,
+                sealed_at=decision_at + timedelta(milliseconds=500),
+                seal_deadline_at=decision_at + timedelta(seconds=2),
                 candidate_id="CIBO_PHASE20H20I_FORWARD_CANDIDATE_V2",
                 code_sha="7acce68c6ece61fae1adacf3f8e60815839b6f6a",
                 parameter_sha256=_sha(1000),
