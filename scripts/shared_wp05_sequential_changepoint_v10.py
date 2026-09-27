@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import json
+from bisect import bisect_right
+from datetime import timedelta
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -56,6 +58,21 @@ def _source_key(item: Any) -> str:
     return item.trajectory.snapshots[-1].as_of.strftime("%Y-%m-%dT%H:%M:%S")
 
 
+def _asof_index(
+    *,
+    closed_keys: tuple[str, ...],
+    target_key: str,
+    source_index: int,
+    require_new_observation: bool,
+) -> int | None:
+    index = bisect_right(closed_keys, target_key) - 1
+    if index < source_index:
+        return None
+    if require_new_observation and index <= source_index:
+        return None
+    return index
+
+
 def _prepare_partition(
     *,
     partition: str,
@@ -73,10 +90,16 @@ def _prepare_partition(
         market: {bar.closed_key: index for index, bar in enumerate(bars[market])}
         for market in MARKETS
     }
+    closed_keys = {
+        market: tuple(bar.closed_key for bar in bars[market])
+        for market in MARKETS
+    }
 
     rows: list[SequentialChangePointTrainingEpisode] = []
     unidentifiable_anchor_count = 0
     incomplete_evidence_count = 0
+    checkpoint_incomplete_count = 0
+    eligible_source_count = 0
     terminal_count = 0
 
     for item in corrected:
@@ -102,14 +125,6 @@ def _prepare_partition(
             incomplete_evidence_count += 1
             continue
 
-        if any(
-            source_indexes[market] + max(V10_CHECKPOINTS_MINUTES)
-            >= len(bars[market])
-            for market in MARKETS
-        ):
-            incomplete_evidence_count += 1
-            continue
-
         source = build_competing_survival_source_state(
             trajectory=item.trajectory,
             anchor_direction=anchor,
@@ -124,24 +139,47 @@ def _prepare_partition(
             incomplete_evidence_count += 1
             continue
 
+        eligible_source_count += 1
         checkpoints = []
         aligned = True
         source_at = item.trajectory.snapshots[-1].as_of
         for minute in V10_CHECKPOINTS_MINUTES:
-            nas_bar = bars["NAS100"][source_indexes["NAS100"] + minute]
-            checkpoint_key = nas_bar.closed_key
-            checkpoint_at = _parse_key(checkpoint_key)
-            elapsed_minutes = (checkpoint_at - source_at).total_seconds() / 60.0
-            if abs(elapsed_minutes - minute) > 1.5:
+            checkpoint_at = source_at + timedelta(minutes=minute)
+            checkpoint_key = checkpoint_at.strftime("%Y-%m-%dT%H:%M:%S")
+            require_new = minute > 0
+            checkpoint_indexes: dict[str, int] = {}
+            for market in MARKETS:
+                checkpoint_index = _asof_index(
+                    closed_keys=closed_keys[market],
+                    target_key=checkpoint_key,
+                    source_index=source_indexes[market],
+                    require_new_observation=require_new,
+                )
+                if checkpoint_index is None:
+                    aligned = False
+                    break
+                checkpoint_indexes[market] = checkpoint_index
+            if not aligned:
+                break
+
+            velocity_at = source_at + timedelta(
+                minutes=max(0, minute - 3)
+            )
+            velocity_key = velocity_at.strftime("%Y-%m-%dT%H:%M:%S")
+            nas_velocity_index = _asof_index(
+                closed_keys=closed_keys["NAS100"],
+                target_key=velocity_key,
+                source_index=source_indexes["NAS100"],
+                require_new_observation=False,
+            )
+            if nas_velocity_index is None:
                 aligned = False
                 break
-            if any(
-                bars[market][source_indexes[market] + minute].closed_key
-                != checkpoint_key
-                for market in MARKETS
-            ):
-                aligned = False
-                break
+            nas_velocity_index = min(
+                nas_velocity_index,
+                checkpoint_indexes["NAS100"],
+            )
+
             checkpoints.append(
                 build_sequential_checkpoint_evidence(
                     source=source,
@@ -149,14 +187,19 @@ def _prepare_partition(
                     as_of=checkpoint_at,
                     nas_bars=bars["NAS100"],
                     nas_source_index=source_indexes["NAS100"],
+                    nas_checkpoint_index=checkpoint_indexes["NAS100"],
+                    nas_velocity_index=nas_velocity_index,
                     sp500_bars=bars["SP500"],
                     sp500_source_index=source_indexes["SP500"],
+                    sp500_checkpoint_index=checkpoint_indexes["SP500"],
                     us30_bars=bars["US30"],
                     us30_source_index=source_indexes["US30"],
+                    us30_checkpoint_index=checkpoint_indexes["US30"],
                 )
             )
         if not aligned:
             incomplete_evidence_count += 1
+            checkpoint_incomplete_count += 1
             continue
 
         row = SequentialChangePointTrainingEpisode(
@@ -167,10 +210,18 @@ def _prepare_partition(
         rows.append(row)
         terminal_count += int(item.terminal_failure)
 
+    coverage_bps = (
+        0
+        if eligible_source_count == 0
+        else len(rows) * 10_000 // eligible_source_count
+    )
     return tuple(rows), {
         "episode_count": len(rows),
+        "eligible_source_count": eligible_source_count,
         "complete_evidence_count": len(rows),
         "incomplete_evidence_count": incomplete_evidence_count,
+        "checkpoint_incomplete_count": checkpoint_incomplete_count,
+        "checkpoint_complete_coverage_bps": coverage_bps,
         "terminal_event_count": terminal_count,
         "nonterminal_event_count": len(rows) - terminal_count,
         "source_min": (
@@ -194,7 +245,6 @@ def _prepare_partition(
         "target_contract": TARGET_CONTRACT,
         "fresh_holdout_opened": 0,
     }
-
 
 def _partition_temporal_order_pass(
     ranges: dict[str, dict[str, int | str | None]],
