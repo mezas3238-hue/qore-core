@@ -30,6 +30,7 @@ class CapitalStage(StrEnum):
 
 class CapitalAction(StrEnum):
     OPEN_MINIMAL_SEED = "OPEN_MINIMAL_SEED"
+    OPEN_CAPABILITY_MAX = "OPEN_CAPABILITY_MAX"
     HOLD = "HOLD"
     REDUCE = "REDUCE"
     EXPAND = "EXPAND"
@@ -225,7 +226,11 @@ class CiboCapitalActionPlan:
     def __post_init__(self) -> None:
         for name in ("volume", "stop_risk_usd", "margin_usd", "capital_source_amount_usd"):
             _nonnegative(getattr(self, name), name)
-        if self.action in {CapitalAction.OPEN_MINIMAL_SEED, CapitalAction.EXPAND}:
+        if self.action in {
+            CapitalAction.OPEN_MINIMAL_SEED,
+            CapitalAction.OPEN_CAPABILITY_MAX,
+            CapitalAction.EXPAND,
+        }:
             if self.volume <= 0:
                 raise CiboCapitalManagementError("capital deployment requires positive volume")
             if self.capital_source is None and not self.capital_source_lots:
