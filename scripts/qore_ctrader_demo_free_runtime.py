@@ -3276,6 +3276,10 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     continue
                 try:
                     candidate, reason = _causal_candidate(symbol, anchor)
+                    phase20_vt08_deadline = anchor + timedelta(seconds=2)
+                    phase20_vt08_scope = (
+                        f"ctrader-demo:vt08:{symbol}:{anchor.isoformat()}"
+                    )
                     if candidate is None:
                         _log(
                             log_path,
@@ -3285,6 +3289,19 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "decision_at": anchor.isoformat(),
                                 "reason": reason,
                             },
+                        )
+                        observe_phase20_single_slot(
+                            trader_id=TraderLineage.VT08_FOREX,
+                            qore_symbol=symbol,
+                            epoch_scope=phase20_vt08_scope,
+                            opened_at=anchor,
+                            deadline_at=phase20_vt08_deadline,
+                            terminal_observed_at=cycle_at,
+                            disposition=(
+                                Phase20ForwardPopulationDisposition.ABSTAIN
+                            ),
+                            reason=reason,
+                            account_state_for_shadow=account_state,
                         )
                     else:
                         _process_candidate(
@@ -3299,6 +3316,25 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             capital_budget=capital,
                             account_equity=account_state.equity,
                             log_path=log_path,
+                            phase20_after_submit=(
+                                lambda opportunity, spec, shadow_account, observed_at: (
+                                    observe_phase20_single_slot(
+                                        trader_id=TraderLineage.VT08_FOREX,
+                                        qore_symbol=symbol,
+                                        epoch_scope=phase20_vt08_scope,
+                                        opened_at=anchor,
+                                        deadline_at=phase20_vt08_deadline,
+                                        terminal_observed_at=observed_at,
+                                        disposition=(
+                                            Phase20ForwardPopulationDisposition.CANDIDATE
+                                        ),
+                                        reason="VALID_TRADER_OPPORTUNITY",
+                                        account_state_for_shadow=shadow_account,
+                                        opportunity=opportunity,
+                                        provider_spec=spec,
+                                    )
+                                )
+                            ),
                         )
                     processed_anchor = anchor_key
                     state = state.with_cycle(
