@@ -18,6 +18,7 @@ from cibo_phase19_integrated_chronology_replay import (
     SOURCE_SPECS,
     _jsonl,
 )
+
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_ce2i_chronological_replay import (
     ReplayEconomicsStatus,

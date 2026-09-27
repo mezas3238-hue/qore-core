@@ -12,15 +12,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from qore.infrastructure.account_wide_risk import TraderLineage
-from qore.infrastructure.cibo_ce2i_phase19_dependence import (
-    Phase19DependenceAtlas,
-    Phase19GeometryOutcome,
-    measure_phase19_overlap_dependence,
-)
-from qore.infrastructure.cibo_ce2i_phase19_portfolio_replay import (
-    PHASE19_REQUIRED_TRADERS,
-)
 from cibo_phase19_integrated_chronology_replay import (
     EXPECTED_COMMON_END,
     EXPECTED_COMMON_ROWS,
@@ -42,6 +33,15 @@ from cibo_phase19_temporal_stability_validation import (
     EXPECTED_VALIDATION_OPPORTUNITIES,
 )
 
+from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_ce2i_phase19_dependence import (
+    Phase19DependenceAtlas,
+    Phase19GeometryOutcome,
+    measure_phase19_overlap_dependence,
+)
+from qore.infrastructure.cibo_ce2i_phase19_portfolio_replay import (
+    PHASE19_REQUIRED_TRADERS,
+)
 
 def _serialize(atlas: Phase19DependenceAtlas) -> dict[str, Any]:
     return {

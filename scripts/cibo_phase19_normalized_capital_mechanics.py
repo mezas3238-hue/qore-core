@@ -20,6 +20,15 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from cibo_phase19_integrated_chronology_replay import (
+    EXPECTED_COMMON_END,
+    EXPECTED_COMMON_ROWS,
+    EXPECTED_COMMON_START,
+    EXPECTED_SOURCE_ROWS,
+    SOURCE_SPECS,
+    SourceSpec,
+)
+
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_ce2i_chronological_replay import (
     reconstructed_signal_fingerprint,
@@ -32,14 +41,6 @@ from qore.infrastructure.cibo_ce2i_phase19_normalized_capital import (
 )
 from qore.infrastructure.cibo_ce2i_phase19_portfolio_replay import (
     Phase19ChronologicalOpportunity,
-)
-from cibo_phase19_integrated_chronology_replay import (
-    EXPECTED_COMMON_END,
-    EXPECTED_COMMON_ROWS,
-    EXPECTED_COMMON_START,
-    EXPECTED_SOURCE_ROWS,
-    SOURCE_SPECS,
-    SourceSpec,
 )
 
 INITIAL_CAPITAL_NCU = Decimal("100")

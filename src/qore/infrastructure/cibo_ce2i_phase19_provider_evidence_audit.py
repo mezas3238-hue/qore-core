@@ -8,9 +8,10 @@ recorded explicitly rather than repaired with current snapshots or guesses.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,

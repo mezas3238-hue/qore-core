@@ -7,10 +7,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-from qore.infrastructure.account_wide_risk import TraderLineage
-from qore.infrastructure.cibo_ce2i_phase19_temporal_null import (
-    measure_phase19_temporal_null,
-)
 from cibo_phase19_integrated_chronology_replay import (
     EXPECTED_COMMON_END,
     EXPECTED_COMMON_ROWS,
@@ -20,6 +16,11 @@ from cibo_phase19_integrated_chronology_replay import (
     SOURCE_SPECS,
     _jsonl,
     _parse_row,
+)
+
+from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_ce2i_phase19_temporal_null import (
+    measure_phase19_temporal_null,
 )
 
 PERMUTATIONS = 1000

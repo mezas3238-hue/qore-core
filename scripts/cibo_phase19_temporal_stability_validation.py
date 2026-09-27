@@ -24,6 +24,7 @@ from cibo_phase19_integrated_chronology_replay import (
     _jsonl,
     _parse_row,
 )
+
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_ce2i_phase19_interaction_evidence import (
     Phase19TemporalOverlapAtlas,

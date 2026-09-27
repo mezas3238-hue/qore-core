@@ -18,20 +18,6 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from qore.infrastructure.account_wide_risk import TraderLineage
-from qore.infrastructure.cibo_ce2i_phase19_capital_collision import (
-    Phase19CapitalCollisionEvidence,
-    compare_phase19_marginal_capacity,
-    measure_phase19_capital_collisions,
-)
-from qore.infrastructure.cibo_ce2i_phase19_normalized_capital import (
-    Phase19CapitalNumeraireContract,
-    Phase19NormalizedReplayTrade,
-    replay_phase19_normalized_capital,
-)
-from qore.infrastructure.cibo_ce2i_phase19_portfolio_replay import (
-    PHASE19_REQUIRED_TRADERS,
-)
 from cibo_phase19_integrated_chronology_replay import (
     EXPECTED_COMMON_END,
     EXPECTED_COMMON_ROWS,
@@ -47,6 +33,21 @@ from cibo_phase19_temporal_stability_validation import (
     EXPECTED_SPLIT_AT,
     EXPECTED_TRAINING_OPPORTUNITIES,
     EXPECTED_VALIDATION_OPPORTUNITIES,
+)
+
+from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_ce2i_phase19_capital_collision import (
+    Phase19CapitalCollisionEvidence,
+    compare_phase19_marginal_capacity,
+    measure_phase19_capital_collisions,
+)
+from qore.infrastructure.cibo_ce2i_phase19_normalized_capital import (
+    Phase19CapitalNumeraireContract,
+    Phase19NormalizedReplayTrade,
+    replay_phase19_normalized_capital,
+)
+from qore.infrastructure.cibo_ce2i_phase19_portfolio_replay import (
+    PHASE19_REQUIRED_TRADERS,
 )
 
 CAPACITY_SCENARIOS_NCU = (
@@ -136,7 +137,8 @@ def _run_segment(
     marginal: list[dict[str, Any]] = []
     for lower, higher in zip(
         CAPACITY_SCENARIOS_NCU,
-        CAPACITY_SCENARIOS_NCU[1:]
+        CAPACITY_SCENARIOS_NCU[1:],
+        strict=False,
     ):
         evidence = compare_phase19_marginal_capacity(
             contract=contract,

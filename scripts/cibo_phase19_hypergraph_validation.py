@@ -10,22 +10,6 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from qore.infrastructure.account_wide_risk import TraderLineage
-from qore.infrastructure.cibo_ce2i_phase19_capital_collision import (
-    measure_phase19_capital_collisions,
-)
-from qore.infrastructure.cibo_ce2i_phase19_hypergraph import (
-    build_phase19_collision_hyperedges,
-    build_phase19_temporal_hyperedges,
-)
-from qore.infrastructure.cibo_ce2i_phase19_normalized_capital import (
-    Phase19CapitalNumeraireContract,
-    Phase19NormalizedReplayTrade,
-    replay_phase19_normalized_capital,
-)
-from qore.infrastructure.cibo_ce2i_phase19_portfolio_replay import (
-    PHASE19_REQUIRED_TRADERS,
-)
 from cibo_phase19_capital_collision_stress import (
     CAPACITY_SCENARIOS_NCU,
     CONTRACT_ID,
@@ -46,6 +30,22 @@ from cibo_phase19_temporal_stability_validation import (
     EXPECTED_VALIDATION_OPPORTUNITIES,
 )
 
+from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_ce2i_phase19_capital_collision import (
+    measure_phase19_capital_collisions,
+)
+from qore.infrastructure.cibo_ce2i_phase19_hypergraph import (
+    build_phase19_collision_hyperedges,
+    build_phase19_temporal_hyperedges,
+)
+from qore.infrastructure.cibo_ce2i_phase19_normalized_capital import (
+    Phase19CapitalNumeraireContract,
+    Phase19NormalizedReplayTrade,
+    replay_phase19_normalized_capital,
+)
+from qore.infrastructure.cibo_ce2i_phase19_portfolio_replay import (
+    PHASE19_REQUIRED_TRADERS,
+)
 
 def _temporal_summary(
     trades: tuple[Phase19NormalizedReplayTrade, ...],
