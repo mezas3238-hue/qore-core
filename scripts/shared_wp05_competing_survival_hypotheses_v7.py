@@ -13,7 +13,6 @@ import gc
 import json
 from datetime import datetime
 from pathlib import Path
-from statistics import fmean
 from typing import Any
 
 from shared_wp03_historical_causal_discovery import MARKETS, _load_bars
@@ -28,7 +27,6 @@ from shared_wp05_temporal_hierarchy_v1 import (
     MINIMUM_TERMINAL_PRESERVATION_BPS,
 )
 
-from qore.infrastructure.core_stack_v2.hierarchical_world_model import WorldScale
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_competing_survival_v7 import (
     CompetingSurvivalEvaluation,
     CompetingSurvivalSourceState,
@@ -41,11 +39,7 @@ from qore.infrastructure.core_stack_v2.temporal_hierarchy_competing_survival_fea
     build_competing_survival_source_state,
 )
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_engine import (
-    TemporalHierarchySnapshot,
     baseline_local_opposition,
-)
-from qore.infrastructure.core_stack_v2.temporal_hierarchy_structural_frontier_v6 import (
-    structural_frontier_hierarchy_motif,
 )
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_target_contract import (
     higher_timeframe_anchor_direction,
@@ -56,222 +50,8 @@ IDENTITY = "QORE_SHARED_WP05_COMPETING_SURVIVAL_HYPOTHESES_V7_001"
 REPRESENTATION = "COMPETING_SURVIVAL_HYPOTHESES_V1"
 TARGET_CONTRACT = "HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2"
 
-_SEQUENCE_MINUTES = 30
-_CAUSAL_FRONTIER_BARS = 20
-_EPSILON = 1e-9
-
-
-def _clamp(value: float, low: float, high: float) -> float:
-    return max(low, min(high, value))
-
-
-def _bar_range(bar: Any) -> float:
-    return max(_EPSILON, float(bar.high) - float(bar.low))
-
-
-def _mean_range(rows: tuple[Any, ...]) -> float:
-    return max(_EPSILON, fmean(_bar_range(bar) for bar in rows))
-
-
 def _source_key(item: Any) -> str:
     return item.trajectory.snapshots[-1].as_of.strftime("%Y-%m-%dT%H:%M:%S")
-
-
-def _level_map(snapshot: TemporalHierarchySnapshot) -> dict[WorldScale, Any]:
-    return {level.scale: level for level in snapshot.levels}
-
-
-def _higher_resilience_minus_fragility(
-    snapshot: TemporalHierarchySnapshot,
-) -> float:
-    levels = _level_map(snapshot)
-    rows = [
-        levels[scale]
-        for scale in (WorldScale.H1, WorldScale.H4, WorldScale.DAILY)
-        if scale in levels
-    ]
-    if not rows:
-        return 0.0
-    return fmean(
-        (
-            level.persistence_bps
-            + level.coherence_bps
-            - level.fragility_bps
-            - level.transition_bps
-        )
-        / 20_000.0
-        for level in rows
-    )
-
-
-def _higher_transition_pressure(snapshot: TemporalHierarchySnapshot) -> float:
-    levels = _level_map(snapshot)
-    rows = [
-        levels[scale]
-        for scale in (WorldScale.H1, WorldScale.H4, WorldScale.DAILY)
-        if scale in levels
-    ]
-    if not rows:
-        return 0.0
-    return fmean(
-        (level.fragility_bps + level.transition_bps) / 20_000.0
-        for level in rows
-    )
-
-
-def _higher_coherence(snapshot: TemporalHierarchySnapshot) -> float:
-    levels = _level_map(snapshot)
-    rows = [
-        levels[scale]
-        for scale in (WorldScale.H1, WorldScale.H4, WorldScale.DAILY)
-        if scale in levels
-    ]
-    if not rows:
-        return 0.0
-    return fmean(level.coherence_bps / 10_000.0 for level in rows)
-
-
-def _exact_source_distance(
-    nas: tuple[Any, ...],
-    index: int,
-    anchor: int,
-) -> tuple[float, float]:
-    prior = nas[index - 19 : index + 1]
-    if len(prior) != 20:
-        raise ValueError("Target-V2 source frontier requires 20 closed bars")
-    floor = min(float(bar.low) for bar in prior)
-    peak = max(float(bar.high) for bar in prior)
-    scale = _mean_range(prior)
-    close = float(nas[index].close)
-    distance = (
-        (close - floor) / scale
-        if anchor > 0
-        else (peak - close) / scale
-    )
-    return distance, scale
-
-
-def _causal_frontier_state(
-    nas: tuple[Any, ...],
-    index: int,
-    anchor: int,
-) -> tuple[float, float, bool]:
-    """Evaluate one bar against the 20 bars strictly preceding it."""
-
-    prior = nas[index - _CAUSAL_FRONTIER_BARS : index]
-    if len(prior) != _CAUSAL_FRONTIER_BARS:
-        raise ValueError("causal frontier requires 20 strictly prior bars")
-    floor = min(float(bar.low) for bar in prior)
-    peak = max(float(bar.high) for bar in prior)
-    scale = _mean_range(prior)
-    bar = nas[index]
-    if anchor > 0:
-        distance = (float(bar.close) - floor) / scale
-        breach_depth = max(0.0, (floor - float(bar.low)) / scale)
-        touch = float(bar.low) <= floor
-    else:
-        distance = (peak - float(bar.close)) / scale
-        breach_depth = max(0.0, (float(bar.high) - peak) / scale)
-        touch = float(bar.high) >= peak
-    return distance, breach_depth, touch
-
-
-def _directional_persistence(
-    rows: tuple[Any, ...],
-    anchor: int,
-    *,
-    favorable: bool,
-) -> float:
-    if len(rows) < 2:
-        return 0.0
-    count = 0
-    total = 0
-    for left, right in zip(rows, rows[1:], strict=False):
-        move = anchor * (float(right.close) - float(left.close))
-        total += 1
-        count += int(move > 0 if favorable else move < 0)
-    return count / max(1, total)
-
-
-def _consecutive_closes(
-    rows: tuple[Any, ...],
-    anchor: int,
-    *,
-    favorable: bool,
-) -> float:
-    if len(rows) < 2:
-        return 0.0
-    count = 0
-    for left, right in reversed(tuple(zip(rows, rows[1:], strict=False))):
-        move = anchor * (float(right.close) - float(left.close))
-        matches = move > 0 if favorable else move < 0
-        if not matches:
-            break
-        count += 1
-    return float(count)
-
-
-def _rejection_fraction(rows: tuple[Any, ...], anchor: int) -> float:
-    values = []
-    for bar in rows:
-        width = _bar_range(bar)
-        opened = float(bar.opened)
-        close = float(bar.close)
-        if anchor > 0:
-            wick = min(opened, close) - float(bar.low)
-        else:
-            wick = float(bar.high) - max(opened, close)
-        values.append(_clamp(wick / width, 0.0, 1.0))
-    return 0.0 if not values else fmean(values)
-
-
-def _close_location_recovery(bar: Any, anchor: int) -> float:
-    width = _bar_range(bar)
-    if anchor > 0:
-        value = (float(bar.close) - float(bar.low)) / width
-    else:
-        value = (float(bar.high) - float(bar.close)) / width
-    return _clamp(value, 0.0, 1.0)
-
-
-def _normalized_aligned_move(
-    *,
-    last: float,
-    first: float,
-    anchor: int,
-    scale: float,
-) -> float:
-    return anchor * (last - first) / max(_EPSILON, scale)
-
-
-def _peer_adverse_return(
-    peer: tuple[Any, ...],
-    index: int,
-    horizon: int,
-    anchor: int,
-) -> float:
-    if index < horizon:
-        raise ValueError("peer history is incomplete")
-    first = float(peer[index - horizon].close)
-    last = float(peer[index].close)
-    if first == 0.0:
-        return 0.0
-    aligned_bps = anchor * (last / first - 1.0) * 10_000.0
-    return _clamp(-aligned_bps / 100.0, -8.0, 8.0)
-
-
-def _snapshot_at_offset(item: Any, minutes: int) -> TemporalHierarchySnapshot:
-    source = item.trajectory.snapshots[-1].as_of
-    best = min(
-        item.trajectory.snapshots,
-        key=lambda snapshot: abs(
-            (source - snapshot.as_of).total_seconds() / 60.0 - minutes
-        ),
-    )
-    gap = abs((source - best.as_of).total_seconds() / 60.0 - minutes)
-    if gap > 10.0:
-        raise ValueError("hierarchy trajectory lacks required causal offset")
-    return best
 
 
 def _build_source_state(
@@ -304,8 +84,6 @@ def _build_source_state(
         us30_bars=bars["US30"],
         us30_index=us30_index,
     )
-    if not source.evidence_complete:
-        raise ValueError("V7 canonical extractor reports incomplete causal evidence")
     return source
 
 def _prepare_partition(
@@ -345,6 +123,7 @@ def _prepare_partition(
         except ValueError:
             incomplete += 1
             continue
+        incomplete += int(not source.evidence_complete)
         rows.append(
             CompetingSurvivalTrainingEpisode(
                 source=source,
@@ -360,6 +139,9 @@ def _prepare_partition(
     gc.collect()
     return result, {
         "episode_count": len(result),
+        "complete_episode_count": sum(
+            item.source.evidence_complete for item in result
+        ),
         "source_min": (
             min(item.source.as_of for item in result).isoformat()
             if result
@@ -466,7 +248,10 @@ def run(*, evidence: dict[str, dict[str, Path]]) -> dict[str, Any]:
         evidence_paths=evidence["r8"],
     )
     ranges: dict[str, dict[str, int | str | None]] = {"r8": r8_range}
-    if len(r8_rows) < MINIMUM_EPISODES:
+    r8_fit_rows = tuple(
+        item for item in r8_rows if item.source.evidence_complete
+    )
+    if len(r8_rows) < MINIMUM_EPISODES or len(r8_fit_rows) < MINIMUM_EPISODES:
         return {
             "schema": SCHEMA,
             "identity": IDENTITY,
@@ -479,9 +264,9 @@ def run(*, evidence: dict[str, dict[str, Path]]) -> dict[str, Any]:
         }
 
     model = fit_competing_survival_model(
-        fitted_at=max(item.observed_at for item in r8_rows),
+        fitted_at=max(item.observed_at for item in r8_fit_rows),
         fit_partition="r8",
-        episodes=r8_rows,
+        episodes=r8_fit_rows,
     )
     r8_evaluation = evaluate_competing_survival(
         model=model,
