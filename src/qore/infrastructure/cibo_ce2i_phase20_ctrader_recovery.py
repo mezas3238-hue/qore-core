@@ -251,6 +251,16 @@ def reconcile_ctrader_demo_phase20_entry(
         raise CiboCapitalManagementError(
             "Phase20D outcome reconciliation must follow executed-risk evidence"
         )
+    if entry.closed_at is None:
+        raise CiboCapitalManagementError(
+            "Phase20D terminal outcome requires exact broker close timestamp"
+        )
+    capital_released_at = datetime.fromisoformat(entry.closed_at)
+    _aware(capital_released_at, name="capital_released_at")
+    if capital_released_at > reconciled_at:
+        raise CiboCapitalManagementError(
+            "Phase20D broker close timestamp cannot postdate reconciliation"
+        )
 
     updated = append_reconciled_phase20_forward_outcome_from_seal(
         store=forward_store,
@@ -258,6 +268,7 @@ def reconcile_ctrader_demo_phase20_entry(
         settlement=settlement,
         executed_risk=risk_evidence,
         reconciled_at=reconciled_at,
+        capital_released_at=capital_released_at,
     )
     outcomes = tuple(
         item
