@@ -21,13 +21,14 @@ from typing import Protocol
 from qore.infrastructure.ctrader_open_api_client import (
     CTraderOpenApiMessageClientBoundary,
 )
+from qore.infrastructure.ports import ExternalPortError
 from qore.kernel.result import Failure, Result, Success
 
 _RELATIVE_PRICE_SCALE = Decimal(100_000)
 _MAX_WINDOW = timedelta(days=7)
 
 
-class CTraderHistoricalTickError(ValueError):
+class CTraderHistoricalTickError(ExternalPortError):
     """Historical tick request or provider response violates causal semantics."""
 
 
