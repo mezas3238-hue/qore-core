@@ -39,14 +39,14 @@ def test_trigger_families_are_complete_and_existing_only() -> None:
         for _family, (_trigger, arms) in v28.FAMILIES.items()
         for mode in arms
     }
-    assert existing <= set(v28.v25.MODE_VALUES)
+    assert existing <= set(v25.MODE_VALUES)
 
 
 def test_trigger_features_append_exact_continuous_delay() -> None:
     pretrade = SimpleNamespace(
         point=SimpleNamespace(vector=(0.1, 0.2)),
         base_multiplier=0.75,
-        mode=v28.v25.MODE_VALUES[0],
+        mode=v25.MODE_VALUES[0],
     )
     features = v28._trigger_features(
         pretrade,  # type: ignore[arg-type]
