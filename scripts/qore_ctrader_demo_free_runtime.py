@@ -36,7 +36,7 @@ from qore.infrastructure.ctrader_demo_free_sink import (
     CTraderDemoFreeSink,
     configure_global_sink,
     credentials_from_environment,
-    demo_capital_for,
+    demo_account_capital,
     submit_demo_request,
 )
 from qore.infrastructure.account_wide_risk import (
@@ -59,6 +59,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_capital_source_ledger_store import (
     DurableCapitalSourceLedgerStore,
 )
+from qore.infrastructure.cibo_ctrader_demo_sizing import (
+    build_ctrader_demo_cibo_sizing,
+)
 from qore.infrastructure.cibo_ce2i_phase20_ctrader_recovery import (
     reconcile_ctrader_demo_phase20_entry,
 )
@@ -78,12 +81,6 @@ from qore.infrastructure.cibo_ce2i_phase20_demo_single_slot import (
 from qore.infrastructure.cibo_ce2i_phase20_demo_settlement_observer import (
     DurablePhase20DemoSettlementCursorStore,
     observe_ctrader_demo_phase20_settlements,
-)
-from qore.infrastructure.cibo_ce2i_phase20_demo_single_slot import (
-    Phase20DemoSingleSlotTerminal,
-    build_ctrader_demo_single_slot_observed_opportunity,
-    finalize_ctrader_demo_single_slot_phase20_policy,
-    prepare_ctrader_demo_single_slot_phase20_epoch,
 )
 from qore.infrastructure.cibo_ce2i_phase20_execution_risk_store import (
     DurablePhase20ExecutedRiskStore,
@@ -209,7 +206,6 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
 from qore.infrastructure.ctrader_demo_vt08_sizing import (
     build_ctrader_demo_vt08_opportunity,
 )
-from qore.infrastructure.cibo_cma_initial_seed import build_initial_seed_request
 from qore.infrastructure.cibo_cma_lifecycle_store import DurableCmaLifecycleStore
 from qore.infrastructure.cibo_cma_runtime_observer import (
     CmaRuntimePositionSnapshot,
@@ -639,7 +635,7 @@ def _process_candidate(
     )
     setup = cibo_setup_from_b01(candidate)
     posture_at = datetime.now(UTC)
-    demo_capital = demo_capital_for(TraderLineage.VT08_FOREX)
+    demo_capital = demo_account_capital()
     posture = request_cibo_posture(
         initial_balance=demo_capital,
         balance=demo_capital,
@@ -663,12 +659,11 @@ def _process_candidate(
         cibo_authorization=cibo,
         provider_spec=spec,
     )
-    seed = build_initial_seed_request(
+    seed = build_ctrader_demo_cibo_sizing(
         request_id=f"vt08-{setup.signal_fingerprint[:24]}",
         opportunity=opportunity,
-        assigned_capital_usd=demo_capital,
-        hard_risk_headroom_usd=demo_capital,
-        margin_headroom_usd=account.free_margin,
+        account_ref=account_binding_id,
+        account_state=account,
         requested_at=request_at,
         expires_at=setup.expires_at,
     )
@@ -717,12 +712,11 @@ def _process_r34_candidate(
     spec = gateway.read_symbol("XAUUSD", now=request_at)
     account = gateway.read_account(now=request_at)
     opportunity = build_r34_opportunity(signal=signal, provider_spec=spec)
-    seed = build_initial_seed_request(
+    seed = build_ctrader_demo_cibo_sizing(
         request_id=f"r34-{signal.signal_fingerprint[:24]}",
         opportunity=opportunity,
-        assigned_capital_usd=demo_capital_for(TraderLineage.R34_XAUUSD),
-        hard_risk_headroom_usd=demo_capital_for(TraderLineage.R34_XAUUSD),
-        margin_headroom_usd=account.free_margin,
+        account_ref=account_binding_id,
+        account_state=account,
         requested_at=request_at,
         expires_at=request_at + timedelta(seconds=30),
     )
@@ -771,12 +765,11 @@ def _process_r38_candidate(
     spec = gateway.read_symbol("EURUSD", now=request_at)
     account = gateway.read_account(now=request_at)
     opportunity = build_r38_opportunity(signal=signal, provider_spec=spec)
-    seed = build_initial_seed_request(
+    seed = build_ctrader_demo_cibo_sizing(
         request_id=f"r38-{signal.signal_fingerprint[:24]}",
         opportunity=opportunity,
-        assigned_capital_usd=demo_capital_for(TraderLineage.R38_EURUSD),
-        hard_risk_headroom_usd=demo_capital_for(TraderLineage.R38_EURUSD),
-        margin_headroom_usd=account.free_margin,
+        account_ref=account_binding_id,
+        account_state=account,
         requested_at=request_at,
         expires_at=request_at + timedelta(seconds=30),
     )
@@ -825,12 +818,11 @@ def _process_r43_candidate(
     spec = gateway.read_symbol("GBPUSD", now=request_at)
     account = gateway.read_account(now=request_at)
     opportunity = build_r43_opportunity(signal=signal, provider_spec=spec)
-    seed = build_initial_seed_request(
+    seed = build_ctrader_demo_cibo_sizing(
         request_id=f"r43-{signal.signal_fingerprint[:24]}",
         opportunity=opportunity,
-        assigned_capital_usd=demo_capital_for(TraderLineage.R43_GBPUSD),
-        hard_risk_headroom_usd=demo_capital_for(TraderLineage.R43_GBPUSD),
-        margin_headroom_usd=account.free_margin,
+        account_ref=account_binding_id,
+        account_state=account,
         requested_at=request_at,
         expires_at=request_at + timedelta(seconds=30),
     )
@@ -879,12 +871,11 @@ def _process_gbpjpy_r38_candidate(
     spec = gateway.read_symbol("GBPJPY", now=request_at)
     account = gateway.read_account(now=request_at)
     opportunity = build_r38_gbpjpy_opportunity(signal=signal, provider_spec=spec)
-    seed = build_initial_seed_request(
+    seed = build_ctrader_demo_cibo_sizing(
         request_id=f"gbpjpy-r38-{signal.signal_fingerprint[:24]}",
         opportunity=opportunity,
-        assigned_capital_usd=demo_capital_for(TraderLineage.R38_GBPJPY),
-        hard_risk_headroom_usd=demo_capital_for(TraderLineage.R38_GBPJPY),
-        margin_headroom_usd=account.free_margin,
+        account_ref=account_binding_id,
+        account_state=account,
         requested_at=request_at,
         expires_at=request_at + timedelta(seconds=30),
     )
@@ -965,12 +956,11 @@ def _process_audjpy_r42_candidate(
         provider_spec=spec,
         now=request_at,
     )
-    seed = build_initial_seed_request(
+    seed = build_ctrader_demo_cibo_sizing(
         request_id=f"audjpy-r42-{signal.signal_fingerprint[:24]}",
         opportunity=opportunity,
-        assigned_capital_usd=demo_capital_for(TraderLineage.R42_AUDJPY),
-        hard_risk_headroom_usd=demo_capital_for(TraderLineage.R42_AUDJPY),
-        margin_headroom_usd=account.free_margin,
+        account_ref=account_binding_id,
+        account_state=account,
         requested_at=request_at,
         expires_at=deadline,
     )
@@ -2639,9 +2629,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             },
                         )
                         vt31_snapshot = None
-                        vt31_execution_equity = demo_capital_for(
-                            TraderLineage.VT31_NAS100
-                        )
+                        vt31_execution_equity = demo_account_capital()
                     else:
                         vt31_execution_equity = vt31_account.equity
                     if vt31_basket is None:
