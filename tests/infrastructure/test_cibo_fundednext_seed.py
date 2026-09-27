@@ -76,10 +76,43 @@ def test_fundednext_seed_uses_minimum_volume_inside_sixty_dollar_headroom(
         risk=risk,
         snapshot=_snapshot(),
         assigned_capital_usd=Decimal("2000"),
+        survival_capital_usd=Decimal("60"),
+        protected_capital_usd=Decimal("0"),
         requested_at=NOW,
         expires_at=NOW + timedelta(seconds=30),
     )
 
     assert seed.plan.volume == Decimal("0.01")
     assert seed.plan.stop_risk_usd == Decimal("8.00")
+    assert seed.mode.value == "SURVIVAL_MINIMAL_SEED"
+    assert seed.base_protected is False
     assert seed.request.strategy_requested_risk_usd is None
+
+
+
+def test_fundednext_uses_full_sixty_dollar_capacity_after_survival_capital_protected(
+    tmp_path: Path,
+) -> None:
+    risk = DurableAccountWideRiskEngine(
+        DurableAccountWideRiskLedger(tmp_path / "protected-risk.json")
+    )
+
+    sizing = build_fundednext_cibo_seed(
+        request_id="protected-1",
+        opportunity=_opportunity(),
+        risk=risk,
+        snapshot=_snapshot(),
+        assigned_capital_usd=Decimal("2000"),
+        survival_capital_usd=Decimal("60"),
+        protected_capital_usd=Decimal("60"),
+        requested_at=NOW,
+        expires_at=NOW + timedelta(seconds=30),
+    )
+
+    # XAU risk is 800 USD/lot, so 60 USD headroom resolves to 0.07 lots
+    # after flooring to the 0.01 provider step (56 USD stop risk).
+    assert sizing.plan.volume == Decimal("0.07")
+    assert sizing.plan.stop_risk_usd == Decimal("56.00")
+    assert sizing.mode.value == "PROTECTED_FULL_CAPACITY"
+    assert sizing.base_protected is True
+    assert sizing.request.strategy_requested_risk_usd is None
