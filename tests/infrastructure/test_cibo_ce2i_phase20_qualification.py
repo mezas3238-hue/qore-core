@@ -192,7 +192,7 @@ def _books(
                 continue
             if candidate_index == 0:
                 outcome_r = Decimal("2")
-                if negative_fold and decision_index < 20:
+                if negative_fold and decision_index % 28 < 7:
                     outcome_r = Decimal("-1")
             else:
                 outcome_r = Decimal("-1")
