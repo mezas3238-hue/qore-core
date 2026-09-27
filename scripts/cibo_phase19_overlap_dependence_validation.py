@@ -43,6 +43,7 @@ from qore.infrastructure.cibo_ce2i_phase19_portfolio_replay import (
     PHASE19_REQUIRED_TRADERS,
 )
 
+
 def _serialize(atlas: Phase19DependenceAtlas) -> dict[str, Any]:
     return {
         "total_cross_trader_overlap_pairs": (
