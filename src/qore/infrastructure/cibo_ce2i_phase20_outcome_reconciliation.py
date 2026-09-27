@@ -43,6 +43,8 @@ class Phase20ExecutedRiskEvidence:
     decision_evidence_sha256: str
     signal_fingerprint: str
     qore_symbol: str
+    provider_order_ref: str
+    side: str
     position_id: int
     authorized_source_volume: Decimal
     filled_source_volume: Decimal
@@ -61,6 +63,7 @@ class Phase20ExecutedRiskEvidence:
             not self.evidence_id
             or not self.signal_fingerprint
             or not self.qore_symbol
+            or not self.provider_order_ref
         ):
             raise CiboCapitalManagementError(
                 "Phase20D executed-risk evidence identity/signal/symbol required"
@@ -102,6 +105,24 @@ class Phase20ExecutedRiskEvidence:
         if self.filled_source_volume > self.authorized_source_volume:
             raise CiboCapitalManagementError(
                 "Phase20D filled source volume cannot exceed authorization"
+            )
+        if self.side not in {"long", "short"}:
+            raise CiboCapitalManagementError(
+                "Phase20D executed-risk side must be long/short"
+            )
+        if (
+            self.side == "long"
+            and self.weighted_fill_price <= self.structural_stop_price
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20D long executed-risk fill must remain above stop"
+            )
+        if (
+            self.side == "short"
+            and self.weighted_fill_price >= self.structural_stop_price
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20D short executed-risk fill must remain below stop"
             )
         intended_distance = abs(
             self.intended_entry_price - self.structural_stop_price
