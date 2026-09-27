@@ -35,10 +35,12 @@ from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
     cibo_market_memory_fingerprint,
 )
 from qore.infrastructure.ctrader_demo_free_sink import (
-    demo_capital_for,
+    global_sink,
     submit_demo_request,
 )
-from qore.infrastructure.cibo_cma_initial_seed import build_initial_seed_request
+from qore.infrastructure.cibo_ctrader_demo_sizing import (
+    build_ctrader_demo_cibo_sizing,
+)
 from qore.infrastructure.vt31_nas100_live import (
     CIBO_MEMORY_FINGERPRINT,
     COGNITIVE_MEMORY_FINGERPRINT,
@@ -1231,12 +1233,11 @@ def _authorize_and_check(
         decision_anchor=trigger_at,
         now=request_at,
     )
-    seed = build_initial_seed_request(
+    seed = build_ctrader_demo_cibo_sizing(
         request_id=f"vt31-{order.signal_fingerprint[:24]}",
         opportunity=opportunity,
-        assigned_capital_usd=demo_capital_for(TraderLineage.VT31_NAS100),
-        hard_risk_headroom_usd=demo_capital_for(TraderLineage.VT31_NAS100),
-        margin_headroom_usd=account.free_margin,
+        account_ref=global_sink().binding.account.account_ref,
+        account_state=account,
         requested_at=request_at,
         expires_at=expires_at,
     )
@@ -1249,6 +1250,9 @@ def _authorize_and_check(
         "state": demo_result.state,
         "requested_volume": str(request.requested_volume),
         "assigned_capital": str(demo_result.assigned_capital),
+        "cibo_sizing_mode": seed.mode.value,
+        "legacy_certified_risk_r": str(legacy_resolution.final_risk_r),
+        "sizing_authority": "CIBO_CMA",
         "provider_order_ref": demo_result.provider_order_ref,
     })
     if (
