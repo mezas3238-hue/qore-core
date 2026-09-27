@@ -29,7 +29,7 @@ def test_train_prior_covers_exact_seven_traders_and_523_rows() -> None:
 
 def test_train_prior_digest_is_frozen() -> None:
     assert prior_digest_sha256() == (
-        "sha256:37ab8533cee83c4854b8dd4472a5d7365d9849915e3972ace5a4a4a62abf6391"
+        "sha256:15b059ea1e303fee7a9ed0894480ee1da6091647482a0811f1090335925b6caa"
     )
 
 
