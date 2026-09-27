@@ -15,7 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
