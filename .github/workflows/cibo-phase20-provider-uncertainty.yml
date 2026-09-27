@@ -75,6 +75,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py \
             tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py \
             tests/infrastructure/test_cibo_ce2i_phase20_mechanism_certification.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py
           mypy \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py \
