@@ -67,7 +67,8 @@ jobs:
             scripts/cibo_phase20_capital_state_monte_carlo_contract.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
-            tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py
+            tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py
 
   contract-evidence:
     needs: quality
