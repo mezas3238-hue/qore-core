@@ -56,9 +56,6 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
     Phase20ForwardKnownOptionEvidence,
     Phase20ForwardPopulationDisposition,
 )
-from qore.infrastructure.cibo_ce2i_phase20_mpc import (
-    Phase20MpcKnownOption,
-)
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
     DurablePhase20ForwardPolicyStore,
 )
@@ -67,6 +64,9 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_snapshots import (
 )
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     DurablePhase20ForwardEvidenceStore,
+)
+from qore.infrastructure.cibo_ce2i_phase20_mpc import (
+    Phase20MpcKnownOption,
 )
 from qore.infrastructure.cibo_ce2i_phase20_shadow_observer import (
     Phase20ForwardShadowObservation,
