@@ -1,0 +1,228 @@
+name: QORE Capitalizer Dynamic Episode Sequence Feasibility V1
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/qore-capitalizer-dynamic-episode-sequence-feasibility-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_dynamic_episode_sequence_feasibility_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_dynamic_episode_sequence_feasibility_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-dynamic-episode-sequence-feasibility-v1-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+  SIM_RUN_ID: '36332714846'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_dynamic_episode_sequence_feasibility_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_dynamic_episode_sequence_feasibility_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_dynamic_episode_sequence_feasibility_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_dynamic_episode_sequence_feasibility_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_dynamic_episode_sequence_feasibility_v1.py
+
+  shard:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - period: DEVELOPMENT_2024_2026
+            slug: development
+          - period: CONSUMED_VALIDATION_2022_2024
+            slug: validation
+          - period: CONSUMED_RESERVED_2020_2022
+            slug: reserved
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download reconstructed consumed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Download authoritative simulator transitions
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-counterfactual-portfolio-episode-simulator-v1-sharded-*
+          path: simulator-evidence
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SIM_RUN_ID }}
+      - name: Run dynamic sequence feasibility shard
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_dynamic_episode_sequence_feasibility_v1 \
+            --period "${{ matrix.period }}" \
+            --development-root reconstructed/development-input \
+            --validation-root reconstructed/validation-input \
+            --reserved-root reconstructed/reserved-input \
+            --development-validation-context-root reconstructed/development-validation-context \
+            --reserved-context-root reconstructed/reserved-context \
+            --transition-path simulator-evidence/capitalizer-counterfactual-portfolio-episode-simulator-v1-transitions.jsonl \
+            --output "experiment-output/${{ matrix.slug }}"
+      - name: Enforce shard contract
+        run: |
+          PERIOD="${{ matrix.period }}" SLUG="${{ matrix.slug }}" python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(
+              "experiment-output"
+          ) / os.environ["SLUG"] / (
+              "capitalizer-dynamic-episode-sequence-feasibility-v1.json"
+          )
+          report = json.loads(path.read_text())
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_DYNAMIC_EPISODE_SEQUENCE_FEASIBILITY_V1"
+          )
+          assert report["period"] == os.environ["PERIOD"]
+          assert report["outcome_aware_diagnostic"] is True
+          assert report["runtime_policy_candidate"] is False
+          assert report["admission_changed"] is False
+          assert report["sizing_changed"] is False
+          assert report["new_protection_geometry_created"] is False
+          assert report["candidate_count"] == 0
+          assert report["trader_certified"] is False
+
+          result = report["result"]
+          assert result["density_retention"] == "1"
+          assert result["same_entrant_identities"] is True
+          assert result["seed_action_count"] > 0
+          assert result["seed_entrant_count"] > 0
+          assert result["evaluated_extensions"] > 0
+
+          baseline = result["surface"]
+          final = result["final_metrics"]
+          if result["committed_intervention_count"] > 0:
+              assert float(final["max_drawdown_r"]) < float(
+                  baseline["max_drawdown_r"]
+              )
+              assert float(final["total_r"]) >= float(
+                  baseline["total_r"]
+              )
+              if baseline["profit_factor"] is not None:
+                  assert final["profit_factor"] is not None
+                  assert float(final["profit_factor"]) >= float(
+                      baseline["profit_factor"]
+                  )
+              assert int(final["max_losing_streak"]) <= int(
+                  baseline["max_losing_streak"]
+              )
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Upload sequence feasibility shard
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-dynamic-episode-sequence-feasibility-v1-${{ matrix.slug }}-${{ github.sha }}
+          path: experiment-output/${{ matrix.slug }}
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: shard
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-dynamic-episode-sequence-feasibility-v1-*
+          path: shards
+          merge-multiple: false
+      - name: Aggregate and enforce cross-period contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          rows = []
+          for path in sorted(
+              Path("shards").rglob(
+                  "capitalizer-dynamic-episode-sequence-feasibility-v1.json"
+              )
+          ):
+              rows.append(json.loads(path.read_text()))
+
+          assert len(rows) == 3
+          periods = {row["period"] for row in rows}
+          assert periods == {
+              "DEVELOPMENT_2024_2026",
+              "CONSUMED_VALIDATION_2022_2024",
+              "CONSUMED_RESERVED_2020_2022",
+          }
+
+          report = {
+              "identity": (
+                  "QORE_CAPITALIZER_DYNAMIC_EPISODE_SEQUENCE_FEASIBILITY_V1"
+              ),
+              "evaluation": (
+                  "CONSERVATIVE_GREEDY_DYNAMIC_MULTI_INTERVENTION_FEASIBILITY"
+              ),
+              "results": [
+                  row["result"]
+                  for row in sorted(rows, key=lambda x: x["period"])
+              ],
+              "all_period_full_gate": all(
+                  row["result"]["full_gate_passed"]
+                  for row in rows
+              ),
+              "candidate_count": 0,
+              "trader_certified": False,
+              "next_phase": (
+                  "BUILD_CAUSAL_EPISODE_CONTROLLER_FROM_FEASIBLE_SEQUENCES"
+                  if all(
+                      row["result"]["full_gate_passed"]
+                      for row in rows
+                  )
+                  else "RICHER_DYNAMIC_SEARCH_OR_WORLD_MODEL_REQUIRED"
+              ),
+          }
+          Path("aggregate").mkdir()
+          out = Path("aggregate") / (
+              "capitalizer-dynamic-episode-sequence-feasibility-v1-aggregate.json"
+          )
+          out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Upload aggregate
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-dynamic-episode-sequence-feasibility-v1-aggregate-${{ github.sha }}
+          path: aggregate
+          if-no-files-found: error
+          retention-days: 90
