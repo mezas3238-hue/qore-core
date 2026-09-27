@@ -6,13 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from qore.infrastructure.ctrader_historical_tick_data import (
-    CTraderHistoricalTickError,
-    CTraderHistoricalTickReader,
-    CTraderHistoricalTickRequest,
-    CTraderQuoteType,
-    decode_historical_tick_page,
-)
+from qore.infrastructure import ctrader_historical_tick_data as tick_data
 from qore.kernel.result import Failure, Success
 
 
@@ -27,9 +21,9 @@ class NativeTick:
 
 def _request(
     *,
-    quote_type: CTraderQuoteType = CTraderQuoteType.BID,
-) -> CTraderHistoricalTickRequest:
-    return CTraderHistoricalTickRequest(
+    quote_type: tick_data.CTraderQuoteType = tick_data.CTraderQuoteType.BID,
+) -> tick_data.CTraderHistoricalTickRequest:
+    return tick_data.CTraderHistoricalTickRequest(
         account_id=123,
         symbol_id=456,
         quote_type=quote_type,
@@ -39,18 +33,18 @@ def _request(
 
 
 def test_request_is_bounded_to_official_one_week_window() -> None:
-    with pytest.raises(CTraderHistoricalTickError, match="seven days"):
-        CTraderHistoricalTickRequest(
+    with pytest.raises(tick_data.CTraderHistoricalTickError, match="seven days"):
+        tick_data.CTraderHistoricalTickRequest(
             account_id=123,
             symbol_id=456,
-            quote_type=CTraderQuoteType.BID,
+            quote_type=tick_data.CTraderQuoteType.BID,
             from_at=_BASE,
             to_at=_BASE + timedelta(days=7, milliseconds=1),
         )
 
 
 def test_request_fields_preserve_bid_ask_identity_and_milliseconds() -> None:
-    request = _request(quote_type=CTraderQuoteType.ASK)
+    request = _request(quote_type=tick_data.CTraderQuoteType.ASK)
 
     assert request.fields() == {
         "ctidTraderAccountId": 123,
@@ -69,7 +63,7 @@ def test_decoder_reconstructs_newest_first_delta_timestamps() -> None:
         NativeTick(750, 1_234_500),
     )
 
-    page = decode_historical_tick_page(
+    page = tick_data.decode_historical_tick_page(
         request=_request(),
         native_ticks=native,
         has_more=True,
@@ -86,7 +80,7 @@ def test_decoder_reconstructs_newest_first_delta_timestamps() -> None:
         "12.34550",
         "12.34560",
     )
-    assert all(item.quote_type is CTraderQuoteType.BID for item in page.ticks)
+    assert all(item.quote_type is tick_data.CTraderQuoteType.BID for item in page.ticks)
     assert page.next_older_to_at == (
         newest - timedelta(milliseconds=1_001)
     )
@@ -98,12 +92,12 @@ def test_decoder_rejects_timestamp_delta_that_moves_before_epoch() -> None:
         NativeTick(600, 100_000),
     )
 
-    with pytest.raises(CTraderHistoricalTickError, match="Unix epoch"):
-        decode_historical_tick_page(
-            request=CTraderHistoricalTickRequest(
+    with pytest.raises(tick_data.CTraderHistoricalTickError, match="Unix epoch"):
+        tick_data.decode_historical_tick_page(
+            request=tick_data.CTraderHistoricalTickRequest(
                 account_id=123,
                 symbol_id=456,
-                quote_type=CTraderQuoteType.BID,
+                quote_type=tick_data.CTraderQuoteType.BID,
                 from_at=datetime(1970, 1, 1, tzinfo=UTC),
                 to_at=datetime(1970, 1, 1, 0, 0, 1, tzinfo=UTC),
             ),
@@ -114,8 +108,8 @@ def test_decoder_rejects_timestamp_delta_that_moves_before_epoch() -> None:
 
 
 def test_decoder_rejects_empty_page_claiming_more_records() -> None:
-    with pytest.raises(CTraderHistoricalTickError, match="cannot advertise"):
-        decode_historical_tick_page(
+    with pytest.raises(tick_data.CTraderHistoricalTickError, match="cannot advertise"):
+        tick_data.decode_historical_tick_page(
             request=_request(),
             native_ticks=(),
             has_more=True,
@@ -164,7 +158,7 @@ def test_reader_uses_read_only_historical_tick_request() -> None:
         hasMore=False,
     )
     client = FakeClient(response)
-    reader = CTraderHistoricalTickReader(
+    reader = tick_data.CTraderHistoricalTickReader(
         client=client,
         timeout_seconds=10.0,
     )
@@ -187,7 +181,7 @@ def test_reader_fails_closed_on_account_mismatch() -> None:
         tickData=[],
         hasMore=False,
     )
-    reader = CTraderHistoricalTickReader(
+    reader = tick_data.CTraderHistoricalTickReader(
         client=FakeClient(response),
         timeout_seconds=10.0,
     )
@@ -199,4 +193,4 @@ def test_reader_fails_closed_on_account_mismatch() -> None:
     )
 
     assert isinstance(result, Failure)
-    assert isinstance(result.error, CTraderHistoricalTickError)
+    assert isinstance(result.error, tick_data.CTraderHistoricalTickError)
