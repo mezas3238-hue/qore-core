@@ -16,11 +16,9 @@ from pathlib import Path
 from threading import Lock
 from uuid import NAMESPACE_URL, uuid5
 
-from qore.domain.events import CorrelationId
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
 from qore.infrastructure.ctrader_demo_allocation_only import (
     CTraderDemoBrokerContract,
-    DemoCapitalAllocationBook,
     allocation_fence_values,
     authorize_allocation_only,
     build_allocation_only_submission,
@@ -33,10 +31,6 @@ from qore.infrastructure.ctrader_demo_free_binding import (
 from qore.infrastructure.ctrader_demo_free_position_service import (
     CTraderDemoFreePositionService,
 )
-from qore.infrastructure.ctrader_demo_trade_registry import (
-    CTraderDemoTradeRegistry,
-    DemoTradeRegistryEntry,
-)
 from qore.infrastructure.ctrader_demo_live_behavior_lab import (
     CTraderDemoLiveBehaviorLedger,
     sizing_path_for,
@@ -47,6 +41,10 @@ from qore.infrastructure.ctrader_demo_mutation_ledger import (
 from qore.infrastructure.ctrader_demo_operational_runtime import (
     CTraderDemoOperationalRuntime,
 )
+from qore.infrastructure.ctrader_demo_trade_registry import (
+    CTraderDemoTradeRegistry,
+    DemoTradeRegistryEntry,
+)
 from qore.infrastructure.ctrader_open_api_client import (
     CTraderOpenApiCredentials,
     SpotwareCTraderOpenApiClient,
@@ -56,7 +54,6 @@ from qore.infrastructure.market_test_environment import (
 )
 from qore.infrastructure.ports import (
     AdapterId,
-    ExternalRequestMetadata,
     ExternalSourceDescriptor,
     PortName,
     SourceId,
@@ -196,10 +193,6 @@ class CTraderDemoFreeSink:
     def registry(self) -> CTraderDemoTradeRegistry:
         return self._registry
 
-    @property
-    def client(self) -> SpotwareCTraderOpenApiClient:
-        return self._client
-
     def account_capital(self) -> Decimal:
         return self._book.account_capital
 
@@ -222,7 +215,12 @@ class CTraderDemoFreeSink:
             ctrader_lot_size_units=native.lot_size_units,
         )
 
-    def submit(self, request: CiboRiskRequest, *, now: datetime | None = None) -> CTraderDemoFreeSubmitResult:
+    def submit(
+        self,
+        request: CiboRiskRequest,
+        *,
+        now: datetime | None = None,
+    ) -> CTraderDemoFreeSubmitResult:
         assert_cibo_sizing_authority(request)
         observed = now or datetime.now(UTC)
         if observed.tzinfo is None or observed.utcoffset() is None:
