@@ -147,7 +147,17 @@ def test_fixed_reserve_stays_outside_deployable_capital() -> None:
 def test_frozen_phase19i_suite_is_small_equal_weight_and_unique() -> None:
     assert len(PHASE19I_SIMPLE_POLICIES) == 6
     assert len({item.policy_id for item in PHASE19I_SIMPLE_POLICIES}) == 6
-    assert all(item.gross_initial_capital_ncu == Decimal("10") for item in PHASE19I_SIMPLE_POLICIES)
-    assert all(item.trader_specific_weighting is False for item in PHASE19I_SIMPLE_POLICIES)
-    assert all(item.overlap_penalty is False for item in PHASE19I_SIMPLE_POLICIES)
-    assert all(item.hypergraph_penalty is False for item in PHASE19I_SIMPLE_POLICIES)
+    assert all(
+        item.gross_initial_capital_ncu == Decimal("10")
+        for item in PHASE19I_SIMPLE_POLICIES
+    )
+    assert all(
+        item.trader_specific_weighting is False
+        for item in PHASE19I_SIMPLE_POLICIES
+    )
+    assert all(
+        item.overlap_penalty is False for item in PHASE19I_SIMPLE_POLICIES
+    )
+    assert all(
+        item.hypergraph_penalty is False for item in PHASE19I_SIMPLE_POLICIES
+    )
