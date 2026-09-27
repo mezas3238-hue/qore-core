@@ -49,6 +49,7 @@ class Phase20ForwardDecisionSeal:
     parameter_sha256: str
     signal_fingerprints: tuple[str, ...]
     canonical_payload_json: str
+    collector_git_sha: str | None = None
     sealed_at: datetime | None = None
     seal_deadline_at: datetime | None = None
 
@@ -73,6 +74,17 @@ class Phase20ForwardDecisionSeal:
             raise DurablePhase20ForwardEvidenceError(
                 "forward decision policy lineage is required"
             )
+        if self.collector_git_sha is not None:
+            if (
+                len(self.collector_git_sha) != 40
+                or any(
+                    char not in "0123456789abcdef"
+                    for char in self.collector_git_sha
+                )
+            ):
+                raise DurablePhase20ForwardEvidenceError(
+                    "forward decision collector Git SHA must be 40 lowercase hex"
+                )
         for name in ("sealed_at", "seal_deadline_at"):
             value = getattr(self, name)
             if (
@@ -347,6 +359,7 @@ class DurablePhase20ForwardEvidenceStore:
         *,
         expected_generation: int,
         seal_deadline_at: datetime | None = None,
+        collector_git_sha: str | None = None,
     ) -> VersionedPhase20ForwardEvidenceBook:
         if not isinstance(evidence, Phase20ForwardDecisionEvidence):
             raise DurablePhase20ForwardEvidenceError(
@@ -384,7 +397,11 @@ class DurablePhase20ForwardEvidenceStore:
                     if item.evidence_id == evidence.evidence_id
                 )
                 if same_id:
-                    if _decision_matches_evidence(same_id[0], evidence):
+                    if _decision_matches_evidence(
+                        same_id[0],
+                        evidence,
+                        collector_git_sha=collector_git_sha,
+                    ):
                         return current
                     raise DurablePhase20ForwardEvidenceError(
                         "conflicting forward decision rewrite"
@@ -395,7 +412,11 @@ class DurablePhase20ForwardEvidenceStore:
                     if item.decision_epoch_id == evidence.decision_epoch_id
                 )
                 if same_epoch:
-                    if _decision_matches_evidence(same_epoch[0], evidence):
+                    if _decision_matches_evidence(
+                        same_epoch[0],
+                        evidence,
+                        collector_git_sha=collector_git_sha,
+                    ):
                         return current
                     raise DurablePhase20ForwardEvidenceError(
                         "conflicting forward decision epoch rewrite"
@@ -409,6 +430,7 @@ class DurablePhase20ForwardEvidenceStore:
                     evidence,
                     sealed_at=None,
                     seal_deadline_at=seal_deadline_at,
+                    collector_git_sha=collector_git_sha,
                 )
                 provisional = VersionedPhase20ForwardEvidenceBook(
                     generation=current.generation + 1,
@@ -429,6 +451,7 @@ class DurablePhase20ForwardEvidenceStore:
                     evidence,
                     sealed_at=sealed_at,
                     seal_deadline_at=seal_deadline_at,
+                    collector_git_sha=collector_git_sha,
                 )
                 updated = VersionedPhase20ForwardEvidenceBook(
                     generation=provisional.generation,
@@ -637,6 +660,7 @@ def _decision_seal(
     *,
     sealed_at: datetime | None,
     seal_deadline_at: datetime | None,
+    collector_git_sha: str | None,
 ) -> Phase20ForwardDecisionSeal:
     payload = phase20_forward_evidence_json(evidence)
     return Phase20ForwardDecisionSeal(
@@ -651,6 +675,7 @@ def _decision_seal(
             item.candidate.signal_fingerprint for item in evidence.candidates
         ),
         canonical_payload_json=payload,
+        collector_git_sha=collector_git_sha,
         sealed_at=sealed_at,
         seal_deadline_at=seal_deadline_at,
     )
@@ -659,6 +684,8 @@ def _decision_seal(
 def _decision_matches_evidence(
     seal: Phase20ForwardDecisionSeal,
     evidence: Phase20ForwardDecisionEvidence,
+    *,
+    collector_git_sha: str | None,
 ) -> bool:
     return (
         seal.evidence_id == evidence.evidence_id
@@ -668,6 +695,7 @@ def _decision_matches_evidence(
         and seal.candidate_id == evidence.lineage.candidate_id
         and seal.code_sha == evidence.lineage.code_sha
         and seal.parameter_sha256 == evidence.lineage.parameter_sha256
+        and seal.collector_git_sha == collector_git_sha
         and seal.signal_fingerprints
         == tuple(
             item.candidate.signal_fingerprint for item in evidence.candidates
@@ -700,6 +728,7 @@ def _decision_to_json(
         "parameter_sha256": value.parameter_sha256,
         "signal_fingerprints": list(value.signal_fingerprints),
         "canonical_payload_json": value.canonical_payload_json,
+        "collector_git_sha": value.collector_git_sha,
         "sealed_at": (
             None if value.sealed_at is None else value.sealed_at.isoformat()
         ),
@@ -727,6 +756,11 @@ def _decision_from_json(value: object) -> Phase20ForwardDecisionSeal:
         parameter_sha256=str(value["parameter_sha256"]),
         signal_fingerprints=tuple(str(item) for item in fingerprints),
         canonical_payload_json=str(value["canonical_payload_json"]),
+        collector_git_sha=(
+            None
+            if value.get("collector_git_sha") is None
+            else str(value["collector_git_sha"])
+        ),
         sealed_at=(
             None
             if value.get("sealed_at") is None
