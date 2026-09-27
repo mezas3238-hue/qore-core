@@ -53,6 +53,35 @@ from qore.infrastructure.cibo_account_capital_mission import (
     eligible_ce2i_tool_codes_for_mission,
     identity_from_market_test_account,
 )
+from qore.infrastructure.cibo_capital_source_ledger_store import (
+    DurableCapitalSourceLedgerStore,
+)
+from qore.infrastructure.cibo_ce2i_phase20_ctrader_recovery import (
+    reconcile_ctrader_demo_phase20_entry,
+)
+from qore.infrastructure.cibo_ce2i_phase20_demo_capital_bootstrap import (
+    bootstrap_phase20_demo_assigned_capital,
+)
+from qore.infrastructure.cibo_ce2i_phase20_demo_runtime_bridge import (
+    finalize_ctrader_demo_m5_phase20_policy,
+    prepare_ctrader_demo_m5_phase20_epoch,
+)
+from qore.infrastructure.cibo_ce2i_phase20_execution_risk_store import (
+    DurablePhase20ExecutedRiskStore,
+)
+from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
+    Phase20ForwardPopulationDisposition,
+)
+from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
+    DurablePhase20ForwardPolicyStore,
+)
+from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
+    DurablePhase20ForwardEvidenceStore,
+)
+from qore.infrastructure.cibo_ce2i_phase20_m5_shadow_batch import (
+    Phase20M5ShadowTerminal,
+    build_ctrader_demo_m5_observed_opportunity,
+)
 from qore.infrastructure.ctrader_demo_compat import (
     CTraderDemoAccountState,
     CTraderDemoSymbolSpecification,
@@ -69,6 +98,9 @@ from qore.infrastructure.ctrader_demo_runtime_state import (
     CTraderDemoRuntimeState,
     CTraderDemoSingleWriterLock,
     DurableCTraderDemoRuntimeStateStore,
+)
+from qore.infrastructure.ctrader_demo_mutation_ledger import (
+    JsonFileCTraderDemoMutationLedger,
 )
 from qore.infrastructure.market_test_environment import (
     MarketRuntimeEnvironment,
