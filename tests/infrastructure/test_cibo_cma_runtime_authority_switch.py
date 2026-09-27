@@ -20,6 +20,8 @@ def test_demo_runtime_no_longer_calls_legacy_trader_sizing_builders() -> None:
         "build_r43_risk_request(",
         "build_r38_gbpjpy_risk_request(",
         "build_r42_audjpy_risk_request(",
+        "build_initial_seed_request(",
+        "demo_capital_for(",
     )
     for call in forbidden:
         assert call not in source
@@ -31,18 +33,20 @@ def test_demo_runtime_no_longer_calls_legacy_trader_sizing_builders() -> None:
         "build_r43_opportunity(",
         "build_r38_gbpjpy_opportunity(",
         "build_r42_audjpy_opportunity(",
-        "build_initial_seed_request(",
+        "build_ctrader_demo_cibo_sizing(",
     )
     for call in required:
         assert call in source
 
 
-def test_vt31_adapter_uses_cibo_seed_not_certified_risk_for_volume() -> None:
+def test_vt31_adapter_uses_account_cibo_sizing_not_certified_risk_for_volume() -> None:
     source = VT31_ADAPTER.read_text(encoding="utf-8")
 
     assert "build_risk_request(" not in source
     assert "build_vt31_opportunity(" in source
-    assert "build_initial_seed_request(" in source
+    assert "build_initial_seed_request(" not in source
+    assert "demo_capital_for(" not in source
+    assert "build_ctrader_demo_cibo_sizing(" in source
     assert "legacy_resolution = resolve_certified_risk(context)" in source
     assert "certified_risk_r=legacy_resolution.final_risk_r" not in source
 
@@ -80,3 +84,19 @@ def test_runtime_cma_observation_has_no_broker_mutation_path() -> None:
 
     assert '"mutation_authority": "NONE_OBSERVATIONAL"' in observer
     assert "NETTED_MULTI_LEG_POSITION_REQUIRES_ALLOCATION_DECOMPOSITION" in observer
+
+
+
+def test_demo_runtime_exposes_no_active_trader_risk_fraction_or_private_capital_slice() -> None:
+    source = RUNTIME.read_text(encoding="utf-8")
+    for key in (
+        '"r38_base_risk_fraction"',
+        '"r43_base_risk_fraction"',
+        '"gbpjpy_r38_base_risk_fraction"',
+        '"audjpy_r42_base_risk_fraction"',
+    ):
+        assert key not in source
+    assert "demo_capital_for(" not in source
+    assert '"trader_runtime_sizing_authority": False' in source
+    assert '"cibo_runtime_sizing_authority": True' in source
+    assert '"cibo_sizing_scope": "ACCOUNT"' in source
