@@ -1103,3 +1103,52 @@ def test_full_boundary_composition_idempotency() -> None:
     assert isinstance(replay, Success)
     assert replay.value == first.value
     assert len(transport.submit_calls) == 1
+
+
+
+def test_mutation_ledger_v1_remains_readable_for_restart_compatibility(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "legacy-v1-mutations.json"
+    submission = _submission(suffix=47)
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "records": [
+                    {
+                        "idempotency_key": str(
+                            submission.idempotency_key.value
+                        ),
+                        "receipt_id": str(submission.receipt_id.value),
+                        "submission_digest": (
+                            "sha256:" + "a" * 64
+                        ),
+                        "client_order_id": "legacy-client-order",
+                        "state": "definitive_outcome",
+                        "transitioned_at": (
+                            _NOW + timedelta(seconds=5)
+                        ).isoformat(),
+                        "provider_order_ref": "70047",
+                        "reason": None,
+                        "outcome": "filled",
+                        "fill_refs": ["90047"],
+                        "fill_identities": [
+                            ["90047", "sha256:" + "b" * 64]
+                        ],
+                        "cumulative_quantity": "10",
+                        "is_complete": True,
+                    }
+                ],
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+    ledger = JsonFileCTraderDemoMutationLedger(path)
+    records = ledger.records()
+
+    assert len(records) == 1
+    assert records[0].fill_refs == ("90047",)
+    assert records[0].fill_observations == ()
