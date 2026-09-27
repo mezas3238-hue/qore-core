@@ -72,3 +72,30 @@ def test_legacy_vt08_sizing_remains_baseline_only_not_runtime_authority() -> Non
     assert "R315_BASE_RISK_BPS" in legacy
     assert "build_certified_vt08_forex_cibo_request" in legacy
     assert "build_certified_vt08_forex_cibo_request" not in runtime
+
+
+
+def test_fundednext_runtime_has_no_active_trader_base_risk_fraction() -> None:
+    source = RUNTIME.read_text(encoding="utf-8")
+    assert '"r38_base_risk_fraction"' not in source
+    assert '"r43_base_risk_fraction"' not in source
+    assert '"gbpjpy_r38_base_risk_fraction"' not in source
+    assert '"audjpy_r42_base_risk_fraction"' not in source
+    assert '"trader_runtime_sizing_authority": False' in source
+    assert '"cibo_runtime_sizing_authority": True' in source
+
+
+def test_all_fundednext_cibo_calls_receive_account_protection_state() -> None:
+    source = RUNTIME.read_text(encoding="utf-8")
+    assert source.count("build_fundednext_cibo_seed(") >= 6
+    assert source.count(
+        "survival_capital_usd=capital_budget.aggregate_heat_cap"
+    ) >= 6
+    assert source.count(
+        "protected_capital_usd=capital_budget.earned_closed_balance_cushion"
+    ) >= 6
+
+    vt31 = VT31.read_text(encoding="utf-8")
+    assert "survival_capital_usd=survival_capital_usd" in vt31
+    assert "protected_capital_usd=protected_capital_usd" in vt31
+    assert '"cibo_sizing_mode": seed.mode.value' in vt31
