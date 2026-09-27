@@ -47,6 +47,7 @@ from qore.infrastructure.cibo_ce2i_phase19_portfolio_replay import (
     PHASE19_REQUIRED_TRADERS,
 )
 
+
 def _temporal_summary(
     trades: tuple[Phase19NormalizedReplayTrade, ...],
 ) -> dict[str, Any]:
