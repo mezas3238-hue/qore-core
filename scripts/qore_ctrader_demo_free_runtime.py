@@ -2665,6 +2665,12 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         vt31_execution_equity = demo_account_capital()
                     else:
                         vt31_execution_equity = vt31_account.equity
+                    phase20_vt31_deadline = (
+                        vt31_arm_anchor + VT31_DECISION_DEADLINE
+                    )
+                    phase20_vt31_scope = (
+                        f"ctrader-demo:vt31:{vt31_arm_anchor.isoformat()}"
+                    )
                     if vt31_basket is None:
                         _log(
                             log_path,
@@ -2676,7 +2682,42 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "observed_at": (vt31_boundary.observed_at.isoformat()),
                             },
                         )
+                        observe_phase20_single_slot(
+                            trader_id=TraderLineage.VT31_NAS100,
+                            qore_symbol="NAS100",
+                            epoch_scope=phase20_vt31_scope,
+                            opened_at=vt31_arm_anchor,
+                            deadline_at=phase20_vt31_deadline,
+                            terminal_observed_at=vt31_decided_at,
+                            disposition=(
+                                Phase20ForwardPopulationDisposition.ABSTAIN
+                            ),
+                            reason=vt31_reason,
+                            account_state_for_shadow=vt31_account,
+                        )
                     elif len(vt31_basket.candidates) == 1:
+                        def observe_vt31_phase20_candidate(
+                            opportunity: TraderOpportunityEnvelope,
+                            spec: CTraderDemoSymbolSpecification,
+                            shadow_account: CTraderDemoAccountState,
+                            observed_at: datetime,
+                        ) -> None:
+                            observe_phase20_single_slot(
+                                trader_id=TraderLineage.VT31_NAS100,
+                                qore_symbol="NAS100",
+                                epoch_scope=phase20_vt31_scope,
+                                opened_at=vt31_arm_anchor,
+                                deadline_at=phase20_vt31_deadline,
+                                terminal_observed_at=observed_at,
+                                disposition=(
+                                    Phase20ForwardPopulationDisposition.CANDIDATE
+                                ),
+                                reason="VALID_TRADER_OPPORTUNITY",
+                                account_state_for_shadow=shadow_account,
+                                opportunity=opportunity,
+                                provider_spec=spec,
+                            )
+
                         submit_vt31_single_live(
                             basket=vt31_basket,
                             boundary_at=vt31_arm_anchor,
@@ -2686,6 +2727,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             account_equity=vt31_execution_equity,
                             store=vt31_store,
                             log=lambda event: _log(log_path, event),
+                            phase20_after_submit=observe_vt31_phase20_candidate,
                         )
                     else:
                         _log(
@@ -2696,6 +2738,20 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "decision_at": vt31_arm_anchor.isoformat(),
                                 "basket_id": vt31_basket.basket_id,
                                 "candidate_count": len(vt31_basket.candidates),
+                            },
+                        )
+                        _log(
+                            log_path,
+                            {
+                                "event": "PHASE20D_VT31_OCO_INELIGIBLE",
+                                "symbol": "NAS100",
+                                "decision_at": vt31_arm_anchor.isoformat(),
+                                "basket_id": vt31_basket.basket_id,
+                                "candidate_count": len(vt31_basket.candidates),
+                                "reason": (
+                                    "BASKET_AWARE_FORWARD_ADAPTER_REQUIRED"
+                                ),
+                                "execution_path_blocked": False,
                             },
                         )
             except BrokerMinimumVolumeRiskRejectError as risk_reject:
