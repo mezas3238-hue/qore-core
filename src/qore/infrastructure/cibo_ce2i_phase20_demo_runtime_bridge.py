@@ -92,6 +92,7 @@ def observe_ctrader_demo_m5_phase20_epoch(
     opened_at: datetime,
     deadline_at: datetime,
     terminals: tuple[Phase20M5ShadowTerminal, ...],
+    decision_at: datetime | None = None,
     snapshots: tuple[M5BoundarySnapshot, ...],
     provider_specs: tuple[CTraderDemoSymbolSpecification, ...],
     evidence_store: DurablePhase20ForwardEvidenceStore,
@@ -113,6 +114,7 @@ def observe_ctrader_demo_m5_phase20_epoch(
         opened_at=opened_at,
         deadline_at=deadline_at,
         terminals=terminals,
+        decision_at=decision_at,
     )
     open_ids = set(open_position_ids)
     open_risks = tuple(
