@@ -183,12 +183,12 @@ def build_phase20_demo_regime_state(
         raise CiboCapitalManagementError(
             "Phase20D DEMO regime duplicate provider specification"
         )
-    if set(snapshot_by_symbol) != set(spec_by_symbol):
+    if not set(snapshot_by_symbol).issubset(set(spec_by_symbol)):
         raise CiboCapitalManagementError(
-            "Phase20D DEMO regime market/provider population mismatch"
+            "Phase20D DEMO regime market snapshot lacks provider specification"
         )
 
-    stale = False
+    stale = set(snapshot_by_symbol) != set(spec_by_symbol)
     for item in snapshots:
         _aware(item.observed_at, name="market snapshot observed_at")
         if item.observed_at > decision_at:
@@ -215,6 +215,8 @@ def build_phase20_demo_regime_state(
         provider_specs=provider_specs,
         decision_at=decision_at,
     )
+    if stale and provider is ProviderCondition.HEALTHY:
+        provider = ProviderCondition.DEGRADED
 
     equity = account_state.equity
     risk_used = max(
