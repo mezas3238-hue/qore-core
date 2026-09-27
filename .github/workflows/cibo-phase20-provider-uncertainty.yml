@@ -185,6 +185,8 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py \
             src/qore/infrastructure/cibo_ce2i_phase20_shadow_observer.py \
             src/qore/infrastructure/cibo_ce2i_phase20_demo_shadow_risk.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_capital_bootstrap.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_regime.py \
             src/qore/infrastructure/cibo_ce2i_phase20_ctrader_demo_observer.py \
             src/qore/infrastructure/cibo_ce2i_phase20_outcome_reconciliation.py \
             src/qore/infrastructure/cibo_ce2i_phase20_ctrader_executed_risk.py \
@@ -234,6 +236,8 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_qualification_readiness.py \
             tests/infrastructure/test_cibo_ce2i_phase20_shadow_observer.py \
             tests/infrastructure/test_cibo_ce2i_phase20_demo_shadow_risk.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_capital_bootstrap.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_regime.py \
             tests/infrastructure/test_cibo_ce2i_phase20_ctrader_demo_observer.py \
             tests/infrastructure/test_cibo_ce2i_phase20_outcome_reconciliation.py \
             tests/infrastructure/test_cibo_ce2i_phase20_ctrader_executed_risk.py \
@@ -264,6 +268,8 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py \
             src/qore/infrastructure/cibo_ce2i_phase20_shadow_observer.py \
             src/qore/infrastructure/cibo_ce2i_phase20_demo_shadow_risk.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_capital_bootstrap.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_regime.py \
             src/qore/infrastructure/cibo_ce2i_phase20_ctrader_demo_observer.py \
             src/qore/infrastructure/cibo_ce2i_phase20_outcome_reconciliation.py \
             src/qore/infrastructure/cibo_ce2i_phase20_ctrader_executed_risk.py \
@@ -314,6 +320,8 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_qualification_readiness.py \
             tests/infrastructure/test_cibo_ce2i_phase20_shadow_observer.py \
             tests/infrastructure/test_cibo_ce2i_phase20_demo_shadow_risk.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_capital_bootstrap.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_regime.py \
             tests/infrastructure/test_cibo_ce2i_phase20_ctrader_demo_observer.py \
             tests/infrastructure/test_cibo_ce2i_phase20_outcome_reconciliation.py \
             tests/infrastructure/test_cibo_ce2i_phase20_ctrader_executed_risk.py \
