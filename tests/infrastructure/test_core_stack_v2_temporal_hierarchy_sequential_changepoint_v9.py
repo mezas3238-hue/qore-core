@@ -144,7 +144,7 @@ def _checkpoint(
     minute: int,
     terminal: bool,
 ) -> SequentialCheckpointEvidence:
-    source_signal = 0.05 if terminal else -0.05
+    source_signal = 0.0
     sequential_signal = (
         source_signal
         if minute == 0
