@@ -158,6 +158,8 @@ jobs:
                   r=p["partition_ranges"][partition]
                   e=p["evaluations"][partition]
                   assert r["episode_count"] >= 6000
+                  assert r["eligible_source_count"] >= r["episode_count"]
+                  assert 0 < r["checkpoint_complete_coverage_bps"] <= 10000
                   assert r["terminal_event_count"] > 0
                   assert e["terminal_detection_latency_p95_minutes"] <= 15
           else:
@@ -230,7 +232,9 @@ jobs:
               lines.append(
                   f"- {partition.upper()}: source-only={e['source_only_false_declaration_reduction_bps']} bps reduction / {e['source_only_terminal_detection_preservation_bps']} bps preservation; sequential={e['sequential_false_declaration_reduction_bps']} bps reduction / {e['sequential_terminal_detection_preservation_bps']} bps preservation; observability gain={gain} bps; terminal latency p50={e['terminal_detection_latency_p50_minutes']}m p95={e['terminal_detection_latency_p95_minutes']}m"
               )
-          if p["status"] == "WP05_V10_CAUSAL_SEQUENTIAL_FROZEN_FOR_FRESH_HOLDOUT":
+          if p["status"] == "WP05_V10_PROTOCOL_FAILED":
+              lines.append("V10 failed closed at protocol validation. No scientific V10 result is accepted and no development metric may be interpreted. Repair protocol/implementation only; keep R6/R5 and fresh holdout governance unchanged.")
+          elif p["status"] == "WP05_V10_CAUSAL_SEQUENTIAL_FROZEN_FOR_FRESH_HOLDOUT":
               lines.append("V10 survives consumed development. Freeze this exact identity and preregister one independent fresh WP-05 holdout before acquisition.")
           else:
               lines.append("V10 is falsified on consumed development. Do not retune R6/R5. Use the source-vs-sequential observability diagnostic to decide whether the next step is a new sequential state model or an active-perception redesign.")
