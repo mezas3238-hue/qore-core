@@ -283,26 +283,33 @@ def _fold_population(
     *,
     fold_count: int,
 ) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    """Partition contiguous decision epochs; never split one epoch across folds."""
+
     if not rows:
         return (), ()
-    ordered = tuple(
-        sorted(
-            rows,
-            key=lambda item: (
-                item.decision_at_iso,
-                item.evidence_sha256,
-                item.signal_fingerprint,
-            ),
+    decision_order = tuple(
+        key
+        for key, _ in sorted(
+            {
+                item.evidence_sha256: item.decision_at_iso
+                for item in rows
+            }.items(),
+            key=lambda pair: (pair[1], pair[0]),
         )
     )
-    base, remainder = divmod(len(ordered), fold_count)
+    base, remainder = divmod(len(decision_order), fold_count)
     sizes: list[int] = []
     lineages: list[int] = []
     start = 0
     for index in range(fold_count):
-        size = base + (1 if index < remainder else 0)
-        fold = ordered[start : start + size]
-        start += size
+        decision_count = base + (1 if index < remainder else 0)
+        fold_ids = set(
+            decision_order[start : start + decision_count]
+        )
+        start += decision_count
+        fold = tuple(
+            item for item in rows if item.evidence_sha256 in fold_ids
+        )
         sizes.append(len(fold))
         lineages.append(len({item.trader_id for item in fold}))
     return tuple(sizes), tuple(lineages)
