@@ -324,20 +324,21 @@ def _reconcile_bound_outcome(
     capital_minutes: Decimal | None = None
     if capital_released_at is not None:
         _aware(capital_released_at, name="capital_released_at")
-        if executed_risk.capital_deployed_at is None:
+        deployed_at = executed_risk.capital_deployed_at
+        if deployed_at is None:
             raise CiboCapitalManagementError(
                 "Phase20D exact capital deployment timestamp is unavailable"
             )
-        if capital_released_at <= executed_risk.capital_deployed_at:
+        if capital_released_at <= deployed_at:
             raise CiboCapitalManagementError(
                 "Phase20D capital release must follow full-fill deployment"
             )
-        capital_deployed_at = executed_risk.capital_deployed_at
+        capital_deployed_at = deployed_at
         capital_minutes = Decimal(
             str(
                 (
                     capital_released_at
-                    - executed_risk.capital_deployed_at
+                    - deployed_at
                 ).total_seconds()
             )
         ) / Decimal("60")
