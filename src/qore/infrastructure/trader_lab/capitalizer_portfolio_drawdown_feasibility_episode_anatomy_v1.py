@@ -55,6 +55,7 @@ class DrawdownEpisode:
     trough_index: int
     end_index: int
     trade_count: int
+    descent_trade_count: int
     recovered_peak: bool
 
 
@@ -137,6 +138,7 @@ def _drawdown_episodes(values: tuple[Decimal, ...]) -> tuple[DrawdownEpisode, ..
                     trough_index=active_trough_index,
                     end_index=index,
                     trade_count=index - active_start + 1,
+                    descent_trade_count=active_trough_index - active_start + 1,
                     recovered_peak=True,
                 )
             )
@@ -154,6 +156,7 @@ def _drawdown_episodes(values: tuple[Decimal, ...]) -> tuple[DrawdownEpisode, ..
                 trough_index=active_trough_index,
                 end_index=len(values) - 1,
                 trade_count=len(values) - active_start,
+                descent_trade_count=active_trough_index - active_start + 1,
                 recovered_peak=False,
             )
         )
@@ -318,7 +321,10 @@ def _period_report(
     overlap_rows = 0
     shared_factor_overlap_rows = 0
 
-    for index in range(max_episode.start_index, max_episode.end_index + 1):
+    for index in range(
+        max_episode.start_index,
+        max_episode.trough_index + 1,
+    ):
         surface_row = surface[index]
         key = (surface_row.symbol, surface_row.entry_at)
         decision = decisions[key]
@@ -421,6 +427,11 @@ def _period_report(
             "episode_count": len(episodes),
             "max_drawdown_episode": asdict(max_episode),
             "max_episode_anatomy": {
+                "scope": "PEAK_TO_TROUGH_ONLY",
+                "descent_trade_count": max_episode.descent_trade_count,
+                "recovery_tail_trade_count": (
+                    max_episode.end_index - max_episode.trough_index
+                ),
                 "negative_trades": len(max_losses),
                 "no_trigger_losses": sum(row.no_trigger_loss for row in max_rows),
                 "no_trigger_loss_r": str(no_trigger_loss_r),
