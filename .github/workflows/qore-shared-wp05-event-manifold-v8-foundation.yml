@@ -10,6 +10,8 @@ on:
       - src/qore/infrastructure/core_stack_v2/temporal_hierarchy_competing_survival_features_v7.py
       - tests/infrastructure/test_core_stack_v2_temporal_hierarchy_event_manifold_v8.py
       - tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_features_v7.py
+      - tests/infrastructure/test_shared_wp05_event_manifold_v8_protocol.py
+      - scripts/shared_wp05_event_manifold_v8.py
       - .github/workflows/qore-shared-wp05-event-manifold-v8-foundation.yml
   workflow_dispatch:
 
@@ -47,12 +49,16 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/core_stack_v2/temporal_hierarchy_event_manifold_v8.py \
-            tests/infrastructure/test_core_stack_v2_temporal_hierarchy_event_manifold_v8.py
+            tests/infrastructure/test_core_stack_v2_temporal_hierarchy_event_manifold_v8.py \
+            tests/infrastructure/test_shared_wp05_event_manifold_v8_protocol.py \
+            scripts/shared_wp05_event_manifold_v8.py
           python -m py_compile \
-            src/qore/infrastructure/core_stack_v2/temporal_hierarchy_event_manifold_v8.py
+            src/qore/infrastructure/core_stack_v2/temporal_hierarchy_event_manifold_v8.py \
+            scripts/shared_wp05_event_manifold_v8.py
           pytest -q \
             tests/infrastructure/test_core_stack_v2_temporal_hierarchy_event_manifold_v8.py \
             tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_features_v7.py \
+            tests/infrastructure/test_shared_wp05_event_manifold_v8_protocol.py \
             tests/infrastructure/test_core_stack_v2_temporal_hierarchy_target_contract.py
 
       - name: Report WP05 V8 foundation GREEN
