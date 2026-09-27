@@ -288,6 +288,10 @@ def observe_ctrader_demo_phase20_settlements(
             elif position_open_after:
                 partials.append(deal.deal_id)
             else:
+                registry.mark_position_closed(
+                    deal.position_id,
+                    closed_at=deal.executed_at,
+                )
                 terminals.append(deal.deal_id)
 
     next_cursor = observed_at
