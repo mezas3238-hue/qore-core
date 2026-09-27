@@ -231,6 +231,10 @@ class Phase20ForwardOutcomeSeal:
                 raise DurablePhase20ForwardEvidenceError(
                     "forward outcome capital release must follow deployment"
                 )
+            if self.capital_released_at > self.observed_at:
+                raise DurablePhase20ForwardEvidenceError(
+                    "forward outcome capital release cannot postdate observation"
+                )
             if (
                 not isinstance(self.capital_minutes, Decimal)
                 or not self.capital_minutes.is_finite()
