@@ -885,7 +885,9 @@ def evaluate_sequential_changepoint(
             0 if false_count == 0 else (false_count - source_false) * 10_000 // false_count
         ),
         source_only_terminal_detection_preservation_bps=(
-            0 if terminal_count == 0 else (terminal_count - source_missed) * 10_000 // terminal_count
+            0
+            if terminal_count == 0
+            else (terminal_count - source_missed) * 10_000 // terminal_count
         ),
         sequential_false_declaration_count=sequential_false,
         sequential_missed_terminal_count=sequential_missed,
