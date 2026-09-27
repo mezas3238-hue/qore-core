@@ -365,8 +365,10 @@ class CausalTrajectoryModel:
     fitted_at: datetime
     fit_partition: str
     feature_names: tuple[str, ...]
-    centers_micros: tuple[int, ...]
-    scales_micros: tuple[int, ...]
+    eventness_centers_micros: tuple[int, ...]
+    eventness_scales_micros: tuple[int, ...]
+    recovery_centers_micros: tuple[int, ...]
+    recovery_scales_micros: tuple[int, ...]
     eventness_coefficients_micros: tuple[int, ...]
     eventness_intercept_micros: int
     recovery_coefficients_micros: tuple[int, ...]
@@ -411,15 +413,19 @@ class CausalTrajectoryModel:
         if width != 60:
             raise ValueError("V9 representation must contain exactly 60 features")
         if not (
-            len(self.centers_micros)
-            == len(self.scales_micros)
+            len(self.eventness_centers_micros)
+            == len(self.eventness_scales_micros)
+            == len(self.recovery_centers_micros)
+            == len(self.recovery_scales_micros)
             == len(self.eventness_coefficients_micros)
             == len(self.recovery_coefficients_micros)
             == width
         ):
             raise ValueError("V9 model vector width mismatch")
-        if any(value <= 0 for value in self.scales_micros):
-            raise ValueError("V9 scales must be positive")
+        if any(value <= 0 for value in self.eventness_scales_micros):
+            raise ValueError("V9 eventness scales must be positive")
+        if any(value <= 0 for value in self.recovery_scales_micros):
+            raise ValueError("V9 recovery scales must be positive")
         if self.eventness_threshold_micros not in V9_EVENTNESS_THRESHOLDS_MICROS:
             raise ValueError("V9 eventness threshold outside frozen grid")
         if self.recovery_threshold_micros not in V9_RECOVERY_THRESHOLDS_MICROS:
@@ -643,34 +649,51 @@ def fit_causal_trajectory_model(
     if discovery_observed_max >= calibration_source_min:
         raise AssertionError("V9 chronological purge boundary is not strict")
 
-    rows = tuple(item.source.features for item in discovery)
-    centers, scales = _standardization(rows)
-    standardized = tuple(_standardize(row, centers, scales) for row in rows)
+    eventness_rows = tuple(item.source.features for item in discovery)
+    eventness_centers, eventness_scales = _standardization(eventness_rows)
+    eventness_standardized = tuple(
+        _standardize(row, eventness_centers, eventness_scales)
+        for row in eventness_rows
+    )
     eventness_targets = tuple(
         0.0 if item.label is EventManifoldLabel.CENSORED_UNKNOWN else 1.0
         for item in discovery
     )
     event_intercept, event_coefficients = _fit_logistic(
-        standardized,
+        eventness_standardized,
         eventness_targets,
     )
 
-    event_pairs = tuple(
-        (row, item)
-        for row, item in zip(standardized, discovery, strict=True)
+    recovery_items = tuple(
+        item
+        for item in discovery
         if item.label is not EventManifoldLabel.CENSORED_UNKNOWN
     )
+    recovery_rows = tuple(item.source.features for item in recovery_items)
+    recovery_centers, recovery_scales = _standardization(recovery_rows)
+    recovery_standardized = tuple(
+        _standardize(row, recovery_centers, recovery_scales)
+        for row in recovery_rows
+    )
     recovery_intercept, recovery_coefficients = _fit_logistic(
-        tuple(row for row, _ in event_pairs),
+        recovery_standardized,
         tuple(
             1.0 if item.label is EventManifoldLabel.VERIFIED_RECOVERY_EVENT else 0.0
-            for _, item in event_pairs
+            for item in recovery_items
         ),
     )
 
-    centers_micros = tuple(int(round(value * 1_000_000)) for value in centers)
-    scales_micros = tuple(
-        max(1, int(round(value * 1_000_000))) for value in scales
+    eventness_centers_micros = tuple(
+        int(round(value * 1_000_000)) for value in eventness_centers
+    )
+    eventness_scales_micros = tuple(
+        max(1, int(round(value * 1_000_000))) for value in eventness_scales
+    )
+    recovery_centers_micros = tuple(
+        int(round(value * 1_000_000)) for value in recovery_centers
+    )
+    recovery_scales_micros = tuple(
+        max(1, int(round(value * 1_000_000))) for value in recovery_scales
     )
     event_coefficients_micros = tuple(
         int(round(value * 1_000_000)) for value in event_coefficients
@@ -685,15 +708,15 @@ def fit_causal_trajectory_model(
         (
             _score(
                 row=item.source.features,
-                centers_micros=centers_micros,
-                scales_micros=scales_micros,
+                centers_micros=eventness_centers_micros,
+                scales_micros=eventness_scales_micros,
                 coefficients_micros=event_coefficients_micros,
                 intercept_micros=event_intercept_micros,
             ),
             _score(
                 row=item.source.features,
-                centers_micros=centers_micros,
-                scales_micros=scales_micros,
+                centers_micros=recovery_centers_micros,
+                scales_micros=recovery_scales_micros,
                 coefficients_micros=recovery_coefficients_micros,
                 intercept_micros=recovery_intercept_micros,
             ),
@@ -735,8 +758,10 @@ def fit_causal_trajectory_model(
         fitted_at=cutoff,
         fit_partition=fit_partition,
         feature_names=V9_FEATURE_NAMES,
-        centers_micros=centers_micros,
-        scales_micros=scales_micros,
+        eventness_centers_micros=eventness_centers_micros,
+        eventness_scales_micros=eventness_scales_micros,
+        recovery_centers_micros=recovery_centers_micros,
+        recovery_scales_micros=recovery_scales_micros,
         eventness_coefficients_micros=event_coefficients_micros,
         eventness_intercept_micros=event_intercept_micros,
         recovery_coefficients_micros=recovery_coefficients_micros,
@@ -782,15 +807,15 @@ def assess_causal_trajectory(
 ) -> CausalTrajectoryAssessment:
     eventness = _score(
         row=source.features,
-        centers_micros=model.centers_micros,
-        scales_micros=model.scales_micros,
+        centers_micros=model.eventness_centers_micros,
+        scales_micros=model.eventness_scales_micros,
         coefficients_micros=model.eventness_coefficients_micros,
         intercept_micros=model.eventness_intercept_micros,
     )
     recovery = _score(
         row=source.features,
-        centers_micros=model.centers_micros,
-        scales_micros=model.scales_micros,
+        centers_micros=model.recovery_centers_micros,
+        scales_micros=model.recovery_scales_micros,
         coefficients_micros=model.recovery_coefficients_micros,
         intercept_micros=model.recovery_intercept_micros,
     )
