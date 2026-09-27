@@ -35,6 +35,7 @@ def test_phase20d_qualification_plan_prevents_tiny_or_narrow_population() -> Non
     assert plan.minimum_fold_lineages == 4
     assert str(plan.minimum_candidate_outcome_coverage) == "0.95"
     assert str(plan.required_selected_outcome_coverage) == "1.00"
+    assert str(plan.required_baseline_selected_outcome_coverage) == "1.00"
 
 
 def test_phase20d_qualification_plan_has_economic_and_safety_gates() -> None:
@@ -49,6 +50,7 @@ def test_phase20d_qualification_plan_has_economic_and_safety_gates() -> None:
     )
     assert "ZERO_CAUSAL_CONTAMINATION" in plan.hard_gates
     assert "ZERO_CAPITAL_CONSERVATION_BREACHES" in plan.hard_gates
+    assert "BASELINE_SELECTED_OUTCOME_COVERAGE_COMPLETE" in plan.hard_gates
     assert "EVIDENCE_MISSINGNESS" in plan.metrics
     assert "MPC_RESERVE_EFFICIENCY" in plan.metrics
 
