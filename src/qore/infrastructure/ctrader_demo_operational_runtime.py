@@ -34,6 +34,7 @@ from qore.infrastructure.ctrader_open_api_transport import (
 from qore.infrastructure.execution_boundary import (
     ExecutionBoundaryError,
     ExecutionReceipt,
+    ExecutionReceiptId,
     ExecutionSubmission,
 )
 from qore.infrastructure.market_test_environment import (
