@@ -72,7 +72,7 @@ class SequenceStep:
     current_trigger_at: str
 
 
-class InvalidPlan(ValueError):
+class InvalidPlanError(ValueError):
     """Plan cannot be applied causally after prior feedback."""
 
 
@@ -155,21 +155,21 @@ def _replay_plan(
         if action is not None:
             family = v30._mode_family(pretrade.mode)
             if family is None:
-                raise InvalidPlan(
+                raise InvalidPlanError(
                     f"planned key has no current trigger family: {key}"
                 )
             surface = modes[pretrade.mode][key]
             trigger_at = surface.first_protection_at
             if trigger_at is None:
-                raise InvalidPlan(
+                raise InvalidPlanError(
                     f"planned key has no actual current trigger: {key}"
                 )
             if action == pretrade.mode:
-                raise InvalidPlan(
+                raise InvalidPlanError(
                     f"planned action became current Surface no-op: {key}"
                 )
             if action not in v30._eligible_actions(family):
-                raise InvalidPlan(
+                raise InvalidPlanError(
                     f"planned action no longer reachable after feedback: {key}"
                 )
             v30._assert_common_path(
@@ -210,7 +210,7 @@ def _replay_plan(
 
     if set(applied) != set(plan):
         missing = set(plan) - set(applied)
-        raise InvalidPlan(f"plan keys not applied: {sorted(missing)}")
+        raise InvalidPlanError(f"plan keys not applied: {sorted(missing)}")
     return tuple(chosen), tuple(decisions), applied
 
 
@@ -344,7 +344,7 @@ def _run_period(
                     contextual_model=contextual_model,
                     plan=trial_plan,
                 )
-            except InvalidPlan:
+            except InvalidPlanError:
                 invalid_extensions += 1
                 continue
             metrics = milestone._metrics(ledger)
