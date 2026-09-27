@@ -308,8 +308,36 @@ Foundation evidence:
   `36282793116`, SHA
   `e697cca8186238b548d7ba1765474464f3142915`.
 
+Additional pre-consumption invariants frozen before accepting a V7 outcome:
+
+- canonical historical harness: `scripts/shared_wp05_competing_survival_v7.py`;
+- a duplicate V7 historical runner was removed before any accepted consumed
+  result so there is one scientific execution path;
+- the harness prepares, fits and calibrates R8 first;
+- if the R8 sample/target gate fails, R6/R5 are not read by the scientific
+  model;
+- if no legal R8 threshold pair satisfies the preregistered 9800-bps
+  calibration preservation buffer, V7 is falsified at R8 and R6/R5 are not
+  read/evaluated by the scientific model;
+- only after a legal R8 model + thresholds are frozen may the harness prepare
+  R6 then R5 for one-way consumed falsification;
+- model and representation fingerprints are retained independently;
+- regression tests in
+  `tests/infrastructure/test_shared_wp05_competing_survival_v7_protocol.py`
+  fail closed if R6/R5 are opened before the legal R8 freeze point;
+- immutable R6/R5 artifact download/SHA verification by CI is transport
+  validation only and must never be interpreted as model consumption,
+  calibration or tuning.
+
+Latest clean pre-consumption foundation evidence at this checkpoint:
+
+- run `36283137659` — GREEN;
+- Git SHA `d713bc7e9d491721b052996e0e7ec732a24d5008`;
+- dual heads, canonical causal extractor, historical harness static validation,
+  R8-only fit/calibration invariants, chronological purge, deterministic
+  fingerprint, UNRESOLVED abstention, anti-future leakage and sovereignty tests
+  all passed.
+
 No V7 R6/R5 scientific result has been accepted at this ledger checkpoint.
-The historical harness exists, but consumed execution remains gated behind a
-clean pre-consumption static/adversarial validation. Fresh evidence is still
-sealed.
+Fresh evidence remains sealed.
 
