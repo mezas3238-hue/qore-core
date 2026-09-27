@@ -205,7 +205,17 @@ def reconcile_phase20_forward_outcome(
         evidence_id=f"phase20d-outcome:{sha256(raw).hexdigest()}",
         decision_evidence_sha256=decision_sha,
         signal_fingerprint=executed_risk.signal_fingerprint,
+        position_id=executed_risk.position_id,
+        execution_risk_evidence_id=executed_risk.evidence_id,
+        settlement_deal_ids=tuple(
+            item.deal_id for item in settlement.records
+        ),
+        fill_evidence_refs=executed_risk.fill_evidence_refs,
         observed_at=reconciled_at,
+        realized_net_pnl_usd=settlement.realized_net_pnl_usd,
+        executed_initial_stop_risk_usd=(
+            executed_risk.executed_initial_stop_risk_usd
+        ),
         realized_structural_outcome_r=structural_r,
         outcome_reconciled=True,
     )
