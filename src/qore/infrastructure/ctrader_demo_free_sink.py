@@ -196,6 +196,9 @@ class CTraderDemoFreeSink:
     def account_capital(self) -> Decimal:
         return self._book.account_capital
 
+    def committed_stop_risk(self, *, now: datetime) -> Decimal:
+        return self._registry.committed_stop_risk(now=now)
+
     def capital_for(self, trader: TraderLineage) -> Decimal:
         """Compatibility alias; no Trader receives a private capital budget."""
         return self._book.capital_for(trader)
@@ -255,12 +258,16 @@ class CTraderDemoFreeSink:
             client_order_id = f"qore-{submission.idempotency_key.value.hex[:24]}"
             recorded_at = datetime.now(UTC)
             position_id: int | None = None
-            open_for_trader = [
-                item for item in self._positions.positions()
-                if item.trader_id is request.trader_id
+            open_for_request = [
+                item
+                for item in self._positions.positions()
+                if (
+                    item.trader_id is request.trader_id
+                    and item.qore_symbol == request.qore_symbol
+                )
             ]
-            if len(open_for_trader) == 1:
-                position_id = open_for_trader[0].position_id
+            if len(open_for_request) == 1:
+                position_id = open_for_request[0].position_id
             self._registry.register(
                 DemoTradeRegistryEntry(
                     trader=request.trader_id.value,
@@ -463,6 +470,10 @@ def global_sink() -> CTraderDemoFreeSink:
 
 def demo_account_capital() -> Decimal:
     return global_sink().account_capital()
+
+
+def demo_committed_stop_risk(*, now: datetime) -> Decimal:
+    return global_sink().committed_stop_risk(now=now)
 
 
 def demo_capital_for(trader: TraderLineage) -> Decimal:
