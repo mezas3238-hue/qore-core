@@ -1300,7 +1300,7 @@ from retained evidence.
 
 ## PHASE 19 — Integrated portfolio replay
 
-**Status: IN PROGRESS — 7/7 CHRONOLOGY GREEN / PHASE 19C NORMALIZED-CAPITAL CONTRACT IMPLEMENTED / USD CAPITAL REPLAY BLOCKED_PROVIDER_ECONOMICS**
+**Status: IN PROGRESS — PHASE 19C-H EMPIRICAL GREEN / PHASE 19I NEXT / USD CAPITAL REPLAY BLOCKED_PROVIDER_ECONOMICS**
 
 The Phase-19 readiness and chronology contract now exists in:
 
@@ -1327,7 +1327,7 @@ HISTORICAL_PROVIDER_REPLAY_AUTHORIZED          = FALSE
 CROSS_TRADER_RAW_R_AGGREGATION_AUTHORIZED      = FALSE
 
 NORMALIZED_CAPITAL_REPLAY_CONTRACT_IMPLEMENTED = TRUE
-NORMALIZED_CAPITAL_REPLAY_AUTHORIZED           = PENDING_EMPIRICAL_7_OF_7_BINDING
+NORMALIZED_CAPITAL_REPLAY_AUTHORIZED           = TRUE_RESEARCH_ONLY_7_OF_7
 
 PARTIAL_PROVIDER_IDENTIFICATION_AUTHORIZED      = PENDING_PHASE20_ENVELOPES
 COUNTERFACTUAL_PROVIDER_STRESS_AUTHORIZED       = TRUE
@@ -1491,13 +1491,13 @@ Current Phase-19 scientific sequence is therefore:
 ```text
 19A  INTEGRATED CHRONOLOGY                  GREEN
 19B  TEMPORAL STABILITY                     MEASURED / OBSERVATIONAL ONLY
-19C  CAPITAL NUMERAIRE CONTRACT              IMPLEMENTED / CI PENDING
-19D  NORMALIZED CAPITAL LEDGER 7/7           IMPLEMENTED / EMPIRICAL CI PENDING
-19E  TEMPORAL NULL MODEL                     IMPLEMENTED / EMPIRICAL CI PENDING
-19F  OVERLAP DEPENDENCE TRAIN/VALIDATION     IMPLEMENTED / EMPIRICAL CI PENDING
-19G  CAPITAL COLLISION + MARGINAL CAPACITY   IMPLEMENTED / EMPIRICAL CI PENDING
-19H  RESOURCE / DEPENDENCE HYPERGRAPH        IMPLEMENTED / EMPIRICAL CI PENDING
-19I  SIMPLE CAPITAL POLICY BASELINES          PENDING
+19C  CAPITAL NUMERAIRE CONTRACT              GREEN / RESEARCH ONLY
+19D  NORMALIZED CAPITAL LEDGER 7/7           EMPIRICAL GREEN
+19E  TEMPORAL NULL MODEL                     EMPIRICAL GREEN
+19F  OVERLAP DEPENDENCE TRAIN/VALIDATION     EMPIRICAL GREEN / DESCRIPTIVE
+19G  CAPITAL COLLISION + MARGINAL CAPACITY   EMPIRICAL GREEN / ZERO COLLISIONS IN TESTED GRID
+19H  RESOURCE / DEPENDENCE HYPERGRAPH        EMPIRICAL GREEN / DESCRIPTIVE
+19I  SIMPLE CAPITAL POLICY BASELINES          NEXT
 19J  CAUSAL NORMALIZED WFO                    PENDING
 ```
 
@@ -1563,6 +1563,100 @@ R38_GBPJPY | R43_GBPUSD  17
 This proves temporal competition is material and gives Phase 13/19 an empirical interaction graph,
 but it **does not** prove common USD risk, correlation-adjusted capital weights or portfolio
 expectancy. Those remain separate claims.
+
+### Phase-19C-H sealed empirical checkpoint — 27-SEP-2026
+
+After repairing the quality gate, exact normalized-capital accounting and order-dependent Decimal
+rounding in the temporal-stability metric, the integrated Phase-19 workflow is now GREEN through
+the 19H evidence layer.
+
+```text
+evidence_head:    4dad367d7bf334710554e6ea5feca9b478984aaf
+main_push_run:    36284404971  SUCCESS
+phase19_push_run: 36284404972  SUCCESS
+artifact_id:      10919742007
+artifact:         qore-cibo-phase19-integrated-chronology-4dad367d7bf334710554e6ea5feca9b478984aaf
+artifact_digest:  sha256:4636bd06e9e9df7fbb5edb45091e345a2df8e427cdf5bdb13395a5333a942016
+manifest:         SHA256SUMS 15/15 VERIFIED
+```
+
+The 19D mechanics baseline is deliberately non-optimized and exists to validate capital-policy
+plumbing, not to certify a sizing policy:
+
+```text
+initial_capital_ncu:        100
+opportunities:              855
+accepted:                   855
+rejected:                     0
+ending_capital_ncu:         194.7729926484665552874887110
+total_realized_delta_ncu:   +94.77299264846655528748871100
+max_drawdown_ncu:            27.25008452475013116475627789
+peak_reserved_risk_ncu:       5
+capacity_breach_observed:    FALSE
+```
+
+Phase 19E shows that the observed 250 cross-Trader overlap pairs are above the conditioned
+calendar/session null under the frozen 1,000-permutation experiment:
+
+```text
+observed_cross_trader_overlaps: 250
+null_mean:                      217.784
+null_p95:                       241
+upper_tail_probability:         0.01798201798201798201798201798
+seed:                           19019
+```
+
+This is evidence that timing structure is not explained entirely by the explicit null. It is **not**
+evidence that overlap is economically harmful, and it grants no sizing penalty.
+
+Phase 19F measured overlap-conditioned dependence separately in TRAIN and VALIDATION. The
+strongest joint-loss excess did not preserve the same pair across the split, so no fixed pairwise
+dependence penalty is certified from this evidence.
+
+Phase 19G produced an important falsification under the frozen one-NCU mechanics policy and the
+predeclared 2/3/4/5/10/100 NCU grid:
+
+```text
+NORMALIZED_CAPITAL_COLLISIONS: 0
+```
+
+All low-capacity insufficient-capacity rejections were classified as
+`DEPLETION_ONLY_REJECTION`, not as blocking by concurrent active reservations. Therefore temporal
+coexistence must not be silently converted into a scarcity or concentration penalty.
+
+Phase 19H still confirms material multi-opportunity temporal structure:
+
+```text
+full_window_temporal_hyperedges: 230
+max_hyperedge_cardinality:         5
+max_distinct_traders:              4
+cardinality_distribution:
+  2 -> 198
+  3 ->  26
+  4 ->   5
+  5 ->   1
+```
+
+But normalized-capital collision hyperedges remained zero across every tested capacity scenario.
+The hypergraph remains descriptive evidence only.
+
+The temporal-stability metric is now computed from integer overlap counts with a common denominator
+instead of summing already-rounded pair shares. This removes pair-order dependence without changing
+the split, populations or overlap counts. Canonical evidence is:
+
+```text
+training_opportunities:              523
+validation_opportunities:            332
+training_cross_trader_overlaps:       155
+validation_cross_trader_overlaps:      95
+boundary_crossing_excluded:             0
+total_variation_distance: 0.2258064516129032258064516129
+weighted_jaccard:         0.6315789473684210526315789474
+```
+
+Historical USD replay remains blocked because exact retained provider economics are still missing.
+Phase 19I must therefore compare only causal, transparent normalized-capital policy baselines and
+must not use Phase-19 validation outcomes to choose or tune a winner.
 
 The provider-economic evidence gate is also hardened with explicit evidence classes:
 
