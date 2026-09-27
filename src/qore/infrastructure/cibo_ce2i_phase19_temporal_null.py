@@ -27,6 +27,7 @@ from qore.infrastructure.cibo_ce2i_phase19_portfolio_replay import (
     Phase19ChronologicalOpportunity,
 )
 
+
 def _ordered_pair(
     left: TraderLineage,
     right: TraderLineage,
