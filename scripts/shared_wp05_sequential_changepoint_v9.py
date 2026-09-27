@@ -126,9 +126,15 @@ def _prepare_partition(
 
         checkpoints = []
         aligned = True
+        source_at = item.trajectory.snapshots[-1].as_of
         for minute in V9_CHECKPOINTS_MINUTES:
             nas_bar = bars["NAS100"][source_indexes["NAS100"] + minute]
             checkpoint_key = nas_bar.closed_key
+            checkpoint_at = _parse_key(checkpoint_key)
+            elapsed_minutes = (checkpoint_at - source_at).total_seconds() / 60.0
+            if abs(elapsed_minutes - minute) > 1.5:
+                aligned = False
+                break
             if any(
                 bars[market][source_indexes[market] + minute].closed_key
                 != checkpoint_key
@@ -140,7 +146,7 @@ def _prepare_partition(
                 build_sequential_checkpoint_evidence(
                     source=source,
                     checkpoint_minutes=minute,
-                    as_of=_parse_key(checkpoint_key),
+                    as_of=checkpoint_at,
                     nas_bars=bars["NAS100"],
                     nas_source_index=source_indexes["NAS100"],
                     sp500_bars=bars["SP500"],
