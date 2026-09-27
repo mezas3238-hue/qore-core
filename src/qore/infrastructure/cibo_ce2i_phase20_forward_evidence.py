@@ -571,6 +571,28 @@ def phase20_forward_evidence_sha256(
     return f"sha256:{sha256(payload).hexdigest()}"
 
 
+def phase20_forward_decision_record_json(
+    record: Phase20ForwardDecisionRecord,
+) -> str:
+    if not isinstance(record, Phase20ForwardDecisionRecord):
+        raise CiboCapitalManagementError(
+            "Phase20D canonical policy record requires decision record"
+        )
+    return json.dumps(
+        _canonicalize(record),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    )
+
+
+def phase20_forward_decision_record_sha256(
+    record: Phase20ForwardDecisionRecord,
+) -> str:
+    payload = phase20_forward_decision_record_json(record).encode("utf-8")
+    return f"sha256:{sha256(payload).hexdigest()}"
+
+
 def _canonicalize(value: Any) -> Any:
     if isinstance(value, Decimal):
         return format(value, "f")
