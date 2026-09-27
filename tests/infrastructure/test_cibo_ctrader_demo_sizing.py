@@ -101,3 +101,48 @@ def test_demo_cibo_subtracts_existing_account_stop_risk_before_maximizing() -> N
     # Risk headroom is 200 USD, tighter than the 500 USD margin envelope.
     assert sizing.plan.volume == Decimal("2.00")
     assert sizing.plan.stop_risk_usd == Decimal("200.00")
+
+
+
+def test_demo_floating_profit_cannot_expand_cibo_cash_capacity() -> None:
+    account = CTraderDemoAccountState(
+        balance=Decimal("1000"),
+        equity=Decimal("1200"),
+        margin=Decimal("0"),
+        free_margin=Decimal("1200"),
+        observed_at=NOW,
+    )
+    sizing = build_ctrader_demo_cibo_sizing(
+        request_id="demo-floating-profit",
+        opportunity=_opportunity(TraderLineage.R38_EURUSD),
+        account_ref="demo-account",
+        account_state=account,
+        current_committed_stop_risk_usd=Decimal("0"),
+        requested_at=NOW,
+        expires_at=NOW + timedelta(seconds=30),
+    )
+
+    assert sizing.account_capital_usd == Decimal("1000")
+    assert sizing.plan.stop_risk_usd <= Decimal("1000")
+
+
+def test_demo_floating_loss_reduces_cibo_economic_capacity() -> None:
+    account = CTraderDemoAccountState(
+        balance=Decimal("1000"),
+        equity=Decimal("700"),
+        margin=Decimal("0"),
+        free_margin=Decimal("700"),
+        observed_at=NOW,
+    )
+    sizing = build_ctrader_demo_cibo_sizing(
+        request_id="demo-floating-loss",
+        opportunity=_opportunity(TraderLineage.R38_EURUSD),
+        account_ref="demo-account",
+        account_state=account,
+        current_committed_stop_risk_usd=Decimal("0"),
+        requested_at=NOW,
+        expires_at=NOW + timedelta(seconds=30),
+    )
+
+    assert sizing.account_capital_usd == Decimal("700")
+    assert sizing.plan.stop_risk_usd <= Decimal("700")
