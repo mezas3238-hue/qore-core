@@ -66,6 +66,34 @@ No bar after a checkpoint may influence the checkpoint state.
 
 The matured 30-minute future is used only for offline labels/evaluation.
 
+### 3.1 Wall-clock as-of binding clarification
+
+The checkpoint schedule is wall-clock time, not a row-offset contract.
+
+For checkpoint `t = source_at + N minutes`:
+
+- each market consumes the latest **closed** observation whose timestamp is
+  `<= t`;
+- for N > 0, each market must have produced at least one new observation after
+  source time or the episode is incomplete for V10;
+- no observation with timestamp `> t` may influence checkpoint-t evidence;
+- the NAS100 3-minute velocity anchor consumes the latest closed NAS100
+  observation at-or-before `max(source_at, t - 3 minutes)`;
+- missing individual M1 rows are therefore handled causally as missing updates,
+  never by shifting the decision timestamp or reading a later row.
+
+This clarification changes no feature family, checkpoint, target, model,
+threshold or gate. It repairs the implementation of the already-preregistered
+phrase “measured from the source timestamp”.
+
+The first promoted V10 consumed attempt (`36318361667`) failed closed at
+`R8_SAMPLE_TARGET_GATE_FAILED` before any model fit/calibration and before
+scientific R6/R5 access. The failure was traced to an implementation that used
+`source_index + N` independently in each feed. Because the three retained M1
+feeds have different missing-bar patterns, row offsets do not represent the
+same wall-clock checkpoint. No scientific metric from that attempt is accepted.
+
+
 ## 4. Source population
 
 The source population remains:
