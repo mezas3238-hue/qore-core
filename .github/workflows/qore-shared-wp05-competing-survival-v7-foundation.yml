@@ -7,7 +7,9 @@ on:
     paths:
       - docs/shared/QORE_SHARED_WP05_V7_COMPETING_SURVIVAL_HYPOTHESES_PREREGISTRATION.md
       - src/qore/infrastructure/core_stack_v2/temporal_hierarchy_competing_survival_v7.py
+      - src/qore/infrastructure/core_stack_v2/temporal_hierarchy_competing_survival_features_v7.py
       - tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_v7.py
+      - tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_features_v7.py
       - .github/workflows/qore-shared-wp05-competing-survival-v7-foundation.yml
   workflow_dispatch:
 
@@ -45,11 +47,15 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/core_stack_v2/temporal_hierarchy_competing_survival_v7.py \
-            tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_v7.py
+            src/qore/infrastructure/core_stack_v2/temporal_hierarchy_competing_survival_features_v7.py \
+            tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_v7.py \
+            tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_features_v7.py
           python -m py_compile \
-            src/qore/infrastructure/core_stack_v2/temporal_hierarchy_competing_survival_v7.py
+            src/qore/infrastructure/core_stack_v2/temporal_hierarchy_competing_survival_v7.py \
+            src/qore/infrastructure/core_stack_v2/temporal_hierarchy_competing_survival_features_v7.py
           pytest -q \
-            tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_v7.py
+            tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_v7.py \
+            tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_features_v7.py
 
       - name: Report WP05 V7 foundation GREEN
         if: success()
