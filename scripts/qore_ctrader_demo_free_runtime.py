@@ -53,6 +53,9 @@ from qore.infrastructure.cibo_account_capital_mission import (
     eligible_ce2i_tool_codes_for_mission,
     identity_from_market_test_account,
 )
+from qore.infrastructure.cibo_capital_management_authority import (
+    TraderOpportunityEnvelope,
+)
 from qore.infrastructure.cibo_capital_source_ledger_store import (
     DurableCapitalSourceLedgerStore,
 )
@@ -69,6 +72,12 @@ from qore.infrastructure.cibo_ce2i_phase20_demo_runtime_bridge import (
 from qore.infrastructure.cibo_ce2i_phase20_demo_settlement_observer import (
     DurablePhase20DemoSettlementCursorStore,
     observe_ctrader_demo_phase20_settlements,
+)
+from qore.infrastructure.cibo_ce2i_phase20_demo_single_slot import (
+    Phase20DemoSingleSlotTerminal,
+    build_ctrader_demo_single_slot_observed_opportunity,
+    finalize_ctrader_demo_single_slot_phase20_policy,
+    prepare_ctrader_demo_single_slot_phase20_epoch,
 )
 from qore.infrastructure.cibo_ce2i_phase20_execution_risk_store import (
     DurablePhase20ExecutedRiskStore,
@@ -593,6 +602,16 @@ def _process_candidate(
     capital_budget: Any,
     account_equity: Decimal,
     log_path: Path,
+    phase20_after_submit: Callable[
+        [
+            TraderOpportunityEnvelope,
+            CTraderDemoSymbolSpecification,
+            CTraderDemoAccountState,
+            datetime,
+        ],
+        None,
+    ]
+    | None = None,
 ) -> None:
     boundary_utc = candidate.decision_at.astimezone(UTC)
     observed_utc = now.astimezone(UTC)
@@ -649,6 +668,13 @@ def _process_candidate(
     )
     request = seed.request
     demo_result = submit_demo_request(request)
+    if phase20_after_submit is not None:
+        phase20_after_submit(
+            opportunity,
+            spec,
+            account,
+            request_at,
+        )
     _log(
         log_path,
         {
