@@ -2058,6 +2058,150 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                     observed_at=final_observed,
                                 )
 
+                        if bool(m5_ctx["phase20_eligible"]):
+                            shadow_started_ns = time.perf_counter_ns()
+                            try:
+                                terminal_times = tuple(
+                                    item.observed_at
+                                    for item in phase20_terminals
+                                )
+                                last_terminal_at = max(
+                                    terminal_times,
+                                    default=audjpy_arm_anchor,
+                                )
+                                shadow_decision_at = max(
+                                    audjpy_arm_anchor,
+                                    min(
+                                        max(datetime.now(UTC), last_terminal_at),
+                                        m5_deadline,
+                                    ),
+                                )
+                                phase20_prepared = (
+                                    prepare_ctrader_demo_m5_phase20_epoch(
+                                        epoch_scope=(
+                                            "ctrader-demo:m5:"
+                                            f"{audjpy_arm_anchor.isoformat()}"
+                                        ),
+                                        opened_at=audjpy_arm_anchor,
+                                        deadline_at=m5_deadline,
+                                        terminals=tuple(phase20_terminals),
+                                        decision_at=shadow_decision_at,
+                                        snapshots=tuple(
+                                            ready_snapshots[symbol]
+                                            for symbol in sorted(ready_snapshots)
+                                        ),
+                                        provider_specs=tuple(
+                                            arm_specs[symbol]
+                                            for symbol in sorted(arm_specs)
+                                        ),
+                                        evidence_store=phase20_evidence_store,
+                                        account_identity=cibo_account_identity,
+                                        account_state=arm_account,
+                                        risk=risk,
+                                        executed_risk_book=(
+                                            phase20_executed_risk_store.load()
+                                        ),
+                                        open_position_ids=(
+                                            m5_ctx["arm_open_position_ids"]
+                                        ),
+                                        pending_broker_worst_case_loss_usd=(
+                                            Decimal("0")
+                                        ),
+                                        capital_state=phase20_capital_state,
+                                        highest_closed_balance=arm_highest,
+                                        current_step=int(
+                                            audjpy_arm_anchor.timestamp() // 3600
+                                        ),
+                                    )
+                                )
+                                shadow_elapsed_ms = (
+                                    time.perf_counter_ns() - shadow_started_ns
+                                ) / 1_000_000
+                                _log(
+                                    log_path,
+                                    {
+                                        "event": (
+                                            "PHASE20D_SHADOW_EVIDENCE_SEALED"
+                                        ),
+                                        "decision_epoch_id": (
+                                            phase20_prepared.result.evidence.decision_epoch_id
+                                        ),
+                                        "evidence_sha256": (
+                                            phase20_prepared.result.decision_record.evidence_sha256
+                                        ),
+                                        "candidate_count": len(
+                                            phase20_prepared.result.evidence.candidates
+                                        ),
+                                        "population_count": len(
+                                            phase20_prepared.result.evidence.population_slots
+                                        ),
+                                        "assigned_base_usd": format(
+                                            phase20_assigned_base.assigned_base_usd,
+                                            "f",
+                                        ),
+                                        "regime_policy_sha256": (
+                                            phase20_prepared.regime_policy_sha256
+                                        ),
+                                        "shadow_seal_elapsed_ms": round(
+                                            shadow_elapsed_ms,
+                                            3,
+                                        ),
+                                        "uses_prearm_account_state": True,
+                                        "uses_fill_or_outcome_input": False,
+                                        "execution_authority": False,
+                                    },
+                                )
+                                finalized = (
+                                    finalize_ctrader_demo_m5_phase20_policy(
+                                        prepared=phase20_prepared,
+                                        evidence_store=phase20_evidence_store,
+                                        policy_store=phase20_policy_store,
+                                    )
+                                )
+                                _log(
+                                    log_path,
+                                    {
+                                        "event": (
+                                            "PHASE20D_SHADOW_POLICY_FINALIZED"
+                                        ),
+                                        "decision_epoch_id": (
+                                            finalized.observation.collected.result.evidence.decision_epoch_id
+                                        ),
+                                        "evidence_generation": (
+                                            finalized.observation.collected.evidence_generation
+                                        ),
+                                        "policy_generation": (
+                                            finalized.observation.collected.policy_generation
+                                        ),
+                                        "broker_mutation_performed": (
+                                            finalized.broker_mutation_performed
+                                        ),
+                                        "execution_authority": (
+                                            finalized.execution_authority
+                                        ),
+                                    },
+                                )
+                            except Exception as shadow_error:
+                                _log(
+                                    log_path,
+                                    {
+                                        "event": (
+                                            "PHASE20D_SHADOW_PREPARE_INELIGIBLE"
+                                        ),
+                                        "decision_at": (
+                                            audjpy_arm_anchor.isoformat()
+                                        ),
+                                        "observed_at": (
+                                            datetime.now(UTC).isoformat()
+                                        ),
+                                        "reason": (
+                                            type(shadow_error).__name__
+                                        ),
+                                        "message": str(shadow_error),
+                                        "execution_path_blocked": False,
+                                    },
+                                )
+
                     boundary_observed = max(
                         (item.observed_at for item in ready_snapshots.values()),
                         default=datetime.now(UTC),
