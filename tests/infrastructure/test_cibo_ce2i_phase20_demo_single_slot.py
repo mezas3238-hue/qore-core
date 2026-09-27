@@ -21,6 +21,7 @@ from qore.infrastructure.cibo_capital_source_ledger_store import (
 from qore.infrastructure.cibo_ce2i_phase20_demo_single_slot import (
     PHASE20_DEMO_SINGLE_SLOT_REGIME_ID,
     Phase20DemoSingleSlotTerminal,
+    build_ctrader_demo_single_slot_known_option,
     build_ctrader_demo_single_slot_observed_opportunity,
     finalize_ctrader_demo_single_slot_phase20_policy,
     phase20_demo_single_slot_regime_sha256,
@@ -86,6 +87,26 @@ def _opportunity() -> TraderOpportunityEnvelope:
         intended_entry=Decimal("100"),
         stop_loss=Decimal("99"),
         take_profit=Decimal("102"),
+        stop_loss_per_volume=Decimal("100"),
+        margin_per_volume=Decimal("10"),
+        volume_step=Decimal("1"),
+        minimum_volume=Decimal("1"),
+        maximum_volume=Decimal("100"),
+        minimum_execution_steps=1,
+    )
+
+
+def _short_opportunity() -> TraderOpportunityEnvelope:
+    return TraderOpportunityEnvelope(
+        trader_id=TraderLineage.VT31_NAS100,
+        signal_fingerprint="single-slot-vt31-short-signal",
+        qore_symbol="NAS100",
+        provider_symbol="NDX100",
+        side="short",
+        entry_type="limit",
+        intended_entry=Decimal("100"),
+        stop_loss=Decimal("101"),
+        take_profit=Decimal("98"),
         stop_loss_per_volume=Decimal("100"),
         margin_per_volume=Decimal("10"),
         volume_step=Decimal("1"),
@@ -234,3 +255,68 @@ def test_single_slot_abstain_is_retained_without_fabricated_market_context(
     assert prepared.result.evidence.regime_state.provider_condition.value == (
         "UNAVAILABLE"
     )
+
+
+
+def test_single_slot_virtual_oco_is_preserved_as_known_options(
+    tmp_path: Path,
+) -> None:
+    spec = _spec()
+    known_at = OPENED + timedelta(milliseconds=150)
+    expiry = OPENED + timedelta(minutes=5)
+    long_option = build_ctrader_demo_single_slot_known_option(
+        opportunity=_opportunity(),
+        provider_spec=spec,
+        known_as_of=known_at,
+        decision_step=2,
+        expires_at=expiry,
+    )
+    short_option = build_ctrader_demo_single_slot_known_option(
+        opportunity=_short_opportunity(),
+        provider_spec=spec,
+        known_as_of=known_at,
+        decision_step=2,
+        expires_at=expiry,
+    )
+    terminal = Phase20DemoSingleSlotTerminal(
+        trader_id=TraderLineage.VT31_NAS100,
+        qore_symbol="NAS100",
+        observed_at=known_at,
+        disposition=Phase20ForwardPopulationDisposition.ABSTAIN,
+        reason="VIRTUAL_OCO_ARMED_AS_KNOWN_OPTIONS",
+    )
+    evidence = DurablePhase20ForwardEvidenceStore(
+        tmp_path / "oco-evidence.json"
+    )
+
+    prepared = prepare_ctrader_demo_single_slot_phase20_epoch(
+        epoch_scope="ctrader-demo:vt31:oco-known-options",
+        opened_at=OPENED,
+        deadline_at=DEADLINE,
+        decision_at=DECISION,
+        terminal=terminal,
+        provider_spec=spec,
+        evidence_store=evidence,
+        account_identity=_identity(),
+        account_state=_account_state(),
+        risk=_risk(tmp_path),
+        executed_risk_book=VersionedPhase20ExecutedRiskBook(generation=0),
+        open_position_ids=(),
+        pending_broker_worst_case_loss_usd=Decimal("0"),
+        capital_state=_capital(),
+        highest_closed_balance=Decimal("1000"),
+        current_step=1,
+        known_options=(long_option, short_option),
+    )
+
+    sealed = prepared.result.evidence
+    assert sealed.candidates == ()
+    assert len(sealed.known_options) == 2
+    assert all(
+        item.option.decision_step == 2
+        for item in sealed.known_options
+    )
+    assert len(
+        prepared.result.decision_record.mpc_plan.representative_option_ids
+    ) == 1
+    assert prepared.result.decision_record.mpc_plan.reserve_stop_risk_usd > 0
