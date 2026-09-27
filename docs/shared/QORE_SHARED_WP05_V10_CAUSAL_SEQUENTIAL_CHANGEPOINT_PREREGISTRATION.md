@@ -74,7 +74,7 @@ Neutral higher-timeframe anchors abstain and are excluded from directional evalu
 
 ## 5. Causal sequential evidence
 
-At each checkpoint V9 derives only causal information available by that checkpoint.
+At each checkpoint V10 derives only causal information available by that checkpoint.
 
 Frozen evidence families:
 
@@ -107,7 +107,7 @@ P(evidence_t | NON_TERMINAL_BY_30M)
 This does **not** assert that every non-terminal episode is a recovery mechanism.
 The negative class exists only for discrimination of terminal early-warning evidence.
 
-For each checkpoint V9 computes a terminal log-likelihood ratio (LLR).
+For each checkpoint V10 computes a terminal log-likelihood ratio (LLR).
 
 The online state is:
 
@@ -223,7 +223,7 @@ Tests must prove:
 
 If V10 passes, freeze exact identity and preregister one independent fresh holdout.
 
-If V10 fails but sequential evidence materially dominates source-only evidence, the next hypothesis may improve the sequential state model without retuning V9.
+If V10 fails but sequential evidence materially dominates source-only evidence, the next hypothesis may improve the sequential state model without retuning V10.
 
 If V10 fails and sequential evidence does not materially improve source-only discrimination, WP-05 must stop iterating classifiers and escalate to an observability/active-perception redesign.
 
