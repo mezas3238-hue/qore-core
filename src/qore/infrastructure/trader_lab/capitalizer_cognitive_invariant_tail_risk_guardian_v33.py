@@ -369,6 +369,297 @@ def _fit_head(
     )
 
 
+def _family_training_table(
+    *,
+    family: str,
+    states: dict[tuple[str, str, str], v31.ControlTriggerState],
+    ledgers: dict[str, tuple[milestone.SimulatedTrade, ...]],
+    control_ledger: tuple[milestone.SimulatedTrade, ...],
+) -> tuple[
+    tuple[tuple[float, ...], ...],
+    tuple[tuple[str, str], ...],
+    dict[tuple[str, str], tuple[float, ...]],
+]:
+    modes = v29._by_mode(ledgers)
+    control_map = {
+        (row.symbol, row.entry_at): row
+        for row in _canonical_rows(control_ledger)
+    }
+    eligible = v30._eligible_actions(family)
+    selected = tuple(
+        sorted(
+            (
+                (symbol, entry_at, state)
+                for (symbol, entry_at, state_family), state in states.items()
+                if state_family == family
+            ),
+            key=lambda item: (_aware(item[1]), item[0]),
+        )
+    )
+    if not selected:
+        raise ValueError(f"V33 has no training states for {family}")
+
+    features: list[tuple[float, ...]] = []
+    keys: list[tuple[str, str]] = []
+    targets: dict[tuple[str, str], list[float]] = {
+        (action, head): []
+        for action in eligible
+        for head in ("EPISODE", "TOTAL", "DOWNSIDE")
+    }
+
+    for symbol, entry_at, state in selected:
+        key = (symbol, entry_at)
+        v30._assert_common_path(
+            key=key,
+            trigger_at=state.trigger_at,
+            actions=eligible,
+            modes=modes,
+        )
+        surface = modes[state.surface_mode][key]
+        surface_r = Decimal(surface.realized_gross_r)
+        multiplier = Decimal(state.base_multiplier)
+        control_scaled = Decimal(control_map[key].realized_gross_r)
+        if control_scaled != surface_r * multiplier:
+            raise ValueError("V33 Surface scaled R mismatch")
+
+        features.append(state.vector)
+        keys.append(key)
+
+        for action in eligible:
+            action_r = Decimal(modes[action][key].realized_gross_r)
+            counterfactual_scaled = action_r * multiplier
+            relief = _episode_relief(
+                control_ledger,
+                key=key,
+                counterfactual_scaled_r=counterfactual_scaled,
+            )
+            total_delta = action_r - surface_r
+            downside_delta = min(action_r, Decimal("0")) - min(
+                surface_r,
+                Decimal("0"),
+            )
+            targets[(action, "EPISODE")].append(float(relief))
+            targets[(action, "TOTAL")].append(float(total_delta))
+            targets[(action, "DOWNSIDE")].append(float(downside_delta))
+
+    return (
+        tuple(features),
+        tuple(keys),
+        {target: tuple(values) for target, values in targets.items()},
+    )
+
+
+def _solve_many(
+    matrix: list[list[float]],
+    right_hand_sides: tuple[tuple[float, ...], ...],
+) -> tuple[tuple[float, ...], ...]:
+    size = len(matrix)
+    if size == 0 or any(len(row) != size for row in matrix):
+        raise ValueError("V33 batch ridge matrix shape mismatch")
+    if any(len(vector) != size for vector in right_hand_sides):
+        raise ValueError("V33 batch ridge RHS shape mismatch")
+
+    a = [row[:] for row in matrix]
+    rhs_count = len(right_hand_sides)
+    b = [
+        [right_hand_sides[target][row] for target in range(rhs_count)]
+        for row in range(size)
+    ]
+
+    for column in range(size):
+        pivot = max(range(column, size), key=lambda row: abs(a[row][column]))
+        if abs(a[pivot][column]) < 1e-12:
+            raise ValueError("V33 batch ridge system is singular")
+        if pivot != column:
+            a[column], a[pivot] = a[pivot], a[column]
+            b[column], b[pivot] = b[pivot], b[column]
+
+        pivot_value = a[column][column]
+        for j in range(column, size):
+            a[column][j] /= pivot_value
+        for target in range(rhs_count):
+            b[column][target] /= pivot_value
+
+        for row in range(size):
+            if row == column:
+                continue
+            factor = a[row][column]
+            if factor == 0.0:
+                continue
+            for j in range(column, size):
+                a[row][j] -= factor * a[column][j]
+            for target in range(rhs_count):
+                b[row][target] -= factor * b[column][target]
+
+    return tuple(
+        tuple(b[row][target] for row in range(size))
+        for target in range(rhs_count)
+    )
+
+
+def _fit_many(
+    *,
+    label: str,
+    features: tuple[tuple[float, ...], ...],
+    keys: tuple[tuple[str, str], ...],
+    targets: dict[tuple[str, str], tuple[float, ...]],
+) -> dict[tuple[str, str], v25.RidgeModel]:
+    if not features or len(features) != len(keys):
+        raise ValueError("V33 batch ridge requires aligned examples")
+    count = len(features)
+    dimension = len(features[0])
+    if any(len(row) != dimension for row in features):
+        raise ValueError("V33 batch ridge feature dimension drift")
+    if any(len(values) != count for values in targets.values()):
+        raise ValueError("V33 batch ridge target length drift")
+
+    means = tuple(
+        sum(row[index] for row in features) / count
+        for index in range(dimension)
+    )
+    scales_list: list[float] = []
+    for index in range(dimension):
+        variance = sum(
+            (row[index] - means[index]) ** 2 for row in features
+        ) / count
+        scale = math.sqrt(max(0.0, variance))
+        scales_list.append(scale if scale > 1e-12 else 1.0)
+    scales = tuple(scales_list)
+
+    designs = tuple(
+        (
+            1.0,
+            *(
+                (row[index] - means[index]) / scales[index]
+                for index in range(dimension)
+            ),
+        )
+        for row in features
+    )
+    size = dimension + 1
+    matrix = [[0.0 for _ in range(size)] for _ in range(size)]
+    for design in designs:
+        for i in range(size):
+            left = design[i]
+            for j in range(i, size):
+                matrix[i][j] += left * design[j]
+    for i in range(size):
+        for j in range(i):
+            matrix[i][j] = matrix[j][i]
+    for index in range(1, size):
+        matrix[index][index] += L2_PRIOR_STRENGTH
+
+    target_ids = tuple(sorted(targets))
+    rhs: list[tuple[float, ...]] = []
+    for target_id in target_ids:
+        values = targets[target_id]
+        vector = [0.0 for _ in range(size)]
+        for design, target in zip(designs, values, strict=True):
+            for i in range(size):
+                vector[i] += design[i] * target
+        rhs.append(tuple(vector))
+
+    coefficient_sets = _solve_many(matrix, tuple(rhs))
+    result: dict[tuple[str, str], v25.RidgeModel] = {}
+    unique_trades = len(set(keys))
+
+    for target_id, coefficients in zip(
+        target_ids,
+        coefficient_sets,
+        strict=True,
+    ):
+        values = targets[target_id]
+        squared_error = 0.0
+        for design, target in zip(designs, values, strict=True):
+            prediction = sum(
+                coefficients[index] * design[index]
+                for index in range(size)
+            )
+            squared_error += (prediction - target) ** 2
+        result[target_id] = v25.RidgeModel(
+            period=f"{label}:{target_id[0]}:{target_id[1]}",
+            feature_mean=means,
+            feature_scale=scales,
+            coefficients=coefficients,
+            unique_training_trades=unique_trades,
+            weighted_observations=float(count),
+            feature_dimension=dimension,
+            weighted_target_mean=sum(values) / count,
+            weighted_training_rmse=math.sqrt(squared_error / count),
+            coefficient_l2_norm=math.sqrt(
+                sum(value * value for value in coefficients[1:])
+            ),
+        )
+
+    return result
+
+
+def _fit_family_heads(
+    *,
+    period: str,
+    family: str,
+    features: tuple[tuple[float, ...], ...],
+    keys: tuple[tuple[str, str], ...],
+    targets: dict[tuple[str, str], tuple[float, ...]],
+) -> dict[str, ActionHeads]:
+    count = len(features)
+    if count < CHRONOLOGICAL_FOLDS * 2:
+        raise ValueError("V33 insufficient examples for chronological calibration")
+
+    full_models = _fit_many(
+        label=f"{period}:{family}:FULL",
+        features=features,
+        keys=keys,
+        targets=targets,
+    )
+    residuals: dict[tuple[str, str], list[float]] = {
+        target_id: [] for target_id in targets
+    }
+    block_size = math.ceil(count / CHRONOLOGICAL_FOLDS)
+
+    for fold in range(1, CHRONOLOGICAL_FOLDS):
+        test_start = fold * block_size
+        if test_start >= count:
+            break
+        test_end = min(count, (fold + 1) * block_size)
+        train_targets = {
+            target_id: values[:test_start]
+            for target_id, values in targets.items()
+        }
+        fold_models = _fit_many(
+            label=f"{period}:{family}:OOF{fold}",
+            features=features[:test_start],
+            keys=keys[:test_start],
+            targets=train_targets,
+        )
+        for target_id, model in fold_models.items():
+            values = targets[target_id]
+            for index in range(test_start, test_end):
+                residuals[target_id].append(
+                    values[index] - v25._predict(model, features[index])
+                )
+
+    calibrated: dict[tuple[str, str], CalibratedHead] = {}
+    for target_id, model in full_models.items():
+        current = tuple(residuals[target_id])
+        if not current:
+            raise ValueError("V33 produced no chronological residuals")
+        calibrated[target_id] = CalibratedHead(
+            model=model,
+            residual_q20=_quantile(current, RESIDUAL_QUANTILE),
+            chronological_residual_count=len(current),
+        )
+
+    result: dict[str, ActionHeads] = {}
+    for action in v30._eligible_actions(family):
+        result[action] = ActionHeads(
+            episode_relief=calibrated[(action, "EPISODE")],
+            total_delta=calibrated[(action, "TOTAL")],
+            downside_delta=calibrated[(action, "DOWNSIDE")],
+        )
+    return result
+
+
 def _fit_models(
     *,
     windows: dict[str, Any],
@@ -385,39 +676,22 @@ def _fit_models(
         period_diagnostics: dict[str, Any] = {}
 
         for family in v30.FAMILY_ORDER:
-            action_models: dict[str, ActionHeads] = {}
+            features, keys, targets = _family_training_table(
+                family=family,
+                states=control_states[period],
+                ledgers=ledgers,
+                control_ledger=control_ledgers[period],
+            )
+            action_models = _fit_family_heads(
+                period=period,
+                family=family,
+                features=features,
+                keys=keys,
+                targets=targets,
+            )
             action_diagnostics: dict[str, Any] = {}
 
-            for action in v30._eligible_actions(family):
-                episode, total, downside = _training_examples(
-                    family=family,
-                    action=action,
-                    states=control_states[period],
-                    ledgers=ledgers,
-                    control_ledger=control_ledgers[period],
-                )
-                if not episode:
-                    action_diagnostics[action] = {
-                        "available": False,
-                        "training_trades": 0,
-                    }
-                    continue
-
-                heads = ActionHeads(
-                    episode_relief=_fit_head(
-                        label=f"{period}:{family}:{action}:EPISODE_DD_RELIEF",
-                        examples=episode,
-                    ),
-                    total_delta=_fit_head(
-                        label=f"{period}:{family}:{action}:TOTAL_DELTA",
-                        examples=total,
-                    ),
-                    downside_delta=_fit_head(
-                        label=f"{period}:{family}:{action}:DOWNSIDE_DELTA",
-                        examples=downside,
-                    ),
-                )
-                action_models[action] = heads
+            for action, heads in action_models.items():
                 action_diagnostics[action] = {
                     "available": True,
                     "training_trades": heads.episode_relief.model.unique_training_trades,
