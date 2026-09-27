@@ -17,6 +17,8 @@ from qore.infrastructure.fundednext_stellar_instant import (
     StellarInstantRiskBudget,
     evaluate_stellar_instant_budget,
 )
+
+
 def _provider(
     *,
     balance: str = "2000",
