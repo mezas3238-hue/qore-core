@@ -39,6 +39,9 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_snapshots import (
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     DurablePhase20ForwardEvidenceStore,
 )
+from qore.infrastructure.cibo_ce2i_phase20_robust_allocator import (
+    Phase20AllocatorDisposition,
+)
 from qore.infrastructure.cibo_ce2i_regime_selector import (
     CiboCapitalRegimeState,
     CorrelationState,
@@ -309,3 +312,68 @@ def test_forward_policy_store_rejects_conflicting_policy_rewrite(
         )
 
     assert policy_store.load().generation == 1
+
+
+
+def test_forward_collector_seals_zero_candidate_epoch_without_population_bias(
+    tmp_path: Path,
+) -> None:
+    evidence_store = DurablePhase20ForwardEvidenceStore(
+        tmp_path / "evidence.json"
+    )
+    policy_store = DurablePhase20ForwardPolicyStore(
+        tmp_path / "policy.json"
+    )
+    population = (
+        Phase20ForwardPopulationSlotEvidence(
+            slot_id="R43_GBPUSD|GBPUSD",
+            trader_id=TraderLineage.R43_GBPUSD,
+            qore_symbol="GBPUSD",
+            observed_at=DECISION_AT - timedelta(milliseconds=50),
+            disposition=Phase20ForwardPopulationDisposition.ABSTAIN,
+            reason="CAUSAL_ABSTAIN",
+        ),
+        Phase20ForwardPopulationSlotEvidence(
+            slot_id="R34_XAUUSD|XAUUSD",
+            trader_id=TraderLineage.R34_XAUUSD,
+            qore_symbol="XAUUSD",
+            observed_at=DECISION_AT - timedelta(milliseconds=40),
+            disposition=Phase20ForwardPopulationDisposition.ABSTAIN,
+            reason="CAUSAL_ABSTAIN",
+        ),
+    )
+    zero_regime = CiboCapitalRegimeState(
+        liquidity=LiquidityState.NORMAL,
+        volatility=VolatilityState.NORMAL,
+        correlation=CorrelationState.NORMAL,
+        provider_condition=ProviderCondition.HEALTHY,
+        risk_utilization=Decimal("0.10"),
+        margin_utilization=Decimal("0.10"),
+        drawdown_utilization=Decimal("0.10"),
+        opportunity_count=0,
+    )
+
+    collected = collect_phase20_forward_observed_epoch(
+        evidence_store=evidence_store,
+        policy_store=policy_store,
+        decision_epoch_id="phase20d-zero-candidate-epoch",
+        decision_at=DECISION_AT,
+        account_identity=_identity(),
+        snapshots=_snapshots(),
+        concentration_limit_by_group=(),
+        regime_state=zero_regime,
+        current_step=0,
+        population_slots=population,
+        opportunities=(),
+    )
+
+    assert collected.evidence_generation == 1
+    assert collected.policy_generation == 1
+    assert collected.result.evidence.candidates == ()
+    assert (
+        collected.result.decision_record.allocator_decision.disposition
+        is Phase20AllocatorDisposition.NO_ELIGIBLE_ALLOCATION
+    )
+    policy = policy_store.load().decisions[0]
+    assert policy.selected_signal_fingerprints == ()
+    assert len(evidence_store.load().decisions) == 1
