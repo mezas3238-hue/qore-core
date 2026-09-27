@@ -170,6 +170,7 @@ def collect_phase20_forward_observed_epoch(
     opportunities: tuple[Phase20ForwardObservedOpportunity, ...],
     seal_deadline_at: datetime | None = None,
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
+    collector_git_sha: str | None = None,
 ) -> Phase20ForwardCollectedEpoch:
     """Canonical collector: evidence first, policy record second, never broker."""
 
@@ -190,6 +191,7 @@ def collect_phase20_forward_observed_epoch(
         opportunities=opportunities,
         seal_deadline_at=seal_deadline_at,
         known_options=known_options,
+        collector_git_sha=collector_git_sha,
     )
     current_policy = policy_store.load()
     policy_book = policy_store.seal_policy_decision(
@@ -218,6 +220,7 @@ def seal_phase20_forward_observed_epoch_from_snapshots(
     opportunities: tuple[Phase20ForwardObservedOpportunity, ...],
     seal_deadline_at: datetime | None = None,
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
+    collector_git_sha: str | None = None,
 ) -> Phase20ForwardEpochResult:
     """Seal an epoch using content-bound current capital/Risk snapshots."""
 
@@ -243,6 +246,7 @@ def seal_phase20_forward_observed_epoch_from_snapshots(
         opportunities=opportunities,
         seal_deadline_at=seal_deadline_at,
         known_options=known_options,
+        collector_git_sha=collector_git_sha,
     )
 
 def seal_phase20_forward_observed_epoch(
@@ -264,6 +268,7 @@ def seal_phase20_forward_observed_epoch(
     opportunities: tuple[Phase20ForwardObservedOpportunity, ...],
     seal_deadline_at: datetime | None = None,
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
+    collector_git_sha: str | None = None,
 ) -> Phase20ForwardEpochResult:
     """Seal a complete causal epoch, then evaluate V2 observationally.
 
@@ -386,6 +391,7 @@ def seal_phase20_forward_observed_epoch(
         population_slots=ordered_population,
         candidates=candidates,
         known_options=ordered_options,
+        collector_git_sha=collector_git_sha,
     )
 
     current = store.load()
