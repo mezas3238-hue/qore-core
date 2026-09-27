@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_invariant_tail_risk_guardian_v33 as v33,
@@ -79,10 +80,10 @@ def test_episode_relief_targets_sequence_drawdown_not_trade_only() -> None:
     relief = v33._episode_relief(
         ledger,
         key=key,
-        counterfactual_scaled_r=__import__("decimal").Decimal("0"),
+        counterfactual_scaled_r=Decimal("0"),
     )
 
-    assert relief == __import__("decimal").Decimal("1")
+    assert relief == Decimal("1")
 
 
 def test_invariant_mask_removes_cross_era_sign_flips() -> None:
