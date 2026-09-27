@@ -22,10 +22,10 @@ execution authority.
 from __future__ import annotations
 
 import random
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
-from collections.abc import Iterable
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
