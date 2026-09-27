@@ -32,9 +32,17 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
     Vt08ForexCiboPosture,
     cibo_policy_fingerprint,
 )
-from qore.infrastructure.vt08_forex_fundednext_sizing import R315_BASE_RISK_BPS
+_SCHEMA = "qore.fundednext.cibo-risk-operational-certification.v5"
 
-_SCHEMA = "qore.fundednext.cibo-risk-operational-certification.v4"
+_FUNDEDNEXT_CIBO_TRADERS: dict[str, tuple[str, ...]] = {
+    "VT08_FOREX": ("AUDJPY", "GBPUSD", "GBPJPY"),
+    "R34_XAUUSD": ("XAUUSD",),
+    "R38_EURUSD": ("EURUSD",),
+    "R43_GBPUSD": ("GBPUSD",),
+    "R38_GBPJPY": ("GBPJPY",),
+    "R42_AUDJPY": ("AUDJPY",),
+    "VT31_NAS100": ("NAS100",),
+}
 
 
 def build_certification(*, git_sha: str) -> dict[str, object]:
@@ -45,19 +53,20 @@ def build_certification(*, git_sha: str) -> dict[str, object]:
         "git_sha": git_sha,
         "status": "CIBO_RISK_COMPONENT_CERTIFIED",
         "scope": {
-            "trader": "VT08_FOREX",
-            "markets": list(R315_CIBO_MARKETS),
+            "traders": {
+                trader: list(symbols)
+                for trader, symbols in sorted(_FUNDEDNEXT_CIBO_TRADERS.items())
+            },
+            "trader_count": len(_FUNDEDNEXT_CIBO_TRADERS),
+            "vt08_certified_markets": list(R315_CIBO_MARKETS),
             "certified_live_directions": {
                 symbol: sorted(sides)
                 for symbol, sides in sorted(CERTIFIED_LIVE_DIRECTIONS.items())
             },
             "live_causal_entry_anchor_ny": list(LIVE_ENTRY_ANCHORS_NY),
-            "methodology_fingerprint": R315_METHOD_FINGERPRINT,
-            "frozen_trader_risk_fingerprint": R315_RISK_FINGERPRINT,
-            "base_risk_bps": {
-                symbol: str(R315_BASE_RISK_BPS[symbol])
-                for symbol in sorted(R315_BASE_RISK_BPS)
-            },
+            "vt08_methodology_fingerprint": R315_METHOD_FINGERPRINT,
+            "vt08_legacy_risk_fingerprint_baseline_only": R315_RISK_FINGERPRINT,
+            "legacy_trader_sizing_execution_authority": False,
             "opening_commission_per_lot_usd_reserved_in_risk": str(
                 FOREX_OPEN_COMMISSION_PER_LOT_USD
             ),
@@ -85,13 +94,22 @@ def build_certification(*, git_sha: str) -> dict[str, object]:
             "mission": "FUNDED_SURVIVAL_COMPOUND",
             "provider": "FundedNext",
             "provider_program": "STELLAR_INSTANT",
+            "account_scoped_sizing": True,
+            "all_loaded_traders_use_cibo_sizing": True,
+            "survival_capital_source": "QORE_ACCOUNT_HEAT_CAP",
+            "protected_capital_source": "EARNED_CLOSED_BALANCE_CUSHION",
+            "before_base_protection_mode": "SURVIVAL_MINIMAL_SEED",
+            "after_base_protection_mode": "PROTECTED_FULL_CAPACITY",
+            "demo_mode": "CAPABILITY_MAXIMUM",
+            "floating_pnl_counts_as_protected_capital": False,
             "attack_can_override_risk": False,
-            "attack_changes_per_trade_bps": False,
+            "legacy_trader_risk_fraction_execution_authority": False,
         },
         "account_wide_risk": {
             "hard_survivability_governor": True,
             "capital_management_strategy_authority": False,
             "runtime_sizing_authority": False,
+            "final_capital_strategy_authority": False,
             "decisions": ["ALLOW", "REDUCE", "REJECT"],
             "provider_headroom_enforced": True,
             "provider_max_risk_at_any_time_enforced": True,
