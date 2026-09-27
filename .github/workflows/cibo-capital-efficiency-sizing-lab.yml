@@ -73,6 +73,8 @@ jobs:
             src/qore/infrastructure/cibo_provider_economic_normalization.py \
             src/qore/infrastructure/cibo_fundednext_provider.py \
             src/qore/infrastructure/cibo_fundednext_seed.py \
+            src/qore/infrastructure/fundednext_cibo_risk_certification.py \
+            src/qore/infrastructure/fundednext_pilot_manifest.py \
             src/qore/infrastructure/cibo_cma_initial_seed.py \
             src/qore/infrastructure/ctrader_demo_trade_registry.py \
             src/qore/infrastructure/cibo_cma_behavior_binding.py \
@@ -172,6 +174,8 @@ jobs:
             tests/infrastructure/test_cibo_fundednext_provider.py \
             tests/infrastructure/test_cibo_fundednext_seed.py \
             tests/infrastructure/test_cibo_fundednext_runtime_authority_switch.py \
+            tests/infrastructure/test_cibo_fundednext_cma_binding.py \
+            tests/test_fundednext_cibo_risk_certification.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py \
             tests/infrastructure/test_cibo_cma_initial_seed.py \
@@ -267,6 +271,8 @@ jobs:
             src/qore/infrastructure/cibo_provider_economic_normalization.py \
             src/qore/infrastructure/cibo_fundednext_provider.py \
             src/qore/infrastructure/cibo_fundednext_seed.py \
+            src/qore/infrastructure/fundednext_cibo_risk_certification.py \
+            src/qore/infrastructure/fundednext_pilot_manifest.py \
             src/qore/infrastructure/cibo_cma_initial_seed.py \
             src/qore/infrastructure/ctrader_demo_trade_registry.py \
             src/qore/infrastructure/cibo_cma_behavior_binding.py \
@@ -365,6 +371,8 @@ jobs:
             tests/infrastructure/test_cibo_fundednext_provider.py \
             tests/infrastructure/test_cibo_fundednext_seed.py \
             tests/infrastructure/test_cibo_fundednext_runtime_authority_switch.py \
+            tests/infrastructure/test_cibo_fundednext_cma_binding.py \
+            tests/test_fundednext_cibo_risk_certification.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py \
             tests/infrastructure/test_cibo_cma_initial_seed.py \
@@ -445,6 +453,8 @@ jobs:
             tests/infrastructure/test_cibo_fundednext_provider.py \
             tests/infrastructure/test_cibo_fundednext_seed.py \
             tests/infrastructure/test_cibo_fundednext_runtime_authority_switch.py \
+            tests/infrastructure/test_cibo_fundednext_cma_binding.py \
+            tests/test_fundednext_cibo_risk_certification.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities.py \
             tests/infrastructure/test_cibo_direct_trader_opportunities_extended.py \
             tests/infrastructure/test_cibo_cma_initial_seed.py \
