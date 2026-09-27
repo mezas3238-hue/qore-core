@@ -239,6 +239,7 @@ def _period_probe(
                     diagnostic_single_intervention_full_gate=(
                         full_gate
                     ),
+                    identical_downstream_trajectory_short_circuit=False,
                 )
             )
 
