@@ -31,6 +31,9 @@ from qore.infrastructure.trader_lab import (
 from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
 )
+from qore.infrastructure.trader_lab import (
+    capitalizer_continuation_value_model_v22 as v22,
+)
 from qore.infrastructure.trader_lab import capitalizer_exposure_graph as exposure
 from qore.infrastructure.trader_lab import (
     capitalizer_factor_journey_probe_ranker_v11 as v11,
@@ -43,9 +46,6 @@ from qore.infrastructure.trader_lab import (
 )
 from qore.infrastructure.trader_lab import (
     capitalizer_sequence_failure_memory_abstention_v13 as v13,
-)
-from qore.infrastructure.trader_lab import (
-    capitalizer_continuation_value_model_v22 as v22,
 )
 
 IDENTITY = "QORE_CAPITALIZER_EVENT_TIME_PORTFOLIO_TRIGGER_STATE_V31"
