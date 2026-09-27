@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -257,6 +258,27 @@ def test_phase20d_fixed_runner_can_pass_without_refit() -> None:
     assert report.policy_selected_outcome_coverage == Decimal("1")
     assert report.baseline_selected_outcome_coverage == Decimal("1")
     assert report.candidate_outcome_coverage == Decimal("1")
+
+
+def test_phase20d_runner_invalidates_late_physical_decision_seal() -> None:
+    evidence, policy = _books()
+    first = evidence.decisions[0]
+    late = replace(
+        first,
+        sealed_at=first.seal_deadline_at + timedelta(milliseconds=1),
+    )
+    evidence = replace(
+        evidence,
+        decisions=(late, *evidence.decisions[1:]),
+    )
+
+    report = run_phase20d_v2_qualification(
+        evidence_book=evidence,
+        policy_book=policy,
+    )
+
+    assert report.status is Phase20QualificationStatus.INVALID
+    assert "ZERO_CAUSAL_CONTAMINATION" in report.failures
 
 
 def test_phase20d_runner_fails_if_baseline_outcome_is_missing() -> None:
