@@ -2710,14 +2710,15 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             opportunity: TraderOpportunityEnvelope,
                             spec: CTraderDemoSymbolSpecification,
                             shadow_account: CTraderDemoAccountState,
+                            trigger_at: datetime,
                             observed_at: datetime,
                         ) -> None:
                             observe_phase20_single_slot(
                                 trader_id=TraderLineage.VT31_NAS100,
                                 qore_symbol="NAS100",
                                 epoch_scope=phase20_vt31_scope,
-                                opened_at=vt31_arm_anchor,
-                                deadline_at=phase20_vt31_deadline,
+                                opened_at=trigger_at,
+                                deadline_at=trigger_at + VT31_DECISION_DEADLINE,
                                 terminal_observed_at=observed_at,
                                 disposition=(
                                     Phase20ForwardPopulationDisposition.CANDIDATE
@@ -2750,19 +2751,49 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "candidate_count": len(vt31_basket.candidates),
                             },
                         )
-                        _log(
-                            log_path,
-                            {
-                                "event": "PHASE20D_VT31_OCO_INELIGIBLE",
-                                "symbol": "NAS100",
-                                "decision_at": vt31_arm_anchor.isoformat(),
-                                "basket_id": vt31_basket.basket_id,
-                                "candidate_count": len(vt31_basket.candidates),
-                                "reason": (
-                                    "BASKET_AWARE_FORWARD_ADAPTER_REQUIRED"
+                        vt31_option_spec = gateway.read_symbol(
+                            "NAS100",
+                            now=vt31_decided_at,
+                        )
+                        vt31_option_known_at = max(
+                            vt31_decided_at,
+                            vt31_option_spec.observed_at,
+                        )
+                        vt31_option_step = max(
+                            0,
+                            int(vt31_arm_anchor.timestamp() // 60),
+                        ) + 1
+                        vt31_known_options = tuple(
+                            build_ctrader_demo_single_slot_known_option(
+                                opportunity=build_vt31_virtual_order_opportunity(
+                                    order=item,
+                                    provider_spec=vt31_option_spec,
+                                    decision_anchor=vt31_arm_anchor,
+                                    now=vt31_option_known_at,
                                 ),
-                                "execution_path_blocked": False,
-                            },
+                                provider_spec=vt31_option_spec,
+                                known_as_of=vt31_option_known_at,
+                                decision_step=vt31_option_step,
+                                expires_at=datetime.fromisoformat(
+                                    item.expires_at
+                                ),
+                            )
+                            for item in vt31_basket.candidates
+                        )
+                        observe_phase20_single_slot(
+                            trader_id=TraderLineage.VT31_NAS100,
+                            qore_symbol="NAS100",
+                            epoch_scope=phase20_vt31_scope,
+                            opened_at=vt31_arm_anchor,
+                            deadline_at=phase20_vt31_deadline,
+                            terminal_observed_at=vt31_option_known_at,
+                            disposition=(
+                                Phase20ForwardPopulationDisposition.ABSTAIN
+                            ),
+                            reason="VIRTUAL_OCO_ARMED_AS_KNOWN_OPTIONS",
+                            account_state_for_shadow=vt31_account,
+                            provider_spec=vt31_option_spec,
+                            known_options=vt31_known_options,
                         )
             except BrokerMinimumVolumeRiskRejectError as risk_reject:
                 _log(
@@ -3322,6 +3353,30 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         # are observational only. Technical integrity is enforced inside the DEMO sink.
         new_order_blocked = False
         vt31_runtime_snapshot = None
+
+        def observe_vt31_phase20_oco_trigger(
+            opportunity: TraderOpportunityEnvelope,
+            spec: CTraderDemoSymbolSpecification,
+            shadow_account: CTraderDemoAccountState,
+            trigger_at: datetime,
+            observed_at: datetime,
+        ) -> None:
+            observe_phase20_single_slot(
+                trader_id=TraderLineage.VT31_NAS100,
+                qore_symbol="NAS100",
+                epoch_scope=(
+                    f"ctrader-demo:vt31-trigger:{trigger_at.isoformat()}"
+                ),
+                opened_at=trigger_at,
+                deadline_at=trigger_at + VT31_DECISION_DEADLINE,
+                terminal_observed_at=observed_at,
+                disposition=Phase20ForwardPopulationDisposition.CANDIDATE,
+                reason="VIRTUAL_OCO_TRIGGERED_CANDIDATE",
+                account_state_for_shadow=shadow_account,
+                opportunity=opportunity,
+                provider_spec=spec,
+            )
+
         # DEMO_FREE: no prop-firm pending-order reconciliation.
         if not new_order_blocked:
             process_vt31_virtual_oco(
@@ -3333,6 +3388,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 account_equity=account_state.equity,
                 store=vt31_store,
                 log=lambda event: _log(log_path, event),
+                phase20_after_submit=observe_vt31_phase20_oco_trigger,
             )
 
         if anchor is not None and not new_order_blocked:
