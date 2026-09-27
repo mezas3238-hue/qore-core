@@ -154,7 +154,10 @@ def test_registry_committed_risk_counts_open_and_live_pending_only(
         "12347": 1,
     }
 
-    assert registry.committed_stop_risk(now=NOW) == Decimal("40.00")
+    assert registry.committed_stop_risk(
+        now=NOW,
+        provider_order_status=provider_status.__getitem__,
+    ) == Decimal("140.00")
     assert registry.pending_stop_risk(
         now=NOW,
         provider_order_status=provider_status.__getitem__,
@@ -174,9 +177,10 @@ def test_registry_committed_risk_counts_open_and_live_pending_only(
     )
     assert len(closed) == 1
     assert closed[0].closed_at == (NOW + timedelta(minutes=5)).isoformat()
-    assert registry.committed_stop_risk(now=NOW + timedelta(minutes=6)) == (
-        Decimal("15.00")
-    )
+    assert registry.committed_stop_risk(
+        now=NOW + timedelta(minutes=6),
+        provider_order_status=provider_status.__getitem__,
+    ) == Decimal("15.00")
     assert registry.pending_stop_risk(
         now=NOW + timedelta(minutes=6),
         provider_order_status=provider_status.__getitem__,
@@ -195,4 +199,7 @@ def test_registry_terminal_close_survives_restart(tmp_path: Path) -> None:
 
     assert entry is not None
     assert entry.closed_at == closed_at.isoformat()
-    assert reloaded.committed_stop_risk(now=closed_at) == Decimal("0")
+    assert reloaded.committed_stop_risk(
+        now=closed_at,
+        provider_order_status=lambda _provider_order_ref: 1,
+    ) == Decimal("0")
