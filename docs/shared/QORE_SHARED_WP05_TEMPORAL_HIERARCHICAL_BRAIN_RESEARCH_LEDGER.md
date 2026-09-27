@@ -234,3 +234,59 @@ No WP-05 experiment may:
 If V6 fails consumed development, its exact model is frozen as falsification
 history and the next experiment must use a materially different structural
 hypothesis with a new identity.
+
+## 7. V7 — Competing Survival Hypotheses
+
+Preregistered identity:
+
+`QORE_SHARED_WP05_COMPETING_SURVIVAL_HYPOTHESES_V7_001`
+
+Preregistration commit: `195a05aaaada0a222da6dbb6ed4d729b037c88f2`.
+
+Pre-outcome causal-frontier clarification was frozen before any V7 R6/R5
+consumption: exact source distance remains in the Target-V2 coordinate, while
+historical breach/reclaim dynamics use the 20 bars strictly preceding each
+historical evaluated bar. This prevents a mechanically degenerate "current
+breach" feature caused by including the evaluated bar in its own frontier.
+
+Scientific hypothesis:
+
+- terminality and recoverability are competing mechanisms, not opposite ends of
+  one scalar;
+- one head estimates terminal hazard;
+- one head estimates recovery support;
+- conflicting or insufficient evidence returns `UNRESOLVED`;
+- only `RECOVERY_SUPPORTED` may suppress the baseline structural-failure
+  declaration;
+- `TERMINAL_SUPPORTED` and `UNRESOLVED` preserve the baseline declaration.
+
+Frozen development protocol:
+
+- R8 = 70% chronological discovery / 30% calibration only;
+- matured-label purge is mandatory;
+- ridge = 4.0 for both heads;
+- terminal/recovery thresholds come only from the preregistered R8 calibration
+  grid 0.50..0.90 in 0.02 steps;
+- R8 calibration terminal preservation must be >=9800 bps;
+- R6/R5 = consumed falsification only, no refit, no threshold retuning and no
+  feature selection;
+- WP-05 gate remains >=2000 bps false-declaration reduction AND >=9500 bps
+  terminal preservation on BOTH R6 and R5;
+- fresh holdout remains CLOSED.
+
+Foundation evidence:
+
+- core dual-mechanism foundation GREEN: run `36282492657`, SHA
+  `82060ffc89ee283d1278db24c5304aa1d5e3fe69`;
+- causal source extractor / anti-future validation GREEN after the lint-only
+  repair: run `36282748747`, SHA
+  `0354ed3982d0d3ebe3ca6b80a01d80cec8f1acbb`;
+- post-fit incomplete-evidence exclusion remained GREEN: run
+  `36282793116`, SHA
+  `e697cca8186238b548d7ba1765474464f3142915`.
+
+No V7 R6/R5 scientific result has been accepted at this ledger checkpoint.
+The historical harness exists, but consumed execution remains gated behind a
+clean pre-consumption static/adversarial validation. Fresh evidence is still
+sealed.
+
