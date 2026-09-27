@@ -380,3 +380,70 @@ the entire R8 population and destroyed terminal preservation.
 This identity is permanently falsified. It must not be repaired by threshold
 retuning, feature selection or R8/R6/R5 mining. The next experiment must remove
 the complement-label dual-head assumption rather than adjust it.
+
+
+## 8. V8 — Event Manifold with Censoring
+
+Preregistered identity:
+
+`QORE_SHARED_WP05_EVENT_MANIFOLD_WITH_CENSORING_V8_001`
+
+V8 removed the V7 complement-label assumption and introduced explicit offline
+states:
+
+- `TERMINAL_EVENT`;
+- `VERIFIED_RECOVERY_EVENT`;
+- `CENSORED_UNKNOWN`.
+
+The source representation remained frozen from V7 while the model changed to
+robust terminal/recovery event manifolds. Censored observations defined neither
+manifold and could only be suppressed by explicit high-confidence recovery
+support.
+
+### Authoritative V8 result
+
+Authoritative run: `36285517957`  
+Git SHA: `0f3e8bc491a09a80f4cfb37f99038599c665da65`  
+Status: `WP05_V8_EVENT_MANIFOLD_FALSIFIED`  
+Protocol: PASS  
+Development gate: FAIL  
+Fresh holdout: CLOSED
+
+Artifact:
+
+- artifact id: `10920970525`;
+- digest:
+  `sha256:2754e34fb92f8d132dc7bdc98eea3f54b11cfb1725af7b0f56f72427e4123ef5`.
+
+Frozen identities:
+
+- model fingerprint:
+  `fa2a32ac85ee8d6209b53a8acc6c747b8cd5026a899bae06ac4c5726210cb188`;
+- representation fingerprint:
+  `261ae682de42ff6c67cd4a60686fa23dd01120bc72218862f7535a5ea26d0f7a`.
+
+R8 calibration:
+
+- false-declaration reduction: **156 bps**;
+- terminal preservation: **9838 bps**;
+- recovery radius quantile: **2500 bps**;
+- recovery advantage margin: **250000 micros**.
+
+Consumed evaluation:
+
+- R8: false reduction **110 bps**, terminal preservation **9875 bps**;
+- R6: false reduction **146 bps**, terminal preservation **9784 bps**;
+- R5: false reduction **214 bps**, terminal preservation **9784 bps**.
+
+Interpretation:
+
+V8 corrected the event ontology and retained high terminal safety, but its
+static source-state manifold was too selective. Most episodes remained
+`UNRESOLVED`, so false structural-failure declarations were barely reduced.
+The frozen WP-05 gate of >=2000 bps false reduction and >=9500 bps terminal
+preservation on BOTH R6 and R5 was not approached.
+
+V8 is permanently falsified. It must not be repaired by radius/margin retuning,
+feature mining against R6/R5 or gate weakening. The next hypothesis must test
+whether the missing information is in the *causal path into the source state*,
+rather than another static geometry around the same source snapshot.
