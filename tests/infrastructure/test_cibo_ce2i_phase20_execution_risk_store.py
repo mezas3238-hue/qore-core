@@ -22,6 +22,8 @@ def _evidence() -> Phase20ExecutedRiskEvidence:
         decision_evidence_sha256="sha256:" + "a" * 64,
         signal_fingerprint="signal-1",
         qore_symbol="NAS100",
+        provider_order_ref="70001",
+        side="long",
         position_id=77,
         authorized_source_volume=Decimal("1"),
         filled_source_volume=Decimal("1"),
