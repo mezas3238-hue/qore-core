@@ -68,7 +68,7 @@ def _median_decimal(values: list[Decimal]) -> Decimal:
     if count % 2:
         return ordered[count // 2]
     with localcontext() as context:
-        context.prec = 50
+        context.prec = 40
         return (
             ordered[count // 2 - 1] + ordered[count // 2]
         ) / Decimal(2)
@@ -86,7 +86,7 @@ def _chronological_block_means(
         if not block:
             raise ValueError("TRAIN chronological block cannot be empty")
         with localcontext() as context:
-            context.prec = 50
+            context.prec = 40
             means.append(
                 sum((item[1] for item in block), Decimal(0))
                 / Decimal(len(block))
@@ -126,7 +126,7 @@ def run(
                 common_count += 1
             if entry_at >= common_start and exit_at <= split_at:
                 with localcontext() as context:
-                    context.prec = 50
+                    context.prec = 40
                     duration_minutes = Decimal(
                         str((exit_at - entry_at).total_seconds())
                     ) / Decimal(60)
@@ -156,7 +156,7 @@ def run(
             [item[2] for item in selected]
         )
         with localcontext() as context:
-            context.prec = 50
+            context.prec = 40
             arithmetic_mean = (
                 sum((item[1] for item in selected), Decimal(0))
                 / Decimal(len(selected))

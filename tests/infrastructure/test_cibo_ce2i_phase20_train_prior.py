@@ -43,7 +43,7 @@ def test_train_prior_converts_structural_r_to_current_stop_risk_usd() -> None:
 
     assert expectation.basis is CausalExpectationBasis.FROZEN_HISTORICAL_PRIOR
     with localcontext() as context:
-        context.prec = 50
+        context.prec = 40
         expected_usd = prior.expected_structural_r * Decimal("10")
     assert expectation.expected_net_value_usd == expected_usd
     assert expectation.expected_capital_minutes == Decimal("6")

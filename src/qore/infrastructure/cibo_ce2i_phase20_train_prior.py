@@ -251,7 +251,7 @@ def build_frozen_train_expectation(
         )
     prior = frozen_train_prior_for(trader_id)
     with localcontext() as context:
-        context.prec = 50
+        context.prec = 40
         expected_net_value_usd = (
             prior.expected_structural_r * stop_risk_usd
         )
