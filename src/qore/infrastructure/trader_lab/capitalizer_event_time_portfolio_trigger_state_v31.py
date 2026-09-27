@@ -15,6 +15,7 @@ import argparse
 import json
 from collections import Counter
 from dataclasses import asdict, dataclass, replace
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -141,7 +142,7 @@ class V31Decision:
     identity_features_used: bool = False
 
 
-def _aware(value: str) -> Any:
+def _aware(value: str) -> datetime:
     return milestone._aware(value)
 
 
@@ -197,7 +198,7 @@ def _record(
 def _closed_before(
     rows: tuple[milestone.SimulatedTrade, ...],
     *,
-    observed_at,
+    observed_at: datetime,
 ) -> tuple[milestone.SimulatedTrade, ...]:
     return tuple(
         sorted(
@@ -218,7 +219,7 @@ def _closed_before(
 def _active_before_event(
     rows: tuple[milestone.SimulatedTrade, ...],
     *,
-    observed_at,
+    observed_at: datetime,
     current_key: tuple[str, str],
 ) -> tuple[milestone.SimulatedTrade, ...]:
     return tuple(
@@ -245,7 +246,7 @@ def _sum_and_negative_fraction(
 def _portfolio_vector(
     *,
     current_trade: milestone.SimulatedTrade,
-    observed_at,
+    observed_at: datetime,
     projections: tuple[milestone.SimulatedTrade, ...],
 ) -> tuple[float, ...]:
     current_key = (current_trade.symbol, current_trade.entry_at)
@@ -412,12 +413,12 @@ def _entry_batch(
     dict[tuple[str, str], v10.Pretrade],
     dict[tuple[str, str], milestone.SimulatedTrade],
     dict[tuple[str, str], memory.MemoryRecord],
-    dict[tuple[str, str], tuple[Any, str]],
+    dict[tuple[str, str], tuple[datetime, str]],
 ]:
     pretrades: dict[tuple[str, str], v10.Pretrade] = {}
     projections: dict[tuple[str, str], milestone.SimulatedTrade] = {}
     records: dict[tuple[str, str], memory.MemoryRecord] = {}
-    triggers: dict[tuple[str, str], tuple[Any, str]] = {}
+    triggers: dict[tuple[str, str], tuple[datetime, str]] = {}
 
     for trade in rows:
         key = (trade.symbol, trade.entry_at)
@@ -453,8 +454,8 @@ def _next_event_time(
     *,
     ordered: tuple[milestone.SimulatedTrade, ...],
     pointer: int,
-    pending: dict[tuple[str, str], tuple[Any, str]],
-) -> Any | None:
+    pending: dict[tuple[str, str], tuple[datetime, str]],
+) -> datetime | None:
     next_entry = (
         _aware(ordered[pointer].entry_at)
         if pointer < len(ordered)
@@ -497,7 +498,7 @@ def _control_event_replay(
     ] = {}
     records: dict[tuple[str, str], memory.MemoryRecord] = {}
     pretrades: dict[tuple[str, str], v10.Pretrade] = {}
-    pending: dict[tuple[str, str], tuple[Any, str]] = {}
+    pending: dict[tuple[str, str], tuple[datetime, str]] = {}
     states: dict[tuple[str, str, str], ControlTriggerState] = {}
 
     while pointer < len(ordered) or pending:
@@ -912,7 +913,7 @@ def _simulate_period(
         for key, pretrade in new_pretrades.items():
             trade = modes[milestone.ProtectionMode.ORIGINAL.value][key]
             selected = modes[pretrade.mode][key]
-            family = v30._mode_family(pretrade.mode)
+            entry_family = v30._mode_family(pretrade.mode)
             audit_data[key] = {
                 "period": period,
                 "policy": POLICY,
@@ -921,12 +922,12 @@ def _simulate_period(
                 "operating_date": trade.operating_date,
                 "entry_at": trade.entry_at,
                 "causal_surface_mode": pretrade.mode,
-                "surface_first_family": family,
+                "surface_first_family": entry_family,
                 "surface_first_protection_at": selected.first_protection_at,
                 "chosen_mode": pretrade.mode,
                 "base_multiplier": str(pretrade.base_multiplier),
                 "decision_made": False,
-                "chosen_first_family": family,
+                "chosen_first_family": entry_family,
                 "completed_m1_bars": None,
                 "trigger_delay_minutes": None,
                 "trainer_a_period": trainer_a,
