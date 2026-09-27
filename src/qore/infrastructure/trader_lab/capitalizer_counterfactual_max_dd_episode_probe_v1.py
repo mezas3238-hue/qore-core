@@ -98,6 +98,7 @@ def _period_probe(
 
     audits: list[simulator.TransitionAudit] = []
     probed_states = 0
+    no_actual_trigger_count = 0
     for key, decision in surface_decisions.items():
         if key not in max_dd_keys:
             continue
@@ -108,7 +109,8 @@ def _period_probe(
         surface_raw = modes[surface_mode][key]
         trigger_at = surface_raw.first_protection_at
         if trigger_at is None:
-            raise ValueError("max-DD probe missing Surface trigger")
+            no_actual_trigger_count += 1
+            continue
         reachable = v30._eligible_actions(family)
         v30._assert_common_path(
             key=key,
@@ -281,6 +283,9 @@ def _period_probe(
                 max_dd_keys
             ),
             "surface_max_dd_trigger_state_count": probed_states,
+            "surface_max_dd_no_actual_trigger_count": (
+                no_actual_trigger_count
+            ),
             "transition_count": len(frozen),
             "summary": simulator._action_summary(frozen),
             "by_action": {
