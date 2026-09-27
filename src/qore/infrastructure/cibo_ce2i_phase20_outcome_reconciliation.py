@@ -308,6 +308,13 @@ def _reconcile_bound_outcome(
         raise CiboCapitalManagementError(
             "Phase20D executed-risk evidence must follow decision"
         )
+    if (
+        executed_risk.capital_deployed_at is not None
+        and executed_risk.capital_deployed_at <= decision_at
+    ):
+        raise CiboCapitalManagementError(
+            "Phase20D full-fill deployment must follow decision"
+        )
     if reconciled_at <= executed_risk.observed_at:
         raise CiboCapitalManagementError(
             "Phase20D outcome reconciliation must follow risk evidence"
