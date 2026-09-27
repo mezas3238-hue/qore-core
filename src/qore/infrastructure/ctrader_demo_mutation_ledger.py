@@ -36,6 +36,84 @@ def ctrader_submission_digest(submission: ExecutionSubmission) -> str:
 
 
 @dataclass(frozen=True, slots=True)
+class CTraderDemoDurableFillRecord:
+    """Exact provider fill facts needed for restart-safe economic audit."""
+
+    fill_ref: str
+    fill_quantity: str
+    cumulative_quantity: str
+    fill_price: str
+    provider_timestamp: datetime
+    received_at: datetime
+    is_complete: bool
+
+    def __post_init__(self) -> None:
+        for value, field_name in (
+            (self.fill_ref, "fill_ref"),
+            (self.fill_quantity, "fill_quantity"),
+            (self.cumulative_quantity, "cumulative_quantity"),
+            (self.fill_price, "fill_price"),
+        ):
+            if not isinstance(value, str) or not value:
+                raise CTraderDemoMutationLedgerError(
+                    f"durable fill {field_name} must be non-empty"
+                )
+        for value, field_name in (
+            (self.provider_timestamp, "provider_timestamp"),
+            (self.received_at, "received_at"),
+        ):
+            if value.tzinfo is None or value.utcoffset() is None:
+                raise CTraderDemoMutationLedgerError(
+                    f"durable fill {field_name} must be timezone-aware"
+                )
+        if self.received_at < self.provider_timestamp:
+            raise CTraderDemoMutationLedgerError(
+                "durable fill receive time cannot predate provider time"
+            )
+        if type(self.is_complete) is not bool:
+            raise CTraderDemoMutationLedgerError(
+                "durable fill is_complete must be strict bool"
+            )
+
+    def as_json(self) -> dict[str, object]:
+        return {
+            "fill_ref": self.fill_ref,
+            "fill_quantity": self.fill_quantity,
+            "cumulative_quantity": self.cumulative_quantity,
+            "fill_price": self.fill_price,
+            "provider_timestamp": self.provider_timestamp.isoformat(),
+            "received_at": self.received_at.isoformat(),
+            "is_complete": self.is_complete,
+        }
+
+    @classmethod
+    def from_json(cls, value: object) -> CTraderDemoDurableFillRecord:
+        if not isinstance(value, dict):
+            raise CTraderDemoMutationLedgerError(
+                "durable fill record must be an object"
+            )
+        try:
+            complete = value["is_complete"]
+            if type(complete) is not bool:
+                raise TypeError("durable fill is_complete must be bool")
+            return cls(
+                fill_ref=str(value["fill_ref"]),
+                fill_quantity=str(value["fill_quantity"]),
+                cumulative_quantity=str(value["cumulative_quantity"]),
+                fill_price=str(value["fill_price"]),
+                provider_timestamp=datetime.fromisoformat(
+                    str(value["provider_timestamp"])
+                ),
+                received_at=datetime.fromisoformat(str(value["received_at"])),
+                is_complete=complete,
+            )
+        except (KeyError, TypeError, ValueError) as error:
+            raise CTraderDemoMutationLedgerError(
+                "invalid durable fill record"
+            ) from error
+
+
+@dataclass(frozen=True, slots=True)
 class CTraderDemoMutationLedgerRecord:
     """Recoverable evidence for one and only one provider mutation."""
 
@@ -50,6 +128,7 @@ class CTraderDemoMutationLedgerRecord:
     outcome: str | None = None
     fill_refs: tuple[str, ...] = ()
     fill_identities: tuple[tuple[str, str], ...] = ()
+    fill_observations: tuple[CTraderDemoDurableFillRecord, ...] = ()
     cumulative_quantity: str = "0"
     is_complete: bool = False
     risk_authorization_id: str | None = None
@@ -87,6 +166,22 @@ class CTraderDemoMutationLedgerRecord:
             raise CTraderDemoMutationLedgerError(
                 "fill_identities must contain reference/digest pairs"
             )
+        if not isinstance(self.fill_observations, tuple) or any(
+            not isinstance(item, CTraderDemoDurableFillRecord)
+            for item in self.fill_observations
+        ):
+            raise CTraderDemoMutationLedgerError(
+                "fill_observations must contain canonical durable fills"
+            )
+        observed_refs = tuple(item.fill_ref for item in self.fill_observations)
+        if len(observed_refs) != len(set(observed_refs)):
+            raise CTraderDemoMutationLedgerError(
+                "fill_observations cannot duplicate fill_ref"
+            )
+        if self.fill_observations and set(observed_refs) != set(self.fill_refs):
+            raise CTraderDemoMutationLedgerError(
+                "durable exact fill references must match fill_refs"
+            )
 
     def with_risk(
         self,
@@ -108,6 +203,9 @@ class CTraderDemoMutationLedgerRecord:
             "cumulative_quantity": self.cumulative_quantity,
             "fill_refs": list(self.fill_refs),
             "fill_identities": [list(item) for item in self.fill_identities],
+            "fill_observations": [
+                item.as_json() for item in self.fill_observations
+            ],
             "idempotency_key": self.idempotency_key,
             "is_complete": self.is_complete,
             "outcome": self.outcome,
@@ -140,6 +238,10 @@ class CTraderDemoMutationLedgerRecord:
                 fill_refs=tuple(value.get("fill_refs", ())),
                 fill_identities=tuple(
                     tuple(item) for item in value.get("fill_identities", ())
+                ),
+                fill_observations=tuple(
+                    CTraderDemoDurableFillRecord.from_json(item)
+                    for item in value.get("fill_observations", ())
                 ),
                 cumulative_quantity=value.get("cumulative_quantity", "0"),
                 is_complete=value.get("is_complete", False),
@@ -175,7 +277,7 @@ class InMemoryCTraderDemoMutationLedger:
 class JsonFileCTraderDemoMutationLedger:
     """Single-file journal committed with fsync + atomic replace in one directory."""
 
-    SCHEMA_VERSION = 1
+    SCHEMA_VERSION = 2
 
     def __init__(self, path: Path) -> None:
         if not isinstance(path, Path) or not path.name:
@@ -189,8 +291,11 @@ class JsonFileCTraderDemoMutationLedger:
             return {}
         try:
             raw = json.loads(self._path.read_text(encoding="utf-8"))
-            if raw.get("schema_version") != self.SCHEMA_VERSION:
-                raise CTraderDemoMutationLedgerError("unsupported mutation ledger schema")
+            schema_version = raw.get("schema_version")
+            if schema_version not in {1, self.SCHEMA_VERSION}:
+                raise CTraderDemoMutationLedgerError(
+                    "unsupported mutation ledger schema"
+                )
             parsed = tuple(
                 CTraderDemoMutationLedgerRecord.from_json(item)
                 for item in raw.get("records", ())
