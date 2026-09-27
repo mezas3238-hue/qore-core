@@ -108,9 +108,9 @@ def build_phase20_demo_regime_state(
         raise CiboCapitalManagementError(
             "Phase20D DEMO regime opportunity_count must be non-negative int"
         )
-    if not snapshots or not provider_specs:
+    if (not snapshots or not provider_specs) and opportunity_count > 0:
         raise CiboCapitalManagementError(
-            "Phase20D DEMO regime requires market/provider evidence"
+            "Phase20D DEMO candidate regime requires market/provider evidence"
         )
     if not isinstance(account_state, CTraderDemoAccountState):
         raise CiboCapitalManagementError(
@@ -135,6 +135,39 @@ def build_phase20_demo_regime_state(
     if type(position_path_adverse) is not bool:
         raise CiboCapitalManagementError(
             "Phase20D DEMO regime position_path_adverse must be bool"
+        )
+
+    if not snapshots or not provider_specs:
+        equity = account_state.equity
+        risk_used = max(
+            Decimal(0),
+            risk_constraints.aggregate_pre_order_worst_case_usd,
+        )
+        margin_total = account_state.margin + account_state.free_margin
+        drawdown = max(
+            Decimal(0),
+            highest_closed_balance - account_state.equity,
+        )
+        return CiboCapitalRegimeState(
+            liquidity=LiquidityState.STRESSED,
+            volatility=VolatilityState.DISLOCATED,
+            correlation=CorrelationState.BREAK,
+            provider_condition=ProviderCondition.UNAVAILABLE,
+            risk_utilization=_bounded_ratio(
+                risk_used,
+                max(equity, Decimal("0.00000001")),
+            ),
+            margin_utilization=_bounded_ratio(
+                account_state.margin,
+                margin_total,
+            ),
+            drawdown_utilization=_bounded_ratio(
+                drawdown,
+                highest_closed_balance,
+            ),
+            opportunity_count=0,
+            position_path_adverse=position_path_adverse,
+            evidence_stale=True,
         )
 
     snapshot_by_symbol = {item.symbol: item for item in snapshots}
