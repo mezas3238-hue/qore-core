@@ -130,7 +130,7 @@ def test_funded_uses_full_remaining_capacity_after_base_is_protected() -> None:
     assert decision.plan.volume == Decimal("6.00")
     assert decision.plan.stop_risk_usd == Decimal("60.00")
     assert decision.plan.capital_source is (
-        CapitalSource.CERTIFIED_LIMITED_DOWNSIDE_CAPACITY
+        CapitalSource.REALIZED_PROFIT
     )
 
 
