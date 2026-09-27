@@ -352,6 +352,21 @@ class DurablePhase20ForwardEvidenceStore:
                     raise DurablePhase20ForwardEvidenceError(
                         "forward decision payload already sealed under another id"
                     )
+                provisional_seal = _decision_seal(
+                    evidence,
+                    sealed_at=None,
+                    seal_deadline_at=seal_deadline_at,
+                )
+                provisional = VersionedPhase20ForwardEvidenceBook(
+                    generation=current.generation + 1,
+                    decisions=current.decisions + (provisional_seal,),
+                    outcomes=current.outcomes,
+                )
+                # First make the pre-decision evidence physically durable.
+                # Until the completion witness below is persisted, sealed_at
+                # stays None and qualification must fail closed.
+                self._write_unlocked(provisional)
+
                 sealed_at = self._clock()
                 if sealed_at.tzinfo is None or sealed_at.utcoffset() is None:
                     raise DurablePhase20ForwardEvidenceError(
@@ -363,10 +378,13 @@ class DurablePhase20ForwardEvidenceStore:
                     seal_deadline_at=seal_deadline_at,
                 )
                 updated = VersionedPhase20ForwardEvidenceBook(
-                    generation=current.generation + 1,
+                    generation=provisional.generation,
                     decisions=current.decisions + (seal,),
                     outcomes=current.outcomes,
                 )
+                # Persist the completion witness without changing the decision
+                # payload or generation. A crash before this write leaves the
+                # durable decision explicitly incomplete/ineligible.
                 self._write_unlocked(updated)
                 return updated
             finally:
