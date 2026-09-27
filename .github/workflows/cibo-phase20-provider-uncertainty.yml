@@ -9,14 +9,17 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_capital_state_monte_carlo.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_mechanism_certification.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py'
       - 'scripts/cibo_phase20_provider_uncertainty_contract.py'
       - 'scripts/cibo_phase20_counterfactual_stress_matrix.py'
       - 'scripts/cibo_phase20_capital_state_monte_carlo_contract.py'
       - 'scripts/cibo_phase20_mechanism_certification.py'
+      - 'scripts/cibo_phase20_failure_engineering.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_mechanism_certification.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py'
   push:
     branches:
       - agent/cibo-capital-efficiency-sizing-lab-001
@@ -26,14 +29,17 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_capital_state_monte_carlo.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_mechanism_certification.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py'
       - 'scripts/cibo_phase20_provider_uncertainty_contract.py'
       - 'scripts/cibo_phase20_counterfactual_stress_matrix.py'
       - 'scripts/cibo_phase20_capital_state_monte_carlo_contract.py'
       - 'scripts/cibo_phase20_mechanism_certification.py'
+      - 'scripts/cibo_phase20_failure_engineering.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_mechanism_certification.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py'
 
 permissions:
   contents: read
@@ -59,23 +65,28 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py \
             src/qore/infrastructure/cibo_ce2i_phase20_capital_state_monte_carlo.py \
             src/qore/infrastructure/cibo_ce2i_phase20_mechanism_certification.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py \
             scripts/cibo_phase20_provider_uncertainty_contract.py \
             scripts/cibo_phase20_counterfactual_stress_matrix.py \
             scripts/cibo_phase20_capital_state_monte_carlo_contract.py \
             scripts/cibo_phase20_mechanism_certification.py \
+            scripts/cibo_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py \
             tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py \
-            tests/infrastructure/test_cibo_ce2i_phase20_mechanism_certification.py
+            tests/infrastructure/test_cibo_ce2i_phase20_mechanism_certification.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py
           mypy \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py \
             src/qore/infrastructure/cibo_ce2i_phase20_capital_state_monte_carlo.py \
             src/qore/infrastructure/cibo_ce2i_phase20_mechanism_certification.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py \
             scripts/cibo_phase20_provider_uncertainty_contract.py \
             scripts/cibo_phase20_counterfactual_stress_matrix.py \
             scripts/cibo_phase20_capital_state_monte_carlo_contract.py \
-            scripts/cibo_phase20_mechanism_certification.py
+            scripts/cibo_phase20_mechanism_certification.py \
+            scripts/cibo_phase20_failure_engineering.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py \
@@ -108,6 +119,9 @@ jobs:
           python scripts/cibo_phase20_mechanism_certification.py \
             --output phase20-output/phase20-mechanism-certification.json \
             > phase20-output/mechanism-certification-stdout.json
+          python scripts/cibo_phase20_failure_engineering.py \
+            --output phase20-output/phase20-failure-engineering.json \
+            > phase20-output/failure-engineering-stdout.json
       - name: Seal Phase 20 provider uncertainty evidence
         run: |
           printf '%s\n' "$EVIDENCE_SHA" > phase20-output/git-sha.txt
@@ -121,6 +135,8 @@ jobs:
             capital-state-monte-carlo-stdout.json \
             phase20-mechanism-certification.json \
             mechanism-certification-stdout.json \
+            phase20-failure-engineering.json \
+            failure-engineering-stdout.json \
             git-sha.txt > SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
