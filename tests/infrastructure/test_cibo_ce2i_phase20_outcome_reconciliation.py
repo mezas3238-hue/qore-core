@@ -225,10 +225,11 @@ def _risk(decision: Phase20ForwardDecisionEvidence) -> Phase20ExecutedRiskEviden
         structural_stop_price=Decimal("99"),
         stop_risk_per_volume_at_intended_entry_usd=Decimal("10"),
         executed_initial_stop_risk_usd=Decimal("10"),
-        observed_at=DECISION_AT + timedelta(seconds=1),
+        observed_at=DECISION_AT + timedelta(minutes=1),
         fill_evidence_refs=("fill-1",),
         fill_reconciled=True,
         mutation_outcome_known=True,
+        capital_deployed_at=DECISION_AT + timedelta(minutes=1),
     )
 
 
@@ -240,11 +241,15 @@ def test_reconciled_terminal_outcome_uses_executed_risk_denominator() -> None:
         settlement=_settlement(),
         executed_risk=_risk(decision),
         reconciled_at=DECISION_AT + timedelta(hours=1),
+        capital_released_at=DECISION_AT + timedelta(minutes=31),
     )
 
     assert outcome.outcome_reconciled is True
     assert outcome.realized_structural_outcome_r == Decimal("2")
     assert outcome.signal_fingerprint == "outcome-vt31"
+    assert outcome.capital_minutes == Decimal("30")
+    assert outcome.capital_deployed_at == DECISION_AT + timedelta(minutes=1)
+    assert outcome.capital_released_at == DECISION_AT + timedelta(minutes=31)
 
 
 def test_outcome_reconciliation_rejects_partial_open_settlement() -> None:
