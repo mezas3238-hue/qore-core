@@ -186,6 +186,7 @@ def reconcile_phase20_forward_outcome_from_seal(
     settlement: CmaSettlementState,
     executed_risk: Phase20ExecutedRiskEvidence,
     reconciled_at: datetime,
+    capital_released_at: datetime | None = None,
 ) -> Phase20ForwardOutcomeEvidence:
     """Reconcile terminal outcome from durable decision evidence after restart."""
 
@@ -217,6 +218,7 @@ def reconcile_phase20_forward_outcome_from_seal(
         settlement=settlement,
         executed_risk=executed_risk,
         reconciled_at=reconciled_at,
+        capital_released_at=capital_released_at,
     )
 
 
@@ -226,6 +228,7 @@ def reconcile_phase20_forward_outcome(
     settlement: CmaSettlementState,
     executed_risk: Phase20ExecutedRiskEvidence,
     reconciled_at: datetime,
+    capital_released_at: datetime | None = None,
 ) -> Phase20ForwardOutcomeEvidence:
     """Create terminal structural R only from reconciled execution economics."""
 
@@ -259,6 +262,7 @@ def reconcile_phase20_forward_outcome(
         settlement=settlement,
         executed_risk=executed_risk,
         reconciled_at=reconciled_at,
+        capital_released_at=capital_released_at,
     )
 
 
@@ -270,6 +274,7 @@ def _reconcile_bound_outcome(
     settlement: CmaSettlementState,
     executed_risk: Phase20ExecutedRiskEvidence,
     reconciled_at: datetime,
+    capital_released_at: datetime | None = None,
 ) -> Phase20ForwardOutcomeEvidence:
     if executed_risk.decision_evidence_sha256 != decision_sha:
         raise CiboCapitalManagementError(
@@ -308,6 +313,26 @@ def _reconcile_bound_outcome(
             "Phase20D outcome reconciliation must follow risk evidence"
         )
 
+    capital_minutes: Decimal | None = None
+    if capital_released_at is not None:
+        _aware(capital_released_at, name="capital_released_at")
+        if executed_risk.capital_deployed_at is None:
+            raise CiboCapitalManagementError(
+                "Phase20D exact capital deployment timestamp is unavailable"
+            )
+        if capital_released_at <= executed_risk.capital_deployed_at:
+            raise CiboCapitalManagementError(
+                "Phase20D capital release must follow full-fill deployment"
+            )
+        capital_minutes = Decimal(
+            str(
+                (
+                    capital_released_at
+                    - executed_risk.capital_deployed_at
+                ).total_seconds()
+            )
+        ) / Decimal("60")
+
     structural_r = (
         settlement.realized_net_pnl_usd
         / executed_risk.executed_initial_stop_risk_usd
@@ -328,6 +353,21 @@ def _reconcile_bound_outcome(
         "executed_initial_stop_risk_usd": format(
             executed_risk.executed_initial_stop_risk_usd,
             "f",
+        ),
+        "capital_deployed_at": (
+            None
+            if executed_risk.capital_deployed_at is None
+            else executed_risk.capital_deployed_at.isoformat()
+        ),
+        "capital_released_at": (
+            None
+            if capital_released_at is None
+            else capital_released_at.isoformat()
+        ),
+        "capital_minutes": (
+            None
+            if capital_minutes is None
+            else format(capital_minutes, "f")
         ),
         "reconciled_at": reconciled_at.isoformat(),
     }
@@ -354,6 +394,9 @@ def _reconcile_bound_outcome(
         ),
         realized_structural_outcome_r=structural_r,
         outcome_reconciled=True,
+        capital_deployed_at=executed_risk.capital_deployed_at,
+        capital_released_at=capital_released_at,
+        capital_minutes=capital_minutes,
     )
 
 
@@ -364,6 +407,7 @@ def append_reconciled_phase20_forward_outcome_from_seal(
     settlement: CmaSettlementState,
     executed_risk: Phase20ExecutedRiskEvidence,
     reconciled_at: datetime,
+    capital_released_at: datetime | None = None,
 ) -> VersionedPhase20ForwardEvidenceBook:
     """Append terminal outcome using only restart-safe durable decision evidence."""
 
@@ -376,6 +420,7 @@ def append_reconciled_phase20_forward_outcome_from_seal(
         settlement=settlement,
         executed_risk=executed_risk,
         reconciled_at=reconciled_at,
+        capital_released_at=capital_released_at,
     )
     current = store.load()
     return store.append_outcome(
@@ -391,6 +436,7 @@ def append_reconciled_phase20_forward_outcome(
     settlement: CmaSettlementState,
     executed_risk: Phase20ExecutedRiskEvidence,
     reconciled_at: datetime,
+    capital_released_at: datetime | None = None,
 ) -> VersionedPhase20ForwardEvidenceBook:
     """Reconcile and append exactly one terminal outcome with generation CAS."""
 
@@ -403,6 +449,7 @@ def append_reconciled_phase20_forward_outcome(
         settlement=settlement,
         executed_risk=executed_risk,
         reconciled_at=reconciled_at,
+        capital_released_at=capital_released_at,
     )
     current = store.load()
     return store.append_outcome(
