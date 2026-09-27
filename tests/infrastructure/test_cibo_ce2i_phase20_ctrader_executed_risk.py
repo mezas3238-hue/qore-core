@@ -47,7 +47,11 @@ KEY = ExecutionIdempotencyKey(
 )
 
 
-def _request() -> CiboRiskRequest:
+def _request(
+    *,
+    volume_step: str = "1",
+    minimum_volume: str = "1",
+) -> CiboRiskRequest:
     return CiboRiskRequest(
         request_id="request-1",
         trader_id=TraderLineage.VT31_NAS100,
@@ -60,8 +64,8 @@ def _request() -> CiboRiskRequest:
         stop_loss=Decimal("99"),
         take_profit=Decimal("102"),
         requested_volume=Decimal("1"),
-        volume_step=Decimal("1"),
-        minimum_volume=Decimal("1"),
+        volume_step=Decimal(volume_step),
+        minimum_volume=Decimal(minimum_volume),
         stop_loss_per_volume=Decimal("10"),
         margin_per_volume=Decimal("10"),
         requested_at=NOW,
@@ -235,7 +239,7 @@ def test_ctrader_executed_risk_rejects_fill_through_stop() -> None:
         )
 
 def test_ctrader_executed_risk_supports_downstream_risk_reduce() -> None:
-    request = _request()
+    request = _request(volume_step="0.1", minimum_volume="0.1")
     reduced = build_ctrader_phase20_executed_risk(
         decision_evidence_sha256="sha256:" + "a" * 64,
         position_id=78,
