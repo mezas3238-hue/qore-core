@@ -176,7 +176,13 @@ def build_report() -> dict[str, Any]:
         evidence_id="store-contract-outcome",
         decision_evidence_sha256=phase20_forward_evidence_sha256(decision),
         signal_fingerprint="store-contract-signal",
+        position_id=1,
+        execution_risk_evidence_id="store-contract-risk",
+        settlement_deal_ids=(1,),
+        fill_evidence_refs=("store-contract-fill",),
         observed_at=NOW + timedelta(hours=1),
+        realized_net_pnl_usd=Decimal("15"),
+        executed_initial_stop_risk_usd=Decimal("10"),
         realized_structural_outcome_r=Decimal("1.5"),
         outcome_reconciled=True,
     )
