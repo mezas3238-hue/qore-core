@@ -341,3 +341,42 @@ Latest clean pre-consumption foundation evidence at this checkpoint:
 No V7 R6/R5 scientific result has been accepted at this ledger checkpoint.
 Fresh evidence remains sealed.
 
+
+
+### Authoritative V7 result
+
+Authoritative run: `36283312326`  
+Git SHA: `771bfe4249987dc299e4e0259e712f7cf4e794ab`  
+Status: `WP05_V7_COMPETING_SURVIVAL_FALSIFIED`  
+Protocol: PASS  
+Development gate: FAIL  
+Fresh holdout: CLOSED
+
+Frozen identities:
+
+- model fingerprint:
+  `55a1257bf2e924b5dbf56343ecd6f3adc17c061a001b5d45221a880698b6a3a8`;
+- representation fingerprint:
+  `4e0f92489ca11ec1f0b500edf030c19e18f2caa53220332a4cf5437ea15e5de2`.
+
+V7 failed inside R8 calibration before scientific consumption of R6/R5:
+
+- R8 calibration false-declaration reduction: **9629 bps**;
+- R8 calibration terminal preservation: **736 bps**;
+- R8 evaluation false reduction: **9626 bps**;
+- R8 evaluation terminal preservation: **835 bps**;
+- recovery-supported episodes: **6201**;
+- unresolved episodes: **333**;
+- terminal-supported episodes: **0**;
+- incomplete source evidence: **0**.
+
+Interpretation:
+
+The V7 recovery head was trained on the complement of the same matured terminal
+label used by the terminal head. The empirical result shows the two heads did
+not become independent competing mechanisms: the recovery head dominated almost
+the entire R8 population and destroyed terminal preservation.
+
+This identity is permanently falsified. It must not be repaired by threshold
+retuning, feature selection or R8/R6/R5 mining. The next experiment must remove
+the complement-label dual-head assumption rather than adjust it.
