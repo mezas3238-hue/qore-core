@@ -75,6 +75,7 @@ from qore.infrastructure.cibo_ce2i_phase20_demo_runtime_bridge import (
 )
 from qore.infrastructure.cibo_ce2i_phase20_demo_single_slot import (
     Phase20DemoSingleSlotTerminal,
+    build_ctrader_demo_single_slot_known_option,
     build_ctrader_demo_single_slot_observed_opportunity,
     finalize_ctrader_demo_single_slot_phase20_policy,
     prepare_ctrader_demo_single_slot_phase20_epoch,
@@ -87,6 +88,7 @@ from qore.infrastructure.cibo_ce2i_phase20_execution_risk_store import (
     DurablePhase20ExecutedRiskStore,
 )
 from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
+    Phase20ForwardKnownOptionEvidence,
     Phase20ForwardPopulationDisposition,
 )
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
@@ -229,6 +231,9 @@ _vt31_adapter = import_module("vt31_nas100_ctrader_demo_adapter")
 evaluate_vt31_boundary = _vt31_adapter.evaluate_boundary
 prepare_vt31_boundary = _vt31_adapter.prepare_boundary
 manage_vt31_open_trade = _vt31_adapter.manage_open_trade
+build_vt31_virtual_order_opportunity = (
+    _vt31_adapter.build_virtual_order_opportunity
+)
 process_vt31_virtual_oco = _vt31_adapter.process_virtual_oco
 reconcile_vt31_pending = _vt31_adapter.reconcile_pending
 vt31_runtime_started_fields = _vt31_adapter.runtime_started_fields
@@ -1286,6 +1291,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         account_state_for_shadow: CTraderDemoAccountState,
         opportunity: TraderOpportunityEnvelope | None = None,
         provider_spec: CTraderDemoSymbolSpecification | None = None,
+        known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
     ) -> None:
         """Observe one sovereign Trader boundary without blocking execution."""
 
@@ -1294,6 +1300,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         effective_reason = reason
         effective_obportunity = opportunity
         effective_provider = provider_spec
+        effective_known_options = known_options
         terminal_at = terminal_observed_at
         decision_at = sealed_at
         if sealed_at > deadline_at or terminal_observed_at > deadline_at:
@@ -1303,6 +1310,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             effective_reason = "PHASE20D_SHADOW_DEADLINE_MISSED"
             effective_obportunity = None
             effective_provider = None
+            effective_known_options = ()
             terminal_at = deadline_at
             decision_at = deadline_at
         try:
@@ -1352,6 +1360,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     0,
                     int(opened_at.timestamp() // 60),
                 ),
+                known_options=effective_known_options,
             )
             finalized = finalize_ctrader_demo_single_slot_phase20_policy(
                 prepared=prepared,
@@ -1372,6 +1381,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     ),
                     "disposition": effective_disposition.value,
                     "reason": effective_reason,
+                    "known_options_count": len(effective_known_options),
                     "regime_policy_sha256": (
                         finalized.regime_policy_sha256
                     ),
