@@ -26,7 +26,6 @@ from qore.infrastructure.cibo_ce2i_phase19_walk_forward import (
     phase19j_survival_failures,
 )
 
-
 START = datetime(2022, 3, 9, 17, tzinfo=UTC)
 END = datetime(2022, 6, 29, 9, tzinfo=UTC)
 
