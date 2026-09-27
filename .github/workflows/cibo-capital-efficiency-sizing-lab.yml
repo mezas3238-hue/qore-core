@@ -65,6 +65,11 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py \
             src/qore/infrastructure/cibo_account_capital_mission.py \
+            src/qore/infrastructure/cibo_account_sizing_authority.py \
+            src/qore/infrastructure/cibo_ctrader_demo_sizing.py \
+            src/qore/infrastructure/ctrader_demo_allocation_only.py \
+            src/qore/infrastructure/ctrader_demo_free_sink.py \
+            src/qore/infrastructure/fundednext_operational_risk_policy.py \
             src/qore/infrastructure/cibo_trader_opportunity_adapter.py \
             src/qore/infrastructure/cibo_economic_floor.py \
             src/qore/infrastructure/cibo_capital_state_machine.py \
@@ -165,6 +170,10 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
             tests/infrastructure/test_cibo_account_capital_mission.py \
+            tests/infrastructure/test_cibo_account_sizing_authority.py \
+            tests/infrastructure/test_cibo_ctrader_demo_sizing.py \
+            tests/infrastructure/test_ctrader_demo_allocation_only.py \
+            tests/infrastructure/test_fundednext_operational_risk_policy.py \
             tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
             tests/infrastructure/test_cibo_economic_floor.py \
             tests/infrastructure/test_cibo_capital_state_machine.py \
@@ -208,6 +217,10 @@ jobs:
       - name: Compile integration surface
         run: |
           python -m py_compile \
+            src/qore/infrastructure/cibo_account_sizing_authority.py \
+            src/qore/infrastructure/cibo_ctrader_demo_sizing.py \
+            src/qore/infrastructure/cibo_fundednext_seed.py \
+            src/qore/infrastructure/ctrader_demo_allocation_only.py \
             src/qore/infrastructure/ctrader_demo_free_sink.py \
             src/qore/infrastructure/r34_xauusd_live.py \
             src/qore/infrastructure/r38_eurusd_live.py \
@@ -263,6 +276,11 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py \
             src/qore/infrastructure/cibo_account_capital_mission.py \
+            src/qore/infrastructure/cibo_account_sizing_authority.py \
+            src/qore/infrastructure/cibo_ctrader_demo_sizing.py \
+            src/qore/infrastructure/ctrader_demo_allocation_only.py \
+            src/qore/infrastructure/ctrader_demo_free_sink.py \
+            src/qore/infrastructure/fundednext_operational_risk_policy.py \
             src/qore/infrastructure/cibo_trader_opportunity_adapter.py \
             src/qore/infrastructure/cibo_economic_floor.py \
             src/qore/infrastructure/cibo_capital_state_machine.py \
@@ -362,6 +380,10 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
             tests/infrastructure/test_cibo_account_capital_mission.py \
+            tests/infrastructure/test_cibo_account_sizing_authority.py \
+            tests/infrastructure/test_cibo_ctrader_demo_sizing.py \
+            tests/infrastructure/test_ctrader_demo_allocation_only.py \
+            tests/infrastructure/test_fundednext_operational_risk_policy.py \
             tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
             tests/infrastructure/test_cibo_economic_floor.py \
             tests/infrastructure/test_cibo_capital_state_machine.py \
@@ -444,6 +466,10 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
             tests/infrastructure/test_cibo_account_capital_mission.py \
+            tests/infrastructure/test_cibo_account_sizing_authority.py \
+            tests/infrastructure/test_cibo_ctrader_demo_sizing.py \
+            tests/infrastructure/test_ctrader_demo_allocation_only.py \
+            tests/infrastructure/test_fundednext_operational_risk_policy.py \
             tests/infrastructure/test_cibo_trader_opportunity_adapter.py \
             tests/infrastructure/test_cibo_economic_floor.py \
             tests/infrastructure/test_cibo_capital_state_machine.py \
