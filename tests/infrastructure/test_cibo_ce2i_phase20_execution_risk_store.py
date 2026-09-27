@@ -21,7 +21,14 @@ def _evidence() -> Phase20ExecutedRiskEvidence:
         evidence_id="risk-evidence-1",
         decision_evidence_sha256="sha256:" + "a" * 64,
         signal_fingerprint="signal-1",
+        qore_symbol="NAS100",
         position_id=77,
+        authorized_source_volume=Decimal("1"),
+        filled_source_volume=Decimal("1"),
+        weighted_fill_price=Decimal("100.15"),
+        intended_entry_price=Decimal("100"),
+        structural_stop_price=Decimal("99"),
+        stop_risk_per_volume_at_intended_entry_usd=Decimal("10"),
         executed_initial_stop_risk_usd=Decimal("11.5"),
         observed_at=NOW,
         fill_evidence_refs=("fill-1", "fill-2"),
@@ -69,6 +76,7 @@ def test_executed_risk_conflicting_denominator_fails_closed(
     conflicting = replace(
         _evidence(),
         evidence_id="risk-evidence-2",
+        weighted_fill_price=Decimal("100.2"),
         executed_initial_stop_risk_usd=Decimal("12"),
     )
 
