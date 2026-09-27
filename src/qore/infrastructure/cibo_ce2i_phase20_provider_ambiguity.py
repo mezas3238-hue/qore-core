@@ -47,7 +47,7 @@ class Phase20DecimalInterval:
         cls,
         lower: Decimal,
         upper: Decimal,
-    ) -> "Phase20DecimalInterval":
+    ) -> Phase20DecimalInterval:
         interval = cls(lower=lower, upper=upper)
         if interval.lower < 0:
             raise CiboCapitalManagementError(
@@ -60,7 +60,7 @@ class Phase20DecimalInterval:
         cls,
         lower: Decimal,
         upper: Decimal,
-    ) -> "Phase20DecimalInterval":
+    ) -> Phase20DecimalInterval:
         interval = cls(lower=lower, upper=upper)
         if interval.lower <= 0:
             raise CiboCapitalManagementError(
