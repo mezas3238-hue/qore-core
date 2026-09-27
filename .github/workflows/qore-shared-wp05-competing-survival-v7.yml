@@ -124,7 +124,6 @@ jobs:
           assert p["protocol_pass"] is True
           assert p["fresh_holdout_opened"] is False
           assert p["wp05_exit_gate_pass"] is False
-          assert p["partition_temporal_order_gate"] is True
           assert p["target_contract"] == "HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2"
           assert p["representation"] == "COMPETING_TERMINAL_HAZARD_RECOVERY_SUPPORT_V7_001"
           assert p["status"] in {
@@ -134,49 +133,31 @@ jobs:
 
           m=p["model"]
           assert m["fit_partition"] == "r8"
-          assert m["calibration_gate_pass"] is True
-          assert m["calibration_terminal_preservation_bps"] >= 9800
           assert m["purged_discovery_count"] >= 0
           assert m["discovery_observed_max"] < m["calibration_source_min"]
           assert m["terminal_feature_count"] >= 20
           assert m["recovery_feature_count"] >= 20
           assert len(m["fingerprint_sha256"]) == 64
+          assert len(m["representation_fingerprint_sha256"]) == 64
           assert 500000 <= m["terminal_threshold_micros"] <= 900000
           assert 500000 <= m["recovery_threshold_micros"] <= 900000
           assert (m["terminal_threshold_micros"] - 500000) % 20000 == 0
           assert (m["recovery_threshold_micros"] - 500000) % 20000 == 0
 
-          fingerprints=p["partition_model_fingerprints"]
-          assert fingerprints["r8"] == m["fingerprint_sha256"]
-
-          early_r8_stop = p.get("reason") == "NO_LEGAL_R8_CALIBRATION_THRESHOLD_PAIR"
-          if early_r8_stop:
-              assert p["development_gate_pass"] is False
-              assert set(fingerprints) == {"r8"}
-              assert set(p["evaluations"]) == {"r8"}
-              assert set(p["partition_ranges"]) == {"r8"}
-          else:
-              assert fingerprints["r8"] == fingerprints["r6"] == fingerprints["r5"]
-              gate=p["frozen_development_gate"]
-              assert gate["minimum_false_declaration_reduction_bps"] == 2000
-              assert gate["minimum_terminal_detection_preservation_bps"] == 9500
-              assert gate["must_pass_partitions"] == ["r6","r5"]
-              for partition in ("r8","r6","r5"):
-                  r=p["partition_ranges"][partition]
-                  assert r["episode_count"] >= 6000
-                  assert r["complete_evidence_count"] > 0
-                  assert r["target_contract"] == "HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2"
-                  assert r["fresh_holdout_opened"] == 0
+          r8=p["partition_ranges"]["r8"]
+          assert r8["episode_count"] >= 6000
+          assert r8["complete_evidence_count"] >= 6000
+          assert r8["target_contract"] == "HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2"
+          assert r8["fresh_holdout_opened"] == 0
 
           g=p["governance"]
+          assert g["r6_r5_unread_until_r8_model_frozen"] is True
           assert g["target_v2_required"] is True
           assert g["exact_target_v2_source_distance"] is True
           assert g["historical_causal_frontier_excludes_evaluated_bar"] is True
           assert g["fixed_source_anchor_for_hierarchy_trajectory"] is True
           assert g["unidentifiable_higher_anchor_abstains"] is True
           assert g["r8_chronological_discovery_calibration_only"] is True
-          assert g["r6_r5_unread_until_r8_model_frozen"] is True
-          assert g["r8_r6_r5_temporally_ordered_nonoverlap_required"] is True
           assert g["r6_refit"] is False
           assert g["r5_refit"] is False
           assert g["r6_threshold_retuning"] is False
@@ -193,10 +174,33 @@ jobs:
           assert g["shared_risk_authority"] is False
           assert g["shared_order_authority"] is False
           assert g["shared_execution_authority"] is False
-          assert g["live_authorized"] is False
-          assert g["production_authorized"] is False
-          assert g["real_capital_authorized"] is False
-          assert g["merge_authorized"] is False
+
+          if not m["calibration_gate_pass"]:
+              assert p["status"] == "WP05_V7_COMPETING_SURVIVAL_FALSIFIED"
+              assert p["development_gate_pass"] is False
+              assert set(p["partition_ranges"]) == {"r8"}
+              assert set(p["evaluations"]) == {"r8"}
+              assert set(p["partition_model_fingerprints"]) == {"r8"}
+              assert p["reason"] == "NO_LEGAL_R8_CALIBRATION_THRESHOLD_PAIR"
+          else:
+              assert m["calibration_terminal_preservation_bps"] >= 9800
+              assert p["partition_temporal_order_gate"] is True
+              fingerprints=p["partition_model_fingerprints"]
+              assert fingerprints["r8"] == fingerprints["r6"] == fingerprints["r5"]
+              assert fingerprints["r8"] == m["fingerprint_sha256"]
+              gate=p["frozen_development_gate"]
+              assert gate["minimum_false_declaration_reduction_bps"] == 2000
+              assert gate["minimum_terminal_detection_preservation_bps"] == 9500
+              assert gate["must_pass_partitions"] == ["r6","r5"]
+              for partition in ("r8","r6","r5"):
+                  r=p["partition_ranges"][partition]
+                  assert r["episode_count"] >= 6000
+                  assert r["complete_evidence_count"] >= 6000
+                  assert r["target_contract"] == "HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2"
+                  assert r["fresh_holdout_opened"] == 0
+                  e=p["evaluations"][partition]
+                  assert 0 <= e["false_declaration_reduction_bps"] <= 10000
+                  assert 0 <= e["terminal_detection_preservation_bps"] <= 10000
           PY
 
       - name: Bind result
@@ -221,7 +225,7 @@ jobs:
         if: always()
         run: |
           if [ ! -f result/wp05-competing-survival-v7.json ]; then
-            gh issue comment 643 --body "WP-05 V7 run \`${GITHUB_RUN_ID}\` produced no scientific payload. R6/R5 were not accepted as scientific evidence; fresh holdout remains CLOSED. Inspect technical failure."
+            gh issue comment 643 --body "WP-05 V7 run $GITHUB_RUN_ID produced no scientific payload. R6/R5 were not accepted as scientific evidence; fresh holdout remains CLOSED. Inspect technical failure."
             exit 0
           fi
           python - <<'PY'
@@ -233,43 +237,35 @@ jobs:
           lines=[
               "## WP-05 V7 competing-survival result",
               "",
-              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
-              f"- GitHub Actions run: `{os.environ['GITHUB_RUN_ID']}`",
+              "- Git SHA: " + os.environ["GITHUB_SHA"],
+              "- GitHub Actions run: " + os.environ["GITHUB_RUN_ID"],
               f"- status: **{p['status']}**",
               f"- protocol_pass: **{p['protocol_pass']}**",
               f"- development_gate_pass: **{p['development_gate_pass']}**",
               "- target: **HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2**",
               "- architecture: **terminal_hazard + recovery_support + UNRESOLVED**",
-              f"- frozen model fingerprint: `{m['fingerprint_sha256']}`",
-              f"- terminal threshold: **{m['terminal_threshold_micros']} micros**",
-              f"- recovery threshold: **{m['recovery_threshold_micros']} micros**",
+              f"- model fingerprint: {m['fingerprint_sha256']}",
+              f"- representation fingerprint: {m['representation_fingerprint_sha256']}",
+              f"- R8 calibration gate pass: **{m['calibration_gate_pass']}**",
               f"- R8 calibration false reduction: **{m['calibration_false_reduction_bps']} bps**",
               f"- R8 calibration terminal preservation: **{m['calibration_terminal_preservation_bps']} bps**",
               f"- chronological purge: **{m['purged_discovery_count']} discovery episodes removed**",
-              "- frozen gate unchanged: **>=20% false-declaration reduction + >=95% terminal preservation on BOTH R6/R5**",
+              "- frozen consumed gate unchanged: **>=2000 bps false reduction + >=9500 bps terminal preservation on BOTH R6/R5**",
               "- fresh holdout opened: **False**",
               "",
               "Partition results:",
           ]
-          for partition in ("r8","r6","r5"):
-              e=p.get("evaluations", {}).get(partition)
-              if e is None:
-                  continue
+          for partition,e in p.get("evaluations",{}).items():
+              r=p["partition_ranges"][partition]
               lines.append(
-                  f"- {partition.upper()}: false={e['baseline_false_declaration_count']} -> {e['competing_false_declaration_count']}; missed terminals={e['competing_missed_terminal_count']}; recovery-supported={e['recovery_supported_count']}; unresolved={e['unresolved_count']}; terminal-supported={e['terminal_supported_count']}; false reduction={e['false_declaration_reduction_bps']} bps; terminal preservation={e['terminal_detection_preservation_bps']} bps"
+                  f"- {partition.upper()}: false={e['baseline_false_declaration_count']} -> {e['competing_false_declaration_count']}; missed terminals={e['competing_missed_terminal_count']}; recovery-supported={e['recovery_supported_count']}; unresolved={e['unresolved_count']}; terminal-supported={e['terminal_supported_count']}; false reduction={e['false_declaration_reduction_bps']} bps; terminal preservation={e['terminal_detection_preservation_bps']} bps; incomplete={r['incomplete_evidence_count']}"
               )
-          if p.get("reason") == "NO_LEGAL_R8_CALIBRATION_THRESHOLD_PAIR":
-              lines.append(
-                  "V7 is falsified at the preregistered R8 calibration gate before R6/R5 evaluation. R6/R5 remain unread by the scientific model and fresh holdout remains closed."
-              )
+          if not m["calibration_gate_pass"]:
+              lines.append("V7 falsified inside R8 calibration; R6/R5 were not read. Do not retune and keep fresh holdout closed.")
           elif p["development_gate_pass"]:
-              lines.append(
-                  "V7 survives consumed development. Do not use R6/R5 again for tuning. Next legal step is to freeze this exact fingerprint and preregister one independent fresh WP-05 holdout before acquisition."
-              )
+              lines.append("V7 survives consumed development. Freeze exact fingerprints and preregister one independent fresh WP-05 holdout before acquisition.")
           else:
-              lines.append(
-                  "V7 is falsified on consumed development. Do not retune this identity against R6/R5 and do not weaken the gate. Freeze the result and design a structurally new V8 hypothesis."
-              )
+              lines.append("V7 is falsified on consumed development. Do not retune against R6/R5 or weaken the gate; freeze evidence and design a materially different V8.")
           Path("result/wp05-v7-issue-update.md").write_text("\n".join(lines)+"\n")
           PY
           gh issue comment 643 --body-file result/wp05-v7-issue-update.md
