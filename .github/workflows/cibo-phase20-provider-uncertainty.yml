@@ -19,6 +19,7 @@ on:
       - 'scripts/cibo_phase20_capital_action_certification.py'
       - 'scripts/cibo_phase20_interaction_ablation.py'
       - 'scripts/cibo_phase20_failure_engineering.py'
+      - 'scripts/cibo_phase20_failure_engineering_b.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py'
@@ -27,6 +28,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_interaction_ablation.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py'
   push:
     branches:
       - agent/cibo-capital-efficiency-sizing-lab-001
@@ -46,6 +48,7 @@ on:
       - 'scripts/cibo_phase20_capital_action_certification.py'
       - 'scripts/cibo_phase20_interaction_ablation.py'
       - 'scripts/cibo_phase20_failure_engineering.py'
+      - 'scripts/cibo_phase20_failure_engineering_b.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py'
@@ -54,6 +57,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_interaction_ablation.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py'
 
 permissions:
   contents: read
@@ -89,6 +93,7 @@ jobs:
             scripts/cibo_phase20_capital_action_certification.py \
             scripts/cibo_phase20_interaction_ablation.py \
             scripts/cibo_phase20_failure_engineering.py \
+            scripts/cibo_phase20_failure_engineering_b.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py \
             tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py \
@@ -97,7 +102,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_interaction_ablation.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
-            tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py
+            tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py
           mypy \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py \
@@ -112,7 +117,8 @@ jobs:
             scripts/cibo_phase20_operational_mechanism_certification.py \
             scripts/cibo_phase20_capital_action_certification.py \
             scripts/cibo_phase20_interaction_ablation.py \
-            scripts/cibo_phase20_failure_engineering.py
+            scripts/cibo_phase20_failure_engineering.py \
+            scripts/cibo_phase20_failure_engineering_b.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py \
@@ -121,7 +127,8 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_operational_mechanism_certification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_interaction_ablation.py \
-            tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py
+            tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py
 
   contract-evidence:
     needs: quality
@@ -161,6 +168,9 @@ jobs:
           python scripts/cibo_phase20_failure_engineering.py \
             --output phase20-output/phase20-failure-engineering.json \
             > phase20-output/failure-engineering-stdout.json
+          python scripts/cibo_phase20_failure_engineering_b.py \
+            --output phase20-output/phase20-failure-engineering-b.json \
+            > phase20-output/failure-engineering-b-stdout.json
       - name: Seal Phase 20 provider uncertainty evidence
         run: |
           printf '%s\n' "$EVIDENCE_SHA" > phase20-output/git-sha.txt
@@ -182,6 +192,8 @@ jobs:
             interaction-ablation-stdout.json \
             phase20-failure-engineering.json \
             failure-engineering-stdout.json \
+            phase20-failure-engineering-b.json \
+            failure-engineering-b-stdout.json \
             git-sha.txt > SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
