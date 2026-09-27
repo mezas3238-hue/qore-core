@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 from uuid import UUID
 
@@ -42,14 +42,14 @@ from qore.infrastructure.cibo_cma_settlement_store import (
 from qore.infrastructure.ctrader_demo_allocation_only import (
     CTraderDemoBrokerContract,
 )
-from qore.infrastructure.ctrader_demo_execution_gateway import (
-    ctrader_fill_identity_digest,
-)
 from qore.infrastructure.ctrader_demo_execution_contracts import (
     CTraderDemoAttemptState,
     CTraderDemoFillObservation,
     CTraderDemoFillReconciliation,
     CTraderDemoFillReconciliationStatus,
+)
+from qore.infrastructure.ctrader_demo_execution_gateway import (
+    ctrader_fill_identity_digest,
 )
 from qore.infrastructure.ctrader_demo_mutation_ledger import (
     CTraderDemoMutationLedger,
@@ -347,7 +347,7 @@ def _execution_basis(
         authorized = Decimal(str(entry.authorized_source_volume))
         UUID(str(entry.receipt_id))
         UUID(str(entry.idempotency_key))
-    except (ValueError, TypeError) as error:
+    except (InvalidOperation, ValueError, TypeError) as error:
         raise CiboCapitalManagementError(
             "Phase20D registry execution basis is invalid"
         ) from error
