@@ -66,6 +66,10 @@ from qore.infrastructure.cibo_ce2i_phase20_demo_runtime_bridge import (
     finalize_ctrader_demo_m5_phase20_policy,
     prepare_ctrader_demo_m5_phase20_epoch,
 )
+from qore.infrastructure.cibo_ce2i_phase20_demo_settlement_observer import (
+    DurablePhase20DemoSettlementCursorStore,
+    observe_ctrader_demo_phase20_settlements,
+)
 from qore.infrastructure.cibo_ce2i_phase20_execution_risk_store import (
     DurablePhase20ExecutedRiskStore,
 )
@@ -1056,6 +1060,11 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     phase20_mutation_ledger = JsonFileCTraderDemoMutationLedger(
         root / "var" / "ctrader_demo_free" / "mutations.json"
     )
+    phase20_settlement_cursor_store = (
+        DurablePhase20DemoSettlementCursorStore(
+            state_dir / "cibo-phase20-settlement-cursor.json"
+        )
+    )
     phase20_bootstrap_at = datetime.now(UTC)
     phase20_bootstrap_account = _account_state_from_demo_api(
         demo_api,
@@ -1195,6 +1204,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         state_dir / "runtime-state.json"
     )
     old = store.load()
+    phase20_recovery_status_by_signal: dict[str, str] = {}
     now = datetime.now(UTC)
     if old is not None:
         if old.git_sha != sha or old.account_identity_fingerprint != fingerprint:
@@ -2936,6 +2946,115 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "reason": type(behavior_sample_error).__name__,
                     "message": str(behavior_sample_error),
                     "observed_at": datetime.now(UTC).isoformat(),
+                },
+            )
+
+        settlement_observed_at = datetime.now(UTC)
+        try:
+            settlement_observation = observe_ctrader_demo_phase20_settlements(
+                source=demo_sink.position_service,
+                registry=demo_sink.registry,
+                settlement_store=cma_settlement_store,
+                cursor_store=phase20_settlement_cursor_store,
+                initial_cursor=phase20_assigned_base.activated_at,
+                observed_at=settlement_observed_at,
+            )
+            if settlement_observation.applied_deal_ids:
+                _log(
+                    log_path,
+                    {
+                        "event": "PHASE20D_DEMO_SETTLEMENTS_INGESTED",
+                        "observed_at": settlement_observed_at.isoformat(),
+                        "cursor_at": (
+                            settlement_observation.cursor_at.isoformat()
+                        ),
+                        "entry_cost_deal_ids": list(
+                            settlement_observation.entry_cost_deal_ids
+                        ),
+                        "partial_deal_ids": list(
+                            settlement_observation.partial_deal_ids
+                        ),
+                        "terminal_deal_ids": list(
+                            settlement_observation.terminal_deal_ids
+                        ),
+                        "broker_mutation_performed": False,
+                    },
+                )
+        except Exception as settlement_error:
+            _log(
+                log_path,
+                {
+                    "event": "PHASE20D_DEMO_SETTLEMENT_INELIGIBLE",
+                    "observed_at": settlement_observed_at.isoformat(),
+                    "reason": type(settlement_error).__name__,
+                    "message": str(settlement_error),
+                    "execution_path_blocked": False,
+                },
+            )
+
+        try:
+            forward_book = phase20_evidence_store.load()
+            sealed_phase20_signals = {
+                signal
+                for decision in forward_book.decisions
+                for signal in decision.signal_fingerprints
+            }
+            for registry_entry in demo_sink.registry.entries():
+                if (
+                    registry_entry.position_id is None
+                    or registry_entry.signal_fingerprint
+                    not in sealed_phase20_signals
+                ):
+                    continue
+                recovery = reconcile_ctrader_demo_phase20_entry(
+                    entry=registry_entry,
+                    account=account,
+                    mutation_ledger=phase20_mutation_ledger,
+                    forward_store=phase20_evidence_store,
+                    executed_risk_store=phase20_executed_risk_store,
+                    settlement_store=cma_settlement_store,
+                    reconciled_at=datetime.now(UTC),
+                )
+                recovery_status = recovery.status.value
+                prior_status = phase20_recovery_status_by_signal.get(
+                    registry_entry.signal_fingerprint
+                )
+                if prior_status != recovery_status:
+                    phase20_recovery_status_by_signal[
+                        registry_entry.signal_fingerprint
+                    ] = recovery_status
+                    _log(
+                        log_path,
+                        {
+                            "event": "PHASE20D_DEMO_RECOVERY_STATUS",
+                            "signal_fingerprint": (
+                                registry_entry.signal_fingerprint
+                            ),
+                            "position_id": recovery.position_id,
+                            "status": recovery_status,
+                            "executed_risk_evidence_id": (
+                                recovery.executed_risk_evidence_id
+                            ),
+                            "outcome_evidence_id": (
+                                recovery.outcome_evidence_id
+                            ),
+                            "broker_mutation_performed": (
+                                recovery.broker_mutation_performed
+                            ),
+                            "execution_authority": (
+                                recovery.execution_authority
+                            ),
+                        },
+                    )
+        except Exception as recovery_error:
+            _log(
+                log_path,
+                {
+                    "event": "PHASE20D_DEMO_RECOVERY_INELIGIBLE",
+                    "observed_at": datetime.now(UTC).isoformat(),
+                    "reason": type(recovery_error).__name__,
+                    "message": str(recovery_error),
+                    "execution_path_blocked": False,
                 },
             )
 
