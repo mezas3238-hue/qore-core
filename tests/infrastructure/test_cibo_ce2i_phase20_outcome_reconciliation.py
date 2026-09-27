@@ -35,7 +35,9 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
 from qore.infrastructure.cibo_ce2i_phase20_outcome_reconciliation import (
     Phase20ExecutedRiskEvidence,
     append_reconciled_phase20_forward_outcome,
+    append_reconciled_phase20_forward_outcome_from_seal,
     reconcile_phase20_forward_outcome,
+    reconcile_phase20_forward_outcome_from_seal,
 )
 from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
     FROZEN_PHASE20_POLICY_CANDIDATE,
@@ -316,3 +318,61 @@ def test_append_reconciled_outcome_is_restart_safe_and_idempotent(
     ).load()
     assert restarted == third
     assert len(restarted.outcomes) == 1
+
+def test_outcome_reconciliation_survives_restart_from_durable_decision_seal(
+    tmp_path: Path,
+) -> None:
+    decision = _decision()
+    path = tmp_path / "restart-forward.json"
+    store = DurablePhase20ForwardEvidenceStore(path)
+    store.seal_decision(decision, expected_generation=0)
+
+    restarted = DurablePhase20ForwardEvidenceStore(path)
+    book = restarted.load()
+    assert len(book.decisions) == 1
+    seal = book.decisions[0]
+
+    outcome = reconcile_phase20_forward_outcome_from_seal(
+        decision=seal,
+        settlement=_settlement(),
+        executed_risk=_risk(decision),
+        reconciled_at=DECISION_AT + timedelta(hours=1),
+    )
+
+    assert outcome.realized_net_pnl_usd == Decimal("20")
+    assert outcome.executed_initial_stop_risk_usd == Decimal("10")
+    assert outcome.realized_structural_outcome_r == Decimal("2")
+    assert outcome.position_id == 77
+    assert outcome.settlement_deal_ids == (1001, 1002)
+
+
+def test_append_outcome_from_seal_is_restart_safe_and_idempotent(
+    tmp_path: Path,
+) -> None:
+    decision = _decision()
+    path = tmp_path / "restart-append-forward.json"
+    store = DurablePhase20ForwardEvidenceStore(path)
+    store.seal_decision(decision, expected_generation=0)
+    seal = DurablePhase20ForwardEvidenceStore(path).load().decisions[0]
+
+    second = append_reconciled_phase20_forward_outcome_from_seal(
+        store=DurablePhase20ForwardEvidenceStore(path),
+        decision=seal,
+        settlement=_settlement(),
+        executed_risk=_risk(decision),
+        reconciled_at=DECISION_AT + timedelta(hours=1),
+    )
+    third = append_reconciled_phase20_forward_outcome_from_seal(
+        store=DurablePhase20ForwardEvidenceStore(path),
+        decision=seal,
+        settlement=_settlement(),
+        executed_risk=_risk(decision),
+        reconciled_at=DECISION_AT + timedelta(hours=1),
+    )
+
+    assert second.generation == 2
+    assert third.generation == 2
+    restarted = DurablePhase20ForwardEvidenceStore(path).load()
+    assert restarted == third
+    assert len(restarted.outcomes) == 1
+
