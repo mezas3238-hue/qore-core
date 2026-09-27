@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from decimal import Decimal
-
 from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
 )
