@@ -20,10 +20,11 @@ import argparse
 import json
 import math
 from collections import Counter, defaultdict
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from qore.infrastructure.trader_lab import (
     capitalizer_causal_trigger_state_veto_policy_v29 as v29,
