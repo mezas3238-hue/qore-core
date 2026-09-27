@@ -66,10 +66,9 @@ class Phase20ForwardDecisionSeal:
             raise DurablePhase20ForwardEvidenceError(
                 "forward decision policy lineage is required"
             )
-        if not self.signal_fingerprints:
-            raise DurablePhase20ForwardEvidenceError(
-                "forward decision must seal at least one candidate"
-            )
+        # A complete causal epoch may legitimately contain zero candidates.
+        # Those epochs must remain in the durable population to avoid
+        # conditioning qualification only on signal-producing periods.
         if len(self.signal_fingerprints) != len(set(self.signal_fingerprints)):
             raise DurablePhase20ForwardEvidenceError(
                 "forward decision candidate fingerprints must be unique"
