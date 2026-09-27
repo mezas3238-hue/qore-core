@@ -267,6 +267,11 @@ def _to_json(item: Phase20ExecutedRiskEvidence) -> dict[str, object]:
         "fill_evidence_refs": list(item.fill_evidence_refs),
         "fill_reconciled": item.fill_reconciled,
         "mutation_outcome_known": item.mutation_outcome_known,
+        "capital_deployed_at": (
+            None
+            if item.capital_deployed_at is None
+            else item.capital_deployed_at.isoformat()
+        ),
     }
 
 
@@ -307,6 +312,11 @@ def _from_json(value: object) -> Phase20ExecutedRiskEvidence:
         fill_evidence_refs=tuple(str(item) for item in refs),
         fill_reconciled=fill_reconciled,
         mutation_outcome_known=mutation_outcome_known,
+        capital_deployed_at=(
+            None
+            if value.get("capital_deployed_at") is None
+            else datetime.fromisoformat(str(value["capital_deployed_at"]))
+        ),
     )
 
 
