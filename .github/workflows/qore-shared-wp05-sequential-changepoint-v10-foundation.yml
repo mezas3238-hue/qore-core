@@ -53,4 +53,4 @@ jobs:
       - name: Report WP05 V10 foundation failure
         if: failure()
         run: |
-          gh issue comment 643 --body "WP-05 V10 foundation FAILED technically — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Do not execute V9 consumed evidence or alter preregistered gates until repaired. Fresh holdout remains CLOSED."
+          gh issue comment 643 --body "WP-05 V10 foundation FAILED technically — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Do not execute V10 consumed evidence or alter preregistered gates until repaired. Fresh holdout remains CLOSED."
