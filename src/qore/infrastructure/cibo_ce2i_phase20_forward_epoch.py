@@ -39,6 +39,9 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     DurablePhase20ForwardEvidenceStore,
 )
+from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
+    DurablePhase20ForwardPolicyStore,
+)
 from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
     FROZEN_PHASE20_POLICY_CANDIDATE,
 )
@@ -98,6 +101,31 @@ class Phase20ForwardObservedOpportunity:
 
 
 @dataclass(frozen=True, slots=True)
+class Phase20ForwardCollectedEpoch:
+    """Complete durable Phase20D observation and policy-decision handoff."""
+
+    evidence_generation: int
+    policy_generation: int
+    result: "Phase20ForwardEpochResult"
+
+    def __post_init__(self) -> None:
+        for name in ("evidence_generation", "policy_generation"):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, int)
+                or isinstance(value, bool)
+                or value < 1
+            ):
+                raise CiboCapitalManagementError(
+                    f"Phase20D {name} must be positive int"
+                )
+        if not isinstance(self.result, Phase20ForwardEpochResult):
+            raise CiboCapitalManagementError(
+                "Phase20D collected epoch result must be canonical"
+            )
+
+
+@dataclass(frozen=True, slots=True)
 class Phase20ForwardEpochResult:
     """Durably sealed epoch plus the observational V2 policy decision."""
 
@@ -124,6 +152,49 @@ class Phase20ForwardEpochResult:
             )
 
 
+
+
+def collect_phase20_forward_observed_epoch(
+    *,
+    evidence_store: DurablePhase20ForwardEvidenceStore,
+    policy_store: DurablePhase20ForwardPolicyStore,
+    decision_at: datetime,
+    account_identity: CiboAccountCapitalIdentity,
+    snapshots: Phase20ForwardSnapshotBundle,
+    concentration_limit_by_group: tuple[tuple[str, Decimal], ...],
+    regime_state: CiboCapitalRegimeState,
+    current_step: int,
+    opportunities: tuple[Phase20ForwardObservedOpportunity, ...],
+    known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
+) -> Phase20ForwardCollectedEpoch:
+    """Canonical collector: evidence first, policy record second, never broker."""
+
+    if not isinstance(policy_store, DurablePhase20ForwardPolicyStore):
+        raise CiboCapitalManagementError(
+            "Phase20D policy store must be durable canonical store"
+        )
+    result = seal_phase20_forward_observed_epoch_from_snapshots(
+        store=evidence_store,
+        decision_at=decision_at,
+        account_identity=account_identity,
+        snapshots=snapshots,
+        concentration_limit_by_group=concentration_limit_by_group,
+        regime_state=regime_state,
+        current_step=current_step,
+        opportunities=opportunities,
+        known_options=known_options,
+    )
+    current_policy = policy_store.load()
+    policy_book = policy_store.seal_policy_decision(
+        result.decision_record,
+        evidence_store=evidence_store,
+        expected_generation=current_policy.generation,
+    )
+    return Phase20ForwardCollectedEpoch(
+        evidence_generation=result.sealed_generation,
+        policy_generation=policy_book.generation,
+        result=result,
+    )
 
 
 def seal_phase20_forward_observed_epoch_from_snapshots(
