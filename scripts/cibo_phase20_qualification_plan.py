@@ -65,6 +65,9 @@ def build_report() -> dict[str, Any]:
             "decision_time_provider_cost_proxy_only": (
                 plan.decision_time_provider_cost_proxy_only
             ),
+            "realized_execution_economics_required": (
+                plan.realized_execution_economics_required
+            ),
             "fresh_forward_outcomes_consumed_when_frozen": 0,
             "policy_certified": False,
             "demo_execution_authorized": False,
