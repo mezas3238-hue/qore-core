@@ -19,6 +19,10 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_epoch import (
     Phase20ForwardObservedOpportunity,
     seal_phase20_forward_observed_epoch,
 )
+from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
+    Phase20ForwardPopulationDisposition,
+    Phase20ForwardPopulationSlotEvidence,
+)
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     DurablePhase20ForwardEvidenceStore,
 )
@@ -109,6 +113,26 @@ def _observed(
     )
 
 
+def _population(
+    opportunities: tuple[Phase20ForwardObservedOpportunity, ...],
+) -> tuple[Phase20ForwardPopulationSlotEvidence, ...]:
+    return tuple(
+        Phase20ForwardPopulationSlotEvidence(
+            slot_id=(
+                f"{item.opportunity.trader_id.value}|"
+                f"{item.opportunity.qore_symbol}"
+            ),
+            trader_id=item.opportunity.trader_id,
+            qore_symbol=item.opportunity.qore_symbol,
+            observed_at=DECISION_AT - timedelta(milliseconds=1),
+            disposition=Phase20ForwardPopulationDisposition.CANDIDATE,
+            reason="test candidate",
+            signal_fingerprint=item.opportunity.signal_fingerprint,
+        )
+        for item in opportunities
+    )
+
+
 def _regime(opportunity_count: int) -> CiboCapitalRegimeState:
     return CiboCapitalRegimeState(
         liquidity=LiquidityState.NORMAL,
@@ -132,6 +156,7 @@ def _seal(
 ):
     return seal_phase20_forward_observed_epoch(
         store=_store(tmp_path),
+        decision_epoch_id="test-forward-epoch",
         decision_at=DECISION_AT,
         account_identity=_account(),
         capital_snapshot_id="capital:41",
@@ -150,6 +175,7 @@ def _seal(
         ),
         regime_state=_regime(len(opportunities)),
         current_step=0,
+        population_slots=_population(opportunities),
         opportunities=opportunities,
     )
 
@@ -306,6 +332,7 @@ def test_forward_epoch_rejects_provider_account_mismatch_before_seal(
     ):
         seal_phase20_forward_observed_epoch(
             store=store,
+            decision_epoch_id="provider-mismatch-epoch",
             decision_at=DECISION_AT,
             account_identity=_account(),
             capital_snapshot_id="capital:41",
@@ -317,6 +344,7 @@ def test_forward_epoch_rejects_provider_account_mismatch_before_seal(
             concentration_limit_by_group=(("NAS100", Decimal("20")),),
             regime_state=_regime(1),
             current_step=0,
+            population_slots=_population((wrong_provider,)),
             opportunities=(wrong_provider,),
         )
 
@@ -334,6 +362,7 @@ def test_forward_epoch_rejects_provider_relabel_as_conflicting_rewrite(
     )
     first = seal_phase20_forward_observed_epoch(
         store=store,
+        decision_epoch_id="provider-relabel-epoch",
         decision_at=DECISION_AT,
         account_identity=_account(),
         capital_snapshot_id="capital:41",
@@ -345,6 +374,7 @@ def test_forward_epoch_rejects_provider_relabel_as_conflicting_rewrite(
         concentration_limit_by_group=(("NAS100", Decimal("20")),),
         regime_state=_regime(1),
         current_step=0,
+        population_slots=_population((base,)),
         opportunities=(base,),
     )
     relabelled = Phase20ForwardObservedOpportunity(
@@ -361,6 +391,7 @@ def test_forward_epoch_rejects_provider_relabel_as_conflicting_rewrite(
     ):
         seal_phase20_forward_observed_epoch(
             store=store,
+            decision_epoch_id="provider-relabel-epoch",
             decision_at=DECISION_AT,
             account_identity=_account(),
             capital_snapshot_id="capital:41",
@@ -372,6 +403,7 @@ def test_forward_epoch_rejects_provider_relabel_as_conflicting_rewrite(
             concentration_limit_by_group=(("NAS100", Decimal("20")),),
             regime_state=_regime(1),
             current_step=0,
+            population_slots=_population((relabelled,)),
             opportunities=(relabelled,),
         )
 
@@ -399,6 +431,7 @@ def test_forward_epoch_rejects_stale_provider_before_durable_seal(
     ):
         seal_phase20_forward_observed_epoch(
             store=store,
+            decision_epoch_id="stale-provider-epoch",
             decision_at=DECISION_AT,
             account_identity=_account(),
             capital_snapshot_id="capital:41",
@@ -410,6 +443,7 @@ def test_forward_epoch_rejects_stale_provider_before_durable_seal(
             concentration_limit_by_group=(("NAS100", Decimal("20")),),
             regime_state=_regime(1),
             current_step=0,
+            population_slots=_population((stale,)),
             opportunities=(stale,),
         )
 
@@ -441,6 +475,7 @@ def test_forward_epoch_seals_before_policy_evaluation(
     with pytest.raises(RuntimeError, match="forced post-seal policy failure"):
         seal_phase20_forward_observed_epoch(
             store=store,
+            decision_epoch_id="seal-first-epoch",
             decision_at=DECISION_AT,
             account_identity=_account(),
             capital_snapshot_id="capital:41",
@@ -452,6 +487,7 @@ def test_forward_epoch_seals_before_policy_evaluation(
             concentration_limit_by_group=(("NAS100", Decimal("20")),),
             regime_state=_regime(1),
             current_step=0,
+            population_slots=_population((observed,)),
             opportunities=(observed,),
         )
 
