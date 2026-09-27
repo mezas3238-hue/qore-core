@@ -1637,6 +1637,17 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         if message is not None:
                             payload["message"] = message
                         _log(log_path, payload)
+                        if reason not in {
+                            "decision-deadline-expired",
+                            "market-snapshot-unavailable-within-sla",
+                        }:
+                            record_phase20_terminal(
+                                identity=identity,
+                                symbol=symbol,
+                                observed_at=min(observed_at, boundary_anchor + M5_PROFILE.decision_deadline),
+                                disposition=Phase20ForwardPopulationDisposition.FAIL_CLOSED,
+                                reason=reason,
+                            )
                         mark_m5_terminal(identity, symbol)
 
                     for identity, symbol in (
@@ -1648,6 +1659,10 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     ):
                         if m5_session_open[symbol]:
                             continue
+                        session_closed_at = min(
+                            datetime.now(UTC),
+                            m5_deadline,
+                        )
                         _log(
                             log_path,
                             {
@@ -1655,10 +1670,19 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "identity": identity,
                                 "symbol": symbol,
                                 "decision_at": audjpy_arm_anchor.isoformat(),
-                                "observed_at": datetime.now(UTC).isoformat(),
+                                "observed_at": session_closed_at.isoformat(),
                                 "source": "CTRADER_BROKER_SCHEDULE",
                                 "order_send_called": False,
                             },
+                        )
+                        record_phase20_terminal(
+                            identity=identity,
+                            symbol=symbol,
+                            observed_at=session_closed_at,
+                            disposition=(
+                                Phase20ForwardPopulationDisposition.SESSION_CLOSED
+                            ),
+                            reason="BROKER_SESSION_CLOSED",
                         )
                         mark_m5_terminal(identity, symbol)
 
@@ -1736,6 +1760,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             terminal_ids: set[str] = _ctx["terminal_ids"]
                             if anchor_keys[symbol] in runtime_state.processed_anchors:
                                 terminal_ids.add(identity)
+                                _ctx["phase20_eligible"] = False
                                 return
                             market_actors.submit(
                                 MarketBoundaryJob(
@@ -1749,30 +1774,25 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             actor_result: MarketBoundaryResult,
                             _ctx: dict[str, Any] = m5_ctx,
                         ) -> None:
-                            audjpy_arm_anchor: datetime = _ctx["anchor"]
-                            m5_deadline: datetime = _ctx["deadline"]
-                            m5_terminal_identities: set[str] = _ctx["terminal_ids"]
-                            ready_snapshots: dict[str, M5BoundarySnapshot] = _ctx["ready_snapshots"]
-                            arm_blocked: bool = _ctx["arm_blocked"]
-                            fast_plan_by_identity: dict[str, Any] = _ctx["fast_plan"]
-                            arm_provider: Any = _ctx["arm_provider"]
-                            arm_capital: Any = _ctx["arm_capital"]
-                            arm_account: Any = _ctx["arm_account"]
-                            arm_snapshot: AccountRiskSnapshot = _ctx["arm_snapshot"]
-                            arm_specs: dict[str, CTraderDemoSymbolSpecification] = _ctx["arm_specs"]
+                            boundary_anchor: datetime = _ctx["anchor"]
+                            deadline: datetime = _ctx["deadline"]
+                            terminal_ids: set[str] = _ctx["terminal_ids"]
+                            snapshots: dict[str, M5BoundarySnapshot] = (
+                                _ctx["ready_snapshots"]
+                            )
                             identity = actor_result.identity
                             symbol = actor_result.symbol
-                            if identity in m5_terminal_identities:
+                            if identity in terminal_ids:
                                 return
-                            snapshot = ready_snapshots[symbol]
+                            snapshot = snapshots[symbol]
                             _log_market_decision_telemetry(
                                 log_path=log_path,
-                                anchor=audjpy_arm_anchor,
+                                anchor=boundary_anchor,
                                 snapshot=snapshot,
                                 result=actor_result,
                             )
                             done = actor_result.strategy_finished_at
-                            if arm_blocked:
+                            if bool(_ctx["arm_blocked"]):
                                 log_m5_hard_fail(
                                     identity,
                                     symbol,
@@ -1789,7 +1809,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                     observed_at=done,
                                 )
                                 return
-                            if done > m5_deadline:
+                            if done > deadline:
                                 log_m5_hard_fail(
                                     identity,
                                     symbol,
@@ -1801,7 +1821,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             signal = actor_result.signal
                             reason = actor_result.reason
                             latency_ms = int(
-                                (done - audjpy_arm_anchor).total_seconds() * 1000
+                                (done - boundary_anchor).total_seconds() * 1000
                             )
                             if signal is None:
                                 if identity == "R42_AUDJPY":
@@ -1810,7 +1830,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                         {
                                             "event": "AUDJPY_R42_CAUSAL_ABSTAIN",
                                             "symbol": symbol,
-                                            "decision_at": audjpy_arm_anchor.isoformat(),
+                                            "decision_at": boundary_anchor.isoformat(),
                                             "reason": reason,
                                             "observed_at": done.isoformat(),
                                             "latency_ms": latency_ms,
@@ -1827,13 +1847,13 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                         },
                                     )
                                 else:
-                                    _, abstain_event, _ = fast_plan_by_identity[identity]
+                                    _, abstain_event, _ = _ctx["fast_plan"][identity]
                                     _log(
                                         log_path,
                                         {
                                             "event": abstain_event,
                                             "symbol": symbol,
-                                            "decision_at": audjpy_arm_anchor.isoformat(),
+                                            "decision_at": boundary_anchor.isoformat(),
                                             "observed_at": done.isoformat(),
                                             "latency_ms": latency_ms,
                                             "reason": reason,
@@ -1847,52 +1867,119 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                             ),
                                         },
                                     )
+                                record_phase20_terminal(
+                                    identity=identity,
+                                    symbol=symbol,
+                                    observed_at=done,
+                                    disposition=(
+                                        Phase20ForwardPopulationDisposition.ABSTAIN
+                                    ),
+                                    reason=reason or "CAUSAL_ABSTAIN",
+                                )
                                 mark_m5_terminal(identity, symbol)
                                 return
 
+                            staged_results: list[MarketBoundaryResult] = (
+                                _ctx["phase20_staged_results"]
+                            )
+                            staged_results.append(actor_result)
+                            try:
+                                observed = build_ctrader_demo_m5_observed_opportunity(
+                                    identity=identity,
+                                    signal=signal,
+                                    provider_spec=_ctx["arm_specs"][symbol],
+                                    observed_at=done,
+                                )
+                                record_phase20_terminal(
+                                    identity=identity,
+                                    symbol=symbol,
+                                    observed_at=done,
+                                    disposition=(
+                                        Phase20ForwardPopulationDisposition.CANDIDATE
+                                    ),
+                                    reason="VALID_TRADER_OPPORTUNITY",
+                                    opportunity=observed,
+                                )
+                            except Exception as shadow_error:
+                                _ctx["phase20_eligible"] = False
+                                _log(
+                                    log_path,
+                                    {
+                                        "event": (
+                                            "PHASE20D_SHADOW_TERMINAL_INELIGIBLE"
+                                        ),
+                                        "identity": identity,
+                                        "symbol": symbol,
+                                        "decision_at": boundary_anchor.isoformat(),
+                                        "observed_at": done.isoformat(),
+                                        "reason": type(shadow_error).__name__,
+                                        "message": str(shadow_error),
+                                        "order_send_called": False,
+                                    },
+                                )
+                            mark_m5_terminal(identity, symbol)
+
+                        def execute_staged_market_result(
+                            actor_result: MarketBoundaryResult,
+                            _ctx: dict[str, Any] = m5_ctx,
+                        ) -> None:
+                            identity = actor_result.identity
+                            symbol = actor_result.symbol
+                            signal = actor_result.signal
+                            if signal is None:
+                                return
                             try:
                                 if identity == "R42_AUDJPY":
                                     _process_audjpy_r42_candidate(
                                         signal=signal,
-                                        now=done,
+                                        now=actor_result.strategy_finished_at,
                                         mode=mode,
                                         gateway=gateway,
                                         transport=transport,
                                         risk=risk,
                                         account_binding_id=fingerprint,
-                                        provider_budget=arm_provider,
-                                        capital_budget=arm_capital,
-                                        account_equity=arm_account.equity,
+                                        provider_budget=_ctx["arm_provider"],
+                                        capital_budget=_ctx["arm_capital"],
+                                        account_equity=_ctx["arm_account"].equity,
                                         audjpy_r42_store=audjpy_r42_store,
                                         log_path=log_path,
-                                        preflight_snapshot=arm_snapshot,
-                                        preflight_spec=arm_specs["AUDJPY"],
+                                        preflight_snapshot=_ctx["arm_snapshot"],
+                                        preflight_spec=_ctx["arm_specs"]["AUDJPY"],
                                     )
                                 else:
-                                    _, _, process_fast = fast_plan_by_identity[identity]
-                                    process_fast(signal=signal, now=done)
+                                    _, _, process_fast = _ctx["fast_plan"][identity]
+                                    process_fast(
+                                        signal=signal,
+                                        now=actor_result.strategy_finished_at,
+                                    )
                             except BrokerMinimumVolumeRiskRejectError as risk_reject:
                                 _log(
                                     log_path,
                                     {
-                                        "event": "RISK_REJECT_MINIMUM_BROKER_VOLUME",
+                                        "event": (
+                                            "RISK_REJECT_MINIMUM_BROKER_VOLUME"
+                                        ),
                                         "symbol": symbol,
-                                        "decision_at": audjpy_arm_anchor.isoformat(),
+                                        "decision_at": _ctx["anchor"].isoformat(),
                                         "candidate": True,
                                         "order_send_called": False,
                                         **risk_reject.telemetry(),
                                     },
                                 )
                             except Exception as market_error:
-                                log_m5_hard_fail(
-                                    identity,
-                                    symbol,
-                                    reason=type(market_error).__name__,
-                                    message=str(market_error),
-                                    observed_at=datetime.now(UTC),
+                                _log(
+                                    log_path,
+                                    {
+                                        "event": "M5_STAGED_EXECUTION_FAIL_CLOSED",
+                                        "identity": identity,
+                                        "symbol": symbol,
+                                        "decision_at": _ctx["anchor"].isoformat(),
+                                        "observed_at": datetime.now(UTC).isoformat(),
+                                        "reason": type(market_error).__name__,
+                                        "message": str(market_error),
+                                        "order_send_called": False,
+                                    },
                                 )
-                                return
-                            mark_m5_terminal(identity, symbol)
 
                         def drain_ready_market_results(_observed: datetime) -> None:
                             for result in market_actors.ready_results():
