@@ -120,11 +120,13 @@ def _load_seeds(
             if dd_relief > 0:
                 relief[key] = seed
 
-    sorter = lambda row: (
-        milestone._aware(row.entry_at),
-        row.symbol,
-        _mode_order(row.action),
-    )
+    def sorter(row: ActionSeed) -> tuple[Any, ...]:
+        return (
+            milestone._aware(row.entry_at),
+            row.symbol,
+            _mode_order(row.action),
+        )
+
     return (
         tuple(sorted(reserve.values(), key=sorter)),
         tuple(sorted(relief.values(), key=sorter)),
