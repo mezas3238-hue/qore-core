@@ -85,6 +85,12 @@ def _period_probe(
         (row.symbol, row.entry_at): index
         for index, row in enumerate(ordered_original)
     }
+    baseline_records = simulator._baseline_records(
+        ordered=ordered_original,
+        decisions=baseline_decisions,
+        modes=modes,
+        contexts=contexts,
+    )
     control_by_key = {
         (row.symbol, row.entry_at): row
         for row in anatomy._canonical_rows(control_ledger)
@@ -128,13 +134,27 @@ def _period_probe(
                 expected_base_multiplier=decision.base_multiplier,
                 action=action,
             )
-            rollout, rollout_decisions = simulator._replay_period(
-                period=period,
-                ledgers=ledgers,
-                contexts=contexts,
-                contextual_model=contextual_model,
-                intervention=spec,
+            action_raw = modes[action][key]
+            identical_downstream = (
+                action_raw.exit_at == surface_raw.exit_at
+                and Decimal(action_raw.realized_gross_r)
+                == Decimal(surface_raw.realized_gross_r)
             )
+            if identical_downstream:
+                rollout = baseline_ledger
+                rollout_decisions = baseline_decisions
+            else:
+                rollout, rollout_decisions = simulator._replay_period(
+                    period=period,
+                    ledgers=ledgers,
+                    contexts=contexts,
+                    contextual_model=contextual_model,
+                    intervention=spec,
+                    start_index=baseline_index,
+                    prefix_chosen=baseline_ledger[:baseline_index],
+                    prefix_records=baseline_records[:baseline_index],
+                    prefix_decisions=baseline_decisions[:baseline_index],
+                )
             rollout_metrics = milestone._metrics(rollout)
             rollout_exit = chronology._exit_batch_metrics(rollout)
             rollout_total = Decimal(rollout_metrics["total_r"])
@@ -239,7 +259,9 @@ def _period_probe(
                     diagnostic_single_intervention_full_gate=(
                         full_gate
                     ),
-                    identical_downstream_trajectory_short_circuit=False,
+                    identical_downstream_trajectory_short_circuit=(
+                        identical_downstream
+                    ),
                 )
             )
 
