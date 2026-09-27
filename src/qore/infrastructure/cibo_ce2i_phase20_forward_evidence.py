@@ -641,6 +641,10 @@ class Phase20ForwardOutcomeEvidence:
                 raise CiboCapitalManagementError(
                     "Phase20D capital release must follow deployment"
                 )
+            if self.capital_released_at > self.observed_at:
+                raise CiboCapitalManagementError(
+                    "Phase20D capital release cannot postdate outcome observation"
+                )
             if (
                 not isinstance(self.capital_minutes, Decimal)
                 or not self.capital_minutes.is_finite()
