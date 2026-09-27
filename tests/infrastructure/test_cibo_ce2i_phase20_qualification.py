@@ -260,6 +260,29 @@ def test_phase20d_fixed_runner_can_pass_without_refit() -> None:
     assert report.candidate_outcome_coverage == Decimal("1")
 
 
+def test_phase20d_runner_invalidates_execution_risk_identity_mismatch() -> None:
+    evidence, policy = _books()
+    first = evidence.outcomes[0]
+    mismatched = replace(
+        first,
+        realized_net_pnl_usd=Decimal("24"),
+        executed_initial_stop_risk_usd=Decimal("12"),
+        realized_structural_outcome_r=Decimal("2"),
+    )
+    evidence = replace(
+        evidence,
+        outcomes=(mismatched, *evidence.outcomes[1:]),
+    )
+
+    report = run_phase20d_v2_qualification(
+        evidence_book=evidence,
+        policy_book=policy,
+    )
+
+    assert report.status is Phase20QualificationStatus.INVALID
+    assert "REALIZED_EXECUTION_ECONOMICS_COMPLETE" in report.failures
+
+
 def test_phase20d_runner_invalidates_late_physical_decision_seal() -> None:
     evidence, policy = _books()
     first = evidence.decisions[0]
