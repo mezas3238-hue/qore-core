@@ -64,6 +64,7 @@ class Phase20QualificationRow:
     realized_net_pnl_usd: Decimal | None
     executed_initial_stop_risk_usd: Decimal | None
     realized_structural_outcome_r: Decimal | None
+    capital_minutes: Decimal | None
     outcome_observed_at: datetime | None
 
     @property
@@ -281,6 +282,11 @@ def run_phase20d_v2_qualification(
                         if outcome is None
                         else outcome.realized_structural_outcome_r
                     ),
+                    capital_minutes=(
+                        None
+                        if outcome is None
+                        else outcome.capital_minutes
+                    ),
                     outcome_observed_at=(
                         None if outcome is None else outcome.observed_at
                     ),
@@ -296,6 +302,8 @@ def run_phase20d_v2_qualification(
         if (
             row.executed_initial_stop_risk_usd is None
             or row.executed_initial_stop_risk_usd != row.stop_risk_usd
+            or row.capital_minutes is None
+            or row.capital_minutes <= 0
         ):
             safety_failures.append(
                 "REALIZED_EXECUTION_ECONOMICS_COMPLETE"
@@ -342,18 +350,24 @@ def run_phase20d_v2_qualification(
     policy_denominator = sum(
         (
             item.executed_initial_stop_risk_usd
-            * item.expected_capital_minutes
+            * item.capital_minutes
             for item in policy_selected_rows
-            if item.executed_initial_stop_risk_usd is not None
+            if (
+                item.executed_initial_stop_risk_usd is not None
+                and item.capital_minutes is not None
+            )
         ),
         Decimal(0),
     )
     baseline_denominator = sum(
         (
             item.executed_initial_stop_risk_usd
-            * item.expected_capital_minutes
+            * item.capital_minutes
             for item in baseline_selected_rows
-            if item.executed_initial_stop_risk_usd is not None
+            if (
+                item.executed_initial_stop_risk_usd is not None
+                and item.capital_minutes is not None
+            )
         ),
         Decimal(0),
     )
