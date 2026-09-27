@@ -239,6 +239,8 @@ def build_ctrader_phase20_executed_risk(
         decision_evidence_sha256=decision_evidence_sha256,
         signal_fingerprint=request.signal_fingerprint,
         qore_symbol=request.qore_symbol,
+        provider_order_ref=ordered[-1].provider_order_ref,
+        side=request.side,
         position_id=position_id,
         authorized_source_volume=authorized_source_volume,
         filled_source_volume=filled_source_volume,
