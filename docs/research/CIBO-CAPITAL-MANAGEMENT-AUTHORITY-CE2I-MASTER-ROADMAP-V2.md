@@ -1497,8 +1497,8 @@ Current Phase-19 scientific sequence is therefore:
 19F  OVERLAP DEPENDENCE TRAIN/VALIDATION     EMPIRICAL GREEN / DESCRIPTIVE
 19G  CAPITAL COLLISION + MARGINAL CAPACITY   EMPIRICAL GREEN / ZERO COLLISIONS IN TESTED GRID
 19H  RESOURCE / DEPENDENCE HYPERGRAPH        EMPIRICAL GREEN / DESCRIPTIVE
-19I  SIMPLE CAPITAL POLICY BASELINES          NEXT
-19J  CAUSAL NORMALIZED WFO                    PENDING
+19I  SIMPLE CAPITAL POLICY BASELINES          EMPIRICAL GREEN / TRAIN ONLY
+19J  CAUSAL NORMALIZED WFO                    NEXT
 ```
 
 The chronology-only motor sorts opportunities causally, validates all seven Trader populations,
@@ -1657,6 +1657,60 @@ weighted_jaccard:         0.6315789473684210526315789474
 Historical USD replay remains blocked because exact retained provider economics are still missing.
 Phase 19I must therefore compare only causal, transparent normalized-capital policy baselines and
 must not use Phase-19 validation outcomes to choose or tune a winner.
+
+### Phase-19I simple capital policy baseline checkpoint — 27-SEP-2026
+
+Phase 19I is now GREEN in both the main CI and the integrated Phase-19 scientific workflow.
+
+```text
+evidence_head:      53601a1a8f9fcc3710b84bde432cc858fcce4641
+main_push_run:      36285318899  SUCCESS
+main_pr_run:        36285322859  SUCCESS
+phase19_push_run:   36285318903  SUCCESS
+phase19_pr_run:     36285322835  SUCCESS
+artifact_id:        10920601351
+artifact:           qore-cibo-phase19-integrated-chronology-53601a1a8f9fcc3710b84bde432cc858fcce4641
+artifact_digest:    sha256:17e0fdf1ba0793304be52577ff91f3df82685caabcffffc6ada46f0fefbf6a8e
+internal_manifest:  SHA256SUMS 22/22 VERIFIED
+```
+
+The suite was frozen before empirical execution and used only the 523-opportunity TRAIN segment.
+Validation rows were checked for split integrity but validation outcomes were not used for policy
+evaluation, ranking or tuning.
+
+The frozen suite uses 10 gross NCU, already predeclared in Phase 19G as a loose-capacity reference.
+It deliberately contains no Trader-specific weights, dependence threshold, overlap penalty,
+hypergraph penalty or advanced optimizer.
+
+```text
+POLICY                         ACCEPT  REJECT   TOTAL DELTA NCU    MAX DD NCU
+P19I_EQUAL_100_NO_RESERVE       295     228    -9.2929368294      24.2509655820
+P19I_EQUAL_075_NO_RESERVE       523       0   +68.7933581243      20.4375633936
+P19I_EQUAL_050_NO_RESERVE       523       0   +45.8622387495      13.6250422624
+P19I_EQUAL_025_NO_RESERVE       523       0   +22.9311193748       6.81252113119
+P19I_EQUAL_050_RESERVE_2        523       0   +45.8622387495      13.6250422624
+P19I_EQUAL_025_RESERVE_2        523       0   +22.9311193748       6.81252113119
+```
+
+Training evidence therefore exposes a material **capacity cliff** between the 0.75-NCU and
+1.00-NCU fixed-budget baselines. At 1.00 NCU, normalized-capacity rejections become path-changing:
+228 opportunities are rejected and the replay finishes below its 10-NCU start. At 0.75 NCU and
+below, all 523 TRAIN opportunities are accepted.
+
+When every opportunity is accepted, the 0.75/0.50/0.25 baselines scale linearly in absolute
+realized delta and drawdown. That is expected from the fixed normalized-risk budget and is not an
+independent edge claim.
+
+The 2-NCU fixed reserve is empirically inert at 0.50 and 0.25 NCU in TRAIN: it does not change
+accepted population, realized delta or absolute drawdown. Therefore Phase 19I does **not**
+demonstrate incremental value from fixed reserve/optionality under those two policies.
+
+No policy is selected or certified from TRAIN. All six predeclared policies advance unchanged to
+Phase 19J. In particular, 0.75 NCU must not be called optimal merely because it avoids the TRAIN
+capacity cliff; Phase 19J must test whether that behavior survives strictly later evidence.
+
+Phase 19J is therefore required to run a frozen causal forward comparison after the 60% TRAIN
+cutoff, with no parameter changes inside validation and no use of future outcomes for allocation.
 
 The provider-economic evidence gate is also hardened with explicit evidence classes:
 
