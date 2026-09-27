@@ -14,14 +14,16 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
 from pathlib import Path
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalSource,
+    CapitalStage,
     CiboCapitalManagementError,
+    TraderOpportunityEnvelope,
 )
 from qore.infrastructure.cibo_capital_source_ledger import (
     CapitalReservationRequest,
@@ -31,6 +33,19 @@ from qore.infrastructure.cibo_capital_source_ledger import (
 from qore.infrastructure.cibo_capital_source_ledger_store import (
     DurableCapitalLedgerError,
     DurableCapitalSourceLedgerStore,
+)
+from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_cma_capital_observation import CmaCapitalObservation
+from qore.infrastructure.cibo_cma_initial_seed import build_initial_seed_request
+from qore.infrastructure.cibo_ce2i_causal_expectation import (
+    CausalExpectationBasis,
+    CausalOpportunityExpectation,
+)
+from qore.infrastructure.cibo_ce2i_expansion_proposal import reserve_expansion_proposal
+from qore.infrastructure.cibo_ce2i_opportunity_competition import (
+    CapitalOpportunityCandidate,
+    OpportunityAllocationBudget,
+    allocate_competing_opportunities,
 )
 from qore.infrastructure.cibo_ce2i_recycling import (
     RecyclePurpose,
@@ -690,6 +705,353 @@ def run_phase20f_operational_mechanism_certification(
     )
     return Phase20MechanismCertificationReport(
         identity="CIBO_PHASE20F_OPERATIONAL_MECHANISM_CERTIFICATION_V1",
+        certifications=certifications,
+        proofs=proofs,
+    )
+
+
+
+def _phase20f_opportunity() -> TraderOpportunityEnvelope:
+    return TraderOpportunityEnvelope(
+        trader_id=TraderLineage.R38_EURUSD,
+        signal_fingerprint="phase20f-signal",
+        qore_symbol="EURUSD",
+        provider_symbol="EURUSD",
+        side="long",
+        entry_type="MARKET",
+        intended_entry=Decimal("1.1000"),
+        stop_loss=Decimal("1.0950"),
+        take_profit=Decimal("1.1100"),
+        stop_loss_per_volume=Decimal("100"),
+        margin_per_volume=Decimal("200"),
+        volume_step=Decimal("0.01"),
+        minimum_volume=Decimal("0.01"),
+        maximum_volume=Decimal("10"),
+    )
+
+
+def _t01_minimal_seed_proofs() -> tuple[Phase20MechanismProof, ...]:
+    now = datetime(2026, 9, 27, 3, 0, tzinfo=UTC)
+    seed = build_initial_seed_request(
+        request_id="phase20f-seed",
+        opportunity=_phase20f_opportunity(),
+        assigned_capital_usd=Decimal("2000"),
+        hard_risk_headroom_usd=Decimal("60"),
+        margin_headroom_usd=Decimal("1000"),
+        requested_at=now,
+        expires_at=now + timedelta(seconds=30),
+    )
+    insufficient_margin_rejected = _expect_capital_error(
+        lambda: build_initial_seed_request(
+            request_id="phase20f-seed-blocked",
+            opportunity=_phase20f_opportunity(),
+            assigned_capital_usd=Decimal("2000"),
+            hard_risk_headroom_usd=Decimal("60"),
+            margin_headroom_usd=Decimal("0.50"),
+            requested_at=now,
+            expires_at=now + timedelta(seconds=30),
+        )
+    )
+    return (
+        _proof(
+            "T01",
+            "T01_USES_PROVIDER_MINIMUM_EXECUTABLE_SEED",
+            seed.plan.volume == Decimal("0.01")
+            and seed.plan.stop_risk_usd == Decimal("1.00")
+            and seed.request.requested_volume == Decimal("0.01")
+            and seed.request.strategy_requested_risk_usd is None,
+            "Minimal seed uses executable provider granularity, not legacy Trader sizing.",
+        ),
+        _proof(
+            "T01",
+            "T01_FAILS_CLOSED_BELOW_MINIMUM_MARGIN",
+            insufficient_margin_rejected,
+            "CIBO cannot fabricate a minimal seed when observed margin headroom is insufficient.",
+        ),
+    )
+
+
+def _expansion_observation(
+    *,
+    realized: str,
+    protected: str,
+    capacity: str,
+) -> CmaCapitalObservation:
+    return CmaCapitalObservation(
+        event="CIBO_CMA_CAPITAL_OBSERVATION",
+        trader=TraderLineage.R38_EURUSD.value,
+        symbol="EURUSD",
+        signal_fingerprint="phase20f-signal",
+        position_id=101,
+        stage=CapitalStage.CAPITALIZE,
+        evidence_sufficient=True,
+        expansion_eligible=True,
+        realized_net_pnl_usd=Decimal(realized),
+        remaining_stop_worst_case_pnl_usd=Decimal("0"),
+        net_economic_floor_usd=Decimal(capacity),
+        base_capital_at_risk_usd=Decimal("0"),
+        protected_open_floor_usd=Decimal(protected),
+        self_financing_capacity_usd=Decimal(capacity),
+        reason="phase20f synthetic expansion evidence",
+    )
+
+
+def _expansion_store(
+    *,
+    path: Path,
+    source: CapitalSource,
+    amount: Decimal,
+) -> DurableCapitalSourceLedgerStore:
+    store = DurableCapitalSourceLedgerStore(path)
+    ledger = CapitalSourceLedger().add_source(
+        source_id="phase20f-expansion-source",
+        source=source,
+        proven_amount_usd=amount,
+    )
+    store.store(ledger, expected_generation=0)
+    return store
+
+
+def _t06_t07_expansion_proofs(root: Path) -> tuple[Phase20MechanismProof, ...]:
+    now = datetime(2026, 9, 27, 3, 0, tzinfo=UTC)
+
+    profit_store = _expansion_store(
+        path=root / "t06-profit.json",
+        source=CapitalSource.REALIZED_PROFIT,
+        amount=Decimal("20"),
+    )
+    profit = reserve_expansion_proposal(
+        reservation_id="t06-r1",
+        source_id="phase20f-expansion-source",
+        opportunity=_phase20f_opportunity(),
+        observation=_expansion_observation(
+            realized="10",
+            protected="0",
+            capacity="10",
+        ),
+        hard_risk_headroom_usd=Decimal("50"),
+        margin_headroom_usd=Decimal("1000"),
+        assigned_capital_usd=Decimal("10000"),
+        requested_at=now,
+        expires_at=now + timedelta(seconds=30),
+        request_id="t06-risk",
+        ledger_store=profit_store,
+    )
+
+    floor_store = _expansion_store(
+        path=root / "t07-floor.json",
+        source=CapitalSource.PROTECTED_ECONOMIC_FLOOR,
+        amount=Decimal("20"),
+    )
+    protected = reserve_expansion_proposal(
+        reservation_id="t07-r1",
+        source_id="phase20f-expansion-source",
+        opportunity=_phase20f_opportunity(),
+        observation=_expansion_observation(
+            realized="0",
+            protected="8",
+            capacity="8",
+        ),
+        hard_risk_headroom_usd=Decimal("50"),
+        margin_headroom_usd=Decimal("1000"),
+        assigned_capital_usd=Decimal("10000"),
+        requested_at=now,
+        expires_at=now + timedelta(seconds=30),
+        request_id="t07-risk",
+        ledger_store=floor_store,
+    )
+
+    base_store = _expansion_store(
+        path=root / "t06-base-forbidden.json",
+        source=CapitalSource.ORIGINAL_BASE_CAPITAL,
+        amount=Decimal("20"),
+    )
+    base_rejected = _expect_capital_error(
+        lambda: reserve_expansion_proposal(
+            reservation_id="t06-base",
+            source_id="phase20f-expansion-source",
+            opportunity=_phase20f_opportunity(),
+            observation=_expansion_observation(
+                realized="10",
+                protected="0",
+                capacity="10",
+            ),
+            hard_risk_headroom_usd=Decimal("50"),
+            margin_headroom_usd=Decimal("1000"),
+            assigned_capital_usd=Decimal("10000"),
+            requested_at=now,
+            expires_at=now + timedelta(seconds=30),
+            request_id="t06-base-risk",
+            ledger_store=base_store,
+        )
+    )
+
+    return (
+        _proof(
+            "T06",
+            "T06_REALIZED_PROFIT_BOUNDS_EXPANSION",
+            profit.source is CapitalSource.REALIZED_PROFIT
+            and profit.plan.stop_risk_usd == Decimal("10")
+            and profit_store.load().ledger.accounts[0].reserved_usd
+            == Decimal("10"),
+            "Profit-funded expansion cannot reserve more than reconciled realized-profit capacity.",
+        ),
+        _proof(
+            "T06",
+            "T06_ORIGINAL_BASE_CAPITAL_NOT_EXPANSION_SOURCE",
+            base_rejected,
+            "Original base capital cannot masquerade as self-financing expansion capacity.",
+        ),
+        _proof(
+            "T07",
+            "T07_PROTECTED_FLOOR_BOUNDS_EXPANSION",
+            protected.source is CapitalSource.PROTECTED_ECONOMIC_FLOOR
+            and protected.plan.stop_risk_usd == Decimal("8")
+            and floor_store.load().ledger.accounts[0].reserved_usd
+            == Decimal("8"),
+            "Protected-floor expansion is capped by reconciled protected capacity.",
+        ),
+    )
+
+
+def _competition_candidate(
+    *,
+    fingerprint: str,
+    trader: TraderLineage,
+    net: str,
+    minutes: str,
+    group: str = "USD",
+) -> CapitalOpportunityCandidate:
+    now = datetime(2026, 9, 27, 3, 0, tzinfo=UTC)
+    return CapitalOpportunityCandidate(
+        signal_fingerprint=fingerprint,
+        trader_id=trader,
+        qore_symbol=fingerprint.upper(),
+        provider_symbol=fingerprint.upper(),
+        decision_as_of=now,
+        expectation=CausalOpportunityExpectation(
+            evidence_id=f"phase20f:{fingerprint}",
+            as_of=now,
+            basis=CausalExpectationBasis.FROZEN_HISTORICAL_PRIOR,
+            expected_net_value_usd=Decimal(net),
+            expected_capital_minutes=Decimal(minutes),
+        ),
+        stop_risk_usd=Decimal("5"),
+        margin_usd=Decimal("10"),
+        concentration_group=group,
+        concentration_risk_usd=Decimal("5"),
+    )
+
+
+def _t09_t18_competition_proofs() -> tuple[Phase20MechanismProof, ...]:
+    fast = _competition_candidate(
+        fingerprint="fast",
+        trader=TraderLineage.R43_GBPUSD,
+        net="8",
+        minutes="5",
+    )
+    slow = _competition_candidate(
+        fingerprint="slow",
+        trader=TraderLineage.R38_EURUSD,
+        net="10",
+        minutes="20",
+    )
+    scarce = allocate_competing_opportunities(
+        (slow, fast),
+        OpportunityAllocationBudget(
+            stop_risk_headroom_usd=Decimal("5"),
+            margin_headroom_usd=Decimal("100"),
+            concentration_limit_by_group=(("USD", Decimal("100")),),
+        ),
+    )
+
+    left = _competition_candidate(
+        fingerprint="a",
+        trader=TraderLineage.R38_EURUSD,
+        net="10",
+        minutes="10",
+    )
+    right = _competition_candidate(
+        fingerprint="b",
+        trader=TraderLineage.VT31_NAS100,
+        net="10",
+        minutes="10",
+    )
+    identity_neutral = allocate_competing_opportunities(
+        (right, left),
+        OpportunityAllocationBudget(
+            stop_risk_headroom_usd=Decimal("5"),
+            margin_headroom_usd=Decimal("100"),
+            concentration_limit_by_group=(("USD", Decimal("100")),),
+        ),
+    )
+
+    return (
+        _proof(
+            "T09",
+            "T09_SCARCE_CAPITAL_COMPETES_BY_CAUSAL_EFFICIENCY",
+            scarce.selected_signal_fingerprints == ("fast",)
+            and scarce.rows[1].reason == "shared stop-risk headroom exhausted",
+            "Scarce stop-risk capacity selects the stronger causal value-per-risk-minute candidate.",
+        ),
+        _proof(
+            "T18",
+            "T18_TRADER_IDENTITY_DOES_NOT_CREATE_PRIORITY",
+            left.net_value_per_risk_minute == right.net_value_per_risk_minute
+            and identity_neutral.selected_signal_fingerprints == ("a",),
+            "Cross-Trader allocation is economics-driven; Trader identity alone adds no score.",
+        ),
+    )
+
+
+def _t13_drawdown_reserve_proofs() -> tuple[Phase20MechanismProof, ...]:
+    mission = _demo_mission()
+    recovery_regime = select_ce2i_tools_for_regime(
+        mission=mission,
+        state=_regime_state(drawdown="0.80"),
+    )
+    reserve = plan_capital_optionality(
+        mission=mission,
+        regime=recovery_regime,
+        hard_risk_headroom_usd=Decimal("60"),
+        margin_headroom_usd=Decimal("500"),
+        known_options=(),
+    )
+    return (
+        _proof(
+            "T13",
+            "T13_DRAWDOWN_RECOVERY_RESERVES_ALL_CAPACITY",
+            recovery_regime.posture is CiboRegimePosture.RECOVERY
+            and reserve.reserve_stop_risk_usd == Decimal("60")
+            and reserve.reserve_margin_usd == Decimal("500")
+            and reserve.deployable_stop_risk_usd == 0
+            and reserve.deployable_margin_usd == 0,
+            "Drawdown recovery posture can reserve all remaining new-capital capacity.",
+        ),
+    )
+
+
+def run_phase20f_capital_action_certification(
+    *,
+    root: Path,
+) -> Phase20MechanismCertificationReport:
+    """Execute independent contract proofs for T01/T06/T07/T09/T13/T18."""
+
+    if not isinstance(root, Path):
+        raise CiboCapitalManagementError("Phase20F-C root must be pathlib.Path")
+    root.mkdir(parents=True, exist_ok=True)
+    proofs = (
+        *_t01_minimal_seed_proofs(),
+        *_t06_t07_expansion_proofs(root),
+        *_t09_t18_competition_proofs(),
+        *_t13_drawdown_reserve_proofs(),
+    )
+    certifications = tuple(
+        _certification_for(code, proofs)
+        for code in ("T01", "T06", "T07", "T09", "T13", "T18")
+    )
+    return Phase20MechanismCertificationReport(
+        identity="CIBO_PHASE20F_CAPITAL_ACTION_CERTIFICATION_V1",
         certifications=certifications,
         proofs=proofs,
     )
