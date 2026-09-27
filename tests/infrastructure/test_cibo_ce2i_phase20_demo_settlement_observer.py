@@ -163,6 +163,11 @@ def test_settlement_observer_accumulates_entry_partial_and_terminal_cash(
         "CTRADER_DEMO_PARTIAL_SETTLEMENT",
         "CTRADER_DEMO_EXIT_SETTLEMENT",
     ]
+    assert CTraderDemoTradeRegistry(
+        tmp_path / "registry.json"
+    ).committed_stop_risk(
+        now=START + timedelta(minutes=1),
+    ) == Decimal("0")
 
 
 def test_settlement_observer_restart_is_idempotent(tmp_path: Path) -> None:
