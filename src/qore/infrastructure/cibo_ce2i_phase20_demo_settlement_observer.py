@@ -64,12 +64,17 @@ class Phase20DemoSettlementCursor:
 class Phase20DemoSettlementObservation:
     cursor_at: datetime
     applied_deal_ids: tuple[int, ...]
+    entry_cost_deal_ids: tuple[int, ...]
     partial_deal_ids: tuple[int, ...]
     terminal_deal_ids: tuple[int, ...]
 
     def __post_init__(self) -> None:
         _aware(self.cursor_at, name="cursor_at")
-        combined = self.partial_deal_ids + self.terminal_deal_ids
+        combined = (
+            self.entry_cost_deal_ids
+            + self.partial_deal_ids
+            + self.terminal_deal_ids
+        )
         if self.applied_deal_ids != combined:
             raise CiboCapitalManagementError(
                 "Phase20D settlement applied deal summary drift"
@@ -160,6 +165,7 @@ def observe_ctrader_demo_phase20_settlements(
         return Phase20DemoSettlementObservation(
             cursor_at=initial_cursor,
             applied_deal_ids=(),
+            entry_cost_deal_ids=(),
             partial_deal_ids=(),
             terminal_deal_ids=(),
         )
@@ -217,6 +223,7 @@ def observe_ctrader_demo_phase20_settlements(
             (deal, registry_entry.signal_fingerprint)
         )
 
+    entry_costs: list[int] = []
     partials: list[int] = []
     terminals: list[int] = []
     current = book
@@ -267,7 +274,9 @@ def observe_ctrader_demo_phase20_settlements(
                 record,
                 expected_generation=current.generation,
             )
-            if position_open_after:
+            if event == "CTRADER_DEMO_ENTRY_COST_SETTLEMENT":
+                entry_costs.append(deal.deal_id)
+            elif position_open_after:
                 partials.append(deal.deal_id)
             else:
                 terminals.append(deal.deal_id)
@@ -278,7 +287,8 @@ def observe_ctrader_demo_phase20_settlements(
     cursor_store.store(Phase20DemoSettlementCursor(cursor_at=next_cursor))
     return Phase20DemoSettlementObservation(
         cursor_at=next_cursor,
-        applied_deal_ids=tuple(partials + terminals),
+        applied_deal_ids=tuple(entry_costs + partials + terminals),
+        entry_cost_deal_ids=tuple(entry_costs),
         partial_deal_ids=tuple(partials),
         terminal_deal_ids=tuple(terminals),
     )
