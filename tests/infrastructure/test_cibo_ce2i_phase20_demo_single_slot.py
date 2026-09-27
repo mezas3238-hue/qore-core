@@ -203,7 +203,7 @@ def test_single_slot_candidate_seals_watch_regime_without_execution(
     assert prepared.result.evidence.candidates[0].candidate.trader_id is (
         TraderLineage.VT31_NAS100
     )
-    assert prepared.result.evidence.collector_git_sha == "1" * 40
+    assert evidence.load().decisions[0].collector_git_sha == "1" * 40
     assert prepared.broker_mutation_performed is False
 
     finalized = finalize_ctrader_demo_single_slot_phase20_policy(
