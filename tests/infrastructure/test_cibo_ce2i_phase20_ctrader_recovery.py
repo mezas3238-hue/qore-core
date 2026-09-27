@@ -24,6 +24,10 @@ from qore.infrastructure.cibo_cma_settlement_ledger import CmaSettlementRecord
 from qore.infrastructure.cibo_cma_settlement_store import DurableCmaSettlementStore
 from qore.infrastructure.ctrader_demo_execution_contracts import (
     CTraderDemoAttemptState,
+    CTraderDemoFillObservation,
+)
+from qore.infrastructure.ctrader_demo_execution_gateway import (
+    ctrader_fill_identity_digest,
 )
 from qore.infrastructure.ctrader_demo_mutation_ledger import (
     CTraderDemoDurableFillRecord,
@@ -31,6 +35,12 @@ from qore.infrastructure.ctrader_demo_mutation_ledger import (
     JsonFileCTraderDemoMutationLedger,
 )
 from qore.infrastructure.ctrader_demo_trade_registry import DemoTradeRegistryEntry
+from qore.infrastructure.execution_boundary import ExecutionReceiptId
+from qore.infrastructure.order_intent import (
+    ExecutionIdempotencyKey,
+    ExecutionInstrument,
+    OrderSide,
+)
 from qore.infrastructure.market_test_environment import (
     MarketRuntimeEnvironment,
     MarketTestAccountIdentity,
@@ -116,6 +126,21 @@ def _entry() -> DemoTradeRegistryEntry:
 
 def _mutation_ledger(path: Path) -> JsonFileCTraderDemoMutationLedger:
     ledger = JsonFileCTraderDemoMutationLedger(path)
+    fill = CTraderDemoFillObservation(
+        receipt_id=ExecutionReceiptId(RECEIPT),
+        idempotency_key=ExecutionIdempotencyKey(IDEMPOTENCY),
+        account=ACCOUNT,
+        instrument=ExecutionInstrument("NAS100"),
+        side=OrderSide.BUY,
+        provider_order_ref="provider-order-88",
+        fill_ref="fill-88",
+        fill_quantity=Decimal("100"),
+        cumulative_quantity=Decimal("100"),
+        fill_price=Decimal("100.1"),
+        provider_timestamp=NOW + timedelta(milliseconds=400),
+        received_at=NOW + timedelta(milliseconds=500),
+        is_complete=True,
+    )
     ledger.upsert(
         CTraderDemoMutationLedgerRecord(
             idempotency_key=str(IDEMPOTENCY),
@@ -127,7 +152,9 @@ def _mutation_ledger(path: Path) -> JsonFileCTraderDemoMutationLedger:
             provider_order_ref="provider-order-88",
             outcome="filled",
             fill_refs=("fill-88",),
-            fill_identities=(("fill-88", "sha256:" + "d" * 64),),
+            fill_identities=(
+                ("fill-88", ctrader_fill_identity_digest(fill)),
+            ),
             fill_observations=(
                 CTraderDemoDurableFillRecord(
                     fill_ref="fill-88",
