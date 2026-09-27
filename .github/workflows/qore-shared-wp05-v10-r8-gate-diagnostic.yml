@@ -1,0 +1,109 @@
+name: QORE Shared WP05 V10 R8 Gate Diagnostic
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - .github/workflows/qore-shared-wp05-v10-r8-gate-diagnostic.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  r8-gate-diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: e51b0a9875f5213f94b77427e156f4772ba32dc1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Recover immutable R8 evidence only
+        run: |
+          set -euo pipefail
+          mkdir -p input/r8
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Diagnose every frozen R8 sample-target gate term
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          import json
+          from pathlib import Path
+
+          import shared_wp05_sequential_changepoint_v10 as v10
+
+          evidence = {
+              "NAS100": Path("input/r8/fresh/NAS100/market-evidence.json"),
+              "SP500": Path("input/r8/fresh/SP500/market-evidence.json"),
+              "US30": Path("input/r8/fresh/US30/market-evidence.json"),
+          }
+          rows, r = v10._prepare_partition(partition="r8", evidence_paths=evidence)
+          terms = {
+              "episode_count": len(rows),
+              "minimum_episodes": v10.MINIMUM_EPISODES,
+              "episode_count_pass": len(rows) >= v10.MINIMUM_EPISODES,
+              "complete_evidence_count": int(r["complete_evidence_count"] or 0),
+              "complete_evidence_pass": int(r["complete_evidence_count"] or 0) >= v10.MINIMUM_EPISODES,
+              "incomplete_evidence_count": int(r["incomplete_evidence_count"] or 0),
+              "terminal_event_count": int(r["terminal_event_count"] or 0),
+              "minimum_baseline_terminals": v10.MINIMUM_BASELINE_TERMINALS,
+              "terminal_gate_pass": int(r["terminal_event_count"] or 0) >= v10.MINIMUM_BASELINE_TERMINALS,
+              "target_contract": r["target_contract"],
+              "target_contract_pass": r["target_contract"] == v10.TARGET_CONTRACT,
+              "fresh_holdout_opened": r["fresh_holdout_opened"],
+              "fresh_holdout_pass": r["fresh_holdout_opened"] == 0,
+              "changed_target_count": int(r["changed_target_count"] or 0),
+              "changed_target_pass": int(r["changed_target_count"] or 0) > 0,
+              "target_unidentifiable_anchor_count": int(r["target_unidentifiable_anchor_count"] or 0),
+              "v10_unidentifiable_anchor_count": int(r["v10_unidentifiable_anchor_count"] or 0),
+              "source_min": r["source_min"],
+              "source_max": r["source_max"],
+              "target_max": r["target_max"],
+          }
+          terms["r8_gate_pass"] = all(
+              terms[name]
+              for name in (
+                  "episode_count_pass",
+                  "complete_evidence_pass",
+                  "terminal_gate_pass",
+                  "target_contract_pass",
+                  "fresh_holdout_pass",
+                  "changed_target_pass",
+              )
+          )
+          Path("r8-gate-diagnostic.json").write_text(
+              json.dumps(terms, sort_keys=True, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(terms, sort_keys=True))
+          PY
+
+      - name: Report diagnostic
+        if: always()
+        run: |
+          if [ -f r8-gate-diagnostic.json ]; then
+            payload="$(cat r8-gate-diagnostic.json)"
+            gh issue comment 643 --body "WP-05 V10 R8 protocol-gate diagnostic (science unchanged; R6/R5 not read), frozen V10 SHA e51b0a9875f5213f94b77427e156f4772ba32dc1, run ${GITHUB_RUN_ID}:
+
+```json
+${payload}
+```"
+          else
+            gh issue comment 643 --body "WP-05 V10 R8 gate diagnostic failed technically before producing counts — run ${GITHUB_RUN_ID}. No science changed; R6/R5 not read."
+          fi
