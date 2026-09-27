@@ -126,6 +126,7 @@ def test_ctrader_executed_risk_uses_weighted_fill_slippage() -> None:
     evidence = build_ctrader_phase20_executed_risk(
         decision_evidence_sha256="sha256:" + "a" * 64,
         position_id=77,
+        authorized_source_volume=Decimal("1"),
         request=_request(),
         contract=_contract(),
         fills=(
@@ -151,6 +152,9 @@ def test_ctrader_executed_risk_uses_weighted_fill_slippage() -> None:
 
     assert evidence.position_id == 77
     assert evidence.signal_fingerprint == "fill-risk-vt31"
+    assert evidence.authorized_source_volume == Decimal("1")
+    assert evidence.filled_source_volume == Decimal("1")
+    assert evidence.weighted_fill_price == Decimal("100.15")
     assert evidence.executed_initial_stop_risk_usd == Decimal("11.50")
     assert evidence.fill_evidence_refs == ("90001", "90002")
     assert evidence.fill_reconciled is True
@@ -229,3 +233,35 @@ def test_ctrader_executed_risk_rejects_fill_through_stop() -> None:
             ),
             reconciliation=_reconciliation(),
         )
+
+def test_ctrader_executed_risk_supports_downstream_risk_reduce() -> None:
+    request = _request()
+    reduced = build_ctrader_phase20_executed_risk(
+        decision_evidence_sha256="sha256:" + "a" * 64,
+        position_id=78,
+        authorized_source_volume=Decimal("0.5"),
+        request=request,
+        contract=_contract(),
+        fills=(
+            _fill(
+                fill_ref="91001",
+                quantity="50",
+                cumulative="50",
+                price="100",
+                complete=True,
+                offset_ms=100,
+            ),
+        ),
+        reconciliation=CTraderDemoFillReconciliation(
+            status=CTraderDemoFillReconciliationStatus.MATCHED,
+            reconciled_at=NOW + timedelta(seconds=1),
+            requested_quantity=Decimal("50"),
+            filled_quantity=Decimal("50"),
+            issues=(),
+        ),
+    )
+
+    assert reduced.authorized_source_volume == Decimal("0.5")
+    assert reduced.filled_source_volume == Decimal("0.5")
+    assert reduced.executed_initial_stop_risk_usd == Decimal("5")
+
