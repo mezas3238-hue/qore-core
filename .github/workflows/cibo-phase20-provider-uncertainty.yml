@@ -293,7 +293,16 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_forward_epoch.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_snapshots.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_collector.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_epoch_aggregator.py \
             tests/infrastructure/test_cibo_ce2i_phase20_qualification_plan.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_qualification_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_shadow_observer.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_shadow_risk.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_ctrader_demo_observer.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_outcome_reconciliation.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_ctrader_executed_risk.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_execution_risk_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_qualification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py
 
