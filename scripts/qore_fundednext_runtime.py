@@ -3438,6 +3438,10 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             risk=risk,
                             snapshot=vt31_snapshot,
                             account_equity=vt31_execution_equity,
+                            survival_capital_usd=vt31_capital.aggregate_heat_cap,
+                            protected_capital_usd=(
+                                vt31_capital.earned_closed_balance_cushion
+                            ),
                             store=vt31_store,
                             log=lambda event: _log(log_path, event),
                         )
@@ -3449,6 +3453,10 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             risk=risk,
                             snapshot=vt31_snapshot,
                             account_equity=vt31_execution_equity,
+                            survival_capital_usd=vt31_capital.aggregate_heat_cap,
+                            protected_capital_usd=(
+                                vt31_capital.earned_closed_balance_cushion
+                            ),
                             store=vt31_store,
                             log=lambda event: _log(log_path, event),
                         )
@@ -3781,6 +3789,8 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 risk=risk,
                 snapshot=vt31_runtime_snapshot,
                 account_equity=account_state.equity,
+                survival_capital_usd=capital.aggregate_heat_cap,
+                protected_capital_usd=capital.earned_closed_balance_cushion,
                 store=vt31_store,
                 log=lambda event: _log(log_path, event),
             )
