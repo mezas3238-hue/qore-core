@@ -17,8 +17,10 @@ from hashlib import sha256
 
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
-    DurableAccountWideRiskEngine,
     RiskCapitalConstraintEnvelope,
+)
+from qore.infrastructure.account_wide_risk_ledger import (
+    DurableAccountWideRiskEngine,
 )
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
