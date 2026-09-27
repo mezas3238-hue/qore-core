@@ -245,7 +245,10 @@ def test_phase20d_mpc_reserve_prevents_allocator_capacity_overcommit() -> None:
         record.allocator_decision.disposition
         is Phase20AllocatorDisposition.NO_ELIGIBLE_ALLOCATION
     )
-    assert record.allocator_decision.allocation is None
+    assert record.allocator_decision.allocation is not None
+    assert record.allocator_decision.allocation.selected_signal_fingerprints == ()
+    assert record.allocator_decision.allocation.used_stop_risk_usd == 0
+    assert record.allocator_decision.allocation.used_margin_usd == 0
 
 
 def test_phase20d_synthetic_contract_cannot_qualify_as_fresh_forward() -> None:
