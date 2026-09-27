@@ -7,9 +7,9 @@ trading, Risk, sizing or execution authority.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import json
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
