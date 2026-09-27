@@ -26,7 +26,7 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
     phase20_forward_evidence_sha256,
 )
 
-_SCHEMA = "CIBO_PHASE20D_FORWARD_EVIDENCE_BOOK_V1"
+_SCHEMA = "CIBO_PHASE20D_FORWARD_EVIDENCE_BOOK_V2"
 
 
 class DurablePhase20ForwardEvidenceError(CiboCapitalManagementError):
