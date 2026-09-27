@@ -27,6 +27,7 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
 )
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     DurablePhase20ForwardEvidenceStore,
+    Phase20ForwardDecisionSeal,
     VersionedPhase20ForwardEvidenceBook,
 )
 from qore.infrastructure.cibo_cma_settlement_ledger import (
@@ -103,6 +104,46 @@ class Phase20ExecutedRiskEvidence:
             )
 
 
+def reconcile_phase20_forward_outcome_from_seal(
+    *,
+    decision: Phase20ForwardDecisionSeal,
+    settlement: CmaSettlementState,
+    executed_risk: Phase20ExecutedRiskEvidence,
+    reconciled_at: datetime,
+) -> Phase20ForwardOutcomeEvidence:
+    """Reconcile terminal outcome from durable decision evidence after restart."""
+
+    if not isinstance(decision, Phase20ForwardDecisionSeal):
+        raise CiboCapitalManagementError(
+            "Phase20D durable outcome requires canonical decision seal"
+        )
+    if not isinstance(settlement, CmaSettlementState):
+        raise CiboCapitalManagementError(
+            "Phase20D outcome reconciliation requires settlement state"
+        )
+    if not isinstance(executed_risk, Phase20ExecutedRiskEvidence):
+        raise CiboCapitalManagementError(
+            "Phase20D outcome reconciliation requires executed-risk evidence"
+        )
+    _aware(reconciled_at, name="outcome reconciled_at")
+    if executed_risk.decision_evidence_sha256 != decision.evidence_sha256:
+        raise CiboCapitalManagementError(
+            "Phase20D executed-risk decision digest mismatch"
+        )
+    if executed_risk.signal_fingerprint not in decision.signal_fingerprints:
+        raise CiboCapitalManagementError(
+            "Phase20D executed-risk signal was not sealed pre-decision"
+        )
+    return _reconcile_bound_outcome(
+        decision_sha=decision.evidence_sha256,
+        decision_at=decision.decision_at,
+        sealed_signals=set(decision.signal_fingerprints),
+        settlement=settlement,
+        executed_risk=executed_risk,
+        reconciled_at=reconciled_at,
+    )
+
+
 def reconcile_phase20_forward_outcome(
     *,
     decision: Phase20ForwardDecisionEvidence,
@@ -131,14 +172,33 @@ def reconcile_phase20_forward_outcome(
     _aware(reconciled_at, name="outcome reconciled_at")
 
     decision_sha = phase20_forward_evidence_sha256(decision)
-    if executed_risk.decision_evidence_sha256 != decision_sha:
-        raise CiboCapitalManagementError(
-            "Phase20D executed-risk decision digest mismatch"
-        )
     sealed_signals = {
         item.candidate.signal_fingerprint
         for item in decision.candidates
     }
+    return _reconcile_bound_outcome(
+        decision_sha=decision_sha,
+        decision_at=decision.decision_at,
+        sealed_signals=sealed_signals,
+        settlement=settlement,
+        executed_risk=executed_risk,
+        reconciled_at=reconciled_at,
+    )
+
+
+def _reconcile_bound_outcome(
+    *,
+    decision_sha: str,
+    decision_at: datetime,
+    sealed_signals: set[str],
+    settlement: CmaSettlementState,
+    executed_risk: Phase20ExecutedRiskEvidence,
+    reconciled_at: datetime,
+) -> Phase20ForwardOutcomeEvidence:
+    if executed_risk.decision_evidence_sha256 != decision_sha:
+        raise CiboCapitalManagementError(
+            "Phase20D executed-risk decision digest mismatch"
+        )
     if executed_risk.signal_fingerprint not in sealed_signals:
         raise CiboCapitalManagementError(
             "Phase20D executed-risk signal was not sealed pre-decision"
@@ -163,7 +223,7 @@ def reconcile_phase20_forward_outcome(
         raise CiboCapitalManagementError(
             "Phase20D terminal settlement requires exit record"
         )
-    if executed_risk.observed_at <= decision.decision_at:
+    if executed_risk.observed_at <= decision_at:
         raise CiboCapitalManagementError(
             "Phase20D executed-risk evidence must follow decision"
         )
