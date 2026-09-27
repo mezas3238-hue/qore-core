@@ -2,6 +2,11 @@
 
 **Promotion provenance:** This V10 identity promotes the pre-outcome sequential candidate preregistered before the authoritative V9 result. The hypothesis, checkpoints, feature families, calibration law and gates are preserved. Promotion is authorized only because authoritative V9 Causal Trajectory was scientifically falsified.
 
+**Promotion evidence:** authoritative V9 run `36288203952`, Git SHA
+`4ab1a248e27c44e3a83abaf7dfde178ca86e14e7`, artifact `10921603629`,
+digest `sha256:9a6106c0017b196e69f504891df59ac885a215bd391cdd3befe784bd2fd0e6de`.
+V9 status is permanently `WP05_V9_CAUSAL_TRAJECTORY_FALSIFIED`.
+
 **Program:**** QORE Meta-Cognitive Scientific Intelligence  
 **PR:** #635  
 **Issue:** #643 — WP-05 Temporal Hierarchical Brain  
