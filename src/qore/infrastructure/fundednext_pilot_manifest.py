@@ -28,7 +28,7 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
     cibo_policy_fingerprint,
 )
 
-_SCHEMA = "qore.fundednext.stellar-instant-2k-pilot-readiness.v2"
+_SCHEMA = "qore.fundednext.stellar-instant-2k-pilot-readiness.v3"
 
 
 def _digest(path: Path) -> str:
@@ -107,7 +107,17 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
             "version": QORE_OPERATIONAL_RISK_POLICY_VERSION,
             "fingerprint": operational_risk_policy_fingerprint(),
             "explicitly_not_provider_rule": True,
-            "risk_is_final_capital_authority": True,
+            "risk_is_hard_survivability_governor": True,
+            "risk_is_capital_management_strategy_authority": False,
+            "risk_is_runtime_sizing_authority": False,
+        },
+        "cibo_capital_management": {
+            "capital_management_authority": True,
+            "runtime_sizing_authority": True,
+            "legacy_trader_sizing_authority": False,
+            "account_mission": "FUNDED_SURVIVAL_COMPOUND",
+            "provider": "FUNDEDNEXT",
+            "provider_program": "STELLAR_INSTANT",
         },
         "topology": {
             "traders": {"VT08_FOREX": ["AUDJPY", "GBPUSD", "GBPJPY"]},
@@ -118,8 +128,8 @@ def build_manifest(*, root: Path, git_sha: str) -> dict[str, object]:
             "live_causal_entry_anchor_ny": list(LIVE_ENTRY_ANCHORS_NY),
             "risk_scope": "ACCOUNT_WIDE",
             "signal_flow": (
-                "VT08_FOREX -> CAUSAL_DAILY_GATE -> CIBO -> BROKER_EXACT_SIZING -> "
-                "ACCOUNT_WIDE_RISK -> RiskAuthorization -> LIVE_RISK_RECHECK -> MT5"
+                "TRADER_OPPORTUNITY -> CIBO_CMA_SIZING -> ACCOUNT_WIDE_RISK -> "
+                "RiskAuthorization -> LIVE_RISK_RECHECK -> MT5"
             ),
             "index_execution_enabled": False,
         },
