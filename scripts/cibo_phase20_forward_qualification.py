@@ -274,12 +274,10 @@ def main() -> None:
     collector_git_shas: set[str] = set()
     missing_collector_git_sha = 0
     for decision in evidence.decisions:
-        decision_payload = json.loads(decision.canonical_payload_json)
-        collector_git_sha = decision_payload.get("collector_git_sha")
-        if collector_git_sha is None:
+        if decision.collector_git_sha is None:
             missing_collector_git_sha += 1
         else:
-            collector_git_shas.add(str(collector_git_sha))
+            collector_git_shas.add(decision.collector_git_sha)
     payload["provenance"] = {
         "git_sha": git_sha,
         "evidence_store_sha256": evidence_store_sha256,
