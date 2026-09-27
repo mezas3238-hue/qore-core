@@ -2751,50 +2751,70 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "candidate_count": len(vt31_basket.candidates),
                             },
                         )
-                        vt31_option_spec = gateway.read_symbol(
-                            "NAS100",
-                            now=vt31_decided_at,
-                        )
-                        vt31_option_known_at = max(
-                            vt31_decided_at,
-                            vt31_option_spec.observed_at,
-                        )
-                        vt31_option_step = max(
-                            0,
-                            int(vt31_arm_anchor.timestamp() // 60),
-                        ) + 1
-                        vt31_known_options = tuple(
-                            build_ctrader_demo_single_slot_known_option(
-                                opportunity=build_vt31_virtual_order_opportunity(
-                                    order=item,
-                                    provider_spec=vt31_option_spec,
-                                    decision_anchor=vt31_arm_anchor,
-                                    now=vt31_option_known_at,
-                                ),
-                                provider_spec=vt31_option_spec,
-                                known_as_of=vt31_option_known_at,
-                                decision_step=vt31_option_step,
-                                expires_at=datetime.fromisoformat(
-                                    item.expires_at
-                                ),
+                        try:
+                            vt31_option_spec = gateway.read_symbol(
+                                "NAS100",
+                                now=vt31_decided_at,
                             )
-                            for item in vt31_basket.candidates
-                        )
-                        observe_phase20_single_slot(
-                            trader_id=TraderLineage.VT31_NAS100,
-                            qore_symbol="NAS100",
-                            epoch_scope=phase20_vt31_scope,
-                            opened_at=vt31_arm_anchor,
-                            deadline_at=phase20_vt31_deadline,
-                            terminal_observed_at=vt31_option_known_at,
-                            disposition=(
-                                Phase20ForwardPopulationDisposition.ABSTAIN
-                            ),
-                            reason="VIRTUAL_OCO_ARMED_AS_KNOWN_OPTIONS",
-                            account_state_for_shadow=vt31_account,
-                            provider_spec=vt31_option_spec,
-                            known_options=vt31_known_options,
-                        )
+                            vt31_option_known_at = max(
+                                vt31_decided_at,
+                                vt31_option_spec.observed_at,
+                            )
+                            vt31_option_step = max(
+                                0,
+                                int(vt31_arm_anchor.timestamp() // 60),
+                            ) + 1
+                            vt31_known_options = tuple(
+                                build_ctrader_demo_single_slot_known_option(
+                                    opportunity=(
+                                        build_vt31_virtual_order_opportunity(
+                                            order=item,
+                                            provider_spec=vt31_option_spec,
+                                            decision_anchor=vt31_arm_anchor,
+                                            now=vt31_option_known_at,
+                                        )
+                                    ),
+                                    provider_spec=vt31_option_spec,
+                                    known_as_of=vt31_option_known_at,
+                                    decision_step=vt31_option_step,
+                                    expires_at=datetime.fromisoformat(
+                                        item.expires_at
+                                    ),
+                                )
+                                for item in vt31_basket.candidates
+                            )
+                            observe_phase20_single_slot(
+                                trader_id=TraderLineage.VT31_NAS100,
+                                qore_symbol="NAS100",
+                                epoch_scope=phase20_vt31_scope,
+                                opened_at=vt31_arm_anchor,
+                                deadline_at=phase20_vt31_deadline,
+                                terminal_observed_at=vt31_option_known_at,
+                                disposition=(
+                                    Phase20ForwardPopulationDisposition.ABSTAIN
+                                ),
+                                reason="VIRTUAL_OCO_ARMED_AS_KNOWN_OPTIONS",
+                                account_state_for_shadow=vt31_account,
+                                provider_spec=vt31_option_spec,
+                                known_options=vt31_known_options,
+                            )
+                        except Exception as phase20_oco_error:
+                            _log(
+                                log_path,
+                                {
+                                    "event": "PHASE20D_VT31_OCO_ARM_INELIGIBLE",
+                                    "symbol": "NAS100",
+                                    "decision_at": (
+                                        vt31_arm_anchor.isoformat()
+                                    ),
+                                    "basket_id": vt31_basket.basket_id,
+                                    "reason": (
+                                        type(phase20_oco_error).__name__
+                                    ),
+                                    "message": str(phase20_oco_error),
+                                    "execution_path_blocked": False,
+                                },
+                            )
             except BrokerMinimumVolumeRiskRejectError as risk_reject:
                 _log(
                     log_path,
