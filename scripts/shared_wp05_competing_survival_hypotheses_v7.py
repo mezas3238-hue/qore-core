@@ -37,6 +37,9 @@ from qore.infrastructure.core_stack_v2.temporal_hierarchy_competing_survival_v7 
     evaluate_competing_survival,
     fit_competing_survival_model,
 )
+from qore.infrastructure.core_stack_v2.temporal_hierarchy_competing_survival_features_v7 import (
+    build_competing_survival_source_state,
+)
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_engine import (
     TemporalHierarchySnapshot,
     baseline_local_opposition,
@@ -277,6 +280,8 @@ def _build_source_state(
     bars: dict[str, tuple[Any, ...]],
     indexes: dict[str, dict[str, int]],
 ) -> CompetingSurvivalSourceState:
+    """Delegate consumed evidence to the single preregistered causal extractor."""
+
     snapshot = item.trajectory.snapshots[-1]
     anchor = higher_timeframe_anchor_direction(snapshot)
     if anchor == 0:
@@ -284,314 +289,24 @@ def _build_source_state(
 
     key = _source_key(item)
     nas_index = indexes["NAS100"].get(key)
-    if nas_index is None or nas_index < 70:
-        raise ValueError("V7 source state lacks NAS100 causal history")
-    nas = bars["NAS100"]
+    sp500_index = indexes["SP500"].get(key)
+    us30_index = indexes["US30"].get(key)
+    if nas_index is None or sp500_index is None or us30_index is None:
+        raise ValueError("V7 source state is missing aligned market evidence")
 
-    exact_distance, source_scale = _exact_source_distance(
-        nas,
-        nas_index,
-        anchor,
-    )
-
-    causal: dict[int, tuple[float, float, bool]] = {}
-    for offset in range(_SEQUENCE_MINUTES, -1, -1):
-        causal[offset] = _causal_frontier_state(
-            nas,
-            nas_index - offset,
-            anchor,
-        )
-
-    current_causal_distance = causal[0][0]
-    distances = {
-        offset: causal[offset][0]
-        for offset in (1, 5, 10, 15, 30)
-    }
-    approach_1 = distances[1] - current_causal_distance
-    approach_5 = distances[5] - current_causal_distance
-    approach_15 = distances[15] - current_causal_distance
-    prior_5_approach = distances[10] - distances[5]
-    prior_15_approach = distances[30] - distances[15]
-    acceleration_5 = approach_5 - prior_5_approach
-    acceleration_15 = approach_15 - prior_15_approach
-
-    sequence = tuple(causal[offset] for offset in range(30, -1, -1))
-    sequence15 = tuple(causal[offset] for offset in range(15, -1, -1))
-    max_breach_depth = max(state[1] for state in sequence)
-    touches15 = sum(state[2] for state in sequence15)
-    touches30 = sum(state[2] for state in sequence)
-
-    breach_flags = tuple(state[0] < 0.0 for state in sequence)
-    transitions30 = sum(
-        left != right
-        for left, right in zip(breach_flags, breach_flags[1:], strict=False)
-    )
-    breach_flags15 = breach_flags[-16:]
-    transitions15 = sum(
-        left != right
-        for left, right in zip(
-            breach_flags15,
-            breach_flags15[1:],
-            strict=False,
-        )
-    )
-
-    acceptance_duration = 0
-    for breached in reversed(breach_flags):
-        if not breached:
-            break
-        acceptance_duration += 1
-
-    latest_breach_index = max(
-        (index for index, breached in enumerate(breach_flags) if breached),
-        default=-1,
-    )
-    reclaim_distance = (
-        max(0.0, current_causal_distance)
-        if latest_breach_index >= 0 and not breach_flags[-1]
-        else 0.0
-    )
-
-    sequence_distances = tuple(state[0] for state in sequence)
-    worst_index = min(
-        range(len(sequence_distances)),
-        key=sequence_distances.__getitem__,
-    )
-    bars_since_worst = len(sequence_distances) - 1 - worst_index
-    recovery_velocity = (
-        max(
-            0.0,
-            current_causal_distance - sequence_distances[worst_index],
-        )
-        / max(1, bars_since_worst)
-    )
-    time_since_worst = bars_since_worst / 30.0
-
-    recent5 = nas[nas_index - 4 : nas_index + 1]
-    recent15 = nas[nas_index - 14 : nas_index + 1]
-    recent20 = nas[nas_index - 19 : nas_index + 1]
-    recent1 = nas[nas_index : nas_index + 1]
-
-    adverse_persistence_5 = _directional_persistence(
-        recent5,
-        anchor,
-        favorable=False,
-    )
-    adverse_persistence_15 = _directional_persistence(
-        recent15,
-        anchor,
-        favorable=False,
-    )
-    favorable_persistence_5 = _directional_persistence(
-        recent5,
-        anchor,
-        favorable=True,
-    )
-    favorable_persistence_15 = _directional_persistence(
-        recent15,
-        anchor,
-        favorable=True,
-    )
-    consecutive_adverse = _consecutive_closes(
-        recent15,
-        anchor,
-        favorable=False,
-    )
-    consecutive_favorable = _consecutive_closes(
-        recent15,
-        anchor,
-        favorable=True,
-    )
-    rejection5 = _rejection_fraction(recent5, anchor)
-    rejection15 = _rejection_fraction(recent15, anchor)
-    close_location = _close_location_recovery(nas[nas_index], anchor)
-
-    range1 = _mean_range(recent1)
-    range5 = _mean_range(recent5)
-    range20 = _mean_range(recent20)
-    range_ratio_1_5 = range1 / range5
-    range_ratio_5_20 = range5 / range20
-    volatility_transition = range_ratio_5_20 - 1.0
-
-    aligned15 = _normalized_aligned_move(
-        last=float(nas[nas_index].close),
-        first=float(nas[nas_index - 15].close),
-        anchor=anchor,
-        scale=source_scale,
-    )
-    normalized_adverse_move = max(0.0, -aligned15)
-    worst_price_index = min(
-        range(nas_index - 15, nas_index + 1),
-        key=lambda idx: anchor * float(nas[idx].close),
-    )
-    normalized_recovery_move = max(
-        0.0,
-        _normalized_aligned_move(
-            last=float(nas[nas_index].close),
-            first=float(nas[worst_price_index].close),
-            anchor=anchor,
-            scale=source_scale,
-        ),
-    )
-
-    motif = structural_frontier_hierarchy_motif(
+    source = build_competing_survival_source_state(
         trajectory=item.trajectory,
         anchor_direction=anchor,
+        nas_bars=bars["NAS100"],
+        nas_index=nas_index,
+        sp500_bars=bars["SP500"],
+        sp500_index=sp500_index,
+        us30_bars=bars["US30"],
+        us30_index=us30_index,
     )
-    depth_path = motif.depth_path
-    hierarchy_depth = motif.current_depth / 7.0
-    hierarchy_max_depth = max(depth_path) / 7.0
-    hierarchy_depth_velocity = (
-        (depth_path[-1] - depth_path[-2]) / 7.0
-        if len(depth_path) >= 2
-        else 0.0
-    )
-
-    snapshot15 = _snapshot_at_offset(item, 15)
-    snapshot30 = _snapshot_at_offset(item, 30)
-    current_resilience = _higher_resilience_minus_fragility(snapshot)
-    resilience15 = _higher_resilience_minus_fragility(snapshot15)
-    resilience30 = _higher_resilience_minus_fragility(snapshot30)
-    transition_current = _higher_transition_pressure(snapshot)
-    transition15 = _higher_transition_pressure(snapshot15)
-    transition30 = _higher_transition_pressure(snapshot30)
-    coherence_current = _higher_coherence(snapshot)
-    coherence15 = _higher_coherence(snapshot15)
-    coherence30 = _higher_coherence(snapshot30)
-
-    peer_adverse: dict[int, float] = {}
-    peer_values_by_horizon: dict[int, tuple[float, ...]] = {}
-    for horizon in (1, 5, 15):
-        values = []
-        for market in ("SP500", "US30"):
-            peer_index = indexes[market].get(key)
-            if peer_index is None:
-                raise ValueError("peer source state is incomplete")
-            value = _peer_adverse_return(
-                bars[market],
-                peer_index,
-                horizon,
-                anchor,
-            )
-            values.append(value)
-        peer_values_by_horizon[horizon] = tuple(values)
-        peer_adverse[horizon] = fmean(values)
-
-    peer_accel5 = []
-    peer_accel15 = []
-    peer_recovery = []
-    lead_lag = []
-    for market in ("SP500", "US30"):
-        peer = bars[market]
-        peer_index = indexes[market].get(key)
-        if peer_index is None or peer_index < 30:
-            raise ValueError("peer causal history is incomplete")
-        current5 = _peer_adverse_return(peer, peer_index, 5, anchor)
-        prior5 = _peer_adverse_return(peer, peer_index - 5, 5, anchor)
-        current15 = _peer_adverse_return(peer, peer_index, 15, anchor)
-        prior15 = _peer_adverse_return(peer, peer_index - 15, 15, anchor)
-        peer_accel5.append(current5 - prior5)
-        peer_accel15.append(current15 - prior15)
-
-        peer_range = _mean_range(peer[peer_index - 19 : peer_index + 1])
-        aligned = [
-            anchor * float(peer[idx].close)
-            for idx in range(peer_index - 15, peer_index + 1)
-        ]
-        worst = min(range(len(aligned)), key=aligned.__getitem__)
-        recovery = (
-            aligned[-1] - aligned[worst]
-        ) / max(_EPSILON, peer_range)
-        peer_recovery.append(max(0.0, recovery))
-
-        nas_recent_adverse = normalized_adverse_move > 0.0
-        peer_prior_adverse = prior5 > 0.0
-        lead_lag.append(float(nas_recent_adverse and peer_prior_adverse))
-
-    breadth = sum(value > 0.0 for value in peer_values_by_horizon[5]) / 2.0
-    target_adverse5 = max(
-        0.0,
-        -_normalized_aligned_move(
-            last=float(nas[nas_index].close),
-            first=float(nas[nas_index - 5].close),
-            anchor=anchor,
-            scale=source_scale,
-        ),
-    )
-    peer_favorable5 = fmean(
-        max(0.0, -value)
-        for value in peer_values_by_horizon[5]
-    )
-    peer_contradiction = target_adverse5 * peer_favorable5
-
-    terminal_features = (
-        _clamp(exact_distance, -8.0, 12.0),
-        _clamp(distances[1], -8.0, 12.0),
-        _clamp(distances[5], -8.0, 12.0),
-        _clamp(distances[15], -8.0, 12.0),
-        _clamp(distances[30], -8.0, 12.0),
-        _clamp(approach_1, -8.0, 8.0),
-        _clamp(approach_5, -8.0, 8.0),
-        _clamp(approach_15, -8.0, 8.0),
-        _clamp(acceleration_5, -8.0, 8.0),
-        _clamp(acceleration_15, -8.0, 8.0),
-        _clamp(max_breach_depth, 0.0, 8.0),
-        float(acceptance_duration),
-        adverse_persistence_5,
-        adverse_persistence_15,
-        consecutive_adverse,
-        hierarchy_depth,
-        hierarchy_depth_velocity,
-        -current_resilience,
-        transition_current - transition15,
-        transition_current - transition30,
-        peer_adverse[1],
-        peer_adverse[5],
-        peer_adverse[15],
-        fmean(peer_accel5),
-        fmean(peer_accel15),
-        breadth,
-        fmean(lead_lag),
-        _clamp(volatility_transition, -5.0, 5.0),
-        _clamp(normalized_adverse_move, 0.0, 12.0),
-    )
-    recovery_features = (
-        _clamp(exact_distance, -8.0, 12.0),
-        _clamp(reclaim_distance, 0.0, 12.0),
-        float(touches15),
-        float(touches30),
-        float(transitions15),
-        float(transitions30),
-        favorable_persistence_5,
-        favorable_persistence_15,
-        consecutive_favorable,
-        rejection5,
-        rejection15,
-        close_location,
-        _clamp(recovery_velocity, 0.0, 8.0),
-        _clamp(time_since_worst, 0.0, 1.0),
-        float(motif.recession_count),
-        float(motif.advance_count),
-        current_resilience,
-        current_resilience - resilience15,
-        current_resilience - resilience30,
-        coherence_current - coherence15,
-        coherence_current - coherence30,
-        _clamp(peer_contradiction, 0.0, 12.0),
-        _clamp(fmean(peer_recovery), 0.0, 12.0),
-        _clamp(range_ratio_1_5, 0.0, 8.0),
-        _clamp(range_ratio_5_20, 0.0, 8.0),
-        _clamp(normalized_recovery_move, 0.0, 12.0),
-    )
-    return CompetingSurvivalSourceState(
-        episode_id=item.trajectory.episode_id,
-        as_of=snapshot.as_of,
-        anchor_direction=anchor,
-        terminal_features=terminal_features,
-        recovery_features=recovery_features,
-        evidence_complete=True,
-    )
-
+    if not source.evidence_complete:
+        raise ValueError("V7 canonical extractor reports incomplete causal evidence")
+    return source
 
 def _prepare_partition(
     *,
