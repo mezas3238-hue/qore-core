@@ -1,0 +1,62 @@
+name: QORE Shared WP05 Competing Survival V7 Foundation
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - docs/shared/QORE_SHARED_WP05_V7_COMPETING_SURVIVAL_HYPOTHESES_PREREGISTRATION.md
+      - src/qore/infrastructure/core_stack_v2/temporal_hierarchy_competing_survival_v7.py
+      - tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_v7.py
+      - .github/workflows/qore-shared-wp05-competing-survival-v7-foundation.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-wp05-v7-foundation-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  competing-survival-v7-foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Announce WP05 V7 foundation validation
+        run: |
+          gh issue comment 643 --body "WP-05 V7 foundation validation started — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Preregistered dual terminal-hazard/recovery-support engine only; no R6/R5 consumed execution and fresh holdout remains CLOSED."
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Static and adversarial validation
+        run: |
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/temporal_hierarchy_competing_survival_v7.py \
+            tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_v7.py
+          python -m py_compile \
+            src/qore/infrastructure/core_stack_v2/temporal_hierarchy_competing_survival_v7.py
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_v7.py
+
+      - name: Report WP05 V7 foundation GREEN
+        if: success()
+        run: |
+          gh issue comment 643 --body "WP-05 V7 foundation GREEN — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Dual mechanism core, R8-only fit/calibration invariants, chronological purge, deterministic fingerprint, UNRESOLVED abstention, anti-leakage and no-authority tests passed. R6/R5 remain unconsumed by V7; fresh holdout remains CLOSED."
+
+      - name: Report WP05 V7 foundation failure
+        if: failure()
+        run: |
+          gh issue comment 643 --body "WP-05 V7 foundation FAILED technically — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Do not consume R6/R5 or alter the preregistered scientific contract; inspect and repair the implementation defect. Fresh holdout remains CLOSED."
