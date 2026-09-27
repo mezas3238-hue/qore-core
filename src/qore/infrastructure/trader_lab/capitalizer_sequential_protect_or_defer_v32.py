@@ -1033,14 +1033,18 @@ def write_report(
         "w",
         encoding="utf-8",
     ) as handle:
-        for row in outcomes:
-            handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+        for outcome in outcomes:
+            handle.write(
+                json.dumps(asdict(outcome), sort_keys=True) + "\n"
+            )
     with (output / f"{stem}-trigger-decisions.jsonl").open(
         "w",
         encoding="utf-8",
     ) as handle:
-        for row in trigger_audits:
-            handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+        for decision in trigger_audits:
+            handle.write(
+                json.dumps(asdict(decision), sort_keys=True) + "\n"
+            )
 
 
 def main() -> None:
