@@ -35,6 +35,7 @@ def test_drawdown_episode_extractor_recovers_peak_and_trough() -> None:
     assert second.max_drawdown_r == "0.5"
     assert second.start_index == 5
     assert second.end_index == 6
+    assert second.descent_trade_count == 1
     assert second.recovered_peak is True
 
 
@@ -55,6 +56,7 @@ def test_drawdown_episode_extractor_keeps_unrecovered_tail() -> None:
     assert row.start_index == 1
     assert row.trough_index == 2
     assert row.end_index == 2
+    assert row.descent_trade_count == 2
     assert row.recovered_peak is False
 
 
