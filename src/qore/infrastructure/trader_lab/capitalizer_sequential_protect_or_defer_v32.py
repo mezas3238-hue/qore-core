@@ -156,7 +156,6 @@ def _trigger_sequence(
     native_states: dict[tuple[str, str, str, str], v29.TriggerState],
 ) -> tuple[tuple[datetime, str, v29.TriggerState], ...]:
     result: list[tuple[datetime, str, v29.TriggerState]] = []
-    last_time: datetime | None = None
     for family in FAMILY_ORDER:
         state = native_states.get((period, symbol, entry_at, family))
         if state is None:
@@ -164,10 +163,16 @@ def _trigger_sequence(
         current = _aware(state.trigger_at)
         if current <= _aware(entry_at):
             raise ValueError("V32 trigger must follow entry")
-        if last_time is not None and current <= last_time:
-            raise ValueError("V32 trigger families are not chronological")
+        if result and current < result[-1][0]:
+            raise ValueError("V32 trigger families reverse chronology")
+        if result and current == result[-1][0]:
+            # One completed M1 bar can cross multiple milestones. Serial
+            # decisions at the same activation timestamp would violate the
+            # immutable pre-batch law and invent evidence between milestones.
+            # Keep exactly the highest causally reached family at that time.
+            result[-1] = (current, family, state)
+            continue
         result.append((current, family, state))
-        last_time = current
     return tuple(result)
 
 
