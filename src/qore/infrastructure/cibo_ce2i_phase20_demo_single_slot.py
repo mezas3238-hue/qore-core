@@ -343,6 +343,7 @@ def prepare_ctrader_demo_single_slot_phase20_epoch(
     highest_closed_balance: Decimal,
     current_step: int,
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
+    collector_git_sha: str | None = None,
 ) -> Phase20DemoSingleSlotPrepared:
     """Seal one sovereign Trader boundary into the common forward evidence book."""
 
@@ -463,6 +464,7 @@ def prepare_ctrader_demo_single_slot_phase20_epoch(
         opportunities=batch.opportunities,
         seal_deadline_at=batch.deadline_at,
         known_options=known_options,
+        collector_git_sha=collector_git_sha,
     )
     return Phase20DemoSingleSlotPrepared(
         result=result,
