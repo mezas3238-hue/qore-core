@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_ce2i_causal_expectation import (
@@ -42,9 +42,10 @@ def test_train_prior_converts_structural_r_to_current_stop_risk_usd() -> None:
     prior = frozen_train_prior_for(TraderLineage.VT31_NAS100)
 
     assert expectation.basis is CausalExpectationBasis.FROZEN_HISTORICAL_PRIOR
-    assert expectation.expected_net_value_usd == (
-        prior.expected_structural_r * Decimal("10")
-    )
+    with localcontext() as context:
+        context.prec = 50
+        expected_usd = prior.expected_structural_r * Decimal("10")
+    assert expectation.expected_net_value_usd == expected_usd
     assert expectation.expected_capital_minutes == Decimal("6")
     assert expectation.future_market_used is False
     assert expectation.outcome_used is False
