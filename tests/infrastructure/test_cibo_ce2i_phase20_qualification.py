@@ -218,6 +218,13 @@ def _books(
                     realized_net_pnl_usd=outcome_r * Decimal("10"),
                     executed_initial_stop_risk_usd=Decimal("10"),
                     realized_structural_outcome_r=outcome_r,
+                    capital_deployed_at=(
+                        decision_at + timedelta(minutes=1)
+                    ),
+                    capital_released_at=(
+                        decision_at + timedelta(minutes=31)
+                    ),
+                    capital_minutes=Decimal("30"),
                 )
             )
 
@@ -258,6 +265,28 @@ def test_phase20d_fixed_runner_can_pass_without_refit() -> None:
     assert report.policy_selected_outcome_coverage == Decimal("1")
     assert report.baseline_selected_outcome_coverage == Decimal("1")
     assert report.candidate_outcome_coverage == Decimal("1")
+
+
+def test_phase20d_runner_invalidates_missing_realized_capital_minutes() -> None:
+    evidence, policy = _books()
+    first = replace(
+        evidence.outcomes[0],
+        capital_deployed_at=None,
+        capital_released_at=None,
+        capital_minutes=None,
+    )
+    evidence = replace(
+        evidence,
+        outcomes=(first, *evidence.outcomes[1:]),
+    )
+
+    report = run_phase20d_v2_qualification(
+        evidence_book=evidence,
+        policy_book=policy,
+    )
+
+    assert report.status is Phase20QualificationStatus.INVALID
+    assert "REALIZED_EXECUTION_ECONOMICS_COMPLETE" in report.failures
 
 
 def test_phase20d_runner_invalidates_execution_risk_identity_mismatch() -> None:
