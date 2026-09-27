@@ -3,7 +3,8 @@
 **Program:** QORE Meta-Cognitive Scientific Intelligence  
 **PR:** #635  
 **Issue:** #643 — WP-05 Temporal Hierarchical Brain  
-**Reserved identity:** `QORE_SHARED_WP05_ACTIVE_PERCEPTION_OBSERVABILITY_V11_CANDIDATE_001`  
+**Original reserved identity:** `QORE_SHARED_WP05_ACTIVE_PERCEPTION_OBSERVABILITY_V11_CANDIDATE_001`  
+**Carried-forward identity after material V10 observability:** `QORE_SHARED_WP05_ACTIVE_PERCEPTION_OBSERVABILITY_V12_CANDIDATE_001`  
 **Status:** RESERVED / PRE-V10-OUTCOME / NOT EXECUTABLE  
 **Fresh holdout:** CLOSED
 
@@ -208,3 +209,29 @@ It gives Shared no authority over:
 - QORE Risk;
 - broker mutation or Execution.
 
+
+
+## Post-V10 disposition
+
+Authoritative V10 run `36325040251` proved material sequential observability:
+
+- R6 incremental observability: **+727 bps**, terminal preservation **9810 bps**;
+- R5 incremental observability: **+721 bps**, terminal preservation **9858 bps**.
+
+Therefore this Active Perception reservation does **not** activate directly
+after V10. Per the pre-frozen transition law, one structurally new sequential
+state hypothesis is permitted first.
+
+That hypothesis is V11:
+
+`QORE_SHARED_WP05_SEQUENTIAL_MECHANISM_CONFIRMATION_V11_001`.
+
+The Active Perception reservation is carried forward without changing its
+sensor families or admission laws and is renumbered operationally as the
+post-V11 **V12 candidate**:
+
+`QORE_SHARED_WP05_ACTIVE_PERCEPTION_OBSERVABILITY_V12_CANDIDATE_001`.
+
+If V11 fails the unchanged 2000/9500 consumed gate, this V12 branch activates
+and classifier iteration over the current NAS100/SP500/US30 OHLC sensor
+universe stops.
