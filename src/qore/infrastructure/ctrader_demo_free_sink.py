@@ -1,8 +1,8 @@
-"""Operational cTrader DEMO sink for unrestricted Trader/CIBO observation.
+"""Operational cTrader DEMO sink for CIBO account-scoped sizing.
 
-This path is DEMO-only. QORE Risk allocates virtual capital by Trader lineage;
-Trader/CIBO own setup selection and requested size. No FundedNext portfolio-risk
-reduction is applied here.
+This path is DEMO-only. Traders own setup/entry/exit geometry; CIBO alone owns
+requested risk and volume from the full DEMO account envelope. Per-Trader
+capital slices are attribution metadata only and never sizing authority.
 """
 
 from __future__ import annotations
@@ -174,8 +174,9 @@ class CTraderDemoFreeSink:
                 "balance": format(binding.balance, "f"),
                 "traders": len(self._book.allocations),
                 "symbols": len(binding.contracts),
-                "risk_role": "CAPITAL_ALLOCATOR_ONLY",
-                "cibo_role": "SIZING_AND_POSITION_INTELLIGENCE_SOVEREIGN",
+                "risk_role": "TECHNICAL_EXECUTION_GOVERNOR",
+                "cibo_role": "ACCOUNT_SCOPED_SIZING_AND_CAPITAL_AUTHORITY",
+                "trader_sizing_authority": False,
             }
         )
 
@@ -199,7 +200,11 @@ class CTraderDemoFreeSink:
     def client(self) -> SpotwareCTraderOpenApiClient:
         return self._client
 
+    def account_capital(self) -> Decimal:
+        return self._book.account_capital
+
     def capital_for(self, trader: TraderLineage) -> Decimal:
+        """Compatibility alias; no Trader receives a private capital budget."""
         return self._book.capital_for(trader)
 
     def _contract(self, request: CiboRiskRequest) -> CTraderDemoBrokerContract:
@@ -223,8 +228,7 @@ class CTraderDemoFreeSink:
         if observed.tzinfo is None or observed.utcoffset() is None:
             raise CTraderDemoFreeSinkError("submit time must be timezone-aware")
         with self._lock:
-            capital = self._book.capital_for(request.trader_id)
-            # No cross-trade or per-trader busy gate lives in the DEMO sink.
+            # No cross-trade or per-trader sizing gate lives in the DEMO sink.
             # Strategy-owned state decides whether another entry is legitimate.
             # Canonical idempotency prevents duplicate submission of the same signal.
             allocation = authorize_allocation_only(
@@ -459,7 +463,12 @@ def global_sink() -> CTraderDemoFreeSink:
     return _GLOBAL_SINK
 
 
+def demo_account_capital() -> Decimal:
+    return global_sink().account_capital()
+
+
 def demo_capital_for(trader: TraderLineage) -> Decimal:
+    """Compatibility alias returning account capital, never a Trader slice."""
     return global_sink().capital_for(trader)
 
 
