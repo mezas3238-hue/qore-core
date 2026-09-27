@@ -7,10 +7,11 @@ trading, Risk, sizing or execution authority.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import json
 import os
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from threading import RLock
@@ -26,7 +27,11 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
     phase20_forward_evidence_sha256,
 )
 
-_SCHEMA = "CIBO_PHASE20D_FORWARD_EVIDENCE_BOOK_V3"
+_SCHEMA = "CIBO_PHASE20D_FORWARD_EVIDENCE_BOOK_V4"
+_READABLE_SCHEMAS = {
+    "CIBO_PHASE20D_FORWARD_EVIDENCE_BOOK_V3",
+    _SCHEMA,
+}
 
 
 class DurablePhase20ForwardEvidenceError(CiboCapitalManagementError):
@@ -44,6 +49,8 @@ class Phase20ForwardDecisionSeal:
     parameter_sha256: str
     signal_fingerprints: tuple[str, ...]
     canonical_payload_json: str
+    sealed_at: datetime | None = None
+    seal_deadline_at: datetime | None = None
 
     def __post_init__(self) -> None:
         if (
@@ -66,6 +73,22 @@ class Phase20ForwardDecisionSeal:
             raise DurablePhase20ForwardEvidenceError(
                 "forward decision policy lineage is required"
             )
+        for name in ("sealed_at", "seal_deadline_at"):
+            value = getattr(self, name)
+            if (
+                value is not None
+                and (value.tzinfo is None or value.utcoffset() is None)
+            ):
+                raise DurablePhase20ForwardEvidenceError(
+                    f"forward decision {name} must be timezone-aware"
+                )
+        if (
+            self.seal_deadline_at is not None
+            and self.seal_deadline_at < self.decision_at
+        ):
+            raise DurablePhase20ForwardEvidenceError(
+                "forward decision seal deadline cannot predate decision"
+            )
         # A complete causal epoch may legitimately contain zero candidates.
         # Those epochs must remain in the durable population to avoid
         # conditioning qualification only on signal-producing periods.
@@ -83,6 +106,14 @@ class Phase20ForwardDecisionSeal:
             raise DurablePhase20ForwardEvidenceError(
                 "forward decision canonical payload must be object"
             )
+
+    @property
+    def sealed_within_deadline(self) -> bool:
+        return (
+            self.sealed_at is not None
+            and self.seal_deadline_at is not None
+            and self.decision_at <= self.sealed_at <= self.seal_deadline_at
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -238,13 +269,19 @@ class VersionedPhase20ForwardEvidenceBook:
 class DurablePhase20ForwardEvidenceStore:
     """Atomic append-only forward-evidence store with CAS and writer lock."""
 
-    def __init__(self, path: Path) -> None:
+    def __init__(
+        self,
+        path: Path,
+        *,
+        clock: Callable[[], datetime] | None = None,
+    ) -> None:
         if not isinstance(path, Path):
             raise DurablePhase20ForwardEvidenceError(
                 "forward evidence path must be pathlib.Path"
             )
         self._path = path
         self._writer_lock_path = path.with_name(f".{path.name}.writer-lock")
+        self._clock = clock or (lambda: datetime.now(UTC))
         self._lock = RLock()
 
     def load(self) -> VersionedPhase20ForwardEvidenceBook:
@@ -256,6 +293,7 @@ class DurablePhase20ForwardEvidenceStore:
         evidence: Phase20ForwardDecisionEvidence,
         *,
         expected_generation: int,
+        seal_deadline_at: datetime | None = None,
     ) -> VersionedPhase20ForwardEvidenceBook:
         if not isinstance(evidence, Phase20ForwardDecisionEvidence):
             raise DurablePhase20ForwardEvidenceError(
@@ -266,7 +304,18 @@ class DurablePhase20ForwardEvidenceStore:
                 "forward collector accepts FORWARD_OBSERVED decisions only"
             )
         _generation(expected_generation)
-        seal = _decision_seal(evidence)
+        if seal_deadline_at is not None:
+            if (
+                seal_deadline_at.tzinfo is None
+                or seal_deadline_at.utcoffset() is None
+            ):
+                raise DurablePhase20ForwardEvidenceError(
+                    "forward decision seal deadline must be timezone-aware"
+                )
+            if seal_deadline_at < evidence.decision_at:
+                raise DurablePhase20ForwardEvidenceError(
+                    "forward decision seal deadline cannot predate decision"
+                )
 
         with self._lock:
             self._acquire_writer_lock()
@@ -279,10 +328,10 @@ class DurablePhase20ForwardEvidenceStore:
                 same_id = tuple(
                     item
                     for item in current.decisions
-                    if item.evidence_id == seal.evidence_id
+                    if item.evidence_id == evidence.evidence_id
                 )
                 if same_id:
-                    if same_id[0] == seal:
+                    if _decision_matches_evidence(same_id[0], evidence):
                         return current
                     raise DurablePhase20ForwardEvidenceError(
                         "conflicting forward decision rewrite"
@@ -290,18 +339,29 @@ class DurablePhase20ForwardEvidenceStore:
                 same_epoch = tuple(
                     item
                     for item in current.decisions
-                    if item.decision_epoch_id == seal.decision_epoch_id
+                    if item.decision_epoch_id == evidence.decision_epoch_id
                 )
                 if same_epoch:
-                    if same_epoch[0] == seal:
+                    if _decision_matches_evidence(same_epoch[0], evidence):
                         return current
                     raise DurablePhase20ForwardEvidenceError(
                         "conflicting forward decision epoch rewrite"
                     )
-                if current.decision_for_sha(seal.evidence_sha256) is not None:
+                evidence_sha256 = phase20_forward_evidence_sha256(evidence)
+                if current.decision_for_sha(evidence_sha256) is not None:
                     raise DurablePhase20ForwardEvidenceError(
                         "forward decision payload already sealed under another id"
                     )
+                sealed_at = self._clock()
+                if sealed_at.tzinfo is None or sealed_at.utcoffset() is None:
+                    raise DurablePhase20ForwardEvidenceError(
+                        "forward decision physical seal timestamp must be timezone-aware"
+                    )
+                seal = _decision_seal(
+                    evidence,
+                    sealed_at=sealed_at,
+                    seal_deadline_at=seal_deadline_at,
+                )
                 updated = VersionedPhase20ForwardEvidenceBook(
                     generation=current.generation + 1,
                     decisions=current.decisions + (seal,),
@@ -414,7 +474,10 @@ class DurablePhase20ForwardEvidenceStore:
             raise DurablePhase20ForwardEvidenceError(
                 "durable forward evidence store is unreadable"
             ) from error
-        if not isinstance(raw, dict) or raw.get("schema") != _SCHEMA:
+        if (
+            not isinstance(raw, dict)
+            or raw.get("schema") not in _READABLE_SCHEMAS
+        ):
             raise DurablePhase20ForwardEvidenceError(
                 "durable forward evidence schema mismatch"
             )
@@ -497,6 +560,9 @@ class DurablePhase20ForwardEvidenceStore:
 
 def _decision_seal(
     evidence: Phase20ForwardDecisionEvidence,
+    *,
+    sealed_at: datetime,
+    seal_deadline_at: datetime | None,
 ) -> Phase20ForwardDecisionSeal:
     payload = phase20_forward_evidence_json(evidence)
     return Phase20ForwardDecisionSeal(
@@ -511,6 +577,28 @@ def _decision_seal(
             item.candidate.signal_fingerprint for item in evidence.candidates
         ),
         canonical_payload_json=payload,
+        sealed_at=sealed_at,
+        seal_deadline_at=seal_deadline_at,
+    )
+
+
+def _decision_matches_evidence(
+    seal: Phase20ForwardDecisionSeal,
+    evidence: Phase20ForwardDecisionEvidence,
+) -> bool:
+    return (
+        seal.evidence_id == evidence.evidence_id
+        and seal.decision_epoch_id == evidence.decision_epoch_id
+        and seal.evidence_sha256 == phase20_forward_evidence_sha256(evidence)
+        and seal.decision_at == evidence.decision_at
+        and seal.candidate_id == evidence.lineage.candidate_id
+        and seal.code_sha == evidence.lineage.code_sha
+        and seal.parameter_sha256 == evidence.lineage.parameter_sha256
+        and seal.signal_fingerprints
+        == tuple(
+            item.candidate.signal_fingerprint for item in evidence.candidates
+        )
+        and seal.canonical_payload_json == phase20_forward_evidence_json(evidence)
     )
 
 
@@ -538,6 +626,14 @@ def _decision_to_json(
         "parameter_sha256": value.parameter_sha256,
         "signal_fingerprints": list(value.signal_fingerprints),
         "canonical_payload_json": value.canonical_payload_json,
+        "sealed_at": (
+            None if value.sealed_at is None else value.sealed_at.isoformat()
+        ),
+        "seal_deadline_at": (
+            None
+            if value.seal_deadline_at is None
+            else value.seal_deadline_at.isoformat()
+        ),
     }
 
 
@@ -557,6 +653,16 @@ def _decision_from_json(value: object) -> Phase20ForwardDecisionSeal:
         parameter_sha256=str(value["parameter_sha256"]),
         signal_fingerprints=tuple(str(item) for item in fingerprints),
         canonical_payload_json=str(value["canonical_payload_json"]),
+        sealed_at=(
+            None
+            if value.get("sealed_at") is None
+            else datetime.fromisoformat(str(value["sealed_at"]))
+        ),
+        seal_deadline_at=(
+            None
+            if value.get("seal_deadline_at") is None
+            else datetime.fromisoformat(str(value["seal_deadline_at"]))
+        ),
     )
 
 
