@@ -33,6 +33,7 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
     Phase20ForwardDecisionRecord,
     Phase20ForwardEvidenceKind,
     Phase20ForwardKnownOptionEvidence,
+    Phase20ForwardPopulationSlotEvidence,
     Phase20PolicyCandidateLineage,
     build_phase20_forward_decision_record,
 )
@@ -158,12 +159,14 @@ def collect_phase20_forward_observed_epoch(
     *,
     evidence_store: DurablePhase20ForwardEvidenceStore,
     policy_store: DurablePhase20ForwardPolicyStore,
+    decision_epoch_id: str,
     decision_at: datetime,
     account_identity: CiboAccountCapitalIdentity,
     snapshots: Phase20ForwardSnapshotBundle,
     concentration_limit_by_group: tuple[tuple[str, Decimal], ...],
     regime_state: CiboCapitalRegimeState,
     current_step: int,
+    population_slots: tuple[Phase20ForwardPopulationSlotEvidence, ...],
     opportunities: tuple[Phase20ForwardObservedOpportunity, ...],
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
 ) -> Phase20ForwardCollectedEpoch:
@@ -175,12 +178,14 @@ def collect_phase20_forward_observed_epoch(
         )
     result = seal_phase20_forward_observed_epoch_from_snapshots(
         store=evidence_store,
+        decision_epoch_id=decision_epoch_id,
         decision_at=decision_at,
         account_identity=account_identity,
         snapshots=snapshots,
         concentration_limit_by_group=concentration_limit_by_group,
         regime_state=regime_state,
         current_step=current_step,
+        population_slots=population_slots,
         opportunities=opportunities,
         known_options=known_options,
     )
@@ -200,12 +205,14 @@ def collect_phase20_forward_observed_epoch(
 def seal_phase20_forward_observed_epoch_from_snapshots(
     *,
     store: DurablePhase20ForwardEvidenceStore,
+    decision_epoch_id: str,
     decision_at: datetime,
     account_identity: CiboAccountCapitalIdentity,
     snapshots: Phase20ForwardSnapshotBundle,
     concentration_limit_by_group: tuple[tuple[str, Decimal], ...],
     regime_state: CiboCapitalRegimeState,
     current_step: int,
+    population_slots: tuple[Phase20ForwardPopulationSlotEvidence, ...],
     opportunities: tuple[Phase20ForwardObservedOpportunity, ...],
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
 ) -> Phase20ForwardEpochResult:
@@ -217,6 +224,7 @@ def seal_phase20_forward_observed_epoch_from_snapshots(
         )
     return seal_phase20_forward_observed_epoch(
         store=store,
+        decision_epoch_id=decision_epoch_id,
         decision_at=decision_at,
         account_identity=account_identity,
         capital_snapshot_id=snapshots.capital_snapshot_id,
@@ -228,6 +236,7 @@ def seal_phase20_forward_observed_epoch_from_snapshots(
         concentration_limit_by_group=concentration_limit_by_group,
         regime_state=regime_state,
         current_step=current_step,
+        population_slots=population_slots,
         opportunities=opportunities,
         known_options=known_options,
     )
@@ -235,6 +244,7 @@ def seal_phase20_forward_observed_epoch_from_snapshots(
 def seal_phase20_forward_observed_epoch(
     *,
     store: DurablePhase20ForwardEvidenceStore,
+    decision_epoch_id: str,
     decision_at: datetime,
     account_identity: CiboAccountCapitalIdentity,
     capital_snapshot_id: str,
@@ -246,6 +256,7 @@ def seal_phase20_forward_observed_epoch(
     concentration_limit_by_group: tuple[tuple[str, Decimal], ...],
     regime_state: CiboCapitalRegimeState,
     current_step: int,
+    population_slots: tuple[Phase20ForwardPopulationSlotEvidence, ...],
     opportunities: tuple[Phase20ForwardObservedOpportunity, ...],
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
 ) -> Phase20ForwardEpochResult:
@@ -259,6 +270,14 @@ def seal_phase20_forward_observed_epoch(
     if not isinstance(store, DurablePhase20ForwardEvidenceStore):
         raise CiboCapitalManagementError(
             "Phase20D forward store must be durable canonical store"
+        )
+    if not decision_epoch_id:
+        raise CiboCapitalManagementError(
+            "Phase20D deterministic decision epoch identity is required"
+        )
+    if not population_slots:
+        raise CiboCapitalManagementError(
+            "Phase20D forward epoch requires complete population manifest"
         )
     if not opportunities:
         raise CiboCapitalManagementError(
@@ -314,6 +333,16 @@ def seal_phase20_forward_observed_epoch(
         )
         for item in ordered_observations
     )
+    ordered_population = tuple(
+        sorted(
+            population_slots,
+            key=lambda item: (
+                item.slot_id,
+                item.trader_id.value,
+                item.qore_symbol,
+            ),
+        )
+    )
     ordered_options = tuple(
         sorted(
             known_options,
@@ -334,14 +363,10 @@ def seal_phase20_forward_observed_epoch(
     )
     evidence = Phase20ForwardDecisionEvidence(
         evidence_id=_epoch_evidence_id(
-            decision_at=decision_at,
+            decision_epoch_id=decision_epoch_id,
             account_identity=account_identity,
-            capital_snapshot_id=capital_snapshot_id,
-            risk_snapshot_id=risk_snapshot_id,
-            candidate_evidence=candidates,
-            known_options=ordered_options,
-            current_step=current_step,
         ),
+        decision_epoch_id=decision_epoch_id,
         evidence_kind=Phase20ForwardEvidenceKind.FORWARD_OBSERVED,
         decision_at=decision_at,
         lineage=lineage,
@@ -357,6 +382,7 @@ def seal_phase20_forward_observed_epoch(
         regime_state=regime_state,
         current_step=current_step,
         horizon_steps=frozen.mpc_horizon_steps,
+        population_slots=ordered_population,
         candidates=candidates,
         known_options=ordered_options,
     )
@@ -415,40 +441,18 @@ def _candidate_evidence(
 
 def _epoch_evidence_id(
     *,
-    decision_at: datetime,
+    decision_epoch_id: str,
     account_identity: CiboAccountCapitalIdentity,
-    capital_snapshot_id: str,
-    risk_snapshot_id: str,
-    candidate_evidence: tuple[Phase20ForwardCandidateEvidence, ...],
-    known_options: tuple[Phase20ForwardKnownOptionEvidence, ...],
-    current_step: int,
 ) -> str:
     payload = {
         "candidate_id": FROZEN_PHASE20_POLICY_CANDIDATE.candidate_id,
-        "decision_at": decision_at.isoformat(),
+        "decision_epoch_id": decision_epoch_id,
         "account": {
             "provider_key": account_identity.provider_key,
             "account_ref": account_identity.account_ref,
             "environment": account_identity.environment.value,
             "provider_program": account_identity.provider_program,
         },
-        "capital_snapshot_id": capital_snapshot_id,
-        "risk_snapshot_id": risk_snapshot_id,
-        "current_step": current_step,
-        "candidates": [
-            {
-                "signal_fingerprint": item.opportunity.signal_fingerprint,
-                "trader_id": item.opportunity.trader_id.value,
-            }
-            for item in candidate_evidence
-        ],
-        "known_options": [
-            {
-                "opportunity_id": item.option.opportunity_id,
-                "decision_step": item.option.decision_step,
-            }
-            for item in known_options
-        ],
     }
     raw = json.dumps(
         payload,
