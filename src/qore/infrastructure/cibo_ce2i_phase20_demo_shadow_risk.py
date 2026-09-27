@@ -26,7 +26,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_ce2i_phase20_outcome_reconciliation import (
     Phase20ExecutedRiskEvidence,
 )
-from qore.infrastructure.ctrader_demo_gateway import CTraderDemoAccountState
+from qore.infrastructure.ctrader_demo_compat import CTraderDemoAccountState
 
 DEMO_CAPABILITY_SHADOW_RISK_POLICY_ID = (
     "CIBO_DEMO_CAPABILITY_SOLVENCY_ONLY_RISK_V1"
