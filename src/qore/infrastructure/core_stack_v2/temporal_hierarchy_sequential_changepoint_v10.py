@@ -409,7 +409,6 @@ def build_sequential_checkpoint_evidence(
         else max(item.high for item in prior)
     )
     source_scale = _safe_range(prior)
-    source_bar = nas_bars[nas_source_index]
     post = tuple(
         nas_bars[nas_source_index + 1 : nas_checkpoint_index + 1]
     )
