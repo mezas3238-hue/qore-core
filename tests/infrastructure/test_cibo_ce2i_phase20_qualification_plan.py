@@ -19,7 +19,7 @@ def test_phase20d_qualification_plan_is_bound_to_frozen_v2() -> None:
     assert plan.synthetic_evidence_allowed is False
     assert plan.decision_time_provider_cost_proxy_only is True
     assert plan.realized_execution_economics_required is True
-    assert plan.plan_id == "CIBO_PHASE20D_V2_FORWARD_QUALIFICATION_PLAN_V2"
+    assert plan.plan_id == "CIBO_PHASE20D_V2_FORWARD_QUALIFICATION_PLAN_V3"
 
 
 def test_phase20d_qualification_plan_prevents_tiny_or_narrow_population() -> None:
@@ -45,7 +45,7 @@ def test_phase20d_qualification_plan_has_economic_and_safety_gates() -> None:
 
     assert "ALL_TEMPORAL_FOLDS_POLICY_DELTA_POSITIVE" in plan.hard_gates
     assert "POLICY_DELTA_NOT_BELOW_FIXED_BASELINE" in plan.hard_gates
-    assert "POLICY_MAX_DRAWDOWN_NOT_ABOVE_FIXED_BASELINE" in plan.hard_gates
+    assert "POLICY_SETTLEMENT_CASH_DRAWDOWN_NOT_ABOVE_FIXED_BASELINE" in plan.hard_gates
     assert (
         "POLICY_CAPITAL_PRODUCTIVITY_STRICTLY_ABOVE_FIXED_BASELINE"
         in plan.hard_gates
@@ -57,6 +57,7 @@ def test_phase20d_qualification_plan_has_economic_and_safety_gates() -> None:
     assert "REALIZED_NET_DELTA_USD" in plan.metrics
     assert "EXECUTED_INITIAL_STOP_RISK_USD" in plan.metrics
     assert "DECISION_TIME_PROVIDER_COST_PROXY_USD" in plan.metrics
+    assert "TERMINAL_SETTLEMENT_CASH_PATH_DRAWDOWN_USD" in plan.metrics
     assert "EVIDENCE_MISSINGNESS" in plan.metrics
     assert "MPC_RESERVE_EFFICIENCY" in plan.metrics
 
