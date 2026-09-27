@@ -120,7 +120,6 @@ jobs:
           assert m["fit_nonterminal_count"] >= 10
           assert m["purged_discovery_count"] >= 0
           assert m["discovery_observed_max"] < m["calibration_source_min"]
-          assert m["calibration_confirmation_terminal_preservation_bps"] >= 9800
 
           g=p["governance"]
           assert g["t0_terminal_confirmation_allowed"] is False
@@ -142,38 +141,46 @@ jobs:
           assert g["shared_order_authority"] is False
           assert g["shared_execution_authority"] is False
 
-          assert p["partition_temporal_order_gate"] is True
-          fingerprints=p["partition_model_fingerprints"]
-          assert fingerprints["r8"] == fingerprints["r6"] == fingerprints["r5"]
-          assert fingerprints["r8"] == m["fingerprint_sha256"]
+          if m["calibration_gate_pass"]:
+              assert m["calibration_confirmation_terminal_preservation_bps"] >= 9800
+              assert p["partition_temporal_order_gate"] is True
+              fingerprints=p["partition_model_fingerprints"]
+              assert fingerprints["r8"] == fingerprints["r6"] == fingerprints["r5"]
+              assert fingerprints["r8"] == m["fingerprint_sha256"]
 
-          gate=p["frozen_development_gate"]
-          assert gate["minimum_false_declaration_reduction_bps"] == 2000
-          assert gate["minimum_terminal_detection_preservation_bps"] == 9500
-          assert gate["maximum_confirmation_latency_minutes"] == 15
-          assert gate["must_pass_partitions"] == ["r6","r5"]
+              gate=p["frozen_development_gate"]
+              assert gate["minimum_false_declaration_reduction_bps"] == 2000
+              assert gate["minimum_terminal_detection_preservation_bps"] == 9500
+              assert gate["maximum_confirmation_latency_minutes"] == 15
+              assert gate["must_pass_partitions"] == ["r6","r5"]
 
-          for partition in ("r8","r6","r5"):
-              r=p["partition_ranges"][partition]
-              e=p["evaluations"][partition]
-              assert r["episode_count"] >= 6000
-              assert r["complete_evidence_count"] >= 6000
-              assert r["terminal_event_count"] > 0
-              assert 0 < r["checkpoint_complete_coverage_bps"] <= 10000
-              assert e["confirmation_latency_p95_minutes"] <= 15
-              assert e["confirmations_at_3m"] >= 0
-              assert e["confirmations_at_5m"] >= 0
-              assert e["confirmations_at_10m"] >= 0
-              assert e["confirmations_at_15m"] >= 0
-
-          if p["status"] == "WP05_V11_MECHANISM_CONFIRMATION_FROZEN_FOR_FRESH_HOLDOUT":
-              assert p["development_gate_pass"] is True
-              for partition in ("r6","r5"):
+              for partition in ("r8","r6","r5"):
+                  r=p["partition_ranges"][partition]
                   e=p["evaluations"][partition]
-                  assert e["v11_false_declaration_reduction_bps"] >= 2000
-                  assert e["v11_terminal_detection_preservation_bps"] >= 9500
+                  assert r["episode_count"] >= 6000
+                  assert r["complete_evidence_count"] >= 6000
+                  assert r["terminal_event_count"] > 0
+                  assert 0 < r["checkpoint_complete_coverage_bps"] <= 10000
+                  assert e["confirmation_latency_p95_minutes"] <= 15
+                  assert e["confirmations_at_3m"] >= 0
+                  assert e["confirmations_at_5m"] >= 0
+                  assert e["confirmations_at_10m"] >= 0
+                  assert e["confirmations_at_15m"] >= 0
+
+              if p["status"] == "WP05_V11_MECHANISM_CONFIRMATION_FROZEN_FOR_FRESH_HOLDOUT":
+                  assert p["development_gate_pass"] is True
+                  for partition in ("r6","r5"):
+                      e=p["evaluations"][partition]
+                      assert e["v11_false_declaration_reduction_bps"] >= 2000
+                      assert e["v11_terminal_detection_preservation_bps"] >= 9500
+              else:
+                  assert p["development_gate_pass"] is False
           else:
+              assert p["status"] == "WP05_V11_MECHANISM_CONFIRMATION_FALSIFIED"
               assert p["development_gate_pass"] is False
+              assert set(p["partition_ranges"]) == {"r8"}
+              assert set(p["partition_model_fingerprints"]) == {"r8"}
+              assert set(p["evaluations"]) == {"r8"}
           PY
 
       - name: Bind result
