@@ -36,14 +36,14 @@ from qore.infrastructure.ctrader_demo_mutation_ledger import (
 )
 from qore.infrastructure.ctrader_demo_trade_registry import DemoTradeRegistryEntry
 from qore.infrastructure.execution_boundary import ExecutionReceiptId
+from qore.infrastructure.market_test_environment import (
+    MarketRuntimeEnvironment,
+    MarketTestAccountIdentity,
+)
 from qore.infrastructure.order_intent import (
     ExecutionIdempotencyKey,
     ExecutionInstrument,
     OrderSide,
-)
-from qore.infrastructure.market_test_environment import (
-    MarketRuntimeEnvironment,
-    MarketTestAccountIdentity,
 )
 
 NOW = datetime(2026, 9, 27, 18, 0, tzinfo=UTC)
@@ -276,6 +276,40 @@ def test_legacy_registry_entry_cannot_fabricate_phase20_execution_basis(
             account=ACCOUNT,
             mutation_ledger=_mutation_ledger(
                 tmp_path / "mutations.json"
+            ),
+            forward_store=_forward_store(tmp_path / "forward.json"),
+            executed_risk_store=DurablePhase20ExecutedRiskStore(
+                tmp_path / "risk.json"
+            ),
+            settlement_store=DurableCmaSettlementStore(
+                tmp_path / "settlements.json"
+            ),
+            reconciled_at=NOW + timedelta(seconds=2),
+        )
+
+
+
+def test_recovery_rejects_tampered_durable_fill_economics(
+    tmp_path: Path,
+) -> None:
+    mutation_path = tmp_path / "mutations.json"
+    _mutation_ledger(mutation_path)
+    raw = json.loads(mutation_path.read_text(encoding="utf-8"))
+    raw["records"][0]["fill_observations"][0]["fill_price"] = "101.5"
+    mutation_path.write_text(
+        json.dumps(raw, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="durable fill identity digest mismatch",
+    ):
+        reconcile_ctrader_demo_phase20_entry(
+            entry=_entry(),
+            account=ACCOUNT,
+            mutation_ledger=JsonFileCTraderDemoMutationLedger(
+                mutation_path
             ),
             forward_store=_forward_store(tmp_path / "forward.json"),
             executed_risk_store=DurablePhase20ExecutedRiskStore(
