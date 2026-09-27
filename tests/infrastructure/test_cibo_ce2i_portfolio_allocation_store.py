@@ -46,10 +46,10 @@ def _candidate() -> CapitalOpportunityCandidate:
             as_of=datetime(2026, 9, 26, 12, 0, tzinfo=UTC),
             basis=CausalExpectationBasis.FROZEN_HISTORICAL_PRIOR,
             expected_net_value_usd=Decimal("10"),
-            ),
+            expected_capital_minutes=Decimal("10"),
+        ),
         stop_risk_usd=Decimal("5"),
         margin_usd=Decimal("10"),
-        expected_capital_minutes=Decimal("10"),
         concentration_group="USD",
         concentration_risk_usd=Decimal("5"),
     )

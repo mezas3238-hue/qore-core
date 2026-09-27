@@ -319,7 +319,10 @@ def measure_phase19_temporal_null(
     observed_total = sum(observed_pairs.values())
 
     rng = random.Random(random_seed)
-    pair_samples = {key: [] for key in _PAIR_KEYS}
+    pair_samples: dict[
+        tuple[TraderLineage, TraderLineage],
+        list[int],
+    ] = {key: [] for key in _PAIR_KEYS}
     total_samples: list[int] = []
 
     for _ in range(permutations):

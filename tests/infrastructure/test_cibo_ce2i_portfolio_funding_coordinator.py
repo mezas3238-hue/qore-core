@@ -151,10 +151,10 @@ def _candidate(*, risk: str = "8", margin: str = "12") -> CapitalOpportunityCand
             as_of=NOW,
             basis=CausalExpectationBasis.FROZEN_HISTORICAL_PRIOR,
             expected_net_value_usd=Decimal("10"),
-            ),
+            expected_capital_minutes=Decimal("10"),
+        ),
         stop_risk_usd=Decimal(risk),
         margin_usd=Decimal(margin),
-        expected_capital_minutes=Decimal("10"),
         concentration_group="EUR",
         concentration_risk_usd=Decimal(risk),
     )
