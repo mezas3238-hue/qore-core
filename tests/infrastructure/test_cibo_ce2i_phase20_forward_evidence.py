@@ -422,3 +422,38 @@ def test_phase20d_outcome_must_bind_exact_decision_digest() -> None:
 
     assert result.eligible is False
     assert "OUTCOME_DECISION_DIGEST_MISMATCH" in result.reasons
+
+def test_phase20d_rejects_population_manifest_candidate_mismatch() -> None:
+    decision = _decision()
+    slot = decision.population_slots[0]
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="population manifest must exactly match candidates",
+    ):
+        replace(
+            decision,
+            population_slots=(
+                replace(slot, signal_fingerprint="different-signal"),
+            ),
+        )
+
+
+def test_phase20d_population_manifest_can_retain_non_candidate_slots() -> None:
+    decision = _decision()
+    abstain = Phase20ForwardPopulationSlotEvidence(
+        slot_id="R34_XAUUSD|XAUUSD|phase20d-epoch-1",
+        trader_id=TraderLineage.R34_XAUUSD,
+        qore_symbol="XAUUSD",
+        observed_at=DECISION_AT - timedelta(milliseconds=1),
+        disposition=Phase20ForwardPopulationDisposition.ABSTAIN,
+        reason="NO_SETUP",
+    )
+
+    expanded = replace(
+        decision,
+        population_slots=decision.population_slots + (abstain,),
+    )
+
+    assert len(expanded.population_slots) == 2
+    assert expanded.population_slots[1].signal_fingerprint is None
+
