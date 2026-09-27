@@ -1,5 +1,5 @@
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -36,6 +36,7 @@ def _evidence() -> Phase20ExecutedRiskEvidence:
         fill_evidence_refs=("fill-1", "fill-2"),
         fill_reconciled=True,
         mutation_outcome_known=True,
+        capital_deployed_at=NOW - timedelta(seconds=1),
     )
 
 
@@ -53,6 +54,9 @@ def test_executed_risk_store_survives_restart(tmp_path: Path) -> None:
         signal_fingerprint="signal-1",
         position_id=77,
     ) == _evidence()
+    assert restarted.evidences[0].capital_deployed_at == (
+        NOW - timedelta(seconds=1)
+    )
 
 
 def test_executed_risk_exact_duplicate_is_idempotent(
