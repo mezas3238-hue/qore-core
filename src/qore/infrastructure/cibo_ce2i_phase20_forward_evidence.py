@@ -18,6 +18,7 @@ from enum import Enum, StrEnum
 from hashlib import sha256
 from typing import Any
 
+from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
     CiboCapitalMissionPolicy,
@@ -62,6 +63,51 @@ _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 class Phase20ForwardEvidenceKind(StrEnum):
     SYNTHETIC_CONTRACT = "SYNTHETIC_CONTRACT"
     FORWARD_OBSERVED = "FORWARD_OBSERVED"
+
+
+class Phase20ForwardPopulationDisposition(StrEnum):
+    CANDIDATE = "CANDIDATE"
+    ABSTAIN = "ABSTAIN"
+    FAIL_CLOSED = "FAIL_CLOSED"
+    SESSION_CLOSED = "SESSION_CLOSED"
+    DEADLINE_MISSED = "DEADLINE_MISSED"
+
+
+@dataclass(frozen=True, slots=True)
+class Phase20ForwardPopulationSlotEvidence:
+    """Terminal causal state for one expected Trader/symbol slot in an epoch."""
+
+    slot_id: str
+    trader_id: TraderLineage
+    qore_symbol: str
+    observed_at: datetime
+    disposition: Phase20ForwardPopulationDisposition
+    reason: str
+    signal_fingerprint: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.slot_id or not self.qore_symbol or not self.reason:
+            raise CiboCapitalManagementError(
+                "Phase20D population slot identity/symbol/reason are required"
+            )
+        if type(self.trader_id) is not TraderLineage:
+            raise CiboCapitalManagementError(
+                "Phase20D population slot Trader must be canonical"
+            )
+        _aware(self.observed_at, name="population slot observed_at")
+        if type(self.disposition) is not Phase20ForwardPopulationDisposition:
+            raise CiboCapitalManagementError(
+                "Phase20D population disposition must be canonical"
+            )
+        if self.disposition is Phase20ForwardPopulationDisposition.CANDIDATE:
+            if not self.signal_fingerprint:
+                raise CiboCapitalManagementError(
+                    "Phase20D candidate population slot needs signal fingerprint"
+                )
+        elif self.signal_fingerprint is not None:
+            raise CiboCapitalManagementError(
+                "Phase20D non-candidate slot cannot carry signal fingerprint"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -215,6 +261,7 @@ class Phase20ForwardKnownOptionEvidence:
 @dataclass(frozen=True, slots=True)
 class Phase20ForwardDecisionEvidence:
     evidence_id: str
+    decision_epoch_id: str
     evidence_kind: Phase20ForwardEvidenceKind
     decision_at: datetime
     lineage: Phase20PolicyCandidateLineage
@@ -230,6 +277,7 @@ class Phase20ForwardDecisionEvidence:
     regime_state: CiboCapitalRegimeState
     current_step: int
     horizon_steps: int
+    population_slots: tuple[Phase20ForwardPopulationSlotEvidence, ...]
     candidates: tuple[Phase20ForwardCandidateEvidence, ...]
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = ()
     outcome_present: bool = False
@@ -238,9 +286,14 @@ class Phase20ForwardDecisionEvidence:
     execution_authority: bool = False
 
     def __post_init__(self) -> None:
-        if not self.evidence_id or not self.capital_snapshot_id or not self.risk_snapshot_id:
+        if (
+            not self.evidence_id
+            or not self.decision_epoch_id
+            or not self.capital_snapshot_id
+            or not self.risk_snapshot_id
+        ):
             raise CiboCapitalManagementError(
-                "Phase20D evidence/capital/risk snapshot identities are required"
+                "Phase20D evidence/epoch/capital/risk identities are required"
             )
         _fresh_snapshot(
             decision_at=self.decision_at,
@@ -313,6 +366,64 @@ class Phase20ForwardDecisionEvidence:
             raise CiboCapitalManagementError(
                 "Phase20D decision candidates must have unique fingerprints"
             )
+        if not self.population_slots:
+            raise CiboCapitalManagementError(
+                "Phase20D decision must seal the complete expected population"
+            )
+        slot_ids = tuple(item.slot_id for item in self.population_slots)
+        if len(slot_ids) != len(set(slot_ids)):
+            raise CiboCapitalManagementError(
+                "Phase20D population slot ids must be unique"
+            )
+        slot_keys = tuple(
+            (item.trader_id, item.qore_symbol)
+            for item in self.population_slots
+        )
+        if len(slot_keys) != len(set(slot_keys)):
+            raise CiboCapitalManagementError(
+                "Phase20D population Trader/symbol slots must be unique"
+            )
+        for slot in self.population_slots:
+            if slot.observed_at > self.decision_at:
+                raise CiboCapitalManagementError(
+                    "Phase20D population slot cannot postdate decision"
+                )
+        candidate_slots = tuple(
+            item
+            for item in self.population_slots
+            if (
+                item.disposition
+                is Phase20ForwardPopulationDisposition.CANDIDATE
+            )
+        )
+        manifest_fingerprints = tuple(
+            item.signal_fingerprint for item in candidate_slots
+        )
+        if len(manifest_fingerprints) != len(set(manifest_fingerprints)):
+            raise CiboCapitalManagementError(
+                "Phase20D candidate manifest fingerprints must be unique"
+            )
+        if set(manifest_fingerprints) != set(fingerprints):
+            raise CiboCapitalManagementError(
+                "Phase20D population manifest must exactly match candidates"
+            )
+        candidate_by_fingerprint = {
+            item.candidate.signal_fingerprint: item
+            for item in self.candidates
+        }
+        for slot in candidate_slots:
+            assert slot.signal_fingerprint is not None
+            candidate_evidence = candidate_by_fingerprint[
+                slot.signal_fingerprint
+            ]
+            if (
+                candidate_evidence.candidate.trader_id is not slot.trader_id
+                or candidate_evidence.candidate.qore_symbol
+                != slot.qore_symbol
+            ):
+                raise CiboCapitalManagementError(
+                    "Phase20D population candidate slot identity mismatch"
+                )
         for candidate_evidence in self.candidates:
             if candidate_evidence.candidate.decision_as_of != self.decision_at:
                 raise CiboCapitalManagementError(
