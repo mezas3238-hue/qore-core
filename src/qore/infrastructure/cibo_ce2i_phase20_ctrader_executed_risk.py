@@ -226,6 +226,7 @@ def build_ctrader_phase20_executed_risk(
             executed_initial_risk,
             "f",
         ),
+        "capital_deployed_at": ordered[-1].provider_timestamp.isoformat(),
         "reconciled_at": reconciliation.reconciled_at.isoformat(),
     }
     raw = json.dumps(
@@ -255,4 +256,5 @@ def build_ctrader_phase20_executed_risk(
         fill_evidence_refs=tuple(item.fill_ref for item in ordered),
         fill_reconciled=True,
         mutation_outcome_known=True,
+        capital_deployed_at=ordered[-1].provider_timestamp,
     )
