@@ -27,6 +27,7 @@ from qore.infrastructure.cibo_account_capital_mission import (
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalAction,
     CapitalSource,
+    CapitalStage,
     CiboCapitalActionPlan,
     CiboCapitalManagementError,
     CiboCapitalState,
@@ -267,11 +268,7 @@ def _maximum_constrained_plan(
     )
 
 
-def capital_stage_for_action(action: CapitalAction):
-    from qore.infrastructure.cibo_capital_management_authority import (
-        CapitalStage,
-    )
-
+def capital_stage_for_action(action: CapitalAction) -> CapitalStage:
     if action is CapitalAction.OPEN_CAPABILITY_MAX:
         return CapitalStage.CAPITALIZE
     if action is CapitalAction.EXPAND:
