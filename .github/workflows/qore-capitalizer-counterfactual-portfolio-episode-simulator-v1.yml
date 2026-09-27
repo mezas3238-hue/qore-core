@@ -15,7 +15,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: qore-capitalizer-counterfactual-episode-simulator-v1-${{ github.event.pull_request.number || github.ref }}
+  group: qore-capitalizer-counterfactual-episode-simulator-v1-optimized-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
