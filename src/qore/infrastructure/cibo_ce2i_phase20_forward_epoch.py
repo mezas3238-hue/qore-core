@@ -42,6 +42,9 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
 from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
     FROZEN_PHASE20_POLICY_CANDIDATE,
 )
+from qore.infrastructure.cibo_ce2i_phase20_forward_snapshots import (
+    Phase20ForwardSnapshotBundle,
+)
 from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
     build_frozen_train_expectation,
 )
@@ -120,6 +123,43 @@ class Phase20ForwardEpochResult:
                 "Phase20D epoch result record must be canonical"
             )
 
+
+
+
+def seal_phase20_forward_observed_epoch_from_snapshots(
+    *,
+    store: DurablePhase20ForwardEvidenceStore,
+    decision_at: datetime,
+    account_identity: CiboAccountCapitalIdentity,
+    snapshots: Phase20ForwardSnapshotBundle,
+    concentration_limit_by_group: tuple[tuple[str, Decimal], ...],
+    regime_state: CiboCapitalRegimeState,
+    current_step: int,
+    opportunities: tuple[Phase20ForwardObservedOpportunity, ...],
+    known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
+) -> Phase20ForwardEpochResult:
+    """Seal an epoch using content-bound current capital/Risk snapshots."""
+
+    if not isinstance(snapshots, Phase20ForwardSnapshotBundle):
+        raise CiboCapitalManagementError(
+            "Phase20D snapshots must use canonical content-bound bundle"
+        )
+    return seal_phase20_forward_observed_epoch(
+        store=store,
+        decision_at=decision_at,
+        account_identity=account_identity,
+        capital_snapshot_id=snapshots.capital_snapshot_id,
+        capital_snapshot_observed_at=snapshots.capital_snapshot_observed_at,
+        risk_snapshot_id=snapshots.risk_snapshot_id,
+        risk_snapshot_observed_at=snapshots.risk_snapshot_observed_at,
+        hard_risk_headroom_usd=snapshots.hard_risk_headroom_usd,
+        margin_headroom_usd=snapshots.margin_headroom_usd,
+        concentration_limit_by_group=concentration_limit_by_group,
+        regime_state=regime_state,
+        current_step=current_step,
+        opportunities=opportunities,
+        known_options=known_options,
+    )
 
 def seal_phase20_forward_observed_epoch(
     *,
