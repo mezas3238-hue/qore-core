@@ -265,6 +265,37 @@ def test_large_loss_can_reveal_capacity_breach_without_hidden_recapitalization()
     assert any(item.capacity_breach for item in result.snapshots)
 
 
+def test_realized_delta_ledger_preserves_base_through_large_offsetting_moves() -> None:
+    contract = Phase19CapitalNumeraireContract(contract_id="phase19c-v1")
+    trades = (
+        _trade(
+            trader=TraderLineage.R38_EURUSD,
+            signal="large-gain",
+            entry_minute=1,
+            exit_minute=2,
+            risk="1",
+            outcome="1E+28",
+        ),
+        _trade(
+            trader=TraderLineage.R43_GBPUSD,
+            signal="large-offset",
+            entry_minute=3,
+            exit_minute=4,
+            risk="1",
+            outcome="-1E+28",
+        ),
+    )
+
+    result = replay_phase19_normalized_capital(
+        contract=contract,
+        initial_capital_ncu=Decimal("100"),
+        trades=trades,
+    )
+
+    assert result.total_realized_delta_ncu == Decimal("0")
+    assert result.ending_capital_ncu == Decimal("100")
+
+
 def test_duplicate_signal_fails_closed() -> None:
     contract = Phase19CapitalNumeraireContract(contract_id="phase19c-v1")
     trade = _trade(

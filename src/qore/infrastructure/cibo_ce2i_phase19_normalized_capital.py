@@ -394,6 +394,7 @@ def replay_phase19_normalized_capital(
         )
     events.sort()
 
+    realized_delta_total = Decimal(0)
     realized = initial_capital_ncu
     reserved = Decimal(0)
     peak = realized
@@ -436,7 +437,8 @@ def replay_phase19_normalized_capital(
                 continue
             reserved -= allocation.risk_budget_ncu
             delta = allocation.risk_budget_ncu * item.normalized_outcome_r
-            realized += delta
+            realized_delta_total += delta
+            realized = initial_capital_ncu + realized_delta_total
             realized_delta[fingerprint] = delta
             peak = max(peak, realized)
             max_drawdown = max(max_drawdown, peak - realized)
@@ -487,14 +489,7 @@ def replay_phase19_normalized_capital(
         item.status is Phase19NormalizedAllocationStatus.ACCEPTED
         for item in decisions
     )
-    total_delta = sum(
-        (
-            item.realized_delta_ncu
-            for item in decisions
-            if item.realized_delta_ncu is not None
-        ),
-        Decimal(0),
-    )
+    total_delta = realized_delta_total
 
     return Phase19NormalizedCapitalReplay(
         contract=contract,
