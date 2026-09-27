@@ -83,6 +83,53 @@ def test_identical_train_validation_overlap_distribution_is_stable() -> None:
     assert len(evidence.pair_stability) == 21
 
 
+def test_overlap_distance_uses_count_rationals_without_share_rounding_drift() -> None:
+    train_at = START + timedelta(days=2)
+    train_extra_at = START + timedelta(days=3)
+    validation_at = SPLIT + timedelta(days=2)
+    validation_extra_at = SPLIT + timedelta(days=3)
+
+    opportunities = (
+        *_fully_overlapping_segment(at=train_at, suffix="train"),
+        _opportunity(
+            TraderLineage.R34_XAUUSD,
+            fingerprint="train-extra-xauusd",
+            entry_at=train_extra_at,
+        ),
+        _opportunity(
+            TraderLineage.R38_EURUSD,
+            fingerprint="train-extra-eurusd",
+            entry_at=train_extra_at,
+        ),
+        *_fully_overlapping_segment(
+            at=validation_at,
+            suffix="validation",
+        ),
+        _opportunity(
+            TraderLineage.R38_GBPJPY,
+            fingerprint="validation-extra-gbpjpy",
+            entry_at=validation_extra_at,
+        ),
+        _opportunity(
+            TraderLineage.R42_AUDJPY,
+            fingerprint="validation-extra-audjpy",
+            entry_at=validation_extra_at,
+        ),
+    )
+
+    evidence = measure_phase19_temporal_overlap_stability(
+        opportunities=opportunities,
+        common_window_start=START,
+        split_at=SPLIT,
+        common_window_end=END,
+    )
+
+    assert evidence.training_cross_trader_overlap_pairs == 22
+    assert evidence.validation_cross_trader_overlap_pairs == 22
+    assert evidence.total_variation_distance == Decimal(1) / Decimal(22)
+    assert evidence.weighted_jaccard_similarity == Decimal(21) / Decimal(23)
+
+
 def test_boundary_crossing_position_is_excluded_from_both_segments() -> None:
     opportunities = (
         *_fully_overlapping_segment(

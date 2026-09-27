@@ -275,20 +275,37 @@ def measure_phase19_temporal_overlap_stability(
         weighted_jaccard = None
         status = Phase19TemporalStabilityStatus.INSUFFICIENT_INTERACTIONS
     else:
-        absolute_difference = sum(
-            abs(item.training_share - item.validation_share)
-            for item in pair_stability
+        pair_keys = _complete_pair_keys()
+        shared_denominator = training_total * validation_total
+        absolute_difference_numerator = sum(
+            abs(
+                training_counts[key] * validation_total
+                - validation_counts[key] * training_total
+            )
+            for key in pair_keys
         )
-        tv_distance = absolute_difference / Decimal(2)
-        min_sum = sum(
-            min(item.training_share, item.validation_share)
-            for item in pair_stability
+        tv_distance = Decimal(absolute_difference_numerator) / Decimal(
+            2 * shared_denominator
         )
-        max_sum = sum(
-            max(item.training_share, item.validation_share)
-            for item in pair_stability
+        min_numerator = sum(
+            min(
+                training_counts[key] * validation_total,
+                validation_counts[key] * training_total,
+            )
+            for key in pair_keys
         )
-        weighted_jaccard = min_sum / max_sum if max_sum else Decimal(1)
+        max_numerator = sum(
+            max(
+                training_counts[key] * validation_total,
+                validation_counts[key] * training_total,
+            )
+            for key in pair_keys
+        )
+        weighted_jaccard = (
+            Decimal(min_numerator) / Decimal(max_numerator)
+            if max_numerator
+            else Decimal(1)
+        )
         if (
             set(training_population) == set(PHASE19_REQUIRED_TRADERS)
             and set(validation_population) == set(PHASE19_REQUIRED_TRADERS)
