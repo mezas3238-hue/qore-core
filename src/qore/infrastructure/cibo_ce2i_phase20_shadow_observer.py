@@ -95,10 +95,6 @@ def observe_phase20_forward_batch(
         raise CiboCapitalManagementError(
             "Phase20D shadow observer requires canonical epoch batch"
         )
-    if not batch.opportunities:
-        raise CiboCapitalManagementError(
-            "Phase20D policy observation requires at least one candidate"
-        )
     if regime_state.opportunity_count != len(batch.opportunities):
         raise CiboCapitalManagementError(
             "Phase20D regime count must match sealed batch candidates"
