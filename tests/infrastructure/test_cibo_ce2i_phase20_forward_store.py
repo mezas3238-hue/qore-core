@@ -231,6 +231,32 @@ def test_forward_store_persists_physical_seal_timing(tmp_path: Path) -> None:
     assert DurablePhase20ForwardEvidenceStore(path).load() == book
 
 
+def test_forward_store_incomplete_completion_witness_fails_closed(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "phase20-forward-incomplete-seal.json"
+    store = DurablePhase20ForwardEvidenceStore(
+        path,
+        clock=lambda: datetime(2026, 9, 27, 14, 5),
+    )
+
+    with pytest.raises(
+        DurablePhase20ForwardEvidenceError,
+        match="physical seal timestamp must be timezone-aware",
+    ):
+        store.seal_decision(
+            _decision(),
+            expected_generation=0,
+            seal_deadline_at=NOW + timedelta(seconds=2),
+        )
+
+    persisted = DurablePhase20ForwardEvidenceStore(path).load()
+    assert persisted.generation == 1
+    assert len(persisted.decisions) == 1
+    assert persisted.decisions[0].sealed_at is None
+    assert persisted.decisions[0].sealed_within_deadline is False
+
+
 def test_forward_store_rejects_synthetic_decision(tmp_path: Path) -> None:
     store = DurablePhase20ForwardEvidenceStore(tmp_path / "forward.json")
     with pytest.raises(
