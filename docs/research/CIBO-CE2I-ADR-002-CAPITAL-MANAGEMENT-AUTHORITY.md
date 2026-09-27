@@ -115,6 +115,24 @@ DEMO capability discovery is **not an absence of controls**. Provider constraint
 durable capital accounting, reconciliation, no-double-spend, no martingale, causal evidence and
 execution economics remain mandatory.
 
+## 2.3 Owner account-scoped sizing ratification — 27-SEP-2026
+
+The Owner further ratified that **CIBO is the sole sizing authority for every Trader loaded on the VPS and must manage each broker account as an independent capital domain**.
+
+Binding consequences:
+
+- the seven current runtime lineages — VT08 FOREX, R34 XAUUSD, R38 EURUSD, R43 GBPUSD, R38 GBPJPY, R42 AUDJPY and VT31 NAS100 — have no runtime sizing authority;
+- Traders provide only market opportunity/entry/exit geometry and methodology facts; legacy risk fractions, risk scales and certified historical sizing remain baseline/telemetry evidence only;
+- CIBO sizing state is scoped by account identity. Capital, reservations, protection state and mission from one account must never leak into another;
+- DEMO_CAPABILITY_DISCOVERY uses CAPABILITY_MAXIMUM: CIBO may maximize a valid opportunity up to the **remaining** causal account/provider envelope, not a fixed per-Trader slice;
+- DEMO attribution buckets are reporting-only. They cannot limit or grant capital and the same account risk dollar cannot be committed twice;
+- positive floating PnL is not cash and cannot increase deployable capital. Floating loss may reduce current capacity;
+- FUNDED_SURVIVAL_COMPOUND uses the account's current QORE/provider survivability envelope as the survival-capital budget. For the current Stellar Instant 2K profile this is presently the account-wide 3% heat cap (approximately USD 60 when fully available), but CIBO must read the current envelope rather than hard-code USD 60;
+- before realized/proven protected capital covers that survival-capital amount, FundedNext CIBO remains in SURVIVAL_MINIMAL_SEED;
+- once protected **realized/closed** capital covers the survival-capital amount, CIBO may enter PROTECTED_FULL_CAPACITY and request the maximum remaining capacity permitted by current Risk, margin and provider constraints;
+- QORE Risk remains an independent ALLOW / REDUCE / REJECT survivability governor. A Risk reduction is a hard safety constraint, not a restoration of Risk or Trader sizing authority;
+- no part of this ratification grants LIVE, production, merge or real-capital activation by itself.
+
 ### Architecture consequence
 
 Account context becomes an input to capital intelligence:
