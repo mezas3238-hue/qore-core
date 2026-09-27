@@ -41,6 +41,7 @@ on:
       - 'scripts/cibo_phase20_forward_store_contract.py'
       - 'scripts/cibo_phase20_forward_collector_contract.py'
       - 'scripts/cibo_phase20_qualification_plan.py'
+      - 'scripts/cibo_phase20_forward_qualification.py'
       - 'scripts/cibo_phase20_failure_engineering.py'
       - 'scripts/cibo_phase20_failure_engineering_b.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py'
@@ -109,6 +110,7 @@ on:
       - 'scripts/cibo_phase20_forward_store_contract.py'
       - 'scripts/cibo_phase20_forward_collector_contract.py'
       - 'scripts/cibo_phase20_qualification_plan.py'
+      - 'scripts/cibo_phase20_forward_qualification.py'
       - 'scripts/cibo_phase20_failure_engineering.py'
       - 'scripts/cibo_phase20_failure_engineering_b.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py'
@@ -193,6 +195,7 @@ jobs:
             scripts/cibo_phase20_forward_store_contract.py \
             scripts/cibo_phase20_forward_collector_contract.py \
             scripts/cibo_phase20_qualification_plan.py \
+            scripts/cibo_phase20_forward_qualification.py \
             scripts/cibo_phase20_failure_engineering.py \
             scripts/cibo_phase20_failure_engineering_b.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
@@ -257,6 +260,7 @@ jobs:
             scripts/cibo_phase20_forward_store_contract.py \
             scripts/cibo_phase20_forward_collector_contract.py \
             scripts/cibo_phase20_qualification_plan.py \
+            scripts/cibo_phase20_forward_qualification.py \
             scripts/cibo_phase20_failure_engineering.py \
             scripts/cibo_phase20_failure_engineering_b.py
           pytest -q --no-cov \
@@ -335,6 +339,11 @@ jobs:
           python scripts/cibo_phase20_qualification_plan.py \
             --output phase20-output/phase20-qualification-plan.json \
             > phase20-output/qualification-plan-stdout.json
+          python scripts/cibo_phase20_forward_qualification.py \
+            --evidence-store phase20-output/empty-forward-evidence.json \
+            --policy-store phase20-output/empty-forward-policy.json \
+            --output phase20-output/phase20-forward-qualification-empty-contract.json \
+            > phase20-output/forward-qualification-stdout.json
           python scripts/cibo_phase20_failure_engineering.py \
             --output phase20-output/phase20-failure-engineering.json \
             > phase20-output/failure-engineering-stdout.json
@@ -374,6 +383,8 @@ jobs:
             forward-collector-stdout.json \
             phase20-qualification-plan.json \
             qualification-plan-stdout.json \
+            phase20-forward-qualification-empty-contract.json \
+            forward-qualification-stdout.json \
             phase20-failure-engineering.json \
             failure-engineering-stdout.json \
             phase20-failure-engineering-b.json \
