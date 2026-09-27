@@ -95,6 +95,7 @@ Phase20AfterSubmit = Callable[
         CTraderDemoSymbolSpecification,
         CTraderDemoAccountState,
         datetime,
+        datetime,
     ],
     None,
 ]
@@ -1295,6 +1296,7 @@ def _authorize_and_check(
             opportunity,
             spec,
             account,
+            trigger_at,
             request_at,
         )
     log({
