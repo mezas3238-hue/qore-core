@@ -240,7 +240,23 @@ def _to_json(item: Phase20ExecutedRiskEvidence) -> dict[str, object]:
         "evidence_id": item.evidence_id,
         "decision_evidence_sha256": item.decision_evidence_sha256,
         "signal_fingerprint": item.signal_fingerprint,
+        "qore_symbol": item.qore_symbol,
         "position_id": item.position_id,
+        "authorized_source_volume": format(
+            item.authorized_source_volume,
+            "f",
+        ),
+        "filled_source_volume": format(
+            item.filled_source_volume,
+            "f",
+        ),
+        "weighted_fill_price": format(item.weighted_fill_price, "f"),
+        "intended_entry_price": format(item.intended_entry_price, "f"),
+        "structural_stop_price": format(item.structural_stop_price, "f"),
+        "stop_risk_per_volume_at_intended_entry_usd": format(
+            item.stop_risk_per_volume_at_intended_entry_usd,
+            "f",
+        ),
         "executed_initial_stop_risk_usd": format(
             item.executed_initial_stop_risk_usd,
             "f",
@@ -268,7 +284,18 @@ def _from_json(value: object) -> Phase20ExecutedRiskEvidence:
             value["decision_evidence_sha256"]
         ),
         signal_fingerprint=str(value["signal_fingerprint"]),
+        qore_symbol=str(value["qore_symbol"]),
         position_id=int(str(value["position_id"])),
+        authorized_source_volume=Decimal(
+            str(value["authorized_source_volume"])
+        ),
+        filled_source_volume=Decimal(str(value["filled_source_volume"])),
+        weighted_fill_price=Decimal(str(value["weighted_fill_price"])),
+        intended_entry_price=Decimal(str(value["intended_entry_price"])),
+        structural_stop_price=Decimal(str(value["structural_stop_price"])),
+        stop_risk_per_volume_at_intended_entry_usd=Decimal(
+            str(value["stop_risk_per_volume_at_intended_entry_usd"])
+        ),
         executed_initial_stop_risk_usd=Decimal(
             str(value["executed_initial_stop_risk_usd"])
         ),
