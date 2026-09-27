@@ -27,6 +27,9 @@ from qore.infrastructure.trader_lab import (
     capitalizer_causal_probe_ranker_v10 as v10,
 )
 from qore.infrastructure.trader_lab import (
+    capitalizer_causal_trigger_state_veto_policy_v29 as v29,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
 )
 from qore.infrastructure.trader_lab import (
@@ -43,9 +46,6 @@ from qore.infrastructure.trader_lab import (
 )
 from qore.infrastructure.trader_lab import (
     capitalizer_sequence_failure_memory_abstention_v13 as v13,
-)
-from qore.infrastructure.trader_lab import (
-    capitalizer_causal_trigger_state_veto_policy_v29 as v29,
 )
 
 IDENTITY = "QORE_CAPITALIZER_DEFERRED_EXISTING_MODE_COMMITMENT_V30"
