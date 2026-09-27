@@ -42,6 +42,7 @@ class ChronologyAudit:
     path: str
     trades: int
     total_r: str
+    decimal_accumulation_total_r_drift: str
     legacy_entry_order_dd_r: str
     realized_exit_batch_dd_r: str
     dd_difference_exit_minus_legacy_r: str
@@ -145,8 +146,14 @@ def _audit(
 ) -> ChronologyAudit:
     legacy = milestone._metrics(rows)
     exit_metrics = _exit_batch_metrics(rows)
-    if Decimal(exit_metrics["total_r"]) != Decimal(legacy["total_r"]):
-        raise ValueError("chronology audit Total-R drift")
+    exit_total = Decimal(exit_metrics["total_r"])
+    legacy_total = Decimal(legacy["total_r"])
+    total_drift = exit_total - legacy_total
+    if abs(total_drift) > Decimal("1e-18"):
+        raise ValueError(
+            "chronology audit material Total-R drift "
+            f"{total_drift}"
+        )
     changed, mean_shift, max_shift = _rank_diagnostics(rows)
     legacy_dd = Decimal(legacy["max_drawdown_r"])
     exit_dd = Decimal(exit_metrics["max_drawdown_r"])
@@ -155,6 +162,7 @@ def _audit(
         path=path,
         trades=len(rows),
         total_r=legacy["total_r"],
+        decimal_accumulation_total_r_drift=str(total_drift),
         legacy_entry_order_dd_r=str(legacy_dd),
         realized_exit_batch_dd_r=str(exit_dd),
         dd_difference_exit_minus_legacy_r=str(exit_dd - legacy_dd),
