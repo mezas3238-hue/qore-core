@@ -188,6 +188,13 @@ def seal_phase20_forward_observed_epoch(
         raise CiboCapitalManagementError(
             "Phase20D forward epoch provider evidence ids must be unique"
         )
+    if any(
+        item.provider_observation.provider_key != account_identity.provider_key
+        for item in ordered_observations
+    ):
+        raise CiboCapitalManagementError(
+            "Phase20D provider observation must match account provider"
+        )
 
     candidates = tuple(
         _candidate_evidence(
@@ -321,13 +328,11 @@ def _epoch_evidence_id(
             {
                 "signal_fingerprint": item.opportunity.signal_fingerprint,
                 "trader_id": item.opportunity.trader_id.value,
-                "provider_evidence_id": item.provider_evidence_id,
             }
             for item in candidate_evidence
         ],
         "known_options": [
             {
-                "evidence_id": item.evidence_id,
                 "opportunity_id": item.option.opportunity_id,
                 "decision_step": item.option.decision_step,
             }
