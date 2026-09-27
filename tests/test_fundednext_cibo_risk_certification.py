@@ -82,3 +82,8 @@ def test_component_certification_binds_survival_then_protected_capacity_law() ->
     assert cibo["after_base_protection_mode"] == "PROTECTED_FULL_CAPACITY"
     assert cibo["floating_pnl_counts_as_protected_capital"] is False
     assert cibo["legacy_trader_risk_fraction_execution_authority"] is False
+    assert cibo["account_capital_postures"] == [
+        "BANK",
+        "NORMAL",
+        "ATTACK",
+    ]
