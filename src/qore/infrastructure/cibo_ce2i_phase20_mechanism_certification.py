@@ -992,7 +992,10 @@ def _t09_t18_competition_proofs() -> tuple[Phase20MechanismProof, ...]:
             "T09_SCARCE_CAPITAL_COMPETES_BY_CAUSAL_EFFICIENCY",
             scarce.selected_signal_fingerprints == ("fast",)
             and scarce.rows[1].reason == "shared stop-risk headroom exhausted",
-            "Scarce stop-risk capacity selects the stronger causal value-per-risk-minute candidate.",
+            (
+                "Scarce stop-risk capacity selects the stronger causal "
+                "value-per-risk-minute candidate."
+            ),
         ),
         _proof(
             "T18",
