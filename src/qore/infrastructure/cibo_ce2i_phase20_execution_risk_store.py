@@ -258,6 +258,10 @@ def _from_json(value: object) -> Phase20ExecutedRiskEvidence:
     refs = value["fill_evidence_refs"]
     if not isinstance(refs, list):
         raise TypeError("executed-risk fill refs must be list")
+    fill_reconciled = value["fill_reconciled"]
+    mutation_outcome_known = value["mutation_outcome_known"]
+    if type(fill_reconciled) is not bool or type(mutation_outcome_known) is not bool:
+        raise TypeError("executed-risk reconciliation flags must be bool")
     return Phase20ExecutedRiskEvidence(
         evidence_id=str(value["evidence_id"]),
         decision_evidence_sha256=str(
@@ -270,8 +274,8 @@ def _from_json(value: object) -> Phase20ExecutedRiskEvidence:
         ),
         observed_at=datetime.fromisoformat(str(value["observed_at"])),
         fill_evidence_refs=tuple(str(item) for item in refs),
-        fill_reconciled=bool(value["fill_reconciled"]),
-        mutation_outcome_known=bool(value["mutation_outcome_known"]),
+        fill_reconciled=fill_reconciled,
+        mutation_outcome_known=mutation_outcome_known,
     )
 
 
