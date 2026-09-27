@@ -9,7 +9,6 @@ import pytest
 from qore.infrastructure import ctrader_historical_tick_data as tick_data
 from qore.kernel.result import Failure, Success
 
-
 _BASE = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
 
 
