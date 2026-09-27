@@ -17,8 +17,8 @@ from qore.infrastructure.fundednext_operational_risk_policy import (
     QORE_INTERNAL_BANK_HEAT_FRACTION,
     QORE_INTERNAL_NORMAL_HEAT_FRACTION,
     QORE_INTERNAL_SAFETY_BUFFER_FRACTION,
-    CiboAccountCapitalPosture,
     QORE_OPERATIONAL_RISK_POLICY_VERSION,
+    CiboAccountCapitalPosture,
     operational_risk_policy_fingerprint,
 )
 from qore.infrastructure.fundednext_stellar_instant import (
