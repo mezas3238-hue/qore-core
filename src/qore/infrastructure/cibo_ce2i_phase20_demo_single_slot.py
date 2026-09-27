@@ -53,7 +53,11 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_epoch import (
     seal_phase20_forward_observed_epoch_from_snapshots,
 )
 from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
+    Phase20ForwardKnownOptionEvidence,
     Phase20ForwardPopulationDisposition,
+)
+from qore.infrastructure.cibo_ce2i_phase20_mpc import (
+    Phase20MpcKnownOption,
 )
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
     DurablePhase20ForwardPolicyStore,
@@ -255,6 +259,71 @@ def build_ctrader_demo_single_slot_observed_opportunity(
     )
 
 
+def build_ctrader_demo_single_slot_known_option(
+    *,
+    opportunity: TraderOpportunityEnvelope,
+    provider_spec: CTraderDemoSymbolSpecification,
+    known_as_of: datetime,
+    decision_step: int,
+    expires_at: datetime | None = None,
+) -> Phase20ForwardKnownOptionEvidence:
+    """Bind one currently-known contingent option to provider minimum economics."""
+
+    if not isinstance(opportunity, TraderOpportunityEnvelope):
+        raise CiboCapitalManagementError(
+            "Phase20D single-slot known option must be TraderOpportunityEnvelope"
+        )
+    if not isinstance(provider_spec, CTraderDemoSymbolSpecification):
+        raise CiboCapitalManagementError(
+            "Phase20D single-slot known option provider spec must be canonical"
+        )
+    _aware(known_as_of, name="known option known_as_of")
+    if expires_at is not None:
+        _aware(expires_at, name="known option expires_at")
+        if expires_at <= known_as_of:
+            raise CiboCapitalManagementError(
+                "Phase20D single-slot known option expiry must follow observation"
+            )
+    if provider_spec.observed_at > known_as_of:
+        raise CiboCapitalManagementError(
+            "Phase20D single-slot known option provider evidence postdates observation"
+        )
+    if type(decision_step) is not int or decision_step < 0:
+        raise CiboCapitalManagementError(
+            "Phase20D single-slot known option decision_step invalid"
+        )
+    provider = ctrader_demo_economic_observation(
+        qore_symbol=opportunity.qore_symbol,
+        provider_key="ctrader-demo",
+        spec=provider_spec,
+    )
+    normalized = normalize_provider_economics(
+        opportunity=opportunity,
+        observation=provider,
+    )
+    evidence_id = _known_option_evidence_id(
+        opportunity=opportunity,
+        spec=provider_spec,
+        known_as_of=known_as_of,
+        decision_step=decision_step,
+    )
+    return Phase20ForwardKnownOptionEvidence(
+        evidence_id=evidence_id,
+        option=Phase20MpcKnownOption(
+            opportunity_id=(
+                f"known-option:{opportunity.trader_id.value}:"
+                f"{opportunity.signal_fingerprint}"
+            ),
+            decision_step=decision_step,
+            minimum_stop_risk_usd=normalized.minimum_stop_risk_usd,
+            minimum_margin_usd=normalized.minimum_margin_usd,
+        ),
+        known_as_of=known_as_of,
+        active_at_decision=True,
+        expires_at=expires_at,
+    )
+
+
 def prepare_ctrader_demo_single_slot_phase20_epoch(
     *,
     epoch_scope: str,
@@ -273,6 +342,7 @@ def prepare_ctrader_demo_single_slot_phase20_epoch(
     capital_state: VersionedCapitalSourceLedger,
     highest_closed_balance: Decimal,
     current_step: int,
+    known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
 ) -> Phase20DemoSingleSlotPrepared:
     """Seal one sovereign Trader boundary into the common forward evidence book."""
 
@@ -392,6 +462,7 @@ def prepare_ctrader_demo_single_slot_phase20_epoch(
         population_slots=batch.population_slots,
         opportunities=batch.opportunities,
         seal_deadline_at=batch.deadline_at,
+        known_options=known_options,
     )
     return Phase20DemoSingleSlotPrepared(
         result=result,
@@ -509,6 +580,32 @@ def _single_slot_regime(
         opportunity_count=opportunity_count,
         evidence_stale=stale,
     )
+
+
+def _known_option_evidence_id(
+    *,
+    opportunity: TraderOpportunityEnvelope,
+    spec: CTraderDemoSymbolSpecification,
+    known_as_of: datetime,
+    decision_step: int,
+) -> str:
+    payload = {
+        "kind": "PHASE20D_SINGLE_SLOT_KNOWN_OPTION",
+        "trader": opportunity.trader_id.value,
+        "qore_symbol": opportunity.qore_symbol,
+        "provider_symbol": opportunity.provider_symbol,
+        "signal_fingerprint": opportunity.signal_fingerprint,
+        "known_as_of": known_as_of.isoformat(),
+        "provider_observed_at": spec.observed_at.isoformat(),
+        "decision_step": decision_step,
+    }
+    raw = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    return f"phase20d-known-option:{sha256(raw).hexdigest()}"
 
 
 def _provider_evidence_id(
