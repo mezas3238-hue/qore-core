@@ -551,6 +551,9 @@ class Phase20ForwardOutcomeEvidence:
     outcome_reconciled: bool
     future_data_used_for_decision: bool = False
     decision_rewritten_after_outcome: bool = False
+    capital_deployed_at: datetime | None = None
+    capital_released_at: datetime | None = None
+    capital_minutes: Decimal | None = None
 
     def __post_init__(self) -> None:
         if not self.evidence_id or not self.signal_fingerprint:
@@ -613,6 +616,51 @@ class Phase20ForwardOutcomeEvidence:
             raise CiboCapitalManagementError(
                 "Phase20D executed initial stop risk must be positive"
             )
+        timing = (
+            self.capital_deployed_at,
+            self.capital_released_at,
+            self.capital_minutes,
+        )
+        if any(item is not None for item in timing):
+            if any(item is None for item in timing):
+                raise CiboCapitalManagementError(
+                    "Phase20D capital timing evidence must be complete"
+                )
+            assert self.capital_deployed_at is not None
+            assert self.capital_released_at is not None
+            assert self.capital_minutes is not None
+            _aware(
+                self.capital_deployed_at,
+                name="outcome capital_deployed_at",
+            )
+            _aware(
+                self.capital_released_at,
+                name="outcome capital_released_at",
+            )
+            if self.capital_released_at <= self.capital_deployed_at:
+                raise CiboCapitalManagementError(
+                    "Phase20D capital release must follow deployment"
+                )
+            if (
+                not isinstance(self.capital_minutes, Decimal)
+                or not self.capital_minutes.is_finite()
+                or self.capital_minutes <= 0
+            ):
+                raise CiboCapitalManagementError(
+                    "Phase20D capital_minutes must be finite positive Decimal"
+                )
+            expected_minutes = Decimal(
+                str(
+                    (
+                        self.capital_released_at
+                        - self.capital_deployed_at
+                    ).total_seconds()
+                )
+            ) / Decimal("60")
+            if self.capital_minutes != expected_minutes:
+                raise CiboCapitalManagementError(
+                    "Phase20D capital_minutes timing identity mismatch"
+                )
         if (
             self.realized_net_pnl_usd
             / self.executed_initial_stop_risk_usd
