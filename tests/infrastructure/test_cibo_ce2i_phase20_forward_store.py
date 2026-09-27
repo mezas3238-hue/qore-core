@@ -177,7 +177,13 @@ def _outcome(
         evidence_id="store-outcome-1",
         decision_evidence_sha256=phase20_forward_evidence_sha256(decision),
         signal_fingerprint="store-signal-1",
+        position_id=77,
+        execution_risk_evidence_id="store-risk-77",
+        settlement_deal_ids=(7001,),
+        fill_evidence_refs=("store-fill-1",),
         observed_at=NOW + timedelta(hours=1),
+        realized_net_pnl_usd=Decimal(value) * Decimal("10"),
+        executed_initial_stop_risk_usd=Decimal("10"),
         realized_structural_outcome_r=Decimal(value),
         outcome_reconciled=True,
     )
