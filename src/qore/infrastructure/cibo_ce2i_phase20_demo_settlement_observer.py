@@ -63,6 +63,7 @@ class Phase20DemoSettlementCursor:
 @dataclass(frozen=True, slots=True)
 class Phase20DemoSettlementObservation:
     cursor_at: datetime
+    open_position_ids: tuple[int, ...]
     applied_deal_ids: tuple[int, ...]
     entry_cost_deal_ids: tuple[int, ...]
     partial_deal_ids: tuple[int, ...]
@@ -70,6 +71,13 @@ class Phase20DemoSettlementObservation:
 
     def __post_init__(self) -> None:
         _aware(self.cursor_at, name="cursor_at")
+        if (
+            len(self.open_position_ids) != len(set(self.open_position_ids))
+            or any(item <= 0 for item in self.open_position_ids)
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20D settlement open position ids must be unique positive"
+            )
         combined = (
             self.entry_cost_deal_ids
             + self.partial_deal_ids
@@ -164,6 +172,7 @@ def observe_ctrader_demo_phase20_settlements(
     if observed_at <= initial_cursor:
         return Phase20DemoSettlementObservation(
             cursor_at=initial_cursor,
+            open_position_ids=(),
             applied_deal_ids=(),
             entry_cost_deal_ids=(),
             partial_deal_ids=(),
@@ -287,6 +296,7 @@ def observe_ctrader_demo_phase20_settlements(
     cursor_store.store(Phase20DemoSettlementCursor(cursor_at=next_cursor))
     return Phase20DemoSettlementObservation(
         cursor_at=next_cursor,
+        open_position_ids=tuple(sorted(open_ids)),
         applied_deal_ids=tuple(entry_costs + partials + terminals),
         entry_cost_deal_ids=tuple(entry_costs),
         partial_deal_ids=tuple(partials),
