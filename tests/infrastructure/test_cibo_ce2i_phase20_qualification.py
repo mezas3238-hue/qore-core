@@ -13,6 +13,7 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     VersionedPhase20ForwardEvidenceBook,
 )
 from qore.infrastructure.cibo_ce2i_phase20_qualification import (
+    Phase20QualificationRow,
     Phase20QualificationStatus,
     run_phase20d_v2_qualification,
 )
@@ -280,3 +281,36 @@ def test_phase20d_runner_fails_if_any_temporal_fold_is_not_positive() -> None:
 
     assert report.status is Phase20QualificationStatus.FAIL
     assert "ALL_TEMPORAL_FOLDS_POLICY_DELTA_POSITIVE" in report.failures
+
+
+
+def test_phase20d_row_uses_realized_net_pnl_without_double_charging_proxy() -> None:
+    row = Phase20QualificationRow(
+        decision_epoch_id="epoch-exact-economics",
+        decision_evidence_sha256=_sha(9999),
+        decision_at=START,
+        signal_fingerprint="signal-exact-economics",
+        trader_id=TraderLineage.VT31_NAS100.value,
+        stop_risk_usd=Decimal("10"),
+        margin_usd=Decimal("8"),
+        concentration_group="ALL",
+        concentration_risk_usd=Decimal("10"),
+        expected_capital_minutes=Decimal("6"),
+        provider_cost_proxy_usd=Decimal("3"),
+        policy_selected=True,
+        baseline_selected=True,
+        realized_net_pnl_usd=Decimal("18"),
+        executed_initial_stop_risk_usd=Decimal("12"),
+        realized_structural_outcome_r=Decimal("1.5"),
+        outcome_observed_at=START + timedelta(hours=1),
+    )
+
+    # The durable settlement already carries net realized economics.  Neither
+    # candidate stop risk (10) nor the ex-ante provider proxy (3) may rewrite
+    # the observed $18 result after settlement.
+    assert row.policy_net_delta_usd == Decimal("18")
+    assert row.baseline_net_delta_usd == Decimal("18")
+    assert row.policy_net_delta_usd != (
+        row.realized_structural_outcome_r * row.stop_risk_usd
+        - row.provider_cost_proxy_usd
+    )
