@@ -834,6 +834,8 @@ def _process_candidate(
         risk=risk,
         snapshot=snapshot,
         assigned_capital_usd=fresh_equity,
+        survival_capital_usd=capital_budget.aggregate_heat_cap,
+        protected_capital_usd=capital_budget.earned_closed_balance_cushion,
         requested_at=authorize_at,
         expires_at=setup.expires_at,
     )
@@ -992,6 +994,8 @@ def _process_r34_candidate(
         risk=risk,
         snapshot=snapshot,
         assigned_capital_usd=fresh_equity,
+        survival_capital_usd=capital_budget.aggregate_heat_cap,
+        protected_capital_usd=capital_budget.earned_closed_balance_cushion,
         requested_at=authorize_at,
         expires_at=(
             signal.entry_at.astimezone(UTC) + M5_PROFILE.order_send_deadline
@@ -1177,6 +1181,8 @@ def _process_r38_candidate(
         risk=risk,
         snapshot=snapshot,
         assigned_capital_usd=fresh_equity,
+        survival_capital_usd=capital_budget.aggregate_heat_cap,
+        protected_capital_usd=capital_budget.earned_closed_balance_cushion,
         requested_at=authorize_at,
         expires_at=(
             signal.entry_at.astimezone(UTC) + M5_PROFILE.order_send_deadline
@@ -1360,6 +1366,8 @@ def _process_r43_candidate(
         risk=risk,
         snapshot=snapshot,
         assigned_capital_usd=fresh_equity,
+        survival_capital_usd=capital_budget.aggregate_heat_cap,
+        protected_capital_usd=capital_budget.earned_closed_balance_cushion,
         requested_at=authorize_at,
         expires_at=(
             signal.entry_at.astimezone(UTC) + M5_PROFILE.order_send_deadline
@@ -1545,6 +1553,8 @@ def _process_gbpjpy_r38_candidate(
         risk=risk,
         snapshot=snapshot,
         assigned_capital_usd=fresh_equity,
+        survival_capital_usd=capital_budget.aggregate_heat_cap,
+        protected_capital_usd=capital_budget.earned_closed_balance_cushion,
         requested_at=authorize_at,
         expires_at=(
             signal.entry_at.astimezone(UTC) + M5_PROFILE.order_send_deadline
@@ -1764,6 +1774,8 @@ def _process_audjpy_r42_candidate(
         risk=risk,
         snapshot=snapshot,
         assigned_capital_usd=fresh_equity,
+        survival_capital_usd=capital_budget.aggregate_heat_cap,
+        protected_capital_usd=capital_budget.earned_closed_balance_cushion,
         requested_at=request_at,
         expires_at=deadline,
     )
