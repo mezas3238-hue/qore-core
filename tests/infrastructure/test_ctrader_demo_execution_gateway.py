@@ -900,6 +900,26 @@ def test_durable_fill_identity_survives_restart_and_preserves_real_conflict(
         mutation_ledger=JsonFileCTraderDemoMutationLedger(path),
     )
     assert isinstance(recovered.restore_submission(submission), Success)
+    durable_fills = recovered.fills_for(submission.receipt_id)
+    assert len(durable_fills) == 1
+    assert durable_fills[0].fill_ref == "90001"
+    assert durable_fills[0].fill_quantity == Decimal("10")
+    assert durable_fills[0].cumulative_quantity == Decimal("10")
+    assert durable_fills[0].fill_price == Decimal("1.23456")
+    assert durable_fills[0].is_complete is True
+    reconciled = recovered.reconcile_fills(
+        submission.receipt_id,
+        reconciled_at=_NOW + timedelta(seconds=19),
+    )
+    assert isinstance(reconciled, Success)
+    assert (
+        reconciled.value.status
+        is CTraderDemoFillReconciliationStatus.MATCHED
+    )
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    assert raw["schema_version"] == 2
+    assert raw["records"][0]["fill_observations"][0]["fill_price"] == "1.23456"
+
     conflict = recovered.observe_fill(
         submission,
         _fill_payload(
