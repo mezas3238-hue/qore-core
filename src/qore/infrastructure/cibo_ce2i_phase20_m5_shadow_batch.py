@@ -196,6 +196,7 @@ def build_ctrader_demo_m5_phase20_batch(
     opened_at: datetime,
     deadline_at: datetime,
     terminals: tuple[Phase20M5ShadowTerminal, ...],
+    decision_at: datetime | None = None,
 ) -> Phase20DecisionEpochBatch:
     """Seal one five-slot M5 shadow population without waiting on execution."""
 
@@ -249,16 +250,26 @@ def build_ctrader_demo_m5_phase20_batch(
                 reason=terminal.reason,
             )
 
-    decision_at = (
+    inferred_decision_at = (
         last_terminal
         if len(seen) == len(_M5_SLOT_SPECS)
         and all(item.observed_at <= deadline_at for item in terminals)
         else deadline_at
     )
+    seal_at = inferred_decision_at if decision_at is None else decision_at
+    _aware(seal_at, name="decision_at")
+    if seal_at < last_terminal:
+        raise CiboCapitalManagementError(
+            "Phase20D M5 decision cannot predate observed terminal population"
+        )
+    if seal_at > deadline_at:
+        raise CiboCapitalManagementError(
+            "Phase20D M5 decision cannot exceed epoch deadline"
+        )
     try:
-        return aggregator.seal(decision_at=decision_at)
+        return aggregator.seal(decision_at=seal_at)
     except CiboCapitalManagementError:
-        if decision_at != deadline_at:
+        if seal_at != deadline_at and decision_at is None:
             return aggregator.seal(decision_at=deadline_at)
         raise
 
