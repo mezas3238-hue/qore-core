@@ -15,7 +15,9 @@ from qore.infrastructure.cibo_capital_source_ledger_store import (
     VersionedCapitalSourceLedger,
 )
 from qore.infrastructure.cibo_ce2i_phase20_demo_runtime_bridge import (
+    finalize_ctrader_demo_m5_phase20_policy,
     observe_ctrader_demo_m5_phase20_epoch,
+    prepare_ctrader_demo_m5_phase20_epoch,
 )
 from qore.infrastructure.cibo_ce2i_phase20_execution_risk_store import (
     VersionedPhase20ExecutedRiskBook,
@@ -266,3 +268,60 @@ def test_runtime_bridge_seals_candidate_before_any_broker_action(
     assert decision.signal_fingerprints == ("b" * 64,)
     assert policy.load().decisions[0].evidence_sha256 == decision.evidence_sha256
     assert result.observation.broker_mutation_performed is False
+
+
+
+def test_runtime_can_seal_evidence_before_submit_and_finalize_policy_after(
+    tmp_path: Path,
+) -> None:
+    evidence = DurablePhase20ForwardEvidenceStore(
+        tmp_path / "split-forward-evidence.json"
+    )
+    policy = DurablePhase20ForwardPolicyStore(
+        tmp_path / "split-forward-policy.json"
+    )
+    risk = DurableAccountWideRiskEngine(
+        DurableAccountWideRiskLedger(tmp_path / "split-risk.json")
+    )
+
+    prepared = prepare_ctrader_demo_m5_phase20_epoch(
+        epoch_scope="ctrader-demo:m5:split-test",
+        opened_at=OPENED,
+        deadline_at=DEADLINE,
+        terminals=_terminals(),
+        decision_at=OPENED + timedelta(milliseconds=400),
+        snapshots=tuple(
+            _snapshot(symbol, index)
+            for index, symbol in enumerate(SYMBOLS)
+        ),
+        provider_specs=tuple(_spec(symbol) for symbol in SYMBOLS),
+        evidence_store=evidence,
+        account_identity=CiboAccountCapitalIdentity(
+            provider_key="ctrader-demo",
+            account_ref="demo-runtime-bridge",
+            environment=MarketRuntimeEnvironment.DEMO,
+        ),
+        account_state=_account_state(),
+        risk=risk,
+        executed_risk_book=VersionedPhase20ExecutedRiskBook(generation=0),
+        open_position_ids=(),
+        pending_broker_worst_case_loss_usd=Decimal("0"),
+        capital_state=_capital(),
+        highest_closed_balance=Decimal("1000"),
+        current_step=0,
+    )
+
+    assert evidence.load().generation == 1
+    assert policy.load().generation == 0
+    sealed_sha = prepared.result.decision_record.evidence_sha256
+
+    finalized = finalize_ctrader_demo_m5_phase20_policy(
+        prepared=prepared,
+        evidence_store=evidence,
+        policy_store=policy,
+    )
+
+    assert policy.load().generation == 1
+    assert policy.load().decisions[0].evidence_sha256 == sealed_sha
+    assert finalized.observation.broker_mutation_performed is False
+    assert finalized.execution_authority is False
