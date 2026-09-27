@@ -9,9 +9,8 @@ from __future__ import annotations
 import argparse
 import json
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from pathlib import Path
-from statistics import median
 from typing import Any
 
 from cibo_phase19_integrated_chronology_replay import (
@@ -62,7 +61,17 @@ def _outcome(
 
 
 def _median_decimal(values: list[Decimal]) -> Decimal:
-    return Decimal(str(median(values)))
+    ordered = sorted(values)
+    count = len(ordered)
+    if count == 0:
+        raise ValueError("TRAIN median population cannot be empty")
+    if count % 2:
+        return ordered[count // 2]
+    with localcontext() as context:
+        context.prec = 50
+        return (
+            ordered[count // 2 - 1] + ordered[count // 2]
+        ) / Decimal(2)
 
 
 def _chronological_block_means(
@@ -76,10 +85,12 @@ def _chronological_block_means(
         block = ordered[start:end]
         if not block:
             raise ValueError("TRAIN chronological block cannot be empty")
-        means.append(
-            sum((item[1] for item in block), Decimal(0))
-            / Decimal(len(block))
-        )
+        with localcontext() as context:
+            context.prec = 50
+            means.append(
+                sum((item[1] for item in block), Decimal(0))
+                / Decimal(len(block))
+            )
     return tuple(means)
 
 
@@ -114,9 +125,11 @@ def run(
             if entry_at >= common_start and exit_at <= common_end:
                 common_count += 1
             if entry_at >= common_start and exit_at <= split_at:
-                duration_minutes = Decimal(
-                    str((exit_at - entry_at).total_seconds())
-                ) / Decimal(60)
+                with localcontext() as context:
+                    context.prec = 50
+                    duration_minutes = Decimal(
+                        str((exit_at - entry_at).total_seconds())
+                    ) / Decimal(60)
                 if duration_minutes <= 0:
                     raise ValueError(
                         f"{spec.trader_id.value} non-positive duration"
@@ -142,10 +155,12 @@ def run(
         duration_median = _median_decimal(
             [item[2] for item in selected]
         )
-        arithmetic_mean = (
-            sum((item[1] for item in selected), Decimal(0))
-            / Decimal(len(selected))
-        )
+        with localcontext() as context:
+            context.prec = 50
+            arithmetic_mean = (
+                sum((item[1] for item in selected), Decimal(0))
+                / Decimal(len(selected))
+            )
         frozen = frozen_train_prior_for(spec.trader_id)
         if len(selected) != frozen.train_rows:
             raise ValueError(

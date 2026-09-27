@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from hashlib import sha256
 
 from qore.infrastructure.account_wide_risk import TraderLineage
@@ -250,13 +250,18 @@ def build_frozen_train_expectation(
             "TRAIN prior expectation as_of must be timezone-aware"
         )
     prior = frozen_train_prior_for(trader_id)
+    with localcontext() as context:
+        context.prec = 50
+        expected_net_value_usd = (
+            prior.expected_structural_r * stop_risk_usd
+        )
     return CausalOpportunityExpectation(
         evidence_id=(
             f"{_PRIOR_IDENTITY}:{prior_digest_sha256()}:{trader_id.value}"
         ),
         as_of=as_of,
         basis=CausalExpectationBasis.FROZEN_HISTORICAL_PRIOR,
-        expected_net_value_usd=prior.expected_structural_r * stop_risk_usd,
+        expected_net_value_usd=expected_net_value_usd,
         expected_capital_minutes=prior.expected_capital_minutes,
     )
 
