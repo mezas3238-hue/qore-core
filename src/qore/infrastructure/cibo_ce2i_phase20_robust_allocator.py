@@ -272,11 +272,24 @@ def propose_phase20h_robust_allocation(
         mission.allow_cross_trader_competition
         and {"T09", "T18"}.issubset(enabled)
     )
+    single_candidate_direct = (
+        len(candidates) == 1
+        and regime.posture
+        in {CiboRegimePosture.STABLE, CiboRegimePosture.WATCH}
+    )
     if (
-        not competition_enabled
-        or deployable_risk <= 0
+        deployable_risk <= 0
         or deployable_margin <= 0
         or not candidates
+        or (
+            len(candidates) > 1
+            and not competition_enabled
+        )
+        or (
+            len(candidates) == 1
+            and not competition_enabled
+            and not single_candidate_direct
+        )
     ):
         disposition = (
             Phase20AllocatorDisposition.PRESERVE_CAPACITY
@@ -295,8 +308,8 @@ def propose_phase20h_robust_allocation(
             reserved_for_opportunity_ids=reserved_ids,
             allocation=None,
             reason=(
-                "cross-Trader competition is blocked, has no deployable "
-                "capacity, or has no current candidates"
+                "allocation is blocked by capital, candidate availability, "
+                "or required multi-candidate competition tooling"
             ),
         )
 
@@ -306,7 +319,8 @@ def propose_phase20h_robust_allocation(
         concentration_limit_by_group=concentration_limit_by_group,
     )
     allocation = allocate_competing_opportunities(candidates, budget)
-    applied.extend(("T09", "T18"))
+    if len(candidates) > 1:
+        applied.extend(("T09", "T18"))
     disposition = (
         Phase20AllocatorDisposition.ALLOCATE
         if allocation.selected_signal_fingerprints
@@ -324,7 +338,12 @@ def propose_phase20h_robust_allocation(
         reserved_for_opportunity_ids=reserved_ids,
         allocation=allocation,
         reason=(
-            "causal candidates allocated only inside mission/regime, "
-            "optionality, shared headroom and concentration constraints"
+            "single causal candidate allocated without unnecessary competition "
+            "tooling"
+            if len(candidates) == 1
+            else (
+                "causal candidates allocated only inside mission/regime, "
+                "optionality, shared headroom and concentration constraints"
+            )
         ),
     )

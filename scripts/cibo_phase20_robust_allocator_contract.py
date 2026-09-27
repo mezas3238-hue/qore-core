@@ -58,6 +58,7 @@ def _regime(
     drawdown: str = "0.20",
     adverse: bool = False,
     stale: bool = False,
+    opportunity_count: int = 2,
 ) -> CiboRegimeToolSelection:
     return select_ce2i_tools_for_regime(
         mission=mission,
@@ -69,7 +70,7 @@ def _regime(
             risk_utilization=Decimal("0.20"),
             margin_utilization=Decimal("0.20"),
             drawdown_utilization=Decimal(drawdown),
-            opportunity_count=2,
+            opportunity_count=opportunity_count,
             position_path_adverse=adverse,
             evidence_stale=stale,
         ),
@@ -180,6 +181,14 @@ def build_report() -> dict[str, Any]:
         concentration_limit_by_group=(("USD", Decimal("100")),),
         candidates=(slow, fast),
     )
+    stable_single = propose_phase20h_robust_allocation(
+        mission=demo,
+        regime=_regime(demo, opportunity_count=1),
+        hard_risk_headroom_usd=Decimal("5"),
+        margin_headroom_usd=Decimal("100"),
+        concentration_limit_by_group=(("USD", Decimal("100")),),
+        candidates=(fast,),
+    )
     defensive = propose_phase20h_robust_allocation(
         mission=demo,
         regime=_regime(demo, adverse=True),
@@ -224,6 +233,7 @@ def build_report() -> dict[str, Any]:
 
     rows = [
         _decision_row("STABLE_DEMO", stable),
+        _decision_row("STABLE_SINGLE_DEMO", stable_single),
         _decision_row("DEFENSIVE_DEMO", defensive),
         _decision_row("RECOVERY_DEMO", recovery),
         _decision_row("STALE_DEMO", stale),

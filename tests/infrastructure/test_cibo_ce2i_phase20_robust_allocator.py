@@ -51,6 +51,7 @@ def _regime(
     drawdown: str = "0.20",
     adverse: bool = False,
     stale: bool = False,
+    opportunity_count: int = 2,
 ) -> CiboRegimeToolSelection:
     return select_ce2i_tools_for_regime(
         mission=mission,
@@ -62,7 +63,7 @@ def _regime(
             risk_utilization=Decimal("0.20"),
             margin_utilization=Decimal("0.20"),
             drawdown_utilization=Decimal(drawdown),
-            opportunity_count=2,
+            opportunity_count=opportunity_count,
             position_path_adverse=adverse,
             evidence_stale=stale,
         ),
@@ -143,6 +144,33 @@ def test_phase20h_stable_demo_allocates_inside_shared_headroom() -> None:
     assert decision.allocation.selected_signal_fingerprints == ("fast",)
     assert decision.allocation.used_stop_risk_usd == Decimal("5")
     assert decision.applied_tools == ("T15", "T09", "T18")
+
+
+def test_phase20h_single_stable_candidate_does_not_require_competition() -> None:
+    mission = _demo_mission()
+    decision = propose_phase20h_robust_allocation(
+        mission=mission,
+        regime=_regime(mission, opportunity_count=1),
+        hard_risk_headroom_usd=Decimal("5"),
+        margin_headroom_usd=Decimal("100"),
+        concentration_limit_by_group=(("USD", Decimal("100")),),
+        candidates=(
+            _candidate(
+                "solo",
+                TraderLineage.R43_GBPUSD,
+                net="8",
+                minutes="5",
+            ),
+        ),
+    )
+
+    assert decision.disposition is Phase20AllocatorDisposition.ALLOCATE
+    assert decision.allocation is not None
+    assert decision.allocation.selected_signal_fingerprints == ("solo",)
+    assert decision.applied_tools == ("T15",)
+    assert decision.reason == (
+        "single causal candidate allocated without unnecessary competition tooling"
+    )
 
 
 def test_phase20h_recovery_preserves_all_new_capital() -> None:
