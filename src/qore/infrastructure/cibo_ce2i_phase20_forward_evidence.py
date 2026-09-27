@@ -9,13 +9,13 @@ authority is granted here.
 
 from __future__ import annotations
 
+import json
+import re
 from dataclasses import dataclass, fields, is_dataclass
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum, StrEnum
 from hashlib import sha256
-import json
-import re
 from typing import Any
 
 from qore.infrastructure.cibo_account_capital_mission import (
