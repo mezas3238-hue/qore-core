@@ -47,6 +47,7 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
     DurablePhase20ForwardPolicyStore,
 )
 from qore.infrastructure.cibo_ce2i_phase20_forward_snapshots import (
+    Phase20ForwardSnapshotBundle,
     build_phase20_forward_snapshot_bundle,
 )
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
@@ -67,7 +68,7 @@ from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 DECISION_AT = datetime(2026, 9, 27, 15, 30, tzinfo=UTC)
 
 
-@dataclass(frozen=True)
+@dataclass
 class _ProviderBudget:
     provider_headroom: Decimal = Decimal("100")
     max_risk_at_any_time: Decimal = Decimal("100")
@@ -75,7 +76,7 @@ class _ProviderBudget:
     hard_breach: bool = False
 
 
-def _snapshot_bundle():
+def _snapshot_bundle() -> Phase20ForwardSnapshotBundle:
     reconciled_at = DECISION_AT - timedelta(seconds=1)
     account = AccountRiskSnapshot(
         account_binding_id="phase20d-collector-contract",
