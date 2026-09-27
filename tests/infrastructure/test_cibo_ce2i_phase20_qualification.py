@@ -287,6 +287,7 @@ def test_phase20d_runner_invalidates_missing_realized_capital_minutes() -> None:
 
     assert report.status is Phase20QualificationStatus.INVALID
     assert "REALIZED_EXECUTION_ECONOMICS_COMPLETE" in report.failures
+    assert report.candidate_outcome_coverage < Decimal("1")
 
 
 def test_phase20d_runner_invalidates_execution_risk_identity_mismatch() -> None:
