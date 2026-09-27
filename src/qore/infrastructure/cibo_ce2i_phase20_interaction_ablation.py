@@ -411,43 +411,64 @@ def run_phase20g_structural_ablation(
             "G01_T11_EXECUTION_CAP_ABLATION",
             ("T11",),
             g01,
-            "Removing execution impact would expose 0.10 volume; T11 caps the same synthetic opportunity at 0.04.",
+            (
+                "Removing execution impact would expose 0.10 volume; T11 "
+                "caps the same synthetic opportunity at 0.04."
+            ),
         ),
         _case(
             "G02_T12_STALE_REGIME_DOMINATES_POSITIVE_EXECUTION_CAP",
             ("T11", "T12"),
             g02,
-            "A positive execution cap cannot bypass stale regime evidence; only T20 remains enabled.",
+            (
+                "A positive execution cap cannot bypass stale regime evidence; "
+                "only T20 remains enabled."
+            ),
         ),
         _case(
             "G03_T06_T11_FUNDING_AND_EXECUTION_ARE_ORTHOGONAL",
             ("T06", "T11", "T19"),
             g03,
-            "Execution efficiency can reduce a profit-funded expansion reservation but cannot create funding.",
+            (
+                "Execution efficiency can reduce a profit-funded expansion "
+                "reservation but cannot create funding."
+            ),
         ),
         _case(
             "G04_T15_OPTIONALITY_RESERVES_DISTINCT_FUTURE_CAPACITY",
             ("T12", "T15"),
             g04,
-            "Defensive optionality reserves known future capacity while leaving current Trader geometry untouched.",
+            (
+                "Defensive optionality reserves known future capacity while "
+                "leaving current Trader geometry untouched."
+            ),
         ),
         _case(
             "G05_T14_DERISKING_REDUCES_EXISTING_EXPOSURE",
             ("T14",),
             g05,
-            "T14 acts on existing exposure and releases current stop-risk capacity without authorizing new capital.",
+            (
+                "T14 acts on existing exposure and releases current stop-risk "
+                "capacity without authorizing new capital."
+            ),
         ),
         _case(
             "G06_RECOVERY_COMPOSES_RESERVE_AND_DERISKING",
             ("T12", "T13", "T14", "T15"),
             g06,
-            "Recovery blocks expansion, preserves all new-capital headroom, and can simultaneously reduce existing exposure.",
+            (
+                "Recovery blocks expansion, preserves all new-capital headroom, "
+                "and can simultaneously reduce existing exposure."
+            ),
         ),
         _case(
             "G07_T09_T18_COMPETITION_IS_INPUT_ORDER_INVARIANT",
             ("T09", "T18"),
             g07,
-            "Cross-Trader competition produces the same allocation regardless of candidate input order.",
+            (
+                "Cross-Trader competition produces the same allocation "
+                "regardless of candidate input order."
+            ),
         ),
     )
     return Phase20InteractionAblationReport(
