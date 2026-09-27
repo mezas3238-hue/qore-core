@@ -1851,7 +1851,7 @@ USD-dependent study remains fail-closed until provider-economic evidence is cali
 
 ## PHASE 20 — Robust capital-policy validation under uncertainty
 
-**Status: IN PROGRESS — 20A/B + 20C + 20E + 20F + 20G + 20J CONTRACTS GREEN / 20H-20I RESEARCH PENDING / EMPIRICAL CALIBRATION PENDING / 20D POLICY WFO BLOCKED ON FRESH EVIDENCE**
+**Status: IN PROGRESS — 20A/B + 20C + 20E + 20F + 20G + 20H + 20I + 20J CONTRACTS GREEN / H+I POLICY CANDIDATE FROZEN / 20D COLLECTION CONTRACT GREEN / FRESH FORWARD EVIDENCE NOT YET COLLECTED**
 
 Required sequence:
 
@@ -2231,10 +2231,127 @@ The Phase-20 artifact also re-seals 20A/B, 20C and 20E under the same evidence H
 manifest verifies 19 files: nine canonical reports, their nine stdout mirrors, and the bound
 `git-sha.txt`.
 
-**Constitutional consequence:** Phase 20F/G/J harden the mechanisms and composition laws that a
-future allocator may use; they do not select that allocator. Phase 20H robust allocator research and
-20I receding-horizon optionality/MPC remain research fronts. Phase 20D qualification still requires
-genuinely fresh forward evidence, and Phase 21/22 remain blocked until that gate is satisfied.
+**Constitutional consequence:** Phase 20F/G/J harden the mechanisms and composition laws. Phase
+20H and 20I are now implemented and composition-hardened as one frozen research candidate, but this
+still does not establish economic value. Phase 20D qualification still requires genuinely fresh
+forward observed evidence, and Phase 21/22 remain blocked until that gate is satisfied.
+
+### Phase 20H / 20I / 20D frozen-candidate checkpoint — 27-SEP-2026
+
+The previous roadmap text saying `20H-20I RESEARCH PENDING` is obsolete. GitHub now contains the
+implemented robust allocator, forecastless receding-horizon MPC, their explicit composition and a
+pre-registered fresh-forward evidence contract.
+
+Current sealed evidence:
+
+```text
+evidence_head:       f5c7a4af4426077dea0300c830657d384943dd6f
+main_pr_run:         36322686004  SUCCESS
+phase20_pr_run:      36322685972  SUCCESS
+artifact_id:         10933065976
+artifact_digest:     sha256:1ab7462cd1023b015ef8dc94896a0be93b343b2cf311444d8f43046f9a5cec15
+internal_manifest:   SHA256SUMS 27/27 VERIFIED
+```
+
+Frozen candidate:
+
+```text
+candidate_id:
+CIBO_PHASE20H20I_FORWARD_CANDIDATE_V1
+
+policy_code_sha:
+a0a9759a5bbe30fb21e1aee154fadc6509136937
+
+frozen_at:
+2026-09-27T13:24:00+00:00
+
+parameter_sha256:
+sha256:9341670393b6c8926172bc6ac7102ceee6c23f4b100ba7238aafc72afa4dbe58
+```
+
+The frozen composition order is:
+
+```text
+SEAL_PREDECISION_EVIDENCE
+-> SELECT_CAUSAL_REGIME
+-> PHASE20I_RESERVE
+-> PHASE20H_ALLOCATE_REMAINDER
+-> QORE_RISK_DOWNSTREAM
+```
+
+This closes the prior double-capacity defect: Phase20I reserve is deducted before Phase20H receives
+deployable risk/margin headroom. A candidate that requires more than the post-MPC deployable
+headroom is rejected with zero capital use.
+
+The allocator liveness defect is also closed: one valid candidate in STABLE/WATCH no longer requires
+T09/T18 competition tooling merely to allocate. Multi-candidate decisions still require the
+competition surface; DEFENSIVE/RECOVERY remain conservative.
+
+The candidate pre-registration freezes:
+
+- MPC horizon = 2 decision steps;
+- provider/capital/Risk current snapshot maximum age = 2 seconds;
+- current-state/model forecast maximum age = 2 seconds;
+- drawdown DEFENSIVE threshold = 0.50;
+- drawdown RECOVERY threshold = 0.75;
+- risk DEFENSIVE threshold = 0.70;
+- risk RECOVERY threshold = 0.85;
+- margin DEFENSIVE threshold = 0.80;
+- T09/T18 competition begins only with >=2 candidates;
+- single-candidate direct allocation is limited to STABLE/WATCH;
+- active CE2I policy tools = T09/T12/T13/T15/T18;
+- accounting dependencies = T19/T20.
+
+Phase20D now seals before outcome:
+
+- exact frozen policy lineage;
+- code SHA and parameter SHA256;
+- account-derived mission;
+- capital snapshot id + observed timestamp;
+- Risk snapshot id + observed timestamp;
+- provider snapshot and provider economics;
+- causal expectation identity/as-of/basis;
+- regime inputs;
+- currently-known MPC options with active/expiry/cancel state;
+- current risk/margin headroom;
+- concentration limits;
+- exact candidate population.
+
+Current capital/Risk/provider/current-forecast evidence older than the frozen 2-second bound fails
+closed. Synthetic fixtures are explicitly tagged `SYNTHETIC_CONTRACT` and cannot satisfy Phase20D.
+
+The sealed synthetic proof intentionally returns:
+
+```text
+status:
+SYNTHETIC_COLLECTION_CONTRACT_READY_FRESH_FORWARD_NOT_COLLECTED
+
+synthetic_fixture_eligible_for_phase20d:
+FALSE
+
+reason:
+DECISION_NOT_FORWARD_OBSERVED
+```
+
+Therefore:
+
+```text
+PHASE20H_CONTRACT_GREEN                         = TRUE
+PHASE20I_CONTRACT_GREEN                         = TRUE
+PHASE20H20I_COMPOSITION_GREEN                   = TRUE
+PHASE20H20I_POLICY_CANDIDATE_FROZEN             = TRUE
+PHASE20D_FORWARD_COLLECTION_CONTRACT_GREEN       = TRUE
+PHASE20D_FRESH_FORWARD_OBSERVATIONS_COLLECTED    = 0
+PHASE20D_POLICY_QUALIFIED                        = FALSE
+PHASE21_POLICY_CERTIFIED                         = FALSE
+PHASE19J_VALIDATION_REUSED                       = FALSE
+DEMO_GOVERNED_EXECUTION_AUTHORIZED               = FALSE
+LIVE_AUTHORIZED                                  = FALSE
+REAL_CAPITAL_AUTHORIZED                          = FALSE
+MERGE_AUTHORIZED                                 = FALSE
+```
+
+No pre-freeze observation may be backdated or relabelled as qualifying fresh evidence.
 
 ---
 
@@ -2309,14 +2426,15 @@ PR #651 alone never authorizes LIVE.
 Current sequence:
 
 ```text
-1. Preserve the sealed PHASE 18 7/7 causal geometry evidence unchanged.
-2. Complete PHASE 19C/19D: bind all seven lineages to the CIBO normalized capital numeraire and normalized transactional ledger.
-3. Build PHASE 19E/19F: temporal null models plus dependence/tail evidence without historical sizing contamination.
-4. Build PHASE 19G/19H: capital-collision/shadow-price evidence and the resource/dependence hypergraph.
-5. Compare simple frozen capital-policy baselines before introducing advanced optimizers.
-6. Run PHASE 20 partial identification, counterfactual provider stress, WFO, capital-state Monte Carlo, ablations and failure engineering.
-7. Freeze the surviving CMA/CE2I policy in PHASE 21.
-8. Run one genuinely fresh sealed PHASE 22 holdout before any Owner-gated DEMO execution change.
+1. Preserve Phase18 and the burned Phase19J validation unchanged.
+2. Preserve frozen candidate CIBO_PHASE20H20I_FORWARD_CANDIDATE_V1 unchanged.
+3. Collect only post-freeze FORWARD_OBSERVED Phase20D decision/outcome pairs.
+4. Reject stale, backdated, rewritten, unreconciled or lineage-mismatched evidence.
+5. Once the fresh population is sufficient, run Phase20D causal WFO with no refit between folds.
+6. Only after a Phase20D PASS, run empirical capital-state Monte Carlo + provider stress + empirical ablation.
+7. If those gates survive, execute Phase21 policy freeze.
+8. Run one genuinely fresh untouched Phase22 sealed holdout.
+9. Only then request Owner authorization for Phase23 DEMO shadow.
 ```
 
 Do not spend research time optimizing legacy Trader sizing. It is deprecated as authority.
