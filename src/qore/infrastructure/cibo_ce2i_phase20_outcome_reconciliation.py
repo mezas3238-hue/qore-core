@@ -320,6 +320,7 @@ def _reconcile_bound_outcome(
             "Phase20D outcome reconciliation must follow risk evidence"
         )
 
+    capital_deployed_at: datetime | None = None
     capital_minutes: Decimal | None = None
     if capital_released_at is not None:
         _aware(capital_released_at, name="capital_released_at")
@@ -331,6 +332,7 @@ def _reconcile_bound_outcome(
             raise CiboCapitalManagementError(
                 "Phase20D capital release must follow full-fill deployment"
             )
+        capital_deployed_at = executed_risk.capital_deployed_at
         capital_minutes = Decimal(
             str(
                 (
@@ -363,8 +365,8 @@ def _reconcile_bound_outcome(
         ),
         "capital_deployed_at": (
             None
-            if executed_risk.capital_deployed_at is None
-            else executed_risk.capital_deployed_at.isoformat()
+            if capital_deployed_at is None
+            else capital_deployed_at.isoformat()
         ),
         "capital_released_at": (
             None
@@ -401,7 +403,7 @@ def _reconcile_bound_outcome(
         ),
         realized_structural_outcome_r=structural_r,
         outcome_reconciled=True,
-        capital_deployed_at=executed_risk.capital_deployed_at,
+        capital_deployed_at=capital_deployed_at,
         capital_released_at=capital_released_at,
         capital_minutes=capital_minutes,
     )
