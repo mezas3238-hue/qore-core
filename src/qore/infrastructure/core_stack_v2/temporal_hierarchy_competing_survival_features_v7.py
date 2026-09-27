@@ -12,14 +12,15 @@ The output is authority-free cognition for the dual V7 mechanism model.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from statistics import fmean
-from typing import Protocol, Sequence
+from typing import Protocol
 
 from qore.infrastructure.core_stack_v2.hierarchical_world_model import WorldScale
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_competing_survival_v7 import (
-    CompetingSurvivalSourceState,
     RECOVERY_FEATURE_NAMES,
     TERMINAL_FEATURE_NAMES,
+    CompetingSurvivalSourceState,
 )
 from qore.infrastructure.core_stack_v2.temporal_hierarchy_engine import (
     TemporalHierarchySnapshot,
