@@ -1290,15 +1290,28 @@ def _authorize_and_check(
         expires_at=expires_at,
     )
     request = seed.request
-    demo_result = submit_demo_request(request)
-    if phase20_after_submit is not None:
-        phase20_after_submit(
-            opportunity,
-            spec,
-            account,
-            trigger_at,
-            request_at,
+    try:
+        demo_result = submit_demo_request(request)
+    except Exception:
+        _observe_phase20_without_execution_authority(
+            callback=phase20_after_submit,
+            opportunity=opportunity,
+            spec=spec,
+            account=account,
+            trigger_at=trigger_at,
+            observed_at=request_at,
+            log=log,
         )
+        raise
+    _observe_phase20_without_execution_authority(
+        callback=phase20_after_submit,
+        opportunity=opportunity,
+        spec=spec,
+        account=account,
+        trigger_at=trigger_at,
+        observed_at=request_at,
+        log=log,
+    )
     log({
         "event": "CTRADER_DEMO_FREE_EXECUTION",
         "trader": "VT31_NAS100",
@@ -1355,6 +1368,40 @@ def _authorize_and_check(
             "expires_at": order.expires_at,
         })
     return
+
+
+def _observe_phase20_without_execution_authority(
+    *,
+    callback: Phase20AfterSubmit | None,
+    opportunity: TraderOpportunityEnvelope,
+    spec: CTraderDemoSymbolSpecification,
+    account: CTraderDemoAccountState,
+    trigger_at: datetime,
+    observed_at: datetime,
+    log: Callable[[dict[str, object]], None],
+) -> None:
+    if callback is None:
+        return
+    try:
+        callback(
+            opportunity,
+            spec,
+            account,
+            trigger_at,
+            observed_at,
+        )
+    except Exception as error:
+        log(
+            {
+                "event": "PHASE20D_VT31_OBSERVER_INELIGIBLE",
+                "signal_fingerprint": opportunity.signal_fingerprint,
+                "trigger_at": trigger_at.isoformat(),
+                "observed_at": observed_at.isoformat(),
+                "reason": type(error).__name__,
+                "message": str(error),
+                "execution_path_blocked": False,
+            }
+        )
 
 
 def _broker_guard_target(order: Vt31VirtualOrderState) -> Decimal:
