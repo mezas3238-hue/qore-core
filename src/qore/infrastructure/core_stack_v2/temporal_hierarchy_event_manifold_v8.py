@@ -560,8 +560,8 @@ def fit_event_manifold_model(
             candidates.append(
                 (
                     legal,
-                    preservation,
                     reduction,
+                    preservation,
                     -radius_micros,
                     margin_micros,
                     quantile_bps,
@@ -573,8 +573,8 @@ def fit_event_manifold_model(
     selected = max(legal_candidates or candidates)
     (
         calibration_gate_pass,
-        selected_preservation,
         selected_reduction,
+        selected_preservation,
         _,
         selected_margin,
         selected_quantile,
