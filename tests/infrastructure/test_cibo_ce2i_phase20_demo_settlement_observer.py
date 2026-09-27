@@ -167,6 +167,7 @@ def test_settlement_observer_accumulates_entry_partial_and_terminal_cash(
         tmp_path / "registry.json"
     ).committed_stop_risk(
         now=START + timedelta(minutes=1),
+        provider_order_status=lambda _provider_order_ref: 3,
     ) == Decimal("0")
 
 
