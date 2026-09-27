@@ -14,7 +14,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
-from qore.infrastructure.account_wide_risk import AccountRiskSnapshot
+from qore.infrastructure.account_wide_risk import (
+    AccountRiskSnapshot,
+    CiboRiskRequest,
+)
 from qore.infrastructure.account_wide_risk_ledger import (
     DurableAccountWideRiskEngine,
 )
@@ -33,7 +36,6 @@ from qore.infrastructure.cibo_capital_management_authority import (
     TraderOpportunityEnvelope,
 )
 from qore.infrastructure.cibo_cma_risk_request import build_cma_risk_request
-from qore.infrastructure.account_wide_risk import CiboRiskRequest
 
 
 @dataclass(frozen=True, slots=True)
