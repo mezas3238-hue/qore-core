@@ -192,6 +192,8 @@ def shadow_basket(
     risk: DurableAccountWideRiskEngine,
     snapshot: AccountRiskSnapshot,
     account_equity: Decimal,
+    survival_capital_usd: Decimal,
+    protected_capital_usd: Decimal,
     store: Vt31Nas100LiveStateStore,
     log: Callable[[dict[str, object]], None],
 ) -> None:
@@ -204,6 +206,8 @@ def shadow_basket(
             risk=risk,
             snapshot=snapshot,
             account_equity=account_equity,
+            survival_capital_usd=survival_capital_usd,
+            protected_capital_usd=protected_capital_usd,
             store=store,
             log=log,
         )
@@ -218,6 +222,8 @@ def submit_single_live(
     risk: DurableAccountWideRiskEngine,
     snapshot: AccountRiskSnapshot,
     account_equity: Decimal,
+    survival_capital_usd: Decimal,
+    protected_capital_usd: Decimal,
     store: Vt31Nas100LiveStateStore,
     log: Callable[[dict[str, object]], None],
 ) -> None:
@@ -234,6 +240,8 @@ def submit_single_live(
             risk=risk,
             snapshot=snapshot,
             account_equity=account_equity,
+            survival_capital_usd=survival_capital_usd,
+            protected_capital_usd=protected_capital_usd,
             store=store,
             log=log,
         )
@@ -261,6 +269,8 @@ def process_virtual_oco(
     risk: DurableAccountWideRiskEngine,
     snapshot: AccountRiskSnapshot,
     account_equity: Decimal,
+    survival_capital_usd: Decimal,
+    protected_capital_usd: Decimal,
     store: Vt31Nas100LiveStateStore,
     log: Callable[[dict[str, object]], None],
 ) -> None:
@@ -302,6 +312,8 @@ def process_virtual_oco(
         risk=risk,
         snapshot=snapshot,
         account_equity=account_equity,
+        survival_capital_usd=survival_capital_usd,
+        protected_capital_usd=protected_capital_usd,
         store=store,
         log=log,
     )
@@ -1147,6 +1159,8 @@ def _authorize_and_check(
     risk: DurableAccountWideRiskEngine,
     snapshot: AccountRiskSnapshot,
     account_equity: Decimal,
+    survival_capital_usd: Decimal,
+    protected_capital_usd: Decimal,
     store: Vt31Nas100LiveStateStore,
     log: Callable[[dict[str, object]], None],
 ) -> None:
@@ -1194,12 +1208,14 @@ def _authorize_and_check(
         risk=risk,
         snapshot=snapshot,
         assigned_capital_usd=account_equity,
+        survival_capital_usd=survival_capital_usd,
+        protected_capital_usd=protected_capital_usd,
         requested_at=request_at,
         expires_at=expires_at,
     )
     request = seed.request
     log({
-        "event": "VT31_CIBO_MINIMAL_SEED",
+        "event": "VT31_CIBO_ACCOUNT_SIZING",
         "candidate_id": order.candidate_id,
         "signal_fingerprint": order.signal_fingerprint,
         "decision_at_utc": trigger_at.isoformat(),
@@ -1211,6 +1227,10 @@ def _authorize_and_check(
         "requested_risk_usd": str(request.requested_stop_risk),
         "legacy_certified_risk_r": str(resolution.final_risk_r),
         "sizing_authority": "CIBO_CMA",
+        "cibo_sizing_mode": seed.mode.value,
+        "cibo_base_protected": seed.base_protected,
+        "cibo_survival_capital_usd": str(seed.survival_capital_usd),
+        "cibo_protected_capital_usd": str(seed.protected_capital_usd),
     })
     auth_at = stage("before-account-wide-risk")
     authorization = risk.authorize(request, snapshot, now=auth_at)
