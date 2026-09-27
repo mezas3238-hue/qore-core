@@ -37,9 +37,9 @@ from qore.infrastructure.core_stack_v2.temporal_hierarchy_event_manifold_v8 impo
     EventManifoldEvaluation,
     EventManifoldLabel,
     EventManifoldTrainingEpisode,
+    evaluate_event_manifold,
     event_manifold_model_fingerprint,
     event_manifold_representation_fingerprint,
-    evaluate_event_manifold,
     fit_event_manifold_model,
     matured_event_label,
 )
