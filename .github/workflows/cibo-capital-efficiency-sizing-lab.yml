@@ -107,6 +107,7 @@ jobs:
             scripts/cibo_phase20_capital_state_monte_carlo_contract.py \
             scripts/cibo_phase20_mechanism_certification.py \
             scripts/cibo_phase20_operational_mechanism_certification.py \
+            scripts/cibo_phase20_capital_action_certification.py \
             scripts/cibo_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
@@ -135,6 +136,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py \
             tests/infrastructure/test_cibo_ce2i_phase20_mechanism_certification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_operational_mechanism_certification.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
             tests/infrastructure/test_cibo_account_capital_mission.py \
@@ -275,6 +277,7 @@ jobs:
             scripts/cibo_phase20_capital_state_monte_carlo_contract.py \
             scripts/cibo_phase20_mechanism_certification.py \
             scripts/cibo_phase20_operational_mechanism_certification.py \
+            scripts/cibo_phase20_capital_action_certification.py \
             scripts/cibo_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
@@ -303,6 +306,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py \
             tests/infrastructure/test_cibo_ce2i_phase20_mechanism_certification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_operational_mechanism_certification.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
             tests/infrastructure/test_cibo_account_capital_mission.py \
@@ -374,6 +378,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py \
             tests/infrastructure/test_cibo_ce2i_phase20_mechanism_certification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_operational_mechanism_certification.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
             tests/infrastructure/test_cibo_account_capital_mission.py \
