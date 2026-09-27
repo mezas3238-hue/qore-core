@@ -42,6 +42,9 @@ from qore.infrastructure.cibo_cma_settlement_store import (
 from qore.infrastructure.ctrader_demo_allocation_only import (
     CTraderDemoBrokerContract,
 )
+from qore.infrastructure.ctrader_demo_execution_gateway import (
+    ctrader_fill_identity_digest,
+)
 from qore.infrastructure.ctrader_demo_execution_contracts import (
     CTraderDemoAttemptState,
     CTraderDemoFillObservation,
@@ -447,6 +450,17 @@ def _build_executed_risk(
         )
         for item in mutation.fill_observations
     )
+    persisted_identities = dict(mutation.fill_identities)
+    for fill in fills:
+        expected_digest = persisted_identities.get(fill.fill_ref)
+        if (
+            expected_digest is None
+            or expected_digest != ctrader_fill_identity_digest(fill)
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20D durable fill identity digest mismatch"
+            )
+
     latest_received = max(item.received_at for item in fills)
     if latest_received <= decision.decision_at:
         raise CiboCapitalManagementError(
