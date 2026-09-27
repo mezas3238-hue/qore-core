@@ -46,7 +46,7 @@ def _request(
         margin_per_volume=Decimal("1000"),
         requested_at=NOW,
         expires_at=NOW + timedelta(seconds=30),
-        strategy_requested_risk_usd=Decimal("25"),
+        strategy_requested_risk_usd=None,
     )
 
 
@@ -64,7 +64,7 @@ def test_allocation_only_preserves_cibo_requested_volume_exactly() -> None:
     request = _request(volume=Decimal("0.37"))
     approved = authorize_allocation_only(request, book=_book(), now=NOW)
 
-    assert approved.assigned_capital == Decimal("50000")
+    assert approved.assigned_capital == Decimal("100000")
     assert approved.authorized_volume == Decimal("0.37")
     assert approved.authorized_volume == request.requested_volume
 
@@ -82,11 +82,14 @@ def test_other_trader_activity_never_reduces_the_request() -> None:
     assert second.authorized_volume == Decimal("0.91")
 
 
-def test_equal_book_assigns_all_active_traders() -> None:
+def test_equal_book_is_attribution_only_not_runtime_budget() -> None:
     book = equal_active_trader_allocations(Decimal("70000"))
 
-    assert book.capital_for(TraderLineage.VT08_FOREX) == Decimal("10000")
-    assert book.capital_for(TraderLineage.VT31_NAS100) == Decimal("10000")
+    assert book.account_capital == Decimal("70000")
+    assert book.capital_for(TraderLineage.VT08_FOREX) == Decimal("70000")
+    assert book.capital_for(TraderLineage.VT31_NAS100) == Decimal("70000")
+    assert book.attribution_capital_for(TraderLineage.VT08_FOREX) == Decimal("10000")
+    assert book.attribution_capital_for(TraderLineage.VT31_NAS100) == Decimal("10000")
 
 
 def test_expired_cibo_request_is_still_fail_closed() -> None:
@@ -165,7 +168,7 @@ def test_market_submission_converts_lots_to_ctrader_units_and_keeps_cibo_geometr
     assert intent.take_profit is not None
     assert intent.take_profit.value == Decimal("1.11000")
     assert intent.metadata.attributes["ctrader_reference_entry"] == "1.10000"
-    assert intent.metadata.attributes["demo_policy"] == "allocation-only"
+    assert intent.metadata.attributes["demo_policy"] == "cibo-account-authority"
 
 
 def test_limit_submission_retains_exact_entry() -> None:
