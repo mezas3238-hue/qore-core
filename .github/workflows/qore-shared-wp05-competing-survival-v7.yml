@@ -10,6 +10,7 @@ on:
       - src/qore/infrastructure/core_stack_v2/temporal_hierarchy_competing_survival_features_v7.py
       - tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_v7.py
       - tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_features_v7.py
+      - tests/infrastructure/test_shared_wp05_competing_survival_v7_protocol.py
       - scripts/shared_wp05_competing_survival_v7.py
       - scripts/shared_wp05_structural_failure_target_v2.py
       - .github/workflows/qore-shared-wp05-competing-survival-v7.yml
@@ -174,6 +175,10 @@ jobs:
           assert g["shared_risk_authority"] is False
           assert g["shared_order_authority"] is False
           assert g["shared_execution_authority"] is False
+          assert g["live_authorized"] is False
+          assert g["production_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["merge_authorized"] is False
 
           if not m["calibration_gate_pass"]:
               assert p["status"] == "WP05_V7_COMPETING_SURVIVAL_FALSIFIED"
