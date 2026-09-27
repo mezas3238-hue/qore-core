@@ -27,7 +27,7 @@ def _range() -> dict[str, int | str]:
         "target_max": "2017-01-01T00:30:00+00:00",
         "changed_target_count": 1,
         "target_unidentifiable_anchor_count": 0,
-        "v9_unidentifiable_anchor_count": 0,
+        "v10_unidentifiable_anchor_count": 0,
         "target_contract": "HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2",
         "fresh_holdout_opened": 0,
     }
