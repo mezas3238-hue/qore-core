@@ -7,10 +7,13 @@ on:
       - '.github/workflows/cibo-phase20-provider-uncertainty.yml'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_capital_state_monte_carlo.py'
       - 'scripts/cibo_phase20_provider_uncertainty_contract.py'
       - 'scripts/cibo_phase20_counterfactual_stress_matrix.py'
+      - 'scripts/cibo_phase20_capital_state_monte_carlo_contract.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py'
   push:
     branches:
       - agent/cibo-capital-efficiency-sizing-lab-001
@@ -18,10 +21,13 @@ on:
       - '.github/workflows/cibo-phase20-provider-uncertainty.yml'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_capital_state_monte_carlo.py'
       - 'scripts/cibo_phase20_provider_uncertainty_contract.py'
       - 'scripts/cibo_phase20_counterfactual_stress_matrix.py'
+      - 'scripts/cibo_phase20_capital_state_monte_carlo_contract.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py'
 
 permissions:
   contents: read
@@ -45,15 +51,20 @@ jobs:
           ruff check \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_capital_state_monte_carlo.py \
             scripts/cibo_phase20_provider_uncertainty_contract.py \
             scripts/cibo_phase20_counterfactual_stress_matrix.py \
+            scripts/cibo_phase20_capital_state_monte_carlo_contract.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
-            tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py
+            tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py
           mypy \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_capital_state_monte_carlo.py \
             scripts/cibo_phase20_provider_uncertainty_contract.py \
-            scripts/cibo_phase20_counterfactual_stress_matrix.py
+            scripts/cibo_phase20_counterfactual_stress_matrix.py \
+            scripts/cibo_phase20_capital_state_monte_carlo_contract.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py
@@ -78,6 +89,9 @@ jobs:
           python scripts/cibo_phase20_counterfactual_stress_matrix.py \
             --output phase20-output/phase20-counterfactual-stress-matrix.json \
             > phase20-output/counterfactual-stress-stdout.json
+          python scripts/cibo_phase20_capital_state_monte_carlo_contract.py \
+            --output phase20-output/phase20-capital-state-monte-carlo-contract.json \
+            > phase20-output/capital-state-monte-carlo-stdout.json
       - name: Seal Phase 20 provider uncertainty evidence
         run: |
           printf '%s\n' "$EVIDENCE_SHA" > phase20-output/git-sha.txt
@@ -87,6 +101,8 @@ jobs:
             provider-uncertainty-stdout.json \
             phase20-counterfactual-stress-matrix.json \
             counterfactual-stress-stdout.json \
+            phase20-capital-state-monte-carlo-contract.json \
+            capital-state-monte-carlo-stdout.json \
             git-sha.txt > SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
