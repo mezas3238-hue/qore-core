@@ -381,6 +381,7 @@ def test_phase20d_row_uses_realized_net_pnl_without_double_charging_proxy() -> N
         realized_net_pnl_usd=Decimal("18"),
         executed_initial_stop_risk_usd=Decimal("12"),
         realized_structural_outcome_r=Decimal("1.5"),
+        capital_minutes=Decimal("30"),
         outcome_observed_at=START + timedelta(hours=1),
     )
 
