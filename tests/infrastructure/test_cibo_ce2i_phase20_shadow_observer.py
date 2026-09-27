@@ -26,6 +26,9 @@ from qore.infrastructure.cibo_ce2i_phase20_epoch_aggregator import (
 from qore.infrastructure.cibo_ce2i_phase20_forward_epoch import (
     Phase20ForwardObservedOpportunity,
 )
+from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
+    Phase20ForwardPopulationDisposition,
+)
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
     DurablePhase20ForwardPolicyStore,
 )
@@ -201,4 +204,106 @@ def test_shadow_observer_persists_epoch_without_execution_authority(
     assert (
         observation.collected.result.evidence.decision_epoch_id
         == batch.decision_epoch_id
+    )
+
+
+
+def test_shadow_observer_seals_zero_candidate_population_without_bias(
+    tmp_path: Path,
+) -> None:
+    aggregator = Phase20DecisionEpochAggregator(
+        epoch_scope="ctrader:demo-forward:zero-candidate",
+        opened_at=OPENED_AT,
+        deadline_at=OPENED_AT + timedelta(seconds=2),
+        expected_slots=(
+            Phase20DecisionEpochSlot(
+                slot_id="VT31_NAS100|NAS100",
+                trader_id=TraderLineage.VT31_NAS100,
+                qore_symbol="NAS100",
+            ),
+        ),
+    )
+    aggregator.record_non_candidate(
+        slot_id="VT31_NAS100|NAS100",
+        disposition=Phase20ForwardPopulationDisposition.ABSTAIN,
+        observed_at=OPENED_AT + timedelta(milliseconds=200),
+        reason="CAUSAL_ABSTAIN",
+    )
+    batch = aggregator.seal(decision_at=DECISION_AT)
+
+    reconciled_at = DECISION_AT - timedelta(milliseconds=100)
+    account_snapshot = AccountRiskSnapshot(
+        account_binding_id="demo-forward",
+        equity=Decimal("2000"),
+        margin_used=Decimal("0"),
+        free_margin=Decimal("2000"),
+        open_stop_worst_case_loss=Decimal("0"),
+        open_floating_loss=Decimal("0"),
+        pending_broker_worst_case_loss=Decimal("0"),
+        qore_authorizable_headroom=Decimal("100"),
+        provider_budget=_ProviderBudget(),
+        reconciled_at=reconciled_at,
+    )
+    risk_constraints = RiskCapitalConstraintEnvelope(
+        account_binding_id="demo-forward",
+        aggregate_pre_order_worst_case_usd=Decimal("0"),
+        active_reserved_stop_risk_usd=Decimal("0"),
+        active_reserved_margin_usd=Decimal("0"),
+        provider_remaining_headroom_usd=Decimal("100"),
+        internal_qore_remaining_headroom_usd=Decimal("100"),
+        max_risk_remaining_usd=Decimal("100"),
+        hard_risk_headroom_usd=Decimal("100"),
+        margin_headroom_usd=Decimal("2000"),
+        provider_hard_breach=False,
+        survival_blocked=False,
+        reason="canonical-shadow-risk",
+        reconciled_at=reconciled_at,
+    )
+    capital_state = VersionedCapitalSourceLedger(
+        generation=1,
+        ledger=CapitalSourceLedger().add_source(
+            source_id="base",
+            source=CapitalSource.ORIGINAL_BASE_CAPITAL,
+            proven_amount_usd=Decimal("100"),
+        ),
+    )
+    evidence_store = DurablePhase20ForwardEvidenceStore(
+        tmp_path / "evidence.json"
+    )
+    policy_store = DurablePhase20ForwardPolicyStore(
+        tmp_path / "policy.json"
+    )
+
+    observation = observe_phase20_forward_batch(
+        batch=batch,
+        evidence_store=evidence_store,
+        policy_store=policy_store,
+        account_identity=CiboAccountCapitalIdentity(
+            provider_key="ctrader",
+            account_ref="demo-forward",
+            environment=MarketRuntimeEnvironment.DEMO,
+        ),
+        account_snapshot=account_snapshot,
+        risk_constraints=risk_constraints,
+        capital_state=capital_state,
+        capital_captured_at=DECISION_AT - timedelta(milliseconds=50),
+        concentration_limit_by_group=(),
+        regime_state=CiboCapitalRegimeState(
+            liquidity=LiquidityState.NORMAL,
+            volatility=VolatilityState.NORMAL,
+            correlation=CorrelationState.NORMAL,
+            provider_condition=ProviderCondition.HEALTHY,
+            risk_utilization=Decimal("0.10"),
+            margin_utilization=Decimal("0.10"),
+            drawdown_utilization=Decimal("0.10"),
+            opportunity_count=0,
+        ),
+        current_step=0,
+    )
+
+    assert evidence_store.load().generation == 1
+    assert policy_store.load().generation == 1
+    assert observation.collected.result.evidence.candidates == ()
+    assert observation.collected.result.evidence.population_slots[0].reason == (
+        "CAUSAL_ABSTAIN"
     )
