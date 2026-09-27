@@ -22,6 +22,7 @@ class CmaSettlementRecord:
 
     def __post_init__(self) -> None:
         if self.event not in {
+            "CTRADER_DEMO_ENTRY_COST_SETTLEMENT",
             "CTRADER_DEMO_PARTIAL_SETTLEMENT",
             "CTRADER_DEMO_EXIT_SETTLEMENT",
         }:
@@ -42,6 +43,13 @@ class CmaSettlementRecord:
         if self.event == "CTRADER_DEMO_EXIT_SETTLEMENT" and self.position_open_after:
             raise CmaSettlementLedgerError(
                 "exit settlement cannot leave position open"
+            )
+        if (
+            self.event == "CTRADER_DEMO_ENTRY_COST_SETTLEMENT"
+            and not self.position_open_after
+        ):
+            raise CmaSettlementLedgerError(
+                "entry-cost settlement must leave position lifecycle open"
             )
 
 
