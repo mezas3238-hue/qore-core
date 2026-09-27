@@ -521,3 +521,51 @@ fail-closed.
 At this ledger checkpoint, the authoritative isolated Causal Trajectory V9
 consumed run is `36288203952`. No scientific conclusion is recorded here
 until protocol validation and artifact binding complete.
+
+
+### Hard discrimination budget
+
+The frozen 2000/9500 gate is also tracked as exact episode budgets on the
+authoritative Target-V2 consumed populations. This is diagnostic only and does
+not change the gate.
+
+R6:
+
+- baseline false declarations: 5,820;
+- baseline terminals: 2,555;
+- minimum false suppressions for >=2000 bps reduction: **1,164**;
+- maximum missed terminals compatible with >=9500 bps preservation: **127**.
+
+R5:
+
+- baseline false declarations: 6,518;
+- baseline terminals: 2,832;
+- minimum false suppressions for >=2000 bps reduction: **1,304**;
+- maximum missed terminals compatible with >=9500 bps preservation: **141**.
+
+For comparison, V8 produced only:
+
+- R6: 85 false suppressions with 55 missed terminals;
+- R5: 140 false suppressions with 61 missed terminals.
+
+Therefore WP-05 requires an order-of-magnitude increase in useful false
+suppression without spending terminal-loss budget proportionally. Marginal bps
+improvements are not sufficient evidence of structural progress.
+
+### Anti-loop transition law
+
+The experiment transition is deterministic:
+
+1. authoritative V9 is Causal Trajectory Discrimination only;
+2. if V9 passes BOTH R6 and R5, freeze exact identity and preregister one fresh
+   holdout with no consumed retuning;
+3. if V9 fails, freeze artifact/digest/failure mechanism and do not create
+   V9.1, threshold repair, feature mining, ridge changes or gate lowering;
+4. promote the already reserved sequential change-point hypothesis as a new V10
+   identity, preserving its pre-outcome scientific design;
+5. if V10 fails without material source-to-sequential observability gain, stop
+   classifier iteration and escalate WP-05 to Active Perception / new-sensor
+   observability engineering.
+
+Fresh holdout remains CLOSED until the corresponding consumed-development gate
+is passed.
