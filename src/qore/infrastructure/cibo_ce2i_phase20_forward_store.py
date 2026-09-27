@@ -579,7 +579,7 @@ class DurablePhase20ForwardEvidenceStore:
 def _decision_seal(
     evidence: Phase20ForwardDecisionEvidence,
     *,
-    sealed_at: datetime,
+    sealed_at: datetime | None,
     seal_deadline_at: datetime | None,
 ) -> Phase20ForwardDecisionSeal:
     payload = phase20_forward_evidence_json(evidence)
