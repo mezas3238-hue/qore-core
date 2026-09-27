@@ -378,6 +378,99 @@ def _replay_extension_from_current_prefix(
     )
 
 
+def _evaluate_extension(
+    *,
+    period: str,
+    ledgers: dict[str, tuple[milestone.SimulatedTrade, ...]],
+    contexts: dict[tuple[str, str], Any],
+    contextual_model: dict[str, Any],
+    ordered: tuple[milestone.SimulatedTrade, ...],
+    modes: dict[
+        str,
+        dict[tuple[str, str], milestone.SimulatedTrade],
+    ],
+    order_index: dict[tuple[str, str], int],
+    plan: dict[tuple[str, str], str],
+    current_ledger: tuple[milestone.SimulatedTrade, ...],
+    current_records: tuple[memory.MemoryRecord, ...],
+    current_decisions: tuple[simulator.ReplayDecision, ...],
+    current_applied: dict[tuple[str, str], tuple[str, str, str]],
+    iteration_cache: dict[
+        tuple[tuple[str, str, str], ...],
+        tuple[
+            dict[str, Any],
+            tuple[milestone.SimulatedTrade, ...],
+            tuple[memory.MemoryRecord, ...],
+            tuple[simulator.ReplayDecision, ...],
+            dict[tuple[str, str], tuple[str, str, str]],
+        ],
+    ],
+    seed: ActionSeed,
+) -> tuple[
+    dict[str, Any],
+    tuple[milestone.SimulatedTrade, ...],
+    tuple[memory.MemoryRecord, ...],
+    tuple[simulator.ReplayDecision, ...],
+    dict[tuple[str, str], tuple[str, str, str]],
+    bool,
+    int,
+]:
+    trial_plan = dict(plan)
+    trial_plan[(seed.symbol, seed.entry_at)] = seed.action
+    cache_key = _plan_cache_key(trial_plan)
+    cached = iteration_cache.get(cache_key)
+    if cached is not None:
+        metrics, ledger, records, decisions, applied = cached
+        return (
+            metrics,
+            ledger,
+            records,
+            decisions,
+            applied,
+            False,
+            0,
+        )
+
+    (
+        ledger,
+        records,
+        decisions,
+        applied,
+        replayed_trades,
+    ) = _replay_extension_from_current_prefix(
+        period=period,
+        ledgers=ledgers,
+        contexts=contexts,
+        contextual_model=contextual_model,
+        ordered=ordered,
+        modes=modes,
+        order_index=order_index,
+        current_plan=plan,
+        current_ledger=current_ledger,
+        current_records=current_records,
+        current_decisions=current_decisions,
+        current_applied=current_applied,
+        seed=seed,
+    )
+    metrics = milestone._metrics(ledger)
+    iteration_cache[cache_key] = (
+        metrics,
+        ledger,
+        records,
+        decisions,
+        applied,
+    )
+    return (
+        metrics,
+        ledger,
+        records,
+        decisions,
+        applied,
+        True,
+        replayed_trades,
+    )
+
+
 def _run_period(
     *,
     period: str,
@@ -451,56 +544,6 @@ def _run_period(
             ],
         ] = {}
 
-        def evaluate(
-            seed: ActionSeed,
-        ) -> tuple[
-            dict[str, Any],
-            tuple[milestone.SimulatedTrade, ...],
-            tuple[memory.MemoryRecord, ...],
-            tuple[simulator.ReplayDecision, ...],
-            dict[tuple[str, str], tuple[str, str, str]],
-        ]:
-            nonlocal replay_evaluations, replayed_trade_evaluations
-            trial_plan = dict(plan)
-            trial_plan[(seed.symbol, seed.entry_at)] = seed.action
-            cache_key = _plan_cache_key(trial_plan)
-            cached = iteration_cache.get(cache_key)
-            if cached is not None:
-                return cached
-
-            replay_evaluations += 1
-            (
-                ledger,
-                records,
-                decisions,
-                applied,
-                replayed_trades,
-            ) = _replay_extension_from_current_prefix(
-                period=period,
-                ledgers=ledgers,
-                contexts=contexts,
-                contextual_model=contextual_model,
-                ordered=ordered,
-                modes=modes,
-                order_index=order_index,
-                current_plan=plan,
-                current_ledger=current_ledger,
-                current_records=current_records,
-                current_decisions=current_decisions,
-                current_applied=current_applied,
-                seed=seed,
-            )
-            replayed_trade_evaluations += replayed_trades
-            result = (
-                milestone._metrics(ledger),
-                ledger,
-                records,
-                decisions,
-                applied,
-            )
-            iteration_cache[cache_key] = result
-            return result
-
         relief_candidates: list[
             tuple[
                 tuple[Any, ...],
@@ -523,7 +566,27 @@ def _run_period(
                     records,
                     decisions,
                     applied,
-                ) = evaluate(seed)
+                    newly_replayed,
+                    replayed_trades,
+                ) = _evaluate_extension(
+                    period=period,
+                    ledgers=ledgers,
+                    contexts=contexts,
+                    contextual_model=contextual_model,
+                    ordered=ordered,
+                    modes=modes,
+                    order_index=order_index,
+                    plan=plan,
+                    current_ledger=current_ledger,
+                    current_records=current_records,
+                    current_decisions=current_decisions,
+                    current_applied=current_applied,
+                    iteration_cache=iteration_cache,
+                    seed=seed,
+                )
+                if newly_replayed:
+                    replay_evaluations += 1
+                    replayed_trade_evaluations += replayed_trades
             except sequence_v1.InvalidPlanError:
                 invalid_trials += 1
                 continue
@@ -570,7 +633,27 @@ def _run_period(
                         records,
                         decisions,
                         applied,
-                    ) = evaluate(seed)
+                        newly_replayed,
+                        replayed_trades,
+                    ) = _evaluate_extension(
+                        period=period,
+                        ledgers=ledgers,
+                        contexts=contexts,
+                        contextual_model=contextual_model,
+                        ordered=ordered,
+                        modes=modes,
+                        order_index=order_index,
+                        plan=plan,
+                        current_ledger=current_ledger,
+                        current_records=current_records,
+                        current_decisions=current_decisions,
+                        current_applied=current_applied,
+                        iteration_cache=iteration_cache,
+                        seed=seed,
+                    )
+                    if newly_replayed:
+                        replay_evaluations += 1
+                        replayed_trade_evaluations += replayed_trades
                 except sequence_v1.InvalidPlanError:
                     invalid_trials += 1
                     continue
