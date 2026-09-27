@@ -331,6 +331,10 @@ def reconcile_pending(
         None,
     )
     if position is not None:
+        global_sink().registry.bind_position(
+            pending.client_order_id,
+            int(position.ticket),
+        )
         filled_at = _position_time(position, now)
         entry = Decimal(str(position.price_open))
         volume = Decimal(str(position.volume))
