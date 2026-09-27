@@ -1434,6 +1434,12 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         symbol: gateway.read_symbol(symbol, now=arm_started_at)
                         for symbol in ("XAUUSD", "EURUSD", "GBPUSD", "GBPJPY", "AUDJPY")
                     }
+                    arm_open_position_ids = tuple(
+                        sorted(
+                            item.position_id
+                            for item in demo_sink.position_service.positions()
+                        )
+                    )
                     arm_lifecycle = SimpleNamespace(value="DEMO_FREE")
                     arm_blocked = False
                     m5_session_open = {
@@ -1556,6 +1562,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         "arm_account": arm_account,
                         "arm_snapshot": arm_snapshot,
                         "arm_specs": arm_specs,
+                        "arm_open_position_ids": arm_open_position_ids,
                         "phase20_terminals": phase20_terminals,
                         "phase20_staged_results": phase20_staged_results,
                         "phase20_eligible": True,
@@ -1659,9 +1666,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     ):
                         if m5_session_open[symbol]:
                             continue
-                        session_closed_at = min(
-                            datetime.now(UTC),
-                            m5_deadline,
+                        session_closed_at = max(
+                            audjpy_arm_anchor,
+                            min(datetime.now(UTC), m5_deadline),
                         )
                         _log(
                             log_path,
@@ -1917,6 +1924,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                         "order_send_called": False,
                                     },
                                 )
+                            execute_staged_market_result(actor_result)
                             mark_m5_terminal(identity, symbol)
 
                         def execute_staged_market_result(
