@@ -29,7 +29,14 @@ from qore.infrastructure.account_wide_risk import (
 from qore.infrastructure.account_wide_risk_ledger import (
     DurableAccountWideRiskEngine,
 )
-from qore.infrastructure.ctrader_demo_compat import normalise_legacy_server_epoch
+from qore.infrastructure.ctrader_demo_compat import (
+    CTraderDemoAccountState,
+    CTraderDemoSymbolSpecification,
+    normalise_legacy_server_epoch,
+)
+from qore.infrastructure.cibo_capital_management_authority import (
+    TraderOpportunityEnvelope,
+)
 from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
     cibo_market_memory_fingerprint,
 )
@@ -81,6 +88,17 @@ from vt31_nas100_live_policy import (
     evaluate_live_basket,
     prepare_live_context,
 )
+
+Phase20AfterSubmit = Callable[
+    [
+        TraderOpportunityEnvelope,
+        CTraderDemoSymbolSpecification,
+        CTraderDemoAccountState,
+        datetime,
+    ],
+    None,
+]
+
 
 SYMBOL = "NAS100"
 _NY = ZoneInfo("America/New_York")
@@ -218,6 +236,7 @@ def submit_single_live(
     account_equity: Decimal,
     store: Vt31Nas100LiveStateStore,
     log: Callable[[dict[str, object]], None],
+    phase20_after_submit: Phase20AfterSubmit | None = None,
 ) -> None:
     if len(basket.candidates) != 1:
         raise Vt31Nas100LiveError(
@@ -234,6 +253,7 @@ def submit_single_live(
             account_equity=account_equity,
             store=store,
             log=log,
+            phase20_after_submit=phase20_after_submit,
         )
     except (
         Vt31Nas100SlaExpired,
@@ -1188,6 +1208,7 @@ def _authorize_and_check(
     account_equity: Decimal,
     store: Vt31Nas100LiveStateStore,
     log: Callable[[dict[str, object]], None],
+    phase20_after_submit: Phase20AfterSubmit | None = None,
 ) -> None:
     trigger_at = trigger_at.astimezone(UTC)
     pre_close_due = pre_close_spread_exit_at(order.local_date)
@@ -1250,6 +1271,13 @@ def _authorize_and_check(
     )
     request = seed.request
     demo_result = submit_demo_request(request)
+    if phase20_after_submit is not None:
+        phase20_after_submit(
+            opportunity,
+            spec,
+            account,
+            request_at,
+        )
     log({
         "event": "CTRADER_DEMO_FREE_EXECUTION",
         "trader": "VT31_NAS100",
