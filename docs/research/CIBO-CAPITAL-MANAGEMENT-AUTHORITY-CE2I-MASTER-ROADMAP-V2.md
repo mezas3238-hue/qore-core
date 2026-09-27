@@ -1851,7 +1851,7 @@ USD-dependent study remains fail-closed until provider-economic evidence is cali
 
 ## PHASE 20 — Robust capital-policy validation under uncertainty
 
-**Status: IN PROGRESS — 20A/B + 20C + 20E CONTRACTS GREEN / EMPIRICAL CALIBRATION PENDING / 20D POLICY WFO BLOCKED ON FRESH EVIDENCE**
+**Status: IN PROGRESS — 20A/B + 20C + 20E + 20F + 20G + 20J CONTRACTS GREEN / 20H-20I RESEARCH PENDING / EMPIRICAL CALIBRATION PENDING / 20D POLICY WFO BLOCKED ON FRESH EVIDENCE**
 
 Required sequence:
 
@@ -2070,6 +2070,171 @@ PHASE20E_POLICY_CERTIFIED                              = FALSE
 Phase 20D remains blocked for policy qualification because the Phase-19J validation interval has
 already been consumed. A redesigned allocator may be researched from burned evidence, but it needs
 genuinely fresh forward evidence before qualification. Phase 20E does not alter that rule.
+
+### Phase 20F / 20G / 20J — mechanism certification, structural ablation and failure engineering checkpoint — 27-SEP-2026
+
+The policy-independent Phase-20 contract surface has now been extended and sealed under one
+evidence HEAD. This checkpoint deliberately separates **contract certification** from empirical
+value validation. No CE2I tool is promoted to `RESEARCH_VALIDATED` merely because its invariants
+pass synthetic adversarial proofs.
+
+Evidence:
+
+```text
+evidence_head:       2b779aeb15eb4d51ee7e085b2880e7270424d402
+main_pr_run:         36290294660  SUCCESS
+phase20_pr_run:      36290294609  SUCCESS
+artifact_id:         10921689869
+artifact_digest:     sha256:767f0678f1830adf3e24cfab8b1b232bfc4e694d28c6d7254a8fa5aaedb717b0
+internal_manifest:   SHA256SUMS 19/19 VERIFIED
+```
+
+#### Phase 20F — independent CE2I mechanism certification
+
+All **13 CE2I tools whose registry maturity is currently `CONTRACT_IMPLEMENTED`** are now exercised
+through their real implementation surfaces rather than promoted from registry metadata alone:
+
+```text
+T01  Minimal Seed
+T05  Capital Recycling
+T06  Profit-Funded Expansion
+T07  Protected-Capacity Expansion
+T09  Opportunity Competition
+T11  Execution-Efficient Exposure
+T12  Regime-Adaptive Capitalization
+T13  Drawdown Reserve
+T14  Dynamic De-risking
+T15  Capital Optionality
+T18  Cross-Trader Capital Allocation
+T19  Capacity Reservation
+T20  Capital Release
+```
+
+The three independent certification tranches prove **25 contract invariants** in total.
+
+Phase 20F-A — accounting core:
+
+- reconciled released capacity is required before T05 reuse;
+- released risk and released margin remain dimensionally non-fungible;
+- returned/consumed recycled capacity survives durable restart;
+- T19 prevents double-spend;
+- multi-source reservation is atomic;
+- stale durable-ledger CAS writers fail closed;
+- T20 separates unused reservation release from deployed settlement;
+- deployed capacity cannot use the unused-release path;
+- settlement separates returned capacity from economically consumed capacity.
+
+Phase 20F-B — operational mechanisms:
+
+- T11 blocks expansion when linear execution cost consumes edge;
+- T11 stops before a negative marginal next step;
+- stale T12 regime evidence fails closed to capital release only;
+- recovery posture blocks expansion tools;
+- T14 uses the least step-aligned reduction that restores hard ceilings;
+- Trader methodology invalidation remains sovereign and can force full release;
+- T15 defensive optionality preserves the cheapest known executable future option;
+- recovery optionality preserves all remaining new-capital headroom.
+
+Phase 20F-C — capital actions:
+
+- T01 uses provider-minimum executable seed rather than legacy Trader sizing;
+- T01 fails closed when minimum margin cannot be funded;
+- T06 expansion is bounded by reconciled realized profit;
+- original base capital cannot masquerade as self-financing expansion funding;
+- T07 is bounded by reconciled protected economic floor;
+- T09 allocates scarce capital by causal economic efficiency under explicit headroom;
+- T13 recovery posture may reserve all remaining new-capital capacity;
+- T18 does not manufacture priority from Trader identity alone.
+
+The result is:
+
+```text
+PHASE20F_CONTRACT_IMPLEMENTED_TOOL_COUNT       = 13
+PHASE20F_CONTRACT_CERTIFIED_TOOL_COUNT         = 13
+PHASE20F_CONTRACT_PROOF_COUNT                  = 25
+PHASE20F_RESEARCH_VALIDATED_TOOL_COUNT         = 0
+PHASE20F_HOLDOUT_VALIDATED_TOOL_COUNT          = 0
+PHASE20F_POLICY_CERTIFIED                      = FALSE
+```
+
+The remaining registry tools T02/T03/T04/T08/T10/T16/T17 remain
+`ARCHITECTURE_ONLY`; Phase 20F does not fabricate implementation or evidence for them.
+
+#### Phase 20G — structural ablation / interaction contract V1
+
+Seven synthetic composition laws now test whether independently certified mechanisms stay
+orthogonal and fail closed when combined:
+
+1. T11 execution impact can reduce executable volume without changing Trader geometry.
+2. T12 stale-regime gating dominates a positive T11 execution cap.
+3. T06 funding and T11 execution capacity are orthogonal: execution efficiency may reduce a
+   reservation but cannot create funding.
+4. T15 optionality reserves future capacity without modifying current Trader geometry.
+5. T14 acts on existing exposure and cannot silently authorize new capital.
+6. Recovery composes T12/T13/T14/T15: expansion is blocked, future capacity is preserved and
+   existing exposure may still be reduced.
+7. T09/T18 competition is invariant to candidate input order under the frozen synthetic fixture.
+
+```text
+PHASE20G_STRUCTURAL_ABLATION_CASES             = 7
+PHASE20G_STRUCTURAL_ABLATION_PASSED            = 7
+PHASE20G_EMPIRICAL_INCREMENTAL_VALUE_CLAIMED   = FALSE
+PHASE20G_PHASE19J_VALIDATION_REUSED            = FALSE
+PHASE20G_POLICY_SELECTED                       = FALSE
+```
+
+These are architecture/composition falsification tests. They do **not** prove that any mechanism
+adds Profit Factor, reduces drawdown, or deserves portfolio weight in unseen markets.
+
+#### Phase 20J-A/B — failure engineering
+
+The failure-engineering matrix now contains **22 explicit probes** across provider economics,
+capital accounting, durable reservation, settlement, restart and clustered-capital pressure.
+
+Phase 20J-A (J01-J15) proves:
+
+- unavailable liquidity fails closed;
+- minimum-volume / maximum-volume cliffs fail closed;
+- combined adverse provider stress cannot improve economics;
+- restart preserves unsettled deployed capital;
+- delayed settlement releases only reconciled returned capacity;
+- stale capital-ledger generation and writer conflicts fail closed;
+- corrupt capital snapshots fail closed;
+- stale portfolio reservation generation and writer conflicts fail closed;
+- portfolio reservation state survives restart;
+- exact duplicate settlement is idempotent;
+- conflicting duplicate settlement fails closed;
+- terminal settlement survives restart;
+- post-terminal settlement is rejected.
+
+Phase 20J-B (J16-J22) adds:
+
+- spread expansion is explicitly non-improving;
+- higher slippage reserve cannot improve execution economics;
+- margin expansion increases capital consumption rather than being normalized away;
+- execution-delay floors remain explicit evidence;
+- concentration limits block a second correlated use of shared capacity;
+- clustered simultaneous opportunities cannot reserve beyond shared stop-risk headroom;
+- two simultaneous full losses consume proven capital while preserving the stock-conservation
+  identity and cannot create negative/fictitious capacity.
+
+```text
+PHASE20J_FAILURE_PROBES                         = 22
+PHASE20J_FAILURE_PROBES_PASSED                  = 22
+PHASE20J_MARKET_PROBABILITY_CLAIMED             = FALSE
+PHASE20J_HISTORICAL_PROVIDER_ECONOMICS_CLAIMED  = FALSE
+PHASE20J_PHASE19J_VALIDATION_REUSED              = FALSE
+PHASE20J_POLICY_CERTIFIED                        = FALSE
+```
+
+The Phase-20 artifact also re-seals 20A/B, 20C and 20E under the same evidence HEAD. The internal
+manifest verifies 19 files: nine canonical reports, their nine stdout mirrors, and the bound
+`git-sha.txt`.
+
+**Constitutional consequence:** Phase 20F/G/J harden the mechanisms and composition laws that a
+future allocator may use; they do not select that allocator. Phase 20H robust allocator research and
+20I receding-horizon optionality/MPC remain research fronts. Phase 20D qualification still requires
+genuinely fresh forward evidence, and Phase 21/22 remain blocked until that gate is satisfied.
 
 ---
 
