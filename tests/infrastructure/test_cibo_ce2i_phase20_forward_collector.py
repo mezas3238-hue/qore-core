@@ -25,6 +25,10 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_epoch import (
     Phase20ForwardObservedOpportunity,
     collect_phase20_forward_observed_epoch,
 )
+from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
+    Phase20ForwardPopulationDisposition,
+    Phase20ForwardPopulationSlotEvidence,
+)
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
     DurablePhase20ForwardPolicyError,
     DurablePhase20ForwardPolicyStore,
@@ -154,6 +158,21 @@ def _observed() -> Phase20ForwardObservedOpportunity:
     )
 
 
+def _population() -> tuple[Phase20ForwardPopulationSlotEvidence, ...]:
+    observed = _observed()
+    return (
+        Phase20ForwardPopulationSlotEvidence(
+            slot_id="VT31_NAS100|NAS100",
+            trader_id=observed.opportunity.trader_id,
+            qore_symbol=observed.opportunity.qore_symbol,
+            observed_at=DECISION_AT - timedelta(milliseconds=1),
+            disposition=Phase20ForwardPopulationDisposition.CANDIDATE,
+            reason="collector test candidate",
+            signal_fingerprint=observed.opportunity.signal_fingerprint,
+        ),
+    )
+
+
 def _regime() -> CiboCapitalRegimeState:
     return CiboCapitalRegimeState(
         liquidity=LiquidityState.NORMAL,
@@ -174,12 +193,14 @@ def _collect(
     return collect_phase20_forward_observed_epoch(
         evidence_store=evidence_store,
         policy_store=policy_store,
+        decision_epoch_id="phase20d-collector-epoch",
         decision_at=DECISION_AT,
         account_identity=_identity(),
         snapshots=_snapshots(),
         concentration_limit_by_group=(("INDEX", Decimal("100")),),
         regime_state=_regime(),
         current_step=0,
+        population_slots=_population(),
         opportunities=(_observed(),),
     )
 
