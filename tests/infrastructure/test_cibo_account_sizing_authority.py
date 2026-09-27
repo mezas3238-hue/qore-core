@@ -3,6 +3,7 @@ from decimal import Decimal
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
+    CiboCapitalMissionPolicy,
     derive_cibo_capital_mission,
 )
 from qore.infrastructure.cibo_account_sizing_authority import (
@@ -37,7 +38,9 @@ def _opportunity() -> TraderOpportunityEnvelope:
     )
 
 
-def _mission(environment: MarketRuntimeEnvironment):
+def _mission(
+    environment: MarketRuntimeEnvironment,
+) -> CiboCapitalMissionPolicy:
     return derive_cibo_capital_mission(
         CiboAccountCapitalIdentity(
             provider_key=(
