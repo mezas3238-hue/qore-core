@@ -186,6 +186,9 @@ def _outcome(
         executed_initial_stop_risk_usd=Decimal("10"),
         realized_structural_outcome_r=Decimal(value),
         outcome_reconciled=True,
+        capital_deployed_at=NOW + timedelta(minutes=1),
+        capital_released_at=NOW + timedelta(minutes=31),
+        capital_minutes=Decimal("30"),
     )
 
 
@@ -207,6 +210,13 @@ def test_forward_store_survives_restart_with_decision_and_outcome(
     assert restarted == second
     assert len(restarted.decisions) == 1
     assert len(restarted.outcomes) == 1
+    assert restarted.outcomes[0].capital_deployed_at == (
+        NOW + timedelta(minutes=1)
+    )
+    assert restarted.outcomes[0].capital_released_at == (
+        NOW + timedelta(minutes=31)
+    )
+    assert restarted.outcomes[0].capital_minutes == Decimal("30")
 
 
 def test_forward_store_persists_physical_seal_timing(tmp_path: Path) -> None:
