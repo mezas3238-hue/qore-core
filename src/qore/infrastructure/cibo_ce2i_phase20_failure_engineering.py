@@ -20,15 +20,27 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CapitalSource,
     CiboCapitalManagementError,
 )
-from qore.infrastructure.cibo_capital_source_ledger import CapitalSourceLedger
+from qore.infrastructure.cibo_capital_source_ledger import (
+    CapitalReservationRequest,
+    CapitalSourceLedger,
+)
 from qore.infrastructure.cibo_capital_source_ledger_store import (
     DurableCapitalLedgerError,
     DurableCapitalSourceLedgerStore,
+)
+from qore.infrastructure.cibo_ce2i_causal_expectation import (
+    CausalExpectationBasis,
+    CausalOpportunityExpectation,
 )
 from qore.infrastructure.cibo_ce2i_chronological_replay import (
     CiboReplayCausalTrade,
     ReplayEconomicsStatus,
     ReplaySignalFingerprintOrigin,
+)
+from qore.infrastructure.cibo_ce2i_opportunity_competition import (
+    CapitalOpportunityCandidate,
+    OpportunityAllocationBudget,
+    allocate_competing_opportunities,
 )
 from qore.infrastructure.cibo_ce2i_phase20_provider_stress import (
     Phase20ProviderStressStatus,
@@ -519,6 +531,234 @@ def _settlement_failure_probes(root: Path) -> tuple[Phase20FailureProbe, ...]:
             post_terminal_rejected,
             "A new settlement after terminal exit is rejected.",
         ),
+    )
+
+
+
+def _provider_stress_detail_probes() -> tuple[Phase20FailureProbe, ...]:
+    evaluations = run_phase20c_counterfactual_stress_matrix(
+        causal=_provider_causal(),
+        observation=_provider_observation(),
+        scenarios=phase20c_synthetic_predeclared_stress_scenarios(),
+    )
+    by_id = {item.scenario_id: item for item in evaluations}
+    baseline = by_id["CF_BASELINE_CURRENT_SNAPSHOT"].result
+    spread = by_id["CF_SPREAD_X2"].result
+    slippage = by_id["CF_SLIPPAGE_FLOOR_4"].result
+    margin = by_id["CF_MARGIN_X2"].result
+    delay = by_id["CF_EXECUTION_DELAY_2000MS"].result
+
+    if baseline is None or spread is None or slippage is None or margin is None:
+        raise CiboCapitalManagementError(
+            "Phase20J-B executable provider stress fixture unexpectedly failed"
+        )
+    if delay is None:
+        raise CiboCapitalManagementError(
+            "Phase20J-B delay stress fixture unexpectedly failed"
+        )
+
+    return (
+        _probe(
+            "J16_SPREAD_EXPANSION_NON_IMPROVING",
+            Phase20FailureDisposition.STATE_PRESERVED,
+            (
+                spread.economics.stressed_spread_cost_per_volume_usd
+                > baseline.economics.stressed_spread_cost_per_volume_usd
+                and spread.opportunity.intended_entry
+                == baseline.opportunity.intended_entry
+                and spread.opportunity.stop_loss
+                == baseline.opportunity.stop_loss
+            ),
+            "Spread expansion worsens execution economics without changing Trader geometry.",
+        ),
+        _probe(
+            "J17_SLIPPAGE_RESERVE_NON_IMPROVING",
+            Phase20FailureDisposition.STATE_PRESERVED,
+            (
+                slippage.economics.stressed_slippage_reserve_per_volume_usd
+                > baseline.economics.stressed_slippage_reserve_per_volume_usd
+                and slippage.economics.stressed_execution_cost_per_volume_usd
+                > baseline.economics.stressed_execution_cost_per_volume_usd
+            ),
+            "Higher slippage reserve raises execution cost and cannot improve the opportunity.",
+        ),
+        _probe(
+            "J18_MARGIN_EXPANSION_NON_IMPROVING",
+            Phase20FailureDisposition.STATE_PRESERVED,
+            (
+                margin.economics.stressed_margin_per_volume_usd
+                > baseline.economics.stressed_margin_per_volume_usd
+                and margin.opportunity.margin_per_volume
+                > baseline.opportunity.margin_per_volume
+            ),
+            "Margin expansion increases capital consumption without changing Trader geometry.",
+        ),
+        _probe(
+            "J19_EXECUTION_DELAY_FLOOR_PRESERVED",
+            Phase20FailureDisposition.STATE_PRESERVED,
+            (
+                delay.economics.stressed_execution_delay_ms
+                == Decimal("2000")
+                and delay.opportunity.intended_entry
+                == baseline.opportunity.intended_entry
+            ),
+            "Delayed-fill stress is retained explicitly instead of being erased from evidence.",
+        ),
+    )
+
+
+def _cluster_candidate(
+    fingerprint: str,
+    trader: TraderLineage,
+    *,
+    group: str = "USD",
+) -> CapitalOpportunityCandidate:
+    now = datetime(2026, 9, 27, 5, 0, tzinfo=UTC)
+    return CapitalOpportunityCandidate(
+        signal_fingerprint=fingerprint,
+        trader_id=trader,
+        qore_symbol=fingerprint.upper(),
+        provider_symbol=fingerprint.upper(),
+        decision_as_of=now,
+        expectation=CausalOpportunityExpectation(
+            evidence_id=f"phase20j-b:{fingerprint}",
+            as_of=now,
+            basis=CausalExpectationBasis.FROZEN_HISTORICAL_PRIOR,
+            expected_net_value_usd=Decimal("10"),
+            expected_capital_minutes=Decimal("10"),
+        ),
+        stop_risk_usd=Decimal("5"),
+        margin_usd=Decimal("10"),
+        concentration_group=group,
+        concentration_risk_usd=Decimal("5"),
+    )
+
+
+def _portfolio_cluster_failure_probes() -> tuple[Phase20FailureProbe, ...]:
+    correlated = allocate_competing_opportunities(
+        (
+            _cluster_candidate("corr-a", TraderLineage.R38_EURUSD),
+            _cluster_candidate("corr-b", TraderLineage.R43_GBPUSD),
+        ),
+        OpportunityAllocationBudget(
+            stop_risk_headroom_usd=Decimal("20"),
+            margin_headroom_usd=Decimal("100"),
+            concentration_limit_by_group=(("USD", Decimal("7")),),
+        ),
+    )
+    clustered = allocate_competing_opportunities(
+        (
+            _cluster_candidate("cluster-a", TraderLineage.R38_EURUSD, group="A"),
+            _cluster_candidate("cluster-b", TraderLineage.R43_GBPUSD, group="B"),
+            _cluster_candidate("cluster-c", TraderLineage.VT31_NAS100, group="C"),
+        ),
+        OpportunityAllocationBudget(
+            stop_risk_headroom_usd=Decimal("10"),
+            margin_headroom_usd=Decimal("100"),
+            concentration_limit_by_group=(
+                ("A", Decimal("10")),
+                ("B", Decimal("10")),
+                ("C", Decimal("10")),
+            ),
+        ),
+    )
+    return (
+        _probe(
+            "J20_CORRELATION_CONCENTRATION_BLOCKS_SECOND_USE",
+            Phase20FailureDisposition.FAIL_CLOSED,
+            (
+                len(correlated.selected_signal_fingerprints) == 1
+                and correlated.used_stop_risk_usd == Decimal("5")
+                and "concentration" in correlated.rows[1].reason
+            ),
+            "A correlation/concentration group cannot silently consume excess shared risk.",
+        ),
+        _probe(
+            "J21_SIMULTANEOUS_CLUSTER_RESPECTS_STOP_RISK_CAPACITY",
+            Phase20FailureDisposition.STATE_PRESERVED,
+            (
+                len(clustered.selected_signal_fingerprints) == 2
+                and clustered.used_stop_risk_usd == Decimal("10")
+                and any(
+                    row.reason == "shared stop-risk headroom exhausted"
+                    for row in clustered.rows
+                    if not row.selected
+                )
+            ),
+            "A same-time opportunity cluster cannot reserve beyond shared stop-risk capacity.",
+        ),
+    )
+
+
+def _simultaneous_loss_conservation_probe() -> Phase20FailureProbe:
+    ledger = CapitalSourceLedger().add_source(
+        source_id="phase20j-b-loss-capital",
+        source=CapitalSource.ORIGINAL_BASE_CAPITAL,
+        proven_amount_usd=Decimal("10"),
+    )
+    reserved = ledger.reserve_many(
+        (
+            CapitalReservationRequest(
+                reservation_id="phase20j-b-loss-a",
+                source_id="phase20j-b-loss-capital",
+                amount_usd=Decimal("5"),
+            ),
+            CapitalReservationRequest(
+                reservation_id="phase20j-b-loss-b",
+                source_id="phase20j-b-loss-capital",
+                amount_usd=Decimal("5"),
+            ),
+        )
+    )
+    deployed = (
+        reserved.deploy("phase20j-b-loss-a")
+        .deploy("phase20j-b-loss-b")
+    )
+    settled = (
+        deployed.settle_deployment(
+            "phase20j-b-loss-a",
+            returned_capacity_usd=Decimal("0"),
+        )
+        .settle_deployment(
+            "phase20j-b-loss-b",
+            returned_capacity_usd=Decimal("0"),
+        )
+    )
+    account = settled.accounts[0]
+    conserved = (
+        account.proven_amount_usd == Decimal("10")
+        and account.available_usd == 0
+        and account.reserved_usd == 0
+        and account.deployed_usd == 0
+        and account.consumed_usd == Decimal("10")
+        and (
+            account.available_usd
+            + account.reserved_usd
+            + account.deployed_usd
+            + account.consumed_usd
+        )
+        == account.proven_amount_usd
+    )
+    return _probe(
+        "J22_SIMULTANEOUS_FULL_LOSSES_PRESERVE_CAPITAL_CONSERVATION",
+        Phase20FailureDisposition.STATE_PRESERVED,
+        conserved,
+        "Two simultaneous full losses consume proven capital without negative or fictitious capacity.",
+    )
+
+
+def run_phase20j_provider_cluster_failure_engineering(
+) -> Phase20FailureEngineeringReport:
+    """Run Phase20J-B provider-shock and clustered-capital failure probes."""
+
+    probes = (
+        *_provider_stress_detail_probes(),
+        *_portfolio_cluster_failure_probes(),
+        _simultaneous_loss_conservation_probe(),
+    )
+    return Phase20FailureEngineeringReport(
+        identity="CIBO_PHASE20J_B_PROVIDER_CLUSTER_FAILURE_V1",
+        probes=probes,
     )
 
 
