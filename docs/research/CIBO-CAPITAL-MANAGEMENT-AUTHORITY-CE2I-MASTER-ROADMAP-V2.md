@@ -1851,7 +1851,7 @@ USD-dependent study remains fail-closed until provider-economic evidence is cali
 
 ## PHASE 20 — Robust capital-policy validation under uncertainty
 
-**Status: IN PROGRESS — 20A/B CONTRACT GREEN / EMPIRICAL CALIBRATION PENDING / 20C COUNTERFACTUAL STRESS STARTED**
+**Status: IN PROGRESS — 20A/B CONTRACT GREEN / 20C COUNTERFACTUAL CONTRACT GREEN / EMPIRICAL CALIBRATION PENDING / POLICY VALIDATION BLOCKED**
 
 Required sequence:
 
@@ -1945,6 +1945,60 @@ PHASE20B_HISTORICAL_USD_POINT_ESTIMATE       = FORBIDDEN
 Actual provider ambiguity ranges must be supplied later by documented bounds, forward observed
 data, or explicitly labelled counterfactual assumptions. They must not be chosen to make a policy
 pass.
+
+### Phase 20C — Counterfactual provider stress matrix checkpoint — 27-SEP-2026
+
+Phase 20C is now contract-GREEN as a permanently non-historical robustness/failure experiment.
+
+Evidence:
+
+```text
+evidence_head:       c64681881a7562b6474e414a6e82d9682f4ade5d
+main_push_run:       36287014945  SUCCESS
+main_pr_run:         36287017591  SUCCESS
+phase20_pr_run:      36287017589  SUCCESS
+artifact_id:         10920926070
+artifact_digest:     sha256:16ae530f0ac4fec03c1bb66176ae9c5bfc98a132e501251d9e35001d423d1190
+internal_manifest:   SHA256SUMS 5/5 VERIFIED
+```
+
+The frozen synthetic matrix has nine explicit scenarios:
+
+- current-snapshot counterfactual baseline;
+- spread x2;
+- commission x2;
+- slippage-reserve floor;
+- margin x2;
+- 2000 ms execution-delay floor;
+- unavailable-liquidity failure;
+- minimum-volume cliff failure;
+- combined adverse provider economics.
+
+The engine now returns an explicit result for provider infeasibility rather than silently dropping
+the opportunity. In particular, unavailable liquidity and a minimum-volume/maximum-volume cliff are
+represented as `FAIL_CLOSED_PROVIDER_CONSTRAINT` with an auditable reason.
+
+For every executable adverse scenario the contract enforces:
+
+- Trader entry / structural stop / technical target geometry is unchanged;
+- execution cost cannot improve relative to the frozen baseline;
+- margin economics cannot improve relative to the frozen baseline;
+- stop-loss-per-volume cannot improve relative to the frozen baseline;
+- counterfactual current-provider economics are never promoted to historical truth.
+
+The sealed artifact uses **synthetic contract fixtures only**. Phase 19J burned validation is not
+consumed by Phase 20C.
+
+```text
+PHASE20C_COUNTERFACTUAL_STRESS_CONTRACT_GREEN = TRUE
+PHASE20C_PROVIDER_CALIBRATION_CLAIMED         = FALSE
+PHASE20C_HISTORICAL_ECONOMICS_CLAIMED         = FALSE
+PHASE20C_PHASE19J_VALIDATION_REUSED            = FALSE
+PHASE20C_POLICY_CERTIFIED                      = FALSE
+```
+
+Phase 20C therefore hardens the provider-uncertainty/failure machinery but does not rescue the
+falsified Phase-19I allocator family and does not unblock Phase 21/22.
 
 ---
 
