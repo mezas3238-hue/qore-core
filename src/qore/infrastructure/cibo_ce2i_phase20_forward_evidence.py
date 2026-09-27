@@ -540,7 +540,13 @@ class Phase20ForwardOutcomeEvidence:
     evidence_id: str
     decision_evidence_sha256: str
     signal_fingerprint: str
+    position_id: int
+    execution_risk_evidence_id: str
+    settlement_deal_ids: tuple[int, ...]
+    fill_evidence_refs: tuple[str, ...]
     observed_at: datetime
+    realized_net_pnl_usd: Decimal
+    executed_initial_stop_risk_usd: Decimal
     realized_structural_outcome_r: Decimal
     outcome_reconciled: bool
     future_data_used_for_decision: bool = False
@@ -555,13 +561,65 @@ class Phase20ForwardOutcomeEvidence:
             raise CiboCapitalManagementError(
                 "Phase20D outcome must bind canonical decision SHA256"
             )
-        _aware(self.observed_at, name="outcome observed_at")
         if (
-            not isinstance(self.realized_structural_outcome_r, Decimal)
-            or not self.realized_structural_outcome_r.is_finite()
+            not isinstance(self.position_id, int)
+            or isinstance(self.position_id, bool)
+            or self.position_id <= 0
         ):
             raise CiboCapitalManagementError(
-                "Phase20D realized structural outcome must be finite Decimal"
+                "Phase20D outcome position_id must be positive int"
+            )
+        if not self.execution_risk_evidence_id:
+            raise CiboCapitalManagementError(
+                "Phase20D outcome executed-risk evidence id is required"
+            )
+        if (
+            not self.settlement_deal_ids
+            or len(self.settlement_deal_ids)
+            != len(set(self.settlement_deal_ids))
+            or any(
+                not isinstance(item, int)
+                or isinstance(item, bool)
+                or item <= 0
+                for item in self.settlement_deal_ids
+            )
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20D outcome settlement deal ids must be unique positive ints"
+            )
+        if (
+            not self.fill_evidence_refs
+            or len(self.fill_evidence_refs) != len(set(self.fill_evidence_refs))
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.fill_evidence_refs
+            )
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20D outcome fill evidence refs must be unique/non-empty"
+            )
+        _aware(self.observed_at, name="outcome observed_at")
+        for name in (
+            "realized_net_pnl_usd",
+            "executed_initial_stop_risk_usd",
+            "realized_structural_outcome_r",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, Decimal) or not value.is_finite():
+                raise CiboCapitalManagementError(
+                    f"Phase20D {name} must be finite Decimal"
+                )
+        if self.executed_initial_stop_risk_usd <= 0:
+            raise CiboCapitalManagementError(
+                "Phase20D executed initial stop risk must be positive"
+            )
+        if (
+            self.realized_net_pnl_usd
+            / self.executed_initial_stop_risk_usd
+            != self.realized_structural_outcome_r
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20D structural R must equal reconciled net PnL / executed risk"
             )
         for name in (
             "outcome_reconciled",
