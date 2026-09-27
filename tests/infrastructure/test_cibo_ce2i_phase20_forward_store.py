@@ -305,3 +305,23 @@ def test_forward_store_corruption_fails_closed(tmp_path: Path) -> None:
         match="unreadable",
     ):
         DurablePhase20ForwardEvidenceStore(path).load()
+
+def test_forward_store_rejects_same_epoch_under_different_evidence_id(
+    tmp_path: Path,
+) -> None:
+    store = DurablePhase20ForwardEvidenceStore(tmp_path / "forward.json")
+    decision = _decision()
+    first = store.seal_decision(decision, expected_generation=0)
+    relabelled = replace(decision, evidence_id="store-decision-relabelled")
+
+    with pytest.raises(
+        DurablePhase20ForwardEvidenceError,
+        match="conflicting forward decision epoch rewrite",
+    ):
+        store.seal_decision(
+            relabelled,
+            expected_generation=first.generation,
+        )
+
+    assert store.load().generation == 1
+
