@@ -1,11 +1,20 @@
-# QORE Shared WP-05 — V9 Causal Sequential Change-Point Preregistration
+# QORE Shared WP-05 — Sequential Change-Point Candidate
+
+> **IDENTITY GOVERNANCE — SUPERSEDED AS V9 / RESERVED FOR V10**
+>
+> Chronological precedence in issue #643 assigns V9 authority to
+> `QORE_SHARED_WP05_CAUSAL_TRAJECTORY_DISCRIMINATION_V9_001`.
+> This later sequential hypothesis is retained intact as the structurally
+> distinct **V10 candidate**. It must not execute or claim an authoritative V9
+> consumed result. Promotion to V10 requires an explicit post-V9 checkpoint
+> preserving this frozen hypothesis and its pre-outcome provenance.
 
 **Program:** QORE Meta-Cognitive Scientific Intelligence  
 **PR:** #635  
 **Issue:** #643 — WP-05 Temporal Hierarchical Brain  
 **Identity:** `QORE_SHARED_WP05_CAUSAL_SEQUENTIAL_CHANGEPOINT_V9_001`  
 **Target contract:** `HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2`  
-**Status:** PREREGISTERED / PRE-OUTCOME  
+**Status:** RESERVED_V10_CANDIDATE / PRE-OUTCOME / NOT ACTIVE V9  
 **Fresh holdout:** CLOSED  
 **Governance:** DRAFT / no LIVE / no production / no real-capital / no merge authority
 
