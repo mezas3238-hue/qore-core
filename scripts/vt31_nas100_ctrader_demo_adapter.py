@@ -25,7 +25,6 @@ from zoneinfo import ZoneInfo
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
     AccountWideRiskError,
-    TraderLineage,
 )
 from qore.infrastructure.account_wide_risk_ledger import (
     DurableAccountWideRiskEngine,
@@ -201,7 +200,7 @@ def shadow_basket(
             gateway=gateway,
             risk=risk,
             snapshot=snapshot,
-            account_equity=demo_capital_for(TraderLineage.VT31_NAS100),
+            account_equity=account_equity,
             store=store,
             log=log,
         )
