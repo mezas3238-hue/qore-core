@@ -97,7 +97,10 @@ class QoreOperationalCapitalBudget:
             raise AccountWideRiskError("capital budget policy version mismatch")
         if self.policy_fingerprint != operational_risk_policy_fingerprint():
             raise AccountWideRiskError("capital budget policy fingerprint mismatch")
-        if self.attack_authorized and self.authorized_posture is not CiboAccountCapitalPosture.ATTACK:
+        if (
+            self.attack_authorized
+            and self.authorized_posture is not CiboAccountCapitalPosture.ATTACK
+        ):
             raise AccountWideRiskError("attack authorization requires ATTACK posture")
 
 
