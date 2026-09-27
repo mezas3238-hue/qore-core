@@ -57,6 +57,7 @@ class Phase20ExecutedRiskEvidence:
     fill_evidence_refs: tuple[str, ...]
     fill_reconciled: bool
     mutation_outcome_known: bool
+    capital_deployed_at: datetime | None = None
 
     def __post_init__(self) -> None:
         if (
@@ -145,6 +146,15 @@ class Phase20ExecutedRiskEvidence:
                 "Phase20D executed-risk evidence is not arithmetically reproducible"
             )
         _aware(self.observed_at, name="executed-risk observed_at")
+        if self.capital_deployed_at is not None:
+            _aware(
+                self.capital_deployed_at,
+                name="executed-risk capital_deployed_at",
+            )
+            if self.capital_deployed_at > self.observed_at:
+                raise CiboCapitalManagementError(
+                    "Phase20D capital deployment cannot postdate risk reconciliation"
+                )
         if not self.fill_evidence_refs or any(
             not isinstance(item, str) or not item
             for item in self.fill_evidence_refs
