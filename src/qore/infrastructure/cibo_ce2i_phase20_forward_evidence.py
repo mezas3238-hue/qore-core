@@ -277,8 +277,8 @@ class Phase20ForwardDecisionEvidence:
             raise CiboCapitalManagementError(
                 "Phase20D decision candidates must have unique fingerprints"
             )
-        for item in self.candidates:
-            if item.candidate.decision_as_of != self.decision_at:
+        for candidate_evidence in self.candidates:
+            if candidate_evidence.candidate.decision_as_of != self.decision_at:
                 raise CiboCapitalManagementError(
                     "Phase20D candidate decision timestamp must equal sealed decision_at"
                 )
@@ -287,8 +287,8 @@ class Phase20ForwardDecisionEvidence:
             raise CiboCapitalManagementError(
                 "Phase20D known options must have unique opportunity ids"
             )
-        for item in self.known_options:
-            item.validate_at(self.decision_at)
+        for option_evidence in self.known_options:
+            option_evidence.validate_at(self.decision_at)
         groups = tuple(name for name, _ in self.concentration_limit_by_group)
         if len(groups) != len(set(groups)):
             raise CiboCapitalManagementError(
