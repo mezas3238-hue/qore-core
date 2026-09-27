@@ -144,7 +144,7 @@ def prepare_ctrader_demo_m5_phase20_epoch(
     capital_state: VersionedCapitalSourceLedger,
     highest_closed_balance: Decimal,
     current_step: int,
-) -> Phase20DemoM5RuntimeObservation:
+) -> Phase20DemoM5PreparedShadow:
     """Seal one complete M5 shadow epoch without changing the execution path."""
 
     batch = build_ctrader_demo_m5_phase20_batch(
