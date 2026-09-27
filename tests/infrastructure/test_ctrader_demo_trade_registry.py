@@ -149,8 +149,24 @@ def test_registry_committed_risk_counts_open_and_live_pending_only(
     registry.register(pending)
     registry.register(expired)
 
+    provider_status = {
+        "12346": 1,
+        "12347": 1,
+    }
+
     assert registry.committed_stop_risk(now=NOW) == Decimal("40.00")
-    assert registry.pending_stop_risk(now=NOW) == Decimal("15.00")
+    assert registry.pending_stop_risk(
+        now=NOW,
+        provider_order_status=provider_status.__getitem__,
+    ) == Decimal("115.00")
+
+    # Local expiry is not proof that the broker removed the order. The
+    # expired order remains risk-bearing until provider terminal evidence.
+    provider_status["12347"] = 4
+    assert registry.pending_stop_risk(
+        now=NOW,
+        provider_order_status=provider_status.__getitem__,
+    ) == Decimal("15.00")
 
     closed = registry.mark_position_closed(
         99,
@@ -161,9 +177,10 @@ def test_registry_committed_risk_counts_open_and_live_pending_only(
     assert registry.committed_stop_risk(now=NOW + timedelta(minutes=6)) == (
         Decimal("15.00")
     )
-    assert registry.pending_stop_risk(now=NOW + timedelta(minutes=6)) == (
-        Decimal("15.00")
-    )
+    assert registry.pending_stop_risk(
+        now=NOW + timedelta(minutes=6),
+        provider_order_status=provider_status.__getitem__,
+    ) == Decimal("15.00")
 
 
 def test_registry_terminal_close_survives_restart(tmp_path: Path) -> None:
