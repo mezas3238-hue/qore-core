@@ -447,3 +447,77 @@ V8 is permanently falsified. It must not be repaired by radius/margin retuning,
 feature mining against R6/R5 or gate weakening. The next hypothesis must test
 whether the missing information is in the *causal path into the source state*,
 rather than another static geometry around the same source snapshot.
+
+
+## 9. V9 — Causal Trajectory Discrimination
+
+Authoritative preregistered identity:
+
+`QORE_SHARED_WP05_CAUSAL_TRAJECTORY_DISCRIMINATION_V9_001`
+
+Preregistration:
+
+- commit: `565ae37fa24dcae3cf1f28b07932e744642d07db`;
+- timestamp: `2026-09-27T02:07:31Z`;
+- document:
+  `docs/shared/QORE_SHARED_WP05_V9_CAUSAL_TRAJECTORY_DISCRIMINATION_PREREGISTRATION.md`.
+
+Scientific hypothesis:
+
+V8 showed that explicit event censoring can preserve terminal detections but a
+static source-state manifold suppresses too few false structural-failure
+declarations. V9 tests whether the discriminating information is contained in
+the causal path into the source state.
+
+Frozen representation:
+
+- 30 closed source-time M1 bars ending at the source timestamp;
+- six chronological 5-minute blocks;
+- exactly 60 features;
+- fixed Target-V2 source frontier;
+- NAS100 path geometry plus SP500/US30 causal peer motion;
+- no bar after source may influence the representation.
+
+Frozen model:
+
+- eventness head: terminal/recovery event families vs censored unknown;
+- recovery-contrast head: verified recovery vs terminal event ONLY;
+- censored unknowns are excluded from recovery-head normalization and fitting;
+- R8 discovery/calibration only;
+- maximum false-declaration reduction subject to >=9800 bps R8 calibration
+  terminal preservation;
+- unchanged consumed gate: >=2000 bps false reduction AND >=9500 bps terminal
+  preservation independently on BOTH R6 and R5;
+- fresh holdout remains CLOSED.
+
+Pre-consumption technical history:
+
+- initial consumed run `36287907877` failed before evidence recovery because a
+  test regex expected different wording for the frozen-R8 exception; 19 other
+  tests passed and no scientific payload was produced;
+- the assertion text was corrected without changing any feature, parameter,
+  label, threshold or gate;
+- foundation run `36288084590` is GREEN at
+  `c2f0d104ae9ba4c550bc69dad25fdd0f621386fe`;
+- the consumed workflow received an isolated concurrency group at
+  `4ab1a248e27c44e3a83abaf7dfde178ca86e14e7` so unrelated experiments cannot
+  cancel the authoritative V9 run.
+
+### Identity-collision resolution
+
+A second independent hypothesis was preregistered concurrently as
+`QORE_SHARED_WP05_CAUSAL_SEQUENTIAL_CHANGEPOINT_V9_001` at commit
+`24b57d69c7f05e3cf4ba03863e689c5bcdd89b23` with timestamp
+`2026-09-27T02:09:56Z`.
+
+Because the Causal Trajectory V9 preregistration at 02:07:31Z predates it, the
+Causal Trajectory identity retains V9 authority.
+
+The later sequential change-point hypothesis is retained as a structurally
+distinct **V10 candidate**. It has no authority to produce an accepted V9
+scientific result. Its superseded V9 consumed workflow is quarantined
+fail-closed.
+
+At this ledger checkpoint, the authoritative isolated Causal Trajectory V9
+consumed run is `36288203952`. No scientific conclusion is recorded here
+until protocol validation and artifact binding complete.
