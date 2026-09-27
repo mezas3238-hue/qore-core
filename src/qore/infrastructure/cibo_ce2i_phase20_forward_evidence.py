@@ -280,7 +280,6 @@ class Phase20ForwardDecisionEvidence:
     population_slots: tuple[Phase20ForwardPopulationSlotEvidence, ...]
     candidates: tuple[Phase20ForwardCandidateEvidence, ...]
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = ()
-    collector_git_sha: str | None = None
     outcome_present: bool = False
     allocation_authority: bool = False
     risk_authority: bool = False
@@ -315,13 +314,6 @@ class Phase20ForwardDecisionEvidence:
         _aware(self.decision_at, name="decision_at")
         if not isinstance(self.lineage, Phase20PolicyCandidateLineage):
             raise CiboCapitalManagementError("Phase20D lineage is invalid")
-        if (
-            self.collector_git_sha is not None
-            and _SHA1_RE.fullmatch(self.collector_git_sha) is None
-        ):
-            raise CiboCapitalManagementError(
-                "Phase20D collector_git_sha must be 40 lowercase hex"
-            )
         if self.decision_at < self.lineage.frozen_at:
             raise CiboCapitalManagementError(
                 "Phase20D decision cannot predate policy freeze"
