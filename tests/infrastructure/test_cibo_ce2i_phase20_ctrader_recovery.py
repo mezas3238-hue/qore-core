@@ -95,7 +95,10 @@ def _forward_store(
     return DurablePhase20ForwardEvidenceStore(path)
 
 
-def _entry() -> DemoTradeRegistryEntry:
+def _entry(
+    *,
+    closed_at: datetime | None = None,
+) -> DemoTradeRegistryEntry:
     return DemoTradeRegistryEntry(
         trader="VT31_NAS100",
         signal_fingerprint=SIGNAL,
@@ -125,6 +128,7 @@ def _entry() -> DemoTradeRegistryEntry:
         minimum_volume_uplifted=False,
         source_contract_size_units="100",
         ctrader_lot_size_units="100",
+        closed_at=None if closed_at is None else closed_at.isoformat(),
     )
 
 
@@ -198,7 +202,7 @@ def test_restart_safe_recovery_seals_exact_risk_and_terminal_outcome(
     mutation = _mutation_ledger(tmp_path / "mutations.json")
 
     risk_pass = reconcile_ctrader_demo_phase20_entry(
-        entry=_entry(),
+        entry=_entry(closed_at=NOW + timedelta(seconds=2, milliseconds=500)),
         account=ACCOUNT,
         mutation_ledger=mutation,
         forward_store=forward,
@@ -222,7 +226,7 @@ def test_restart_safe_recovery_seals_exact_risk_and_terminal_outcome(
     assert forward.load().outcomes == ()
 
     outcome_pass = reconcile_ctrader_demo_phase20_entry(
-        entry=_entry(),
+        entry=_entry(closed_at=NOW + timedelta(seconds=2, milliseconds=500)),
         account=ACCOUNT,
         mutation_ledger=JsonFileCTraderDemoMutationLedger(
             tmp_path / "mutations.json"
@@ -243,10 +247,17 @@ def test_restart_safe_recovery_seals_exact_risk_and_terminal_outcome(
     assert len(outcomes) == 1
     assert outcomes[0].realized_net_pnl_usd == Decimal("22")
     assert outcomes[0].realized_structural_outcome_r == Decimal("2")
+    assert outcomes[0].capital_deployed_at == (
+        NOW + timedelta(milliseconds=400)
+    )
+    assert outcomes[0].capital_released_at == (
+        NOW + timedelta(seconds=2, milliseconds=500)
+    )
+    assert outcomes[0].capital_minutes == Decimal("0.035")
 
     # A second restart/retry consumes only durable stores and cannot rewrite evidence.
     retried = reconcile_ctrader_demo_phase20_entry(
-        entry=_entry(),
+        entry=_entry(closed_at=NOW + timedelta(seconds=2, milliseconds=500)),
         account=ACCOUNT,
         mutation_ledger=JsonFileCTraderDemoMutationLedger(
             tmp_path / "mutations.json"
