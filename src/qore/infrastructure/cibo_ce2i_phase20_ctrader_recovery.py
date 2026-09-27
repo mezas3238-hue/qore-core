@@ -1,9 +1,12 @@
 """Restart-safe cTrader DEMO execution reconciliation for Phase20D.
 
 This module has no sizing, Risk or broker-mutation authority. It joins already
-sealed pre-decision evidence with durable cTrader execution facts and terminal
-CMA settlements. Legacy registry/mutation rows that lack exact execution facts
-are intentionally ineligible for economic qualification.
+sealed shadow-decision evidence with durable cTrader execution facts and
+terminal CMA settlements. The observational shadow decision may be finalized
+after an actual DEMO request/fill only because fills and outcomes are forbidden
+decision inputs; executed-risk evidence itself is always sealed strictly after
+the decision, and terminal outcome evidence only on a later reconciliation
+pass. Legacy rows that lack exact execution facts remain ineligible.
 """
 
 from __future__ import annotations
@@ -164,10 +167,6 @@ def reconcile_ctrader_demo_phase20_entry(
             "Phase20D execution requires reconciled broker position_id"
         )
     request, contract, authorized_volume = _execution_basis(entry)
-    if request.requested_at < decision.decision_at:
-        raise CiboCapitalManagementError(
-            "Phase20D CIBO request predates sealed forward decision"
-        )
 
     existing_outcome = tuple(
         item
@@ -201,10 +200,19 @@ def reconcile_ctrader_demo_phase20_entry(
             authorized_volume=authorized_volume,
             mutation=mutation,
             account=account,
+            risk_reconciled_at=reconciled_at,
         )
         executed_risk_store.seal(
             risk_evidence,
             expected_generation=risk_book.generation,
+        )
+        return Phase20CTraderRecoveryResult(
+            status=Phase20CTraderRecoveryStatus.RISK_SEALED_OUTCOME_PENDING,
+            decision_evidence_sha256=decision.evidence_sha256,
+            signal_fingerprint=entry.signal_fingerprint,
+            position_id=entry.position_id,
+            executed_risk_evidence_id=risk_evidence.evidence_id,
+            outcome_evidence_id=None,
         )
 
     if existing_outcome:
@@ -413,6 +421,7 @@ def _build_executed_risk(
     authorized_volume: Decimal,
     mutation: CTraderDemoMutationLedgerRecord,
     account: MarketTestAccountIdentity,
+    risk_reconciled_at: datetime,
 ) -> Phase20ExecutedRiskEvidence:
     assert entry.position_id is not None
     expected_provider_quantity = (
@@ -462,13 +471,18 @@ def _build_executed_risk(
             )
 
     latest_received = max(item.received_at for item in fills)
-    if latest_received <= decision.decision_at:
+    _aware(risk_reconciled_at, name="executed-risk reconciled_at")
+    if risk_reconciled_at <= decision.decision_at:
         raise CiboCapitalManagementError(
-            "Phase20D broker fills must follow sealed decision"
+            "Phase20D executed-risk reconciliation must follow shadow decision"
+        )
+    if risk_reconciled_at < latest_received:
+        raise CiboCapitalManagementError(
+            "Phase20D executed-risk reconciliation cannot predate provider fills"
         )
     reconciliation = CTraderDemoFillReconciliation(
         status=CTraderDemoFillReconciliationStatus.MATCHED,
-        reconciled_at=latest_received,
+        reconciled_at=risk_reconciled_at,
         requested_quantity=expected_provider_quantity,
         filled_quantity=expected_provider_quantity,
         issues=(),
