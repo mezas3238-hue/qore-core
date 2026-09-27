@@ -743,7 +743,10 @@ def _simultaneous_loss_conservation_probe() -> Phase20FailureProbe:
         "J22_SIMULTANEOUS_FULL_LOSSES_PRESERVE_CAPITAL_CONSERVATION",
         Phase20FailureDisposition.STATE_PRESERVED,
         conserved,
-        "Two simultaneous full losses consume proven capital without negative or fictitious capacity.",
+        (
+            "Two simultaneous full losses consume proven capital without "
+            "negative or fictitious capacity."
+        ),
     )
 
 
