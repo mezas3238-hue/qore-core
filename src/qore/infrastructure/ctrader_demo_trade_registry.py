@@ -5,6 +5,7 @@ import os
 import tempfile
 from dataclasses import dataclass, replace
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 from threading import Lock
 
@@ -39,6 +40,7 @@ class DemoTradeRegistryEntry:
     minimum_volume_uplifted: bool | None = None
     source_contract_size_units: str | None = None
     ctrader_lot_size_units: str | None = None
+    closed_at: str | None = None
     capital_provenance: tuple[tuple[str, str, str], ...] = ()
 
     def as_json(self) -> dict[str, object]:
@@ -71,6 +73,7 @@ class DemoTradeRegistryEntry:
             "minimum_volume_uplifted": self.minimum_volume_uplifted,
             "source_contract_size_units": self.source_contract_size_units,
             "ctrader_lot_size_units": self.ctrader_lot_size_units,
+            "closed_at": self.closed_at,
             "capital_provenance": [
                 {
                     "source_kind": source_kind,
@@ -162,6 +165,68 @@ class CTraderDemoTradeRegistry:
         matches = self.entries_by_position(position_id)
         return matches[0] if matches else None
 
+    def mark_position_closed(
+        self,
+        position_id: int,
+        *,
+        closed_at: datetime,
+    ) -> tuple[DemoTradeRegistryEntry, ...]:
+        if position_id <= 0:
+            raise ValueError("position_id must be positive")
+        if closed_at.tzinfo is None or closed_at.utcoffset() is None:
+            raise ValueError("closed_at must be timezone-aware")
+        with self._lock:
+            matches = tuple(
+                item
+                for item in self._entries.values()
+                if item.position_id == position_id
+            )
+            if not matches:
+                return ()
+            next_entries = dict(self._entries)
+            updated_rows: list[DemoTradeRegistryEntry] = []
+            for item in matches:
+                if item.closed_at is not None:
+                    existing = datetime.fromisoformat(item.closed_at)
+                    if existing != closed_at:
+                        raise RuntimeError(
+                            "cTrader DEMO registry terminal timestamp conflict"
+                        )
+                    updated = item
+                else:
+                    updated = replace(
+                        item,
+                        closed_at=closed_at.isoformat(),
+                    )
+                next_entries[item.client_order_id] = updated
+                updated_rows.append(updated)
+            self._commit(next_entries)
+            self._entries = next_entries
+            return tuple(
+                sorted(
+                    updated_rows,
+                    key=lambda item: item.client_order_id,
+                )
+            )
+
+    def committed_stop_risk(self, *, now: datetime) -> Decimal:
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("now must be timezone-aware")
+        total = Decimal("0")
+        with self._lock:
+            entries = tuple(self._entries.values())
+        for item in entries:
+            if item.closed_at is not None:
+                continue
+            expires_at = datetime.fromisoformat(item.expires_at)
+            # Bound positions remain economically active until a terminal deal
+            # closes them. Unbound submissions conservatively reserve through
+            # their provider expiry.
+            if item.position_id is None and expires_at < now:
+                continue
+            total += Decimal(item.requested_stop_risk)
+        return total
+
     def latest_for_trader(self, trader: str) -> DemoTradeRegistryEntry | None:
         with self._lock:
             matches = [item for item in self._entries.values() if item.trader == trader]
@@ -181,7 +246,7 @@ class CTraderDemoTradeRegistry:
             with os.fdopen(fd, "w", encoding="utf-8") as stream:
                 json.dump(
                     {
-                        "schema": "qore.ctrader-demo.trade-registry.v2",
+                        "schema": "qore.ctrader-demo.trade-registry.v3",
                         "entries": [
                             entries[key].as_json()
                             for key in sorted(entries)
@@ -318,6 +383,9 @@ def _entry_from_json(value: object) -> DemoTradeRegistryEntry:
             None
             if value.get("ctrader_lot_size_units") is None
             else str(value["ctrader_lot_size_units"])
+        ),
+        closed_at=(
+            None if value.get("closed_at") is None else str(value["closed_at"])
         ),
         capital_provenance=tuple(provenance),
     )
