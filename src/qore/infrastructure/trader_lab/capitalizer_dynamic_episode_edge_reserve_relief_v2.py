@@ -12,13 +12,19 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.trader_lab import (
+    capitalizer_adaptive_context_risk_governor_v1 as memory,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
+)
+from qore.infrastructure.trader_lab import (
+    capitalizer_counterfactual_portfolio_episode_simulator_v1 as simulator,
 )
 from qore.infrastructure.trader_lab import (
     capitalizer_dynamic_episode_sequence_feasibility_v1 as sequence_v1,
@@ -230,6 +236,148 @@ def _plan_cache_key(
     )
 
 
+def _replay_extension_from_current_prefix(
+    *,
+    period: str,
+    ledgers: dict[str, tuple[milestone.SimulatedTrade, ...]],
+    contexts: dict[tuple[str, str], Any],
+    contextual_model: dict[str, Any],
+    ordered: tuple[milestone.SimulatedTrade, ...],
+    modes: dict[
+        str,
+        dict[tuple[str, str], milestone.SimulatedTrade],
+    ],
+    order_index: dict[tuple[str, str], int],
+    current_plan: dict[tuple[str, str], str],
+    current_ledger: tuple[milestone.SimulatedTrade, ...],
+    current_records: tuple[memory.MemoryRecord, ...],
+    current_decisions: tuple[simulator.ReplayDecision, ...],
+    current_applied: dict[tuple[str, str], tuple[str, str, str]],
+    seed: ActionSeed,
+) -> tuple[
+    tuple[milestone.SimulatedTrade, ...],
+    tuple[memory.MemoryRecord, ...],
+    tuple[simulator.ReplayDecision, ...],
+    dict[tuple[str, str], tuple[str, str, str]],
+    int,
+]:
+    key = (seed.symbol, seed.entry_at)
+    if key in current_plan:
+        raise sequence_v1.InvalidPlanError(
+            f"V2 extension key already committed: {key}"
+        )
+    start_index = order_index[key]
+    trial_plan = dict(current_plan)
+    trial_plan[key] = seed.action
+
+    chosen: list[milestone.SimulatedTrade] = list(
+        current_ledger[:start_index]
+    )
+    records: list[memory.MemoryRecord] = list(
+        current_records[:start_index]
+    )
+    decisions: list[simulator.ReplayDecision] = list(
+        current_decisions[:start_index]
+    )
+    applied = {
+        planned_key: value
+        for planned_key, value in current_applied.items()
+        if order_index[planned_key] < start_index
+    }
+
+    for trade in ordered[start_index:]:
+        trade_key = (trade.symbol, trade.entry_at)
+        pretrade = v11._pretrade(
+            period=period,
+            trade=trade,
+            contexts=contexts,
+            contextual_model=contextual_model,
+            chosen_scaled=tuple(chosen),
+            records=tuple(records),
+        )
+        selected_mode = pretrade.mode
+        action = trial_plan.get(trade_key)
+
+        if action is not None:
+            family = sequence_v1.v30._mode_family(pretrade.mode)
+            if family is None:
+                raise sequence_v1.InvalidPlanError(
+                    "V2 planned key has no current trigger family: "
+                    f"{trade_key}"
+                )
+            surface = modes[pretrade.mode][trade_key]
+            trigger_at = surface.first_protection_at
+            if trigger_at is None:
+                raise sequence_v1.InvalidPlanError(
+                    "V2 planned key has no actual current trigger: "
+                    f"{trade_key}"
+                )
+            if action == pretrade.mode:
+                raise sequence_v1.InvalidPlanError(
+                    "V2 planned action became current Surface no-op: "
+                    f"{trade_key}"
+                )
+            if action not in sequence_v1.v30._eligible_actions(family):
+                raise sequence_v1.InvalidPlanError(
+                    "V2 planned action no longer reachable after feedback: "
+                    f"{trade_key}"
+                )
+            sequence_v1.v30._assert_common_path(
+                key=trade_key,
+                trigger_at=trigger_at,
+                actions=(action,),
+                modes=modes,
+            )
+            selected_mode = action
+            applied[trade_key] = (
+                pretrade.mode,
+                family,
+                trigger_at,
+            )
+
+        selected = modes[selected_mode][trade_key]
+        scaled_r = (
+            Decimal(selected.realized_gross_r) * pretrade.base_multiplier
+        )
+        chosen.append(
+            replace(selected, realized_gross_r=str(scaled_r))
+        )
+        records.append(
+            memory.MemoryRecord(
+                symbol=pretrade.ctx.symbol,
+                session=pretrade.ctx.session,
+                destination_state=pretrade.ctx.destination_state,
+                context_signature=pretrade.ctx.context_signature,
+                exit_at=selected.exit_at,
+                normalized_realized_r=selected.realized_gross_r,
+            )
+        )
+        decisions.append(
+            simulator.ReplayDecision(
+                symbol=trade.symbol,
+                session=trade.session,
+                entry_at=trade.entry_at,
+                surface_hint_mode=pretrade.mode,
+                selected_mode=selected_mode,
+                base_multiplier=str(pretrade.base_multiplier),
+                scaled_realized_r=str(scaled_r),
+            )
+        )
+
+    if set(applied) != set(trial_plan):
+        missing = set(trial_plan) - set(applied)
+        raise sequence_v1.InvalidPlanError(
+            f"V2 trial plan keys not applied: {sorted(missing)}"
+        )
+    return (
+        tuple(chosen),
+        tuple(records),
+        tuple(decisions),
+        applied,
+        len(ordered) - start_index,
+    )
+
+
 def _run_period(
     *,
     period: str,
@@ -245,63 +393,122 @@ def _run_period(
         contexts=contexts,
         contextual_model=contextual_model,
     )
-    baseline_ledger, _decisions, _applied = sequence_v1._replay_plan(
-        period=period,
-        ledgers=ledgers,
-        contexts=contexts,
-        contextual_model=contextual_model,
-        plan={},
+    baseline_ledger, baseline_decisions, baseline_applied = (
+        sequence_v1._replay_plan(
+            period=period,
+            ledgers=ledgers,
+            contexts=contexts,
+            contextual_model=contextual_model,
+            plan={},
+        )
     )
     baseline = milestone._metrics(baseline_ledger)
     if baseline != control["metrics"]:
         raise ValueError("V2 empty-plan Surface drift")
 
+    modes = {
+        mode: {(row.symbol, row.entry_at): row for row in rows}
+        for mode, rows in ledgers.items()
+    }
+    ordered = simulator._ordered(
+        ledgers[milestone.ProtectionMode.ORIGINAL.value]
+    )
+    order_index = {
+        (row.symbol, row.entry_at): index
+        for index, row in enumerate(ordered)
+    }
+    baseline_records = simulator._baseline_records(
+        ordered=ordered,
+        decisions=baseline_decisions,
+        modes=modes,
+        contexts=contexts,
+    )
+
     plan: dict[tuple[str, str], str] = {}
     current = baseline
+    current_ledger = baseline_ledger
+    current_records = baseline_records
+    current_decisions = baseline_decisions
+    current_applied = baseline_applied
     steps: list[V2Step] = []
     invalid_trials = 0
     replay_evaluations = 0
-    cache: dict[
-        tuple[tuple[str, str, str], ...],
-        tuple[
-            dict[str, Any],
-            dict[tuple[str, str], tuple[str, str, str]],
-        ],
-    ] = {}
-
-    def evaluate(
-        trial_plan: dict[tuple[str, str], str],
-    ) -> tuple[
-        dict[str, Any],
-        dict[tuple[str, str], tuple[str, str, str]],
-    ]:
-        nonlocal replay_evaluations
-        cache_key = _plan_cache_key(trial_plan)
-        cached = cache.get(cache_key)
-        if cached is not None:
-            return cached
-        replay_evaluations += 1
-        ledger, _trial_decisions, applied = sequence_v1._replay_plan(
-            period=period,
-            ledgers=ledgers,
-            contexts=contexts,
-            contextual_model=contextual_model,
-            plan=trial_plan,
-        )
-        result = (milestone._metrics(ledger), applied)
-        cache[cache_key] = result
-        return result
+    replayed_trade_evaluations = 0
 
     while not _full_gate(
         current,
         baseline=baseline,
         intervention_count=len(plan),
     ):
+        iteration_cache: dict[
+            tuple[tuple[str, str, str], ...],
+            tuple[
+                dict[str, Any],
+                tuple[milestone.SimulatedTrade, ...],
+                tuple[memory.MemoryRecord, ...],
+                tuple[simulator.ReplayDecision, ...],
+                dict[tuple[str, str], tuple[str, str, str]],
+            ],
+        ] = {}
+
+        def evaluate(
+            seed: ActionSeed,
+        ) -> tuple[
+            dict[str, Any],
+            tuple[milestone.SimulatedTrade, ...],
+            tuple[memory.MemoryRecord, ...],
+            tuple[simulator.ReplayDecision, ...],
+            dict[tuple[str, str], tuple[str, str, str]],
+        ]:
+            nonlocal replay_evaluations, replayed_trade_evaluations
+            trial_plan = dict(plan)
+            trial_plan[(seed.symbol, seed.entry_at)] = seed.action
+            cache_key = _plan_cache_key(trial_plan)
+            cached = iteration_cache.get(cache_key)
+            if cached is not None:
+                return cached
+
+            replay_evaluations += 1
+            (
+                ledger,
+                records,
+                decisions,
+                applied,
+                replayed_trades,
+            ) = _replay_extension_from_current_prefix(
+                period=period,
+                ledgers=ledgers,
+                contexts=contexts,
+                contextual_model=contextual_model,
+                ordered=ordered,
+                modes=modes,
+                order_index=order_index,
+                current_plan=plan,
+                current_ledger=current_ledger,
+                current_records=current_records,
+                current_decisions=current_decisions,
+                current_applied=current_applied,
+                seed=seed,
+            )
+            replayed_trade_evaluations += replayed_trades
+            result = (
+                milestone._metrics(ledger),
+                ledger,
+                records,
+                decisions,
+                applied,
+            )
+            iteration_cache[cache_key] = result
+            return result
+
         relief_candidates: list[
             tuple[
                 tuple[Any, ...],
                 ActionSeed,
                 dict[str, Any],
+                tuple[milestone.SimulatedTrade, ...],
+                tuple[memory.MemoryRecord, ...],
+                tuple[simulator.ReplayDecision, ...],
                 dict[tuple[str, str], tuple[str, str, str]],
             ]
         ] = []
@@ -309,10 +516,14 @@ def _run_period(
             key = (seed.symbol, seed.entry_at)
             if key in plan:
                 continue
-            trial = dict(plan)
-            trial[key] = seed.action
             try:
-                metrics, applied = evaluate(trial)
+                (
+                    metrics,
+                    ledger,
+                    records,
+                    decisions,
+                    applied,
+                ) = evaluate(seed)
             except sequence_v1.InvalidPlanError:
                 invalid_trials += 1
                 continue
@@ -326,6 +537,9 @@ def _run_period(
                         _relief_rank(metrics, seed),
                         seed,
                         metrics,
+                        ledger,
+                        records,
+                        decisions,
                         applied,
                     )
                 )
@@ -339,6 +553,9 @@ def _run_period(
                     tuple[Any, ...],
                     ActionSeed,
                     dict[str, Any],
+                    tuple[milestone.SimulatedTrade, ...],
+                    tuple[memory.MemoryRecord, ...],
+                    tuple[simulator.ReplayDecision, ...],
                     dict[tuple[str, str], tuple[str, str, str]],
                 ]
             ] = []
@@ -346,10 +563,14 @@ def _run_period(
                 key = (seed.symbol, seed.entry_at)
                 if key in plan:
                     continue
-                trial = dict(plan)
-                trial[key] = seed.action
                 try:
-                    metrics, applied = evaluate(trial)
+                    (
+                        metrics,
+                        ledger,
+                        records,
+                        decisions,
+                        applied,
+                    ) = evaluate(seed)
                 except sequence_v1.InvalidPlanError:
                     invalid_trials += 1
                     continue
@@ -363,6 +584,9 @@ def _run_period(
                             _reserve_rank(metrics, seed),
                             seed,
                             metrics,
+                            ledger,
+                            records,
+                            decisions,
                             applied,
                         )
                     )
@@ -372,14 +596,23 @@ def _run_period(
         if not candidates:
             break
 
-        _rank, seed, resulting, applied = min(
-            candidates,
-            key=lambda row: row[0],
-        )
+        (
+            _rank,
+            seed,
+            resulting,
+            resulting_ledger,
+            resulting_records,
+            resulting_decisions,
+            applied,
+        ) = min(candidates, key=lambda row: row[0])
         key = (seed.symbol, seed.entry_at)
         prior = current
         plan[key] = seed.action
         current = resulting
+        current_ledger = resulting_ledger
+        current_records = resulting_records
+        current_decisions = resulting_decisions
+        current_applied = applied
         current_surface, family, trigger_at = applied[key]
         steps.append(
             V2Step(
@@ -409,6 +642,9 @@ def _run_period(
         baseline=baseline,
         intervention_count=len(plan),
     )
+    full_period_trade_evaluations = (
+        replay_evaluations * len(ordered)
+    )
     return (
         {
             "period": period,
@@ -422,6 +658,11 @@ def _run_period(
                 {(row.symbol, row.entry_at) for row in relief_seeds}
             ),
             "replay_evaluations": replay_evaluations,
+            "replayed_trade_evaluations": replayed_trade_evaluations,
+            "full_period_trade_evaluations_without_prefix_reuse": (
+                full_period_trade_evaluations
+            ),
+            "causal_prefix_reuse_enabled": True,
             "invalid_after_feedback_trials": invalid_trials,
             "committed_intervention_count": len(plan),
             "reserve_step_count": sum(
