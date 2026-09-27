@@ -69,6 +69,12 @@ from qore.infrastructure.cibo_ce2i_phase20_demo_runtime_bridge import (
     finalize_ctrader_demo_m5_phase20_policy,
     prepare_ctrader_demo_m5_phase20_epoch,
 )
+from qore.infrastructure.cibo_ce2i_phase20_demo_single_slot import (
+    Phase20DemoSingleSlotTerminal,
+    build_ctrader_demo_single_slot_observed_opportunity,
+    finalize_ctrader_demo_single_slot_phase20_policy,
+    prepare_ctrader_demo_single_slot_phase20_epoch,
+)
 from qore.infrastructure.cibo_ce2i_phase20_demo_settlement_observer import (
     DurablePhase20DemoSettlementCursorStore,
     observe_ctrader_demo_phase20_settlements,
@@ -1257,6 +1263,125 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     highest = Decimal(str(account_info.balance))
     previous_mll = Decimal(str(account_info.equity))
     log_path = root / "artifacts" / "ctrader_demo_free_runtime_events.jsonl"
+
+    def observe_phase20_single_slot(
+        *,
+        trader_id: TraderLineage,
+        qore_symbol: str,
+        epoch_scope: str,
+        opened_at: datetime,
+        deadline_at: datetime,
+        terminal_observed_at: datetime,
+        disposition: Phase20ForwardPopulationDisposition,
+        reason: str,
+        account_state_for_shadow: CTraderDemoAccountState,
+        opportunity: TraderOpportunityEnvelope | None = None,
+        provider_spec: CTraderDemoSymbolSpecification | None = None,
+    ) -> None:
+        """Observe one sovereign Trader boundary without blocking execution."""
+
+        sealed_at = datetime.now(UTC)
+        effective_disposition = disposition
+        effective_reason = reason
+        effective_obportunity = opportunity
+        effective_provider = provider_spec
+        terminal_at = terminal_observed_at
+        decision_at = sealed_at
+        if sealed_at > deadline_at or terminal_observed_at > deadline_at:
+            effective_disposition = (
+                Phase20ForwardPopulationDisposition.DEADLINE_MISSED
+            )
+            effective_reason = "PHASE20D_SHADOW_DEADLINE_MISSED"
+            effective_obportunity = None
+            effective_provider = None
+            terminal_at = deadline_at
+            decision_at = deadline_at
+        try:
+            observed_opportunity = None
+            if effective_obportunity is not None:
+                if effective_provider is None:
+                    raise RuntimeError(
+                        "phase20-single-slot-provider-evidence-missing"
+                    )
+                observed_opportunity = (
+                    build_ctrader_demo_single_slot_observed_opportunity(
+                        opportunity=effective_obportunity,
+                        provider_spec=effective_provider,
+                        observed_at=terminal_at,
+                    )
+                )
+            terminal = Phase20DemoSingleSlotTerminal(
+                trader_id=trader_id,
+                qore_symbol=qore_symbol,
+                observed_at=terminal_at,
+                disposition=effective_disposition,
+                reason=effective_reason,
+                opportunity=observed_opportunity,
+            )
+            prepared = prepare_ctrader_demo_single_slot_phase20_epoch(
+                epoch_scope=epoch_scope,
+                opened_at=opened_at,
+                deadline_at=deadline_at,
+                decision_at=decision_at,
+                terminal=terminal,
+                provider_spec=effective_provider,
+                evidence_store=phase20_evidence_store,
+                account_identity=cibo_account_identity,
+                account_state=account_state_for_shadow,
+                risk=risk,
+                executed_risk_book=phase20_executed_risk_store.load(),
+                open_position_ids=phase20_known_open_position_ids,
+                pending_broker_worst_case_loss_usd=Decimal("0"),
+                capital_state=phase20_capital_state,
+                highest_closed_balance=highest,
+                current_step=max(
+                    0,
+                    int(opened_at.timestamp() // 60),
+                ),
+            )
+            finalized = finalize_ctrader_demo_single_slot_phase20_policy(
+                prepared=prepared,
+                evidence_store=phase20_evidence_store,
+                policy_store=phase20_policy_store,
+            )
+            _log(
+                log_path,
+                {
+                    "event": "PHASE20D_SINGLE_SLOT_OBSERVED",
+                    "trader": trader_id.value,
+                    "symbol": qore_symbol,
+                    "decision_epoch_id": (
+                        finalized.observation.collected.result.evidence.decision_epoch_id
+                    ),
+                    "evidence_sha256": (
+                        finalized.observation.collected.result.decision_record.evidence_sha256
+                    ),
+                    "disposition": effective_disposition.value,
+                    "reason": effective_reason,
+                    "regime_policy_sha256": (
+                        finalized.regime_policy_sha256
+                    ),
+                    "uses_fill_or_outcome_input": False,
+                    "execution_path_blocked": False,
+                    "broker_mutation_performed": False,
+                },
+            )
+        except Exception as shadow_error:
+            _log(
+                log_path,
+                {
+                    "event": "PHASE20D_SINGLE_SLOT_INELIGIBLE",
+                    "trader": trader_id.value,
+                    "symbol": qore_symbol,
+                    "epoch_scope": epoch_scope,
+                    "opened_at": opened_at.isoformat(),
+                    "observed_at": sealed_at.isoformat(),
+                    "reason": type(shadow_error).__name__,
+                    "message": str(shadow_error),
+                    "execution_path_blocked": False,
+                },
+            )
+
     _log(
         log_path,
         {
