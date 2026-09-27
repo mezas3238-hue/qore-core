@@ -34,7 +34,7 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
 )
 from qore.infrastructure.vt08_forex_fundednext_sizing import R315_BASE_RISK_BPS
 
-_SCHEMA = "qore.fundednext.cibo-risk-operational-certification.v3"
+_SCHEMA = "qore.fundednext.cibo-risk-operational-certification.v4"
 
 
 def build_certification(*, git_sha: str) -> dict[str, object]:
@@ -79,12 +79,19 @@ def build_certification(*, git_sha: str) -> dict[str, object]:
             "version": R315_CIBO_VERSION,
             "policy_fingerprint": cibo_policy_fingerprint(),
             "postures": [item.value for item in Vt08ForexCiboPosture],
-            "capital_authority": False,
+            "capital_management_authority": True,
+            "runtime_sizing_authority": True,
+            "legacy_trader_sizing_authority": False,
+            "mission": "FUNDED_SURVIVAL_COMPOUND",
+            "provider": "FundedNext",
+            "provider_program": "STELLAR_INSTANT",
             "attack_can_override_risk": False,
             "attack_changes_per_trade_bps": False,
         },
         "account_wide_risk": {
-            "final_capital_authority": True,
+            "hard_survivability_governor": True,
+            "capital_management_strategy_authority": False,
+            "runtime_sizing_authority": False,
             "decisions": ["ALLOW", "REDUCE", "REJECT"],
             "provider_headroom_enforced": True,
             "provider_max_risk_at_any_time_enforced": True,
