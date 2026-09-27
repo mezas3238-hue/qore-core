@@ -35,7 +35,7 @@ jobs:
 
       - name: Announce WP05 V7 foundation validation
         run: |
-          gh issue comment 643 --body "WP-05 V7 foundation validation started — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Preregistered dual terminal-hazard/recovery-support engine only; no R6/R5 consumed execution and fresh holdout remains CLOSED."
+          gh issue comment 643 --body "WP-05 V7 foundation validation started — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Preregistered dual engine + causal source extractor + historical harness static validation; no R6/R5 consumed execution and fresh holdout remains CLOSED."
 
       - uses: actions/setup-python@v5
         with:
@@ -63,7 +63,7 @@ jobs:
       - name: Report WP05 V7 foundation GREEN
         if: success()
         run: |
-          gh issue comment 643 --body "WP-05 V7 foundation GREEN — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Dual mechanism core, R8-only fit/calibration invariants, chronological purge, deterministic fingerprint, UNRESOLVED abstention, anti-leakage and no-authority tests passed. R6/R5 remain unconsumed by V7; fresh holdout remains CLOSED."
+          gh issue comment 643 --body "WP-05 V7 foundation GREEN — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Dual mechanism core, causal source extractor, historical harness static validation, R8-only fit/calibration invariants, chronological purge, deterministic fingerprint, UNRESOLVED abstention, anti-future leakage and no-authority tests passed. R6/R5 remain unconsumed by V7; fresh holdout remains CLOSED."
 
       - name: Report WP05 V7 foundation failure
         if: failure()
