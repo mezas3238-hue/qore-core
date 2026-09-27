@@ -2236,6 +2236,85 @@ manifest verifies 19 files: nine canonical reports, their nine stdout mirrors, a
 still does not establish economic value. Phase 20D qualification still requires genuinely fresh
 forward observed evidence, and Phase 21/22 remain blocked until that gate is satisfied.
 
+### Phase 20H / 20I / 20D candidate V2 authoritative checkpoint — 27-SEP-2026
+
+This checkpoint **supersedes the V1 candidate text below for active continuity**. V1 remains
+retained only as historical evidence of a pre-forward supersession.
+
+```text
+V1 status:
+CIBO_PHASE20H20I_FORWARD_CANDIDATE_V1
+SUPERSEDED_BEFORE_FORWARD_COLLECTION
+fresh_forward_observations_collected = 0
+
+Active frozen candidate:
+CIBO_PHASE20H20I_FORWARD_CANDIDATE_V2
+
+policy_code_sha:
+7acce68c6ece61fae1adacf3f8e60815839b6f6a
+
+frozen_at:
+2026-09-27T14:00:00+00:00
+
+parameter_sha256:
+sha256:0e710fd7be78d2c5fd6227a405799b5d79e1ca57a282ab1566c76069ab17259d
+
+expectation_prior_sha256:
+sha256:15b059ea1e303fee7a9ed0894480ee1da6091647482a0811f1090335925b6caa
+
+expectation_policy:
+FROZEN_TRAIN_MOM5_STRUCTURAL_R_X_CURRENT_STOP_RISK
+
+checkpoint_head:
+7339256cff444bea3afd4b68a54a758de2a4b8c2
+
+phase20_artifact:
+10934052581
+sha256:10a56c05ab728aa55cfa928766057188aa89a12250559bd3c1df3245b12ad604
+SHA256SUMS 29/29 VERIFIED
+
+phase19_artifact:
+10933338904
+sha256:01b011fb1975e3b1d0052f13220c970ad5fbaa054070b0b6bcfe8aab007e2e66
+SHA256SUMS 26/26 VERIFIED
+```
+
+Candidate V2 freezes the same constitutional composition order:
+
+```text
+SEAL_PREDECISION_EVIDENCE
+-> SELECT_CAUSAL_REGIME
+-> PHASE20I_RESERVE
+-> PHASE20H_ALLOCATE_REMAINDER
+-> QORE_RISK_DOWNSTREAM
+```
+
+and additionally freezes the TRAIN-only expectation source used by Phase20H. The seven-Trader
+expectation prior is derived from the 523-row Phase19 TRAIN population only. Phase19J validation
+rows consumed by the falsification checkpoint remain burned and are not reused.
+
+Current scientific status:
+
+```text
+PHASE20H_CONTRACT_GREEN                         = TRUE
+PHASE20I_CONTRACT_GREEN                         = TRUE
+PHASE20H20I_COMPOSITION_GREEN                   = TRUE
+PHASE20H20I_POLICY_CANDIDATE_V2_FROZEN          = TRUE
+PHASE20D_FORWARD_COLLECTION_CONTRACT_GREEN       = TRUE
+PHASE20D_FRESH_FORWARD_OBSERVATIONS_COLLECTED    = 0
+PHASE20D_POLICY_QUALIFIED                        = FALSE
+PHASE21_POLICY_CERTIFIED                         = FALSE
+PHASE19J_VALIDATION_REUSED                       = FALSE
+DEMO_GOVERNED_EXECUTION_AUTHORIZED               = FALSE
+LIVE_AUTHORIZED                                  = FALSE
+REAL_CAPITAL_AUTHORIZED                          = FALSE
+MERGE_AUTHORIZED                                 = FALSE
+```
+
+The next engineering work is to capture real causal decision epochs before outcome, using the
+frozen TRAIN prior and current provider/capital/Risk observations, while keeping the policy
+observational and non-mutating.
+
 ### Phase 20H / 20I / 20D frozen-candidate checkpoint — 27-SEP-2026
 
 The previous roadmap text saying `20H-20I RESEARCH PENDING` is obsolete. GitHub now contains the
@@ -2427,8 +2506,8 @@ Current sequence:
 
 ```text
 1. Preserve Phase18 and the burned Phase19J validation unchanged.
-2. Preserve frozen candidate CIBO_PHASE20H20I_FORWARD_CANDIDATE_V1 unchanged.
-3. Collect only post-freeze FORWARD_OBSERVED Phase20D decision/outcome pairs.
+2. Preserve frozen candidate CIBO_PHASE20H20I_FORWARD_CANDIDATE_V2 unchanged.
+3. Collect only post-V2-freeze FORWARD_OBSERVED Phase20D decision/outcome pairs.
 4. Reject stale, backdated, rewritten, unreconciled or lineage-mismatched evidence.
 5. Once the fresh population is sufficient, run Phase20D causal WFO with no refit between folds.
 6. Only after a Phase20D PASS, run empirical capital-state Monte Carlo + provider stress + empirical ablation.
