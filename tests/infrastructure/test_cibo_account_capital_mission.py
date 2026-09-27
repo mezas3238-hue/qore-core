@@ -8,6 +8,7 @@ from qore.infrastructure.cibo_account_capital_mission import (
     CiboCapitalObjective,
     ce2i_tool_allowed_for_mission,
     derive_cibo_capital_mission,
+    eligible_ce2i_tool_codes_for_account_state,
     eligible_ce2i_tool_codes_for_mission,
     fundednext_stellar_instant_identity,
     identity_from_market_test_account,
@@ -209,3 +210,49 @@ def test_account_mission_exposes_different_ce2i_surfaces() -> None:
         assert code in demo_tools
 
     assert len(demo_tools) > len(eligible_ce2i_tool_codes_for_mission(funded))
+
+
+
+def test_funded_external_tool_surface_requires_base_protection() -> None:
+    policy = derive_cibo_capital_mission(
+        CiboAccountCapitalIdentity(
+            provider_key="fundednext",
+            account_ref="funded-account",
+            environment=MarketRuntimeEnvironment.PRODUCTION,
+            provider_program="stellar-instant",
+        )
+    )
+
+    before = eligible_ce2i_tool_codes_for_account_state(
+        policy,
+        base_protected=False,
+    )
+    after = eligible_ce2i_tool_codes_for_account_state(
+        policy,
+        base_protected=True,
+    )
+
+    assert before == tuple(
+        code
+        for code in eligible_ce2i_tool_codes_for_mission(policy)
+        if code in {"T01", "T19", "T20"}
+    )
+    assert set(before).issubset(set(after))
+
+
+def test_demo_tool_surface_is_not_reduced_by_base_protection_flag() -> None:
+    policy = derive_cibo_capital_mission(
+        CiboAccountCapitalIdentity(
+            provider_key="ctrader-demo",
+            account_ref="demo-account",
+            environment=MarketRuntimeEnvironment.DEMO,
+        )
+    )
+
+    assert eligible_ce2i_tool_codes_for_account_state(
+        policy,
+        base_protected=False,
+    ) == eligible_ce2i_tool_codes_for_account_state(
+        policy,
+        base_protected=True,
+    )
