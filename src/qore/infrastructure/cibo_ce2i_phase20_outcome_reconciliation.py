@@ -37,12 +37,19 @@ from qore.infrastructure.cibo_cma_settlement_ledger import (
 
 @dataclass(frozen=True, slots=True)
 class Phase20ExecutedRiskEvidence:
-    """Reconciled risk denominator for one actually executed position."""
+    """Reconciled and independently auditable risk denominator."""
 
     evidence_id: str
     decision_evidence_sha256: str
     signal_fingerprint: str
+    qore_symbol: str
     position_id: int
+    authorized_source_volume: Decimal
+    filled_source_volume: Decimal
+    weighted_fill_price: Decimal
+    intended_entry_price: Decimal
+    structural_stop_price: Decimal
+    stop_risk_per_volume_at_intended_entry_usd: Decimal
     executed_initial_stop_risk_usd: Decimal
     observed_at: datetime
     fill_evidence_refs: tuple[str, ...]
@@ -50,9 +57,13 @@ class Phase20ExecutedRiskEvidence:
     mutation_outcome_known: bool
 
     def __post_init__(self) -> None:
-        if not self.evidence_id or not self.signal_fingerprint:
+        if (
+            not self.evidence_id
+            or not self.signal_fingerprint
+            or not self.qore_symbol
+        ):
             raise CiboCapitalManagementError(
-                "Phase20D executed-risk evidence identity/signal required"
+                "Phase20D executed-risk evidence identity/signal/symbol required"
             )
         if (
             not isinstance(self.decision_evidence_sha256, str)
@@ -70,13 +81,47 @@ class Phase20ExecutedRiskEvidence:
             raise CiboCapitalManagementError(
                 "Phase20D executed-risk position_id must be positive int"
             )
-        if (
-            not isinstance(self.executed_initial_stop_risk_usd, Decimal)
-            or not self.executed_initial_stop_risk_usd.is_finite()
-            or self.executed_initial_stop_risk_usd <= 0
+        for name in (
+            "authorized_source_volume",
+            "filled_source_volume",
+            "weighted_fill_price",
+            "intended_entry_price",
+            "structural_stop_price",
+            "stop_risk_per_volume_at_intended_entry_usd",
+            "executed_initial_stop_risk_usd",
         ):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, Decimal)
+                or not value.is_finite()
+                or value <= 0
+            ):
+                raise CiboCapitalManagementError(
+                    f"Phase20D executed-risk {name} must be finite positive Decimal"
+                )
+        if self.filled_source_volume > self.authorized_source_volume:
             raise CiboCapitalManagementError(
-                "Phase20D executed initial stop risk must be finite positive Decimal"
+                "Phase20D filled source volume cannot exceed authorization"
+            )
+        intended_distance = abs(
+            self.intended_entry_price - self.structural_stop_price
+        )
+        executed_distance = abs(
+            self.weighted_fill_price - self.structural_stop_price
+        )
+        if intended_distance <= 0 or executed_distance <= 0:
+            raise CiboCapitalManagementError(
+                "Phase20D executed-risk stop geometry is invalid"
+            )
+        reconstructed = (
+            self.filled_source_volume
+            * self.stop_risk_per_volume_at_intended_entry_usd
+            * executed_distance
+            / intended_distance
+        )
+        if reconstructed != self.executed_initial_stop_risk_usd:
+            raise CiboCapitalManagementError(
+                "Phase20D executed-risk evidence is not arithmetically reproducible"
             )
         _aware(self.observed_at, name="executed-risk observed_at")
         if not self.fill_evidence_refs or any(
