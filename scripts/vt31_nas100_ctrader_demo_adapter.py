@@ -279,6 +279,7 @@ def process_virtual_oco(
     account_equity: Decimal,
     store: Vt31Nas100LiveStateStore,
     log: Callable[[dict[str, object]], None],
+    phase20_after_submit: Phase20AfterSubmit | None = None,
 ) -> None:
     state = store.load()
     basket = state.virtual_basket
@@ -320,6 +321,7 @@ def process_virtual_oco(
         account_equity=account_equity,
         store=store,
         log=log,
+        phase20_after_submit=phase20_after_submit,
     )
     if store.load().pending_broker_order is None:
         store.clear_virtual_basket()
@@ -1197,6 +1199,27 @@ def _ps2_candidate(
     return selected, confirmations
 
 
+def build_virtual_order_opportunity(
+    *,
+    order: Vt31VirtualOrderState,
+    provider_spec: CTraderDemoSymbolSpecification,
+    decision_anchor: datetime,
+    now: datetime,
+) -> TraderOpportunityEnvelope:
+    """Expose VT31 virtual-order geometry without restoring Trader sizing authority."""
+
+    return build_vt31_opportunity(
+        signal_fingerprint=order.signal_fingerprint,
+        side=order.side,
+        entry=Decimal(order.entry_price),
+        stop_loss=Decimal(order.stop_loss),
+        take_profit=_broker_guard_target(order),
+        provider_spec=provider_spec,
+        decision_anchor=decision_anchor,
+        now=now,
+    )
+
+
 def _authorize_and_check(
     *,
     order: Vt31VirtualOrderState,
@@ -1248,12 +1271,8 @@ def _authorize_and_check(
     legacy_resolution = resolve_certified_risk(context)
     request_at = stage("before-risk-request")
     account = gateway.read_account(now=request_at)
-    opportunity = build_vt31_opportunity(
-        signal_fingerprint=order.signal_fingerprint,
-        side=order.side,
-        entry=Decimal(order.entry_price),
-        stop_loss=Decimal(order.stop_loss),
-        take_profit=_broker_guard_target(order),
+    opportunity = build_virtual_order_opportunity(
+        order=order,
         provider_spec=spec,
         decision_anchor=trigger_at,
         now=request_at,
