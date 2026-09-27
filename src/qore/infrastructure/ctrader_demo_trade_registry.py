@@ -210,22 +210,38 @@ class CTraderDemoTradeRegistry:
                 )
             )
 
-    def committed_stop_risk(self, *, now: datetime) -> Decimal:
+    def committed_stop_risk(
+        self,
+        *,
+        now: datetime,
+        provider_order_status: Callable[[str], int],
+    ) -> Decimal:
+        """Return provider-confirmed account stop risk without time-based release."""
+
         if now.tzinfo is None or now.utcoffset() is None:
             raise ValueError("now must be timezone-aware")
+        if not callable(provider_order_status):
+            raise TypeError("provider_order_status must be callable")
         total = Decimal("0")
         with self._lock:
             entries = tuple(self._entries.values())
         for item in entries:
             if item.closed_at is not None:
                 continue
-            expires_at = datetime.fromisoformat(item.expires_at)
-            # Bound positions remain economically active until a terminal deal
-            # closes them. Unbound submissions conservatively reserve through
-            # their provider expiry.
-            if item.position_id is None and expires_at < now:
-                continue
-            total += Decimal(item.requested_stop_risk)
+            if item.position_id is None:
+                status = provider_order_status(item.provider_order_ref)
+                if status in {3, 4, 5}:
+                    continue
+                if status not in {1, 2}:
+                    raise RuntimeError(
+                        "cTrader DEMO committed order status is unsupported"
+                    )
+            risk = Decimal(item.requested_stop_risk)
+            if not risk.is_finite() or risk <= 0:
+                raise RuntimeError(
+                    "cTrader DEMO committed stop risk must be positive"
+                )
+            total += risk
         return total
 
     def pending_stop_risk(
