@@ -129,6 +129,9 @@ class Phase20ForwardOutcomeSeal:
     realized_net_pnl_usd: Decimal
     executed_initial_stop_risk_usd: Decimal
     realized_structural_outcome_r: Decimal
+    capital_deployed_at: datetime | None = None
+    capital_released_at: datetime | None = None
+    capital_minutes: Decimal | None = None
 
     def __post_init__(self) -> None:
         if not self.evidence_id or not self.signal_fingerprint:
@@ -202,6 +205,52 @@ class Phase20ForwardOutcomeSeal:
             raise DurablePhase20ForwardEvidenceError(
                 "forward outcome structural R identity mismatch"
             )
+        timing = (
+            self.capital_deployed_at,
+            self.capital_released_at,
+            self.capital_minutes,
+        )
+        if any(item is not None for item in timing):
+            if any(item is None for item in timing):
+                raise DurablePhase20ForwardEvidenceError(
+                    "forward outcome capital timing must be complete"
+                )
+            assert self.capital_deployed_at is not None
+            assert self.capital_released_at is not None
+            assert self.capital_minutes is not None
+            if (
+                self.capital_deployed_at.tzinfo is None
+                or self.capital_deployed_at.utcoffset() is None
+                or self.capital_released_at.tzinfo is None
+                or self.capital_released_at.utcoffset() is None
+            ):
+                raise DurablePhase20ForwardEvidenceError(
+                    "forward outcome capital timestamps must be timezone-aware"
+                )
+            if self.capital_released_at <= self.capital_deployed_at:
+                raise DurablePhase20ForwardEvidenceError(
+                    "forward outcome capital release must follow deployment"
+                )
+            if (
+                not isinstance(self.capital_minutes, Decimal)
+                or not self.capital_minutes.is_finite()
+                or self.capital_minutes <= 0
+            ):
+                raise DurablePhase20ForwardEvidenceError(
+                    "forward outcome capital minutes invalid"
+                )
+            expected_minutes = Decimal(
+                str(
+                    (
+                        self.capital_released_at
+                        - self.capital_deployed_at
+                    ).total_seconds()
+                )
+            ) / Decimal("60")
+            if self.capital_minutes != expected_minutes:
+                raise DurablePhase20ForwardEvidenceError(
+                    "forward outcome capital minutes identity mismatch"
+                )
 
 
 @dataclass(frozen=True, slots=True)
@@ -447,6 +496,9 @@ class DurablePhase20ForwardEvidenceStore:
                     realized_structural_outcome_r=(
                         outcome.realized_structural_outcome_r
                     ),
+                    capital_deployed_at=outcome.capital_deployed_at,
+                    capital_released_at=outcome.capital_released_at,
+                    capital_minutes=outcome.capital_minutes,
                 )
                 same_id = tuple(
                     item
@@ -708,6 +760,21 @@ def _outcome_to_json(
             value.realized_structural_outcome_r,
             "f",
         ),
+        "capital_deployed_at": (
+            None
+            if value.capital_deployed_at is None
+            else value.capital_deployed_at.isoformat()
+        ),
+        "capital_released_at": (
+            None
+            if value.capital_released_at is None
+            else value.capital_released_at.isoformat()
+        ),
+        "capital_minutes": (
+            None
+            if value.capital_minutes is None
+            else format(value.capital_minutes, "f")
+        ),
     }
 
 
@@ -735,5 +802,20 @@ def _outcome_from_json(value: object) -> Phase20ForwardOutcomeSeal:
         ),
         realized_structural_outcome_r=Decimal(
             str(value["realized_structural_outcome_r"])
+        ),
+        capital_deployed_at=(
+            None
+            if value.get("capital_deployed_at") is None
+            else datetime.fromisoformat(str(value["capital_deployed_at"]))
+        ),
+        capital_released_at=(
+            None
+            if value.get("capital_released_at") is None
+            else datetime.fromisoformat(str(value["capital_released_at"]))
+        ),
+        capital_minutes=(
+            None
+            if value.get("capital_minutes") is None
+            else Decimal(str(value["capital_minutes"]))
         ),
     )
