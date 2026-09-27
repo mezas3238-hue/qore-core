@@ -206,10 +206,6 @@ def test_single_slot_abstain_is_retained_without_fabricated_market_context(
     evidence = DurablePhase20ForwardEvidenceStore(
         tmp_path / "abstain-evidence.json"
     )
-    policy = DurablePhase20ForwardPolicyStore(
-        tmp_path / "abstain-policy.json"
-    )
-
     prepared = prepare_ctrader_demo_single_slot_phase20_epoch(
         epoch_scope="ctrader-demo:vt08:GBPUSD:single-slot",
         opened_at=OPENED,
