@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import pytest
+
+from qore.infrastructure.trader_lab import (
+    capitalizer_causal_trigger_state_veto_policy_v29 as v29,
+)
 from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
 )
@@ -25,6 +30,23 @@ def _model(intercept: float, dimension: int) -> v25.RidgeModel:
         weighted_target_mean=intercept,
         weighted_training_rmse=0.1,
         coefficient_l2_norm=abs(intercept),
+    )
+
+
+
+
+
+def _trigger_state(family: str, trigger_at: str) -> v29.TriggerState:
+    return v29.TriggerState(
+        period="DEVELOPMENT_2024_2026",
+        symbol="EURUSD",
+        session="LONDON",
+        operating_date="2026-01-05",
+        entry_at="2026-01-05T08:00:00+00:00",
+        family=family,
+        trigger_at=trigger_at,
+        completed_m1_bars=3,
+        vector=tuple(0.0 for _ in range(v29.TRAJECTORY_FEATURE_DIMENSION)),
     )
 
 
@@ -126,6 +148,61 @@ def test_next_event_time_preserves_global_chronology() -> None:
         pointer=1,
         pending=pending,
     ) == trigger
+
+
+
+def test_trigger_sequence_coalesces_same_timestamp_to_highest_family() -> None:
+    period = "DEVELOPMENT_2024_2026"
+    entry_at = "2026-01-05T08:00:00+00:00"
+    native = {
+        (period, "EURUSD", entry_at, "TRIGGER_050"): _trigger_state(
+            "TRIGGER_050",
+            "2026-01-05T08:03:00+00:00",
+        ),
+        (period, "EURUSD", entry_at, "TRIGGER_075"): _trigger_state(
+            "TRIGGER_075",
+            "2026-01-05T08:03:00+00:00",
+        ),
+        (period, "EURUSD", entry_at, "TRIGGER_100"): _trigger_state(
+            "TRIGGER_100",
+            "2026-01-05T08:05:00+00:00",
+        ),
+    }
+
+    sequence = v32._trigger_sequence(
+        period=period,
+        symbol="EURUSD",
+        entry_at=entry_at,
+        native_states=native,
+    )
+
+    assert tuple((at.isoformat(), family) for at, family, _state in sequence) == (
+        ("2026-01-05T08:03:00+00:00", "TRIGGER_075"),
+        ("2026-01-05T08:05:00+00:00", "TRIGGER_100"),
+    )
+
+
+def test_trigger_sequence_rejects_true_reverse_chronology() -> None:
+    period = "DEVELOPMENT_2024_2026"
+    entry_at = "2026-01-05T08:00:00+00:00"
+    native = {
+        (period, "EURUSD", entry_at, "TRIGGER_050"): _trigger_state(
+            "TRIGGER_050",
+            "2026-01-05T08:05:00+00:00",
+        ),
+        (period, "EURUSD", entry_at, "TRIGGER_075"): _trigger_state(
+            "TRIGGER_075",
+            "2026-01-05T08:04:00+00:00",
+        ),
+    }
+
+    with pytest.raises(ValueError, match="reverse chronology"):
+        v32._trigger_sequence(
+            period=period,
+            symbol="EURUSD",
+            entry_at=entry_at,
+            native_states=native,
+        )
 
 
 def test_v32_frozen_contract() -> None:
