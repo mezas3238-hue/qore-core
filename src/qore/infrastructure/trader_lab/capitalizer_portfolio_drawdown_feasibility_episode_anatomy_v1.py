@@ -570,10 +570,10 @@ def write_report(
     with (output / f"{stem}-episodes.jsonl").open(
         "w", encoding="utf-8"
     ) as handle:
-        for period, row in episodes:
+        for period, episode in episodes:
             handle.write(
                 json.dumps(
-                    {"period": period, **asdict(row)},
+                    {"period": period, **asdict(episode)},
                     sort_keys=True,
                 )
                 + "\n"
@@ -581,8 +581,8 @@ def write_report(
     with (output / f"{stem}-max-episode-trades.jsonl").open(
         "w", encoding="utf-8"
     ) as handle:
-        for row in audits:
-            handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+        for audit in audits:
+            handle.write(json.dumps(asdict(audit), sort_keys=True) + "\n")
 
 
 def main() -> int:
