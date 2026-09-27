@@ -288,6 +288,19 @@ def run_phase20d_v2_qualification(
             )
 
     frozen_rows = tuple(rows)
+    for row in frozen_rows:
+        if not (row.policy_selected or row.baseline_selected):
+            continue
+        if row.realized_net_pnl_usd is None:
+            continue
+        if (
+            row.executed_initial_stop_risk_usd is None
+            or row.executed_initial_stop_risk_usd != row.stop_risk_usd
+        ):
+            safety_failures.append(
+                "REALIZED_EXECUTION_ECONOMICS_COMPLETE"
+            )
+
     folds = _build_folds(
         rows=frozen_rows,
         decisions=ordered_decisions,
