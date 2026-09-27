@@ -190,6 +190,7 @@ def test_single_slot_candidate_seals_watch_regime_without_execution(
         capital_state=_capital(),
         highest_closed_balance=Decimal("1000"),
         current_step=1,
+        collector_git_sha="1" * 40,
     )
 
     assert prepared.regime_policy_id == PHASE20_DEMO_SINGLE_SLOT_REGIME_ID
@@ -202,6 +203,7 @@ def test_single_slot_candidate_seals_watch_regime_without_execution(
     assert prepared.result.evidence.candidates[0].candidate.trader_id is (
         TraderLineage.VT31_NAS100
     )
+    assert prepared.result.evidence.collector_git_sha == "1" * 40
     assert prepared.broker_mutation_performed is False
 
     finalized = finalize_ctrader_demo_single_slot_phase20_policy(
