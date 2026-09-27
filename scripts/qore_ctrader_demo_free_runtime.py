@@ -1361,6 +1361,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     int(opened_at.timestamp() // 60),
                 ),
                 known_options=effective_known_options,
+                collector_git_sha=sha,
             )
             finalized = finalize_ctrader_demo_single_slot_phase20_policy(
                 prepared=prepared,
@@ -2306,6 +2307,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                         current_step=int(
                                             audjpy_arm_anchor.timestamp() // 3600
                                         ),
+                                        collector_git_sha=sha,
                                     )
                                 )
                                 shadow_elapsed_ms = (
