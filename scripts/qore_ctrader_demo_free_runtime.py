@@ -1340,7 +1340,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 risk=risk,
                 executed_risk_book=phase20_executed_risk_store.load(),
                 open_position_ids=phase20_known_open_position_ids,
-                pending_broker_worst_case_loss_usd=Decimal("0"),
+                pending_broker_worst_case_loss_usd=(\n                    demo_sink.registry.pending_stop_risk(\n                        now=account_state_for_shadow.observed_at,\n                    )\n                ),
                 capital_state=phase20_capital_state,
                 highest_closed_balance=highest,
                 current_step=max(
