@@ -200,7 +200,19 @@ def _books(
                     evidence_id=f"outcome-{decision_index}-{candidate_index}",
                     decision_evidence_sha256=evidence_sha,
                     signal_fingerprint=signal,
+                    position_id=decision_index * 10 + candidate_index + 1,
+                    execution_risk_evidence_id=(
+                        f"risk-{decision_index}-{candidate_index}"
+                    ),
+                    settlement_deal_ids=(
+                        decision_index * 10 + candidate_index + 10001,
+                    ),
+                    fill_evidence_refs=(
+                        f"fill-{decision_index}-{candidate_index}",
+                    ),
                     observed_at=decision_at + timedelta(hours=1 + candidate_index),
+                    realized_net_pnl_usd=outcome_r * Decimal("10"),
+                    executed_initial_stop_risk_usd=Decimal("10"),
                     realized_structural_outcome_r=outcome_r,
                 )
             )
