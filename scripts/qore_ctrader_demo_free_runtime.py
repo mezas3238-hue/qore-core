@@ -37,6 +37,7 @@ from qore.infrastructure.ctrader_demo_free_sink import (
     configure_global_sink,
     credentials_from_environment,
     demo_account_capital,
+    demo_committed_stop_risk,
     submit_demo_request,
 )
 from qore.infrastructure.account_wide_risk import (
@@ -664,6 +665,9 @@ def _process_candidate(
         opportunity=opportunity,
         account_ref=account_binding_id,
         account_state=account,
+        current_committed_stop_risk_usd=demo_committed_stop_risk(
+            now=request_at,
+        ),
         requested_at=request_at,
         expires_at=setup.expires_at,
     )
@@ -717,6 +721,9 @@ def _process_r34_candidate(
         opportunity=opportunity,
         account_ref=account_binding_id,
         account_state=account,
+        current_committed_stop_risk_usd=demo_committed_stop_risk(
+            now=request_at,
+        ),
         requested_at=request_at,
         expires_at=request_at + timedelta(seconds=30),
     )
@@ -770,6 +777,9 @@ def _process_r38_candidate(
         opportunity=opportunity,
         account_ref=account_binding_id,
         account_state=account,
+        current_committed_stop_risk_usd=demo_committed_stop_risk(
+            now=request_at,
+        ),
         requested_at=request_at,
         expires_at=request_at + timedelta(seconds=30),
     )
@@ -823,6 +833,9 @@ def _process_r43_candidate(
         opportunity=opportunity,
         account_ref=account_binding_id,
         account_state=account,
+        current_committed_stop_risk_usd=demo_committed_stop_risk(
+            now=request_at,
+        ),
         requested_at=request_at,
         expires_at=request_at + timedelta(seconds=30),
     )
@@ -876,6 +889,9 @@ def _process_gbpjpy_r38_candidate(
         opportunity=opportunity,
         account_ref=account_binding_id,
         account_state=account,
+        current_committed_stop_risk_usd=demo_committed_stop_risk(
+            now=request_at,
+        ),
         requested_at=request_at,
         expires_at=request_at + timedelta(seconds=30),
     )
@@ -961,6 +977,9 @@ def _process_audjpy_r42_candidate(
         opportunity=opportunity,
         account_ref=account_binding_id,
         account_state=account,
+        current_committed_stop_risk_usd=demo_committed_stop_risk(
+            now=request_at,
+        ),
         requested_at=request_at,
         expires_at=deadline,
     )
