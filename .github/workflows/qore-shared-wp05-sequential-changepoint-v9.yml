@@ -1,4 +1,4 @@
-name: QORE Shared WP05 Sequential ChangePoint V9
+name: QORE Shared WP05 Sequential ChangePoint V9 Superseded
 
 on:
   push:
@@ -28,6 +28,8 @@ env:
 
 jobs:
   sequential-changepoint-v9:
+    # Chronologically superseded as V9; reserved for explicit V10 promotion.
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
