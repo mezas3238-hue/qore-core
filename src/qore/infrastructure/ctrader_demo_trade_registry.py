@@ -22,6 +22,22 @@ class DemoTradeRegistryEntry:
     submitted_at: str
     expires_at: str
     position_id: int | None = None
+    receipt_id: str | None = None
+    idempotency_key: str | None = None
+    provider_symbol: str | None = None
+    side: str | None = None
+    entry_type: str | None = None
+    intended_entry: str | None = None
+    stop_loss: str | None = None
+    take_profit: str | None = None
+    volume_step: str | None = None
+    minimum_volume: str | None = None
+    stop_loss_per_volume: str | None = None
+    margin_per_volume: str | None = None
+    requested_at: str | None = None
+    minimum_volume_uplifted: bool | None = None
+    source_contract_size_units: str | None = None
+    ctrader_lot_size_units: str | None = None
     capital_provenance: tuple[tuple[str, str, str], ...] = ()
 
     def as_json(self) -> dict[str, object]:
@@ -37,6 +53,22 @@ class DemoTradeRegistryEntry:
             "submitted_at": self.submitted_at,
             "expires_at": self.expires_at,
             "position_id": self.position_id,
+            "receipt_id": self.receipt_id,
+            "idempotency_key": self.idempotency_key,
+            "provider_symbol": self.provider_symbol,
+            "side": self.side,
+            "entry_type": self.entry_type,
+            "intended_entry": self.intended_entry,
+            "stop_loss": self.stop_loss,
+            "take_profit": self.take_profit,
+            "volume_step": self.volume_step,
+            "minimum_volume": self.minimum_volume,
+            "stop_loss_per_volume": self.stop_loss_per_volume,
+            "margin_per_volume": self.margin_per_volume,
+            "requested_at": self.requested_at,
+            "minimum_volume_uplifted": self.minimum_volume_uplifted,
+            "source_contract_size_units": self.source_contract_size_units,
+            "ctrader_lot_size_units": self.ctrader_lot_size_units,
             "capital_provenance": [
                 {
                     "source_kind": source_kind,
@@ -147,7 +179,7 @@ class CTraderDemoTradeRegistry:
             with os.fdopen(fd, "w", encoding="utf-8") as stream:
                 json.dump(
                     {
-                        "schema": "qore.ctrader-demo.trade-registry.v1",
+                        "schema": "qore.ctrader-demo.trade-registry.v2",
                         "entries": [
                             entries[key].as_json()
                             for key in sorted(entries)
@@ -198,6 +230,78 @@ def _entry_from_json(value: object) -> DemoTradeRegistryEntry:
             None
             if value.get("position_id") is None
             else int(str(value["position_id"]))
+        ),
+        receipt_id=(
+            None if value.get("receipt_id") is None else str(value["receipt_id"])
+        ),
+        idempotency_key=(
+            None
+            if value.get("idempotency_key") is None
+            else str(value["idempotency_key"])
+        ),
+        provider_symbol=(
+            None
+            if value.get("provider_symbol") is None
+            else str(value["provider_symbol"])
+        ),
+        side=None if value.get("side") is None else str(value["side"]),
+        entry_type=(
+            None
+            if value.get("entry_type") is None
+            else str(value["entry_type"])
+        ),
+        intended_entry=(
+            None
+            if value.get("intended_entry") is None
+            else str(value["intended_entry"])
+        ),
+        stop_loss=(
+            None if value.get("stop_loss") is None else str(value["stop_loss"])
+        ),
+        take_profit=(
+            None
+            if value.get("take_profit") is None
+            else str(value["take_profit"])
+        ),
+        volume_step=(
+            None
+            if value.get("volume_step") is None
+            else str(value["volume_step"])
+        ),
+        minimum_volume=(
+            None
+            if value.get("minimum_volume") is None
+            else str(value["minimum_volume"])
+        ),
+        stop_loss_per_volume=(
+            None
+            if value.get("stop_loss_per_volume") is None
+            else str(value["stop_loss_per_volume"])
+        ),
+        margin_per_volume=(
+            None
+            if value.get("margin_per_volume") is None
+            else str(value["margin_per_volume"])
+        ),
+        requested_at=(
+            None
+            if value.get("requested_at") is None
+            else str(value["requested_at"])
+        ),
+        minimum_volume_uplifted=(
+            None
+            if value.get("minimum_volume_uplifted") is None
+            else bool(value["minimum_volume_uplifted"])
+        ),
+        source_contract_size_units=(
+            None
+            if value.get("source_contract_size_units") is None
+            else str(value["source_contract_size_units"])
+        ),
+        ctrader_lot_size_units=(
+            None
+            if value.get("ctrader_lot_size_units") is None
+            else str(value["ctrader_lot_size_units"])
         ),
         capital_provenance=tuple(provenance),
     )
