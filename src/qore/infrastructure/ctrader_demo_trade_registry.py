@@ -35,6 +35,7 @@ class DemoTradeRegistryEntry:
     stop_loss_per_volume: str | None = None
     margin_per_volume: str | None = None
     requested_at: str | None = None
+    authorized_source_volume: str | None = None
     minimum_volume_uplifted: bool | None = None
     source_contract_size_units: str | None = None
     ctrader_lot_size_units: str | None = None
@@ -66,6 +67,7 @@ class DemoTradeRegistryEntry:
             "stop_loss_per_volume": self.stop_loss_per_volume,
             "margin_per_volume": self.margin_per_volume,
             "requested_at": self.requested_at,
+            "authorized_source_volume": self.authorized_source_volume,
             "minimum_volume_uplifted": self.minimum_volume_uplifted,
             "source_contract_size_units": self.source_contract_size_units,
             "ctrader_lot_size_units": self.ctrader_lot_size_units,
@@ -198,6 +200,12 @@ class CTraderDemoTradeRegistry:
 
 
 
+def _strict_optional_bool(value: object, name: str) -> bool:
+    if type(value) is not bool:
+        raise RuntimeError(f"cTrader DEMO registry {name} must be bool")
+    return value
+
+
 def _entry_from_json(value: object) -> DemoTradeRegistryEntry:
     if not isinstance(value, dict):
         raise RuntimeError("cTrader DEMO registry entry must be object")
@@ -288,10 +296,18 @@ def _entry_from_json(value: object) -> DemoTradeRegistryEntry:
             if value.get("requested_at") is None
             else str(value["requested_at"])
         ),
+        authorized_source_volume=(
+            None
+            if value.get("authorized_source_volume") is None
+            else str(value["authorized_source_volume"])
+        ),
         minimum_volume_uplifted=(
             None
             if value.get("minimum_volume_uplifted") is None
-            else bool(value["minimum_volume_uplifted"])
+            else _strict_optional_bool(
+                value["minimum_volume_uplifted"],
+                "minimum_volume_uplifted",
+            )
         ),
         source_contract_size_units=(
             None
