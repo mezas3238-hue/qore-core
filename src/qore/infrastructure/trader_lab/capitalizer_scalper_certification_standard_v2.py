@@ -126,11 +126,15 @@ class CertificationEvidence:
         for field_name in (
             "monte_carlo_positive_probability",
             "winner_count_preservation",
-            "winner_r_preservation",
         ):
             value = getattr(self, field_name)
             if value is not None and not Decimal("0") <= value <= Decimal("1"):
                 raise ValueError(f"{field_name} must be in [0, 1]")
+        if (
+            self.winner_r_preservation is not None
+            and self.winner_r_preservation < 0
+        ):
+            raise ValueError("winner_r_preservation must be non-negative")
         if (
             self.monte_carlo_p95_drawdown_r is not None
             and self.monte_carlo_p95_drawdown_r < 0
