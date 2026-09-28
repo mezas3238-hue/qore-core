@@ -11,7 +11,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
-
 MIN_OOS_PROFIT_FACTOR = Decimal("1.50")
 MIN_COMBINED_OOS_PROFIT_FACTOR = Decimal("1.70")
 MIN_COMBINED_OOS_EXPECTANCY_R = Decimal("0.15")
