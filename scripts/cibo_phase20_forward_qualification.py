@@ -11,6 +11,9 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.cibo_ce2i_phase20_causal_tool_readiness import (
+    assess_phase20_causal_tool_readiness,
+)
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
     DurablePhase20ForwardPolicyStore,
 )
@@ -273,7 +276,51 @@ def main() -> None:
         evidence_book=evidence,
         policy_book=policy,
     )
+    tool_readiness = assess_phase20_causal_tool_readiness(
+        evidence_book=evidence,
+        qualification_readiness=report.readiness,
+    )
     payload = _report_json(report)
+    payload["causal_tool_readiness"] = {
+        "global_forward_ready": tool_readiness.global_forward_ready,
+        "global_forward_blockers": list(
+            tool_readiness.global_forward_blockers
+        ),
+        "decision_epochs": tool_readiness.decision_epochs,
+        "usable_forward_epochs": tool_readiness.usable_forward_epochs,
+        "candidate_epochs": tool_readiness.candidate_epochs,
+        "exact_competition_epochs": (
+            tool_readiness.exact_competition_epochs
+        ),
+        "scarce_competition_epochs": (
+            tool_readiness.scarce_competition_epochs
+        ),
+        "valid_regime_epochs": tool_readiness.valid_regime_epochs,
+        "portfolio_netting_epochs": (
+            tool_readiness.portfolio_netting_epochs
+        ),
+        "known_option_epochs": tool_readiness.known_option_epochs,
+        "tools": [
+            {
+                "tool_code": item.tool_code,
+                "state": item.state.value,
+                "stream_bound": item.stream_bound,
+                "forward_population_ready": (
+                    item.forward_population_ready
+                ),
+                "observed_epochs": item.observed_epochs,
+                "qualifying_epochs": item.qualifying_epochs,
+                "blockers": list(item.blockers),
+            }
+            for item in tool_readiness.tools
+        ],
+        "governance": {
+            "calibration_promoted_by_this_report": False,
+            "oos_ready_promoted_by_this_report": False,
+            "certification_ready_promoted_by_this_report": False,
+            "holdout_2017h1_used": False,
+        },
+    }
     collector_git_shas: set[str] = set()
     missing_collector_git_sha = 0
     for decision in evidence.decisions:

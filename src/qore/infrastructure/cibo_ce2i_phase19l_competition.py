@@ -23,6 +23,8 @@ from qore.infrastructure.cibo_ce2i_phase19_temporal_concordance import (
     phase19k_priority_order,
 )
 
+MINIMUM_ROBUST_COMPETITION_EPOCHS = 30
+
 
 @dataclass(frozen=True, slots=True)
 class Phase19LCompetitionEpoch:

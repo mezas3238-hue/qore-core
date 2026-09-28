@@ -24,6 +24,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_policy_store.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_qualification_plan.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_causal_tool_readiness.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase22_holdout_gate.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_shadow_observer.py'
@@ -89,6 +90,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_collector.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_qualification_plan.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_qualification_readiness.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_causal_tool_readiness.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase21_policy_freeze.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase22_holdout_gate.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_shadow_observer.py'
@@ -129,6 +131,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_policy_store.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_qualification_plan.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_causal_tool_readiness.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase22_holdout_gate.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_shadow_observer.py'
@@ -194,6 +197,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_collector.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_qualification_plan.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_qualification_readiness.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_causal_tool_readiness.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase21_policy_freeze.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase22_holdout_gate.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_shadow_observer.py'
@@ -250,6 +254,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_forward_policy_store.py \
             src/qore/infrastructure/cibo_ce2i_phase20_qualification_plan.py \
             src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_causal_tool_readiness.py \
             src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py \
             src/qore/infrastructure/cibo_ce2i_phase22_holdout_gate.py \
             src/qore/infrastructure/cibo_ce2i_phase22_qualification_plan.py \
@@ -321,6 +326,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_forward_collector.py \
             tests/infrastructure/test_cibo_ce2i_phase20_qualification_plan.py \
             tests/infrastructure/test_cibo_ce2i_phase20_qualification_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_causal_tool_readiness.py \
             tests/infrastructure/test_cibo_ce2i_phase21_policy_freeze.py \
             tests/infrastructure/test_cibo_ce2i_phase22_holdout_gate.py \
             tests/infrastructure/test_cibo_ce2i_phase22_qualification.py \
@@ -365,6 +371,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_forward_policy_store.py \
             src/qore/infrastructure/cibo_ce2i_phase20_qualification_plan.py \
             src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_causal_tool_readiness.py \
             src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py \
             src/qore/infrastructure/cibo_ce2i_phase22_holdout_gate.py \
             src/qore/infrastructure/cibo_ce2i_phase22_qualification_plan.py \
@@ -438,6 +445,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_epoch_aggregator.py \
             tests/infrastructure/test_cibo_ce2i_phase20_qualification_plan.py \
             tests/infrastructure/test_cibo_ce2i_phase20_qualification_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_causal_tool_readiness.py \
             tests/infrastructure/test_cibo_ce2i_phase21_policy_freeze.py \
             tests/infrastructure/test_cibo_ce2i_phase22_holdout_gate.py \
             tests/infrastructure/test_cibo_ce2i_phase22_qualification.py \

@@ -34,6 +34,7 @@ from qore.infrastructure.cibo_ce2i_phase19_temporal_concordance import (
     phase19k_priority_order,
 )
 from qore.infrastructure.cibo_ce2i_phase19l_competition import (
+    MINIMUM_ROBUST_COMPETITION_EPOCHS,
     exact_competition_epochs,
     one_slot_delta_ncu,
     select_identity_reference_candidate,
@@ -116,8 +117,8 @@ def run(
             "candidate_count_in_exact_epochs": sum(
                 len(epoch.candidates) for epoch in epochs
             ),
-            "minimum_robust_epoch_count": 30,
-            "robust_competition_population_available": len(epochs) >= 30,
+            "minimum_robust_epoch_count": MINIMUM_ROBUST_COMPETITION_EPOCHS,
+            "robust_competition_population_available": len(epochs) >= MINIMUM_ROBUST_COMPETITION_EPOCHS,
             "shared_entry_time_treated_as_competition": False,
             "ordinary_overlap_treated_as_competition": False,
         },
@@ -155,7 +156,7 @@ def run(
         ],
         "interpretation": {
             "t09_t18_causal_candidate_exists": True,
-            "historical_scarcity_identification_robust": len(epochs) >= 30,
+            "historical_scarcity_identification_robust": len(epochs) >= MINIMUM_ROBUST_COMPETITION_EPOCHS,
             "promotion_from_phase19l_alone": False,
             "fresh_oos_scarcity_generalization_required": True,
         },
