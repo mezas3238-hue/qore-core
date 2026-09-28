@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from qore.infrastructure.cibo_phase20_demo_execution_activation import (  # type: ignore[import-untyped]
+from qore.infrastructure.cibo_phase20_demo_execution_activation import (
     load_phase20_demo_execution_activation,
 )
 
