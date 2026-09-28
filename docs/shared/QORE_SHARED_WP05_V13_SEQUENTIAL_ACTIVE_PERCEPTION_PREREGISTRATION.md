@@ -118,6 +118,28 @@ If all five pass, freeze:
 - artifact fingerprint;
 - per-checkpoint coverage.
 
+## 5A. Authoritative source-only trajectory freeze
+
+The source-only V13 gate is now satisfied by:
+
+- GitHub Actions run: `36480950714`;
+- producer Git SHA: `dccbc2a646b9bc41a311db2dfe7b9453d09f4661`;
+- artifact id: `10996912676`;
+- status: `source_only_frozen`;
+- rows: **6,804 / 6,804**;
+- per-checkpoint usable coverage bps:
+  **9860 / 9695 / 9672 / 9628 / 9603**;
+- crossed causal quote counts: **0 / 0 / 0 / 0 / 0**;
+- contract fingerprint:
+  `4a519c4039a9aa2e5fca4256d2e9551afaf253ac909660ecb8a32be73637837e`;
+- rows SHA256:
+  `3e3c5dd9bac53902f95f3a6ce0b0aa35685a50b1396789f92e5e73fc1ff8b28a`;
+- representation artifact fingerprint:
+  `60e05ab6cb5dd38778c8d7055f44026f79b81c86e70cc4f6427c83e0291450ec`.
+
+The V13 R8 target-aware experiment is authorized only against this exact
+artifact fingerprint.
+
 ## 6. Target-aware V13 representation
 
 V13 has exactly one representation:
@@ -175,8 +197,8 @@ Inside each training population:
 The threshold therefore uses terminal preservation only. It never selects a
 threshold by maximizing false-veto performance.
 
-If calibration lacks enough true V11 confirmations to define this law, the fold
-fails closed.
+If calibration contains fewer than **50** true V11 confirmations, the fold fails
+closed. This minimum is frozen before V13 target-aware execution.
 
 ## 9. V13 decision law
 
