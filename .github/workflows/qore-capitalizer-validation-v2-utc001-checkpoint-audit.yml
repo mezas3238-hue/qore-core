@@ -7,6 +7,10 @@ on:
     paths:
       - '.github/workflows/qore-capitalizer-validation-v2-utc001-checkpoint-audit.yml'
       - 'src/qore/infrastructure/trader_lab/capitalizer_validation_v2_utc001_checkpoint_audit_v1.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_scalper_certification_metrics_v2.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_scalper_monte_carlo_v2.py'
+      - 'src/qore/infrastructure/trader_lab/universal_trader_certification_standard_001.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_scalper_utc001_consumed_audit_v1.py'
   workflow_dispatch:
 
 permissions:
