@@ -559,7 +559,7 @@ def load_geometry_rows(
                 nested = item.get("geometry")
                 if not isinstance(nested, dict):
                     raise ValueError("V38 geometry row missing nested geometry")
-                item["geometry"] = geometry.PreentryNativeM1Geometry(**nested)
+                item["geometry"] = geometry.from_json_dict(nested)
                 rows.append(SelectedGeometry(**item))
     keys = tuple((row.symbol, row.entry_at) for row in rows)
     if len(keys) != len(set(keys)):
