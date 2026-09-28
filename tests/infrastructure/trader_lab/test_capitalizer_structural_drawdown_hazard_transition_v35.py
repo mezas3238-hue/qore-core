@@ -112,7 +112,7 @@ def test_first_passage_target_detects_deeper_trough_before_recovery() -> None:
     assert target.deepens_before_recovery is True
     assert target.additional_trough_r == "1"
     assert target.recovered_peak is True
-    assert target.terminal_event == "RECOVER_PEAK"
+    assert target.terminal_event == "DEEPEN_TROUGH"
 
 
 def test_first_passage_alternative_can_avoid_deepening() -> None:
