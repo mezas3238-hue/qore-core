@@ -11,7 +11,7 @@ post-entry path are structurally absent from this contract.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -206,7 +206,7 @@ def from_v3_trade(trade: v3.V3Trade) -> PreentryNativeM1Geometry:
     mss = v3.M3MssEvent(
         side=CapitalizerSide(trade.side),
         confirmed_at=m3_mss_at,
-        displacement_opened_at=m3_mss_at,
+        displacement_opened_at=m3_mss_at - timedelta(minutes=3),
         displacement_closed_at=m3_mss_at,
         broken_swing_price=Decimal(trade.m3_broken_swing_price),
         cisd_boundary=Decimal(trade.m3_cisd_boundary),
