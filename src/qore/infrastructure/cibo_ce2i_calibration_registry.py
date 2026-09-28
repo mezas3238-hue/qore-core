@@ -20,6 +20,9 @@ from qore.infrastructure.cibo_ce2i_burned_calibration import (
 from qore.infrastructure.cibo_ce2i_burned_lifecycle_calibration import (
     burned_lifecycle_calibration_sha256,
 )
+from qore.infrastructure.cibo_ce2i_burned_non_promotion import (
+    burned_non_promotion_sha256,
+)
 from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
     provider_economics_evidence_ref,
 )
@@ -160,6 +163,10 @@ _PHASE19 = "burned:phase19:integrated-common-window"
 _PHASE19_WFO = "burned:phase19j:post-freeze-walk-forward"
 _PROVIDER_GAP = provider_economics_evidence_ref()
 _PHASE20_CONTRACT = "phase20:contract-and-failure-proof"
+_PHASE19_NON_PROMOTION = (
+    "burned:phase19:non-promotion:sha256:"
+    + burned_non_promotion_sha256()
+)
 
 
 def _row(
@@ -257,15 +264,22 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
         "T08",
         CiboCalibrationState.CALIBRATION_UNAVAILABLE,
         CiboCalibrationType.CAUSAL_NORMALIZED,
-        (_PHASE19, "burned:phase19:overlap-dependence"),
-        ("FACTOR_NETTING_CALIBRATION_NOT_FROZEN",),
+        (_PHASE19, "burned:phase19:overlap-dependence", _PHASE19_NON_PROMOTION),
+        (
+            "OVERLAP_DEPENDENCE_DESCRIPTIVE_ONLY",
+            "FACTOR_MAP_NOT_CERTIFIED",
+            "CORRELATION_NOT_CLAIMED_BY_SOURCE_ARTIFACT",
+        ),
     ),
     _row(
         "T09",
         CiboCalibrationState.CALIBRATION_UNAVAILABLE,
         CiboCalibrationType.CAUSAL_NORMALIZED,
-        (_PHASE19, _PHASE19_WFO),
-        ("CAUSAL_COMPETITION_POLICY_NOT_FROZEN",),
+        (_PHASE19, _PHASE19_WFO, _PHASE19_NON_PROMOTION),
+        (
+            "ZERO_WALK_FORWARD_POLICY_SURVIVORS",
+            "NO_ROBUST_COMPETITION_POLICY_IDENTIFIED",
+        ),
     ),
     _row(
         "T10",
@@ -294,15 +308,21 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
         "T12",
         CiboCalibrationState.CALIBRATION_UNAVAILABLE,
         CiboCalibrationType.CAUSAL_NORMALIZED,
-        (_PHASE19, "burned:phase19:temporal-stability"),
-        ("CAUSAL_REGIME_BOUNDARIES_NOT_FROZEN",),
+        (_PHASE19, "burned:phase19:temporal-stability", _PHASE19_NON_PROMOTION),
+        (
+            "TEMPORAL_STABILITY_OBSERVATIONAL_ONLY",
+            "CAUSAL_REGIME_BOUNDARIES_NOT_IDENTIFIED",
+        ),
     ),
     _row(
         "T13",
         CiboCalibrationState.CALIBRATION_UNAVAILABLE,
         CiboCalibrationType.CAUSAL_NORMALIZED,
-        (_PHASE19_WFO, _PHASE20_CONTRACT),
-        ("DRAWDOWN_RESERVE_CALIBRATION_NOT_FROZEN",),
+        (_PHASE19_WFO, _PHASE20_CONTRACT, _PHASE19_NON_PROMOTION),
+        (
+            "ZERO_WALK_FORWARD_POLICY_SURVIVORS",
+            "NO_ROBUST_DRAWDOWN_RESERVE_POLICY_IDENTIFIED",
+        ),
     ),
     _row(
         "T14",
@@ -344,8 +364,11 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
         "T18",
         CiboCalibrationState.CALIBRATION_UNAVAILABLE,
         CiboCalibrationType.CAUSAL_NORMALIZED,
-        (_PHASE19, _PHASE19_WFO),
-        ("CROSS_TRADER_ALLOCATION_POLICY_NOT_FROZEN",),
+        (_PHASE19, _PHASE19_WFO, _PHASE19_NON_PROMOTION),
+        (
+            "ZERO_WALK_FORWARD_POLICY_SURVIVORS",
+            "NO_ROBUST_CROSS_TRADER_ALLOCATION_POLICY_IDENTIFIED",
+        ),
     ),
     _row(
         "T19",
