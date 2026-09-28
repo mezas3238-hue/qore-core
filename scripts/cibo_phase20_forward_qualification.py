@@ -304,14 +304,31 @@ def main() -> None:
         certification_blockers.append("COLLECTOR_GIT_LINEAGE_INCOMPLETE")
     if len(collector_git_shas) != 1:
         certification_blockers.append("COLLECTOR_GIT_LINEAGE_NOT_SINGLE_SHA")
-    payload["final_certification"] = {
+    payload["phase20d_gate"] = {
         "status": (
-            "CIBO_CERTIFIED"
+            "PASS"
             if not certification_blockers
-            else "PENDING"
+            else "PENDING_OR_FAIL"
         ),
-        "eligible": not certification_blockers,
+        "eligible_for_phase21": not certification_blockers,
         "blockers": certification_blockers,
+        "requires_exact_evidence_and_policy_digests": True,
+        "requires_single_collector_git_sha": True,
+    }
+    final_blockers = list(certification_blockers)
+    final_blockers.extend(
+        (
+            "PHASE21_POLICY_FREEZE_REQUIRED",
+            "PHASE22_SEALED_HOLDOUT_REQUIRED",
+        )
+    )
+    payload["final_certification"] = {
+        "status": "PENDING_PHASE21_PHASE22",
+        "eligible": False,
+        "blockers": final_blockers,
+        "phase20d_eligible_for_phase21": not certification_blockers,
+        "requires_phase21_policy_freeze": True,
+        "requires_phase22_sealed_holdout": True,
         "requires_exact_evidence_and_policy_digests": True,
         "requires_single_collector_git_sha": True,
     }
