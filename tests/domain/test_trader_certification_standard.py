@@ -15,7 +15,7 @@ def _green() -> UniversalTraderCertificationEvidence:
         combined_oos_expectancy_r=Decimal("0.15"),
         oos_sharpes=(Decimal("1.60"), Decimal("1.70")),
         oos_sortinos=(Decimal("2.10"), Decimal("2.20")),
-        observed_max_drawdown_r=Decimal("9.9"),
+        observed_max_drawdown_r=Decimal("6.0"),
         monte_carlo_positive_probability=Decimal("0.91"),
         monte_carlo_p95_drawdown_r=Decimal("14.9"),
         payoff_ratio=Decimal("1.20"),
@@ -127,7 +127,7 @@ def test_costs_and_tail_survival_are_hard_gates() -> None:
         combined_oos_expectancy_r=green.combined_oos_expectancy_r,
         oos_sharpes=green.oos_sharpes,
         oos_sortinos=green.oos_sortinos,
-        observed_max_drawdown_r=Decimal("10.01"),
+        observed_max_drawdown_r=Decimal("6.01"),
         monte_carlo_positive_probability=Decimal("0.899"),
         monte_carlo_p95_drawdown_r=Decimal("15.01"),
         payoff_ratio=green.payoff_ratio,
@@ -142,7 +142,7 @@ def test_costs_and_tail_survival_are_hard_gates() -> None:
 
     failures = universal_acceptance_failures(evidence)
 
-    assert "OBSERVED_MAX_DRAWDOWN_ABOVE_10R" in failures
+    assert "OBSERVED_MAX_DRAWDOWN_ABOVE_6R" in failures
     assert "MONTE_CARLO_POSITIVE_PROBABILITY_BELOW_90_PERCENT" in failures
     assert "MONTE_CARLO_P95_DRAWDOWN_ABOVE_15R" in failures
     assert "POST_COST_PROFIT_FACTOR_NOT_ABOVE_1" in failures
