@@ -279,6 +279,8 @@ class Phase21QualificationReceipt:
     evidence_store_sha256: str
     policy_store_sha256: str
     qualification_artifact_sha256: str
+    qualification_git_sha: str
+    qualification_artifact_json: str
     qualified_at: datetime
     passed: bool
 
@@ -308,11 +310,153 @@ class Phase21QualificationReceipt:
             "qualification_artifact_sha256",
         ):
             _require_sha256(getattr(self, name), name)
+        if _SHA1_RE.fullmatch(self.qualification_git_sha) is None:
+            raise CiboCapitalManagementError(
+                "Phase21 qualification Git SHA must be lowercase 40-hex"
+            )
         _require_aware(self.qualified_at, "qualified_at")
         if not self.passed:
             raise CiboCapitalManagementError(
                 "Phase21 requires Phase20D PASS qualification"
             )
+        try:
+            report = json.loads(self.qualification_artifact_json)
+        except json.JSONDecodeError as error:
+            raise CiboCapitalManagementError(
+                "Phase21 qualification artifact is invalid JSON"
+            ) from error
+        if not isinstance(report, dict):
+            raise CiboCapitalManagementError(
+                "Phase21 qualification artifact must be object"
+            )
+        expected_json = json.dumps(
+            report,
+            indent=2,
+            sort_keys=True,
+        ) + "\n"
+        if expected_json != self.qualification_artifact_json:
+            raise CiboCapitalManagementError(
+                "Phase21 qualification artifact must use canonical file JSON"
+            )
+        digest = (
+            "sha256:"
+            + sha256(self.qualification_artifact_json.encode("utf-8")).hexdigest()
+        )
+        if digest != self.qualification_artifact_sha256:
+            raise CiboCapitalManagementError(
+                "Phase21 qualification artifact digest mismatch"
+            )
+        if report.get("schema") != "qore.cibo.phase20d.v2-qualification.v5":
+            raise CiboCapitalManagementError(
+                "Phase21 qualification schema mismatch"
+            )
+        if report.get("status") != "PASS":
+            raise CiboCapitalManagementError(
+                "Phase21 qualification artifact is not PASS"
+            )
+        if report.get("candidate_id") != self.candidate_id:
+            raise CiboCapitalManagementError(
+                "Phase21 qualification artifact candidate mismatch"
+            )
+        if (
+            report.get("plan_id") != self.plan_id
+            or report.get("plan_sha256") != self.plan_sha256
+        ):
+            raise CiboCapitalManagementError(
+                "Phase21 qualification artifact plan mismatch"
+            )
+        if report.get("failures_or_pending_reasons") != []:
+            raise CiboCapitalManagementError(
+                "Phase21 qualification artifact has failures"
+            )
+        readiness = report.get("readiness")
+        if not isinstance(readiness, dict) or readiness.get("ready") is not True:
+            raise CiboCapitalManagementError(
+                "Phase21 qualification artifact is not forward-ready"
+            )
+        provenance = report.get("provenance")
+        if not isinstance(provenance, dict):
+            raise CiboCapitalManagementError(
+                "Phase21 qualification provenance missing"
+            )
+        if (
+            provenance.get("evidence_store_sha256")
+            != self.evidence_store_sha256
+            or provenance.get("policy_store_sha256")
+            != self.policy_store_sha256
+        ):
+            raise CiboCapitalManagementError(
+                "Phase21 qualification store lineage mismatch"
+            )
+        if provenance.get("git_sha") != self.qualification_git_sha:
+            raise CiboCapitalManagementError(
+                "Phase21 qualification Git lineage mismatch"
+            )
+        collector_shas = provenance.get("collector_git_shas")
+        if (
+            provenance.get("missing_collector_git_sha_decisions") != 0
+            or not isinstance(collector_shas, list)
+            or len(collector_shas) != 1
+            or _SHA1_RE.fullmatch(str(collector_shas[0])) is None
+        ):
+            raise CiboCapitalManagementError(
+                "Phase21 qualification collector lineage incomplete"
+            )
+        gate = report.get("phase20d_gate")
+        if (
+            not isinstance(gate, dict)
+            or gate.get("status") != "PASS"
+            or gate.get("eligible_for_phase21") is not True
+            or gate.get("blockers") != []
+            or gate.get("requires_exact_evidence_and_policy_digests") is not True
+            or gate.get("requires_single_collector_git_sha") is not True
+        ):
+            raise CiboCapitalManagementError(
+                "Phase21 qualification gate is not eligible"
+            )
+
+
+def build_phase21_qualification_receipt(
+    *,
+    qualification_artifact_json: str,
+    qualified_at: datetime,
+) -> Phase21QualificationReceipt:
+    try:
+        report = json.loads(qualification_artifact_json)
+    except json.JSONDecodeError as error:
+        raise CiboCapitalManagementError(
+            "Phase21 qualification artifact is invalid JSON"
+        ) from error
+    if not isinstance(report, dict):
+        raise CiboCapitalManagementError(
+            "Phase21 qualification artifact must be object"
+        )
+    provenance = report.get("provenance")
+    if not isinstance(provenance, dict):
+        raise CiboCapitalManagementError(
+            "Phase21 qualification provenance missing"
+        )
+    candidate = FROZEN_PHASE20_POLICY_CANDIDATE
+    return Phase21QualificationReceipt(
+        candidate_id=str(report.get("candidate_id", "")),
+        candidate_parameter_sha256=candidate.parameter_sha256(),
+        plan_id=str(report.get("plan_id", "")),
+        plan_sha256=str(report.get("plan_sha256", "")),
+        evidence_store_sha256=str(
+            provenance.get("evidence_store_sha256", "")
+        ),
+        policy_store_sha256=str(
+            provenance.get("policy_store_sha256", "")
+        ),
+        qualification_artifact_sha256=(
+            "sha256:"
+            + sha256(qualification_artifact_json.encode("utf-8")).hexdigest()
+        ),
+        qualification_git_sha=str(provenance.get("git_sha", "")),
+        qualification_artifact_json=qualification_artifact_json,
+        qualified_at=qualified_at,
+        passed=report.get("status") == "PASS",
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -656,6 +800,9 @@ class Phase21PolicyFreezeManifest:
                 ),
                 "qualification_artifact_sha256": (
                     self.qualification.qualification_artifact_sha256
+                ),
+                "qualification_git_sha": (
+                    self.qualification.qualification_git_sha
                 ),
                 "qualified_at": self.qualification.qualified_at.isoformat(),
             },
