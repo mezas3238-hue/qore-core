@@ -20,6 +20,9 @@ from qore.infrastructure.cibo_ce2i_pre_holdout_gate import (
     calibration_matrix_sha256,
     evaluate_pre_holdout_readiness,
 )
+from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
+    CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS,
+)
 from qore.infrastructure.cibo_ce2i_usd60_six_month_certification import (
     FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL,
 )
@@ -27,6 +30,12 @@ from qore.infrastructure.cibo_ce2i_usd60_six_month_certification import (
 
 def _protocol_payload() -> dict[str, object]:
     protocol = FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL
+    provider = CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS
+    provider_status = (
+        "CURRENT_DEMO_TERMS_READY_"
+        "HISTORICAL_EXACT_FALSE_SLIPPAGE_FALSE"
+    )
+
     return {
         "protocol_id": protocol.protocol_id,
         "initial_capital_usd": str(protocol.initial_capital_usd),
@@ -61,12 +70,9 @@ def _sha256(value: object) -> str:
 def build_report(
     *,
     git_sha: str,
-    provider_economics_status: str,
 ) -> dict[str, Any]:
     if not git_sha:
         raise ValueError("git sha is required")
-    if not provider_economics_status:
-        raise ValueError("provider economics status is required")
 
     readiness = evaluate_pre_holdout_readiness(
         provider_economics_frozen=False,
@@ -111,7 +117,25 @@ def build_report(
         "config_sha256": _sha256(protocol),
         "calibration_matrix_sha256": calibration_matrix_sha256(),
         "burn_registry_sha256": _sha256(burns),
-        "provider_economics_status": provider_economics_status,
+        "provider_economics_status": provider_status,
+        "provider_economics": {
+            "workflow_run_id": provider.workflow_run_id,
+            "artifact_id": provider.artifact_id,
+            "artifact_sha256": provider.artifact_sha256,
+            "source_git_sha": provider.source_git_sha,
+            "observed_at": provider.observed_at,
+            "provider_key": provider.provider_key,
+            "symbols": list(provider.symbols),
+            "provider_terms_ready": provider.provider_terms_ready,
+            "slippage_empirically_calibrated": (
+                provider.slippage_empirically_calibrated
+            ),
+            "historical_exact_claimed": provider.historical_exact_claimed,
+            "execution_model_ready": provider.execution_model_ready,
+            "broker_mutation_performed": provider.broker_mutation_performed,
+            "holdout_outcomes_used": provider.holdout_outcomes_used,
+            "target_aware": provider.target_aware,
+        },
         "ready_to_unseal_2017h1": False,
         "pre_holdout_blockers": list(readiness.blockers),
         "protocol": protocol,
@@ -140,16 +164,11 @@ def build_report(
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--git-sha", required=True)
-    parser.add_argument(
-        "--provider-economics-status",
-        default="PENDING_PROVIDER_ECONOMICS_EVIDENCE",
-    )
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
     report = build_report(
         git_sha=args.git_sha,
-        provider_economics_status=args.provider_economics_status,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
