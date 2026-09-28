@@ -36,6 +36,7 @@ from qore.infrastructure.trader_lab import (
 )
 
 IDENTITY = "QORE_CAPITALIZER_VALIDATION_V2_UTC001_CHECKPOINT_AUDIT_V1"
+# Uses the UTC-001 modules validated on the primary PR branch.
 PERIOD = "CONSUMED_VALIDATION_2022_2024"
 WINDOW_START = date(2022, 9, 17)
 WINDOW_END = date(2024, 9, 17)
