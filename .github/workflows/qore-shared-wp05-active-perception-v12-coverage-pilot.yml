@@ -224,7 +224,7 @@ jobs:
         if: always()
         run: |
           if [ ! -f result/coverage-pilot/coverage-pilot-report.json ]; then
-            gh issue comment 643 --body "WP-05 V12 R8 provider-history coverage pilot `${GITHUB_RUN_ID}` failed technically before a valid sanitized coverage report was produced. No target/outcome, R6/R5 or fresh holdout was opened."
+            gh issue comment 643 --body "WP-05 V12 R8 provider-history coverage pilot run ${GITHUB_RUN_ID} failed technically before a valid sanitized coverage report was produced. No target/outcome, R6/R5 or fresh holdout was opened."
             exit 0
           fi
           python - <<'PY'
