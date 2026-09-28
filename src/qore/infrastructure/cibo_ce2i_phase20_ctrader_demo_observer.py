@@ -70,7 +70,7 @@ def observe_ctrader_demo_phase20_batch(
     concentration_limit_by_group: tuple[tuple[str, Decimal], ...],
     regime_state: CiboCapitalRegimeState,
     current_step: int,
-    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot,
+    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot | None = None,
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
 ) -> Phase20ForwardShadowObservation:
     """Observe one actual DEMO epoch without changing its execution path."""
