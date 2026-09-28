@@ -38,6 +38,13 @@ from qore.kernel.result import Failure, Result, Success
 _MAX_WINDOW = timedelta(days=7)
 _ONE_MILLISECOND = timedelta(milliseconds=1)
 _DEFAULT_HISTORICAL_REQUEST_INTERVAL_SECONDS = 0.2
+_HISTORICAL_READ_ONLY_MESSAGES = frozenset(
+    {
+        "ProtoOASymbolsListReq",
+        "ProtoOASymbolByIdReq",
+        "ProtoOAGetTickDataReq",
+    }
+)
 
 
 class CTraderHistoricalTickCollectorError(ExternalPortError):
@@ -276,6 +283,77 @@ def resolve_ctrader_historical_sensor_identity(
     except CTraderHistoricalTickCollectorError as error:
         return Failure(error)
     return Success(identity)
+
+
+class CTraderHistoricalReadOnlyMessageClient:
+    """Fail-closed message firewall for V12 historical acquisition.
+
+    The underlying authenticated client may hold either a view-only or a
+    trading-capable token. This wrapper admits only the three read-only provider
+    requests required by V12 and never exposes subscription or order-shaped
+    operations to the collector.
+    """
+
+    __slots__ = ("_client",)
+
+    def __init__(self, client: CTraderOpenApiMessageClientBoundary) -> None:
+        self._client = client
+
+    @property
+    def is_ready(self) -> bool:
+        return self._client.is_ready
+
+    @property
+    def account_id(self) -> int:
+        return self._client.account_id
+
+    def connect_and_authenticate(self):
+        return self._client.connect_and_authenticate()
+
+    def request(
+        self,
+        message_name: str,
+        fields: Mapping[str, object],
+        *,
+        client_msg_id: str,
+        timeout_seconds: float,
+    ):
+        if message_name not in _HISTORICAL_READ_ONLY_MESSAGES:
+            return Failure(
+                CTraderHistoricalTickCollectorError(
+                    "V12 historical client rejected non-read-only provider message"
+                )
+            )
+        result = self._client.request(
+            message_name,
+            fields,
+            client_msg_id=client_msg_id,
+            timeout_seconds=timeout_seconds,
+        )
+        if isinstance(result, Failure):
+            return Failure(
+                CTraderHistoricalTickCollectorError(
+                    "V12 read-only provider request failed"
+                )
+            )
+        return Success(result.value)
+
+    def wait_for_event(
+        self,
+        message_name: str,
+        *,
+        timeout_seconds: float,
+        predicate=None,
+    ):
+        del message_name, timeout_seconds, predicate
+        return Failure(
+            CTraderHistoricalTickCollectorError(
+                "V12 historical client does not admit provider subscriptions"
+            )
+        )
+
+    def close(self) -> None:
+        self._client.close()
 
 
 class HistoricalTickPageReaderBoundary(Protocol):
