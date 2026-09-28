@@ -56,6 +56,10 @@ on:
       - 'scripts/cibo_phase20_forward_qualification.py'
       - 'scripts/cibo_phase21_policy_freeze_contract.py'
       - 'scripts/cibo_phase22_holdout_gate_contract.py'
+      - 'scripts/cibo_phase22_holdout_qualification_contract.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase22_qualification_plan.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase22_qualification.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase22_qualification.py'
       - 'scripts/cibo_phase20_failure_engineering.py'
       - 'scripts/cibo_phase20_failure_engineering_b.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py'
@@ -148,6 +152,10 @@ on:
       - 'scripts/cibo_phase20_forward_qualification.py'
       - 'scripts/cibo_phase21_policy_freeze_contract.py'
       - 'scripts/cibo_phase22_holdout_gate_contract.py'
+      - 'scripts/cibo_phase22_holdout_qualification_contract.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase22_qualification_plan.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase22_qualification.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase22_qualification.py'
       - 'scripts/cibo_phase20_failure_engineering.py'
       - 'scripts/cibo_phase20_failure_engineering_b.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py'
@@ -223,6 +231,8 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py \
             src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py \
             src/qore/infrastructure/cibo_ce2i_phase22_holdout_gate.py \
+            src/qore/infrastructure/cibo_ce2i_phase22_qualification_plan.py \
+            src/qore/infrastructure/cibo_ce2i_phase22_qualification.py \
             src/qore/infrastructure/cibo_ce2i_phase20_shadow_observer.py \
             src/qore/infrastructure/cibo_ce2i_phase20_demo_shadow_risk.py \
             src/qore/infrastructure/cibo_ce2i_phase20_demo_capital_bootstrap.py \
@@ -260,6 +270,7 @@ jobs:
             scripts/cibo_phase20_forward_qualification.py \
             scripts/cibo_phase21_policy_freeze_contract.py \
             scripts/cibo_phase22_holdout_gate_contract.py \
+            scripts/cibo_phase22_holdout_qualification_contract.py \
             scripts/cibo_phase20_failure_engineering.py \
             scripts/cibo_phase20_failure_engineering_b.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
@@ -282,6 +293,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_qualification_readiness.py \
             tests/infrastructure/test_cibo_ce2i_phase21_policy_freeze.py \
             tests/infrastructure/test_cibo_ce2i_phase22_holdout_gate.py \
+            tests/infrastructure/test_cibo_ce2i_phase22_qualification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_shadow_observer.py \
             tests/infrastructure/test_cibo_ce2i_phase20_demo_shadow_risk.py \
             tests/infrastructure/test_cibo_ce2i_phase20_demo_capital_bootstrap.py \
@@ -320,6 +332,8 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py \
             src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py \
             src/qore/infrastructure/cibo_ce2i_phase22_holdout_gate.py \
+            src/qore/infrastructure/cibo_ce2i_phase22_qualification_plan.py \
+            src/qore/infrastructure/cibo_ce2i_phase22_qualification.py \
             src/qore/infrastructure/cibo_ce2i_phase20_shadow_observer.py \
             src/qore/infrastructure/cibo_ce2i_phase20_demo_shadow_risk.py \
             src/qore/infrastructure/cibo_ce2i_phase20_demo_capital_bootstrap.py \
@@ -357,6 +371,7 @@ jobs:
             scripts/cibo_phase20_forward_qualification.py \
             scripts/cibo_phase21_policy_freeze_contract.py \
             scripts/cibo_phase22_holdout_gate_contract.py \
+            scripts/cibo_phase22_holdout_qualification_contract.py \
             scripts/cibo_phase20_failure_engineering.py \
             scripts/cibo_phase20_failure_engineering_b.py
           python -m py_compile scripts/qore_ctrader_demo_free_runtime.py
@@ -381,6 +396,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_qualification_readiness.py \
             tests/infrastructure/test_cibo_ce2i_phase21_policy_freeze.py \
             tests/infrastructure/test_cibo_ce2i_phase22_holdout_gate.py \
+            tests/infrastructure/test_cibo_ce2i_phase22_qualification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_shadow_observer.py \
             tests/infrastructure/test_cibo_ce2i_phase20_demo_shadow_risk.py \
             tests/infrastructure/test_cibo_ce2i_phase20_demo_capital_bootstrap.py \
@@ -474,6 +490,9 @@ jobs:
           python scripts/cibo_phase22_holdout_gate_contract.py \
             --output phase20-output/phase22-holdout-lineage-contract.json \
             > phase20-output/phase22-holdout-lineage-stdout.json
+          python scripts/cibo_phase22_holdout_qualification_contract.py \
+            --output phase20-output/phase22-holdout-qualification-contract.json \
+            > phase20-output/phase22-holdout-qualification-stdout.json
           python scripts/cibo_phase20_failure_engineering.py \
             --output phase20-output/phase20-failure-engineering.json \
             > phase20-output/failure-engineering-stdout.json
@@ -519,6 +538,8 @@ jobs:
             phase21-policy-freeze-stdout.json \
             phase22-holdout-lineage-contract.json \
             phase22-holdout-lineage-stdout.json \
+            phase22-holdout-qualification-contract.json \
+            phase22-holdout-qualification-stdout.json \
             empty-forward-evidence.json \
             empty-forward-policy.json \
             phase20-failure-engineering.json \
