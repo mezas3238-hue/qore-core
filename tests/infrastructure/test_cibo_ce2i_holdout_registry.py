@@ -15,7 +15,7 @@ def test_preregistered_holdout_is_exact_six_months_and_burn_clean() -> None:
 
     assert candidate.start_at == datetime(2017, 1, 1, tzinfo=UTC)
     assert candidate.end_exclusive_at == datetime(2017, 7, 1, tzinfo=UTC)
-    assert candidate.status is CiboHoldoutCandidateStatus.SOURCE_VALIDATION_PENDING
+    assert candidate.status is CiboHoldoutCandidateStatus.SEALED_UNTOUCHED
     assert candidate.outcome_data_inspected_at_selection is False
     assert candidate.source_validation_complete is False
     assert candidate_is_burn_clean_for_all_lineages(candidate) is True
