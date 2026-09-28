@@ -13,6 +13,11 @@ def test_phase19_descriptive_evidence_is_not_promoted_to_causal() -> None:
     assert payload["governance"]["descriptive_evidence_promoted_to_causal"] is False
     assert payload["governance"]["failed_wfo_policy_promoted"] is False
     assert payload["governance"]["holdout_2017h1_used"] is False
+    assert (
+        payload["source_findings"]["post_entry_derisk_event_population_identified"]
+        is False
+    )
+    assert payload["source_findings"]["optionality_value_identified"] is False
 
 
 def test_non_promoted_tools_are_exactly_portfolio_regime_failures() -> None:
@@ -41,8 +46,6 @@ def test_non_promoted_tools_are_exactly_portfolio_regime_failures() -> None:
         "OPTIONALITY_VALUE_NOT_CAUSALLY_IDENTIFIED"
         in BURNED_NON_PROMOTION_REASONS["T15"]
     )
-    assert payload["source_findings"]["post_entry_derisk_event_population_identified"] is False
-    assert payload["source_findings"]["optionality_value_identified"] is False
 
 
 def test_non_promotion_hash_is_stable() -> None:
