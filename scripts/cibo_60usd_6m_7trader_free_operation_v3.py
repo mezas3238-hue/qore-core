@@ -34,7 +34,6 @@ import argparse
 import csv
 import hashlib
 import json
-from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, getcontext
