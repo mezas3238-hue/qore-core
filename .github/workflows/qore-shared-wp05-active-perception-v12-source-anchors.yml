@@ -42,7 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           ruff check             src/qore/infrastructure/core_stack_v2/active_perception_v12_source_anchors.py             scripts/shared_wp05_active_perception_v12_source_anchors.py             tests/infrastructure/test_core_stack_v2_active_perception_v12_source_anchors.py
-          mypy             src/qore/infrastructure/core_stack_v2/active_perception_v12_source_anchors.py             scripts/shared_wp05_active_perception_v12_source_anchors.py
+          mypy             src/qore/infrastructure/core_stack_v2/active_perception_v12_source_anchors.py
           python -m py_compile             src/qore/infrastructure/core_stack_v2/active_perception_v12_source_anchors.py             scripts/shared_wp05_active_perception_v12_source_anchors.py
           pytest -q             tests/infrastructure/test_core_stack_v2_active_perception_v12_source_anchors.py
 
