@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from dataclasses import asdict
+from pathlib import Path
 from qore.infrastructure.trader_lab import (
     capitalizer_preentry_full_stop_causal_separability_v37 as v37,
 )
@@ -52,6 +55,18 @@ def _geometry() -> collector.SelectedGeometry:
         provenance="CAUSAL_ARBITRATION_BASE",
         geometry=nested,
     )
+
+
+def test_load_period_geometry_rehydrates_json_list_fields(
+    tmp_path: Path,
+) -> None:
+    selected = _geometry()
+    path = tmp_path / "capitalizer-v38-development-selected-geometry.jsonl"
+    path.write_text(json.dumps(asdict(selected)) + "\n", encoding="utf-8")
+
+    loaded = v38._load_period_geometry(tmp_path, slug="development")
+
+    assert loaded == {(selected.symbol, selected.entry_at): selected}
 
 
 def test_extend_states_adds_exact_12d_geometry() -> None:
