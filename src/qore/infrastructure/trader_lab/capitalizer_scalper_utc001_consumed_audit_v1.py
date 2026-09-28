@@ -335,10 +335,10 @@ def main() -> int:
     args.output.mkdir(parents=True, exist_ok=True)
     out = args.output / "capitalizer-scalper-utc001-consumed-audit-v1.json"
     out.write_text(
-        json.dumps(asdict(report), indent=2, sort_keys=True) + "\n",
+        json.dumps(asdict(report), indent=2, sort_keys=True, default=str) + "\n",
         encoding="utf-8",
     )
-    print(json.dumps(asdict(report), sort_keys=True))
+    print(json.dumps(asdict(report), sort_keys=True, default=str))
     return 0
 
 
