@@ -59,7 +59,7 @@ from qore.infrastructure.cibo_provider_economic_normalization import (
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
-DECISION_AT = datetime(2026, 9, 27, 17, 0, tzinfo=UTC)
+DECISION_AT = datetime(2026, 9, 28, 6, 45, tzinfo=UTC)
 
 
 def _decision(
