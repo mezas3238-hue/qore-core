@@ -19,6 +19,9 @@ from qore.infrastructure.cibo_account_capital_mission import (
 from qore.infrastructure.cibo_capital_management_authority import (
     TraderOpportunityEnvelope,
 )
+from qore.infrastructure.cibo_ce2i_advanced_evidence import (
+    build_missing_advanced_evidence_snapshot,
+)
 from qore.infrastructure.cibo_ce2i_causal_expectation import (
     CausalExpectationBasis,
     CausalOpportunityExpectation,
@@ -55,7 +58,7 @@ from qore.infrastructure.cibo_provider_economic_normalization import (
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
-NOW = datetime(2026, 9, 27, 14, 5, tzinfo=UTC)
+NOW = datetime(2026, 9, 28, 5, 5, tzinfo=UTC)
 
 
 def _decision() -> Phase20ForwardDecisionEvidence:
@@ -166,6 +169,9 @@ def _decision() -> Phase20ForwardDecisionEvidence:
                 provider_observation=provider,
                 candidate=candidate,
             ),
+        ),
+        advanced_evidence_snapshot=build_missing_advanced_evidence_snapshot(
+            decision_at=NOW,
         ),
     )
 
