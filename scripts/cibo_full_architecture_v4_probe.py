@@ -146,8 +146,18 @@ def run_probe(output: Path) -> dict[str, object]:
         )
     )
     mission_tools = eligible_ce2i_tool_codes_for_mission(mission)
-    if set(mission_tools) != {tool.code for tool in CE2I_TOOL_REGISTRY}:
-        raise RuntimeError("SANDBOX mission must expose the complete CE2I registry")
+    executable_registry_tools = {
+        tool.code
+        for tool in CE2I_TOOL_REGISTRY
+        if tool.maturity not in {
+            ToolMaturity.ARCHITECTURE_ONLY,
+            ToolMaturity.REJECTED,
+        }
+    }
+    if set(mission_tools) != executable_registry_tools:
+        raise RuntimeError(
+            "SANDBOX mission must expose every currently executable CE2I tool"
+        )
 
     executed: dict[str, int] = {tool.code: 0 for tool in CE2I_TOOL_REGISTRY}
     evidence: dict[str, list[str]] = {tool.code: [] for tool in CE2I_TOOL_REGISTRY}
