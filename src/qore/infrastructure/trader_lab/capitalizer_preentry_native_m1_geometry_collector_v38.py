@@ -20,6 +20,9 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.trader_lab import (
+    capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_max_recovery_direct_m1_replay_v1 as direct,
 )
 from qore.infrastructure.trader_lab import (
@@ -506,6 +509,97 @@ def build_market_geometry(
         "runtime_policy_candidate": False,
         "trader_certified": False,
     }, selected
+
+
+def load_geometry_rows(
+    root: Path,
+) -> tuple[SelectedGeometry, ...]:
+    paths = sorted(
+        root.rglob(
+            "capitalizer-*-preentry-native-m1-geometry-v38-rows.jsonl"
+        )
+    )
+    if not paths:
+        raise ValueError("V38 selected geometry files not found")
+    rows: list[SelectedGeometry] = []
+    for path in paths:
+        with path.open(encoding="utf-8") as handle:
+            for raw in handle:
+                if not raw.strip():
+                    continue
+                item = json.loads(raw)
+                if not isinstance(item, dict):
+                    raise ValueError("V38 geometry row must be object")
+                nested = item.get("geometry")
+                if not isinstance(nested, dict):
+                    raise ValueError("V38 geometry row missing nested geometry")
+                item["geometry"] = geometry.PreentryNativeM1Geometry(**nested)
+                rows.append(SelectedGeometry(**item))
+    keys = tuple((row.symbol, row.entry_at) for row in rows)
+    if len(keys) != len(set(keys)):
+        raise ValueError("V38 geometry population has duplicate entrant keys")
+    return tuple(
+        sorted(
+            rows,
+            key=lambda row: (datetime.fromisoformat(row.entry_at), row.symbol),
+        )
+    )
+
+
+def select_portfolio_geometry(
+    geometry_rows: tuple[SelectedGeometry, ...],
+    selected_ledger: tuple[milestone.SimulatedTrade, ...],
+) -> tuple[SelectedGeometry, ...]:
+    """Select exact current entrants without inspecting their realized outcomes."""
+
+    by_key = {
+        (row.symbol, row.entry_at): row
+        for row in geometry_rows
+    }
+    if len(by_key) != len(geometry_rows):
+        raise ValueError("V38 geometry key collision")
+    selected_keys = tuple(
+        (row.symbol, row.entry_at)
+        for row in selected_ledger
+    )
+    if len(selected_keys) != len(set(selected_keys)):
+        raise ValueError("V38 selected ledger has duplicate entrant keys")
+    missing = tuple(key for key in selected_keys if key not in by_key)
+    if missing:
+        raise ValueError(
+            "V38 selected portfolio missing causal geometry: "
+            f"{len(missing)}"
+        )
+    return tuple(by_key[key] for key in selected_keys)
+
+
+def portfolio_coverage_report(
+    *,
+    period: str,
+    geometry_rows: tuple[SelectedGeometry, ...],
+    selected_ledger: tuple[milestone.SimulatedTrade, ...],
+) -> dict[str, Any]:
+    selected = select_portfolio_geometry(geometry_rows, selected_ledger)
+    counts = Counter(row.provenance for row in selected)
+    return {
+        "identity": (
+            "QORE_CAPITALIZER_PREENTRY_NATIVE_M1_GEOMETRY_"
+            "PORTFOLIO_COVERAGE_V38"
+        ),
+        "period": period,
+        "selected_entrants": len(selected_ledger),
+        "geometry_rows": len(selected),
+        "coverage": "1",
+        "provenance_counts": dict(sorted(counts.items())),
+        "join_key": ["symbol", "entry_at"],
+        "selected_realized_outcomes_read_for_join": False,
+        "feature_timestamp_le_entry": True,
+        "future_bar_used": False,
+        "outcome_used_for_geometry": False,
+        "fresh_holdout_opened": False,
+        "candidate_count": 0,
+        "trader_certified": False,
+    }
 
 
 def write_market(
