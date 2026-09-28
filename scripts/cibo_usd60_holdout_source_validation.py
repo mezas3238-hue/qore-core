@@ -20,6 +20,9 @@ from qore.infrastructure.cibo_ce2i_holdout_registry import (
     PREREGISTERED_USD60_HOLDOUT,
     candidate_is_burn_clean_for_all_lineages,
 )
+from qore.infrastructure.cibo_ce2i_pre_holdout_freeze import (
+    require_pre_holdout_freeze_before_2017h1_access,
+)
 
 _REQUIRED = {
     "AUDJPY": 10476530915,
@@ -87,6 +90,7 @@ class BlindMarketSourceValidation:
 
 
 def validate_artifact(path: Path, *, artifact_id: int) -> BlindMarketSourceValidation:
+    require_pre_holdout_freeze_before_2017h1_access()
     if not isinstance(path, Path) or not path.is_file():
         raise CiboCapitalManagementError("market source ZIP is required")
     with zipfile.ZipFile(path) as archive:
@@ -181,6 +185,7 @@ def report(validations: tuple[BlindMarketSourceValidation, ...]) -> dict[str, ob
 
 
 def main() -> None:
+    require_pre_holdout_freeze_before_2017h1_access()
     parser = argparse.ArgumentParser()
     for symbol in sorted(_REQUIRED):
         parser.add_argument(f"--{symbol.lower()}", type=Path, required=True)
