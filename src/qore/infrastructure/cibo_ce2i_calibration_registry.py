@@ -175,6 +175,7 @@ _PHASE18 = "burned:phase18:seven-lineage-chronological-replay"
 _PHASE19 = "burned:phase19:integrated-common-window"
 _PHASE19_WFO = "burned:phase19j:post-freeze-walk-forward"
 _PHASE19M_REGIME = "burned:phase19m:regime-identifiability-audit"
+_PHASE19N_FACTOR = "burned:phase19n:directional-factor-topology-audit"
 _PROVIDER_GAP = provider_economics_evidence_ref()
 _PHASE20_CONTRACT = "phase20:contract-and-failure-proof"
 _PHASE19_NON_PROMOTION = (
@@ -293,11 +294,20 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
         "T08",
         CiboCalibrationState.CALIBRATION_UNAVAILABLE,
         CiboCalibrationType.CAUSAL_NORMALIZED,
-        (_PHASE19, "burned:phase19:overlap-dependence", _PHASE19_NON_PROMOTION),
+        (
+            _PHASE19,
+            "burned:phase19:overlap-dependence",
+            _PHASE19N_FACTOR,
+            _PHASE19_NON_PROMOTION,
+        ),
         (
             "OVERLAP_DEPENDENCE_DESCRIPTIVE_ONLY",
             "FACTOR_MAP_NOT_CERTIFIED",
+            "DIRECTIONAL_FACTOR_TOPOLOGY_IDENTIFIED_7_OF_7",
+            "MONETARY_FACTOR_EXPOSURE_MAGNITUDE_NOT_CALIBRATED",
             "CORRELATION_NOT_CLAIMED_BY_SOURCE_ARTIFACT",
+            "CORRELATION_STATE_NOT_CERTIFIED",
+            "NETTING_CREDIT_NOT_AUTHORIZED_WITHOUT_MAGNITUDE_AND_CORRELATION",
         ),
     ),
     _row(
