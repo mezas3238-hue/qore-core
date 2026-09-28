@@ -38,9 +38,6 @@ from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
 )
 from qore.infrastructure.trader_lab import (
-    capitalizer_counterfactual_portfolio_episode_simulator_v1 as simulator,
-)
-from qore.infrastructure.trader_lab import (
     capitalizer_dynamic_episode_sequence_feasibility_v1 as sequence_v1,
 )
 from qore.infrastructure.trader_lab import (
