@@ -1,0 +1,149 @@
+name: QORE CIBO T02 Burned Structural Calibration
+
+on:
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-t02-burned-structural-calibration.yml'
+      - 'scripts/cibo_t02_burned_structural_calibration.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t02_burned_calibration.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t02_burned_calibration.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_registry.py'
+      - 'tests/infrastructure/test_cibo_ce2i_calibration_registry.py'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-t02-burned-structural-calibration.yml'
+      - 'scripts/cibo_t02_burned_structural_calibration.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t02_burned_calibration.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t02_burned_calibration.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_registry.py'
+      - 'tests/infrastructure/test_cibo_ce2i_calibration_registry.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  t02-burned-calibration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_ce2i_t02_burned_calibration.py \
+            scripts/cibo_t02_burned_structural_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_t02_burned_calibration.py
+          mypy \
+            src/qore/infrastructure/cibo_ce2i_t02_burned_calibration.py \
+            scripts/cibo_t02_burned_structural_calibration.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_t02_burned_calibration.py
+
+      - name: Download immutable burned Phase18 artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p t02/raw t02/output
+          declare -A ids=(
+            [r34_xauusd]=10972757083
+            [r38_eurusd]=10972572540
+            [r43_gbpusd]=10972906353
+            [r38_gbpjpy]=10972846579
+            [r42_audjpy]=10972467350
+            [vt08_forex]=10972037659
+            [vt31_nas100]=10971913368
+          )
+          declare -A hashes=(
+            [r34_xauusd]=39bad355d4218fd2891406f4fc1d586243f90a1636826d26799e3f8775666155
+            [r38_eurusd]=daaab7a47e0030753a021f76235e906267cdb9f5a78c8e08fd81df6d5608fc41
+            [r43_gbpusd]=73f4b4d8961f621f427ba8cf67dc40f474af476faa226c48e7020b9d409b2da9
+            [r38_gbpjpy]=3767998a3ad38afe08fcb7031615cc23ae285ccef83085909ef635fa29f31423
+            [r42_audjpy]=e0c32a6b8d551f52b3be733c6c86e916103fd7f45a3305e34f3f0013006d8b49
+            [vt08_forex]=b7ae17a4d43c2db7428343ae80467ff287efae990d27aa672c9bcd28474f0ecb
+            [vt31_nas100]=0ce7f37ac00bf8d3ac39b30fcafc0c7489bd09f6d7c635246a2d27d9d36b875d
+          )
+          : > t02/source-SHA256SUMS.txt
+          for key in r34_xauusd r38_eurusd r43_gbpusd r38_gbpjpy r42_audjpy vt08_forex vt31_nas100; do
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ids[$key]}/zip" \
+              > "t02/raw/${key}.zip"
+            printf '%s  %s\n' "${hashes[$key]}" "t02/raw/${key}.zip" \
+              >> t02/source-SHA256SUMS.txt
+          done
+          sha256sum -c t02/source-SHA256SUMS.txt
+
+      - name: Run single-shot burned T02 falsification
+        run: |
+          python scripts/cibo_t02_burned_structural_calibration.py \
+            --r34-xauusd t02/raw/r34_xauusd.zip \
+            --r38-eurusd t02/raw/r38_eurusd.zip \
+            --r43-gbpusd t02/raw/r43_gbpusd.zip \
+            --r38-gbpjpy t02/raw/r38_gbpjpy.zip \
+            --r42-audjpy t02/raw/r42_audjpy.zip \
+            --vt08-forex t02/raw/vt08_forex.zip \
+            --vt31-nas100 t02/raw/vt31_nas100.zip \
+            --output t02/output/t02-burned-structural-calibration.json \
+            > t02/output/t02-burned-structural-calibration.stdout.json
+
+      - name: Enforce falsification and holdout isolation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(
+              Path("t02/output/t02-burned-structural-calibration.json").read_text()
+          )
+          assert p["calibration_source"] == "BURNED_PHASE18_ONLY"
+          assert p["threshold_search_count"] == 1
+          assert p["threshold_policy"] == (
+              "TRAIN_MEDIAN_STOP_TO_TARGET_RATIO_SINGLE_SHOT"
+          )
+          assert p["eligible_lineages"] == []
+          assert p["status"] == "STRUCTURAL_PRECISION_PROXY_FALSIFIED"
+          assert p["governance"]["holdout_2017h1_used"] is False
+          assert p["governance"]["holdout_2017h1_outcomes_used"] is False
+          assert p["governance"]["provider_usd_economics_claimed"] is False
+          assert p["governance"]["threshold_reoptimized_on_validation"] is False
+          assert p["governance"]["target_aware"] is False
+          assert p["governance"]["oos_ready"] is False
+          assert p["governance"]["certification_ready"] is False
+          PY
+
+      - name: Seal burned T02 evidence
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > t02/output/calibrator-git-sha.txt
+          cp t02/source-SHA256SUMS.txt t02/output/source-SHA256SUMS.txt
+          cd t02/output
+          sha256sum \
+            t02-burned-structural-calibration.json \
+            t02-burned-structural-calibration.stdout.json \
+            calibrator-git-sha.txt \
+            source-SHA256SUMS.txt \
+            > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - name: Remove raw burned archives before upload
+        run: rm -rf t02/raw
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-t02-burned-calibration-${{ github.sha }}
+          path: t02/output
+          if-no-files-found: error
+          retention-days: 90
