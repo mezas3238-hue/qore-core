@@ -52,11 +52,13 @@ jobs:
             scripts/cibo_phase19_burned_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_lifecycle_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_burned_t06_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_non_promotion.py \
             src/qore/infrastructure/cibo_ce2i_calibration_registry.py \
             src/qore/infrastructure/cibo_ce2i_calibration_matrix.py \
             tests/infrastructure/test_cibo_ce2i_burned_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_lifecycle_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_burned_t06_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_non_promotion.py \
             tests/infrastructure/test_cibo_ce2i_calibration_registry.py \
             tests/infrastructure/test_cibo_ce2i_calibration_matrix.py
@@ -67,6 +69,7 @@ jobs:
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ce2i_burned_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_lifecycle_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_burned_t06_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_non_promotion.py \
             tests/infrastructure/test_cibo_ce2i_calibration_registry.py \
             tests/infrastructure/test_cibo_ce2i_calibration_matrix.py
@@ -98,7 +101,7 @@ jobs:
           assert p["holdout_2017h1_outcomes_used"] is False
           assert p["target_aware"] is False
           assert p["exact_usd_economics_claimed"] is False
-          assert set(p["promoted_tools"]) == {"T04", "T05", "T10", "T19", "T20"}
+          assert set(p["promoted_tools"]) == {"T04", "T05", "T06", "T10", "T19", "T20"}
           assert p["walk_forward"]["surviving_policy_count"] == 0
           assert set(p["provider_economics_required"]) == {
               "T01", "T03", "T04", "T07",
