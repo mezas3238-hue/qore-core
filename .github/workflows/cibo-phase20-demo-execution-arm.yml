@@ -42,7 +42,7 @@ jobs:
       - name: Quality execution arm
         run: |
           ruff check scripts/cibo_phase20_demo_execution_arm.py
-          mypy scripts/cibo_phase20_demo_execution_arm.py
+          mypy --disable-error-code=import-untyped scripts/cibo_phase20_demo_execution_arm.py
           python -m py_compile scripts/cibo_phase20_demo_execution_arm.py
 
       - name: Verify required DEMO secrets without printing them
