@@ -59,8 +59,8 @@ def test_decoder_reconstructs_newest_first_delta_timestamps() -> None:
     newest = _BASE + timedelta(minutes=10)
     native = (
         NativeTick(int(newest.timestamp() * 1_000), 1_234_560),
-        NativeTick(-250, 1_234_550),
-        NativeTick(-750, 1_234_500),
+        NativeTick(-250, -10),
+        NativeTick(-750, -50),
     )
 
     page = tick_data.decode_historical_tick_page(
@@ -153,7 +153,7 @@ def test_reader_uses_read_only_historical_tick_request() -> None:
         ctidTraderAccountId=123,
         tickData=[
             NativeTick(int(newest.timestamp() * 1_000), 1_234_560),
-            NativeTick(-100, 1_234_550),
+            NativeTick(-100, -10),
         ],
         hasMore=False,
     )
@@ -260,8 +260,8 @@ def test_decoder_allows_zero_delta_for_same_millisecond_ticks() -> None:
         request=_request(),
         native_ticks=(
             NativeTick(int(newest.timestamp() * 1_000), 1_234_560),
-            NativeTick(0, 1_234_550),
-            NativeTick(-250, 1_234_500),
+            NativeTick(0, -10),
+            NativeTick(-250, -50),
         ),
         has_more=False,
         digits=5,
@@ -289,7 +289,54 @@ def test_decoder_rejects_positive_delta_in_newest_first_stream() -> None:
             request=_request(),
             native_ticks=(
                 NativeTick(int(newest.timestamp() * 1_000), 1_234_560),
-                NativeTick(1, 1_234_550),
+                NativeTick(1, -10),
+            ),
+            has_more=False,
+            digits=5,
+        )
+
+
+def test_decoder_reconstructs_signed_price_deltas_from_previous_tick() -> None:
+    newest = _BASE + timedelta(minutes=10)
+
+    page = tick_data.decode_historical_tick_page(
+        request=_request(),
+        native_ticks=(
+            NativeTick(int(newest.timestamp() * 1_000), 1_234_560),
+            NativeTick(-100, -45),
+            NativeTick(-100, 20),
+            NativeTick(-100, 0),
+        ),
+        has_more=False,
+        digits=5,
+    )
+
+    assert tuple(item.relative_price for item in page.ticks) == (
+        1_234_535,
+        1_234_515,
+        1_234_560,
+        1_234_560,
+    )
+    assert tuple(str(item.price) for item in page.ticks) == (
+        "12.34535",
+        "12.34515",
+        "12.34560",
+        "12.34560",
+    )
+
+
+def test_decoder_rejects_price_delta_that_reconstructs_non_positive_price() -> None:
+    newest = _BASE + timedelta(minutes=10)
+
+    with pytest.raises(
+        tick_data.CTraderHistoricalTickError,
+        match="reconstructed non-positive price",
+    ):
+        tick_data.decode_historical_tick_page(
+            request=_request(),
+            native_ticks=(
+                NativeTick(int(newest.timestamp() * 1_000), 100),
+                NativeTick(-1, -100),
             ),
             has_more=False,
             digits=5,
