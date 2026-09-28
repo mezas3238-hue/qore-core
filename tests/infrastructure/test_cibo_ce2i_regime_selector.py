@@ -134,3 +134,41 @@ def test_stale_evidence_fails_closed_to_release_only() -> None:
 
     assert decision.posture is CiboRegimePosture.HALT_NEW_CAPITAL
     assert decision.enabled_tools == ("T20",)
+
+
+def test_demo_watch_regime_exposes_full_advanced_surface_when_causal_state_allows() -> None:
+    decision = select_ce2i_tools_for_regime(
+        mission=_demo(),
+        state=_state(),
+    )
+
+    for code in ("T02", "T03", "T04", "T08", "T10", "T16", "T17"):
+        assert code in decision.enabled_tools
+
+
+def test_recovery_keeps_only_defensive_advanced_tools() -> None:
+    decision = select_ce2i_tools_for_regime(
+        mission=_demo(),
+        state=_state(dd="0.80"),
+    )
+
+    for code in ("T03", "T08", "T10", "T16"):
+        assert code in decision.enabled_tools
+    for code in ("T02", "T04", "T17"):
+        assert code not in decision.enabled_tools
+
+
+def test_correlation_break_blocks_netting_hedging_and_competition() -> None:
+    decision = select_ce2i_tools_for_regime(
+        mission=_demo(),
+        state=_state(
+            correlation=CorrelationState.BREAK,
+            dd="0.20",
+            risk="0.20",
+        ),
+    )
+
+    assert "T08" not in decision.enabled_tools
+    assert "T16" not in decision.enabled_tools
+    assert "T09" not in decision.enabled_tools
+    assert "T18" not in decision.enabled_tools
