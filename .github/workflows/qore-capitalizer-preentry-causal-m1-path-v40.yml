@@ -1,0 +1,232 @@
+name: QORE Capitalizer Pre-entry Causal M1 Path V40
+
+on:
+  push:
+    branches:
+      - agent/capitalizer-preentry-causal-m1-path-v40-001
+    paths:
+      - '.github/workflows/qore-capitalizer-preentry-causal-m1-path-v40.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_preentry_causal_m1_path_state_v40.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_preentry_causal_m1_path_collector_v40.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_preentry_causal_m1_path_separability_v40.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_preentry_causal_m1_path_state_v40.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_preentry_causal_m1_path_collector_v40.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-preentry-causal-m1-path-v40-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_M1_RUN_ID: '35548099334'
+  SOURCE_M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+  SOURCE_V38_RUN_ID: '36495104604'
+  SOURCE_V38_SELECTED_ARTIFACT: 'qore-capitalizer-v38-geometry-selected-resume-3aa4ee3c181c1fe10fce087b904e6e797770a87d'
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_preentry_causal_m1_path_state_v40.py \
+            src/qore/infrastructure/trader_lab/capitalizer_preentry_causal_m1_path_collector_v40.py \
+            src/qore/infrastructure/trader_lab/capitalizer_preentry_causal_m1_path_separability_v40.py \
+            tests/infrastructure/trader_lab/test_capitalizer_preentry_causal_m1_path_state_v40.py \
+            tests/infrastructure/trader_lab/test_capitalizer_preentry_causal_m1_path_collector_v40.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_preentry_causal_m1_path_state_v40.py \
+            src/qore/infrastructure/trader_lab/capitalizer_preentry_causal_m1_path_collector_v40.py \
+            src/qore/infrastructure/trader_lab/capitalizer_preentry_causal_m1_path_separability_v40.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_preentry_causal_m1_path_state_v40.py \
+            tests/infrastructure/trader_lab/test_capitalizer_preentry_causal_m1_path_collector_v40.py
+
+  market_path:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        symbol: [USDJPY, AUDJPY, AUDUSD, GBPJPY, EURUSD, GBPUSD, XAUUSD, USDCAD, NAS100]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download immutable provider-native M1
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.SOURCE_M1_SHA }}
+          path: m1-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M1_RUN_ID }}
+      - name: Download reconciled V38 entrant identities
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_V38_SELECTED_ARTIFACT }}
+          path: selected-geometry
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_V38_RUN_ID }}
+      - name: Build frozen path-only 18D state
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_preentry_causal_m1_path_collector_v40 \
+            m1-source selected-geometry path-output \
+            --symbol "${{ matrix.symbol }}"
+      - name: Enforce per-market causal boundary
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["SYMBOL"].lower()
+          report = json.loads(
+              Path(
+                  f"path-output/capitalizer-v40-{symbol}-path-summary.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_PREENTRY_CAUSAL_M1_PATH_COLLECTOR_V40"
+          )
+          assert report["all_periods_full_coverage"] is True
+          assert report["fresh_holdout_opened"] is False
+          assert report["runtime_policy_candidate"] is False
+          assert report["trader_certified"] is False
+          assert len(report["periods"]) == 3
+          for row in report["periods"]:
+              assert row["coverage"] == "1"
+              assert row["selected_entrants"] == row["path_rows"]
+              assert row["lookback_minutes"] == 30
+              assert row["feature_dimension"] == 18
+              assert row["path_only_representation"] is True
+              assert row["entry_bar_used"] is False
+              assert row["future_bar_used"] is False
+              assert row["outcome_used_for_path"] is False
+              assert row["exit_used_for_path"] is False
+              assert row["mae_mfe_used"] is False
+              assert row["feature_timestamp_le_entry"] is True
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v40-path-${{ matrix.symbol }}-${{ github.sha }}
+          path: path-output
+          if-no-files-found: error
+          retention-days: 90
+
+  separability:
+    needs: market_path
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download nine V40 path artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v40-path-*-${{ github.sha }}
+          path: path-input
+          merge-multiple: true
+      - name: Download authoritative reconstructed selected populations
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Run frozen path-only 18D cross-era frontier
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_preentry_causal_m1_path_separability_v40 \
+            reconstructed/development-input \
+            reconstructed/validation-input \
+            reconstructed/reserved-input \
+            path-input \
+            experiment-output
+      - name: Enforce frozen V40 information-frontier contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path(
+              "experiment-output/"
+              "capitalizer-preentry-causal-m1-path-state-separability-v40.json"
+          )
+          report = json.loads(path.read_text())
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_PREENTRY_CAUSAL_M1_PATH_STATE_SEPARABILITY_V40"
+          )
+          assert report["feature_source"] == (
+              "PROVIDER_NATIVE_PREENTRY_M1_PATH_ONLY_18D"
+          )
+          assert report["feature_dimension"] == 18
+          assert report["lookback_minutes"] == 30
+          assert report["v11_features_used"] is False
+          assert report["v38_geometry_features_used"] is False
+          assert report["stop_target_labels_used_as_features"] is False
+          assert report["current_outcome_visible_to_features"] is False
+          assert report["future_exit_visible_to_features"] is False
+          assert report["future_mfe_mae_visible_to_features"] is False
+          assert report["entry_bar_used"] is False
+          assert report["future_bar_used"] is False
+          assert report["symbol_identity_feature_used"] is False
+          assert report["date_identity_feature_used"] is False
+          assert report["two_external_worlds_required"] is True
+          assert report["threshold_grid_searched"] is False
+          assert report["policy_economics_run"] is False
+          assert report["admission_changed"] is False
+          assert report["sizing_changed"] is False
+          assert report["protection_changed"] is False
+          assert report["fresh_holdout_opened"] is False
+          assert report["candidate_count"] == 0
+          assert report["runtime_policy_candidate"] is False
+          assert report["trader_certified"] is False
+          assert len(report["heldout_results"]) == 3
+
+          expected = {
+              "DEVELOPMENT_2024_2026": 948,
+              "CONSUMED_VALIDATION_2022_2024": 1034,
+              "CONSUMED_RESERVED_2020_2022": 1088,
+          }
+          for period, count in expected.items():
+              coverage = report["coverage_by_period"][period]
+              assert coverage["selected_entrants"] == count
+              assert coverage["path_rows"] == count
+              assert coverage["coverage"] == "1"
+              assert coverage["missing"] == 0
+              assert coverage["extra"] == 0
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-preentry-causal-m1-path-v40-${{ github.sha }}
+          path: experiment-output
+          if-no-files-found: error
+          retention-days: 90
