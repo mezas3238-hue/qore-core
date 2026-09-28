@@ -6,6 +6,8 @@ on:
       - agent/capitalizer-certification-analytics-v2-001
     paths:
       - '.github/workflows/qore-capitalizer-consumed-certification-audit-v2.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_scalper_certification_standard_v2.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_scalper_certification_standard_v2.py'
   workflow_dispatch:
 
 permissions:
