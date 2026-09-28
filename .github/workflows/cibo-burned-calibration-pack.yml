@@ -76,6 +76,9 @@ jobs:
           python scripts/cibo_ce2i_calibration_matrix.py \
             --output calibration-output/cibo-t01-t20-calibration-matrix.json \
             > calibration-output/cibo-t01-t20-calibration-matrix.stdout.json
+          python scripts/cibo_ce2i_pre_holdout_checkpoint.py \
+            --output calibration-output/cibo-pre-holdout-checkpoint.json \
+            > calibration-output/cibo-pre-holdout-checkpoint.stdout.json
 
       - name: Enforce holdout isolation and no fabricated USD
         run: |
@@ -113,6 +116,7 @@ jobs:
           sha256sum \
             cibo-burned-calibration-pack.json \
             cibo-t01-t20-calibration-matrix.json \
+            cibo-pre-holdout-checkpoint.json \
             calibration-code-sha.txt \
             burned-source-head.txt \
             > SHA256SUMS.txt
