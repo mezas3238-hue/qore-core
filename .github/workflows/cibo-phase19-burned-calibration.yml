@@ -44,9 +44,19 @@ jobs:
 
       - name: Quality
         run: |
-          ruff check             scripts/cibo_phase19_burned_calibration.py             src/qore/infrastructure/cibo_ce2i_calibration_matrix.py             tests/infrastructure/test_cibo_ce2i_calibration_matrix.py
-          mypy             scripts/cibo_phase19_burned_calibration.py             src/qore/infrastructure/cibo_ce2i_calibration_matrix.py
-          pytest -q --no-cov             tests/infrastructure/test_cibo_ce2i_calibration_matrix.py
+          ruff check \
+            scripts/cibo_phase19_burned_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_burned_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_calibration_matrix.py \
+            tests/infrastructure/test_cibo_ce2i_burned_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_calibration_matrix.py
+          mypy \
+            scripts/cibo_phase19_burned_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_burned_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_calibration_matrix.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_burned_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_calibration_matrix.py
 
       - name: Download immutable burned Phase19 artifact
         run: |
