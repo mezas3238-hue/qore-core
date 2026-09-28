@@ -47,7 +47,7 @@ from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
     Evidence,
 )
 
-OPENED = datetime(2026, 9, 27, 19, 30, tzinfo=UTC)
+OPENED = datetime(2026, 9, 28, 6, 0, tzinfo=UTC)
 DEADLINE = OPENED + timedelta(seconds=2)
 SYMBOLS = ("XAUUSD", "EURUSD", "GBPUSD", "GBPJPY", "AUDJPY")
 
