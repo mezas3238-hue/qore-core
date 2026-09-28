@@ -79,6 +79,10 @@ class CTraderProviderEconomicsSymbolEvidence:
     provider_symbol: str
     symbol_id: int
     observed_at: datetime
+    source: str = "CTRADER_OPEN_API_READ_ONLY"
+    provider: str = "ctrader-demo"
+    effective_period: str = "POINT_IN_TIME_AT_OBSERVED_AT"
+    provenance: str = "PROVIDER_NATIVE_SYMBOL_SPOT_AND_EXPECTED_MARGIN"
     digits: int
     bid: Decimal
     ask: Decimal
@@ -97,6 +101,16 @@ class CTraderProviderEconomicsSymbolEvidence:
         if not self.qore_symbol or not self.provider_symbol:
             raise CiboCapitalManagementError(
                 "provider economics symbol identity required"
+            )
+        if (
+            self.source != "CTRADER_OPEN_API_READ_ONLY"
+            or self.provider != "ctrader-demo"
+            or self.effective_period != "POINT_IN_TIME_AT_OBSERVED_AT"
+            or self.provenance
+            != "PROVIDER_NATIVE_SYMBOL_SPOT_AND_EXPECTED_MARGIN"
+        ):
+            raise CiboCapitalManagementError(
+                "provider economics provenance contract drift"
             )
         if self.symbol_id <= 0:
             raise CiboCapitalManagementError("symbol id must be positive")
