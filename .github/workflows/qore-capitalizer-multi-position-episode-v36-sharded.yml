@@ -1,0 +1,199 @@
+name: QORE Capitalizer Multi-Position Episode V36 Sharded
+
+on:
+  push:
+    branches:
+      - agent/capitalizer-multiposition-episode-v36-sharded-001
+    paths:
+      - '.github/workflows/qore-capitalizer-multi-position-episode-v36-sharded.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_multi_position_causal_episode_simulator_v36.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_multi_position_causal_episode_simulator_v36_shard.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_multi_position_causal_episode_simulator_v36.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+  TRANSITION_RUN_ID: '36332714846'
+  TRANSITION_ARTIFACT: 'qore-capitalizer-counterfactual-portfolio-episode-simulator-v1-sharded-9c24cdf22e633a09701c6f22c04211b1ddfc3ee0'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_multi_position_causal_episode_simulator_v36.py \
+            src/qore/infrastructure/trader_lab/capitalizer_multi_position_causal_episode_simulator_v36_shard.py \
+            tests/infrastructure/trader_lab/test_capitalizer_multi_position_causal_episode_simulator_v36.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_multi_position_causal_episode_simulator_v36.py \
+            src/qore/infrastructure/trader_lab/capitalizer_multi_position_causal_episode_simulator_v36_shard.py \
+            tests/infrastructure/trader_lab/test_capitalizer_multi_position_causal_episode_simulator_v36.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_multi_position_causal_episode_simulator_v36.py
+
+  shard:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - period: DEVELOPMENT_2024_2026
+            slug: development
+            expected_trades: '948'
+          - period: CONSUMED_VALIDATION_2022_2024
+            slug: validation
+            expected_trades: '1034'
+          - period: CONSUMED_RESERVED_2020_2022
+            slug: reserved
+            expected_trades: '1088'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download authoritative reconstructed consumed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Download authoritative transition evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TRANSITION_ARTIFACT }}
+          path: transitions
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TRANSITION_RUN_ID }}
+      - name: Run exact V36 period shard
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_multi_position_causal_episode_simulator_v36_shard \
+            --period "${{ matrix.period }}" \
+            --development-root reconstructed/development-input \
+            --validation-root reconstructed/validation-input \
+            --reserved-root reconstructed/reserved-input \
+            --development-validation-context-root reconstructed/development-validation-context \
+            --reserved-context-root reconstructed/reserved-context \
+            --transition-path transitions/capitalizer-counterfactual-portfolio-episode-simulator-v1-transitions.jsonl \
+            --output "shard-output/${{ matrix.slug }}"
+      - name: Enforce exact shard contract
+        env:
+          PERIOD: ${{ matrix.period }}
+          SLUG: ${{ matrix.slug }}
+          EXPECTED_TRADES: ${{ matrix.expected_trades }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          report=json.loads(
+              (
+                  Path("shard-output")
+                  / os.environ["SLUG"]
+                  / "capitalizer-v36-shard.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_MULTI_POSITION_CAUSAL_EPISODE_SIMULATOR_V36_SHARD"
+          )
+          assert report["economic_identity"] == (
+              "QORE_CAPITALIZER_MULTI_POSITION_CAUSAL_EPISODE_SIMULATOR_V36"
+          )
+          assert report["execution_topology_only"] is True
+          assert report["period"] == os.environ["PERIOD"]
+          result=report["result"]
+          assert result["surface"]["trades"] == int(
+              os.environ["EXPECTED_TRADES"]
+          )
+          assert result["candidate_concurrent_pair_count"] == (
+              result["valid_exact_pair_count"]
+              + result["invalid_after_feedback_pair_count"]
+          )
+          assert result["same_entrant_identities"] is True
+          assert result["density_retention"] == "1"
+          assert report["candidate_count"] == 0
+          assert report["trader_certified"] is False
+          assert report["fresh_holdout_opened"] is False
+          print(json.dumps(report["result"],sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v36-shard-${{ matrix.slug }}-${{ github.sha }}
+          path: shard-output/${{ matrix.slug }}
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    if: always()
+    needs: shard
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v36-shard-*
+          path: results
+          merge-multiple: false
+      - name: Aggregate V36 shard results
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          paths=sorted(Path("results").rglob("capitalizer-v36-shard.json"))
+          rows=[json.loads(path.read_text()) for path in paths]
+          assert len(rows)==3, len(rows)
+          results=sorted(
+              (row["result"] for row in rows),
+              key=lambda row: row["period"],
+          )
+          payload={
+              "identity":"QORE_CAPITALIZER_MULTI_POSITION_CAUSAL_EPISODE_SIMULATOR_V36_SHARDED_AGGREGATE",
+              "economic_identity":"QORE_CAPITALIZER_MULTI_POSITION_CAUSAL_EPISODE_SIMULATOR_V36",
+              "results":results,
+              "total_physical_full_gate_pairs":sum(
+                  int(row["physical_full_gate_pair_count"])
+                  for row in results
+              ),
+              "joint_interaction_evidence_found":any(
+                  int(row["positive_total_interaction_count"])>0
+                  or int(row["improves_total_r_and_legacy_dd_count"])>0
+                  for row in results
+              ),
+              "candidate_count":0,
+              "trader_certified":False,
+              "fresh_holdout_opened":False,
+          }
+          Path("aggregate").mkdir()
+          out=Path("aggregate")/"capitalizer-v36-sharded-aggregate.json"
+          out.write_text(json.dumps(payload,indent=2,sort_keys=True)+"\n")
+          print(json.dumps(payload,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v36-sharded-aggregate-${{ github.sha }}
+          path: aggregate
+          if-no-files-found: error
+          retention-days: 90
