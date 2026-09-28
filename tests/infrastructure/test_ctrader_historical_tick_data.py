@@ -196,6 +196,27 @@ def test_reader_fails_closed_on_account_mismatch() -> None:
     assert isinstance(result.error, tick_data.CTraderHistoricalTickError)
 
 
+def test_reader_preserves_tick_normalization_failure_reason() -> None:
+    response = SimpleNamespace(
+        ctidTraderAccountId=123,
+        tickData=[],
+        hasMore=True,
+    )
+    reader = tick_data.CTraderHistoricalTickReader(
+        client=FakeClient(response),
+        timeout_seconds=10.0,
+    )
+
+    result = reader.read_page(
+        request=_request(),
+        digits=5,
+        client_msg_id="invalid-provider-page",
+    )
+
+    assert isinstance(result, Failure)
+    assert "empty tick page cannot advertise has_more" in str(result.error)
+
+
 class FailingClient(FakeClient):
     def request(
         self,
