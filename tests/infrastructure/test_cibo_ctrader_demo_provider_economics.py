@@ -58,6 +58,10 @@ def test_provider_terms_ready_requires_margin_spread_and_commission() -> None:
     assert row.provider_terms_ready is True
     assert row.slippage_empirically_calibrated is False
     assert row.historical_exact_claimed is False
+    assert row.source == "CTRADER_OPEN_API_READ_ONLY"
+    assert row.provider == "ctrader-demo"
+    assert row.effective_period == "POINT_IN_TIME_AT_OBSERVED_AT"
+    assert row.provenance == "PROVIDER_NATIVE_SYMBOL_SPOT_AND_EXPECTED_MARGIN"
 
 
 def test_absent_commission_terms_fail_provider_readiness() -> None:
