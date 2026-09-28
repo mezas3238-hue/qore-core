@@ -1,0 +1,135 @@
+name: QORE Capitalizer Reserved Non-Greedy Beam V1
+
+on:
+  push:
+    branches:
+      - agent/capitalizer-reserved-nongreedy-beam-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-reserved-nongreedy-beam-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_reserved_nongreedy_plan_neighborhood_beam_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_reserved_nongreedy_plan_neighborhood_beam_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-reserved-nongreedy-beam-v1-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+  SIM_RUN_ID: '36332714846'
+  GREEDY_RUN_ID: '36370790397'
+  GREEDY_SHA: 'b8a50bd72d07f0076810e8496cfdb6ec4e2e5bb2'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_reserved_nongreedy_plan_neighborhood_beam_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_reserved_nongreedy_plan_neighborhood_beam_v1.py
+      - name: Mypy
+        run: |
+          mypy src/qore/infrastructure/trader_lab/capitalizer_reserved_nongreedy_plan_neighborhood_beam_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_reserved_nongreedy_plan_neighborhood_beam_v1.py
+
+  experiment:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download reconstructed consumed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Download authoritative simulator transitions
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-counterfactual-portfolio-episode-simulator-v1-sharded-*
+          path: simulator-evidence
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SIM_RUN_ID }}
+      - name: Download completed Reserved greedy V2 checkpoint
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-v2-distributed-checkpoint-reserved-${{ env.GREEDY_SHA }}
+          path: checkpoint
+          github-token: ${{ github.token }}
+          run-id: ${{ env.GREEDY_RUN_ID }}
+      - name: Run exact bounded non-greedy neighborhood beam
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_reserved_nongreedy_plan_neighborhood_beam_v1 \
+            --development-root reconstructed/development-input \
+            --validation-root reconstructed/validation-input \
+            --reserved-root reconstructed/reserved-input \
+            --development-validation-context-root reconstructed/development-validation-context \
+            --reserved-context-root reconstructed/reserved-context \
+            --transition-path simulator-evidence/capitalizer-counterfactual-portfolio-episode-simulator-v1-transitions.jsonl \
+            --checkpoint checkpoint/reserved.json \
+            --output experiment-output
+      - name: Enforce diagnostic governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report=json.loads(
+              Path(
+                  "experiment-output/"
+                  "capitalizer-reserved-nongreedy-plan-neighborhood-beam-v1.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_RESERVED_NON_GREEDY_PLAN_NEIGHBORHOOD_BEAM_V1"
+          )
+          assert report["period"] == "CONSUMED_RESERVED_2020_2022"
+          assert report["start_checkpoint_interventions"] == 45
+          assert report["frozen_relief_pool_size"] == 24
+          assert report["frozen_reserve_pool_size"] == 24
+          assert report["beam_width"] == 6
+          assert report["max_mutation_depth"] == 4
+          assert report["exact_full_causal_replay"] is True
+          assert report["same_existing_action_geometry_only"] is True
+          assert report["outcome_aware_diagnostic"] is True
+          assert report["runtime_policy_candidate"] is False
+          assert report["sampling"] is False
+          assert report["threshold_grid_searched"] is False
+          assert report["sizing_changed"] is False
+          assert report["entry_changed"] is False
+          assert report["new_protection_geometry_created"] is False
+          assert report["fresh_holdout_opened"] is False
+          assert report["candidate_count"] == 0
+          assert report["trader_certified"] is False
+          print(json.dumps(report,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-reserved-nongreedy-beam-v1-${{ github.sha }}
+          path: experiment-output
+          if-no-files-found: error
+          retention-days: 90
