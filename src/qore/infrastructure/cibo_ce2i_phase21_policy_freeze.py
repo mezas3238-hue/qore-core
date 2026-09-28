@@ -402,7 +402,7 @@ class Phase21QualificationReceipt:
             raise CiboCapitalManagementError(
                 "Phase21 qualification readiness lineage contamination"
             )
-        for key, minimum in (
+        for key, coverage_minimum in (
             (
                 "candidate_outcome_coverage",
                 plan.minimum_candidate_outcome_coverage,
@@ -413,12 +413,15 @@ class Phase21QualificationReceipt:
             ),
         ):
             try:
-                value = Decimal(str(readiness.get(key)))
+                coverage_value = Decimal(str(readiness.get(key)))
             except (InvalidOperation, ValueError) as error:
                 raise CiboCapitalManagementError(
                     f"Phase21 qualification readiness decimal invalid: {key}"
                 ) from error
-            if not value.is_finite() or value < minimum:
+            if (
+                not coverage_value.is_finite()
+                or coverage_value < coverage_minimum
+            ):
                 raise CiboCapitalManagementError(
                     f"Phase21 qualification readiness coverage not met: {key}"
                 )
@@ -454,7 +457,7 @@ class Phase21QualificationReceipt:
             raise CiboCapitalManagementError(
                 "Phase21 qualification economic hard gates not demonstrated"
             )
-        for key, minimum in (
+        for key, coverage_minimum in (
             (
                 "policy_selected_outcome_coverage",
                 plan.required_selected_outcome_coverage,
@@ -468,8 +471,8 @@ class Phase21QualificationReceipt:
                 plan.minimum_candidate_outcome_coverage,
             ),
         ):
-            value = _metric_decimal(economics, key)
-            if value < minimum:
+            coverage_value = _metric_decimal(economics, key)
+            if coverage_value < coverage_minimum:
                 raise CiboCapitalManagementError(
                     f"Phase21 qualification economic coverage not met: {key}"
                 )
@@ -506,13 +509,16 @@ class Phase21QualificationReceipt:
             raise CiboCapitalManagementError(
                 "Phase21 qualification store lineage mismatch"
             )
+        decision_epochs_value = readiness.get("decision_epochs")
+        candidate_outcomes_value = readiness.get("candidate_outcomes")
+        outcome_count_value = provenance.get("outcome_count")
         if (
-            provenance.get("decision_count") != readiness.get("decision_epochs")
-            or provenance.get("policy_decision_count")
-            != readiness.get("decision_epochs")
-            or type(provenance.get("outcome_count")) is not int
-            or provenance.get("outcome_count")
-            < readiness.get("candidate_outcomes")
+            type(decision_epochs_value) is not int
+            or type(candidate_outcomes_value) is not int
+            or type(outcome_count_value) is not int
+            or provenance.get("decision_count") != decision_epochs_value
+            or provenance.get("policy_decision_count") != decision_epochs_value
+            or outcome_count_value < candidate_outcomes_value
         ):
             raise CiboCapitalManagementError(
                 "Phase21 qualification provenance population mismatch"
