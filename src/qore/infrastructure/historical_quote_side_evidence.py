@@ -60,6 +60,8 @@ class HistoricalQuoteSideObservation:
     quote_side: MarketPriceSide
     provider_event_at: datetime
     retrieved_at: datetime
+    provider_wire_timestamp_value: int
+    provider_wire_price_value: int
     relative_price: int
     price: MarketPrice
     availability_basis: HistoricalReplayAvailabilityBasis = (
@@ -109,6 +111,14 @@ class HistoricalQuoteSideObservation:
             raise HistoricalQuoteSideEvidenceError(
                 "retrieved_at must not predate provider_event_at"
             )
+        if type(self.provider_wire_timestamp_value) is not int:
+            raise HistoricalQuoteSideEvidenceError(
+                "provider_wire_timestamp_value must be int"
+            )
+        if type(self.provider_wire_price_value) is not int:
+            raise HistoricalQuoteSideEvidenceError(
+                "provider_wire_price_value must be int"
+            )
         if type(self.relative_price) is not int or self.relative_price <= 0:
             raise HistoricalQuoteSideEvidenceError(
                 "relative_price must be a positive int"
@@ -143,6 +153,8 @@ class HistoricalQuoteSideObservation:
                 timespec="microseconds"
             ),
             self.retrieved_at.astimezone(UTC).isoformat(timespec="microseconds"),
+            self.provider_wire_timestamp_value,
+            self.provider_wire_price_value,
             self.relative_price,
             self.price.canonical,
             self.availability_basis.value,
@@ -187,6 +199,8 @@ def retain_ctrader_historical_quote_side_page(
                 quote_side=side,
                 provider_event_at=tick.observed_at,
                 retrieved_at=retrieval_time,
+                provider_wire_timestamp_value=tick.wire_timestamp_value,
+                provider_wire_price_value=tick.wire_price_value,
                 relative_price=tick.relative_price,
                 price=MarketPrice(tick.price),
             )
