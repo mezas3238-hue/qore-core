@@ -15,7 +15,7 @@ env:
   V21_RUN_ID: '36264229554'
   V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
   SIM_RUN_ID: '36332714846'
-  PRIOR_RUN_ID: '36370790397'
+  PRIOR_RUN_ID: '36415754108'
 
 jobs:
   resume_validation:
@@ -46,7 +46,7 @@ jobs:
       - name: Download Validation checkpoint
         uses: actions/download-artifact@v4
         with:
-          name: qore-capitalizer-v2-distributed-checkpoint-validation-b8a50bd72d07f0076810e8496cfdb6ec4e2e5bb2
+          name: qore-capitalizer-v2-validation-resume-checkpoint-9658445c2e19068c59bbc809d978a6f87748374b
           path: checkpoint
           github-token: ${{ github.token }}
           run-id: ${{ env.PRIOR_RUN_ID }}
