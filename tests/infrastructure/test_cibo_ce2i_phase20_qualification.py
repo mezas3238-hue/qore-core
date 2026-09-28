@@ -365,6 +365,7 @@ def test_phase20d_runner_invalidates_execution_risk_identity_mismatch() -> None:
 def test_phase20d_runner_invalidates_late_physical_decision_seal() -> None:
     evidence, policy = _books()
     first = evidence.decisions[0]
+    assert first.seal_deadline_at is not None
     late = replace(
         first,
         sealed_at=first.seal_deadline_at + timedelta(milliseconds=1),
@@ -440,6 +441,7 @@ def test_phase20d_row_uses_realized_net_pnl_without_double_charging_proxy() -> N
     # the observed $18 result after settlement.
     assert row.policy_net_delta_usd == Decimal("18")
     assert row.baseline_net_delta_usd == Decimal("18")
+    assert row.realized_structural_outcome_r is not None
     assert row.policy_net_delta_usd != (
         row.realized_structural_outcome_r * row.stop_risk_usd
         - row.provider_cost_proxy_usd
