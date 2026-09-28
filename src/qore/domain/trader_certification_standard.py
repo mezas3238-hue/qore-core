@@ -18,7 +18,6 @@ MIN_SORTINO = Decimal("2.00")
 MAX_OBSERVED_DRAWDOWN_R = Decimal("6")
 MIN_MONTE_CARLO_POSITIVE_PROBABILITY = Decimal("0.90")
 MAX_MONTE_CARLO_P95_DRAWDOWN_R = Decimal("15")
-MIN_PAYOFF_RATIO = Decimal("1.20")
 MIN_POST_COST_PROFIT_FACTOR_EXCLUSIVE = Decimal("1.00")
 
 
@@ -137,8 +136,6 @@ def _period_failures(period: CertificationPeriodEvidence) -> tuple[str, ...]:
         failures.append(f"{prefix}:MONTE_CARLO_POSITIVE_BELOW_90_PERCENT")
     if period.monte_carlo_p95_drawdown_r > MAX_MONTE_CARLO_P95_DRAWDOWN_R:
         failures.append(f"{prefix}:MONTE_CARLO_P95_DRAWDOWN_ABOVE_15R")
-    if period.payoff_ratio < MIN_PAYOFF_RATIO:
-        failures.append(f"{prefix}:PAYOFF_RATIO_BELOW_1_20")
     if period.post_cost_profit_factor <= MIN_POST_COST_PROFIT_FACTOR_EXCLUSIVE:
         failures.append(f"{prefix}:POST_COST_PROFIT_FACTOR_NOT_ABOVE_1")
     if period.post_cost_expectancy_r <= 0:
