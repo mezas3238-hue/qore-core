@@ -41,6 +41,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_full_surface.py \
             src/qore/infrastructure/cibo_ce2i_usd60_six_month_certification.py \
             src/qore/infrastructure/cibo_ce2i_holdout_registry.py \
+            src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py \
             src/qore/infrastructure/cibo_ce2i_pre_holdout_freeze.py \
             src/qore/infrastructure/cibo_ce2i_pre_holdout_checkpoint.py \
             src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py \
@@ -148,6 +149,7 @@ jobs:
             scripts/cibo_phase20_failure_engineering.py \
             scripts/cibo_phase20_failure_engineering_b.py \
             scripts/cibo_ce2i_full_surface_contract.py \
+            scripts/cibo_pre_holdout_gate.py \
             scripts/cibo_ce2i_calibration_matrix.py \
             scripts/cibo_ce2i_pre_holdout_checkpoint.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
@@ -162,6 +164,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_full_surface.py \
             tests/infrastructure/test_cibo_ce2i_usd60_six_month_certification.py \
             tests/infrastructure/test_cibo_ce2i_holdout_registry.py \
+            tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py \
             tests/infrastructure/test_cibo_ce2i_pre_holdout_freeze.py \
             tests/infrastructure/test_cibo_ce2i_pre_holdout_checkpoint.py \
             tests/infrastructure/test_cibo_ce2i_usd60_robust_capacity.py \
@@ -287,6 +290,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_full_surface.py \
             src/qore/infrastructure/cibo_ce2i_usd60_six_month_certification.py \
             src/qore/infrastructure/cibo_ce2i_holdout_registry.py \
+            src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py \
             src/qore/infrastructure/cibo_ce2i_pre_holdout_freeze.py \
             src/qore/infrastructure/cibo_ce2i_pre_holdout_checkpoint.py \
             src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py \
@@ -393,6 +397,7 @@ jobs:
             scripts/cibo_phase20_failure_engineering.py \
             scripts/cibo_phase20_failure_engineering_b.py \
             scripts/cibo_ce2i_full_surface_contract.py \
+            scripts/cibo_pre_holdout_gate.py \
             scripts/cibo_ce2i_calibration_matrix.py \
             scripts/cibo_ce2i_pre_holdout_checkpoint.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
@@ -407,6 +412,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_full_surface.py \
             tests/infrastructure/test_cibo_ce2i_usd60_six_month_certification.py \
             tests/infrastructure/test_cibo_ce2i_holdout_registry.py \
+            tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py \
             tests/infrastructure/test_cibo_ce2i_pre_holdout_freeze.py \
             tests/infrastructure/test_cibo_ce2i_pre_holdout_checkpoint.py \
             tests/infrastructure/test_cibo_ce2i_usd60_robust_capacity.py \
@@ -534,6 +540,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_full_surface.py \
             tests/infrastructure/test_cibo_ce2i_usd60_six_month_certification.py \
             tests/infrastructure/test_cibo_ce2i_holdout_registry.py \
+            tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py \
             tests/infrastructure/test_cibo_ce2i_pre_holdout_freeze.py \
             tests/infrastructure/test_cibo_ce2i_pre_holdout_checkpoint.py \
             tests/infrastructure/test_cibo_ce2i_usd60_robust_capacity.py \
