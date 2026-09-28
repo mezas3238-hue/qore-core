@@ -41,6 +41,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_full_surface.py \
             src/qore/infrastructure/cibo_ce2i_usd60_six_month_certification.py \
             src/qore/infrastructure/cibo_ce2i_holdout_registry.py \
+            src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py \
             src/qore/infrastructure/cibo_ce2i_regime_selector.py \
             src/qore/infrastructure/cibo_ce2i_optionality.py \
             src/qore/infrastructure/cibo_ce2i_dynamic_derisking.py \
@@ -151,6 +152,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_full_surface.py \
             tests/infrastructure/test_cibo_ce2i_usd60_six_month_certification.py \
             tests/infrastructure/test_cibo_ce2i_holdout_registry.py \
+            tests/infrastructure/test_cibo_ce2i_usd60_robust_capacity.py \
             tests/infrastructure/test_cibo_ce2i_regime_selector.py \
             tests/infrastructure/test_cibo_ce2i_optionality.py \
             tests/infrastructure/test_cibo_ce2i_dynamic_derisking.py \
@@ -267,6 +269,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_full_surface.py \
             src/qore/infrastructure/cibo_ce2i_usd60_six_month_certification.py \
             src/qore/infrastructure/cibo_ce2i_holdout_registry.py \
+            src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py \
             src/qore/infrastructure/cibo_ce2i_regime_selector.py \
             src/qore/infrastructure/cibo_ce2i_optionality.py \
             src/qore/infrastructure/cibo_ce2i_dynamic_derisking.py \
@@ -376,6 +379,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_full_surface.py \
             tests/infrastructure/test_cibo_ce2i_usd60_six_month_certification.py \
             tests/infrastructure/test_cibo_ce2i_holdout_registry.py \
+            tests/infrastructure/test_cibo_ce2i_usd60_robust_capacity.py \
             tests/infrastructure/test_cibo_ce2i_regime_selector.py \
             tests/infrastructure/test_cibo_ce2i_optionality.py \
             tests/infrastructure/test_cibo_ce2i_dynamic_derisking.py \
@@ -473,6 +477,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_full_surface.py \
             tests/infrastructure/test_cibo_ce2i_usd60_six_month_certification.py \
             tests/infrastructure/test_cibo_ce2i_holdout_registry.py \
+            tests/infrastructure/test_cibo_ce2i_usd60_robust_capacity.py \
             tests/infrastructure/test_cibo_ce2i_regime_selector.py \
             tests/infrastructure/test_cibo_ce2i_optionality.py \
             tests/infrastructure/test_cibo_ce2i_dynamic_derisking.py \
