@@ -49,6 +49,7 @@ INITIAL_SEED_USD = Decimal("60")
 PROTECTION_THRESHOLD_USD = Decimal("60")
 NORMALIZED_MINIMUM_SEED_RISK_USD = Decimal("1")
 LOSS_ENVELOPE_STRESS = Decimal("1.25")
+ACCOUNTING_EPSILON = Decimal("1e-30")
 TRAIN_START = "2021-09-23T05:00:00+00:00"
 DEFAULT_START = "2021-12-29T09:00:00+00:00"
 DEFAULT_END = "2022-06-29T09:00:00+00:00"
@@ -453,7 +454,10 @@ def run(
         assigned_risk, stressed_reserve = open_positions.pop(fingerprint)
         reserved_stressed_loss -= stressed_reserve
         if reserved_stressed_loss < 0:
-            raise ValueError("negative stressed-loss reserve")
+            if abs(reserved_stressed_loss) <= ACCOUNTING_EPSILON:
+                reserved_stressed_loss = Decimal(0)
+            else:
+                raise ValueError("negative stressed-loss reserve")
 
         envelope_breach = (
             trade.outcome_r < 0
