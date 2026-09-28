@@ -63,19 +63,19 @@ jobs:
         include:
           - period: DEVELOPMENT_2024_2026
             slug: development
-            artifact: qore-capitalizer-consumed-certification-audit-v2-development-${{ env.SOURCE_SHA }}
+            artifact: qore-capitalizer-consumed-certification-audit-v2-development-a2231a543aacce63b6e834e04d59f66b81f11363
             window_start: '2024-09-17'
             window_end: '2026-09-17'
             development_only: 'true'
           - period: CONSUMED_VALIDATION_2022_2024
             slug: validation
-            artifact: qore-capitalizer-consumed-certification-audit-v2-validation-${{ env.SOURCE_SHA }}
+            artifact: qore-capitalizer-consumed-certification-audit-v2-validation-a2231a543aacce63b6e834e04d59f66b81f11363
             window_start: '2022-09-17'
             window_end: '2024-09-17'
             development_only: 'false'
           - period: CONSUMED_RESERVED_2020_2022
             slug: reserved
-            artifact: qore-capitalizer-consumed-certification-audit-v2-reserved-${{ env.SOURCE_SHA }}
+            artifact: qore-capitalizer-consumed-certification-audit-v2-reserved-a2231a543aacce63b6e834e04d59f66b81f11363
             window_start: '2020-09-17'
             window_end: '2022-09-17'
             development_only: 'false'
