@@ -121,15 +121,14 @@ class HistoricalQuoteSideShardSink:
         if any(item.quote_side is not quote_side for item in observations):
             raise ValueError("historical shard page contains mixed quote sides")
 
-        ordered = tuple(
-            sorted(
-                observations,
-                key=lambda item: (
-                    item.provider_event_at,
-                    item.relative_price,
-                ),
+        ordered = observations
+        if any(
+            right.provider_event_at < left.provider_event_at
+            for left, right in zip(ordered, ordered[1:], strict=False)
+        ):
+            raise ValueError(
+                "historical shard observations must already be chronological"
             )
-        )
         content_rows = [
             {
                 "provider_event_at": _utc(item.provider_event_at).isoformat(
