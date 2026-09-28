@@ -172,6 +172,12 @@ def run(
         raise V12InformationGainError("R8 target contract drift")
     if partition_range.get("fresh_holdout_opened") != 0:
         raise V12InformationGainError("R8 preparation opened fresh holdout")
+    if partition_range.get("episode_count") != EXPECTED_ALIGNED_R8_COUNT:
+        raise V12InformationGainError("authoritative V11 R8 episode count drift")
+    if partition_range.get("eligible_source_count") != 6534:
+        raise V12InformationGainError(
+            "authoritative V11 R8 eligible-source count drift"
+        )
 
     ordered_episodes = tuple(
         sorted(episodes, key=lambda item: item.checkpoints[0].as_of)
@@ -298,6 +304,7 @@ def run(
             EXPECTED_REPRESENTATION_ARTIFACT_FINGERPRINT
         ),
         "representation_row_count": representation_row_count,
+        "authoritative_v11_eligible_source_count": 6534,
         "aligned_target_count": len(aligned),
         "representation_only_anchor_count": representation_row_count - len(used_times),
         "v11_model_fingerprint_sha256": full_v11_fingerprint,
