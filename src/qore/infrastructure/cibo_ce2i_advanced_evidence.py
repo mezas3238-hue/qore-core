@@ -97,6 +97,36 @@ def assert_advanced_evidence_snapshot_causal(
         )
 
 
+
+
+
+def build_missing_advanced_evidence_snapshot(
+    *,
+    decision_at: datetime,
+    source_ref: str = "advanced-ce2i:calibration-unavailable",
+) -> AdvancedCe2iEvidenceSnapshot:
+    """Create explicit fail-closed provenance when calibration is unavailable.
+
+    This is not synthetic evidence and cannot authorize an advanced tool. The
+    empty typed payload causes every enabled advanced engine that requires
+    empirical evidence to return FAIL_CLOSED.
+    """
+
+    _aware(decision_at, "decision_at")
+    if not source_ref:
+        raise CiboCapitalManagementError(
+            "advanced CE2I missing-evidence source ref is required"
+        )
+    digest = sha256(
+        f"{decision_at.isoformat()}|{source_ref}".encode("utf-8")
+    ).hexdigest()
+    return AdvancedCe2iEvidenceSnapshot(
+        evidence_id=f"advanced-missing:{digest}",
+        assembled_at=decision_at,
+        source_refs=(source_ref,),
+        evidence=AdvancedPortfolioEvidence(),
+    )
+
 def advanced_evidence_snapshot_sha256(
     snapshot: AdvancedCe2iEvidenceSnapshot,
 ) -> str:
