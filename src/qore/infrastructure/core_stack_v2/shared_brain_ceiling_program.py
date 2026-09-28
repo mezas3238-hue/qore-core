@@ -44,6 +44,57 @@ TRANSVERSAL_ARCHITECTURE_REQUIREMENTS: Final = (
 )
 
 
+MAXIMUM_PRECERTIFICATION_CAPABILITIES: Final = (
+    "PROBABILISTIC_MARKET_DIGITAL_TWIN",
+    "FEDERATION_OF_WORLDS",
+    "DYNAMIC_CAUSAL_DISCOVERY",
+    "MARKET_REPRESENTATION_AND_ONTOLOGY_DISCOVERY",
+    "TEMPORAL_HIERARCHICAL_WORLD_MODEL",
+    "LATENT_STATE_RECONSTRUCTION",
+    "PREDICTIVE_STATE_MODEL_AND_PREDICTIVE_CODING",
+    "ACTIVE_PERCEPTION_AND_VALUE_OF_INFORMATION",
+    "EXPLICIT_BELIEF_STATE",
+    "MARKET_PHYSICS_CONSTRAINT_ENGINE",
+    "NEURAL_SYMBOLIC_BRAIN",
+    "QORE_MARKET_FOUNDATION_MODEL",
+    "DYNAMIC_GRAPH_MARKET_MODEL",
+    "TEMPORAL_CAUSAL_MODEL",
+    "UNCERTAINTY_DECOMPOSITION",
+    "EPISODIC_SEMANTIC_REGIME_FAILURE_MEMORY",
+    "MARKET_AGENCY_MODEL",
+    "COUNTERFACTUAL_WORLD_ENGINE",
+    "TRAJECTORY_INTELLIGENCE",
+    "STABILITY_ENGINE",
+    "SCIENTIFIC_SOCIETY_ENSEMBLE_OF_MINDS",
+    "AUTONOMOUS_SCIENTIFIC_LABORATORY",
+    "META_LEARNING_RAPID_REGIME_ADAPTATION",
+    "CONTINUAL_LEARNING_WITHOUT_CATASTROPHIC_FORGETTING",
+    "GOVERNED_SELF_IMPROVEMENT",
+    "COGNITIVE_ARBITRATION",
+    "META_COGNITIVE_SCIENTIFIC_INTELLIGENCE",
+    "CORE_BROKER_COGNITION_AND_BLINDSPOT_ENGINE",
+)
+
+
+PRE_CERTIFICATION_GATES: Final = (
+    "wp_01_through_wp_12_closed",
+    "mc_01_through_mc_28_satisfied",
+    "transversal_owner_requirements_satisfied",
+    "cognitive_firewall_pass",
+    "anti_leakage_pass",
+    "point_in_time_replay_pass",
+    "provenance_pass",
+    "uncertainty_and_abstention_pass",
+    "knowledge_governance_pass",
+    "rollback_and_reproducibility_pass",
+    "failure_and_degraded_mode_pass",
+    "adapter_sovereignty_pass",
+    "no_hidden_trader_logic",
+    "latency_and_availability_contract_pass",
+    "certification_inputs_and_thresholds_frozen",
+)
+
+
 @dataclass(frozen=True, slots=True)
 class WorkPackage:
     work_id: str
@@ -351,18 +402,24 @@ WORK_CHAIN: Final = (
 
 
 FINAL_CERTIFICATION_GATES: Final = (
-    "profit_factor_increases",
-    "drawdown_reduces",
-    "total_r_preserved_or_improved",
+    "seven_current_traders_frozen_as_is",
+    "no_pre_exam_trader_improvement",
+    "genuinely_fresh_two_year_holdout",
+    "control_is_current_trader_without_shared",
+    "treatment_is_identical_trader_plus_shared_only",
+    "year_1_superior_for_seven_of_seven",
+    "year_2_superior_for_seven_of_seven",
+    "every_required_oos_fold_pass",
+    "full_current_utc_001_pass_for_seven_of_seven",
+    "material_incremental_value",
     "winner_count_protected",
     "winner_r_protected",
     "avoidable_losses_reduced",
-    "valid_expansion_extensions_add_value",
-    "fresh_holdout_pass",
-    "stress_pass",
-    "cross_window_replication_pass",
-    "cross_regime_replication_pass",
+    "monte_carlo_and_tail_stress_pass",
+    "ablation_and_causal_attribution_pass",
+    "failure_engineering_pass",
     "no_future_leakage",
+    "authority_isolation_pass",
     "no_identity_shortcut",
     "no_production_self_promotion",
 )
