@@ -431,6 +431,10 @@ EVERY REQUIRED OOS FOLD PASS
 ×
 FULL CURRENT UTC-001 PASS FOR 7/7
 ×
+STRICTER SHARED EXCELLENCE OVERLAY PASS FOR 7/7
+×
+MATERIAL SUPERIORITY ABOVE UTC-001 AND CONTROL
+×
 MATERIAL INCREMENTAL VALUE
 ×
 WINNER PRESERVATION
@@ -448,6 +452,17 @@ AUTHORITY ISOLATION
 
 The two years are independent hard gates. No global/combined metric can rescue
 a non-superior year, a failed fold or a failed Trader.
+
+UTC-001 is only the minimum Trader-quality floor. It is not the Shared
+certification target. The Shared exam must use a separately pre-registered
+**Shared Excellence Overlay** that is strictly harder than UTC-001 and requires
+material superiority over both the Control Trader and the UTC-001 boundary in
+every core performance dimension. A Trader+Shared configuration that merely
+crosses UTC-001 is a Shared-certification failure.
+
+The exact numerical excellence margins must be frozen before the fresh holdout
+using burned/development evidence and a predeclared statistical/effect-size
+protocol. They may not be chosen after observing the certification holdout.
 
 The seven current Traders are deliberately the baseline population. They may
 not be improved before Shared's exam in order to make certification easier.
