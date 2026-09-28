@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
-from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
