@@ -65,9 +65,9 @@ Historical acquisition must:
    positive subsequent deltas are rejected because they contradict newest-first
    chronology;
 7. retain the deterministically reconstructed absolute provider-relative
-   integer price as well as the exact normalized decimal representation; raw
-   provider page evidence must remain reproducible from the bound acquisition
-   artifact/shard provenance;
+   integer price as well as the exact normalized decimal representation; the
+   signed wire deltas are normalization inputs, while the canonical retained
+   market evidence is the reconstructed chronological quote stream;
 8. preserve which quote side produced every tick;
 9. reject malformed/non-monotonic timestamp chains;
 10. reject response/account mismatches;
