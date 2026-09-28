@@ -1,9 +1,9 @@
-name: QORE Capitalizer Validation V2 UTC-001 Checkpoint Audit
+name: QORE Capitalizer Validation V2 Final UTC-001 Audit
 
 on:
   push:
     branches:
-      - agent/capitalizer-validation-utc001-post-v2-audit-001
+      - agent/capitalizer-validation-v2-final-utc001-audit-001
     paths:
       - '.github/workflows/qore-capitalizer-validation-v2-utc001-checkpoint-audit.yml'
       - 'src/qore/infrastructure/trader_lab/capitalizer_validation_v2_utc001_checkpoint_audit_v1.py'
@@ -21,8 +21,8 @@ env:
   V21_RUN_ID: '36264229554'
   V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
   SIM_RUN_ID: '36332714846'
-  CHECKPOINT_RUN_ID: '36415754108'
-  CHECKPOINT_ARTIFACT: 'qore-capitalizer-v2-validation-resume-checkpoint-9658445c2e19068c59bbc809d978a6f87748374b'
+  CHECKPOINT_RUN_ID: '36463046914'
+  CHECKPOINT_ARTIFACT: 'qore-capitalizer-v2-validation-resume-checkpoint-c3c87e1941c3f4134c9bf936d9e6ed27fb2ae1cd'
 
 jobs:
   quality:
@@ -93,7 +93,7 @@ jobs:
               "QORE_CAPITALIZER_VALIDATION_V2_UTC001_CHECKPOINT_AUDIT_V1"
           )
           assert report["period"] == "CONSUMED_VALIDATION_2022_2024"
-          assert report["checkpoint_interventions"] == 64
+          assert report["checkpoint_interventions"] == 112
           assert len(report["surface_years"]) == 2
           assert len(report["candidate_years"]) == 2
           assert len(report["per_year_deltas"]) == 2
