@@ -21,7 +21,7 @@ from qore.infrastructure.historical_quote_side_evidence import (
 )
 from qore.infrastructure.market_observation import MarketPriceSide
 
-_SCHEMA: Final = "qore.shared.wp05.v12.historical_quote_side_shard.v1"
+_SCHEMA: Final = "qore.shared.wp05.v12.historical_quote_side_shard.v2"
 
 
 def _utc(value: datetime) -> datetime:
@@ -134,6 +134,10 @@ class HistoricalQuoteSideShardSink:
                 "provider_event_at": _utc(item.provider_event_at).isoformat(
                     timespec="microseconds"
                 ),
+                "provider_wire_timestamp_value": (
+                    item.provider_wire_timestamp_value
+                ),
+                "provider_wire_price_value": item.provider_wire_price_value,
                 "relative_price": item.relative_price,
                 "price": item.price.canonical,
             }
