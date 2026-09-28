@@ -33,7 +33,7 @@ import json
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal, ROUND_FLOOR, getcontext
+from decimal import Decimal, getcontext
 from pathlib import Path
 from typing import Any
 
@@ -67,6 +67,10 @@ from qore.infrastructure.cibo_ce2i_phase20_robust_allocator import (
     Phase20AllocatorDisposition,
     propose_phase20h_robust_allocation,
 )
+from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
+    build_frozen_train_expectation,
+    frozen_train_prior_for,
+)
 from qore.infrastructure.cibo_ce2i_recycling import (
     ReleasedCapacityEvidence,
     register_released_capacity,
@@ -78,10 +82,6 @@ from qore.infrastructure.cibo_ce2i_regime_selector import (
     ProviderCondition,
     VolatilityState,
     select_ce2i_tools_for_regime,
-)
-from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
-    build_frozen_train_expectation,
-    frozen_train_prior_for,
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
