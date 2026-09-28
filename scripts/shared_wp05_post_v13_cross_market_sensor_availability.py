@@ -13,7 +13,6 @@ from typing import Any, cast
 
 from qore.infrastructure.core_stack_v2.active_perception_post_v13_sensor_availability import (
     CrossMarketPeerFamily,
-    HistoricalPeerCoverageStatus,
     HistoricalWindowCoverage,
     classify_historical_peer_coverage,
     discover_cross_market_microstructure_candidates,
