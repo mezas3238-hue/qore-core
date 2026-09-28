@@ -79,6 +79,34 @@ class CiboHoldoutCandidate:
             )
 
 
+def _overlaps(
+    left_start: datetime,
+    left_end: datetime,
+    right_start: datetime,
+    right_end: datetime,
+) -> bool:
+    return left_start < right_end and right_start < left_end
+
+
+def _interval(start_at: datetime, end_at: datetime) -> None:
+    for name, value in (("start_at", start_at), ("end_exclusive_at", end_at)):
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise CiboCapitalManagementError(f"{name} must be timezone-aware")
+    if end_at <= start_at:
+        raise CiboCapitalManagementError("interval end must follow start")
+
+
+def _six_calendar_months(start_at: datetime, end_at: datetime) -> bool:
+    month = start_at.month - 1 + 6
+    year = start_at.year + month // 12
+    target_month = month % 12 + 1
+    try:
+        expected = start_at.replace(year=year, month=target_month)
+    except ValueError:
+        return False
+    return end_at == expected
+
+
 CONFIRMED_CIBO_BURNS: tuple[CiboBurnedInterval, ...] = (
     CiboBurnedInterval(
         burn_id="phase18:r34-xauusd:5y",
@@ -196,31 +224,3 @@ def candidate_is_burn_clean_for_all_lineages(
             TraderLineage.VT31_NAS100,
         )
     )
-
-
-def _overlaps(
-    left_start: datetime,
-    left_end: datetime,
-    right_start: datetime,
-    right_end: datetime,
-) -> bool:
-    return left_start < right_end and right_start < left_end
-
-
-def _interval(start_at: datetime, end_at: datetime) -> None:
-    for name, value in (("start_at", start_at), ("end_exclusive_at", end_at)):
-        if value.tzinfo is None or value.utcoffset() is None:
-            raise CiboCapitalManagementError(f"{name} must be timezone-aware")
-    if end_at <= start_at:
-        raise CiboCapitalManagementError("interval end must follow start")
-
-
-def _six_calendar_months(start_at: datetime, end_at: datetime) -> bool:
-    month = start_at.month - 1 + 6
-    year = start_at.year + month // 12
-    target_month = month % 12 + 1
-    try:
-        expected = start_at.replace(year=year, month=target_month)
-    except ValueError:
-        return False
-    return end_at == expected
