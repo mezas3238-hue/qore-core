@@ -164,9 +164,21 @@ def test_phase21_empirical_receipt_rejects_detached_population() -> None:
 
 def test_phase21_freeze_rejects_qualification_lineage_mismatch() -> None:
     validations = list(_validations())
-    validations[0] = replace(
-        validations[0],
+    detached_qualification = replace(
+        _qualification(),
         qualification_artifact_sha256=_sha(999),
+    )
+    validations[0] = build_phase21_empirical_validation_receipt(
+        kind=Phase21EmpiricalValidationKind.CAPITAL_STATE_MONTE_CARLO,
+        qualification=detached_qualification,
+        validator_git_sha=f"{1:040x}",
+        observed_at=QUALIFIED_AT + timedelta(hours=1),
+        validation_payload={
+            "protocol": "TEST_CAPITAL_STATE_MONTE_CARLO",
+            "source_decision_epochs": 80,
+            "source_candidate_outcomes": 200,
+            "source_selected_outcomes": 60,
+        },
     )
 
     with pytest.raises(
