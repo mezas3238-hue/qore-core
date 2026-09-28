@@ -206,6 +206,13 @@ def classify_cibo_maximum_capability(
     return CiboMaximumCapabilityClassification.REJECTED
 
 
+def _unique_nonempty(values: tuple[str, ...], label: str) -> None:
+    if not values or len(values) != len(set(values)) or any(not item for item in values):
+        raise CiboCapitalManagementError(
+            f"{label} must be unique and non-empty"
+        )
+
+
 FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL = CiboMaximumCapabilityProtocol(
     protocol_id="CIBO_USD60_6M_MAXIMUM_REAL_CAPABILITY_V1",
     initial_capital_usd=Decimal("60"),
@@ -300,10 +307,3 @@ FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL = CiboMaximumCapabilityProtocol(
     ),
     frozen_at=datetime(2026, 9, 28, 11, 30, tzinfo=UTC),
 )
-
-
-def _unique_nonempty(values: tuple[str, ...], label: str) -> None:
-    if not values or len(values) != len(set(values)) or any(not item for item in values):
-        raise CiboCapitalManagementError(
-            f"{label} must be unique and non-empty"
-        )
