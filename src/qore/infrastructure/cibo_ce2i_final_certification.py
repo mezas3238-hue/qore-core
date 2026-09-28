@@ -10,6 +10,7 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 from hashlib import sha256
 
@@ -18,6 +19,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
 )
 from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
     FROZEN_PHASE20_POLICY_CANDIDATE,
+)
+from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
+    FROZEN_PHASE20D_QUALIFICATION_PLAN,
 )
 from qore.infrastructure.cibo_ce2i_phase21_policy_freeze import (
     Phase21PolicyFreezeManifest,
@@ -33,6 +37,20 @@ from qore.infrastructure.cibo_ce2i_phase22_qualification_plan import (
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 _PHASE22_ARTIFACT_SCHEMA = "qore.cibo.phase22.holdout-qualification.v1"
+
+
+def _artifact_decimal(payload: dict[str, object], key: str) -> Decimal:
+    try:
+        value = Decimal(str(payload[key]))
+    except (KeyError, InvalidOperation, ValueError) as error:
+        raise CiboCapitalManagementError(
+            f"final certification Phase22 metric invalid: {key}"
+        ) from error
+    if not value.is_finite():
+        raise CiboCapitalManagementError(
+            f"final certification Phase22 metric non-finite: {key}"
+        )
+    return value
 
 
 class CiboEconomicCertificationStatus(StrEnum):
@@ -160,6 +178,31 @@ class Phase22QualificationReceipt:
             raise CiboCapitalManagementError(
                 "final certification Phase22 artifact has failures"
             )
+        lineage = artifact.get("lineage")
+        if not isinstance(lineage, dict):
+            raise CiboCapitalManagementError(
+                "final certification Phase22 lineage artifact missing"
+            )
+        plan20 = FROZEN_PHASE20D_QUALIFICATION_PLAN
+        if (
+            type(lineage.get("decision_epochs")) is not int
+            or lineage.get("decision_epochs") < plan20.minimum_decision_epochs
+            or lineage.get("policy_decisions") != lineage.get("decision_epochs")
+            or type(lineage.get("outcomes")) is not int
+            or lineage.get("outcomes") < plan20.minimum_candidate_outcomes
+        ):
+            raise CiboCapitalManagementError(
+                "final certification Phase22 holdout population incomplete"
+            )
+        collector_shas = lineage.get("collector_git_shas")
+        if (
+            not isinstance(collector_shas, list)
+            or len(collector_shas) != 1
+            or _SHA1_RE.fullmatch(str(collector_shas[0])) is None
+        ):
+            raise CiboCapitalManagementError(
+                "final certification Phase22 collector lineage incomplete"
+            )
         economic = artifact.get("economic")
         if (
             not isinstance(economic, dict)
@@ -169,6 +212,47 @@ class Phase22QualificationReceipt:
             raise CiboCapitalManagementError(
                 "final certification Phase22 economic artifact is not PASS"
             )
+        policy_net = _artifact_decimal(economic, "policy_net_delta_usd")
+        baseline_net = _artifact_decimal(economic, "baseline_net_delta_usd")
+        policy_dd = _artifact_decimal(
+            economic, "policy_settlement_cash_drawdown_usd"
+        )
+        baseline_dd = _artifact_decimal(
+            economic, "baseline_settlement_cash_drawdown_usd"
+        )
+        policy_productivity = _artifact_decimal(
+            economic, "policy_capital_productivity"
+        )
+        baseline_productivity = _artifact_decimal(
+            economic, "baseline_capital_productivity"
+        )
+        if (
+            policy_net <= 0
+            or policy_net < baseline_net
+            or policy_dd > baseline_dd
+            or policy_productivity <= baseline_productivity
+        ):
+            raise CiboCapitalManagementError(
+                "final certification Phase22 economic hard gates not demonstrated"
+            )
+        for key, minimum in (
+            (
+                "policy_selected_outcome_coverage",
+                plan20.required_selected_outcome_coverage,
+            ),
+            (
+                "baseline_selected_outcome_coverage",
+                plan20.required_baseline_selected_outcome_coverage,
+            ),
+            (
+                "candidate_outcome_coverage",
+                plan20.minimum_candidate_outcome_coverage,
+            ),
+        ):
+            if _artifact_decimal(economic, key) < minimum:
+                raise CiboCapitalManagementError(
+                    f"final certification Phase22 coverage not met: {key}"
+                )
         governance = artifact.get("governance")
         if not isinstance(governance, dict) or any(
             governance.get(key) is not False
@@ -300,6 +384,15 @@ def build_phase22_qualification_receipt(
             ),
             "baseline_capital_productivity": format(
                 economic.baseline_capital_productivity, "f"
+            ),
+            "policy_selected_outcome_coverage": format(
+                economic.policy_selected_outcome_coverage, "f"
+            ),
+            "baseline_selected_outcome_coverage": format(
+                economic.baseline_selected_outcome_coverage, "f"
+            ),
+            "candidate_outcome_coverage": format(
+                economic.candidate_outcome_coverage, "f"
             ),
         },
         "failures": list(report.failures),
