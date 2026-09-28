@@ -57,7 +57,11 @@ def test_t04_separates_normalized_from_usd_economics() -> None:
     assert record.calibrated is True
     assert record.calibration_artifact_sha256
     assert record.provider_economics_required is True
-    assert "USD_TRUE_STOP_RISK_REQUIRES_PROVIDER_ECONOMICS" in record.blockers
+    assert (
+        "USD_TRUE_STOP_RISK_REQUIRES_HISTORICAL_2017_"
+        "TICK_VALUE_AND_CONVERSION"
+        in record.blockers
+    )
 
 
 def test_t10_is_normalized_capital_time_only() -> None:
@@ -66,7 +70,11 @@ def test_t10_is_normalized_capital_time_only() -> None:
     assert record.calibrated is True
     assert record.calibration_artifact_sha256
     assert record.provider_economics_required is True
-    assert "USD_OUTPUT_PER_CAPITAL_TIME_PENDING_PROVIDER_ECONOMICS" in record.blockers
+    assert (
+        "USD_OUTPUT_PER_CAPITAL_TIME_REQUIRES_HISTORICAL_"
+        "EXECUTION_ECONOMICS"
+        in record.blockers
+    )
 
 
 def test_no_calibration_record_uses_holdout_outcomes_or_targets() -> None:
@@ -90,3 +98,15 @@ def test_lifecycle_tools_are_causally_calibrated_but_not_oos_ready() -> None:
         assert record.oos_ready is False
         assert record.certification_ready is False
         assert record.blockers
+
+
+def test_current_provider_terms_do_not_erase_historical_execution_blockers() -> None:
+    assert "HISTORICAL_2017_PROVIDER_TERMS_NOT_PROVEN" in calibration_record(
+        "T01"
+    ).blockers
+    assert "HISTORICAL_2017_MARGIN_TERMS_NOT_PROVEN" in calibration_record(
+        "T03"
+    ).blockers
+    assert "EMPIRICAL_SLIPPAGE_AND_LATENCY_CALIBRATION_REQUIRED" in calibration_record(
+        "T11"
+    ).blockers
