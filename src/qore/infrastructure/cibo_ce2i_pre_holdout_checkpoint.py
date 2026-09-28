@@ -1,0 +1,116 @@
+"""Fail-closed CIBO pre-holdout readiness checkpoint.
+
+This checkpoint never reads 2017H1 and never unseals it. It summarizes the
+canonical T01..T20 calibration registry and identifies what still prevents the
+CIBO PRE-HOLDOUT FREEZE.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from dataclasses import dataclass
+
+from qore.infrastructure.cibo_capital_management_authority import (
+    CiboCapitalManagementError,
+)
+from qore.infrastructure.cibo_ce2i_calibration_matrix import (
+    CIBO_T01_T20_CALIBRATION_MATRIX,
+)
+from qore.infrastructure.cibo_ce2i_pre_holdout_freeze import (
+    ACTIVE_PRE_HOLDOUT_FREEZE,
+    CURRENT_HOLDOUT_SEAL_STATE,
+    CiboHoldoutSealState,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class CiboPreHoldoutCheckpoint:
+    matrix_sha256: str
+    calibrated_tools: tuple[str, ...]
+    oos_ready_tools: tuple[str, ...]
+    certification_ready_tools: tuple[str, ...]
+    provider_economics_pending_tools: tuple[str, ...]
+    calibration_pending_tools: tuple[str, ...]
+    fail_closed_tools: tuple[str, ...]
+    holdout_state: CiboHoldoutSealState
+    holdout_2017h1_read: bool
+    pre_holdout_freeze_active: bool
+
+    def __post_init__(self) -> None:
+        if not self.matrix_sha256:
+            raise CiboCapitalManagementError(
+                "pre-holdout checkpoint matrix hash is required"
+            )
+        if self.holdout_state is not CiboHoldoutSealState.SEALED_UNTOUCHED:
+            raise CiboCapitalManagementError(
+                "pre-freeze checkpoint requires 2017H1 SEALED_UNTOUCHED"
+            )
+        if self.holdout_2017h1_read:
+            raise CiboCapitalManagementError(
+                "pre-freeze checkpoint cannot claim 2017H1 was read"
+            )
+        if self.pre_holdout_freeze_active:
+            raise CiboCapitalManagementError(
+                "readiness checkpoint cannot activate pre-holdout freeze"
+            )
+
+    @property
+    def ready_to_freeze(self) -> bool:
+        return (
+            not self.provider_economics_pending_tools
+            and not self.calibration_pending_tools
+            and len(self.oos_ready_tools) == 20
+            and len(self.certification_ready_tools) == 20
+        )
+
+
+def build_pre_holdout_checkpoint() -> CiboPreHoldoutCheckpoint:
+    rows = CIBO_T01_T20_CALIBRATION_MATRIX
+    canonical = [
+        {
+            "tool": row.tool_code,
+            "implemented": row.implemented,
+            "calibrated": row.calibrated,
+            "calibration_source": list(row.calibration_source),
+            "calibration_type": row.calibration_type.value,
+            "provider_economics_required": row.provider_economics_required,
+            "fail_closed": row.fail_closed,
+            "oos_ready": row.oos_ready,
+            "certification_ready": row.certification_ready,
+            "classification": row.classification.value,
+            "blocker": list(row.blocker),
+            "calibration_artifact_sha256": row.calibration_artifact_sha256,
+        }
+        for row in rows
+    ]
+    matrix_hash = hashlib.sha256(
+        json.dumps(
+            canonical,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
+    return CiboPreHoldoutCheckpoint(
+        matrix_sha256=matrix_hash,
+        calibrated_tools=tuple(row.tool_code for row in rows if row.calibrated),
+        oos_ready_tools=tuple(row.tool_code for row in rows if row.oos_ready),
+        certification_ready_tools=tuple(
+            row.tool_code for row in rows if row.certification_ready
+        ),
+        provider_economics_pending_tools=tuple(
+            row.tool_code
+            for row in rows
+            if row.provider_economics_required
+            and not row.certification_ready
+        ),
+        calibration_pending_tools=tuple(
+            row.tool_code for row in rows if not row.calibrated
+        ),
+        fail_closed_tools=tuple(
+            row.tool_code for row in rows if row.fail_closed
+        ),
+        holdout_state=CURRENT_HOLDOUT_SEAL_STATE,
+        holdout_2017h1_read=False,
+        pre_holdout_freeze_active=ACTIVE_PRE_HOLDOUT_FREEZE is not None,
+    )
