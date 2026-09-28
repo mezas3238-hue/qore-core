@@ -1,5 +1,7 @@
 import json
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from hashlib import sha256
 
 from qore.infrastructure.cibo_ce2i_final_certification import (
     CiboEconomicCertificationStatus,
@@ -128,6 +130,39 @@ def _phase21_manifest():
 def _receipt(*, phase21_sha: str) -> Phase22QualificationReceipt:
     candidate = FROZEN_PHASE20_POLICY_CANDIDATE
     plan = FROZEN_PHASE22_HOLDOUT_QUALIFICATION_PLAN
+    qualified_at = PHASE21_FROZEN_AT + timedelta(days=29)
+    validator_git_sha = "c" * 40
+    artifact = {
+        "schema": "qore.cibo.phase22.holdout-qualification.v1",
+        "status": "PASS",
+        "candidate_id": candidate.candidate_id,
+        "candidate_parameter_sha256": candidate.parameter_sha256(),
+        "phase21_manifest_sha256": phase21_sha,
+        "phase22_plan_id": plan.plan_id,
+        "phase22_plan_sha256": phase22_holdout_qualification_plan_sha256(),
+        "holdout_evidence_store_sha256": _sha(201),
+        "holdout_policy_store_sha256": _sha(202),
+        "validator_git_sha": validator_git_sha,
+        "qualified_at": qualified_at.isoformat(),
+        "evidence_class": "FORWARD_EMPIRICAL_HOLDOUT",
+        "lineage_valid": True,
+        "economic_holdout_passed": True,
+        "economic": {
+            "status": "PASS",
+            "failures": [],
+        },
+        "failures": [],
+        "governance": {
+            "synthetic_evidence_used": False,
+            "holdout_mining_used": False,
+            "outcome_aware_refit": False,
+            "qualification_population_reused": False,
+        },
+    }
+    artifact_json = json.dumps(artifact, indent=2, sort_keys=True) + "\n"
+    artifact_sha256 = (
+        "sha256:" + sha256(artifact_json.encode("utf-8")).hexdigest()
+    )
     return Phase22QualificationReceipt(
         candidate_id=candidate.candidate_id,
         candidate_parameter_sha256=candidate.parameter_sha256(),
@@ -136,13 +171,26 @@ def _receipt(*, phase21_sha: str) -> Phase22QualificationReceipt:
         phase22_plan_sha256=phase22_holdout_qualification_plan_sha256(),
         holdout_evidence_store_sha256=_sha(201),
         holdout_policy_store_sha256=_sha(202),
-        qualification_artifact_sha256=_sha(203),
-        qualified_at=PHASE21_FROZEN_AT + timedelta(days=29),
+        qualification_artifact_sha256=artifact_sha256,
+        qualification_artifact_json=artifact_json,
+        validator_git_sha=validator_git_sha,
+        qualified_at=qualified_at,
         evidence_class="FORWARD_EMPIRICAL_HOLDOUT",
         passed=True,
         lineage_valid=True,
         economic_holdout_passed=True,
     )
+
+
+def test_phase22_receipt_rejects_detached_artifact_digest() -> None:
+    receipt = _receipt(phase21_sha=_sha(301))
+
+    try:
+        replace(receipt, qualification_artifact_sha256=_sha(999))
+    except Exception as error:
+        assert "artifact digest mismatch" in str(error)
+    else:
+        raise AssertionError("detached Phase22 artifact digest was accepted")
 
 
 def test_final_certification_remains_pending_without_phase22_receipt() -> None:
