@@ -132,8 +132,8 @@ jobs:
               "V12_REPRESENTATION_FINGERPRINT"
           ]
           assert p["representation_row_count"] == 6804
-          assert p["aligned_target_count"] == 6534
-          assert p["representation_only_anchor_count"] == 270
+          assert p["aligned_target_count"] == 6397
+          assert p["representation_only_anchor_count"] == 407
           assert p["v11_model_fingerprint_sha256"] == os.environ[
               "V11_MODEL_FINGERPRINT"
           ]
