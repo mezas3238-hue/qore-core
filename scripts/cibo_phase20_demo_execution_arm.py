@@ -24,7 +24,7 @@ from qore.infrastructure.ctrader_open_api_client import (  # type: ignore[import
     CTraderOpenApiCredentials,
     SpotwareCTraderOpenApiClient,
 )
-from qore.kernel.result import Failure
+from qore.kernel.result import Failure  # type: ignore[import-untyped]
 
 _REQUIRED_SYMBOLS = (
     "AUDJPY",
