@@ -9,10 +9,10 @@ from qore.infrastructure.cibo_capital_management_authority import (
     TraderOpportunityEnvelope,
 )
 from qore.infrastructure.cibo_ce2i_advanced_capital_tools import (
-    AdvancedCe2iEvidenceBundle,
     AdvancedToolDisposition,
 )
 from qore.infrastructure.cibo_ce2i_full_surface import (
+    AdvancedPortfolioEvidence,
     evaluate_full_ce2i_surface,
 )
 from qore.infrastructure.cibo_ce2i_regime_selector import (
@@ -46,7 +46,7 @@ def _state() -> CiboCapitalRegimeState:
         risk_utilization=Decimal("0.20"),
         margin_utilization=Decimal("0.20"),
         drawdown_utilization=Decimal("0.20"),
-        opportunity_count=3,
+        opportunity_count=1,
     )
 
 
@@ -69,12 +69,12 @@ def _opportunity() -> TraderOpportunityEnvelope:
     )
 
 
-def test_full_surface_binds_all_twenty_tools_and_all_advanced_engines() -> None:
+def test_full_surface_binds_all_twenty_tools_and_all_advanced_scopes() -> None:
     result = evaluate_full_ce2i_surface(
         mission=_mission(),
         regime_state=_state(),
-        opportunity=_opportunity(),
-        advanced_evidence=AdvancedCe2iEvidenceBundle(),
+        opportunities=(_opportunity(),),
+        advanced_evidence=AdvancedPortfolioEvidence(),
     )
 
     assert result.complete_registry is True
@@ -82,14 +82,15 @@ def test_full_surface_binds_all_twenty_tools_and_all_advanced_engines() -> None:
         f"T{index:02d}" for index in range(1, 21)
     )
     assert result.mission_tools == result.registry_codes
-    assert tuple(item.tool_code for item in result.advanced_decisions) == (
-        "T02",
-        "T03",
-        "T04",
+    assert len(result.opportunity_assessments) == 1
+    assert tuple(
+        item.tool_code
+        for item in result.opportunity_assessments[0].decisions
+    ) == ("T02", "T03", "T04", "T17")
+    assert tuple(item.tool_code for item in result.portfolio_decisions) == (
         "T08",
         "T10",
         "T16",
-        "T17",
     )
     assert all(
         item.disposition is AdvancedToolDisposition.FAIL_CLOSED
