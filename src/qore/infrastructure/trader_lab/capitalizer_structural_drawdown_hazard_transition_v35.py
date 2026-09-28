@@ -230,6 +230,7 @@ def _first_passage_target(
 
     deepened = False
     recovered = False
+    first_event: str | None = None
     max_dd = starting_dd
 
     for _exit_at, batch_iter in groupby(
@@ -245,16 +246,19 @@ def _first_passage_target(
         max_dd = max(max_dd, current_dd)
         if current_dd > starting_dd:
             deepened = True
+            if first_event is None:
+                first_event = "DEEPEN_TROUGH"
         if equity >= peak:
             recovered = True
+            if first_event is None:
+                first_event = "RECOVER_PEAK"
             break
 
-    if recovered:
-        terminal = "RECOVER_PEAK"
-    elif deepened:
-        terminal = "DEEPEN_TROUGH_BEFORE_PERIOD_END"
-    else:
-        terminal = "PERIOD_EXHAUSTED_NO_DEEPEN_OR_RECOVERY"
+    terminal = (
+        first_event
+        if first_event is not None
+        else "PERIOD_EXHAUSTED_NO_DEEPEN_OR_RECOVERY"
+    )
 
     return FirstPassageTarget(
         deepens_before_recovery=deepened,
