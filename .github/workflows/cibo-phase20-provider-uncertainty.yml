@@ -391,6 +391,12 @@ jobs:
       - name: Emit provider uncertainty contract evidence
         run: |
           mkdir -p phase20-output
+          cat > phase20-output/empty-forward-evidence.json <<'JSON'
+          {"schema":"CIBO_PHASE20D_FORWARD_EVIDENCE_BOOK_V4","generation":0,"decisions":[],"outcomes":[]}
+          JSON
+          cat > phase20-output/empty-forward-policy.json <<'JSON'
+          {"schema":"CIBO_PHASE20D_FORWARD_POLICY_BOOK_V1","generation":0,"decisions":[]}
+          JSON
           python scripts/cibo_phase20_provider_uncertainty_contract.py \
             --output phase20-output/phase20-provider-uncertainty-contract.json \
             > phase20-output/provider-uncertainty-stdout.json
@@ -479,6 +485,8 @@ jobs:
             qualification-plan-stdout.json \
             phase20-forward-qualification-empty-contract.json \
             forward-qualification-stdout.json \
+            empty-forward-evidence.json \
+            empty-forward-policy.json \
             phase20-failure-engineering.json \
             failure-engineering-stdout.json \
             phase20-failure-engineering-b.json \
