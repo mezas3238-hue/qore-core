@@ -606,6 +606,45 @@ def _false_bottom(
     return False
 
 
+def _day_record(
+    current: RthSession,
+    variant: Variant,
+    *,
+    terminal_stage: str,
+    reason: str,
+    eligible: bool = False,
+    gap: Decimal | None = None,
+    reference_day: date | None = None,
+    reference_low: Decimal | None = None,
+    extension_2: Decimal | None = None,
+    sweep_at: datetime | None = None,
+    sweep_low: Decimal | None = None,
+    rejection_confirmed: bool = False,
+    ifvg_confirmed: bool = False,
+    entry_at: datetime | None = None,
+    false_bottom: bool = False,
+    trade: Trade | None = None,
+) -> DayRecord:
+    return DayRecord(
+        ny_day=current.ny_day,
+        variant=variant.value,
+        eligible=eligible,
+        terminal_stage=terminal_stage,
+        reason=reason,
+        gap=gap,
+        reference_day=reference_day,
+        reference_low=reference_low,
+        extension_2=extension_2,
+        sweep_at=sweep_at,
+        sweep_low=sweep_low,
+        rejection_confirmed=rejection_confirmed,
+        ifvg_confirmed=ifvg_confirmed,
+        entry_at=entry_at,
+        false_bottom=false_bottom,
+        trade=trade,
+    )
+
+
 def evaluate_day(
     evidence: Evidence,
     sessions: Sequence[RthSession],
@@ -616,36 +655,22 @@ def evaluate_day(
     current = sessions[index]
     previous = sessions[index - 1]
     tick = _tick_size(evidence.digits)
-    empty = dict(
-        ny_day=current.ny_day,
-        variant=variant.value,
-        eligible=False,
-        gap=None,
-        reference_day=None,
-        reference_low=None,
-        extension_2=None,
-        sweep_at=None,
-        sweep_low=None,
-        rejection_confirmed=False,
-        ifvg_confirmed=False,
-        entry_at=None,
-        false_bottom=False,
-        trade=None,
-    )
 
     if not _daily_context_bullish(previous, current):
-        return DayRecord(
+        return _day_record(
+            current,
+            variant,
             terminal_stage="context",
             reason="daily-context-not-bullish",
-            **empty,
         )
 
     gap = previous.settle - current.open
     if gap <= 0:
-        return DayRecord(
+        return _day_record(
+            current,
+            variant,
             terminal_stage="gap",
             reason="not-gap-down",
-            **empty,
         )
 
     lower_octant = current.open + gap / Decimal(8)
@@ -657,93 +682,99 @@ def evaluate_day(
         _at_ny(current.ny_day, EARLY_GAP_END),
     )
     if not early:
-        return DayRecord(
+        return _day_record(
+            current,
+            variant,
             terminal_stage="data",
             reason="missing-early-rth-bars",
-            **empty,
         )
     if variant is not Variant.NO_RTH_GAP_CONTEXT:
         if max(item.high for item in early) >= lower_quadrant:
-            return DayRecord(
+            return _day_record(
+                current,
+                variant,
                 terminal_stage="gap-repair",
                 reason="lower-quadrant-repaired",
-                **{**empty, "eligible": True, "gap": gap, "extension_2": extension_2},
+                eligible=True,
+                gap=gap,
+                extension_2=extension_2,
             )
         if max(item.close for item in early) >= lower_octant:
-            return DayRecord(
+            return _day_record(
+                current,
+                variant,
                 terminal_stage="gap-repair",
                 reason="lowest-octant-body-accepted",
-                **{**empty, "eligible": True, "gap": gap, "extension_2": extension_2},
+                eligible=True,
+                gap=gap,
+                extension_2=extension_2,
             )
 
-    reference = _untouched_sellside_reference(
-        sessions, index, evidence.bars
-    )
+    reference = _untouched_sellside_reference(sessions, index, evidence.bars)
     if reference is None:
-        return DayRecord(
+        return _day_record(
+            current,
+            variant,
             terminal_stage="liquidity",
             reason="no-untouched-prior-rth-low",
-            **{**empty, "eligible": True, "gap": gap, "extension_2": extension_2},
+            eligible=True,
+            gap=gap,
+            extension_2=extension_2,
         )
     ref_session, ref_low = reference
 
     if variant is not Variant.NO_GAP_EXTENSION:
         if abs(ref_low - extension_2) > gap / Decimal(8):
-            return DayRecord(
+            return _day_record(
+                current,
+                variant,
                 terminal_stage="confluence",
                 reason="sellside-not-within-2sd-octant",
-                **{
-                    **empty,
-                    "eligible": True,
-                    "gap": gap,
-                    "reference_day": ref_session.ny_day,
-                    "reference_low": ref_low,
-                    "extension_2": extension_2,
-                },
+                eligible=True,
+                gap=gap,
+                reference_day=ref_session.ny_day,
+                reference_low=ref_low,
+                extension_2=extension_2,
             )
 
     macro_open = _at_ny(current.ny_day, MACRO_FIRST_HALF_OPEN)
     first_half_close = _at_ny(current.ny_day, MACRO_FIRST_HALF_CLOSE)
-    if variant is Variant.NO_MACRO:
-        sweep_search_open = _at_ny(current.ny_day, EARLY_GAP_END)
-    else:
-        sweep_search_open = macro_open
+    sweep_search_open = (
+        _at_ny(current.ny_day, EARLY_GAP_END)
+        if variant is Variant.NO_MACRO
+        else macro_open
+    )
 
-    # A pre-macro violation invalidates FULL V1 because the source premise stalks
-    # the untouched pool into the 10:50-11:10 temporal window.
     if variant is not Variant.NO_MACRO:
         pre_macro = _bars_between(evidence.bars, current.open_at, macro_open)
         if any(item.low < ref_low for item in pre_macro):
-            return DayRecord(
+            return _day_record(
+                current,
+                variant,
                 terminal_stage="timing",
                 reason="sellside-swept-before-macro",
-                **{
-                    **empty,
-                    "eligible": True,
-                    "gap": gap,
-                    "reference_day": ref_session.ny_day,
-                    "reference_low": ref_low,
-                    "extension_2": extension_2,
-                },
+                eligible=True,
+                gap=gap,
+                reference_day=ref_session.ny_day,
+                reference_low=ref_low,
+                extension_2=extension_2,
             )
 
-    sweep_window = _bars_between(
-        evidence.bars, sweep_search_open, first_half_close
-    )
+    sweep_window = _bars_between(evidence.bars, sweep_search_open, first_half_close)
     sweep = next((item for item in sweep_window if item.low < ref_low), None)
     if sweep is None:
-        return DayRecord(
+        return _day_record(
+            current,
+            variant,
             terminal_stage="sweep",
             reason="no-sellside-sweep",
-            **{
-                **empty,
-                "eligible": True,
-                "gap": gap,
-                "reference_day": ref_session.ny_day,
-                "reference_low": ref_low,
-                "extension_2": extension_2,
-            },
+            eligible=True,
+            gap=gap,
+            reference_day=ref_session.ny_day,
+            reference_low=ref_low,
+            extension_2=extension_2,
         )
+
     after_sweep_first_half = tuple(
         item for item in sweep_window if item.opened_at >= sweep.opened_at
     )
@@ -753,22 +784,22 @@ def evaluate_day(
         item.close > acceptance_floor for item in after_sweep_first_half
     )
     if variant is not Variant.NO_ACCEPTANCE_TEST and not rejection:
-        return DayRecord(
+        return _day_record(
+            current,
+            variant,
             terminal_stage="acceptance",
             reason="body-accepted-below-reference-or-2sd",
-            **{
-                **empty,
-                "eligible": True,
-                "gap": gap,
-                "reference_day": ref_session.ny_day,
-                "reference_low": ref_low,
-                "extension_2": extension_2,
-                "sweep_at": sweep.opened_at,
-                "sweep_low": sweep_low,
-            },
+            eligible=True,
+            gap=gap,
+            reference_day=ref_session.ny_day,
+            reference_low=ref_low,
+            extension_2=extension_2,
+            sweep_at=sweep.opened_at,
+            sweep_low=sweep_low,
         )
 
     deadline = _at_ny(current.ny_day, MACRO_CLOSE)
+    zone: BearishFvg | None
     if variant is Variant.NO_IFVG:
         entry_bar = next(
             (
@@ -780,20 +811,19 @@ def evaluate_day(
             None,
         )
         if entry_bar is None:
-            return DayRecord(
+            return _day_record(
+                current,
+                variant,
                 terminal_stage="entry",
                 reason="no-post-rejection-entry-bar",
-                **{
-                    **empty,
-                    "eligible": True,
-                    "gap": gap,
-                    "reference_day": ref_session.ny_day,
-                    "reference_low": ref_low,
-                    "extension_2": extension_2,
-                    "sweep_at": sweep.opened_at,
-                    "sweep_low": sweep_low,
-                    "rejection_confirmed": rejection,
-                },
+                eligible=True,
+                gap=gap,
+                reference_day=ref_session.ny_day,
+                reference_low=ref_low,
+                extension_2=extension_2,
+                sweep_at=sweep.opened_at,
+                sweep_low=sweep_low,
+                rejection_confirmed=rejection,
             )
         zone = None
         entry_at = entry_bar.closed_at
@@ -812,61 +842,58 @@ def evaluate_day(
                 sweep_low=sweep_low,
                 target=current.open,
             )
-            return DayRecord(
+            return _day_record(
+                current,
+                variant,
                 terminal_stage="ifvg",
                 reason="no-causal-ifvg-inversion-entry",
-                **{
-                    **empty,
-                    "eligible": True,
-                    "gap": gap,
-                    "reference_day": ref_session.ny_day,
-                    "reference_low": ref_low,
-                    "extension_2": extension_2,
-                    "sweep_at": sweep.opened_at,
-                    "sweep_low": sweep_low,
-                    "rejection_confirmed": rejection,
-                    "false_bottom": false_bottom,
-                },
+                eligible=True,
+                gap=gap,
+                reference_day=ref_session.ny_day,
+                reference_low=ref_low,
+                extension_2=extension_2,
+                sweep_at=sweep.opened_at,
+                sweep_low=sweep_low,
+                rejection_confirmed=rejection,
+                false_bottom=false_bottom,
             )
         zone, entry_at, entry_price = ifvg
 
     stop = sweep_low - tick
     target = current.open
     if entry_price <= stop:
-        return DayRecord(
+        return _day_record(
+            current,
+            variant,
             terminal_stage="geometry",
             reason="entry-through-structural-stop",
-            **{
-                **empty,
-                "eligible": True,
-                "gap": gap,
-                "reference_day": ref_session.ny_day,
-                "reference_low": ref_low,
-                "extension_2": extension_2,
-                "sweep_at": sweep.opened_at,
-                "sweep_low": sweep_low,
-                "rejection_confirmed": rejection,
-                "ifvg_confirmed": zone is not None,
-                "entry_at": entry_at,
-            },
+            eligible=True,
+            gap=gap,
+            reference_day=ref_session.ny_day,
+            reference_low=ref_low,
+            extension_2=extension_2,
+            sweep_at=sweep.opened_at,
+            sweep_low=sweep_low,
+            rejection_confirmed=rejection,
+            ifvg_confirmed=zone is not None,
+            entry_at=entry_at,
         )
     if target <= entry_price:
-        return DayRecord(
+        return _day_record(
+            current,
+            variant,
             terminal_stage="geometry",
             reason="entry-at-or-above-0930-open",
-            **{
-                **empty,
-                "eligible": True,
-                "gap": gap,
-                "reference_day": ref_session.ny_day,
-                "reference_low": ref_low,
-                "extension_2": extension_2,
-                "sweep_at": sweep.opened_at,
-                "sweep_low": sweep_low,
-                "rejection_confirmed": rejection,
-                "ifvg_confirmed": zone is not None,
-                "entry_at": entry_at,
-            },
+            eligible=True,
+            gap=gap,
+            reference_day=ref_session.ny_day,
+            reference_low=ref_low,
+            extension_2=extension_2,
+            sweep_at=sweep.opened_at,
+            sweep_low=sweep_low,
+            rejection_confirmed=rejection,
+            ifvg_confirmed=zone is not None,
+            entry_at=entry_at,
         )
 
     expiry = _at_ny(current.ny_day, AM_EXPIRY)
@@ -912,12 +939,12 @@ def evaluate_day(
         sweep_low=sweep_low,
         target=target,
     )
-    return DayRecord(
-        ny_day=current.ny_day,
-        variant=variant.value,
-        eligible=True,
+    return _day_record(
+        current,
+        variant,
         terminal_stage="trade",
         reason="trade",
+        eligible=True,
         gap=gap,
         reference_day=ref_session.ny_day,
         reference_low=ref_low,
@@ -930,7 +957,6 @@ def evaluate_day(
         false_bottom=false_bottom,
         trade=trade,
     )
-
 
 def replay(
     evidence: Evidence,
