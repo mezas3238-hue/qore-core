@@ -16,7 +16,6 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 from qore.infrastructure.ctrader_demo_free_binding import (
-    CTraderDemoFreeBinding,
     discover_free_account_binding,
 )
 from qore.infrastructure.ctrader_open_api_client import (
@@ -198,7 +197,7 @@ def collect_ctrader_demo_provider_economics(
         "qore-cibo-provider-economics-symbols",
     )
     details = tuple(getattr(details_res, "symbol", ()))
-    by_id = {int(getattr(item, "symbolId")): item for item in details}
+    by_id = {int(item.symbolId): item for item in details}
 
     _request(
         client,
