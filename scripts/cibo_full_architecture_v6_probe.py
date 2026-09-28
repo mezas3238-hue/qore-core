@@ -1,4 +1,4 @@
-"""CIBO full-architecture functional probe for the isolated USD60/6M V4 lab.
+"""CIBO full-architecture functional probe for the isolated USD60/6M V6 lab.
 
 This probe exercises every currently executable CE2I tool contract using the
 canonical implementation.  Tool contracts that the canonical registry still
@@ -37,6 +37,30 @@ from qore.infrastructure.cibo_capital_source_ledger_store import (
     DurableCapitalSourceLedgerStore,
 )
 from qore.infrastructure.cibo_capital_state_machine import derive_stage
+from qore.infrastructure.cibo_ce2i_advanced_capital_tools import (
+    AdvancedToolDisposition,
+    CapitalVelocityEvidence,
+    CapitalVelocityPolicy,
+    ConvexExposureEvidence,
+    ConvexInstrumentEvidence,
+    FactorExposure,
+    HedgeInstrumentEvidence,
+    HedgedExposureEvidence,
+    MarginEfficiencyEvidence,
+    MarginExpression,
+    PortfolioNettingEvidence,
+    RiskEfficiencyCandidate,
+    RiskEfficiencyEvidence,
+    StructuralLeverageEvidence,
+    assert_complete_advanced_ce2i_surface,
+    evaluate_capital_velocity,
+    evaluate_convex_exposure,
+    evaluate_hedged_exposure,
+    evaluate_margin_efficiency,
+    evaluate_portfolio_netting,
+    evaluate_risk_efficiency,
+    evaluate_structural_leverage,
+)
 from qore.infrastructure.cibo_ce2i_causal_expectation import (
     CausalExpectationBasis,
     CausalOpportunityExpectation,
@@ -454,6 +478,206 @@ def run_probe(output: Path) -> dict[str, object]:
     executed["T05"] += 1
     evidence["T05"].append("released-capacity register/reserve/deploy/settle")
 
+    # T02 — verified OOS structural leverage.
+    assert_complete_advanced_ce2i_surface()
+    t02 = evaluate_structural_leverage(
+        opportunity=opp,
+        evidence=StructuralLeverageEvidence(
+            evidence_id="probe-t02-oos",
+            structural_invalidation_id="probe-stop-v1",
+            observed_at=NOW,
+            sample_size=80,
+            baseline_stop_rate=Decimal("0.44"),
+            candidate_stop_rate=Decimal("0.35"),
+            baseline_tail_loss_r=Decimal("1.00"),
+            candidate_tail_loss_r=Decimal("0.90"),
+            released_risk_capacity_usd=Decimal("2"),
+            protected_capacity_usd=Decimal("1"),
+            evidence_oos=True,
+            structural_stop_verified=True,
+            stop_geometry_unchanged=True,
+        ),
+        current_volume=Decimal("1"),
+        maximum_additional_volume=Decimal("2"),
+    )
+    assert t02.disposition is AdvancedToolDisposition.APPLIED
+    executed["T02"] += 1
+    evidence["T02"].append("evaluate_structural_leverage:APPLIED")
+
+    # T03 — verified economically equivalent lower-margin expression.
+    t03 = evaluate_margin_efficiency(
+        MarginEfficiencyEvidence(
+            evidence_id="probe-t03",
+            observed_at=NOW,
+            baseline_expression_id="spot",
+            expressions=(
+                MarginExpression(
+                    expression_id="spot",
+                    normalized_exposure=Decimal("100"),
+                    stop_risk_usd=Decimal("10"),
+                    margin_usd=Decimal("50"),
+                    all_in_cost_usd=Decimal("2"),
+                    executable=True,
+                    economics_verified=True,
+                ),
+                MarginExpression(
+                    expression_id="equivalent",
+                    normalized_exposure=Decimal("100"),
+                    stop_risk_usd=Decimal("10"),
+                    margin_usd=Decimal("30"),
+                    all_in_cost_usd=Decimal("2"),
+                    executable=True,
+                    economics_verified=True,
+                ),
+            ),
+        )
+    )
+    assert t03.disposition is AdvancedToolDisposition.APPLIED
+    executed["T03"] += 1
+    evidence["T03"].append("evaluate_margin_efficiency:APPLIED")
+
+    # T04 — OOS output per true stop-risk efficiency.
+    t04 = evaluate_risk_efficiency(
+        RiskEfficiencyEvidence(
+            evidence_id="probe-t04",
+            observed_at=NOW,
+            baseline_candidate_id="baseline",
+            candidates=(
+                RiskEfficiencyCandidate(
+                    candidate_id="baseline",
+                    expected_net_output_usd=Decimal("20"),
+                    true_stop_risk_usd=Decimal("10"),
+                    p95_drawdown_usd=Decimal("12"),
+                    tail_loss_usd=Decimal("15"),
+                    margin_usd=Decimal("30"),
+                    sample_size=100,
+                    evidence_oos=True,
+                ),
+                RiskEfficiencyCandidate(
+                    candidate_id="efficient",
+                    expected_net_output_usd=Decimal("24"),
+                    true_stop_risk_usd=Decimal("8"),
+                    p95_drawdown_usd=Decimal("11"),
+                    tail_loss_usd=Decimal("14"),
+                    margin_usd=Decimal("30"),
+                    sample_size=100,
+                    evidence_oos=True,
+                ),
+            ),
+        )
+    )
+    assert t04.disposition is AdvancedToolDisposition.APPLIED
+    executed["T04"] += 1
+    evidence["T04"].append("evaluate_risk_efficiency:APPLIED")
+
+    # T08 — stable verified factor-offset portfolio netting.
+    t08 = evaluate_portfolio_netting(
+        PortfolioNettingEvidence(
+            evidence_id="probe-t08",
+            observed_at=NOW,
+            correlation_state_id="probe-corr-v1",
+            correlation_stable=True,
+            factor_map_verified=True,
+            maximum_credit_fraction=Decimal("0.50"),
+            exposures=(
+                FactorExposure(
+                    position_id="probe-p1",
+                    factor_id="USD",
+                    signed_risk_usd=Decimal("10"),
+                ),
+                FactorExposure(
+                    position_id="probe-p2",
+                    factor_id="USD",
+                    signed_risk_usd=Decimal("-6"),
+                ),
+            ),
+        )
+    )
+    assert t08.disposition is AdvancedToolDisposition.APPLIED
+    executed["T08"] += 1
+    evidence["T08"].append("evaluate_portfolio_netting:APPLIED")
+
+    # T10 — OOS capital-time productivity.
+    t10 = evaluate_capital_velocity(
+        CapitalVelocityEvidence(
+            evidence_id="probe-t10",
+            observed_at=NOW,
+            baseline_policy_id="baseline",
+            policies=(
+                CapitalVelocityPolicy(
+                    policy_id="baseline",
+                    realized_net_output_usd=Decimal("20"),
+                    capital_minutes=Decimal("100"),
+                    p95_drawdown_usd=Decimal("10"),
+                    tail_loss_usd=Decimal("12"),
+                    sample_size=100,
+                    evidence_oos=True,
+                ),
+                CapitalVelocityPolicy(
+                    policy_id="faster",
+                    realized_net_output_usd=Decimal("22"),
+                    capital_minutes=Decimal("80"),
+                    p95_drawdown_usd=Decimal("10"),
+                    tail_loss_usd=Decimal("11"),
+                    sample_size=100,
+                    evidence_oos=True,
+                ),
+            ),
+        )
+    )
+    assert t10.disposition is AdvancedToolDisposition.APPLIED
+    executed["T10"] += 1
+    evidence["T10"].append("evaluate_capital_velocity:APPLIED")
+
+    # T16 — certified positive-net hedge transfer.
+    t16 = evaluate_hedged_exposure(
+        HedgedExposureEvidence(
+            evidence_id="probe-t16",
+            observed_at=NOW,
+            instruments=(
+                HedgeInstrumentEvidence(
+                    instrument_id="probe-hedge-1",
+                    target_factor_id="USD",
+                    correlation_abs=Decimal("0.90"),
+                    correlation_stability=Decimal("0.85"),
+                    gross_risk_reduction_usd=Decimal("20"),
+                    basis_risk_usd=Decimal("4"),
+                    hedge_cost_usd=Decimal("2"),
+                    margin_usd=Decimal("3"),
+                    instrument_certified=True,
+                    execution_supported=True,
+                ),
+            ),
+        )
+    )
+    assert t16.disposition is AdvancedToolDisposition.APPLIED
+    executed["T16"] += 1
+    evidence["T16"].append("evaluate_hedged_exposure:APPLIED")
+
+    # T17 — certified executable bounded-downside convex expression.
+    t17 = evaluate_convex_exposure(
+        ConvexExposureEvidence(
+            evidence_id="probe-t17",
+            observed_at=NOW,
+            available_limited_downside_capacity_usd=Decimal("20"),
+            instruments=(
+                ConvexInstrumentEvidence(
+                    instrument_id="probe-convex-1",
+                    bounded_downside_usd=Decimal("10"),
+                    premium_and_cost_usd=Decimal("2"),
+                    expected_upside_usd=Decimal("12"),
+                    pricing_fresh=True,
+                    settlement_certified=True,
+                    execution_supported=True,
+                    instrument_certified=True,
+                ),
+            ),
+        )
+    )
+    assert t17.disposition is AdvancedToolDisposition.APPLIED
+    executed["T17"] += 1
+    evidence["T17"].append("evaluate_convex_exposure:APPLIED")
+
     registry_rows: list[dict[str, object]] = []
     missing_executable: list[str] = []
     architecture_only: list[str] = []
@@ -485,8 +709,8 @@ def run_probe(output: Path) -> dict[str, object]:
         )
 
     report: dict[str, object] = {
-        "schema": "qore.cibo.full-architecture-functional-probe.v1",
-        "identity": "CIBO_60USD_6M_FULL_ARCHITECTURE_V4_PROBE",
+        "schema": "qore.cibo.full-architecture-functional-probe.v2",
+        "identity": "CIBO_60USD_6M_FULL_ARCHITECTURE_V6_PROBE",
         "mission": mission.mission.value,
         "all_registry_contracts_visible": len(CE2I_TOOL_REGISTRY) == 20,
         "all_currently_executable_tools_exercised": True,
