@@ -1,0 +1,383 @@
+name: QORE Shared WP05 Active Perception V12 Full R8 Acquisition
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/active_perception_v12_full_acquisition.py
+      - src/qore/infrastructure/ctrader_historical_tick_data.py
+      - src/qore/infrastructure/ctrader_historical_tick_collector.py
+      - src/qore/infrastructure/historical_quote_side_evidence.py
+      - src/qore/infrastructure/historical_quote_side_shards.py
+      - scripts/shared_wp05_active_perception_v12_full_r8_acquisition.py
+      - tests/infrastructure/test_core_stack_v2_active_perception_v12_full_acquisition.py
+      - tests/infrastructure/test_ctrader_historical_tick_data.py
+      - tests/infrastructure/test_historical_quote_side_evidence.py
+      - tests/infrastructure/test_historical_quote_side_shards.py
+      - .github/workflows/qore-shared-wp05-active-perception-v12-full-r8-acquisition.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-wp05-v12-full-r8-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  V12_MANIFEST_SHA256: 2f18b9f11d5893effa46ac85c712edd6646d1d90a9de521b235143e42155d191
+  V12_MANIFEST_ARTIFACT_ID: "10982052296"
+  V12_MANIFEST_PRODUCER_SHA: 3462734abd991fad5c868b4ff68b623c8473c22b
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate full-acquisition protocol
+        run: |
+          set -euo pipefail
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/active_perception_v12_full_acquisition.py \
+            scripts/shared_wp05_active_perception_v12_full_r8_acquisition.py \
+            tests/infrastructure/test_core_stack_v2_active_perception_v12_full_acquisition.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/active_perception_v12_full_acquisition.py \
+            scripts/shared_wp05_active_perception_v12_full_r8_acquisition.py
+          python -m py_compile \
+            src/qore/infrastructure/core_stack_v2/active_perception_v12_full_acquisition.py \
+            scripts/shared_wp05_active_perception_v12_full_r8_acquisition.py
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_active_perception_v12_full_acquisition.py \
+            tests/infrastructure/test_ctrader_historical_tick_data.py \
+            tests/infrastructure/test_ctrader_historical_tick_collector.py \
+            tests/infrastructure/test_historical_quote_side_evidence.py \
+            tests/infrastructure/test_historical_quote_side_shards.py \
+            tests/infrastructure/test_ctrader_open_api_permission_scope.py
+
+  acquire:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    env:
+      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+      QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+      QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared + cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+
+      - name: Verify DEMO secrets without printing values
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in \
+            QORE_CTRADER_CLIENT_ID \
+            QORE_CTRADER_CLIENT_SECRET \
+            QORE_CTRADER_ACCESS_TOKEN \
+            QORE_CTRADER_REFRESH_TOKEN
+          do
+            if [ -z "${!name:-}" ]; then
+              echo "missing required DEMO runtime input: ${name}" >&2
+              exit 2
+            fi
+          done
+
+      - name: Resolve single authorized DEMO account
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          else
+            echo "::add-mask::$QORE_CTRADER_DEMO_ACCOUNT_ID"
+          fi
+
+      - name: Recover frozen source-only R8 acquisition manifest
+        run: |
+          set -euo pipefail
+          mkdir -p input/manifest result/shard
+          for attempt in 1 2 3 4; do
+            if gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${V12_MANIFEST_ARTIFACT_ID}/zip" > manifest.zip; then
+              break
+            fi
+            rm -f manifest.zip
+            sleep $((attempt * 15))
+          done
+          test -s manifest.zip
+          unzip -q manifest.zip -d input/manifest
+          (cd input/manifest && sha256sum -c SHA256SUMS)
+          test "$(cat input/manifest/git-sha.txt)" = "$V12_MANIFEST_PRODUCER_SHA"
+          cp input/manifest/wp05-v12-r8-tick-acquisition-manifest.json \
+            result/wp05-v12-r8-tick-acquisition-manifest.json
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/wp05-v12-r8-tick-acquisition-manifest.json").read_text()
+          )
+          assert p["manifest_sha256"] == os.environ["V12_MANIFEST_SHA256"]
+          assert p["partition"] == "r8"
+          assert len(p["windows"]) == 2948
+          assert p["target_or_outcome_used_for_selection"] is False
+          assert p["r6_r5_read_for_selection"] is False
+          assert p["fresh_holdout_opened"] is False
+          PY
+
+      - name: Acquire deterministic full-R8 shard
+        run: |
+          set -euo pipefail
+          python scripts/shared_wp05_active_perception_v12_full_r8_acquisition.py \
+            --manifest result/wp05-v12-r8-tick-acquisition-manifest.json \
+            --expected-manifest-sha256 "$V12_MANIFEST_SHA256" \
+            --shard-index "${{ matrix.shard }}" \
+            --shard-count 8 \
+            --output-dir result/shard \
+            | tee result/shard-summary.json
+
+      - name: Validate shard governance
+        run: |
+          SHARD="${{ matrix.shard }}" python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          shard=int(os.environ["SHARD"])
+          p=json.loads(
+              Path(f"result/shard/shard-{shard:02d}-report.json").read_text()
+          )
+          assert p["identity"] == (
+              "QORE_SHARED_WP05_ACTIVE_PERCEPTION_V12_FULL_R8_ACQUISITION_001"
+          )
+          assert p["manifest_sha256"] == os.environ["V12_MANIFEST_SHA256"]
+          assert p["partition"] == "r8"
+          assert p["shard_index"] == shard
+          assert p["shard_count"] == 8
+          assert p["total_manifest_windows"] == 2948
+          assert p["assigned_window_count"] == len(p["attempted_manifest_indices"])
+          assert p["attempted_manifest_indices"] == list(
+              range(
+                  p["start_manifest_index"],
+                  p["end_manifest_index_exclusive"],
+              )
+          )
+          assert p["read_only_message_firewall"] is True
+          assert len(p["shard_dataset_sha256"]) == 64
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["shared_methodology_authority"] is False
+          assert p["shared_sizing_authority"] is False
+          assert p["shared_risk_authority"] is False
+          assert p["shared_order_authority"] is False
+          assert p["shared_execution_authority"] is False
+          PY
+
+      - name: Seal raw shard
+        if: always()
+        shell: bash
+        run: |
+          if [ -d result/shard ]; then
+            printf '%s\n' "$GITHUB_SHA" > result/shard/git-sha.txt
+            (
+              cd result/shard
+              find . -type f ! -name SHA256SUMS -print0 \
+                | sort -z \
+                | xargs -0 sha256sum > SHA256SUMS
+            )
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-shared-wp05-v12-full-r8-data-${{ matrix.shard }}-${{ github.sha }}
+          path: result/shard
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Prepare compact shard report artifact
+        if: success()
+        shell: bash
+        run: |
+          mkdir -p result/report
+          cp "result/shard/shard-$(printf '%02d' "${{ matrix.shard }}")-report.json" \
+            "result/report/shard-$(printf '%02d' "${{ matrix.shard }}")-report.json"
+
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: qore-shared-wp05-v12-full-r8-report-${{ matrix.shard }}-${{ github.sha }}
+          path: result/report
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: [validate, acquire]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e .
+      - name: Fail closed if any acquisition shard failed
+        if: needs.acquire.result != 'success'
+        run: |
+          gh issue comment 643 --body "WP-05 V12 full R8 acquisition run ${GITHUB_RUN_ID} failed technically before 8/8 deterministic shards completed. No target/outcome, R6/R5 or fresh holdout was opened."
+          exit 1
+      - uses: actions/download-artifact@v4
+        if: needs.acquire.result == 'success'
+        with:
+          pattern: qore-shared-wp05-v12-full-r8-report-*-${{ github.sha }}
+          path: result/reports
+          merge-multiple: true
+      - name: Aggregate 8/8 shard identities
+        if: needs.acquire.result == 'success'
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from qore.infrastructure.core_stack_v2.active_perception_v12_full_acquisition import (
+              V12FullAcquisitionShardPlan,
+              global_v12_dataset_digest,
+              validate_complete_v12_shard_plans,
+          )
+
+          files=sorted(Path("result/reports").glob("shard-*-report.json"))
+          assert len(files) == 8, files
+          reports=[json.loads(path.read_text()) for path in files]
+          reports.sort(key=lambda item: item["shard_index"])
+          plans=tuple(
+              V12FullAcquisitionShardPlan(
+                  shard_index=item["shard_index"],
+                  shard_count=item["shard_count"],
+                  total_windows=item["total_manifest_windows"],
+                  start_index=item["start_manifest_index"],
+                  end_index_exclusive=item["end_manifest_index_exclusive"],
+              )
+              for item in reports
+          )
+          validate_complete_v12_shard_plans(plans)
+          assert all(
+              item["manifest_sha256"] == os.environ["V12_MANIFEST_SHA256"]
+              for item in reports
+          )
+          assert all(item["target_or_outcome_read"] is False for item in reports)
+          assert all(item["r6_r5_read"] is False for item in reports)
+          assert all(item["fresh_holdout_opened"] is False for item in reports)
+          global_digest=global_v12_dataset_digest(
+              manifest_sha256=os.environ["V12_MANIFEST_SHA256"],
+              ordered_shard_dataset_sha256=tuple(
+                  item["shard_dataset_sha256"] for item in reports
+              ),
+          )
+          payload={
+              "identity": "QORE_SHARED_WP05_ACTIVE_PERCEPTION_V12_FULL_R8_ACQUISITION_001",
+              "git_sha": os.environ["GITHUB_SHA"],
+              "workflow_run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "manifest_sha256": os.environ["V12_MANIFEST_SHA256"],
+              "shard_count": 8,
+              "completed_shards": [item["shard_index"] for item in reports],
+              "total_manifest_windows": sum(
+                  item["assigned_window_count"] for item in reports
+              ),
+              "bid_tick_count": sum(item["bid_tick_count"] for item in reports),
+              "ask_tick_count": sum(item["ask_tick_count"] for item in reports),
+              "bid_page_count": sum(item["bid_page_count"] for item in reports),
+              "ask_page_count": sum(item["ask_page_count"] for item in reports),
+              "empty_bid_window_count": sum(
+                  item["empty_bid_window_count"] for item in reports
+              ),
+              "empty_ask_window_count": sum(
+                  item["empty_ask_window_count"] for item in reports
+              ),
+              "immutable_page_shard_count": sum(
+                  item["immutable_page_shard_count"] for item in reports
+              ),
+              "ordered_shard_dataset_sha256": [
+                  item["shard_dataset_sha256"] for item in reports
+              ],
+              "global_dataset_sha256": global_digest,
+              "target_or_outcome_read": False,
+              "r6_r5_read": False,
+              "fresh_holdout_opened": False,
+          }
+          assert payload["total_manifest_windows"] == 2948
+          out=Path("result/wp05-v12-full-r8-acquisition-report.json")
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text(json.dumps(payload, indent=2, sort_keys=True)+"\n")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: needs.acquire.result == 'success'
+        with:
+          name: qore-shared-wp05-v12-full-r8-global-${{ github.sha }}
+          path: result/wp05-v12-full-r8-acquisition-report.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report complete R8 acquisition
+        if: needs.acquire.result == 'success'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/wp05-v12-full-r8-acquisition-report.json").read_text()
+          )
+          lines=[
+              "## WP-05 V12 full R8 historical BID/ASK acquisition",
+              "",
+              f"- Git SHA: `{p['git_sha']}`",
+              f"- GitHub Actions run: `{p['workflow_run_id']}`",
+              "- deterministic acquisition shards: **8/8**",
+              f"- manifest windows covered: **{p['total_manifest_windows']} / 2948**",
+              f"- BID ticks retained: **{p['bid_tick_count']}**",
+              f"- ASK ticks retained: **{p['ask_tick_count']}**",
+              f"- empty BID windows: **{p['empty_bid_window_count']}**",
+              f"- empty ASK windows: **{p['empty_ask_window_count']}**",
+              f"- immutable page shards: **{p['immutable_page_shard_count']}**",
+              f"- global dataset SHA256: `{p['global_dataset_sha256']}`",
+              "- target/outcome read: **False**",
+              "- R6/R5 read: **False**",
+              "- fresh holdout opened: **False**",
+              "- acquisition completion is infrastructure/data evidence only; V12 scientific sensor admission remains pending",
+          ]
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 643 --body-file result/issue-comment.md
