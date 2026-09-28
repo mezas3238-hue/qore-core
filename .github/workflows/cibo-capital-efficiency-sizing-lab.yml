@@ -48,6 +48,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_calibration_registry.py \
             src/qore/infrastructure/cibo_ce2i_burned_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_lifecycle_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_burned_t01_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_t06_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_t07_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_non_promotion.py \
@@ -180,6 +181,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_calibration_registry.py \
             tests/infrastructure/test_cibo_ce2i_burned_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_lifecycle_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_burned_t01_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_t06_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_t07_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_non_promotion.py \
@@ -313,6 +315,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_calibration_registry.py \
             src/qore/infrastructure/cibo_ce2i_burned_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_lifecycle_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_burned_t01_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_t06_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_t07_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_non_promotion.py \
@@ -443,6 +446,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_calibration_registry.py \
             tests/infrastructure/test_cibo_ce2i_burned_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_lifecycle_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_burned_t01_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_t06_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_t07_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_non_promotion.py \
@@ -577,6 +581,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_calibration_registry.py \
             tests/infrastructure/test_cibo_ce2i_burned_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_lifecycle_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_burned_t01_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_t06_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_t07_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_non_promotion.py \

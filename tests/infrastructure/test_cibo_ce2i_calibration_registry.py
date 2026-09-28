@@ -34,8 +34,8 @@ def test_only_canonical_unambiguous_states_are_used() -> None:
     assert {row.state.value for row in CIBO_TOOL_CALIBRATION_REGISTRY} <= allowed
 
 
-def test_provider_economics_blocks_t01_t03_t11() -> None:
-    for code in ("T01", "T03", "T11"):
+def test_provider_economics_blocks_unresolved_t03_t11() -> None:
+    for code in ("T03", "T11"):
         record = calibration_record(code)
         assert record.state is CiboCalibrationState.PROVIDER_ECONOMICS_REQUIRED
         assert record.provider_economics_required is True
@@ -174,3 +174,16 @@ def test_t07_is_causal_source_calibration_not_historical_usd_floor() -> None:
         "INCREMENTAL_PROTECTED_CAPACITY_UTILITY_REQUIRES_FRESH_OOS"
         in record.blockers
     )
+
+
+def test_t01_minimal_seed_is_causally_calibrated_not_historical_usd_ready() -> None:
+    record = calibration_record("T01")
+
+    assert record.state is CiboCalibrationState.CALIBRATED_CAUSAL
+    assert record.calibrated is True
+    assert record.provider_economics_required is True
+    assert record.calibration_artifact_sha256
+    assert record.oos_ready is False
+    assert record.certification_ready is False
+    assert "HISTORICAL_2017_PROVIDER_TERMS_NOT_PROVEN" in record.blockers
+    assert "FRESH_OOS_MINIMAL_SEED_UTILITY_PENDING" in record.blockers

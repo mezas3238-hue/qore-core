@@ -17,6 +17,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_ce2i_burned_calibration import (
     burned_t04_t10_calibration_sha256,
 )
+from qore.infrastructure.cibo_ce2i_burned_t01_calibration import (
+    burned_t01_source_calibration_sha256,
+)
 from qore.infrastructure.cibo_ce2i_burned_lifecycle_calibration import (
     burned_lifecycle_calibration_sha256,
 )
@@ -208,14 +211,16 @@ _BURNED_T04_T10_SHA = burned_t04_t10_calibration_sha256()
 CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
     _row(
         "T01",
-        CiboCalibrationState.PROVIDER_ECONOMICS_REQUIRED,
+        CiboCalibrationState.CALIBRATED_CAUSAL,
         CiboCalibrationType.MIXED_CAUSAL_AND_ECONOMIC,
-        (_PHASE18, _PROVIDER_GAP),
+        (_PHASE18, _PHASE20_CONTRACT, _PROVIDER_GAP),
         (
             "HISTORICAL_2017_PROVIDER_TERMS_NOT_PROVEN",
             "SLIPPAGE_CALIBRATION_REQUIRED_FOR_EXACT_EXECUTION",
+            "FRESH_OOS_MINIMAL_SEED_UTILITY_PENDING",
         ),
         provider=True,
+        calibration_artifact_sha256=burned_t01_source_calibration_sha256(),
     ),
     _row(
         "T02",
