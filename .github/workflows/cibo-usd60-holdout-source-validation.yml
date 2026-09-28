@@ -65,13 +65,19 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/cibo_ce2i_holdout_registry.py \
+            src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py \
+            scripts/cibo_pre_holdout_gate.py \
             scripts/cibo_usd60_holdout_source_validation.py \
-            tests/infrastructure/test_cibo_ce2i_holdout_registry.py
+            tests/infrastructure/test_cibo_ce2i_holdout_registry.py \
+            tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py
           mypy \
             src/qore/infrastructure/cibo_ce2i_holdout_registry.py \
+            src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py \
+            scripts/cibo_pre_holdout_gate.py \
             scripts/cibo_usd60_holdout_source_validation.py
           pytest -q --no-cov \
-            tests/infrastructure/test_cibo_ce2i_holdout_registry.py
+            tests/infrastructure/test_cibo_ce2i_holdout_registry.py \
+            tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py
 
       - name: Require CIBO PRE-HOLDOUT FREEZE before any 2017H1 access
         run: |
