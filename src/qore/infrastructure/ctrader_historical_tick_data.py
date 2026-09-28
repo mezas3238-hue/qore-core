@@ -193,9 +193,15 @@ def decode_historical_tick_page(
             raise CTraderHistoricalTickError(
                 "provider tick timestamp must be int"
             )
-        if type(relative_price) is not int or relative_price <= 0:
+        if type(relative_price) is not int:
             raise CTraderHistoricalTickError(
-                "provider tick price must be positive int"
+                "provider tick price must be int "
+                f"(index={index}, type={type(relative_price).__name__})"
+            )
+        if relative_price <= 0:
+            raise CTraderHistoricalTickError(
+                "provider tick price must be positive "
+                f"(index={index}, value={relative_price})"
             )
 
         if index == 0:
