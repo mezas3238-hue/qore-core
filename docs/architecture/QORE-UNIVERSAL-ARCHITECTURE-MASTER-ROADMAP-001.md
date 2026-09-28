@@ -51,6 +51,9 @@ NO APPROVAL -> NO INTEGRATION
 NO GREEN EXACT HEAD -> NO MERGE
 NO POST-MERGE BASELINE -> NO NEXT STEP
 NO SELF-CERTIFICATION
+NO TRADER ACCEPTED UNTIL UTC-001 PASSES
+DENSITY != EDGE
+DEVELOPMENT != TRADER CERTIFICATION
 CI GREEN ALONE != ENGINEERING APPROVAL
 DOCUMENT EXISTS != IMPLEMENTATION EXISTS
 TYPE EXISTS != PRODUCER EXISTS
@@ -232,6 +235,14 @@ Must prove single-writer semantics where required, concurrency-safe reservations
 ### Level 9 — Research / Intelligence / Validation
 
 Must prove dataset provenance, deterministic replay, strategy/decision producers, specialist-analysis producers, end-to-end lineage, calibration/OOS/statistical validation and governed parameter promotion.
+
+All Specialized Traders, current or future, are additionally governed by the universal certification contract:
+
+`docs/architecture/QORE-UNIVERSAL-TRADER-CERTIFICATION-STANDARD-001.md` (UTC-001)
+
+UTC-001 makes edge quality, independent OOS generalization, expectancy, PF, Sharpe/Sortino,
+drawdown/tail survival, cost robustness, holdout integrity and anti-leakage mandatory acceptance
+gates. Density is secondary and cannot compensate for a failed quality gate.
 
 Research does not self-promote to productive authority.
 
@@ -518,6 +529,11 @@ No multi-node/account execution runtime may become operationally active before c
 Tracking: #367. Normative detail: integrated roadmap amendment #365 / PR #369.
 
 Program J constructs and independently certifies CIBO as the CEO personal intelligence assistant, global market intelligence officer, opportunity discovery engine, risk-adjusted revenue advisor, Trader Development Director and executive explainability interface across J-01..J-28.
+
+Every Trader created, rebuilt or promoted under Program J must reference and pass UTC-001:
+`docs/architecture/QORE-UNIVERSAL-TRADER-CERTIFICATION-STANDARD-001.md`.
+A Trader-specific work order may tighten UTC-001 but may not weaken, bypass or redefine its
+universal acceptance floors.
 
 ```text
 CIBO RECOMMENDATION != CORE DECISION
