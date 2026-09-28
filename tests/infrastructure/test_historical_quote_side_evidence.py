@@ -130,6 +130,24 @@ def test_historical_side_boundary_rejects_mid_price_identity() -> None:
             quote_side=MarketPriceSide.MID,
             provider_event_at=_BASE,
             retrieved_at=_BASE + timedelta(days=1),
+            provider_wire_timestamp_value=int(_BASE.timestamp() * 1_000),
+            provider_wire_price_value=2_012_400_000,
             relative_price=2_012_400_000,
             price=MarketPrice(Decimal("20124.00")),
         )
+
+
+
+def test_retained_evidence_preserves_wire_and_reconstructed_price() -> None:
+    retained = retain_ctrader_historical_quote_side_page(
+        page=_page(tick_data.CTraderQuoteType.BID),
+        instrument=Instrument("NAS100"),
+        source=_SOURCE,
+        provider_symbol="USTEC",
+        retrieved_at=datetime(2026, 9, 28, 12, 0, tzinfo=UTC),
+    )
+
+    assert retained[0].provider_wire_timestamp_value == -250
+    assert retained[0].provider_wire_price_value == -10_000
+    assert retained[0].relative_price == 2_012_400_000
+    assert retained[1].provider_wire_price_value == 2_012_410_000
