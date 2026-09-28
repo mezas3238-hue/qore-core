@@ -110,3 +110,22 @@ def test_current_provider_terms_do_not_erase_historical_execution_blockers() -> 
     assert "EMPIRICAL_SLIPPAGE_AND_LATENCY_CALIBRATION_REQUIRED" in calibration_record(
         "T11"
     ).blockers
+
+
+def test_phase19_negative_evidence_blocks_unreplicated_portfolio_policies() -> None:
+    expected = {
+        "T08": "FACTOR_MAP_NOT_CERTIFIED",
+        "T09": "ZERO_WALK_FORWARD_POLICY_SURVIVORS",
+        "T12": "TEMPORAL_STABILITY_OBSERVATIONAL_ONLY",
+        "T13": "ZERO_WALK_FORWARD_POLICY_SURVIVORS",
+        "T18": "ZERO_WALK_FORWARD_POLICY_SURVIVORS",
+    }
+    for code, blocker in expected.items():
+        record = calibration_record(code)
+        assert record.state is CiboCalibrationState.CALIBRATION_UNAVAILABLE
+        assert record.calibrated is False
+        assert blocker in record.blockers
+        assert any(
+            source.startswith("burned:phase19:non-promotion:sha256:")
+            for source in record.calibration_sources
+        )
