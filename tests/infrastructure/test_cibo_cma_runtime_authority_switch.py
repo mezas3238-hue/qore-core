@@ -127,4 +127,4 @@ def test_phase20_single_slot_wires_vt08_and_vt31_without_collapsing_oco() -> Non
     assert "_observe_phase20_without_execution_authority(" in adapter
     assert "PHASE20D_VT31_OBSERVER_INELIGIBLE" in adapter
     assert '"execution_path_blocked": False' in adapter
-    assert "phase20_after_submit(" in adapter
+    assert "callback(\n            opportunity,\n            spec,\n            account,\n            trigger_at,\n            observed_at,\n        )" in adapter
