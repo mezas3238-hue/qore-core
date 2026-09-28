@@ -109,6 +109,7 @@ CE2I_TOOL_REGISTRY: tuple[Ce2iToolContract, ...] = (
         "INCREASES_DIRECTIONAL_EXPOSURE",
         "EXPECTANCY_OR_SURVIVABILITY_DEGRADES",
         9,
+        ToolMaturity.CONTRACT_IMPLEMENTED,
     ),
     _tool(
         "T03",
@@ -121,6 +122,7 @@ CE2I_TOOL_REGISTRY: tuple[Ce2iToolContract, ...] = (
         "PRESERVE_MORE_PORTFOLIO_CAPACITY",
         "NORMALIZATION_OR_EXECUTION_ADVANTAGE_DISAPPEARS",
         12,
+        ToolMaturity.CONTRACT_IMPLEMENTED,
     ),
     _tool(
         "T04",
@@ -133,6 +135,7 @@ CE2I_TOOL_REGISTRY: tuple[Ce2iToolContract, ...] = (
         "COMPARE_INCREMENTAL_PORTFOLIO_RISK",
         "TAIL_RISK_OR_DRAWDOWN_WORSENS_BEYOND_GATE",
         9,
+        ToolMaturity.CONTRACT_IMPLEMENTED,
     ),
     _tool(
         "T05",
@@ -184,6 +187,7 @@ CE2I_TOOL_REGISTRY: tuple[Ce2iToolContract, ...] = (
         "CHANGES_INCREMENTAL_PORTFOLIO_EXPOSURE",
         "CORRELATION_OR_FACTOR_ASSUMPTION_BREAKS",
         13,
+        ToolMaturity.CONTRACT_IMPLEMENTED,
     ),
     _tool(
         "T09",
@@ -209,6 +213,7 @@ CE2I_TOOL_REGISTRY: tuple[Ce2iToolContract, ...] = (
         "PRESERVE_FUTURE_OPPORTUNITY_CAPACITY",
         "VELOCITY_GAIN_REQUIRES_EXPECTANCY_DEGRADATION",
         9,
+        ToolMaturity.CONTRACT_IMPLEMENTED,
     ),
     _tool(
         "T11",
@@ -286,6 +291,7 @@ CE2I_TOOL_REGISTRY: tuple[Ce2iToolContract, ...] = (
         "ALTER_FACTOR_EXPOSURE",
         "HEDGE_COST_OR_BASIS_RISK_ERASES_BENEFIT",
         17,
+        ToolMaturity.CONTRACT_IMPLEMENTED,
     ),
     _tool(
         "T17",
@@ -298,6 +304,7 @@ CE2I_TOOL_REGISTRY: tuple[Ce2iToolContract, ...] = (
         "ASYMMETRIC_PAYOFF",
         "PRICING_OR_EXECUTION_CERTIFICATION_FAILS",
         17,
+        ToolMaturity.CONTRACT_IMPLEMENTED,
     ),
     _tool(
         "T18",
