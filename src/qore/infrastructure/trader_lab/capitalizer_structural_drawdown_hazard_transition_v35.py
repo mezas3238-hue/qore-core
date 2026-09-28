@@ -21,7 +21,6 @@ from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from decimal import Decimal
-from itertools import groupby
 from pathlib import Path
 from typing import Any
 
@@ -172,15 +171,8 @@ def _closed_equity_state(
     )
     equity = Decimal("0")
     peak = Decimal("0")
-    for _exit_at, batch_iter in groupby(
-        closed,
-        key=lambda row: _aware(row.exit_at),
-    ):
-        batch = tuple(batch_iter)
-        equity += sum(
-            (Decimal(row.realized_gross_r) for row in batch),
-            Decimal("0"),
-        )
+    for row in closed:
+        equity += Decimal(row.realized_gross_r)
         peak = max(peak, equity)
     return equity, peak, peak - equity
 
@@ -233,15 +225,8 @@ def _first_passage_target(
     first_event: str | None = None
     max_dd = starting_dd
 
-    for _exit_at, batch_iter in groupby(
-        future_rows,
-        key=lambda row: _aware(row.exit_at),
-    ):
-        batch = tuple(batch_iter)
-        equity += sum(
-            (Decimal(row.realized_gross_r) for row in batch),
-            Decimal("0"),
-        )
+    for row in future_rows:
+        equity += Decimal(row.realized_gross_r)
         current_dd = max(Decimal("0"), peak - equity)
         max_dd = max(max_dd, current_dd)
         if current_dd > starting_dd:
@@ -1106,6 +1091,7 @@ def build_report(
         "causal_state_dimension": EXPECTED_FEATURE_DIMENSION,
         "decision_only_inside_active_realized_drawdown": True,
         "first_passage_hazard_target": "DEEPEN_TROUGH_BEFORE_RECOVER_PEAK",
+        "first_passage_event_order": "EXIT_AT_THEN_ENTRY_AT_THEN_SYMBOL_MATCH_V31",
         "additional_trough_severity_target": True,
         "value_preservation_total_delta_head": True,
         "chronological_calibration_folds": CHRONOLOGICAL_FOLDS,
