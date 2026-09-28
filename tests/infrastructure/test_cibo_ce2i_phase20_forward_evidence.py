@@ -13,6 +13,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
     TraderOpportunityEnvelope,
 )
+from qore.infrastructure.cibo_ce2i_advanced_evidence import (
+    build_missing_advanced_evidence_snapshot,
+)
 from qore.infrastructure.cibo_ce2i_causal_expectation import (
     CausalExpectationBasis,
     CausalOpportunityExpectation,
@@ -215,6 +218,13 @@ def _decision(
             if known_options is None
             else known_options
         ),
+        advanced_evidence_snapshot=(
+            build_missing_advanced_evidence_snapshot(
+                decision_at=DECISION_AT,
+            )
+            if kind is Phase20ForwardEvidenceKind.FORWARD_OBSERVED
+            else None
+        ),
     )
 
 
@@ -239,6 +249,7 @@ def test_phase20d_seals_single_candidate_20h_and_20i_inputs() -> None:
     assert record.allocator_decision.applied_tools == ("T15",)
     assert record.allocator_decision.reserve_stop_risk_usd == 0
     assert record.phase20d_qualified is False
+    assert record.evidence.advanced_evidence_snapshot is None
     assert record.full_surface.complete_registry is True
     assert record.full_surface.registry_codes == tuple(
         f"T{index:02d}" for index in range(1, 21)
@@ -376,6 +387,10 @@ def test_phase20d_synthetic_contract_cannot_qualify_as_fresh_forward() -> None:
 
 def test_phase20d_forward_observed_pair_is_eligible_when_causally_bound() -> None:
     decision = _decision(kind=Phase20ForwardEvidenceKind.FORWARD_OBSERVED)
+    assert decision.advanced_evidence_snapshot is not None
+    assert decision.advanced_evidence_snapshot.source_refs == (
+        "advanced-ce2i:calibration-unavailable",
+    )
     outcome = Phase20ForwardOutcomeEvidence(
         evidence_id="outcome-forward-1",
         decision_evidence_sha256=phase20_forward_evidence_sha256(decision),
