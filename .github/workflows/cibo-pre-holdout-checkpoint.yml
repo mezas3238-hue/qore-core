@@ -14,6 +14,10 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py'
       - 'src/qore/infrastructure/cibo_ce2i_holdout_registry.py'
       - 'src/qore/infrastructure/cibo_ce2i_usd60_six_month_certification.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py'
   pull_request:
     paths:
       - '.github/workflows/cibo-pre-holdout-checkpoint.yml'
@@ -56,7 +60,9 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_burned_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_lifecycle_calibration.py \
             src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py \
-            src/qore/infrastructure/cibo_ce2i_holdout_registry.py
+            src/qore/infrastructure/cibo_ce2i_holdout_registry.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py
           mypy \
             scripts/cibo_pre_holdout_checkpoint.py \
             scripts/cibo_pre_holdout_gate.py \
@@ -72,14 +78,15 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_calibration_registry.py \
             tests/infrastructure/test_cibo_ce2i_calibration_matrix.py \
             tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py \
-            tests/infrastructure/test_cibo_ce2i_holdout_registry.py
+            tests/infrastructure/test_cibo_ce2i_holdout_registry.py \
+            tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py
 
       - name: Emit checkpoint without reading 2017H1
         run: |
           mkdir -p pre-holdout
           python scripts/cibo_pre_holdout_checkpoint.py \
             --git-sha "$GITHUB_SHA" \
-            --provider-economics-status "PENDING_PROVIDER_ECONOMICS_EVIDENCE" \
             --output pre-holdout/pre-holdout-checkpoint.json \
             > pre-holdout/pre-holdout-checkpoint.stdout.json
 
