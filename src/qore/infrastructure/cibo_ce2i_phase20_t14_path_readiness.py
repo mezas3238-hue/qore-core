@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
 from qore.infrastructure.cibo_capital_management_authority import (
@@ -104,7 +105,7 @@ def assess_phase20_t14_path_readiness(
             "Phase20 T14 path readiness requires canonical behavior events"
         )
 
-    signal_decisions: dict[str, tuple[str, object]] = {}
+    signal_decisions: dict[str, tuple[str, datetime]] = {}
     for decision in evidence_book.decisions:
         if (
             decision.decision_at
