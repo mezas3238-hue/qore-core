@@ -14,7 +14,16 @@
 This experiment may begin only after the V12 source-only microstructure
 representation freeze is GREEN and its exact artifact fingerprint is recorded.
 
-Until that condition is met, R8 target/outcome data remains closed to V12.
+That source-only gate is now satisfied by authoritative run `36474746502` at Git SHA `223e25873a6665e5a8a171eb5987a14ea222348a`.
+
+Frozen representation artifact:
+
+- artifact id: `10993705551`;
+- representation artifact fingerprint: `cbc5b6d997c2a218df8aa76f489d408069ab36e4ccb67569172c92013221baf8`;
+- representation contract fingerprint: `22c566501246030218be3d33ba54c3b6cc1574507357248e3baf0fcf6e47277b`;
+- representation rows SHA256: `be2ee22e02c4e3ef6a1c82fd9536dfc51a6050fbfb127d0b53b7764d70388395`.
+
+The R8 information-gain experiment is therefore authorized under this exact frozen representation. Any different representation fingerprint is a protocol failure.
 
 The representation itself is immutable during this experiment:
 
