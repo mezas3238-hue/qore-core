@@ -234,3 +234,40 @@ def test_fatal_fresh_holdout_falsification_can_be_rejected_explicitly() -> None:
     decision = standard.evaluate_certification(evidence)
 
     assert decision.classification is standard.CertificationClassification.REJECTED
+
+
+def test_winner_r_preservation_may_exceed_one() -> None:
+    passing = _passing_evidence()
+    evidence = standard.CertificationEvidence(
+        oos_eras=passing.oos_eras,
+        combined_oos_profit_factor=passing.combined_oos_profit_factor,
+        monte_carlo_positive_probability=passing.monte_carlo_positive_probability,
+        monte_carlo_p95_drawdown_r=passing.monte_carlo_p95_drawdown_r,
+        post_cost_profit_factor=passing.post_cost_profit_factor,
+        post_cost_expectancy_r_per_trade=(
+            passing.post_cost_expectancy_r_per_trade
+        ),
+        temporal_stability_verified=True,
+        anti_leakage_audit_passed=True,
+        catastrophic_loss_clustering_absent=True,
+        mae_mfe_audit_complete=True,
+        loser_anatomy_audit_complete=True,
+        density_sufficient_after_quality=True,
+        fresh_holdout_integrity_verified=True,
+        fresh_holdout_evaluated_once=True,
+        fresh_holdout_passed=True,
+        winner_preservation_required=True,
+        winner_count_preservation=Decimal("0.95"),
+        winner_r_preservation=Decimal("1.20"),
+        risk_review_passed=True,
+        cibo_review_passed=True,
+        independent_validation_passed=True,
+    )
+
+    decision = standard.evaluate_certification(evidence)
+
+    assert decision.classification is standard.CertificationClassification.ACCEPTED
+    winner_r = next(
+        gate for gate in decision.gates if gate.gate == "winner_r_preservation"
+    )
+    assert winner_r.status is standard.GateStatus.PASS
