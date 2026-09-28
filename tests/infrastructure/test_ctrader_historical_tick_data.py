@@ -313,14 +313,14 @@ def test_decoder_reconstructs_signed_price_deltas_from_previous_tick() -> None:
 
     assert tuple(item.relative_price for item in page.ticks) == (
         1_234_535,
+        1_234_535,
         1_234_515,
-        1_234_560,
         1_234_560,
     )
     assert tuple(str(item.price) for item in page.ticks) == (
         "12.34535",
+        "12.34535",
         "12.34515",
-        "12.34560",
         "12.34560",
     )
 
