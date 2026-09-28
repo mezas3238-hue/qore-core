@@ -118,7 +118,7 @@ def build_missing_advanced_evidence_snapshot(
             "advanced CE2I missing-evidence source ref is required"
         )
     digest = sha256(
-        f"{decision_at.isoformat()}|{source_ref}".encode("utf-8")
+        f"{decision_at.isoformat()}|{source_ref}".encode()
     ).hexdigest()
     return AdvancedCe2iEvidenceSnapshot(
         evidence_id=f"advanced-missing:{digest}",
