@@ -8,6 +8,9 @@ on:
       - '.github/workflows/cibo-t02-burned-structural-calibration.yml'
       - 'scripts/cibo_t02_burned_structural_calibration.py'
       - 'src/qore/infrastructure/cibo_ce2i_t02_burned_calibration.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t02_context_calibration.py'
+      - 'scripts/cibo_t02_burned_context_calibration.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t02_context_calibration.py'
       - 'tests/infrastructure/test_cibo_ce2i_t02_burned_calibration.py'
       - 'src/qore/infrastructure/cibo_ce2i_calibration_registry.py'
       - 'tests/infrastructure/test_cibo_ce2i_calibration_registry.py'
@@ -47,13 +50,18 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/cibo_ce2i_t02_burned_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_t02_context_calibration.py \
             scripts/cibo_t02_burned_structural_calibration.py \
-            tests/infrastructure/test_cibo_ce2i_t02_burned_calibration.py
+            scripts/cibo_t02_burned_context_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_t02_burned_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_t02_context_calibration.py
           mypy \
             src/qore/infrastructure/cibo_ce2i_t02_burned_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_t02_context_calibration.py \
             scripts/cibo_t02_burned_structural_calibration.py
           pytest -q --no-cov \
-            tests/infrastructure/test_cibo_ce2i_t02_burned_calibration.py
+            tests/infrastructure/test_cibo_ce2i_t02_burned_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_t02_context_calibration.py
 
       - name: Download immutable burned Phase18 artifacts
         shell: bash
@@ -100,6 +108,53 @@ jobs:
             --output t02/output/t02-burned-structural-calibration.json \
             > t02/output/t02-burned-structural-calibration.stdout.json
 
+      - name: Run train-only burned T02 context calibration
+        run: |
+          python scripts/cibo_t02_burned_context_calibration.py \
+            --r34-xauusd t02/raw/r34_xauusd.zip \
+            --r38-eurusd t02/raw/r38_eurusd.zip \
+            --r43-gbpusd t02/raw/r43_gbpusd.zip \
+            --r38-gbpjpy t02/raw/r38_gbpjpy.zip \
+            --r42-audjpy t02/raw/r42_audjpy.zip \
+            --vt08-forex t02/raw/vt08_forex.zip \
+            --vt31-nas100 t02/raw/vt31_nas100.zip \
+            --output t02/output/t02-burned-context-calibration.json \
+            > t02/output/t02-burned-context-calibration.stdout.json
+
+      - name: Enforce partial causal context calibration
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(
+              Path("t02/output/t02-burned-context-calibration.json").read_text()
+          )
+          assert p["status"] == "PARTIAL_CAUSAL_STRUCTURAL_CALIBRATION"
+          assert p["calibration_source"] == "BURNED_PHASE18_ONLY"
+          assert set(p["eligible_lineages"]) == {
+              "R34_XAUUSD",
+              "R38_EURUSD",
+              "R43_GBPUSD",
+              "R38_GBPJPY",
+          }
+          assert set(p["ineligible_lineages"]) == {
+              "R42_AUDJPY",
+              "VT08_FOREX",
+              "VT31_NAS100",
+          }
+          g = p["governance"]
+          assert g["holdout_2017h1_used"] is False
+          assert g["holdout_2017h1_outcomes_used"] is False
+          assert g["mae_mfe_used"] is False
+          assert g["post_entry_path_features_used"] is False
+          assert g["validation_used_to_select_category"] is False
+          assert g["provider_usd_economics_claimed"] is False
+          assert g["target_aware"] is False
+          assert g["oos_ready"] is False
+          assert g["certification_ready"] is False
+          PY
+
       - name: Enforce falsification and holdout isolation
         run: |
           python - <<'PY'
@@ -133,6 +188,8 @@ jobs:
           sha256sum \
             t02-burned-structural-calibration.json \
             t02-burned-structural-calibration.stdout.json \
+            t02-burned-context-calibration.json \
+            t02-burned-context-calibration.stdout.json \
             calibrator-git-sha.txt \
             source-SHA256SUMS.txt \
             > SHA256SUMS.txt
