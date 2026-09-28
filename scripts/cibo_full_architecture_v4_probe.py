@@ -91,7 +91,6 @@ from qore.infrastructure.cibo_economic_floor import (
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
-
 NOW = datetime(2022, 4, 1, 12, 0, tzinfo=UTC)
 
 
