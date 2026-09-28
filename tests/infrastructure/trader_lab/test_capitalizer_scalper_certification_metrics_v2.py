@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
@@ -159,24 +160,8 @@ def test_zero_trade_weekdays_are_included_without_weekend_inflation() -> None:
 def test_winner_preservation_and_loss_recall_are_identity_aligned() -> None:
     control = _control()
     candidate = (
-        control[0].__class__(
-            **{
-                **{
-                    field: getattr(control[0], field)
-                    for field in control[0].__dataclass_fields__
-                },
-                "realized_gross_r": "1",
-            }
-        ),
-        control[1].__class__(
-            **{
-                **{
-                    field: getattr(control[1], field)
-                    for field in control[1].__dataclass_fields__
-                },
-                "realized_gross_r": "0.2",
-            }
-        ),
+        replace(control[0], realized_gross_r="1"),
+        replace(control[1], realized_gross_r="0.2"),
         control[2],
         control[3],
     )
