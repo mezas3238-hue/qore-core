@@ -12,6 +12,7 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 from hashlib import sha256
 from typing import Any
@@ -54,6 +55,26 @@ def _empirical_plan_payload() -> dict[str, object]:
         "phase19j_burned_validation_reused": False,
         "outcome_aware_refit_allowed": False,
         "historical_replay_substitution_allowed": False,
+        "capital_state_monte_carlo": {
+            "minimum_simulations": 1000,
+            "required_policy_capacity_breach_paths": 0,
+            "required_baseline_capacity_breach_paths": 0,
+            "policy_p95_drawdown_must_not_exceed_baseline": True,
+            "policy_median_ending_delta_must_not_be_below_baseline": True,
+        },
+        "provider_stress": {
+            "required_scenario_count": 9,
+            "required_policy_constraint_bypasses": 0,
+            "required_baseline_constraint_bypasses": 0,
+            "policy_worst_case_net_delta_must_not_be_below_baseline": True,
+            "policy_failure_incidence_must_not_exceed_baseline": True,
+        },
+        "interaction_ablation": {
+            "minimum_ablation_cases": 3,
+            "required_unsafe_interaction_count": 0,
+            "required_population_mismatch_count": 0,
+            "full_policy_must_not_be_pareto_dominated_by_ablation": True,
+        },
     }
 
 
@@ -104,6 +125,147 @@ def _canonical_report_json(payload: dict[str, Any]) -> str:
 def _canonical_report_sha256(payload: dict[str, Any]) -> str:
     raw = _canonical_report_json(payload).encode("utf-8")
     return f"sha256:{sha256(raw).hexdigest()}"
+
+
+def _metric_decimal(
+    payload: dict[str, Any],
+    key: str,
+) -> Decimal:
+    if key not in payload:
+        raise CiboCapitalManagementError(
+            f"Phase21 empirical validation metric missing: {key}"
+        )
+    try:
+        value = Decimal(str(payload[key]))
+    except (InvalidOperation, ValueError) as error:
+        raise CiboCapitalManagementError(
+            f"Phase21 empirical validation metric invalid: {key}"
+        ) from error
+    if not value.is_finite():
+        raise CiboCapitalManagementError(
+            f"Phase21 empirical validation metric non-finite: {key}"
+        )
+    return value
+
+
+def _metric_int(
+    payload: dict[str, Any],
+    key: str,
+) -> int:
+    value = payload.get(key)
+    if type(value) is not int:
+        raise CiboCapitalManagementError(
+            f"Phase21 empirical validation metric must be int: {key}"
+        )
+    return value
+
+
+def _metric_bool(
+    payload: dict[str, Any],
+    key: str,
+) -> bool:
+    value = payload.get(key)
+    if type(value) is not bool:
+        raise CiboCapitalManagementError(
+            f"Phase21 empirical validation metric must be bool: {key}"
+        )
+    return value
+
+
+def _validate_empirical_validation_payload(
+    *,
+    kind: Phase21EmpiricalValidationKind,
+    payload: dict[str, Any],
+) -> None:
+    if kind is Phase21EmpiricalValidationKind.CAPITAL_STATE_MONTE_CARLO:
+        simulations = _metric_int(payload, "simulation_count")
+        policy_breaches = _metric_int(
+            payload, "policy_capacity_breach_paths"
+        )
+        baseline_breaches = _metric_int(
+            payload, "baseline_capacity_breach_paths"
+        )
+        policy_p95 = _metric_decimal(payload, "policy_p95_drawdown_usd")
+        baseline_p95 = _metric_decimal(
+            payload, "baseline_p95_drawdown_usd"
+        )
+        policy_median = _metric_decimal(
+            payload, "policy_median_ending_delta_usd"
+        )
+        baseline_median = _metric_decimal(
+            payload, "baseline_median_ending_delta_usd"
+        )
+        if (
+            simulations < 1000
+            or policy_breaches != 0
+            or baseline_breaches != 0
+            or policy_p95 > baseline_p95
+            or policy_median < baseline_median
+        ):
+            raise CiboCapitalManagementError(
+                "Phase21 empirical capital-state Monte Carlo did not PASS"
+            )
+        return
+
+    if kind is Phase21EmpiricalValidationKind.PROVIDER_STRESS:
+        scenario_count = _metric_int(payload, "scenario_count")
+        policy_bypasses = _metric_int(
+            payload, "policy_constraint_bypasses"
+        )
+        baseline_bypasses = _metric_int(
+            payload, "baseline_constraint_bypasses"
+        )
+        policy_worst = _metric_decimal(
+            payload, "policy_worst_case_net_delta_usd"
+        )
+        baseline_worst = _metric_decimal(
+            payload, "baseline_worst_case_net_delta_usd"
+        )
+        policy_fail = _metric_decimal(
+            payload, "policy_provider_failure_incidence"
+        )
+        baseline_fail = _metric_decimal(
+            payload, "baseline_provider_failure_incidence"
+        )
+        if (
+            scenario_count != 9
+            or policy_bypasses != 0
+            or baseline_bypasses != 0
+            or policy_worst < baseline_worst
+            or policy_fail > baseline_fail
+            or policy_fail < 0
+            or baseline_fail < 0
+            or policy_fail > 1
+            or baseline_fail > 1
+        ):
+            raise CiboCapitalManagementError(
+                "Phase21 empirical provider stress did not PASS"
+            )
+        return
+
+    if kind is Phase21EmpiricalValidationKind.INTERACTION_ABLATION:
+        case_count = _metric_int(payload, "ablation_case_count")
+        unsafe = _metric_int(payload, "unsafe_interaction_count")
+        population_mismatch = _metric_int(
+            payload, "population_mismatch_count"
+        )
+        dominated = _metric_bool(
+            payload, "full_policy_pareto_dominated_by_ablation"
+        )
+        if (
+            case_count < 3
+            or unsafe != 0
+            or population_mismatch != 0
+            or dominated
+        ):
+            raise CiboCapitalManagementError(
+                "Phase21 empirical interaction ablation did not PASS"
+            )
+        return
+
+    raise CiboCapitalManagementError(
+        "Phase21 empirical validation kind is unsupported"
+    )
 
 
 
@@ -298,6 +460,10 @@ def build_phase21_empirical_validation_receipt(
         raise CiboCapitalManagementError(
             "Phase21 empirical validation payload must be object"
         )
+    _validate_empirical_validation_payload(
+        kind=kind,
+        payload=validation_payload,
+    )
     source_population_sha256 = phase21_empirical_population_sha256(
         evidence_store_sha256=qualification.evidence_store_sha256,
         policy_store_sha256=qualification.policy_store_sha256,
