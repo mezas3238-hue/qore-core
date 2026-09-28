@@ -26,6 +26,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_causal_tool_readiness.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_causal_history_state.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_magnitude.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t14_path_readiness.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t15_option_realization.py'
       - 'src/qore/infrastructure/ctrader_demo_live_behavior_lab.py'
@@ -96,6 +97,8 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase20_qualification_readiness.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_causal_tool_readiness.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_causal_history_state.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t14_path_readiness.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t15_option_realization.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase21_policy_freeze.py'
@@ -140,6 +143,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_causal_tool_readiness.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_causal_history_state.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_magnitude.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t14_path_readiness.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t15_option_realization.py'
       - 'src/qore/infrastructure/ctrader_demo_live_behavior_lab.py'
@@ -210,6 +214,8 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase20_qualification_readiness.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_causal_tool_readiness.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_causal_history_state.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t14_path_readiness.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t15_option_realization.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase21_policy_freeze.py'
@@ -270,6 +276,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py \
             src/qore/infrastructure/cibo_ce2i_phase20_causal_tool_readiness.py \
             src/qore/infrastructure/cibo_ce2i_phase20_causal_history_state.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_magnitude.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t14_path_readiness.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t15_option_realization.py \
             src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py \
@@ -345,6 +352,8 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_qualification_readiness.py \
             tests/infrastructure/test_cibo_ce2i_phase20_causal_tool_readiness.py \
             tests/infrastructure/test_cibo_ce2i_phase20_causal_history_state.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t14_path_readiness.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t15_option_realization.py \
             tests/infrastructure/test_cibo_ce2i_phase21_policy_freeze.py \
@@ -393,6 +402,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py \
             src/qore/infrastructure/cibo_ce2i_phase20_causal_tool_readiness.py \
             src/qore/infrastructure/cibo_ce2i_phase20_causal_history_state.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_magnitude.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t14_path_readiness.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t15_option_realization.py \
             src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py \
@@ -470,6 +480,8 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_qualification_readiness.py \
             tests/infrastructure/test_cibo_ce2i_phase20_causal_tool_readiness.py \
             tests/infrastructure/test_cibo_ce2i_phase20_causal_history_state.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t14_path_readiness.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t15_option_realization.py \
             tests/infrastructure/test_cibo_ce2i_phase21_policy_freeze.py \
