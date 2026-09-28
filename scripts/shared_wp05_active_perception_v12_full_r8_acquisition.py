@@ -14,8 +14,8 @@ from uuid import UUID
 
 from qore.infrastructure.core_stack_v2.active_perception_v12_full_acquisition import (
     ASSIGNMENT_RULE,
-    FULL_ACQUISITION_IDENTITY,
     FROZEN_SHARD_COUNT,
+    FULL_ACQUISITION_IDENTITY,
     plan_v12_full_acquisition_shard,
     v12_full_acquisition_assignment_digest,
 )
