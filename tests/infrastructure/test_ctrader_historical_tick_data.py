@@ -153,7 +153,7 @@ def test_reader_uses_read_only_historical_tick_request() -> None:
         ctidTraderAccountId=123,
         tickData=[
             NativeTick(int(newest.timestamp() * 1_000), 1_234_560),
-            NativeTick(100, 1_234_550),
+            NativeTick(-100, 1_234_550),
         ],
         hasMore=False,
     )
