@@ -95,6 +95,8 @@ def test_consumed_audit_has_no_fresh_certification_authority() -> None:
     assert report.global_metrics_have_certification_authority is False
     assert report.temporal_compensation_allowed is False
     assert report.cost_certification_blocked is True
+    assert report.loss_cluster_certification_adjudication_available is True
+    assert report.sample_sufficiency_rule_predeclared is True
     assert report.trader_certified is False
     assert len(report.exam_years) == 2
     for year in report.exam_years:
@@ -107,8 +109,16 @@ def test_consumed_audit_has_no_fresh_certification_authority() -> None:
             if gate.status is utc.GateStatus.MISSING
         }
         assert "post_cost_profit_factor" in missing
-        assert "loss_cluster_gate" in missing
-        assert "sample_sufficiency" in missing
+        assert "loss_cluster_gate" not in missing
+        assert "sample_sufficiency" not in missing
+        assert year.sample_sufficiency.passed is False
+        assert year.loss_cluster_gate.passed is True
+        failed = {
+            gate.gate
+            for gate in year.utc_gate_statuses
+            if gate.status is utc.GateStatus.FAIL
+        }
+        assert "sample_sufficiency" in failed
 
 
 def test_development_years_have_zero_certification_authority() -> None:
