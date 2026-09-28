@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from math import isfinite, log
 from statistics import median
-from collections.abc import Mapping, Sequence\nfrom typing import Final
+from typing import Final
 
 from qore.infrastructure.core_stack_v2.active_perception_v12_microstructure_representation import (
     v12_microstructure_candidate_fields,
