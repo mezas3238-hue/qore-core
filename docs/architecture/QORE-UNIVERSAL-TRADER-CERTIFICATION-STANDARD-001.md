@@ -1,19 +1,21 @@
 # QORE UNIVERSAL TRADER CERTIFICATION STANDARD — UTC-001
 
+**Version:** 1.1 — strict temporal gates  
 **Status:** CEO-directed universal certification rule  
 **Scope:** every Specialized Trader, current or future, before ACCEPTED / certified promotion  
 **Authority:** Core Governance + Certification & Integration Gate  
-**Applies to:** research promotion, trader rebuilds, replacement versions and new trader construction  
+**Applies to:** research promotion, trader rebuilds, replacement versions and new Trader construction  
 **Non-goal:** this standard does not grant LIVE authority or override QORE Risk / Execution / provider constraints
 
 ---
 
 ## 1. Constitutional rule
 
-A Trader is not accepted because it produces many trades.
+A Trader is not accepted because it produces many trades or because a global aggregate looks good.
 
 A Trader is accepted only when it demonstrates robust edge, controlled downside,
-temporal stability, independent out-of-sample generalization and reproducible evidence.
+temporal stability, independent out-of-sample generalization and reproducible evidence
+**inside every mandatory certification period**.
 
 ```text
 EDGE ROBUSTO
@@ -28,13 +30,13 @@ EDGE ROBUSTO
     -> DENSITY
 ```
 
-**Density is secondary. It may amplify proven edge; it may never substitute for edge.**
-
 ```text
 NO EDGE -> NO CERTIFICATION
 NO OOS GENERALIZATION -> NO CERTIFICATION
 NO FRESH HOLDOUT INTEGRITY -> NO CERTIFICATION
 NO REPRODUCIBILITY -> NO CERTIFICATION
+ONE FAILED REQUIRED PERIOD -> NO CERTIFICATION
+GLOBAL / COMBINED METRIC != CERTIFICATION GATE
 DENSITY != EDGE
 DEVELOPMENT != CERTIFICATION
 CI GREEN != TRADER ACCEPTED
@@ -42,121 +44,191 @@ CI GREEN != TRADER ACCEPTED
 
 ---
 
-## 2. Universal ACCEPTED gates
+## 2. Strict temporal certification law
 
-Every gate below is mandatory unless the metric is mathematically undefined for the
-strategy; any such exception must be justified in retained evidence and approved by
-the Certification & Integration Gate. An exception may not be used to hide adverse
-performance.
+### 2.1 No global averaging
 
-### 2.1 Profit Factor
+**Global, combined, pooled or whole-holdout metrics have zero acceptance authority.**
 
-- every independent OOS era/fold: **PF >= 1.50**
-- combined OOS: **PF >= 1.70**
+They may be reported for descriptive context only.
+
+They may not:
+
+- rescue a failed year;
+- rescue a failed OOS fold;
+- average away a drawdown breach;
+- compensate negative expectancy in one period with profits from another;
+- convert a temporally unstable Trader into ACCEPTED.
+
+Example:
+
+```text
+2022 PF 2.40
+2023 PF 0.90
+GLOBAL PF 1.70
+```
+
+Result:
+
+```text
+NOT ACCEPTED
+2023 FAILED
+```
+
+The global 1.70 is irrelevant to certification.
+
+### 2.2 Annual slices are mandatory
+
+If a certification holdout spans multiple calendar/trading years, **every covered year must be
+evaluated independently**.
+
+For a two-year holdout:
+
+```text
+HOLDOUT 2Y
+  -> YEAR 1: FULL UTC-001 GATE
+  -> YEAR 2: FULL UTC-001 GATE
+```
+
+Both years must pass.
+
+A strong Year 1 cannot compensate for a weak Year 2.
+
+If a holdout covers a partial first or last calendar year, that partial year is still a mandatory
+temporal slice unless the predeclared certification protocol uses a different fixed annualization
+boundary. Boundaries must be frozen before outcomes are inspected.
+
+### 2.3 Frozen OOS folds are also mandatory
+
+When the certification protocol defines OOS folds, every frozen fold must independently pass
+UTC-001.
+
+Annual slices and folds answer different temporal questions and neither may replace the other.
+
+```text
+ACCEPTED
+=
+ALL REQUIRED YEARS PASS
+AND
+ALL REQUIRED OOS FOLDS PASS
+AND
+FRESH HOLDOUT INTEGRITY PASSES
+AND
+ANTI-LEAKAGE PASSES
+```
+
+---
+
+## 3. Universal gates — applied to EACH mandatory year/fold
+
+The following gates are evaluated independently inside every required certification period.
+
+### 3.1 Profit Factor
+
+- **PF >= 1.50**
 - preferred operating quality: **PF >= 2.00**
 
-A strong Development PF cannot compensate for a broken OOS era.
+### 3.2 Expectancy
 
-### 2.2 Expectancy
+- **expectancy >= +0.15R/trade**
 
-- every independent OOS era/fold: **expectancy > 0R/trade**
-- combined OOS certification floor: **expectancy >= +0.15R/trade**
+Merely positive but marginal expectancy is insufficient for ACCEPTED.
 
-A high trade count with marginal expectancy is not a certification argument.
+### 3.3 Drawdown
 
-### 2.3 Drawdown
-
-- observed Max DD: **<= 6R**
+- **Observed Max DD <= 6R**
 - **6R is the universal Core hard acceptance ceiling**
-- >6R requires intervention and blocks ACCEPTED
-- >15R is a structural rejection condition unless a newer Core governance standard explicitly supersedes UTC-001
+- 6.00R passes;
+- >6R blocks ACCEPTED for that period.
 
-### 2.4 Sharpe
+### 3.4 Sharpe
 
-- OOS Sharpe: **>= 1.50**
+- **Sharpe >= 1.50**
 - preferred: **>= 2.00**
 
-Every report must state return frequency, annualization convention, treatment of
-no-trade periods, costs and exact population.
+Every report must state return frequency, annualization convention, treatment of no-trade periods,
+costs and exact population.
 
-### 2.5 Sortino
+### 3.5 Sortino
 
-- OOS Sortino: **>= 2.00**
+- **Sortino >= 2.00**
 
-Sharpe and Sortino must be interpreted together; upside variability must not be
-penalized as if it were downside damage.
+### 3.6 Monte Carlo / sequence survival
 
-### 2.6 Monte Carlo / sequence survival
+For every mandatory period:
 
-- probability of positive result: **>= 90%**
-- p95 Max DD: **<= 15R**
-- preferred positive probability: **>= 95%**
-- preferred p95 Max DD: **<= 10–12R**
+- positive-result probability **>= 90%**
+- p95 Max DD **<= 15R**
+- preferred positive probability **>= 95%**
+- preferred p95 Max DD **<= 10–12R**
 
-At minimum, retained evidence must include sequence/reshuffle stress and losing-cluster
-stress. Cost stress is required whenever provider economics are available.
+At minimum: reshuffle/sequence stress and losing-cluster stress.
 
-### 2.7 Payoff economics
+### 3.7 Payoff economics
 
-- Average Winner / Average Loser: **>= 1.20**
-- preferred: **>= 1.50**
+- Average Winner / Average Loser **>= 1.20**
+- preferred **>= 1.50**
 
-Win rate is never interpreted without payoff and expectancy.
+### 3.8 Cost robustness
 
-### 2.8 Cost robustness
-
-After realistic retained costs:
+After realistic retained costs, in every mandatory period:
 
 - post-cost expectancy **> 0**
 - post-cost PF **> 1.00**
 - preferred post-cost PF **>= 1.50**
 
-Historical provider costs may not be fabricated. If exact economics are unavailable,
-the limitation must be explicit and the affected certification claim remains blocked.
+Historical provider economics may not be fabricated. Missing required cost evidence blocks the
+affected certification claim.
 
-### 2.9 Temporal stability
+### 3.9 Loss clustering / tail survival
 
-No global average may hide a broken era.
+Every mandatory period must pass an explicit loss-cluster gate.
 
-Each material era/fold must report at least:
+Required investigation, where applicable:
 
-- trades;
-- wins/losses/breakeven;
-- win rate;
-- PF;
-- expectancy;
-- Sharpe;
-- Sortino;
-- Max DD;
-- Average Winner;
-- Average Loser;
-- payoff ratio;
-- longest losing streak.
-
-All independent OOS eras used for certification must remain economically positive.
-
-### 2.10 Loss clustering
-
-The Trader must pass an explicit loss-cluster / tail-survival gate.
-
-Required investigation includes, where applicable:
-
-- loss-cluster frequency and duration;
+- cluster frequency and duration;
 - longest losing streak;
 - session/time-of-day/day-of-week;
 - symbol / direction / setup subtype;
 - volatility / liquidity / spread;
-- market/cross-market regime;
+- regime / cross-market state;
 - MAE/MFE and time-to-MAE/MFE;
 - structural failure state.
 
-A Trader that can suffer a plausible loss cluster large enough to destroy its intended
-capital envelope is not ACCEPTED merely because its aggregate PF is positive.
+### 3.10 Density / sample sufficiency
 
-### 2.11 Winner preservation for loser-rejection intelligence
+Density is evaluated only after quality passes.
 
-Any filter, perception model, Shared fact or other intelligence introduced to reject
-losers must report:
+Each mandatory period must contain the predeclared sample sufficiency required by that Trader's
+methodology. Sample sufficiency must be frozen before final OOS outcomes are inspected.
+
+There is no trade-count target that can rescue a failed quality gate.
+
+---
+
+## 4. Win rate law
+
+Win rate is mandatory to report for every year/fold but is **not a universal standalone threshold**.
+
+WR >= 50% is desirable when compatible with the strategy's payoff structure.
+
+A lower WR can pass only when the same period independently satisfies payoff, expectancy, PF,
+Sharpe/Sortino, DD, Monte Carlo and cost gates.
+
+A high WR cannot rescue poor payoff economics.
+
+```text
+WIN RATE x PAYOFF x EXPECTANCY x TAIL RISK
+```
+
+must be evaluated jointly within the same temporal slice.
+
+---
+
+## 5. Winner preservation for loser-rejection intelligence
+
+Any filter, perception model, Shared fact or intelligence introduced to reject losers must report,
+per relevant independent period:
 
 - Loss Recall;
 - Winner Count Preservation;
@@ -167,7 +239,7 @@ losers must report:
 - DD delta;
 - density delta.
 
-Minimum preservation gates:
+Minimum gates:
 
 - Winner Count Preservation **>= 80%**
 - Winner-R Preservation **>= 90%**
@@ -179,11 +251,12 @@ Preferred:
 
 Reducing losses by destroying the winner population is not improvement.
 
-### 2.12 Fresh holdout integrity
+---
 
-If Validation, Reserved or any holdout has already been inspected and then used to
-design, tune, select or reject a new policy, that evidence is **burned for future
-certification of the modified policy**.
+## 6. Fresh holdout integrity
+
+If Validation, Reserved or any holdout has already been inspected and then used to design, tune,
+select or reject a modified policy, that evidence is burned for certification of that modification.
 
 ```text
 OBSERVED HOLDOUT
@@ -194,7 +267,9 @@ OBSERVED HOLDOUT
 
 No repeated threshold tuning against the same Reserved population.
 
-### 2.13 Anti-leakage / causal decision integrity
+---
+
+## 7. Anti-leakage / causal decision integrity
 
 Forbidden:
 
@@ -209,155 +284,110 @@ Forbidden:
 
 Every productive decision feature must exist at or before the decision timestamp.
 
-### 2.14 Density
-
-There is **no universal minimum trade count that can compensate for weak edge**.
-
-Density is evaluated only after the quality gates above pass.
-
-Per-Trader minimum sample sufficiency must be declared before final OOS evaluation,
-based on the methodology and opportunity frequency, not chosen after seeing outcomes.
-
-```text
-QUALITY FIRST
--> THEN DENSITY
-```
-
-A lower-density robust Trader is preferred over a high-density marginal Trader.
-
 ---
 
-## 3. Win rate law
-
-Win rate is mandatory to report but is **not a universal standalone acceptance threshold**.
-
-Reference preference:
-
-- WR >= 50% is desirable when compatible with the strategy's payoff structure.
-
-A lower WR can be accepted only if payoff, expectancy, PF, Sharpe/Sortino, drawdown
-and OOS stability all satisfy the universal gates.
-
-A high WR cannot rescue poor payoff economics.
-
-```text
-WIN RATE x PAYOFF x EXPECTANCY x TAIL RISK
-```
-
-must be evaluated jointly.
-
----
-
-## 4. Development, Validation and Reserved
+## 8. Development, Validation and Reserved
 
 ### Development
 
-Development may be used for hypothesis generation, training and engineering.
+Development may be used for hypothesis generation, training and engineering. It never certifies.
 
-It never certifies the Trader.
+### Validation / OOS
 
-### Validation
-
-Validation tests hypotheses frozen before validation consumption.
+Validation tests hypotheses frozen before consumption. Every required year and fold is independently
+gated.
 
 ### Reserved / final holdout
 
-Reserved must remain independent of the modification being certified.
-
-If it has been used to guide a subsequent redesign, a new fresh holdout is required.
+Reserved must remain independent of the modification being certified. If used to guide redesign, a
+new fresh holdout is required.
 
 ---
 
-## 5. Universal dispositions
+## 9. Universal dispositions
 
 ### ACCEPTED
 
-All mandatory gates pass with reproducible evidence.
+Only when **every mandatory annual slice and every mandatory frozen OOS fold passes every applicable
+UTC-001 gate**, plus holdout integrity and anti-leakage.
 
 ### INTERVENTION — CONTINUE WORK
 
-There is evidence of edge, but one or more acceptance gates remain below standard.
-Engineering continues. Density must not be used to disguise the deficiency.
+Evidence of edge exists, but one or more mandatory periods fail at least one gate.
 
 ### REJECTED
 
-Use when evidence shows a structural failure such as:
-
-- OOS expectancy materially disappears;
-- PF is structurally insufficient;
-- unacceptable tail/DD behavior;
-- no temporal generalization;
-- fresh holdout falsification;
-- unavoidable leakage/overfit dependency;
-- strategy economics become negative after required costs.
-
-Rejected means the tested architecture/policy is rejected. It does not prohibit a
-new causal hypothesis with genuinely fresh evidence.
+Use when evidence shows structural failure such as persistent OOS degradation, unacceptable
+tail/DD behavior, temporal non-generalization, fresh holdout falsification, unavoidable
+leakage/overfit dependency or negative post-cost economics.
 
 ---
 
-## 6. Required certification evidence pack
+## 10. Required certification evidence pack
 
-No Trader may be marked ACCEPTED without a retained, reproducible pack containing:
+No Trader may be marked ACCEPTED without retained reproducible evidence containing:
 
 ```text
 git HEAD / strategy version
 workflow run IDs
 artifact IDs / hashes
 dataset provenance
-exact train/development window
-exact validation/OOS windows
+exact Development window
+exact Validation/OOS window
 fresh holdout window
-trade population
-PF
-win rate
-expectancy
-Sharpe
-Sortino
-Max DD
-Monte Carlo positive probability
-Monte Carlo p95 DD
-Average Winner
-Average Loser
-payoff ratio
-longest losing streak
-loss-cluster analysis
-MAE/MFE analysis
-cost stress
-per-era / per-fold results
+predeclared annual/fold boundaries
+
+FOR EACH REQUIRED YEAR:
+  trade population
+  wins/losses/breakeven
+  win rate
+  PF
+  expectancy
+  Sharpe
+  Sortino
+  Max DD
+  Monte Carlo positive probability
+  Monte Carlo p95 DD
+  Average Winner
+  Average Loser
+  payoff ratio
+  longest losing streak
+  loss-cluster analysis
+  cost stress
+  sample sufficiency
+
+FOR EACH REQUIRED OOS FOLD:
+  the same full metric/gate set
+
 winner-preservation evidence for any loser-rejection layer
-density / sample sufficiency
+MAE/MFE analysis
+fresh-holdout integrity audit
 anti-leakage audit
 final disposition
 ```
 
-Missing evidence means the corresponding claim is not certified.
+Global/combined metrics may appear only in a descriptive appendix and may not influence ACCEPTED.
 
 ---
 
-## 7. Relationship to Shared, CIBO, Risk and Execution
+## 11. Relationship to Shared, CIBO, Risk and Execution
 
 ### Trader
-
 Owns methodology, setup, direction, entry, structural invalidation/stop, target and exit methodology.
 
 ### Shared
-
-May provide facts, context, regime, uncertainty and cross-market observations.
-It may not silently become the Trader's sovereign decision authority.
+May provide facts, context, regime, uncertainty and cross-market observations. It may not silently
+become Trader sovereign authority.
 
 ### CIBO
-
-Owns capital management/sizing/allocation according to its separate authority.
-CIBO must not be used to disguise a weak Trader edge.
+Owns capital management/sizing/allocation under its separate authority. CIBO must not disguise weak
+Trader edge.
 
 ### QORE Risk
-
-Remains independent hard survivability governor.
+Independent hard survivability governor.
 
 ### Execution
-
-Mutates the provider only after all required authorities pass.
+Mutates the provider only after required authorities pass.
 
 ```text
 GOOD CAPITAL MANAGEMENT != GOOD TRADER
@@ -367,11 +397,9 @@ TRADER CERTIFICATION != RISK BYPASS
 
 ---
 
-## 8. Construction rule for every future Trader
+## 12. Construction rule for every future Trader
 
-Every new Trader work order and every material rebuild must reference **UTC-001**.
-
-The development sequence is:
+Every new Trader work order and material rebuild must reference UTC-001.
 
 ```text
 METHODOLOGY
@@ -379,29 +407,28 @@ METHODOLOGY
 -> DEVELOPMENT
 -> FREEZE
 -> INDEPENDENT OOS
--> LOSS / WINNER ECONOMICS
--> SHARPE / SORTINO / DD / MC
--> COST STRESS
+-> ANNUAL SLICES
+-> FROZEN OOS FOLDS
+-> FULL UTC-001 GATE PER PERIOD
 -> FRESH HOLDOUT
--> UTC-001 GATE
 -> ACCEPTED | INTERVENTION | REJECTED
 ```
 
-The builder may not redefine these universal acceptance gates inside an individual
-Trader PR merely to make that Trader pass.
+A Trader-specific work order may tighten UTC-001 but may never weaken it.
 
-Any future change to UTC-001 is a Core governance change and requires explicit,
-versioned review; it cannot drift through a Trader-specific commit.
+Any future change to UTC-001 is a Core governance change requiring explicit versioned review.
 
 ---
 
-## 9. Final law
+## 13. Final law
 
 ```text
 EDGE BEFORE DENSITY.
+PER-YEAR / PER-FOLD GATES BEFORE GLOBAL SUMMARIES.
+ONE FAILED REQUIRED PERIOD -> NO CERTIFICATION.
+GLOBAL PERFORMANCE CANNOT RESCUE TEMPORAL FAILURE.
 OOS BEFORE PROMOTION.
-SURVIVAL BEFORE SCALE.
-NO WINNER DESTRUCTION TO MANUFACTURE WIN RATE.
+MAX DD <= 6R IN EVERY REQUIRED PERIOD.
 NO HOLDOUT MINING.
 NO LEAKAGE.
 NO TRADER ACCEPTED UNTIL UTC-001 PASSES.
