@@ -40,3 +40,21 @@ def test_every_tool_has_evidence_and_capital_source_contract() -> None:
         assert tool.required_evidence
         assert tool.eligible_capital_sources
         assert tool.rollback_condition
+
+
+def test_no_ce2i_tool_remains_architecture_only() -> None:
+    assert all(
+        tool.maturity is not ToolMaturity.ARCHITECTURE_ONLY
+        for tool in CE2I_TOOL_REGISTRY
+    )
+
+
+def test_all_twenty_tools_have_executable_contract_maturity() -> None:
+    executable = {
+        ToolMaturity.CONTRACT_IMPLEMENTED,
+        ToolMaturity.RESEARCH_VALIDATED,
+        ToolMaturity.HOLDOUT_VALIDATED,
+        ToolMaturity.SHADOW_VALIDATED,
+    }
+    assert len(CE2I_TOOL_REGISTRY) == 20
+    assert all(tool.maturity in executable for tool in CE2I_TOOL_REGISTRY)
