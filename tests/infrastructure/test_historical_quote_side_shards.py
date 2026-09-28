@@ -45,6 +45,8 @@ def _observation(
         quote_side=MarketPriceSide.BID,
         provider_event_at=observed_at,
         retrieved_at=retrieved_at,
+        provider_wire_timestamp_value=int(observed_at.timestamp() * 1_000),
+        provider_wire_price_value=relative_price,
         relative_price=relative_price,
         price=MarketPrice(Decimal(relative_price) / Decimal("10000000")),
     )
