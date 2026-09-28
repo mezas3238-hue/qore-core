@@ -67,24 +67,23 @@ def build_report(root: Path) -> dict[str, Any]:
         raise ValueError("Phase19 must not claim exact provider economics")
 
     promoted = {
-        "T05": {
+        "T04": {
             "classification": "CALIBRATED_CAUSAL",
-            "basis": "chronological reservation-release lifecycle",
+            "basis": (
+                "train-only structural-R expectation per true structural "
+                "stop-risk unit; USD risk-dollar economics excluded"
+            ),
         },
         "T10": {
             "classification": "CALIBRATED_CAUSAL",
-            "basis": "normalized risk-capital minutes and release timing",
-        },
-        "T19": {
-            "classification": "CALIBRATED_CAUSAL",
-            "basis": "train/validation capacity reservation collision stress",
-        },
-        "T20": {
-            "classification": "CALIBRATED_CAUSAL",
-            "basis": "chronological release/reuse without capacity breach",
+            "basis": (
+                "train-only normalized capital-time with structural-R "
+                "output; USD output per capital-hour excluded"
+            ),
         },
     }
     unavailable = {
+        "T05": "recycling lifecycle is proven but incremental utility is not calibrated",
         "T06": "realized-profit expansion utility not identified by Phase19",
         "T07": "verified protected economic floor unavailable",
         "T08": "dependence evidence remains descriptive/observational",
@@ -93,6 +92,8 @@ def build_report(root: Path) -> dict[str, Any]:
         "T13": "zero reserve policies survived both walk-forward folds",
         "T15": "optionality value not causally identified by this artifact",
         "T18": "zero allocation policies survived both walk-forward folds",
+        "T19": "reservation integrity is proven but incremental utility is not calibrated",
+        "T20": "release integrity is proven but incremental utility is not calibrated",
     }
     input_hashes = {}
     for name in (
@@ -124,7 +125,16 @@ def build_report(root: Path) -> dict[str, Any]:
         },
         "promoted_tools": promoted,
         "calibration_unavailable": unavailable,
-        "provider_economics_required": ["T01", "T03", "T11", "T16", "T17"],
+        "provider_economics_required": [
+            "T01",
+            "T03",
+            "T04",
+            "T07",
+            "T10",
+            "T11",
+            "T16",
+            "T17",
+        ],
         "input_sha256": input_hashes,
     }
 
