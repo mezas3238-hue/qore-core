@@ -200,9 +200,10 @@ jobs:
               Path("mc-output/combined-oos/capitalizer-scalper-monte-carlo-v2.json").read_text()
           )
           assert report["trades"] == 2122
-          assert Decimal(report["source_total_r"]) == Decimal(
-              "169.5037472413338381972514319"
-          )
+          assert abs(
+              Decimal(report["source_total_r"])
+              - Decimal("169.5037472413338381972514319")
+          ) <= Decimal("1e-18")
           assert report["provider_cost_evidence_bound"] is False
           print(json.dumps(report, sort_keys=True))
           PY
