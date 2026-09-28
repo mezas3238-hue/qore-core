@@ -15,6 +15,7 @@ import argparse
 import gc
 import hashlib
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -66,14 +67,14 @@ def _sha256(path: Path) -> str:
 def _causal_source_times(
     *,
     evidence_paths: dict[str, Path],
-) -> tuple[Any, ...]:
+) -> tuple[datetime, ...]:
     bars = {market: _load_bars(evidence_paths[market]) for market in MARKETS}
     peer_indexes = {
         market: {bar.closed_key: index for index, bar in enumerate(bars[market])}
         for market in ("SP500", "US30")
     }
     nas = bars["NAS100"]
-    sources = []
+    sources: list[datetime] = []
 
     for nas_index in range(MAX_SEQUENCE_LOOKBACK, len(nas)):
         key = nas[nas_index].closed_key
@@ -241,7 +242,19 @@ def main() -> None:
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    print(json.dumps(payload, sort_keys=True))
+    print(
+        json.dumps(
+            {
+                "identity": payload["identity"],
+                "source_count": payload["source_count"],
+                "window_count": len(payload["windows"]),
+                "source_min": payload["source_min"],
+                "source_max": payload["source_max"],
+                "manifest_sha256": payload["manifest_sha256"],
+            },
+            sort_keys=True,
+        )
+    )
 
 
 if __name__ == "__main__":
