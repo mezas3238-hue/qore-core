@@ -23,6 +23,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_capital_source_ledger_store import (
     VersionedCapitalSourceLedger,
 )
+from qore.infrastructure.cibo_ce2i_advanced_evidence import (
+    AdvancedCe2iEvidenceSnapshot,
+)
 from qore.infrastructure.cibo_ce2i_phase20_demo_shadow_risk import (
     build_demo_capability_risk_snapshot,
     observe_demo_capability_constraints,
@@ -67,6 +70,7 @@ def observe_ctrader_demo_phase20_batch(
     concentration_limit_by_group: tuple[tuple[str, Decimal], ...],
     regime_state: CiboCapitalRegimeState,
     current_step: int,
+    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot,
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
 ) -> Phase20ForwardShadowObservation:
     """Observe one actual DEMO epoch without changing its execution path."""
@@ -117,5 +121,6 @@ def observe_ctrader_demo_phase20_batch(
         concentration_limit_by_group=concentration_limit_by_group,
         regime_state=regime_state,
         current_step=current_step,
+        advanced_evidence_snapshot=advanced_evidence_snapshot,
         known_options=known_options,
     )
