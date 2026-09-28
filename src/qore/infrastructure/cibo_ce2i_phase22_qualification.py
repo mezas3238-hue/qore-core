@@ -50,6 +50,19 @@ class Phase22HoldoutQualificationReport:
     economic_report: Phase20QualificationReport | None
     failures: tuple[str, ...]
 
+    def __post_init__(self) -> None:
+        if self.status is Phase22HoldoutQualificationStatus.PASS:
+            if not self.lineage.lineage_valid:
+                raise ValueError("Phase22 PASS requires valid holdout lineage")
+            if self.economic_report is None:
+                raise ValueError("Phase22 PASS requires economic report")
+            if self.economic_report.status is not Phase20QualificationStatus.PASS:
+                raise ValueError("Phase22 PASS requires economic protocol PASS")
+            if self.failures:
+                raise ValueError("Phase22 PASS cannot contain failures")
+        if not self.lineage.lineage_valid and self.status is not Phase22HoldoutQualificationStatus.INVALID:
+            raise ValueError("invalid Phase22 lineage must fail closed")
+
     @property
     def economically_certified(self) -> bool:
         return (
