@@ -14,9 +14,9 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
 )
 from qore.infrastructure.cibo_ce2i_phase21_policy_freeze import (
     Phase21EmpiricalValidationKind,
-    Phase21EmpiricalValidationReceipt,
     Phase21PolicySurfaceDigests,
     Phase21QualificationReceipt,
+    build_phase21_empirical_validation_receipt,
     build_phase21_policy_freeze,
 )
 from qore.infrastructure.cibo_ce2i_phase22_qualification_plan import (
@@ -46,15 +46,17 @@ def _phase21_manifest():
         passed=True,
     )
     validations = tuple(
-        Phase21EmpiricalValidationReceipt(
+        build_phase21_empirical_validation_receipt(
             kind=kind,
-            candidate_id=candidate.candidate_id,
-            candidate_parameter_sha256=candidate.parameter_sha256(),
-            qualification_artifact_sha256=_sha(3),
-            evidence_class="FORWARD_EMPIRICAL",
-            artifact_sha256=_sha(20 + index),
+            qualification=qualification,
+            validator_git_sha=f"{index + 1:040x}",
             observed_at=QUALIFIED_AT + timedelta(hours=index + 1),
-            passed=True,
+            validation_payload={
+                "protocol": f"TEST_{kind.value}",
+                "source_decision_epochs": 80,
+                "source_candidate_outcomes": 200,
+                "source_selected_outcomes": 60,
+            },
         )
         for index, kind in enumerate(Phase21EmpiricalValidationKind)
     )
