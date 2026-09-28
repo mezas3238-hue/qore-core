@@ -19,7 +19,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: qore-capitalizer-v38-artifact-resume-${{ github.ref }}
+  group: qore-capitalizer-v38-artifact-resume-${{ github.sha }}
   cancel-in-progress: true
 
 env:
