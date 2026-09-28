@@ -141,7 +141,7 @@ jobs:
         if: always()
         run: |
           if [ ! -f result/wp05-v12-r8-tick-acquisition-manifest.json ]; then
-            gh issue comment 643 --body "WP-05 V12 R8 acquisition-manifest run `${GITHUB_RUN_ID}` failed before a lawful source-only manifest was produced. No R6/R5 or fresh holdout was opened."
+            gh issue comment 643 --body "WP-05 V12 R8 acquisition-manifest run ${GITHUB_RUN_ID} failed before a lawful source-only manifest was produced. No R6/R5 or fresh holdout was opened."
             exit 0
           fi
           python - <<'PY'
