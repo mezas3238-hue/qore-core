@@ -3,16 +3,13 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-import pytest
-
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_capital_management_authority import (
-    CiboCapitalManagementError,
     TraderOpportunityEnvelope,
 )
 from qore.infrastructure.cibo_ce2i_phase20_t08_factor_magnitude import (
-    FactorUsdConversion,
     T08FactorVolumeBasis,
+    T08UsdConversionBasis,
     assess_minimum_seed_factor_magnitude,
 )
 from qore.infrastructure.cibo_provider_economic_normalization import ProviderEconomicObservation
@@ -28,15 +25,16 @@ def _opportunity(
     stop: str,
     target: str,
     stop_loss_per_volume: str,
+    side: str = "long",
     minimum_volume: str = "0.01",
     volume_step: str = "0.01",
 ) -> TraderOpportunityEnvelope:
     return TraderOpportunityEnvelope(
         trader_id=trader,
-        signal_fingerprint=f"signal:{symbol.lower()}",
+        signal_fingerprint=f"signal:{symbol.lower()}:{side}",
         qore_symbol=symbol,
         provider_symbol=symbol,
-        side="long",
+        side=side,
         entry_type="market",
         intended_entry=Decimal(entry),
         stop_loss=Decimal(stop),
@@ -79,7 +77,7 @@ def _provider(
     )
 
 
-def test_quote_usd_pair_resolves_notional_without_splitting_stop_risk() -> None:
+def test_quote_usd_pair_uses_provider_tick_economics_not_stop_risk_split() -> None:
     opportunity = _opportunity(
         trader=TraderLineage.R43_GBPUSD,
         symbol="GBPUSD",
@@ -108,20 +106,24 @@ def test_quote_usd_pair_resolves_notional_without_splitting_stop_risk() -> None:
     assert audit.volume_basis is T08FactorVolumeBasis.MINIMUM_EXECUTABLE_CANDIDATE
     assert audit.volume == Decimal("0.01")
     assert exposures["GBP"].signed_native_amount == Decimal("1000.00")
+    assert exposures["GBP"].usd_per_native_unit == Decimal("1.25")
     assert exposures["GBP"].signed_notional_usd == Decimal("1250.0000")
     assert exposures["USD"].signed_native_amount == Decimal("-1250.0000")
+    assert exposures["USD"].usd_per_native_unit == Decimal("1")
     assert exposures["USD"].signed_notional_usd == Decimal("-1250.0000")
+    assert all(
+        item.conversion_basis
+        is T08UsdConversionBasis.PROVIDER_TICK_ECONOMICS
+        for item in audit.exposures
+    )
     assert audit.native_magnitude_identified is True
     assert audit.usd_magnitude_complete is True
     assert audit.risk_equivalent_identified is False
     assert audit.correlation_state_identified is False
     assert audit.netting_credit_authorized is False
-    assert "FACTOR_NOTIONAL_TO_SIGNED_RISK_USD_MAPPING_NOT_IDENTIFIED" in (
-        audit.blockers
-    )
 
 
-def test_cross_pair_keeps_native_magnitude_and_blocks_missing_usd_conversion() -> None:
+def test_cross_pair_resolves_usd_notional_from_provider_tick_economics() -> None:
     opportunity = _opportunity(
         trader=TraderLineage.R38_GBPJPY,
         symbol="GBPJPY",
@@ -148,24 +150,31 @@ def test_cross_pair_keeps_native_magnitude_and_blocks_missing_usd_conversion() -
 
     exposures = {item.factor_id: item for item in audit.exposures}
     assert exposures["GBP"].signed_native_amount == Decimal("1000.00")
+    assert exposures["GBP"].usd_per_native_unit == Decimal("1.140")
+    assert exposures["GBP"].signed_notional_usd == Decimal("1140.00000")
     assert exposures["JPY"].signed_native_amount == Decimal("-190000.00")
-    assert exposures["GBP"].signed_notional_usd is None
-    assert exposures["JPY"].signed_notional_usd is None
+    assert exposures["JPY"].usd_per_native_unit == Decimal("0.006")
+    assert exposures["JPY"].signed_notional_usd == Decimal("-1140.00000")
     assert audit.native_magnitude_identified is True
-    assert audit.usd_magnitude_complete is False
-    assert "USD_CONVERSION_REQUIRED:GBP" in audit.blockers
-    assert "USD_CONVERSION_REQUIRED:JPY" in audit.blockers
+    assert audit.usd_magnitude_complete is True
+    assert not any(
+        blocker.startswith("USD_CONVERSION_REQUIRED:")
+        for blocker in audit.blockers
+    )
+    assert audit.risk_equivalent_identified is False
+    assert audit.correlation_state_identified is False
     assert audit.netting_credit_authorized is False
 
 
-def test_cross_pair_accepts_only_causal_explicit_usd_conversions() -> None:
+def test_short_pair_reverses_native_and_usd_factor_signs() -> None:
     opportunity = _opportunity(
         trader=TraderLineage.R38_GBPJPY,
         symbol="GBPJPY",
         entry="190",
-        stop="189",
-        target="192",
+        stop="191",
+        target="188",
         stop_loss_per_volume="700",
+        side="short",
     )
     provider = _provider(
         symbol="GBPJPY",
@@ -175,39 +184,53 @@ def test_cross_pair_accepts_only_causal_explicit_usd_conversions() -> None:
         tick_size="0.01",
         tick_value="6",
     )
-    conversions = (
-        FactorUsdConversion(
-            factor_id="GBP",
-            usd_per_native_unit=Decimal("1.25"),
-            observed_at=DECISION_AT - timedelta(seconds=2),
-            evidence_ref="fx:gbpusd:predecision",
-        ),
-        FactorUsdConversion(
-            factor_id="JPY",
-            usd_per_native_unit=Decimal("0.0065"),
-            observed_at=DECISION_AT - timedelta(seconds=2),
-            evidence_ref="fx:jpyusd:predecision",
-        ),
-    )
 
     audit = assess_minimum_seed_factor_magnitude(
         opportunity=opportunity,
         observation=provider,
         decision_at=DECISION_AT,
         provider_evidence_ref="provider:gbpjpy",
-        conversions=conversions,
     )
 
     exposures = {item.factor_id: item for item in audit.exposures}
-    assert exposures["GBP"].signed_notional_usd == Decimal("1250.0000")
-    assert exposures["JPY"].signed_notional_usd == Decimal("-1235.000000")
-    assert audit.usd_magnitude_complete is True
-    assert not any(
-        blocker.startswith("USD_CONVERSION_REQUIRED:")
-        for blocker in audit.blockers
+    assert exposures["GBP"].signed_native_amount == Decimal("-1000.00")
+    assert exposures["GBP"].signed_notional_usd == Decimal("-1140.00000")
+    assert exposures["JPY"].signed_native_amount == Decimal("190000.00")
+    assert exposures["JPY"].signed_notional_usd == Decimal("1140.00000")
+    assert audit.netting_credit_authorized is False
+
+
+def test_xauusd_uses_same_provider_tick_conversion_contract() -> None:
+    opportunity = _opportunity(
+        trader=TraderLineage.R34_XAUUSD,
+        symbol="XAUUSD",
+        entry="3800",
+        stop="3790",
+        target="3820",
+        stop_loss_per_volume="1000",
     )
-    assert audit.risk_equivalent_identified is False
-    assert audit.correlation_state_identified is False
+    provider = _provider(
+        symbol="XAUUSD",
+        bid="3799.9",
+        ask="3800.1",
+        contract_size="100",
+        tick_size="0.01",
+        tick_value="1",
+    )
+
+    audit = assess_minimum_seed_factor_magnitude(
+        opportunity=opportunity,
+        observation=provider,
+        decision_at=DECISION_AT,
+        provider_evidence_ref="provider:xauusd",
+    )
+
+    exposures = {item.factor_id: item for item in audit.exposures}
+    assert exposures["XAU"].signed_native_amount == Decimal("1.00")
+    assert exposures["XAU"].signed_notional_usd == Decimal("3800.00")
+    assert exposures["USD"].signed_native_amount == Decimal("-3800.00")
+    assert exposures["USD"].signed_notional_usd == Decimal("-3800.00")
+    assert audit.usd_magnitude_complete is True
     assert audit.netting_credit_authorized is False
 
 
@@ -244,42 +267,6 @@ def test_nas100_stays_blocked_without_explicit_contract_denomination() -> None:
     assert audit.native_magnitude_identified is False
     assert audit.usd_magnitude_complete is False
     assert "PROVIDER_CONTRACT_DENOMINATION_REQUIRED:NAS100" in audit.blockers
+    assert audit.risk_equivalent_identified is False
+    assert audit.correlation_state_identified is False
     assert audit.netting_credit_authorized is False
-
-
-def test_future_conversion_evidence_is_rejected_before_any_magnitude_claim() -> None:
-    opportunity = _opportunity(
-        trader=TraderLineage.R38_GBPJPY,
-        symbol="GBPJPY",
-        entry="190",
-        stop="189",
-        target="192",
-        stop_loss_per_volume="700",
-    )
-    provider = _provider(
-        symbol="GBPJPY",
-        bid="189.99",
-        ask="190.01",
-        contract_size="100000",
-        tick_size="0.01",
-        tick_value="6",
-    )
-
-    with pytest.raises(
-        CiboCapitalManagementError,
-        match="conversion evidence cannot postdate decision",
-    ):
-        assess_minimum_seed_factor_magnitude(
-            opportunity=opportunity,
-            observation=provider,
-            decision_at=DECISION_AT,
-            provider_evidence_ref="provider:gbpjpy",
-            conversions=(
-                FactorUsdConversion(
-                    factor_id="GBP",
-                    usd_per_native_unit=Decimal("1.25"),
-                    observed_at=DECISION_AT + timedelta(milliseconds=1),
-                    evidence_ref="fx:future",
-                ),
-            ),
-        )

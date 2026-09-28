@@ -1,9 +1,10 @@
 """Causal monetary factor-magnitude audit for CE2I T08.
 
 This module identifies observable factor notional without translating stop risk
-into factor exposure. It grants no portfolio-netting credit and never infers a
-correlation state. Missing USD conversion or contract-denomination evidence
-remains explicit and fail-closed.
+into factor exposure. Pair conversion reuses the same provider tick economics
+that CIBO already treats as USD for stop/spread normalization. It grants no
+portfolio-netting credit, never infers correlation, and makes no historical
+provider-equivalence claim.
 """
 
 from __future__ import annotations
@@ -31,20 +32,8 @@ class T08FactorVolumeBasis(StrEnum):
     MINIMUM_EXECUTABLE_CANDIDATE = "MINIMUM_EXECUTABLE_CANDIDATE"
 
 
-@dataclass(frozen=True, slots=True)
-class FactorUsdConversion:
-    factor_id: str
-    usd_per_native_unit: Decimal
-    observed_at: datetime
-    evidence_ref: str
-
-    def __post_init__(self) -> None:
-        if not self.factor_id or not self.evidence_ref:
-            raise CiboCapitalManagementError(
-                "T08 conversion factor/evidence identity is required"
-            )
-        _positive(self.usd_per_native_unit, "usd_per_native_unit")
-        _aware(self.observed_at, "conversion observed_at")
+class T08UsdConversionBasis(StrEnum):
+    PROVIDER_TICK_ECONOMICS = "PROVIDER_TICK_ECONOMICS"
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,8 +42,10 @@ class MonetaryFactorExposure:
     direction: FactorDirection
     native_unit: str
     signed_native_amount: Decimal
-    signed_notional_usd: Decimal | None
-    usd_conversion_evidence_ref: str | None
+    usd_per_native_unit: Decimal
+    signed_notional_usd: Decimal
+    conversion_basis: T08UsdConversionBasis
+    conversion_evidence_ref: str
 
     def __post_init__(self) -> None:
         if not self.factor_id or not self.native_unit:
@@ -65,7 +56,17 @@ class MonetaryFactorExposure:
             raise CiboCapitalManagementError(
                 "T08 factor direction must be canonical"
             )
+        if type(self.conversion_basis) is not T08UsdConversionBasis:
+            raise CiboCapitalManagementError(
+                "T08 USD conversion basis must be canonical"
+            )
+        if not self.conversion_evidence_ref:
+            raise CiboCapitalManagementError(
+                "T08 USD conversion provenance is required"
+            )
         _finite_nonzero(self.signed_native_amount, "signed_native_amount")
+        _positive(self.usd_per_native_unit, "usd_per_native_unit")
+        _finite_nonzero(self.signed_notional_usd, "signed_notional_usd")
         if self.direction is FactorDirection.LONG:
             if self.signed_native_amount <= 0:
                 raise CiboCapitalManagementError(
@@ -75,26 +76,18 @@ class MonetaryFactorExposure:
             raise CiboCapitalManagementError(
                 "T08 SHORT factor exposure must be negative"
             )
-        if self.signed_notional_usd is None:
-            if self.usd_conversion_evidence_ref is not None:
-                raise CiboCapitalManagementError(
-                    "T08 unresolved USD notional cannot cite conversion"
-                )
-        else:
-            _finite_nonzero(
-                self.signed_notional_usd,
-                "signed_notional_usd",
+        if (self.signed_notional_usd > 0) != (
+            self.signed_native_amount > 0
+        ):
+            raise CiboCapitalManagementError(
+                "T08 USD notional direction must match native exposure"
             )
-            if (self.signed_notional_usd > 0) != (
-                self.signed_native_amount > 0
-            ):
-                raise CiboCapitalManagementError(
-                    "T08 USD notional direction must match native exposure"
-                )
-            if not self.usd_conversion_evidence_ref:
-                raise CiboCapitalManagementError(
-                    "T08 resolved USD notional requires conversion provenance"
-                )
+        if self.signed_notional_usd != (
+            self.signed_native_amount * self.usd_per_native_unit
+        ):
+            raise CiboCapitalManagementError(
+                "T08 USD notional must equal native amount times conversion"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,13 +131,7 @@ class Phase20T08FactorMagnitudeAudit:
             raise CiboCapitalManagementError(
                 "T08 native magnitude/exposure accounting drift"
             )
-        if self.usd_magnitude_complete != (
-            bool(self.exposures)
-            and all(
-                item.signed_notional_usd is not None
-                for item in self.exposures
-            )
-        ):
+        if self.usd_magnitude_complete != bool(self.exposures):
             raise CiboCapitalManagementError(
                 "T08 USD magnitude completeness accounting drift"
             )
@@ -177,7 +164,6 @@ def assess_minimum_seed_factor_magnitude(
     observation: ProviderEconomicObservation,
     decision_at: datetime,
     provider_evidence_ref: str,
-    conversions: tuple[FactorUsdConversion, ...] = (),
 ) -> Phase20T08FactorMagnitudeAudit:
     """Measure minimum-seed factor notional without manufacturing risk credit."""
 
@@ -198,10 +184,6 @@ def assess_minimum_seed_factor_magnitude(
         raise CiboCapitalManagementError(
             "T08 provider observation cannot postdate decision"
         )
-    conversion_map = _conversion_map(
-        conversions=conversions,
-        decision_at=decision_at,
-    )
     normalized = normalize_provider_economics(
         opportunity=opportunity,
         observation=observation,
@@ -254,124 +236,54 @@ def assess_minimum_seed_factor_magnitude(
         quote_factor: -side_sign * quote_amount,
     }
 
-    exposures: list[MonetaryFactorExposure] = []
-    missing_conversion: list[str] = []
-    for factor in (base_factor, quote_factor):
-        conversion = _resolve_conversion(
-            factor=factor,
-            base_factor=base_factor,
-            quote_factor=quote_factor,
-            quote_per_base=opportunity.intended_entry,
-            provider_key=observation.provider_key,
-            symbol=symbol,
-            observed_at=observation.observed_at,
-            provider_evidence_ref=provider_evidence_ref,
-            external=conversion_map,
-        )
-        native_amount = signed_amounts[factor]
-        usd_notional = (
-            None
-            if conversion is None
-            else native_amount * conversion.usd_per_native_unit
-        )
-        if conversion is None:
-            missing_conversion.append(factor)
-        exposures.append(
-            MonetaryFactorExposure(
-                factor_id=factor,
-                direction=topology_map[factor],
-                native_unit=factor,
-                signed_native_amount=native_amount,
-                signed_notional_usd=usd_notional,
-                usd_conversion_evidence_ref=(
-                    None if conversion is None else conversion.evidence_ref
-                ),
-            )
-        )
+    quote_usd_per_native_unit = observation.tick_value / (
+        observation.contract_size * observation.tick_size
+    )
+    base_usd_per_native_unit = (
+        opportunity.intended_entry * quote_usd_per_native_unit
+    )
+    usd_per_native_unit = {
+        base_factor: base_usd_per_native_unit,
+        quote_factor: quote_usd_per_native_unit,
+    }
+    conversion_evidence_ref = (
+        f"{provider_evidence_ref}:provider-tick-usd:"
+        f"{observation.provider_key}:{symbol}"
+    )
 
-    blockers = [
-        *(f"USD_CONVERSION_REQUIRED:{item}" for item in missing_conversion),
-        "FACTOR_NOTIONAL_TO_SIGNED_RISK_USD_MAPPING_NOT_IDENTIFIED",
-        "CAUSAL_CORRELATION_STATE_NOT_IDENTIFIED",
-        "FRESH_OOS_NETTING_UTILITY_ANALYSIS_REQUIRED",
-    ]
+    exposures = tuple(
+        MonetaryFactorExposure(
+            factor_id=factor,
+            direction=topology_map[factor],
+            native_unit=factor,
+            signed_native_amount=signed_amounts[factor],
+            usd_per_native_unit=usd_per_native_unit[factor],
+            signed_notional_usd=(
+                signed_amounts[factor] * usd_per_native_unit[factor]
+            ),
+            conversion_basis=T08UsdConversionBasis.PROVIDER_TICK_ECONOMICS,
+            conversion_evidence_ref=conversion_evidence_ref,
+        )
+        for factor in (base_factor, quote_factor)
+    )
     return Phase20T08FactorMagnitudeAudit(
         signal_fingerprint=opportunity.signal_fingerprint,
         qore_symbol=symbol,
         volume_basis=T08FactorVolumeBasis.MINIMUM_EXECUTABLE_CANDIDATE,
         volume=volume,
         observed_at=decision_at,
-        exposures=tuple(exposures),
+        exposures=exposures,
         native_magnitude_identified=True,
-        usd_magnitude_complete=not missing_conversion,
+        usd_magnitude_complete=True,
         risk_equivalent_identified=False,
         correlation_state_identified=False,
         netting_credit_authorized=False,
-        blockers=tuple(blockers),
+        blockers=(
+            "FACTOR_NOTIONAL_TO_SIGNED_RISK_USD_MAPPING_NOT_IDENTIFIED",
+            "CAUSAL_CORRELATION_STATE_NOT_IDENTIFIED",
+            "FRESH_OOS_NETTING_UTILITY_ANALYSIS_REQUIRED",
+        ),
     )
-
-
-def _conversion_map(
-    *,
-    conversions: tuple[FactorUsdConversion, ...],
-    decision_at: datetime,
-) -> dict[str, FactorUsdConversion]:
-    result: dict[str, FactorUsdConversion] = {}
-    for item in conversions:
-        if not isinstance(item, FactorUsdConversion):
-            raise CiboCapitalManagementError(
-                "T08 conversion evidence must be canonical"
-            )
-        if item.observed_at > decision_at:
-            raise CiboCapitalManagementError(
-                "T08 conversion evidence cannot postdate decision"
-            )
-        if item.factor_id in result:
-            raise CiboCapitalManagementError(
-                "T08 duplicate factor conversion evidence"
-            )
-        result[item.factor_id] = item
-    return result
-
-
-def _resolve_conversion(
-    *,
-    factor: str,
-    base_factor: str,
-    quote_factor: str,
-    quote_per_base: Decimal,
-    provider_key: str,
-    symbol: str,
-    observed_at: datetime,
-    provider_evidence_ref: str,
-    external: dict[str, FactorUsdConversion],
-) -> FactorUsdConversion | None:
-    if factor == "USD":
-        return FactorUsdConversion(
-            factor_id="USD",
-            usd_per_native_unit=Decimal(1),
-            observed_at=observed_at,
-            evidence_ref="intrinsic:USD",
-        )
-    if quote_factor == "USD" and factor == base_factor:
-        return FactorUsdConversion(
-            factor_id=factor,
-            usd_per_native_unit=quote_per_base,
-            observed_at=observed_at,
-            evidence_ref=(
-                f"{provider_evidence_ref}:direct:{provider_key}:{symbol}"
-            ),
-        )
-    if base_factor == "USD" and factor == quote_factor:
-        return FactorUsdConversion(
-            factor_id=factor,
-            usd_per_native_unit=Decimal(1) / quote_per_base,
-            observed_at=observed_at,
-            evidence_ref=(
-                f"{provider_evidence_ref}:inverse:{provider_key}:{symbol}"
-            ),
-        )
-    return external.get(factor)
 
 
 def _positive(value: Decimal, name: str) -> None:
