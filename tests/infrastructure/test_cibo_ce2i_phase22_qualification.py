@@ -26,6 +26,7 @@ from qore.infrastructure.cibo_ce2i_phase21_policy_freeze import (
     Phase21PolicySurfaceDigests,
     Phase21QualificationReceipt,
     build_phase21_empirical_validation_receipt,
+    build_phase21_qualification_receipt,
     build_phase21_policy_freeze,
 )
 from qore.infrastructure.cibo_ce2i_phase22_qualification import (
@@ -44,6 +45,34 @@ COLLECTOR_SHA = "a" * 40
 
 def _sha(index: int) -> str:
     return f"sha256:{index:064x}"
+
+
+def _qualification_artifact_json() -> str:
+    candidate = FROZEN_PHASE20_POLICY_CANDIDATE
+    report = {
+        "schema": "qore.cibo.phase20d.v2-qualification.v5",
+        "status": "PASS",
+        "plan_id": FROZEN_PHASE20D_QUALIFICATION_PLAN.plan_id,
+        "plan_sha256": phase20d_qualification_plan_sha256(),
+        "candidate_id": candidate.candidate_id,
+        "failures_or_pending_reasons": [],
+        "readiness": {"ready": True},
+        "provenance": {
+            "git_sha": "b" * 40,
+            "evidence_store_sha256": _sha(1),
+            "policy_store_sha256": _sha(2),
+            "collector_git_shas": ["a" * 40],
+            "missing_collector_git_sha_decisions": 0,
+        },
+        "phase20d_gate": {
+            "status": "PASS",
+            "eligible_for_phase21": True,
+            "blockers": [],
+            "requires_exact_evidence_and_policy_digests": True,
+            "requires_single_collector_git_sha": True,
+        },
+    }
+    return json.dumps(report, indent=2, sort_keys=True) + "\n"
 
 
 def _validation_payload(
@@ -79,16 +108,9 @@ def _validation_payload(
 
 def _phase21_manifest():
     candidate = FROZEN_PHASE20_POLICY_CANDIDATE
-    qualification = Phase21QualificationReceipt(
-        candidate_id=candidate.candidate_id,
-        candidate_parameter_sha256=candidate.parameter_sha256(),
-        plan_id=FROZEN_PHASE20D_QUALIFICATION_PLAN.plan_id,
-        plan_sha256=phase20d_qualification_plan_sha256(),
-        evidence_store_sha256=_sha(1),
-        policy_store_sha256=_sha(2),
-        qualification_artifact_sha256=_sha(3),
+    qualification = build_phase21_qualification_receipt(
+        qualification_artifact_json=_qualification_artifact_json(),
         qualified_at=QUALIFIED_AT,
-        passed=True,
     )
     validations = tuple(
         build_phase21_empirical_validation_receipt(
@@ -96,12 +118,7 @@ def _phase21_manifest():
             qualification=qualification,
             validator_git_sha=f"{index + 1:040x}",
             observed_at=QUALIFIED_AT + timedelta(hours=index + 1),
-            validation_payload={
-                "protocol": f"TEST_{kind.value}",
-                "source_decision_epochs": 80,
-                "source_candidate_outcomes": 200,
-                "source_selected_outcomes": 60,
-            },
+            validation_payload=_validation_payload(kind),
         )
         for index, kind in enumerate(Phase21EmpiricalValidationKind)
     )
