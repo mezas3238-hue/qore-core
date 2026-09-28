@@ -210,6 +210,7 @@ def test_account_mission_exposes_different_ce2i_surfaces() -> None:
         assert code in demo_tools
 
     assert len(demo_tools) > len(eligible_ce2i_tool_codes_for_mission(funded))
+    assert demo_tools == tuple(f"T{index:02d}" for index in range(1, 21))
 
 
 
