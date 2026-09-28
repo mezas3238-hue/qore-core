@@ -174,6 +174,7 @@ class CiboToolCalibrationRecord:
 _PHASE18 = "burned:phase18:seven-lineage-chronological-replay"
 _PHASE19 = "burned:phase19:integrated-common-window"
 _PHASE19_WFO = "burned:phase19j:post-freeze-walk-forward"
+_PHASE19M_REGIME = "burned:phase19m:regime-identifiability-audit"
 _PROVIDER_GAP = provider_economics_evidence_ref()
 _PHASE20_CONTRACT = "phase20:contract-and-failure-proof"
 _PHASE19_NON_PROMOTION = (
@@ -336,10 +337,18 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
         "T12",
         CiboCalibrationState.CALIBRATION_UNAVAILABLE,
         CiboCalibrationType.CAUSAL_NORMALIZED,
-        (_PHASE19, "burned:phase19:temporal-stability", _PHASE19_NON_PROMOTION),
         (
-            "TEMPORAL_STABILITY_OBSERVATIONAL_ONLY",
-            "CAUSAL_REGIME_BOUNDARIES_NOT_IDENTIFIED",
+            _PHASE19,
+            "burned:phase19:temporal-stability",
+            _PHASE19M_REGIME,
+            _PHASE19_NON_PROMOTION,
+        ),
+        (
+            "CANONICAL_PREDECISION_REGIME_SCHEMA_COVERAGE_3_OF_7",
+            "VT31_BESPOKE_REGIME_STATE_NOT_CANONICALLY_MAPPED",
+            "ACCOUNT_STATE_NOT_BOUND_TO_SHARED_REGIME_SCHEMA",
+            "HISTORICAL_PROVIDER_CONDITION_NOT_BOUND_TO_REGIME_STATE",
+            "PORTFOLIO_CAUSAL_REGIME_BOUNDARY_NOT_IDENTIFIED",
         ),
     ),
     _row(
