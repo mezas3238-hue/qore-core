@@ -260,7 +260,7 @@ jobs:
             src/qore/infrastructure/ctrader_demo_operational_runtime.py \
             src/qore/infrastructure/cibo_ce2i_phase20_qualification.py \
             src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py \
-          src/qore/infrastructure/cibo_phase20_demo_execution_activation.py \
+            src/qore/infrastructure/cibo_phase20_demo_execution_activation.py \
             scripts/cibo_phase20_provider_uncertainty_contract.py \
             scripts/cibo_phase20_counterfactual_stress_matrix.py \
             scripts/cibo_phase20_capital_state_monte_carlo_contract.py \
@@ -282,6 +282,9 @@ jobs:
             scripts/cibo_final_certification_contract.py \
             scripts/cibo_phase20_failure_engineering.py \
             scripts/cibo_phase20_failure_engineering_b.py \
+            scripts/cibo_phase20_demo_execution_arm.py \
+            scripts/cibo_phase20_demo_activation_receipt.py \
+            scripts/cibo_phase20_demo_persistent_collector.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
             tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py \
             tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py \
@@ -323,7 +326,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_qualification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py \
-          tests/infrastructure/test_cibo_phase20_demo_execution_activation.py
+            tests/infrastructure/test_cibo_phase20_demo_execution_activation.py
           mypy \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py \
             src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py \
@@ -366,6 +369,10 @@ jobs:
             src/qore/infrastructure/ctrader_demo_operational_runtime.py \
             src/qore/infrastructure/cibo_ce2i_phase20_qualification.py \
             src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py \
+            src/qore/infrastructure/cibo_phase20_demo_execution_activation.py \
+            scripts/cibo_phase20_demo_execution_arm.py \
+            scripts/cibo_phase20_demo_activation_receipt.py \
+            scripts/cibo_phase20_demo_persistent_collector.py \
             scripts/cibo_phase20_provider_uncertainty_contract.py \
             scripts/cibo_phase20_counterfactual_stress_matrix.py \
             scripts/cibo_phase20_capital_state_monte_carlo_contract.py \
@@ -429,7 +436,8 @@ jobs:
             tests/infrastructure/test_ctrader_demo_execution_gateway.py \
             tests/infrastructure/test_cibo_ce2i_phase20_qualification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
-            tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py
+            tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py \
+            tests/infrastructure/test_cibo_phase20_demo_execution_activation.py
 
   contract-evidence:
     needs: quality
