@@ -16,6 +16,7 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
 )
 from qore.infrastructure.cibo_ce2i_phase21_policy_freeze import (
     Phase21EmpiricalValidationKind,
+    phase21_empirical_validation_plan_sha256,
 )
 
 
@@ -35,6 +36,12 @@ def build_report() -> dict[str, Any]:
             item.value for item in Phase21EmpiricalValidationKind
         ),
         "required_empirical_evidence_class": "FORWARD_EMPIRICAL",
+        "empirical_validation_lineage_plan_sha256": (
+            phase21_empirical_validation_plan_sha256()
+        ),
+        "empirical_receipt_requires_exact_qualification_population": True,
+        "empirical_receipt_requires_canonical_report_digest": True,
+        "empirical_receipt_requires_validator_git_sha": True,
         "freeze_requires_exact_policy_surface_digests": True,
         "governance": {
             "demo_execution_authorized": False,
