@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
+from dataclasses import asdict
 from datetime import UTC, datetime
+from pathlib import Path
 from decimal import Decimal
 
 import pytest
@@ -115,6 +118,28 @@ def test_record_fails_on_conflicting_duplicate_identity() -> None:
     )
     with pytest.raises(ValueError, match="collision"):
         collector._record(sink, key=key, value=changed)
+
+
+def test_load_geometry_rows_rehydrates_json_list_fields(
+    tmp_path: Path,
+) -> None:
+    row = collector.SelectedGeometry(
+        symbol="EURUSD",
+        session="LONDON",
+        operating_date="2026-01-05",
+        side="LONG",
+        h1_open="2026-01-05T10:00:00+00:00",
+        entry_at="2026-01-05T10:05:00+00:00",
+        provenance="CAUSAL_ARBITRATION_BASE",
+        geometry=_geometry(),
+    )
+    path = (
+        tmp_path
+        / "capitalizer-eurusd-preentry-native-m1-geometry-v38-rows.jsonl"
+    )
+    path.write_text(json.dumps(asdict(row)) + "\n", encoding="utf-8")
+
+    assert collector.load_geometry_rows(tmp_path) == (row,)
 
 
 def test_identity_key_contains_no_outcome_fields() -> None:
