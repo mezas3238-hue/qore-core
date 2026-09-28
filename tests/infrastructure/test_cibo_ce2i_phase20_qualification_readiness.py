@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -11,6 +12,9 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     Phase20ForwardDecisionSeal,
     Phase20ForwardOutcomeSeal,
     VersionedPhase20ForwardEvidenceBook,
+)
+from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
+    FROZEN_PHASE20D_QUALIFICATION_PLAN,
 )
 from qore.infrastructure.cibo_ce2i_phase20_qualification_readiness import (
     assess_phase20d_qualification_readiness,
@@ -151,6 +155,33 @@ def test_phase20d_readiness_passes_only_mature_complete_population() -> None:
     assert readiness.represented_lineages == 7
     assert readiness.minimum_fold_candidate_outcomes >= 40
     assert readiness.minimum_fold_lineages >= 4
+    assert readiness.pre_freeze_decisions == 0
+
+    pre_freeze = replace(
+        decisions[0],
+        decision_at=(
+            FROZEN_PHASE20D_QUALIFICATION_PLAN.frozen_at
+            - timedelta(microseconds=1)
+        ),
+    )
+    contaminated = assess_phase20d_qualification_readiness(
+        evidence_book=VersionedPhase20ForwardEvidenceBook(
+            generation=2,
+            decisions=(pre_freeze, *decisions[1:]),
+            outcomes=tuple(outcomes),
+        ),
+        policy_book=VersionedPhase20ForwardPolicyBook(
+            generation=1,
+            decisions=tuple(policies),
+        ),
+    )
+
+    assert contaminated.ready is False
+    assert contaminated.pre_freeze_decisions == 1
+    assert (
+        "DECISION_PREDATES_QUALIFICATION_FREEZE"
+        in contaminated.reasons
+    )
 
 
 def test_phase20d_readiness_requires_policy_record_for_every_epoch() -> None:
