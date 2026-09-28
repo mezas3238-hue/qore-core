@@ -103,6 +103,7 @@ class TraderOpportunityEnvelope:
     minimum_volume: Decimal
     maximum_volume: Decimal
     minimum_execution_steps: int = 1
+    decision_context: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
         if type(self.trader_id) is not TraderLineage:
@@ -146,6 +147,38 @@ class TraderOpportunityEnvelope:
                 raise CiboCapitalManagementError("invalid short geometry")
         else:
             raise CiboCapitalManagementError("side must be long/short")
+        if not isinstance(self.decision_context, tuple):
+            raise CiboCapitalManagementError("decision_context must be a tuple")
+        context_keys: list[str] = []
+        for item in self.decision_context:
+            if not isinstance(item, tuple) or len(item) != 2:
+                raise CiboCapitalManagementError(
+                    "decision_context entries must be key/value tuples"
+                )
+            key, value = item
+            if not isinstance(key, str) or not key.strip():
+                raise CiboCapitalManagementError(
+                    "decision_context keys must be non-empty strings"
+                )
+            if not isinstance(value, str) or not value.strip():
+                raise CiboCapitalManagementError(
+                    "decision_context values must be non-empty strings"
+                )
+            context_keys.append(key)
+        if len(context_keys) != len(set(context_keys)):
+            raise CiboCapitalManagementError(
+                "decision_context keys must be unique"
+            )
+
+    def context_value(self, key: str) -> str | None:
+        """Return one causal Trader-owned context value without transferring authority."""
+
+        if key == "side":
+            return self.side
+        for candidate, value in self.decision_context:
+            if candidate == key:
+                return value
+        return None
 
 
 @dataclass(frozen=True, slots=True)

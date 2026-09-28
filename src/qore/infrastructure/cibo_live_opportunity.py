@@ -37,6 +37,7 @@ def build_live_opportunity(
     commission_per_volume_usd: Decimal,
     maximum_adverse_entry_drift_r: Decimal | None,
     minimum_execution_steps: int = 1,
+    decision_context: tuple[tuple[str, str], ...] = (),
 ) -> TraderOpportunityEnvelope:
     """Normalize Trader geometry/provider economics without selecting volume."""
 
@@ -121,4 +122,5 @@ def build_live_opportunity(
         minimum_volume=minimum_volume,
         maximum_volume=maximum_volume,
         minimum_execution_steps=minimum_execution_steps,
+        decision_context=decision_context,
     )

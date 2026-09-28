@@ -770,6 +770,17 @@ def build_r38_opportunity(
         broker_risk_buffer=BROKER_RISK_BUFFER,
         commission_per_volume_usd=commission_per_lot,
         maximum_adverse_entry_drift_r=MAX_SOURCE_ENTRY_DRIFT_R,
+        decision_context=(
+            ("family", "NONE" if signal.family is None else signal.family),
+            ("posture", signal.posture),
+            ("target_route", signal.target_route),
+            ("source", signal.decision_source),
+            ("fragility_flag_count", str(len(signal.fragility_flags))),
+            (
+                "fragility_flags",
+                "|".join(signal.fragility_flags) if signal.fragility_flags else "NONE",
+            ),
+        ),
     )
 
 
