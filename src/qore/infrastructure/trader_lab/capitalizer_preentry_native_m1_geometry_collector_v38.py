@@ -55,6 +55,18 @@ class SelectedGeometry:
     outcome_used_for_geometry: bool = False
     exit_used_for_geometry: bool = False
 
+    def __post_init__(self) -> None:
+        if not self.authoritative_identity_joined:
+            raise ValueError("V38 geometry must join authoritative identity")
+        if self.outcome_used_for_geometry or self.exit_used_for_geometry:
+            raise ValueError("V38 geometry cannot use outcome/exit")
+        if self.geometry.symbol != self.symbol:
+            raise ValueError("V38 joined symbol mismatch")
+        if self.geometry.side != self.side:
+            raise ValueError("V38 joined side mismatch")
+        if self.geometry.entry_at != self.entry_at:
+            raise ValueError("V38 joined entry timestamp mismatch")
+
 
 def _identity_from_parts(
     *,
