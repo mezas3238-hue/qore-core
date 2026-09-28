@@ -1,0 +1,267 @@
+name: QORE Shared WP05 V13 R8 Information Gain
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - docs/shared/QORE_SHARED_WP05_V13_SEQUENTIAL_ACTIVE_PERCEPTION_PREREGISTRATION.md
+      - src/qore/infrastructure/core_stack_v2/active_perception_v13_information_gain.py
+      - scripts/shared_wp05_active_perception_v13_information_gain.py
+      - tests/infrastructure/test_core_stack_v2_active_perception_v13_information_gain.py
+      - .github/workflows/qore-shared-wp05-active-perception-v13-information-gain.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: qore-shared-wp05-v13-r8-information-gain-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  V13_REPRESENTATION_RUN_ID: "36480950714"
+  V13_REPRESENTATION_ARTIFACT_NAME: "qore-shared-wp05-v13-sequential-representation-dccbc2a646b9bc41a311db2dfe7b9453d09f4661"
+  V13_REPRESENTATION_FINGERPRINT: "60e05ab6cb5dd38778c8d7055f44026f79b81c86e70cc4f6427c83e0291450ec"
+  R8_MARKET_EVIDENCE_ARTIFACT_ID: "10402199719"
+  V11_MODEL_FINGERPRINT: "cc74f7d3153dec34ebe8867efc27852ca8d5de95d471394f3d8ac9543147b01d"
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate V13 information-gain protocol
+        run: |
+          set -euo pipefail
+          ruff check             src/qore/infrastructure/core_stack_v2/active_perception_v13_information_gain.py             scripts/shared_wp05_active_perception_v13_information_gain.py             tests/infrastructure/test_core_stack_v2_active_perception_v13_information_gain.py
+          mypy             src/qore/infrastructure/core_stack_v2/active_perception_v13_information_gain.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/active_perception_v13_information_gain.py             scripts/shared_wp05_active_perception_v13_information_gain.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_active_perception_v13_information_gain.py
+
+  r8-information-gain:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e .
+
+      - name: Download frozen V13 sequential representation
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V13_REPRESENTATION_RUN_ID }}
+          name: ${{ env.V13_REPRESENTATION_ARTIFACT_NAME }}
+          path: input/representation
+
+      - name: Verify frozen V13 representation
+        run: |
+          set -euo pipefail
+          (cd input/representation && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(
+              Path(
+                  "input/representation/wp05-v13-sequential-representation.json"
+              ).read_text()
+          )
+          assert p["identity"] == (
+              "QORE_SHARED_WP05_SEQUENTIAL_ACTIVE_PERCEPTION_V13_REPRESENTATION_001"
+          )
+          assert p["status"] == "source_only_frozen"
+          assert p["row_count"] == 6804
+          assert p["checkpoints_minutes"] == [0,3,5,10,15]
+          assert p["base_feature_count"] == 46
+          assert p["trajectory_feature_count"] == 230
+          assert p["checkpoint_usable_pair_coverage_bps"] == [
+              9860,9695,9672,9628,9603
+          ]
+          assert p["checkpoint_crossed_causal_quote_count"] == [0,0,0,0,0]
+          assert p["representation_artifact_fingerprint_sha256"] == os.environ[
+              "V13_REPRESENTATION_FINGERPRINT"
+          ]
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          PY
+
+      - name: Recover immutable consumed R8 market evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/r8 result
+          for attempt in 1 2 3 4; do
+            if gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${R8_MARKET_EVIDENCE_ARTIFACT_ID}/zip" > r8.zip; then
+              break
+            fi
+            rm -f r8.zip
+            sleep $((attempt * 30))
+          done
+          test -s r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Run preregistered V13 R8 sequential information-gain experiment
+        run: |
+          set -euo pipefail
+          python scripts/shared_wp05_active_perception_v13_information_gain.py             --representation input/representation/wp05-v13-sequential-representation.json             --expected-representation-fingerprint "$V13_REPRESENTATION_FINGERPRINT"             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --output result/wp05-v13-r8-information-gain.json             | tee result/summary.json
+
+      - name: Validate V13 scientific result without forcing pass
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/wp05-v13-r8-information-gain.json").read_text()
+          )
+          assert p["identity"] == (
+              "QORE_SHARED_WP05_SEQUENTIAL_ACTIVE_PERCEPTION_V13_001"
+          )
+          assert p["target_contract"] == "HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2"
+          assert p["protocol_pass"] is True
+          assert p["representation_fingerprint_sha256"] == os.environ[
+              "V13_REPRESENTATION_FINGERPRINT"
+          ]
+          assert p["aligned_target_count"] == 6397
+          assert p["v11_model_fingerprint_sha256"] == os.environ[
+              "V11_MODEL_FINGERPRINT"
+          ]
+          assert len(p["folds"]) == 4
+          assert [item["fold_index"] for item in p["folds"]] == [0,1,2,3]
+          for item in p["folds"]:
+              assert item["calibration_true_confirmation_count"] >= 50
+              assert item["calibration_true_confirmation_retention_bps"] >= 9800
+              assert len(item["density_set_fingerprint_sha256"]) == 64
+              evaluation=item["evaluation"]
+              assert evaluation["fold_index"] == item["fold_index"]
+              assert 0 <= evaluation["terminal_confirmation_retention_bps"] <= 10000
+              assert 0 <= evaluation["absolute_terminal_preservation_bps"] <= 10000
+              assert 0 <= evaluation["incremental_false_confirmation_veto_bps"] <= 10000
+          assert 0 <= p[
+              "pooled_incremental_false_confirmation_veto_bps"
+          ] <= 10000
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["shared_methodology_authority"] is False
+          assert p["shared_sizing_authority"] is False
+          assert p["shared_risk_authority"] is False
+          assert p["shared_order_authority"] is False
+          assert p["shared_execution_authority"] is False
+
+          if p["r8_information_gain_pass"]:
+              assert p["status"] == (
+                  "WP05_V13_SEQUENTIAL_ACTIVE_PERCEPTION_FROZEN"
+              )
+              assert len(p["final_density_set"]) == 5
+              assert len(p["final_density_set_fingerprint_sha256"]) == 64
+              assert p["final_calibration_true_confirmation_count"] >= 50
+              assert p[
+                  "final_calibration_true_confirmation_retention_bps"
+              ] >= 9800
+              assert len(p["final_v13_model_fingerprint_sha256"]) == 64
+              assert p["next_authorized_step"] == (
+                  "R6_R5_SOURCE_ONLY_V13_SENSOR_REPRESENTATION_WITH_OUTCOMES_CLOSED"
+              )
+          else:
+              assert p["status"] == (
+                  "WP05_V13_SEQUENTIAL_ACTIVE_PERCEPTION_FALSIFIED"
+              )
+              assert "final_v13_model_fingerprint_sha256" not in p
+          PY
+
+      - name: Seal V13 R8 result
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > result/git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            sha256sum               wp05-v13-r8-information-gain.json               summary.json               git-sha.txt               run-id.txt > SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-wp05-v13-r8-information-gain-${{ github.sha }}
+          path: result
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report V13 R8 scientific result
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/wp05-v13-r8-information-gain.json").read_text()
+          )
+          lines=[
+              "## WP-05 V13 sequential active-perception R8 result",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- GitHub Actions run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- status: **{p['status']}**",
+              f"- aligned Target-V2 population: **{p['aligned_target_count']}**",
+              f"- V11 model fingerprint: `{p['v11_model_fingerprint_sha256']}`",
+              f"- V13 representation fingerprint: `{p['representation_fingerprint_sha256']}`",
+              f"- pooled incremental false-confirmation veto: **{p['pooled_incremental_false_confirmation_veto_bps']} bps**",
+              "",
+              "Fold results:",
+          ]
+          for item in p["folds"]:
+              e=item["evaluation"]
+              lines.append(
+                  f"- F{item['fold_index']}: train={item['training_count_after_outer_purge']} "
+                  f"validation={item['validation_count']} "
+                  f"cal_true={item['calibration_true_confirmation_count']} "
+                  f"cal_retention={item['calibration_true_confirmation_retention_bps']} "
+                  f"threshold={item['recovery_veto_threshold_micros']} | "
+                  f"retention={e['terminal_confirmation_retention_bps']} "
+                  f"abs_terminal={e['absolute_terminal_preservation_bps']} "
+                  f"false_veto={e['incremental_false_confirmation_veto_bps']} "
+                  f"abs_false_reduction={e['absolute_false_declaration_reduction_bps']} "
+                  f"pass={e['gate_pass']}"
+              )
+          if p["r8_information_gain_pass"]:
+              lines.extend([
+                  "",
+                  "- R8 V13 gate: **PASS**",
+                  f"- final density fingerprint: `{p['final_density_set_fingerprint_sha256']}`",
+                  f"- final recovery-veto threshold: **{p['final_recovery_veto_threshold_micros']} micros**",
+                  f"- final V13 model fingerprint: `{p['final_v13_model_fingerprint_sha256']}`",
+                  "- next authorized step: source-only R6/R5 V13 sensor acquisition/representation; outcomes remain CLOSED",
+              ])
+          else:
+              lines.extend([
+                  "",
+                  "- R8 V13 gate: **FALSIFIED**",
+                  "- R6/R5 remain CLOSED; no V13.1 threshold/persistence/feature rescue is authorized from consumed R8 outcomes",
+              ])
+          lines.extend([
+              "- R6/R5 read: **False**",
+              "- fresh holdout opened: **False**",
+          ])
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 643 --body-file result/issue-comment.md
