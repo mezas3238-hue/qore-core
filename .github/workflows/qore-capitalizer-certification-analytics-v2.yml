@@ -3,7 +3,7 @@ name: QORE Capitalizer Certification Analytics V2
 on:
   push:
     branches:
-      - agent/capitalizer-certification-analytics-v2-001
+      - agent/qore-capitalizer-cognitive-v1-001
     paths:
       - 'src/qore/infrastructure/trader_lab/capitalizer_scalper_certification_metrics_v2.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_scalper_certification_metrics_v2.py'
