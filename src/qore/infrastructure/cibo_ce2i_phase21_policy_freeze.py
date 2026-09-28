@@ -289,7 +289,7 @@ class Phase21EmpiricalValidationReceipt:
 def build_phase21_empirical_validation_receipt(
     *,
     kind: Phase21EmpiricalValidationKind,
-    qualification: "Phase21QualificationReceipt",
+    qualification: Phase21QualificationReceipt,
     validator_git_sha: str,
     observed_at: datetime,
     validation_payload: dict[str, Any],
