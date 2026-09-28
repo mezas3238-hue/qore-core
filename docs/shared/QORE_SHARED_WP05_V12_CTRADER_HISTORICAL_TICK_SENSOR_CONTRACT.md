@@ -162,3 +162,35 @@ Historical tick acquisition is read-only observation infrastructure.
 
 It creates no entry, exit, sizing, allocation, Risk, order or Execution
 authority.
+
+
+## Historical quote-side provenance boundary
+
+Historical BID and ASK data are independent provider event streams. The
+research boundary is:
+
+`src/qore/infrastructure/historical_quote_side_evidence.py`
+
+Each retained side observation must preserve, independently:
+
+- canonical QORE instrument;
+- exact provider/account identity;
+- exact provider symbol id/name;
+- quote side (BID or ASK);
+- provider event timestamp;
+- historical retrieval timestamp;
+- exact provider relative integer price;
+- exact normalized decimal price.
+
+The historical replay timestamp is the provider event timestamp. This is a
+research replay rule only and must never be represented as historical
+`core_ingress_at` or as evidence that Core observed the event live at that
+time.
+
+A BID page may create BID-side observations only. An ASK page may create
+ASK-side observations only. No boundary may synthesize the opposite quote side
+or force one-to-one event pairing.
+
+Any later spread representation must use the latest causal BID and latest causal
+ASK available at-or-before the evaluation timestamp, subject to a separately
+preregistered staleness law.
