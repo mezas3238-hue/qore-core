@@ -79,3 +79,14 @@ def test_no_calibration_record_uses_holdout_outcomes_or_targets() -> None:
         for row in CIBO_TOOL_CALIBRATION_REGISTRY
         for source in row.calibration_sources
     )
+
+
+def test_lifecycle_tools_are_causally_calibrated_but_not_oos_ready() -> None:
+    for code in ("T05", "T19", "T20"):
+        record = calibration_record(code)
+        assert record.state is CiboCalibrationState.CALIBRATED_CAUSAL
+        assert record.calibrated is True
+        assert record.calibration_artifact_sha256
+        assert record.oos_ready is False
+        assert record.certification_ready is False
+        assert record.blockers
