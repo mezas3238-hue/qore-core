@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from time import monotonic, sleep
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from qore.infrastructure.core_stack_v2.active_perception_v12_coverage_pilot import (
@@ -243,7 +243,10 @@ def _collect_side(
 
 
 def _load_manifest(path: Path, *, expected_manifest_sha256: str) -> dict[str, Any]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise V12CoveragePilotError("V12 acquisition manifest must be a JSON object")
+    payload = cast(dict[str, Any], raw)
     if payload.get("identity") != EXPECTED_MANIFEST_IDENTITY:
         raise V12CoveragePilotError("unexpected V12 acquisition manifest identity")
     if payload.get("partition") != "r8":
