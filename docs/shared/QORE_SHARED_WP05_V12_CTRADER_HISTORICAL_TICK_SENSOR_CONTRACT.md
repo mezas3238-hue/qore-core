@@ -202,24 +202,31 @@ preregistered staleness law.
 V12 historical acquisition is read-only and must authenticate with the exact
 provider permission required for observation.
 
-- the V12 acquisition runtime requires cTrader `SCOPE_VIEW`;
-- a token carrying `SCOPE_TRADE` does not silently satisfy the V12 collector;
-- the execution runtime retains its existing `SCOPE_TRADE` requirement;
-- changing the historical collector to trading scope requires an explicit
-  architectural reason and new review.
+- a dedicated V12 credential SHOULD use cTrader `SCOPE_VIEW` when available;
+- an already-authorized `SCOPE_TRADE` DEMO token may be used for observation
+  only behind the V12 read-only message firewall;
+- the V12 firewall admits only symbol-list, symbol-detail and historical-tick
+  requests and rejects order-shaped requests fail-closed;
+- the execution runtime retains its existing exact `SCOPE_TRADE` requirement;
+- provider token capability never expands Shared sovereignty.
 
 The implementation boundary is
 `CTraderOpenApiPermissionScope` in
 `src/qore/infrastructure/ctrader_open_api_client.py`.
 
-This permission split is defense in depth. It does not grant the collector any
-order API authority.
+This permission split plus the read-only message firewall is defense in depth.
+The collector does not receive order API authority even when the underlying
+authorized DEMO token is trading-capable.
 
 ## Historical collector contract
 
 The bounded collector is:
 
 `src/qore/infrastructure/ctrader_historical_tick_collector.py`
+
+Its provider boundary is
+`CTraderHistoricalReadOnlyMessageClient`, which rejects every provider
+message outside the frozen read-only allowlist before transport.
 
 It must:
 
