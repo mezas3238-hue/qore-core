@@ -36,6 +36,8 @@ class AdvancedToolDecision:
     selected_id: str | None = None
     approved_volume: Decimal = Decimal(0)
     released_capacity_usd: Decimal = Decimal(0)
+    target_stop_risk_usd: Decimal | None = None
+    target_margin_usd: Decimal | None = None
     score: Decimal | None = None
 
     def __post_init__(self) -> None:
@@ -49,6 +51,10 @@ class AdvancedToolDecision:
             raise CiboCapitalManagementError("advanced tool reason required")
         _nonnegative(self.approved_volume, "approved_volume")
         _nonnegative(self.released_capacity_usd, "released_capacity_usd")
+        for name in ("target_stop_risk_usd", "target_margin_usd"):
+            value = getattr(self, name)
+            if value is not None:
+                _nonnegative(value, name)
         if self.score is not None:
             _finite(self.score, "score")
         if self.disposition is AdvancedToolDisposition.APPLIED and self.selected_id is None:
@@ -56,7 +62,10 @@ class AdvancedToolDecision:
                 "applied advanced tool decision requires selected_id"
             )
         if self.disposition is not AdvancedToolDisposition.APPLIED and (
-            self.approved_volume != 0 or self.released_capacity_usd != 0
+            self.approved_volume != 0
+            or self.released_capacity_usd != 0
+            or self.target_stop_risk_usd is not None
+            or self.target_margin_usd is not None
         ):
             raise CiboCapitalManagementError(
                 "non-applied advanced tool decision cannot authorize capacity"
@@ -143,6 +152,9 @@ def evaluate_structural_leverage(
         disposition=AdvancedToolDisposition.APPLIED,
         selected_id=evidence.structural_invalidation_id,
         approved_volume=current_volume + additional,
+        target_stop_risk_usd=(
+            opportunity.stop_loss_per_volume * (current_volume + additional)
+        ),
         reason="verified OOS structural precision supports bounded extra exposure",
     )
 
@@ -238,6 +250,7 @@ def evaluate_margin_efficiency(
         disposition=AdvancedToolDisposition.APPLIED,
         selected_id=selected.expression_id,
         released_capacity_usd=released,
+        target_margin_usd=selected.margin_usd,
         score=(baseline.margin_usd / selected.margin_usd)
         if selected.margin_usd > 0
         else None,
@@ -335,6 +348,8 @@ def evaluate_risk_efficiency(
         tool_code="T04",
         disposition=AdvancedToolDisposition.APPLIED,
         selected_id=selected.candidate_id,
+        target_stop_risk_usd=selected.true_stop_risk_usd,
+        target_margin_usd=selected.margin_usd,
         score=score,
         reason="OOS output per true stop-risk strictly improves without worse tail/DD",
     )
@@ -675,6 +690,7 @@ def evaluate_convex_exposure(
         tool_code="T17",
         disposition=AdvancedToolDisposition.APPLIED,
         selected_id=selected.instrument_id,
+        target_stop_risk_usd=selected.bounded_downside_usd,
         score=score,
         reason=(
             "certified executable convex expression has bounded downside "
