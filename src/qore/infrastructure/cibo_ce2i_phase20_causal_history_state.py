@@ -18,7 +18,6 @@ from qore.infrastructure.cibo_capital_management_authority import (
 )
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     Phase20ForwardDecisionSeal,
-    Phase20ForwardOutcomeSeal,
     VersionedPhase20ForwardEvidenceBook,
 )
 
