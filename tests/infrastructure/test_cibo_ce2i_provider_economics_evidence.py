@@ -27,9 +27,9 @@ def test_provider_economics_evidence_is_point_in_time_not_historical() -> None:
 def test_provider_economics_reference_binds_artifact_digest() -> None:
     reference = provider_economics_evidence_ref()
 
-    assert "artifact:10974092916" in reference
+    assert "artifact:10975061063" in reference
     assert (
-        "430e7cfce506727cc48f487c6e52bc8f800d3b80dc314cd6b47a648974c23a71"
+        "e58cb9cd55c057c2e76888c637712e5ee08c653a1deadbce0d628cca0614cd2d"
         in reference
     )
     assert "HISTORICAL_EXACT_FALSE" in reference
