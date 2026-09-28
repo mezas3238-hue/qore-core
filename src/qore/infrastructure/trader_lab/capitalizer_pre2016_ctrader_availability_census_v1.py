@@ -18,10 +18,10 @@ from __future__ import annotations
 import argparse
 import json
 from collections import defaultdict
+from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
-from collections.abc import Iterable
 
 from qore.infrastructure.ctrader_open_api_client import (
     SpotwareCTraderOpenApiClient,
