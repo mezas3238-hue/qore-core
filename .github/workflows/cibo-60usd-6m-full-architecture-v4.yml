@@ -1,0 +1,256 @@
+name: CIBO USD60 6M Full Architecture V4 Lab
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-60usd-6m-full-architecture-v4-001
+    paths:
+      - '.github/workflows/cibo-60usd-6m-full-architecture-v4.yml'
+      - 'scripts/cibo_60usd_6m_free_traders_v3.py'
+      - 'scripts/cibo_full_architecture_v4_probe.py'
+      - 'src/qore/infrastructure/cibo_*.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  EVIDENCE_SHA: ${{ github.sha }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  full-architecture-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+
+      - name: Quality
+        run: |
+          ruff check             scripts/cibo_60usd_6m_free_traders_v3.py             scripts/cibo_full_architecture_v4_probe.py
+          python -m py_compile             scripts/cibo_60usd_6m_free_traders_v3.py             scripts/cibo_full_architecture_v4_probe.py
+
+      - name: Exercise complete currently executable CIBO architecture
+        run: |
+          mkdir -p experiment-output
+          python scripts/cibo_full_architecture_v4_probe.py             --output experiment-output/full-architecture-probe.json             > experiment-output/full-architecture-probe-stdout.json
+
+      - name: Recover immutable seven-Trader Phase18 evidence
+        run: |
+          set -euo pipefail
+          mkdir -p source/{gbpjpy,gbpusd,audjpy,eurusd,xauusd,vt08,vt31}
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10909937201/zip" > gbpjpy.zip
+          echo "b59d8c045a0e86f0e22fb0044dc04eb6dff0f17de4c9f7c7389b903adc443956  gbpjpy.zip" | sha256sum -c -
+          unzip -q gbpjpy.zip -d source/gbpjpy
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10910093452/zip" > gbpusd.zip
+          echo "93c9c4872543938571eb6ab12e242bde4ec9e7682f056593efde59f88b4579c9  gbpusd.zip" | sha256sum -c -
+          unzip -q gbpusd.zip -d source/gbpusd
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10910875686/zip" > audjpy.zip
+          echo "7b40e1be53ce0508106b036c68ce4ebb3155bc5c14875144634e365cfb988de5  audjpy.zip" | sha256sum -c -
+          unzip -q audjpy.zip -d source/audjpy
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10910397898/zip" > eurusd.zip
+          echo "71bb5ce12b7cfc8f2d17b89dcf907b8b74f4a2257f2055adbe9e9d619c324774  eurusd.zip" | sha256sum -c -
+          unzip -q eurusd.zip -d source/eurusd
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10910328640/zip" > xauusd.zip
+          echo "aade958d597032bad08c56043a6c48c145b8ab263f032f2b65c147fd3db7aadd  xauusd.zip" | sha256sum -c -
+          unzip -q xauusd.zip -d source/xauusd
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10913050112/zip" > vt08.zip
+          echo "8543a33962d24d3f5346981328df78d145286fc8af9387d73eca85519922f568  vt08.zip" | sha256sum -c -
+          unzip -q vt08.zip -d source/vt08
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10912945588/zip" > vt31.zip
+          echo "2200392deeb081525720430a816e8f82b18d7333c61a05eb197632ed24849e15  vt31.zip" | sha256sum -c -
+          unzip -q vt31.zip -d source/vt31
+
+          for directory in gbpjpy gbpusd audjpy eurusd xauusd vt08 vt31; do
+            (cd "source/${directory}" && sha256sum -c SHA256SUMS.txt)
+          done
+
+      - name: Replay six-month free-Trader measurement
+        run: |
+          python scripts/cibo_60usd_6m_free_traders_v3.py             --gbpjpy source/gbpjpy/phase18-gbpjpy-r38-bound-trades.jsonl             --gbpusd source/gbpusd/phase18-gbpusd-r43-bound-trades.jsonl             --audjpy source/audjpy/phase18-audjpy-r42-bound-trades.jsonl             --eurusd source/eurusd/phase18-eurusd-r38-bound-trades.jsonl             --xauusd source/xauusd/phase18-xauusd-r34-bound-trades.jsonl             --vt08 source/vt08/phase18-vt08-r315-fundednext-trades.jsonl             --vt31 source/vt31/phase18-vt31-v4-bound-trades.jsonl             --start 2022-04-01T00:00:00+00:00             --end 2022-10-01T00:00:00+00:00             --output-dir experiment-output             > experiment-output/replay-stdout.json
+
+      - name: Verify V4 experimental invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          probe = json.loads(
+              Path("experiment-output/full-architecture-probe.json").read_text()
+          )
+          replay = json.loads(
+              Path("experiment-output/report-v3.json").read_text()
+          )
+
+          assert probe["all_registry_contracts_visible"] is True
+          assert probe["all_currently_executable_tools_exercised"] is True
+
+          tool_rows = probe["tool_matrix"]
+          assert len(tool_rows) == 20
+          executable = [
+              row for row in tool_rows
+              if row["maturity"] == "CONTRACT_IMPLEMENTED"
+          ]
+          architecture_only = [
+              row for row in tool_rows
+              if row["maturity"] == "ARCHITECTURE_ONLY"
+          ]
+          assert len(executable) == 13
+          assert len(architecture_only) == 7
+          assert all(row["status"] == "EXECUTED_GREEN" for row in executable)
+          assert all(
+              row["status"] == "CONTRACT_ONLY_NOT_EXECUTABLE"
+              for row in architecture_only
+          )
+
+          p = replay["portfolio"]
+          assert p["opportunities"] == 514
+          assert p["opportunities_forwarded_to_cibo"] == 514
+          assert len(replay["per_trader"]) == 7
+          expected = {
+              "R38_GBPJPY": 99,
+              "R43_GBPUSD": 98,
+              "R42_AUDJPY": 97,
+              "R38_EURUSD": 85,
+              "R34_XAUUSD": 83,
+              "VT08_FOREX": 16,
+              "VT31_NAS100": 36,
+          }
+          for trader, opportunities in expected.items():
+              row = replay["per_trader"][trader]
+              assert row["opportunities"] == opportunities
+              assert row["opportunities_forwarded_to_cibo"] == opportunities
+
+          combined = {
+              "schema": "qore.cibo.research.60usd-6m-full-architecture-v4",
+              "identity": "CIBO_60USD_6M_FULL_ARCHITECTURE_V4",
+              "git_sha": __import__("os").environ["EVIDENCE_SHA"],
+              "window": {
+                  "start": "2022-04-01T00:00:00+00:00",
+                  "end": "2022-10-01T00:00:00+00:00",
+              },
+              "population": {
+                  "traders": 7,
+                  "opportunities": 514,
+                  "all_forwarded_to_cibo": True,
+              },
+              "architecture": {
+                  "registry_contracts": 20,
+                  "currently_executable": 13,
+                  "currently_architecture_only": 7,
+                  "all_currently_executable_exercised_green": True,
+                  "functional_probe": probe,
+              },
+              "economic_replay": replay,
+              "governance": {
+                  "isolated_experiment": True,
+                  "pr651_certification_evidence": False,
+                  "phase20d_evidence": False,
+                  "phase21_evidence": False,
+                  "phase22_evidence": False,
+                  "vps_used": False,
+                  "broker_mutation": False,
+                  "live_authority": False,
+                  "real_capital_authority": False,
+              },
+          }
+          Path("experiment-output/V4-FULL-REPORT.json").write_text(
+              json.dumps(combined, indent=2, sort_keys=True) + "\n"
+          )
+          PY
+
+      - name: Build V4 human summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          full = json.loads(
+              Path("experiment-output/V4-FULL-REPORT.json").read_text()
+          )
+          replay = full["economic_replay"]
+          p = replay["portfolio"]
+          m300 = replay["milestones"]["300"]
+          lines = [
+              "# CIBO USD60 / 6M Full Architecture V4",
+              "",
+              "## Population",
+              "",
+              "- Traders: 7",
+              "- Valid opportunities: 514",
+              "- Forwarded to CIBO: 514/514",
+              "",
+              "## Architecture coverage",
+              "",
+              "- CE2I registry contracts visible: 20/20",
+              "- Currently executable contracts exercised GREEN: 13/13",
+              "- Architecture-only contracts reported, not simulated: 7/7",
+              "",
+              "## Six-month economic replay",
+              "",
+              f"- Initial seed: USD 60.000000",
+              f"- Executed entries: {p['executed_entries']}",
+              f"- CIBO hold/no-capacity: {p['cibo_holds_or_no_capacity']}",
+              f"- Wins / Losses / BE: {p['wins']} / {p['losses']} / {p['breakeven']}",
+              f"- Net realized profit: USD {p['net_realized_profit_usd']}",
+              f"- Ending realized capital: USD {p['ending_realized_capital_usd']}",
+              f"- Minimum realized capital: USD {p['minimum_realized_capital_usd']}",
+              f"- Max realized drawdown: USD {p['max_realized_drawdown_usd']}",
+              f"- Base protection reached: {replay['measurement_flags']['base_protection_reached']}",
+              f"- Protected full capacity used: {replay['measurement_flags']['protected_full_capacity_used']}",
+              f"- +USD300 reached: {m300['reached']}",
+          ]
+          if m300["reached"]:
+              lines += [
+                  f"- +USD300 reached at: {m300['reached_at']}",
+                  f"- Calendar days to +USD300: {m300['calendar_days_elapsed']}",
+                  f"- Trading days to +USD300: {m300['trading_days_elapsed']}",
+              ]
+          lines += [
+              "",
+              "## Evidence boundary",
+              "",
+              (
+                  "The functional probe executes every currently implemented "
+                  "CIBO/CE2I contract. The economic replay remains normalized "
+                  "structural-stop-risk accounting because the sealed Phase18 "
+                  "rows do not retain complete historical provider economics "
+                  "for all seven lineages."
+              ),
+          ]
+          Path("experiment-output/V4-SUMMARY.md").write_text(
+              "\n".join(lines) + "\n"
+          )
+          PY
+          cat experiment-output/V4-SUMMARY.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Seal evidence
+        run: |
+          printf '%s\n' "$EVIDENCE_SHA" > experiment-output/git-sha.txt
+          cd experiment-output
+          sha256sum             full-architecture-probe.json             full-architecture-probe-stdout.json             report-v3.json             trade-ledger-v3.jsonl             per-trader-v3.csv             SUMMARY-V3.md             replay-stdout.json             V4-FULL-REPORT.json             V4-SUMMARY.md             git-sha.txt > V4-SHA256SUMS.txt
+          sha256sum -c V4-SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-60usd-6m-full-architecture-v4-${{ env.EVIDENCE_SHA }}
+          path: experiment-output
+          if-no-files-found: error
+          retention-days: 90
