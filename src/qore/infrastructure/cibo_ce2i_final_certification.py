@@ -184,12 +184,16 @@ class Phase22QualificationReceipt:
                 "final certification Phase22 lineage artifact missing"
             )
         plan20 = FROZEN_PHASE20D_QUALIFICATION_PLAN
+        decision_epochs_value = lineage.get("decision_epochs")
+        policy_decisions_value = lineage.get("policy_decisions")
+        outcomes_value = lineage.get("outcomes")
         if (
-            type(lineage.get("decision_epochs")) is not int
-            or lineage.get("decision_epochs") < plan20.minimum_decision_epochs
-            or lineage.get("policy_decisions") != lineage.get("decision_epochs")
-            or type(lineage.get("outcomes")) is not int
-            or lineage.get("outcomes") < plan20.minimum_candidate_outcomes
+            type(decision_epochs_value) is not int
+            or type(policy_decisions_value) is not int
+            or type(outcomes_value) is not int
+            or decision_epochs_value < plan20.minimum_decision_epochs
+            or policy_decisions_value != decision_epochs_value
+            or outcomes_value < plan20.minimum_candidate_outcomes
         ):
             raise CiboCapitalManagementError(
                 "final certification Phase22 holdout population incomplete"
