@@ -2,6 +2,7 @@ import json
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
@@ -395,3 +396,15 @@ def test_phase20d_row_uses_realized_net_pnl_without_double_charging_proxy() -> N
         row.realized_structural_outcome_r * row.stop_risk_usd
         - row.provider_cost_proxy_usd
     )
+
+
+def test_phase20d_script_cannot_self_certify_cibo() -> None:
+    root = Path(__file__).resolve().parents[2]
+    script = (
+        root / "scripts" / "cibo_phase20_forward_qualification.py"
+    ).read_text(encoding="utf-8")
+
+    assert '"CIBO_CERTIFIED"' not in script
+    assert '"PHASE21_POLICY_FREEZE_REQUIRED"' in script
+    assert '"PHASE22_SEALED_HOLDOUT_REQUIRED"' in script
+    assert '"PENDING_PHASE21_PHASE22"' in script
