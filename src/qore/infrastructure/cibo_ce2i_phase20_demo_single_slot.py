@@ -345,7 +345,7 @@ def prepare_ctrader_demo_single_slot_phase20_epoch(
     capital_state: VersionedCapitalSourceLedger,
     highest_closed_balance: Decimal,
     current_step: int,
-    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot,
+    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot | None = None,
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
     collector_git_sha: str | None = None,
 ) -> Phase20DemoSingleSlotPrepared:
