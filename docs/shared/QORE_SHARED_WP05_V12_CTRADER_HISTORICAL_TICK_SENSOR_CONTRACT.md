@@ -30,8 +30,13 @@ Provider documentation establishes:
 - `hasMore` indicates a truncated response requiring pagination;
 - returned ticks are newest-first;
 - the first tick timestamp is absolute Unix milliseconds;
-- subsequent tick timestamps are positive millisecond differences from the
-  preceding newer tick;
+- provider documentation defines every subsequent tick timestamp field as the
+  millisecond difference between the preceding newer tick and the current tick,
+  without freezing the sign convention in prose;
+- the authenticated DEMO payload observed by the preregistered V12 coverage
+  pilot uses signed non-positive deltas for those subsequent newest-first
+  records; QORE therefore reconstructs them by addition to the preceding
+  absolute timestamp and admits zero for same-millisecond updates;
 - tick price is an integer relative price scaled by 100000;
 - historical request traffic is limited to 5 requests per second per
   connection.
