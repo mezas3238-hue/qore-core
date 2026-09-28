@@ -36,6 +36,8 @@ jobs:
             src/qore/infrastructure/cibo_capital_source_ledger.py \
             src/qore/infrastructure/cibo_capital_source_ledger_store.py \
             src/qore/infrastructure/cibo_ce2i_tool_registry.py \
+            src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py \
+            src/qore/infrastructure/cibo_ce2i_full_surface.py \
             src/qore/infrastructure/cibo_ce2i_regime_selector.py \
             src/qore/infrastructure/cibo_ce2i_optionality.py \
             src/qore/infrastructure/cibo_ce2i_dynamic_derisking.py \
@@ -59,6 +61,8 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_robust_allocator.py \
             src/qore/infrastructure/cibo_ce2i_phase20_mpc.py \
             src/qore/infrastructure/cibo_ce2i_phase20_policy_candidate.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_qualification_plan.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_qualification.py \
             src/qore/infrastructure/cibo_ce2i_phase20_forward_evidence.py \
             src/qore/infrastructure/cibo_ce2i_phase20_forward_store.py \
             src/qore/infrastructure/cibo_ce2i_phase20_train_prior.py \
@@ -138,6 +142,8 @@ jobs:
             tests/infrastructure/test_cibo_capital_source_ledger.py \
             tests/infrastructure/test_cibo_capital_source_ledger_store.py \
             tests/infrastructure/test_cibo_ce2i_tool_registry.py \
+            tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py \
+            tests/infrastructure/test_cibo_ce2i_full_surface.py \
             tests/infrastructure/test_cibo_ce2i_regime_selector.py \
             tests/infrastructure/test_cibo_ce2i_optionality.py \
             tests/infrastructure/test_cibo_ce2i_dynamic_derisking.py \
@@ -163,6 +169,8 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_robust_allocator.py \
             tests/infrastructure/test_cibo_ce2i_phase20_mpc.py \
             tests/infrastructure/test_cibo_ce2i_phase20_policy_candidate.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_qualification_plan.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_qualification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_store.py \
             tests/infrastructure/test_cibo_ce2i_phase20_train_prior.py \
@@ -247,6 +255,8 @@ jobs:
             src/qore/infrastructure/cibo_capital_source_ledger.py \
             src/qore/infrastructure/cibo_capital_source_ledger_store.py \
             src/qore/infrastructure/cibo_ce2i_tool_registry.py \
+            src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py \
+            src/qore/infrastructure/cibo_ce2i_full_surface.py \
             src/qore/infrastructure/cibo_ce2i_regime_selector.py \
             src/qore/infrastructure/cibo_ce2i_optionality.py \
             src/qore/infrastructure/cibo_ce2i_dynamic_derisking.py \
@@ -270,6 +280,8 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_robust_allocator.py \
             src/qore/infrastructure/cibo_ce2i_phase20_mpc.py \
             src/qore/infrastructure/cibo_ce2i_phase20_policy_candidate.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_qualification_plan.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_qualification.py \
             src/qore/infrastructure/cibo_ce2i_phase20_forward_evidence.py \
             src/qore/infrastructure/cibo_ce2i_phase20_forward_store.py \
             src/qore/infrastructure/cibo_ce2i_phase20_train_prior.py \
@@ -348,6 +360,8 @@ jobs:
             tests/infrastructure/test_cibo_capital_source_ledger.py \
             tests/infrastructure/test_cibo_capital_source_ledger_store.py \
             tests/infrastructure/test_cibo_ce2i_tool_registry.py \
+            tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py \
+            tests/infrastructure/test_cibo_ce2i_full_surface.py \
             tests/infrastructure/test_cibo_ce2i_regime_selector.py \
             tests/infrastructure/test_cibo_ce2i_optionality.py \
             tests/infrastructure/test_cibo_ce2i_dynamic_derisking.py \
@@ -373,6 +387,8 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_robust_allocator.py \
             tests/infrastructure/test_cibo_ce2i_phase20_mpc.py \
             tests/infrastructure/test_cibo_ce2i_phase20_policy_candidate.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_qualification_plan.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_qualification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_store.py \
             tests/infrastructure/test_cibo_ce2i_phase20_train_prior.py \
@@ -434,6 +450,8 @@ jobs:
             tests/infrastructure/test_cibo_capital_source_ledger.py \
             tests/infrastructure/test_cibo_capital_source_ledger_store.py \
             tests/infrastructure/test_cibo_ce2i_tool_registry.py \
+            tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py \
+            tests/infrastructure/test_cibo_ce2i_full_surface.py \
             tests/infrastructure/test_cibo_ce2i_regime_selector.py \
             tests/infrastructure/test_cibo_ce2i_optionality.py \
             tests/infrastructure/test_cibo_ce2i_dynamic_derisking.py \
@@ -459,6 +477,8 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_robust_allocator.py \
             tests/infrastructure/test_cibo_ce2i_phase20_mpc.py \
             tests/infrastructure/test_cibo_ce2i_phase20_policy_candidate.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_qualification_plan.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_qualification.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_store.py \
             tests/infrastructure/test_cibo_ce2i_phase20_train_prior.py \
