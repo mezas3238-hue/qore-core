@@ -13,6 +13,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
 
 
 class CiboHoldoutCandidateStatus(StrEnum):
+    SEALED_UNTOUCHED = "SEALED_UNTOUCHED"
     SOURCE_VALIDATION_PENDING = "SOURCE_VALIDATION_PENDING"
     ELIGIBLE_FROZEN = "ELIGIBLE_FROZEN"
     BURNED = "BURNED"
@@ -179,7 +180,7 @@ PREREGISTERED_USD60_HOLDOUT = CiboHoldoutCandidate(
     candidate_id="CIBO_USD60_6M_HOLDOUT_2017H1_V1",
     start_at=datetime(2017, 1, 1, tzinfo=UTC),
     end_exclusive_at=datetime(2017, 7, 1, tzinfo=UTC),
-    status=CiboHoldoutCandidateStatus.SOURCE_VALIDATION_PENDING,
+    status=CiboHoldoutCandidateStatus.SEALED_UNTOUCHED,
     selection_rule=(
         "latest complete six-calendar-month block ending at the earliest "
         "confirmed lineage burn boundary; selected without inspecting outcomes"
