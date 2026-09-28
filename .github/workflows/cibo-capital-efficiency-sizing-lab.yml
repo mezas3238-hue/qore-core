@@ -51,6 +51,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_burned_t06_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_non_promotion.py \
             src/qore/infrastructure/cibo_ce2i_t02_burned_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_t02_context_calibration.py \
             src/qore/infrastructure/cibo_ce2i_calibration_matrix.py \
             src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py \
@@ -156,6 +157,7 @@ jobs:
             scripts/cibo_pre_holdout_gate.py \
             scripts/cibo_ce2i_calibration_matrix.py \
             scripts/cibo_t02_burned_structural_calibration.py \
+            scripts/cibo_t02_burned_context_calibration.py \
             scripts/cibo_ce2i_pre_holdout_checkpoint.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
@@ -179,6 +181,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_burned_t06_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_non_promotion.py \
             tests/infrastructure/test_cibo_ce2i_t02_burned_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_t02_context_calibration.py \
             tests/infrastructure/test_cibo_ce2i_calibration_matrix.py \
             tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py \
             tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py \
@@ -309,6 +312,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_burned_t06_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_non_promotion.py \
             src/qore/infrastructure/cibo_ce2i_t02_burned_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_t02_context_calibration.py \
             src/qore/infrastructure/cibo_ce2i_calibration_matrix.py \
             src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py \
@@ -413,6 +417,7 @@ jobs:
             scripts/cibo_pre_holdout_gate.py \
             scripts/cibo_ce2i_calibration_matrix.py \
             scripts/cibo_t02_burned_structural_calibration.py \
+            scripts/cibo_t02_burned_context_calibration.py \
             scripts/cibo_ce2i_pre_holdout_checkpoint.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
@@ -436,6 +441,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_burned_t06_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_non_promotion.py \
             tests/infrastructure/test_cibo_ce2i_t02_burned_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_t02_context_calibration.py \
             tests/infrastructure/test_cibo_ce2i_calibration_matrix.py \
             tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py \
             tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py \
@@ -568,6 +574,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_burned_t06_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_non_promotion.py \
             tests/infrastructure/test_cibo_ce2i_t02_burned_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_t02_context_calibration.py \
             tests/infrastructure/test_cibo_ce2i_calibration_matrix.py \
             tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py \
             tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py \
