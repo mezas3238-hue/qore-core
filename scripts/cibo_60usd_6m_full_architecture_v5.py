@@ -131,20 +131,58 @@ class SourceSpec:
     trader_id: TraderLineage
     qore_symbol: str | None
     outcome_field: str
+    net_stop_r: Decimal
 
 
 SOURCE_SPECS: tuple[SourceSpec, ...] = (
-    SourceSpec("gbpjpy", TraderLineage.R38_GBPJPY, "GBPJPY", "raw_net_010_r"),
-    SourceSpec("gbpusd", TraderLineage.R43_GBPUSD, "GBPUSD", "raw_net_010_r"),
-    SourceSpec("audjpy", TraderLineage.R42_AUDJPY, "AUDJPY", "raw_net_010_r"),
-    SourceSpec("eurusd", TraderLineage.R38_EURUSD, "EURUSD", "raw_net_010_r"),
-    SourceSpec("xauusd", TraderLineage.R34_XAUUSD, "XAUUSD", "raw_net_010_r"),
-    SourceSpec("vt08", TraderLineage.VT08_FOREX, None, "raw_outcome_r"),
+    SourceSpec(
+        "gbpjpy",
+        TraderLineage.R38_GBPJPY,
+        "GBPJPY",
+        "raw_net_010_r",
+        Decimal("1.10"),
+    ),
+    SourceSpec(
+        "gbpusd",
+        TraderLineage.R43_GBPUSD,
+        "GBPUSD",
+        "raw_net_010_r",
+        Decimal("1.10"),
+    ),
+    SourceSpec(
+        "audjpy",
+        TraderLineage.R42_AUDJPY,
+        "AUDJPY",
+        "raw_net_010_r",
+        Decimal("1.10"),
+    ),
+    SourceSpec(
+        "eurusd",
+        TraderLineage.R38_EURUSD,
+        "EURUSD",
+        "raw_net_010_r",
+        Decimal("1.10"),
+    ),
+    SourceSpec(
+        "xauusd",
+        TraderLineage.R34_XAUUSD,
+        "XAUUSD",
+        "raw_net_010_r",
+        Decimal("1.10"),
+    ),
+    SourceSpec(
+        "vt08",
+        TraderLineage.VT08_FOREX,
+        None,
+        "raw_outcome_r",
+        Decimal("1.00"),
+    ),
     SourceSpec(
         "vt31",
         TraderLineage.VT31_NAS100,
         "NAS100",
         "legacy_vt31_net_r_per_requested_r",
+        Decimal("1.05"),
     ),
 )
 
@@ -246,7 +284,8 @@ def _load(
             raise ValueError(
                 f"{spec.trader_id.value} invalid geometry at source row {index}"
             )
-        outcome = Decimal(str(row[spec.outcome_field]))
+        raw_outcome = Decimal(str(row[spec.outcome_field]))
+        outcome = raw_outcome / spec.net_stop_r
         if not outcome.is_finite():
             raise ValueError(
                 f"{spec.trader_id.value} non-finite R at source row {index}"
@@ -662,9 +701,16 @@ def run(
 
             candidates: list[CapitalOpportunityCandidate] = []
             for trade in accepted_in_batch:
+                spec = next(
+                    item
+                    for item in SOURCE_SPECS
+                    if item.trader_id is trade.trader_id
+                )
                 expectation = build_frozen_train_expectation(
                     trader_id=trade.trader_id,
-                    stop_risk_usd=expansion_headroom,
+                    stop_risk_usd=(
+                        expansion_headroom / spec.net_stop_r
+                    ),
                     as_of=at,
                 )
                 candidates.append(
@@ -719,6 +765,11 @@ def run(
                         ),
                     )
                     if expansion_plan.action is CapitalAction.EXPAND:
+                        spec = next(
+                            item
+                            for item in SOURCE_SPECS
+                            if item.trader_id is trade.trader_id
+                        )
                         curve = ExecutionCostCurveInput(
                             evidence_id=(
                                 "V5_NORMALIZED_ZERO_COST:"
@@ -728,6 +779,7 @@ def run(
                             maximum_volume=expansion_plan.volume,
                             gross_edge_per_volume_usd=(
                                 prior.expected_structural_r
+                                / spec.net_stop_r
                             ),
                             spread_cost_per_volume_usd=Decimal(0),
                             commission_cost_per_volume_usd=Decimal(0),
@@ -1016,8 +1068,12 @@ def run(
             "exact_historical_provider_economics_complete": False,
             "exact_broker_executable_usd_claimed": False,
             "normalized_stop_risk_numeraire": (
-                "1 normalized volume unit = USD1 structural stop risk"
+                "USD risk is normalized to total net loss at structural stop"
             ),
+            "net_stop_r_by_lineage": {
+                spec.trader_id.value: str(spec.net_stop_r)
+                for spec in SOURCE_SPECS
+            },
             "regime_market_fields": (
                 "NORMALIZED_NEUTRAL_FOR_LIQUIDITY_VOLATILITY_CORRELATION_PROVIDER"
             ),
@@ -1186,7 +1242,7 @@ def run(
             "## Evidence boundary",
             "",
             (
-                "V5 uses normalized structural-stop-risk dollars. It does not "
+                "V5 normalizes each lineage so one USD risk unit equals one USD total net loss at structural stop. It does not "
                 "claim exact historical broker-executable USD because provider "
                 "contract/spread/commission/slippage/margin evidence is absent "
                 "from the sealed seven-Trader rows."
