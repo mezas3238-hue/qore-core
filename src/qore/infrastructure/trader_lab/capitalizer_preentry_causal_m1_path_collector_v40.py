@@ -141,8 +141,10 @@ def collect_symbol(
             "w",
             encoding="utf-8",
         ) as handle:
-            for row in rows:
-                handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+            for selected_path in rows:
+                handle.write(
+                    json.dumps(asdict(selected_path), sort_keys=True) + "\n"
+                )
 
         report: dict[str, object] = {
             "identity": IDENTITY,
