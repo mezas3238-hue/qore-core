@@ -118,6 +118,30 @@ def test_each_year_must_meet_full_expectancy_gate() -> None:
     assert "2023:EXPECTANCY_BELOW_0_15R" in universal_acceptance_failures(evidence)
 
 
+def test_payoff_is_diagnostic_not_a_standalone_hard_gate() -> None:
+    green = _green()
+    periods = tuple(
+        _period(
+            period.period_id,
+            period.kind,
+            payoff_ratio=Decimal("0.80"),
+        )
+        for period in green.periods
+    )
+    evidence = UniversalTraderCertificationEvidence(
+        required_annual_period_ids=green.required_annual_period_ids,
+        required_oos_fold_ids=green.required_oos_fold_ids,
+        periods=periods,
+        fresh_holdout_integrity_passed=True,
+        anti_leakage_audit_passed=True,
+    )
+
+    failures = universal_acceptance_failures(evidence)
+
+    assert not any("PAYOFF" in failure for failure in failures)
+    assert passes_universal_trader_certification(evidence) is True
+
+
 def test_each_fold_is_a_hard_gate_too() -> None:
     green = _green()
     periods = tuple(
