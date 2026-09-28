@@ -3,7 +3,8 @@
 **Program identity:** `QORE_META_COGNITIVE_SCIENTIFIC_INTELLIGENCE_005`  
 **Repository:** `mezas3238-hue/qore-core`  
 **Primary PR:** #635  
-**Governance:** DRAFT / research-first / no LIVE or production authority.\n**Owner Cognitive OS directive:** `docs/shared/QORE_SHARED_COGNITIVE_OS_OWNER_DIRECTIVE_005.md`
+**Governance:** DRAFT / research-first / no LIVE or production authority.\n**Owner Cognitive OS directive:** `docs/shared/QORE_SHARED_COGNITIVE_OS_OWNER_DIRECTIVE_005.md`  
+**Maximum pre-certification standard:** `docs/shared/QORE_SHARED_MAXIMUM_PRECERTIFICATION_STANDARD_006.md`
 
 ## Mission
 
@@ -306,6 +307,81 @@ The following are enabling technologies, not shortcuts around the gates:
 None may be called "certified intelligence" until it passes the same scientific
 and economic gates.
 
+## Maximum pre-certification capability standard
+
+The maximum ceiling is not optional research decoration. Before Shared may
+enter its certification examination, the complete architecture described in
+`QORE_SHARED_MAXIMUM_PRECERTIFICATION_STANDARD_006.md` must be implemented,
+validated and frozen.
+
+That standard makes the following capability families mandatory:
+
+1. Probabilistic Market Digital Twin.
+2. Federation of Worlds.
+3. Dynamic Causal Discovery.
+4. Representation/Ontology Discovery.
+5. Temporal Hierarchical World Model.
+6. Latent State Reconstruction.
+7. Predictive State Model and Predictive Coding.
+8. Active Perception and Value of Information.
+9. Explicit Belief State.
+10. Market Physics / Constraint Engine.
+11. Neural-Symbolic Brain.
+12. QORE Market Foundation Model.
+13. Dynamic Graph Market Model.
+14. Temporal Causal Model.
+15. Uncertainty Decomposition.
+16. Episodic/Semantic/Regime/Failure Memory.
+17. Market Agency Model.
+18. Counterfactual World Engine.
+19. Trajectory Intelligence.
+20. Stability Engine.
+21. Scientific Society / Ensemble of Minds.
+22. Autonomous Scientific Laboratory.
+23. Meta-Learning / rapid regime adaptation.
+24. Continual Learning without catastrophic forgetting.
+25. Governed Self-Improvement.
+26. Cognitive Arbitration.
+27. Meta-Cognitive Scientific Intelligence.
+28. Core/Broker Cognition and Blindspot Engine.
+
+These capabilities are mapped into the existing ordered WP-01..WP-12 chain and
+transversal contracts. They do not create a shortcut or a parallel roadmap.
+
+The mandatory state transition is:
+
+```text
+WP-01..WP-12 CLOSED
++
+MC-01..MC-28 SATISFIED
++
+TRANSVERSAL OWNER LAWS PASS
++
+COGNITIVE FIREWALL PASS
++
+ANTI-LEAKAGE PASS
++
+PROVENANCE / REPRODUCIBILITY PASS
++
+DEGRADED MODE / ABSTENTION PASS
++
+SOVEREIGN ADAPTERS PASS
++
+LATENCY / AVAILABILITY CONTRACT PASS
+=
+PRE_CERTIFICATION_READY
+```
+
+If one required ceiling capability is missing:
+
+```text
+SHARED ARCHITECTURE STATUS = NOT_READY
+SHARED CERTIFICATION STATUS = REJECTED
+FINAL CERTIFICATION EXAM = MUST NOT START
+```
+
+No architect may reduce the ceiling to obtain a faster certification.
+
 ## Knowledge provenance requirement
 
 Every promoted knowledge item must answer:
@@ -325,24 +401,69 @@ Every promoted knowledge item must answer:
 
 Shared maximum is not certified because the architecture is sophisticated.
 
-Certification requires evidence that the resulting cognition improves the same
-opportunity universe under unchanged sizing and sovereign Risk/Execution:
+Architecture completion only grants:
 
 ```text
-PF ↑
-DD ↓
-Total R preserved or improved
-Winner count protected
-Winner R protected
-Avoidable losses reduced
-Causal target extensions additive when valid
-Fresh holdout PASS
-Stress PASS
-Cross-window / cross-regime replication PASS
-No leakage
-No identity shortcut
-No production self-promotion
+PRE_CERTIFICATION_READY
 ```
 
-Until those conditions are met, the ceiling architecture remains
-**RESEARCH / CONSTRUCTION**, regardless of CI status.
+The final certification examination begins only after the maximum ceiling is
+complete and frozen.
+
+The mandatory exam is:
+
+```text
+7 CURRENT TRADERS FROZEN AS-IS
+×
+NO PRE-EXAM TRADER IMPROVEMENT
+×
+2-YEAR GENUINELY FRESH HOLDOUT
+×
+CONTROL = CURRENT TRADER WITHOUT SHARED
+×
+TREATMENT = IDENTICAL TRADER + SHARED ONLY
+×
+YEAR 1 SUPERIOR FOR 7/7
+×
+YEAR 2 SUPERIOR FOR 7/7
+×
+EVERY REQUIRED OOS FOLD PASS
+×
+FULL CURRENT UTC-001 PASS FOR 7/7
+×
+MATERIAL INCREMENTAL VALUE
+×
+WINNER PRESERVATION
+×
+MONTE CARLO / TAIL STRESS
+×
+ABLATION / CAUSAL ATTRIBUTION
+×
+FAILURE ENGINEERING
+×
+NO LEAKAGE
+×
+AUTHORITY ISOLATION
+```
+
+The two years are independent hard gates. No global/combined metric can rescue
+a non-superior year, a failed fold or a failed Trader.
+
+The seven current Traders are deliberately the baseline population. They may
+not be improved before Shared's exam in order to make certification easier.
+
+Until both the maximum pre-certification architecture gate and the complete
+seven-Trader examination pass:
+
+```text
+SHARED CERTIFICATION STATUS = REJECTED
+```
+
+Only then may Shared be declared:
+
+```text
+SHARED = CERTIFIED SUPPORT INTELLIGENCE
+```
+
+PR #635 remains DRAFT / UNMERGED and this roadmap grants no LIVE, production,
+capital, Risk, order or execution authority.
