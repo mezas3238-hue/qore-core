@@ -32,7 +32,6 @@ from qore.infrastructure.cibo_ce2i_advanced_capital_tools import (
     evaluate_structural_leverage,
 )
 
-
 _NOW = datetime(2026, 9, 27, 20, tzinfo=UTC)
 
 
