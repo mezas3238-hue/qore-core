@@ -1,0 +1,142 @@
+name: QORE Capitalizer Preentry Full Stop Separability V37
+
+on:
+  push:
+    branches:
+      - agent/capitalizer-preentry-separability-v37-001
+    paths:
+      - '.github/workflows/qore-capitalizer-preentry-full-stop-separability-v37.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_preentry_full_stop_causal_separability_v37.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_preentry_full_stop_causal_separability_v37.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_preentry_full_stop_causal_separability_v37.py \
+            tests/infrastructure/trader_lab/test_capitalizer_preentry_full_stop_causal_separability_v37.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_preentry_full_stop_causal_separability_v37.py \
+            tests/infrastructure/trader_lab/test_capitalizer_preentry_full_stop_causal_separability_v37.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_preentry_full_stop_causal_separability_v37.py
+
+  experiment:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download authoritative reconstructed consumed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Run V37 pre-entry separability frontier
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_preentry_full_stop_causal_separability_v37 \
+            reconstructed/development-input \
+            reconstructed/validation-input \
+            reconstructed/reserved-input \
+            reconstructed/development-validation-context \
+            reconstructed/reserved-context \
+            experiment-output
+      - name: Enforce V37 frozen contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path=Path(
+              "experiment-output/"
+              "capitalizer-preentry-full-stop-causal-separability-v37.json"
+          )
+          report=json.loads(path.read_text())
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_PREENTRY_FULL_STOP_CAUSAL_SEPARABILITY_V37"
+          )
+          assert report["evaluation"] == (
+              "PREENTRY_STOP_VS_TARGET_CAUSAL_SEPARABILITY"
+          )
+          assert report["feature_source"] == (
+              "V11_COMPLETE_CAUSAL_PREENTRY_VECTOR"
+          )
+          assert report["feature_dimension"] == 45
+          assert report["training_label"] == (
+              "ORIGINAL_EXIT_REASON_STOP_VS_TARGET"
+          )
+          assert report["stop_target_labels_used_as_features"] is False
+          assert report["current_outcome_visible_to_features"] is False
+          assert report["future_exit_visible_to_features"] is False
+          assert report["future_mfe_mae_visible_to_features"] is False
+          assert report["symbol_identity_feature_used"] is False
+          assert report["date_identity_feature_used"] is False
+          assert report["two_external_worlds_required"] is True
+          assert report["l2_prior_strength_effective_trades"] == "12.0"
+          assert report["fixed_diagnostic_risk_quantile"] == "0.9"
+          assert report["threshold_grid_searched"] is False
+          assert report["policy_economics_run"] is False
+          assert report["admission_changed"] is False
+          assert report["sizing_changed"] is False
+          assert report["protection_changed"] is False
+          assert report["fresh_holdout_opened"] is False
+          assert report["candidate_count"] == 0
+          assert report["runtime_policy_candidate"] is False
+          assert report["trader_certified"] is False
+          assert len(report["heldout_results"]) == 3
+          expected={
+              "DEVELOPMENT_2024_2026",
+              "CONSUMED_VALIDATION_2022_2024",
+              "CONSUMED_RESERVED_2020_2022",
+          }
+          assert {
+              row["heldout_period"] for row in report["heldout_results"]
+          } == expected
+          for row in report["heldout_results"]:
+              assert row["feature_dimension"] == 45
+              assert row["evaluated_states"] == row["stops"] + row["targets"]
+              assert row["stops"] > 0
+              assert row["targets"] > 0
+              assert 0 <= float(row["trainer_a_auc"]["auc"]) <= 1
+              assert 0 <= float(row["trainer_b_auc"]["auc"]) <= 1
+              assert 0 <= float(row["consensus_mean_auc"]["auc"]) <= 1
+              assert 0 <= float(
+                  row["dual_world_target_count_preservation"]
+              ) <= 1
+          print(json.dumps(report,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-preentry-full-stop-separability-v37-${{ github.sha }}
+          path: experiment-output
+          if-no-files-found: error
+          retention-days: 90
