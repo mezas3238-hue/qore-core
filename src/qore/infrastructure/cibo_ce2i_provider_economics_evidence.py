@@ -28,13 +28,13 @@ class CiboProviderEconomicsEvidence:
 
 
 CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS = CiboProviderEconomicsEvidence(
-    workflow_run_id=36432160318,
-    artifact_id=10974092916,
+    workflow_run_id=36432944843,
+    artifact_id=10975061063,
     artifact_sha256=(
-        "430e7cfce506727cc48f487c6e52bc8f800d3b80dc314cd6b47a648974c23a71"
+        "e58cb9cd55c057c2e76888c637712e5ee08c653a1deadbce0d628cca0614cd2d"
     ),
-    source_git_sha="2a3acb9024a59f4698d2e602e4fb5b5824e6138f",
-    observed_at="2026-09-28T13:58:08.762420+00:00",
+    source_git_sha="27d17074f34f8811421393db52ef75ea1b09865a",
+    observed_at="2026-09-28T14:07:41.153325+00:00",
     provider_key="ctrader-demo",
     symbols=(
         "AUDJPY",
