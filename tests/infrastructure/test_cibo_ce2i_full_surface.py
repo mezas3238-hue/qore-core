@@ -3,6 +3,7 @@ from decimal import Decimal
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
+    CiboCapitalMissionPolicy,
     derive_cibo_capital_mission,
 )
 from qore.infrastructure.cibo_capital_management_authority import (
@@ -27,7 +28,7 @@ from qore.infrastructure.market_test_environment import (
 )
 
 
-def _mission():
+def _mission() -> CiboCapitalMissionPolicy:
     return derive_cibo_capital_mission(
         CiboAccountCapitalIdentity(
             provider_key="ctrader-demo",
