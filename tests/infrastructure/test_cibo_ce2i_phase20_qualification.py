@@ -14,13 +14,13 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     Phase20ForwardOutcomeSeal,
     VersionedPhase20ForwardEvidenceBook,
 )
+from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
+    FROZEN_PHASE20_POLICY_CANDIDATE,
+)
 from qore.infrastructure.cibo_ce2i_phase20_qualification import (
     Phase20QualificationRow,
     Phase20QualificationStatus,
     run_phase20d_v2_qualification,
-)
-from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
-    FROZEN_PHASE20_POLICY_CANDIDATE,
 )
 
 START = datetime(2026, 9, 28, 12, 0, tzinfo=UTC)
