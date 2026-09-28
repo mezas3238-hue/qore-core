@@ -15,16 +15,16 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
-from qore.infrastructure.ctrader_demo_free_binding import (  # type: ignore[import-untyped]
+from qore.infrastructure.ctrader_demo_free_binding import (
     CTraderDemoFreeBinding,
     binding_fingerprint,
     discover_free_account_binding,
 )
-from qore.infrastructure.ctrader_open_api_client import (  # type: ignore[import-untyped]
+from qore.infrastructure.ctrader_open_api_client import (
     CTraderOpenApiCredentials,
     SpotwareCTraderOpenApiClient,
 )
-from qore.kernel.result import Failure  # type: ignore[import-untyped]
+from qore.kernel.result import Failure
 
 _REQUIRED_SYMBOLS = (
     "AUDJPY",
