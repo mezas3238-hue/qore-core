@@ -1,8 +1,9 @@
-"""Canonical T01..T20 calibration / certification matrix.
+"""Canonical empirical calibration matrix for CIBO T01..T20.
 
-Contract implementation, causal calibration and exact provider-economic
-certification are deliberately separate axes. Fresh holdout outcomes are never
-valid calibration inputs.
+Engineering/contract maturity is deliberately separate from calibration and
+economic certification.  Only burned evidence may move a tool through
+calibration.  The preregistered 2017H1 holdout is forbidden as a calibration
+source.
 """
 
 from __future__ import annotations
@@ -31,9 +32,9 @@ class CiboCalibrationState(StrEnum):
 
 class CiboCalibrationType(StrEnum):
     CAUSAL_NORMALIZED = "CAUSAL_NORMALIZED"
-    PROVIDER_ECONOMIC = "PROVIDER_ECONOMIC"
-    HYBRID = "HYBRID"
-    CONTRACT_INVARIANT = "CONTRACT_INVARIANT"
+    ECONOMIC = "ECONOMIC"
+    MIXED_CAUSAL_AND_ECONOMIC = "MIXED_CAUSAL_AND_ECONOMIC"
+    CONTRACT_ONLY = "CONTRACT_ONLY"
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,20 +48,26 @@ class CiboToolCalibrationRecord:
     oos_ready: bool
     certification_ready: bool
     blockers: tuple[str, ...]
+    calibration_artifact_sha256: str | None = None
     holdout_outcomes_used: bool = False
     target_aware: bool = False
 
     def __post_init__(self) -> None:
-        if self.tool_code not in {tool.code for tool in CE2I_TOOL_REGISTRY}:
+        canonical = {tool.code for tool in CE2I_TOOL_REGISTRY}
+        if self.tool_code not in canonical:
             raise CiboCapitalManagementError("unknown CE2I calibration tool")
         if type(self.state) is not CiboCalibrationState:
-            raise CiboCapitalManagementError("non-canonical calibration state")
+            raise CiboCapitalManagementError("invalid calibration state")
         if type(self.calibration_type) is not CiboCalibrationType:
-            raise CiboCapitalManagementError("non-canonical calibration type")
+            raise CiboCapitalManagementError("invalid calibration type")
         if not self.calibration_sources:
-            raise CiboCapitalManagementError("calibration sources are required")
+            raise CiboCapitalManagementError(
+                "calibration record requires evidence/source references"
+            )
         if len(self.calibration_sources) != len(set(self.calibration_sources)):
-            raise CiboCapitalManagementError("calibration sources must be unique")
+            raise CiboCapitalManagementError(
+                "calibration source references must be unique"
+            )
         for name in (
             "provider_economics_required",
             "fail_closed",
@@ -71,43 +78,63 @@ class CiboToolCalibrationRecord:
         ):
             if type(getattr(self, name)) is not bool:
                 raise CiboCapitalManagementError(f"{name} must be bool")
-        if self.holdout_outcomes_used or self.target_aware:
+        if self.holdout_outcomes_used:
             raise CiboCapitalManagementError(
-                "calibration cannot use fresh holdout outcomes or economic targets"
+                "2017H1/fresh holdout outcomes are forbidden in calibration"
             )
-        if self.certification_ready and not self.oos_ready:
+        if self.target_aware:
             raise CiboCapitalManagementError(
-                "certification-ready tool must also be OOS-ready"
+                "calibration cannot contain an economic target"
             )
-        if self.state is CiboCalibrationState.PROVIDER_ECONOMICS_REQUIRED:
-            if not self.provider_economics_required or not self.blockers:
-                raise CiboCapitalManagementError(
-                    "provider-economic blocker must be explicit"
-                )
+        calibrated = self.state in {
+            CiboCalibrationState.CALIBRATED_CAUSAL,
+            CiboCalibrationState.CALIBRATED_ECONOMIC,
+            CiboCalibrationState.OOS_READY,
+            CiboCalibrationState.CERTIFICATION_READY,
+        }
+        if calibrated and not self.calibration_artifact_sha256:
+            raise CiboCapitalManagementError(
+                "calibrated state requires a sealed calibration artifact hash"
+            )
+        if self.certification_ready and self.state is not CiboCalibrationState.CERTIFICATION_READY:
+            raise CiboCapitalManagementError(
+                "certification_ready requires CERTIFICATION_READY state"
+            )
+        if self.oos_ready and self.state not in {
+            CiboCalibrationState.OOS_READY,
+            CiboCalibrationState.CERTIFICATION_READY,
+        }:
+            raise CiboCapitalManagementError(
+                "oos_ready requires OOS_READY/CERTIFICATION_READY state"
+            )
         if self.state in {
+            CiboCalibrationState.PROVIDER_ECONOMICS_REQUIRED,
             CiboCalibrationState.CALIBRATION_UNAVAILABLE,
             CiboCalibrationState.FAIL_CLOSED,
         } and not self.blockers:
             raise CiboCapitalManagementError(
-                "unavailable/fail-closed calibration must name blocker"
-            )
-        if self.certification_ready and self.blockers:
-            raise CiboCapitalManagementError(
-                "certification-ready tool cannot retain blockers"
+                "blocked/unavailable calibration must name blockers"
             )
 
     @property
     def implemented(self) -> bool:
-        tool = next(item for item in CE2I_TOOL_REGISTRY if item.code == self.tool_code)
+        tool = next(tool for tool in CE2I_TOOL_REGISTRY if tool.code == self.tool_code)
         return tool.maturity is not ToolMaturity.ARCHITECTURE_ONLY
+
+    @property
+    def calibrated(self) -> bool:
+        return self.state in {
+            CiboCalibrationState.CALIBRATED_CAUSAL,
+            CiboCalibrationState.CALIBRATED_ECONOMIC,
+            CiboCalibrationState.OOS_READY,
+            CiboCalibrationState.CERTIFICATION_READY,
+        }
 
 
 _PHASE18 = "burned:phase18:seven-lineage-chronological-replay"
 _PHASE19 = "burned:phase19:integrated-common-window"
 _PHASE19_WFO = "burned:phase19j:post-freeze-walk-forward"
-_PHASE19_DEP = "burned:phase19:overlap-dependence"
-_PHASE19_TEMP = "burned:phase19:temporal-stability"
-_PROVIDER_GAP = "phase19:provider-economics-inventory:BLOCKED_PROVIDER_ECONOMICS"
+_PROVIDER_GAP = "provider-economics:current-demo-terms-and-historical-gap"
 _PHASE20_CONTRACT = "phase20:contract-and-failure-proof"
 
 
@@ -116,12 +143,9 @@ def _row(
     state: CiboCalibrationState,
     kind: CiboCalibrationType,
     sources: tuple[str, ...],
+    blockers: tuple[str, ...],
     *,
     provider: bool = False,
-    fail_closed: bool = True,
-    oos_ready: bool = False,
-    certification_ready: bool = False,
-    blockers: tuple[str, ...] = (),
 ) -> CiboToolCalibrationRecord:
     return CiboToolCalibrationRecord(
         tool_code=code,
@@ -129,38 +153,34 @@ def _row(
         calibration_type=kind,
         calibration_sources=sources,
         provider_economics_required=provider,
-        fail_closed=fail_closed,
-        oos_ready=oos_ready,
-        certification_ready=certification_ready,
+        fail_closed=True,
+        oos_ready=False,
+        certification_ready=False,
         blockers=blockers,
     )
 
 
-# This matrix is intentionally conservative. SOURCE_IDENTIFIED is no longer a
-# permitted status: a tool is either already causally/economically calibrated,
-# explicitly waiting on provider economics, unavailable, OOS/certification
-# ready, or fail-closed while burned-data calibration is still unfinished.
 CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
-    _row("T01", CiboCalibrationState.PROVIDER_ECONOMICS_REQUIRED, CiboCalibrationType.PROVIDER_ECONOMIC, (_PHASE18, _PROVIDER_GAP), provider=True, blockers=("CALIBRATED_EXECUTION_ECONOMICS_REQUIRED",)),
-    _row("T02", CiboCalibrationState.FAIL_CLOSED, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE18, _PHASE19_WFO), blockers=("STRUCTURAL_LEVERAGE_CALIBRATION_NOT_FROZEN",)),
-    _row("T03", CiboCalibrationState.PROVIDER_ECONOMICS_REQUIRED, CiboCalibrationType.PROVIDER_ECONOMIC, (_PROVIDER_GAP, _PHASE20_CONTRACT), provider=True, blockers=("CALIBRATED_EXECUTION_ECONOMICS_REQUIRED", "EQUIVALENT_EXPRESSION_UNIVERSE_NOT_CERTIFIED")),
-    _row("T04", CiboCalibrationState.FAIL_CLOSED, CiboCalibrationType.HYBRID, (_PHASE18, _PHASE19_WFO, _PROVIDER_GAP), provider=True, blockers=("T04_R_NORMALIZED_CALIBRATION_NOT_FROZEN", "T04_USD_ECONOMIC_REQUIRES_PROVIDER_ECONOMICS")),
-    _row("T05", CiboCalibrationState.FAIL_CLOSED, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, _PHASE20_CONTRACT), blockers=("RECYCLE_UTILITY_CALIBRATION_NOT_FROZEN",)),
-    _row("T06", CiboCalibrationState.FAIL_CLOSED, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, _PHASE20_CONTRACT), blockers=("PROFIT_FUNDED_EXPANSION_CALIBRATION_NOT_FROZEN",)),
-    _row("T07", CiboCalibrationState.FAIL_CLOSED, CiboCalibrationType.HYBRID, (_PHASE19, _PHASE20_CONTRACT), provider=True, blockers=("PROTECTED_CAPACITY_EXPANSION_CALIBRATION_NOT_FROZEN",)),
-    _row("T08", CiboCalibrationState.FAIL_CLOSED, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, _PHASE19_DEP), blockers=("FACTOR_NETTING_CALIBRATION_NOT_FROZEN",)),
-    _row("T09", CiboCalibrationState.FAIL_CLOSED, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, _PHASE19_WFO), blockers=("COMPETITION_POLICY_REQUIRES_ROBUST_RECALIBRATION",)),
-    _row("T10", CiboCalibrationState.FAIL_CLOSED, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, _PHASE19_WFO), blockers=("CAPITAL_VELOCITY_CALIBRATION_NOT_FROZEN",)),
-    _row("T11", CiboCalibrationState.PROVIDER_ECONOMICS_REQUIRED, CiboCalibrationType.HYBRID, (_PROVIDER_GAP, _PHASE20_CONTRACT), provider=True, blockers=("CALIBRATED_EXECUTION_ECONOMICS_REQUIRED",)),
-    _row("T12", CiboCalibrationState.FAIL_CLOSED, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, _PHASE19_TEMP), blockers=("REGIME_BOUNDARIES_REQUIRE_BURNED_DATA_CALIBRATION",)),
-    _row("T13", CiboCalibrationState.FAIL_CLOSED, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19_WFO, _PHASE20_CONTRACT), blockers=("DRAWDOWN_RESERVE_CALIBRATION_NOT_FROZEN",)),
-    _row("T14", CiboCalibrationState.FAIL_CLOSED, CiboCalibrationType.HYBRID, (_PHASE18, _PHASE20_CONTRACT), provider=True, blockers=("DERISK_TRIGGER_CALIBRATION_NOT_FROZEN",)),
-    _row("T15", CiboCalibrationState.FAIL_CLOSED, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, _PHASE20_CONTRACT), blockers=("OPTIONALITY_VALUE_CALIBRATION_NOT_FROZEN",)),
-    _row("T16", CiboCalibrationState.PROVIDER_ECONOMICS_REQUIRED, CiboCalibrationType.PROVIDER_ECONOMIC, (_PROVIDER_GAP, _PHASE20_CONTRACT), provider=True, blockers=("CERTIFIED_HEDGE_INSTRUMENT_UNIVERSE_NOT_AVAILABLE", "HEDGE_COST_AND_MARGIN_ECONOMICS_REQUIRED")),
-    _row("T17", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.PROVIDER_ECONOMIC, (_PROVIDER_GAP, _PHASE20_CONTRACT), provider=True, blockers=("CERTIFIED_LIMITED_DOWNSIDE_INSTRUMENT_UNIVERSE_NOT_AVAILABLE",)),
-    _row("T18", CiboCalibrationState.FAIL_CLOSED, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, _PHASE19_WFO), blockers=("CROSS_TRADER_ALLOCATION_REQUIRES_ROBUST_RECALIBRATION",)),
-    _row("T19", CiboCalibrationState.FAIL_CLOSED, CiboCalibrationType.CONTRACT_INVARIANT, (_PHASE19, _PHASE20_CONTRACT), blockers=("RESERVATION_EMPIRICAL_AUDIT_NOT_FROZEN",)),
-    _row("T20", CiboCalibrationState.FAIL_CLOSED, CiboCalibrationType.CONTRACT_INVARIANT, (_PHASE19, _PHASE20_CONTRACT), blockers=("RELEASE_EMPIRICAL_AUDIT_NOT_FROZEN",)),
+    _row("T01", CiboCalibrationState.PROVIDER_ECONOMICS_REQUIRED, CiboCalibrationType.MIXED_CAUSAL_AND_ECONOMIC, (_PHASE18, _PROVIDER_GAP), ("CALIBRATED_EXECUTION_ECONOMICS_REQUIRED",), provider=True),
+    _row("T02", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE18, _PHASE19_WFO), ("STRUCTURAL_LEVERAGE_CALIBRATION_NOT_FROZEN",)),
+    _row("T03", CiboCalibrationState.PROVIDER_ECONOMICS_REQUIRED, CiboCalibrationType.ECONOMIC, (_PROVIDER_GAP, _PHASE20_CONTRACT), ("CALIBRATED_EXECUTION_ECONOMICS_REQUIRED", "EQUIVALENT_EXPRESSION_UNIVERSE_NOT_CERTIFIED"), provider=True),
+    _row("T04", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.MIXED_CAUSAL_AND_ECONOMIC, (_PHASE18, _PHASE19_WFO, _PROVIDER_GAP), ("R_NORMALIZED_RISK_EFFICIENCY_NOT_FROZEN", "USD_TRUE_STOP_RISK_REQUIRES_PROVIDER_ECONOMICS"), provider=True),
+    _row("T05", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, _PHASE20_CONTRACT), ("RECYCLE_UTILITY_CALIBRATION_NOT_FROZEN",)),
+    _row("T06", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, _PHASE20_CONTRACT), ("REALIZED_PROFIT_EXPANSION_CALIBRATION_NOT_FROZEN",)),
+    _row("T07", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.MIXED_CAUSAL_AND_ECONOMIC, (_PHASE19, _PHASE20_CONTRACT), ("VERIFIED_PROTECTED_ECONOMIC_FLOOR_CALIBRATION_NOT_FROZEN",), provider=True),
+    _row("T08", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, "burned:phase19:overlap-dependence"), ("FACTOR_NETTING_CALIBRATION_NOT_FROZEN",)),
+    _row("T09", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, _PHASE19_WFO), ("CAUSAL_COMPETITION_POLICY_NOT_FROZEN",)),
+    _row("T10", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, _PHASE19_WFO), ("NORMALIZED_CAPITAL_TIME_CALIBRATION_NOT_FROZEN",)),
+    _row("T11", CiboCalibrationState.PROVIDER_ECONOMICS_REQUIRED, CiboCalibrationType.MIXED_CAUSAL_AND_ECONOMIC, (_PROVIDER_GAP, _PHASE20_CONTRACT), ("SPREAD_COMMISSION_SLIPPAGE_AND_LATENCY_CALIBRATION_REQUIRED",), provider=True),
+    _row("T12", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, "burned:phase19:temporal-stability"), ("CAUSAL_REGIME_BOUNDARIES_NOT_FROZEN",)),
+    _row("T13", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19_WFO, _PHASE20_CONTRACT), ("DRAWDOWN_RESERVE_CALIBRATION_NOT_FROZEN",)),
+    _row("T14", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE18, _PHASE20_CONTRACT), ("DERISK_TRIGGER_CALIBRATION_NOT_FROZEN",)),
+    _row("T15", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, _PHASE20_CONTRACT), ("OPTIONALITY_VALUE_CALIBRATION_NOT_FROZEN",)),
+    _row("T16", CiboCalibrationState.FAIL_CLOSED, CiboCalibrationType.ECONOMIC, (_PROVIDER_GAP, _PHASE20_CONTRACT), ("CERTIFIED_HEDGE_INSTRUMENT_UNIVERSE_NOT_AVAILABLE", "HEDGE_COST_AND_BASIS_ECONOMICS_NOT_CERTIFIED"), provider=True),
+    _row("T17", CiboCalibrationState.FAIL_CLOSED, CiboCalibrationType.ECONOMIC, (_PROVIDER_GAP, _PHASE20_CONTRACT), ("CERTIFIED_LIMITED_DOWNSIDE_INSTRUMENT_UNIVERSE_NOT_AVAILABLE", "PRICING_SETTLEMENT_EXECUTION_NOT_CERTIFIED"), provider=True),
+    _row("T18", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, _PHASE19_WFO), ("CROSS_TRADER_ALLOCATION_POLICY_NOT_FROZEN",)),
+    _row("T19", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.CONTRACT_ONLY, (_PHASE19, _PHASE20_CONTRACT), ("RESERVATION_EMPIRICAL_CALIBRATION_NOT_FROZEN",)),
+    _row("T20", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.CONTRACT_ONLY, (_PHASE19, _PHASE20_CONTRACT), ("RELEASE_EMPIRICAL_CALIBRATION_NOT_FROZEN",)),
 )
 
 
@@ -181,10 +201,4 @@ def calibration_registry_complete() -> bool:
 def all_tools_ready_for_fresh_oos() -> bool:
     return calibration_registry_complete() and all(
         row.oos_ready for row in CIBO_TOOL_CALIBRATION_REGISTRY
-    )
-
-
-def all_tools_certification_ready() -> bool:
-    return calibration_registry_complete() and all(
-        row.certification_ready for row in CIBO_TOOL_CALIBRATION_REGISTRY
     )
