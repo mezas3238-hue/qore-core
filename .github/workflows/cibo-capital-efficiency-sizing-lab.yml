@@ -135,6 +135,7 @@ jobs:
             scripts/cibo_phase19_train_expectation_priors.py \
             scripts/cibo_phase20_failure_engineering.py \
             scripts/cibo_phase20_failure_engineering_b.py \
+            scripts/cibo_ce2i_full_surface_contract.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
@@ -353,6 +354,7 @@ jobs:
             scripts/cibo_phase19_train_expectation_priors.py \
             scripts/cibo_phase20_failure_engineering.py \
             scripts/cibo_phase20_failure_engineering_b.py \
+            scripts/cibo_ce2i_full_surface_contract.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
@@ -439,6 +441,10 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_portfolio_funding_saga.py \
             tests/infrastructure/test_cibo_ce2i_portfolio_funding_coordinator.py \
             tests/infrastructure/test_cibo_cma_shadow_floor_report.py
+
+      - name: Assert complete CE2I architecture
+        run: |
+          python scripts/cibo_ce2i_full_surface_contract.py
 
       - name: Pytest
         run: |
