@@ -38,3 +38,14 @@ def test_fail_closed_never_implies_certification_ready() -> None:
         for row in CIBO_T01_T20_CALIBRATION_MATRIX
         if row.fail_closed
     )
+
+
+def test_t04_t10_are_causal_only_and_not_usd_certified() -> None:
+    rows = {row.tool_code: row for row in CIBO_T01_T20_CALIBRATION_MATRIX}
+    for code in ("T04", "T10"):
+        row = rows[code]
+        assert row.classification is CiboCalibrationClassification.CALIBRATED_CAUSAL
+        assert row.provider_economics_required is True
+        assert row.oos_ready is False
+        assert row.certification_ready is False
+        assert row.blocker
