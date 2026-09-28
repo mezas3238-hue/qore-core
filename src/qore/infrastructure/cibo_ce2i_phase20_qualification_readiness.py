@@ -47,6 +47,7 @@ class Phase20QualificationReadiness:
     minimum_fold_candidate_outcomes: int
     minimum_fold_lineages: int
     missing_policy_decisions: int
+    pre_freeze_decisions: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,12 +90,15 @@ def assess_phase20d_qualification_readiness(
     selected_instances = 0
     selected_outcomes = 0
     missing_policy_decisions = 0
+    pre_freeze_decisions = 0
     outcome_rows: list[_OutcomeRow] = []
 
     for decision in sorted(
         evidence_book.decisions,
         key=lambda item: (item.decision_at, item.evidence_sha256),
     ):
+        if decision.decision_at < plan.frozen_at:
+            pre_freeze_decisions += 1
         candidate_map = _candidate_lineage_map(decision)
         if set(candidate_map) != set(decision.signal_fingerprints):
             raise CiboCapitalManagementError(
@@ -165,6 +169,11 @@ def assess_phase20d_qualification_readiness(
     minimum_fold_lineages = min(fold_lineages) if fold_lineages else 0
 
     reasons: list[str] = []
+    _gate(
+        reasons,
+        pre_freeze_decisions == 0,
+        "DECISION_PREDATES_QUALIFICATION_FREEZE",
+    )
     _gate(
         reasons,
         len(evidence_book.decisions) >= plan.minimum_decision_epochs,
@@ -243,6 +252,7 @@ def assess_phase20d_qualification_readiness(
         minimum_fold_candidate_outcomes=minimum_fold_outcomes,
         minimum_fold_lineages=minimum_fold_lineages,
         missing_policy_decisions=missing_policy_decisions,
+        pre_freeze_decisions=pre_freeze_decisions,
     )
 
 
