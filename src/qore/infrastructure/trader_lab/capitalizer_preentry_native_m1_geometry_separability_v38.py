@@ -66,7 +66,7 @@ def _load_period_geometry(
                 capitalizer_preentry_native_m1_geometry_v38 as geometry,
             )
 
-            raw["geometry"] = geometry.PreentryNativeM1Geometry(**nested)
+            raw["geometry"] = geometry.from_json_dict(nested)
             rows.append(collector.SelectedGeometry(**raw))
     by_key = {(row.symbol, row.entry_at): row for row in rows}
     if len(by_key) != len(rows):
