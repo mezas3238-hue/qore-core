@@ -162,6 +162,63 @@ def test_phase21_freeze_rejects_synthetic_empirical_receipt() -> None:
         replace(receipt, evidence_class="SYNTHETIC_CONTRACT")
 
 
+def test_phase21_empirical_monte_carlo_cannot_self_declare_pass() -> None:
+    payload = _validation_payload(
+        Phase21EmpiricalValidationKind.CAPITAL_STATE_MONTE_CARLO
+    )
+    payload["policy_p95_drawdown_usd"] = "11"
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="capital-state Monte Carlo did not PASS",
+    ):
+        build_phase21_empirical_validation_receipt(
+            kind=Phase21EmpiricalValidationKind.CAPITAL_STATE_MONTE_CARLO,
+            qualification=_qualification(),
+            validator_git_sha="1" * 40,
+            observed_at=QUALIFIED_AT + timedelta(hours=1),
+            validation_payload=payload,
+        )
+
+
+def test_phase21_empirical_provider_stress_cannot_self_declare_pass() -> None:
+    payload = _validation_payload(
+        Phase21EmpiricalValidationKind.PROVIDER_STRESS
+    )
+    payload["policy_constraint_bypasses"] = 1
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="provider stress did not PASS",
+    ):
+        build_phase21_empirical_validation_receipt(
+            kind=Phase21EmpiricalValidationKind.PROVIDER_STRESS,
+            qualification=_qualification(),
+            validator_git_sha="2" * 40,
+            observed_at=QUALIFIED_AT + timedelta(hours=2),
+            validation_payload=payload,
+        )
+
+
+def test_phase21_empirical_ablation_cannot_self_declare_pass() -> None:
+    payload = _validation_payload(
+        Phase21EmpiricalValidationKind.INTERACTION_ABLATION
+    )
+    payload["full_policy_pareto_dominated_by_ablation"] = True
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="interaction ablation did not PASS",
+    ):
+        build_phase21_empirical_validation_receipt(
+            kind=Phase21EmpiricalValidationKind.INTERACTION_ABLATION,
+            qualification=_qualification(),
+            validator_git_sha="3" * 40,
+            observed_at=QUALIFIED_AT + timedelta(hours=3),
+            validation_payload=payload,
+        )
+
+
 def test_phase21_empirical_receipt_rejects_detached_report_digest() -> None:
     receipt = _validation(
         Phase21EmpiricalValidationKind.PROVIDER_STRESS,
