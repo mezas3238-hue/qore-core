@@ -13,6 +13,11 @@ on:
       - src/qore/infrastructure/historical_quote_side_shards.py
       - scripts/shared_wp05_active_perception_v12_coverage_pilot.py
       - tests/infrastructure/test_core_stack_v2_active_perception_v12_coverage_pilot.py
+      - tests/infrastructure/test_ctrader_historical_tick_data.py
+      - tests/infrastructure/test_ctrader_historical_tick_collector.py
+      - tests/infrastructure/test_historical_quote_side_evidence.py
+      - tests/infrastructure/test_historical_quote_side_shards.py
+      - tests/infrastructure/test_ctrader_open_api_permission_scope.py
       - .github/workflows/qore-shared-wp05-active-perception-v12-coverage-pilot.yml
   workflow_dispatch:
 
