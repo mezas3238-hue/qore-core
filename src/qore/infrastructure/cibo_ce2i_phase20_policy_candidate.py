@@ -20,6 +20,10 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
     prior_digest_sha256,
 )
+from qore.infrastructure.cibo_ce2i_tool_registry import (
+    CE2I_TOOL_REGISTRY,
+    ToolMaturity,
+)
 
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 
@@ -86,6 +90,21 @@ class Phase20FrozenPolicyCandidate:
         if len(self.active_ce2i_tools) != len(set(self.active_ce2i_tools)):
             raise CiboCapitalManagementError(
                 "Phase20 active tool list must be unique"
+            )
+        registry_codes = tuple(tool.code for tool in CE2I_TOOL_REGISTRY)
+        if self.active_ce2i_tools != registry_codes:
+            raise CiboCapitalManagementError(
+                "Phase20 candidate must bind the complete ordered CE2I surface"
+            )
+        if any(
+            tool.maturity in {
+                ToolMaturity.ARCHITECTURE_ONLY,
+                ToolMaturity.REJECTED,
+            }
+            for tool in CE2I_TOOL_REGISTRY
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20 candidate cannot freeze an incomplete CE2I registry"
             )
         if len(self.accounting_dependencies) != len(
             set(self.accounting_dependencies)
@@ -173,21 +192,36 @@ SUPERSEDED_PHASE20_POLICY_CANDIDATE_V1 = {
     "reason": "causal expectation source was not frozen in candidate V1",
 }
 
+SUPERSEDED_PHASE20_POLICY_CANDIDATE_V2 = {
+    "candidate_id": "CIBO_PHASE20H20I_FORWARD_CANDIDATE_V2",
+    "code_sha": "7acce68c6ece61fae1adacf3f8e60815839b6f6a",
+    "status": "REJECTED_BY_OWNER_BEFORE_FORWARD_COLLECTION",
+    "fresh_forward_observations_collected": 0,
+    "reason": "Owner rejected certification while CE2I surface was only 13/20",
+}
+
 FROZEN_PHASE20_POLICY_CANDIDATE = Phase20FrozenPolicyCandidate(
-    candidate_id="CIBO_PHASE20H20I_FORWARD_CANDIDATE_V2",
-    code_sha="7acce68c6ece61fae1adacf3f8e60815839b6f6a",
-    frozen_at=datetime(2026, 9, 27, 14, 0, tzinfo=UTC),
+    candidate_id="CIBO_PHASE20_FULL_SURFACE_FORWARD_CANDIDATE_V3",
+    code_sha="edf96722fd0505711aa88bc1d15296b09e6dba6f",
+    frozen_at=datetime(2026, 9, 28, 4, 26, tzinfo=UTC),
     mpc_horizon_steps=2,
     snapshot_max_age_seconds=Decimal("2"),
     current_forecast_max_age_seconds=Decimal("2"),
     composition_order=(
         "SEAL_PREDECISION_EVIDENCE",
         "SELECT_CAUSAL_REGIME",
+        "EVALUATE_T02_STRUCTURAL_LEVERAGE",
+        "EVALUATE_T03_MARGIN_EFFICIENCY",
+        "EVALUATE_T04_RISK_EFFICIENCY",
+        "EVALUATE_T08_PORTFOLIO_NETTING",
+        "EVALUATE_T10_CAPITAL_VELOCITY",
+        "EVALUATE_T16_HEDGED_EXPOSURE",
+        "EVALUATE_T17_LIMITED_DOWNSIDE",
         "PHASE20I_RESERVE",
         "PHASE20H_ALLOCATE_REMAINDER",
         "QORE_RISK_DOWNSTREAM",
     ),
-    active_ce2i_tools=("T09", "T12", "T13", "T15", "T18"),
+    active_ce2i_tools=tuple(tool.code for tool in CE2I_TOOL_REGISTRY),
     accounting_dependencies=("T19", "T20"),
     expectation_policy=(
         "FROZEN_TRAIN_MOM5_STRUCTURAL_R_X_CURRENT_STOP_RISK"
