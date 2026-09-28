@@ -117,18 +117,29 @@ def load_phase20_demo_execution_activation(
         raise CiboCapitalManagementError(
             "Phase20D DEMO activation fields mismatch"
         )
+    for name in (
+        "authorized_by_owner",
+        "fundednext_allowed",
+        "live_allowed",
+        "real_capital_allowed",
+        "merge_allowed",
+    ):
+        if type(payload[name]) is not bool:
+            raise CiboCapitalManagementError(
+                f"Phase20D DEMO activation {name} must be bool"
+            )
     authorized_at = datetime.fromisoformat(str(payload["authorized_at"]))
     activation = Phase20DemoExecutionActivation(
         schema=str(payload["schema"]),
         authorization_token=str(payload["authorization_token"]),
-        authorized_by_owner=payload["authorized_by_owner"] is True,
+        authorized_by_owner=bool(payload["authorized_by_owner"]),
         environment=str(payload["environment"]),
         collector_git_sha=str(payload["collector_git_sha"]),
         authorized_at=authorized_at,
-        fundednext_allowed=payload["fundednext_allowed"] is True,
-        live_allowed=payload["live_allowed"] is True,
-        real_capital_allowed=payload["real_capital_allowed"] is True,
-        merge_allowed=payload["merge_allowed"] is True,
+        fundednext_allowed=bool(payload["fundednext_allowed"]),
+        live_allowed=bool(payload["live_allowed"]),
+        real_capital_allowed=bool(payload["real_capital_allowed"]),
+        merge_allowed=bool(payload["merge_allowed"]),
     )
     if activation.collector_git_sha != expected_git_sha:
         raise CiboCapitalManagementError(
