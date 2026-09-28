@@ -22,9 +22,6 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.trader_lab import (
-    capitalizer_adaptive_context_risk_governor_v1 as memory,
-)
-from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
 )
 from qore.infrastructure.trader_lab import (
