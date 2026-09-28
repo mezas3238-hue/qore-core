@@ -8,7 +8,7 @@ from bisect import bisect_right
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 from shared_wp05_active_perception_v12_anchor_observability import (
     _assign_anchors_to_windows,
@@ -24,6 +24,7 @@ from shared_wp05_active_perception_v12_microstructure_representation import (
 from qore.infrastructure.core_stack_v2.active_perception_v12_microstructure_representation import (
     EXPECTED_GLOBAL_DATASET_SHA256,
     EXPECTED_SOURCE_ANCHOR_SHA256,
+    FROZEN_WINDOWS_MS,
     normalize_v12_microstructure_snapshot,
 )
 from qore.infrastructure.core_stack_v2.active_perception_v13_sequential_representation import (
@@ -72,7 +73,7 @@ def _side_state(
     evaluation_at: datetime,
 ) -> tuple[int | None, int | None, tuple[tuple[int, int, int], ...]]:
     if not series.times:
-        return None, None, tuple((0, 0, 0) for _ in V13_CHECKPOINTS_MINUTES)
+        return None, None, tuple((0, 0, 0) for _ in FROZEN_WINDOWS_MS)
 
     right = bisect_right(series.times, evaluation_at)
     if right <= 0:
@@ -86,10 +87,6 @@ def _side_state(
                 "future provider event escaped causal bisect"
             )
         latest_price = series.prices[right - 1]
-
-    from qore.infrastructure.core_stack_v2.active_perception_v12_microstructure_representation import (
-        FROZEN_WINDOWS_MS,
-    )
 
     window_values: list[tuple[int, int, int]] = []
     for window_ms in FROZEN_WINDOWS_MS:
