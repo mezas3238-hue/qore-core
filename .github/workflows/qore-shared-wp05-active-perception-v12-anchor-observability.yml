@@ -125,6 +125,7 @@ jobs:
       - name: Audit causal observability at all 6804 anchors
         run: |
           set -euo pipefail
+          mkdir -p result
           python scripts/shared_wp05_active_perception_v12_anchor_observability.py             --raw-root input/raw             --anchor-manifest input/anchors/wp05-v12-source-anchors.json             --expected-global-dataset-sha256 "$V12_GLOBAL_DATASET_SHA256"             --output result/wp05-v12-anchor-observability-report.json             | tee result/summary.json
 
       - name: Enforce source-only staleness freeze
