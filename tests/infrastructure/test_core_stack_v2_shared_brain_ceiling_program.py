@@ -8,6 +8,7 @@ from qore.infrastructure.core_stack_v2.shared_brain_ceiling_program import (
     MAXIMUM_PRECERTIFICATION_CAPABILITIES,
     PRE_CERTIFICATION_GATES,
     PROGRAM_ID,
+    SHARED_EXCELLENCE_OVERLAY_GATES,
     TRANSVERSAL_ARCHITECTURE_REQUIREMENTS,
     WORK_CHAIN,
     validate_work_chain,
@@ -54,6 +55,23 @@ def test_maximum_ceiling_is_mandatory_before_certification() -> None:
     assert "certification_inputs_and_thresholds_frozen" in gates
 
 
+def test_shared_certification_requires_excellence_beyond_utc_001() -> None:
+    required = set(SHARED_EXCELLENCE_OVERLAY_GATES)
+
+    assert "utc_001_is_floor_not_shared_target" in required
+    assert "overlay_strictly_harder_than_utc_001" in required
+    assert "numeric_superiority_margins_frozen_pre_holdout" in required
+    assert "statistical_effect_size_protocol_frozen_pre_holdout" in required
+    assert "treatment_materially_superior_to_control" in required
+    assert "treatment_materially_beyond_utc_001_boundary" in required
+    assert "year_1_overlay_pass_for_seven_of_seven" in required
+    assert "year_2_overlay_pass_for_seven_of_seven" in required
+    assert "every_required_oos_fold_overlay_pass" in required
+    assert "no_core_metric_degradation" in required
+    assert "no_composite_compensation" in required
+    assert "no_post_holdout_threshold_selection" in required
+
+
 def test_final_certification_is_seven_current_traders_two_years() -> None:
     required = set(FINAL_CERTIFICATION_GATES)
 
@@ -64,6 +82,8 @@ def test_final_certification_is_seven_current_traders_two_years() -> None:
     assert "year_2_superior_for_seven_of_seven" in required
     assert "every_required_oos_fold_pass" in required
     assert "full_current_utc_001_pass_for_seven_of_seven" in required
+    assert "shared_excellence_overlay_pass_for_seven_of_seven" in required
+    assert "material_superiority_above_utc_001_and_control" in required
     assert "material_incremental_value" in required
     assert "monte_carlo_and_tail_stress_pass" in required
     assert "ablation_and_causal_attribution_pass" in required
