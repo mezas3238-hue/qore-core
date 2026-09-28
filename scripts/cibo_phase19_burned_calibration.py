@@ -7,14 +7,17 @@ import hashlib
 import json
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 HOLDOUT_START = datetime(2017, 1, 1, tzinfo=UTC)
 HOLDOUT_END = datetime(2017, 7, 1, tzinfo=UTC)
 
 
 def _load(root: Path, name: str) -> dict[str, Any]:
-    return json.loads((root / name).read_text(encoding="utf-8"))
+    payload: object = json.loads((root / name).read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"{name} must contain a JSON object")
+    return cast(dict[str, Any], payload)
 
 
 def _dt(value: str) -> datetime:

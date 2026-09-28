@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -30,11 +29,6 @@ from qore.infrastructure.cibo_ce2i_usd60_six_month_certification import (
 
 def _protocol_payload() -> dict[str, object]:
     protocol = FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL
-    provider = CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS
-    provider_status = (
-        "CURRENT_DEMO_TERMS_READY_"
-        "HISTORICAL_EXACT_FALSE_SLIPPAGE_FALSE"
-    )
 
     return {
         "protocol_id": protocol.protocol_id,
@@ -73,6 +67,12 @@ def build_report(
 ) -> dict[str, Any]:
     if not git_sha:
         raise ValueError("git sha is required")
+
+    provider = CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS
+    provider_status = (
+        "CURRENT_DEMO_TERMS_READY_"
+        "HISTORICAL_EXACT_FALSE_SLIPPAGE_FALSE"
+    )
 
     readiness = evaluate_pre_holdout_readiness(
         provider_economics_frozen=False,

@@ -2,8 +2,8 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from qore.infrastructure.cibo_ce2i_t02_burned_calibration import (
-    T02StructuralObservation,
     calibrate_t02_structural_precision,
+    T02StructuralObservation,
 )
 
 

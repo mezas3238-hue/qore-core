@@ -2,8 +2,8 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from qore.infrastructure.cibo_ce2i_t02_context_calibration import (
-    T02CategoricalObservation,
     calibrate_t02_categorical_structure,
+    T02CategoricalObservation,
 )
 
 
