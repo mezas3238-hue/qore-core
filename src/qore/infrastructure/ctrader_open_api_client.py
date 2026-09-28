@@ -204,6 +204,8 @@ class _SdkBindings:
             "ProtoOAAmendPositionSLTPReq",
             "ProtoOAClosePositionReq",
             "ProtoOAGetTrendbarsReq",
+            "ProtoOAExpectedMarginReq",
+            "ProtoOAExpectedMarginRes",
             "ProtoOASubscribeSpotsReq",
             "ProtoOASpotEvent",
             "ProtoOAExecutionEvent",
