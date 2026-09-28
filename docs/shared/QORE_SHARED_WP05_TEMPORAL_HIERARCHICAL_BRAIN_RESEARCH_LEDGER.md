@@ -716,3 +716,121 @@ Per the preregistered anti-loop law, V10 is permanently falsified. No V10.1,
 threshold repair, density retuning or R6/R5 feature mining is permitted. Exactly
 one structurally new sequential-state hypothesis is allowed before escalating
 to Active Perception.
+
+
+## 11. V11 — Sequential Mechanism Confirmation
+
+Preregistered identity:
+
+`QORE_SHARED_WP05_SEQUENTIAL_MECHANISM_CONFIRMATION_V11_001`
+
+Preregistration:
+
+- `docs/shared/QORE_SHARED_WP05_V11_MECHANISM_CONFIRMATION_PREREGISTRATION.md`.
+
+V11 was the single structurally distinct sequential-state experiment authorized
+after V10 demonstrated material post-source observability. It did not retune
+V10. Instead it required cross-mechanism confirmation before terminal
+absorption:
+
+- `FRONTIER_PATH`;
+- `CROSS_MARKET`;
+- `SOURCE_HIERARCHY_PRIOR`;
+- terminal support required 2-of-3 mechanisms plus adjacent-checkpoint
+  persistence;
+- t0 could not confirm terminal support.
+
+### Authoritative V11 result
+
+Authoritative run: `36326684009`  
+Scientific Git SHA: `e75a55e18713b16f7cca507eb9823302811237e6`  
+Status: `WP05_V11_MECHANISM_CONFIRMATION_FALSIFIED`  
+Protocol: PASS  
+Development gate: FAIL  
+Fresh holdout: CLOSED
+
+Frozen identities:
+
+- model fingerprint:
+  `cc74f7d3153dec34ebe8867efc27852ca8d5de95d471394f3d8ac9543147b01d`;
+- representation fingerprint:
+  `1f1f2bd97e2f3541c7e37aca5571717a9908618ad1be2b4fce57cb9a09970ce8`;
+- artifact: `10934687498`;
+- artifact digest:
+  `sha256:62757d88a89156fbe64538c3e98e817c35f25cde80019413b1c8cc2fc8a1a8c8`.
+
+R8 calibration:
+
+- false-declaration reduction: **2098 bps**;
+- terminal preservation: **9815 bps**;
+- frozen confirmation threshold: **-2794577 micros**.
+
+Consumed evaluation:
+
+- R6: false reduction **2070 bps**; terminal preservation **9684 bps**;
+- R5: false reduction **1996 bps**; terminal preservation **9745 bps**.
+
+R6 passed the complete frozen gate. R5 failed the false-reduction requirement by
+exactly 4 bps. The result is therefore a scientific falsification. No rounding,
+threshold repair, mechanism reweighting, feature mining or gate lowering is
+permitted.
+
+### Post-V11 anti-loop law
+
+The current NAS100/SP500/US30 OHLC sensor universe is closed for further
+classifier iteration:
+
+```text
+NO V11.1
+NO THRESHOLD PATCH
+NO NEW TRANSFORM OF THE SAME OHLC INFORMATION
+NO R6/R5 FEATURE MINING
+```
+
+The next authorized step is Active Perception: obtain genuinely new causal
+sensor information rather than another transform of already-consumed OHLC.
+
+## 12. V12 — Active Perception / New-Sensor Observability
+
+Status: **ACTIVE — SENSOR ADMISSION / HISTORICAL EVIDENCE ENGINEERING**.
+
+Activation cause:
+
+```text
+V11 FALSIFIED
+→ CURRENT OHLC CLASSIFIER ITERATION CLOSED
+→ V12 ACTIVE PERCEPTION ACTIVATED
+```
+
+The V12 cTrader historical tick foundation is already technically GREEN:
+
+- foundation run: `36327883783`;
+- foundation Git SHA:
+  `55e743ee4b264a387f7d3a349bd4b9e1d156fdaf`;
+- provider contract:
+  `docs/shared/QORE_SHARED_WP05_V12_CTRADER_HISTORICAL_TICK_SENSOR_CONTRACT.md`.
+
+This foundation is infrastructure evidence only. It is not a scientific V12
+pass and it did not consume V12 target outcomes.
+
+### Frozen V12 scientific governance
+
+- fresh holdout remains CLOSED;
+- R8 is the only partition permitted for sensor information-gain discovery,
+  preprocessing selection and representation fitting;
+- R6/R5 remain CLOSED for sensor selection and may be opened only once after the
+  exact V12 representation is frozen;
+- Bid and Ask are independent provider event streams and must not be force-paired
+  at identical timestamps;
+- provider event time must remain distinct from historical retrieval/core
+  ingestion time;
+- downloaded historical evidence must never be relabeled as if Core observed it
+  live at the historical timestamp;
+- spread at evaluation time may use only the latest causal Bid and Ask
+  at-or-before that timestamp under a preregistered staleness law;
+- no fabricated order-book, implied-volatility, breadth or rate evidence;
+- no Trader, CIBO, Risk, order or Execution authority.
+
+The immediate engineering task is to create an explicit historical quote-side
+evidence boundary that preserves provider-event provenance before any R8
+historical BID/ASK dataset is admitted.
