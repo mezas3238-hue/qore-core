@@ -6,6 +6,11 @@ on:
       - agent/qore-core-stack-v2-shared-001
     paths:
       - src/qore/infrastructure/core_stack_v2/active_perception_v12_coverage_pilot.py
+      - src/qore/infrastructure/ctrader_historical_tick_data.py
+      - src/qore/infrastructure/ctrader_historical_tick_collector.py
+      - src/qore/infrastructure/ctrader_open_api_client.py
+      - src/qore/infrastructure/historical_quote_side_evidence.py
+      - src/qore/infrastructure/historical_quote_side_shards.py
       - scripts/shared_wp05_active_perception_v12_coverage_pilot.py
       - tests/infrastructure/test_core_stack_v2_active_perception_v12_coverage_pilot.py
       - .github/workflows/qore-shared-wp05-active-perception-v12-coverage-pilot.yml
