@@ -66,10 +66,10 @@ A high trade count with marginal expectancy is not a certification argument.
 
 ### 2.3 Drawdown
 
-- observed Max DD: **<= 10R**
-- preferred: **<= 6–8R**
-- >10R requires intervention
-- >15R is incompatible with ACCEPTED
+- observed Max DD: **<= 6R**
+- **6R is the universal Core hard acceptance ceiling**
+- >6R requires intervention and blocks ACCEPTED
+- >15R is a structural rejection condition unless a newer Core governance standard explicitly supersedes UTC-001
 
 ### 2.4 Sharpe
 
