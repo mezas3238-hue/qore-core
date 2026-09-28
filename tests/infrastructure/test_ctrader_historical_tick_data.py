@@ -341,3 +341,56 @@ def test_decoder_rejects_price_delta_that_reconstructs_non_positive_price() -> N
             has_more=False,
             digits=5,
         )
+
+
+
+def test_decoder_reconstructs_signed_price_deltas_and_preserves_wire_values() -> None:
+    newest = _BASE + timedelta(minutes=10)
+    page = tick_data.decode_historical_tick_page(
+        request=_request(),
+        native_ticks=(
+            NativeTick(int(newest.timestamp() * 1_000), 1_234_560),
+            NativeTick(-100, 5),
+            NativeTick(-100, -10),
+            NativeTick(-100, 0),
+        ),
+        has_more=False,
+        digits=5,
+    )
+
+    assert tuple(item.relative_price for item in page.ticks) == (
+        1_234_555,
+        1_234_555,
+        1_234_565,
+        1_234_560,
+    )
+    assert tuple(item.wire_price_value for item in page.ticks) == (
+        0,
+        -10,
+        5,
+        1_234_560,
+    )
+    assert tuple(item.wire_timestamp_value for item in page.ticks) == (
+        -100,
+        -100,
+        -100,
+        int(newest.timestamp() * 1_000),
+    )
+
+
+def test_decoder_rejects_price_delta_that_makes_absolute_price_non_positive() -> None:
+    newest = _BASE + timedelta(minutes=10)
+
+    with pytest.raises(
+        tick_data.CTraderHistoricalTickError,
+        match="non-positive absolute price",
+    ):
+        tick_data.decode_historical_tick_page(
+            request=_request(),
+            native_ticks=(
+                NativeTick(int(newest.timestamp() * 1_000), 10),
+                NativeTick(-1, -10),
+            ),
+            has_more=False,
+            digits=5,
+        )
