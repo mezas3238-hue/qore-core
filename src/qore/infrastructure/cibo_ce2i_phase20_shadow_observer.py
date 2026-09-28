@@ -90,7 +90,7 @@ def observe_phase20_forward_batch(
     concentration_limit_by_group: tuple[tuple[str, Decimal], ...],
     regime_state: CiboCapitalRegimeState,
     current_step: int,
-    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot,
+    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot | None = None,
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
 ) -> Phase20ForwardShadowObservation:
     """Persist one complete portfolio epoch without changing execution."""
