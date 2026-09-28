@@ -22,13 +22,9 @@ from cibo_phase19_integrated_chronology_replay import (
 )
 
 from qore.infrastructure.account_wide_risk import TraderLineage
-from qore.infrastructure.cibo_ce2i_phase19_portfolio_replay import (
-    PHASE19_REQUIRED_TRADERS,
-)
 from qore.infrastructure.cibo_ce2i_phase19_regime_identifiability import (
     CANONICAL_REGIME_FIELDS,
     VT31_BESPOKE_REGIME_FIELDS,
-    Phase19RegimeEvidenceClass,
     audit_phase19_regime_rows,
     build_phase19_regime_identifiability,
 )
