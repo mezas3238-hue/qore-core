@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from qore.infrastructure import ctrader_historical_tick_data as tick_data
+from qore.infrastructure.ctrader_open_api_client import CTraderOpenApiProtocolError
 from qore.kernel.result import Failure, Success
 
 _BASE = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
@@ -193,3 +194,39 @@ def test_reader_fails_closed_on_account_mismatch() -> None:
 
     assert isinstance(result, Failure)
     assert isinstance(result.error, tick_data.CTraderHistoricalTickError)
+
+
+class FailingClient(FakeClient):
+    def request(
+        self,
+        message_name: str,
+        fields,
+        *,
+        client_msg_id: str,
+        timeout_seconds: float,
+    ):
+        self.requests.append(
+            (message_name, dict(fields), client_msg_id, timeout_seconds)
+        )
+        return Failure(
+            CTraderOpenApiProtocolError(
+                "cTrader request rejected: HISTORICAL_DATA_NOT_AVAILABLE"
+            )
+        )
+
+
+def test_reader_preserves_sanitized_provider_rejection_reason() -> None:
+    reader = tick_data.CTraderHistoricalTickReader(
+        client=FailingClient(SimpleNamespace()),
+        timeout_seconds=10.0,
+    )
+
+    result = reader.read_page(
+        request=_request(),
+        digits=5,
+        client_msg_id="provider-rejection",
+    )
+
+    assert isinstance(result, Failure)
+    assert isinstance(result.error, tick_data.CTraderHistoricalTickError)
+    assert "HISTORICAL_DATA_NOT_AVAILABLE" in str(result.error)
