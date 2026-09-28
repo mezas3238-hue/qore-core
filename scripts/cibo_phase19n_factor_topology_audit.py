@@ -159,15 +159,15 @@ def run(
         ),
         FactorTopologyRelation.MIXED_DIRECTION.value: EXPECTED_MIXED_DIRECTION,
     }
-    for relation, expected in expected_relations.items():
-        if relation_counts[relation] != expected:
+    for relation, expected_count in expected_relations.items():
+        if relation_counts[relation] != expected_count:
             raise ValueError(
                 f"Phase19N {relation} count drift"
             )
-    for factor, expected in EXPECTED_FACTOR_DIRECTION_COUNTS.items():
-        if factor_same[factor] != expected["same"]:
+    for factor, expected_counts in EXPECTED_FACTOR_DIRECTION_COUNTS.items():
+        if factor_same[factor] != expected_counts["same"]:
             raise ValueError(f"Phase19N {factor} same-direction drift")
-        if factor_opposing[factor] != expected["opposing"]:
+        if factor_opposing[factor] != expected_counts["opposing"]:
             raise ValueError(f"Phase19N {factor} opposing-direction drift")
 
     report: dict[str, Any] = {
