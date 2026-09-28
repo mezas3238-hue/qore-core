@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 from qore.infrastructure.trader_lab import nq_am_temporal_liquidity_reversal_v1 as v1
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import Bar, Evidence
