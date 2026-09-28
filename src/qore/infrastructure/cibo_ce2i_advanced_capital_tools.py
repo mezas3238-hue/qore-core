@@ -676,7 +676,10 @@ def evaluate_convex_exposure(
         disposition=AdvancedToolDisposition.APPLIED,
         selected_id=selected.instrument_id,
         score=score,
-        reason="certified executable convex expression has bounded downside and positive net upside",
+        reason=(
+            "certified executable convex expression has bounded downside "
+            "and positive net upside"
+        ),
     )
 
 
