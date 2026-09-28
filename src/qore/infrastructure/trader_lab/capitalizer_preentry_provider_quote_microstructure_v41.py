@@ -442,7 +442,7 @@ def collect_symbol(
         credentials=_credentials(),
         request_timeout_seconds=30.0,
     )
-    rows: list[ProviderQuoteMicrostructureState] = []
+    rows: list[tuple[str, ProviderQuoteMicrostructureState]] = []
     period_counts: dict[str, int] = {}
     try:
         ready = client.connect_and_authenticate()
@@ -493,16 +493,19 @@ def collect_symbol(
                 bid_ticks, bid_has_more = responses["BID"]
                 ask_ticks, ask_has_more = responses["ASK"]
                 rows.append(
-                    build_state(
-                        symbol=symbol,
-                        side=trade.side,
-                        entry_at=entry_at,
-                        structural_risk_price=risk,
-                        bid_ticks=bid_ticks,
-                        ask_ticks=ask_ticks,
-                        digits=digits,
-                        bid_has_more=bid_has_more,
-                        ask_has_more=ask_has_more,
+                    (
+                        period,
+                        build_state(
+                            symbol=symbol,
+                            side=trade.side,
+                            entry_at=entry_at,
+                            structural_risk_price=risk,
+                            bid_ticks=bid_ticks,
+                            ask_ticks=ask_ticks,
+                            digits=digits,
+                            bid_has_more=bid_has_more,
+                            ask_has_more=ask_has_more,
+                        ),
                     )
                 )
     finally:
@@ -514,23 +517,10 @@ def collect_symbol(
 
     stem = f"capitalizer-v41-{symbol.lower()}-microstructure"
     with (output / f"{stem}.jsonl").open("w", encoding="utf-8") as handle:
-        for state in rows:
-            payload = asdict(state)
-            period = next(
-                period
-                for period, slug, expected in PERIOD_SPECS
-                if any(
-                    trade.entry_at == state.entry_at
-                    and trade.symbol == symbol
-                    for trade in _original_period(
-                        roots[slug],
-                        expected=expected,
-                    )
-                )
-            )
+        for period, state in rows:
             handle.write(
                 json.dumps(
-                    {"period": period, "state": payload},
+                    {"period": period, "state": asdict(state)},
                     sort_keys=True,
                 )
                 + "\n"
