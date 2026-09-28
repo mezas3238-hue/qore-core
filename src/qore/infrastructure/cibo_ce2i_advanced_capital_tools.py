@@ -675,7 +675,6 @@ def evaluate_convex_exposure(
         tool_code="T17",
         disposition=AdvancedToolDisposition.APPLIED,
         selected_id=selected.instrument_id,
-        released_capacity_usd=selected.bounded_downside_usd,
         score=score,
         reason="certified executable convex expression has bounded downside and positive net upside",
     )
@@ -695,7 +694,7 @@ class AdvancedCe2iEvidenceBundle:
 def evaluate_advanced_ce2i_surface(
     *,
     enabled_tools: tuple[str, ...],
-    opportunity: TraderOpportunityEnvelope,
+    opportunity: TraderOpportunityEnvelope | None,
     evidence: AdvancedCe2iEvidenceBundle,
     current_volume: Decimal = Decimal(0),
     maximum_additional_volume: Decimal = Decimal(0),
@@ -714,16 +713,19 @@ def evaluate_advanced_ce2i_surface(
     out: list[AdvancedToolDecision] = []
 
     if "T02" in enabled:
-        out.append(
-            evaluate_structural_leverage(
-                opportunity=opportunity,
-                evidence=evidence.structural_leverage,
-                current_volume=current_volume,
-                maximum_additional_volume=maximum_additional_volume,
+        if opportunity is None:
+            out.append(_fail("T02", "MISSING_TRADER_OPPORTUNITY"))
+        elif evidence.structural_leverage is None:
+            out.append(_fail("T02", "MISSING_STRUCTURAL_LEVERAGE_EVIDENCE"))
+        else:
+            out.append(
+                evaluate_structural_leverage(
+                    opportunity=opportunity,
+                    evidence=evidence.structural_leverage,
+                    current_volume=current_volume,
+                    maximum_additional_volume=maximum_additional_volume,
+                )
             )
-            if evidence.structural_leverage is not None
-            else _fail("T02", "MISSING_STRUCTURAL_LEVERAGE_EVIDENCE")
-        )
     if "T03" in enabled:
         out.append(
             evaluate_margin_efficiency(evidence.margin_efficiency)
