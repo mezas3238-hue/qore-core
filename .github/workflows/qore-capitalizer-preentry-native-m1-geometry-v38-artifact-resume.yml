@@ -1,0 +1,268 @@
+name: QORE Capitalizer V38 Artifact Resume
+
+on:
+  push:
+    branches:
+      - agent/capitalizer-v38-artifact-resume-001
+    paths:
+      - '.github/workflows/qore-capitalizer-preentry-native-m1-geometry-v38-artifact-resume.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_preentry_native_m1_geometry_v38.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_preentry_native_m1_geometry_collector_v38.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_preentry_native_m1_geometry_separability_v38.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_preentry_native_m1_geometry_v38.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_preentry_native_m1_geometry_collector_v38.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_preentry_native_m1_geometry_separability_v38.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-v38-artifact-resume-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_V38_RUN_ID: '36463151785'
+  SOURCE_V38_SHA: '4c78f7d0ddb898dbc7fa9949a9148a9346ad4193'
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_preentry_native_m1_geometry_v38.py \
+            src/qore/infrastructure/trader_lab/capitalizer_preentry_native_m1_geometry_collector_v38.py \
+            src/qore/infrastructure/trader_lab/capitalizer_preentry_native_m1_geometry_separability_v38.py \
+            tests/infrastructure/trader_lab/test_capitalizer_preentry_native_m1_geometry_v38.py \
+            tests/infrastructure/trader_lab/test_capitalizer_preentry_native_m1_geometry_collector_v38.py \
+            tests/infrastructure/trader_lab/test_capitalizer_preentry_native_m1_geometry_separability_v38.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_preentry_native_m1_geometry_v38.py \
+            src/qore/infrastructure/trader_lab/capitalizer_preentry_native_m1_geometry_collector_v38.py \
+            src/qore/infrastructure/trader_lab/capitalizer_preentry_native_m1_geometry_separability_v38.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_preentry_native_m1_geometry_v38.py \
+            tests/infrastructure/trader_lab/test_capitalizer_preentry_native_m1_geometry_collector_v38.py \
+            tests/infrastructure/trader_lab/test_capitalizer_preentry_native_m1_geometry_separability_v38.py
+
+  portfolio_coverage:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download nine authoritative GREEN V38 market geometry artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v38-geometry-*-${{ env.SOURCE_V38_SHA }}
+          path: geometry
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_V38_RUN_ID }}
+      - name: Download authoritative reconstructed selected populations
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Enforce exact 948/1034/1088 geometry coverage from prior artifacts
+        run: |
+          python - <<'PY'
+          import json
+          from dataclasses import asdict
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab import (
+              capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
+          )
+          from qore.infrastructure.trader_lab import (
+              capitalizer_contextual_stability_router_2r_v1 as router,
+          )
+          from qore.infrastructure.trader_lab import (
+              capitalizer_preentry_native_m1_geometry_collector_v38 as collector,
+          )
+
+          geometry = collector.load_geometry_rows(Path("geometry"))
+          specs = (
+              (
+                  "development",
+                  "DEVELOPMENT_2024_2026",
+                  Path("reconstructed/development-input"),
+                  948,
+              ),
+              (
+                  "validation",
+                  "CONSUMED_VALIDATION_2022_2024",
+                  Path("reconstructed/validation-input"),
+                  1034,
+              ),
+              (
+                  "reserved",
+                  "CONSUMED_RESERVED_2020_2022",
+                  Path("reconstructed/reserved-input"),
+                  1088,
+              ),
+          )
+          output = Path("selected-geometry")
+          output.mkdir()
+          for slug, period, root, expected in specs:
+              ledgers = router._load_selected(root, expected=expected)
+              selected = ledgers[milestone.ProtectionMode.ORIGINAL.value]
+              report = collector.portfolio_coverage_report(
+                  period=period,
+                  geometry_rows=geometry,
+                  selected_ledger=selected,
+              )
+              rows = collector.select_portfolio_geometry(geometry, selected)
+              assert report["selected_entrants"] == expected
+              assert report["geometry_rows"] == expected
+              assert report["coverage"] == "1"
+              assert report["selected_realized_outcomes_read_for_join"] is False
+              assert report["feature_timestamp_le_entry"] is True
+              assert report["future_bar_used"] is False
+              assert report["outcome_used_for_geometry"] is False
+              assert report["fresh_holdout_opened"] is False
+              (output / f"capitalizer-v38-{slug}-coverage.json").write_text(
+                  json.dumps(report, indent=2, sort_keys=True) + "\n",
+                  encoding="utf-8",
+              )
+              with (
+                  output / f"capitalizer-v38-{slug}-selected-geometry.jsonl"
+              ).open("w", encoding="utf-8") as handle:
+                  for row in rows:
+                      handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+              print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Record immutable resume provenance
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          Path("selected-geometry/v38-artifact-resume-provenance.json").write_text(
+              json.dumps(
+                  {
+                      "identity": "QORE_CAPITALIZER_V38_ARTIFACT_RESUME_001",
+                      "source_v38_run_id": int(os.environ["SOURCE_V38_RUN_ID"]),
+                      "source_v38_sha": os.environ["SOURCE_V38_SHA"],
+                      "market_artifacts_reused": 9,
+                      "m1_rescan_performed": False,
+                      "features_changed": False,
+                      "thresholds_changed": False,
+                      "labels_changed": False,
+                      "fresh_holdout_opened": False,
+                  },
+                  indent=2,
+                  sort_keys=True,
+              )
+              + "\n",
+              encoding="utf-8",
+          )
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v38-geometry-selected-resume-${{ github.sha }}
+          path: selected-geometry
+          if-no-files-found: error
+          retention-days: 90
+
+  separability:
+    needs: portfolio_coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download exact selected V38 geometry from resume
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-v38-geometry-selected-resume-${{ github.sha }}
+          path: selected-geometry
+      - name: Download authoritative reconstructed consumed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Run frozen 57D V38 cross-era information frontier
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_preentry_native_m1_geometry_separability_v38 \
+            reconstructed/development-input \
+            reconstructed/validation-input \
+            reconstructed/reserved-input \
+            reconstructed/development-validation-context \
+            reconstructed/reserved-context \
+            selected-geometry \
+            experiment-output
+      - name: Enforce no-policy V38 contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path(
+              "experiment-output/"
+              "capitalizer-preentry-native-m1-geometry-separability-v38.json"
+          )
+          report = json.loads(path.read_text())
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_PREENTRY_NATIVE_M1_GEOMETRY_SEPARABILITY_V38"
+          )
+          assert report["feature_source"] == (
+              "V11_45D_PLUS_CURRENT_NATIVE_M1_GEOMETRY_12D"
+          )
+          assert report["v11_feature_dimension"] == 45
+          assert report["native_m1_geometry_dimension"] == 12
+          assert report["feature_dimension"] == 57
+          assert report["stop_target_labels_used_as_features"] is False
+          assert report["current_outcome_visible_to_features"] is False
+          assert report["future_exit_visible_to_features"] is False
+          assert report["future_mfe_mae_visible_to_features"] is False
+          assert report["symbol_identity_feature_used"] is False
+          assert report["date_identity_feature_used"] is False
+          assert report["two_external_worlds_required"] is True
+          assert report["threshold_grid_searched"] is False
+          assert report["policy_economics_run"] is False
+          assert report["admission_changed"] is False
+          assert report["sizing_changed"] is False
+          assert report["protection_changed"] is False
+          assert report["fresh_holdout_opened"] is False
+          assert report["candidate_count"] == 0
+          assert report["runtime_policy_candidate"] is False
+          assert report["trader_certified"] is False
+          assert len(report["heldout_results"]) == 3
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-preentry-native-m1-geometry-separability-v38-resume-${{ github.sha }}
+          path: experiment-output
+          if-no-files-found: error
+          retention-days: 90
