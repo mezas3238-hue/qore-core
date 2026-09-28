@@ -4,17 +4,18 @@
 **PR:** #635  
 **Issue:** #643  
 **Identity:** `QORE_SHARED_WP05_V12_CTRADER_HISTORICAL_TICK_SENSOR_CONTRACT_001`  
-**Status:** RESERVED / INFRASTRUCTURE-ONLY / PRE-ACTIVATION  
+**Status:** ACTIVE / SENSOR-ADMISSION ENGINEERING / SCIENTIFIC REPRESENTATION NOT YET ADMITTED  
 **Fresh holdout:** CLOSED
 
 ## Purpose
 
-This contract freezes a candidate source of genuinely new market observations
-before any post-V11 sensor experiment is allowed.
+This contract freezes the first active V12 source of genuinely new market
+observations after authoritative V11 falsification closed further classifier
+iteration over the current OHLC universe.
 
-It does not activate V12 and does not admit historical ticks scientifically.
-It defines what must be true before cTrader Bid/Ask tick evidence may enter the
-R8 Active Perception lab.
+V12 is active, but historical ticks are not scientifically admitted merely by
+this contract. The rules below must pass before cTrader Bid/Ask tick evidence
+may enter R8 Active Perception discovery.
 
 ## Official provider semantics frozen
 
@@ -194,3 +195,46 @@ or force one-to-one event pairing.
 Any later spread representation must use the latest causal BID and latest causal
 ASK available at-or-before the evaluation timestamp, subject to a separately
 preregistered staleness law.
+
+
+## Least-privilege authentication law
+
+V12 historical acquisition is read-only and must authenticate with the exact
+provider permission required for observation.
+
+- the V12 acquisition runtime requires cTrader `SCOPE_VIEW`;
+- a token carrying `SCOPE_TRADE` does not silently satisfy the V12 collector;
+- the execution runtime retains its existing `SCOPE_TRADE` requirement;
+- changing the historical collector to trading scope requires an explicit
+  architectural reason and new review.
+
+The implementation boundary is
+`CTraderOpenApiPermissionScope` in
+`src/qore/infrastructure/ctrader_open_api_client.py`.
+
+This permission split is defense in depth. It does not grant the collector any
+order API authority.
+
+## Historical collector contract
+
+The bounded collector is:
+
+`src/qore/infrastructure/ctrader_historical_tick_collector.py`
+
+It must:
+
+1. resolve the exact enabled provider symbol from the authenticated DEMO
+   account instead of inventing a symbol id;
+2. fetch exact symbol digits from provider detail evidence;
+3. split acquisition into windows no longer than seven days;
+4. request BID and ASK independently;
+5. follow `hasMore` pages with strict backward progress;
+6. operate at or below five historical requests/second/connection;
+7. preserve retrieval timestamps without conflating them with provider event
+   timestamps;
+8. produce deterministic chronological side streams;
+9. report page/count/time coverage separately for BID and ASK;
+10. produce an immutable SHA-256 dataset digest.
+
+No target label is needed or permitted to perform these acquisition,
+provenance, coverage and determinism checks.
