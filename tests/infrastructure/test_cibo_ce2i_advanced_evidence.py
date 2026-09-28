@@ -15,7 +15,6 @@ from qore.infrastructure.cibo_ce2i_full_surface import (
     AdvancedPortfolioEvidence,
 )
 
-
 _NOW = datetime(2026, 9, 28, 5, 0, tzinfo=UTC)
 
 
