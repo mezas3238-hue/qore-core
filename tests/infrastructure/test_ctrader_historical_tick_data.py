@@ -383,7 +383,7 @@ def test_decoder_rejects_price_delta_that_makes_absolute_price_non_positive() ->
 
     with pytest.raises(
         tick_data.CTraderHistoricalTickError,
-        match="non-positive absolute price",
+        match="reconstructed non-positive price",
     ):
         tick_data.decode_historical_tick_page(
             request=_request(),
