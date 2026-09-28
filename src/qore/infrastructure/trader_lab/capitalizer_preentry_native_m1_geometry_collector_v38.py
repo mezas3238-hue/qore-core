@@ -26,6 +26,21 @@ from qore.infrastructure.trader_lab import (
     capitalizer_max_recovery_direct_m1_replay_v1 as direct,
 )
 from qore.infrastructure.trader_lab import (
+    capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 as v3,
+)
+from qore.infrastructure.trader_lab import (
+    capitalizer_v3_source_first_no_rearm_closeback_arbitration_2y_v1 as arbitration,
+)
+from qore.infrastructure.trader_lab import (
+    capitalizer_v3_source_first_wait5_2y_v1 as wait5,
+)
+from qore.infrastructure.trader_lab import (
+    capitalizer_v3_source_first_wait5_stop_invalid_geometry_atlas_2y_v1 as stop_geometry,
+)
+from qore.infrastructure.trader_lab import (
+    capitalizer_v3_source_first_wait_rearm_atlas_2y_v1 as rearm,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_preentry_native_m1_geometry_v38 as geometry,
 )
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
@@ -37,6 +52,17 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
     CapitalizerSide,
+)
+from qore.infrastructure.trader_lab.capitalizer_full_ict_density_scanner_1y_v1 import (
+    _aggregate_h1,
+)
+from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
+    _aggregate_tf,
+    _index_day_inputs,
+    _pivots,
+)
+from qore.infrastructure.trader_lab.capitalizer_v3_source_first_cisd_v1 import (
+    find_source_first_m3_mss,
 )
 
 IDENTITY = "QORE_CAPITALIZER_PREENTRY_NATIVE_M1_GEOMETRY_COLLECTOR_V38"
@@ -122,7 +148,7 @@ def _parallel_rearm_geometry(
     eligible_at = original_mss.confirmed_at + timedelta(
         minutes=direct.WAIT_MINUTES
     )
-    raid = direct.rearm._new_raid(
+    raid = rearm._new_raid(
         execution,
         after=eligible_at,
         before=closeback.h1_deadline,
@@ -132,7 +158,7 @@ def _parallel_rearm_geometry(
     if raid is None:
         return None
 
-    new_closeback_at = direct.rearm._new_closeback(
+    new_closeback_at = rearm._new_closeback(
         m5,
         m5_closes,
         raid_at=raid.opened_at,
@@ -143,7 +169,7 @@ def _parallel_rearm_geometry(
     if new_closeback_at is None:
         return None
 
-    new_mss = direct.find_source_first_m3_mss(
+    new_mss = find_source_first_m3_mss(
         m3,
         m3_closes,
         m3_pivots,
@@ -155,10 +181,10 @@ def _parallel_rearm_geometry(
     if new_mss is None:
         return None
 
-    zone = direct.v3._m1_causal_zone(execution, event=new_mss)
+    zone = v3._m1_causal_zone(execution, event=new_mss)
     if zone is None:
         return None
-    fill = direct.v3._find_m1_fill(
+    fill = v3._find_m1_fill(
         execution,
         event=new_mss,
         zone=zone,
@@ -214,15 +240,15 @@ def _recovery_geometry(
     end: datetime,
 ) -> dict[IdentityKey, geometry.PreentryNativeM1Geometry]:
     symbol = all_bars[0].symbol
-    h1 = direct._aggregate_h1(all_bars)
-    h1_swings = direct.v3._build_h1_swings(h1)
-    m5 = direct._aggregate_tf(all_bars, minutes=5)
+    h1 = _aggregate_h1(all_bars)
+    h1_swings = v3._build_h1_swings(h1)
+    m5 = _aggregate_tf(all_bars, minutes=5)
     m5_closes = tuple(item.closed_at for item in m5)
-    m3 = direct._aggregate_tf(all_bars, minutes=3)
+    m3 = _aggregate_tf(all_bars, minutes=3)
     m3_closes = tuple(item.closed_at for item in m3)
-    m3_pivots = direct._pivots(m3)
-    buffer_price = direct.v3._stop_buffer(all_bars)
-    execution_by_day, reference_by_day = direct._index_day_inputs(
+    m3_pivots = _pivots(m3)
+    buffer_price = v3._stop_buffer(all_bars)
+    execution_by_day, reference_by_day = _index_day_inputs(
         all_bars,
         session=session,
     )
@@ -233,21 +259,21 @@ def _recovery_geometry(
         for key in execution_by_day
         if start.date().isoformat() <= key < end.date().isoformat()
     )
-    for value in dates:
-        operating_day = date.fromisoformat(value)
-        execution = execution_by_day.get(value, ())
+    for day_value in dates:
+        operating_day = date.fromisoformat(day_value)
+        execution = execution_by_day.get(day_value, ())
         if len(execution) < 15:
             continue
-        prior_session = reference_by_day.get(value)
-        previous_day = direct.v3._previous_day_range(
+        prior_session = reference_by_day.get(day_value)
+        previous_day = v3._previous_day_range(
             all_bars,
             operating_day=operating_day,
         )
 
-        for h1_open, h1_deadline, hour_bars in direct.v3._h1_windows(
+        for h1_open, h1_deadline, hour_bars in v3._h1_windows(
             execution
         ):
-            levels = direct.v3._liquidity_levels(
+            levels = v3._liquidity_levels(
                 prior_session=prior_session,
                 previous_day=previous_day,
                 h1_swings=h1_swings,
@@ -255,7 +281,7 @@ def _recovery_geometry(
             )
             if not levels:
                 continue
-            _sweep_seen, closeback = direct.v3._find_sweep_closeback(
+            _sweep_seen, closeback = v3._find_sweep_closeback(
                 hour_bars,
                 levels=levels,
                 m5=m5,
@@ -266,7 +292,7 @@ def _recovery_geometry(
             if closeback is None:
                 continue
 
-            event = direct.find_source_first_m3_mss(
+            event = find_source_first_m3_mss(
                 m3,
                 m3_closes,
                 m3_pivots,
@@ -277,10 +303,10 @@ def _recovery_geometry(
             )
             if event is None:
                 continue
-            zone = direct.v3._m1_causal_zone(execution, event=event)
+            zone = v3._m1_causal_zone(execution, event=event)
             if zone is None:
                 continue
-            normal_fill = direct.v3._find_m1_fill(
+            normal_fill = v3._find_m1_fill(
                 execution,
                 event=event,
                 zone=zone,
@@ -310,7 +336,7 @@ def _recovery_geometry(
             final_index = normal_index
             final_price = normal_price
             if wait_required:
-                wait_fill, _wait_status = direct.wait5._find_wait5_fill(
+                wait_fill, _wait_status = wait5._find_wait5_fill(
                     execution,
                     event=event,
                     zone=zone,
@@ -349,19 +375,19 @@ def _recovery_geometry(
             if original_valid:
                 continue
 
-            pivot = direct.stop_geometry._protected_pivot(
+            pivot = stop_geometry._protected_pivot(
                 m3_pivots,
                 before=event.displacement_opened_at,
                 side=closeback.side,
             )
             if pivot is None:
                 continue
-            protected_stop = direct.stop_geometry._buffered_stop(
+            protected_stop = stop_geometry._buffered_stop(
                 side=closeback.side,
                 pivot_price=pivot.price,
                 buffer_price=buffer_price,
             )
-            if not direct.stop_geometry._valid_stop(
+            if not stop_geometry._valid_stop(
                 side=closeback.side,
                 entry_price=final_price,
                 stop_price=protected_stop,
@@ -375,7 +401,7 @@ def _recovery_geometry(
                 if event.confirmed_at <= bar.opened_at < fill_at
             )
             if any(
-                direct.wait5._stop_hit(
+                wait5._stop_hit(
                     bar,
                     side=closeback.side.value,
                     stop_price=protected_stop,
@@ -394,7 +420,7 @@ def _recovery_geometry(
                 entry_at=fill_at,
                 provenance=provenance,
             )
-            value = geometry.build_geometry(
+            geometry_row = geometry.build_geometry(
                 symbol=symbol,
                 side=closeback.side.value,
                 entry_at=fill_at,
@@ -405,7 +431,7 @@ def _recovery_geometry(
                 mss=event,
                 zone=zone,
             )
-            _record(sink, key=key, value=value)
+            _record(sink, key=key, value=geometry_row)
 
     return sink
 
@@ -433,7 +459,7 @@ def build_market_geometry(
         raise ValueError("V38 collector found no provider-native M1")
 
     with direct._window(start=start, end=end):
-        _arb_report, arbitration_rows = direct.arbitration.build_market_report(
+        _arb_report, arbitration_rows = arbitration.build_market_report(
             m1_root,
             session=session,
         )
