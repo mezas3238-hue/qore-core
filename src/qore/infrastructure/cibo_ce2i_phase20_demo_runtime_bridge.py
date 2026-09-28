@@ -147,7 +147,7 @@ def prepare_ctrader_demo_m5_phase20_epoch(
     capital_state: VersionedCapitalSourceLedger,
     highest_closed_balance: Decimal,
     current_step: int,
-    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot,
+    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot | None = None,
     collector_git_sha: str | None = None,
 ) -> Phase20DemoM5PreparedShadow:
     """Seal one complete M5 shadow epoch without changing the execution path."""
@@ -270,7 +270,7 @@ def observe_ctrader_demo_m5_phase20_epoch(
     capital_state: VersionedCapitalSourceLedger,
     highest_closed_balance: Decimal,
     current_step: int,
-    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot,
+    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot | None = None,
     collector_git_sha: str | None = None,
 ) -> Phase20DemoM5RuntimeObservation:
     """Convenience composition; runtime may split prepare/finalize around submit."""
