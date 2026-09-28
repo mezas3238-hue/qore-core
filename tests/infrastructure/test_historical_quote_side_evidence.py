@@ -51,7 +51,7 @@ def _page(
         request=request,
         native_ticks=(
             NativeTick(int(newest.timestamp() * 1_000), 2_012_410_000),
-            NativeTick(-250, 2_012_400_000),
+            NativeTick(-250, -10_000),
         ),
         has_more=False,
         digits=2,
