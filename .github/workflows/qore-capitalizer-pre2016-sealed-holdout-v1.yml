@@ -200,7 +200,7 @@ jobs:
           assert p["window_may_change_after_download"] is False
           assert p["scalper_evaluation_authorized_before_candidate_freeze"] is False
           PY
-          sha256sum -c freeze/FREEZE_SHA256.txt
+          (cd freeze && sha256sum -c FREEZE_SHA256.txt)
       - name: Verify cTrader credentials
         shell: bash
         run: |
