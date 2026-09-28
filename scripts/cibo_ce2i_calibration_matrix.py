@@ -30,6 +30,7 @@ def build_report() -> dict[str, object]:
             "certification_ready": row.certification_ready,
             "state": row.classification.value,
             "blocker": list(row.blocker),
+            "calibration_artifact_sha256": row.calibration_artifact_sha256,
         }
         for row in CIBO_T01_T20_CALIBRATION_MATRIX
     ]
