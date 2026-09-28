@@ -75,10 +75,11 @@ jobs:
           assert p["holdout_2017h1_outcomes_used"] is False
           assert p["target_aware"] is False
           assert p["exact_usd_economics_claimed"] is False
-          assert set(p["promoted_tools"]) == {"T05", "T10", "T19", "T20"}
+          assert set(p["promoted_tools"]) == {"T04", "T10"}
           assert p["walk_forward"]["surviving_policy_count"] == 0
           assert set(p["provider_economics_required"]) == {
-              "T01", "T03", "T11", "T16", "T17"
+              "T01", "T03", "T04", "T07",
+              "T10", "T11", "T16", "T17"
           }
           PY
 
