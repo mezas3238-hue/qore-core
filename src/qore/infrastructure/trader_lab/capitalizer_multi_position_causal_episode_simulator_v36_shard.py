@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -84,7 +85,7 @@ def run_period(
         "execution_topology_only": True,
         "period": period,
         "result": result,
-        "pair_audits": [v36.asdict(row) for row in audits],
+        "pair_audits": [asdict(row) for row in audits],
         "candidate_count": 0,
         "trader_certified": False,
         "fresh_holdout_opened": False,
