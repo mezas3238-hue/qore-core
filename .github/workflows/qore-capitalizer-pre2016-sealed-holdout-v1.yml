@@ -1,0 +1,303 @@
+name: QORE Capitalizer Pre-2016 Sealed Holdout V1
+
+on:
+  push:
+    branches:
+      - agent/capitalizer-pre2016-holdout-census-001
+    paths:
+      - '.github/workflows/qore-capitalizer-pre2016-sealed-holdout-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_pre2016_ctrader_availability_census_v1.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_cibo_m1_window_clone_v1.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_cibo_10y_m1_clone_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-pre2016-sealed-holdout-v1-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  LOOKBACK_START: '2014-08-27T00:00:00+00:00'
+  HOLDOUT_START: '2014-09-17T00:00:00+00:00'
+  HOLDOUT_END: '2016-09-17T00:00:00+00:00'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e '.[dev,ctrader]'
+      - run: |
+          ruff check             src/qore/infrastructure/trader_lab/capitalizer_pre2016_ctrader_availability_census_v1.py
+      - run: |
+          mypy             src/qore/infrastructure/trader_lab/capitalizer_pre2016_ctrader_availability_census_v1.py
+
+  census:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        symbol: [USDJPY, AUDJPY, AUDUSD, GBPJPY, EURUSD, GBPUSD, XAUUSD, USDCAD, NAS100]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e '.[ctrader]'
+      - name: Verify read-only cTrader credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || exit 2
+          done
+      - name: Discover DEMO account
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            [[ "$account_id" =~ ^[1-9][0-9]*$ ]] || exit 3
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Probe timestamp-only pre-2016 coverage
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_pre2016_ctrader_availability_census_v1             "${{ matrix.symbol }}" census-output
+      - name: Enforce census privacy contract
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = json.loads(
+              (Path("census-output") / f"{os.environ['SYMBOL'].lower()}-pre2016-availability.json").read_text()
+          )
+          assert p["identity"] == "QORE_CAPITALIZER_PRE2016_CTRADER_AVAILABILITY_CENSUS_V1"
+          assert p["ohlc_retained"] is False
+          assert p["raw_m1_ledger_written"] is False
+          assert p["economics_computed"] is False
+          assert p["trade_reconstruction_performed"] is False
+          assert p["outcome_selection_performed"] is False
+          assert p["read_only"] is True
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-pre2016-census-${{ matrix.symbol }}-${{ github.sha }}
+          path: census-output
+          if-no-files-found: error
+          retention-days: 90
+
+  freeze_window:
+    needs: census
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      common_coverage: ${{ steps.freeze.outputs.common_coverage }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-pre2016-census-*-${{ github.sha }}
+          path: census
+          merge-multiple: true
+      - name: Freeze metadata-selected window
+        id: freeze
+        run: |
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+
+          rows = []
+          for path in sorted(Path("census").glob("*-pre2016-availability.json")):
+              rows.append(json.loads(path.read_text()))
+          assert len(rows) == 9, len(rows)
+          assert len({row["canonical_symbol"] for row in rows}) == 9
+
+          common = all(
+              row["all_requested_months_have_provider_data"]
+              and int(row["retained_timestamp_count"]) > 0
+              for row in rows
+          )
+          payload = {
+              "identity": "QORE_CAPITALIZER_PRE2016_SEALED_HOLDOUT_FREEZE_V1",
+              "git_sha": os.environ["GITHUB_SHA"],
+              "selection_basis": "TIMESTAMP_COVERAGE_ONLY_NO_ECONOMICS",
+              "lookback_start": os.environ["LOOKBACK_START"],
+              "holdout_start": os.environ["HOLDOUT_START"],
+              "holdout_end_exclusive": os.environ["HOLDOUT_END"],
+              "symbols": sorted(row["canonical_symbol"] for row in rows),
+              "all_nine_common_monthly_coverage": common,
+              "candidate_outcomes_seen": False,
+              "economics_seen": False,
+              "ohlc_used_for_window_selection": False,
+              "window_may_change_after_download": False,
+              "holdout_may_tune_candidate": False,
+              "holdout_may_select_candidate": False,
+              "sealed_raw_download_authorized": common,
+              "scalper_evaluation_authorized_before_candidate_freeze": False,
+          }
+          Path("freeze").mkdir()
+          out = Path("freeze/pre2016-sealed-holdout-freeze.json")
+          out.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+          digest = hashlib.sha256(out.read_bytes()).hexdigest()
+          Path("freeze/FREEZE_SHA256.txt").write_text(
+              f"{digest}  pre2016-sealed-holdout-freeze.json\n"
+          )
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as h:
+              h.write(f"common_coverage={'true' if common else 'false'}\n")
+          print(json.dumps(payload, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-pre2016-sealed-window-freeze-${{ github.sha }}
+          path: freeze
+          if-no-files-found: error
+          retention-days: 90
+
+  sealed_download:
+    needs: freeze_window
+    if: needs.freeze_window.outputs.common_coverage == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        symbol: [USDJPY, AUDJPY, AUDUSD, GBPJPY, EURUSD, GBPUSD, XAUUSD, USDCAD, NAS100]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e '.[ctrader]'
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-pre2016-sealed-window-freeze-${{ github.sha }}
+          path: freeze
+      - name: Prove frozen window before raw download
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = json.loads(Path("freeze/pre2016-sealed-holdout-freeze.json").read_text())
+          assert p["git_sha"] == os.environ["GITHUB_SHA"]
+          assert p["all_nine_common_monthly_coverage"] is True
+          assert p["economics_seen"] is False
+          assert p["candidate_outcomes_seen"] is False
+          assert p["window_may_change_after_download"] is False
+          assert p["scalper_evaluation_authorized_before_candidate_freeze"] is False
+          PY
+          sha256sum -c freeze/FREEZE_SHA256.txt
+      - name: Verify cTrader credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || exit 2
+          done
+      - name: Discover DEMO account
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            [[ "$account_id" =~ ^[1-9][0-9]*$ ]] || exit 3
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Download sealed provider-native M1 holdout
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cibo_m1_window_clone_v1             "${{ matrix.symbol }}" sealed-m1             --start "$LOOKBACK_START"             --end-exclusive "$HOLDOUT_END"             --role FRESH_HOLDOUT
+      - name: Mark payload sealed and unevaluated
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = Path("sealed-m1/m1-window-manifest.json")
+          data = json.loads(p.read_text())
+          data["sealed_holdout_identity"] = "QORE_CAPITALIZER_PRE2016_SEALED_HOLDOUT_FREEZE_V1"
+          data["holdout_economics_evaluated"] = False
+          data["scalper_replay_executed"] = False
+          data["candidate_outcomes_seen"] = False
+          data["candidate_freeze_required_before_replay"] = True
+          p.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-pre2016-sealed-m1-${{ matrix.symbol }}-${{ github.sha }}
+          path: sealed-m1
+          if-no-files-found: error
+          retention-days: 90
+
+  seal_manifest:
+    needs: [freeze_window, sealed_download]
+    if: needs.freeze_window.outputs.common_coverage == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-pre2016-sealed-window-freeze-${{ github.sha }}
+          path: freeze
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-pre2016-sealed-m1-*-${{ github.sha }}
+          path: sealed
+          merge-multiple: false
+      - name: Build sealed inventory without opening market payload
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          freeze = json.loads(Path("freeze/pre2016-sealed-holdout-freeze.json").read_text())
+          manifests = []
+          for path in sorted(Path("sealed").rglob("m1-window-manifest.json")):
+              row = json.loads(path.read_text())
+              manifests.append({
+                  "symbol": row["canonical_symbol"],
+                  "target_start": row["target_start"],
+                  "target_end_exclusive": row["target_end_exclusive"],
+                  "retained_m1": row["retained_m1"],
+                  "provider_native_m1": row["provider_native_m1"],
+                  "holdout_economics_evaluated": row["holdout_economics_evaluated"],
+                  "scalper_replay_executed": row["scalper_replay_executed"],
+              })
+          assert len(manifests) == 9
+          assert all(row["holdout_economics_evaluated"] is False for row in manifests)
+          assert all(row["scalper_replay_executed"] is False for row in manifests)
+          payload = {
+              "identity": "QORE_CAPITALIZER_PRE2016_SEALED_M1_INVENTORY_V1",
+              "freeze": freeze,
+              "markets": manifests,
+              "sealed_download_complete": True,
+              "candidate_freeze_required_before_replay": True,
+              "economics_opened": False,
+              "trader_certified": False,
+          }
+          Path("inventory").mkdir()
+          Path("inventory/pre2016-sealed-m1-inventory.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n"
+          )
+          print(json.dumps(payload, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-pre2016-sealed-m1-inventory-${{ github.sha }}
+          path: inventory
+          if-no-files-found: error
+          retention-days: 90
