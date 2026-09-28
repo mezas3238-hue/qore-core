@@ -29,6 +29,9 @@ from qore.infrastructure.trader_lab import (
     capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 as v3,
 )
 from qore.infrastructure.trader_lab import (
+    capitalizer_preentry_native_m1_geometry_v38 as geometry,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_v3_source_first_no_rearm_closeback_arbitration_2y_v1 as arbitration,
 )
 from qore.infrastructure.trader_lab import (
@@ -39,9 +42,6 @@ from qore.infrastructure.trader_lab import (
 )
 from qore.infrastructure.trader_lab import (
     capitalizer_v3_source_first_wait_rearm_atlas_2y_v1 as rearm,
-)
-from qore.infrastructure.trader_lab import (
-    capitalizer_preentry_native_m1_geometry_v38 as geometry,
 )
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
