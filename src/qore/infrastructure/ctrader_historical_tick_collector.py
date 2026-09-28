@@ -24,6 +24,7 @@ from qore.infrastructure.ctrader_historical_tick_data import (
     CTraderQuoteType,
 )
 from qore.infrastructure.ctrader_open_api_client import (
+    CTraderOpenApiClientError,
     CTraderOpenApiMessageClientBoundary,
 )
 from qore.infrastructure.historical_quote_side_evidence import (
@@ -49,6 +50,10 @@ _HISTORICAL_READ_ONLY_MESSAGES = frozenset(
 
 class CTraderHistoricalTickCollectorError(ExternalPortError):
     """Historical acquisition violates provider or provenance contracts."""
+
+
+class CTraderHistoricalReadOnlyClientError(CTraderOpenApiClientError):
+    """The V12 provider firewall rejected a non-observation operation."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -155,7 +160,10 @@ def resolve_ctrader_historical_sensor_identity(
     client: CTraderOpenApiMessageClientBoundary,
     provider_symbol: str,
     timeout_seconds: float,
-) -> Result[CTraderHistoricalSensorIdentity, CTraderHistoricalTickCollectorError]:
+) -> Result[
+    CTraderHistoricalSensorIdentity,
+    CTraderHistoricalTickCollectorError,
+]:
     """Resolve exact enabled symbol ID and digits from an authenticated DEMO account."""
 
     if (
@@ -307,7 +315,7 @@ class CTraderHistoricalReadOnlyMessageClient:
     def account_id(self) -> int:
         return self._client.account_id
 
-    def connect_and_authenticate(self):
+    def connect_and_authenticate(self) -> Result[None, CTraderOpenApiClientError]:
         return self._client.connect_and_authenticate()
 
     def request(
@@ -317,10 +325,10 @@ class CTraderHistoricalReadOnlyMessageClient:
         *,
         client_msg_id: str,
         timeout_seconds: float,
-    ):
+    ) -> Result[object, CTraderOpenApiClientError]:
         if message_name not in _HISTORICAL_READ_ONLY_MESSAGES:
             return Failure(
-                CTraderHistoricalTickCollectorError(
+                CTraderHistoricalReadOnlyClientError(
                     "V12 historical client rejected non-read-only provider message"
                 )
             )
@@ -332,7 +340,7 @@ class CTraderHistoricalReadOnlyMessageClient:
         )
         if isinstance(result, Failure):
             return Failure(
-                CTraderHistoricalTickCollectorError(
+                CTraderHistoricalReadOnlyClientError(
                     "V12 read-only provider request failed"
                 )
             )
@@ -343,11 +351,11 @@ class CTraderHistoricalReadOnlyMessageClient:
         message_name: str,
         *,
         timeout_seconds: float,
-        predicate=None,
-    ):
+        predicate: Callable[[object], bool] | None = None,
+    ) -> Result[object, CTraderOpenApiClientError]:
         del message_name, timeout_seconds, predicate
         return Failure(
-            CTraderHistoricalTickCollectorError(
+            CTraderHistoricalReadOnlyClientError(
                 "V12 historical client does not admit provider subscriptions"
             )
         )
