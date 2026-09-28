@@ -24,7 +24,6 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
 from qore.infrastructure.cibo_ce2i_phase21_policy_freeze import (
     Phase21EmpiricalValidationKind,
     Phase21PolicySurfaceDigests,
-    Phase21QualificationReceipt,
     build_phase21_empirical_validation_receipt,
     build_phase21_qualification_receipt,
     build_phase21_policy_freeze,
