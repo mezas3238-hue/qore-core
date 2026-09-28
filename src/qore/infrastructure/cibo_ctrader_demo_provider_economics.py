@@ -79,10 +79,6 @@ class CTraderProviderEconomicsSymbolEvidence:
     provider_symbol: str
     symbol_id: int
     observed_at: datetime
-    source: str = "CTRADER_OPEN_API_READ_ONLY"
-    provider: str = "ctrader-demo"
-    effective_period: str = "POINT_IN_TIME_AT_OBSERVED_AT"
-    provenance: str = "PROVIDER_NATIVE_SYMBOL_SPOT_AND_EXPECTED_MARGIN"
     digits: int
     bid: Decimal
     ask: Decimal
@@ -94,6 +90,10 @@ class CTraderProviderEconomicsSymbolEvidence:
     expected_margin: tuple[CTraderExpectedMarginQuote, ...]
     margin_native_ready: bool
     spread_native_ready: bool
+    source: str = "CTRADER_OPEN_API_READ_ONLY"
+    provider: str = "ctrader-demo"
+    effective_period: str = "POINT_IN_TIME_AT_OBSERVED_AT"
+    provenance: str = "PROVIDER_NATIVE_SYMBOL_SPOT_AND_EXPECTED_MARGIN"
     slippage_empirically_calibrated: bool = False
     historical_exact_claimed: bool = False
 
