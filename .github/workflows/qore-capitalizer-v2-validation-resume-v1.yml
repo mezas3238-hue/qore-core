@@ -1,0 +1,103 @@
+name: QORE Capitalizer V2 Validation Resume V1
+
+on:
+  push:
+    branches:
+      - agent/capitalizer-v2-distributed-checkpoint-runner-001
+    paths:
+      - '.github/workflows/qore-capitalizer-v2-validation-resume-v1.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+  SIM_RUN_ID: '36332714846'
+  PRIOR_RUN_ID: '36370790397'
+
+jobs:
+  resume_validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download reconstructed consumed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Download authoritative simulator transitions
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-counterfactual-portfolio-episode-simulator-v1-sharded-*
+          path: simulator-evidence
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SIM_RUN_ID }}
+      - name: Download Validation checkpoint
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-v2-distributed-checkpoint-validation-b8a50bd72d07f0076810e8496cfdb6ec4e2e5bb2
+          path: checkpoint
+          github-token: ${{ github.token }}
+          run-id: ${{ env.PRIOR_RUN_ID }}
+      - name: Resume exact Validation V2
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_v2_distributed_checkpoint_runner_v1 \
+            --period CONSUMED_VALIDATION_2022_2024 \
+            --development-root reconstructed/development-input \
+            --validation-root reconstructed/validation-input \
+            --reserved-root reconstructed/reserved-input \
+            --development-validation-context-root reconstructed/development-validation-context \
+            --reserved-context-root reconstructed/reserved-context \
+            --transition-path simulator-evidence/capitalizer-counterfactual-portfolio-episode-simulator-v1-transitions.jsonl \
+            --checkpoint checkpoint/validation.json \
+            --output experiment-output/validation \
+            --workers 4 \
+            --soft-budget-minutes 300
+      - name: Enforce resume contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(
+              Path("experiment-output/validation/capitalizer-v2-distributed-checkpoint-runner-v1.json").read_text()
+          )
+          assert report["period"] == "CONSUMED_VALIDATION_2022_2024"
+          assert report["same_reserve_seed_law"] is True
+          assert report["same_relief_seed_law"] is True
+          assert report["same_relief_first_law"] is True
+          assert report["same_deterministic_rank"] is True
+          assert report["same_exact_dynamic_replay"] is True
+          assert report["sampling"] is False
+          assert report["economic_pruning"] is False
+          assert report["result"]["resume_exact_from_committed_plan"] is True
+          assert report["result"]["density_retention"] == "1"
+          assert report["result"]["same_entrant_identities"] is True
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Upload resumed Validation checkpoint
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v2-validation-resume-checkpoint-${{ github.sha }}
+          path: checkpoint/validation.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Upload resumed Validation result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v2-validation-resume-result-${{ github.sha }}
+          path: experiment-output/validation
+          if-no-files-found: warn
+          retention-days: 90
