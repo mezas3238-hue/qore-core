@@ -7,7 +7,7 @@ import json
 from dataclasses import asdict, dataclass
 from math import isfinite, log
 from statistics import median
-from typing import Final, Mapping, Sequence
+from collections.abc import Mapping, Sequence\nfrom typing import Final
 
 from qore.infrastructure.core_stack_v2.active_perception_v12_microstructure_representation import (
     v12_microstructure_candidate_fields,
