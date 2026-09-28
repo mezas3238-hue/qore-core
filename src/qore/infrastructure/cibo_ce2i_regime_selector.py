@@ -125,9 +125,15 @@ class CiboRegimeToolSelection:
             raise CiboCapitalManagementError("selection reason required")
 
 
-_NEW_CAPITAL_TOOLS = frozenset({"T01", "T06", "T07", "T09", "T18"})
-_EXPANSION_TOOLS = frozenset({"T06", "T07", "T09", "T18"})
-_RECOVERY_SAFE_TOOLS = frozenset({"T11", "T13", "T14", "T15", "T20"})
+_NEW_CAPITAL_TOOLS = frozenset(
+    {"T01", "T02", "T04", "T06", "T07", "T09", "T16", "T17", "T18"}
+)
+_EXPANSION_TOOLS = frozenset(
+    {"T02", "T04", "T06", "T07", "T09", "T16", "T17", "T18"}
+)
+_RECOVERY_SAFE_TOOLS = frozenset(
+    {"T03", "T08", "T10", "T11", "T13", "T14", "T15", "T16", "T20"}
+)
 
 
 def select_ce2i_tools_for_regime(
