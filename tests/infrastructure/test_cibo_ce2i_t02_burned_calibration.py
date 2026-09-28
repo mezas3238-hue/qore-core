@@ -2,10 +2,9 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from qore.infrastructure.cibo_ce2i_t02_burned_calibration import (
-    calibrate_t02_structural_precision,
     T02StructuralObservation,
+    calibrate_t02_structural_precision,
 )
-
 
 _BASE = datetime(2024, 1, 1, tzinfo=UTC)
 
