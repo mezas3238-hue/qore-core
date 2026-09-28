@@ -245,5 +245,19 @@ def from_v3_trade(trade: v3.V3Trade) -> PreentryNativeM1Geometry:
     )
 
 
+def from_json_dict(payload: dict[str, Any]) -> PreentryNativeM1Geometry:
+    """Rehydrate JSON while preserving the frozen tuple-based feature contract."""
+
+    normalized = dict(payload)
+    for field in ("feature_names", "vector"):
+        value = normalized.get(field)
+        if not isinstance(value, (list, tuple)):
+            raise ValueError(f"V38 {field} JSON field must be a sequence")
+        if any(not isinstance(item, str) for item in value):
+            raise ValueError(f"V38 {field} JSON items must be strings")
+        normalized[field] = tuple(value)
+    return PreentryNativeM1Geometry(**normalized)
+
+
 def as_json_dict(row: PreentryNativeM1Geometry) -> dict[str, Any]:
     return asdict(row)
