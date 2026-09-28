@@ -7,6 +7,7 @@ from uuid import UUID
 
 from qore.infrastructure import ctrader_historical_tick_data as tick_data
 from qore.infrastructure.ctrader_historical_tick_collector import (
+    CTraderHistoricalReadOnlyMessageClient,
     CTraderHistoricalSensorIdentity,
     CTraderHistoricalTickCollector,
     resolve_ctrader_historical_sensor_identity,
@@ -221,3 +222,58 @@ def test_collection_digest_is_deterministic_for_same_evidence() -> None:
     assert isinstance(first, Success)
     assert isinstance(second, Success)
     assert first.value.coverage.digest_sha256 == second.value.coverage.digest_sha256
+
+
+
+class FirewallClient(FakeClient):
+    def request(
+        self,
+        message_name: str,
+        fields,
+        *,
+        client_msg_id: str,
+        timeout_seconds: float,
+    ):
+        if message_name in {"ProtoOASymbolsListReq", "ProtoOASymbolByIdReq"}:
+            return super().request(
+                message_name,
+                fields,
+                client_msg_id=client_msg_id,
+                timeout_seconds=timeout_seconds,
+            )
+        return Success(SimpleNamespace())
+
+
+def test_read_only_message_firewall_rejects_order_requests() -> None:
+    firewall = CTraderHistoricalReadOnlyMessageClient(FirewallClient())
+
+    result = firewall.request(
+        "ProtoOANewOrderReq",
+        {"ctidTraderAccountId": 123},
+        client_msg_id="must-fail",
+        timeout_seconds=10.0,
+    )
+
+    from qore.kernel.result import Failure
+
+    assert isinstance(result, Failure)
+    assert "non-read-only" in str(result.error)
+
+
+def test_read_only_message_firewall_allows_historical_tick_request() -> None:
+    firewall = CTraderHistoricalReadOnlyMessageClient(FirewallClient())
+
+    result = firewall.request(
+        "ProtoOAGetTickDataReq",
+        {
+            "ctidTraderAccountId": 123,
+            "symbolId": 456,
+            "type": 1,
+            "fromTimestamp": 1,
+            "toTimestamp": 2,
+        },
+        client_msg_id="read-only",
+        timeout_seconds=10.0,
+    )
+
+    assert isinstance(result, Success)
