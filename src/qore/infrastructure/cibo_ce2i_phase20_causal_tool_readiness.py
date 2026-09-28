@@ -20,6 +20,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_ce2i_phase19l_competition import (
     MINIMUM_ROBUST_COMPETITION_EPOCHS,
 )
+from qore.infrastructure.cibo_ce2i_phase20_causal_history_state import (
+    build_phase20_causal_history_state,
+)
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     Phase20ForwardDecisionSeal,
     VersionedPhase20ForwardEvidenceBook,
@@ -120,6 +123,7 @@ class Phase20CausalToolReadinessReport:
     valid_regime_epochs: int
     portfolio_netting_epochs: int
     known_option_epochs: int
+    causal_history_epochs: int
     tools: tuple[Phase20ToolEvidenceReadiness, ...]
 
     def __post_init__(self) -> None:
@@ -141,6 +145,7 @@ class Phase20CausalToolReadinessReport:
             "valid_regime_epochs",
             "portfolio_netting_epochs",
             "known_option_epochs",
+            "causal_history_epochs",
         ):
             value = getattr(self, name)
             if (
@@ -181,14 +186,14 @@ def assess_phase20_causal_tool_readiness(
             "Phase20 causal readiness requires canonical qualification readiness"
         )
 
-    usable: list[dict[str, Any]] = []
+    usable: list[tuple[Phase20ForwardDecisionSeal, dict[str, Any]]] = []
     for decision in sorted(
         evidence_book.decisions,
         key=lambda item: (item.decision_at, item.evidence_sha256),
     ):
         if not _usable_forward_decision(decision):
             continue
-        usable.append(_decision_payload(decision))
+        usable.append((decision, _decision_payload(decision)))
 
     candidate_epochs = 0
     exact_competition_epochs = 0
@@ -196,8 +201,9 @@ def assess_phase20_causal_tool_readiness(
     valid_regime_epochs = 0
     portfolio_netting_epochs = 0
     known_option_epochs = 0
+    causal_history_epochs = 0
 
-    for payload in usable:
+    for decision, payload in usable:
         candidates = _candidates(payload)
         if candidates:
             candidate_epochs += 1
@@ -211,6 +217,16 @@ def assess_phase20_causal_tool_readiness(
             portfolio_netting_epochs += 1
         if _known_options_present(payload):
             known_option_epochs += 1
+        if candidates:
+            history = build_phase20_causal_history_state(
+                evidence_book=evidence_book,
+                decision=decision,
+            )
+            if (
+                history.prior_settled_outcomes > 0
+                and history.observed_candidate_arrivals_per_day is not None
+            ):
+                causal_history_epochs += 1
 
     total_usable = len(usable)
     global_ready = qualification_readiness.ready
@@ -261,8 +277,16 @@ def assess_phase20_causal_tool_readiness(
     if not global_ready:
         t12_blockers.append("GLOBAL_PHASE20D_POPULATION_NOT_READY")
 
+    t13_stream = causal_history_epochs > 0
+    t13_blockers: list[str] = []
+    if not t13_stream:
+        t13_blockers.append("NO_RECONSTRUCTIBLE_CAUSAL_HISTORY_EPOCHS")
+    t13_blockers.append(
+        "FRESH_OOS_DRAWDOWN_RESERVE_UTILITY_ANALYSIS_REQUIRED"
+    )
+
     t15_stream = total_usable > 0 and all(
-        "known_options" in item for item in usable
+        "known_options" in payload for _decision, payload in usable
     )
     t15_blockers: list[str] = []
     if not t15_stream:
@@ -298,15 +322,16 @@ def assess_phase20_causal_tool_readiness(
         ),
         Phase20ToolEvidenceReadiness(
             tool_code="T13",
-            state=Phase20ToolEvidenceState.STREAM_BLOCKED,
-            stream_bound=False,
-            forward_population_ready=False,
-            observed_epochs=total_usable,
-            qualifying_epochs=0,
-            blockers=(
-                "LOSS_CLUSTER_STATE_NOT_SEALED_IN_FORWARD_DECISION",
-                "CAUSAL_OPPORTUNITY_DENSITY_ESTIMATOR_NOT_SEALED",
+            state=(
+                Phase20ToolEvidenceState.COLLECTING_FORWARD
+                if t13_stream
+                else Phase20ToolEvidenceState.STREAM_BLOCKED
             ),
+            stream_bound=t13_stream,
+            forward_population_ready=False,
+            observed_epochs=candidate_epochs,
+            qualifying_epochs=causal_history_epochs,
+            blockers=tuple(t13_blockers),
         ),
         Phase20ToolEvidenceReadiness(
             tool_code="T14",
@@ -349,6 +374,7 @@ def assess_phase20_causal_tool_readiness(
         valid_regime_epochs=valid_regime_epochs,
         portfolio_netting_epochs=portfolio_netting_epochs,
         known_option_epochs=known_option_epochs,
+        causal_history_epochs=causal_history_epochs,
         tools=rows,
     )
 

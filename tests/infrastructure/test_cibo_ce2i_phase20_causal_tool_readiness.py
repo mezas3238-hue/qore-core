@@ -15,6 +15,7 @@ from qore.infrastructure.cibo_ce2i_phase20_causal_tool_readiness import (
 )
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     Phase20ForwardDecisionSeal,
+    Phase20ForwardOutcomeSeal,
     VersionedPhase20ForwardEvidenceBook,
 )
 from qore.infrastructure.cibo_ce2i_phase20_qualification_readiness import (
@@ -107,6 +108,24 @@ def _seal(index: int, *, malformed: bool = False) -> Phase20ForwardDecisionSeal:
     )
 
 
+def _outcome(
+    decision: Phase20ForwardDecisionSeal,
+) -> Phase20ForwardOutcomeSeal:
+    return Phase20ForwardOutcomeSeal(
+        evidence_id=f"outcome:{decision.evidence_id}",
+        decision_evidence_sha256=decision.evidence_sha256,
+        signal_fingerprint=decision.signal_fingerprints[0],
+        position_id=1,
+        execution_risk_evidence_id=f"risk:{decision.evidence_id}",
+        settlement_deal_ids=(1,),
+        fill_evidence_refs=(f"fill:{decision.evidence_id}",),
+        observed_at=decision.decision_at + timedelta(seconds=30),
+        realized_net_pnl_usd=Decimal("-5"),
+        executed_initial_stop_risk_usd=Decimal("5"),
+        realized_structural_outcome_r=Decimal("-1"),
+    )
+
+
 def _row(report: object, code: str) -> object:
     return next(item for item in report.tools if item.tool_code == code)
 
@@ -166,3 +185,25 @@ def test_forward_readiness_fails_closed_on_malformed_scarcity_payload() -> None:
             ),
             qualification_readiness=_qualification(ready=False),
         )
+
+def test_t13_becomes_collecting_when_prior_causal_history_is_reconstructible() -> None:
+    first = _seal(0)
+    second = _seal(1)
+    report = assess_phase20_causal_tool_readiness(
+        evidence_book=VersionedPhase20ForwardEvidenceBook(
+            generation=3,
+            decisions=(first, second),
+            outcomes=(_outcome(first),),
+        ),
+        qualification_readiness=_qualification(ready=False),
+    )
+
+    t13 = _row(report, "T13")
+    assert report.causal_history_epochs == 1
+    assert t13.state is Phase20ToolEvidenceState.COLLECTING_FORWARD
+    assert t13.stream_bound is True
+    assert t13.qualifying_epochs == 1
+    assert (
+        "FRESH_OOS_DRAWDOWN_RESERVE_UTILITY_ANALYSIS_REQUIRED"
+        in t13.blockers
+    )

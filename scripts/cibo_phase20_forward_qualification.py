@@ -300,6 +300,7 @@ def main() -> None:
             tool_readiness.portfolio_netting_epochs
         ),
         "known_option_epochs": tool_readiness.known_option_epochs,
+        "causal_history_epochs": tool_readiness.causal_history_epochs,
         "tools": [
             {
                 "tool_code": item.tool_code,
