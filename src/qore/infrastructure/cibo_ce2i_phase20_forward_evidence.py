@@ -31,6 +31,10 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_ce2i_causal_expectation import (
     CausalExpectationBasis,
 )
+from qore.infrastructure.cibo_ce2i_advanced_evidence import (
+    AdvancedCe2iEvidenceSnapshot,
+    assert_advanced_evidence_snapshot_causal,
+)
 from qore.infrastructure.cibo_ce2i_full_surface import (
     AdvancedPortfolioEvidence,
     FullCe2iSurfaceAssessment,
@@ -285,6 +289,7 @@ class Phase20ForwardDecisionEvidence:
     candidates: tuple[Phase20ForwardCandidateEvidence, ...]
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = ()
     advanced_evidence: AdvancedPortfolioEvidence = AdvancedPortfolioEvidence()
+    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot | None = None
     outcome_present: bool = False
     allocation_authority: bool = False
     risk_authority: bool = False
@@ -352,6 +357,33 @@ class Phase20ForwardDecisionEvidence:
             raise CiboCapitalManagementError(
                 "Phase20D advanced CE2I evidence must be canonical"
             )
+        if self.evidence_kind is Phase20ForwardEvidenceKind.FORWARD_OBSERVED:
+            if self.advanced_evidence_snapshot is None:
+                raise CiboCapitalManagementError(
+                    "Phase20D forward evidence requires advanced CE2I snapshot"
+                )
+            assert_advanced_evidence_snapshot_causal(
+                self.advanced_evidence_snapshot,
+                decision_at=self.decision_at,
+                max_age_seconds=(
+                    FROZEN_PHASE20_POLICY_CANDIDATE.snapshot_max_age_seconds
+                ),
+            )
+            if (
+                self.advanced_evidence_snapshot.evidence
+                != self.advanced_evidence
+            ):
+                raise CiboCapitalManagementError(
+                    "Phase20D advanced CE2I snapshot payload drift"
+                )
+        elif self.advanced_evidence_snapshot is not None:
+            if (
+                self.advanced_evidence_snapshot.evidence
+                != self.advanced_evidence
+            ):
+                raise CiboCapitalManagementError(
+                    "Phase20D advanced CE2I snapshot payload drift"
+                )
         if type(self.current_step) is not int or self.current_step < 0:
             raise CiboCapitalManagementError(
                 "Phase20D current_step must be non-negative int"
