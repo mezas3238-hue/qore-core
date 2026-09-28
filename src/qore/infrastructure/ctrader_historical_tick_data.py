@@ -301,7 +301,8 @@ class CTraderHistoricalTickReader:
         if isinstance(response, Failure):
             return Failure(
                 CTraderHistoricalTickError(
-                    "cTrader historical tick request failed"
+                    "cTrader historical tick request failed: "
+                    f"{response.error}"
                 )
             )
 
