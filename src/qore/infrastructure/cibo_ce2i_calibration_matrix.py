@@ -13,6 +13,9 @@ from enum import StrEnum
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
+from qore.infrastructure.cibo_ce2i_burned_calibration import (
+    burned_t04_t10_calibration_sha256,
+)
 from qore.infrastructure.cibo_ce2i_tool_registry import (
     CE2I_TOOL_REGISTRY,
     ToolMaturity,
@@ -49,6 +52,7 @@ class CiboToolCalibrationMatrixRow:
     certification_ready: bool
     classification: CiboCalibrationClassification
     blocker: tuple[str, ...]
+    calibration_artifact_sha256: str | None = None
 
     def __post_init__(self) -> None:
         canonical = {tool.code for tool in CE2I_TOOL_REGISTRY}
@@ -73,6 +77,10 @@ class CiboToolCalibrationMatrixRow:
         if self.certification_ready and self.blocker:
             raise CiboCapitalManagementError(
                 "certification-ready tool cannot retain blockers"
+            )
+        if self.calibrated and not self.calibration_artifact_sha256:
+            raise CiboCapitalManagementError(
+                "calibrated tool requires sealed calibration artifact hash"
             )
 
 
@@ -106,6 +114,7 @@ def _row(
     calibrated: bool = False,
     classification: CiboCalibrationClassification | None = None,
     blocker: tuple[str, ...],
+    calibration_artifact_sha256: str | None = None,
 ) -> CiboToolCalibrationMatrixRow:
     tool = next(item for item in CE2I_TOOL_REGISTRY if item.code == code)
     resolved_classification = classification or (
@@ -125,6 +134,7 @@ def _row(
         certification_ready=False,
         classification=resolved_classification,
         blocker=blocker,
+        calibration_artifact_sha256=calibration_artifact_sha256,
     )
 
 
@@ -140,6 +150,7 @@ CIBO_T01_T20_CALIBRATION_MATRIX: tuple[CiboToolCalibrationMatrixRow, ...] = (
         calibrated=True,
         classification=CiboCalibrationClassification.CALIBRATED_CAUSAL,
         blocker=("T04_USD_ECONOMIC_PENDING_PROVIDER_ECONOMICS",),
+        calibration_artifact_sha256=burned_t04_t10_calibration_sha256(),
     ),
     _row("T05", source=(_P19, _P20), kind=CiboCalibrationType.CAUSAL_NORMALIZED, blocker=("CAPITAL_LIFECYCLE_CALIBRATION_PENDING",)),
     _row("T06", source=(_P19, _P20), kind=CiboCalibrationType.CAUSAL_NORMALIZED, blocker=("REALIZED_PROFIT_EXPANSION_CALIBRATION_PENDING",)),
@@ -154,6 +165,7 @@ CIBO_T01_T20_CALIBRATION_MATRIX: tuple[CiboToolCalibrationMatrixRow, ...] = (
         calibrated=True,
         classification=CiboCalibrationClassification.CALIBRATED_CAUSAL,
         blocker=("USD_OUTPUT_PER_CAPITAL_TIME_PENDING_PROVIDER_ECONOMICS",),
+        calibration_artifact_sha256=burned_t04_t10_calibration_sha256(),
     ),
     _row("T11", source=(_PROVIDER, _P20), kind=CiboCalibrationType.ECONOMIC_PROVIDER_BOUND, provider=True, fail_closed=True, blocker=("SPREAD_COMMISSION_SLIPPAGE_CALIBRATION_REQUIRED",)),
     _row("T12", source=(_P19, "burned:phase19:temporal-stability"), kind=CiboCalibrationType.CAUSAL_NORMALIZED, blocker=("CAUSAL_REGIME_BOUNDARIES_CALIBRATION_PENDING",)),
