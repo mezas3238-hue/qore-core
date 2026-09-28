@@ -95,6 +95,26 @@ PRE_CERTIFICATION_GATES: Final = (
 )
 
 
+SHARED_EXCELLENCE_OVERLAY_GATES: Final = (
+    "utc_001_is_floor_not_shared_target",
+    "overlay_strictly_harder_than_utc_001",
+    "numeric_superiority_margins_frozen_pre_holdout",
+    "statistical_effect_size_protocol_frozen_pre_holdout",
+    "treatment_materially_superior_to_control",
+    "treatment_materially_beyond_utc_001_boundary",
+    "higher_is_better_dimensions_exceed_both_control_and_utc_floor",
+    "lower_is_better_dimensions_improve_on_both_control_and_utc_ceiling",
+    "year_1_overlay_pass_for_seven_of_seven",
+    "year_2_overlay_pass_for_seven_of_seven",
+    "every_required_oos_fold_overlay_pass",
+    "no_core_metric_degradation",
+    "no_composite_compensation",
+    "no_cross_year_compensation",
+    "no_cross_trader_compensation",
+    "no_post_holdout_threshold_selection",
+)
+
+
 @dataclass(frozen=True, slots=True)
 class WorkPackage:
     work_id: str
@@ -411,6 +431,8 @@ FINAL_CERTIFICATION_GATES: Final = (
     "year_2_superior_for_seven_of_seven",
     "every_required_oos_fold_pass",
     "full_current_utc_001_pass_for_seven_of_seven",
+    "shared_excellence_overlay_pass_for_seven_of_seven",
+    "material_superiority_above_utc_001_and_control",
     "material_incremental_value",
     "winner_count_protected",
     "winner_r_protected",
