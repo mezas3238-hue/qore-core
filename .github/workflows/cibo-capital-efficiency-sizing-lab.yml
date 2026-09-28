@@ -42,6 +42,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_usd60_six_month_certification.py \
             src/qore/infrastructure/cibo_ce2i_holdout_registry.py \
             src/qore/infrastructure/cibo_ce2i_pre_holdout_freeze.py \
+            src/qore/infrastructure/cibo_ce2i_pre_holdout_checkpoint.py \
             src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py \
             src/qore/infrastructure/cibo_ce2i_calibration_registry.py \
             src/qore/infrastructure/cibo_ce2i_burned_calibration.py \
@@ -146,6 +147,7 @@ jobs:
             scripts/cibo_phase20_failure_engineering_b.py \
             scripts/cibo_ce2i_full_surface_contract.py \
             scripts/cibo_ce2i_calibration_matrix.py \
+            scripts/cibo_ce2i_pre_holdout_checkpoint.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
@@ -159,6 +161,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_usd60_six_month_certification.py \
             tests/infrastructure/test_cibo_ce2i_holdout_registry.py \
             tests/infrastructure/test_cibo_ce2i_pre_holdout_freeze.py \
+            tests/infrastructure/test_cibo_ce2i_pre_holdout_checkpoint.py \
             tests/infrastructure/test_cibo_ce2i_usd60_robust_capacity.py \
             tests/infrastructure/test_cibo_ce2i_calibration_registry.py \
             tests/infrastructure/test_cibo_ce2i_burned_calibration.py \
@@ -281,6 +284,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_usd60_six_month_certification.py \
             src/qore/infrastructure/cibo_ce2i_holdout_registry.py \
             src/qore/infrastructure/cibo_ce2i_pre_holdout_freeze.py \
+            src/qore/infrastructure/cibo_ce2i_pre_holdout_checkpoint.py \
             src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py \
             src/qore/infrastructure/cibo_ce2i_calibration_registry.py \
             src/qore/infrastructure/cibo_ce2i_burned_calibration.py \
@@ -384,6 +388,7 @@ jobs:
             scripts/cibo_phase20_failure_engineering_b.py \
             scripts/cibo_ce2i_full_surface_contract.py \
             scripts/cibo_ce2i_calibration_matrix.py \
+            scripts/cibo_ce2i_pre_holdout_checkpoint.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
@@ -397,6 +402,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_usd60_six_month_certification.py \
             tests/infrastructure/test_cibo_ce2i_holdout_registry.py \
             tests/infrastructure/test_cibo_ce2i_pre_holdout_freeze.py \
+            tests/infrastructure/test_cibo_ce2i_pre_holdout_checkpoint.py \
             tests/infrastructure/test_cibo_ce2i_usd60_robust_capacity.py \
             tests/infrastructure/test_cibo_ce2i_calibration_registry.py \
             tests/infrastructure/test_cibo_ce2i_burned_calibration.py \
@@ -521,6 +527,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_usd60_six_month_certification.py \
             tests/infrastructure/test_cibo_ce2i_holdout_registry.py \
             tests/infrastructure/test_cibo_ce2i_pre_holdout_freeze.py \
+            tests/infrastructure/test_cibo_ce2i_pre_holdout_checkpoint.py \
             tests/infrastructure/test_cibo_ce2i_usd60_robust_capacity.py \
             tests/infrastructure/test_cibo_ce2i_calibration_registry.py \
             tests/infrastructure/test_cibo_ce2i_burned_calibration.py \
