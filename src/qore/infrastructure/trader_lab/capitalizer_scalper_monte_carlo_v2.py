@@ -19,9 +19,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import math
 from dataclasses import asdict, dataclass
-from decimal import Decimal
+from decimal import ROUND_CEILING, Decimal
 from pathlib import Path
 from typing import Any
 
@@ -224,7 +223,14 @@ def _quantile(
     ordered = sorted(values)
     if probability == 0:
         return ordered[0]
-    rank = math.ceil(float(probability) * len(ordered)) - 1
+    rank = (
+        int(
+            (probability * Decimal(len(ordered))).to_integral_value(
+                rounding=ROUND_CEILING
+            )
+        )
+        - 1
+    )
     return ordered[min(max(rank, 0), len(ordered) - 1)]
 
 
