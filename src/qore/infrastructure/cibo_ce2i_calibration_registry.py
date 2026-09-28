@@ -17,6 +17,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_ce2i_burned_calibration import (
     burned_t04_t10_calibration_sha256,
 )
+from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
+    provider_economics_evidence_ref,
+)
 from qore.infrastructure.cibo_ce2i_tool_registry import (
     CE2I_TOOL_REGISTRY,
     ToolMaturity,
@@ -152,7 +155,7 @@ class CiboToolCalibrationRecord:
 _PHASE18 = "burned:phase18:seven-lineage-chronological-replay"
 _PHASE19 = "burned:phase19:integrated-common-window"
 _PHASE19_WFO = "burned:phase19j:post-freeze-walk-forward"
-_PROVIDER_GAP = "provider-economics:current-demo-terms-and-historical-gap"
+_PROVIDER_GAP = provider_economics_evidence_ref()
 _PHASE20_CONTRACT = "phase20:contract-and-failure-proof"
 
 
