@@ -52,10 +52,12 @@ jobs:
             scripts/cibo_phase19_burned_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_lifecycle_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_burned_non_promotion.py \
             src/qore/infrastructure/cibo_ce2i_calibration_registry.py \
             src/qore/infrastructure/cibo_ce2i_calibration_matrix.py \
             tests/infrastructure/test_cibo_ce2i_burned_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_lifecycle_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_burned_non_promotion.py \
             tests/infrastructure/test_cibo_ce2i_calibration_registry.py \
             tests/infrastructure/test_cibo_ce2i_calibration_matrix.py
           mypy \
@@ -65,6 +67,7 @@ jobs:
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ce2i_burned_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_lifecycle_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_burned_non_promotion.py \
             tests/infrastructure/test_cibo_ce2i_calibration_registry.py \
             tests/infrastructure/test_cibo_ce2i_calibration_matrix.py
 
