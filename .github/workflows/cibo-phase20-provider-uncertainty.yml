@@ -494,6 +494,7 @@ jobs:
           python scripts/cibo_phase20_forward_qualification.py \
             --evidence-store phase20-output/empty-forward-evidence.json \
             --policy-store phase20-output/empty-forward-policy.json \
+            --git-sha "$EVIDENCE_SHA" \
             --output phase20-output/phase20-forward-qualification-empty-contract.json \
             > phase20-output/forward-qualification-stdout.json
           python scripts/cibo_phase21_policy_freeze_contract.py \
