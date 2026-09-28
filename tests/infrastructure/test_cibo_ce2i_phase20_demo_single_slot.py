@@ -47,7 +47,7 @@ from qore.infrastructure.market_test_environment import (
     MarketRuntimeEnvironment,
 )
 
-OPENED = datetime(2026, 9, 27, 20, 0, tzinfo=UTC)
+OPENED = datetime(2026, 9, 28, 6, 15, tzinfo=UTC)
 DECISION = OPENED + timedelta(milliseconds=400)
 DEADLINE = OPENED + timedelta(seconds=2)
 
