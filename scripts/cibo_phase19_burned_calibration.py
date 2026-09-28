@@ -74,6 +74,14 @@ def build_report(root: Path) -> dict[str, Any]:
                 "stop-risk unit; USD risk-dollar economics excluded"
             ),
         },
+        "T05": {
+            "classification": "CALIBRATED_CAUSAL",
+            "basis": (
+                "burned chronological capital lifecycle proves release-before-"
+                "reuse and forbids same-timestamp exit recycling without "
+                "settlement evidence; incremental utility remains unvalidated"
+            ),
+        },
         "T10": {
             "classification": "CALIBRATED_CAUSAL",
             "basis": (
@@ -81,9 +89,24 @@ def build_report(root: Path) -> dict[str, Any]:
                 "output; USD output per capital-hour excluded"
             ),
         },
+        "T19": {
+            "classification": "CALIBRATED_CAUSAL",
+            "basis": (
+                "burned concurrency plus durable reservation contracts prove "
+                "reserve-before-deploy, source ownership and capacity "
+                "conservation; incremental utility remains unvalidated"
+            ),
+        },
+        "T20": {
+            "classification": "CALIBRATED_CAUSAL",
+            "basis": (
+                "burned chronological lifecycle plus release contracts prove "
+                "reconciled release-before-reuse and forbid premature release; "
+                "incremental utility remains unvalidated"
+            ),
+        },
     }
     unavailable = {
-        "T05": "recycling lifecycle is proven but incremental utility is not calibrated",
         "T06": "realized-profit expansion utility not identified by Phase19",
         "T07": "verified protected economic floor unavailable",
         "T08": "dependence evidence remains descriptive/observational",
@@ -92,8 +115,6 @@ def build_report(root: Path) -> dict[str, Any]:
         "T13": "zero reserve policies survived both walk-forward folds",
         "T15": "optionality value not causally identified by this artifact",
         "T18": "zero allocation policies survived both walk-forward folds",
-        "T19": "reservation integrity is proven but incremental utility is not calibrated",
-        "T20": "release integrity is proven but incremental utility is not calibrated",
     }
     input_hashes = {}
     for name in (
