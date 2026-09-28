@@ -335,7 +335,8 @@ class CTraderHistoricalTickReader:
         except (CTraderHistoricalTickError, OverflowError, OSError, ValueError) as error:
             return Failure(
                 CTraderHistoricalTickError(
-                    f"invalid cTrader historical tick response: {type(error).__name__}"
+                    "invalid cTrader historical tick response: "
+                    f"{type(error).__name__}: {error}"
                 )
             )
         return Success(page)
