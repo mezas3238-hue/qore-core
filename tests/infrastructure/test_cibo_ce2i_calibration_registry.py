@@ -53,10 +53,20 @@ def test_t16_t17_are_fail_closed_not_certified() -> None:
 
 def test_t04_separates_normalized_from_usd_economics() -> None:
     record = calibration_record("T04")
-    assert record.state is CiboCalibrationState.CALIBRATION_UNAVAILABLE
+    assert record.state is CiboCalibrationState.CALIBRATED_CAUSAL
+    assert record.calibrated is True
+    assert record.calibration_artifact_sha256
     assert record.provider_economics_required is True
-    assert "R_NORMALIZED_RISK_EFFICIENCY_NOT_FROZEN" in record.blockers
     assert "USD_TRUE_STOP_RISK_REQUIRES_PROVIDER_ECONOMICS" in record.blockers
+
+
+def test_t10_is_normalized_capital_time_only() -> None:
+    record = calibration_record("T10")
+    assert record.state is CiboCalibrationState.CALIBRATED_CAUSAL
+    assert record.calibrated is True
+    assert record.calibration_artifact_sha256
+    assert record.provider_economics_required is True
+    assert "USD_OUTPUT_PER_CAPITAL_TIME_PENDING_PROVIDER_ECONOMICS" in record.blockers
 
 
 def test_no_calibration_record_uses_holdout_outcomes_or_targets() -> None:
