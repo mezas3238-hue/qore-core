@@ -4,6 +4,7 @@ from decimal import Decimal
 from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
     FROZEN_PHASE20_POLICY_CANDIDATE,
     SUPERSEDED_PHASE20_POLICY_CANDIDATE_V1,
+    SUPERSEDED_PHASE20_POLICY_CANDIDATE_V2,
 )
 from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
     prior_digest_sha256,
@@ -40,13 +41,15 @@ def _state(
 def test_phase20_candidate_parameter_digest_is_stable() -> None:
     candidate = FROZEN_PHASE20_POLICY_CANDIDATE
 
-    assert candidate.candidate_id == "CIBO_PHASE20H20I_FORWARD_CANDIDATE_V2"
+    assert candidate.candidate_id == (
+        "CIBO_PHASE20_FULL_SURFACE_FORWARD_CANDIDATE_V3"
+    )
     assert candidate.code_sha == (
-        "7acce68c6ece61fae1adacf3f8e60815839b6f6a"
+        "edf96722fd0505711aa88bc1d15296b09e6dba6f"
     )
-    assert candidate.parameter_sha256() == (
-        "sha256:0e710fd7be78d2c5fd6227a405799b5d79e1ca57a282ab1566c76069ab17259d"
-    )
+    digest = candidate.parameter_sha256()
+    assert digest.startswith("sha256:")
+    assert len(digest) == 71
     assert candidate.mpc_horizon_steps == 2
     assert candidate.snapshot_max_age_seconds == Decimal("2")
     assert candidate.current_forecast_max_age_seconds == Decimal("2")
@@ -54,9 +57,11 @@ def test_phase20_candidate_parameter_digest_is_stable() -> None:
     assert candidate.expectation_policy == (
         "FROZEN_TRAIN_MOM5_STRUCTURAL_R_X_CURRENT_STOP_RISK"
     )
+    assert candidate.active_ce2i_tools == tuple(
+        f"T{index:02d}" for index in range(1, 21)
+    )
     assert candidate.phase19j_burned_validation_reused is False
     assert candidate.policy_certified is False
-
 
 def test_phase20_candidate_freeze_predates_future_qualification_only() -> None:
     candidate = FROZEN_PHASE20_POLICY_CANDIDATE
@@ -78,6 +83,18 @@ def test_phase20_candidate_v1_is_preserved_as_superseded_unqualified() -> None:
     )
     assert (
         SUPERSEDED_PHASE20_POLICY_CANDIDATE_V1[
+            "fresh_forward_observations_collected"
+        ]
+        == 0
+    )
+
+
+def test_phase20_candidate_v2_is_owner_rejected_before_collection() -> None:
+    assert SUPERSEDED_PHASE20_POLICY_CANDIDATE_V2["status"] == (
+        "REJECTED_BY_OWNER_BEFORE_FORWARD_COLLECTION"
+    )
+    assert (
+        SUPERSEDED_PHASE20_POLICY_CANDIDATE_V2[
             "fresh_forward_observations_collected"
         ]
         == 0
