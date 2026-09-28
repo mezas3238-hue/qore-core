@@ -69,6 +69,22 @@ def test_phase20_demo_activation_requires_explicit_owner_token(tmp_path) -> None
         )
 
 
+def test_phase20_demo_activation_rejects_noncanonical_boolean(
+    tmp_path,
+) -> None:
+    payload = _payload()
+    payload["live_allowed"] = "false"
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="live_allowed must be bool",
+    ):
+        load_phase20_demo_execution_activation(
+            _write(tmp_path, payload),
+            expected_git_sha=SHA,
+        )
+
+
 def test_phase20_demo_activation_rejects_git_drift(tmp_path) -> None:
     with pytest.raises(
         CiboCapitalManagementError,
