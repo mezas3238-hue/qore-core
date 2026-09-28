@@ -178,7 +178,6 @@ def assess_phase20_t15_option_realization(
             item.signal_fingerprint,
         ): item
         for item in evidence_book.outcomes
-        if item.outcome_reconciled
     }
 
     latest_decision_at = max(
