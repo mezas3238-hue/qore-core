@@ -254,10 +254,11 @@ def decode_historical_tick_page(
                 relative_price=absolute_relative_price,
                 price=price,
                 quote_type=request.quote_type,
+                wire_timestamp_value=timestamp_value,
+                wire_price_value=relative_price,
             )
         )
         previous_ms = absolute_ms
-        previous_relative_price = absolute_relative_price
         previous_relative_price = absolute_relative_price
 
     for newer, older in zip(newest_first, newest_first[1:], strict=False):
