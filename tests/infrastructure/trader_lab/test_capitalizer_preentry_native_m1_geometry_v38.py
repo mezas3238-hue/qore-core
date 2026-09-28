@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -69,6 +70,25 @@ def test_geometry_is_strictly_preentry_and_risk_normalized() -> None:
     assert Decimal(row.vector[8]) == Decimal("1")
     assert Decimal(row.vector[9]) == Decimal("3")
     assert Decimal(row.vector[10]) == Decimal("7")
+
+
+def test_json_roundtrip_restores_frozen_tuple_contract() -> None:
+    row = v38.build_geometry(
+        symbol="EURUSD",
+        side="LONG",
+        entry_at=datetime(2026, 1, 5, 10, 5, tzinfo=UTC),
+        entry_price=Decimal("100.1"),
+        stop_price=Decimal("99.5"),
+        stop_buffer_price=Decimal("0.05"),
+        m5_closeback_at=datetime(2026, 1, 5, 9, 58, tzinfo=UTC),
+        mss=_mss(),
+        zone=_zone(),
+    )
+    payload = json.loads(json.dumps(v38.as_json_dict(row)))
+
+    assert isinstance(payload["feature_names"], list)
+    assert isinstance(payload["vector"], list)
+    assert v38.from_json_dict(payload) == row
 
 
 def test_post_entry_mss_fails_closed() -> None:
