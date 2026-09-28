@@ -51,6 +51,19 @@ def test_t16_t17_are_fail_closed_not_certified() -> None:
         assert record.provider_economics_required is True
 
 
+def test_t02_is_partial_burned_causal_calibration_not_fresh_oos() -> None:
+    record = calibration_record("T02")
+
+    assert record.state is CiboCalibrationState.CALIBRATED_CAUSAL
+    assert record.calibrated is True
+    assert record.provider_economics_required is False
+    assert record.oos_ready is False
+    assert record.certification_ready is False
+    assert record.calibration_artifact_sha256
+    assert "PARTIAL_LINEAGE_CONTEXT_ELIGIBILITY_4_OF_7" in record.blockers
+    assert "FRESH_OOS_VALIDATION_PENDING" in record.blockers
+
+
 def test_t04_separates_normalized_from_usd_economics() -> None:
     record = calibration_record("T04")
     assert record.state is CiboCalibrationState.CALIBRATED_CAUSAL

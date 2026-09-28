@@ -15,7 +15,7 @@ def test_calibration_matrix_is_canonical_and_pre_holdout_conservative() -> None:
         row.tool_code
         for row in CIBO_T01_T20_CALIBRATION_MATRIX
         if row.calibrated
-    } == {"T04", "T05", "T06", "T10", "T19", "T20"}
+    } == {"T02", "T04", "T05", "T06", "T10", "T19", "T20"}
     assert not any(row.oos_ready for row in CIBO_T01_T20_CALIBRATION_MATRIX)
     assert not any(row.certification_ready for row in CIBO_T01_T20_CALIBRATION_MATRIX)
 

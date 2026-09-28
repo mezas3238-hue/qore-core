@@ -52,6 +52,8 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_burned_non_promotion.py \
             src/qore/infrastructure/cibo_ce2i_t02_burned_calibration.py \
             src/qore/infrastructure/cibo_ce2i_t02_context_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_t02_calibration_binding.py \
+            src/qore/infrastructure/cibo_ce2i_t02_calibration_binding.py \
             src/qore/infrastructure/cibo_ce2i_calibration_matrix.py \
             src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py \
@@ -182,6 +184,8 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_burned_non_promotion.py \
             tests/infrastructure/test_cibo_ce2i_t02_burned_calibration.py \
             tests/infrastructure/test_cibo_ce2i_t02_context_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_t02_calibration_binding.py \
+            tests/infrastructure/test_cibo_ce2i_t02_calibration_binding.py \
             tests/infrastructure/test_cibo_ce2i_calibration_matrix.py \
             tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py \
             tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py \

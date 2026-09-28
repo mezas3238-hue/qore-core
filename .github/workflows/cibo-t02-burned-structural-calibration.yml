@@ -9,8 +9,14 @@ on:
       - 'scripts/cibo_t02_burned_structural_calibration.py'
       - 'src/qore/infrastructure/cibo_ce2i_t02_burned_calibration.py'
       - 'src/qore/infrastructure/cibo_ce2i_t02_context_calibration.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t02_calibration_binding.py'
+      - 'src/qore/infrastructure/cibo_capital_management_authority.py'
+      - 'src/qore/infrastructure/cibo_live_opportunity.py'
+      - 'src/qore/infrastructure/r34_xauusd_live.py'
+      - 'src/qore/infrastructure/r38_eurusd_live.py'
       - 'scripts/cibo_t02_burned_context_calibration.py'
       - 'tests/infrastructure/test_cibo_ce2i_t02_context_calibration.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t02_calibration_binding.py'
       - 'tests/infrastructure/test_cibo_ce2i_t02_burned_calibration.py'
       - 'src/qore/infrastructure/cibo_ce2i_calibration_registry.py'
       - 'tests/infrastructure/test_cibo_ce2i_calibration_registry.py'
@@ -22,6 +28,14 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_t02_burned_calibration.py'
       - 'src/qore/infrastructure/cibo_ce2i_calibration_registry.py'
       - 'tests/infrastructure/test_cibo_ce2i_calibration_registry.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t02_context_calibration.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t02_calibration_binding.py'
+      - 'src/qore/infrastructure/cibo_capital_management_authority.py'
+      - 'src/qore/infrastructure/cibo_live_opportunity.py'
+      - 'src/qore/infrastructure/r34_xauusd_live.py'
+      - 'src/qore/infrastructure/r38_eurusd_live.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t02_context_calibration.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t02_calibration_binding.py'
   workflow_dispatch:
 
 permissions:
@@ -51,17 +65,27 @@ jobs:
           ruff check \
             src/qore/infrastructure/cibo_ce2i_t02_burned_calibration.py \
             src/qore/infrastructure/cibo_ce2i_t02_context_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_t02_calibration_binding.py \
+            src/qore/infrastructure/cibo_capital_management_authority.py \
+            src/qore/infrastructure/cibo_live_opportunity.py \
+            src/qore/infrastructure/r34_xauusd_live.py \
+            src/qore/infrastructure/r38_eurusd_live.py \
             scripts/cibo_t02_burned_structural_calibration.py \
             scripts/cibo_t02_burned_context_calibration.py \
             tests/infrastructure/test_cibo_ce2i_t02_burned_calibration.py \
-            tests/infrastructure/test_cibo_ce2i_t02_context_calibration.py
+            tests/infrastructure/test_cibo_ce2i_t02_context_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_t02_calibration_binding.py
           mypy \
             src/qore/infrastructure/cibo_ce2i_t02_burned_calibration.py \
             src/qore/infrastructure/cibo_ce2i_t02_context_calibration.py \
-            scripts/cibo_t02_burned_structural_calibration.py
+            scripts/cibo_t02_burned_structural_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_t02_calibration_binding.py \
+            src/qore/infrastructure/cibo_capital_management_authority.py \
+            src/qore/infrastructure/cibo_live_opportunity.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ce2i_t02_burned_calibration.py \
-            tests/infrastructure/test_cibo_ce2i_t02_context_calibration.py
+            tests/infrastructure/test_cibo_ce2i_t02_context_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_t02_calibration_binding.py
 
       - name: Download immutable burned Phase18 artifacts
         shell: bash

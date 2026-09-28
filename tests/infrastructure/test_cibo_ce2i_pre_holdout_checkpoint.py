@@ -12,7 +12,15 @@ def test_pre_holdout_checkpoint_fails_closed_before_full_calibration() -> None:
     assert checkpoint.holdout_state is CiboHoldoutSealState.SEALED_UNTOUCHED
     assert checkpoint.holdout_2017h1_read is False
     assert checkpoint.pre_holdout_freeze_active is False
-    assert checkpoint.calibrated_tools == ("T04", "T10")
+    assert checkpoint.calibrated_tools == (
+        "T02",
+        "T04",
+        "T05",
+        "T06",
+        "T10",
+        "T19",
+        "T20",
+    )
     assert checkpoint.oos_ready_tools == ()
     assert checkpoint.certification_ready_tools == ()
     assert checkpoint.ready_to_freeze is False

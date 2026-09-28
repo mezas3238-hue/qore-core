@@ -45,6 +45,19 @@ def test_builder_produces_volume_free_opportunity() -> None:
     assert opportunity.stop_loss_per_volume == Decimal("114.24")
 
 
+def test_decision_context_is_preserved_without_sizing_authority() -> None:
+    opportunity = _build(
+        decision_context=(
+            ("family", "LONG_DELAYED_RECLAIM_MEDIUM_BODY"),
+            ("target_route", "PRIOR_CANDLE_DIRECTIONAL_BOUNDARY:H1"),
+        )
+    )
+
+    assert opportunity.context_value("side") == "long"
+    assert opportunity.context_value("family") == "LONG_DELAYED_RECLAIM_MEDIUM_BODY"
+    assert opportunity.context_value("missing") is None
+
+
 def test_adverse_entry_drift_is_preserved_before_cibo_sizing() -> None:
     with pytest.raises(CiboCapitalManagementError, match="drift"):
         _build(execution_entry=Decimal("2602"))
