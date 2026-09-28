@@ -36,6 +36,9 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_readiness import (
 from qore.infrastructure.cibo_ce2i_phase20_t14_path_readiness import (
     Phase20T14PathReadiness,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t15_option_realization import (
+    Phase20T15OptionRealization,
+)
 
 
 class Phase20ToolEvidenceState(StrEnum):
@@ -178,6 +181,7 @@ def assess_phase20_causal_tool_readiness(
     evidence_book: VersionedPhase20ForwardEvidenceBook,
     qualification_readiness: Phase20QualificationReadiness,
     t14_path_readiness: Phase20T14PathReadiness | None = None,
+    t15_option_realization: Phase20T15OptionRealization | None = None,
 ) -> Phase20CausalToolReadinessReport:
     """Measure tool-specific causal evidence without granting calibration."""
 
@@ -195,6 +199,13 @@ def assess_phase20_causal_tool_readiness(
     ):
         raise CiboCapitalManagementError(
             "Phase20 causal readiness T14 path evidence is invalid"
+        )
+    if (
+        t15_option_realization is not None
+        and not isinstance(t15_option_realization, Phase20T15OptionRealization)
+    ):
+        raise CiboCapitalManagementError(
+            "Phase20 causal readiness T15 option evidence is invalid"
         )
 
     usable: list[tuple[Phase20ForwardDecisionSeal, dict[str, Any]]] = []
@@ -348,14 +359,12 @@ def assess_phase20_causal_tool_readiness(
             total_usable=total_usable,
             readiness=t14_path_readiness,
         ),
-        Phase20ToolEvidenceReadiness(
-            tool_code="T15",
-            state=Phase20ToolEvidenceState.COLLECTING_FORWARD,
-            stream_bound=t15_stream,
-            forward_population_ready=False,
-            observed_epochs=total_usable,
-            qualifying_epochs=known_option_epochs,
-            blockers=tuple(t15_blockers),
+        _t15_row(
+            total_usable=total_usable,
+            fallback_stream=t15_stream,
+            fallback_known_option_epochs=known_option_epochs,
+            fallback_blockers=tuple(t15_blockers),
+            realization=t15_option_realization,
         ),
         _row(
             "T18",
@@ -379,6 +388,49 @@ def assess_phase20_causal_tool_readiness(
         known_option_epochs=known_option_epochs,
         causal_history_epochs=causal_history_epochs,
         tools=rows,
+    )
+
+
+def _t15_row(
+    *,
+    total_usable: int,
+    fallback_stream: bool,
+    fallback_known_option_epochs: int,
+    fallback_blockers: tuple[str, ...],
+    realization: Phase20T15OptionRealization | None,
+) -> Phase20ToolEvidenceReadiness:
+    if realization is None:
+        return Phase20ToolEvidenceReadiness(
+            tool_code="T15",
+            state=(
+                Phase20ToolEvidenceState.COLLECTING_FORWARD
+                if fallback_stream
+                else Phase20ToolEvidenceState.STREAM_BLOCKED
+            ),
+            stream_bound=fallback_stream,
+            forward_population_ready=False,
+            observed_epochs=total_usable,
+            qualifying_epochs=fallback_known_option_epochs,
+            blockers=fallback_blockers,
+        )
+    blockers = tuple(
+        dict.fromkeys(
+            realization.blockers
+            + ("FRESH_OOS_OPTIONALITY_UTILITY_ANALYSIS_REQUIRED",)
+        )
+    )
+    return Phase20ToolEvidenceReadiness(
+        tool_code="T15",
+        state=(
+            Phase20ToolEvidenceState.COLLECTING_FORWARD
+            if realization.stream_bound
+            else Phase20ToolEvidenceState.STREAM_BLOCKED
+        ),
+        stream_bound=realization.stream_bound,
+        forward_population_ready=False,
+        observed_epochs=realization.matured_option_instances,
+        qualifying_epochs=realization.materialized_candidate_instances,
+        blockers=blockers,
     )
 
 

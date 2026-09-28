@@ -27,6 +27,9 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification import (
 from qore.infrastructure.cibo_ce2i_phase20_t14_path_readiness import (
     assess_phase20_t14_path_readiness,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t15_option_realization import (
+    assess_phase20_t15_option_realization,
+)
 from qore.infrastructure.ctrader_demo_live_behavior_lab import (
     CTraderDemoLiveBehaviorLedger,
 )
@@ -293,10 +296,14 @@ def main() -> None:
                 args.behavior_ledger
             ).events(),
         )
+    t15_option_realization = assess_phase20_t15_option_realization(
+        evidence
+    )
     tool_readiness = assess_phase20_causal_tool_readiness(
         evidence_book=evidence,
         qualification_readiness=report.readiness,
         t14_path_readiness=t14_path_readiness,
+        t15_option_realization=t15_option_realization,
     )
     payload = _report_json(report)
     payload["causal_tool_readiness"] = {
@@ -319,6 +326,34 @@ def main() -> None:
         ),
         "known_option_epochs": tool_readiness.known_option_epochs,
         "causal_history_epochs": tool_readiness.causal_history_epochs,
+        "t15_option_realization": {
+            "stream_bound": t15_option_realization.stream_bound,
+            "known_option_instances": (
+                t15_option_realization.known_option_instances
+            ),
+            "signal_bound_option_instances": (
+                t15_option_realization.signal_bound_option_instances
+            ),
+            "matured_option_instances": (
+                t15_option_realization.matured_option_instances
+            ),
+            "materialized_candidate_instances": (
+                t15_option_realization.materialized_candidate_instances
+            ),
+            "reconciled_materialized_outcomes": (
+                t15_option_realization.reconciled_materialized_outcomes
+            ),
+            "expired_before_materialization": (
+                t15_option_realization.expired_before_materialization
+            ),
+            "unresolved_matured_options": (
+                t15_option_realization.unresolved_matured_options
+            ),
+            "distinct_origin_epochs": (
+                t15_option_realization.distinct_origin_epochs
+            ),
+            "blockers": list(t15_option_realization.blockers),
+        },
         "t14_path_readiness": (
             None
             if t14_path_readiness is None
