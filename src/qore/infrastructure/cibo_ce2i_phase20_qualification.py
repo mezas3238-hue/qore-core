@@ -119,6 +119,9 @@ class Phase20QualificationReport:
     concentration_utilization: Decimal
     provider_failure_incidence: Decimal
     evidence_missingness: Decimal
+    advanced_ce2i_applied_rate: Decimal
+    advanced_ce2i_abstention_rate: Decimal
+    advanced_ce2i_fail_closed_rate: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -133,12 +136,12 @@ class _ParsedCandidate:
     provider_cost_proxy_usd: Decimal
 
 
-def run_phase20d_v2_qualification(
+def run_phase20d_full_surface_qualification(
     *,
     evidence_book: VersionedPhase20ForwardEvidenceBook,
     policy_book: VersionedPhase20ForwardPolicyBook,
 ) -> Phase20QualificationReport:
-    """Run the frozen V2 protocol; no parameters are fitted from outcomes."""
+    """Run the frozen full-surface protocol; no parameters are fitted from outcomes."""
 
     if not isinstance(evidence_book, VersionedPhase20ForwardEvidenceBook):
         raise CiboCapitalManagementError(
@@ -174,6 +177,10 @@ def run_phase20d_v2_qualification(
     coverable_option_epochs = 0
     population_slots = 0
     provider_failures = 0
+    advanced_total = 0
+    advanced_applied = 0
+    advanced_abstained = 0
+    advanced_fail_closed = 0
 
     ordered_decisions = tuple(
         sorted(
@@ -213,6 +220,19 @@ def run_phase20d_v2_qualification(
             policy_record=policy_record,
             failures=safety_failures,
         )
+        (
+            advanced_rows,
+            applied_rows,
+            abstained_rows,
+            failed_rows,
+        ) = _inspect_full_surface_policy(
+            policy_record=policy_record,
+            failures=safety_failures,
+        )
+        advanced_total += advanced_rows
+        advanced_applied += applied_rows
+        advanced_abstained += abstained_rows
+        advanced_fail_closed += failed_rows
         cap, used, conc_limit, conc_used, starved, considered, coverable = (
             _policy_operational_metrics(
                 payload=payload,
@@ -469,6 +489,18 @@ def run_phase20d_v2_qualification(
             Decimal(population_slots),
         ),
         evidence_missingness=Decimal(1) - candidate_coverage,
+        advanced_ce2i_applied_rate=_ratio(
+            Decimal(advanced_applied),
+            Decimal(advanced_total),
+        ),
+        advanced_ce2i_abstention_rate=_ratio(
+            Decimal(advanced_abstained),
+            Decimal(advanced_total),
+        ),
+        advanced_ce2i_fail_closed_rate=_ratio(
+            Decimal(advanced_fail_closed),
+            Decimal(advanced_total),
+        ),
     )
 
 
@@ -645,6 +677,77 @@ def _provider_cost_proxy(
         + _decimal(provider["slippage_reserve_per_volume_usd"])
     )
     return executable_volume * cost_per_volume
+
+
+def _inspect_full_surface_policy(
+    *,
+    policy_record: dict[str, object],
+    failures: list[str],
+) -> tuple[int, int, int, int]:
+    if not policy_record:
+        return (0, 0, 0, 0)
+    surface = policy_record.get("full_surface")
+    if not isinstance(surface, dict):
+        failures.append("FULL_CE2I_TOOL_SURFACE_20_OF_20_IMPLEMENTED")
+        return (0, 0, 0, 0)
+    expected_registry = [f"T{index:02d}" for index in range(1, 21)]
+    if (
+        surface.get("complete_registry") is not True
+        or surface.get("registry_codes") != expected_registry
+    ):
+        failures.append("FULL_CE2I_TOOL_SURFACE_20_OF_20_IMPLEMENTED")
+
+    raw_decisions: list[object] = []
+    opportunity_rows = surface.get("opportunity_assessments", [])
+    if not isinstance(opportunity_rows, list):
+        failures.append("ADVANCED_TOOL_EVIDENCE_COMPLETE_OR_EXPLICIT_ABSTENTION")
+        opportunity_rows = []
+    for row in opportunity_rows:
+        if not isinstance(row, dict):
+            failures.append(
+                "ADVANCED_TOOL_EVIDENCE_COMPLETE_OR_EXPLICIT_ABSTENTION"
+            )
+            continue
+        decisions = row.get("decisions", [])
+        if not isinstance(decisions, list):
+            failures.append(
+                "ADVANCED_TOOL_EVIDENCE_COMPLETE_OR_EXPLICIT_ABSTENTION"
+            )
+            continue
+        raw_decisions.extend(decisions)
+
+    portfolio_rows = surface.get("portfolio_decisions", [])
+    if not isinstance(portfolio_rows, list):
+        failures.append("ADVANCED_TOOL_EVIDENCE_COMPLETE_OR_EXPLICIT_ABSTENTION")
+        portfolio_rows = []
+    raw_decisions.extend(portfolio_rows)
+
+    applied = 0
+    abstained = 0
+    fail_closed = 0
+    for row in raw_decisions:
+        if not isinstance(row, dict):
+            failures.append(
+                "ADVANCED_TOOL_EVIDENCE_COMPLETE_OR_EXPLICIT_ABSTENTION"
+            )
+            fail_closed += 1
+            continue
+        disposition = row.get("disposition")
+        if disposition == "APPLIED":
+            applied += 1
+        elif disposition == "ABSTAIN":
+            abstained += 1
+        elif disposition == "FAIL_CLOSED":
+            fail_closed += 1
+            failures.append(
+                "ADVANCED_TOOL_EVIDENCE_COMPLETE_OR_EXPLICIT_ABSTENTION"
+            )
+        else:
+            fail_closed += 1
+            failures.append(
+                "ADVANCED_TOOL_EVIDENCE_COMPLETE_OR_EXPLICIT_ABSTENTION"
+            )
+    return (len(raw_decisions), applied, abstained, fail_closed)
 
 
 def _inspect_policy_safety(
@@ -893,3 +996,17 @@ def _decimal(value: object) -> Decimal:
             "Phase20D canonical decimal must be finite"
         )
     return result
+
+
+
+def run_phase20d_v2_qualification(
+    *,
+    evidence_book: VersionedPhase20ForwardEvidenceBook,
+    policy_book: VersionedPhase20ForwardPolicyBook,
+) -> Phase20QualificationReport:
+    """Compatibility alias for callers migrating from the rejected V2 name."""
+
+    return run_phase20d_full_surface_qualification(
+        evidence_book=evidence_book,
+        policy_book=policy_book,
+    )
