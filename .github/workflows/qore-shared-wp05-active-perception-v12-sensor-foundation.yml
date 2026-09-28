@@ -9,6 +9,7 @@ on:
       - src/qore/infrastructure/ctrader_historical_tick_data.py
       - src/qore/infrastructure/historical_quote_side_evidence.py
       - tests/infrastructure/test_ctrader_historical_tick_data.py
+      - tests/infrastructure/test_ctrader_open_api_permission_scope.py
       - tests/infrastructure/test_historical_quote_side_evidence.py
       - .github/workflows/qore-shared-wp05-active-perception-v12-sensor-foundation.yml
   pull_request:
@@ -44,7 +45,7 @@ jobs:
 
       - name: Validate historical tick sensor boundary
         run: |
-          ruff check src/qore/infrastructure/ctrader_open_api_client.py src/qore/infrastructure/ctrader_historical_tick_data.py src/qore/infrastructure/historical_quote_side_evidence.py tests/infrastructure/test_ctrader_historical_tick_data.py tests/infrastructure/test_historical_quote_side_evidence.py
+          ruff check src/qore/infrastructure/ctrader_open_api_client.py src/qore/infrastructure/ctrader_historical_tick_data.py src/qore/infrastructure/historical_quote_side_evidence.py tests/infrastructure/test_ctrader_historical_tick_data.py tests/infrastructure/test_ctrader_open_api_permission_scope.py tests/infrastructure/test_historical_quote_side_evidence.py
           mypy src/qore/infrastructure/ctrader_historical_tick_data.py src/qore/infrastructure/historical_quote_side_evidence.py
           python -m py_compile src/qore/infrastructure/ctrader_historical_tick_data.py src/qore/infrastructure/historical_quote_side_evidence.py
           pytest -q tests/infrastructure/test_ctrader_historical_tick_data.py tests/infrastructure/test_historical_quote_side_evidence.py tests/infrastructure/test_qualified_quote_evidence.py tests/infrastructure/test_quote_tick_capture.py tests/infrastructure/test_historical_market_event_dataset.py
