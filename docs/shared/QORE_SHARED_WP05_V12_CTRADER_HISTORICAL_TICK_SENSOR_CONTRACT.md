@@ -37,7 +37,10 @@ Provider documentation establishes:
   pilot uses signed non-positive deltas for those subsequent newest-first
   records; QORE therefore reconstructs them by addition to the preceding
   absolute timestamp and admits zero for same-millisecond updates;
-- tick price is an integer relative price scaled by 100000;
+- the first tick price is the absolute provider-relative integer price;
+  subsequent `tick` fields are signed deltas from the preceding tick price,
+  observed in the same authenticated provider stream and accumulated before
+  division by 100000;
 - historical request traffic is limited to 5 requests per second per
   connection.
 
@@ -61,8 +64,10 @@ Historical acquisition must:
    encoding; zero deltas are valid for multiple updates in the same millisecond;
    positive subsequent deltas are rejected because they contradict newest-first
    chronology;
-7. retain the original relative integer price as well as the exact normalized
-   decimal representation;
+7. retain the deterministically reconstructed absolute provider-relative
+   integer price as well as the exact normalized decimal representation; raw
+   provider page evidence must remain reproducible from the bound acquisition
+   artifact/shard provenance;
 8. preserve which quote side produced every tick;
 9. reject malformed/non-monotonic timestamp chains;
 10. reject response/account mismatches;
