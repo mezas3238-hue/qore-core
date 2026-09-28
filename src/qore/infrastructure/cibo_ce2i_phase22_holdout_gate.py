@@ -158,13 +158,18 @@ def assess_phase22_holdout_lineage(
         reasons.append("HOLDOUT_POLICY_DECISION_SET_MISMATCH")
 
     for outcome in holdout_evidence_book.outcomes:
-        decision = decision_by_sha.get(outcome.decision_evidence_sha256)
-        if decision is None:
+        outcome_decision = decision_by_sha.get(
+            outcome.decision_evidence_sha256
+        )
+        if outcome_decision is None:
             reasons.append("HOLDOUT_OUTCOME_WITHOUT_DECISION")
             continue
-        if outcome.signal_fingerprint not in decision.signal_fingerprints:
+        if (
+            outcome.signal_fingerprint
+            not in outcome_decision.signal_fingerprints
+        ):
             reasons.append("HOLDOUT_OUTCOME_SIGNAL_NOT_IN_DECISION")
-        if outcome.observed_at <= decision.decision_at:
+        if outcome.observed_at <= outcome_decision.decision_at:
             reasons.append("HOLDOUT_OUTCOME_NOT_POST_DECISION")
 
     ordered_times = tuple(item.decision_at for item in decisions)
