@@ -23,6 +23,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_capital_source_ledger_store import (
     VersionedCapitalSourceLedger,
 )
+from qore.infrastructure.cibo_ce2i_advanced_evidence import (
+    AdvancedCe2iEvidenceSnapshot,
+)
 from qore.infrastructure.cibo_ce2i_phase20_demo_regime import (
     PHASE20_DEMO_REGIME_POLICY_ID,
     build_phase20_demo_regime_state,
@@ -144,6 +147,7 @@ def prepare_ctrader_demo_m5_phase20_epoch(
     capital_state: VersionedCapitalSourceLedger,
     highest_closed_balance: Decimal,
     current_step: int,
+    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot,
     collector_git_sha: str | None = None,
 ) -> Phase20DemoM5PreparedShadow:
     """Seal one complete M5 shadow epoch without changing the execution path."""
@@ -205,6 +209,7 @@ def prepare_ctrader_demo_m5_phase20_epoch(
         current_step=current_step,
         population_slots=batch.population_slots,
         opportunities=batch.opportunities,
+        advanced_evidence_snapshot=advanced_evidence_snapshot,
         seal_deadline_at=batch.deadline_at,
         collector_git_sha=collector_git_sha,
     )
@@ -265,6 +270,7 @@ def observe_ctrader_demo_m5_phase20_epoch(
     capital_state: VersionedCapitalSourceLedger,
     highest_closed_balance: Decimal,
     current_step: int,
+    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot,
     collector_git_sha: str | None = None,
 ) -> Phase20DemoM5RuntimeObservation:
     """Convenience composition; runtime may split prepare/finalize around submit."""
@@ -287,6 +293,7 @@ def observe_ctrader_demo_m5_phase20_epoch(
         capital_state=capital_state,
         highest_closed_balance=highest_closed_balance,
         current_step=current_step,
+        advanced_evidence_snapshot=advanced_evidence_snapshot,
         collector_git_sha=collector_git_sha,
     )
     return finalize_ctrader_demo_m5_phase20_policy(
