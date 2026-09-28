@@ -7,6 +7,7 @@ on:
     paths:
       - 'src/qore/infrastructure/trader_lab/capitalizer_scalper_certification_metrics_v2.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_scalper_certification_metrics_v2.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_scalper_consumed_certification_audit_v2.py'
       - '.github/workflows/qore-capitalizer-certification-analytics-v2.yml'
   workflow_dispatch:
 
@@ -27,6 +28,7 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/trader_lab/capitalizer_scalper_certification_metrics_v2.py \
+            src/qore/infrastructure/trader_lab/capitalizer_scalper_consumed_certification_audit_v2.py \
             tests/infrastructure/trader_lab/test_capitalizer_scalper_certification_metrics_v2.py
       - name: Mypy
         run: |
