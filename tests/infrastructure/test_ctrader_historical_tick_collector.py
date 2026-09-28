@@ -13,6 +13,7 @@ from qore.infrastructure.ctrader_historical_tick_collector import (
     resolve_ctrader_historical_sensor_identity,
     split_historical_request_windows,
 )
+from qore.infrastructure.ctrader_open_api_client import CTraderOpenApiProtocolError
 from qore.infrastructure.market_data import Instrument
 from qore.infrastructure.ports import (
     AdapterId,
@@ -20,7 +21,7 @@ from qore.infrastructure.ports import (
     PortName,
     SourceId,
 )
-from qore.kernel.result import Success
+from qore.kernel.result import Failure, Success
 
 _BASE = datetime(2017, 1, 1, tzinfo=UTC)
 _SOURCE = ExternalSourceDescriptor(
@@ -277,3 +278,47 @@ def test_read_only_message_firewall_allows_historical_tick_request() -> None:
     )
 
     assert isinstance(result, Success)
+
+
+class FailingFirewallClient(FirewallClient):
+    def request(
+        self,
+        message_name: str,
+        fields,
+        *,
+        client_msg_id: str,
+        timeout_seconds: float,
+    ):
+        if message_name == "ProtoOAGetTickDataReq":
+            return Failure(
+                CTraderOpenApiProtocolError(
+                    "cTrader request rejected: HISTORICAL_DATA_NOT_AVAILABLE"
+                )
+            )
+        return super().request(
+            message_name,
+            fields,
+            client_msg_id=client_msg_id,
+            timeout_seconds=timeout_seconds,
+        )
+
+
+def test_read_only_firewall_preserves_sanitized_provider_rejection() -> None:
+    firewall = CTraderHistoricalReadOnlyMessageClient(FailingFirewallClient())
+
+    result = firewall.request(
+        "ProtoOAGetTickDataReq",
+        {
+            "ctidTraderAccountId": 123,
+            "symbolId": 456,
+            "type": 1,
+            "fromTimestamp": 1,
+            "toTimestamp": 2,
+        },
+        client_msg_id="diagnostic",
+        timeout_seconds=10.0,
+    )
+
+    assert isinstance(result, Failure)
+    assert isinstance(result.error, CTraderOpenApiProtocolError)
+    assert "HISTORICAL_DATA_NOT_AVAILABLE" in str(result.error)
