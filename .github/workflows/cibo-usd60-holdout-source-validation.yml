@@ -1,0 +1,130 @@
+name: QORE CIBO USD60 Holdout Source Validation
+
+on:
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-usd60-holdout-source-validation.yml'
+      - 'scripts/cibo_usd60_holdout_source_validation.py'
+      - 'src/qore/infrastructure/cibo_ce2i_holdout_registry.py'
+      - 'tests/infrastructure/test_cibo_ce2i_holdout_registry.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  blind-source-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_ce2i_holdout_registry.py \
+            scripts/cibo_usd60_holdout_source_validation.py \
+            tests/infrastructure/test_cibo_ce2i_holdout_registry.py
+          mypy \
+            src/qore/infrastructure/cibo_ce2i_holdout_registry.py \
+            scripts/cibo_usd60_holdout_source_validation.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_holdout_registry.py
+
+      - name: Download immutable 10Y atlas source artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p holdout-source/raw
+          declare -A ids=(
+            [audjpy]=10476530915
+            [eurusd]=10475354631
+            [gbpjpy]=10475453293
+            [gbpusd]=10475449182
+            [nas100]=10476153072
+            [xauusd]=10476557530
+          )
+          for symbol in "${!ids[@]}"; do
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ids[$symbol]}/zip" \
+              > "holdout-source/raw/${symbol}.zip"
+          done
+          sha256sum holdout-source/raw/*.zip \
+            > holdout-source/raw-source-SHA256SUMS.txt
+          sha256sum -c holdout-source/raw-source-SHA256SUMS.txt
+
+      - name: Validate preregistered 2017H1 sources without Trader outcomes
+        run: |
+          python scripts/cibo_usd60_holdout_source_validation.py \
+            --audjpy holdout-source/raw/audjpy.zip \
+            --eurusd holdout-source/raw/eurusd.zip \
+            --gbpjpy holdout-source/raw/gbpjpy.zip \
+            --gbpusd holdout-source/raw/gbpusd.zip \
+            --nas100 holdout-source/raw/nas100.zip \
+            --xauusd holdout-source/raw/xauusd.zip \
+            --output holdout-source/holdout-source-validation.json \
+            > holdout-source/holdout-source-validation.stdout.json
+
+      - name: Prove validation did not inspect Trader outcomes
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("holdout-source/holdout-source-validation.json").read_text()
+          )
+          assert payload["candidate_id"] == "CIBO_USD60_6M_HOLDOUT_2017H1_V1"
+          assert payload["holdout_start"] == "2017-01-01T00:00:00+00:00"
+          assert payload["holdout_end_exclusive"] == "2017-07-01T00:00:00+00:00"
+          assert payload["selection_outcomes_inspected"] is False
+          assert payload["trader_outcomes_executed"] is False
+          assert payload["burn_clean"] is True
+          assert payload["market_source_ready"] is True
+          assert payload["provider_economics_ready"] is False
+          assert payload["status"] == (
+              "MARKET_SOURCE_READY_PROVIDER_ECONOMICS_PENDING"
+          )
+          assert set(payload["symbols"]) == {
+              "AUDJPY", "EURUSD", "GBPJPY",
+              "GBPUSD", "NAS100", "XAUUSD",
+          }
+          PY
+
+      - name: Seal blind source-validation evidence
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > holdout-source/git-sha.txt
+          cd holdout-source
+          sha256sum \
+            holdout-source-validation.json \
+            holdout-source-validation.stdout.json \
+            raw-source-SHA256SUMS.txt \
+            git-sha.txt \
+            > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - name: Remove raw price archives before artifact upload
+        run: rm -rf holdout-source/raw
+
+      - name: Upload sanitized source-validation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-usd60-holdout-source-validation-${{ github.sha }}
+          path: holdout-source
+          if-no-files-found: error
+          retention-days: 90
