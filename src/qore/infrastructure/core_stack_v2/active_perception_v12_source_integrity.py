@@ -199,6 +199,13 @@ def audit_historical_quote_side_page(
             tick.get("provider_event_at"),
             field="provider_event_at",
         )
+        if type(tick.get("provider_wire_timestamp_value")) is not int:
+            raise V12SourceIntegrityError("provider wire timestamp must be int")
+        if type(tick.get("provider_wire_price_value")) is not int:
+            raise V12SourceIntegrityError("provider wire price must be int")
+        normalized_price = tick.get("price")
+        if not isinstance(normalized_price, str) or not normalized_price:
+            raise V12SourceIntegrityError("normalized provider price must be string")
         if event_at < request_from_at or event_at > request_to_at:
             raise V12SourceIntegrityError("provider event escaped requested interval")
         if event_at > retrieved_at:
