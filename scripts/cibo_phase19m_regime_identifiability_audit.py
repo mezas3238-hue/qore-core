@@ -33,13 +33,22 @@ EXPECTED_CANONICAL_LINEAGES = (
     TraderLineage.R38_GBPJPY,
     TraderLineage.R43_GBPUSD,
     TraderLineage.R42_AUDJPY,
-)
-EXPECTED_BESPOKE_UNMAPPED_LINEAGES = (TraderLineage.VT31_NAS100,)
-EXPECTED_MISSING_LINEAGES = (
     TraderLineage.R38_EURUSD,
     TraderLineage.R34_XAUUSD,
-    TraderLineage.VT08_FOREX,
 )
+EXPECTED_BESPOKE_UNMAPPED_LINEAGES = (TraderLineage.VT31_NAS100,)
+EXPECTED_MISSING_LINEAGES = (TraderLineage.VT08_FOREX,)
+
+PHASE19M_ENRICHED_SOURCE_ARTIFACTS = {
+    "eurusd": (
+        10991279002,
+        "sha256:fde7699d9920fa8ffea7ed860d83bf744070224ed58a9bcfbe84ca26beed2136",
+    ),
+    "xauusd": (
+        10991074598,
+        "sha256:fa21147d4788931e35533d81b52a0b17c2e4f3388bbfc5e4d2666895350721d3",
+    ),
+}
 
 
 def _common_rows(rows: list[dict[str, Any]]) -> tuple[dict[str, Any], ...]:
@@ -84,10 +93,14 @@ def run(
                 rows=common,
             )
         )
+        artifact_id, artifact_digest = PHASE19M_ENRICHED_SOURCE_ARTIFACTS.get(
+            key,
+            (spec.artifact_id, spec.artifact_digest),
+        )
         source_evidence[key] = {
             "trader_id": spec.trader_id.value,
-            "artifact_id": spec.artifact_id,
-            "artifact_digest": spec.artifact_digest,
+            "artifact_id": artifact_id,
+            "artifact_digest": artifact_digest,
             "common_rows": len(common),
         }
 
@@ -116,9 +129,9 @@ def run(
     }
 
     report: dict[str, Any] = {
-        "schema": "qore.cibo.phase19m.regime_identifiability.v1",
-        "identity": "CIBO_PHASE19M_REGIME_IDENTIFIABILITY_AUDIT_V1",
-        "status": "PORTFOLIO_REGIME_IDENTIFIABILITY_BLOCKED_PARTIAL_3_OF_7",
+        "schema": "qore.cibo.phase19m.regime_identifiability.v2",
+        "identity": "CIBO_PHASE19M_REGIME_IDENTIFIABILITY_AUDIT_V2",
+        "status": "PORTFOLIO_REGIME_IDENTIFIABILITY_BLOCKED_PARTIAL_5_OF_7",
         "common_window": {
             "start": EXPECTED_COMMON_START,
             "end": EXPECTED_COMMON_END,
@@ -144,7 +157,7 @@ def run(
         },
         "lineage_audit": by_trader,
         "t12_required_evidence": {
-            "causal_regime_state": "PARTIAL_CANONICAL_COVERAGE_3_OF_7",
+            "causal_regime_state": "PARTIAL_CANONICAL_COVERAGE_5_OF_7",
             "tool_eligibility_contract": "IMPLEMENTED_NOT_EMPIRICALLY_CALIBRATED",
             "account_state": "RECONSTRUCTIBLE_BUT_NOT_BOUND_TO_SHARED_REGIME_SCHEMA",
             "provider_condition": "HISTORICAL_PROVIDER_STATE_NOT_BOUND",

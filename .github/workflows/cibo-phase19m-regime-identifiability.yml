@@ -81,12 +81,12 @@ jobs:
           echo "7b40e1be53ce0508106b036c68ce4ebb3155bc5c14875144634e365cfb988de5  audjpy.zip" | sha256sum -c -
           unzip -q audjpy.zip -d source/audjpy
 
-          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10910397898/zip" > eurusd.zip
-          echo "71bb5ce12b7cfc8f2d17b89dcf907b8b74f4a2257f2055adbe9e9d619c324774  eurusd.zip" | sha256sum -c -
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10991279002/zip" > eurusd.zip
+          echo "fde7699d9920fa8ffea7ed860d83bf744070224ed58a9bcfbe84ca26beed2136  eurusd.zip" | sha256sum -c -
           unzip -q eurusd.zip -d source/eurusd
 
-          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10910328640/zip" > xauusd.zip
-          echo "aade958d597032bad08c56043a6c48c145b8ab263f032f2b65c147fd3db7aadd  xauusd.zip" | sha256sum -c -
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10991074598/zip" > xauusd.zip
+          echo "fa21147d4788931e35533d81b52a0b17c2e4f3388bbfc5e4d2666895350721d3  xauusd.zip" | sha256sum -c -
           unzip -q xauusd.zip -d source/xauusd
 
           gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10913050112/zip" > vt08.zip
@@ -123,10 +123,10 @@ jobs:
           report = json.loads(
               Path("phase19m-output/phase19m-regime-identifiability.json").read_text()
           )
-          assert report["status"] == "PORTFOLIO_REGIME_IDENTIFIABILITY_BLOCKED_PARTIAL_3_OF_7"
-          assert report["canonical_shared_schema"]["lineage_count"] == 3
+          assert report["status"] == "PORTFOLIO_REGIME_IDENTIFIABILITY_BLOCKED_PARTIAL_5_OF_7"
+          assert report["canonical_shared_schema"]["lineage_count"] == 5
           assert report["bespoke_unmapped_schema"]["lineage_count"] == 1
-          assert report["missing_shared_schema"]["lineage_count"] == 3
+          assert report["missing_shared_schema"]["lineage_count"] == 1
           assert report["interpretation"]["portfolio_regime_state_identified"] is False
           assert report["interpretation"]["t12_calibration_promotion_from_this_report"] is False
           assert report["governance"]["trade_outcomes_read"] is False

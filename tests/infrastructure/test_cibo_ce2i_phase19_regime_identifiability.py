@@ -75,6 +75,8 @@ def test_portfolio_identifiability_requires_canonical_coverage_7_of_7() -> None:
             TraderLineage.R38_GBPJPY,
             TraderLineage.R43_GBPUSD,
             TraderLineage.R42_AUDJPY,
+            TraderLineage.R38_EURUSD,
+            TraderLineage.R34_XAUUSD,
         }:
             rows = (_canonical_row(),)
         else:
@@ -88,9 +90,9 @@ def test_portfolio_identifiability_requires_canonical_coverage_7_of_7() -> None:
 
     evidence = build_phase19_regime_identifiability(tuple(audits))
 
-    assert len(evidence.canonical_lineages) == 3
+    assert len(evidence.canonical_lineages) == 5
     assert evidence.bespoke_unmapped_lineages == (
         TraderLineage.VT31_NAS100,
     )
-    assert len(evidence.missing_lineages) == 3
+    assert evidence.missing_lineages == (TraderLineage.VT08_FOREX,)
     assert evidence.portfolio_regime_state_identified is False
