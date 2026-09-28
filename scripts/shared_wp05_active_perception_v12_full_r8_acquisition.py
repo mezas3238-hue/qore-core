@@ -13,9 +13,11 @@ from typing import Any, cast
 from uuid import UUID
 
 from qore.infrastructure.core_stack_v2.active_perception_v12_full_acquisition import (
+    ASSIGNMENT_RULE,
     FULL_ACQUISITION_IDENTITY,
     FROZEN_SHARD_COUNT,
     plan_v12_full_acquisition_shard,
+    v12_full_acquisition_assignment_digest,
 )
 from qore.infrastructure.ctrader_demo_lab_probe import (
     compute_ctrader_demo_lab_account_fingerprint,
@@ -399,8 +401,11 @@ def run(
             "shard_index": plan.shard_index,
             "shard_count": plan.shard_count,
             "total_manifest_windows": plan.total_windows,
-            "start_manifest_index": plan.start_index,
-            "end_manifest_index_exclusive": plan.end_index_exclusive,
+            "assignment_rule": ASSIGNMENT_RULE,
+            "assignment_sha256": v12_full_acquisition_assignment_digest(
+                manifest_sha256=expected_manifest_sha256,
+                plan=plan,
+            ),
             "assigned_window_count": plan.window_count,
             "attempted_manifest_indices": list(plan.manifest_indices),
             "provider_symbol": identity.provider_symbol,
@@ -409,7 +414,11 @@ def run(
             "account_fingerprint": compute_ctrader_demo_lab_account_fingerprint(
                 identity.account_id
             ),
+            "permission_scope_required": "trade",
             "read_only_message_firewall": True,
+            "full_bid_ask_coverage": (
+                empty_bid_windows == 0 and empty_ask_windows == 0
+            ),
             "bid_tick_count": bid_tick_count,
             "ask_tick_count": ask_tick_count,
             "bid_page_count": bid_page_count,
@@ -417,10 +426,12 @@ def run(
             "empty_bid_window_count": empty_bid_windows,
             "empty_ask_window_count": empty_ask_windows,
             "immutable_page_shard_count": len(all_records),
+            "provider_page_count": bid_page_count + ask_page_count,
             "shard_dataset_sha256": historical_shard_dataset_digest(
                 tuple(all_records)
             ),
             "window_reports": window_reports,
+            "target_or_outcome_used_for_selection": False,
             "target_or_outcome_read": False,
             "r6_r5_read": False,
             "fresh_holdout_opened": False,
