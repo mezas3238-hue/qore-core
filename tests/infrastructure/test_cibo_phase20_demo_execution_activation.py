@@ -1,5 +1,6 @@
 import json
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -114,3 +115,17 @@ def test_phase20_demo_activation_missing_file_fails_closed(tmp_path) -> None:
             tmp_path / "missing.json",
             expected_git_sha=SHA,
         )
+
+
+def test_runtime_checks_activation_before_constructing_demo_sink() -> None:
+    source = Path("scripts/qore_ctrader_demo_free_runtime.py").read_text(
+        encoding="utf-8"
+    )
+    run_start = source.index(
+        "def run(root: Path, *, mode: str, activation_path: Path)"
+    )
+    run_source = source[run_start:]
+    gate = run_source.index("load_phase20_demo_execution_activation(")
+    sink = run_source.index("demo_sink = _configure_ctrader_demo_free_sink(root)")
+
+    assert gate < sink
