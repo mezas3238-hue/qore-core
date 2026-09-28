@@ -52,8 +52,10 @@ Historical acquisition must:
 3. use UTC-aware request boundaries;
 4. never request more than seven days in one provider message;
 5. paginate while `hasMore=true`;
-6. reconstruct every timestamp deterministically from provider absolute+delta
-   encoding;
+6. reconstruct every timestamp deterministically from provider absolute+signed-delta
+   encoding; zero deltas are valid for multiple updates in the same millisecond;
+   positive subsequent deltas are rejected because they contradict newest-first
+   chronology;
 7. retain the original relative integer price as well as the exact normalized
    decimal representation;
 8. preserve which quote side produced every tick;
