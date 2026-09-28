@@ -4,8 +4,8 @@ import pytest
 
 from qore.infrastructure.core_stack_v2.active_perception_v12_full_acquisition import (
     ASSIGNMENT_RULE,
-    FULL_ACQUISITION_IDENTITY,
     FROZEN_SHARD_COUNT,
+    FULL_ACQUISITION_IDENTITY,
     global_v12_dataset_digest,
     plan_v12_full_acquisition_shard,
     reduce_v12_full_acquisition_reports,
