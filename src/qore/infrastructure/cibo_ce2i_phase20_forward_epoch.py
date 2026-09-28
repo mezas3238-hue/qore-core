@@ -26,6 +26,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
 )
 from qore.infrastructure.cibo_ce2i_advanced_evidence import (
     AdvancedCe2iEvidenceSnapshot,
+    build_missing_advanced_evidence_snapshot,
 )
 from qore.infrastructure.cibo_ce2i_opportunity_competition import (
     CapitalOpportunityCandidate,
@@ -171,7 +172,7 @@ def collect_phase20_forward_observed_epoch(
     current_step: int,
     population_slots: tuple[Phase20ForwardPopulationSlotEvidence, ...],
     opportunities: tuple[Phase20ForwardObservedOpportunity, ...],
-    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot,
+    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot | None = None,
     seal_deadline_at: datetime | None = None,
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
     collector_git_sha: str | None = None,
@@ -223,7 +224,7 @@ def seal_phase20_forward_observed_epoch_from_snapshots(
     current_step: int,
     population_slots: tuple[Phase20ForwardPopulationSlotEvidence, ...],
     opportunities: tuple[Phase20ForwardObservedOpportunity, ...],
-    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot,
+    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot | None = None,
     seal_deadline_at: datetime | None = None,
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
     collector_git_sha: str | None = None,
@@ -273,7 +274,7 @@ def seal_phase20_forward_observed_epoch(
     current_step: int,
     population_slots: tuple[Phase20ForwardPopulationSlotEvidence, ...],
     opportunities: tuple[Phase20ForwardObservedOpportunity, ...],
-    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot,
+    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot | None = None,
     seal_deadline_at: datetime | None = None,
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
     collector_git_sha: str | None = None,
@@ -305,6 +306,14 @@ def seal_phase20_forward_observed_epoch(
         raise CiboCapitalManagementError(
             "Phase20D regime opportunity_count must equal epoch population"
         )
+
+    resolved_advanced_evidence = (
+        advanced_evidence_snapshot
+        if advanced_evidence_snapshot is not None
+        else build_missing_advanced_evidence_snapshot(
+            decision_at=decision_at,
+        )
+    )
 
     ordered_observations = tuple(
         sorted(
@@ -399,8 +408,8 @@ def seal_phase20_forward_observed_epoch(
         population_slots=ordered_population,
         candidates=candidates,
         known_options=ordered_options,
-        advanced_evidence=advanced_evidence_snapshot.evidence,
-        advanced_evidence_snapshot=advanced_evidence_snapshot,
+        advanced_evidence=resolved_advanced_evidence.evidence,
+        advanced_evidence_snapshot=resolved_advanced_evidence,
     )
 
     current = store.load()
