@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Final, Sequence
+from typing import Final
 
 SOURCE_ANCHOR_IDENTITY: Final = (
     "QORE_SHARED_WP05_ACTIVE_PERCEPTION_V12_SOURCE_ANCHORS_001"
