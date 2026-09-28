@@ -18,6 +18,9 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.trader_lab import (
+    capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_dynamic_episode_sequence_feasibility_v1 as sequence_v1,
 )
 from qore.infrastructure.trader_lab import (
@@ -142,11 +145,7 @@ def build_report(
         if set(applied) != set(plan):
             raise ValueError("Validation V2 UTC audit plan application drift")
 
-        candidate_metrics = __import__(
-            "qore.infrastructure.trader_lab."
-            "capitalizer_cognitive_r_milestone_protection_2r_v1",
-            fromlist=["_metrics"],
-        )._metrics(candidate_ledger)
+        candidate_metrics = milestone._metrics(candidate_ledger)
         if candidate_metrics != checkpoint_metrics:
             raise ValueError("Validation V2 UTC audit checkpoint replay drift")
 
