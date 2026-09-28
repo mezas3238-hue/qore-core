@@ -49,6 +49,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_burned_lifecycle_calibration.py \
             src/qore/infrastructure/cibo_ce2i_calibration_matrix.py \
             src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py \
             src/qore/infrastructure/cibo_ce2i_regime_selector.py \
             src/qore/infrastructure/cibo_ce2i_optionality.py \
             src/qore/infrastructure/cibo_ce2i_dynamic_derisking.py \
@@ -169,6 +170,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_burned_lifecycle_calibration.py \
             tests/infrastructure/test_cibo_ce2i_calibration_matrix.py \
             tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py \
+            tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py \
             tests/infrastructure/test_cibo_ce2i_regime_selector.py \
             tests/infrastructure/test_cibo_ce2i_optionality.py \
             tests/infrastructure/test_cibo_ce2i_dynamic_derisking.py \
@@ -293,6 +295,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_burned_lifecycle_calibration.py \
             src/qore/infrastructure/cibo_ce2i_calibration_matrix.py \
             src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py \
             src/qore/infrastructure/cibo_ce2i_regime_selector.py \
             src/qore/infrastructure/cibo_ce2i_optionality.py \
             src/qore/infrastructure/cibo_ce2i_dynamic_derisking.py \
@@ -412,6 +415,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_burned_lifecycle_calibration.py \
             tests/infrastructure/test_cibo_ce2i_calibration_matrix.py \
             tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py \
+            tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py \
             tests/infrastructure/test_cibo_ce2i_regime_selector.py \
             tests/infrastructure/test_cibo_ce2i_optionality.py \
             tests/infrastructure/test_cibo_ce2i_dynamic_derisking.py \
@@ -538,6 +542,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_burned_lifecycle_calibration.py \
             tests/infrastructure/test_cibo_ce2i_calibration_matrix.py \
             tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py \
+            tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py \
             tests/infrastructure/test_cibo_ce2i_regime_selector.py \
             tests/infrastructure/test_cibo_ce2i_optionality.py \
             tests/infrastructure/test_cibo_ce2i_dynamic_derisking.py \
