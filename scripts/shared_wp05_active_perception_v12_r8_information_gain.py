@@ -15,12 +15,12 @@ from shared_wp05_sequential_changepoint_v10 import _prepare_partition
 from qore.infrastructure.core_stack_v2.active_perception_v12_information_gain import (
     INFORMATION_GAIN_IDENTITY,
     MICROSTRUCTURE_VETO_THRESHOLD_MICROS,
+    evaluate_v12_information_gain_fold,
     fit_v12_microstructure_density,
     score_v12_microstructure_micros,
     select_v12_information_gain_candidate,
     summarize_v12_candidate_information_gain,
     v12_microstructure_density_fingerprint,
-    evaluate_v12_information_gain_fold,
 )
 from qore.infrastructure.core_stack_v2.active_perception_v12_microstructure_representation import (
     REPRESENTATION_IDENTITY,
