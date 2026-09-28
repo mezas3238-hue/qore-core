@@ -47,10 +47,14 @@ def test_eurusd_patch_adds_geometry_only() -> None:
     assert "entry_price: str" in patched
     assert "structural_stop: str" in patched
     assert "technical_target: str" in patched
+    assert "setup_context: dict[str, str]" in patched
+    assert "regime: dict[str, str]" in patched
     assert "signal_at=signal.cisd_at.isoformat()" in patched
     assert "entry_price=str(entry)" in patched
     assert "structural_stop=str(signal.protected_swing)" in patched
     assert "technical_target=str(decision.target.level)" in patched
+    assert "setup_context=v1._setup_context(setup)" in patched
+    assert "regime=regime" in patched
     assert '"phase18-eurusd-r38-geometry-trades.jsonl"' in patched
     assert '"phase18-eurusd-r38-geometry-report.json"' in patched
 

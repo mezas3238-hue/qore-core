@@ -19,6 +19,8 @@ _DATACLASS_NEW = """class ScaledTrade:
     entry_price: str
     structural_stop: str
     technical_target: str
+    setup_context: dict[str, str]
+    regime: dict[str, str]
 """
 
 _CONSTRUCTOR_OLD = """            ScaledTrade(
@@ -30,6 +32,8 @@ _CONSTRUCTOR_NEW = """            ScaledTrade(
                 entry_price=str(entry),
                 structural_stop=str(signal.protected_swing),
                 technical_target=str(decision.target.level),
+                setup_context=v1._setup_context(setup),
+                regime=regime,
 """
 
 _LEDGER_OLD = '"r34-5y-scaled-trades.jsonl"'
