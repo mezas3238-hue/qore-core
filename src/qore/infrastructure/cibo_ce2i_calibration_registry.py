@@ -174,6 +174,7 @@ class CiboToolCalibrationRecord:
 _PHASE18 = "burned:phase18:seven-lineage-chronological-replay"
 _PHASE19 = "burned:phase19:integrated-common-window"
 _PHASE19_WFO = "burned:phase19j:post-freeze-walk-forward"
+_PHASE19L_COMPETITION = "burned:phase19l:exact-decision-competition-audit"
 _PHASE19M_REGIME = "burned:phase19m:regime-identifiability-audit"
 _PHASE19N_FACTOR = "burned:phase19n:directional-factor-topology-audit"
 _PROVIDER_GAP = provider_economics_evidence_ref()
@@ -314,10 +315,19 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
         "T09",
         CiboCalibrationState.CALIBRATION_UNAVAILABLE,
         CiboCalibrationType.CAUSAL_NORMALIZED,
-        (_PHASE19, _PHASE19_WFO, _PHASE19_NON_PROMOTION),
+        (
+            _PHASE19,
+            _PHASE19_WFO,
+            _PHASE19L_COMPETITION,
+            _PHASE20_CONTRACT,
+            _PHASE19_NON_PROMOTION,
+        ),
         (
             "ZERO_WALK_FORWARD_POLICY_SURVIVORS",
             "NO_ROBUST_COMPETITION_POLICY_IDENTIFIED",
+            "BURNED_EXACT_DECISION_COMPETITION_EPOCHS_0_OF_30",
+            "FRESH_FORWARD_EXACT_COMPETITION_EPOCHS_MIN_30_REQUIRED",
+            "FRESH_OOS_SCARCITY_GENERALIZATION_REQUIRED",
         ),
     ),
     _row(
@@ -419,10 +429,19 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
         "T18",
         CiboCalibrationState.CALIBRATION_UNAVAILABLE,
         CiboCalibrationType.CAUSAL_NORMALIZED,
-        (_PHASE19, _PHASE19_WFO, _PHASE19_NON_PROMOTION),
+        (
+            _PHASE19,
+            _PHASE19_WFO,
+            _PHASE19L_COMPETITION,
+            _PHASE20_CONTRACT,
+            _PHASE19_NON_PROMOTION,
+        ),
         (
             "ZERO_WALK_FORWARD_POLICY_SURVIVORS",
             "NO_ROBUST_CROSS_TRADER_ALLOCATION_POLICY_IDENTIFIED",
+            "BURNED_EXACT_DECISION_COMPETITION_EPOCHS_0_OF_30",
+            "FRESH_FORWARD_EXACT_COMPETITION_EPOCHS_MIN_30_REQUIRED",
+            "FRESH_OOS_SCARCITY_GENERALIZATION_REQUIRED",
         ),
     ),
     _row(
