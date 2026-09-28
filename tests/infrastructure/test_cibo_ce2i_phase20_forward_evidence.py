@@ -52,7 +52,7 @@ from qore.infrastructure.cibo_provider_economic_normalization import (
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
-DECISION_AT = datetime(2026, 9, 27, 14, 5, tzinfo=UTC)
+DECISION_AT = datetime(2026, 9, 28, 4, 35, tzinfo=UTC)
 
 
 def _account() -> CiboAccountCapitalIdentity:
@@ -239,6 +239,13 @@ def test_phase20d_seals_single_candidate_20h_and_20i_inputs() -> None:
     assert record.allocator_decision.applied_tools == ("T15",)
     assert record.allocator_decision.reserve_stop_risk_usd == 0
     assert record.phase20d_qualified is False
+    assert record.full_surface.complete_registry is True
+    assert record.full_surface.registry_codes == tuple(
+        f"T{index:02d}" for index in range(1, 21)
+    )
+    assert tuple(
+        item.tool_code for item in record.full_surface.advanced_decisions
+    ) == ("T02", "T03", "T04", "T17", "T08", "T10", "T16")
 
 
 def test_phase20d_mpc_reserve_prevents_allocator_capacity_overcommit() -> None:
