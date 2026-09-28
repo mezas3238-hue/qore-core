@@ -339,11 +339,11 @@ class CTraderHistoricalReadOnlyMessageClient:
             timeout_seconds=timeout_seconds,
         )
         if isinstance(result, Failure):
-            return Failure(
-                CTraderHistoricalReadOnlyClientError(
-                    "V12 read-only provider request failed"
-                )
-            )
+            # The underlying Open API boundary already sanitizes provider errors.
+            # Preserve that category/code so research runs can distinguish a
+            # protocol rejection from timeout/transport failure without exposing
+            # credentials or raw provider payloads.
+            return Failure(result.error)
         return Success(result.value)
 
     def wait_for_event(
@@ -558,7 +558,8 @@ class CTraderHistoricalTickCollector:
                 if isinstance(result, Failure):
                     return Failure(
                         CTraderHistoricalTickCollectorError(
-                            "historical tick page request failed"
+                            "historical tick page request failed: "
+                            f"{result.error}"
                         )
                     )
                 page = result.value
