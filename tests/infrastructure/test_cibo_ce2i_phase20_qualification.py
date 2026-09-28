@@ -19,6 +19,9 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification import (
     Phase20QualificationStatus,
     run_phase20d_v2_qualification,
 )
+from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
+    FROZEN_PHASE20_POLICY_CANDIDATE,
+)
 
 START = datetime(2026, 9, 28, 12, 0, tzinfo=UTC)
 LINEAGES = (
@@ -133,9 +136,11 @@ def _books(
                 decision_at=decision_at,
                 sealed_at=decision_at + timedelta(milliseconds=500),
                 seal_deadline_at=decision_at + timedelta(seconds=2),
-                candidate_id="CIBO_PHASE20H20I_FORWARD_CANDIDATE_V2",
-                code_sha="7acce68c6ece61fae1adacf3f8e60815839b6f6a",
-                parameter_sha256=_sha(1000),
+                candidate_id=FROZEN_PHASE20_POLICY_CANDIDATE.candidate_id,
+                code_sha=FROZEN_PHASE20_POLICY_CANDIDATE.code_sha,
+                parameter_sha256=(
+                    FROZEN_PHASE20_POLICY_CANDIDATE.parameter_sha256()
+                ),
                 signal_fingerprints=signals,
                 canonical_payload_json=json.dumps(
                     payload,
@@ -143,6 +148,46 @@ def _books(
                 ),
             )
         )
+        advanced_abstain = {
+            "disposition": "ABSTAIN",
+            "reason": "explicit fixture abstention",
+            "selected_id": None,
+            "approved_volume": "0",
+            "released_capacity_usd": "0",
+            "score": None,
+        }
+        full_surface = {
+            "mission_tools": [
+                f"T{index:02d}" for index in range(1, 21)
+            ],
+            "regime": {
+                "posture": "WATCH",
+                "enabled_tools": [
+                    f"T{index:02d}" for index in range(1, 21)
+                    if index not in (9, 18)
+                ],
+                "blocked_tools": ["T09", "T18"],
+                "reason": "fixture",
+            },
+            "opportunity_assessments": [
+                {
+                    "signal_fingerprint": signal,
+                    "decisions": [
+                        {"tool_code": code, **advanced_abstain}
+                        for code in ("T02", "T03", "T04", "T17")
+                    ],
+                }
+                for signal in signals
+            ],
+            "portfolio_decisions": [
+                {"tool_code": code, **advanced_abstain}
+                for code in ("T08", "T10", "T16")
+            ],
+            "registry_codes": [
+                f"T{index:02d}" for index in range(1, 21)
+            ],
+            "complete_registry": True,
+        }
         policy_payload = {
             "allocator_decision": {
                 "deployable_stop_risk_usd": "20",
@@ -174,6 +219,7 @@ def _books(
                 "considered_option_ids": [],
                 "horizon_fully_coverable": True,
             },
+            "full_surface": full_surface,
         }
         policies.append(
             Phase20ForwardPolicyDecisionSeal(
@@ -266,6 +312,8 @@ def test_phase20d_fixed_runner_can_pass_without_refit() -> None:
     assert report.policy_selected_outcome_coverage == Decimal("1")
     assert report.baseline_selected_outcome_coverage == Decimal("1")
     assert report.candidate_outcome_coverage == Decimal("1")
+    assert report.advanced_ce2i_fail_closed_rate == Decimal("0")
+    assert report.advanced_ce2i_abstention_rate == Decimal("1")
 
 
 def test_phase20d_runner_invalidates_missing_realized_capital_minutes() -> None:
@@ -408,3 +456,37 @@ def test_phase20d_script_cannot_self_certify_cibo() -> None:
     assert '"PHASE21_POLICY_FREEZE_REQUIRED"' in script
     assert '"PHASE22_SEALED_HOLDOUT_REQUIRED"' in script
     assert '"PENDING_PHASE21_PHASE22"' in script
+
+
+def test_phase20d_runner_invalidates_advanced_fail_closed() -> None:
+    evidence, policy = _books()
+    first = policy.decisions[0]
+    payload = json.loads(first.canonical_record_json)
+    payload["full_surface"]["portfolio_decisions"][0]["disposition"] = (
+        "FAIL_CLOSED"
+    )
+    payload["full_surface"]["portfolio_decisions"][0]["reason"] = (
+        "MISSING_PORTFOLIO_NETTING_EVIDENCE"
+    )
+    policy = replace(
+        policy,
+        decisions=(
+            replace(
+                first,
+                canonical_record_json=json.dumps(payload, sort_keys=True),
+            ),
+            *policy.decisions[1:],
+        ),
+    )
+
+    report = run_phase20d_v2_qualification(
+        evidence_book=evidence,
+        policy_book=policy,
+    )
+
+    assert report.status is Phase20QualificationStatus.INVALID
+    assert (
+        "ADVANCED_TOOL_EVIDENCE_COMPLETE_OR_EXPLICIT_ABSTENTION"
+        in report.failures
+    )
+    assert report.advanced_ce2i_fail_closed_rate > Decimal("0")
