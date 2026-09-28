@@ -767,7 +767,126 @@ FINAL CERTIFICATION EXAM = MUST NOT START
 
 No architect may lower the ceiling because a capability is difficult.
 
-## 7. Final certification exam after ceiling completion
+## 7. UTC-001 is only the floor — Shared Excellence Overlay is the gate
+
+UTC-001 is the universal Trader certification floor. It is **not** the target
+or ceiling for Shared certification.
+
+A Shared candidate that merely pushes the seven Traders just above UTC-001 has
+failed to demonstrate the maximum cognitive capability required by this
+program.
+
+The certification hierarchy is:
+
+```text
+UTC-001
+=
+MINIMUM TRADER QUALITY FLOOR
+
+SHARED EXCELLENCE OVERLAY
+=
+STRICTER SHARED CERTIFICATION GATE
+```
+
+For every current Trader, in Year 1, Year 2 and every mandatory OOS fold,
+Treatment must satisfy both:
+
+```text
+1. FULL CURRENT UTC-001 PASS
+AND
+2. SHARED EXCELLENCE OVERLAY PASS
+```
+
+The Shared Excellence Overlay must be frozen before the fresh holdout is
+unsealed. Its numeric superiority margins and statistical comparison protocol
+must be derived from pre-exam/burned evidence and scientific power/effect-size
+requirements, never selected after seeing fresh-holdout outcomes.
+
+The overlay must be **strictly harder than UTC-001** and must require material,
+non-compensable superiority over both:
+
+- the current Trader Control; and
+- the relevant UTC-001 floor/ceiling.
+
+For higher-is-better dimensions, Treatment must be materially above both the
+Control and the UTC-001 minimum by the predeclared margin.
+
+For lower-is-better dimensions, Treatment must be materially better than both
+the Control and the UTC-001 ceiling by the predeclared margin.
+
+The mandatory excellence vector includes at least:
+
+```text
+HIGHER IS BETTER:
+PF
+EXPECTANCY
+SHARPE
+SORTINO
+PAYOFF
+POST-COST PF
+POST-COST EXPECTANCY
+MONTE CARLO POSITIVE PROBABILITY
+WINNER COUNT PRESERVATION
+WINNER-R PRESERVATION
+
+LOWER IS BETTER:
+OBSERVED MAX DD
+MONTE CARLO p95 DD
+FULL-STOP LOSERS
+LOSS-CLUSTER FREQUENCY
+LOSS-CLUSTER SEVERITY
+TAIL DAMAGE
+```
+
+Win rate and density remain contextual/diagnostic and cannot rescue a failed
+quality dimension.
+
+The overlay is conjunctive, not a composite score:
+
+```text
+NO PF GAIN CAN HIDE WORSE DD
+NO SHARPE GAIN CAN HIDE WORSE TAIL RISK
+NO PAYOFF GAIN CAN HIDE WORSE EXPECTANCY
+NO YEAR CAN HIDE ANOTHER YEAR
+NO FOLD CAN HIDE ANOTHER FOLD
+NO TRADER CAN BE CARRIED BY THE OTHER SIX
+NO GLOBAL SCORE CAN COMPENSATE A FAILED DIMENSION
+```
+
+The following are explicit failures:
+
+```text
+UTC-001 PASS BUT ONLY MARGINALLY ABOVE ITS FLOOR = SHARED REJECTED
+UTC-001 PASS WITH MATERIAL DEGRADATION VS CONTROL = SHARED REJECTED
+YEAR 1 EXCELLENT + YEAR 2 ONLY UTC-001 PASS = SHARED REJECTED
+ONE TRADER ONLY REACHES UTC-001 WHILE SIX EXCEED IT = SHARED REJECTED
+ONE REQUIRED FOLD ONLY REACHES UTC-001 WITHOUT EXCELLENCE MARGIN = SHARED REJECTED
+```
+
+The required condition is:
+
+```text
+7/7 CURRENT TRADERS
+×
+2/2 YEARS
+×
+EVERY REQUIRED OOS FOLD
+×
+FULL UTC-001 PASS
+×
+STRICTER SHARED EXCELLENCE OVERLAY PASS
+×
+MATERIAL SUPERIORITY VS CONTROL
+=
+ELIGIBLE FOR SHARED CERTIFICATION
+```
+
+This preserves the role of UTC-001 for later standalone Trader certification.
+Shared must prove substantially more than the minimum standard that those
+Traders will themselves later be required to satisfy after their own
+engineering.
+
+## 8. Final certification exam after ceiling completion
 
 After `PRE_CERTIFICATION_READY`, freeze Shared and execute the mandatory
 certification law already governed in PR #635:
@@ -791,6 +910,10 @@ EVERY REQUIRED OOS FOLD PASS
 ×
 FULL CURRENT UTC-001 PASS FOR 7/7
 ×
+STRICTER SHARED EXCELLENCE OVERLAY PASS FOR 7/7
+×
+MATERIAL SUPERIORITY ABOVE UTC-001 AND CONTROL
+×
 MATERIAL INCREMENTAL VALUE
 ×
 WINNER PRESERVATION
@@ -806,9 +929,10 @@ NO LEAKAGE
 AUTHORITY ISOLATION
 ```
 
-Both years must independently show superior Treatment performance and full
-UTC-001 compliance. No global metric, good Trader, good year or good fold may
-rescue a failed one.
+Both years must independently show superior Treatment performance, full
+UTC-001 compliance **and** the stricter Shared Excellence Overlay. Merely
+crossing UTC-001 is a failure of Shared certification. No global metric, good
+Trader, good year or good fold may rescue a failed or merely-minimum period.
 
 If any mandatory condition fails:
 
@@ -823,7 +947,7 @@ Only full passage permits:
 SHARED = CERTIFIED SUPPORT INTELLIGENCE
 ```
 
-## 8. Meaning of the maximum ceiling
+## 9. Meaning of the maximum ceiling
 
 The maximum ceiling is reached not because Shared is omniscient, but because it
 has explicit machinery for:
