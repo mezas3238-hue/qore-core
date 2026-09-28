@@ -227,7 +227,7 @@ def persistent_recovery_score_micros(
             checkpoint_scores_micros[left],
             checkpoint_scores_micros[right],
         )
-        for left, right in zip(scheduled, scheduled[1:], strict=True)
+        for left, right in zip(scheduled, scheduled[1:])
     )
     return min(pair_scores)
 
