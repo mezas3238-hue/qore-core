@@ -1,0 +1,34 @@
+name: QORE Shared WP05 V14 Source Integrity Contract
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/active_perception_v14_source_integrity.py
+      - scripts/shared_wp05_v14_source_integrity.py
+      - tests/infrastructure/test_shared_wp05_v14_source_integrity.py
+      - .github/workflows/qore-shared-wp05-v14-source-integrity.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate V14 source-integrity contract
+        run: |
+          set -euo pipefail
+          ruff check             src/qore/infrastructure/core_stack_v2/active_perception_v14_source_integrity.py             scripts/shared_wp05_v14_source_integrity.py             tests/infrastructure/test_shared_wp05_v14_source_integrity.py
+          mypy             src/qore/infrastructure/core_stack_v2/active_perception_v14_source_integrity.py             scripts/shared_wp05_v14_source_integrity.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/active_perception_v14_source_integrity.py             scripts/shared_wp05_v14_source_integrity.py
+          pytest -q             tests/infrastructure/test_shared_wp05_v14_source_integrity.py             tests/infrastructure/test_shared_wp05_v14_peer_acquisition.py
