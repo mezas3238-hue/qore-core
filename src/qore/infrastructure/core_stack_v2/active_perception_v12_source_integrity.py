@@ -159,7 +159,7 @@ def audit_historical_quote_side_page(
     tick_rows: list[dict[str, Any]] = []
     previous_at: datetime | None = None
     previous_timestamp: datetime | None = None
-    timestamp_rows: set[str] = set()
+    timestamp_rows: set[tuple[tuple[str, object], ...]] = set()
     timestamp_prices: set[int] = set()
     same_timestamp_multiupdate_groups = 0
     same_timestamp_distinct_price_groups = 0
@@ -186,7 +186,19 @@ def audit_historical_quote_side_page(
         if not isinstance(tick_raw, dict):
             raise V12SourceIntegrityError("historical tick must be object")
         tick = cast(dict[str, Any], tick_raw)
-        event_at = _aware_iso(tick.get("provider_event_at"), field="provider_event_at")
+        expected_tick_keys = {
+            "provider_event_at",
+            "provider_wire_timestamp_value",
+            "provider_wire_price_value",
+            "relative_price",
+            "price",
+        }
+        if set(tick) != expected_tick_keys:
+            raise V12SourceIntegrityError("historical tick schema drift")
+        event_at = _aware_iso(
+            tick.get("provider_event_at"),
+            field="provider_event_at",
+        )
         if event_at < request_from_at or event_at > request_to_at:
             raise V12SourceIntegrityError("provider event escaped requested interval")
         if event_at > retrieved_at:
@@ -199,7 +211,10 @@ def audit_historical_quote_side_page(
             if gap_ms > max_internal_gap_ms:
                 max_internal_gap_ms = gap_ms
 
-        row_fingerprint = _canonical_sha(tick)
+        row_fingerprint = tuple(
+            (key, cast(object, tick[key]))
+            for key in sorted(tick)
+        )
         if previous_timestamp is None or event_at != previous_timestamp:
             if previous_timestamp is not None:
                 close_group()
