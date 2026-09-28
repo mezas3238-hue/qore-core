@@ -8,7 +8,6 @@ from qore.infrastructure.cibo_ctrader_demo_provider_economics import (
     CTraderProviderEconomicsSymbolEvidence,
 )
 
-
 _NOW = datetime(2026, 9, 28, 13, 0, tzinfo=UTC)
 
 
