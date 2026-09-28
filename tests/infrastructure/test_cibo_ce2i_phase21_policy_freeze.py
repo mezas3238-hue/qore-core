@@ -139,6 +139,42 @@ def _surface() -> Phase21PolicySurfaceDigests:
     )
 
 
+def test_phase21_qualification_rejects_non_pass_artifact() -> None:
+    report = json.loads(_qualification_artifact_json())
+    report["status"] = "NOT_READY"
+    report["phase20d_gate"]["status"] = "PENDING_OR_FAIL"
+    report["phase20d_gate"]["eligible_for_phase21"] = False
+    report["phase20d_gate"]["blockers"] = ["QUALIFICATION_NOT_PASS"]
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="requires Phase20D PASS qualification",
+    ):
+        build_phase21_qualification_receipt(
+            qualification_artifact_json=(
+                json.dumps(report, indent=2, sort_keys=True) + "\n"
+            ),
+            qualified_at=QUALIFIED_AT,
+        )
+
+
+def test_phase21_qualification_rejects_incomplete_collector_lineage() -> None:
+    report = json.loads(_qualification_artifact_json())
+    report["provenance"]["collector_git_shas"] = []
+    report["provenance"]["missing_collector_git_sha_decisions"] = 1
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="collector lineage incomplete",
+    ):
+        build_phase21_qualification_receipt(
+            qualification_artifact_json=(
+                json.dumps(report, indent=2, sort_keys=True) + "\n"
+            ),
+            qualified_at=QUALIFIED_AT,
+        )
+
+
 def test_phase21_freeze_requires_complete_forward_empirical_lineage() -> None:
     manifest = build_phase21_policy_freeze(
         qualification=_qualification(),
@@ -269,9 +305,13 @@ def test_phase21_empirical_receipt_rejects_detached_population() -> None:
 
 def test_phase21_freeze_rejects_qualification_lineage_mismatch() -> None:
     validations = list(_validations())
-    detached_qualification = replace(
-        _qualification(),
-        qualification_artifact_sha256=_sha(999),
+    detached_report = json.loads(_qualification_artifact_json())
+    detached_report["test_variant"] = "detached"
+    detached_qualification = build_phase21_qualification_receipt(
+        qualification_artifact_json=(
+            json.dumps(detached_report, indent=2, sort_keys=True) + "\n"
+        ),
+        qualified_at=QUALIFIED_AT,
     )
     validations[0] = build_phase21_empirical_validation_receipt(
         kind=Phase21EmpiricalValidationKind.CAPITAL_STATE_MONTE_CARLO,
