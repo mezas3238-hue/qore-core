@@ -7,8 +7,8 @@ import hashlib
 import json
 from pathlib import Path
 
-from qore.infrastructure.cibo_ce2i_calibration_registry import (
-    CIBO_TOOL_CALIBRATION_REGISTRY,
+from qore.infrastructure.cibo_ce2i_calibration_matrix import (
+    CIBO_T01_T20_CALIBRATION_MATRIX,
 )
 from qore.infrastructure.cibo_ce2i_holdout_registry import (
     PREREGISTERED_USD60_HOLDOUT,
@@ -22,17 +22,16 @@ def build_report() -> dict[str, object]:
             "tool": row.tool_code,
             "implemented": row.implemented,
             "calibrated": row.calibrated,
-            "calibration_source": list(row.calibration_sources),
+            "calibration_source": list(row.calibration_source),
             "calibration_type": row.calibration_type.value,
             "provider_economics_required": row.provider_economics_required,
             "fail_closed_status": row.fail_closed,
             "oos_ready": row.oos_ready,
             "certification_ready": row.certification_ready,
-            "state": row.state.value,
-            "blocker": list(row.blockers),
-            "calibration_artifact_sha256": row.calibration_artifact_sha256,
+            "state": row.classification.value,
+            "blocker": list(row.blocker),
         }
-        for row in CIBO_TOOL_CALIBRATION_REGISTRY
+        for row in CIBO_T01_T20_CALIBRATION_MATRIX
     ]
     canonical = json.dumps(rows, sort_keys=True, separators=(",", ":")).encode()
     holdout = PREREGISTERED_USD60_HOLDOUT
