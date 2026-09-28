@@ -25,18 +25,14 @@ from __future__ import annotations
 import argparse
 import json
 import math
-from collections import defaultdict
-from datetime import datetime
 from dataclasses import asdict, dataclass, replace
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.trader_lab import (
     capitalizer_adaptive_context_risk_governor_v1 as memory,
-)
-from qore.infrastructure.trader_lab import (
-    capitalizer_causal_probe_ranker_v10 as v10,
 )
 from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_r_milestone_protection_2r_v1 as milestone,
@@ -117,7 +113,10 @@ class HeldoutSeparability:
 
 
 def _aware(value: str) -> datetime:
-    return milestone._aware(value)
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError("V37 requires timezone-aware timestamps")
+    return parsed
 
 
 def _label_original(row: milestone.SimulatedTrade) -> str | None:
