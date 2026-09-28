@@ -439,6 +439,14 @@ def write_report(
         for row in trace:
             payload = asdict(row)
             payload["plan_signature"] = _signature(row.plan)
+            payload["plan"] = [
+                {
+                    "symbol": symbol,
+                    "entry_at": entry_at,
+                    "action": action,
+                }
+                for symbol, entry_at, action in _signature(row.plan)
+            ]
             handle.write(json.dumps(payload, sort_keys=True) + "\n")
 
 
