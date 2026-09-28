@@ -52,7 +52,7 @@ from qore.infrastructure.market_test_environment import (
     MarketRuntimeEnvironment,
 )
 
-OPENED_AT = datetime(2026, 9, 27, 19, 30, tzinfo=UTC)
+OPENED_AT = datetime(2026, 9, 28, 6, 30, tzinfo=UTC)
 DECISION_AT = OPENED_AT + timedelta(seconds=1)
 
 
