@@ -105,7 +105,7 @@ def _reversal_rate(increments: tuple[Decimal, ...]) -> Decimal:
         return Decimal("0")
     reversals = sum(
         left != right
-        for left, right in zip(directions, directions[1:], strict=True)
+        for left, right in zip(directions[:-1], directions[1:], strict=True)
     )
     return Decimal(reversals) / Decimal(len(directions) - 1)
 
@@ -121,7 +121,7 @@ def _horizon_features(
     points = (bars[0].open, *(bar.close for bar in bars))
     increments = tuple(
         right - left
-        for left, right in zip(points, points[1:], strict=True)
+        for left, right in zip(points[:-1], points[1:], strict=True)
     )
     net = points[-1] - points[0]
     path_length = sum((abs(value) for value in increments), Decimal("0"))
@@ -163,7 +163,7 @@ def build_path_state(
         raise ValueError("V40 path does not start exactly T-30m")
     if bars[-1].closed_at != entry_at:
         raise ValueError("V40 path does not end exactly at entry")
-    for previous, current in zip(bars, bars[1:], strict=True):
+    for previous, current in zip(bars[:-1], bars[1:], strict=True):
         if previous.closed_at != current.opened_at:
             raise ValueError("V40 pre-entry M1 path contains a gap")
     if any(bar.opened_at >= entry_at for bar in bars):
