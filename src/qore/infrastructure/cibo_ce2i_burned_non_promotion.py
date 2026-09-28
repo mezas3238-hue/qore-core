@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from typing import Any
 
 SOURCE_PHASE19_ARTIFACT_ID = 10972948493
 SOURCE_PHASE19_ARTIFACT_SHA256 = (
@@ -42,7 +43,7 @@ BURNED_NON_PROMOTION_REASONS: dict[str, tuple[str, ...]] = {
 }
 
 
-def burned_non_promotion_payload() -> dict[str, object]:
+def burned_non_promotion_payload() -> dict[str, Any]:
     return {
         "schema": "qore.cibo.ce2i.burned_non_promotion.v1",
         "source": {

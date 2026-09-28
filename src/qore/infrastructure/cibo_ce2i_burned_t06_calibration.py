@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from typing import Any
 
 SOURCE_PHASE19_ARTIFACT_ID = 10972948493
 SOURCE_PHASE19_ARTIFACT_SHA256 = (
@@ -24,7 +25,7 @@ T06_PROFIT_FUNDED_RULES = (
 )
 
 
-def burned_t06_source_calibration_payload() -> dict[str, object]:
+def burned_t06_source_calibration_payload() -> dict[str, Any]:
     return {
         "schema": "qore.cibo.ce2i.burned_t06_source_calibration.v1",
         "source": {

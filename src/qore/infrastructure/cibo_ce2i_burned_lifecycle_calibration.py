@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from typing import Any
 
 SOURCE_PHASE19_ARTIFACT_ID = 10972948493
 SOURCE_PHASE19_ARTIFACT_SHA256 = (
@@ -39,7 +40,7 @@ T20_RELEASE_RULES = (
 )
 
 
-def burned_lifecycle_calibration_payload() -> dict[str, object]:
+def burned_lifecycle_calibration_payload() -> dict[str, Any]:
     return {
         "schema": "qore.cibo.ce2i.burned_lifecycle_calibration.v1",
         "source": {

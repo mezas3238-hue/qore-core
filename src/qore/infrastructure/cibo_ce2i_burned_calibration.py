@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from typing import Any
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -83,7 +84,7 @@ CIBO_BURNED_T04_T10_CALIBRATION: tuple[CiboBurnedLineageCalibration, ...] = (
 )
 
 
-def burned_t04_t10_calibration_payload() -> dict[str, object]:
+def burned_t04_t10_calibration_payload() -> dict[str, Any]:
     return {
         "schema": "qore.cibo.ce2i.burned_t04_t10_calibration.v1",
         "source": {

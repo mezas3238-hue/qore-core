@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from typing import Any
 
 PROVIDER_ECONOMICS_WORKFLOW_RUN_ID = 36432944843
 PROVIDER_ECONOMICS_ARTIFACT_ID = 10975061063
@@ -32,7 +33,7 @@ PROVIDER_ECONOMICS_SYMBOLS = (
 )
 
 
-def provider_economics_provenance_payload() -> dict[str, object]:
+def provider_economics_provenance_payload() -> dict[str, Any]:
     return {
         "schema": "qore.cibo.provider_economics_provenance.v1",
         "workflow_run_id": PROVIDER_ECONOMICS_WORKFLOW_RUN_ID,
