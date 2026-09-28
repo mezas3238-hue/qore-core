@@ -1,9 +1,9 @@
-"""Phase19L exact-epoch competition identifiability contracts.
+"""Phase19L exact-decision-epoch competition identifiability contracts.
 
 T09/T18 can only claim historical competition evidence when multiple eligible
-opportunities were available at the same causal entry epoch. Overlap with an
-already-open position is capacity occupancy, not permission to use a future
-opportunity to reorder a past decision.
+opportunities were available at the same causal decision epoch. Shared entry
+time or overlap with an already-open position is capacity occupancy, not
+permission to use a future opportunity to reorder a past decision.
 """
 
 from __future__ import annotations
@@ -26,11 +26,14 @@ from qore.infrastructure.cibo_ce2i_phase19_temporal_concordance import (
 
 @dataclass(frozen=True, slots=True)
 class Phase19LCompetitionEpoch:
-    entry_at: datetime
+    decision_at: datetime
     candidates: tuple[Phase19NormalizedReplayTrade, ...]
 
     def __post_init__(self) -> None:
-        if self.entry_at.tzinfo is None or self.entry_at.utcoffset() is None:
+        if (
+            self.decision_at.tzinfo is None
+            or self.decision_at.utcoffset() is None
+        ):
             raise CiboCapitalManagementError(
                 "Phase19L competition epoch must be timezone-aware"
             )
@@ -39,11 +42,11 @@ class Phase19LCompetitionEpoch:
                 "Phase19L competition epoch requires at least two candidates"
             )
         if any(
-            item.opportunity.entry_at != self.entry_at
+            item.allocation.decision_at != self.decision_at
             for item in self.candidates
         ):
             raise CiboCapitalManagementError(
-                "Phase19L candidates must share exact entry epoch"
+                "Phase19L candidates must share exact decision epoch"
             )
         eligible = set(phase19k_eligible_traders())
         if any(
@@ -58,17 +61,17 @@ class Phase19LCompetitionEpoch:
 def exact_competition_epochs(
     trades: tuple[Phase19NormalizedReplayTrade, ...],
 ) -> tuple[Phase19LCompetitionEpoch, ...]:
-    """Group only exact-time Phase19K-eligible opportunities."""
+    """Group only exact causal decision-time Phase19K-eligible opportunities."""
 
     eligible = set(phase19k_eligible_traders())
     grouped: dict[datetime, list[Phase19NormalizedReplayTrade]] = {}
     for item in trades:
         if item.opportunity.trader_id not in eligible:
             continue
-        grouped.setdefault(item.opportunity.entry_at, []).append(item)
+        grouped.setdefault(item.allocation.decision_at, []).append(item)
     return tuple(
         Phase19LCompetitionEpoch(
-            entry_at=entry_at,
+            decision_at=decision_at,
             candidates=tuple(
                 sorted(
                     items,
@@ -79,7 +82,7 @@ def exact_competition_epochs(
                 )
             ),
         )
-        for entry_at, items in sorted(grouped.items())
+        for decision_at, items in sorted(grouped.items())
         if len(items) >= 2
     )
 

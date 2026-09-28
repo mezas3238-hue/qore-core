@@ -1,8 +1,8 @@
-"""Run Phase19L exact-epoch T09/T18 identifiability audit.
+"""Run Phase19L exact-decision-epoch T09/T18 identifiability audit.
 
 This is burned/post-disclosure research. It distinguishes exact simultaneous
-competition from ordinary overlap/capital occupancy and never treats the small
-historical collision population as fresh OOS evidence.
+causal decisions from shared entry time, ordinary overlap, and capital
+occupancy. The historical population is never treated as fresh OOS evidence.
 """
 
 from __future__ import annotations
@@ -102,8 +102,8 @@ def run(
     )
 
     report: dict[str, Any] = {
-        "schema": "qore.cibo.phase19l.competition_identifiability.v1",
-        "identity": "CIBO_PHASE19L_EXACT_EPOCH_COMPETITION_AUDIT_V1",
+        "schema": "qore.cibo.phase19l.competition_identifiability.v2",
+        "identity": "CIBO_PHASE19L_EXACT_DECISION_COMPETITION_AUDIT_V2",
         "status": "LIMITED_BURNED_COMPETITION_POPULATION_IDENTIFIED",
         "source": {
             "phase18_artifact_set": "IMMUTABLE_7_OF_7",
@@ -112,12 +112,13 @@ def run(
             "phase19k_policy_id": PHASE19K_POLICY.policy_id,
         },
         "identifiability": {
-            "exact_competition_epoch_count": len(epochs),
+            "exact_decision_competition_epoch_count": len(epochs),
             "candidate_count_in_exact_epochs": sum(
                 len(epoch.candidates) for epoch in epochs
             ),
             "minimum_robust_epoch_count": 30,
             "robust_competition_population_available": len(epochs) >= 30,
+            "shared_entry_time_treated_as_competition": False,
             "ordinary_overlap_treated_as_competition": False,
         },
         "frozen_rule": {
@@ -134,7 +135,7 @@ def run(
         },
         "epochs": [
             {
-                "entry_at": epoch.entry_at.isoformat(),
+                "decision_at": epoch.decision_at.isoformat(),
                 "candidate_traders": [
                     item.opportunity.trader_id.value
                     for item in epoch.candidates
