@@ -61,9 +61,14 @@ Historical acquisition must:
 4. never request more than seven days in one provider message;
 5. paginate while `hasMore=true`;
 6. reconstruct every timestamp deterministically from provider absolute+signed-delta
-   encoding; zero deltas are valid for multiple updates in the same millisecond;
-   positive subsequent deltas are rejected because they contradict newest-first
+   encoding; zero time deltas are valid for multiple updates in the same millisecond;
+   positive subsequent time deltas are rejected because they contradict newest-first
    chronology;
+7. reconstruct every relative price deterministically from the first absolute
+   provider price plus all subsequent signed price deltas; positive, negative and
+   zero price deltas are valid provided the reconstructed absolute price remains
+   strictly positive;
+8. retain raw wire timestamp/price values alongside reconstructed values;
 7. retain the deterministically reconstructed absolute provider-relative
    integer price as well as the exact normalized decimal representation; the
    signed wire deltas are normalization inputs, while the canonical retained
@@ -249,11 +254,35 @@ It must:
 4. request BID and ASK independently;
 5. follow `hasMore` pages with strict backward progress;
 6. operate at or below five historical requests/second/connection;
-7. preserve retrieval timestamps without conflating them with provider event
+9. preserve retrieval timestamps without conflating them with provider event
    timestamps;
-8. produce deterministic chronological side streams;
+10. produce deterministic chronological side streams;
 9. report page/count/time coverage separately for BID and ASK;
 10. produce an immutable SHA-256 dataset digest.
 
 No target label is needed or permitted to perform these acquisition,
 provenance, coverage and determinism checks.
+
+
+## Empirical provider-wire clarification
+
+The live DEMO historical response used by this WP-05 pilot exposed signed
+relative values after the first record. That behavior is consistent with
+Spotware community examples of `ProtoOAGetTickDataRes`, where the first
+timestamp/price are absolute and each later timestamp/price is added to the
+previous record to reconstruct the next absolute observation.
+
+This correction changes only protocol decoding. It does not change:
+
+- R8 source selection;
+- the acquisition manifest;
+- pilot temporal indices;
+- sensor family;
+- target;
+- model;
+- threshold;
+- R6/R5 state;
+- fresh holdout state.
+
+The decoder must fail closed if cumulative timestamp moves before Unix epoch or
+if cumulative relative price becomes non-positive.
