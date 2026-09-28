@@ -1,0 +1,119 @@
+name: QORE CIBO cTrader DEMO Provider Economics Calibration
+
+on:
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-ctrader-demo-provider-economics.yml'
+      - 'src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py'
+      - 'src/qore/infrastructure/ctrader_open_api_client.py'
+      - 'scripts/cibo_ctrader_demo_provider_economics_probe.py'
+      - 'tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  provider-economics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install cTrader-capable development environment
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,ctrader]"
+
+      - name: Quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py \
+            src/qore/infrastructure/ctrader_open_api_client.py \
+            scripts/cibo_ctrader_demo_provider_economics_probe.py \
+            tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py
+          mypy \
+            src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py \
+            scripts/cibo_ctrader_demo_provider_economics_probe.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py
+
+      - name: Verify DEMO credentials without printing them
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in \
+            QORE_CTRADER_CLIENT_ID \
+            QORE_CTRADER_CLIENT_SECRET \
+            QORE_CTRADER_ACCESS_TOKEN \
+            QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}" || {
+              echo "::error::missing required cTrader DEMO secret: $name"
+              exit 1
+            }
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Collect provider economics read-only
+        run: |
+          mkdir -p provider-economics
+          python scripts/cibo_ctrader_demo_provider_economics_probe.py \
+            --output provider-economics/provider-economics.json \
+            > provider-economics/provider-economics.stdout.json
+
+      - name: Enforce no-mutation/no-history governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("provider-economics/provider-economics.json").read_text()
+          )
+          assert payload["provider_key"] == "ctrader-demo"
+          assert payload["environment"] == "demo"
+          assert payload["broker_mutation_performed"] is False
+          assert payload["historical_exact_claimed"] is False
+          assert payload["holdout_outcomes_used"] is False
+          assert payload["target_aware"] is False
+          assert payload["slippage_empirically_calibrated"] is False
+          assert payload["execution_model_ready"] is False
+          assert set(payload["symbols"]) == {
+              "AUDJPY", "EURUSD", "GBPJPY",
+              "GBPUSD", "NAS100", "XAUUSD",
+          }
+          PY
+
+      - name: Seal provider economics evidence
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > provider-economics/git-sha.txt
+          cd provider-economics
+          sha256sum \
+            provider-economics.json \
+            provider-economics.stdout.json \
+            git-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-provider-economics-${{ github.sha }}
+          path: provider-economics
+          if-no-files-found: error
+          retention-days: 90
