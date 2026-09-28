@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -108,9 +108,6 @@ def test_json_roundtrip_restores_tuple_contract() -> None:
         bid_has_more=False,
         ask_has_more=False,
     )
-    payload = json.loads(json.dumps(row.__dict__ if hasattr(row, "__dict__") else {
-        field: getattr(row, field)
-        for field in row.__dataclass_fields__
-    }))
+    payload = json.loads(json.dumps(asdict(row)))
 
     assert v41.from_json_dict(payload) == row
