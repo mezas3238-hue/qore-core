@@ -18,6 +18,9 @@ from typing import Any
 from qore.infrastructure.trader_lab import (
     capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 as v3,
 )
+from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
+    CapitalizerSide,
+)
 
 IDENTITY = "QORE_CAPITALIZER_PREENTRY_NATIVE_M1_GEOMETRY_V38"
 FEATURE_NAMES = (
@@ -29,7 +32,7 @@ FEATURE_NAMES = (
     "m1_fvg_width_r",
     "m1_ob_fvg_overlap_width_r",
     "m5_closeback_to_m3_mss_minutes",
-    "m3_mss_to_fvg_confirmation_minutes",
+    "m1_fvg_confirmation_lead_to_m3_mss_minutes",
     "fvg_confirmation_to_entry_minutes",
     "m5_closeback_to_entry_minutes",
     "stop_buffer_fraction_of_risk",
@@ -119,7 +122,7 @@ def build_geometry(
         m5_closeback_at,
         mss.confirmed_at,
         mss.displacement_closed_at,
-        zone.ob_opened_at + (mss.displacement_closed_at - mss.displacement_closed_at),
+        zone.ob_opened_at,
         zone.fvg_confirmed_at,
     )
     if any(
@@ -133,6 +136,8 @@ def build_geometry(
         raise ValueError("V38 MSS confirmation precedes displacement close")
     if zone.fvg_confirmed_at < mss.displacement_opened_at:
         raise ValueError("V38 FVG confirmation precedes causal displacement")
+    if zone.fvg_confirmed_at > mss.confirmed_at:
+        raise ValueError("V38 causal-zone FVG cannot follow MSS confirmation")
     if zone.ob_opened_at >= entry_at:
         raise ValueError("V38 order block must predate entry")
 
@@ -163,7 +168,7 @@ def build_geometry(
         fvg_width / risk,
         overlap_width / risk,
         _minutes(mss.confirmed_at, m5_closeback_at),
-        _minutes(zone.fvg_confirmed_at, mss.confirmed_at),
+        _minutes(mss.confirmed_at, zone.fvg_confirmed_at),
         _minutes(entry_at, zone.fvg_confirmed_at),
         _minutes(entry_at, m5_closeback_at),
         stop_buffer_price / risk,
@@ -199,7 +204,7 @@ def from_v3_trade(trade: v3.V3Trade) -> PreentryNativeM1Geometry:
 
     # V3Trade retains only aggregate MSS fields, enough for the geometry vector.
     mss = v3.M3MssEvent(
-        side=v3.CapitalizerSide(trade.side),
+        side=CapitalizerSide(trade.side),
         confirmed_at=m3_mss_at,
         displacement_opened_at=m3_mss_at,
         displacement_closed_at=m3_mss_at,
