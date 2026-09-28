@@ -25,8 +25,8 @@ from qore.infrastructure.cibo_ce2i_phase21_policy_freeze import (
     Phase21EmpiricalValidationKind,
     Phase21PolicySurfaceDigests,
     build_phase21_empirical_validation_receipt,
-    build_phase21_qualification_receipt,
     build_phase21_policy_freeze,
+    build_phase21_qualification_receipt,
 )
 from qore.infrastructure.cibo_ce2i_phase22_qualification import (
     Phase22HoldoutQualificationStatus,
@@ -153,7 +153,6 @@ def _validation_payload(
 
 
 def _phase21_manifest():
-    candidate = FROZEN_PHASE20_POLICY_CANDIDATE
     qualification = build_phase21_qualification_receipt(
         qualification_artifact_json=_qualification_artifact_json(),
         qualified_at=QUALIFIED_AT,
