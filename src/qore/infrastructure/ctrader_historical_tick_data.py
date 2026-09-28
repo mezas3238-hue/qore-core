@@ -184,6 +184,7 @@ def decode_historical_tick_page(
 
     newest_first: list[CTraderHistoricalTick] = []
     previous_ms: int | None = None
+    previous_relative_price: int | None = None
     quantum = Decimal(1).scaleb(-digits)
 
     for index, raw in enumerate(native_ticks):
@@ -198,22 +199,22 @@ def decode_historical_tick_page(
                 "provider tick price must be int "
                 f"(index={index}, type={type(relative_price).__name__})"
             )
-        if relative_price <= 0:
-            raise CTraderHistoricalTickError(
-                "provider tick price must be positive "
-                f"(index={index}, value={relative_price})"
-            )
 
         if index == 0:
             if timestamp_value <= 0:
                 raise CTraderHistoricalTickError(
                     "first provider tick requires absolute Unix milliseconds"
                 )
-            absolute_ms = timestamp_value
-        else:
-            if previous_ms is None:  # pragma: no cover - guarded by loop order
+            if relative_price <= 0:
                 raise CTraderHistoricalTickError(
-                    "historical tick decoder lost previous timestamp"
+                    "first provider tick requires positive absolute price"
+                )
+            absolute_ms = timestamp_value
+            absolute_relative_price = relative_price
+        else:
+            if previous_ms is None or previous_relative_price is None:
+                raise CTraderHistoricalTickError(
+                    "historical tick decoder lost previous state"
                 )
             if timestamp_value > 0:
                 raise CTraderHistoricalTickError(
@@ -224,23 +225,29 @@ def decode_historical_tick_page(
                 raise CTraderHistoricalTickError(
                     "provider tick delta moved before Unix epoch"
                 )
+            absolute_relative_price = previous_relative_price + relative_price
+            if absolute_relative_price <= 0:
+                raise CTraderHistoricalTickError(
+                    "provider price delta reconstructed non-positive price"
+                )
 
         observed_at = datetime.fromtimestamp(
             absolute_ms / 1_000,
             tz=UTC,
         )
         price = (
-            Decimal(relative_price) / _RELATIVE_PRICE_SCALE
+            Decimal(absolute_relative_price) / _RELATIVE_PRICE_SCALE
         ).quantize(quantum)
         newest_first.append(
             CTraderHistoricalTick(
                 observed_at=observed_at,
-                relative_price=relative_price,
+                relative_price=absolute_relative_price,
                 price=price,
                 quote_type=request.quote_type,
             )
         )
         previous_ms = absolute_ms
+        previous_relative_price = absolute_relative_price
 
     for newer, older in zip(newest_first, newest_first[1:], strict=False):
         if older.observed_at > newer.observed_at:
