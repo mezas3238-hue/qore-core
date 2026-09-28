@@ -26,6 +26,9 @@ from qore.infrastructure.cibo_ce2i_burned_non_promotion import (
 from qore.infrastructure.cibo_ce2i_burned_t06_calibration import (
     burned_t06_source_calibration_sha256,
 )
+from qore.infrastructure.cibo_ce2i_burned_t07_calibration import (
+    burned_t07_source_calibration_sha256,
+)
 from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
     provider_economics_evidence_ref,
 )
@@ -269,11 +272,16 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
     ),
     _row(
         "T07",
-        CiboCalibrationState.CALIBRATION_UNAVAILABLE,
+        CiboCalibrationState.CALIBRATED_CAUSAL,
         CiboCalibrationType.MIXED_CAUSAL_AND_ECONOMIC,
-        (_PHASE19, _PHASE20_CONTRACT),
-        ("VERIFIED_PROTECTED_ECONOMIC_FLOOR_CALIBRATION_NOT_FROZEN",),
+        (_PHASE19, _PHASE20_CONTRACT, _PROVIDER_GAP),
+        (
+            "HISTORICAL_2017_PROTECTED_FLOOR_ECONOMICS_NOT_PROVEN",
+            "EMPIRICAL_SLIPPAGE_RESERVE_REQUIRED_FOR_EXACT_FLOOR",
+            "INCREMENTAL_PROTECTED_CAPACITY_UTILITY_REQUIRES_FRESH_OOS",
+        ),
         provider=True,
+        calibration_artifact_sha256=burned_t07_source_calibration_sha256(),
     ),
     _row(
         "T08",

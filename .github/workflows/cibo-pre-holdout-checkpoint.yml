@@ -11,6 +11,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_calibration_matrix.py'
       - 'src/qore/infrastructure/cibo_ce2i_burned_calibration.py'
       - 'src/qore/infrastructure/cibo_ce2i_burned_lifecycle_calibration.py'
+      - 'src/qore/infrastructure/cibo_ce2i_burned_t07_calibration.py'
       - 'src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py'
       - 'src/qore/infrastructure/cibo_ce2i_holdout_registry.py'
       - 'src/qore/infrastructure/cibo_ce2i_usd60_six_month_certification.py'
@@ -26,6 +27,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_calibration_matrix.py'
       - 'src/qore/infrastructure/cibo_ce2i_burned_calibration.py'
       - 'src/qore/infrastructure/cibo_ce2i_burned_lifecycle_calibration.py'
+      - 'src/qore/infrastructure/cibo_ce2i_burned_t07_calibration.py'
       - 'src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py'
       - 'src/qore/infrastructure/cibo_ce2i_holdout_registry.py'
       - 'src/qore/infrastructure/cibo_ce2i_usd60_six_month_certification.py'
@@ -59,6 +61,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_calibration_matrix.py \
             src/qore/infrastructure/cibo_ce2i_burned_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_lifecycle_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_burned_t07_calibration.py \
             src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py \
             src/qore/infrastructure/cibo_ce2i_holdout_registry.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py \
@@ -70,11 +73,13 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_calibration_matrix.py \
             src/qore/infrastructure/cibo_ce2i_burned_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_lifecycle_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_burned_t07_calibration.py \
             src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py \
             src/qore/infrastructure/cibo_ce2i_holdout_registry.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ce2i_burned_calibration.py \
             tests/infrastructure/test_cibo_ce2i_burned_lifecycle_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_burned_t07_calibration.py \
             tests/infrastructure/test_cibo_ce2i_calibration_registry.py \
             tests/infrastructure/test_cibo_ce2i_calibration_matrix.py \
             tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py \

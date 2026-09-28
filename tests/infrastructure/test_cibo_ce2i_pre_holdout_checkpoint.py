@@ -17,6 +17,7 @@ def test_pre_holdout_checkpoint_fails_closed_before_full_calibration() -> None:
         "T04",
         "T05",
         "T06",
+        "T07",
         "T10",
         "T19",
         "T20",

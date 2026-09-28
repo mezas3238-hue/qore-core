@@ -158,3 +158,19 @@ def test_t06_realized_profit_source_is_calibrated_without_claiming_utility() -> 
         "EXPANSION_MULTIPLIER_AND_INCREMENTAL_UTILITY_REQUIRE_FRESH_OOS"
         in record.blockers
     )
+
+
+def test_t07_is_causal_source_calibration_not_historical_usd_floor() -> None:
+    record = calibration_record("T07")
+
+    assert record.state is CiboCalibrationState.CALIBRATED_CAUSAL
+    assert record.calibrated is True
+    assert record.provider_economics_required is True
+    assert record.calibration_artifact_sha256
+    assert record.oos_ready is False
+    assert record.certification_ready is False
+    assert "HISTORICAL_2017_PROTECTED_FLOOR_ECONOMICS_NOT_PROVEN" in record.blockers
+    assert (
+        "INCREMENTAL_PROTECTED_CAPACITY_UTILITY_REQUIRES_FRESH_OOS"
+        in record.blockers
+    )
