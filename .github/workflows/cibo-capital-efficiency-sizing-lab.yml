@@ -44,6 +44,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_pre_holdout_freeze.py \
             src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py \
             src/qore/infrastructure/cibo_ce2i_calibration_registry.py \
+            src/qore/infrastructure/cibo_ce2i_burned_calibration.py \
             src/qore/infrastructure/cibo_ce2i_calibration_matrix.py \
             src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py \
             src/qore/infrastructure/cibo_ce2i_regime_selector.py \
@@ -160,6 +161,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_pre_holdout_freeze.py \
             tests/infrastructure/test_cibo_ce2i_usd60_robust_capacity.py \
             tests/infrastructure/test_cibo_ce2i_calibration_registry.py \
+            tests/infrastructure/test_cibo_ce2i_burned_calibration.py \
             tests/infrastructure/test_cibo_ce2i_calibration_matrix.py \
             tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py \
             tests/infrastructure/test_cibo_ce2i_regime_selector.py \
@@ -281,6 +283,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_pre_holdout_freeze.py \
             src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py \
             src/qore/infrastructure/cibo_ce2i_calibration_registry.py \
+            src/qore/infrastructure/cibo_ce2i_burned_calibration.py \
             src/qore/infrastructure/cibo_ce2i_calibration_matrix.py \
             src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py \
             src/qore/infrastructure/cibo_ce2i_regime_selector.py \
@@ -396,6 +399,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_pre_holdout_freeze.py \
             tests/infrastructure/test_cibo_ce2i_usd60_robust_capacity.py \
             tests/infrastructure/test_cibo_ce2i_calibration_registry.py \
+            tests/infrastructure/test_cibo_ce2i_burned_calibration.py \
             tests/infrastructure/test_cibo_ce2i_calibration_matrix.py \
             tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py \
             tests/infrastructure/test_cibo_ce2i_regime_selector.py \
@@ -519,6 +523,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_pre_holdout_freeze.py \
             tests/infrastructure/test_cibo_ce2i_usd60_robust_capacity.py \
             tests/infrastructure/test_cibo_ce2i_calibration_registry.py \
+            tests/infrastructure/test_cibo_ce2i_burned_calibration.py \
             tests/infrastructure/test_cibo_ce2i_calibration_matrix.py \
             tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py \
             tests/infrastructure/test_cibo_ce2i_regime_selector.py \
