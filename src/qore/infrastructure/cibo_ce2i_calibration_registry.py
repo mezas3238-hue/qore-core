@@ -17,6 +17,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_ce2i_burned_calibration import (
     burned_t04_t10_calibration_sha256,
 )
+from qore.infrastructure.cibo_ce2i_burned_lifecycle_calibration import (
+    burned_lifecycle_calibration_sha256,
+)
 from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
     provider_economics_evidence_ref,
 )
@@ -191,7 +194,10 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
         CiboCalibrationState.PROVIDER_ECONOMICS_REQUIRED,
         CiboCalibrationType.MIXED_CAUSAL_AND_ECONOMIC,
         (_PHASE18, _PROVIDER_GAP),
-        ("CALIBRATED_EXECUTION_ECONOMICS_REQUIRED",),
+        (
+            "HISTORICAL_2017_PROVIDER_TERMS_NOT_PROVEN",
+            "SLIPPAGE_CALIBRATION_REQUIRED_FOR_EXACT_EXECUTION",
+        ),
         provider=True,
     ),
     _row(
@@ -207,7 +213,7 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
         CiboCalibrationType.ECONOMIC,
         (_PROVIDER_GAP, _PHASE20_CONTRACT),
         (
-            "CALIBRATED_EXECUTION_ECONOMICS_REQUIRED",
+            "HISTORICAL_2017_MARGIN_TERMS_NOT_PROVEN",
             "EQUIVALENT_EXPRESSION_UNIVERSE_NOT_CERTIFIED",
         ),
         provider=True,
@@ -217,16 +223,20 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
         CiboCalibrationState.CALIBRATED_CAUSAL,
         CiboCalibrationType.MIXED_CAUSAL_AND_ECONOMIC,
         (_PHASE18, _PHASE19_WFO, _PROVIDER_GAP),
-        ("USD_TRUE_STOP_RISK_REQUIRES_PROVIDER_ECONOMICS",),
+        (
+            "USD_TRUE_STOP_RISK_REQUIRES_HISTORICAL_2017_"
+            "TICK_VALUE_AND_CONVERSION",
+        ),
         provider=True,
         calibration_artifact_sha256=_BURNED_T04_T10_SHA,
     ),
     _row(
         "T05",
-        CiboCalibrationState.CALIBRATION_UNAVAILABLE,
+        CiboCalibrationState.CALIBRATED_CAUSAL,
         CiboCalibrationType.CAUSAL_NORMALIZED,
         (_PHASE19, _PHASE20_CONTRACT),
-        ("RECYCLE_UTILITY_CALIBRATION_NOT_FROZEN",),
+        ("INCREMENTAL_RECYCLE_UTILITY_REQUIRES_FRESH_OOS",),
+        calibration_artifact_sha256=burned_lifecycle_calibration_sha256(),
     ),
     _row(
         "T06",
@@ -262,7 +272,10 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
         CiboCalibrationState.CALIBRATED_CAUSAL,
         CiboCalibrationType.CAUSAL_NORMALIZED,
         (_PHASE19, _PHASE19_WFO),
-        ("USD_OUTPUT_PER_CAPITAL_TIME_PENDING_PROVIDER_ECONOMICS",),
+        (
+            "USD_OUTPUT_PER_CAPITAL_TIME_REQUIRES_HISTORICAL_"
+            "EXECUTION_ECONOMICS",
+        ),
         provider=True,
         calibration_artifact_sha256=_BURNED_T04_T10_SHA,
     ),
@@ -272,7 +285,8 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
         CiboCalibrationType.MIXED_CAUSAL_AND_ECONOMIC,
         (_PROVIDER_GAP, _PHASE20_CONTRACT),
         (
-            "SPREAD_COMMISSION_SLIPPAGE_AND_LATENCY_CALIBRATION_REQUIRED",
+            "EMPIRICAL_SLIPPAGE_AND_LATENCY_CALIBRATION_REQUIRED",
+            "HISTORICAL_2017_EXECUTION_TERMS_NOT_PROVEN",
         ),
         provider=True,
     ),
@@ -335,17 +349,19 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
     ),
     _row(
         "T19",
-        CiboCalibrationState.CALIBRATION_UNAVAILABLE,
-        CiboCalibrationType.CONTRACT_ONLY,
+        CiboCalibrationState.CALIBRATED_CAUSAL,
+        CiboCalibrationType.CAUSAL_NORMALIZED,
         (_PHASE19, _PHASE20_CONTRACT),
-        ("RESERVATION_EMPIRICAL_CALIBRATION_NOT_FROZEN",),
+        ("INCREMENTAL_RESERVATION_UTILITY_REQUIRES_FRESH_OOS",),
+        calibration_artifact_sha256=burned_lifecycle_calibration_sha256(),
     ),
     _row(
         "T20",
-        CiboCalibrationState.CALIBRATION_UNAVAILABLE,
-        CiboCalibrationType.CONTRACT_ONLY,
+        CiboCalibrationState.CALIBRATED_CAUSAL,
+        CiboCalibrationType.CAUSAL_NORMALIZED,
         (_PHASE19, _PHASE20_CONTRACT),
-        ("RELEASE_EMPIRICAL_CALIBRATION_NOT_FROZEN",),
+        ("INCREMENTAL_RELEASE_UTILITY_REQUIRES_FRESH_OOS",),
+        calibration_artifact_sha256=burned_lifecycle_calibration_sha256(),
     ),
 )
 
