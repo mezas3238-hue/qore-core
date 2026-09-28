@@ -29,6 +29,37 @@ def _sha(index: int) -> str:
     return f"sha256:{index:064x}"
 
 
+def _validation_payload(
+    kind: Phase21EmpiricalValidationKind,
+) -> dict[str, object]:
+    if kind is Phase21EmpiricalValidationKind.CAPITAL_STATE_MONTE_CARLO:
+        return {
+            "simulation_count": 1000,
+            "policy_capacity_breach_paths": 0,
+            "baseline_capacity_breach_paths": 0,
+            "policy_p95_drawdown_usd": "8",
+            "baseline_p95_drawdown_usd": "10",
+            "policy_median_ending_delta_usd": "12",
+            "baseline_median_ending_delta_usd": "10",
+        }
+    if kind is Phase21EmpiricalValidationKind.PROVIDER_STRESS:
+        return {
+            "scenario_count": 9,
+            "policy_constraint_bypasses": 0,
+            "baseline_constraint_bypasses": 0,
+            "policy_worst_case_net_delta_usd": "8",
+            "baseline_worst_case_net_delta_usd": "7",
+            "policy_provider_failure_incidence": "0.10",
+            "baseline_provider_failure_incidence": "0.15",
+        }
+    return {
+        "ablation_case_count": 3,
+        "unsafe_interaction_count": 0,
+        "population_mismatch_count": 0,
+        "full_policy_pareto_dominated_by_ablation": False,
+    }
+
+
 def _qualification() -> Phase21QualificationReceipt:
     candidate = FROZEN_PHASE20_POLICY_CANDIDATE
     return Phase21QualificationReceipt(
@@ -54,12 +85,7 @@ def _validation(
         qualification=_qualification(),
         validator_git_sha=f"{offset_hours:040x}",
         observed_at=QUALIFIED_AT + timedelta(hours=offset_hours),
-        validation_payload={
-            "protocol": f"TEST_{kind.value}",
-            "source_decision_epochs": 80,
-            "source_candidate_outcomes": 200,
-            "source_selected_outcomes": 60,
-        },
+        validation_payload=_validation_payload(kind),
     )
 
 
@@ -173,12 +199,9 @@ def test_phase21_freeze_rejects_qualification_lineage_mismatch() -> None:
         qualification=detached_qualification,
         validator_git_sha=f"{1:040x}",
         observed_at=QUALIFIED_AT + timedelta(hours=1),
-        validation_payload={
-            "protocol": "TEST_CAPITAL_STATE_MONTE_CARLO",
-            "source_decision_epochs": 80,
-            "source_candidate_outcomes": 200,
-            "source_selected_outcomes": 60,
-        },
+        validation_payload=_validation_payload(
+            Phase21EmpiricalValidationKind.CAPITAL_STATE_MONTE_CARLO
+        ),
     )
 
     with pytest.raises(
