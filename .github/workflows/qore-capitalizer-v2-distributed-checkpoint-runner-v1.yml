@@ -57,8 +57,10 @@ jobs:
 
   distributed:
     if: >-
-      github.event_name == 'workflow_dispatch' &&
-      inputs.execute_full == true
+      (github.event_name == 'push' &&
+      contains(github.event.head_commit.message, '[run-v2-distributed]')) ||
+      (github.event_name == 'workflow_dispatch' &&
+      inputs.execute_full == true)
     needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 330
@@ -180,8 +182,10 @@ jobs:
   aggregate:
     if: >-
       always() &&
-      github.event_name == 'workflow_dispatch' &&
-      inputs.execute_full == true
+      ((github.event_name == 'push' &&
+      contains(github.event.head_commit.message, '[run-v2-distributed]')) ||
+      (github.event_name == 'workflow_dispatch' &&
+      inputs.execute_full == true))
     needs: distributed
     runs-on: ubuntu-latest
     timeout-minutes: 30
