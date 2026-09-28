@@ -8,6 +8,8 @@ on:
       - '.github/workflows/qore-utc001-sample-cluster-gates.yml'
       - 'src/qore/infrastructure/trader_lab/universal_trader_utc001_sample_cluster_gates_001.py'
       - 'tests/infrastructure/trader_lab/test_universal_trader_utc001_sample_cluster_gates_001.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_scalper_utc001_consumed_audit_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_scalper_utc001_consumed_audit_v1.py'
   workflow_dispatch:
 
 permissions:
