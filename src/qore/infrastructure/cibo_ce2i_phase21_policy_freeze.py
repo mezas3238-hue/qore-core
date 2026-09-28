@@ -374,6 +374,124 @@ class Phase21QualificationReceipt:
             raise CiboCapitalManagementError(
                 "Phase21 qualification artifact is not forward-ready"
             )
+        plan = FROZEN_PHASE20D_QUALIFICATION_PLAN
+        required_counts = (
+            ("decision_epochs", plan.minimum_decision_epochs),
+            ("candidate_outcomes", plan.minimum_candidate_outcomes),
+            ("selected_outcomes", plan.minimum_selected_outcomes),
+            ("calendar_span_days", plan.minimum_calendar_span_days),
+            ("distinct_trading_days", plan.minimum_distinct_trading_days),
+            ("represented_lineages", plan.minimum_global_lineages),
+            ("minimum_outcomes_any_lineage", plan.minimum_outcomes_per_lineage),
+            (
+                "minimum_fold_candidate_outcomes",
+                plan.minimum_fold_candidate_outcomes,
+            ),
+            ("minimum_fold_lineages", plan.minimum_fold_lineages),
+        )
+        for key, minimum in required_counts:
+            value = readiness.get(key)
+            if type(value) is not int or value < minimum:
+                raise CiboCapitalManagementError(
+                    f"Phase21 qualification readiness threshold not met: {key}"
+                )
+        if (
+            readiness.get("missing_policy_decisions") != 0
+            or readiness.get("pre_freeze_decisions") != 0
+        ):
+            raise CiboCapitalManagementError(
+                "Phase21 qualification readiness lineage contamination"
+            )
+        for key, minimum in (
+            (
+                "candidate_outcome_coverage",
+                plan.minimum_candidate_outcome_coverage,
+            ),
+            (
+                "selected_outcome_coverage",
+                plan.required_selected_outcome_coverage,
+            ),
+        ):
+            try:
+                value = Decimal(str(readiness.get(key)))
+            except (InvalidOperation, ValueError) as error:
+                raise CiboCapitalManagementError(
+                    f"Phase21 qualification readiness decimal invalid: {key}"
+                ) from error
+            if not value.is_finite() or value < minimum:
+                raise CiboCapitalManagementError(
+                    f"Phase21 qualification readiness coverage not met: {key}"
+                )
+        economics = report.get("economics")
+        if not isinstance(economics, dict):
+            raise CiboCapitalManagementError(
+                "Phase21 qualification economics missing"
+            )
+        policy_net = _metric_decimal(
+            economics, "policy_net_delta_usd"
+        )
+        baseline_net = _metric_decimal(
+            economics, "baseline_net_delta_usd"
+        )
+        policy_dd = _metric_decimal(
+            economics, "policy_settlement_cash_drawdown_usd"
+        )
+        baseline_dd = _metric_decimal(
+            economics, "baseline_settlement_cash_drawdown_usd"
+        )
+        policy_productivity = _metric_decimal(
+            economics, "policy_capital_productivity"
+        )
+        baseline_productivity = _metric_decimal(
+            economics, "baseline_capital_productivity"
+        )
+        if (
+            policy_net <= 0
+            or policy_net < baseline_net
+            or policy_dd > baseline_dd
+            or policy_productivity <= baseline_productivity
+        ):
+            raise CiboCapitalManagementError(
+                "Phase21 qualification economic hard gates not demonstrated"
+            )
+        for key, minimum in (
+            (
+                "policy_selected_outcome_coverage",
+                plan.required_selected_outcome_coverage,
+            ),
+            (
+                "baseline_selected_outcome_coverage",
+                plan.required_baseline_selected_outcome_coverage,
+            ),
+            (
+                "candidate_outcome_coverage",
+                plan.minimum_candidate_outcome_coverage,
+            ),
+        ):
+            value = _metric_decimal(economics, key)
+            if value < minimum:
+                raise CiboCapitalManagementError(
+                    f"Phase21 qualification economic coverage not met: {key}"
+                )
+        folds = report.get("folds")
+        if not isinstance(folds, list) or len(folds) != plan.fold_count:
+            raise CiboCapitalManagementError(
+                "Phase21 qualification temporal folds incomplete"
+            )
+        for fold in folds:
+            if not isinstance(fold, dict):
+                raise CiboCapitalManagementError(
+                    "Phase21 qualification fold must be object"
+                )
+            if _metric_decimal(fold, "policy_net_delta_usd") <= 0:
+                raise CiboCapitalManagementError(
+                    "Phase21 qualification fold policy delta not positive"
+                )
+        dataset = report.get("dataset")
+        if not isinstance(dataset, list) or not dataset:
+            raise CiboCapitalManagementError(
+                "Phase21 qualification dataset missing"
+            )
         provenance = report.get("provenance")
         if not isinstance(provenance, dict):
             raise CiboCapitalManagementError(
@@ -387,6 +505,17 @@ class Phase21QualificationReceipt:
         ):
             raise CiboCapitalManagementError(
                 "Phase21 qualification store lineage mismatch"
+            )
+        if (
+            provenance.get("decision_count") != readiness.get("decision_epochs")
+            or provenance.get("policy_decision_count")
+            != readiness.get("decision_epochs")
+            or type(provenance.get("outcome_count")) is not int
+            or provenance.get("outcome_count")
+            < readiness.get("candidate_outcomes")
+        ):
+            raise CiboCapitalManagementError(
+                "Phase21 qualification provenance population mismatch"
             )
         if provenance.get("git_sha") != self.qualification_git_sha:
             raise CiboCapitalManagementError(
@@ -413,6 +542,16 @@ class Phase21QualificationReceipt:
         ):
             raise CiboCapitalManagementError(
                 "Phase21 qualification gate is not eligible"
+            )
+        final_gate = report.get("final_certification")
+        if (
+            not isinstance(final_gate, dict)
+            or final_gate.get("status") != "PENDING_PHASE21_PHASE22"
+            or final_gate.get("eligible") is not False
+            or final_gate.get("phase20d_eligible_for_phase21") is not True
+        ):
+            raise CiboCapitalManagementError(
+                "Phase21 qualification artifact final gate drift"
             )
 
 
