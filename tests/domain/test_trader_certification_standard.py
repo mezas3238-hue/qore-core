@@ -27,7 +27,7 @@ def _period(
         "observed_max_drawdown_r": Decimal("6.0"),
         "monte_carlo_positive_probability": Decimal("0.91"),
         "monte_carlo_p95_drawdown_r": Decimal("14.9"),
-        "payoff_ratio": Decimal("1.25"),
+        "payoff_ratio": Decimal("1.60"),
         "post_cost_profit_factor": Decimal("1.10"),
         "post_cost_expectancy_r": Decimal("0.01"),
         "loss_cluster_gate_passed": True,
@@ -118,13 +118,17 @@ def test_each_year_must_meet_full_expectancy_gate() -> None:
     assert "2023:EXPECTANCY_BELOW_0_15R" in universal_acceptance_failures(evidence)
 
 
-def test_payoff_is_diagnostic_not_a_standalone_hard_gate() -> None:
+def test_payoff_is_a_strict_per_period_hard_gate() -> None:
     green = _green()
     periods = tuple(
         _period(
             period.period_id,
             period.kind,
-            payoff_ratio=Decimal("0.80"),
+            payoff_ratio=(
+                Decimal("1.49")
+                if period.period_id == "2023"
+                else period.payoff_ratio
+            ),
         )
         for period in green.periods
     )
@@ -138,8 +142,8 @@ def test_payoff_is_diagnostic_not_a_standalone_hard_gate() -> None:
 
     failures = universal_acceptance_failures(evidence)
 
-    assert not any("PAYOFF" in failure for failure in failures)
-    assert passes_universal_trader_certification(evidence) is True
+    assert "2023:PAYOFF_RATIO_BELOW_1_50" in failures
+    assert passes_universal_trader_certification(evidence) is False
 
 
 def test_each_fold_is_a_hard_gate_too() -> None:
