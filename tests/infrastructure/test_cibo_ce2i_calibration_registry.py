@@ -131,6 +131,8 @@ def test_phase19_negative_evidence_blocks_unreplicated_portfolio_policies() -> N
         "T09": "ZERO_WALK_FORWARD_POLICY_SURVIVORS",
         "T12": "TEMPORAL_STABILITY_OBSERVATIONAL_ONLY",
         "T13": "ZERO_WALK_FORWARD_POLICY_SURVIVORS",
+        "T14": "NO_POST_ENTRY_DERISK_EVENT_POPULATION_IN_BURNED_EVIDENCE",
+        "T15": "OPTIONALITY_VALUE_NOT_CAUSALLY_IDENTIFIED",
         "T18": "ZERO_WALK_FORWARD_POLICY_SURVIVORS",
     }
     for code, blocker in expected.items():

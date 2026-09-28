@@ -123,6 +123,10 @@ def build_report(root: Path) -> dict[str, Any]:
         "T09": "zero candidate policies survived both walk-forward folds",
         "T12": "temporal state evidence does not freeze regime boundaries",
         "T13": "zero reserve policies survived both walk-forward folds",
+        "T14": (
+            "no post-entry de-risk event population; capacity stress expresses "
+            "entry rejection rather than open-position reduction"
+        ),
         "T15": "optionality value not causally identified by this artifact",
         "T18": "zero allocation policies survived both walk-forward folds",
     }

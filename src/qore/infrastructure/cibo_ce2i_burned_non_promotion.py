@@ -36,6 +36,15 @@ BURNED_NON_PROMOTION_REASONS: dict[str, tuple[str, ...]] = {
         "ZERO_WALK_FORWARD_POLICY_SURVIVORS",
         "NO_ROBUST_DRAWDOWN_RESERVE_POLICY_IDENTIFIED",
     ),
+    "T14": (
+        "NO_POST_ENTRY_DERISK_EVENT_POPULATION_IN_BURNED_EVIDENCE",
+        "CAPACITY_STRESS_EXPRESSES_ENTRY_REJECTION_NOT_OPEN_POSITION_REDUCTION",
+        "NO_CAUSAL_DERISK_TRIGGER_IDENTIFIED",
+    ),
+    "T15": (
+        "OPTIONALITY_VALUE_NOT_CAUSALLY_IDENTIFIED",
+        "NO_ROBUST_OPTIONALITY_POLICY_IDENTIFIED",
+    ),
     "T18": (
         "ZERO_WALK_FORWARD_POLICY_SURVIVORS",
         "NO_ROBUST_CROSS_TRADER_ALLOCATION_POLICY_IDENTIFIED",
@@ -59,6 +68,11 @@ def burned_non_promotion_payload() -> dict[str, Any]:
             "temporal_stability_status": "MEASURED_OBSERVATIONAL_ONLY",
             "walk_forward_status": "POST_FREEZE_FORWARD_VALIDATION_COMPLETE",
             "walk_forward_surviving_policy_count": 0,
+            "capital_collision_stress_status": (
+                "TRAIN_VALIDATION_CAPACITY_COLLISION_MEASURED_DESCRIPTIVE_ONLY"
+            ),
+            "post_entry_derisk_event_population_identified": False,
+            "optionality_value_identified": False,
             "correlation_claimed": False,
             "provider_economics_used": False,
         },

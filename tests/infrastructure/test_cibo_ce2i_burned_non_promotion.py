@@ -21,6 +21,8 @@ def test_non_promoted_tools_are_exactly_portfolio_regime_failures() -> None:
         "T09",
         "T12",
         "T13",
+        "T14",
+        "T15",
         "T18",
     }
     assert "FACTOR_MAP_NOT_CERTIFIED" in BURNED_NON_PROMOTION_REASONS["T08"]
@@ -29,6 +31,18 @@ def test_non_promoted_tools_are_exactly_portfolio_regime_failures() -> None:
         "CAUSAL_REGIME_BOUNDARIES_NOT_IDENTIFIED"
         in BURNED_NON_PROMOTION_REASONS["T12"]
     )
+
+
+    assert (
+        "NO_POST_ENTRY_DERISK_EVENT_POPULATION_IN_BURNED_EVIDENCE"
+        in BURNED_NON_PROMOTION_REASONS["T14"]
+    )
+    assert (
+        "OPTIONALITY_VALUE_NOT_CAUSALLY_IDENTIFIED"
+        in BURNED_NON_PROMOTION_REASONS["T15"]
+    )
+    assert payload["source_findings"]["post_entry_derisk_event_population_identified"] is False
+    assert payload["source_findings"]["optionality_value_identified"] is False
 
 
 def test_non_promotion_hash_is_stable() -> None:
