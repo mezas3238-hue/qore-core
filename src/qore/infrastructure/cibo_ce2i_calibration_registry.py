@@ -26,12 +26,12 @@ from qore.infrastructure.cibo_ce2i_burned_non_promotion import (
 from qore.infrastructure.cibo_ce2i_burned_t06_calibration import (
     burned_t06_source_calibration_sha256,
 )
+from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
+    provider_economics_evidence_ref,
+)
 from qore.infrastructure.cibo_ce2i_t02_calibration_binding import (
     T02_CONTEXT_CALIBRATION_SHA256,
     t02_calibration_source_ref,
-)
-from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
-    provider_economics_evidence_ref,
 )
 from qore.infrastructure.cibo_ce2i_tool_registry import (
     CE2I_TOOL_REGISTRY,
