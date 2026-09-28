@@ -189,9 +189,9 @@ def decode_historical_tick_page(
     for index, raw in enumerate(native_ticks):
         timestamp_value = getattr(raw, "timestamp", None)
         relative_price = getattr(raw, "tick", None)
-        if type(timestamp_value) is not int or timestamp_value < 0:
+        if type(timestamp_value) is not int:
             raise CTraderHistoricalTickError(
-                "provider tick timestamp must be non-negative int"
+                "provider tick timestamp must be int"
             )
         if type(relative_price) is not int or relative_price <= 0:
             raise CTraderHistoricalTickError(
@@ -205,11 +205,15 @@ def decode_historical_tick_page(
                 )
             absolute_ms = timestamp_value
         else:
-            if timestamp_value <= 0 or previous_ms is None:
+            if previous_ms is None:  # pragma: no cover - guarded by loop order
                 raise CTraderHistoricalTickError(
-                    "subsequent provider ticks require positive time deltas"
+                    "historical tick decoder lost previous timestamp"
                 )
-            absolute_ms = previous_ms - timestamp_value
+            if timestamp_value > 0:
+                raise CTraderHistoricalTickError(
+                    "newest-first provider tick delta must be non-positive"
+                )
+            absolute_ms = previous_ms + timestamp_value
             if absolute_ms < 0:
                 raise CTraderHistoricalTickError(
                     "provider tick delta moved before Unix epoch"
@@ -233,12 +237,14 @@ def decode_historical_tick_page(
         previous_ms = absolute_ms
 
     for newer, older in zip(newest_first, newest_first[1:], strict=False):
-        if older.observed_at >= newer.observed_at:
+        if older.observed_at > newer.observed_at:
             raise CTraderHistoricalTickError(
-                "provider tick chronology is not strictly newest-first"
+                "provider tick chronology is not newest-first"
             )
 
-    ticks = tuple(reversed(newest_first))
+    # Sort to chronological replay order while preserving provider order for
+    # multiple quote updates that share the same millisecond timestamp.
+    ticks = tuple(sorted(newest_first, key=lambda item: item.observed_at))
     return CTraderHistoricalTickPage(
         request=request,
         ticks=ticks,
