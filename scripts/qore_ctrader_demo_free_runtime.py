@@ -60,6 +60,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_capital_source_ledger_store import (
     DurableCapitalSourceLedgerStore,
 )
+from qore.infrastructure.cibo_phase20_demo_execution_activation import (
+    load_phase20_demo_execution_activation,
+)
 from qore.infrastructure.cibo_ctrader_demo_sizing import (
     build_ctrader_demo_cibo_sizing,
 )
@@ -1014,9 +1017,12 @@ def _process_audjpy_r42_candidate(
 
 
 def run(root: Path, *, mode: str, activation_path: Path) -> None:
-    del activation_path
     global mt5
     sha = _git_sha(root)
+    load_phase20_demo_execution_activation(
+        activation_path,
+        expected_git_sha=sha,
+    )
     demo_sink = _configure_ctrader_demo_free_sink(root)
     binding_raw = json.loads(
         (root / "var" / "ctrader_demo_free" / "binding.json").read_text(encoding="utf-8")
