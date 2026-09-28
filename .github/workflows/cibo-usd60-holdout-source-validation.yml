@@ -27,6 +27,40 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
+      - name: Evaluate pre-holdout freeze gate without reading 2017H1
+        id: preholdout
+        shell: bash
+        run: |
+          mkdir -p holdout-lock
+          python scripts/cibo_pre_holdout_gate.py \
+            --output holdout-lock/pre-holdout-gate.json \
+            > holdout-lock/pre-holdout-gate.stdout.json
+          authorized="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(
+              Path("holdout-lock/pre-holdout-gate.json").read_text()
+          )
+          print("true" if p["authorized"] else "false")
+          PY
+          )"
+          printf 'authorized=%s\n' "$authorized" >> "$GITHUB_OUTPUT"
+
+      - name: Prove locked state does not inspect 2017H1
+        if: steps.preholdout.outputs.authorized != 'true'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(
+              Path("holdout-lock/pre-holdout-gate.json").read_text()
+          )
+          assert p["status"] == "LOCKED_UNTOUCHED"
+          assert p["authorized"] is False
+          assert p["holdout_outcomes_inspected"] is False
+          assert p["holdout_market_data_read"] is False
+          PY
+
       - name: Quality
         run: |
           ruff check \
@@ -48,7 +82,17 @@ jobs:
           require_pre_holdout_freeze_before_2017h1_access()
           PY
 
+      - name: Upload pre-holdout lock evidence
+        if: steps.preholdout.outputs.authorized != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-usd60-holdout-locked-${{ github.sha }}
+          path: holdout-lock
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Download immutable 10Y atlas source artifacts
+        if: steps.preholdout.outputs.authorized == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -70,6 +114,7 @@ jobs:
           sha256sum -c holdout-source/raw-source-SHA256SUMS.txt
 
       - name: Validate preregistered 2017H1 sources without Trader outcomes
+        if: steps.preholdout.outputs.authorized == 'true'
         run: |
           python scripts/cibo_usd60_holdout_source_validation.py \
             --audjpy holdout-source/raw/audjpy.zip \
@@ -82,6 +127,7 @@ jobs:
             > holdout-source/holdout-source-validation.stdout.json
 
       - name: Prove validation did not inspect Trader outcomes
+        if: steps.preholdout.outputs.authorized == 'true'
         run: |
           python - <<'PY'
           import json
@@ -108,6 +154,7 @@ jobs:
           PY
 
       - name: Seal blind source-validation evidence
+        if: steps.preholdout.outputs.authorized == 'true'
         run: |
           printf '%s\n' "$GITHUB_SHA" > holdout-source/git-sha.txt
           cd holdout-source
@@ -120,9 +167,11 @@ jobs:
           sha256sum -c SHA256SUMS.txt
 
       - name: Remove raw price archives before artifact upload
+        if: steps.preholdout.outputs.authorized == 'true'
         run: rm -rf holdout-source/raw
 
       - name: Upload sanitized source-validation evidence
+        if: steps.preholdout.outputs.authorized == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: qore-cibo-usd60-holdout-source-validation-${{ github.sha }}
