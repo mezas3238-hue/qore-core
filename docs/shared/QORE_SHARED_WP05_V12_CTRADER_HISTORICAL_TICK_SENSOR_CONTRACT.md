@@ -69,10 +69,10 @@ Historical acquisition must:
    zero price deltas are valid provided the reconstructed absolute price remains
    strictly positive;
 8. retain raw wire timestamp/price values alongside reconstructed values;
-7. retain the deterministically reconstructed absolute provider-relative
-   integer price as well as the exact normalized decimal representation; the
-   signed wire deltas are normalization inputs, while the canonical retained
-   market evidence is the reconstructed chronological quote stream;
+7. retain both the signed provider wire timestamp/price values and the
+   deterministically reconstructed absolute provider-relative integer price,
+   plus the exact normalized decimal representation; the canonical shard
+   schema is `qore.shared.wp05.v12.historical_quote_side_shard.v2`;
 8. preserve which quote side produced every tick;
 9. reject malformed/non-monotonic timestamp chains;
 10. reject response/account mismatches;
