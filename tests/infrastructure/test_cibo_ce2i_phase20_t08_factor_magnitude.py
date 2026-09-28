@@ -17,7 +17,6 @@ from qore.infrastructure.cibo_ce2i_phase20_t08_factor_magnitude import (
 )
 from qore.infrastructure.cibo_provider_economic_normalization import ProviderEconomicObservation
 
-
 DECISION_AT = datetime(2026, 9, 28, 18, 0, tzinfo=UTC)
 
 
