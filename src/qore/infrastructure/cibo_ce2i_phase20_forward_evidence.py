@@ -28,12 +28,12 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
     TraderOpportunityEnvelope,
 )
-from qore.infrastructure.cibo_ce2i_causal_expectation import (
-    CausalExpectationBasis,
-)
 from qore.infrastructure.cibo_ce2i_advanced_evidence import (
     AdvancedCe2iEvidenceSnapshot,
     assert_advanced_evidence_snapshot_causal,
+)
+from qore.infrastructure.cibo_ce2i_causal_expectation import (
+    CausalExpectationBasis,
 )
 from qore.infrastructure.cibo_ce2i_full_surface import (
     AdvancedPortfolioEvidence,
