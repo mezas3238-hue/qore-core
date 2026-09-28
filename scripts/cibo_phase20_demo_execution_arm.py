@@ -16,6 +16,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from qore.infrastructure.ctrader_demo_free_binding import (  # type: ignore[import-untyped]
+    CTraderDemoFreeBinding,
     binding_fingerprint,
     discover_free_account_binding,
 )
@@ -111,8 +112,10 @@ def _assert_clean_initial_broker_state(
         )
 
 
-def _binding_payload(binding: object) -> dict[str, object]:
-    contracts = getattr(binding, "contracts")
+def _binding_payload(
+    binding: CTraderDemoFreeBinding,
+) -> dict[str, object]:
+    contracts = binding.contracts
     by_symbol = {item.qore_symbol: item for item in contracts}
     if tuple(sorted(by_symbol)) != _REQUIRED_SYMBOLS:
         raise RuntimeError("CIBO Phase20D DEMO binding symbol-set drift")
