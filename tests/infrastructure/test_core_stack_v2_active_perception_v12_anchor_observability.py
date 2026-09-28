@@ -1,20 +1,17 @@
 from datetime import UTC, datetime, timedelta
 
-from qore.infrastructure.core_stack_v2.active_perception_v12_anchor_observability import (
-    STALENESS_CANDIDATES_MS,
-    V12AnchorQuoteState,
-    summarize_v12_anchor_observability,
-    v12_anchor_observability_digest,
+from qore.infrastructure.core_stack_v2 import (
+    active_perception_v12_anchor_observability as observability,
 )
 
 
 _BASE = datetime(2017, 1, 1, 14, 0, tzinfo=UTC)
 
 
-def _state(index: int, *, age_ms: int, crossed: bool = False) -> V12AnchorQuoteState:
+def _state(index: int, *, age_ms: int, crossed: bool = False) -> observability.V12AnchorQuoteState:
     bid = 2_000_000_000 + index
     ask = bid - 1 if crossed else bid + 10_000
-    return V12AnchorQuoteState(
+    return observability.V12AnchorQuoteState(
         evaluation_at=_BASE + timedelta(minutes=index),
         bid_age_ms=age_ms,
         ask_age_ms=age_ms,
@@ -29,7 +26,7 @@ def test_staleness_freeze_selects_smallest_threshold_with_95pct_usable() -> None
         for index in range(100)
     )
 
-    report = summarize_v12_anchor_observability(states)
+    report = observability.summarize_v12_anchor_observability(states)
 
     assert report["status"] == "frozen"
     assert report["selected_staleness_limit_ms"] == 1_000
@@ -39,8 +36,8 @@ def test_staleness_freeze_selects_smallest_threshold_with_95pct_usable() -> None
     }
     assert thresholds[500]["usable_coverage_bps"] == 0
     assert thresholds[1_000]["usable_coverage_bps"] == 9_500
-    assert tuple(thresholds) == STALENESS_CANDIDATES_MS
-    assert len(v12_anchor_observability_digest(report)) == 64
+    assert tuple(thresholds) == observability.STALENESS_CANDIDATES_MS
+    assert len(observability.v12_anchor_observability_digest(report)) == 64
 
 
 def test_crossed_quote_is_not_counted_as_usable() -> None:
@@ -49,7 +46,7 @@ def test_crossed_quote_is_not_counted_as_usable() -> None:
         for index in range(100)
     )
 
-    report = summarize_v12_anchor_observability(states)
+    report = observability.summarize_v12_anchor_observability(states)
 
     assert report["crossed_causal_quote_count"] == 6
     assert report["status"] == "rejected"
@@ -58,14 +55,14 @@ def test_crossed_quote_is_not_counted_as_usable() -> None:
 
 def test_missing_side_is_explicit_and_never_imputed() -> None:
     states = (
-        V12AnchorQuoteState(
+        observability.V12AnchorQuoteState(
             evaluation_at=_BASE,
             bid_age_ms=100,
             ask_age_ms=None,
             bid_relative_price=2_000_000_000,
             ask_relative_price=None,
         ),
-        V12AnchorQuoteState(
+        observability.V12AnchorQuoteState(
             evaluation_at=_BASE + timedelta(minutes=1),
             bid_age_ms=100,
             ask_age_ms=100,
@@ -74,7 +71,7 @@ def test_missing_side_is_explicit_and_never_imputed() -> None:
         ),
     )
 
-    report = summarize_v12_anchor_observability(states)
+    report = observability.summarize_v12_anchor_observability(states)
 
     assert report["no_prior_bid_count"] == 0
     assert report["no_prior_ask_count"] == 1
