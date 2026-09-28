@@ -7,7 +7,7 @@ import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Final
+from typing import Final, cast
 
 V14_PEER_ACQUISITION_IDENTITY: Final = (
     "QORE_SHARED_WP05_V14_PEER_MICROSTRUCTURE_R8_ACQUISITION_001"
@@ -243,12 +243,12 @@ def reduce_v14_peer_reports(
             value = report.get(field)
             if type(value) is not int or value < 0:
                 raise ValueError(f"V14 {field} invalid")
-        bid_ticks += int(report["bid_tick_count"])
-        ask_ticks += int(report["ask_tick_count"])
-        provider_pages += int(report["provider_page_count"])
-        page_shards += int(report["immutable_page_shard_count"])
-        empty_bid += int(report["empty_bid_window_count"])
-        empty_ask += int(report["empty_ask_window_count"])
+        bid_ticks += cast(int, report["bid_tick_count"])
+        ask_ticks += cast(int, report["ask_tick_count"])
+        provider_pages += cast(int, report["provider_page_count"])
+        page_shards += cast(int, report["immutable_page_shard_count"])
+        empty_bid += cast(int, report["empty_bid_window_count"])
+        empty_ask += cast(int, report["empty_ask_window_count"])
 
     if sorted(by_shard) != list(range(FROZEN_SHARD_COUNT)):
         raise ValueError("V14 peer shard set incomplete")
