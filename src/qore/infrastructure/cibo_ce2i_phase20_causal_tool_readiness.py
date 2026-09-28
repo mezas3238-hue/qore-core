@@ -33,6 +33,9 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
 from qore.infrastructure.cibo_ce2i_phase20_qualification_readiness import (
     Phase20QualificationReadiness,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t14_path_readiness import (
+    Phase20T14PathReadiness,
+)
 
 
 class Phase20ToolEvidenceState(StrEnum):
@@ -174,6 +177,7 @@ def assess_phase20_causal_tool_readiness(
     *,
     evidence_book: VersionedPhase20ForwardEvidenceBook,
     qualification_readiness: Phase20QualificationReadiness,
+    t14_path_readiness: Phase20T14PathReadiness | None = None,
 ) -> Phase20CausalToolReadinessReport:
     """Measure tool-specific causal evidence without granting calibration."""
 
@@ -184,6 +188,13 @@ def assess_phase20_causal_tool_readiness(
     if not isinstance(qualification_readiness, Phase20QualificationReadiness):
         raise CiboCapitalManagementError(
             "Phase20 causal readiness requires canonical qualification readiness"
+        )
+    if (
+        t14_path_readiness is not None
+        and not isinstance(t14_path_readiness, Phase20T14PathReadiness)
+    ):
+        raise CiboCapitalManagementError(
+            "Phase20 causal readiness T14 path evidence is invalid"
         )
 
     usable: list[tuple[Phase20ForwardDecisionSeal, dict[str, Any]]] = []
@@ -333,17 +344,9 @@ def assess_phase20_causal_tool_readiness(
             qualifying_epochs=causal_history_epochs,
             blockers=tuple(t13_blockers),
         ),
-        Phase20ToolEvidenceReadiness(
-            tool_code="T14",
-            state=Phase20ToolEvidenceState.REQUIRES_DIFFERENT_EVIDENCE,
-            stream_bound=False,
-            forward_population_ready=False,
-            observed_epochs=total_usable,
-            qualifying_epochs=0,
-            blockers=(
-                "POST_ENTRY_POSITION_PATH_EVENT_STREAM_REQUIRED",
-                "DECISION_EPOCH_BOOK_CANNOT_PROVE_DYNAMIC_DERISK_UTILITY",
-            ),
+        _t14_row(
+            total_usable=total_usable,
+            readiness=t14_path_readiness,
         ),
         Phase20ToolEvidenceReadiness(
             tool_code="T15",
@@ -376,6 +379,42 @@ def assess_phase20_causal_tool_readiness(
         known_option_epochs=known_option_epochs,
         causal_history_epochs=causal_history_epochs,
         tools=rows,
+    )
+
+
+def _t14_row(
+    *,
+    total_usable: int,
+    readiness: Phase20T14PathReadiness | None,
+) -> Phase20ToolEvidenceReadiness:
+    if readiness is None:
+        return Phase20ToolEvidenceReadiness(
+            tool_code="T14",
+            state=Phase20ToolEvidenceState.REQUIRES_DIFFERENT_EVIDENCE,
+            stream_bound=False,
+            forward_population_ready=False,
+            observed_epochs=total_usable,
+            qualifying_epochs=0,
+            blockers=(
+                "POST_ENTRY_POSITION_PATH_EVENT_STREAM_REQUIRED",
+                "DECISION_EPOCH_BOOK_CANNOT_PROVE_DYNAMIC_DERISK_UTILITY",
+            ),
+        )
+
+    blockers = list(readiness.blockers)
+    blockers.append("FRESH_OOS_DYNAMIC_DERISK_UTILITY_ANALYSIS_REQUIRED")
+    return Phase20ToolEvidenceReadiness(
+        tool_code="T14",
+        state=(
+            Phase20ToolEvidenceState.COLLECTING_FORWARD
+            if readiness.stream_bound
+            else Phase20ToolEvidenceState.REQUIRES_DIFFERENT_EVIDENCE
+        ),
+        stream_bound=readiness.stream_bound,
+        forward_population_ready=False,
+        observed_epochs=readiness.path_positions,
+        qualifying_epochs=readiness.qualifying_intervention_positions,
+        blockers=tuple(blockers),
     )
 
 

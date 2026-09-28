@@ -24,6 +24,12 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification import (
     Phase20QualificationReport,
     run_phase20d_v2_qualification,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t14_path_readiness import (
+    assess_phase20_t14_path_readiness,
+)
+from qore.infrastructure.ctrader_demo_live_behavior_lab import (
+    CTraderDemoLiveBehaviorLedger,
+)
 
 
 def _report_json(report: Phase20QualificationReport) -> dict[str, Any]:
@@ -262,6 +268,7 @@ def main() -> None:
     parser.add_argument("--evidence-store", type=Path, required=True)
     parser.add_argument("--policy-store", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--behavior-ledger", type=Path)
     parser.add_argument("--git-sha")
     args = parser.parse_args()
 
@@ -276,9 +283,20 @@ def main() -> None:
         evidence_book=evidence,
         policy_book=policy,
     )
+    t14_path_readiness = None
+    behavior_ledger_sha256 = None
+    if args.behavior_ledger is not None:
+        behavior_ledger_sha256 = _sha256_path(args.behavior_ledger)
+        t14_path_readiness = assess_phase20_t14_path_readiness(
+            evidence_book=evidence,
+            events=CTraderDemoLiveBehaviorLedger(
+                args.behavior_ledger
+            ).events(),
+        )
     tool_readiness = assess_phase20_causal_tool_readiness(
         evidence_book=evidence,
         qualification_readiness=report.readiness,
+        t14_path_readiness=t14_path_readiness,
     )
     payload = _report_json(report)
     payload["causal_tool_readiness"] = {
@@ -301,6 +319,36 @@ def main() -> None:
         ),
         "known_option_epochs": tool_readiness.known_option_epochs,
         "causal_history_epochs": tool_readiness.causal_history_epochs,
+        "t14_path_readiness": (
+            None
+            if t14_path_readiness is None
+            else {
+                "stream_bound": t14_path_readiness.stream_bound,
+                "observed_path_samples": (
+                    t14_path_readiness.observed_path_samples
+                ),
+                "path_positions": t14_path_readiness.path_positions,
+                "longitudinal_path_positions": (
+                    t14_path_readiness.longitudinal_path_positions
+                ),
+                "reconciled_stop_positions": (
+                    t14_path_readiness.reconciled_stop_positions
+                ),
+                "execution_cost_bound_positions": (
+                    t14_path_readiness.execution_cost_bound_positions
+                ),
+                "protection_change_positions": (
+                    t14_path_readiness.protection_change_positions
+                ),
+                "volume_change_positions": (
+                    t14_path_readiness.volume_change_positions
+                ),
+                "qualifying_intervention_positions": (
+                    t14_path_readiness.qualifying_intervention_positions
+                ),
+                "blockers": list(t14_path_readiness.blockers),
+            }
+        ),
         "tools": [
             {
                 "tool_code": item.tool_code,
@@ -333,6 +381,7 @@ def main() -> None:
         "git_sha": git_sha,
         "evidence_store_sha256": evidence_store_sha256,
         "policy_store_sha256": policy_store_sha256,
+        "behavior_ledger_sha256": behavior_ledger_sha256,
         "evidence_generation": evidence.generation,
         "policy_generation": policy.generation,
         "decision_count": len(evidence.decisions),
