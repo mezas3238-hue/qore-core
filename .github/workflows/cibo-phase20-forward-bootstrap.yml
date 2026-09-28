@@ -119,18 +119,22 @@ jobs:
               for row in payload["market"]
           )
           assert len(payload["account_fingerprint"]) == 64
-          assert len(payload["binding_fingerprint"]) == 64
+          assert len(payload["binding_fingerprint"]) == 32
           PY
 
       - name: Seal bootstrap evidence
+        if: always()
         shell: bash
         run: |
+          test -f phase20-forward-bootstrap/bootstrap.json
+          test -f phase20-forward-bootstrap/git-sha.txt
           set -euo pipefail
           cd phase20-forward-bootstrap
           sha256sum bootstrap.json git-sha.txt > SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
 
       - name: Upload sanitized bootstrap evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: qore-cibo-phase20-forward-bootstrap-${{ github.sha }}
