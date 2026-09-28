@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 from pathlib import Path
+
 from qore.infrastructure.trader_lab import (
     capitalizer_preentry_full_stop_causal_separability_v37 as v37,
 )
