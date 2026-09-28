@@ -118,7 +118,9 @@ def run(
                 len(epoch.candidates) for epoch in epochs
             ),
             "minimum_robust_epoch_count": MINIMUM_ROBUST_COMPETITION_EPOCHS,
-            "robust_competition_population_available": len(epochs) >= MINIMUM_ROBUST_COMPETITION_EPOCHS,
+            "robust_competition_population_available": (
+                len(epochs) >= MINIMUM_ROBUST_COMPETITION_EPOCHS
+            ),
             "shared_entry_time_treated_as_competition": False,
             "ordinary_overlap_treated_as_competition": False,
         },
@@ -156,7 +158,9 @@ def run(
         ],
         "interpretation": {
             "t09_t18_causal_candidate_exists": True,
-            "historical_scarcity_identification_robust": len(epochs) >= MINIMUM_ROBUST_COMPETITION_EPOCHS,
+            "historical_scarcity_identification_robust": (
+                len(epochs) >= MINIMUM_ROBUST_COMPETITION_EPOCHS
+            ),
             "promotion_from_phase19l_alone": False,
             "fresh_oos_scarcity_generalization_required": True,
         },
