@@ -50,7 +50,7 @@ from qore.infrastructure.cibo_provider_economic_normalization import (
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
-OPENED_AT = datetime(2026, 9, 27, 16, 15, tzinfo=UTC)
+OPENED_AT = datetime(2026, 9, 28, 5, 45, tzinfo=UTC)
 DECISION_AT = OPENED_AT + timedelta(milliseconds=500)
 
 
