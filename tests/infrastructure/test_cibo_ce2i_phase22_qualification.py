@@ -96,6 +96,7 @@ def _decision(
     candidate = FROZEN_PHASE20_POLICY_CANDIDATE
     payload = json.dumps(
         {
+            "evidence_kind": "FORWARD_OBSERVED",
             "candidates": [],
             "hard_risk_headroom_usd": "60",
             "margin_headroom_usd": "60",
