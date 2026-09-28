@@ -114,14 +114,10 @@ def _request_availability(
     has_more = getattr(result.value, "hasMore", None)
     if type(has_more) is not bool:
         raise RuntimeError("historical tick response missing hasMore")
-    for tick in ticks:
-        timestamp = getattr(tick, "timestamp", None)
-        price = getattr(tick, "tick", None)
-        if type(timestamp) is not int or timestamp < 0:
-            raise RuntimeError("historical tick row has invalid timestamp encoding")
-        if type(price) is not int or price <= 0:
-            raise RuntimeError("historical tick row has invalid relative price")
-
+    # ProtoOAGetTickDataRes uses compressed timestamp semantics: the first
+    # tick carries absolute Unix milliseconds and later rows carry deltas.
+    # This census is metadata-only, so it deliberately does not decode or
+    # retain individual tick timestamps/prices.
     return TickAvailabilityRow(
         canonical_symbol=canonical_symbol,
         provider_symbol=provider_symbol,
