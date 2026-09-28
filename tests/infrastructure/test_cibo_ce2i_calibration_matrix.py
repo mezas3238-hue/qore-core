@@ -22,12 +22,24 @@ def test_calibration_matrix_is_canonical_and_pre_holdout_conservative() -> None:
 
 def test_provider_bound_tools_are_explicit_and_fail_closed() -> None:
     rows = {row.tool_code: row for row in CIBO_T01_T20_CALIBRATION_MATRIX}
-    provider_bound = {"T01", "T03", "T04", "T10", "T11", "T16", "T17"}
+    provider_bound = {
+        "T01",
+        "T03",
+        "T04",
+        "T07",
+        "T10",
+        "T11",
+        "T16",
+        "T17",
+    }
     assert {
         code for code, row in rows.items() if row.provider_economics_required
     } == provider_bound
     assert all(rows[code].fail_closed for code in provider_bound)
-    assert all(rows[code].fail_closed for code in {"T01", "T03", "T11", "T16", "T17"})
+    assert all(
+        rows[code].fail_closed
+        for code in {"T01", "T03", "T11", "T16", "T17"}
+    )
     assert rows["T04"].classification is CiboCalibrationClassification.CALIBRATED_CAUSAL
     assert rows["T10"].classification is CiboCalibrationClassification.CALIBRATED_CAUSAL
 
