@@ -166,13 +166,18 @@ At minimum: reshuffle/sequence stress and losing-cluster stress.
 
 ### 3.7 Payoff economics
 
-Payoff ratio is **mandatory to report but is not a standalone universal acceptance threshold**.
+Payoff ratio is a **hard universal certification gate**.
 
-It must be interpreted jointly with win rate, Profit Factor, expectancy and tail risk.
+- Average Winner / Average Loser: **>= 1.50**
+- the threshold applies independently to every required year and every required OOS fold;
+- a global/combined payoff cannot rescue a failed period.
 
-A lower payoff may still be valid when a sufficiently high win rate and the rest of the UTC-001
-quality gates produce robust economics. Conversely, a high payoff does not rescue weak PF,
-expectancy, Sharpe/Sortino, drawdown or OOS stability.
+Rationale: UTC-001 is an excellence standard, not a minimum-viability standard. Requiring 1.50
+forces the average winner to be materially larger than the average loser while Profit Factor,
+expectancy, Sharpe/Sortino, drawdown and Monte Carlo remain independent hard gates.
+
+A high payoff still cannot rescue weak PF, expectancy, Sharpe/Sortino, drawdown, costs or OOS
+stability. All gates must pass simultaneously.
 
 ### 3.8 Cost robustness
 
@@ -217,8 +222,8 @@ Win rate is mandatory to report for every year/fold but is **not a universal sta
 
 WR >= 50% is desirable when compatible with the strategy's payoff structure.
 
-A lower WR can pass when the same period independently satisfies expectancy, PF,
-Sharpe/Sortino, DD, Monte Carlo and cost gates, with payoff economics remaining diagnostically coherent.
+A lower WR can pass only when the same period independently satisfies the payoff >= 1.50 gate,
+expectancy, PF, Sharpe/Sortino, DD, Monte Carlo and cost gates.
 
 A high WR cannot rescue poor payoff economics.
 
