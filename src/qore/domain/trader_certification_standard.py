@@ -16,7 +16,7 @@ MIN_COMBINED_OOS_PROFIT_FACTOR = Decimal("1.70")
 MIN_COMBINED_OOS_EXPECTANCY_R = Decimal("0.15")
 MIN_OOS_SHARPE = Decimal("1.50")
 MIN_OOS_SORTINO = Decimal("2.00")
-MAX_OBSERVED_DRAWDOWN_R = Decimal("10")
+MAX_OBSERVED_DRAWDOWN_R = Decimal("6")
 MIN_MONTE_CARLO_POSITIVE_PROBABILITY = Decimal("0.90")
 MAX_MONTE_CARLO_P95_DRAWDOWN_R = Decimal("15")
 MIN_PAYOFF_RATIO = Decimal("1.20")
@@ -101,7 +101,7 @@ def universal_acceptance_failures(
         failures.append("OOS_SORTINO_BELOW_2_00")
 
     if evidence.observed_max_drawdown_r > MAX_OBSERVED_DRAWDOWN_R:
-        failures.append("OBSERVED_MAX_DRAWDOWN_ABOVE_10R")
+        failures.append("OBSERVED_MAX_DRAWDOWN_ABOVE_6R")
 
     if (
         evidence.monte_carlo_positive_probability
