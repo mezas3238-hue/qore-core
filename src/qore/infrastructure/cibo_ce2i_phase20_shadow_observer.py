@@ -24,6 +24,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_capital_source_ledger_store import (
     VersionedCapitalSourceLedger,
 )
+from qore.infrastructure.cibo_ce2i_advanced_evidence import (
+    AdvancedCe2iEvidenceSnapshot,
+)
 from qore.infrastructure.cibo_ce2i_phase20_epoch_aggregator import (
     Phase20DecisionEpochBatch,
 )
@@ -87,6 +90,7 @@ def observe_phase20_forward_batch(
     concentration_limit_by_group: tuple[tuple[str, Decimal], ...],
     regime_state: CiboCapitalRegimeState,
     current_step: int,
+    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot,
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
 ) -> Phase20ForwardShadowObservation:
     """Persist one complete portfolio epoch without changing execution."""
@@ -117,6 +121,7 @@ def observe_phase20_forward_batch(
         current_step=current_step,
         population_slots=batch.population_slots,
         opportunities=batch.opportunities,
+        advanced_evidence_snapshot=advanced_evidence_snapshot,
         known_options=known_options,
     )
     return Phase20ForwardShadowObservation(collected=collected)
