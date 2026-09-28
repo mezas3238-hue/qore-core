@@ -14,6 +14,9 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_mpc.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_policy_candidate.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_advanced_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py'
+      - 'src/qore/infrastructure/cibo_ce2i_full_surface.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_store.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_epoch.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_epoch_aggregator.py'
@@ -76,6 +79,9 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase20_mpc.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_policy_candidate.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py'
+      - 'tests/infrastructure/test_cibo_ce2i_advanced_evidence.py'
+      - 'tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py'
+      - 'tests/infrastructure/test_cibo_ce2i_full_surface.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_store.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_epoch.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_epoch_aggregator.py'
@@ -113,6 +119,9 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_mpc.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_policy_candidate.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_advanced_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py'
+      - 'src/qore/infrastructure/cibo_ce2i_full_surface.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_store.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_epoch.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_epoch_aggregator.py'
@@ -175,6 +184,9 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase20_mpc.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_policy_candidate.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py'
+      - 'tests/infrastructure/test_cibo_ce2i_advanced_evidence.py'
+      - 'tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py'
+      - 'tests/infrastructure/test_cibo_ce2i_full_surface.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_store.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_epoch.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_epoch_aggregator.py'
@@ -227,6 +239,9 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_robust_allocator.py \
             src/qore/infrastructure/cibo_ce2i_phase20_mpc.py \
             src/qore/infrastructure/cibo_ce2i_phase20_policy_candidate.py \
+            src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py \
+            src/qore/infrastructure/cibo_ce2i_advanced_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_full_surface.py \
             src/qore/infrastructure/cibo_ce2i_phase20_forward_evidence.py \
             src/qore/infrastructure/cibo_ce2i_phase20_forward_store.py \
             src/qore/infrastructure/cibo_ce2i_phase20_forward_epoch.py \
@@ -295,6 +310,9 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_robust_allocator.py \
             tests/infrastructure/test_cibo_ce2i_phase20_mpc.py \
             tests/infrastructure/test_cibo_ce2i_phase20_policy_candidate.py \
+            tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py \
+            tests/infrastructure/test_cibo_ce2i_advanced_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_full_surface.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_store.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_epoch.py \
@@ -336,6 +354,9 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_robust_allocator.py \
             src/qore/infrastructure/cibo_ce2i_phase20_mpc.py \
             src/qore/infrastructure/cibo_ce2i_phase20_policy_candidate.py \
+            src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py \
+            src/qore/infrastructure/cibo_ce2i_advanced_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_full_surface.py \
             src/qore/infrastructure/cibo_ce2i_phase20_forward_evidence.py \
             src/qore/infrastructure/cibo_ce2i_phase20_forward_store.py \
             src/qore/infrastructure/cibo_ce2i_phase20_forward_epoch.py \
@@ -406,6 +427,9 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_robust_allocator.py \
             tests/infrastructure/test_cibo_ce2i_phase20_mpc.py \
             tests/infrastructure/test_cibo_ce2i_phase20_policy_candidate.py \
+            tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py \
+            tests/infrastructure/test_cibo_ce2i_advanced_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_full_surface.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_store.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_epoch.py \
