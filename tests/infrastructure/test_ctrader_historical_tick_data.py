@@ -59,8 +59,8 @@ def test_decoder_reconstructs_newest_first_delta_timestamps() -> None:
     newest = _BASE + timedelta(minutes=10)
     native = (
         NativeTick(int(newest.timestamp() * 1_000), 1_234_560),
-        NativeTick(250, 1_234_550),
-        NativeTick(750, 1_234_500),
+        NativeTick(-250, 1_234_550),
+        NativeTick(-750, 1_234_500),
     )
 
     page = tick_data.decode_historical_tick_page(
@@ -89,7 +89,7 @@ def test_decoder_reconstructs_newest_first_delta_timestamps() -> None:
 def test_decoder_rejects_timestamp_delta_that_moves_before_epoch() -> None:
     native = (
         NativeTick(500, 100_000),
-        NativeTick(600, 100_000),
+        NativeTick(-600, 100_000),
     )
 
     with pytest.raises(tick_data.CTraderHistoricalTickError, match="Unix epoch"):
@@ -251,3 +251,46 @@ def test_reader_preserves_sanitized_provider_rejection_reason() -> None:
     assert isinstance(result, Failure)
     assert isinstance(result.error, tick_data.CTraderHistoricalTickError)
     assert "HISTORICAL_DATA_NOT_AVAILABLE" in str(result.error)
+
+
+
+def test_decoder_allows_zero_delta_for_same_millisecond_ticks() -> None:
+    newest = _BASE + timedelta(minutes=10)
+    page = tick_data.decode_historical_tick_page(
+        request=_request(),
+        native_ticks=(
+            NativeTick(int(newest.timestamp() * 1_000), 1_234_560),
+            NativeTick(0, 1_234_550),
+            NativeTick(-250, 1_234_500),
+        ),
+        has_more=False,
+        digits=5,
+    )
+
+    assert tuple(item.observed_at for item in page.ticks) == (
+        newest - timedelta(milliseconds=250),
+        newest,
+        newest,
+    )
+    assert tuple(item.relative_price for item in page.ticks[-2:]) == (
+        1_234_560,
+        1_234_550,
+    )
+
+
+def test_decoder_rejects_positive_delta_in_newest_first_stream() -> None:
+    newest = _BASE + timedelta(minutes=10)
+
+    with pytest.raises(
+        tick_data.CTraderHistoricalTickError,
+        match="must be non-positive",
+    ):
+        tick_data.decode_historical_tick_page(
+            request=_request(),
+            native_ticks=(
+                NativeTick(int(newest.timestamp() * 1_000), 1_234_560),
+                NativeTick(1, 1_234_550),
+            ),
+            has_more=False,
+            digits=5,
+        )
