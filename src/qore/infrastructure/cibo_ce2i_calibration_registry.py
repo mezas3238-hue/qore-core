@@ -17,6 +17,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_ce2i_burned_calibration import (
     burned_t04_t10_calibration_sha256,
 )
+from qore.infrastructure.cibo_ce2i_burned_lifecycle_calibration import (
+    burned_lifecycle_calibration_sha256,
+)
 from qore.infrastructure.cibo_ce2i_tool_registry import (
     CE2I_TOOL_REGISTRY,
     ToolMaturity,
@@ -170,7 +173,7 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
     _row("T02", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE18, _PHASE19_WFO), ("STRUCTURAL_LEVERAGE_CALIBRATION_NOT_FROZEN",)),
     _row("T03", CiboCalibrationState.PROVIDER_ECONOMICS_REQUIRED, CiboCalibrationType.ECONOMIC, (_PROVIDER_GAP, _PHASE20_CONTRACT), ("CALIBRATED_EXECUTION_ECONOMICS_REQUIRED", "EQUIVALENT_EXPRESSION_UNIVERSE_NOT_CERTIFIED"), provider=True),
     _row("T04", CiboCalibrationState.CALIBRATED_CAUSAL, CiboCalibrationType.MIXED_CAUSAL_AND_ECONOMIC, (_PHASE18, _PHASE19_WFO, _PROVIDER_GAP), ("USD_TRUE_STOP_RISK_REQUIRES_PROVIDER_ECONOMICS",), provider=True, calibration_artifact_sha256=burned_t04_t10_calibration_sha256()),
-    _row("T05", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, _PHASE20_CONTRACT), ("RECYCLE_UTILITY_CALIBRATION_NOT_FROZEN",)),
+    _row("T05", CiboCalibrationState.CALIBRATED_CAUSAL, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, _PHASE20_CONTRACT), ("INCREMENTAL_RECYCLE_UTILITY_REQUIRES_FRESH_OOS",), calibration_artifact_sha256=burned_lifecycle_calibration_sha256()),
     _row("T06", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, _PHASE20_CONTRACT), ("REALIZED_PROFIT_EXPANSION_CALIBRATION_NOT_FROZEN",)),
     _row("T07", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.MIXED_CAUSAL_AND_ECONOMIC, (_PHASE19, _PHASE20_CONTRACT), ("VERIFIED_PROTECTED_ECONOMIC_FLOOR_CALIBRATION_NOT_FROZEN",), provider=True),
     _row("T08", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, "burned:phase19:overlap-dependence"), ("FACTOR_NETTING_CALIBRATION_NOT_FROZEN",)),
@@ -184,8 +187,8 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
     _row("T16", CiboCalibrationState.FAIL_CLOSED, CiboCalibrationType.ECONOMIC, (_PROVIDER_GAP, _PHASE20_CONTRACT), ("CERTIFIED_HEDGE_INSTRUMENT_UNIVERSE_NOT_AVAILABLE", "HEDGE_COST_AND_BASIS_ECONOMICS_NOT_CERTIFIED"), provider=True),
     _row("T17", CiboCalibrationState.FAIL_CLOSED, CiboCalibrationType.ECONOMIC, (_PROVIDER_GAP, _PHASE20_CONTRACT), ("CERTIFIED_LIMITED_DOWNSIDE_INSTRUMENT_UNIVERSE_NOT_AVAILABLE", "PRICING_SETTLEMENT_EXECUTION_NOT_CERTIFIED"), provider=True),
     _row("T18", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, _PHASE19_WFO), ("CROSS_TRADER_ALLOCATION_POLICY_NOT_FROZEN",)),
-    _row("T19", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.CONTRACT_ONLY, (_PHASE19, _PHASE20_CONTRACT), ("RESERVATION_EMPIRICAL_CALIBRATION_NOT_FROZEN",)),
-    _row("T20", CiboCalibrationState.CALIBRATION_UNAVAILABLE, CiboCalibrationType.CONTRACT_ONLY, (_PHASE19, _PHASE20_CONTRACT), ("RELEASE_EMPIRICAL_CALIBRATION_NOT_FROZEN",)),
+    _row("T19", CiboCalibrationState.CALIBRATED_CAUSAL, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, _PHASE20_CONTRACT), ("INCREMENTAL_RESERVATION_UTILITY_REQUIRES_FRESH_OOS",), calibration_artifact_sha256=burned_lifecycle_calibration_sha256()),
+    _row("T20", CiboCalibrationState.CALIBRATED_CAUSAL, CiboCalibrationType.CAUSAL_NORMALIZED, (_PHASE19, _PHASE20_CONTRACT), ("INCREMENTAL_RELEASE_UTILITY_REQUIRES_FRESH_OOS",), calibration_artifact_sha256=burned_lifecycle_calibration_sha256()),
 )
 
 
