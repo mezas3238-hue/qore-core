@@ -31,6 +31,11 @@ def _signal(*, risk_scale: str = "1") -> Any:
         certified_entry=Decimal("100"),
         stop_loss=Decimal("99"),
         take_profit=Decimal("102"),
+        target_route="PRIOR_CANDLE_DIRECTIONAL_BOUNDARY:H1",
+        decision_source="R30_CORE",
+        family=None,
+        posture="STATIC",
+        fragility_flags=(),
         risk_scale=Decimal(risk_scale),
     )
 
