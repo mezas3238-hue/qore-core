@@ -1,14 +1,6 @@
 name: QORE CIBO USD60 Holdout Source Validation
 
 on:
-  push:
-    branches:
-      - agent/cibo-capital-efficiency-sizing-lab-001
-    paths:
-      - '.github/workflows/cibo-usd60-holdout-source-validation.yml'
-      - 'scripts/cibo_usd60_holdout_source_validation.py'
-      - 'src/qore/infrastructure/cibo_ce2i_holdout_registry.py'
-      - 'tests/infrastructure/test_cibo_ce2i_holdout_registry.py'
   workflow_dispatch:
 
 permissions:
@@ -46,6 +38,15 @@ jobs:
             scripts/cibo_usd60_holdout_source_validation.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ce2i_holdout_registry.py
+
+      - name: Require CIBO PRE-HOLDOUT FREEZE before any 2017H1 access
+        run: |
+          python - <<'PY'
+          from qore.infrastructure.cibo_ce2i_pre_holdout_freeze import (
+              require_pre_holdout_freeze_before_2017h1_access,
+          )
+          require_pre_holdout_freeze_before_2017h1_access()
+          PY
 
       - name: Download immutable 10Y atlas source artifacts
         shell: bash
