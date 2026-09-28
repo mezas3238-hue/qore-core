@@ -249,7 +249,7 @@ def test_phase20d_seals_single_candidate_20h_and_20i_inputs() -> None:
     assert record.allocator_decision.applied_tools == ("T15",)
     assert record.allocator_decision.reserve_stop_risk_usd == 0
     assert record.phase20d_qualified is False
-    assert record.evidence.advanced_evidence_snapshot is None
+    assert evidence.advanced_evidence_snapshot is None
     assert record.full_surface.complete_registry is True
     assert record.full_surface.registry_codes == tuple(
         f"T{index:02d}" for index in range(1, 21)
