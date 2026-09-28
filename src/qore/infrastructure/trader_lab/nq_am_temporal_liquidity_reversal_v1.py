@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import random
 from collections import Counter
 from collections.abc import Iterable, Sequence
