@@ -15,6 +15,7 @@ import argparse
 import json
 from dataclasses import asdict
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -202,11 +203,8 @@ def build_audit(
         window_end_exclusive=window_end_exclusive,
     )
 
-    realized_exit_batch_dd = chronology._max_drawdown(
-        tuple(
-            row.realized_gross_r
-            for row in chronology._realized_exit_batch_rows(candidate_ledger)
-        )
+    realized_exit_batch_dd = Decimal(
+        chronology._exit_batch_metrics(candidate_ledger)["max_drawdown_r"]
     )
     report = {
         "identity": IDENTITY,
