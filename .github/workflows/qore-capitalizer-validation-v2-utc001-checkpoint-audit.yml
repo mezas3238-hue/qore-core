@@ -1,0 +1,112 @@
+name: QORE Capitalizer Validation V2 UTC-001 Checkpoint Audit
+
+on:
+  push:
+    branches:
+      - agent/capitalizer-validation-utc001-post-v2-audit-001
+    paths:
+      - '.github/workflows/qore-capitalizer-validation-v2-utc001-checkpoint-audit.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_validation_v2_utc001_checkpoint_audit_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+  SIM_RUN_ID: '36332714846'
+  CHECKPOINT_RUN_ID: '36415754108'
+  CHECKPOINT_ARTIFACT: 'qore-capitalizer-v2-validation-resume-checkpoint-9658445c2e19068c59bbc809d978a6f87748374b'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check             src/qore/infrastructure/trader_lab/capitalizer_validation_v2_utc001_checkpoint_audit_v1.py
+      - name: Mypy
+        run: |
+          mypy             src/qore/infrastructure/trader_lab/capitalizer_validation_v2_utc001_checkpoint_audit_v1.py
+
+  audit:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download reconstructed consumed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Download authoritative simulator transitions
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-counterfactual-portfolio-episode-simulator-v1-sharded-*
+          path: simulator-evidence
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SIM_RUN_ID }}
+      - name: Download exact Validation V2 checkpoint
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.CHECKPOINT_ARTIFACT }}
+          path: checkpoint
+          github-token: ${{ github.token }}
+          run-id: ${{ env.CHECKPOINT_RUN_ID }}
+      - name: Audit V2 checkpoint under UTC-001 per year
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_validation_v2_utc001_checkpoint_audit_v1             --development-root reconstructed/development-input             --validation-root reconstructed/validation-input             --reserved-root reconstructed/reserved-input             --development-validation-context-root reconstructed/development-validation-context             --reserved-context-root reconstructed/reserved-context             --transition-path simulator-evidence/capitalizer-counterfactual-portfolio-episode-simulator-v1-transitions.jsonl             --checkpoint checkpoint/validation.json             --output audit-output
+      - name: Enforce diagnostic contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report=json.loads(
+              Path(
+                  "audit-output/"
+                  "capitalizer-validation-v2-utc001-checkpoint-audit-v1.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_VALIDATION_V2_UTC001_CHECKPOINT_AUDIT_V1"
+          )
+          assert report["period"] == "CONSUMED_VALIDATION_2022_2024"
+          assert report["checkpoint_interventions"] == 64
+          assert len(report["surface_years"]) == 2
+          assert len(report["candidate_years"]) == 2
+          assert len(report["per_year_deltas"]) == 2
+          assert report["global_compensation_allowed"] is False
+          assert report["temporal_compensation_allowed"] is False
+          assert report["cost_certification_blocked"] is True
+          assert report["consumed_evidence"] is True
+          assert report["outcome_aware_diagnostic"] is True
+          assert report["certification_authority"] is False
+          assert report["runtime_policy_candidate"] is False
+          assert report["fresh_holdout_opened"] is False
+          assert report["trader_certified"] is False
+          print(json.dumps(report,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-validation-v2-utc001-checkpoint-audit-${{ github.sha }}
+          path: audit-output
+          if-no-files-found: error
+          retention-days: 90
