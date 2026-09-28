@@ -171,7 +171,8 @@ def _collect_side(
             )
             if isinstance(result, Failure):
                 raise V12CoveragePilotError(
-                    "historical tick page request failed during coverage pilot"
+                    "historical tick page request failed during coverage pilot: "
+                    f"{result.error}"
                 )
             page = result.value
             retrieved_at = datetime.now(UTC)
