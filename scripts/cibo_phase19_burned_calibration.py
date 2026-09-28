@@ -82,6 +82,14 @@ def build_report(root: Path) -> dict[str, Any]:
                 "settlement evidence; incremental utility remains unvalidated"
             ),
         },
+        "T06": {
+            "classification": "CALIBRATED_CAUSAL",
+            "basis": (
+                "burned capital lifecycle plus settlement/source contracts "
+                "freeze realized-profit-only expansion funding; multiplier "
+                "and incremental utility remain unvalidated"
+            ),
+        },
         "T10": {
             "classification": "CALIBRATED_CAUSAL",
             "basis": (
@@ -107,7 +115,6 @@ def build_report(root: Path) -> dict[str, Any]:
         },
     }
     unavailable = {
-        "T06": "realized-profit expansion utility not identified by Phase19",
         "T07": "verified protected economic floor unavailable",
         "T08": "dependence evidence remains descriptive/observational",
         "T09": "zero candidate policies survived both walk-forward folds",
