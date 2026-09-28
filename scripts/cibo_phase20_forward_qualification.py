@@ -62,6 +62,9 @@ def _report_json(report: Phase20QualificationReport) -> dict[str, Any]:
             "missing_policy_decisions": (
                 report.readiness.missing_policy_decisions
             ),
+            "pre_freeze_decisions": (
+                report.readiness.pre_freeze_decisions
+            ),
         },
         "economics": {
             "policy_net_delta_usd": format(
