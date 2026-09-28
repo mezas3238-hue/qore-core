@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import Counter, defaultdict
+from collections import defaultdict
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_EVEN, Context, Decimal, localcontext
