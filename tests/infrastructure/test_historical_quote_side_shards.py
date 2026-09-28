@@ -35,6 +35,8 @@ def _observation(
     observed_at: datetime,
     retrieved_at: datetime,
     relative_price: int,
+    wire_timestamp_value: int | None = None,
+    wire_price_value: int | None = None,
 ) -> HistoricalQuoteSideObservation:
     return HistoricalQuoteSideObservation(
         instrument=Instrument("NAS100"),
@@ -45,8 +47,14 @@ def _observation(
         quote_side=MarketPriceSide.BID,
         provider_event_at=observed_at,
         retrieved_at=retrieved_at,
-        provider_wire_timestamp_value=int(observed_at.timestamp() * 1_000),
-        provider_wire_price_value=relative_price,
+        provider_wire_timestamp_value=(
+            int(observed_at.timestamp() * 1_000)
+            if wire_timestamp_value is None
+            else wire_timestamp_value
+        ),
+        provider_wire_price_value=(
+            relative_price if wire_price_value is None else wire_price_value
+        ),
         relative_price=relative_price,
         price=MarketPrice(Decimal(relative_price) / Decimal("10000000")),
     )
@@ -226,3 +234,36 @@ def test_shard_rejects_non_chronological_observations(tmp_path) -> None:
                 ),
             ),
         )
+
+
+def test_shard_persists_wire_deltas_and_decoded_price(tmp_path) -> None:
+    retrieved_at = _BASE + timedelta(days=1)
+    observations = (
+        _observation(
+            observed_at=_BASE,
+            retrieved_at=retrieved_at,
+            relative_price=2_012_400_000,
+            wire_timestamp_value=-250,
+            wire_price_value=-10_000,
+        ),
+    )
+    sink = HistoricalQuoteSideShardSink(tmp_path)
+    record = sink.write_page(
+        quote_side=MarketPriceSide.BID,
+        window_index=0,
+        page_index=0,
+        request_from_at=_BASE - timedelta(minutes=1),
+        request_to_at=_BASE + timedelta(minutes=1),
+        retrieved_at=retrieved_at,
+        observations=observations,
+    )
+
+    raw = gzip.decompress((tmp_path / record.relative_path).read_bytes()).decode()
+    rows = [json.loads(line) for line in raw.splitlines()]
+    assert rows[0]["header"]["schema"] == (
+        "qore.shared.wp05.v12.historical_quote_side_shard.v2"
+    )
+    tick = next(row["tick"] for row in rows if "tick" in row)
+    assert tick["provider_wire_timestamp_value"] == -250
+    assert tick["provider_wire_price_value"] == -10_000
+    assert tick["relative_price"] == 2_012_400_000
