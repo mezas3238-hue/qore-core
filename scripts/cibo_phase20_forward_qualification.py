@@ -25,7 +25,7 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification import (
 
 def _report_json(report: Phase20QualificationReport) -> dict[str, Any]:
     return {
-        "schema": "qore.cibo.phase20d.v2-qualification.v4",
+        "schema": "qore.cibo.phase20d.v2-qualification.v5",
         "status": report.status.value,
         "plan_id": report.plan_id,
         "plan_sha256": report.plan_sha256,
