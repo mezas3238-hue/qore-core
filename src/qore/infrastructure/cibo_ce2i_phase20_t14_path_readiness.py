@@ -131,11 +131,11 @@ def assess_phase20_t14_path_readiness(
     grouped_paths: dict[tuple[str, int], list[LiveBehaviorEvent]] = {}
     grouped_settlements: dict[tuple[str, int], list[LiveBehaviorEvent]] = {}
     for event in sorted(events, key=lambda item: item.observed_at):
-        signal = event.signal_fingerprint
+        event_signal = event.signal_fingerprint
         position_id = event.position_id
-        if signal is None or position_id is None:
+        if event_signal is None or position_id is None:
             continue
-        binding = signal_decisions.get(signal)
+        binding = signal_decisions.get(event_signal)
         if binding is None:
             continue
         _sha, decision_at = binding
@@ -143,7 +143,7 @@ def assess_phase20_t14_path_readiness(
             raise CiboCapitalManagementError(
                 "Phase20 T14 behavior event predates bound forward decision"
             )
-        key = (signal, position_id)
+        key = (event_signal, position_id)
         if event.event == "CTRADER_DEMO_POSITION_PATH_SAMPLE":
             grouped_paths.setdefault(key, []).append(event)
         if "SETTLEMENT" in event.event.upper():
