@@ -53,19 +53,19 @@ jobs:
         include:
           - slug: development
             role: DEVELOPMENT_REFERENCE
-            artifact: qore-capitalizer-consumed-certification-audit-v2-development-${{ env.AUDIT_SHA }}
+            artifact: qore-capitalizer-consumed-certification-audit-v2-development-a2231a543aacce63b6e834e04d59f66b81f11363
             expected_trades: '948'
             expected_total: '258.6758664923347730643824142'
             expected_dd: '5.998927544189151991097403831'
           - slug: validation
             role: CONSUMED_VALIDATION_2022_2024
-            artifact: qore-capitalizer-consumed-certification-audit-v2-validation-${{ env.AUDIT_SHA }}
+            artifact: qore-capitalizer-consumed-certification-audit-v2-validation-a2231a543aacce63b6e834e04d59f66b81f11363
             expected_trades: '1034'
             expected_total: '112.8803815218467423179417818'
             expected_dd: '6.63559674707663196688102741'
           - slug: reserved
             role: CONSUMED_RESERVED_2020_2022
-            artifact: qore-capitalizer-consumed-certification-audit-v2-reserved-${{ env.AUDIT_SHA }}
+            artifact: qore-capitalizer-consumed-certification-audit-v2-reserved-a2231a543aacce63b6e834e04d59f66b81f11363
             expected_trades: '1088'
             expected_total: '56.62336571948709587930965013'
             expected_dd: '7.262834994708248872962269456'
@@ -146,14 +146,14 @@ jobs:
       - name: Download Validation ledger
         uses: actions/download-artifact@v4
         with:
-          name: qore-capitalizer-consumed-certification-audit-v2-validation-${{ env.AUDIT_SHA }}
+          name: qore-capitalizer-consumed-certification-audit-v2-validation-a2231a543aacce63b6e834e04d59f66b81f11363
           path: validation
           github-token: ${{ github.token }}
           run-id: ${{ env.AUDIT_RUN_ID }}
       - name: Download Reserved ledger
         uses: actions/download-artifact@v4
         with:
-          name: qore-capitalizer-consumed-certification-audit-v2-reserved-${{ env.AUDIT_SHA }}
+          name: qore-capitalizer-consumed-certification-audit-v2-reserved-a2231a543aacce63b6e834e04d59f66b81f11363
           path: reserved
           github-token: ${{ github.token }}
           run-id: ${{ env.AUDIT_RUN_ID }}
