@@ -17,14 +17,14 @@ import os
 import re
 from datetime import UTC, datetime, timedelta
 
-from qore.infrastructure.ctrader_demo_free_binding import (
+from qore.infrastructure.ctrader_demo_free_binding import (  # type: ignore[import-untyped]
     binding_fingerprint,
     discover_free_account_binding,
 )
-from qore.infrastructure.ctrader_demo_lab_probe import (
+from qore.infrastructure.ctrader_demo_lab_probe import (  # type: ignore[import-untyped]
     collect_ctrader_demo_lab_market_evidence,
 )
-from qore.infrastructure.ctrader_open_api_client import (
+from qore.infrastructure.ctrader_open_api_client import (  # type: ignore[import-untyped]
     CTraderOpenApiCredentials,
     SpotwareCTraderOpenApiClient,
 )
