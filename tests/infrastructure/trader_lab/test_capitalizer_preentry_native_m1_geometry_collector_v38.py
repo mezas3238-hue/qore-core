@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 from datetime import UTC, datetime
-from pathlib import Path
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 
