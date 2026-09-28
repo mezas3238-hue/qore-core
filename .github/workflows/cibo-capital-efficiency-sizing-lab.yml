@@ -142,6 +142,7 @@ jobs:
             scripts/cibo_phase20_failure_engineering.py \
             scripts/cibo_phase20_failure_engineering_b.py \
             scripts/cibo_ce2i_full_surface_contract.py \
+            scripts/cibo_ce2i_calibration_matrix.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
@@ -373,6 +374,7 @@ jobs:
             scripts/cibo_phase20_failure_engineering.py \
             scripts/cibo_phase20_failure_engineering_b.py \
             scripts/cibo_ce2i_full_surface_contract.py \
+            scripts/cibo_ce2i_calibration_matrix.py \
             tests/infrastructure/test_cibo_risk_capital_constraint_envelope.py \
             tests/infrastructure/test_cibo_capital_efficiency_sizing_lab.py \
             tests/infrastructure/test_cibo_capital_efficiency_reconstruction.py \
@@ -469,6 +471,27 @@ jobs:
       - name: Assert complete CE2I architecture
         run: |
           python scripts/cibo_ce2i_full_surface_contract.py
+
+      - name: Seal T01-T20 calibration matrix
+        run: |
+          mkdir -p calibration-matrix
+          python scripts/cibo_ce2i_calibration_matrix.py \
+            --output calibration-matrix/t01-t20-calibration-matrix.json \
+            > calibration-matrix/t01-t20-calibration-matrix.stdout.json
+          printf '%s\n' "$GITHUB_SHA" > calibration-matrix/git-sha.txt
+          cd calibration-matrix
+          sha256sum \
+            t01-t20-calibration-matrix.json \
+            t01-t20-calibration-matrix.stdout.json \
+            git-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-t01-t20-calibration-matrix-${{ github.sha }}
+          path: calibration-matrix
+          if-no-files-found: error
+          retention-days: 90
 
       - name: Pytest
         run: |
