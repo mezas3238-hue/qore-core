@@ -13,6 +13,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
     TraderOpportunityEnvelope,
 )
+from qore.infrastructure.cibo_ce2i_advanced_evidence import (
+    build_missing_advanced_evidence_snapshot,
+)
 from qore.infrastructure.cibo_ce2i_causal_expectation import (
     CausalExpectationBasis,
     CausalOpportunityExpectation,
@@ -174,6 +177,13 @@ def _decision(
                 provider_observation=provider,
                 candidate=candidate,
             ),
+        ),
+        advanced_evidence_snapshot=(
+            build_missing_advanced_evidence_snapshot(
+                decision_at=DECISION_AT,
+            )
+            if kind is Phase20ForwardEvidenceKind.FORWARD_OBSERVED
+            else None
         ),
     )
 
