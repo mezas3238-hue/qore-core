@@ -568,7 +568,7 @@ def run(
             "policy_filter_rejections": 0,
         }
 
-    if reconciled != realized_pnl:
+    if abs(reconciled - realized_pnl) > ACCOUNTING_EPSILON:
         raise ValueError("per-Trader PnL reconciliation failed")
     if total_executed != total_wins + total_losses + total_be:
         raise ValueError("outcome counts do not reconcile")
