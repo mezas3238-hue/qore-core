@@ -4,7 +4,6 @@ from qore.infrastructure.core_stack_v2 import (
     active_perception_v12_anchor_observability as observability,
 )
 
-
 _BASE = datetime(2017, 1, 1, 14, 0, tzinfo=UTC)
 
 
