@@ -60,7 +60,10 @@ class Phase22HoldoutQualificationReport:
                 raise ValueError("Phase22 PASS requires economic protocol PASS")
             if self.failures:
                 raise ValueError("Phase22 PASS cannot contain failures")
-        if not self.lineage.lineage_valid and self.status is not Phase22HoldoutQualificationStatus.INVALID:
+        if (
+            not self.lineage.lineage_valid
+            and self.status is not Phase22HoldoutQualificationStatus.INVALID
+        ):
             raise ValueError("invalid Phase22 lineage must fail closed")
 
     @property
