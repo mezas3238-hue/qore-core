@@ -31,6 +31,11 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_ce2i_causal_expectation import (
     CausalExpectationBasis,
 )
+from qore.infrastructure.cibo_ce2i_full_surface import (
+    AdvancedPortfolioEvidence,
+    FullCe2iSurfaceAssessment,
+    evaluate_full_ce2i_surface,
+)
 from qore.infrastructure.cibo_ce2i_opportunity_competition import (
     CapitalOpportunityCandidate,
 )
@@ -49,7 +54,6 @@ from qore.infrastructure.cibo_ce2i_phase20_robust_allocator import (
 from qore.infrastructure.cibo_ce2i_regime_selector import (
     CiboCapitalRegimeState,
     CiboRegimeToolSelection,
-    select_ce2i_tools_for_regime,
 )
 from qore.infrastructure.cibo_provider_economic_normalization import (
     ProviderEconomicObservation,
@@ -280,6 +284,7 @@ class Phase20ForwardDecisionEvidence:
     population_slots: tuple[Phase20ForwardPopulationSlotEvidence, ...]
     candidates: tuple[Phase20ForwardCandidateEvidence, ...]
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = ()
+    advanced_evidence: AdvancedPortfolioEvidence = AdvancedPortfolioEvidence()
     outcome_present: bool = False
     allocation_authority: bool = False
     risk_authority: bool = False
@@ -340,6 +345,13 @@ class Phase20ForwardDecisionEvidence:
         _nonnegative(self.margin_headroom_usd, name="margin_headroom_usd")
         if not isinstance(self.regime_state, CiboCapitalRegimeState):
             raise CiboCapitalManagementError("Phase20D regime state is invalid")
+        if not isinstance(
+            self.advanced_evidence,
+            AdvancedPortfolioEvidence,
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20D advanced CE2I evidence must be canonical"
+            )
         if type(self.current_step) is not int or self.current_step < 0:
             raise CiboCapitalManagementError(
                 "Phase20D current_step must be non-negative int"
@@ -488,6 +500,7 @@ class Phase20ForwardDecisionRecord:
     allocator_input_stop_risk_headroom_usd: Decimal
     allocator_input_margin_headroom_usd: Decimal
     allocator_decision: Phase20RobustAllocatorDecision
+    full_surface: FullCe2iSurfaceAssessment
     mpc_reserve_applied_before_allocator: bool = True
     phase20d_qualified: bool = False
 
@@ -520,6 +533,14 @@ class Phase20ForwardDecisionRecord:
         ):
             raise CiboCapitalManagementError(
                 "Phase20D allocator decision is invalid"
+            )
+        if not isinstance(self.full_surface, FullCe2iSurfaceAssessment):
+            raise CiboCapitalManagementError(
+                "Phase20D full CE2I surface assessment is invalid"
+            )
+        if self.full_surface.regime != self.regime:
+            raise CiboCapitalManagementError(
+                "Phase20D full CE2I regime must match decision regime"
             )
         if type(self.mpc_reserve_applied_before_allocator) is not bool:
             raise CiboCapitalManagementError(
@@ -701,10 +722,15 @@ def build_phase20_forward_decision_record(
         raise CiboCapitalManagementError(
             "Phase20D decision evidence must be canonical"
         )
-    regime = select_ce2i_tools_for_regime(
+    full_surface = evaluate_full_ce2i_surface(
         mission=evidence.mission,
-        state=evidence.regime_state,
+        regime_state=evidence.regime_state,
+        opportunities=tuple(
+            item.opportunity for item in evidence.candidates
+        ),
+        advanced_evidence=evidence.advanced_evidence,
     )
+    regime = full_surface.regime
     mpc_plan = plan_phase20i_receding_horizon_capacity(
         current_step=evidence.current_step,
         horizon_steps=evidence.horizon_steps,
@@ -731,6 +757,7 @@ def build_phase20_forward_decision_record(
         ),
         allocator_input_margin_headroom_usd=mpc_plan.deployable_margin_usd,
         allocator_decision=allocator,
+        full_surface=full_surface,
         mpc_reserve_applied_before_allocator=True,
         phase20d_qualified=False,
     )
