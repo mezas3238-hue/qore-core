@@ -1,8 +1,8 @@
 """Read-only cTrader historical tick contracts for Active Perception.
 
 The cTrader Open API returns historical BID/ASK ticks newest-first. The first
-tick contains an absolute Unix timestamp in milliseconds; every later tick
-contains the positive millisecond distance from the previous newer tick.
+tick contains absolute timestamp/relative-price values; later ticks use signed
+deltas from the previous newer tick for both time and relative price.
 
 This module converts that provider representation into explicit point-in-time
 observations and request pages. It has no storage, trading, sizing, Risk or
@@ -99,6 +99,8 @@ class CTraderHistoricalTick:
     relative_price: int
     price: Decimal
     quote_type: CTraderQuoteType
+    wire_timestamp_value: int
+    wire_price_value: int
 
     def __post_init__(self) -> None:
         if (
@@ -115,6 +117,14 @@ class CTraderHistoricalTick:
         if not isinstance(self.price, Decimal) or self.price <= 0:
             raise CTraderHistoricalTickError(
                 "historical tick price must be positive Decimal"
+            )
+        if type(self.wire_timestamp_value) is not int:
+            raise CTraderHistoricalTickError(
+                "historical tick wire timestamp value must be int"
+            )
+        if type(self.wire_price_value) is not int:
+            raise CTraderHistoricalTickError(
+                "historical tick wire price value must be int"
             )
 
 
@@ -247,6 +257,7 @@ def decode_historical_tick_page(
             )
         )
         previous_ms = absolute_ms
+        previous_relative_price = absolute_relative_price
         previous_relative_price = absolute_relative_price
 
     for newer, older in zip(newest_first, newest_first[1:], strict=False):
