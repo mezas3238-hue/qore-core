@@ -129,3 +129,17 @@ def test_phase19_negative_evidence_blocks_unreplicated_portfolio_policies() -> N
             source.startswith("burned:phase19:non-promotion:sha256:")
             for source in record.calibration_sources
         )
+
+
+def test_t06_realized_profit_source_is_calibrated_without_claiming_utility() -> None:
+    record = calibration_record("T06")
+
+    assert record.state is CiboCalibrationState.CALIBRATED_CAUSAL
+    assert record.calibrated is True
+    assert record.calibration_artifact_sha256
+    assert record.oos_ready is False
+    assert record.certification_ready is False
+    assert (
+        "EXPANSION_MULTIPLIER_AND_INCREMENTAL_UTILITY_REQUIRE_FRESH_OOS"
+        in record.blockers
+    )
