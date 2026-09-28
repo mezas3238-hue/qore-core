@@ -18,6 +18,7 @@ from qore.infrastructure.cibo_ce2i_phase21_policy_freeze import (
     Phase21EmpiricalValidationReceipt,
     Phase21PolicySurfaceDigests,
     Phase21QualificationReceipt,
+    build_phase21_empirical_validation_receipt,
     build_phase21_policy_freeze,
 )
 
@@ -48,16 +49,17 @@ def _validation(
     *,
     offset_hours: int,
 ) -> Phase21EmpiricalValidationReceipt:
-    candidate = FROZEN_PHASE20_POLICY_CANDIDATE
-    return Phase21EmpiricalValidationReceipt(
+    return build_phase21_empirical_validation_receipt(
         kind=kind,
-        candidate_id=candidate.candidate_id,
-        candidate_parameter_sha256=candidate.parameter_sha256(),
-        qualification_artifact_sha256=_sha(3),
-        evidence_class="FORWARD_EMPIRICAL",
-        artifact_sha256=_sha(10 + offset_hours),
+        qualification=_qualification(),
+        validator_git_sha=f"{offset_hours:040x}",
         observed_at=QUALIFIED_AT + timedelta(hours=offset_hours),
-        passed=True,
+        validation_payload={
+            "protocol": f"TEST_{kind.value}",
+            "source_decision_epochs": 80,
+            "source_candidate_outcomes": 200,
+            "source_selected_outcomes": 60,
+        },
     )
 
 
@@ -132,6 +134,32 @@ def test_phase21_freeze_rejects_synthetic_empirical_receipt() -> None:
         match="must be FORWARD_EMPIRICAL",
     ):
         replace(receipt, evidence_class="SYNTHETIC_CONTRACT")
+
+
+def test_phase21_empirical_receipt_rejects_detached_report_digest() -> None:
+    receipt = _validation(
+        Phase21EmpiricalValidationKind.PROVIDER_STRESS,
+        offset_hours=2,
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="artifact digest/report mismatch",
+    ):
+        replace(receipt, artifact_sha256=_sha(999))
+
+
+def test_phase21_empirical_receipt_rejects_detached_population() -> None:
+    receipt = _validation(
+        Phase21EmpiricalValidationKind.INTERACTION_ABLATION,
+        offset_hours=3,
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="source population digest mismatch",
+    ):
+        replace(receipt, source_population_sha256=_sha(999))
 
 
 def test_phase21_freeze_rejects_qualification_lineage_mismatch() -> None:
