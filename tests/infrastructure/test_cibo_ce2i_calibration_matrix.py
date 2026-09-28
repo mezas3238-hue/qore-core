@@ -11,23 +11,25 @@ def test_calibration_matrix_is_canonical_and_pre_holdout_conservative() -> None:
         f"T{index:02d}" for index in range(1, 21)
     )
     assert all(row.implemented for row in CIBO_T01_T20_CALIBRATION_MATRIX)
-    assert not any(row.calibrated for row in CIBO_T01_T20_CALIBRATION_MATRIX)
+    assert {
+        row.tool_code
+        for row in CIBO_T01_T20_CALIBRATION_MATRIX
+        if row.calibrated
+    } == {"T04", "T10"}
     assert not any(row.oos_ready for row in CIBO_T01_T20_CALIBRATION_MATRIX)
     assert not any(row.certification_ready for row in CIBO_T01_T20_CALIBRATION_MATRIX)
 
 
 def test_provider_bound_tools_are_explicit_and_fail_closed() -> None:
     rows = {row.tool_code: row for row in CIBO_T01_T20_CALIBRATION_MATRIX}
-    provider_bound = {"T01", "T03", "T11", "T16", "T17"}
+    provider_bound = {"T01", "T03", "T04", "T10", "T11", "T16", "T17"}
     assert {
         code for code, row in rows.items() if row.provider_economics_required
     } == provider_bound
     assert all(rows[code].fail_closed for code in provider_bound)
-    assert all(
-        rows[code].classification
-        is CiboCalibrationClassification.PROVIDER_ECONOMICS_REQUIRED
-        for code in provider_bound
-    )
+    assert all(rows[code].fail_closed for code in {"T01", "T03", "T11", "T16", "T17"})
+    assert rows["T04"].classification is CiboCalibrationClassification.CALIBRATED_CAUSAL
+    assert rows["T10"].classification is CiboCalibrationClassification.CALIBRATED_CAUSAL
 
 
 def test_fail_closed_never_implies_certification_ready() -> None:
