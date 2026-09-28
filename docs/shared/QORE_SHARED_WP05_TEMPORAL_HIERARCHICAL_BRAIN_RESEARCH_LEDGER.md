@@ -864,3 +864,169 @@ Disposition is frozen pre-outcome:
 - TECHNICAL failure is repair-and-rerun under the exact same pilot identity.
 
 A coverage pass is still not V12 scientific admission and does not close WP-05.
+
+### Authoritative V12 completion and final disposition — 28-SEP-2026
+
+The Active Perception BID/ASK branch completed its source-only evidence chain
+before any target-aware scientific test:
+
+- coverage pilot run 36452997906: full_bid_ask_history on deterministic
+  FIRST/Q1/MID/Q3/LAST windows; BID 50,200; ASK 50,307; dataset SHA256
+  06a145f763145eac5121878d4aa81c8c11bae86ea5a865eed9a7d6f5621d23e6;
+- full R8 acquisition run 36454372776: 16/16 shards, 2,948/2,948
+  manifest windows, BID 13,603,333, ASK 13,593,775, 6,781 provider pages,
+  global dataset SHA256
+  ebbe30a887867bb917f0992b15e1600f9f06eccb07562b9625fcb9517fb381c8;
+- source-only raw-integrity run 36465280823:
+  green_source_integrity with zero page-key duplicates, zero page-key conflicts,
+  zero strict page-time overlaps and zero exact boundary-row repeats;
+- source-anchor run 36466493930 froze the 6,804 causal source anchors;
+- anchor-observability run 36469085575 froze staleness at 30,000 ms as the
+  smallest preregistered threshold with at least 9,500 bps usable coverage;
+- source-only representation run 36474746502 froze exactly M0/M1/M2/M3,
+  6,804 rows, 6,709 usable causal pairs, contract fingerprint
+  22c566501246030218be3d33ba54c3b6cc1574507357248e3baf0fcf6e47277b
+  and representation artifact fingerprint
+  cbc5b6d997c2a218df8aa76f489d408069ab36e4ccb67569172c92013221baf8.
+
+Authoritative target-aware V12 result:
+
+- run: 36479457627;
+- scientific Git SHA:
+  b5b0dbe5d02a22def076574a236eb7632b9a75cb;
+- status: WP05_V12_R8_INFORMATION_GAIN_FALSIFIED;
+- aligned Target-V2 population: 6,397;
+- fixed microstructure veto threshold: 0 micros;
+- selected candidate: none;
+- R6/R5 read: false;
+- fresh holdout opened: false.
+
+Pooled false-veto was large for every frozen source-time family, but terminal
+retention failed badly in the chronological folds. The sensor therefore carried
+information, but the source-time representation could not separate recovery
+from true terminal failure while preserving terminals.
+
+Permanent V12 anti-loop law:
+
+- no V12.1;
+- no M4;
+- no post-outcome threshold rescue;
+- no target-aware feature subset;
+- no staleness retune;
+- no target-aware missingness change;
+- no R6/R5 opening.
+
+V12 is permanently falsified.
+
+## 13. V13 — Sequential Active Perception
+
+Preregistered identity:
+
+QORE_SHARED_WP05_SEQUENTIAL_ACTIVE_PERCEPTION_V13_001
+
+V13 was a structurally distinct question, not a V12 repair. It inherited the
+already frozen V10/V11 causal checkpoints 0/3/5/10/15 minutes and asked whether
+persistent BID/ASK trajectory evidence could veto false V11 terminal
+confirmations without destroying true terminals.
+
+Exactly one representation was permitted:
+
+FULL_CAUSAL_MICROSTRUCTURE_TRAJECTORY_V13
+
+It contained 5 checkpoints x 46 frozen fields = 230 fields. No M0-M3 selection,
+feature search or post-outcome sensor change was permitted.
+
+### Authoritative V13 source-only freeze
+
+Run: 36480950714
+Git SHA: dccbc2a646b9bc41a311db2dfe7b9453d09f4661
+Artifact: 10996912676
+Status: source_only_frozen
+
+- rows: 6,804 / 6,804;
+- usable pair counts: 6,709 / 6,597 / 6,581 / 6,551 / 6,534;
+- usable coverage bps: 9,860 / 9,695 / 9,672 / 9,628 / 9,603;
+- crossed causal quotes: 0 / 0 / 0 / 0 / 0;
+- contract fingerprint:
+  4a519c4039a9aa2e5fca4256d2e9551afaf253ac909660ecb8a32be73637837e;
+- rows SHA256:
+  3e3c5dd9bac53902f95f3a6ce0b0aa35685a50b1396789f92e5e73fc1ff8b28a;
+- representation artifact fingerprint:
+  60e05ab6cb5dd38778c8d7055f44026f79b81c86e70cc4f6427c83e0291450ec;
+- target/outcome read: false;
+- R6/R5 read: false;
+- fresh holdout opened: false.
+
+### Authoritative V13 scientific result
+
+Run: 36481988189
+Git SHA: 9426924faaf7e654aa31502472188ed98e3134e0
+Status: WP05_V13_SEQUENTIAL_ACTIVE_PERCEPTION_FALSIFIED
+
+- aligned Target-V2 population: 6,397;
+- V11 model fingerprint:
+  cc74f7d3153dec34ebe8867efc27852ca8d5de95d471394f3d8ac9543147b01d;
+- V13 representation fingerprint:
+  60e05ab6cb5dd38778c8d7055f44026f79b81c86e70cc4f6427c83e0291450ec;
+- pooled incremental false-confirmation veto: 466 bps;
+- preregistered materiality floor: 500 bps.
+
+Fold outcomes:
+
+- F0: retention 9,164; absolute terminal 9,000; false veto 887 — FAIL;
+- F1: retention 9,535; absolute terminal 9,407; false veto 478 — FAIL;
+- F2: retention 9,941; absolute terminal 9,658; false veto 118 — PASS;
+- F3: retention 9,895; absolute terminal 9,768; false veto 386 — PASS.
+
+Two of four folds failed and pooled materiality missed the frozen floor by
+34 bps. Near-pass semantics, rounding and rescue are forbidden.
+
+Permanent V13 anti-loop law:
+
+- no V13.1;
+- no threshold change;
+- no persistence-formula change;
+- no feature add/remove;
+- no fold selection;
+- no calibration-split change;
+- no gate lowering;
+- no R6/R5 opening;
+- no fresh-holdout opening.
+
+V13 is permanently falsified.
+
+## 14. Post-V13 transition — source availability before any V14
+
+WP-05 remains ACTIVE and NOT CLOSED.
+
+Consumed sensor universes now include:
+
+1. NAS100/SP500/US30 OHLC mechanism/trajectory information through V11;
+2. USTEC source-time BID/ASK through V12;
+3. USTEC sequential BID/ASK through V13.
+
+The next authorized action is not another classifier and is not V14 outcome
+work. It is a source-only sensor-availability audit for genuinely new
+information.
+
+The first audited path is cross-market microstructure:
+
+- cTrader DEMO enabled-symbol catalogue;
+- SP500-equivalent BID/ASK candidates;
+- US30-equivalent BID/ASK candidates;
+- deterministic historical probes at the already frozen
+  FIRST/Q1/MID/Q3/LAST R8 source-manifest windows;
+- provider-event evidence only;
+- no target/outcome read;
+- no R6/R5 read;
+- no fresh holdout;
+- no scientific candidate selection from performance.
+
+The preregistration is:
+
+docs/shared/QORE_SHARED_WP05_POST_V13_SENSOR_AVAILABILITY_AUDIT_PREREGISTRATION.md
+
+Only an unambiguous, replayable provider sensor can become the subject of a
+later V14 scientific preregistration. Source availability does not itself
+constitute V14, scientific admission or WP-05 progress against the 2000/9500
+gate.
