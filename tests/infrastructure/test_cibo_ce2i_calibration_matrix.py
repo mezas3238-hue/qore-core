@@ -15,7 +15,7 @@ def test_calibration_matrix_is_canonical_and_pre_holdout_conservative() -> None:
         row.tool_code
         for row in CIBO_T01_T20_CALIBRATION_MATRIX
         if row.calibrated
-    } == {"T04", "T10"}
+    } == {"T04", "T05", "T10", "T19", "T20"}
     assert not any(row.oos_ready for row in CIBO_T01_T20_CALIBRATION_MATRIX)
     assert not any(row.certification_ready for row in CIBO_T01_T20_CALIBRATION_MATRIX)
 
@@ -61,3 +61,15 @@ def test_t04_t10_are_causal_only_and_not_usd_certified() -> None:
         assert row.oos_ready is False
         assert row.certification_ready is False
         assert row.blocker
+
+
+def test_lifecycle_calibration_is_causal_not_certified() -> None:
+    rows = {row.tool_code: row for row in CIBO_T01_T20_CALIBRATION_MATRIX}
+    for code in ("T05", "T19", "T20"):
+        row = rows[code]
+        assert row.calibrated is True
+        assert row.classification is CiboCalibrationClassification.CALIBRATED_CAUSAL
+        assert row.provider_economics_required is False
+        assert row.oos_ready is False
+        assert row.certification_ready is False
+        assert row.calibration_artifact_sha256
