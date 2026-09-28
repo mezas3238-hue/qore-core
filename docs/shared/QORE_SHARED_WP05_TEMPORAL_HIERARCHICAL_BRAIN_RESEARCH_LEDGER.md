@@ -834,3 +834,33 @@ pass and it did not consume V12 target outcomes.
 The immediate engineering task is to create an explicit historical quote-side
 evidence boundary that preserves provider-event provenance before any R8
 historical BID/ASK dataset is admitted.
+
+
+### V12 provider-history coverage pilot — preregistered
+
+Before accepting any valid cTrader historical-coverage result, the following
+pilot is frozen:
+
+- identity:
+  `QORE_SHARED_WP05_ACTIVE_PERCEPTION_V12_COVERAGE_PILOT_001`;
+- preregistration:
+  `docs/shared/QORE_SHARED_WP05_V12_PROVIDER_HISTORY_COVERAGE_PILOT_PREREGISTRATION.md`;
+- upstream R8 source-only acquisition-manifest SHA256:
+  `2f18b9f11d5893effa46ac85c712edd6646d1d90a9de521b235143e42155d191`;
+- deterministic temporal sample:
+  FIRST / Q1 / MID / Q3 / LAST manifest ordinal;
+- sensor modality:
+  cTrader DEMO `USTEC` historical BID + ASK;
+- no target/outcome, R6, R5 or fresh holdout may influence selection.
+
+Disposition is frozen pre-outcome:
+
+- FULL BID+ASK history across the temporal pilot authorizes full R8 acquisition
+  without target inspection;
+- PARTIAL history requires source-only coverage/missingness characterization
+  before any scientific sensor admission;
+- NO history rejects this cTrader historical modality and returns Active
+  Perception to another genuinely new sensor/provider family;
+- TECHNICAL failure is repair-and-rerun under the exact same pilot identity.
+
+A coverage pass is still not V12 scientific admission and does not close WP-05.
