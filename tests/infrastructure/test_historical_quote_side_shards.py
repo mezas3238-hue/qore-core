@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import gzip
+import json
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
@@ -159,3 +161,66 @@ def test_shard_sink_fails_closed_on_overwrite(tmp_path) -> None:
 
     with pytest.raises(FileExistsError):
         sink.write_page(**kwargs)
+
+
+def test_shard_preserves_same_millisecond_provider_event_order(tmp_path) -> None:
+    retrieved_at = _BASE + timedelta(days=1)
+    observations = (
+        _observation(
+            observed_at=_BASE,
+            retrieved_at=retrieved_at,
+            relative_price=2012420000,
+        ),
+        _observation(
+            observed_at=_BASE,
+            retrieved_at=retrieved_at,
+            relative_price=2012400000,
+        ),
+    )
+    sink = HistoricalQuoteSideShardSink(tmp_path)
+    record = sink.write_page(
+        quote_side=MarketPriceSide.BID,
+        window_index=0,
+        page_index=0,
+        request_from_at=_BASE - timedelta(minutes=1),
+        request_to_at=_BASE + timedelta(minutes=1),
+        retrieved_at=retrieved_at,
+        observations=observations,
+    )
+
+    raw = gzip.decompress((tmp_path / record.relative_path).read_bytes()).decode()
+    rows = [json.loads(line) for line in raw.splitlines()]
+    retained_prices = [
+        row["tick"]["relative_price"]
+        for row in rows
+        if "tick" in row
+    ]
+
+    assert retained_prices == [2012420000, 2012400000]
+
+
+def test_shard_rejects_non_chronological_observations(tmp_path) -> None:
+    import pytest
+
+    retrieved_at = _BASE + timedelta(days=1)
+    with pytest.raises(ValueError, match="already be chronological"):
+        HistoricalQuoteSideShardSink(tmp_path).write_page(
+            quote_side=MarketPriceSide.BID,
+            window_index=0,
+            page_index=0,
+            request_from_at=_BASE - timedelta(minutes=1),
+            request_to_at=_BASE + timedelta(minutes=1),
+            retrieved_at=retrieved_at,
+            observations=(
+                _observation(
+                    observed_at=_BASE + timedelta(milliseconds=1),
+                    retrieved_at=retrieved_at,
+                    relative_price=2012410000,
+                ),
+                _observation(
+                    observed_at=_BASE,
+                    retrieved_at=retrieved_at,
+                    relative_price=2012400000,
+                ),
+            ),
+        )
