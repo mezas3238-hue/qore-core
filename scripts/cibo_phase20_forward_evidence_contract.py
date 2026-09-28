@@ -57,7 +57,7 @@ from qore.infrastructure.cibo_provider_economic_normalization import (
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
-DECISION_AT = datetime(2026, 9, 27, 14, 5, tzinfo=UTC)
+DECISION_AT = datetime(2026, 9, 28, 5, 0, tzinfo=UTC)
 
 
 def _build_fixture() -> Phase20ForwardDecisionEvidence:
