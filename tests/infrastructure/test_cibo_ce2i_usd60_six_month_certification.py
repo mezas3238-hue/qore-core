@@ -2,10 +2,10 @@ from dataclasses import replace
 from decimal import Decimal
 
 from qore.infrastructure.cibo_ce2i_usd60_six_month_certification import (
+    FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL,
     CiboMaximumCapabilityClassification,
     CiboMaximumCapabilityGateSet,
     CiboToolEmpiricalStatus,
-    FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL,
     classify_cibo_maximum_capability,
 )
 
