@@ -24,6 +24,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
     TraderOpportunityEnvelope,
 )
+from qore.infrastructure.cibo_ce2i_advanced_evidence import (
+    AdvancedCe2iEvidenceSnapshot,
+)
 from qore.infrastructure.cibo_ce2i_opportunity_competition import (
     CapitalOpportunityCandidate,
 )
@@ -168,6 +171,7 @@ def collect_phase20_forward_observed_epoch(
     current_step: int,
     population_slots: tuple[Phase20ForwardPopulationSlotEvidence, ...],
     opportunities: tuple[Phase20ForwardObservedOpportunity, ...],
+    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot,
     seal_deadline_at: datetime | None = None,
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
     collector_git_sha: str | None = None,
@@ -189,6 +193,7 @@ def collect_phase20_forward_observed_epoch(
         current_step=current_step,
         population_slots=population_slots,
         opportunities=opportunities,
+        advanced_evidence_snapshot=advanced_evidence_snapshot,
         seal_deadline_at=seal_deadline_at,
         known_options=known_options,
         collector_git_sha=collector_git_sha,
@@ -218,6 +223,7 @@ def seal_phase20_forward_observed_epoch_from_snapshots(
     current_step: int,
     population_slots: tuple[Phase20ForwardPopulationSlotEvidence, ...],
     opportunities: tuple[Phase20ForwardObservedOpportunity, ...],
+    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot,
     seal_deadline_at: datetime | None = None,
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
     collector_git_sha: str | None = None,
@@ -244,6 +250,7 @@ def seal_phase20_forward_observed_epoch_from_snapshots(
         current_step=current_step,
         population_slots=population_slots,
         opportunities=opportunities,
+        advanced_evidence_snapshot=advanced_evidence_snapshot,
         seal_deadline_at=seal_deadline_at,
         known_options=known_options,
         collector_git_sha=collector_git_sha,
@@ -266,6 +273,7 @@ def seal_phase20_forward_observed_epoch(
     current_step: int,
     population_slots: tuple[Phase20ForwardPopulationSlotEvidence, ...],
     opportunities: tuple[Phase20ForwardObservedOpportunity, ...],
+    advanced_evidence_snapshot: AdvancedCe2iEvidenceSnapshot,
     seal_deadline_at: datetime | None = None,
     known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
     collector_git_sha: str | None = None,
@@ -391,6 +399,8 @@ def seal_phase20_forward_observed_epoch(
         population_slots=ordered_population,
         candidates=candidates,
         known_options=ordered_options,
+        advanced_evidence=advanced_evidence_snapshot.evidence,
+        advanced_evidence_snapshot=advanced_evidence_snapshot,
     )
 
     current = store.load()
