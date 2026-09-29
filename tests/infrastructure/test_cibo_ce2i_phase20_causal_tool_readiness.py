@@ -27,6 +27,10 @@ from qore.infrastructure.cibo_ce2i_phase20_t08_oos_ablation import (
 from qore.infrastructure.cibo_ce2i_phase20_t09_t18_scarcity_readiness import (
     Phase20T09T18ScarcityReadiness,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t09_t18_scarcity_utility import (
+    Phase20ScarcityUtilityScope,
+    Phase20T09T18ScarcityUtilityReport,
+)
 from qore.infrastructure.cibo_ce2i_phase20_t13_oos_readiness import (
     Phase20T13OosReadiness,
 )
@@ -490,3 +494,66 @@ def test_competition_population_ready_does_not_self_promote_t09_t18() -> None:
         "T18_SCARCITY_POPULATION_READY_UTILITY_ANALYSIS_NOT_EXECUTED"
         in t18.blockers
     )
+
+
+
+def _scarcity_utility_ready() -> Phase20T09T18ScarcityUtilityReport:
+    from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
+        FROZEN_PHASE20D_QUALIFICATION_PLAN,
+        phase20d_qualification_plan_sha256,
+    )
+
+    def scope(code: str) -> Phase20ScarcityUtilityScope:
+        return Phase20ScarcityUtilityScope(
+            tool_code=code,
+            population_ready=True,
+            decision_epochs=32,
+            candidate_instances=64,
+            policy_selected_instances=32,
+            baseline_selected_instances=32,
+            candidate_outcome_coverage=Decimal("1"),
+            policy_selected_outcome_coverage=Decimal("1"),
+            baseline_selected_outcome_coverage=Decimal("1"),
+            policy_net_delta_usd=Decimal("64"),
+            baseline_net_delta_usd=Decimal("32"),
+            policy_settlement_cash_drawdown_usd=Decimal("4"),
+            baseline_settlement_cash_drawdown_usd=Decimal("5"),
+            policy_capital_productivity=Decimal("0.04"),
+            baseline_capital_productivity=Decimal("0.01"),
+            fold_policy_net_delta_usd=(
+                Decimal("16"),
+                Decimal("16"),
+                Decimal("16"),
+                Decimal("16"),
+            ),
+            fresh_oos_utility_demonstrated=True,
+            runtime_authority=False,
+            blockers=(),
+        )
+
+    return Phase20T09T18ScarcityUtilityReport(
+        contract_id="CIBO_T09_T18_SCARCITY_UTILITY_V1",
+        qualification_plan_sha256=phase20d_qualification_plan_sha256(),
+        baseline_policy_id=(
+            FROZEN_PHASE20D_QUALIFICATION_PLAN.baseline_policy_id
+        ),
+        outcome_refit_performed=False,
+        t09=scope("T09"),
+        t18=scope("T18"),
+    )
+
+
+def test_scarcity_utility_promotes_t09_t18_only_with_global_readiness() -> None:
+    report = assess_phase20_causal_tool_readiness(
+        evidence_book=VersionedPhase20ForwardEvidenceBook(generation=0),
+        qualification_readiness=_qualification(ready=True),
+        t09_t18_scarcity_readiness=_scarcity_ready(),
+        t09_t18_scarcity_utility=_scarcity_utility_ready(),
+    )
+
+    t09 = _row(report, "T09")
+    t18 = _row(report, "T18")
+    assert t09.state is Phase20ToolEvidenceState.FORWARD_POPULATION_READY
+    assert t18.state is Phase20ToolEvidenceState.FORWARD_POPULATION_READY
+    assert t09.blockers == ()
+    assert t18.blockers == ()
