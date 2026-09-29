@@ -33,6 +33,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_correlation.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_risk_mapping.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_ablation.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_store.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_reserve_population.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_forward_population.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t14_path_readiness.py'
@@ -112,6 +113,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_correlation.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_risk_mapping.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_store.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t13_reserve_population.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t14_path_readiness.py'
@@ -165,6 +167,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_correlation.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_risk_mapping.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_ablation.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_store.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_reserve_population.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_forward_population.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t14_path_readiness.py'
@@ -244,6 +247,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_correlation.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_risk_mapping.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_store.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t13_reserve_population.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t14_path_readiness.py'
@@ -313,6 +317,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_t08_correlation.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t08_risk_mapping.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_ablation.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_store.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t13_reserve_population.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t08_forward_population.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t14_path_readiness.py \
@@ -397,6 +402,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_t08_correlation.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_risk_mapping.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_store.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t13_reserve_population.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py \
@@ -406,6 +412,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_t08_correlation.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_risk_mapping.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_store.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t13_reserve_population.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t14_path_readiness.py \
@@ -463,6 +470,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_t08_correlation.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t08_risk_mapping.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_ablation.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_store.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t13_reserve_population.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t08_forward_population.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t14_path_readiness.py \
@@ -549,6 +557,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_t08_correlation.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_risk_mapping.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_store.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t13_reserve_population.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py \
@@ -558,6 +567,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_t08_correlation.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_risk_mapping.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_store.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t13_reserve_population.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t14_path_readiness.py \
