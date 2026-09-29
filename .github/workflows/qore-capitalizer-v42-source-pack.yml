@@ -1,0 +1,32 @@
+name: QORE Capitalizer V42 Source Pack
+
+on:
+  push:
+    branches:
+      - agent/capitalizer-preentry-cross-market-event-time-v42-001
+    paths:
+      - '.github/workflows/qore-capitalizer-v42-source-pack.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_preentry_cross_market_event_time_state_v42.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_preentry_cross_market_event_time_separability_v42.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source_pack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record source identity
+        run: |
+          mkdir -p source-pack
+          cp -R src source-pack/src
+          printf '%s\n' "${GITHUB_SHA}" > source-pack/GIT_SHA
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v42-source-pack-${{ github.sha }}
+          path: source-pack
+          if-no-files-found: error
+          retention-days: 30
