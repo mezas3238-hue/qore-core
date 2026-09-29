@@ -301,6 +301,7 @@ class CanonicalCalendarMappingRecord:
     """Governed provider instrument -> canonical venue/calendar evidence."""
 
     instrument_key: str
+    provider: str
     provider_symbol: str
     provider_symbol_id: int
     status: CanonicalCalendarMappingStatus
@@ -318,7 +319,11 @@ class CanonicalCalendarMappingRecord:
     reason_codes: tuple[str, ...]
 
     def __post_init__(self) -> None:
-        if not self.instrument_key.strip() or not self.provider_symbol.strip():
+        if (
+            not self.instrument_key.strip()
+            or not self.provider.strip()
+            or not self.provider_symbol.strip()
+        ):
             raise TemporalComparabilityError(
                 "canonical mapping provider identity must be explicit"
             )
@@ -381,6 +386,7 @@ class CanonicalCalendarMappingRecord:
         return _sha256(
             {
                 "instrument_key": self.instrument_key,
+                "provider": self.provider,
                 "provider_symbol": self.provider_symbol,
                 "provider_symbol_id": self.provider_symbol_id,
                 "status": self.status.value,
@@ -452,7 +458,7 @@ class CanonicalCalendarMappingRegistry:
                 "canonical mapping instrument keys must be unique"
             )
         provider_ids = tuple(
-            (item.provider_symbol, item.provider_symbol_id)
+            (item.provider, item.provider_symbol_id)
             for item in self.records
         )
         if len(provider_ids) != len(set(provider_ids)):
