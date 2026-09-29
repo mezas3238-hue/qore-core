@@ -400,6 +400,10 @@ def test_readiness_consumes_stronger_t14_and_t15_audits() -> None:
 
 
 def _t13_oos_population_ready() -> Phase20T13OosReadiness:
+    decision_sha256s = tuple(
+        f"sha256:{index + 1000:064x}" for index in range(80)
+    )
+    changed_sha256s = decision_sha256s[:20]
     return Phase20T13OosReadiness(
         ready_for_utility_analysis=True,
         blockers=(),
@@ -434,6 +438,8 @@ def _t13_oos_population_ready() -> Phase20T13OosReadiness:
         required_candidate_coverage=Decimal("0.95"),
         required_selected_coverage=Decimal("1"),
         fold_count=4,
+        decision_sha256s=decision_sha256s,
+        changed_decision_sha256s=changed_sha256s,
         fresh_oos_utility_demonstrated=False,
     )
 
