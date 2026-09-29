@@ -17,8 +17,12 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
+from qore.infrastructure.ctrader_open_api_client import SpotwareCTraderOpenApiClient
 from qore.infrastructure.trader_lab import (
     capitalizer_canonical_historical_replay_adapter_v46 as v46_adapter,
+)
+from qore.infrastructure.trader_lab import (
+    capitalizer_canonical_source_candidate_assembly_v47_s0 as s0,
 )
 from qore.infrastructure.trader_lab import (
     capitalizer_canonical_source_composition_v47_s2 as s2,
@@ -353,7 +357,7 @@ def bind_s2f_candidates(
 
 
 def resolve_exact_fill(
-    client,
+    client: SpotwareCTraderOpenApiClient,
     *,
     candidate: S2FFtmCandidate,
     bars: tuple[CapitalizerM1Bar, ...],
