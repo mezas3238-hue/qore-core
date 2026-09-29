@@ -1054,6 +1054,69 @@ class RelationalComparabilityPolicy:
 
 
 @dataclass(frozen=True, slots=True)
+class RelationalComparabilityPolicyRegistry:
+    """Versioned exact-match policy registry with no implicit fallback."""
+
+    version: str
+    policies: tuple[RelationalComparabilityPolicy, ...]
+    provenance_refs: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if not self.version.strip():
+            raise TemporalComparabilityError(
+                "comparability policy registry version must be non-empty"
+            )
+        scopes = tuple(item.relation_scope for item in self.policies)
+        if scopes != tuple(sorted(scopes)):
+            raise TemporalComparabilityError(
+                "comparability policies must use canonical scope order"
+            )
+        if len(scopes) != len(set(scopes)):
+            raise TemporalComparabilityError(
+                "comparability policy scopes must be unique"
+            )
+        if self.provenance_refs != tuple(sorted(set(self.provenance_refs))):
+            raise TemporalComparabilityError(
+                "comparability registry provenance must be unique and canonical"
+            )
+
+    def fingerprint(self) -> str:
+        return _sha256(
+            {
+                "version": self.version,
+                "policies": [
+                    {
+                        "relation_scope": item.relation_scope,
+                        "policy_version": item.version,
+                        "policy_fingerprint": item.fingerprint(),
+                    }
+                    for item in self.policies
+                ],
+                "provenance_refs": self.provenance_refs,
+            }
+        )
+
+    def policy_for(
+        self,
+        relation_scope: str,
+    ) -> RelationalComparabilityPolicy | None:
+        """Return only an exact governed policy; unknown scope remains unresolved."""
+
+        if not relation_scope.strip():
+            raise TemporalComparabilityError(
+                "relation_scope lookup must be non-empty"
+            )
+        return next(
+            (
+                item
+                for item in self.policies
+                if item.relation_scope == relation_scope
+            ),
+            None,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class RelationalObservation:
     source_identity: ProviderInstrumentIdentity
     target_identity: ProviderInstrumentIdentity
