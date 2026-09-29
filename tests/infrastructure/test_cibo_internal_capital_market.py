@@ -240,6 +240,8 @@ def _fact(
                 Genc6EvidenceDirection.LOWER_IS_BETTER,
             Genc6EvidenceKind.PROVIDER_CONSTRAINT_PRESSURE:
                 Genc6EvidenceDirection.LOWER_IS_BETTER,
+            Genc6EvidenceKind.RESERVE_VALUE:
+                Genc6EvidenceDirection.HIGHER_IS_BETTER,
         }[kind],
         evidence_sha256="sha256:" + sha_digit * 64,
         produced_at=T0 - timedelta(seconds=1),
@@ -249,16 +251,28 @@ def _fact(
         calibration_lineage="GENC6_TEST_CALIBRATION_V1",
         use=use,
         model_identity=(
-            "GENC6_EXPECTATION_TEST_MODEL"
-            if kind is Genc6EvidenceKind.EXPECTED_NET_VALUE_PER_CAPITAL
+            "GENC6_VALUE_TEST_MODEL"
+            if kind
+            in {
+                Genc6EvidenceKind.EXPECTED_NET_VALUE_PER_CAPITAL,
+                Genc6EvidenceKind.RESERVE_VALUE,
+            }
             else None
         ),
         calibrated=(
-            kind is Genc6EvidenceKind.EXPECTED_NET_VALUE_PER_CAPITAL
+            kind
+            in {
+                Genc6EvidenceKind.EXPECTED_NET_VALUE_PER_CAPITAL,
+                Genc6EvidenceKind.RESERVE_VALUE,
+            }
             and use is Genc6EvidenceUse.CAPITAL_ELIGIBLE
         ),
         oos_validated=(
-            kind is Genc6EvidenceKind.EXPECTED_NET_VALUE_PER_CAPITAL
+            kind
+            in {
+                Genc6EvidenceKind.EXPECTED_NET_VALUE_PER_CAPITAL,
+                Genc6EvidenceKind.RESERVE_VALUE,
+            }
             and use is Genc6EvidenceUse.CAPITAL_ELIGIBLE
         ),
     )
@@ -419,11 +433,22 @@ def _state(
 
 def _reserve(
     identity: CiboAccountCapitalIdentity,
+    *,
+    reserve_value: str = "0.01",
+    use: Genc6EvidenceUse = Genc6EvidenceUse.CAPITAL_ELIGIBLE,
 ) -> Genc6ReserveAlternative:
     return Genc6ReserveAlternative(
         alternative_id=GENC6_RESERVE_ID,
         account_identity=identity,
         decision_at=T0,
+        evidence_facts=(
+            _fact(
+                kind=Genc6EvidenceKind.RESERVE_VALUE,
+                value=Decimal(reserve_value),
+                sha_digit="6",
+                use=use,
+            ),
+        ),
     )
 
 
