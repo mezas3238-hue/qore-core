@@ -635,9 +635,24 @@ def _event_json(event: CapitalScarcityEvent) -> str:
         ],
         "reserve": {
             "alternative_id": event.reserve_alternative.alternative_id,
-            "evidence_fact_ids": [
-                item.fact_id
-                for item in event.reserve_alternative.evidence_facts
+            "evidence_facts": [
+                {
+                    "fact_id": fact.fact_id,
+                    "kind": fact.kind.value,
+                    "value": str(fact.value),
+                    "direction": fact.direction.value,
+                    "evidence_sha256": fact.evidence_sha256,
+                    "produced_at": fact.produced_at.isoformat(),
+                    "observed_at": fact.observed_at.isoformat(),
+                    "source": fact.source,
+                    "policy_version": fact.policy_version,
+                    "calibration_lineage": fact.calibration_lineage,
+                    "use": fact.use.value,
+                    "model_identity": fact.model_identity,
+                    "calibrated": fact.calibrated,
+                    "oos_validated": fact.oos_validated,
+                }
+                for fact in event.reserve_alternative.evidence_facts
             ],
         },
         "simultaneously_valid_count": event.simultaneously_valid_count,
