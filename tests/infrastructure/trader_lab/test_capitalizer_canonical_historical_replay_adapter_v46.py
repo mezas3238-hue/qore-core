@@ -267,6 +267,39 @@ def test_asia_without_authentic_open_reference_fails_closed() -> None:
     assert result.trade_plan_built is False
 
 
+def test_asia_provenance_bound_reference_can_resolve_session() -> None:
+    evidence = adapter.CapitalizerHistoricalAsianOpenReferenceEvidence(
+        reference_at=DECISION - timedelta(minutes=30),
+        source_reference="TEST_PROVIDER_BOUND_ASIAN_OPEN",
+        dst_resolved=True,
+        synthetic=False,
+    )
+    bundle = replace(
+        _bundle(
+            session=CapitalizerSession.ASIA,
+            symbol="AUDUSD",
+        ),
+        asian_open_reference=evidence,
+    )
+
+    result = adapter.assess_canonical_historical_bundle(bundle)
+
+    assert result.source_session.resolved is True
+    assert result.source_session.eligible is True
+    assert result.passes_to_qore_risk is True
+    assert result.trade_plan_built is True
+
+
+def test_synthetic_asian_open_reference_is_prohibited() -> None:
+    with pytest.raises(ValueError, match="synthetic Asian Open"):
+        adapter.CapitalizerHistoricalAsianOpenReferenceEvidence(
+            reference_at=DECISION - timedelta(minutes=30),
+            source_reference="INVENTED_CLOCK",
+            dst_resolved=True,
+            synthetic=True,
+        )
+
+
 def test_future_evidence_is_rejected_before_any_gate() -> None:
     with pytest.raises(ValueError, match="future evidence prohibited"):
         _bundle(stamps=_stamps(future_key="M1_MSS"))
