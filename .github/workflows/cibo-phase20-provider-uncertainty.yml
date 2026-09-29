@@ -28,6 +28,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_causal_history_state.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_magnitude.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_returns.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_store.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_correlation.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_risk_mapping.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_forward_population.py'
@@ -103,6 +104,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase20_causal_history_state.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_returns.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_store.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_correlation.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_risk_mapping.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py'
@@ -152,6 +154,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_causal_history_state.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_magnitude.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_returns.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_store.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_correlation.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_risk_mapping.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_forward_population.py'
@@ -227,6 +230,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase20_causal_history_state.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_returns.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_store.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_correlation.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_risk_mapping.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py'
@@ -292,6 +296,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_causal_history_state.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_magnitude.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_returns.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_store.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t08_correlation.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t08_risk_mapping.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t08_forward_population.py \
@@ -372,11 +377,13 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_causal_history_state.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_returns.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_store.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_correlation.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_risk_mapping.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_returns.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_store.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_correlation.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_risk_mapping.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py \
@@ -430,6 +437,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_causal_history_state.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_magnitude.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_returns.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_store.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t08_correlation.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t08_risk_mapping.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t08_forward_population.py \
@@ -512,11 +520,13 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_causal_history_state.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_returns.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_store.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_correlation.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_risk_mapping.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_returns.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_store.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_correlation.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_risk_mapping.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py \
