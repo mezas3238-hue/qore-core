@@ -446,7 +446,7 @@ def audit_v14_peer_source_dataset(
             max_gap_values.append(max_gap)
             exact_same_timestamp_row_repeat_count += sum(
                 item.exact_same_timestamp_row_repeat_count
-                for item in chronological
+                for item in pages
             )
 
     repeated_content_hash_excess = sum(
