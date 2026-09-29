@@ -1,0 +1,180 @@
+name: QORE Shared AGRI-2 Canonical Agricultural Identity
+
+concurrency:
+  group: qore-shared-agri2-identity-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/agricultural_instrument_identity.py
+      - tests/infrastructure/test_core_stack_v2_agricultural_instrument_identity.py
+      - docs/shared/QORE_SHARED_AGRI2_AGRICULTURAL_IDENTITY_CONTRACT_001.md
+      - docs/shared/evidence/QORE_SHARED_AGRI2_UMI_DEPENDENCY_MANIFEST_001.json
+      - .github/workflows/qore-shared-agri2-identity.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  UPSTREAM_AGRI1_RUN_ID: "36623645085"
+  UPSTREAM_AGRI1_ARTIFACT_ID: "11059457712"
+  UPSTREAM_AGRI1_GIT_SHA: "0ce7a2938fa50328d8ab569f47c776852dd5eafe"
+  UMI02_BLOB_SHA: "c39a77c621f9a6a524751d4e2983e71c36400a0f"
+  UMI05_BLOB_SHA: "36e4d672459c489573eabc7ba5413bb5ef99c3a6"
+  UMI07_BLOB_SHA: "e2e7b4e302996a351cd3044077f250234ec81b25"
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Verify exact UMI owner dependency blobs
+        run: |
+          set -euo pipefail
+          test "$(git hash-object src/qore/infrastructure/universal_instrument_identity.py)" = "$UMI02_BLOB_SHA"
+          test "$(git hash-object src/qore/infrastructure/derivative_contract_semantics.py)" = "$UMI05_BLOB_SHA"
+          test "$(git hash-object src/qore/infrastructure/commodity_contract_delivery_semantics.py)" = "$UMI07_BLOB_SHA"
+
+      - name: Verify AGRI-1 discovery upstream
+        run: |
+          set -euo pipefail
+          status="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${UPSTREAM_AGRI1_RUN_ID}" --jq '.status')"
+          conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${UPSTREAM_AGRI1_RUN_ID}" --jq '.conclusion')"
+          head_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${UPSTREAM_AGRI1_RUN_ID}" --jq '.head_sha')"
+          test "$status" = "completed"
+          test "$conclusion" = "success"
+          test "$head_sha" = "$UPSTREAM_AGRI1_GIT_SHA"
+          mkdir -p upstream
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${UPSTREAM_AGRI1_ARTIFACT_ID}/zip" > agri1.zip
+          unzip -q agri1.zip -d upstream
+          (
+            cd upstream/result
+            sha256sum -c SHA256SUMS
+          )
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          audit=json.loads(
+              Path("upstream/result/agricultural-provider-capability-audit.json").read_text()
+          )
+          assert audit["provider_candidate_count"] == 0
+          assert audit["agricultural_candidate_identity_verified_count"] == 0
+          assert audit["agricultural_contract_mapped_count"] == 0
+          assert audit["relational_claims_authorized"] is False
+          PY
+
+      - name: Validate AGRI-2 identity composition
+        run: |
+          set -euo pipefail
+          mkdir -p validation result
+          ruff check             src/qore/infrastructure/core_stack_v2/agricultural_instrument_identity.py             tests/infrastructure/test_core_stack_v2_agricultural_instrument_identity.py
+          mypy             src/qore/infrastructure/core_stack_v2/agricultural_instrument_identity.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/agricultural_instrument_identity.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_agricultural_instrument_identity.py             --junitxml=validation/junit.xml
+
+      - name: Seal AGRI-2 evidence
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          dependency=json.loads(
+              Path("docs/shared/evidence/QORE_SHARED_AGRI2_UMI_DEPENDENCY_MANIFEST_001.json").read_text()
+          )
+          root=ET.parse("validation/junit.xml").getroot()
+          suites=(root,) if root.tag == "testsuite" else tuple(root.findall("testsuite"))
+          tests=sum(int(item.attrib.get("tests", "0")) for item in suites)
+          failures=sum(int(item.attrib.get("failures", "0")) for item in suites)
+          errors=sum(int(item.attrib.get("errors", "0")) for item in suites)
+          if tests <= 0:
+              raise SystemExit("AGRI-2 refuses zero-test evidence")
+          if failures + errors:
+              raise SystemExit("AGRI-2 refuses failing identity evidence")
+          pack={
+              "identity":"QORE_SHARED_AGRI2_CANONICAL_IDENTITY_EVIDENCE_001",
+              "head":os.environ["GITHUB_SHA"],
+              "run_id":int(os.environ["GITHUB_RUN_ID"]),
+              "upstream_agri1_run_id":int(os.environ["UPSTREAM_AGRI1_RUN_ID"]),
+              "upstream_agri1_artifact_id":int(os.environ["UPSTREAM_AGRI1_ARTIFACT_ID"]),
+              "upstream_agri1_git_sha":os.environ["UPSTREAM_AGRI1_GIT_SHA"],
+              "umi_dependency_manifest_identity":dependency["identity"],
+              "umi02_blob_sha":os.environ["UMI02_BLOB_SHA"],
+              "umi05_blob_sha":os.environ["UMI05_BLOB_SHA"],
+              "umi07_blob_sha":os.environ["UMI07_BLOB_SHA"],
+              "test_count":tests,
+              "failure_count":failures+errors,
+              "real_agricultural_identity_promoted_count":0,
+              "provider_symbol_is_canonical_identity":False,
+              "continuous_reference_is_execution_identity":False,
+              "automatic_sensor_admission":False,
+              "relational_claims_authorized":False,
+              "protected_holdout_opened":False,
+              "shared_execution_authority":False,
+              "shared_risk_authority":False,
+              "shared_sizing_authority":False,
+          }
+          Path("result/agri2-evidence-pack.json").write_text(
+              json.dumps(pack,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+          printf '%s\n' "$GITHUB_SHA" > result/agri2-code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/agri2-run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-agri2-identity-${{ github.sha }}
+          path: |
+            result
+            validation/junit.xml
+          retention-days: 90
+
+      - name: Report AGRI-2 identity state
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          pack=json.loads(Path("result/agri2-evidence-pack.json").read_text())
+          body="\n".join([
+              "## Shared AGRI-2 — Canonical Agricultural Identity",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- UMI-02 blob: `{pack['umi02_blob_sha']}`",
+              f"- UMI-05 blob: `{pack['umi05_blob_sha']}`",
+              f"- UMI-07 blob: `{pack['umi07_blob_sha']}`",
+              f"- validation: **{pack['test_count']} tests / {pack['failure_count']} failures**",
+              "- real agricultural identities promoted: **0**",
+              "- provider symbol -> canonical identity: **False**",
+              "- continuous reference -> execution identity: **False**",
+              "- relational claims authorized: **False**",
+              "- protected holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
