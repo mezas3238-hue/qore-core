@@ -1,0 +1,142 @@
+name: QORE CIBO CEL1 CEL2 Exposure Economics
+
+concurrency:
+  group: qore-cibo-cel1-cel2-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - src/qore/infrastructure/cibo_capital_efficient_exposure.py
+      - tests/infrastructure/test_cibo_capital_efficient_exposure.py
+      - .github/workflows/qore-cibo-cel1-cel2-exposure-economics.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install CIBO
+        run: pip install -e ".[dev]"
+
+      - name: Validate CEL-1 / CEL-2 exposure engine
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          ruff check \
+            src/qore/infrastructure/cibo_capital_efficient_exposure.py \
+            tests/infrastructure/test_cibo_capital_efficient_exposure.py
+          mypy src/qore/infrastructure/cibo_capital_efficient_exposure.py
+          pytest -q \
+            tests/infrastructure/test_cibo_capital_efficient_exposure.py \
+            --junitxml=result/junit.xml
+
+      - name: Seal CEL component maturity
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          root=ET.parse("result/junit.xml").getroot()
+          suites=(root,) if root.tag == "testsuite" else tuple(root.findall("testsuite"))
+          tests=sum(int(x.attrib.get("tests","0")) for x in suites)
+          failures=sum(int(x.attrib.get("failures","0")) for x in suites)
+          errors=sum(int(x.attrib.get("errors","0")) for x in suites)
+          if tests <= 0 or failures + errors:
+              raise SystemExit("CEL-1/CEL-2 component validation failed")
+
+          payload={
+              "identity":"QORE_CIBO_CEL1_CEL2_EXPOSURE_ECONOMICS_001",
+              "head":os.environ["GITHUB_SHA"],
+              "run_id":int(os.environ["GITHUB_RUN_ID"]),
+              "tests":tests,
+              "failures":failures+errors,
+              "CEL-1":{
+                  "state":"ENGINE_IMPLEMENTED",
+                  "notional_separate":True,
+                  "margin_separate":True,
+                  "stressed_loss_separate":True,
+                  "real_provider_runtime_bound":False,
+                  "causal_replay_executed":False,
+                  "value_demonstrated":False,
+              },
+              "CEL-2":{
+                  "state":"ENGINE_IMPLEMENTED",
+                  "explicit_scenario_evidence_required":True,
+                  "future_outcome_forbidden":True,
+                  "real_stress_calibration_bound":False,
+                  "causal_replay_executed":False,
+                  "value_demonstrated":False,
+              },
+              "low_margin_equals_low_risk":False,
+              "genc6_frozen_policy_mutated":False,
+              "sizing_authority_changed":False,
+              "risk_authority_changed":False,
+              "execution_authority_changed":False,
+              "productive_authority":False,
+              "holdout_opened":False,
+          }
+          Path("result/cel1-cel2-evidence.json").write_text(
+              json.dumps(payload,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-cel1-cel2-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report CEL-1 / CEL-2 status
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(Path("result/cel1-cel2-evidence.json").read_text())
+          body="\n".join([
+              "## CIBO CEL-1 / CEL-2 — Exposure Economics",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- tests/failures: **{p['tests']} / {p['failures']}**",
+              "- NOTIONAL / MARGIN / STRESSED LOSS separated: **True**",
+              "- LOW MARGIN == LOW RISK: **False**",
+              "- CEL-1 state: **ENGINE_IMPLEMENTED**",
+              "- CEL-2 state: **ENGINE_IMPLEMENTED**",
+              "- real provider runtime bound: **False**",
+              "- real stress calibration bound: **False**",
+              "- causal replay/value demonstrated: **False / False**",
+              "- GEN-C6 frozen policy mutated: **False**",
+              "- productive authority: **False**",
+              "- holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 651 --body-file result/issue-comment.md
