@@ -15,10 +15,12 @@ from qore.infrastructure.core_stack_v2.global_temporal_comparability import (
     ComparabilityUncertainty,
     DateSessionInterval,
     ExpectedUpdateCadencePolicy,
+    ExpectedUpdateCadencePolicyRegistry,
     GlobalMarketCalendar,
     GlobalMarketCalendarRegistry,
     GlobalTemporalAlignmentEngine,
     LiquidityObservation,
+    LiquidityObservabilityPolicy,
     LiquidityState,
     MarketCalendarBinding,
     MarketSessionSnapshot,
@@ -31,7 +33,10 @@ from qore.infrastructure.core_stack_v2.global_temporal_comparability import (
     RelationalComparabilityState,
     TemporalComparabilityError,
     TemporalMarketObservation,
+    TemporalSkewPolicy,
+    TemporalSkewPolicyRegistry,
     WeeklySessionRule,
+    assess_liquidity_observability,
     assess_provider_observability,
     assess_relational_comparability,
     evaluate_market_session,
@@ -184,6 +189,24 @@ def _cadence(identity: ProviderInstrumentIdentity) -> ExpectedUpdateCadencePolic
         delayed_after_ms=500,
         stale_after_ms=5000,
         provenance_refs=(f"cadence:{identity.provider_symbol_id}",),
+    )
+
+
+def _liquidity_policy(
+    identity: ProviderInstrumentIdentity,
+    *,
+    session_state: MarketSessionState = MarketSessionState.OPEN_ACTIVE,
+) -> LiquidityObservabilityPolicy:
+    return LiquidityObservabilityPolicy(
+        version="liquidity-001",
+        instrument_key=identity.instrument_key,
+        provider=identity.provider,
+        session_state=session_state,
+        normal_activity_ratio_bps=7000,
+        illiquid_below_activity_ratio_bps=2500,
+        minimum_spread_quality_bps=7000,
+        max_provider_update_age_ms=2000,
+        provenance_refs=(f"liquidity-policy:{identity.provider_symbol_id}",),
     )
 
 
@@ -499,6 +522,140 @@ def test_cross_timezone_overlap_respects_independent_dst_calendars() -> None:
     assert london_before.state is MarketSessionState.OPEN_ACTIVE
     assert ny_after.state is MarketSessionState.OPEN_ACTIVE
     assert london_after.state is MarketSessionState.OPEN_ACTIVE
+
+
+def test_cadence_registry_requires_exact_instrument_provider_session_match() -> None:
+    active = _cadence(SOURCE)
+    low_liquidity = ExpectedUpdateCadencePolicy(
+        version="cadence-low-liquidity-001",
+        instrument_key=SOURCE.instrument_key,
+        provider=SOURCE.provider,
+        session_state=MarketSessionState.OPEN_LOW_LIQUIDITY,
+        expected_interval_ms=500,
+        delayed_after_ms=1500,
+        stale_after_ms=5000,
+        provenance_refs=("cadence:source:low-liquidity",),
+    )
+    registry = ExpectedUpdateCadencePolicyRegistry(
+        version="cadence-registry-001",
+        policies=tuple(
+            sorted(
+                (active, low_liquidity),
+                key=lambda item: (
+                    item.instrument_key,
+                    item.provider,
+                    item.session_state.value,
+                ),
+            )
+        ),
+        provenance_refs=("registry:cadence:test",),
+    )
+
+    assert registry.policy_for(
+        instrument_key=SOURCE.instrument_key,
+        provider=SOURCE.provider,
+        session_state=MarketSessionState.OPEN_ACTIVE,
+    ) == active
+    assert registry.policy_for(
+        instrument_key=SOURCE.instrument_key,
+        provider=SOURCE.provider,
+        session_state=MarketSessionState.CLOSED,
+    ) is None
+    assert len(registry.fingerprint()) == 64
+
+
+def test_liquidity_observability_never_relabels_provider_failure_as_illiquidity() -> None:
+    observation = _observation(
+        SOURCE,
+        event_at=NOW - timedelta(milliseconds=900),
+    )
+    degraded_provider = _provider(
+        SOURCE,
+        observation,
+        signal=ProviderOperationalSignal.DEGRADED,
+    )
+    liquidity = assess_liquidity_observability(
+        identity=SOURCE,
+        evaluation_at=NOW,
+        provider_snapshot=degraded_provider,
+        session_state=MarketSessionState.OPEN_ACTIVE,
+        activity_ratio_bps=500,
+        spread_quality_bps=1000,
+        policy=_liquidity_policy(SOURCE),
+        provenance_refs=("liquidity:measured:test",),
+    )
+
+    assert liquidity.state is LiquidityState.UNKNOWN
+
+
+@pytest.mark.parametrize(
+    ("activity", "spread_quality", "expected"),
+    (
+        (8000, 9000, LiquidityState.NORMAL),
+        (6000, 9000, LiquidityState.LOW),
+        (8000, 6000, LiquidityState.LOW),
+        (1000, 9000, LiquidityState.ILLIQUID),
+    ),
+)
+def test_liquidity_observability_uses_explicit_measured_thresholds(
+    activity: int,
+    spread_quality: int,
+    expected: LiquidityState,
+) -> None:
+    observation = _observation(
+        SOURCE,
+        event_at=NOW - timedelta(milliseconds=900),
+    )
+    provider = _provider(SOURCE, observation)
+    liquidity = assess_liquidity_observability(
+        identity=SOURCE,
+        evaluation_at=NOW,
+        provider_snapshot=provider,
+        session_state=MarketSessionState.OPEN_ACTIVE,
+        activity_ratio_bps=activity,
+        spread_quality_bps=spread_quality,
+        policy=_liquidity_policy(SOURCE),
+        provenance_refs=("liquidity:measured:test",),
+    )
+
+    assert liquidity.state is expected
+
+
+def test_temporal_skew_registry_has_no_cross_scope_fallback() -> None:
+    policy = TemporalSkewPolicy(
+        version="skew-001",
+        relation_kind="LEAD_LAG",
+        source_family="indices-benchmarks",
+        target_family="fx",
+        horizon="M1",
+        session_scope="US_OVERLAP",
+        liquidity_scope="NORMAL_NORMAL",
+        max_temporal_skew_ms=250,
+        provenance_refs=("skew:study:test",),
+    )
+    registry = TemporalSkewPolicyRegistry(
+        version="skew-registry-001",
+        policies=(policy,),
+        provenance_refs=("registry:skew:test",),
+    )
+
+    assert registry.policy_for(
+        relation_kind="LEAD_LAG",
+        source_family="indices-benchmarks",
+        target_family="fx",
+        horizon="M1",
+        session_scope="US_OVERLAP",
+        liquidity_scope="NORMAL_NORMAL",
+    ) == policy
+    assert registry.policy_for(
+        relation_kind="LEAD_LAG",
+        source_family="indices-benchmarks",
+        target_family="fx",
+        horizon="M5",
+        session_scope="US_OVERLAP",
+        liquidity_scope="NORMAL_NORMAL",
+    ) is None
+    assert len(registry.fingerprint()) == 64
 
 
 def test_provider_schedule_alone_cannot_create_canonical_binding() -> None:
