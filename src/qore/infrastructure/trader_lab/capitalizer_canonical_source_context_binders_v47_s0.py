@@ -16,6 +16,12 @@ from decimal import Decimal
 from qore.infrastructure.trader_lab import (
     capitalizer_canonical_structural_targets_v47_s0 as structural_targets,
 )
+from qore.infrastructure.trader_lab import (
+    capitalizer_native_source_fact_remediation_v46 as remediation,
+)
+from qore.infrastructure.trader_lab import (
+    capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 as v3_source,
+)
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
 )
@@ -43,6 +49,9 @@ from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 
     confirm_protected_swing,
     detect_candle2_reversal_closure,
     detect_candle3_confirmation,
+)
+from qore.infrastructure.trader_lab.capitalizer_source_structural_extraction_v2 import (
+    protected_swing_from_cisd,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_poi_v2 import (
     CapitalizerSourcePOI,
@@ -115,6 +124,37 @@ class S0CISDBinding:
             raise ValueError("S0 CISD binding requires causal series")
         if not self.causal:
             raise ValueError("S0 CISD binding cannot be non-causal")
+
+
+@dataclass(frozen=True, slots=True)
+class S0M1StructureBinding:
+    confirmed_at: datetime
+    m1_mss: remediation.CapitalizerM1MSSObservation
+    m1_cisd: CapitalizerCISDObservation
+    protected_swing: CapitalizerProtectedSwingObservation
+    order_block: remediation.CapitalizerM1OrderBlockObservation
+    causal_series: tuple[CapitalizerSourceBar, ...]
+    confirmation_bar: CapitalizerSourceBar
+    fvg_confirmed: bool
+    source_zone_bound: bool
+    causal: bool = True
+
+    def __post_init__(self) -> None:
+        _aware(self.confirmed_at)
+        if not self.m1_mss.confirmed:
+            raise ValueError("S0 M1 structure requires confirmed MSS")
+        if not self.m1_cisd.setup_confirmed:
+            raise ValueError("S0 M1 structure requires setup-confirmed CISD")
+        if not self.protected_swing.confirmed:
+            raise ValueError("S0 M1 structure requires M1 protected swing")
+        if not self.order_block.confirmed:
+            raise ValueError("S0 M1 structure requires validated order block")
+        if not self.causal_series:
+            raise ValueError("S0 M1 structure requires causal series")
+        if not self.fvg_confirmed or not self.source_zone_bound:
+            raise ValueError("S0 M1 structure requires bound FVG/OB source zone")
+        if not self.causal:
+            raise ValueError("S0 M1 structure cannot be non-causal")
 
 
 @dataclass(frozen=True, slots=True)
@@ -395,6 +435,126 @@ def bind_first_m15_cisd(
             causal_series=series,
         )
     return None
+
+
+def _m1_source(bar: CapitalizerM1Bar) -> CapitalizerSourceBar:
+    return CapitalizerSourceBar(
+        open=bar.open,
+        high=bar.high,
+        low=bar.low,
+        close=bar.close,
+    )
+
+
+def _opposing_m1(
+    bar: CapitalizerM1Bar,
+    direction: CapitalizerSourceDirection,
+) -> bool:
+    return _opposing(_m1_source(bar), direction)
+
+
+def bind_m1_source_structure(
+    bars: tuple[CapitalizerM1Bar, ...],
+    *,
+    direction: CapitalizerSourceDirection,
+    higher_timeframe_closure: CapitalizerSourceClosureObservation,
+    zone: v3_source.M1EntryZone,
+    after: datetime,
+    before: datetime,
+) -> S0M1StructureBinding | None:
+    """Bind M1 CISD/MSS/FVG/OB and the canonical M1 protected swing.
+
+    The protected stop anchor is extracted from the M1 CISD causal series,
+    matching the source-observation/trade-plan contract. The M15 swing is not
+    promoted to the canonical stop.
+    """
+
+    after_at = _aware(after)
+    before_at = _aware(before)
+    if before_at < after_at:
+        raise ValueError("S0 M1 structure before must be >= after")
+    ordered = tuple(sorted(bars, key=lambda row: row.opened_at))
+    if ordered != bars:
+        raise ValueError("S0 M1 structure requires chronological bars")
+    causal = tuple(row for row in bars if row.closed_at <= before_at)
+    if not causal:
+        return None
+
+    ob_index = next(
+        (
+            index
+            for index, row in enumerate(causal)
+            if row.opened_at == zone.ob_opened_at
+        ),
+        None,
+    )
+    if ob_index is None:
+        return None
+    if causal[ob_index].closed_at <= after_at:
+        return None
+
+    series_rows: list[CapitalizerM1Bar] = []
+    cursor = ob_index
+    while cursor < len(causal) and _opposing_m1(causal[cursor], direction):
+        if causal[cursor].closed_at > after_at:
+            series_rows.append(causal[cursor])
+        cursor += 1
+    if not series_rows or cursor >= len(causal):
+        return None
+    confirmation = causal[cursor]
+    if confirmation.closed_at > before_at:
+        return None
+
+    series = tuple(_m1_source(row) for row in series_rows)
+    cisd = detect_cisd(
+        causal_series=series,
+        confirmation_bar=_m1_source(confirmation),
+        direction=direction,
+        important_level_reached=True,
+        higher_timeframe_closure=higher_timeframe_closure,
+    )
+    if not cisd.setup_confirmed:
+        return None
+
+    mss = remediation.detect_m1_mss(
+        bars=causal,
+        direction=direction,
+        after=confirmation.opened_at,
+        before=before_at,
+    )
+    if not mss.confirmed or mss.confirmed_at is None:
+        return None
+    if mss.confirmed_at < confirmation.closed_at:
+        return None
+    if zone.fvg_confirmed_at > mss.confirmed_at:
+        return None
+
+    protected = protected_swing_from_cisd(
+        cisd=cisd,
+        causal_series=series,
+        confirmation_bar=_m1_source(confirmation),
+        origin=CapitalizerProtectedSwingOrigin.LIQUIDITY_SWEEP,
+    )
+    order_block = remediation.assess_m1_order_block(
+        direction=direction,
+        causal_series=series,
+        poi_reached=True,
+        cisd=cisd,
+    )
+    if not order_block.confirmed:
+        return None
+
+    return S0M1StructureBinding(
+        confirmed_at=mss.confirmed_at,
+        m1_mss=mss,
+        m1_cisd=cisd,
+        protected_swing=protected,
+        order_block=order_block,
+        causal_series=series,
+        confirmation_bar=_m1_source(confirmation),
+        fvg_confirmed=True,
+        source_zone_bound=True,
+    )
 
 
 def bind_canonical_source_context(
