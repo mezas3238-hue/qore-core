@@ -19,7 +19,11 @@ from qore.infrastructure.cibo_ce2i_phase20_t08_factor_returns import (
 BASE = datetime(2026, 9, 28, tzinfo=UTC)
 
 
-def _observation(index: int) -> T08FactorReturnObservation:
+def _observation(
+    index: int,
+    *,
+    constant_xau: bool = False,
+) -> T08FactorReturnObservation:
     start = BASE + timedelta(minutes=5 * index)
     end = start + timedelta(minutes=5)
     base = Decimal(index + 1) / Decimal("10000")
@@ -30,7 +34,7 @@ def _observation(index: int) -> T08FactorReturnObservation:
         "JPY": -base,
         "USD": Decimal(0),
         "US_TECH_EQUITY_BETA": base * Decimal(4),
-        "XAU": -base * Decimal(2),
+        "XAU": Decimal(0) if constant_xau else -base * Decimal(2),
     }
     return T08FactorReturnObservation(
         provider_key="ctrader-demo",
@@ -87,6 +91,22 @@ def test_correlation_audit_stays_unidentified_below_minimum_sample() -> None:
     assert audit.correlation_matrix_identified is False
     assert audit.netting_credit_authorized is False
     assert "T08_CORRELATION_MINIMUM_SAMPLE_NOT_MET:12/30" in audit.blockers
+
+
+def test_zero_variance_diagnostic_names_only_the_constant_factor() -> None:
+    observations = tuple(
+        _observation(index, constant_xau=True)
+        for index in range(32)
+    )
+
+    audit = assess_t08_correlation_readiness(
+        observations=observations,
+        decision_at=observations[-1].known_at + timedelta(seconds=1),
+    )
+
+    assert audit.zero_variance_factors == ("XAU",)
+    assert audit.correlation_matrix_identified is False
+    assert "T08_ZERO_VARIANCE_FACTORS:XAU" in audit.blockers
 
 
 def test_correlation_audit_rejects_future_known_observation() -> None:

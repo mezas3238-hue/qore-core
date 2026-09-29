@@ -66,6 +66,7 @@ class T08CorrelationFold:
     end_market_at: datetime
     sample_size: int
     estimates: tuple[T08CorrelationEstimate, ...]
+    zero_variance_factors: tuple[str, ...]
 
     def __post_init__(self) -> None:
         if self.fold_index < 0 or self.sample_size < 2:
@@ -186,7 +187,7 @@ def assess_t08_correlation_readiness(
     fold_zero_variance = {
         factor_id
         for fold in folds
-        for factor_id in _zero_variance_from_estimates(fold.estimates)
+        for factor_id in fold.zero_variance_factors
     }
     all_zero_variance = tuple(
         sorted(set(zero_variance) | fold_zero_variance)
@@ -324,7 +325,7 @@ def _build_folds(
         size = base + (1 if fold_index < extra else 0)
         subset = observations[cursor : cursor + size]
         cursor += size
-        estimates, _ = _estimate_window(subset)
+        estimates, zero_variance = _estimate_window(subset)
         folds.append(
             T08CorrelationFold(
                 fold_index=fold_index,
@@ -332,6 +333,7 @@ def _build_folds(
                 end_market_at=subset[-1].end_market_at,
                 sample_size=len(subset),
                 estimates=estimates,
+                zero_variance_factors=zero_variance,
             )
         )
     return tuple(folds)
@@ -358,17 +360,6 @@ def _direction_signs_stable(
             if value is None or value == 0 or (value > 0) != expected_positive:
                 return False
     return True
-
-
-def _zero_variance_from_estimates(
-    estimates: tuple[T08CorrelationEstimate, ...],
-) -> tuple[str, ...]:
-    factors: set[str] = set()
-    for item in estimates:
-        if item.correlation is None:
-            factors.add(item.left_factor)
-            factors.add(item.right_factor)
-    return tuple(sorted(factors))
 
 
 def _pearson(
