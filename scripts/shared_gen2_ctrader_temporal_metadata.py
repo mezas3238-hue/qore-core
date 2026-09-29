@@ -117,13 +117,22 @@ def _optional_text(value: object, *, field_name: str) -> str | None:
     return value
 
 
+def _required_text(value: object, *, field_name: str) -> str:
+    parsed = _optional_text(value, field_name=field_name)
+    if parsed is None:
+        raise Gen2ProviderScheduleError(
+            f"{field_name} must be non-empty"
+        )
+    return parsed
+
+
 def _parse_provider_asset(native: object) -> dict[str, object]:
     return {
         "asset_id": _positive_int(
             getattr(native, "assetId", None),
             field_name="provider asset id",
         ),
-        "name": _optional_text(
+        "name": _required_text(
             getattr(native, "name", None),
             field_name="provider asset name",
         ),
@@ -141,7 +150,7 @@ def _parse_provider_asset_class(native: object) -> dict[str, object]:
             getattr(native, "id", None),
             field_name="provider asset-class id",
         ),
-        "name": _optional_text(
+        "name": _required_text(
             getattr(native, "name", None),
             field_name="provider asset-class name",
         ),
@@ -158,7 +167,7 @@ def _parse_provider_symbol_category(native: object) -> dict[str, object]:
             getattr(native, "assetClassId", None),
             field_name="provider symbol-category asset-class id",
         ),
-        "name": _optional_text(
+        "name": _required_text(
             getattr(native, "name", None),
             field_name="provider symbol-category name",
         ),
