@@ -24,14 +24,14 @@ from typing import cast
 from qore.infrastructure.ctrader_open_api_client import (
     SpotwareCTraderOpenApiClient,
 )
+from qore.infrastructure.trader_lab import (
+    capitalizer_canonical_historical_replay_adapter_v46 as v46_adapter,
+)
 from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
     CapitalizerCognitiveGateDecision,
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
     CapitalizerSide,
-)
-from qore.infrastructure.trader_lab import (
-    capitalizer_canonical_historical_replay_adapter_v46 as v46_adapter,
 )
 from qore.kernel.result import Failure
 
