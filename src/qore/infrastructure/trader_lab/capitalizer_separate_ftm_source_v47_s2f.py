@@ -13,9 +13,12 @@ Frozen by PR #623 comment 5900576271.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+import argparse
+import json
+from pathlib import Path
 
 from qore.infrastructure.ctrader_open_api_client import SpotwareCTraderOpenApiClient
 from qore.infrastructure.trader_lab import (
@@ -47,6 +50,7 @@ from qore.infrastructure.trader_lab import (
 )
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
+    iter_cibo_m1,
 )
 from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
 from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
@@ -522,3 +526,226 @@ def build_post_fill_bundle(
         evidence_timestamps=_evidence_stamps(candidate, fill_at=fill_at),
         asian_open_reference=asian_open,
     )
+
+
+@dataclass(frozen=True, slots=True)
+class S2FPeriodMarketReport:
+    identity: str
+    period: str
+    symbol: str
+    session: str
+    operating_days_scanned: int
+    raw_sweeps: int
+    htf_continuation_aligned: int
+    continuation_m3_mss: int
+    continuation_m15: int
+    continuation_m1: int
+    ftm_confirmed: int
+    target_bound: int
+    armed_ftm_candidates: int
+    forensic_rejections: dict[str, int]
+    exact_provider_fill_queried: bool = False
+    terminal_outcome_read: bool = False
+    economics_calculated: bool = False
+    fresh_holdout_opened: bool = False
+    trader_certified: bool = False
+
+    def __post_init__(self) -> None:
+        if self.identity != IDENTITY:
+            raise ValueError("S2F report identity drift")
+        if self.period not in s1.PERIODS:
+            raise ValueError("S2F report period drift")
+        if not (
+            self.raw_sweeps
+            >= self.htf_continuation_aligned
+            >= self.continuation_m3_mss
+            >= self.continuation_m15
+            >= self.continuation_m1
+            >= self.ftm_confirmed
+            >= self.target_bound
+            >= self.armed_ftm_candidates
+        ):
+            raise ValueError("S2F funnel monotonicity drift")
+        if (
+            self.exact_provider_fill_queried
+            or self.terminal_outcome_read
+            or self.economics_calculated
+            or self.fresh_holdout_opened
+            or self.trader_certified
+        ):
+            raise ValueError("S2F prefill governance drift")
+
+
+def audit_period_market(
+    bars: tuple[CapitalizerM1Bar, ...],
+    *,
+    symbol: str,
+    session: CapitalizerSession,
+    period: str,
+) -> S2FPeriodMarketReport:
+    if period not in s1.PERIODS:
+        raise ValueError("unknown S2F period")
+    start, end = s1.PERIODS[period]
+    prepared = s1._prepare_source_series(bars)
+    days = s1._operating_days(
+        bars,
+        session=session,
+        period_start=start,
+        period_end=end,
+    )
+    opened = prepared.opened
+    funnel: dict[str, int] = {}
+    forensic: dict[str, int] = {}
+    for day in days:
+        local = s1._day_slice(
+            bars,
+            opened,
+            operating_day=day,
+            session=session,
+        )
+        if not local:
+            continue
+        bind_s2f_candidates(
+            local,
+            prepared=prepared,
+            session=session,
+            operating_day=day,
+            funnel=funnel,
+            rejections=forensic,
+        )
+
+    return S2FPeriodMarketReport(
+        identity=IDENTITY,
+        period=period,
+        symbol=symbol,
+        session=session.value,
+        operating_days_scanned=len(days),
+        raw_sweeps=funnel.get("raw_sweeps", 0),
+        htf_continuation_aligned=funnel.get("htf_continuation_aligned", 0),
+        continuation_m3_mss=funnel.get("continuation_m3_mss", 0),
+        continuation_m15=funnel.get("continuation_m15", 0),
+        continuation_m1=funnel.get("continuation_m1", 0),
+        ftm_confirmed=funnel.get("ftm_confirmed", 0),
+        target_bound=funnel.get("target_bound", 0),
+        armed_ftm_candidates=funnel.get("armed_ftm_candidates", 0),
+        forensic_rejections=dict(sorted(forensic.items())),
+    )
+
+
+def _load_consumed(root: Path, symbol: str) -> tuple[CapitalizerM1Bar, ...]:
+    rows = tuple(
+        row
+        for row in iter_cibo_m1(root)
+        if s1.CONSUMED_LOAD_START <= row.opened_at < s1.CONSUMED_LOAD_END
+    )
+    if not rows:
+        raise ValueError("S2F provider-native M1 is empty")
+    if any(row.symbol != symbol for row in rows):
+        raise ValueError("S2F symbol mismatch")
+    return rows
+
+
+def write_report(report: S2FPeriodMarketReport, output: Path) -> None:
+    output.mkdir(parents=True, exist_ok=True)
+    path = output / (
+        f"capitalizer-v47-s2f-{report.period}-{report.symbol.lower()}.json"
+    )
+    path.write_text(
+        json.dumps(asdict(report), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def aggregate(root: Path, output: Path) -> dict[str, object]:
+    reports: list[S2FPeriodMarketReport] = []
+    for path in sorted(root.rglob("capitalizer-v47-s2f-*.json")):
+        raw_payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(raw_payload, dict):
+            raise ValueError("S2F report must be object")
+        reports.append(S2FPeriodMarketReport(**raw_payload))
+    if len(reports) != 27:
+        raise ValueError(f"S2F requires 27 reports, got {len(reports)}")
+    payload: dict[str, object] = {
+        "identity": IDENTITY,
+        "predeclaration_comment_id": PREDECLARATION_COMMENT_ID,
+        "market_period_reports": len(reports),
+        "market_count": len({row.symbol for row in reports}),
+        "funnel": {
+            "raw_sweeps": sum(row.raw_sweeps for row in reports),
+            "htf_continuation_aligned": sum(
+                row.htf_continuation_aligned for row in reports
+            ),
+            "continuation_m3_mss": sum(
+                row.continuation_m3_mss for row in reports
+            ),
+            "continuation_m15": sum(row.continuation_m15 for row in reports),
+            "continuation_m1": sum(row.continuation_m1 for row in reports),
+            "ftm_confirmed": sum(row.ftm_confirmed for row in reports),
+            "target_bound": sum(row.target_bound for row in reports),
+            "armed_ftm_candidates": sum(
+                row.armed_ftm_candidates for row in reports
+            ),
+        },
+        "forensic_rejections": dict(
+            sorted(
+                (
+                    key,
+                    sum(row.forensic_rejections.get(key, 0) for row in reports),
+                )
+                for key in {
+                    key
+                    for row in reports
+                    for key in row.forensic_rejections
+                }
+            )
+        ),
+        "exact_provider_fill_queried": False,
+        "terminal_outcome_read": False,
+        "economics_calculated": False,
+        "fresh_holdout_opened": False,
+        "trader_certified": False,
+        "next_phase": (
+            "S2F_READY_FOR_EXACT_FILL_V46"
+            if sum(row.armed_ftm_candidates for row in reports) > 0
+            else "S2F_NO_FULL_PREFILL_CANDIDATES_ROOT_CAUSE_REQUIRED"
+        ),
+    }
+    output.mkdir(parents=True, exist_ok=True)
+    (output / "capitalizer-v47-s2f-aggregate.json").write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return payload
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    sub = parser.add_subparsers(dest="command", required=True)
+    market = sub.add_parser("market")
+    market.add_argument("m1_root", type=Path)
+    market.add_argument("--symbol", required=True)
+    market.add_argument("--session", required=True)
+    market.add_argument("--output", type=Path, required=True)
+    matrix = sub.add_parser("aggregate")
+    matrix.add_argument("input", type=Path)
+    matrix.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+
+    if args.command == "market":
+        bars = _load_consumed(args.m1_root, args.symbol)
+        for period in s1.PERIODS:
+            report = audit_period_market(
+                bars,
+                symbol=args.symbol,
+                session=CapitalizerSession(args.session),
+                period=period,
+            )
+            write_report(report, args.output)
+            print(json.dumps(asdict(report), sort_keys=True))
+        return
+
+    print(json.dumps(aggregate(args.input, args.output), sort_keys=True))
+
+
+if __name__ == "__main__":
+    main()
