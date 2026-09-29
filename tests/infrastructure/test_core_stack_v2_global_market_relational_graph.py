@@ -14,6 +14,10 @@ from qore.infrastructure.core_stack_v2.global_market_relational_graph import (
     RelationDirection,
     RelationEpistemicGrade,
 )
+from qore.infrastructure.core_stack_v2.global_temporal_comparability import (
+    ComparabilityConfidence,
+    RelationalComparabilityState,
+)
 
 NOW = datetime(2026, 9, 29, 12, 0, tzinfo=UTC)
 
@@ -52,6 +56,10 @@ def _edge(**overrides: object) -> GlobalMarketRelationEdge:
         "current_validity_bps": 6600,
         "timestamp_alignment_bps": 9800,
         "market_hours_comparable": True,
+        "comparability_state": RelationalComparabilityState.COMPARABLE,
+        "comparability_confidence": ComparabilityConfidence.HIGH,
+        "relational_observation_fingerprint": "a" * 64,
+        "comparability_policy_fingerprint": "b" * 64,
         "lag_ms": 720_000,
         "regime_context": ("US_RISK_SESSION",),
         "multiple_testing_control": "BH_FDR_FAMILY_001",
@@ -133,3 +141,20 @@ def test_generalized_relation_taxonomy_includes_owner_requirements() -> None:
         "SYSTEMIC_STRESS",
     }
     assert required <= {item.value for item in GlobalRelationKind}
+
+
+def test_no_relational_edge_without_comparability() -> None:
+    with pytest.raises(
+        ValueError,
+        match="NO RELATIONAL CLAIM WITHOUT RELATIONAL COMPARABILITY",
+    ):
+        _edge(
+            comparability_state=RelationalComparabilityState.STALE_PEER,
+        )
+
+
+def test_relational_edge_requires_high_comparability_confidence() -> None:
+    with pytest.raises(ValueError, match="HIGH comparability confidence"):
+        _edge(
+            comparability_confidence=ComparabilityConfidence.LOW,
+        )

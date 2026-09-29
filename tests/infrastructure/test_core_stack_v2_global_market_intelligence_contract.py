@@ -69,3 +69,26 @@ def test_global_expansion_preserves_latency_split_and_scalability() -> None:
     assert compute["deep_global_cognition_separate_from_low_latency_support"] is True
     assert compute["runtime_consumes_causal_precomputed_state"] is True
     assert compute["global_perception_may_not_raise_runtime_sla"] is True
+
+
+def test_gen2_time_integrity_precedes_relational_intelligence() -> None:
+    contract = global_market_intelligence_contract()
+    law = contract["gen_2_temporal_comparability_law"]
+
+    assert law["time_integrity_before_relational_intelligence"] is True
+    assert law["no_relational_claim_without_relational_comparability"] is True
+    assert law["future_pairing_forbidden"] is True
+    assert law["post_hoc_alignment_forbidden"] is True
+    assert law[
+        "canonical_market_session_separate_from_provider_availability"
+    ] is True
+    assert law["provider_degradation_is_not_market_behavior"] is True
+    assert law["unknown_calendar_must_abstain"] is True
+    assert law["global_observability_matrix_required"] is True
+    assert law["single_global_staleness_threshold_forbidden"] is True
+    assert "COMPARABLE" in law["comparability_states"]
+    assert "STALE_PEER" in law["comparability_states"]
+    assert "TRADING_HALT" in law["comparability_states"]
+    assert "OPEN_ACTIVE" in law["session_states"]
+    assert "HOLIDAY" in law["session_states"]
+    assert "DELAYED" in law["provider_states"]

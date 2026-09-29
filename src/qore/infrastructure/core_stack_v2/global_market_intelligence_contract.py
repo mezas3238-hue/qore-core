@@ -12,6 +12,11 @@ from qore.infrastructure.core_stack_v2.global_market_relational_graph import (
 from qore.infrastructure.core_stack_v2.global_sensor_registry import (
     GLOBAL_SENSOR_GOVERNANCE_PIPELINE,
 )
+from qore.infrastructure.core_stack_v2.global_temporal_comparability import (
+    MarketSessionState,
+    ProviderObservabilityState,
+    RelationalComparabilityState,
+)
 
 GLOBAL_MARKET_INTELLIGENCE_VERSION: Final = (
     "QORE_GLOBAL_MARKET_RELATIONAL_INTELLIGENCE_001"
@@ -80,6 +85,35 @@ def global_market_intelligence_contract() -> dict[str, object]:
             "provider_delay_required": True,
             "asynchronous_market_alignment_required": True,
             "false_divergence_from_closed_market_forbidden": True,
+        },
+        "gen_2_temporal_comparability_law": {
+            "time_integrity_before_relational_intelligence": True,
+            "no_relational_claim_without_relational_comparability": True,
+            "market_time_distinct": True,
+            "venue_time_distinct": True,
+            "provider_event_time_distinct": True,
+            "receipt_time_distinct": True,
+            "observation_time_distinct": True,
+            "processing_time_distinct": True,
+            "decision_time_distinct": True,
+            "provider_event_before_receipt_required": True,
+            "receipt_before_processing_required": True,
+            "future_pairing_forbidden": True,
+            "post_hoc_alignment_forbidden": True,
+            "canonical_market_session_separate_from_provider_availability": True,
+            "session_states": tuple(item.value for item in MarketSessionState),
+            "provider_states": tuple(
+                item.value for item in ProviderObservabilityState
+            ),
+            "comparability_states": tuple(
+                item.value for item in RelationalComparabilityState
+            ),
+            "unknown_calendar_must_abstain": True,
+            "closed_or_halted_peer_cannot_create_divergence_claim": True,
+            "provider_degradation_is_not_market_behavior": True,
+            "global_observability_matrix_required": True,
+            "expected_update_cadence_is_instrument_provider_session_specific": True,
+            "single_global_staleness_threshold_forbidden": True,
         },
         "statistical_governance": {
             "multiple_testing_control_required": True,

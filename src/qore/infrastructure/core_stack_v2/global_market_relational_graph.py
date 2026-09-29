@@ -8,6 +8,11 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
 
+from qore.infrastructure.core_stack_v2.global_temporal_comparability import (
+    ComparabilityConfidence,
+    RelationalComparabilityState,
+)
+
 
 class GlobalRelationKind(StrEnum):
     CORRELATION = "CORRELATION"
@@ -141,6 +146,10 @@ class GlobalMarketRelationEdge:
     current_validity_bps: int
     timestamp_alignment_bps: int
     market_hours_comparable: bool
+    comparability_state: RelationalComparabilityState
+    comparability_confidence: ComparabilityConfidence
+    relational_observation_fingerprint: str
+    comparability_policy_fingerprint: str
     lag_ms: int | None
     regime_context: tuple[str, ...]
     multiple_testing_control: str
@@ -189,6 +198,27 @@ class GlobalMarketRelationEdge:
                 raise ValueError(f"{name} must be within 0..10000")
         if type(self.market_hours_comparable) is not bool:
             raise ValueError("market_hours_comparable must be bool")
+        if self.comparability_state is not RelationalComparabilityState.COMPARABLE:
+            raise ValueError(
+                "NO RELATIONAL CLAIM WITHOUT RELATIONAL COMPARABILITY"
+            )
+        if self.comparability_confidence is not ComparabilityConfidence.HIGH:
+            raise ValueError(
+                "relational edge requires HIGH comparability confidence"
+            )
+        for field_name in (
+            "relational_observation_fingerprint",
+            "comparability_policy_fingerprint",
+        ):
+            value = getattr(self, field_name)
+            if len(value) != 64:
+                raise ValueError(f"{field_name} must be sha256 hex")
+            try:
+                int(value, 16)
+            except ValueError as exc:
+                raise ValueError(
+                    f"{field_name} must be sha256 hex"
+                ) from exc
         if self.relation_state in _DIVERGENCE_STATES:
             if not self.market_hours_comparable:
                 raise ValueError(
@@ -272,6 +302,10 @@ class QoreGlobalMarketRelationalGraph:
                     "horizon": item.horizon.value,
                     "direction": item.direction.value,
                     "epistemic_grade": item.epistemic_grade.value,
+                    "comparability_state": item.comparability_state.value,
+                    "comparability_confidence": (
+                        item.comparability_confidence.value
+                    ),
                     "as_of": item.as_of.astimezone(UTC).isoformat(),
                     "evidence_cutoff_at": item.evidence_cutoff_at.astimezone(
                         UTC
