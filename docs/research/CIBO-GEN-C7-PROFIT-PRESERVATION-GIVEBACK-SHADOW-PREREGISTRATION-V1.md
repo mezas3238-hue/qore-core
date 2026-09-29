@@ -12,6 +12,10 @@ Freeze:
 
 `2026-09-29T23:30:00Z`
 
+Frozen policy digest:
+
+`sha256:fc6a9b32da8d6595cffb51a73525a929d976f84960439b8e0c22f90561a406e7`
+
 This generation does not modify frozen GEN-C5 V1, GEN-C6 V1 or the current V3
 Phase20 candidate. It does not open the sealed 2017H1 holdout.
 
@@ -185,3 +189,20 @@ holdout opened = FALSE
 GEN-C5 V1 mutated = FALSE
 GEN-C6 V1 mutated = FALSE
 ```
+
+## Causal OOS binding law
+
+Every durable decision seals the initial realized-capital state, the exact
+proposal action/source/amount and a positive evaluation horizon before outcome.
+The OOS binder may measure the account path observed at that exact horizon, but
+it must keep:
+
+```text
+treatment_effect_identified = FALSE
+counterfactual_treatment_pnl_computed = FALSE
+economic_utility_ready = FALSE
+certification_ready = FALSE
+```
+
+until a separately preregistered causal economic protocol identifies the
+control/treatment effect. Coverage or a favorable realized path is not utility.
