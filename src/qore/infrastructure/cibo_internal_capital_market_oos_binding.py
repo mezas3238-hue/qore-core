@@ -32,6 +32,9 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
 from qore.infrastructure.cibo_compound_capital import (
     CiboCompoundCapitalError,
 )
+from qore.infrastructure.cibo_cma_settlement_store import (
+    VersionedCmaSettlementBook,
+)
 from qore.infrastructure.cibo_internal_capital_market_store import (
     VersionedGenc6InternalCapitalMarketBook,
 )
@@ -256,6 +259,7 @@ def bind_genc6_to_causal_outcomes(
     genc5_seals: tuple[Genc5ShadowDecisionSeal, ...],
     phase20_evidence_book: VersionedPhase20ForwardEvidenceBook,
     phase20_policy_book: VersionedPhase20ForwardPolicyBook,
+    settlement_book: VersionedCmaSettlementBook,
 ) -> Genc6OosBindingReport:
     """Bind GEN-C6 candidates to durable causal source outcomes."""
 
@@ -296,6 +300,11 @@ def bind_genc6_to_causal_outcomes(
     ):
         raise CiboCompoundCapitalError(
             "GEN-C6 OOS requires canonical Phase20 policy book"
+        )
+
+    if not isinstance(settlement_book, VersionedCmaSettlementBook):
+        raise CiboCompoundCapitalError(
+            "GEN-C6 OOS requires canonical CMA settlement book"
         )
 
     c5_by_sha = {
@@ -425,6 +434,25 @@ def bind_genc6_to_causal_outcomes(
                 continue
             if outcome.observed_at <= seal.decision_at:
                 _add_failure(failures, f"OUTCOME_TEMPORAL_CONTAMINATION:{key}")
+                continue
+            settlement = settlement_book.state_for(
+                signal_fingerprint=signal,
+                position_id=outcome.position_id,
+            )
+            if settlement is None:
+                _add_failure(failures, f"MISSING_TERMINAL_SETTLEMENT:{key}")
+                continue
+            if not settlement.position_closed:
+                _add_failure(failures, f"SETTLEMENT_NOT_TERMINAL:{key}")
+                continue
+            settlement_deal_ids = tuple(
+                item.deal_id for item in settlement.records
+            )
+            if settlement_deal_ids != outcome.settlement_deal_ids:
+                _add_failure(failures, f"SETTLEMENT_DEAL_BINDING_DRIFT:{key}")
+                continue
+            if settlement.realized_net_pnl_usd != outcome.realized_net_pnl_usd:
+                _add_failure(failures, f"SETTLEMENT_PNL_BINDING_DRIFT:{key}")
                 continue
             settlement_bound += 1
             if outcome.capital_minutes is not None:
