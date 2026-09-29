@@ -68,6 +68,211 @@ def t13_shadow_policy_sha256() -> str:
 
 
 @dataclass(frozen=True, slots=True)
+class Phase20T13ShadowRecommendation:
+    policy_id: str
+    policy_sha256: str
+    decision_epoch_id: str
+    decision_evidence_sha256: str
+    decision_at: datetime
+    causal_pressure_active: bool
+    arrival_evidence_available: bool
+    reserve_triggered: bool
+    reserved_risk_usd: Decimal
+    minimum_seed_risk_usd: Decimal | None
+    hard_risk_headroom_usd: Decimal
+    full_seed_preserved: bool
+    source_decision_sha256s: tuple[str, ...]
+    source_outcome_evidence_ids: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if self.policy_id != T13_SHADOW_POLICY_ID:
+            raise CiboCapitalManagementError(
+                "Phase20 T13 recommendation policy identity drift"
+            )
+        if self.policy_sha256 != t13_shadow_policy_sha256():
+            raise CiboCapitalManagementError(
+                "Phase20 T13 recommendation policy digest drift"
+            )
+        if not self.decision_epoch_id:
+            raise CiboCapitalManagementError(
+                "Phase20 T13 recommendation epoch id is required"
+            )
+        if (
+            not self.decision_evidence_sha256.startswith("sha256:")
+            or len(self.decision_evidence_sha256) != 71
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20 T13 recommendation decision SHA is invalid"
+            )
+        if (
+            self.decision_at.tzinfo is None
+            or self.decision_at.utcoffset() is None
+            or self.decision_at < T13_SHADOW_POLICY_FROZEN_AT
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20 T13 recommendation decision time is invalid"
+            )
+        for name in (
+            "causal_pressure_active",
+            "arrival_evidence_available",
+            "reserve_triggered",
+            "full_seed_preserved",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(
+                    f"Phase20 T13 recommendation {name} must be bool"
+                )
+        for name in (
+            "reserved_risk_usd",
+            "hard_risk_headroom_usd",
+        ):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, Decimal)
+                or not value.is_finite()
+                or value < 0
+            ):
+                raise CiboCapitalManagementError(
+                    f"Phase20 T13 recommendation {name} is invalid"
+                )
+        if self.minimum_seed_risk_usd is not None and (
+            not isinstance(self.minimum_seed_risk_usd, Decimal)
+            or not self.minimum_seed_risk_usd.is_finite()
+            or self.minimum_seed_risk_usd <= 0
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20 T13 recommendation minimum seed is invalid"
+            )
+        if self.reserve_triggered:
+            if self.minimum_seed_risk_usd is None:
+                raise CiboCapitalManagementError(
+                    "Phase20 T13 triggered reserve requires minimum seed"
+                )
+            expected = min(
+                self.hard_risk_headroom_usd,
+                self.minimum_seed_risk_usd,
+            )
+            if self.reserved_risk_usd != expected or expected <= 0:
+                raise CiboCapitalManagementError(
+                    "Phase20 T13 triggered reserve amount drift"
+                )
+            if self.full_seed_preserved != (
+                self.hard_risk_headroom_usd
+                >= self.minimum_seed_risk_usd
+            ):
+                raise CiboCapitalManagementError(
+                    "Phase20 T13 full-seed flag drift"
+                )
+        elif self.reserved_risk_usd != 0 or self.full_seed_preserved:
+            raise CiboCapitalManagementError(
+                "Phase20 T13 inactive reserve must preserve zero risk"
+            )
+        if len(self.source_decision_sha256s) != len(
+            set(self.source_decision_sha256s)
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20 T13 recommendation decision sources must be unique"
+            )
+        if len(self.source_outcome_evidence_ids) != len(
+            set(self.source_outcome_evidence_ids)
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20 T13 recommendation outcome sources must be unique"
+            )
+
+
+def evaluate_phase20_t13_shadow_decision(
+    *,
+    evidence_book: VersionedPhase20ForwardEvidenceBook,
+    decision: Phase20ForwardDecisionSeal,
+) -> Phase20T13ShadowRecommendation:
+    """Produce one causal preregistered T13 shadow recommendation."""
+
+    if not isinstance(evidence_book, VersionedPhase20ForwardEvidenceBook):
+        raise CiboCapitalManagementError(
+            "Phase20 T13 recommendation requires canonical evidence book"
+        )
+    if not isinstance(decision, Phase20ForwardDecisionSeal):
+        raise CiboCapitalManagementError(
+            "Phase20 T13 recommendation requires canonical decision"
+        )
+    if evidence_book.decision_for_sha(decision.evidence_sha256) != decision:
+        raise CiboCapitalManagementError(
+            "Phase20 T13 recommendation decision must belong to evidence book"
+        )
+    if decision.decision_at < T13_SHADOW_POLICY_FROZEN_AT:
+        raise CiboCapitalManagementError(
+            "Phase20 T13 recommendation cannot use pre-freeze decision"
+        )
+    if not _usable(decision):
+        raise CiboCapitalManagementError(
+            "Phase20 T13 recommendation requires usable forward decision"
+        )
+
+    facts = tuple(
+        fact
+        for fact in iter_phase20_forward_candidate_facts(
+            evidence_book=evidence_book
+        )
+        if fact.decision_sha256 == decision.evidence_sha256
+    )
+    history = build_phase20_causal_history_state(
+        evidence_book=evidence_book,
+        decision=decision,
+    )
+    pressure = (
+        history.prior_settled_outcomes > 0
+        and (
+            history.settlement_cash_drawdown_usd > 0
+            or history.consecutive_settled_losses > 0
+        )
+    )
+    arrival_ready = (
+        history.observed_candidate_arrivals_per_day is not None
+        and history.observed_candidate_arrivals_per_day > 0
+    )
+    minimum_seed = (
+        None
+        if not facts
+        else min(_minimum_seed_risk(fact) for fact in facts)
+    )
+    hard_headroom = _hard_headroom(decision)
+    triggered = (
+        minimum_seed is not None
+        and pressure
+        and arrival_ready
+        and hard_headroom > 0
+    )
+    reserved = (
+        Decimal(0)
+        if not triggered or minimum_seed is None
+        else min(hard_headroom, minimum_seed)
+    )
+    full_seed = bool(
+        triggered
+        and minimum_seed is not None
+        and hard_headroom >= minimum_seed
+    )
+
+    return Phase20T13ShadowRecommendation(
+        policy_id=T13_SHADOW_POLICY_ID,
+        policy_sha256=t13_shadow_policy_sha256(),
+        decision_epoch_id=decision.decision_epoch_id,
+        decision_evidence_sha256=decision.evidence_sha256,
+        decision_at=decision.decision_at,
+        causal_pressure_active=pressure,
+        arrival_evidence_available=arrival_ready,
+        reserve_triggered=triggered,
+        reserved_risk_usd=reserved,
+        minimum_seed_risk_usd=minimum_seed,
+        hard_risk_headroom_usd=hard_headroom,
+        full_seed_preserved=full_seed,
+        source_decision_sha256s=history.source_decision_sha256s,
+        source_outcome_evidence_ids=history.source_outcome_evidence_ids,
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class Phase20T13ShadowPolicyAudit:
     policy_id: str
     policy_sha256: str

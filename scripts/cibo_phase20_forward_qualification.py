@@ -275,6 +275,7 @@ def main() -> None:
     parser.add_argument("--executed-risk-store", type=Path)
     parser.add_argument("--settlement-store", type=Path)
     parser.add_argument("--t08-oos-shadow-store", type=Path)
+    parser.add_argument("--t13-shadow-store", type=Path)
     parser.add_argument("--git-sha")
     args = parser.parse_args()
 
@@ -295,6 +296,11 @@ def main() -> None:
         None
         if args.t08_oos_shadow_store is None
         else _sha256_path(args.t08_oos_shadow_store)
+    )
+    t13_shadow_store_sha256 = (
+        None
+        if args.t13_shadow_store is None
+        else _sha256_path(args.t13_shadow_store)
     )
     evidence = DurablePhase20ForwardEvidenceStore(
         args.evidence_store
@@ -384,6 +390,15 @@ def main() -> None:
         evidence
     )
     t13_shadow_policy = assess_phase20_t13_shadow_policy(evidence)
+    t13_shadow_book = None
+    if args.t13_shadow_store is not None:
+        from qore.infrastructure.cibo_ce2i_phase20_t13_shadow_store import (
+            DurableT13ShadowDecisionStore,
+        )
+
+        t13_shadow_book = DurableT13ShadowDecisionStore(
+            args.t13_shadow_store
+        ).load()
     t15_option_realization = assess_phase20_t15_option_realization(
         evidence
     )
@@ -708,6 +723,15 @@ def main() -> None:
             ),
             "blockers": list(t13_reserve_population.blockers),
         },
+        "t13_shadow_ledger": (
+            None
+            if t13_shadow_book is None
+            else {
+                "generation": t13_shadow_book.generation,
+                "decision_count": len(t13_shadow_book.decisions),
+                "chain_sha256": t13_shadow_book.chain_sha256,
+            }
+        ),
         "t13_shadow_policy": {
             "policy_id": t13_shadow_policy.policy_id,
             "policy_sha256": t13_shadow_policy.policy_sha256,
@@ -821,6 +845,7 @@ def main() -> None:
         "t11_executed_risk_generation": t11_executed_risk_generation,
         "t11_settlement_generation": t11_settlement_generation,
         "t08_oos_shadow_store_sha256": t08_oos_shadow_store_sha256,
+        "t13_shadow_store_sha256": t13_shadow_store_sha256,
         "t08_oos_shadow_generation": t08_oos_shadow_generation,
         "t08_oos_complete_epochs": t08_oos_complete_epochs,
         "evidence_generation": evidence.generation,
