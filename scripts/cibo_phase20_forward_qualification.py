@@ -275,6 +275,7 @@ def main() -> None:
     parser.add_argument("--executed-risk-store", type=Path)
     parser.add_argument("--settlement-store", type=Path)
     parser.add_argument("--t08-oos-shadow-store", type=Path)
+    parser.add_argument("--t12-shadow-store", type=Path)
     parser.add_argument("--t13-shadow-store", type=Path)
     parser.add_argument("--t13-treatment-store", type=Path)
     parser.add_argument("--git-sha")
@@ -297,6 +298,11 @@ def main() -> None:
         None
         if args.t08_oos_shadow_store is None
         else _sha256_path(args.t08_oos_shadow_store)
+    )
+    t12_shadow_store_sha256 = (
+        None
+        if args.t12_shadow_store is None
+        else _sha256_path(args.t12_shadow_store)
     )
     t13_shadow_store_sha256 = (
         None
@@ -426,6 +432,33 @@ def main() -> None:
         )
     )
     t12_regime_population = assess_phase20_t12_regime_population(evidence)
+    t12_shadow_book = None
+    t12_oos_readiness = None
+    t12_oos_utility = None
+    if args.t12_shadow_store is not None:
+        from qore.infrastructure.cibo_ce2i_phase20_t12_oos_readiness import (
+            assess_phase20_t12_oos_readiness,
+        )
+        from qore.infrastructure.cibo_ce2i_phase20_t12_oos_utility import (
+            assess_phase20_t12_oos_utility,
+        )
+        from qore.infrastructure.cibo_ce2i_phase20_t12_shadow_store import (
+            DurableT12ShadowDecisionStore,
+        )
+
+        t12_shadow_book = DurableT12ShadowDecisionStore(
+            args.t12_shadow_store
+        ).load()
+        t12_oos_readiness = assess_phase20_t12_oos_readiness(
+            evidence_book=evidence,
+            treatment_policy_book=policy,
+            shadow_decisions=t12_shadow_book.decisions,
+        )
+        t12_oos_utility = assess_phase20_t12_oos_utility(
+            qualification_rows=report.rows,
+            readiness=t12_oos_readiness,
+            shadow_decisions=t12_shadow_book.decisions,
+        )
     t13_reserve_population = assess_phase20_t13_reserve_population(
         evidence
     )
@@ -477,6 +510,8 @@ def main() -> None:
         t09_t18_scarcity_readiness=t09_t18_scarcity_readiness,
         t09_t18_scarcity_utility=t09_t18_scarcity_utility,
         t12_regime_population=t12_regime_population,
+        t12_oos_readiness=t12_oos_readiness,
+        t12_oos_utility=t12_oos_utility,
         t13_reserve_population=t13_reserve_population,
         t13_oos_readiness=t13_oos_readiness,
         t14_path_readiness=t14_path_readiness,
@@ -670,6 +705,188 @@ def main() -> None:
             ],
             "blockers": list(t12_regime_population.blockers),
         },
+        "t12_shadow_ledger": (
+            None
+            if t12_shadow_book is None
+            else {
+                "generation": t12_shadow_book.generation,
+                "decision_count": len(t12_shadow_book.decisions),
+                "chain_sha256": t12_shadow_book.chain_sha256,
+                "selection_changed_epochs": sum(
+                    1
+                    for item in t12_shadow_book.decisions
+                    if item.selection_changed
+                ),
+                "allocator_changed_epochs": sum(
+                    1
+                    for item in t12_shadow_book.decisions
+                    if item.allocator_changed
+                ),
+            }
+        ),
+        "t12_oos_readiness": (
+            None
+            if t12_oos_readiness is None
+            else {
+                "ready_for_utility_analysis": (
+                    t12_oos_readiness.ready_for_utility_analysis
+                ),
+                "blockers": list(t12_oos_readiness.blockers),
+                "post_freeze_decision_epochs": (
+                    t12_oos_readiness.post_freeze_decision_epochs
+                ),
+                "pre_t12_freeze_decisions_excluded": (
+                    t12_oos_readiness.pre_t12_freeze_decisions_excluded
+                ),
+                "shadow_sealed_epochs": (
+                    t12_oos_readiness.shadow_sealed_epochs
+                ),
+                "missing_shadow_decisions": (
+                    t12_oos_readiness.missing_shadow_decisions
+                ),
+                "missing_treatment_policy_decisions": (
+                    t12_oos_readiness.missing_treatment_policy_decisions
+                ),
+                "selection_changed_epochs": (
+                    t12_oos_readiness.selection_changed_epochs
+                ),
+                "allocator_changed_epochs": (
+                    t12_oos_readiness.allocator_changed_epochs
+                ),
+                "candidate_instances": t12_oos_readiness.candidate_instances,
+                "candidate_outcomes": t12_oos_readiness.candidate_outcomes,
+                "candidate_outcome_coverage": format(
+                    t12_oos_readiness.candidate_outcome_coverage,
+                    "f",
+                ),
+                "treatment_selected_instances": (
+                    t12_oos_readiness.treatment_selected_instances
+                ),
+                "treatment_selected_outcomes": (
+                    t12_oos_readiness.treatment_selected_outcomes
+                ),
+                "treatment_selected_outcome_coverage": format(
+                    t12_oos_readiness.treatment_selected_outcome_coverage,
+                    "f",
+                ),
+                "control_selected_instances": (
+                    t12_oos_readiness.control_selected_instances
+                ),
+                "control_selected_outcomes": (
+                    t12_oos_readiness.control_selected_outcomes
+                ),
+                "control_selected_outcome_coverage": format(
+                    t12_oos_readiness.control_selected_outcome_coverage,
+                    "f",
+                ),
+                "calendar_span_days": t12_oos_readiness.calendar_span_days,
+                "distinct_trading_days": (
+                    t12_oos_readiness.distinct_trading_days
+                ),
+                "represented_lineages": (
+                    t12_oos_readiness.represented_lineages
+                ),
+                "minimum_outcomes_any_lineage": (
+                    t12_oos_readiness.minimum_outcomes_any_lineage
+                ),
+                "minimum_fold_candidate_outcomes": (
+                    t12_oos_readiness.minimum_fold_candidate_outcomes
+                ),
+                "minimum_fold_lineages": (
+                    t12_oos_readiness.minimum_fold_lineages
+                ),
+                "minimum_fold_selection_changed_epochs": (
+                    t12_oos_readiness
+                    .minimum_fold_selection_changed_epochs
+                ),
+                "decision_sha256s": list(
+                    t12_oos_readiness.decision_sha256s
+                ),
+                "changed_decision_sha256s": list(
+                    t12_oos_readiness.changed_decision_sha256s
+                ),
+                "fresh_oos_utility_demonstrated": (
+                    t12_oos_readiness.fresh_oos_utility_demonstrated
+                ),
+            }
+        ),
+        "t12_oos_utility": (
+            None
+            if t12_oos_utility is None
+            else {
+                "contract_id": t12_oos_utility.contract_id,
+                "qualification_plan_sha256": (
+                    t12_oos_utility.qualification_plan_sha256
+                ),
+                "t12_policy_id": t12_oos_utility.t12_policy_id,
+                "t12_policy_sha256": t12_oos_utility.t12_policy_sha256,
+                "population_ready": t12_oos_utility.population_ready,
+                "decision_epochs": t12_oos_utility.decision_epochs,
+                "candidate_instances": t12_oos_utility.candidate_instances,
+                "treatment_selected_instances": (
+                    t12_oos_utility.treatment_selected_instances
+                ),
+                "control_selected_instances": (
+                    t12_oos_utility.control_selected_instances
+                ),
+                "candidate_outcome_coverage": format(
+                    t12_oos_utility.candidate_outcome_coverage,
+                    "f",
+                ),
+                "treatment_selected_outcome_coverage": format(
+                    t12_oos_utility.treatment_selected_outcome_coverage,
+                    "f",
+                ),
+                "control_selected_outcome_coverage": format(
+                    t12_oos_utility.control_selected_outcome_coverage,
+                    "f",
+                ),
+                "treatment_net_delta_usd": format(
+                    t12_oos_utility.treatment_net_delta_usd,
+                    "f",
+                ),
+                "control_net_delta_usd": format(
+                    t12_oos_utility.control_net_delta_usd,
+                    "f",
+                ),
+                "treatment_settlement_cash_drawdown_usd": format(
+                    t12_oos_utility.treatment_settlement_cash_drawdown_usd,
+                    "f",
+                ),
+                "control_settlement_cash_drawdown_usd": format(
+                    t12_oos_utility.control_settlement_cash_drawdown_usd,
+                    "f",
+                ),
+                "treatment_capital_productivity": format(
+                    t12_oos_utility.treatment_capital_productivity,
+                    "f",
+                ),
+                "control_capital_productivity": format(
+                    t12_oos_utility.control_capital_productivity,
+                    "f",
+                ),
+                "fold_treatment_net_delta_usd": [
+                    format(item, "f")
+                    for item in t12_oos_utility.fold_treatment_net_delta_usd
+                ],
+                "fold_control_net_delta_usd": [
+                    format(item, "f")
+                    for item in t12_oos_utility.fold_control_net_delta_usd
+                ],
+                "fold_incremental_net_delta_usd": [
+                    format(item, "f")
+                    for item in t12_oos_utility.fold_incremental_net_delta_usd
+                ],
+                "fresh_oos_utility_demonstrated": (
+                    t12_oos_utility.fresh_oos_utility_demonstrated
+                ),
+                "outcome_refit_performed": (
+                    t12_oos_utility.outcome_refit_performed
+                ),
+                "runtime_authority": t12_oos_utility.runtime_authority,
+                "blockers": list(t12_oos_utility.blockers),
+            }
+        ),
         "t08_oos_ablation": (
             None
             if t08_oos_ablation is None
@@ -1266,6 +1483,10 @@ def main() -> None:
         "t11_executed_risk_generation": t11_executed_risk_generation,
         "t11_settlement_generation": t11_settlement_generation,
         "t08_oos_shadow_store_sha256": t08_oos_shadow_store_sha256,
+        "t12_shadow_store_sha256": t12_shadow_store_sha256,
+        "t12_shadow_generation": (
+            None if t12_shadow_book is None else t12_shadow_book.generation
+        ),
         "t13_shadow_store_sha256": t13_shadow_store_sha256,
         "t13_treatment_store_sha256": t13_treatment_store_sha256,
         "t08_oos_shadow_generation": t08_oos_shadow_generation,
