@@ -439,7 +439,7 @@ def _candidate(
                 if trader is TraderLineage.VT31_NAS100
                 else "XAUUSD"
             ),
-            requested_capital_usd=marginal.requested_incremental_capital_usd,
+            requested_margin_usd=marginal.requested_incremental_capital_usd,
             executable_volume=Decimal("0.01"),
             minimum_executable_volume=Decimal("0.01"),
             maximum_volume=Decimal("100"),
@@ -550,7 +550,7 @@ def test_genc6_true_scarcity_and_reserve_on_pareto_ambiguity(
     assert event.simultaneously_valid_count == 2
     assert event.eligible_candidate_count == 2
     assert event.available_capital_usd == Decimal("60")
-    assert event.total_requested_capital_usd == Decimal("80")
+    assert event.total_requested_margin_usd == Decimal("80")
     assert event.capital_shortfall_usd == Decimal("20")
     assert event.mutually_fundable_candidate_count == 1
     assert event.competition_intensity == Decimal("0.25")
@@ -985,7 +985,7 @@ def _oos_books(
                 realized_net_pnl_usd=Decimal(str(index)),
                 executed_initial_stop_risk_usd=Decimal("1"),
                 realized_structural_outcome_r=Decimal(str(index)),
-                capital_deployed_at=deployed_at,
+                capacity_deployed_at=deployed_at,
                 capital_released_at=released_at,
                 capital_minutes=capital_minutes,
             )
@@ -1037,7 +1037,7 @@ def _oos_books(
         }
         for outcome in phase20_outcomes:
             candidate = candidate_by_signal[outcome.signal_fingerprint]
-            deployed_at = outcome.capital_deployed_at
+            deployed_at = outcome.capacity_deployed_at
             released_at = outcome.capital_released_at
             assert deployed_at is not None
             assert released_at is not None
@@ -1049,9 +1049,8 @@ def _oos_books(
                 signal_fingerprint=outcome.signal_fingerprint,
                 position_id=outcome.position_id,
                 requested_at=T0,
-                requested_capital_usd=(
-                    candidate.marginal_evidence
-                    .requested_incremental_capital_usd
+                requested_margin_usd=(
+                    candidate.marginal_evidence.incremental_margin_usd
                 ),
                 requested_stop_risk_usd=(
                     candidate.marginal_evidence
@@ -1060,9 +1059,8 @@ def _oos_books(
                 risk_decision_id=f"risk-decision-{outcome.position_id}",
                 risk_disposition="REDUCE",
                 risk_authorized_at=T0 + timedelta(seconds=1),
-                risk_authorized_capital_usd=(
-                    candidate.marginal_evidence
-                    .requested_incremental_capital_usd
+                risk_authorized_margin_usd=(
+                    candidate.marginal_evidence.incremental_margin_usd
                 ),
                 risk_authorized_stop_risk_usd=(
                     outcome.executed_initial_stop_risk_usd
@@ -1071,14 +1069,13 @@ def _oos_books(
                     outcome.execution_risk_evidence_id
                 ),
                 execution_realized_at=deployed_at + timedelta(seconds=1),
-                execution_realized_capital_usd=(
-                    candidate.marginal_evidence
-                    .requested_incremental_capital_usd
+                execution_realized_margin_usd=(
+                    candidate.marginal_evidence.incremental_margin_usd
                 ),
                 execution_realized_stop_risk_usd=(
                     outcome.executed_initial_stop_risk_usd
                 ),
-                capital_deployed_at=deployed_at,
+                capacity_deployed_at=deployed_at,
                 source_refs=(
                     f"cibo-request:{outcome.position_id}",
                     f"qore-risk:{outcome.position_id}",
@@ -1088,8 +1085,11 @@ def _oos_books(
             release = T20CapitalReleaseSlice(
                 settlement_deal_id=outcome.settlement_deal_ids[-1],
                 released_at=released_at,
-                returned_capacity_usd=(
-                    authorization.execution_realized_capital_usd
+                released_stop_risk_capacity_usd=(
+                    authorization.execution_realized_stop_risk_usd
+                ),
+                released_margin_capacity_usd=(
+                    authorization.execution_realized_margin_usd
                 ),
                 source_ref=f"capital-return:{outcome.position_id}",
                 terminal=True,
@@ -1344,7 +1344,7 @@ def test_genc6_population_is_descriptive_even_when_coverage_complete(
     assert population.decision_calendar_days == 1
     assert population.calendar_span_days == 1
     assert population.total_available_capital_usd == Decimal("60")
-    assert population.total_requested_capital_usd == Decimal("80")
+    assert population.total_requested_margin_usd == Decimal("80")
     assert population.total_capital_shortfall_usd == Decimal("20")
     assert population.mean_competition_intensity == Decimal("0.25")
     assert population.mean_true_scarcity_intensity == Decimal("0.25")
