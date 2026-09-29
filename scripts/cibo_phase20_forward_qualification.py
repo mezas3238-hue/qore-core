@@ -441,6 +441,14 @@ def main() -> None:
             baseline_policy_book=policy,
             treatment_decisions=t13_treatment_book.decisions,
         )
+    from qore.infrastructure.cibo_ce2i_phase20_t15_reservation_binding import (
+        assess_phase20_t15_reservation_binding,
+    )
+
+    t15_reservation_binding = assess_phase20_t15_reservation_binding(
+        evidence_book=evidence,
+        policy_book=policy,
+    )
     t15_option_realization = assess_phase20_t15_option_realization(
         evidence
     )
@@ -636,6 +644,49 @@ def main() -> None:
                 "blockers": list(t14_intervention_population.blockers),
             }
         ),
+        "t15_reservation_binding": {
+            "origin_epochs_with_known_options": (
+                t15_reservation_binding.origin_epochs_with_known_options
+            ),
+            "known_option_instances": (
+                t15_reservation_binding.known_option_instances
+            ),
+            "in_horizon_option_instances": (
+                t15_reservation_binding.in_horizon_option_instances
+            ),
+            "considered_option_instances": (
+                t15_reservation_binding.considered_option_instances
+            ),
+            "representative_option_instances": (
+                t15_reservation_binding.representative_option_instances
+            ),
+            "policy_bound_origin_epochs": (
+                t15_reservation_binding.policy_bound_origin_epochs
+            ),
+            "geometry_verified_origin_epochs": (
+                t15_reservation_binding.geometry_verified_origin_epochs
+            ),
+            "nonzero_reserve_origin_epochs": (
+                t15_reservation_binding.nonzero_reserve_origin_epochs
+            ),
+            "completely_bound_origin_epochs": (
+                t15_reservation_binding.completely_bound_origin_epochs
+            ),
+            "reservation_binding_complete": (
+                t15_reservation_binding.reservation_binding_complete
+            ),
+            "future_materialization_used": (
+                t15_reservation_binding.future_materialization_used
+            ),
+            "outcome_magnitudes_read": (
+                t15_reservation_binding.outcome_magnitudes_read
+            ),
+            "counterfactual_reservation_effect_identified": (
+                t15_reservation_binding
+                .counterfactual_reservation_effect_identified
+            ),
+            "blockers": list(t15_reservation_binding.blockers),
+        },
         "t15_option_realization": {
             "stream_bound": t15_option_realization.stream_bound,
             "known_option_instances": (
