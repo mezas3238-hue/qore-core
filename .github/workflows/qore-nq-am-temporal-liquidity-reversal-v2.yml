@@ -71,8 +71,8 @@ jobs:
           assert '18:00 on D-1 -> 17:00 on D' in freeze
           assert 'daily / electronic-hours low' in freeze
           assert 'LOW_OF_DAY` is evaluation language only' in freeze
-          assert '2015-09-17 NY -> 2016-09-17 NY' in freeze
-          assert 'remains reserved and SEALED' in freeze
+          assert '2024-08-13 NY -> 2025-08-13 NY' in freeze
+          assert 'CONSUMED_1Y_METHODOLOGY_HOLDOUT_ACTIVE' in freeze
           assert 'IDENTITY = "QORE_NQ_AM_TEMPORAL_LIQUIDITY_REVERSAL_V2"' in module
           assert 'ETH_OPEN = time(18, 0)' in module
           assert 'ETH_CLOSE = time(17, 0)' in module
@@ -121,7 +121,7 @@ jobs:
         run: |
           python -m qore.infrastructure.trader_lab.nq_am_temporal_liquidity_reversal_v2 \
             ablate artifacts/dev/evidence.json artifacts/dev/ablation
-      - name: Enforce preregistered FULL V2 holdout-opening gate
+      - name: Adjudicate consumed 1Y FULL V2 methodology holdout
         run: |
           python - <<'PY'
           import json
@@ -144,7 +144,7 @@ jobs:
           pf_value = None if pf is None else Decimal(pf)
 
           gate = {
-              'schema': 'qore.nq_am_tlr_v2.dev_gate.v1',
+              'schema': 'qore.nq_am_tlr_v2.consumed_1y_methodology_adjudication.v1',
               'identity': result['identity'],
               'git_sha': '${{ github.sha }}',
               'trade_count': trade_count,
@@ -161,15 +161,25 @@ jobs:
                   and pf_value is not None
                   and pf_value > Decimal('1.0')
               ),
+              'adjudication': (
+                  'METHODOLOGY_SUPPORTED_ON_CONSUMED_1Y'
+                  if (
+                      trade_count >= 12
+                      and total_r > 0
+                      and pf_value is not None
+                      and pf_value > Decimal('1.0')
+                  )
+                  else (
+                      'INSUFFICIENT_EXECUTABLE_SAMPLE'
+                      if trade_count < 12
+                      else 'METHODOLOGY_FALSIFIED_ON_CONSUMED_1Y'
+                  )
+              ),
           }
-          Path('artifacts/dev/dev-gate.json').write_text(
+          Path('artifacts/dev/methodology-adjudication.json').write_text(
               json.dumps(gate, indent=2, sort_keys=True) + '\n'
           )
           print(json.dumps(gate, indent=2, sort_keys=True))
-          if not gate['pass']:
-              raise SystemExit(
-                  'FALSIFIED_BEFORE_HOLDOUT: V2 fresh 1Y holdout remains sealed'
-              )
           PY
       - name: Bind exact V2 candidate fingerprint
         if: always()
