@@ -265,8 +265,14 @@ def _coverage_row(
                 )
 
     lookback_present = state.prelookback_source_seen
-    coverage = "1" if eligible and both_ready == len(eligible) else (
-        "0" if not eligible else str(both_ready / len(eligible))
+    coverage = (
+        "1"
+        if eligible and both_ready == len(eligible)
+        else (
+            "0"
+            if not eligible or both_ready == 0
+            else str(both_ready / len(eligible))
+        )
     )
     hard_pass = bool(
         lookback_present
