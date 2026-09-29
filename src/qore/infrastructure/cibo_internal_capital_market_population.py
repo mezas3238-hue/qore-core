@@ -131,6 +131,10 @@ class Genc6FreshScarcityPopulation:
             raise CiboCompoundCapitalError(
                 "GEN-C6 population scarcity partition drift"
             )
+        if self.eligible_candidate_count > self.candidate_count:
+            raise CiboCompoundCapitalError(
+                "GEN-C6 population eligible candidates exceed candidates"
+            )
         if (
             self.treatment_reserve_count
             + self.treatment_allocation_count
