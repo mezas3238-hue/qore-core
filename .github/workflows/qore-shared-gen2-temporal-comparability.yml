@@ -179,9 +179,14 @@ jobs:
           matrix=json.loads(Path("result/global-market-observability-matrix.json").read_text())
           calendar=json.loads(Path("result/global-calendar-registry.json").read_text())
           root=ET.parse("validation/junit.xml").getroot()
-          tests=int(root.attrib.get("tests", "0"))
-          failures=int(root.attrib.get("failures", "0"))
-          errors=int(root.attrib.get("errors", "0"))
+          suites=(root,) if root.tag == "testsuite" else tuple(root.findall("testsuite"))
+          tests=sum(int(item.attrib.get("tests", "0")) for item in suites)
+          failures=sum(int(item.attrib.get("failures", "0")) for item in suites)
+          errors=sum(int(item.attrib.get("errors", "0")) for item in suites)
+          if tests <= 0:
+              raise SystemExit("GEN-2 evidence pack refuses zero-test JUnit evidence")
+          if failures + errors != 0:
+              raise SystemExit("GEN-2 evidence pack refuses failing JUnit evidence")
           pack={
               "identity":"QORE_SHARED_GEN2_TEMPORAL_COMPARABILITY_EVIDENCE_001",
               "head":os.environ["GITHUB_SHA"],
@@ -209,6 +214,8 @@ jobs:
               "shared_risk_authority":False,
               "shared_sizing_authority":False,
           }
+          assert pack["test_count"] > 0
+          assert pack["failure_count"] == 0
           Path("result/gen2-evidence-pack.json").write_text(
               json.dumps(pack,sort_keys=True,indent=2)+"\n"
           )
