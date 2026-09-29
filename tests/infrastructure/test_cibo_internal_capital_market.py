@@ -21,6 +21,13 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
 from qore.infrastructure.cibo_ce2i_portfolio_allocation_ledger import (
     PortfolioAllocationLedger,
 )
+from qore.infrastructure.cibo_cma_settlement_ledger import (
+    CmaSettlementRecord,
+    CmaSettlementState,
+)
+from qore.infrastructure.cibo_cma_settlement_store import (
+    VersionedCmaSettlementBook,
+)
 from qore.infrastructure.cibo_compound_capital import (
     CiboCompoundCapitalError,
     CompoundCapitalState,
@@ -908,6 +915,7 @@ def _oos_books(
     phase20_decisions = []
     phase20_policies = []
     phase20_outcomes = []
+    settlement_states = []
     for index, candidate in enumerate(event.candidates, start=1):
         evidence = candidate.marginal_evidence
         source_sha = evidence.source_opportunity_decision_sha256
@@ -975,6 +983,23 @@ def _oos_books(
                 capital_minutes=capital_minutes,
             )
         )
+        settlement_states.append(
+            CmaSettlementState(
+                signal_fingerprint=candidate.signal_fingerprint,
+                position_id=5000 + index,
+                records=(
+                    CmaSettlementRecord(
+                        event="CTRADER_DEMO_EXIT_SETTLEMENT",
+                        deal_id=6000 + index,
+                        signal_fingerprint=candidate.signal_fingerprint,
+                        position_id=5000 + index,
+                        net_profit_usd=Decimal(str(index)),
+                        position_open_after=False,
+                    ),
+                ),
+                position_closed=True,
+            )
+        )
 
     phase20_book = VersionedPhase20ForwardEvidenceBook(
         generation=len(phase20_decisions) + len(phase20_outcomes),
@@ -985,12 +1010,17 @@ def _oos_books(
         generation=len(phase20_policies),
         decisions=tuple(phase20_policies),
     )
+    settlement_book = VersionedCmaSettlementBook(
+        generation=len(settlement_states),
+        states=tuple(settlement_states),
+    )
     return (
         genc6_book,
         c4_book,
         tuple(candidate.genc5_seal for candidate in event.candidates),
         phase20_book,
         policy_book,
+        settlement_book,
     )
 
 
@@ -1046,7 +1076,14 @@ def test_genc6_oos_binding_requires_full_causal_chain_and_release(
     tmp_path: Path,
 ) -> None:
     event, decision = _ambiguous_event_and_decision(tmp_path)
-    genc6_book, c4_book, c5_seals, phase20_book, policy_book = _oos_books(
+    (
+        genc6_book,
+        c4_book,
+        c5_seals,
+        phase20_book,
+        policy_book,
+        settlement_book,
+    ) = _oos_books(
         tmp_path=tmp_path,
         event=event,
         decision=decision,
@@ -1059,6 +1096,7 @@ def test_genc6_oos_binding_requires_full_causal_chain_and_release(
         genc5_seals=c5_seals,
         phase20_evidence_book=phase20_book,
         phase20_policy_book=policy_book,
+        settlement_book=settlement_book,
     )
 
     assert report.status is Genc6OosBindingStatus.COMPLETE
@@ -1087,7 +1125,14 @@ def test_genc6_missing_release_stays_partial_without_imputation(
     tmp_path: Path,
 ) -> None:
     event, decision = _ambiguous_event_and_decision(tmp_path)
-    genc6_book, c4_book, c5_seals, phase20_book, policy_book = _oos_books(
+    (
+        genc6_book,
+        c4_book,
+        c5_seals,
+        phase20_book,
+        policy_book,
+        settlement_book,
+    ) = _oos_books(
         tmp_path=tmp_path,
         event=event,
         decision=decision,
@@ -1100,6 +1145,7 @@ def test_genc6_missing_release_stays_partial_without_imputation(
         genc5_seals=c5_seals,
         phase20_evidence_book=phase20_book,
         phase20_policy_book=policy_book,
+        settlement_book=settlement_book,
     )
 
     assert report.status is Genc6OosBindingStatus.PARTIAL
@@ -1113,7 +1159,14 @@ def test_genc6_missing_candidate_outcome_stays_partial(
     tmp_path: Path,
 ) -> None:
     event, decision = _ambiguous_event_and_decision(tmp_path)
-    genc6_book, c4_book, c5_seals, phase20_book, policy_book = _oos_books(
+    (
+        genc6_book,
+        c4_book,
+        c5_seals,
+        phase20_book,
+        policy_book,
+        settlement_book,
+    ) = _oos_books(
         tmp_path=tmp_path,
         event=event,
         decision=decision,
@@ -1127,6 +1180,7 @@ def test_genc6_missing_candidate_outcome_stays_partial(
         genc5_seals=c5_seals,
         phase20_evidence_book=phase20_book,
         phase20_policy_book=policy_book,
+        settlement_book=settlement_book,
     )
 
     assert report.status is Genc6OosBindingStatus.PARTIAL
@@ -1139,7 +1193,14 @@ def test_genc6_population_is_descriptive_even_when_coverage_complete(
     tmp_path: Path,
 ) -> None:
     event, decision = _ambiguous_event_and_decision(tmp_path)
-    genc6_book, c4_book, c5_seals, phase20_book, policy_book = _oos_books(
+    (
+        genc6_book,
+        c4_book,
+        c5_seals,
+        phase20_book,
+        policy_book,
+        settlement_book,
+    ) = _oos_books(
         tmp_path=tmp_path,
         event=event,
         decision=decision,
@@ -1151,6 +1212,7 @@ def test_genc6_population_is_descriptive_even_when_coverage_complete(
         genc5_seals=c5_seals,
         phase20_evidence_book=phase20_book,
         phase20_policy_book=policy_book,
+        settlement_book=settlement_book,
     )
     population = describe_genc6_fresh_scarcity_population(
         genc6_book=genc6_book,
