@@ -612,6 +612,7 @@ class CapitalScarcityEvent:
     reserve_alternative: Genc6ReserveAlternative
     candidate_set_sha256: str
     simultaneously_valid_count: int
+    eligible_candidate_count: int
     available_capital_usd: Decimal
     total_requested_capital_usd: Decimal
     capital_shortfall_usd: Decimal
@@ -680,6 +681,7 @@ class CapitalScarcityEvent:
             )
         for name in (
             "simultaneously_valid_count",
+            "eligible_candidate_count",
             "mutually_fundable_candidate_count",
         ):
             value = getattr(self, name)
@@ -713,8 +715,17 @@ class CapitalScarcityEvent:
             raise CiboCompoundCapitalError(
                 "GEN-C6 available capital/portfolio drift"
             )
+        eligible = tuple(
+            item
+            for item in valid
+            if not _candidate_blockers(item, self.portfolio_state)
+        )
+        if self.eligible_candidate_count != len(eligible):
+            raise CiboCompoundCapitalError(
+                "GEN-C6 eligible candidate count drift"
+            )
         expected_requested = sum(
-            (item.requested_capital_usd for item in valid),
+            (item.requested_capital_usd for item in eligible),
             Decimal(0),
         )
         if self.total_requested_capital_usd != expected_requested:
@@ -739,7 +750,7 @@ class CapitalScarcityEvent:
                 "GEN-C6 competition intensity arithmetic drift"
             )
         expected_true = (
-            len(valid) >= 2
+            len(eligible) >= 2
             and expected_requested > self.available_capital_usd
         )
         if self.true_scarcity != expected_true:
@@ -747,7 +758,7 @@ class CapitalScarcityEvent:
                 "GEN-C6 true-scarcity classification drift"
             )
         expected_mutually_fundable = _max_mutually_fundable_count(
-            valid,
+            eligible,
             self.portfolio_state,
         )
         if (
@@ -1004,8 +1015,13 @@ def build_capital_scarcity_event(
     reserve_alternative: Genc6ReserveAlternative,
 ) -> CapitalScarcityEvent:
     valid = tuple(item for item in candidates if item.valid_at_decision)
+    eligible = tuple(
+        item
+        for item in valid
+        if not _candidate_blockers(item, portfolio_state)
+    )
     total_requested = sum(
-        (item.requested_capital_usd for item in valid),
+        (item.requested_capital_usd for item in eligible),
         Decimal(0),
     )
     shortfall = max(
@@ -1026,18 +1042,19 @@ def build_capital_scarcity_event(
         reserve_alternative=reserve_alternative,
         candidate_set_sha256=genc6_candidate_set_sha256(candidates),
         simultaneously_valid_count=len(valid),
+        eligible_candidate_count=len(eligible),
         available_capital_usd=(
             portfolio_state.available_compound_capital_usd
         ),
         total_requested_capital_usd=total_requested,
         capital_shortfall_usd=shortfall,
         mutually_fundable_candidate_count=_max_mutually_fundable_count(
-            valid,
+            eligible,
             portfolio_state,
         ),
         competition_intensity=intensity,
         true_scarcity=(
-            len(valid) >= 2
+            len(eligible) >= 2
             and total_requested
             > portfolio_state.available_compound_capital_usd
         ),
