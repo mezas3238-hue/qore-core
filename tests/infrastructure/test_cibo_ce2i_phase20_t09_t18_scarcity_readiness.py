@@ -144,6 +144,8 @@ def test_scarcity_readiness_prepares_t09_and_cross_trader_t18() -> None:
     assert audit.scarcity_selected_outcome_coverage == Decimal("1")
     assert len(audit.t09_folds) == 4
     assert len(audit.t18_folds) == 4
+    assert len(audit.t09_scarce_decision_sha256s) == 32
+    assert len(audit.t18_cross_trader_scarce_decision_sha256s) == 32
     assert audit.t09_ready_for_utility_analysis is True
     assert audit.t18_ready_for_utility_analysis is True
     assert audit.fresh_oos_utility_demonstrated is False
