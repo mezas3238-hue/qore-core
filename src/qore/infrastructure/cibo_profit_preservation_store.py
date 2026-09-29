@@ -169,6 +169,34 @@ class Genc7ShadowDecisionSeal:
             raise CiboCompoundCapitalError(
                 "GEN-C7 store divergence flag must be bool"
             )
+        if (
+            self.control_action is not Genc7Action.HOLD_CURRENT_CAPITAL_STATE
+            or self.control_amount_usd != 0
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C7 store control must HOLD with zero amount"
+            )
+        active = (
+            self.treatment_action
+            is not Genc7Action.HOLD_CURRENT_CAPITAL_STATE
+        )
+        if active:
+            if (
+                self.treatment_action is not self.proposal_action
+                or self.treatment_amount_usd != self.proposal_amount_usd
+                or self.blocker_codes
+            ):
+                raise CiboCompoundCapitalError(
+                    "GEN-C7 store active treatment/proposal drift"
+                )
+        elif self.treatment_amount_usd != 0:
+            raise CiboCompoundCapitalError(
+                "GEN-C7 store held treatment must have zero amount"
+            )
+        if self.treatment_differs_from_control != active:
+            raise CiboCompoundCapitalError(
+                "GEN-C7 store divergence flag drift"
+            )
 
 
 @dataclass(frozen=True, slots=True)
