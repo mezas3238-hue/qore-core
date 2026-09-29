@@ -50,6 +50,20 @@ def _native(**overrides: object) -> SimpleNamespace:
     return SimpleNamespace(**values)
 
 
+def _light_native(**overrides: object) -> SimpleNamespace:
+    values: dict[str, object] = {
+        "symbolId": 10012,
+        "symbolName": "US2000",
+        "enabled": True,
+        "baseAssetId": 501,
+        "quoteAssetId": 502,
+        "symbolCategoryId": 77,
+        "description": "US Small Cap 2000 provider description",
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
+
+
 def _registry_row() -> dict[str, object]:
     return {
         "instrument_key": "CTRADER_DEMO:US2000:10012",
@@ -57,6 +71,36 @@ def _registry_row() -> dict[str, object]:
         "provider_symbol": "US2000",
         "provider_symbol_id": 10012,
     }
+
+
+def test_provider_light_symbol_parser_preserves_descriptors_without_inference() -> None:
+    module = _load_runner()
+
+    row = module._parse_light_symbol_metadata(
+        native=_light_native(),
+        registry_row=_registry_row(),
+    )
+
+    assert row == {
+        "provider_native_symbol_name": "US2000",
+        "provider_base_asset_id": 501,
+        "provider_quote_asset_id": 502,
+        "provider_symbol_category_id": 77,
+        "provider_description": "US Small Cap 2000 provider description",
+    }
+
+
+def test_provider_light_symbol_name_drift_fails_closed() -> None:
+    module = _load_runner()
+
+    with pytest.raises(
+        module.Gen2ProviderScheduleError,
+        match="name drift",
+    ):
+        module._parse_light_symbol_metadata(
+            native=_light_native(symbolName="DIFFERENT"),
+            registry_row=_registry_row(),
+        )
 
 
 def test_provider_schedule_parser_preserves_exact_identity_and_canonical_order() -> None:
@@ -132,3 +176,4 @@ def test_provider_schedule_never_performs_canonical_calendar_mapping() -> None:
     assert '"canonical_calendar_mapping_performed": False' in source
     assert '"provider_availability_is_canonical_market_hours": False' in source
     assert '"target_or_outcome_read": False' in source
+    assert '"provider_native_identity_metadata_is_not_canonical_identity": True' in source
