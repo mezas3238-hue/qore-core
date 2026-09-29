@@ -127,7 +127,7 @@ def test_current_provider_terms_do_not_erase_historical_execution_blockers() -> 
 
 def test_phase19_negative_evidence_blocks_unreplicated_portfolio_policies() -> None:
     expected = {
-        "T08": "FACTOR_MAP_NOT_CERTIFIED",
+        "T08": "SIGNED_FACTOR_RISK_MAP_NOT_CERTIFIED",
         "T09": "ZERO_WALK_FORWARD_POLICY_SURVIVORS",
         "T12": "TEMPORAL_STABILITY_OBSERVATIONAL_ONLY",
         "T13": "ZERO_WALK_FORWARD_POLICY_SURVIVORS",
