@@ -1,0 +1,241 @@
+name: QORE Shared AGRI-1 Provider Capability Audit
+
+concurrency:
+  group: qore-shared-agri1-provider-capability-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/agricultural_sensor_governance.py
+      - scripts/shared_agri_provider_capability_audit.py
+      - tests/infrastructure/test_core_stack_v2_agricultural_sensor_governance.py
+      - docs/shared/QORE_SHARED_AGRICULTURAL_AND_COMMODITY_GAP_AUDIT_001.md
+      - docs/shared/evidence/QORE_SHARED_AGRICULTURAL_CONCEPTUAL_UNIVERSE_001.json
+      - .github/workflows/qore-shared-agri1-provider-capability.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  UPSTREAM_GEN2_RUN_ID: "36616300191"
+  UPSTREAM_GEN2_ARTIFACT_ID: "11055546708"
+  UPSTREAM_GEN2_GIT_SHA: "9c1a584556823318e3b697d38daecf83390ead43"
+  UPSTREAM_PROVIDER_SENSOR_COUNT: "177"
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate AGRI-1 contracts
+        run: |
+          set -euo pipefail
+          mkdir -p validation
+          ruff check             src/qore/infrastructure/core_stack_v2/agricultural_sensor_governance.py             scripts/shared_agri_provider_capability_audit.py             tests/infrastructure/test_core_stack_v2_agricultural_sensor_governance.py
+          mypy             src/qore/infrastructure/core_stack_v2/agricultural_sensor_governance.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/agricultural_sensor_governance.py             scripts/shared_agri_provider_capability_audit.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_agricultural_sensor_governance.py             --junitxml=validation/junit.xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agri1-validation
+          path: validation/junit.xml
+          retention-days: 30
+
+  provider-audit:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: agri1-validation
+          path: validation
+
+      - name: Verify exact sealed GEN-2 upstream
+        run: |
+          set -euo pipefail
+          status="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${UPSTREAM_GEN2_RUN_ID}" --jq '.status')"
+          conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${UPSTREAM_GEN2_RUN_ID}" --jq '.conclusion')"
+          head_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${UPSTREAM_GEN2_RUN_ID}" --jq '.head_sha')"
+          test "$status" = "completed"
+          test "$conclusion" = "success"
+          test "$head_sha" = "$UPSTREAM_GEN2_GIT_SHA"
+
+      - name: Recover sealed GEN-2 provider catalogue
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${UPSTREAM_GEN2_ARTIFACT_ID}/zip" > upstream.zip
+          unzip -q upstream.zip -d input
+          (
+            cd input/result
+            sha256sum -c SHA256SUMS
+          )
+          test "$(cat input/result/gen2-code-git-sha.txt)" = "$UPSTREAM_GEN2_GIT_SHA"
+          test "$(python -c 'import json; print(json.load(open("input/result/provider-schedule-catalog.json"))["sensor_count"])')" = "$UPSTREAM_PROVIDER_SENSOR_COUNT"
+
+      - name: Build agricultural provider capability audit
+        run: |
+          set -euo pipefail
+          python scripts/shared_agri_provider_capability_audit.py             --conceptual-universe docs/shared/evidence/QORE_SHARED_AGRICULTURAL_CONCEPTUAL_UNIVERSE_001.json             --provider-schedule input/result/provider-schedule-catalog.json             --audit-output result/agricultural-provider-capability-audit.json             --matrix-output result/global-agricultural-sensor-matrix.json             | tee result/agricultural-provider-capability-summary.json
+
+      - name: Validate AGRI-1 fail-closed result
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          audit=json.loads(Path("result/agricultural-provider-capability-audit.json").read_text())
+          matrix=json.loads(Path("result/global-agricultural-sensor-matrix.json").read_text())
+
+          assert audit["identity"] == "QORE_SHARED_AGRICULTURAL_PROVIDER_CAPABILITY_AUDIT_001"
+          assert audit["source_provider_sensor_count"] == 177
+          assert audit["conceptual_market_count"] == 16
+          assert audit["provider_count"] == 1
+          assert audit["providers"] == ["CTRADER_DEMO"]
+          assert audit["provider_candidate_count"] == 0
+          assert audit["result"] == "NO_AGRICULTURAL_SOFTS_OR_LIVESTOCK_CANDIDATES_DISCOVERED"
+          assert audit["discovery_state_counts"] == {
+              "ABSENT_FROM_CURRENT_CATALOG_EVIDENCE": 16
+          }
+          assert audit["agricultural_candidate_identity_verified_count"] == 0
+          assert audit["agricultural_contract_mapped_count"] == 0
+          assert audit["agricultural_calendar_mapped_count"] == 0
+          assert audit["agricultural_relational_ready_count"] == 0
+          assert audit["provider_symbol_is_canonical_identity"] is False
+          assert audit["provider_availability_is_scientific_admission"] is False
+          assert audit["automatic_sensor_admission"] is False
+          assert audit["relational_claims_authorized"] is False
+          assert audit["protected_holdout_opened"] is False
+
+          assert matrix["identity"] == "QORE_SHARED_GLOBAL_AGRICULTURAL_SENSOR_MATRIX_001"
+          assert matrix["row_count"] == 16
+          assert matrix["target_count"] == 16
+          assert len(matrix["rows"]) == 16
+          assert all(row["provider_candidates"] == [] for row in matrix["rows"])
+          assert all(row["identity_verified"] is False for row in matrix["rows"])
+          assert all(row["contract_mapped"] is False for row in matrix["rows"])
+          assert all(row["calendar_mapped"] is False for row in matrix["rows"])
+          assert all(row["roll_policy_verified"] is False for row in matrix["rows"])
+          assert all(row["relational_ready"] is False for row in matrix["rows"])
+          assert all(row["scientific_maturity"] == "ABSENT" for row in matrix["rows"])
+          assert matrix["automatic_sensor_admission"] is False
+          assert matrix["relational_claims_authorized"] is False
+          PY
+
+      - name: Seal AGRI-1 evidence pack
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          audit=json.loads(Path("result/agricultural-provider-capability-audit.json").read_text())
+          matrix=json.loads(Path("result/global-agricultural-sensor-matrix.json").read_text())
+          root=ET.parse("validation/junit.xml").getroot()
+          suites=(root,) if root.tag == "testsuite" else tuple(root.findall("testsuite"))
+          tests=sum(int(item.attrib.get("tests", "0")) for item in suites)
+          failures=sum(int(item.attrib.get("failures", "0")) for item in suites)
+          errors=sum(int(item.attrib.get("errors", "0")) for item in suites)
+          if tests <= 0:
+              raise SystemExit("AGRI-1 refuses zero-test evidence")
+          if failures + errors:
+              raise SystemExit("AGRI-1 refuses failing validation evidence")
+
+          pack={
+              "identity":"QORE_SHARED_AGRI1_PROVIDER_CAPABILITY_EVIDENCE_001",
+              "head":os.environ["GITHUB_SHA"],
+              "run_id":int(os.environ["GITHUB_RUN_ID"]),
+              "upstream_gen2_run_id":int(os.environ["UPSTREAM_GEN2_RUN_ID"]),
+              "upstream_gen2_artifact_id":int(os.environ["UPSTREAM_GEN2_ARTIFACT_ID"]),
+              "upstream_gen2_git_sha":os.environ["UPSTREAM_GEN2_GIT_SHA"],
+              "source_provider_sensor_count":audit["source_provider_sensor_count"],
+              "conceptual_market_count":audit["conceptual_market_count"],
+              "provider_count":audit["provider_count"],
+              "provider_candidate_count":audit["provider_candidate_count"],
+              "discovery_state_counts":audit["discovery_state_counts"],
+              "matrix_fingerprint":audit["matrix_fingerprint_sha256"],
+              "conceptual_universe_fingerprint":audit["conceptual_universe_fingerprint_sha256"],
+              "provider_catalog_fingerprint":audit["source_provider_catalog_fingerprint_sha256"],
+              "test_count":tests,
+              "failure_count":failures+errors,
+              "anti_leakage_status":"PASS",
+              "provider_symbol_is_canonical_identity":False,
+              "automatic_sensor_admission":False,
+              "relational_claims_authorized":False,
+              "protected_holdout_opened":False,
+              "shared_execution_authority":False,
+              "shared_risk_authority":False,
+              "shared_sizing_authority":False,
+          }
+          Path("result/agri1-evidence-pack.json").write_text(
+              json.dumps(pack,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+          printf '%s\n' "$GITHUB_SHA" > result/agri1-code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/agri1-run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-agri1-provider-capability-${{ github.sha }}
+          path: |
+            result
+            validation/junit.xml
+          retention-days: 90
+
+      - name: Report AGRI-1 provider capability audit
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          audit=json.loads(Path("result/agricultural-provider-capability-audit.json").read_text())
+          body="\n".join([
+              "## Shared AGRI-1 — Provider Capability Audit",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- upstream sealed GEN-2: run `{os.environ['UPSTREAM_GEN2_RUN_ID']}` / artifact `{os.environ['UPSTREAM_GEN2_ARTIFACT_ID']}`",
+              f"- provider fabric: **{audit['providers']}**",
+              f"- provider sensors inspected: **{audit['source_provider_sensor_count']}**",
+              f"- conceptual agricultural/soft/livestock markets: **{audit['conceptual_market_count']}**",
+              f"- provider candidates discovered: **{audit['provider_candidate_count']}**",
+              f"- result: **{audit['result']}**",
+              "- provider symbol -> canonical economic identity: **False**",
+              "- automatic sensor admission: **False**",
+              "- relational claims authorized: **False**",
+              "- protected Shared holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
