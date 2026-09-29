@@ -274,7 +274,12 @@ def _facts(
     return (
         _fact(
             kind=Genc6EvidenceKind.EXPECTED_NET_VALUE_PER_CAPITAL,
-            value=evidence.expected_incremental_return_usd / amount,
+            value=(
+                evidence.expected_incremental_return_usd
+                - evidence.incremental_execution_cost_usd
+                - evidence.incremental_optionality_consumed_usd
+            )
+            / amount,
             sha_digit=prefix,
             use=expected_use,
         ),
