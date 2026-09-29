@@ -1,0 +1,143 @@
+name: QORE Capitalizer Reserved Global Episode V43
+
+on:
+  push:
+    branches:
+      - agent/capitalizer-reserved-global-episode-v43-001
+    paths:
+      - '.github/workflows/qore-capitalizer-reserved-global-episode-v43.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_reserved_global_episode_sequence_beam_v43.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_reserved_global_episode_sequence_beam_v43.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-reserved-global-episode-v43-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+  SIM_RUN_ID: '36332714846'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_reserved_global_episode_sequence_beam_v43.py \
+            tests/infrastructure/trader_lab/test_capitalizer_reserved_global_episode_sequence_beam_v43.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_reserved_global_episode_sequence_beam_v43.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_reserved_global_episode_sequence_beam_v43.py
+
+  experiment:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download reconstructed consumed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Download authoritative simulator transitions
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-counterfactual-portfolio-episode-simulator-v1-sharded-*
+          path: simulator-evidence
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SIM_RUN_ID }}
+      - name: Run exact global chronological V43 search
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_reserved_global_episode_sequence_beam_v43 \
+            --development-root reconstructed/development-input \
+            --validation-root reconstructed/validation-input \
+            --reserved-root reconstructed/reserved-input \
+            --development-validation-context-root reconstructed/development-validation-context \
+            --reserved-context-root reconstructed/reserved-context \
+            --transition-path simulator-evidence/capitalizer-counterfactual-portfolio-episode-simulator-v1-transitions.jsonl \
+            --output experiment-output
+      - name: Enforce frozen V43 governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report=json.loads(
+              Path(
+                  "experiment-output/"
+                  "capitalizer-reserved-global-episode-sequence-beam-v43.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_RESERVED_GLOBAL_EPISODE_SEQUENCE_BEAM_V43"
+          )
+          assert report["period"] == "CONSUMED_RESERVED_2020_2022"
+          assert report["predeclaration_comment_ids"] == [
+              5882543976,
+              5882555652,
+          ]
+          assert report["start_plan"] == "SURFACE_EMPTY_INTERVENTION_PLAN"
+          assert report["start_intervention_count"] == 0
+          pool=report["frozen_pool_contract"]
+          assert pool["maxdd_relief"] == 24
+          assert pool["maxdd_reserve"] == 24
+          assert pool["outside_relief"] == 16
+          assert pool["outside_reserve"] == 16
+          assert pool["unique_pool_size"] <= 80
+          assert report["beam_width"] == 8
+          assert report["max_mutation_depth"] == 8
+          assert report["allowed_mutations"] == [
+              "ADD_CHRONOLOGICALLY",
+              "REPLACE_EXISTING",
+          ]
+          assert report["canonical_chronological_addition"] is True
+          assert report["drop_mutation_allowed"] is False
+          assert report["exact_full_causal_replay"] is True
+          assert report["same_existing_action_geometry_only"] is True
+          assert report["outcome_aware_diagnostic"] is True
+          assert report["runtime_policy_candidate"] is False
+          assert report["sampling"] is False
+          assert report["threshold_grid_searched"] is False
+          assert report["sizing_changed"] is False
+          assert report["entry_changed"] is False
+          assert report["stop_target_changed"] is False
+          assert report["new_protection_geometry_created"] is False
+          assert report["fresh_holdout_opened"] is False
+          assert report["candidate_count"] == 0
+          assert report["trader_certified"] is False
+          assert report["baseline"]["trades"] == 1088
+          print(json.dumps(report,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-reserved-global-episode-v43-${{ github.sha }}
+          path: experiment-output
+          if-no-files-found: error
+          retention-days: 90
