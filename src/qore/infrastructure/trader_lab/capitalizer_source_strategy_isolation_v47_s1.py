@@ -312,6 +312,14 @@ def _reference_liquidity(
     rows = _bars_between(bars, start=start, end=end)
     if len(rows) < 30:
         return None
+    prior = (
+        CapitalizerSession.NEW_YORK
+        if session is CapitalizerSession.ASIA
+        else CapitalizerSession.ASIA
+        if session is CapitalizerSession.LONDON
+        else CapitalizerSession.LONDON
+    )
+    source = f"COMPLETED_{prior.value}_SOURCE_SESSION"
     return v3_source.ReferenceLiquidity(
         opened_at=rows[0].opened_at,
         closed_at=rows[-1].closed_at,
