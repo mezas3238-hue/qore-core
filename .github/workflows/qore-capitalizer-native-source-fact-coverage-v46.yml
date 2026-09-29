@@ -1,0 +1,82 @@
+name: QORE Capitalizer Native Source Fact Coverage V46
+
+on:
+  push:
+    branches:
+      - agent/capitalizer-native-source-fact-coverage-v46-001
+    paths:
+      - '.github/workflows/qore-capitalizer-native-source-fact-coverage-v46.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_native_source_faithful_fact_coverage_v46.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_native_source_faithful_fact_coverage_v46.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qore-capitalizer-native-source-fact-coverage-v46-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  phase_a:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_native_source_faithful_fact_coverage_v46.py \
+            tests/infrastructure/trader_lab/test_capitalizer_native_source_faithful_fact_coverage_v46.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_native_source_faithful_fact_coverage_v46.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_native_source_faithful_fact_coverage_v46.py
+      - name: Run frozen V46 Phase A
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_native_source_faithful_fact_coverage_v46
+      - name: Enforce Phase A governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report=json.loads(
+              Path(
+                  "audit-output/"
+                  "capitalizer-native-source-faithful-fact-coverage-v46.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_NATIVE_SOURCE_FAITHFUL_FACT_COVERAGE_V46"
+          )
+          assert report["predeclaration_comment_id"] == 5883088393
+          assert report["mandatory_fact_count"] == 26
+          assert len(report["facts"]) == 26
+          assert report["phase_b_executed"] is False
+          assert report["strategy_economics_calculated"] is False
+          assert report["provider_native_m1_economics_opened"] is False
+          assert report["fixed_2r_used_as_canonical_target"] is False
+          assert report["synthetic_asian_open_used"] is False
+          assert report["synthetic_structural_target_used"] is False
+          assert report["outcomes_used"] is False
+          assert report["fresh_holdout_opened"] is False
+          assert report["runtime_policy_candidate"] is False
+          assert report["candidate_count"] == 0
+          assert report["trader_certified"] is False
+          print(json.dumps(report,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-native-source-fact-coverage-v46-${{ github.sha }}
+          path: audit-output
+          if-no-files-found: error
+          retention-days: 90
