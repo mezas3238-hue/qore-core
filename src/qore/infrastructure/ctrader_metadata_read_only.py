@@ -11,6 +11,7 @@ from qore.infrastructure.ctrader_open_api_client import (
 )
 from qore.kernel.result import Failure, Result, Success
 
+
 class CTraderMetadataReadOnlyClientError(CTraderOpenApiClientError):
     """GEN-2 metadata firewall rejected a non-observation operation."""
 
