@@ -721,7 +721,7 @@ def build_governed_global_market_calendar_registry(
             continue
         assert record.calendar_id is not None
         assert record.calendar_version is not None
-        assert record.venue is not None
+        assert record.market_structure is not None
         assert record.iana_timezone is not None
         calendar = calendar_by_id.get(record.calendar_id)
         if calendar is None:
