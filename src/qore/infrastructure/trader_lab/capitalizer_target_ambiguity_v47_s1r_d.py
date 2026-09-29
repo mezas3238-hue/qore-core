@@ -148,6 +148,22 @@ def _candidate_provenance(
     return tuple(labels)
 
 
+def classify_target_pairs(
+    unique: set[tuple[str, Decimal]],
+) -> TargetAmbiguityClass:
+    prices = {price for _kind, price in unique}
+    kinds = {kind for kind, _price in unique}
+    if not unique:
+        return TargetAmbiguityClass.ZERO_ELIGIBLE_TARGETS
+    if len(unique) == 1:
+        return TargetAmbiguityClass.ONE_UNIQUE_PRICE_AND_KIND
+    if len(prices) == 1 and len(kinds) > 1:
+        return TargetAmbiguityClass.SAME_PRICE_MULTIPLE_KINDS
+    if len(prices) > 1 and len(kinds) == 1:
+        return TargetAmbiguityClass.MULTIPLE_DISTINCT_PRICES_SAME_KIND
+    return TargetAmbiguityClass.MULTIPLE_DISTINCT_PRICES_AND_KINDS
+
+
 def audit_target(
     bars: tuple[CapitalizerM1Bar, ...],
     *,
@@ -165,19 +181,7 @@ def audit_target(
         (candidate.kind.value, candidate.target_price)
         for candidate in binding.candidates
     }
-    prices = {price for _kind, price in unique}
-    kinds = {kind for kind, _price in unique}
-
-    if not unique:
-        classification = TargetAmbiguityClass.ZERO_ELIGIBLE_TARGETS
-    elif len(unique) == 1:
-        classification = TargetAmbiguityClass.ONE_UNIQUE_PRICE_AND_KIND
-    elif len(prices) == 1 and len(kinds) > 1:
-        classification = TargetAmbiguityClass.SAME_PRICE_MULTIPLE_KINDS
-    elif len(prices) > 1 and len(kinds) == 1:
-        classification = TargetAmbiguityClass.MULTIPLE_DISTINCT_PRICES_SAME_KIND
-    else:
-        classification = TargetAmbiguityClass.MULTIPLE_DISTINCT_PRICES_AND_KINDS
+    classification = classify_target_pairs(unique)
 
     expected_resolved = classification is TargetAmbiguityClass.ONE_UNIQUE_PRICE_AND_KIND
     if binding.resolution.resolved != expected_resolved:
