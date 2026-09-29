@@ -41,6 +41,7 @@ from qore.infrastructure.core_stack_v2.global_temporal_comparability import (
     assess_provider_observability,
     assess_relational_comparability,
     assess_temporal_governance_closure,
+    build_governed_global_market_calendar_registry,
     evaluate_market_session,
 )
 from qore.infrastructure.market_clock_schedule import WallClockBoundary
@@ -800,6 +801,115 @@ def test_canonical_mapping_registry_is_deterministic_and_fail_closed() -> None:
             records=(verified, unresolved),
             provenance_refs=("registry:canonical-map:test",),
         )
+
+
+def test_verified_mapping_promotes_only_against_exact_canonical_calendar() -> None:
+    calendar = _calendar()
+    verified = _canonical_mapping(
+        status=CanonicalCalendarMappingStatus.VERIFIED,
+        canonical_instrument_id="canonical:AAA",
+        venue=calendar.venue,
+        calendar_id=calendar.calendar_id,
+        calendar_version=calendar.version,
+        iana_timezone=calendar.iana_timezone,
+        timezone_mapping_version="tz-map-001",
+        identity_evidence_refs=("identity:instrument-master",),
+        venue_evidence_refs=("venue:exchange-master",),
+        calendar_evidence_refs=("calendar:official-version",),
+        reason_codes=("INDEPENDENT_EVIDENCE_VERIFIED",),
+    )
+    mapping_registry = CanonicalCalendarMappingRegistry(
+        version="canonical-map-registry-001",
+        records=(verified,),
+        provenance_refs=("registry:canonical-map:test",),
+    )
+
+    registry = build_governed_global_market_calendar_registry(
+        version="calendar-registry-verified-001",
+        mapping_registry=mapping_registry,
+        calendars=(calendar,),
+        provenance_refs=("registry:calendar:test",),
+    )
+
+    assert registry.bindings == (verified.to_binding(),)
+    assert registry.calendar_for(SOURCE.instrument_key) == calendar
+    assert (
+        "canonical-mapping-registry:" + mapping_registry.fingerprint()
+        in registry.provenance_refs
+    )
+    assert len(registry.fingerprint()) == 64
+
+
+@pytest.mark.parametrize(
+    ("mapping_override", "expected_error"),
+    (
+        (
+            {"calendar_version": "calendar-wrong-version"},
+            "calendar version drift",
+        ),
+        (
+            {"venue": "WRONG"},
+            "calendar venue drift",
+        ),
+        (
+            {"iana_timezone": "UTC"},
+            "calendar timezone drift",
+        ),
+    ),
+)
+def test_verified_mapping_calendar_drift_fails_closed(
+    mapping_override: dict[str, object],
+    expected_error: str,
+) -> None:
+    calendar = _calendar()
+    values: dict[str, object] = {
+        "status": CanonicalCalendarMappingStatus.VERIFIED,
+        "canonical_instrument_id": "canonical:AAA",
+        "venue": calendar.venue,
+        "calendar_id": calendar.calendar_id,
+        "calendar_version": calendar.version,
+        "iana_timezone": calendar.iana_timezone,
+        "timezone_mapping_version": "tz-map-001",
+        "identity_evidence_refs": ("identity:instrument-master",),
+        "venue_evidence_refs": ("venue:exchange-master",),
+        "calendar_evidence_refs": ("calendar:official-version",),
+        "reason_codes": ("INDEPENDENT_EVIDENCE_VERIFIED",),
+    }
+    values.update(mapping_override)
+    verified = _canonical_mapping(**values)
+    mapping_registry = CanonicalCalendarMappingRegistry(
+        version="canonical-map-registry-001",
+        records=(verified,),
+        provenance_refs=("registry:canonical-map:test",),
+    )
+
+    with pytest.raises(TemporalComparabilityError, match=expected_error):
+        build_governed_global_market_calendar_registry(
+            version="calendar-registry-verified-001",
+            mapping_registry=mapping_registry,
+            calendars=(calendar,),
+            provenance_refs=("registry:calendar:test",),
+        )
+
+
+def test_unresolved_mapping_cannot_create_calendar_binding() -> None:
+    calendar = _calendar()
+    unresolved = _canonical_mapping()
+    mapping_registry = CanonicalCalendarMappingRegistry(
+        version="canonical-map-registry-001",
+        records=(unresolved,),
+        provenance_refs=("registry:canonical-map:test",),
+    )
+
+    registry = build_governed_global_market_calendar_registry(
+        version="calendar-registry-unresolved-001",
+        mapping_registry=mapping_registry,
+        calendars=(calendar,),
+        provenance_refs=("registry:calendar:test",),
+    )
+
+    assert registry.bindings == ()
+    assert registry.binding_for(SOURCE.instrument_key) is None
 
 
 def test_canonical_mapping_provider_identity_is_multi_provider_safe() -> None:
