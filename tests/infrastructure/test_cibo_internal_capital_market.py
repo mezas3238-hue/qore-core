@@ -439,7 +439,7 @@ def _candidate(
                 if trader is TraderLineage.VT31_NAS100
                 else "XAUUSD"
             ),
-            requested_margin_usd=marginal.requested_incremental_capital_usd,
+            requested_capital_usd=marginal.requested_incremental_capital_usd,
             executable_volume=Decimal("0.01"),
             minimum_executable_volume=Decimal("0.01"),
             maximum_volume=Decimal("100"),
@@ -1037,7 +1037,7 @@ def _oos_books(
         }
         for outcome in phase20_outcomes:
             candidate = candidate_by_signal[outcome.signal_fingerprint]
-            deployed_at = outcome.capacity_deployed_at
+            deployed_at = outcome.capital_deployed_at
             released_at = outcome.capital_released_at
             assert deployed_at is not None
             assert released_at is not None
