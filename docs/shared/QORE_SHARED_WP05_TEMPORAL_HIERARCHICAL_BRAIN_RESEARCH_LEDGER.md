@@ -1156,3 +1156,82 @@ The next legal sequence remains:
 6. only then open R8 Target-V2 outcomes once.
 
 No V14.1 or post-outcome rescue is authorized.
+
+## 16. V14 final — source-admission falsification
+
+Identity:
+
+`QORE_SHARED_WP05_CROSS_MARKET_MICROSTRUCTURE_CONFIRMATION_V14_001`
+
+The authoritative source acquisition completed successfully:
+
+- acquisition run: `36501289744`, attempt 2;
+- scientific/source SHA:
+  `b8cae94dec9028acb5230cb25b034bc25040b920`;
+- global reduction artifact: `11010831194`;
+- source-freeze run: `36516454382`;
+- source-freeze artifact: `11011118662`;
+- observability SHA256:
+  `e94239fe9f60089a06994b77f4754e2dfb1dc41e9fd679969b8d648bdddfa24a`.
+
+After correcting the pre-outcome pagination-order audit defect, both raw peer
+datasets passed exact source integrity:
+
+- SP500_PEER / US500: 5,959 pages, 3,152,794 BID, 3,148,120 ASK,
+  duplicate/conflict/strict-overlap/boundary-repeat = 0/0/0/0;
+- US30_PEER / US30: 6,376 pages, 10,731,151 BID, 10,729,451 ASK,
+  duplicate/conflict/strict-overlap/boundary-repeat = 0/0/0/0.
+
+The frozen source-only staleness grid was evaluated exactly:
+
+5s / 10s / 30s / 60s / 120s.
+
+No shared threshold satisfied >=9500 bps causal BID+ASK usable coverage for
+BOTH peers at EVERY checkpoint.
+
+At the maximum preregistered 120s threshold:
+
+- SP500_PEER @ 0/3/5/10/15m:
+  9994 / 9397 / 9281 / 9169 / 9178 bps;
+- US30_PEER @ 0/3/5/10/15m:
+  10000 / 9967 / 9967 / 9961 / 9936 bps.
+
+Therefore:
+
+- observability status = `source_only_rejected`;
+- selected shared staleness = none;
+- M3 V14 representation was not frozen;
+- Target-V2 R8 outcomes were never opened;
+- R6/R5 remained CLOSED;
+- fresh holdout remained CLOSED.
+
+V14 is permanently falsified at source admission. No V14.1, peer removal,
+staleness extension, checkpoint rescue, source-gate lowering or R6/R5 peek is
+authorized.
+
+## 17. Post-V14 transition — full provider catalogue before V15
+
+WP-05 remains ACTIVE and NOT CLOSED.
+
+The next legal action is not an US30-only V14 rerun and is not V15 outcome
+work. It is a provider-catalogue audit that persists the complete enabled
+cTrader DEMO symbol universe with exact provider names and IDs.
+
+Preregistration:
+
+`docs/shared/QORE_SHARED_WP05_POST_V14_PROVIDER_CATALOG_AUDIT_PREREGISTRATION.md`
+
+Frozen laws:
+
+- provider catalogue only;
+- no historical market-data query;
+- no candidate selection;
+- no target/outcome;
+- no R6/R5;
+- no fresh holdout;
+- no V15 scientific identity yet.
+
+Only after this catalogue is frozen may a genuinely new sensor family be
+nominated by economic/market semantics and subjected to a separate source-only
+historical availability audit before any V15 scientific preregistration or
+outcome access.
