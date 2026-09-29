@@ -389,24 +389,27 @@ def build_report(
         pass
 
     by_provenance: dict[str, list[PathwayMetrics]] = defaultdict(list)
-    for row in era_metrics:
-        by_provenance[row.provenance].append(row)
+    for metric_row in era_metrics:
+        by_provenance[metric_row.provenance].append(metric_row)
 
     classifications: list[PathwayClassification] = []
-    period_order = {period: index for index, (period, *_rest) in enumerate(PERIOD_SPECS)}
+    period_order = {
+        period: index
+        for index, (period, *_rest) in enumerate(PERIOD_SPECS)
+    }
     for provenance in sorted(all_provenances):
-        rows = tuple(
+        pathway_rows = tuple(
             sorted(
                 by_provenance.get(provenance, ()),
-                key=lambda row: period_order.get(row.period, 999),
+                key=lambda metric_row: period_order.get(metric_row.period, 999),
             )
         )
-        if len(rows) != 3:
+        if len(pathway_rows) != 3:
             classifications.append(
                 PathwayClassification(
                     provenance=provenance,
                     classification="INSUFFICIENT_STRUCTURAL_SAMPLE",
-                    era_rows=len(rows),
+                    era_rows=len(pathway_rows),
                     all_eras_sample_sufficient=False,
                     all_eras_pf_above_one=False,
                     all_eras_expectancy_positive=False,
@@ -415,7 +418,7 @@ def build_report(
                 )
             )
         else:
-            classifications.append(_classify(provenance, rows))
+            classifications.append(_classify(provenance, pathway_rows))
 
     frozen_classifications = tuple(classifications)
     return {
