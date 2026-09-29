@@ -8,6 +8,9 @@ import pytest
 import qore.infrastructure.core_stack_v2.global_temporal_comparability as module
 from qore.infrastructure.core_stack_v2.global_temporal_comparability import (
     CalendarDateOverride,
+    CanonicalCalendarMappingRecord,
+    CanonicalCalendarMappingRegistry,
+    CanonicalCalendarMappingStatus,
     ComparabilityConfidence,
     ComparabilityUncertainty,
     DateSessionInterval,
@@ -214,6 +217,38 @@ def _policy(**overrides: object) -> RelationalComparabilityPolicy:
     }
     values.update(overrides)
     return RelationalComparabilityPolicy(**values)  # type: ignore[arg-type]
+
+
+def _canonical_mapping(
+    *,
+    identity: ProviderInstrumentIdentity = SOURCE,
+    provider_symbol: str = "AAA",
+    status: CanonicalCalendarMappingStatus = (
+        CanonicalCalendarMappingStatus.UNRESOLVED
+    ),
+    **overrides: object,
+) -> CanonicalCalendarMappingRecord:
+    values: dict[str, object] = {
+        "instrument_key": identity.instrument_key,
+        "provider": identity.provider,
+        "provider_symbol": provider_symbol,
+        "provider_symbol_id": identity.provider_symbol_id,
+        "status": status,
+        "canonical_instrument_id": None,
+        "venue": None,
+        "calendar_id": None,
+        "calendar_version": None,
+        "iana_timezone": None,
+        "provider_schedule_timezone": "UTC",
+        "timezone_mapping_version": None,
+        "identity_evidence_refs": (),
+        "venue_evidence_refs": (),
+        "calendar_evidence_refs": (),
+        "provider_schedule_evidence_refs": ("provider:schedule:test",),
+        "reason_codes": ("UNRESOLVED_CANONICAL_MAPPING",),
+    }
+    values.update(overrides)
+    return CanonicalCalendarMappingRecord(**values)  # type: ignore[arg-type]
 
 
 def _assess(
@@ -464,6 +499,175 @@ def test_cross_timezone_overlap_respects_independent_dst_calendars() -> None:
     assert london_before.state is MarketSessionState.OPEN_ACTIVE
     assert ny_after.state is MarketSessionState.OPEN_ACTIVE
     assert london_after.state is MarketSessionState.OPEN_ACTIVE
+
+
+def test_provider_schedule_alone_cannot_create_canonical_binding() -> None:
+    unresolved = _canonical_mapping()
+
+    with pytest.raises(
+        TemporalComparabilityError,
+        match="only VERIFIED canonical mapping",
+    ):
+        unresolved.to_binding()
+
+
+@pytest.mark.parametrize(
+    ("missing_field", "expected_error"),
+    (
+        ("identity", "identity evidence"),
+        ("venue", "venue evidence"),
+        ("calendar", "calendar evidence"),
+    ),
+)
+def test_verified_mapping_requires_independent_evidence_planes(
+    missing_field: str,
+    expected_error: str,
+) -> None:
+    identity_refs = ("identity:instrument-master",)
+    venue_refs = ("venue:exchange-master",)
+    calendar_refs = ("calendar:official-version",)
+    if missing_field == "identity":
+        identity_refs = ()
+    elif missing_field == "venue":
+        venue_refs = ()
+    else:
+        calendar_refs = ()
+
+    with pytest.raises(TemporalComparabilityError, match=expected_error):
+        _canonical_mapping(
+            status=CanonicalCalendarMappingStatus.VERIFIED,
+            canonical_instrument_id="canonical:AAA",
+            venue="XNYS",
+            calendar_id="XNYS-RTH",
+            calendar_version="calendar-test-001",
+            iana_timezone="America/New_York",
+            timezone_mapping_version="tz-map-001",
+            identity_evidence_refs=identity_refs,
+            venue_evidence_refs=venue_refs,
+            calendar_evidence_refs=calendar_refs,
+            reason_codes=("INDEPENDENT_EVIDENCE_VERIFIED",),
+        )
+
+
+def test_verified_canonical_mapping_emits_provenance_bound_binding() -> None:
+    record = _canonical_mapping(
+        status=CanonicalCalendarMappingStatus.VERIFIED,
+        canonical_instrument_id="canonical:AAA",
+        venue="XNYS",
+        calendar_id="XNYS-RTH",
+        calendar_version="calendar-test-001",
+        iana_timezone="America/New_York",
+        timezone_mapping_version="tz-map-001",
+        identity_evidence_refs=("identity:instrument-master",),
+        venue_evidence_refs=("venue:exchange-master",),
+        calendar_evidence_refs=("calendar:official-version",),
+        reason_codes=("INDEPENDENT_EVIDENCE_VERIFIED",),
+    )
+
+    binding = record.to_binding()
+
+    assert binding.instrument_key == SOURCE.instrument_key
+    assert binding.canonical_instrument_id == "canonical:AAA"
+    assert binding.calendar_id == "XNYS-RTH"
+    assert binding.provider_schedule_timezone == "UTC"
+    assert binding.provenance_refs == (
+        "calendar:official-version",
+        "identity:instrument-master",
+        "provider:schedule:test",
+        "venue:exchange-master",
+    )
+
+
+def test_verified_mapping_rejects_invalid_iana_timezone() -> None:
+    with pytest.raises(
+        TemporalComparabilityError,
+        match="IANA timezone is invalid",
+    ):
+        _canonical_mapping(
+            status=CanonicalCalendarMappingStatus.VERIFIED,
+            canonical_instrument_id="canonical:AAA",
+            venue="XNYS",
+            calendar_id="XNYS-RTH",
+            calendar_version="calendar-test-001",
+            iana_timezone="Not/A_Real_Zone",
+            timezone_mapping_version="tz-map-001",
+            identity_evidence_refs=("identity:instrument-master",),
+            venue_evidence_refs=("venue:exchange-master",),
+            calendar_evidence_refs=("calendar:official-version",),
+            reason_codes=("INDEPENDENT_EVIDENCE_VERIFIED",),
+        )
+
+
+def test_canonical_mapping_registry_is_deterministic_and_fail_closed() -> None:
+    unresolved = _canonical_mapping()
+    verified = _canonical_mapping(
+        identity=TARGET,
+        provider_symbol="BBB",
+        status=CanonicalCalendarMappingStatus.VERIFIED,
+        canonical_instrument_id="canonical:BBB",
+        venue="XNYS",
+        calendar_id="XNYS-RTH",
+        calendar_version="calendar-test-001",
+        iana_timezone="America/New_York",
+        timezone_mapping_version="tz-map-001",
+        identity_evidence_refs=("identity:bbb",),
+        venue_evidence_refs=("venue:xnys",),
+        calendar_evidence_refs=("calendar:xnys-rth",),
+        reason_codes=("INDEPENDENT_EVIDENCE_VERIFIED",),
+    )
+    registry = CanonicalCalendarMappingRegistry(
+        version="canonical-map-registry-001",
+        records=(unresolved, verified),
+        provenance_refs=("registry:canonical-map:test",),
+    )
+    replica = CanonicalCalendarMappingRegistry(
+        version="canonical-map-registry-001",
+        records=(unresolved, verified),
+        provenance_refs=("registry:canonical-map:test",),
+    )
+
+    assert registry.record_for(SOURCE.instrument_key) == unresolved
+    assert registry.record_for("missing:instrument") is None
+    assert registry.verified_bindings() == (verified.to_binding(),)
+    assert registry.fingerprint() == replica.fingerprint()
+    assert len(registry.fingerprint()) == 64
+
+    with pytest.raises(
+        TemporalComparabilityError,
+        match="canonical instrument order",
+    ):
+        CanonicalCalendarMappingRegistry(
+            version="canonical-map-registry-001",
+            records=(verified, unresolved),
+            provenance_refs=("registry:canonical-map:test",),
+        )
+
+
+def test_canonical_mapping_provider_identity_is_multi_provider_safe() -> None:
+    other_provider = ProviderInstrumentIdentity(
+        instrument_key="OTHER:AAA:1",
+        provider="OTHER",
+        provider_symbol_id=1,
+    )
+    first = _canonical_mapping()
+    second = _canonical_mapping(
+        identity=other_provider,
+        provider_symbol="AAA",
+    )
+    records = tuple(
+        sorted(
+            (first, second),
+            key=lambda item: item.instrument_key,
+        )
+    )
+
+    registry = CanonicalCalendarMappingRegistry(
+        version="canonical-map-registry-001",
+        records=records,
+        provenance_refs=("registry:canonical-map:test",),
+    )
+
+    assert len(registry.records) == 2
 
 
 def test_unknown_calendar_is_explicit_insufficient_input() -> None:
