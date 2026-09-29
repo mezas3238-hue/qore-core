@@ -30,6 +30,7 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
     CapitalizerSession,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_session_context_v2 import (
+    CapitalizerSourceSessionAssessment,
     CapitalizerSourceSessionResolution,
     assess_source_session_context,
 )
@@ -150,7 +151,10 @@ def _session_assessment(
     *,
     session: CapitalizerSession,
     decision_at: datetime,
-):
+) -> tuple[
+    CapitalizerSourceSessionAssessment,
+    adapter.CapitalizerHistoricalAsianOpenReferenceEvidence | None,
+]:
     reference = None
     if session is CapitalizerSession.ASIA:
         reference = adapter.resolve_historical_asian_open_reference(decision_at)
