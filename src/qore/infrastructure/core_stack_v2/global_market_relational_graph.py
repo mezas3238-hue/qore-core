@@ -163,8 +163,12 @@ class GlobalMarketRelationEdge:
             raise ValueError("relation endpoints must be explicit")
         if self.source_instrument_key == self.target_instrument_key:
             raise ValueError("market relation cannot self-reference")
-        for value in (self.as_of, self.evidence_cutoff_at, self.last_transition_at):
-            if value.tzinfo is None or value.utcoffset() is None:
+        for timestamp in (
+            self.as_of,
+            self.evidence_cutoff_at,
+            self.last_transition_at,
+        ):
+            if timestamp.tzinfo is None or timestamp.utcoffset() is None:
                 raise ValueError("relation timestamps must be timezone-aware")
         if self.evidence_cutoff_at > self.as_of:
             raise ValueError("future relation evidence is forbidden")
@@ -180,8 +184,8 @@ class GlobalMarketRelationEdge:
             "current_validity_bps",
             "timestamp_alignment_bps",
         ):
-            value = int(getattr(self, name))
-            if not 0 <= value <= 10_000:
+            metric_value = int(getattr(self, name))
+            if not 0 <= metric_value <= 10_000:
                 raise ValueError(f"{name} must be within 0..10000")
         if type(self.market_hours_comparable) is not bool:
             raise ValueError("market_hours_comparable must be bool")
