@@ -270,6 +270,7 @@ class Genc7PreservationProposalEvidence:
     amount_usd: Decimal
     evidence_sha256: str
     rationale_code: str
+    evaluation_horizon_minutes: int
     calibrated: bool
     capital_eligible: bool
     future_outcome_present: bool = False
@@ -301,6 +302,14 @@ class Genc7PreservationProposalEvidence:
                 "GEN-C7 proposal action/source bucket mismatch"
             )
         _positive(self.amount_usd, "proposal amount_usd")
+        if (
+            not isinstance(self.evaluation_horizon_minutes, int)
+            or isinstance(self.evaluation_horizon_minutes, bool)
+            or self.evaluation_horizon_minutes <= 0
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C7 proposal evaluation horizon must be positive int"
+            )
         _sha(self.evidence_sha256, "proposal evidence_sha256")
         for name in (
             "calibrated",
@@ -348,6 +357,7 @@ class Genc7ProfitPreservationShadowDecision:
     account_ref: str
     state_evidence_sha256: str
     proposal_evidence_sha256: str
+    evaluation_horizon_minutes: int
     control_action: Genc7Action
     control_amount_usd: Decimal
     treatment_action: Genc7Action
@@ -391,6 +401,14 @@ class Genc7ProfitPreservationShadowDecision:
             )
         _sha(self.state_evidence_sha256, "state_evidence_sha256")
         _sha(self.proposal_evidence_sha256, "proposal_evidence_sha256")
+        if (
+            not isinstance(self.evaluation_horizon_minutes, int)
+            or isinstance(self.evaluation_horizon_minutes, bool)
+            or self.evaluation_horizon_minutes <= 0
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C7 decision evaluation horizon must be positive int"
+            )
         for name in (
             "control_amount_usd",
             "treatment_amount_usd",
@@ -483,6 +501,9 @@ def genc7_policy_sha256() -> str:
             ),
         },
         "amount_rule": "exact preregistered proposal amount; never resized",
+        "outcome_window_rule": (
+            "proposal carries positive pre-outcome evaluation_horizon_minutes"
+        ),
         "floating_pnl_capital": False,
         "house_money_bias": False,
         "protected_floor_can_decrease": False,
@@ -562,6 +583,7 @@ def evaluate_genc7_profit_preservation_shadow(
         account_ref=state.account_identity.account_ref,
         state_evidence_sha256=state.fingerprint(),
         proposal_evidence_sha256=proposal.fingerprint(),
+        evaluation_horizon_minutes=proposal.evaluation_horizon_minutes,
         control_action=Genc7Action.HOLD_CURRENT_CAPITAL_STATE,
         control_amount_usd=Decimal("0"),
         treatment_action=treatment_action,
