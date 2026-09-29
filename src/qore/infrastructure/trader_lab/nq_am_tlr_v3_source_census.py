@@ -360,8 +360,15 @@ def census(
                     reject_2sd = all(
                         bar.close > extension_2 for bar in through_macro
                     )
+                ifvg_context = _bar_window(
+                    evidence.bars,
+                    opened,
+                    start=first_touch.opened_at
+                    - timedelta(minutes=v1.FVG_LOOKBACK_MINUTES),
+                    end=macro_close,
+                )
                 ifvg = _ifvg_entry_window(
-                    rth_to_macro,
+                    ifvg_context,
                     sweep_at=first_touch.opened_at,
                     deadline=macro_close,
                 )
