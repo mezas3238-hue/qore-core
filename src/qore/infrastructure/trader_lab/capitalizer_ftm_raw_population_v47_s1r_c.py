@@ -211,16 +211,13 @@ def first_structural_m1_cisd(
     return None
 
 
-def classify_raw_sweep(
+def _classify_raw_sweep_with_context(
     bars: tuple[CapitalizerM1Bar, ...],
     *,
     sweep: FTMRawSweep,
+    context: binders.S0HTFContext | None,
 ) -> FTMRawClassification:
     expected, continuation = _direction_pair(sweep.taken_side)
-    context = binders.bind_latest_h1_context(
-        bars,
-        decision_at=sweep.sweep_at,
-    )
     if context is None:
         return FTMRawClassification.HTF_CONTEXT_UNRESOLVED
     if (
@@ -255,6 +252,22 @@ def classify_raw_sweep(
     if reversal_at is not None:
         return FTMRawClassification.EXPECTED_REVERSAL_CISD_FIRST
     return FTMRawClassification.CONTINUATION_CISD_FIRST_RAW_SUPPORT
+
+
+def classify_raw_sweep(
+    bars: tuple[CapitalizerM1Bar, ...],
+    *,
+    sweep: FTMRawSweep,
+) -> FTMRawClassification:
+    context = binders.bind_latest_h1_context(
+        bars,
+        decision_at=sweep.sweep_at,
+    )
+    return _classify_raw_sweep_with_context(
+        bars,
+        sweep=sweep,
+        context=context,
+    )
 
 
 def _h1_context_rows(
@@ -399,8 +412,19 @@ def audit_period_market(
             operating_day=day,
         )
         raw_count += len(sweeps)
+        context_by_hour: dict[datetime, binders.S0HTFContext | None] = {}
         for sweep in sweeps:
-            classification = classify_raw_sweep(local, sweep=sweep)
+            hour_open = sweep.sweep_at.replace(minute=0, second=0, microsecond=0)
+            if hour_open not in context_by_hour:
+                context_by_hour[hour_open] = binders.bind_latest_h1_context(
+                    local,
+                    decision_at=sweep.sweep_at,
+                )
+            classification = _classify_raw_sweep_with_context(
+                local,
+                sweep=sweep,
+                context=context_by_hour[hour_open],
+            )
             counts[classification.value] += 1
 
     return FTMRawPeriodMarketReport(
