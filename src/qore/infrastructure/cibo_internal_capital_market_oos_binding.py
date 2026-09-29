@@ -388,6 +388,16 @@ def bind_genc6_to_causal_outcomes(
             if signal not in source_decision.signal_fingerprints:
                 _add_failure(failures, f"SOURCE_SIGNAL_BINDING_DRIFT:{key}")
                 continue
+            if source_decision.decision_at != c4.decision_at:
+                _add_failure(failures, f"SOURCE_DECISION_TIME_DRIFT:{key}")
+                continue
+            if not _source_account_matches(
+                source_decision.canonical_payload_json,
+                provider_key=c4.provider_key,
+                account_ref=c4.account_ref,
+            ):
+                _add_failure(failures, f"SOURCE_ACCOUNT_BINDING_DRIFT:{key}")
+                continue
             source_decision_bound += 1
 
             source_policy = phase20_policy_book.decision_for_evidence(
@@ -516,6 +526,21 @@ def _row(
         release_timing_bound=outcome.capital_minutes is not None,
         hypothetical_genc6_pnl_computed=False,
         economic_utility_claimed=False,
+    )
+
+
+def _source_account_matches(
+    canonical_payload_json: str,
+    *,
+    provider_key: str,
+    account_ref: str,
+) -> bool:
+    payload = _json_object(canonical_payload_json, "source decision")
+    account = payload.get("account_identity")
+    return (
+        isinstance(account, dict)
+        and account.get("provider_key") == provider_key
+        and account.get("account_ref") == account_ref
     )
 
 
