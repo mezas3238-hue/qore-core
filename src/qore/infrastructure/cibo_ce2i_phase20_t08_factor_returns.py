@@ -198,6 +198,7 @@ class T08FactorReturnObservation:
     start_market_at: datetime
     end_market_at: datetime
     known_at: datetime
+    collection_basis: T08MarketCollectionBasis
     factor_returns: tuple[T08FactorReturn, ...]
     source_evidence_refs: tuple[str, ...]
 
@@ -220,6 +221,13 @@ class T08FactorReturnObservation:
         if self.known_at < self.end_market_at:
             raise CiboCapitalManagementError(
                 "T08 factor-return evidence cannot be known before interval end"
+            )
+        if (
+            self.collection_basis
+            is not T08MarketCollectionBasis.FULL_FROZEN_UNIVERSE
+        ):
+            raise CiboCapitalManagementError(
+                "T08 factor returns require full-universe collection basis"
             )
         factor_ids = tuple(item.factor_id for item in self.factor_returns)
         if factor_ids != FROZEN_T08_FACTOR_IDS:
@@ -406,6 +414,7 @@ def reconstruct_t08_factor_returns(
         start_market_at=start.market_at,
         end_market_at=end.market_at,
         known_at=end.observed_at,
+        collection_basis=T08MarketCollectionBasis.FULL_FROZEN_UNIVERSE,
         factor_returns=tuple(
             T08FactorReturn(
                 factor_id=factor_id,
