@@ -162,9 +162,9 @@ def normalize_v14_peer_snapshot(
                 window.bid_path_variation + window.ask_path_variation,
             )
 
-    if tuple(row) != V14_BASE_FEATURES:
-        raise ValueError("V14 normalized M3 feature order drift")
-    return row
+    if set(row) != set(V14_BASE_FEATURES):
+        raise ValueError("V14 normalized M3 feature membership drift")
+    return {field: row[field] for field in V14_BASE_FEATURES}
 
 
 def v14_representation_contract_payload(
