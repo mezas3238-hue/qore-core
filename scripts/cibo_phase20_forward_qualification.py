@@ -400,6 +400,9 @@ def main() -> None:
     from qore.infrastructure.cibo_ce2i_phase20_t09_t18_scarcity_readiness import (
         assess_phase20_t09_t18_scarcity_readiness,
     )
+    from qore.infrastructure.cibo_ce2i_phase20_t09_t18_scarcity_utility import (
+        assess_phase20_t09_t18_scarcity_utility,
+    )
     from qore.infrastructure.cibo_ce2i_phase20_t12_regime_population import (
         assess_phase20_t12_regime_population,
     )
@@ -414,6 +417,12 @@ def main() -> None:
         assess_phase20_t09_t18_scarcity_readiness(
             evidence_book=evidence,
             policy_book=policy,
+        )
+    )
+    t09_t18_scarcity_utility = (
+        assess_phase20_t09_t18_scarcity_utility(
+            qualification_rows=report.rows,
+            scarcity_readiness=t09_t18_scarcity_readiness,
         )
     )
     t12_regime_population = assess_phase20_t12_regime_population(evidence)
@@ -466,6 +475,7 @@ def main() -> None:
         qualification_readiness=report.readiness,
         t08_oos_ablation=t08_oos_ablation,
         t09_t18_scarcity_readiness=t09_t18_scarcity_readiness,
+        t09_t18_scarcity_utility=t09_t18_scarcity_utility,
         t12_regime_population=t12_regime_population,
         t13_reserve_population=t13_reserve_population,
         t13_oos_readiness=t13_oos_readiness,
@@ -545,12 +555,63 @@ def main() -> None:
             "fresh_oos_utility_demonstrated": (
                 t09_t18_scarcity_readiness.fresh_oos_utility_demonstrated
             ),
+            "t09_scarce_decision_sha256s": list(
+                t09_t18_scarcity_readiness.t09_scarce_decision_sha256s
+            ),
+            "t18_cross_trader_scarce_decision_sha256s": list(
+                t09_t18_scarcity_readiness
+                .t18_cross_trader_scarce_decision_sha256s
+            ),
             "t09_blockers": list(
                 t09_t18_scarcity_readiness.t09_blockers
             ),
             "t18_blockers": list(
                 t09_t18_scarcity_readiness.t18_blockers
             ),
+        },
+        "t09_t18_scarcity_utility": {
+            "contract_id": t09_t18_scarcity_utility.contract_id,
+            "qualification_plan_sha256": (
+                t09_t18_scarcity_utility.qualification_plan_sha256
+            ),
+            "baseline_policy_id": t09_t18_scarcity_utility.baseline_policy_id,
+            "outcome_refit_performed": (
+                t09_t18_scarcity_utility.outcome_refit_performed
+            ),
+            "t09": {
+                "population_ready": t09_t18_scarcity_utility.t09.population_ready,
+                "decision_epochs": t09_t18_scarcity_utility.t09.decision_epochs,
+                "policy_net_delta_usd": format(
+                    t09_t18_scarcity_utility.t09.policy_net_delta_usd,
+                    "f",
+                ),
+                "baseline_net_delta_usd": format(
+                    t09_t18_scarcity_utility.t09.baseline_net_delta_usd,
+                    "f",
+                ),
+                "fresh_oos_utility_demonstrated": (
+                    t09_t18_scarcity_utility
+                    .t09.fresh_oos_utility_demonstrated
+                ),
+                "blockers": list(t09_t18_scarcity_utility.t09.blockers),
+            },
+            "t18": {
+                "population_ready": t09_t18_scarcity_utility.t18.population_ready,
+                "decision_epochs": t09_t18_scarcity_utility.t18.decision_epochs,
+                "policy_net_delta_usd": format(
+                    t09_t18_scarcity_utility.t18.policy_net_delta_usd,
+                    "f",
+                ),
+                "baseline_net_delta_usd": format(
+                    t09_t18_scarcity_utility.t18.baseline_net_delta_usd,
+                    "f",
+                ),
+                "fresh_oos_utility_demonstrated": (
+                    t09_t18_scarcity_utility
+                    .t18.fresh_oos_utility_demonstrated
+                ),
+                "blockers": list(t09_t18_scarcity_utility.t18.blockers),
+            },
         },
         "t12_forward_regime_population": {
             "usable_forward_epochs": (
