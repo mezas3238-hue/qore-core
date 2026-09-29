@@ -8,8 +8,10 @@ on:
       - '.github/workflows/qore-capitalizer-native-source-fact-coverage-v46.yml'
       - 'src/qore/infrastructure/trader_lab/capitalizer_native_source_faithful_fact_coverage_v46.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_native_source_fact_remediation_v46.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_canonical_historical_replay_adapter_v46.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_native_source_faithful_fact_coverage_v46.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_native_source_fact_remediation_v46.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_canonical_historical_replay_adapter_v46.py'
   workflow_dispatch:
 
 permissions:
@@ -34,8 +36,11 @@ jobs:
           ruff check \
             src/qore/infrastructure/trader_lab/capitalizer_native_source_faithful_fact_coverage_v46.py \
             src/qore/infrastructure/trader_lab/capitalizer_native_source_fact_remediation_v46.py \
+            src/qore/infrastructure/trader_lab/capitalizer_canonical_historical_replay_adapter_v46.py \
+            src/qore/infrastructure/trader_lab/capitalizer_canonical_historical_replay_adapter_v46.py \
             tests/infrastructure/trader_lab/test_capitalizer_native_source_faithful_fact_coverage_v46.py \
-            tests/infrastructure/trader_lab/test_capitalizer_native_source_fact_remediation_v46.py
+            tests/infrastructure/trader_lab/test_capitalizer_native_source_fact_remediation_v46.py \
+            tests/infrastructure/trader_lab/test_capitalizer_canonical_historical_replay_adapter_v46.py
       - name: Mypy
         run: |
           mypy \
@@ -64,6 +69,8 @@ jobs:
           )
           assert report["predeclaration_comment_id"] == 5883088393
           assert report["r1_predeclaration_comment_id"] == 5883167207
+          assert report["r2_predeclaration_comment_id"] == 5883247470
+          assert report["canonical_historical_replay_adapter_status"] == "DETECTOR_READY"
           assert report["mandatory_fact_count"] == 26
           assert len(report["facts"]) == 26
           assert report["phase_b_executed"] is False
