@@ -177,8 +177,17 @@ jobs:
           assert mapping["unresolved_count"] == 177
           assert mapping["automatic_identity_inference"] is False
           assert mapping["provider_schedule_is_not_canonical_identity_evidence"] is True
+          assert mapping["noncentralized_markets_do_not_require_single_venue"] is True
           assert mapping["provider_evidence_worklist_is_not_canonical_mapping"] is True
           assert mapping["provider_evidence_worklist_count"] == 177
+          assert all(
+              row["venue_evidence_rule"] == "REQUIRED_ONLY_FOR_CENTRALIZED_VENUE"
+              for row in mapping["provider_evidence_worklist"]
+          )
+          assert all(
+              row["current_mapping_status"] == "UNRESOLVED"
+              for row in mapping["provider_evidence_worklist"]
+          )
           assert len(mapping["provider_evidence_worklist"]) == 177
           assert sum(mapping["provider_evidence_worklist_asset_class_counts"].values()) == 177
           assert sum(mapping["provider_evidence_worklist_schedule_timezone_counts"].values()) == 177
@@ -265,6 +274,7 @@ jobs:
               "provider_evidence_worklist_fingerprint":mapping["provider_evidence_worklist_fingerprint_sha256"],
               "provider_evidence_worklist_asset_class_counts":mapping["provider_evidence_worklist_asset_class_counts"],
               "provider_evidence_worklist_schedule_timezone_counts":mapping["provider_evidence_worklist_schedule_timezone_counts"],
+              "noncentralized_markets_do_not_require_single_venue":mapping["noncentralized_markets_do_not_require_single_venue"],
               "cadence_policy_registry_architecture_status":matrix["cadence_policy_registry_architecture_status"],
               "liquidity_policy_architecture_status":matrix["liquidity_policy_architecture_status"],
               "temporal_skew_policy_registry_architecture_status":matrix["temporal_skew_policy_registry_architecture_status"],
@@ -334,6 +344,7 @@ jobs:
               f"- canonical mapping fingerprint: `{mapping['canonical_mapping_registry_fingerprint_sha256']}`",
               f"- mapping evidence worklist: **{mapping['provider_evidence_worklist_count']} rows** / fingerprint `{mapping['provider_evidence_worklist_fingerprint_sha256']}`",
               f"- mapping worklist asset classes: **{mapping['provider_evidence_worklist_asset_class_counts']}**",
+              "- non-centralized markets require a fake single venue: **False**",
               "- cadence/liquidity/skew/comparability policy architecture: **IMPLEMENTED_NOT_FROZEN**",
               "- canonical calendar mapping complete: **False**",
               "- comparability policy registry: **NOT_FROZEN**",
