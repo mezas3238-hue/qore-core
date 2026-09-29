@@ -28,6 +28,7 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     VersionedPhase20ForwardEvidenceBook,
 )
 from qore.infrastructure.cibo_ce2i_phase20_t08_forward_population import (
+    Phase20ForwardCandidateFacts,
     iter_phase20_forward_candidate_facts,
 )
 from qore.infrastructure.cibo_cma_settlement_store import (
@@ -159,17 +160,17 @@ def assess_phase20_t11_cost_binding(
     facts = iter_phase20_forward_candidate_facts(
         evidence_book=evidence_book,
     )
-    fact_by_key = {}
-    for fact in facts:
+    fact_by_key: dict[tuple[str, str], Phase20ForwardCandidateFacts] = {}
+    for candidate_fact in facts:
         key = (
-            fact.decision_sha256,
-            fact.opportunity.signal_fingerprint,
+            candidate_fact.decision_sha256,
+            candidate_fact.opportunity.signal_fingerprint,
         )
         if key in fact_by_key:
             raise CiboCapitalManagementError(
                 "Phase20 T11 candidate/provider fact is duplicated"
             )
-        fact_by_key[key] = fact
+        fact_by_key[key] = candidate_fact
 
     execution_instances = 0
     provider_bound = 0
@@ -188,17 +189,17 @@ def assess_phase20_t11_cost_binding(
             execution.decision_evidence_sha256,
             execution.signal_fingerprint,
         )
-        fact = fact_by_key.get(key)
-        if fact is None:
+        bound_fact = fact_by_key.get(key)
+        if bound_fact is None:
             unbound += 1
             continue
-        if fact.opportunity.qore_symbol != execution.qore_symbol:
+        if bound_fact.opportunity.qore_symbol != execution.qore_symbol:
             raise CiboCapitalManagementError(
                 "Phase20 T11 execution/provider QORE symbol mismatch"
             )
         normalized = normalize_provider_economics(
-            opportunity=fact.opportunity,
-            observation=fact.provider_observation,
+            opportunity=bound_fact.opportunity,
+            observation=bound_fact.provider_observation,
         )
         quoted_spreads.append(
             normalized.spread_cost_per_volume_usd
