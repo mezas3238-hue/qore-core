@@ -88,6 +88,7 @@ A treatment proposal is eligible only when:
 - proposal is calibrated;
 - proposal is explicitly capital-eligible;
 - proposal amount is finite positive;
+- proposal carries a positive evaluation horizon frozen pre-outcome;
 - amount is available in the declared source bucket;
 - no protected-floor decrease is implied;
 - no Risk/Execution authority is embedded.
@@ -114,6 +115,7 @@ For every decision seal:
 - policy id / SHA / freeze timestamp;
 - state SHA;
 - proposal SHA;
+- preregistered evaluation horizon;
 - control action / amount;
 - treatment action / amount;
 - blocker codes;
