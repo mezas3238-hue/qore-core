@@ -28,7 +28,13 @@ from qore.infrastructure.trader_lab import (
     capitalizer_canonical_historical_replay_adapter_v46 as v46_adapter,
 )
 from qore.infrastructure.trader_lab import (
+    capitalizer_canonical_source_context_binders_v47_s0 as context_binders,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 as v3_source,
+)
+from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
+    CapitalizerM1Bar,
 )
 from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
 from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
@@ -36,6 +42,9 @@ from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
     CapitalizerSide,
+)
+from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
+    CapitalizerSourceDirection,
 )
 from qore.kernel.result import Failure
 
@@ -117,7 +126,7 @@ def resolve_s0_armed_levels(
 
 
 def bind_ict_source_events(
-    bars: tuple[object, ...],
+    bars: tuple[CapitalizerM1Bar, ...],
     *,
     session: CapitalizerSession,
     operating_day: date,
@@ -128,15 +137,8 @@ def bind_ict_source_events(
     are deliberately not called.
     """
 
-    typed = tuple(
-        row
-        for row in bars
-        if isinstance(row, v3_source.CapitalizerM1Bar)
-    )
-    if len(typed) != len(bars):
-        raise TypeError("S0 ICT arming requires CapitalizerM1Bar rows")
-    ordered = tuple(sorted(typed, key=lambda row: row.opened_at))
-    if ordered != typed:
+    ordered = tuple(sorted(bars, key=lambda row: row.opened_at))
+    if ordered != bars:
         raise ValueError("S0 ICT arming requires chronological M1")
     if not ordered:
         return ()
@@ -226,6 +228,104 @@ def bind_ict_source_events(
                 item.source_event_at,
                 item.side.value,
                 item.primary_armed_level,
+            ),
+        )
+    )
+
+
+def _source_direction(side: CapitalizerSide) -> CapitalizerSourceDirection:
+    return (
+        CapitalizerSourceDirection.BULLISH
+        if side is CapitalizerSide.LONG
+        else CapitalizerSourceDirection.BEARISH
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class S0CanonicalArmedCandidate:
+    event: S0ICTSourceEvent
+    context: context_binders.S0SourceContextBinding
+    m1: context_binders.S0M1StructureBinding
+    armed_at: datetime
+    causal: bool = True
+    economics_read: bool = False
+
+    def __post_init__(self) -> None:
+        armed = _aware(self.armed_at)
+        if armed != _aware(self.event.source_event_at):
+            raise ValueError("S0 canonical candidate arm timestamp drift")
+        direction = _source_direction(self.event.side)
+        if self.context.direction is not direction:
+            raise ValueError("S0 canonical candidate context direction drift")
+        if self.m1.m1_cisd.direction is not direction:
+            raise ValueError("S0 canonical candidate M1 direction drift")
+        if self.m1.protected_swing.direction is not direction:
+            raise ValueError("S0 canonical candidate protected swing drift")
+        if self.context.m15.confirmed_at > armed or self.m1.confirmed_at > armed:
+            raise ValueError("S0 canonical candidate used future confirmation")
+        stop = self.m1.protected_swing.swing_price
+        entry = self.event.primary_armed_level
+        valid_stop = (
+            stop < entry
+            if self.event.side is CapitalizerSide.LONG
+            else stop > entry
+        )
+        if not valid_stop:
+            raise ValueError("S0 canonical candidate protected stop geometry invalid")
+        if not self.causal or self.economics_read:
+            raise ValueError("S0 canonical candidate governance violated")
+
+
+def bind_canonical_armed_candidates(
+    bars: tuple[CapitalizerM1Bar, ...],
+    *,
+    session: CapitalizerSession,
+    operating_day: date,
+) -> tuple[S0CanonicalArmedCandidate, ...]:
+    """Compose the frozen pre-fill source path without reading outcomes."""
+
+    result: list[S0CanonicalArmedCandidate] = []
+    for event in bind_ict_source_events(
+        bars,
+        session=session,
+        operating_day=operating_day,
+    ):
+        direction = _source_direction(event.side)
+        context = context_binders.bind_canonical_source_context(
+            bars,
+            direction=direction,
+            entry_price=event.primary_armed_level,
+            decision_at=event.source_event_at,
+        )
+        if context is None:
+            continue
+        m1 = context_binders.bind_m1_source_structure(
+            bars,
+            direction=direction,
+            higher_timeframe_closure=context.htf.closure,
+            zone=event.zone,
+            after=context.m15.confirmed_at,
+            before=event.source_event_at,
+        )
+        if m1 is None:
+            continue
+        try:
+            candidate = S0CanonicalArmedCandidate(
+                event=event,
+                context=context,
+                m1=m1,
+                armed_at=event.source_event_at,
+            )
+        except ValueError:
+            continue
+        result.append(candidate)
+    return tuple(
+        sorted(
+            result,
+            key=lambda item: (
+                item.armed_at,
+                item.event.side.value,
+                item.event.primary_armed_level,
             ),
         )
     )
@@ -536,15 +636,20 @@ def build_readiness_report() -> dict[str, object]:
             status=S0BinderStatus.READY,
             hard_blocker=False,
             evidence=(
-                "V47-S0 binds the protected swing from the same causal M15 "
-                "opposing series that confirms CISD."
+                "V47-S0 extracts the canonical protected swing from the bound "
+                "M1 CISD causal series; the M15 structural support is not used "
+                "as the canonical stop."
             ),
         ),
         S0Binder(
             key="M1_MSS_FVG_OB_BINDING",
-            status=S0BinderStatus.COMPOSER_READY_REQUIRES_BINDING,
-            hard_blocker=True,
-            evidence="V46-R1 primitives exist; one assembly path remains to bind.",
+            status=S0BinderStatus.READY,
+            hard_blocker=False,
+            evidence=(
+                "V47-S0 binds M1 CISD, M1 MSS, displacement-linked FVG, the "
+                "source OB causal series and its M1 protected swing into the "
+                "same pre-fill candidate path."
+            ),
         ),
         S0Binder(
             key="STRUCTURAL_TARGET_CANDIDATE_BINDING",
@@ -590,6 +695,7 @@ def build_readiness_report() -> dict[str, object]:
         "blocking_binder_count": len(blockers),
         "blocking_binders": blockers,
         "canonical_source_context_binding_ready": True,
+        "canonical_prefill_candidate_path_ready": True,
         "exact_provider_tick_fill_ready": True,
         "legacy_m1_open_backdating_allowed": False,
         "v41_30s_threshold_reused": False,
