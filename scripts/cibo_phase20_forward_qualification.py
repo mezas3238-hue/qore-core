@@ -385,15 +385,14 @@ def main() -> None:
             t08_oos_epochs
         )
 
+    from qore.infrastructure.cibo_ce2i_phase20_t12_regime_population import (
+        assess_phase20_t12_regime_population,
+    )
     from qore.infrastructure.cibo_ce2i_phase20_t13_reserve_population import (
         assess_phase20_t13_reserve_population,
     )
     from qore.infrastructure.cibo_ce2i_phase20_t13_shadow_policy import (
         assess_phase20_t13_shadow_policy,
-    )
-
-    from qore.infrastructure.cibo_ce2i_phase20_t12_regime_population import (
-        assess_phase20_t12_regime_population,
     )
 
     t12_regime_population = assess_phase20_t12_regime_population(evidence)
