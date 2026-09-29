@@ -14,10 +14,12 @@ import json
 from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from decimal import Decimal
 from enum import StrEnum
 from pathlib import Path
 
+from qore.infrastructure.trader_lab import (
+    capitalizer_canonical_source_candidate_assembly_v47_s0 as s0,
+)
 from qore.infrastructure.trader_lab import (
     capitalizer_canonical_source_context_binders_v47_s0 as binders,
 )
@@ -233,7 +235,7 @@ def _scan_m15(
 def classify_m15_source_event(
     bars: tuple[CapitalizerM1Bar, ...],
     *,
-    event: s1.s0.S0ICTSourceEvent,
+    event: s0.S0ICTSourceEvent,
 ) -> M15FailureClass:
     direction = _direction(event.side)
     htf = binders.bind_latest_h1_context(
