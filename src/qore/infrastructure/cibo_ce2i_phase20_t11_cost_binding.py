@@ -161,6 +161,7 @@ def assess_phase20_t11_cost_binding(
         evidence_book=evidence_book,
     )
     fact_by_key: dict[tuple[str, str], Phase20ForwardCandidateFacts] = {}
+    fresh_decision_shas = {fact.decision_sha256 for fact in facts}
     for candidate_fact in facts:
         key = (
             candidate_fact.decision_sha256,
@@ -182,6 +183,8 @@ def assess_phase20_t11_cost_binding(
     commissions: list[Decimal] = []
 
     for execution in executed_risk_book.evidences:
+        if execution.decision_evidence_sha256 not in fresh_decision_shas:
+            continue
         if not execution.fill_reconciled or not execution.mutation_outcome_known:
             continue
         execution_instances += 1
