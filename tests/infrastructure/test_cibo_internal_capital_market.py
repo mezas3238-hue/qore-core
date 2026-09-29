@@ -841,7 +841,10 @@ def _oos_books(
                 code_sha="a" * 40,
                 parameter_sha256="sha256:" + "b" * 64,
                 signal_fingerprints=(candidate.signal_fingerprint,),
-                canonical_payload_json="{}",
+                canonical_payload_json=(
+                    '{"account_identity":{"account_ref":"genc6-demo",'
+                    '"provider_key":"ctrader"}}'
+                ),
             )
         )
         phase20_policies.append(
