@@ -111,6 +111,8 @@ class Phase20T09T18ScarcityReadiness:
     fresh_oos_utility_demonstrated: bool
     t09_blockers: tuple[str, ...]
     t18_blockers: tuple[str, ...]
+    t09_scarce_decision_sha256s: tuple[str, ...] = ()
+    t18_cross_trader_scarce_decision_sha256s: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         for name in (
@@ -155,6 +157,30 @@ class Phase20T09T18ScarcityReadiness:
             raise CiboCapitalManagementError(
                 "Phase20 scarcity represented lineages must be unique"
             )
+        for values, expected_count, label in (
+            (
+                self.t09_scarce_decision_sha256s,
+                self.scarce_competition_epochs,
+                "T09 scarcity decision SHAs",
+            ),
+            (
+                self.t18_cross_trader_scarce_decision_sha256s,
+                self.cross_trader_scarce_epochs,
+                "T18 cross-Trader scarcity decision SHAs",
+            ),
+        ):
+            if values:
+                if (
+                    len(values) != expected_count
+                    or len(values) != len(set(values))
+                    or any(
+                        not item.startswith("sha256:") or len(item) != 71
+                        for item in values
+                    )
+                ):
+                    raise CiboCapitalManagementError(
+                        f"Phase20 scarcity {label} binding drift"
+                    )
         if self.fresh_oos_utility_demonstrated:
             raise CiboCapitalManagementError(
                 "Phase20 scarcity readiness cannot demonstrate utility"
@@ -383,6 +409,12 @@ def assess_phase20_t09_t18_scarcity_readiness(
         fresh_oos_utility_demonstrated=False,
         t09_blockers=tuple(t09_blockers),
         t18_blockers=tuple(t18_blockers),
+        t09_scarce_decision_sha256s=tuple(
+            item.decision.evidence_sha256 for item in scarce_rows
+        ),
+        t18_cross_trader_scarce_decision_sha256s=tuple(
+            item.decision.evidence_sha256 for item in cross_rows
+        ),
     )
 
 
