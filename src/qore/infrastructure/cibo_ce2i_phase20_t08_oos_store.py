@@ -580,8 +580,12 @@ def _decision_from_json(value: str) -> T08ShadowDecisionSeal:
             shadow_sealed_at=datetime.fromisoformat(
                 str(payload["shadow_sealed_at"])
             ),
-            baseline_selected_count=int(payload["baseline_selected_count"]),
-            treatment_selected_count=int(payload["treatment_selected_count"]),
+            baseline_selected_count=int(
+                str(payload["baseline_selected_count"])
+            ),
+            treatment_selected_count=int(
+                str(payload["treatment_selected_count"])
+            ),
             treatment_gross_stop_risk_usd=_decimal(
                 payload["treatment_gross_stop_risk_usd"]
             ),
