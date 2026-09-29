@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from datetime import datetime
 from pathlib import Path
@@ -199,6 +200,100 @@ def run(
             )
         ),
     )
+    asset_classes = {
+        int(item["asset_class_id"]): cast(str, item["name"])
+        for item in cast(
+            list[dict[str, object]],
+            provider_payload.get("provider_asset_classes", []),
+        )
+    }
+    categories = {
+        int(item["symbol_category_id"]): cast(
+            dict[str, object],
+            item,
+        )
+        for item in cast(
+            list[dict[str, object]],
+            provider_payload.get("provider_symbol_categories", []),
+        )
+    }
+    worklist_rows: list[dict[str, object]] = []
+    asset_class_counts: dict[str, int] = {}
+    schedule_timezone_counts: dict[str, int] = {}
+    for record in mapping_registry.records:
+        provider_row = by_key[record.instrument_key]
+        category_id = provider_row.get("provider_symbol_category_id")
+        if type(category_id) is not int or category_id not in categories:
+            raise Gen2ObservabilityMatrixError(
+                "provider mapping worklist category evidence missing"
+            )
+        category = categories[category_id]
+        asset_class_id = category.get("asset_class_id")
+        if type(asset_class_id) is not int or asset_class_id not in asset_classes:
+            raise Gen2ObservabilityMatrixError(
+                "provider mapping worklist asset-class evidence missing"
+            )
+        asset_class_name = asset_classes[asset_class_id]
+        schedule_timezone = provider_row.get("schedule_timezone")
+        schedule_timezone_key = (
+            schedule_timezone
+            if isinstance(schedule_timezone, str) and schedule_timezone
+            else "UNKNOWN"
+        )
+        asset_class_counts[asset_class_name] = (
+            asset_class_counts.get(asset_class_name, 0) + 1
+        )
+        schedule_timezone_counts[schedule_timezone_key] = (
+            schedule_timezone_counts.get(schedule_timezone_key, 0) + 1
+        )
+        worklist_rows.append(
+            {
+                "instrument_key": record.instrument_key,
+                "provider": record.provider,
+                "provider_symbol": record.provider_symbol,
+                "provider_symbol_id": record.provider_symbol_id,
+                "provider_native_symbol_name": provider_row.get(
+                    "provider_native_symbol_name"
+                ),
+                "provider_description": provider_row.get(
+                    "provider_description"
+                ),
+                "provider_base_asset_id": provider_row.get(
+                    "provider_base_asset_id"
+                ),
+                "provider_quote_asset_id": provider_row.get(
+                    "provider_quote_asset_id"
+                ),
+                "provider_symbol_category_id": category_id,
+                "provider_asset_class_id": asset_class_id,
+                "provider_asset_class_name": asset_class_name,
+                "provider_schedule_timezone": schedule_timezone,
+                "current_mapping_status": record.status.value,
+                "required_canonical_evidence": (
+                    "CANONICAL_INSTRUMENT_IDENTITY",
+                    "CANONICAL_MARKET_OR_VENUE",
+                    "CANONICAL_VERSIONED_CALENDAR",
+                ),
+                "provider_metadata_is_supporting_only": True,
+            }
+        )
+    worklist_payload = {
+        "rows": worklist_rows,
+        "asset_class_counts": dict(sorted(asset_class_counts.items())),
+        "schedule_timezone_counts": dict(
+            sorted(schedule_timezone_counts.items())
+        ),
+    }
+    worklist_raw = json.dumps(
+        worklist_payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    )
+    worklist_fingerprint = hashlib.sha256(
+        worklist_raw.encode("utf-8")
+    ).hexdigest()
+
     mapping_report = {
         "identity": CANONICAL_MAPPING_REGISTRY_VERSION,
         "status": "UNRESOLVED_BASELINE_FROZEN",
@@ -212,6 +307,16 @@ def run(
         ),
         "automatic_identity_inference": False,
         "provider_schedule_is_not_canonical_identity_evidence": True,
+        "provider_evidence_worklist_is_not_canonical_mapping": True,
+        "provider_evidence_worklist_count": len(worklist_rows),
+        "provider_evidence_worklist_fingerprint_sha256": worklist_fingerprint,
+        "provider_evidence_worklist_asset_class_counts": dict(
+            sorted(asset_class_counts.items())
+        ),
+        "provider_evidence_worklist_schedule_timezone_counts": dict(
+            sorted(schedule_timezone_counts.items())
+        ),
+        "provider_evidence_worklist": worklist_rows,
         "records": [
             {
                 "instrument_key": item.instrument_key,
