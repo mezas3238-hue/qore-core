@@ -13,6 +13,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
+from qore.infrastructure.trader_lab import (
+    capitalizer_canonical_structural_targets_v47_s0 as structural_targets,
+)
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
 )
@@ -112,6 +115,37 @@ class S0CISDBinding:
             raise ValueError("S0 CISD binding requires causal series")
         if not self.causal:
             raise ValueError("S0 CISD binding cannot be non-causal")
+
+
+@dataclass(frozen=True, slots=True)
+class S0SourceContextBinding:
+    decision_at: datetime
+    direction: CapitalizerSourceDirection
+    htf: S0HTFContext
+    m15: S0CISDBinding
+    structural_target: structural_targets.S0StructuralTargetBinding
+    causal: bool = True
+
+    def __post_init__(self) -> None:
+        decision = _aware(self.decision_at)
+        if self.htf.confirmed_at > decision or self.m15.confirmed_at > decision:
+            raise ValueError("S0 source context cannot use future confirmation")
+        if self.htf.closure.direction is not self.direction:
+            raise ValueError("S0 HTF closure direction drift")
+        if self.htf.daily_bias.direction is not self.direction:
+            raise ValueError("S0 daily bias direction drift")
+        if self.m15.cisd.direction is not self.direction:
+            raise ValueError("S0 M15 CISD direction drift")
+        if self.m15.protected_swing.direction is not self.direction:
+            raise ValueError("S0 protected swing direction drift")
+        resolution = self.structural_target.resolution
+        observation = resolution.observation
+        if not resolution.resolved or observation is None:
+            raise ValueError("S0 source context requires resolved structural target")
+        if observation.direction is not self.direction:
+            raise ValueError("S0 structural target direction drift")
+        if not self.causal:
+            raise ValueError("S0 source context cannot be non-causal")
 
 
 @dataclass(frozen=True, slots=True)
@@ -361,3 +395,59 @@ def bind_first_m15_cisd(
             causal_series=series,
         )
     return None
+
+
+def bind_canonical_source_context(
+    bars: tuple[CapitalizerM1Bar, ...],
+    *,
+    direction: CapitalizerSourceDirection,
+    entry_price: Decimal,
+    decision_at: datetime,
+    source_opposite_boundary: (
+        structural_targets.S0SourceOppositeBoundary | None
+    ) = None,
+) -> S0SourceContextBinding | None:
+    """Compose the causal HTF/M15/stop/target chain used by S0 assembly.
+
+    This binder is deliberately pre-economic. It returns only when every
+    source-context dependency is directionally aligned and known no later than
+    the decision timestamp.
+    """
+
+    decision = _aware(decision_at)
+    htf = bind_latest_h1_context(bars, decision_at=decision)
+    if htf is None:
+        return None
+    if (
+        htf.closure.direction is not direction
+        or htf.daily_bias.direction is not direction
+    ):
+        return None
+
+    m15 = bind_first_m15_cisd(
+        bars,
+        direction=direction,
+        higher_timeframe_closure=htf.closure,
+        after=htf.confirmed_at,
+        before=decision,
+    )
+    if m15 is None:
+        return None
+
+    target = structural_targets.bind_structural_target(
+        bars,
+        direction=direction,
+        entry_price=entry_price,
+        decision_at=decision,
+        source_opposite_boundary=source_opposite_boundary,
+    )
+    if not target.resolution.resolved:
+        return None
+
+    return S0SourceContextBinding(
+        decision_at=decision,
+        direction=direction,
+        htf=htf,
+        m15=m15,
+        structural_target=target,
+    )
