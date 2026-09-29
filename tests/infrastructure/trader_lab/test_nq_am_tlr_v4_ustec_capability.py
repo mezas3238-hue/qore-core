@@ -102,7 +102,7 @@ def test_primary_gate_supports_only_when_all_requirements_pass() -> None:
 
 def test_primary_gate_reports_insufficient_sample_before_economics() -> None:
     metrics = {
-        "trade_count": 12,
+        "trade_count": 6,
         "primary_total_r": "50",
         "primary_pf": "3",
         "primary_max_drawdown_r": "1",
