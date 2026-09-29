@@ -5,21 +5,11 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 
 from qore.infrastructure.ctrader_open_api_client import (
+    CTRADER_METADATA_READ_ONLY_REQUEST_MESSAGES,
     CTraderOpenApiClientError,
     CTraderOpenApiMessageClientBoundary,
 )
 from qore.kernel.result import Failure, Result, Success
-
-_METADATA_READ_ONLY_MESSAGES = frozenset(
-    {
-        "ProtoOAAssetListReq",
-        "ProtoOAAssetClassListReq",
-        "ProtoOASymbolByIdReq",
-        "ProtoOASymbolCategoryListReq",
-        "ProtoOASymbolsListReq",
-    }
-)
-
 
 class CTraderMetadataReadOnlyClientError(CTraderOpenApiClientError):
     """GEN-2 metadata firewall rejected a non-observation operation."""
@@ -52,7 +42,7 @@ class CTraderMetadataReadOnlyMessageClient:
         client_msg_id: str,
         timeout_seconds: float,
     ) -> Result[object, CTraderOpenApiClientError]:
-        if message_name not in _METADATA_READ_ONLY_MESSAGES:
+        if message_name not in CTRADER_METADATA_READ_ONLY_REQUEST_MESSAGES:
             return Failure(
                 CTraderMetadataReadOnlyClientError(
                     "GEN-2 metadata client rejected non-read-only provider message"
