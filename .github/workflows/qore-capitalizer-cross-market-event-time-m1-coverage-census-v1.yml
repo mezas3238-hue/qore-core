@@ -48,138 +48,111 @@ jobs:
           pytest -q --no-cov \
             tests/infrastructure/trader_lab/test_capitalizer_cross_market_event_time_m1_coverage_census_v1.py
 
-  peer_market:
+  census:
     needs: quality
     runs-on: ubuntu-latest
-    timeout-minutes: 90
-    strategy:
-      fail-fast: false
-      max-parallel: 3
-      matrix:
-        peer_symbol: [USDJPY, AUDJPY, AUDUSD, GBPJPY, EURUSD, GBPUSD, XAUUSD, USDCAD, NAS100]
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - run: python -m pip install -e .
-      - name: Download immutable provider-native peer M1
+      - name: Download all immutable provider-native M1 artifacts once
         uses: actions/download-artifact@v4
         with:
-          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.peer_symbol }}-${{ env.SOURCE_M1_SHA }}
-          path: m1-source
+          pattern: qore-capitalizer-cibo-10y-native-m1-*-${{ env.SOURCE_M1_SHA }}
+          path: m1-all
+          merge-multiple: false
           github-token: ${{ github.token }}
           run-id: ${{ env.SOURCE_M1_RUN_ID }}
-      - name: Download reconciled V38 entrant identities
+      - name: Download reconciled V38 entrant identities once
         uses: actions/download-artifact@v4
         with:
           name: ${{ env.SOURCE_V38_SELECTED_ARTIFACT }}
           path: selected-geometry
           github-token: ${{ github.token }}
           run-id: ${{ env.SOURCE_V38_RUN_ID }}
-      - name: Build event-time coverage census
+      - name: Build nine outcome-blind event-time coverage reports
         run: |
-          python -m qore.infrastructure.trader_lab.capitalizer_cross_market_event_time_m1_coverage_census_v1 \
-            market \
-            --peer-symbol "${{ matrix.peer_symbol }}" \
-            --m1-root m1-source \
-            --selected-geometry-root selected-geometry \
-            --output coverage-output
-      - name: Enforce outcome-blind coverage contract
-        env:
-          PEER_SYMBOL: ${{ matrix.peer_symbol }}
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          symbol=os.environ["PEER_SYMBOL"]
-          path=Path(
-              "coverage-output/"
-              f"capitalizer-cross-market-event-time-m1-coverage-"
-              f"{symbol.lower()}-v1.json"
-          )
-          report=json.loads(path.read_text())
-          assert report["identity"] == (
-              "QORE_CAPITALIZER_CROSS_MARKET_EVENT_TIME_M1_COVERAGE_CENSUS_V1"
-          )
-          assert report["peer_symbol"] == symbol
-          assert len(report["periods"]) == 3
-          expected={"development":948,"validation":1034,"reserved":1088}
-          for row in report["periods"]:
-              assert row["entrant_count"] == expected[row["slug"]]
-              assert row["expected_entrants"] == expected[row["slug"]]
-              assert row["future_bar_used"] is False
-              assert row["outcome_used_for_coverage"] is False
-              assert row["exit_used_for_coverage"] is False
-          assert report["thresholds_are_admission_gates"] is False
-          assert report["bar_prices_used_for_coverage_decision"] is False
-          assert report["terminal_outcomes_used_for_coverage_decision"] is False
-          assert report["stop_target_labels_evaluated"] is False
-          assert report["separability_run"] is False
-          assert report["policy_economics_run"] is False
-          assert report["fresh_holdout_opened"] is False
-          assert report["runtime_policy_candidate"] is False
-          assert report["trader_certified"] is False
-          print(json.dumps(report,sort_keys=True))
-          PY
-      - uses: actions/upload-artifact@v4
-        with:
-          name: qore-capitalizer-cross-market-event-time-m1-coverage-${{ matrix.peer_symbol }}-${{ github.sha }}
-          path: coverage-output
-          if-no-files-found: error
-          retention-days: 90
-
-  aggregate:
-    needs: peer_market
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: python -m pip install -e .
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: qore-capitalizer-cross-market-event-time-m1-coverage-*-${{ github.sha }}
-          path: coverage-input
-          merge-multiple: true
+          set -euo pipefail
+          SYMBOLS=(USDJPY AUDJPY AUDUSD GBPJPY EURUSD GBPUSD XAUUSD USDCAD NAS100)
+          for SYMBOL in "${SYMBOLS[@]}"; do
+            ROOT="m1-all/qore-capitalizer-cibo-10y-native-m1-${SYMBOL}-${SOURCE_M1_SHA}"
+            test -d "${ROOT}/RAW_M1_LEDGER"
+            python -m qore.infrastructure.trader_lab.capitalizer_cross_market_event_time_m1_coverage_census_v1 \
+              market \
+              --peer-symbol "${SYMBOL}" \
+              --m1-root "${ROOT}" \
+              --selected-geometry-root selected-geometry \
+              --output coverage-output
+          done
       - name: Build coverage matrix
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_cross_market_event_time_m1_coverage_census_v1 \
             matrix \
-            --root coverage-input \
+            --root coverage-output \
             --output matrix-output
-      - name: Enforce census-only matrix
+      - name: Enforce census-only contract
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
 
-          path=Path(
-              "matrix-output/"
-              "capitalizer-cross-market-event-time-m1-coverage-matrix-v1.json"
+          expected={"development":948,"validation":1034,"reserved":1088}
+          reports=sorted(
+              Path("coverage-output").glob(
+                  "capitalizer-cross-market-event-time-m1-coverage-*-v1.json"
+              )
           )
-          report=json.loads(path.read_text())
-          assert report["identity"] == (
+          assert len(reports) == 9, len(reports)
+          for path in reports:
+              report=json.loads(path.read_text())
+              assert report["identity"] == (
+                  "QORE_CAPITALIZER_CROSS_MARKET_EVENT_TIME_M1_COVERAGE_CENSUS_V1"
+              )
+              assert len(report["periods"]) == 3
+              for row in report["periods"]:
+                  assert row["entrant_count"] == expected[row["slug"]]
+                  assert row["expected_entrants"] == expected[row["slug"]]
+                  assert row["future_bar_used"] is False
+                  assert row["outcome_used_for_coverage"] is False
+                  assert row["exit_used_for_coverage"] is False
+              assert report["thresholds_are_admission_gates"] is False
+              assert report["bar_prices_used_for_coverage_decision"] is False
+              assert report["terminal_outcomes_used_for_coverage_decision"] is False
+              assert report["stop_target_labels_evaluated"] is False
+              assert report["separability_run"] is False
+              assert report["policy_economics_run"] is False
+              assert report["fresh_holdout_opened"] is False
+              assert report["runtime_policy_candidate"] is False
+              assert report["trader_certified"] is False
+
+          matrix=json.loads(
+              Path(
+                  "matrix-output/"
+                  "capitalizer-cross-market-event-time-m1-coverage-matrix-v1.json"
+              ).read_text()
+          )
+          assert matrix["identity"] == (
               "QORE_CAPITALIZER_CROSS_MARKET_EVENT_TIME_M1_COVERAGE_MATRIX_V1"
           )
-          assert report["peer_market_count"] == 9
-          assert report["period_market_rows"] == 27
-          assert report["descriptive_only"] is True
-          assert report["representation_frozen"] is False
-          assert report["labels_opened_for_this_census"] is False
-          assert report["separability_run"] is False
-          assert report["fresh_holdout_opened"] is False
-          assert report["runtime_policy_candidate"] is False
-          assert report["trader_certified"] is False
-          print(json.dumps(report,sort_keys=True))
+          assert matrix["peer_market_count"] == 9
+          assert matrix["period_market_rows"] == 27
+          assert matrix["descriptive_only"] is True
+          assert matrix["representation_frozen"] is False
+          assert matrix["labels_opened_for_this_census"] is False
+          assert matrix["separability_run"] is False
+          assert matrix["fresh_holdout_opened"] is False
+          assert matrix["runtime_policy_candidate"] is False
+          assert matrix["trader_certified"] is False
+          print(json.dumps(matrix,sort_keys=True))
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: qore-capitalizer-cross-market-event-time-m1-coverage-matrix-${{ github.sha }}
-          path: matrix-output
+          name: qore-capitalizer-cross-market-event-time-m1-coverage-${{ github.sha }}
+          path: |
+            coverage-output
+            matrix-output
           if-no-files-found: error
           retention-days: 90
