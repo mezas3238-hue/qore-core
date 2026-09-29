@@ -41,6 +41,10 @@ from qore.infrastructure.cibo_sequential_compounding_oos_binding import (
     Genc5OutcomeBindingStatus,
     bind_genc5_shadow_to_phase20_outcomes,
 )
+from qore.infrastructure.cibo_sequential_compounding_population import (
+    Genc5PopulationStatus,
+    describe_genc5_fresh_oos_population,
+)
 from qore.infrastructure.cibo_sequential_compounding_shadow_policy import (
     GENC5_SHADOW_POLICY_FROZEN_AT,
     evaluate_genc5_sequential_compounding_shadow,
