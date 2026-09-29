@@ -14,6 +14,8 @@ Research-only: no runtime capital authority.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -398,6 +400,141 @@ class MarginalCapitalUtilityEvidence:
             raise CiboCompoundCapitalError(
                 "GEN-C4 evidence cannot contain outcomes, utility or authority"
             )
+
+
+def marginal_capital_utility_evidence_json(
+    evidence: MarginalCapitalUtilityEvidence,
+) -> str:
+    """Canonical pre-outcome GEN-C4 evidence serialization."""
+
+    if not isinstance(evidence, MarginalCapitalUtilityEvidence):
+        raise CiboCompoundCapitalError(
+            "GEN-C4 canonical serialization requires marginal evidence"
+        )
+    payload = {
+        "evidence_id": evidence.evidence_id,
+        "decision_at": evidence.decision_at.isoformat(),
+        "account_identity": {
+            "provider_key": evidence.account_identity.provider_key,
+            "account_ref": evidence.account_identity.account_ref,
+            "environment": evidence.account_identity.environment.value,
+            "provider_program": evidence.account_identity.provider_program,
+        },
+        "trader_id": evidence.trader_id.value,
+        "signal_fingerprint": evidence.signal_fingerprint,
+        "source_opportunity_decision_sha256": (
+            evidence.source_opportunity_decision_sha256
+        ),
+        "source_baseline_policy_record_sha256": (
+            evidence.source_baseline_policy_record_sha256
+        ),
+        "current_compound_capacity_usd": str(
+            evidence.current_compound_capacity_usd
+        ),
+        "requested_incremental_capital_usd": str(
+            evidence.requested_incremental_capital_usd
+        ),
+        "expected_incremental_return_usd": str(
+            evidence.expected_incremental_return_usd
+        ),
+        "incremental_stop_risk_usd": str(
+            evidence.incremental_stop_risk_usd
+        ),
+        "incremental_margin_usd": str(evidence.incremental_margin_usd),
+        "incremental_execution_cost_usd": str(
+            evidence.incremental_execution_cost_usd
+        ),
+        "incremental_concentration_risk_usd": str(
+            evidence.incremental_concentration_risk_usd
+        ),
+        "incremental_drawdown_risk_proxy_usd": str(
+            evidence.incremental_drawdown_risk_proxy_usd
+        ),
+        "incremental_optionality_consumed_usd": str(
+            evidence.incremental_optionality_consumed_usd
+        ),
+        "expected_capital_minutes": str(evidence.expected_capital_minutes),
+        "epistemic_uncertainty": str(evidence.epistemic_uncertainty),
+        "provider_evidence_sha256": evidence.provider_evidence_sha256,
+        "expectation_evidence_sha256": evidence.expectation_evidence_sha256,
+        "factor_evidence_sha256": evidence.factor_evidence_sha256,
+        "duration_evidence_sha256": evidence.duration_evidence_sha256,
+        "execution_evidence_sha256": evidence.execution_evidence_sha256,
+        "optionality_evidence_sha256": evidence.optionality_evidence_sha256,
+        "shared_snapshot": (
+            None
+            if evidence.shared_snapshot is None
+            else {
+                "snapshot_id": evidence.shared_snapshot.snapshot_id,
+                "decision_at": evidence.shared_snapshot.decision_at.isoformat(),
+                "snapshot_sha256": evidence.shared_snapshot.snapshot_sha256,
+                "facts": [
+                    {
+                        "fact_id": fact.fact_id,
+                        "kind": fact.kind.value,
+                        "normalized_value": str(fact.normalized_value),
+                        "value_semantics": fact.value_semantics,
+                        "observed_at": fact.observed_at.isoformat(),
+                        "valid_until": (
+                            None
+                            if fact.valid_until is None
+                            else fact.valid_until.isoformat()
+                        ),
+                        "producer_identity": fact.producer_identity,
+                        "producer_git_sha": fact.producer_git_sha,
+                        "evidence_sha256": fact.evidence_sha256,
+                        "calibration_artifact_sha256": (
+                            fact.calibration_artifact_sha256
+                        ),
+                        "calibrated": fact.calibrated,
+                        "fresh_oos_validated": fact.fresh_oos_validated,
+                        "temporal_stability_validated": (
+                            fact.temporal_stability_validated
+                        ),
+                        "economic_utility_validated": (
+                            fact.economic_utility_validated
+                        ),
+                        "eligible_for_capital_use": (
+                            fact.eligible_for_capital_use
+                        ),
+                        "read_only": fact.read_only,
+                        "sizing_authority": fact.sizing_authority,
+                        "capital_authority": fact.capital_authority,
+                        "risk_authority": fact.risk_authority,
+                        "execution_authority": fact.execution_authority,
+                    }
+                    for fact in evidence.shared_snapshot.facts
+                ],
+                "read_only": evidence.shared_snapshot.read_only,
+                "sizing_authority": evidence.shared_snapshot.sizing_authority,
+                "capital_authority": evidence.shared_snapshot.capital_authority,
+                "risk_authority": evidence.shared_snapshot.risk_authority,
+                "execution_authority": (
+                    evidence.shared_snapshot.execution_authority
+                ),
+            }
+        ),
+        "shared_fact_ids_used": list(evidence.shared_fact_ids_used),
+        "outcome_present": evidence.outcome_present,
+        "utility_score_computed": evidence.utility_score_computed,
+        "sizing_authority": evidence.sizing_authority,
+        "capital_authority": evidence.capital_authority,
+        "risk_authority": evidence.risk_authority,
+        "execution_authority": evidence.execution_authority,
+    }
+    return json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def marginal_capital_utility_evidence_sha256(
+    evidence: MarginalCapitalUtilityEvidence,
+) -> str:
+    return "sha256:" + hashlib.sha256(
+        marginal_capital_utility_evidence_json(evidence).encode()
+    ).hexdigest()
 
 
 def _sha(value: str | None, name: str) -> None:
