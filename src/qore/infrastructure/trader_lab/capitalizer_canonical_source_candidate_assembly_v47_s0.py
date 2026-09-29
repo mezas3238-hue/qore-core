@@ -43,17 +43,20 @@ from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSessi
 from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
     CapitalizerCognitiveGateDecision,
 )
+from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
+    CapitalizerSide,
+)
+from qore.infrastructure.trader_lab.capitalizer_full_ict_density_scanner_1y_v1 import (
+    _aggregate_h1,
+)
 from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
     CapitalizerCISDObservation,
     CapitalizerFailureToManipulateObservation,
     CapitalizerLiquiditySideTaken,
     assess_failure_to_manipulate,
 )
-from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
-    CapitalizerSide,
-)
-from qore.infrastructure.trader_lab.capitalizer_full_ict_density_scanner_1y_v1 import (
-    _aggregate_h1,
+from qore.infrastructure.trader_lab.capitalizer_source_daily_bias_v2 import (
+    CapitalizerDailyBiasObservation,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_fractal_alignment_v2 import (
     CapitalizerFractalAlignmentObservation,
@@ -63,9 +66,6 @@ from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 
     CapitalizerProtectedSwingObservation,
     CapitalizerSourceClosureObservation,
     CapitalizerSourceDirection,
-)
-from qore.infrastructure.trader_lab.capitalizer_source_daily_bias_v2 import (
-    CapitalizerDailyBiasObservation,
 )
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     _aggregate_tf,
