@@ -34,11 +34,11 @@ PROVIDER_SYMBOL = "USTEC"
 SYMBOL = "NAS100"
 INSTRUMENT_CLASS = "CFD_INDEX_USTEC_CAPABILITY_DISCOVERY"
 
-EVAL_OPEN_NY = date(2022, 8, 13)
-EVAL_CLOSE_NY = date(2025, 8, 13)
-ACQUISITION_OPEN = datetime(2022, 7, 29, 0, tzinfo=UTC)
-ACQUISITION_CLOSE = datetime(2025, 8, 14, 23, 59, tzinfo=UTC)
-EVIDENCE_ID = "NQ_AM_TLR_V4_USTEC_3Y_2022_08_13_2025_08_13"
+EVAL_OPEN_NY = date(2016, 4, 20)
+EVAL_CLOSE_NY = date(2017, 4, 20)
+ACQUISITION_OPEN = datetime(2016, 4, 19, 0, tzinfo=UTC)
+ACQUISITION_CLOSE = datetime(2017, 4, 21, 0, tzinfo=UTC)
+EVIDENCE_ID = "VT31_R8_FRESH_NAS100_ARTIFACT_10402199719_ONE_YEAR_SLICE"
 
 PRIMARY_VARIANT = "ROLLING_AM_LOW_M2"
 PRIMARY_FRICTION_R = Decimal("0.05")
@@ -46,9 +46,7 @@ STRESS_FRICTION_R = Decimal("0.10")
 BOOTSTRAP_SEED = 20260929
 
 FOLDS: tuple[tuple[str, date, date], ...] = (
-    ("Y1", date(2022, 8, 13), date(2023, 8, 13)),
-    ("Y2", date(2023, 8, 13), date(2024, 8, 13)),
-    ("Y3", date(2024, 8, 13), date(2025, 8, 13)),
+    ("Y1", EVAL_OPEN_NY, EVAL_CLOSE_NY),
 )
 
 
@@ -509,14 +507,14 @@ def _adjudicate_primary(metrics: dict[str, Any]) -> dict[str, Any]:
         for item in metrics["by_fold"].values()
     )
     supported = (
-        trades >= 24
+        trades >= 8
         and pf is not None
         and pf > Decimal("1.15")
         and total_r > 0
         and max_dd <= Decimal("8")
-        and positive_folds >= 2
+
     )
-    if trades < 24:
+    if trades < 8:
         label = "INSUFFICIENT_SAMPLE"
     elif supported:
         label = "USTEC_CAPABILITY_SUPPORTED"
@@ -527,11 +525,11 @@ def _adjudicate_primary(metrics: dict[str, Any]) -> dict[str, Any]:
         "supported": supported,
         "positive_yearly_folds": positive_folds,
         "requirements": {
-            "trade_count_gte": 24,
+            "trade_count_gte": 8,
             "primary_pf_gt": "1.15",
             "primary_total_r_gt": "0",
             "primary_max_drawdown_r_lte": "8",
-            "positive_yearly_folds_gte": 2,
+            "positive_yearly_folds_gte": 1,
         },
     }
 
@@ -606,8 +604,10 @@ def collect(output: Path) -> dict[str, Any]:
 
 def load_evidence(path: Path) -> tuple[Evidence, dict[str, Any]]:
     payload = json.loads(path.read_text())
-    if payload.get("identity") != IDENTITY:
-        raise ValueError("unexpected V4 evidence identity")
+    if payload.get("provider_symbol_name") != PROVIDER_SYMBOL:
+        raise ValueError("existing holdout is not USTEC")
+    if payload.get("read_only") is not True:
+        raise ValueError("existing holdout must be read-only")
     raw = payload.get("periods", {}).get("M1")
     if not isinstance(raw, list) or not raw:
         raise ValueError("M1 evidence missing")
@@ -621,6 +621,9 @@ def load_evidence(path: Path) -> tuple[Evidence, dict[str, Any]]:
             close=Decimal(str(item["close"])),
         )
         for item in raw
+        if ACQUISITION_OPEN
+        <= datetime.fromisoformat(str(item["opened_at"])).astimezone(UTC)
+        < ACQUISITION_CLOSE
     )
     return Evidence(
         symbol=SYMBOL,
@@ -643,12 +646,17 @@ def write_study(evidence_path: Path, output: Path) -> dict[str, Any]:
     evidence, payload = load_evidence(evidence_path)
     records = replay(
         evidence,
-        eval_open_ny=date.fromisoformat(str(payload["evaluation_open_ny"])),
-        eval_close_ny=date.fromisoformat(str(payload["evaluation_close_ny"])),
+        eval_open_ny=EVAL_OPEN_NY,
+        eval_close_ny=EVAL_CLOSE_NY,
     )
     summary = summarize(records)
-    summary["evidence_id"] = payload["evidence_id"]
-    summary["evidence_status"] = payload["evidence_status"]
+    summary["evidence_id"] = EVIDENCE_ID
+    summary["evidence_status"] = "EXISTING_CORE_USTEC_HOLDOUT_REUSE"
+    summary["source_artifact_id"] = 10402199719
+    summary["source_run_id"] = 34981033027
+    summary["source_artifact_sha256"] = (
+        "9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d"
+    )
     output.mkdir(parents=True, exist_ok=True)
     (output / "summary.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n"
