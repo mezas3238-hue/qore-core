@@ -24,9 +24,6 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification import (
     Phase20QualificationReport,
     run_phase20d_v2_qualification,
 )
-from qore.infrastructure.cibo_ce2i_phase20_t13_reserve_population import (
-    assess_phase20_t13_reserve_population,
-)
 from qore.infrastructure.cibo_ce2i_phase20_t14_path_readiness import (
     assess_phase20_t14_path_readiness,
 )
@@ -299,6 +296,10 @@ def main() -> None:
                 args.behavior_ledger
             ).events(),
         )
+    from qore.infrastructure.cibo_ce2i_phase20_t13_reserve_population import (
+        assess_phase20_t13_reserve_population,
+    )
+
     t13_reserve_population = assess_phase20_t13_reserve_population(
         evidence
     )
