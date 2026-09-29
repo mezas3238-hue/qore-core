@@ -104,6 +104,9 @@ from qore.infrastructure.cibo_ce2i_phase20_m5_shadow_batch import (
     Phase20M5ShadowTerminal,
     build_ctrader_demo_m5_observed_opportunity,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t12_shadow_store import (
+    DurableT12ShadowDecisionStore,
+)
 from qore.infrastructure.cibo_ce2i_phase20_t13_shadow_store import (
     DurableT13ShadowDecisionStore,
 )
@@ -1109,6 +1112,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     phase20_policy_store = DurablePhase20ForwardPolicyStore(
         state_dir / "cibo-phase20-forward-policy.json"
     )
+    phase20_t12_shadow_store = DurableT12ShadowDecisionStore(
+        state_dir / "cibo-phase20-t12-shadow-decisions.json"
+    )
     phase20_t13_recommendation_store = DurableT13ShadowDecisionStore(
         state_dir / "cibo-phase20-t13-shadow-decisions.json"
     )
@@ -1151,6 +1157,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     # Forward stores are authoritative evidence. Corruption must fail startup.
     phase20_evidence_store.load()
     phase20_policy_store.load()
+    phase20_t12_shadow_store.load()
     phase20_t13_recommendation_store.load()
     phase20_t13_treatment_store.load()
     phase20_executed_risk_store.load()
@@ -1387,6 +1394,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 prepared=prepared,
                 evidence_store=phase20_evidence_store,
                 policy_store=phase20_policy_store,
+                t12_shadow_store=phase20_t12_shadow_store,
                 t13_recommendation_store=(
                     phase20_t13_recommendation_store
                 ),
@@ -1409,6 +1417,21 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "known_options_count": len(effective_known_options),
                     "regime_policy_sha256": (
                         finalized.regime_policy_sha256
+                    ),
+                    "t12_shadow_generation": (
+                        None
+                        if finalized.t12_shadow is None
+                        else finalized.t12_shadow.shadow_generation
+                    ),
+                    "t12_selection_changed": (
+                        None
+                        if finalized.t12_shadow is None
+                        else finalized.t12_shadow.selection_changed
+                    ),
+                    "t12_allocator_changed": (
+                        None
+                        if finalized.t12_shadow is None
+                        else finalized.t12_shadow.allocator_changed
                     ),
                     "t13_recommendation_generation": (
                         None
@@ -2391,6 +2414,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                         prepared=phase20_prepared,
                                         evidence_store=phase20_evidence_store,
                                         policy_store=phase20_policy_store,
+                                        t12_shadow_store=(
+                                            phase20_t12_shadow_store
+                                        ),
                                         t13_recommendation_store=(
                                             phase20_t13_recommendation_store
                                         ),
@@ -2413,6 +2439,21 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                         ),
                                         "policy_generation": (
                                             finalized.observation.collected.policy_generation
+                                        ),
+                                        "t12_shadow_generation": (
+                                            None
+                                            if finalized.t12_shadow is None
+                                            else finalized.t12_shadow.shadow_generation
+                                        ),
+                                        "t12_selection_changed": (
+                                            None
+                                            if finalized.t12_shadow is None
+                                            else finalized.t12_shadow.selection_changed
+                                        ),
+                                        "t12_allocator_changed": (
+                                            None
+                                            if finalized.t12_shadow is None
+                                            else finalized.t12_shadow.allocator_changed
                                         ),
                                         "t13_recommendation_generation": (
                                             None
