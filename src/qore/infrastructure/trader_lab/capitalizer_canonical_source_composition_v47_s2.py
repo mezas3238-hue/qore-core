@@ -46,6 +46,7 @@ from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSessi
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_full_ict_density_scanner_1y_v1 import (
     AggregatedBar,
+    _aggregate_h1,
 )
 from qore.infrastructure.trader_lab.capitalizer_ict_2022_m1_entry_1y_replay_v1 import (
     _pivot_indices,
@@ -422,11 +423,16 @@ def bind_independent_m1_structure(
 
             ob_low = min(row.low for row in series_rows)
             ob_high = max(row.high for row in series_rows)
-            overlap_low = max(ob_low, fvg.lower_price)
-            overlap_high = min(ob_high, fvg.upper_price)
-            if overlap_low > overlap_high:
+            overlap_candidate_low = max(ob_low, fvg.lower_price)
+            overlap_candidate_high = min(ob_high, fvg.upper_price)
+            overlap_low: Decimal | None
+            overlap_high: Decimal | None
+            if overlap_candidate_low > overlap_candidate_high:
                 overlap_low = None
                 overlap_high = None
+            else:
+                overlap_low = overlap_candidate_low
+                overlap_high = overlap_candidate_high
             zone = v3_source.M1EntryZone(
                 ob_opened_at=series_rows[0].opened_at,
                 ob_low=ob_low,
@@ -511,7 +517,7 @@ def bind_upstream_source_events(
     )
 
     if prepared is None:
-        h1 = s1._aggregate_h1(ordered)
+        h1 = _aggregate_h1(ordered)
         m5 = _aggregate_tf(ordered, minutes=5)
         m3 = _aggregate_tf(ordered, minutes=3)
     else:
