@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import StrEnum
 from pathlib import Path
@@ -27,6 +27,10 @@ from qore.infrastructure.ctrader_open_api_client import (
 from qore.infrastructure.trader_lab import (
     capitalizer_canonical_historical_replay_adapter_v46 as v46_adapter,
 )
+from qore.infrastructure.trader_lab import (
+    capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 as v3_source,
+)
+from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
 from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
     CapitalizerCognitiveGateDecision,
 )
@@ -52,6 +56,179 @@ class S0Binder:
     status: S0BinderStatus
     hard_blocker: bool
     evidence: str
+
+
+@dataclass(frozen=True, slots=True)
+class S0ICTSourceEvent:
+    symbol: str
+    session: CapitalizerSession
+    operating_date: date
+    side: CapitalizerSide
+    source_event_at: datetime
+    h1_deadline: datetime
+    closeback: v3_source.SweepCloseback
+    m3_mss: v3_source.M3MssEvent
+    zone: v3_source.M1EntryZone
+    primary_armed_level: Decimal
+    fallback_armed_level: Decimal | None
+    primary_entry_mode: str
+    causal: bool = True
+    outcome_used: bool = False
+    legacy_m1_fill_used: bool = False
+
+    def __post_init__(self) -> None:
+        event_at = _aware(self.source_event_at)
+        deadline = _aware(self.h1_deadline)
+        if not self.symbol or self.symbol != self.symbol.upper():
+            raise ValueError("S0 source event symbol must be uppercase")
+        if event_at > deadline:
+            raise ValueError("S0 source event cannot arm after H1 deadline")
+        if _aware(self.closeback.closeback_at) > event_at:
+            raise ValueError("S0 closeback cannot occur after source event")
+        if _aware(self.m3_mss.confirmed_at) > event_at:
+            raise ValueError("S0 M3 MSS cannot occur after source event")
+        if _aware(self.zone.fvg_confirmed_at) > event_at:
+            raise ValueError("S0 M1 FVG cannot confirm after source event")
+        if self.primary_armed_level <= 0:
+            raise ValueError("S0 primary armed level must be positive")
+        if self.fallback_armed_level is not None and self.fallback_armed_level <= 0:
+            raise ValueError("S0 fallback armed level must be positive")
+        if self.outcome_used or self.legacy_m1_fill_used or not self.causal:
+            raise ValueError("S0 source event governance violated")
+
+
+def resolve_s0_armed_levels(
+    *,
+    side: CapitalizerSide,
+    zone: v3_source.M1EntryZone,
+) -> tuple[Decimal, Decimal | None, str]:
+    """Apply A1 entry priority without looking at later fills/outcomes."""
+
+    ce = (zone.fvg_low + zone.fvg_high) / Decimal("2")
+    if zone.overlap_low is None or zone.overlap_high is None:
+        return ce, None, "FVG_CE_50"
+    primary = (
+        zone.overlap_high
+        if side is CapitalizerSide.LONG
+        else zone.overlap_low
+    )
+    fallback = None if primary == ce else ce
+    return primary, fallback, "OB_FVG_RETEST"
+
+
+def bind_ict_source_events(
+    bars: tuple[object, ...],
+    *,
+    session: CapitalizerSession,
+    operating_day: date,
+) -> tuple[S0ICTSourceEvent, ...]:
+    """Compose provider-native M1 into frozen V3 source events, pre-fill only.
+
+    The legacy V3 lifecycle, fixed-2R target, buffered stop and M1 fill helper
+    are deliberately not called.
+    """
+
+    typed = tuple(
+        row
+        for row in bars
+        if isinstance(row, v3_source.CapitalizerM1Bar)
+    )
+    if len(typed) != len(bars):
+        raise TypeError("S0 ICT arming requires CapitalizerM1Bar rows")
+    ordered = tuple(sorted(typed, key=lambda row: row.opened_at))
+    if ordered != typed:
+        raise ValueError("S0 ICT arming requires chronological M1")
+    if not ordered:
+        return ()
+    symbol = ordered[0].symbol
+    if any(row.symbol != symbol for row in ordered):
+        raise ValueError("S0 ICT arming requires one symbol")
+
+    execution_by_day, reference_by_day = v3_source._index_day_inputs(
+        ordered,
+        session=session,
+    )
+    day_key = operating_day.isoformat()
+    execution = execution_by_day.get(day_key, ())
+    if len(execution) < 15:
+        return ()
+
+    previous_day = v3_source._previous_day_range(
+        ordered,
+        operating_day=operating_day,
+    )
+    h1 = v3_source._aggregate_h1(ordered)
+    h1_swings = v3_source._build_h1_swings(h1)
+    m5 = v3_source._aggregate_tf(ordered, minutes=5)
+    m3 = v3_source._aggregate_tf(ordered, minutes=3)
+    m5_closes = tuple(item.closed_at for item in m5)
+    m3_closes = tuple(item.closed_at for item in m3)
+    m3_pivots = v3_source._pivots(m3)
+
+    events: list[S0ICTSourceEvent] = []
+    for h1_open, h1_deadline, hour_bars in v3_source._h1_windows(execution):
+        levels = v3_source._liquidity_levels(
+            prior_session=reference_by_day.get(day_key),
+            previous_day=previous_day,
+            h1_swings=h1_swings,
+            hour_open=h1_open,
+        )
+        if not levels:
+            continue
+        _sweep_seen, closeback = v3_source._find_sweep_closeback(
+            hour_bars,
+            levels=levels,
+            m5=m5,
+            m5_closes=m5_closes,
+            h1_open=h1_open,
+            h1_deadline=h1_deadline,
+        )
+        if closeback is None:
+            continue
+        mss = v3_source._find_m3_mss(
+            m3,
+            m3_closes,
+            m3_pivots,
+            after=closeback.closeback_at,
+            before=h1_deadline,
+            side=closeback.side,
+        )
+        if mss is None:
+            continue
+        zone = v3_source._m1_causal_zone(execution, event=mss)
+        if zone is None:
+            continue
+        source_event_at = max(mss.confirmed_at, zone.fvg_confirmed_at)
+        primary, fallback, mode = resolve_s0_armed_levels(
+            side=closeback.side,
+            zone=zone,
+        )
+        events.append(
+            S0ICTSourceEvent(
+                symbol=symbol,
+                session=session,
+                operating_date=operating_day,
+                side=closeback.side,
+                source_event_at=source_event_at,
+                h1_deadline=h1_deadline,
+                closeback=closeback,
+                m3_mss=mss,
+                zone=zone,
+                primary_armed_level=primary,
+                fallback_armed_level=fallback,
+                primary_entry_mode=mode,
+            )
+        )
+    return tuple(
+        sorted(
+            events,
+            key=lambda item: (
+                item.source_event_at,
+                item.side.value,
+                item.primary_armed_level,
+            ),
+        )
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -319,11 +496,12 @@ def build_readiness_report() -> dict[str, object]:
     binders = (
         S0Binder(
             key="ICT_SOURCE_EVENT_ARMING",
-            status=S0BinderStatus.COMPOSER_READY_REQUIRES_BINDING,
-            hard_blocker=True,
+            status=S0BinderStatus.READY,
+            hard_blocker=False,
             evidence=(
-                "V3 causal liquidity/sweep/M3-MSS/M1-zone primitives exist; "
-                "S0 market-level arming adapter is not yet composed."
+                "V47-S0 composes provider-native M1 through the frozen V3 "
+                "liquidity/sweep/M3-MSS/M1-zone primitives, applies A1 armed "
+                "levels, and never calls the legacy V3 fill/lifecycle."
             ),
         ),
         S0Binder(
