@@ -96,12 +96,9 @@ def _has_callable(module: Any, name: str) -> bool:
 
 def _facts() -> tuple[FactOperationalization, ...]:
     session_source = _module_source(session_context)
-    observation_source = _module_source(observations)
-    poi_source = _module_source(poi)
-    cisd_source = _module_source(cisd)
-    fractal_source = _module_source(fractal)
     dual_source = _module_source(dual)
     engine_source = _module_source(source_engine)
+    plan_source = _module_source(trade_plan)
     plan_source = _module_source(trade_plan)
     direct_source = _module_source(direct)
     v3_source = _module_source(v3)
