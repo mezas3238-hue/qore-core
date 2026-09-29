@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import StrEnum
 from collections.abc import Sequence
+from dataclasses import dataclass
+from datetime import datetime
+from enum import StrEnum
 
 from qore.infrastructure.core_stack_v2.shared_trader_intelligence import (
     SharedRegimeTransitionState,
@@ -44,7 +45,7 @@ class SharedRegimeHypothesisEvidence:
 class SharedRegimeTransitionAssessment:
     state: SharedRegimeTransitionState
     trajectory_state: MarketTrajectoryState
-    as_of: object
+    as_of: datetime
     continuation_support_bps: int
     transition_risk_bps: int
     reversal_evidence_bps: int
