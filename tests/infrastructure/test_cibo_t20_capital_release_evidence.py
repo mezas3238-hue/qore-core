@@ -41,7 +41,7 @@ def _authorization() -> T20CapitalAuthorizationEvidence:
         execution_realized_at=T0 + timedelta(seconds=3),
         execution_realized_margin_usd=Decimal("12"),
         execution_realized_stop_risk_usd=Decimal("1.2"),
-        capacity_deployed_at=T0 + timedelta(seconds=2),
+        capital_deployed_at=T0 + timedelta(seconds=2),
         source_refs=(
             "cibo-request:001",
             "qore-risk:001",
@@ -204,7 +204,7 @@ def test_t20_rejects_execution_above_risk_authorization() -> None:
     auth = _authorization()
     with pytest.raises(
         CiboCompoundCapitalError,
-        match="Execution cannot realize more capital than Risk authorized",
+        match="Execution cannot realize more margin capacity than Risk authorized",
     ):
         T20CapitalAuthorizationEvidence(
             evidence_id=auth.evidence_id,
