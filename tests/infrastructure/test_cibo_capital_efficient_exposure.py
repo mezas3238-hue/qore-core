@@ -15,7 +15,6 @@ from qore.infrastructure.cibo_capital_efficient_exposure import (
     build_capital_efficient_exposure_state,
 )
 from qore.infrastructure.cibo_capital_management_authority import (
-    CiboCapitalManagementError,
     TraderOpportunityEnvelope,
 )
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
