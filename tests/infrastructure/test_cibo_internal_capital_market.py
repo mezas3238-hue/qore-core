@@ -47,6 +47,7 @@ from qore.infrastructure.cibo_internal_capital_market import (
     Genc6EvidenceKind,
     Genc6EvidenceUse,
     Genc6MarginalCapitalCandidate,
+    Genc6ProviderCapitalActionEvidence,
     Genc6ReserveAlternative,
     build_capital_scarcity_event,
     build_genc6_portfolio_state,
@@ -404,8 +405,41 @@ def _candidate(
         concentration_group="EQUITY_BETA",
         marginal_evidence=marginal,
         genc5_seal=seal,
-        provider_feasible=True,
-        provider_feasibility_evidence_sha256="sha256:" + "5" * 64,
+        provider_action=Genc6ProviderCapitalActionEvidence(
+            evidence_id=f"provider-action-{signal}",
+            evidence_sha256="sha256:" + "5" * 64,
+            produced_at=T0 - timedelta(seconds=1),
+            observed_at=T0 - timedelta(seconds=2),
+            source="GENC6_TEST_PROVIDER_NORMALIZATION",
+            policy_version="GENC6_TEST_PROVIDER_V1",
+            account_identity=portfolio.account_identity,
+            qore_symbol=(
+                "NAS100"
+                if trader is TraderLineage.VT31_NAS100
+                else "XAUUSD"
+            ),
+            provider_symbol=(
+                "US100"
+                if trader is TraderLineage.VT31_NAS100
+                else "XAUUSD"
+            ),
+            requested_capital_usd=marginal.requested_incremental_capital_usd,
+            executable_volume=Decimal("0.01"),
+            minimum_executable_volume=Decimal("0.01"),
+            maximum_volume=Decimal("100"),
+            volume_step=Decimal("0.01"),
+            minimum_execution_steps=1,
+            projected_stop_risk_usd=marginal.incremental_stop_risk_usd,
+            minimum_stop_risk_usd=Decimal("0.10"),
+            projected_margin_usd=marginal.incremental_margin_usd,
+            minimum_margin_usd=Decimal("1"),
+            projected_execution_cost_usd=(
+                marginal.incremental_execution_cost_usd
+            ),
+            feasible=True,
+            use=Genc6EvidenceUse.CAPITAL_ELIGIBLE,
+            reason="provider/methodology action is executable",
+        ),
         comparable_facts=_facts(
             marginal,
             prefix="a" if signal.endswith("a") else "b",
