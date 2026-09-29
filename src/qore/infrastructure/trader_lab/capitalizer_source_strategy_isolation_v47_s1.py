@@ -238,8 +238,11 @@ class _PreparedSourceSeries:
     opened: tuple[datetime, ...]
     ny_day_ranges: dict[date, tuple[int, Decimal, Decimal]]
     h1: tuple[AggregatedBar, ...]
+    h1_opened: tuple[datetime, ...]
     m5: tuple[TFBar, ...]
+    m5_opened: tuple[datetime, ...]
     m3: tuple[TFBar, ...]
+    m3_opened: tuple[datetime, ...]
 
 
 def _prepare_source_series(
@@ -258,13 +261,19 @@ def _prepare_source_series(
         )
         for day, rows in grouped.items()
     }
+    h1 = _aggregate_h1(bars)
+    m5 = _aggregate_tf(bars, minutes=5)
+    m3 = _aggregate_tf(bars, minutes=3)
     return _PreparedSourceSeries(
         m1=bars,
         opened=tuple(bar.opened_at for bar in bars),
         ny_day_ranges=day_ranges,
-        h1=_aggregate_h1(bars),
-        m5=_aggregate_tf(bars, minutes=5),
-        m3=_aggregate_tf(bars, minutes=3),
+        h1=h1,
+        h1_opened=tuple(row.opened_at for row in h1),
+        m5=m5,
+        m5_opened=tuple(row.opened_at for row in m5),
+        m3=m3,
+        m3_opened=tuple(row.opened_at for row in m3),
     )
 
 
@@ -277,6 +286,18 @@ def _prepared_m1_between(
     left = bisect.bisect_left(prepared.opened, _aware(start))
     right = bisect.bisect_left(prepared.opened, _aware(end))
     return prepared.m1[left:right]
+
+
+def _prepared_tf_between(
+    rows: tuple[TFBar, ...] | tuple[AggregatedBar, ...],
+    opened: tuple[datetime, ...],
+    *,
+    start: datetime,
+    end: datetime,
+) -> tuple[TFBar, ...] | tuple[AggregatedBar, ...]:
+    left = bisect.bisect_left(opened, _aware(start))
+    right = bisect.bisect_left(opened, _aware(end))
+    return rows[left:right]
 
 
 def _prepared_previous_day_range(
@@ -464,20 +485,35 @@ def bind_source_window_ict_events(
     else:
         context_start = source_start - LOOKBACK
         context_end = source_end + timedelta(hours=1)
+        h1_raw = _prepared_tf_between(
+            prepared.h1,
+            prepared.h1_opened,
+            start=context_start,
+            end=context_end,
+        )
+        m5_raw = _prepared_tf_between(
+            prepared.m5,
+            prepared.m5_opened,
+            start=context_start,
+            end=context_end,
+        )
+        m3_raw = _prepared_tf_between(
+            prepared.m3,
+            prepared.m3_opened,
+            start=context_start,
+            end=context_end,
+        )
         h1 = tuple(
-            row
-            for row in prepared.h1
-            if row.opened_at >= context_start and row.closed_at <= context_end
+            row for row in h1_raw
+            if isinstance(row, AggregatedBar) and row.closed_at <= context_end
         )
         m5 = tuple(
-            row
-            for row in prepared.m5
-            if row.opened_at >= context_start and row.closed_at <= context_end
+            row for row in m5_raw
+            if isinstance(row, TFBar) and row.closed_at <= context_end
         )
         m3 = tuple(
-            row
-            for row in prepared.m3
-            if row.opened_at >= context_start and row.closed_at <= context_end
+            row for row in m3_raw
+            if isinstance(row, TFBar) and row.closed_at <= context_end
         )
     h1_swings = v3_source._build_h1_swings(h1)
     m5_closes = tuple(item.closed_at for item in m5)
