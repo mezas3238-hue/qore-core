@@ -55,8 +55,6 @@ def _field_names(cls: type[Any]) -> set[str]:
 
 def build_report() -> dict[str, Any]:
     engine_source = _source(source_engine)
-    dual_source = _source(dual)
-    grammar_source = _source(grammar)
     plan_source = _source(trade_plan)
     direct_source = _source(direct)
     v3_source = _source(v3)
