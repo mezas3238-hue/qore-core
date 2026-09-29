@@ -523,11 +523,13 @@ def _t15_row(
     reservation_binding: Phase20T15ReservationBinding | None,
 ) -> Phase20ToolEvidenceReadiness:
     if reservation_binding is not None:
-        blockers = list(reservation_binding.blockers)
+        binding_blockers = list(reservation_binding.blockers)
         if realization is not None:
-            blockers.extend(realization.blockers)
-        blockers.append("FRESH_OOS_OPTIONALITY_UTILITY_ANALYSIS_REQUIRED")
-        unique_blockers = tuple(dict.fromkeys(blockers))
+            binding_blockers.extend(realization.blockers)
+        binding_blockers.append(
+            "FRESH_OOS_OPTIONALITY_UTILITY_ANALYSIS_REQUIRED"
+        )
+        unique_binding_blockers = tuple(dict.fromkeys(binding_blockers))
         stream_bound = (
             reservation_binding.origin_epochs_with_known_options > 0
             and reservation_binding.policy_bound_origin_epochs > 0
@@ -547,7 +549,7 @@ def _t15_row(
             qualifying_epochs=(
                 reservation_binding.completely_bound_origin_epochs
             ),
-            blockers=unique_blockers,
+            blockers=unique_binding_blockers,
         )
     if realization is None:
         return Phase20ToolEvidenceReadiness(
@@ -563,7 +565,7 @@ def _t15_row(
             qualifying_epochs=fallback_known_option_epochs,
             blockers=fallback_blockers,
         )
-    blockers = tuple(
+    realization_blockers = tuple(
         dict.fromkeys(
             realization.blockers
             + ("FRESH_OOS_OPTIONALITY_UTILITY_ANALYSIS_REQUIRED",)
@@ -580,7 +582,7 @@ def _t15_row(
         forward_population_ready=False,
         observed_epochs=realization.matured_option_instances,
         qualifying_epochs=realization.materialized_candidate_instances,
-        blockers=blockers,
+        blockers=realization_blockers,
     )
 
 
