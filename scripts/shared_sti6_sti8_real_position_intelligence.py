@@ -83,7 +83,7 @@ def _reconstruct_source_partition(
     )
     grouped: dict[date, list[object]] = defaultdict(list)
     for bar in series:
-        grouped[journey.native._day(getattr(bar, "opened_at"))].append(bar)
+        grouped[journey.native._day(bar.opened_at)].append(bar)
 
     result: dict[str, tuple[object, tuple[object, ...]]] = {}
     execution_policy = Vt31R22ExecutionPolicy()
@@ -91,7 +91,7 @@ def _reconstruct_source_partition(
         day_bars = tuple(
             sorted(
                 grouped[local_day],
-                key=lambda item: getattr(item, "opened_at"),
+                key=lambda item: item.opened_at,
             )
         )
         reference = journey.specialist._slice(
@@ -107,8 +107,8 @@ def _reconstruct_source_partition(
         for bar in session:
             prefix.append(bar)
             evaluation = evaluate_vt31_r2_2_source(
-                instrument=getattr(bar, "instrument"),
-                as_of=cast(Any, getattr(bar, "closed_at")),
+                instrument=bar.instrument,
+                as_of=cast(Any, bar.closed_at),
                 m1_candles=cast(Any, tuple(prefix)),
                 evidence_fingerprint=evidence,
             )
@@ -177,7 +177,7 @@ def _build_observation(
         current_index=snapshot_index,
     )
     snapshot_bar = day_bars[snapshot_index]
-    decision_at = cast(Any, getattr(snapshot_bar, "closed_at"))
+    decision_at = cast(Any, snapshot_bar.closed_at)
     side = str(row["side"])
     local_day = date.fromisoformat(str(row["local_date"]))
 
