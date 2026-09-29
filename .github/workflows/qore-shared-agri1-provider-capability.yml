@@ -97,7 +97,12 @@ jobs:
           import os
           from pathlib import Path
 
-          actual_head=Path("input/result/gen2-code-git-sha.txt").read_text().strip()
+          actual_head=(
+              Path("input/result/gen2-code-git-sha.txt")
+              .read_text()
+              .replace("\\n", "")
+              .strip()
+          )
           expected_head=os.environ["UPSTREAM_GEN2_GIT_SHA"]
           if actual_head != expected_head:
               raise SystemExit(
