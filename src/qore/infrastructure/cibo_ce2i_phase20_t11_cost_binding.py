@@ -24,6 +24,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_ce2i_phase20_execution_risk_store import (
     VersionedPhase20ExecutedRiskBook,
 )
+from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
+    VersionedPhase20ForwardEvidenceBook,
+)
 from qore.infrastructure.cibo_ce2i_phase20_t08_forward_population import (
     iter_phase20_forward_candidate_facts,
 )
@@ -138,7 +141,7 @@ class Phase20T11CostBindingAudit:
 
 def assess_phase20_t11_cost_binding(
     *,
-    evidence_book,
+    evidence_book: VersionedPhase20ForwardEvidenceBook,
     executed_risk_book: VersionedPhase20ExecutedRiskBook,
     settlement_book: VersionedCmaSettlementBook,
 ) -> Phase20T11CostBindingAudit:
