@@ -357,6 +357,9 @@ class Genc7ProfitPreservationShadowDecision:
     account_ref: str
     state_evidence_sha256: str
     proposal_evidence_sha256: str
+    proposal_action: Genc7Action
+    proposal_source_bucket: Genc7SourceBucket
+    proposal_amount_usd: Decimal
     evaluation_horizon_minutes: int
     initial_realized_capital_usd: Decimal
     initial_realized_profit_usd: Decimal
@@ -418,6 +421,16 @@ class Genc7ProfitPreservationShadowDecision:
             raise CiboCompoundCapitalError(
                 "GEN-C7 decision evaluation horizon must be positive int"
             )
+        if self.proposal_action is Genc7Action.HOLD_CURRENT_CAPITAL_STATE:
+            raise CiboCompoundCapitalError(
+                "GEN-C7 decision proposal action cannot be control HOLD"
+            )
+        expected_source = _ACTION_SOURCE.get(self.proposal_action)
+        if expected_source is not self.proposal_source_bucket:
+            raise CiboCompoundCapitalError(
+                "GEN-C7 decision proposal action/source drift"
+            )
+        _positive(self.proposal_amount_usd, "proposal_amount_usd")
         for name in (
             "initial_realized_capital_usd",
             "initial_realized_profit_usd",
@@ -459,6 +472,13 @@ class Genc7ProfitPreservationShadowDecision:
             if self.treatment_amount_usd <= 0 or self.blocker_codes:
                 raise CiboCompoundCapitalError(
                     "GEN-C7 active treatment must be positive and unblocked"
+                )
+            if (
+                self.treatment_action is not self.proposal_action
+                or self.treatment_amount_usd != self.proposal_amount_usd
+            ):
+                raise CiboCompoundCapitalError(
+                    "GEN-C7 active treatment must equal exact proposal"
                 )
         elif self.treatment_amount_usd != 0:
             raise CiboCompoundCapitalError(
@@ -597,6 +617,9 @@ def evaluate_genc7_profit_preservation_shadow(
         account_ref=state.account_identity.account_ref,
         state_evidence_sha256=state.fingerprint(),
         proposal_evidence_sha256=proposal.fingerprint(),
+        proposal_action=proposal.action,
+        proposal_source_bucket=proposal.source_bucket,
+        proposal_amount_usd=proposal.amount_usd,
         evaluation_horizon_minutes=proposal.evaluation_horizon_minutes,
         initial_realized_capital_usd=state.current_realized_capital_usd,
         initial_realized_profit_usd=state.current_realized_profit_usd,
