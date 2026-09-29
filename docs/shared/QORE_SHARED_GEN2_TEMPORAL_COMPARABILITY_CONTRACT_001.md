@@ -127,16 +127,24 @@ evidence for all three planes:
 `MarketCalendarBinding` objects. The mapping registry is deterministic,
 provider-aware and exact-keyed.
 
-Current source-census status remains:
+Current source-census status is a frozen unresolved worklist:
 
 ```text
-MAPPING GOVERNANCE = IMPLEMENTED_NOT_POPULATED
+MAPPING GOVERNANCE = UNRESOLVED_BASELINE_FROZEN
+MAPPING RECORDS    = 177
 VERIFIED MAPPINGS  = 0
+UNRESOLVED MAPPINGS = 177
 MAPPING COMPLETE   = FALSE
 ```
 
+Each GEN-1 sensor receives one provider-aware mapping record with deterministic
+fingerprint and explicit provenance. Every baseline record requires separate
+canonical identity, venue and calendar evidence before promotion to
+`VERIFIED`.
+
 This is deliberate. GEN-2 must not manufacture canonical truth from provider
-symbol names or provider schedules.
+symbol names or provider schedules, and future verification must update an
+auditable record rather than create an implicit allowlist.
 
 ## Governed cadence, liquidity and temporal-skew policy layers
 
