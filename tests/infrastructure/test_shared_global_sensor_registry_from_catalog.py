@@ -1,12 +1,29 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 from datetime import UTC, datetime
 from pathlib import Path
-
-from scripts.shared_global_sensor_registry_from_catalog import run
+from types import ModuleType
 
 CATALOG_SHA = "4c10aede99704b937caa772e1ae07257c8e12c3d0644c06ca751b6885b9a363f"
+
+
+def _load_runner() -> ModuleType:
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "scripts"
+        / "shared_global_sensor_registry_from_catalog.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "shared_global_sensor_registry_from_catalog",
+        path,
+    )
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_catalog_materializes_discovery_only_registry(tmp_path: Path) -> None:
@@ -39,7 +56,7 @@ def test_catalog_materializes_discovery_only_registry(tmp_path: Path) -> None:
     output = tmp_path / "registry.json"
     source.write_text(json.dumps(catalog), encoding="utf-8")
 
-    report = run(
+    report = _load_runner().run(
         catalog_path=source,
         output_path=output,
         provider="CTRADER_DEMO",
