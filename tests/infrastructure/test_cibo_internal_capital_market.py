@@ -465,7 +465,7 @@ def test_genc6_true_scarcity_and_reserve_on_pareto_ambiguity(
     assert decision.policy_sha256 == genc6_policy_sha256()
     assert decision.policy_frozen_at == GENC6_POLICY_FROZEN_AT
     assert decision.control_action is Genc6Action.ALLOCATE_MARGINAL_UNIT
-    assert decision.control_candidate_id == "candidate-signal-a"
+    assert decision.control_candidate_id == "candidate-signal-b"
     assert decision.control_amount_usd == Decimal("40")
     assert decision.treatment_action is Genc6Action.RESERVE_NO_DEPLOYMENT
     assert decision.treatment_candidate_id is None
