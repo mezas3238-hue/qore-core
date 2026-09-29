@@ -468,6 +468,7 @@ def test_genc6_true_scarcity_and_reserve_on_pareto_ambiguity(
 
     assert event.true_scarcity is True
     assert event.simultaneously_valid_count == 2
+    assert event.eligible_candidate_count == 2
     assert event.available_capital_usd == Decimal("60")
     assert event.total_requested_capital_usd == Decimal("80")
     assert event.capital_shortfall_usd == Decimal("20")
@@ -585,6 +586,8 @@ def test_genc6_observe_only_mandatory_evidence_cannot_influence_capital(
         decision_id="genc6-observe-only",
     )
 
+    assert event.eligible_candidate_count == 0
+    assert event.true_scarcity is False
     assert decision.control_action is Genc6Action.RESERVE_NO_DEPLOYMENT
     assert decision.treatment_action is Genc6Action.RESERVE_NO_DEPLOYMENT
     assert any(
@@ -693,6 +696,7 @@ def test_genc6_expired_candidate_is_not_false_competition(
     )
 
     assert event.simultaneously_valid_count == 1
+    assert event.eligible_candidate_count == 1
     assert event.true_scarcity is False
 
 
@@ -1080,6 +1084,7 @@ def test_genc6_population_is_descriptive_even_when_coverage_complete(
     assert population.true_scarcity_epoch_count == 1
     assert population.non_scarcity_epoch_count == 0
     assert population.candidate_count == 2
+    assert population.eligible_candidate_count == 2
     assert population.treatment_control_divergence_count == 1
     assert population.treatment_reserve_count == 1
     assert population.treatment_allocation_count == 0
