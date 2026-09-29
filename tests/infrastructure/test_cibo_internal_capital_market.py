@@ -1140,3 +1140,88 @@ def test_genc6_population_is_descriptive_even_when_coverage_complete(
     assert population.descriptive_only is True
     assert population.economic_utility_ready is False
     assert population.certification_ready is False
+
+
+def test_genc6_reserve_value_can_beat_unique_candidate_without_weighted_score(
+    tmp_path: Path,
+) -> None:
+    portfolio, source = _portfolio()
+    candidate = _candidate(
+        tmp_path=tmp_path,
+        portfolio=portfolio,
+        source_lot_id=source,
+        trader=TraderLineage.VT31_NAS100,
+        signal="signal-a",
+        expected_return="5",
+        stop_risk="1",
+        margin="2",
+        execution_cost="0.2",
+        concentration="0.2",
+        drawdown="0.2",
+        optionality="0.2",
+        duration="10",
+        uncertainty="0.05",
+    )
+    event = build_capital_scarcity_event(
+        event_id="reserve-wins",
+        decision_at=T0,
+        portfolio_state=_state(portfolio),
+        candidates=(candidate,),
+        reserve_alternative=_reserve(
+            portfolio.account_identity,
+            reserve_value="0.20",
+        ),
+    )
+    decision = evaluate_genc6_internal_capital_market_shadow(
+        event=event,
+        decision_id="reserve-wins-decision",
+    )
+
+    assert decision.control_action is Genc6Action.ALLOCATE_MARGINAL_UNIT
+    assert decision.treatment_action is Genc6Action.RESERVE_NO_DEPLOYMENT
+    assert decision.treatment_reason == "RESERVE_VALUE_NOT_BEATEN_KEEP_RESERVE"
+    assert decision.treatment_differs_from_control is True
+
+
+def test_genc6_missing_capital_eligible_reserve_value_fails_to_reserve(
+    tmp_path: Path,
+) -> None:
+    portfolio, source = _portfolio()
+    candidate = _candidate(
+        tmp_path=tmp_path,
+        portfolio=portfolio,
+        source_lot_id=source,
+        trader=TraderLineage.VT31_NAS100,
+        signal="signal-a",
+        expected_return="9",
+        stop_risk="1",
+        margin="2",
+        execution_cost="0.1",
+        concentration="0.2",
+        drawdown="0.2",
+        optionality="0.1",
+        duration="10",
+        uncertainty="0.05",
+    )
+    event = build_capital_scarcity_event(
+        event_id="reserve-observe-only",
+        decision_at=T0,
+        portfolio_state=_state(portfolio),
+        candidates=(candidate,),
+        reserve_alternative=_reserve(
+            portfolio.account_identity,
+            reserve_value="0.01",
+            use=Genc6EvidenceUse.OBSERVE_ONLY,
+        ),
+    )
+    decision = evaluate_genc6_internal_capital_market_shadow(
+        event=event,
+        decision_id="reserve-observe-only-decision",
+    )
+
+    assert decision.control_action is Genc6Action.ALLOCATE_MARGINAL_UNIT
+    assert decision.treatment_action is Genc6Action.RESERVE_NO_DEPLOYMENT
+    assert (
+        decision.treatment_reason
+        == "RESERVE_VALUE_NOT_CAPITAL_ELIGIBLE_KEEP_RESERVE"
+    )
