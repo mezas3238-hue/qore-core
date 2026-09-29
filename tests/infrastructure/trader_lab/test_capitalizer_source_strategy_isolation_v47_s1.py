@@ -97,26 +97,42 @@ def test_asian_open_is_dst_aware_and_always_midnight_utc() -> None:
     assert summer_end - summer_start == timedelta(hours=2)
 
 
-def test_prior_source_session_is_immediately_completed_source_window() -> None:
-    london_prior = s1.prior_source_session_bounds(
-        date(2025, 7, 16),
-        session=CapitalizerSession.LONDON,
-    )
-    expected_asia = s1.source_session_bounds(
-        date(2025, 7, 15),
+def test_liquidity_reference_bounds_preserve_frozen_s0_v3_windows() -> None:
+    day = date(2025, 7, 16)
+
+    asia_start, asia_end = s1.prior_source_session_bounds(
+        day,
         session=CapitalizerSession.ASIA,
     )
-    ny_prior = s1.prior_source_session_bounds(
-        date(2025, 7, 16),
-        session=CapitalizerSession.NEW_YORK,
-    )
-    expected_london = s1.source_session_bounds(
-        date(2025, 7, 16),
+    london_start, london_end = s1.prior_source_session_bounds(
+        day,
         session=CapitalizerSession.LONDON,
     )
+    ny_start, ny_end = s1.prior_source_session_bounds(
+        day,
+        session=CapitalizerSession.NEW_YORK,
+    )
 
-    assert london_prior == expected_asia
-    assert ny_prior == expected_london
+    asia_start_ny = asia_start.astimezone(s1.NEW_YORK)
+    asia_end_ny = asia_end.astimezone(s1.NEW_YORK)
+    london_start_ny = london_start.astimezone(s1.NEW_YORK)
+    london_end_ny = london_end.astimezone(s1.NEW_YORK)
+    ny_start_ny = ny_start.astimezone(s1.NEW_YORK)
+    ny_end_ny = ny_end.astimezone(s1.NEW_YORK)
+
+    assert (asia_start_ny.date(), asia_start_ny.hour, asia_start_ny.minute) == (
+        day,
+        8,
+        30,
+    )
+    assert (asia_end_ny.date(), asia_end_ny.hour) == (day, 16)
+    assert (london_start_ny.date(), london_start_ny.hour) == (
+        day - timedelta(days=1),
+        20,
+    )
+    assert (london_end_ny.date(), london_end_ny.hour) == (day, 0)
+    assert (ny_start_ny.date(), ny_start_ny.hour) == (day, 2)
+    assert (ny_end_ny.date(), ny_end_ny.hour) == (day, 5)
 
 
 def test_possible_touch_intervals_are_only_necessary_condition_minutes() -> None:

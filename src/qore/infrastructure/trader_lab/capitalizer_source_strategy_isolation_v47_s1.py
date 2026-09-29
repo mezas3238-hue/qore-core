@@ -4,7 +4,7 @@ S1 evaluates only the source-faithful strategy conditional on the explicit
 EXOGENOUS_PASS_FOR_SOURCE_STRATEGY_ISOLATION token.  S1-A constructs the
 canonical population and exact provider fills without reading terminal outcomes.
 
-Frozen in PR #623 comments 5894199332, 5894211842 and 5894267606.
+Frozen in PR #623 comments 5894199332, 5894211842, 5894267606 and 5894871975.
 """
 
 from __future__ import annotations
@@ -70,6 +70,7 @@ IDENTITY = "QORE_CAPITALIZER_SOURCE_STRATEGY_ISOLATION_V47_S1"
 PREDECLARATION_COMMENT_ID = 5894199332
 SEMANTIC_AMENDMENT_A1_COMMENT_ID = 5894211842
 SEMANTIC_AMENDMENT_A2_COMMENT_ID = 5894267606
+SEMANTIC_AMENDMENT_A3_COMMENT_ID = 5894871975
 COGNITIVE_TOKEN = "EXOGENOUS_PASS_FOR_SOURCE_STRATEGY_ISOLATION"
 SOURCE_M1_RUN_ID = 35548099334
 SOURCE_M1_SHA = "18c338aedd5013ce65a6cb6408ffbc2e904a6217"
@@ -366,20 +367,44 @@ def prior_source_session_bounds(
     *,
     session: CapitalizerSession,
 ) -> tuple[datetime, datetime]:
+    """Return the exact frozen S0/V3 liquidity-reference window."""
+
     if session is CapitalizerSession.ASIA:
-        return source_session_bounds(
+        start = datetime.combine(
             operating_day,
-            session=CapitalizerSession.NEW_YORK,
+            time(8, 30),
+            tzinfo=NEW_YORK,
         )
+        end = datetime.combine(
+            operating_day,
+            time(16, 0),
+            tzinfo=NEW_YORK,
+        )
+        return start.astimezone(UTC), end.astimezone(UTC)
     if session is CapitalizerSession.LONDON:
-        return source_session_bounds(
-            operating_day - timedelta(days=1),
-            session=CapitalizerSession.ASIA,
+        prior = operating_day - timedelta(days=1)
+        start = datetime.combine(
+            prior,
+            time(20, 0),
+            tzinfo=NEW_YORK,
         )
-    return source_session_bounds(
+        end = datetime.combine(
+            operating_day,
+            time(0, 0),
+            tzinfo=NEW_YORK,
+        )
+        return start.astimezone(UTC), end.astimezone(UTC)
+    start = datetime.combine(
         operating_day,
-        session=CapitalizerSession.LONDON,
+        time(2, 0),
+        tzinfo=NEW_YORK,
     )
+    end = datetime.combine(
+        operating_day,
+        time(5, 0),
+        tzinfo=NEW_YORK,
+    )
+    return start.astimezone(UTC), end.astimezone(UTC)
 
 
 def _bars_between(
@@ -413,14 +438,13 @@ def _reference_liquidity(
     )
     if len(rows) < 30:
         return None
-    prior = (
-        CapitalizerSession.NEW_YORK
+    source = (
+        "PREVIOUS_COMPLETED_NEW_YORK_RANGE"
         if session is CapitalizerSession.ASIA
-        else CapitalizerSession.ASIA
+        else "COMPLETED_ASIA_RANGE"
         if session is CapitalizerSession.LONDON
-        else CapitalizerSession.LONDON
+        else "COMPLETED_LONDON_RANGE"
     )
-    source = f"COMPLETED_{prior.value}_SOURCE_SESSION"
     return ReferenceLiquidity(
         opened_at=rows[0].opened_at,
         closed_at=rows[-1].closed_at,
@@ -1288,6 +1312,7 @@ def aggregate_s1a(root: Path, output: Path) -> dict[str, object]:
         "predeclaration_comment_id": PREDECLARATION_COMMENT_ID,
         "semantic_amendment_a1_comment_id": SEMANTIC_AMENDMENT_A1_COMMENT_ID,
         "semantic_amendment_a2_comment_id": SEMANTIC_AMENDMENT_A2_COMMENT_ID,
+        "semantic_amendment_a3_comment_id": SEMANTIC_AMENDMENT_A3_COMMENT_ID,
         "source_m1_run_id": SOURCE_M1_RUN_ID,
         "source_m1_sha": SOURCE_M1_SHA,
         "full_source_window_census": True,

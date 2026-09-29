@@ -209,6 +209,7 @@ jobs:
           assert report["predeclaration_comment_id"] == 5894199332
           assert report["semantic_amendment_a1_comment_id"] == 5894211842
           assert report["semantic_amendment_a2_comment_id"] == 5894267606
+          assert report["semantic_amendment_a3_comment_id"] == 5894871975
           assert report["market_period_reports"] == 27
           assert report["market_count"] == 9
           assert report["full_source_window_census"] is True
