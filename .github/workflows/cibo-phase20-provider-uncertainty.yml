@@ -46,6 +46,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_runtime_shadow.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_regime_population.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_policy.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_store.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_readiness.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_utility.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_forward_population.py'
@@ -142,6 +143,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t13_runtime_shadow.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_regime_population.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_policy.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_store.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_readiness.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_utility.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py'
@@ -211,6 +213,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_runtime_shadow.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_regime_population.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_policy.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_store.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_readiness.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_utility.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_forward_population.py'
@@ -307,6 +310,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t13_runtime_shadow.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_regime_population.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_policy.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_store.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_readiness.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_utility.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py'
@@ -392,6 +396,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_t13_runtime_shadow.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t12_regime_population.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_policy.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_store.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_readiness.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_utility.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t08_forward_population.py \
@@ -493,6 +498,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_t13_runtime_shadow.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t12_regime_population.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_policy.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_store.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_readiness.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_utility.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py \
@@ -516,6 +522,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_t13_runtime_shadow.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t12_regime_population.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_policy.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_store.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_readiness.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_utility.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py \
@@ -589,6 +596,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_phase20_t13_runtime_shadow.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t12_regime_population.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_policy.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_store.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_readiness.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_utility.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t08_forward_population.py \
@@ -692,6 +700,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_t13_runtime_shadow.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t12_regime_population.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_policy.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_store.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_readiness.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_utility.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py \
@@ -715,6 +724,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_t13_runtime_shadow.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t12_regime_population.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_policy.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_store.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_readiness.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_utility.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py \
