@@ -16,6 +16,8 @@ from qore.infrastructure.cibo_compound_capital import (
 )
 from qore.infrastructure.cibo_compound_floor import (
     ProtectedCapitalFloorLedger,
+    ProtectedFloorEvent,
+    ProtectedFloorEventType,
 )
 from qore.infrastructure.cibo_compound_portfolio_ledger import (
     CompoundPortfolioLedger,
@@ -224,12 +226,16 @@ def test_floor_ratchet_cannot_double_admit_or_ratchet_down() -> None:
 
     with pytest.raises(
         CiboCompoundCapitalError,
-        match="policy protection requires accounting-protected source",
+        match="cannot ratchet downward",
     ):
-        floor.upgrade_to_policy_protected(
-            tranche_id="missing",
-            event_id="missing",
+        ProtectedFloorEvent(
+            event_id="illegal-downward-ratchet",
+            event_type=ProtectedFloorEventType.UPGRADE_TO_POLICY_PROTECTED,
+            tranche_id="tranche",
             occurred_at=T0 + timedelta(seconds=5),
-            policy_id="policy",
-            policy_sha256="sha256:" + "b" * 64,
+            floor_before_usd=Decimal("80"),
+            floor_after_usd=Decimal("79"),
+            from_class=CompoundProtectionClass.ACCOUNTING_PROTECTED,
+            to_class=CompoundProtectionClass.POLICY_PROTECTED,
+            evidence_ref="sha256:" + "b" * 64,
         )
