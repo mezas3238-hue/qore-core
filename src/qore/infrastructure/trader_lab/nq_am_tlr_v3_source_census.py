@@ -10,7 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import asdict, dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -197,6 +197,7 @@ def census(
     )
     days: list[DayObservation] = []
     refs: list[ReferenceObservation] = []
+    opened = tuple(bar.opened_at for bar in evidence.bars)
 
     for index in range(1, len(rth)):
         current = rth[index]
@@ -210,7 +211,12 @@ def census(
         gap = previous_rth.settle - current.open
         gap_down = gap > 0
         early_end = v1._at_ny(current.ny_day, v1.EARLY_GAP_END)
-        early = v1._bars_between(evidence.bars, current.open_at, early_end)
+        early = _bar_window(
+            evidence.bars,
+            opened,
+            start=current.open_at,
+            end=early_end,
+        )
 
         sig1: bool | None = None
         sig2: bool | None = None
@@ -247,13 +253,33 @@ def census(
         prior = [item for item in eth if item.trade_day < current.ny_day][-5:]
         below = [item for item in prior if item.low < current.open]
         untouched_count = 0
+        macro_open = v1._at_ny(
+            current.ny_day,
+            v1.MACRO_FIRST_HALF_OPEN,
+        )
+        macro_close = v1._at_ny(current.ny_day, v1.MACRO_CLOSE)
+        expiry = v1._at_ny(current.ny_day, v1.AM_EXPIRY)
+        rth_to_macro = _bar_window(
+            evidence.bars,
+            opened,
+            start=current.open_at,
+            end=macro_close,
+        )
+        rth_to_expiry = _bar_window(
+            evidence.bars,
+            opened,
+            start=current.open_at,
+            end=expiry,
+        )
 
         for item in below:
-            touched_before = any(
-                bar.low <= item.low
-                for bar in evidence.bars
-                if item.closed_at <= bar.opened_at < current.open_at
+            prior_path = _bar_window(
+                evidence.bars,
+                opened,
+                start=item.closed_at,
+                end=current.open_at,
             )
+            touched_before = any(bar.low <= item.low for bar in prior_path)
             untouched = not touched_before
             untouched_count += int(untouched)
 
@@ -265,13 +291,8 @@ def census(
                 if abs_distance is None or not gap_down
                 else abs_distance / gap
             )
-            macro_open = v1._at_ny(
-                current.ny_day,
-                v1.MACRO_FIRST_HALF_OPEN,
-            )
-            macro_close = v1._at_ny(current.ny_day, v1.MACRO_CLOSE)
             first_touch = _first_touch(
-                evidence.bars,
+                rth_to_macro,
                 start=current.open_at,
                 end=macro_close,
                 level=item.low,
@@ -289,7 +310,7 @@ def census(
             if first_touch is not None:
                 through_macro = tuple(
                     bar
-                    for bar in evidence.bars
+                    for bar in rth_to_macro
                     if first_touch.opened_at <= bar.opened_at < macro_close
                 )
                 reject_ref = all(bar.close > item.low for bar in through_macro)
@@ -297,8 +318,8 @@ def census(
                     reject_2sd = all(
                         bar.close > extension_2 for bar in through_macro
                     )
-                ifvg = v1._ifvg_entry(
-                    evidence.bars,
+                ifvg = _ifvg_entry_window(
+                    rth_to_macro,
                     sweep_at=first_touch.opened_at,
                     deadline=macro_close,
                 )
@@ -310,9 +331,9 @@ def census(
                         if bar.opened_at >= first_touch.opened_at
                     )
                     target_reached, lower_low_first = _outcome_after_ifvg(
-                        evidence.bars,
+                        rth_to_expiry,
                         entry_at=ifvg_at,
-                        expiry=v1._at_ny(current.ny_day, v1.AM_EXPIRY),
+                        expiry=expiry,
                         target=current.open,
                         touch_low=touch_low,
                     )
