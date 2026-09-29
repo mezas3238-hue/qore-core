@@ -1097,6 +1097,80 @@ class ExpectedUpdateCadencePolicy:
 
 
 @dataclass(frozen=True, slots=True)
+class ExpectedUpdateCadencePolicyRegistry:
+    """Exact instrument/provider/session cadence policies; no global stale fallback."""
+
+    version: str
+    policies: tuple[ExpectedUpdateCadencePolicy, ...]
+    provenance_refs: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if not self.version.strip():
+            raise TemporalComparabilityError(
+                "cadence registry version must be non-empty"
+            )
+        keys = tuple(
+            (
+                item.instrument_key,
+                item.provider,
+                item.session_state.value,
+            )
+            for item in self.policies
+        )
+        if keys != tuple(sorted(keys)):
+            raise TemporalComparabilityError(
+                "cadence policies must use canonical key order"
+            )
+        if len(keys) != len(set(keys)):
+            raise TemporalComparabilityError(
+                "cadence policy keys must be unique"
+            )
+        if self.provenance_refs != tuple(sorted(set(self.provenance_refs))):
+            raise TemporalComparabilityError(
+                "cadence registry provenance must be canonical"
+            )
+
+    def fingerprint(self) -> str:
+        return _sha256(
+            {
+                "version": self.version,
+                "policies": [
+                    {
+                        "instrument_key": item.instrument_key,
+                        "provider": item.provider,
+                        "session_state": item.session_state.value,
+                        "policy_fingerprint": item.fingerprint(),
+                    }
+                    for item in self.policies
+                ],
+                "provenance_refs": self.provenance_refs,
+            }
+        )
+
+    def policy_for(
+        self,
+        *,
+        instrument_key: str,
+        provider: str,
+        session_state: MarketSessionState,
+    ) -> ExpectedUpdateCadencePolicy | None:
+        if not instrument_key.strip() or not provider.strip():
+            raise TemporalComparabilityError(
+                "cadence lookup identity must be explicit"
+            )
+        return next(
+            (
+                item
+                for item in self.policies
+                if item.instrument_key == instrument_key
+                and item.provider == provider
+                and item.session_state is session_state
+            ),
+            None,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class ProviderObservabilitySnapshot:
     identity: ProviderInstrumentIdentity
     evaluation_at: datetime
@@ -1228,6 +1302,290 @@ class LiquidityObservation:
             raise TemporalComparabilityError(
                 "liquidity provenance must be unique and canonical"
             )
+
+
+@dataclass(frozen=True, slots=True)
+class LiquidityObservabilityPolicy:
+    """Policy for interpreting measured activity without hiding provider health."""
+
+    version: str
+    instrument_key: str
+    provider: str
+    session_state: MarketSessionState
+    normal_activity_ratio_bps: int
+    illiquid_below_activity_ratio_bps: int
+    minimum_spread_quality_bps: int
+    max_provider_update_age_ms: int
+    provenance_refs: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if not self.version.strip():
+            raise TemporalComparabilityError(
+                "liquidity policy version must be non-empty"
+            )
+        if not self.instrument_key.strip() or not self.provider.strip():
+            raise TemporalComparabilityError(
+                "liquidity policy identity must be explicit"
+            )
+        for name in (
+            "normal_activity_ratio_bps",
+            "illiquid_below_activity_ratio_bps",
+            "minimum_spread_quality_bps",
+        ):
+            value = getattr(self, name)
+            if type(value) is not int or not 0 <= value <= 10_000:
+                raise TemporalComparabilityError(
+                    f"{name} must be int within 0..10000"
+                )
+        if (
+            self.illiquid_below_activity_ratio_bps
+            > self.normal_activity_ratio_bps
+        ):
+            raise TemporalComparabilityError(
+                "illiquid activity threshold cannot exceed normal threshold"
+            )
+        if (
+            type(self.max_provider_update_age_ms) is not int
+            or self.max_provider_update_age_ms <= 0
+        ):
+            raise TemporalComparabilityError(
+                "max_provider_update_age_ms must be positive int"
+            )
+        if self.provenance_refs != tuple(sorted(set(self.provenance_refs))):
+            raise TemporalComparabilityError(
+                "liquidity policy provenance must be canonical"
+            )
+
+    def fingerprint(self) -> str:
+        return _sha256(
+            {
+                "version": self.version,
+                "instrument_key": self.instrument_key,
+                "provider": self.provider,
+                "session_state": self.session_state.value,
+                "normal_activity_ratio_bps": self.normal_activity_ratio_bps,
+                "illiquid_below_activity_ratio_bps": (
+                    self.illiquid_below_activity_ratio_bps
+                ),
+                "minimum_spread_quality_bps": (
+                    self.minimum_spread_quality_bps
+                ),
+                "max_provider_update_age_ms": (
+                    self.max_provider_update_age_ms
+                ),
+                "provenance_refs": self.provenance_refs,
+            }
+        )
+
+
+def assess_liquidity_observability(
+    *,
+    identity: ProviderInstrumentIdentity,
+    evaluation_at: datetime,
+    provider_snapshot: ProviderObservabilitySnapshot,
+    session_state: MarketSessionState,
+    activity_ratio_bps: int,
+    spread_quality_bps: int,
+    policy: LiquidityObservabilityPolicy,
+    provenance_refs: tuple[str, ...],
+) -> LiquidityObservation:
+    """Interpret measured liquidity while failing closed on provider uncertainty."""
+
+    _require_aware(evaluation_at, field_name="liquidity evaluation_at")
+    evaluation = evaluation_at.astimezone(UTC)
+    if provider_snapshot.identity != identity:
+        raise TemporalComparabilityError(
+            "liquidity provider identity drift"
+        )
+    if provider_snapshot.evaluation_at.astimezone(UTC) != evaluation:
+        raise TemporalComparabilityError(
+            "liquidity provider evaluation time drift"
+        )
+    if policy.instrument_key != identity.instrument_key:
+        raise TemporalComparabilityError(
+            "liquidity policy instrument identity mismatch"
+        )
+    if policy.provider != identity.provider:
+        raise TemporalComparabilityError(
+            "liquidity policy provider identity mismatch"
+        )
+    if policy.session_state is not session_state:
+        raise TemporalComparabilityError(
+            "liquidity policy session state mismatch"
+        )
+    for name, value in (
+        ("activity_ratio_bps", activity_ratio_bps),
+        ("spread_quality_bps", spread_quality_bps),
+    ):
+        if type(value) is not int or not 0 <= value <= 10_000:
+            raise TemporalComparabilityError(
+                f"{name} must be int within 0..10000"
+            )
+    if provenance_refs != tuple(sorted(set(provenance_refs))):
+        raise TemporalComparabilityError(
+            "liquidity provenance must be unique and canonical"
+        )
+
+    provider_unreliable = provider_snapshot.state in {
+        ProviderObservabilityState.PARTIAL,
+        ProviderObservabilityState.DEGRADED,
+        ProviderObservabilityState.UNAVAILABLE,
+        ProviderObservabilityState.UNKNOWN,
+        ProviderObservabilityState.STALE,
+    }
+    if (
+        provider_unreliable
+        or provider_snapshot.update_age_ms is None
+        or provider_snapshot.update_age_ms > policy.max_provider_update_age_ms
+    ):
+        state = LiquidityState.UNKNOWN
+    elif activity_ratio_bps < policy.illiquid_below_activity_ratio_bps:
+        state = LiquidityState.ILLIQUID
+    elif (
+        activity_ratio_bps < policy.normal_activity_ratio_bps
+        or spread_quality_bps < policy.minimum_spread_quality_bps
+    ):
+        state = LiquidityState.LOW
+    else:
+        state = LiquidityState.NORMAL
+
+    return LiquidityObservation(
+        instrument_key=identity.instrument_key,
+        evaluation_at=evaluation,
+        state=state,
+        activity_ratio_bps=activity_ratio_bps,
+        spread_quality_bps=spread_quality_bps,
+        provenance_refs=provenance_refs,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class TemporalSkewPolicy:
+    """Scope-specific cross-market skew budget with no universal fallback."""
+
+    version: str
+    relation_kind: str
+    source_family: str
+    target_family: str
+    horizon: str
+    session_scope: str
+    liquidity_scope: str
+    max_temporal_skew_ms: int
+    provenance_refs: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        for name in (
+            "version",
+            "relation_kind",
+            "source_family",
+            "target_family",
+            "horizon",
+            "session_scope",
+            "liquidity_scope",
+        ):
+            if not str(getattr(self, name)).strip():
+                raise TemporalComparabilityError(
+                    f"temporal skew {name} must be non-empty"
+                )
+        if (
+            type(self.max_temporal_skew_ms) is not int
+            or self.max_temporal_skew_ms < 0
+        ):
+            raise TemporalComparabilityError(
+                "max_temporal_skew_ms must be non-negative int"
+            )
+        if self.provenance_refs != tuple(sorted(set(self.provenance_refs))):
+            raise TemporalComparabilityError(
+                "temporal skew provenance must be canonical"
+            )
+
+    def scope_key(self) -> tuple[str, ...]:
+        return (
+            self.relation_kind,
+            self.source_family,
+            self.target_family,
+            self.horizon,
+            self.session_scope,
+            self.liquidity_scope,
+        )
+
+    def fingerprint(self) -> str:
+        return _sha256(
+            {
+                "version": self.version,
+                "scope_key": self.scope_key(),
+                "max_temporal_skew_ms": self.max_temporal_skew_ms,
+                "provenance_refs": self.provenance_refs,
+            }
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class TemporalSkewPolicyRegistry:
+    version: str
+    policies: tuple[TemporalSkewPolicy, ...]
+    provenance_refs: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if not self.version.strip():
+            raise TemporalComparabilityError(
+                "temporal skew registry version must be non-empty"
+            )
+        keys = tuple(item.scope_key() for item in self.policies)
+        if keys != tuple(sorted(keys)):
+            raise TemporalComparabilityError(
+                "temporal skew policies must use canonical scope order"
+            )
+        if len(keys) != len(set(keys)):
+            raise TemporalComparabilityError(
+                "temporal skew policy scopes must be unique"
+            )
+        if self.provenance_refs != tuple(sorted(set(self.provenance_refs))):
+            raise TemporalComparabilityError(
+                "temporal skew registry provenance must be canonical"
+            )
+
+    def fingerprint(self) -> str:
+        return _sha256(
+            {
+                "version": self.version,
+                "policies": [
+                    {
+                        "scope_key": item.scope_key(),
+                        "policy_fingerprint": item.fingerprint(),
+                    }
+                    for item in self.policies
+                ],
+                "provenance_refs": self.provenance_refs,
+            }
+        )
+
+    def policy_for(
+        self,
+        *,
+        relation_kind: str,
+        source_family: str,
+        target_family: str,
+        horizon: str,
+        session_scope: str,
+        liquidity_scope: str,
+    ) -> TemporalSkewPolicy | None:
+        key = (
+            relation_kind,
+            source_family,
+            target_family,
+            horizon,
+            session_scope,
+            liquidity_scope,
+        )
+        if any(not item.strip() for item in key):
+            raise TemporalComparabilityError(
+                "temporal skew lookup scope must be explicit"
+            )
+        return next(
+            (item for item in self.policies if item.scope_key() == key),
+            None,
+        )
 
 
 @dataclass(frozen=True, slots=True)
