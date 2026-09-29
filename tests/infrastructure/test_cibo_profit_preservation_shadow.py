@@ -98,6 +98,12 @@ def _proposal(
     )
 
 
+def test_genc7_policy_digest_is_frozen() -> None:
+    assert genc7_policy_sha256() == (
+        "sha256:fc6a9b32da8d6595cffb51a73525a929d976f84960439b8e0c22f90561a406e7"
+    )
+
+
 def test_genc7_metrics_are_explicit_and_realized_only() -> None:
     state = _state()
 
