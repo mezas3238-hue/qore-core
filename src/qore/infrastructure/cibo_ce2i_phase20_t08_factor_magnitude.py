@@ -1,8 +1,9 @@
 """Causal monetary factor-magnitude audit for CE2I T08.
 
 This module identifies observable factor notional without translating stop risk
-into factor exposure. Pair conversion reuses the same provider tick economics
-that CIBO already treats as USD for stop/spread normalization. It grants no
+into factor exposure. Pair and index delta-notional conversion reuse the same
+provider tick economics that CIBO already treats as USD for stop/spread
+normalization. It grants no
 portfolio-netting credit, never infers correlation, and makes no historical
 provider-equivalence claim.
 """
@@ -192,20 +193,54 @@ def assess_minimum_seed_factor_magnitude(
     symbol = opportunity.qore_symbol.strip().upper()
 
     if symbol == "NAS100":
+        topology = directional_factor_exposures(
+            qore_symbol=symbol,
+            side=opportunity.side,
+        )
+        if len(topology) != 1 or topology[0].factor != "US_TECH_EQUITY_BETA":
+            raise CiboCapitalManagementError(
+                "T08 NAS100 factor topology drift"
+            )
+        side_sign = (
+            Decimal(1) if opportunity.side == "long" else Decimal(-1)
+        )
+        provider_factor_units = observation.contract_size * volume
+        usd_per_factor_unit = (
+            opportunity.intended_entry
+            * observation.tick_value
+            / (observation.contract_size * observation.tick_size)
+        )
+        conversion_evidence_ref = (
+            f"{provider_evidence_ref}:provider-tick-usd:"
+            f"{observation.provider_key}:{symbol}"
+        )
+        exposure = MonetaryFactorExposure(
+            factor_id=topology[0].factor,
+            direction=topology[0].direction,
+            native_unit="PROVIDER_CONTRACT_FACTOR_UNIT",
+            signed_native_amount=side_sign * provider_factor_units,
+            usd_per_native_unit=usd_per_factor_unit,
+            signed_notional_usd=(
+                side_sign
+                * provider_factor_units
+                * usd_per_factor_unit
+            ),
+            conversion_basis=T08UsdConversionBasis.PROVIDER_TICK_ECONOMICS,
+            conversion_evidence_ref=conversion_evidence_ref,
+        )
         return Phase20T08FactorMagnitudeAudit(
             signal_fingerprint=opportunity.signal_fingerprint,
             qore_symbol=symbol,
             volume_basis=T08FactorVolumeBasis.MINIMUM_EXECUTABLE_CANDIDATE,
             volume=volume,
             observed_at=decision_at,
-            exposures=(),
-            native_magnitude_identified=False,
-            usd_magnitude_complete=False,
+            exposures=(exposure,),
+            native_magnitude_identified=True,
+            usd_magnitude_complete=True,
             risk_equivalent_identified=False,
             correlation_state_identified=False,
             netting_credit_authorized=False,
             blockers=(
-                "PROVIDER_CONTRACT_DENOMINATION_REQUIRED:NAS100",
                 "FACTOR_NOTIONAL_TO_SIGNED_RISK_USD_MAPPING_NOT_IDENTIFIED",
                 "CAUSAL_CORRELATION_STATE_NOT_IDENTIFIED",
                 "FRESH_OOS_NETTING_UTILITY_ANALYSIS_REQUIRED",

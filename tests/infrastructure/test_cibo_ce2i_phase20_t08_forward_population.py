@@ -172,9 +172,9 @@ def test_forward_population_counts_pair_magnitude_and_blocks_nas100() -> None:
     assert report.usable_forward_epochs == 2
     assert report.candidate_epochs == 2
     assert report.candidate_instances == 3
-    assert report.native_magnitude_instances == 2
-    assert report.usd_magnitude_complete_instances == 2
-    assert report.blocked_candidate_instances == 1
+    assert report.native_magnitude_instances == 3
+    assert report.usd_magnitude_complete_instances == 3
+    assert report.blocked_candidate_instances == 0
     assert report.candidate_lineages == (
         TraderLineage.R38_GBPJPY,
         TraderLineage.R43_GBPUSD,
@@ -183,10 +183,11 @@ def test_forward_population_counts_pair_magnitude_and_blocks_nas100() -> None:
     assert report.magnitude_lineages == (
         TraderLineage.R38_GBPJPY,
         TraderLineage.R43_GBPUSD,
+        TraderLineage.VT31_NAS100,
     )
     assert report.candidate_symbols == ("GBPJPY", "GBPUSD", "NAS100")
-    assert report.magnitude_symbols == ("GBPJPY", "GBPUSD")
-    assert report.blocked_by_symbol == (("NAS100", 1),)
+    assert report.magnitude_symbols == ("GBPJPY", "GBPUSD", "NAS100")
+    assert report.blocked_by_symbol == ()
     assert report.source_decision_sha256s == (
         first.evidence_sha256,
         second.evidence_sha256,
@@ -194,7 +195,7 @@ def test_forward_population_counts_pair_magnitude_and_blocks_nas100() -> None:
     assert report.risk_equivalent_instances == 0
     assert report.correlation_state_instances == 0
     assert report.netting_credit_authorized is False
-    assert "USD_FACTOR_MAGNITUDE_COVERAGE_INCOMPLETE" in report.blockers
+    assert "USD_FACTOR_MAGNITUDE_COVERAGE_INCOMPLETE" not in report.blockers
     assert "CAUSAL_CORRELATION_STATE_NOT_IDENTIFIED" in report.blockers
 
 

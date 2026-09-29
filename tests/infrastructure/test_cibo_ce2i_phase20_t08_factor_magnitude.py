@@ -234,7 +234,7 @@ def test_xauusd_uses_same_provider_tick_conversion_contract() -> None:
     assert audit.netting_credit_authorized is False
 
 
-def test_nas100_stays_blocked_without_explicit_contract_denomination() -> None:
+def test_nas100_resolves_usd_delta_notional_from_provider_tick_economics() -> None:
     opportunity = _opportunity(
         trader=TraderLineage.VT31_NAS100,
         symbol="NAS100",
@@ -263,10 +263,18 @@ def test_nas100_stays_blocked_without_explicit_contract_denomination() -> None:
         provider_evidence_ref="provider:nas100",
     )
 
-    assert audit.exposures == ()
-    assert audit.native_magnitude_identified is False
-    assert audit.usd_magnitude_complete is False
-    assert "PROVIDER_CONTRACT_DENOMINATION_REQUIRED:NAS100" in audit.blockers
+    assert len(audit.exposures) == 1
+    exposure = audit.exposures[0]
+    assert exposure.factor_id == "US_TECH_EQUITY_BETA"
+    assert exposure.signed_native_amount == Decimal("1")
+    assert exposure.usd_per_native_unit == Decimal("20000")
+    assert exposure.signed_notional_usd == Decimal("20000")
+    assert (
+        exposure.conversion_basis
+        is T08UsdConversionBasis.PROVIDER_TICK_ECONOMICS
+    )
+    assert audit.native_magnitude_identified is True
+    assert audit.usd_magnitude_complete is True
     assert audit.risk_equivalent_identified is False
     assert audit.correlation_state_identified is False
     assert audit.netting_credit_authorized is False
