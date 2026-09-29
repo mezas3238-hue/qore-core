@@ -955,3 +955,150 @@ def _ambiguous_event_and_decision(tmp_path: Path):
         decision_id="oos-genc6-decision",
     )
     return event, decision
+
+
+def test_genc6_oos_binding_requires_full_causal_chain_and_release(
+    tmp_path: Path,
+) -> None:
+    event, decision = _ambiguous_event_and_decision(tmp_path)
+    genc6_book, c4_book, c5_seals, phase20_book, policy_book = _oos_books(
+        tmp_path=tmp_path,
+        event=event,
+        decision=decision,
+        include_release_timing=True,
+    )
+
+    report = bind_genc6_to_causal_outcomes(
+        genc6_book=genc6_book,
+        c4_book=c4_book,
+        genc5_seals=c5_seals,
+        phase20_evidence_book=phase20_book,
+        phase20_policy_book=policy_book,
+    )
+
+    assert report.status is Genc6OosBindingStatus.COMPLETE
+    assert report.decision_count == 1
+    assert report.candidate_count == 2
+    assert report.c4_bound_count == 2
+    assert report.c5_bound_count == 2
+    assert report.source_decision_bound_count == 2
+    assert report.source_policy_bound_count == 2
+    assert report.settlement_bound_count == 2
+    assert report.release_timing_bound_count == 2
+    assert report.missing_outcome_keys == ()
+    assert report.missing_release_keys == ()
+    assert report.failures == ()
+    assert report.hypothetical_genc6_pnl_computed is False
+    assert report.economic_utility_ready is False
+    assert report.certification_ready is False
+    assert all(
+        row.hypothetical_genc6_pnl_computed is False
+        and row.economic_utility_claimed is False
+        for row in report.rows
+    )
+
+
+def test_genc6_missing_release_stays_partial_without_imputation(
+    tmp_path: Path,
+) -> None:
+    event, decision = _ambiguous_event_and_decision(tmp_path)
+    genc6_book, c4_book, c5_seals, phase20_book, policy_book = _oos_books(
+        tmp_path=tmp_path,
+        event=event,
+        decision=decision,
+        include_release_timing=False,
+    )
+
+    report = bind_genc6_to_causal_outcomes(
+        genc6_book=genc6_book,
+        c4_book=c4_book,
+        genc5_seals=c5_seals,
+        phase20_evidence_book=phase20_book,
+        phase20_policy_book=policy_book,
+    )
+
+    assert report.status is Genc6OosBindingStatus.PARTIAL
+    assert report.settlement_bound_count == 2
+    assert report.release_timing_bound_count == 0
+    assert len(report.missing_release_keys) == 2
+    assert report.hypothetical_genc6_pnl_computed is False
+
+
+def test_genc6_missing_candidate_outcome_stays_partial(
+    tmp_path: Path,
+) -> None:
+    event, decision = _ambiguous_event_and_decision(tmp_path)
+    genc6_book, c4_book, c5_seals, phase20_book, policy_book = _oos_books(
+        tmp_path=tmp_path,
+        event=event,
+        decision=decision,
+        include_release_timing=True,
+        include_second_outcome=False,
+    )
+
+    report = bind_genc6_to_causal_outcomes(
+        genc6_book=genc6_book,
+        c4_book=c4_book,
+        genc5_seals=c5_seals,
+        phase20_evidence_book=phase20_book,
+        phase20_policy_book=policy_book,
+    )
+
+    assert report.status is Genc6OosBindingStatus.PARTIAL
+    assert report.settlement_bound_count == 1
+    assert report.release_timing_bound_count == 1
+    assert len(report.missing_outcome_keys) == 1
+
+
+def test_genc6_population_is_descriptive_even_when_coverage_complete(
+    tmp_path: Path,
+) -> None:
+    event, decision = _ambiguous_event_and_decision(tmp_path)
+    genc6_book, c4_book, c5_seals, phase20_book, policy_book = _oos_books(
+        tmp_path=tmp_path,
+        event=event,
+        decision=decision,
+        include_release_timing=True,
+    )
+    binding = bind_genc6_to_causal_outcomes(
+        genc6_book=genc6_book,
+        c4_book=c4_book,
+        genc5_seals=c5_seals,
+        phase20_evidence_book=phase20_book,
+        phase20_policy_book=policy_book,
+    )
+    population = describe_genc6_fresh_scarcity_population(
+        genc6_book=genc6_book,
+        binding=binding,
+    )
+
+    assert population.status is Genc6PopulationStatus.COVERAGE_COMPLETE
+    assert population.decision_epoch_count == 1
+    assert population.true_scarcity_epoch_count == 1
+    assert population.non_scarcity_epoch_count == 0
+    assert population.candidate_count == 2
+    assert population.treatment_control_divergence_count == 1
+    assert population.treatment_reserve_count == 1
+    assert population.treatment_allocation_count == 0
+    assert population.account_keys == ("ctrader:genc6-demo",)
+    assert set(population.trader_ids) == {
+        TraderLineage.VT31_NAS100.value,
+        TraderLineage.R34_XAUUSD.value,
+    }
+    assert population.decision_calendar_days == 1
+    assert population.calendar_span_days == 1
+    assert population.total_available_capital_usd == Decimal("60")
+    assert population.total_requested_capital_usd == Decimal("80")
+    assert population.total_capital_shortfall_usd == Decimal("20")
+    assert population.mean_competition_intensity == Decimal("0.25")
+    assert population.mean_true_scarcity_intensity == Decimal("0.25")
+    assert population.mean_mutually_fundable_candidates == Decimal("1")
+    assert population.candidate_c4_coverage == Decimal("1")
+    assert population.candidate_c5_coverage == Decimal("1")
+    assert population.source_decision_coverage == Decimal("1")
+    assert population.source_policy_coverage == Decimal("1")
+    assert population.settlement_coverage == Decimal("1")
+    assert population.release_timing_coverage == Decimal("1")
+    assert population.descriptive_only is True
+    assert population.economic_utility_ready is False
+    assert population.certification_ready is False
