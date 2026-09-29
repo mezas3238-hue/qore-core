@@ -73,6 +73,53 @@ def _registry_row() -> dict[str, object]:
     }
 
 
+def test_provider_descriptor_catalog_parsers_preserve_native_ids_and_names() -> None:
+    module = _load_runner()
+
+    asset = module._parse_provider_asset(
+        SimpleNamespace(
+            assetId=16,
+            name="USD",
+            displayName="US Dollar",
+            digits=2,
+        )
+    )
+    asset_class = module._parse_provider_asset_class(
+        SimpleNamespace(id=4, name="Indices")
+    )
+    category = module._parse_provider_symbol_category(
+        SimpleNamespace(id=3, assetClassId=4, name="Indices")
+    )
+
+    assert asset == {
+        "asset_id": 16,
+        "name": "USD",
+        "display_name": "US Dollar",
+        "digits": 2,
+    }
+    assert asset_class == {
+        "asset_class_id": 4,
+        "name": "Indices",
+    }
+    assert category == {
+        "symbol_category_id": 3,
+        "asset_class_id": 4,
+        "name": "Indices",
+    }
+
+
+def test_provider_descriptor_catalog_invalid_ids_fail_closed() -> None:
+    module = _load_runner()
+
+    with pytest.raises(
+        module.Gen2ProviderScheduleError,
+        match="positive int",
+    ):
+        module._parse_provider_symbol_category(
+            SimpleNamespace(id=0, assetClassId=4, name="Indices")
+        )
+
+
 def test_provider_light_symbol_parser_preserves_descriptors_without_inference() -> None:
     module = _load_runner()
 
