@@ -39,6 +39,9 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     DurablePhase20ForwardEvidenceStore,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t12_shadow_store import (
+    DurableT12ShadowDecisionStore,
+)
 from qore.infrastructure.ctrader_demo_compat import (
     CTraderDemoAccountState,
     CTraderDemoSymbolSpecification,
@@ -206,12 +209,18 @@ def test_single_slot_candidate_seals_watch_regime_without_execution(
     assert evidence.load().decisions[0].collector_git_sha == "1" * 40
     assert prepared.broker_mutation_performed is False
 
+    t12_store = DurableT12ShadowDecisionStore(
+        tmp_path / "candidate-t12-shadow.json"
+    )
     finalized = finalize_ctrader_demo_single_slot_phase20_policy(
         prepared=prepared,
         evidence_store=evidence,
         policy_store=policy,
+        t12_shadow_store=t12_store,
     )
     assert policy.load().generation == 1
+    assert finalized.t12_shadow is None
+    assert t12_store.load().generation == 0
     assert finalized.broker_mutation_performed is False
     assert finalized.execution_authority is False
 
