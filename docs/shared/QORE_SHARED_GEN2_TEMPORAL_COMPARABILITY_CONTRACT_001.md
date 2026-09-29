@@ -117,11 +117,23 @@ Provider schedule metadata is supporting evidence only. It is never sufficient
 to promote a provider instrument into a canonical venue/calendar binding.
 
 A mapping may become `VERIFIED` only with explicit, independently provenance-bound
-evidence for all three planes:
+evidence for the canonical planes that actually exist:
 
 - canonical instrument identity;
-- trading venue;
-- canonical versioned market calendar.
+- canonical market structure;
+- canonical versioned market calendar;
+- single trading venue **only when** the market structure is
+  `CENTRALIZED_VENUE`.
+
+Canonical market structure is first-class and may be:
+
+- `CENTRALIZED_VENUE`;
+- `DISTRIBUTED_OTC`;
+- `MULTI_VENUE_COMPOSITE`;
+- `CONTINUOUS_NETWORK`.
+
+GEN-2 must never invent a single venue for OTC, composite or continuous-network
+markets merely to satisfy a schema.
 
 `UNRESOLVED`, `AMBIGUOUS` and `REJECTED` mappings cannot create
 `MarketCalendarBinding` objects. The mapping registry is deterministic,
@@ -139,8 +151,9 @@ MAPPING COMPLETE   = FALSE
 
 Each GEN-1 sensor receives one provider-aware mapping record with deterministic
 fingerprint and explicit provenance. Every baseline record requires separate
-canonical identity, venue and calendar evidence before promotion to
-`VERIFIED`.
+canonical identity, market-structure and calendar evidence before promotion to
+`VERIFIED`; venue evidence is additionally mandatory only for centralized
+markets.
 
 The unresolved baseline also materializes a deterministic provider-evidence
 worklist for all 177 records. It carries provider-native symbol descriptors,
@@ -156,9 +169,10 @@ auditable record rather than create an implicit allowlist.
 
 Verified mappings are promoted to calendar bindings only through an exact
 cross-check against the governed canonical calendar registry. Calendar ID,
-calendar version, venue and IANA timezone must all match. Any drift fails
-closed. Provider-schedule provenance is explicitly forbidden from satisfying
-canonical identity, venue or calendar evidence requirements.
+calendar version, market structure and IANA timezone must all match. Venue must
+also match when a single venue exists. Any drift fails closed.
+Provider-schedule provenance is explicitly forbidden from satisfying canonical
+identity, market-structure, venue or calendar evidence requirements.
 
 A successful GEN-2 temporal-governance closure still does not authorize
 correlation, lead/lag or any other relational scientific claim.
