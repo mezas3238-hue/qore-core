@@ -58,6 +58,9 @@ from qore.infrastructure.trader_lab.capitalizer_full_ict_density_scanner_1y_v1 i
     AggregatedBar,
     _aggregate_h1,
 )
+from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
+    detect_cisd,
+)
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
     CapitalizerSourceDirection,
 )
@@ -707,7 +710,7 @@ def _diagnose_m1_failure(
 
     confirmation = causal[cursor]
     series = tuple(context_binders._m1_source(row) for row in series_rows)
-    cisd = context_binders.detect_cisd(
+    cisd = detect_cisd(
         causal_series=series,
         confirmation_bar=context_binders._m1_source(confirmation),
         direction=context.direction,
