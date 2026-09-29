@@ -22,17 +22,11 @@ def test_v46_phase_b_fails_closed_when_operationalization_is_incomplete() -> Non
     )
 
 
-def test_v46_detects_known_canonical_gaps() -> None:
+def test_v46_r1_closes_internal_fact_blockers_only() -> None:
     report = v46.build_report()
-    blocking = set(report["blocking_facts"])
-    assert "HISTORICAL_ASIAN_OPEN_REFERENCE" in blocking
-    assert "HTF_SOURCE_POI" in blocking
-    assert "STRUCTURAL_HTF_TARGET_SELECTION" in blocking
-    assert "ICT_EXPLICIT_NO_CHASE" in blocking
-    assert "TTRADES_WICK_BEFORE_EXPANSION_BODY" in blocking
-    assert "M1_MSS" in blocking
-    assert "M1_ORDER_BLOCK" in blocking
-    assert "DETERMINISTIC_SOURCE_ROUTE_RESOLUTION" in blocking
+    assert report["r1_predeclaration_comment_id"] == 5883167207
+    assert report["blocking_fact_count"] == 1
+    assert report["blocking_facts"] == ["HISTORICAL_ASIAN_OPEN_REFERENCE"]
 
 
 def test_v46_preserves_ready_source_primitives() -> None:
@@ -48,6 +42,15 @@ def test_v46_preserves_ready_source_primitives() -> None:
     assert status["TTRADES_LTF_CISD"] == "DETECTOR_READY"
     assert status["TTRADES_PROTECTED_SWING"] == "DETECTOR_READY"
     assert status["M1_FVG"] == "DETECTOR_READY"
+    assert status["HTF_SOURCE_POI"] == "DETECTOR_READY"
+    assert status["STRUCTURAL_HTF_TARGET_SELECTION"] == "DETECTOR_READY"
+    assert status["ICT_EXPLICIT_NO_CHASE"] == "DETECTOR_READY"
+    assert status["TTRADES_WICK_BEFORE_EXPANSION_BODY"] == (
+        "COMPOSER_READY_REQUIRES_BOUND_INPUT"
+    )
+    assert status["M1_MSS"] == "DETECTOR_READY"
+    assert status["M1_ORDER_BLOCK"] == "COMPOSER_READY_REQUIRES_BOUND_INPUT"
+    assert status["DETERMINISTIC_SOURCE_ROUTE_RESOLUTION"] == "DETECTOR_READY"
 
 
 def test_v46_never_opens_economics_or_fresh_holdout() -> None:
