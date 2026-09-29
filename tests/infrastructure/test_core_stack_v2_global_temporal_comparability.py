@@ -709,6 +709,26 @@ def test_verified_mapping_requires_independent_evidence_planes(
         )
 
 
+def test_provider_schedule_cannot_be_reused_as_canonical_evidence() -> None:
+    with pytest.raises(
+        TemporalComparabilityError,
+        match="provider schedule evidence cannot satisfy canonical evidence",
+    ):
+        _canonical_mapping(
+            status=CanonicalCalendarMappingStatus.VERIFIED,
+            canonical_instrument_id="canonical:AAA",
+            venue="XNYS",
+            calendar_id="XNYS-RTH",
+            calendar_version="calendar-test-001",
+            iana_timezone="America/New_York",
+            timezone_mapping_version="tz-map-001",
+            identity_evidence_refs=("provider-schedule:test",),
+            venue_evidence_refs=("venue:exchange-master",),
+            calendar_evidence_refs=("calendar:official-version",),
+            reason_codes=("INDEPENDENT_EVIDENCE_VERIFIED",),
+        )
+
+
 def test_verified_canonical_mapping_emits_provenance_bound_binding() -> None:
     record = _canonical_mapping(
         status=CanonicalCalendarMappingStatus.VERIFIED,
