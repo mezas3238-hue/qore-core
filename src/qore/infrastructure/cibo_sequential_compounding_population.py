@@ -25,14 +25,14 @@ from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
 
-from qore.infrastructure.cibo_compound_capital import (
-    CiboCompoundCapitalError,
-)
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
     VersionedPhase20ForwardPolicyBook,
 )
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     VersionedPhase20ForwardEvidenceBook,
+)
+from qore.infrastructure.cibo_compound_capital import (
+    CiboCompoundCapitalError,
 )
 from qore.infrastructure.cibo_marginal_capital_utility_evidence_store import (
     VersionedGenc4MarginalEvidenceBook,
