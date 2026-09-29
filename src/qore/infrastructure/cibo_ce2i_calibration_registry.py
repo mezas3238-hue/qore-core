@@ -360,9 +360,15 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
         "T11",
         CiboCalibrationState.PROVIDER_ECONOMICS_REQUIRED,
         CiboCalibrationType.MIXED_CAUSAL_AND_ECONOMIC,
-        (_PROVIDER_GAP, _PHASE20_CONTRACT),
         (
+            _PROVIDER_GAP,
+            _PHASE20_CONTRACT,
+            "phase20:t11:realized-fill-economics-population",
+        ),
+        (
+            "REALIZED_FILL_SLIPPAGE_AND_LATENCY_POPULATION_AUDIT_IMPLEMENTED",
             "EMPIRICAL_SLIPPAGE_AND_LATENCY_CALIBRATION_REQUIRED",
+            "REALIZED_COMMISSION_AND_SPREAD_ECONOMICS_NOT_BOUND",
             "HISTORICAL_2017_EXECUTION_TERMS_NOT_PROVEN",
         ),
         provider=True,
