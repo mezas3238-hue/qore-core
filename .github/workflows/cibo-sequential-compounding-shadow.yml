@@ -17,6 +17,18 @@ on:
       - 'tests/infrastructure/test_cibo_sequential_compounding_shadow.py'
       - 'tests/infrastructure/test_cibo_sequential_compounding_oos_binding.py'
       - 'docs/research/CIBO-GEN-C5-SEQUENTIAL-COMPOUNDING-SHADOW-PREREGISTRATION-V1.md'
+      - 'src/qore/infrastructure/cibo_profit_preservation_shadow.py'
+      - 'src/qore/infrastructure/cibo_profit_preservation_store.py'
+      - 'src/qore/infrastructure/cibo_profit_preservation_population.py'
+      - 'src/qore/infrastructure/cibo_profit_preservation_oos_binding.py'
+      - 'tests/infrastructure/test_cibo_profit_preservation_shadow.py'
+      - 'docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-GIVEBACK-SHADOW-PREREGISTRATION-V1.md'
+      - 'src/qore/infrastructure/cibo_profit_preservation_shadow.py'
+      - 'src/qore/infrastructure/cibo_profit_preservation_store.py'
+      - 'src/qore/infrastructure/cibo_profit_preservation_population.py'
+      - 'src/qore/infrastructure/cibo_profit_preservation_oos_binding.py'
+      - 'tests/infrastructure/test_cibo_profit_preservation_shadow.py'
+      - 'docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-GIVEBACK-SHADOW-PREREGISTRATION-V1.md'
       - 'docs/research/CIBO-CE2I-ADR-003-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING.md'
       - 'docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md'
   push:
@@ -72,3 +84,34 @@ jobs:
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_sequential_compounding_shadow.py \
             tests/infrastructure/test_cibo_sequential_compounding_oos_binding.py
+
+  profit-preservation-shadow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: GEN-C7 profit preservation shadow quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_profit_preservation_shadow.py \
+            src/qore/infrastructure/cibo_profit_preservation_store.py \
+            src/qore/infrastructure/cibo_profit_preservation_population.py \
+            src/qore/infrastructure/cibo_profit_preservation_oos_binding.py \
+            tests/infrastructure/test_cibo_profit_preservation_shadow.py
+          mypy \
+            src/qore/infrastructure/cibo_profit_preservation_shadow.py \
+            src/qore/infrastructure/cibo_profit_preservation_store.py \
+            src/qore/infrastructure/cibo_profit_preservation_population.py \
+            src/qore/infrastructure/cibo_profit_preservation_oos_binding.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_profit_preservation_shadow.py \
+            src/qore/infrastructure/cibo_profit_preservation_store.py \
+            src/qore/infrastructure/cibo_profit_preservation_population.py \
+            src/qore/infrastructure/cibo_profit_preservation_oos_binding.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_profit_preservation_shadow.py
