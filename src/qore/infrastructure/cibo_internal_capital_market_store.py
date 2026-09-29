@@ -641,6 +641,7 @@ def _event_json(event: CapitalScarcityEvent) -> str:
             ],
         },
         "simultaneously_valid_count": event.simultaneously_valid_count,
+        "eligible_candidate_count": event.eligible_candidate_count,
         "available_capital_usd": str(event.available_capital_usd),
         "total_requested_capital_usd": str(
             event.total_requested_capital_usd
