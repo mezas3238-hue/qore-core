@@ -289,6 +289,221 @@ class MarketCalendarBinding:
             )
 
 
+class CanonicalCalendarMappingStatus(StrEnum):
+    UNRESOLVED = "UNRESOLVED"
+    AMBIGUOUS = "AMBIGUOUS"
+    VERIFIED = "VERIFIED"
+    REJECTED = "REJECTED"
+
+
+@dataclass(frozen=True, slots=True)
+class CanonicalCalendarMappingRecord:
+    """Governed provider instrument -> canonical venue/calendar evidence."""
+
+    instrument_key: str
+    provider_symbol: str
+    provider_symbol_id: int
+    status: CanonicalCalendarMappingStatus
+    canonical_instrument_id: str | None
+    venue: str | None
+    calendar_id: str | None
+    calendar_version: str | None
+    iana_timezone: str | None
+    provider_schedule_timezone: str | None
+    timezone_mapping_version: str | None
+    identity_evidence_refs: tuple[str, ...]
+    venue_evidence_refs: tuple[str, ...]
+    calendar_evidence_refs: tuple[str, ...]
+    provider_schedule_evidence_refs: tuple[str, ...]
+    reason_codes: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if not self.instrument_key.strip() or not self.provider_symbol.strip():
+            raise TemporalComparabilityError(
+                "canonical mapping provider identity must be explicit"
+            )
+        if type(self.provider_symbol_id) is not int or self.provider_symbol_id <= 0:
+            raise TemporalComparabilityError(
+                "canonical mapping provider_symbol_id must be positive int"
+            )
+        for name in (
+            "identity_evidence_refs",
+            "venue_evidence_refs",
+            "calendar_evidence_refs",
+            "provider_schedule_evidence_refs",
+            "reason_codes",
+        ):
+            values = getattr(self, name)
+            if values != tuple(sorted(set(values))):
+                raise TemporalComparabilityError(
+                    f"{name} must be unique and canonical"
+                )
+        if (
+            self.provider_schedule_timezone is not None
+            and not self.provider_schedule_timezone.strip()
+        ):
+            raise TemporalComparabilityError(
+                "provider schedule timezone must be non-empty or None"
+            )
+        if self.status is CanonicalCalendarMappingStatus.VERIFIED:
+            required = (
+                self.canonical_instrument_id,
+                self.venue,
+                self.calendar_id,
+                self.calendar_version,
+                self.iana_timezone,
+                self.timezone_mapping_version,
+            )
+            if any(value is None or not value.strip() for value in required):
+                raise TemporalComparabilityError(
+                    "verified canonical mapping requires complete canonical identity"
+                )
+            if not self.identity_evidence_refs:
+                raise TemporalComparabilityError(
+                    "verified canonical mapping requires identity evidence"
+                )
+            if not self.venue_evidence_refs:
+                raise TemporalComparabilityError(
+                    "verified canonical mapping requires venue evidence"
+                )
+            if not self.calendar_evidence_refs:
+                raise TemporalComparabilityError(
+                    "verified canonical mapping requires calendar evidence"
+                )
+            try:
+                ZoneInfo(self.iana_timezone or "")
+            except (ZoneInfoNotFoundError, ValueError) as exc:
+                raise TemporalComparabilityError(
+                    "verified canonical mapping IANA timezone is invalid"
+                ) from exc
+
+    def fingerprint(self) -> str:
+        return _sha256(
+            {
+                "instrument_key": self.instrument_key,
+                "provider_symbol": self.provider_symbol,
+                "provider_symbol_id": self.provider_symbol_id,
+                "status": self.status.value,
+                "canonical_instrument_id": self.canonical_instrument_id,
+                "venue": self.venue,
+                "calendar_id": self.calendar_id,
+                "calendar_version": self.calendar_version,
+                "iana_timezone": self.iana_timezone,
+                "provider_schedule_timezone": self.provider_schedule_timezone,
+                "timezone_mapping_version": self.timezone_mapping_version,
+                "identity_evidence_refs": self.identity_evidence_refs,
+                "venue_evidence_refs": self.venue_evidence_refs,
+                "calendar_evidence_refs": self.calendar_evidence_refs,
+                "provider_schedule_evidence_refs": (
+                    self.provider_schedule_evidence_refs
+                ),
+                "reason_codes": self.reason_codes,
+            }
+        )
+
+    def to_binding(self) -> MarketCalendarBinding:
+        if self.status is not CanonicalCalendarMappingStatus.VERIFIED:
+            raise TemporalComparabilityError(
+                "only VERIFIED canonical mapping may create calendar binding"
+            )
+        assert self.canonical_instrument_id is not None
+        assert self.calendar_id is not None
+        assert self.timezone_mapping_version is not None
+        provenance = tuple(
+            sorted(
+                set(
+                    self.identity_evidence_refs
+                    + self.venue_evidence_refs
+                    + self.calendar_evidence_refs
+                    + self.provider_schedule_evidence_refs
+                )
+            )
+        )
+        return MarketCalendarBinding(
+            instrument_key=self.instrument_key,
+            canonical_instrument_id=self.canonical_instrument_id,
+            calendar_id=self.calendar_id,
+            provider_schedule_timezone=self.provider_schedule_timezone,
+            timezone_mapping_version=self.timezone_mapping_version,
+            provenance_refs=provenance,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class CanonicalCalendarMappingRegistry:
+    """Deterministic mapping evidence registry; no heuristic auto-promotion."""
+
+    version: str
+    records: tuple[CanonicalCalendarMappingRecord, ...]
+    provenance_refs: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if not self.version.strip():
+            raise TemporalComparabilityError(
+                "canonical mapping registry version must be non-empty"
+            )
+        keys = tuple(item.instrument_key for item in self.records)
+        if keys != tuple(sorted(keys)):
+            raise TemporalComparabilityError(
+                "canonical mapping records must use canonical instrument order"
+            )
+        if len(keys) != len(set(keys)):
+            raise TemporalComparabilityError(
+                "canonical mapping instrument keys must be unique"
+            )
+        provider_ids = tuple(
+            (item.provider_symbol, item.provider_symbol_id)
+            for item in self.records
+        )
+        if len(provider_ids) != len(set(provider_ids)):
+            raise TemporalComparabilityError(
+                "canonical mapping provider identities must be unique"
+            )
+        if self.provenance_refs != tuple(sorted(set(self.provenance_refs))):
+            raise TemporalComparabilityError(
+                "canonical mapping registry provenance must be canonical"
+            )
+
+    def fingerprint(self) -> str:
+        return _sha256(
+            {
+                "version": self.version,
+                "records": [
+                    {
+                        "instrument_key": item.instrument_key,
+                        "mapping_fingerprint": item.fingerprint(),
+                    }
+                    for item in self.records
+                ],
+                "provenance_refs": self.provenance_refs,
+            }
+        )
+
+    def record_for(
+        self,
+        instrument_key: str,
+    ) -> CanonicalCalendarMappingRecord | None:
+        if not instrument_key.strip():
+            raise TemporalComparabilityError(
+                "canonical mapping lookup instrument_key must be non-empty"
+            )
+        return next(
+            (
+                item
+                for item in self.records
+                if item.instrument_key == instrument_key
+            ),
+            None,
+        )
+
+    def verified_bindings(self) -> tuple[MarketCalendarBinding, ...]:
+        return tuple(
+            item.to_binding()
+            for item in self.records
+            if item.status is CanonicalCalendarMappingStatus.VERIFIED
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class GlobalMarketCalendarRegistry:
     version: str
