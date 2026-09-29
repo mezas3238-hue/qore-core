@@ -578,6 +578,13 @@ def write_report(report: S1RPeriodMarketReport, output: Path) -> None:
     )
 
 
+def _json_int(row: dict[str, object], key: str) -> int:
+    value = row.get(key)
+    if type(value) is not int:
+        raise ValueError(f"S1R aggregate field {key} must be int")
+    return value
+
+
 def aggregate(root: Path, output: Path) -> dict[str, object]:
     reports: list[dict[str, object]] = []
     for path in sorted(root.rglob("capitalizer-v47-s1r-*.json")):
@@ -600,31 +607,31 @@ def aggregate(root: Path, output: Path) -> dict[str, object]:
         "predeclaration_comment_id": PREDECLARATION_COMMENT_ID,
         "market_period_reports": len(reports),
         "market_count": len({str(row["symbol"]) for row in reports}),
-        "source_events": sum(int(row["source_events"]) for row in reports),
+        "source_events": sum(_json_int(row, "source_events") for row in reports),
         "m15_failure_classes": dict(sorted(reasons.items())),
         "current_context_passes": sum(
-            int(row["current_context_passes"]) for row in reports
+            _json_int(row, "current_context_passes") for row in reports
         ),
         "current_m1_passes": sum(
-            int(row["current_m1_passes"]) for row in reports
+            _json_int(row, "current_m1_passes") for row in reports
         ),
         "current_m1_failures_audited": sum(
-            int(row["current_m1_failures_audited"]) for row in reports
+            _json_int(row, "current_m1_failures_audited") for row in reports
         ),
         "independent_m1_local_sweep_cisd": sum(
-            int(row["independent_m1_local_sweep_cisd"]) for row in reports
+            _json_int(row, "independent_m1_local_sweep_cisd") for row in reports
         ),
         "independent_m1_validated_ob": sum(
-            int(row["independent_m1_validated_ob"]) for row in reports
+            _json_int(row, "independent_m1_validated_ob") for row in reports
         ),
         "independent_m1_mss": sum(
-            int(row["independent_m1_mss"]) for row in reports
+            _json_int(row, "independent_m1_mss") for row in reports
         ),
         "independent_m1_displacement_fvg": sum(
-            int(row["independent_m1_displacement_fvg"]) for row in reports
+            _json_int(row, "independent_m1_displacement_fvg") for row in reports
         ),
         "independent_m1_owner_triad_complete": sum(
-            int(row["independent_m1_owner_triad_complete"]) for row in reports
+            _json_int(row, "independent_m1_owner_triad_complete") for row in reports
         ),
         "current_s0_ftm_route_mechanically_reachable": False,
         "ftm_separate_population_census_complete": False,
