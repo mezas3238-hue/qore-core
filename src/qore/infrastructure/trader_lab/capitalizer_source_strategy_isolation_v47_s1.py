@@ -58,6 +58,7 @@ from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 
     CapitalizerSourceDirection,
 )
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
+    ReferenceLiquidity,
     _aggregate_tf,
     _pivots,
 )
@@ -302,7 +303,7 @@ def _reference_liquidity(
     *,
     operating_day: date,
     session: CapitalizerSession,
-) -> v3_source.ReferenceLiquidity | None:
+) -> ReferenceLiquidity | None:
     start, end = prior_source_session_bounds(
         operating_day,
         session=session,
@@ -318,7 +319,7 @@ def _reference_liquidity(
         else CapitalizerSession.LONDON
     )
     source = f"COMPLETED_{prior.value}_SOURCE_SESSION"
-    return v3_source.ReferenceLiquidity(
+    return ReferenceLiquidity(
         opened_at=rows[0].opened_at,
         closed_at=rows[-1].closed_at,
         high=max(row.high for row in rows),
