@@ -136,7 +136,9 @@ def _recommendation_fixture():
 
 def test_t13_shadow_store_seals_before_outcome(tmp_path) -> None:
     book, recommendation = _recommendation_fixture()
-    clock = lambda: recommendation.decision_at + timedelta(milliseconds=500)
+    def clock():
+        return recommendation.decision_at + timedelta(milliseconds=500)
+
     store = DurableT13ShadowDecisionStore(
         tmp_path / "t13-shadow.json",
         clock=clock,
