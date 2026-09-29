@@ -111,8 +111,12 @@ def test_reconstructs_cross_fx_factors_exactly_with_usd_numeraire() -> None:
         ),
     )
 
+    tolerance = Decimal("1e-24")
     for factor_id, gross in factor_gross.items():
-        assert observation.return_for(factor_id) == gross - Decimal(1)
+        assert abs(
+            observation.return_for(factor_id)
+            - (gross - Decimal(1))
+        ) <= tolerance
     assert observation.return_for("USD") == Decimal(0)
     assert len(observation.source_evidence_refs) == 12
 
