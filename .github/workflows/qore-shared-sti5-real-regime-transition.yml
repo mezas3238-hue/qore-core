@@ -1,0 +1,198 @@
+name: QORE Shared STI5 Real Regime Transition
+
+concurrency:
+  group: qore-shared-sti5-real-regime-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_regime_transition_intelligence.py
+      - tests/infrastructure/test_core_stack_v2_shared_regime_transition_intelligence.py
+      - scripts/shared_sti5_real_regime_transition.py
+      - .github/workflows/qore-shared-sti5-real-regime-transition.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  causal-replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate STI-5 engine
+        run: |
+          set -euo pipefail
+          mkdir -p result input/r8 input/r6 input/r5
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/shared_regime_transition_intelligence.py \
+            tests/infrastructure/test_core_stack_v2_shared_regime_transition_intelligence.py \
+            scripts/shared_sti5_real_regime_transition.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/shared_regime_transition_intelligence.py
+          python -m py_compile \
+            src/qore/infrastructure/core_stack_v2/shared_regime_transition_intelligence.py \
+            scripts/shared_sti5_real_regime_transition.py
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_shared_regime_transition_intelligence.py \
+            --junitxml=result/junit.xml
+
+      - name: Recover immutable R8 R6 R5 market evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Freeze source-only R8 regime policy
+        run: |
+          set -euo pipefail
+          python scripts/shared_sti5_real_regime_transition.py \
+            --mode freeze \
+            --r8-nas input/r8/fresh/NAS100/market-evidence.json \
+            --r8-sp input/r8/fresh/SP500/market-evidence.json \
+            --r8-us input/r8/fresh/US30/market-evidence.json \
+            --output result/sti5-source-only-policy.json \
+            | tee result/freeze-summary.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(Path("result/sti5-source-only-policy.json").read_text())
+          assert p["mode"] == "SOURCE_ONLY_POLICY_FREEZE"
+          assert p["r8_source_observation_count"] > 0
+          assert p["r8_trajectory_count"] > 0
+          assert p["future_market_data_read_for_freeze"] is False
+          assert p["future_outcomes_read_for_freeze"] is False
+          assert p["trade_pnl_used"] is False
+          assert p["protected_holdout_opened"] is False
+          assert p["productive_authority"] is False
+          assert len(p["policy_fingerprint"]) == 64
+          PY
+
+      - name: Execute causal R8 R6 R5 regime replay
+        run: |
+          set -euo pipefail
+          python scripts/shared_sti5_real_regime_transition.py \
+            --mode evaluate \
+            --policy result/sti5-source-only-policy.json \
+            --r8-nas input/r8/fresh/NAS100/market-evidence.json \
+            --r8-sp input/r8/fresh/SP500/market-evidence.json \
+            --r8-us input/r8/fresh/US30/market-evidence.json \
+            --r6-nas input/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp input/r6/fresh/SP500/market-evidence.json \
+            --r6-us input/r6/fresh/US30/market-evidence.json \
+            --r5-nas input/r5/fresh/NAS100/market-evidence.json \
+            --r5-sp input/r5/fresh/SP500/market-evidence.json \
+            --r5-us input/r5/fresh/US30/market-evidence.json \
+            --output result/sti5-causal-replay.json \
+            | tee result/replay-summary.json
+
+      - name: Validate scientific disposition without forcing a pass
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(Path("result/sti5-causal-replay.json").read_text())
+          assert p["engine_state"] == (
+              "ENGINE_IMPLEMENTED_REAL_DATA_BOUND_CAUSAL_REPLAY_EXECUTED"
+          )
+          assert p["value_status"] in {
+              "VALUE_DEMONSTRATED_CONSUMED_R6_R5",
+              "STI5_V1_FALSIFIED_ON_CONSUMED_EVIDENCE",
+          }
+          assert p["temporal_order_pass"] is True
+          assert p["source_only_engine"] is True
+          assert p["future_data_used_for_intelligence"] is False
+          assert p["future_data_used_offline_for_evaluation"] is True
+          assert p["trade_pnl_used"] is False
+          assert p["trader_methodology_used"] is False
+          assert p["protected_holdout_opened"] is False
+          assert p["productive_authority"] is False
+          for partition in ("r8", "r6", "r5"):
+              row=p["evaluations"][partition]
+              assert row["sample_count"] > 0
+              assert 0 <= row["precision_bps"] <= 10000
+              assert 0 <= row["recall_bps"] <= 10000
+              assert 0 <= row["false_transition_rate_bps"] <= 10000
+              assert 0 <= row["missed_transition_rate_bps"] <= 10000
+          PY
+
+      - name: Bind evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-sti5-real-regime-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report STI-5 scientific state
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(Path("result/sti5-causal-replay.json").read_text())
+          r6=p["evaluations"]["r6"]
+          r5=p["evaluations"]["r5"]
+          body="\n".join([
+              "## Shared STI-5 — REAL Regime Transition Engine",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- engine state: **{p['engine_state']}**",
+              f"- scientific value status: **{p['value_status']}**",
+              f"- R6 samples: **{r6['sample_count']}** | precision/recall: **{r6['precision_bps']}/{r6['recall_bps']} bps**",
+              f"- R5 samples: **{r5['sample_count']}** | precision/recall: **{r5['precision_bps']}/{r5['recall_bps']} bps**",
+              f"- R6 false/missed: **{r6['false_transition_rate_bps']}/{r6['missed_transition_rate_bps']} bps**",
+              f"- R5 false/missed: **{r5['false_transition_rate_bps']}/{r5['missed_transition_rate_bps']} bps**",
+              "- H1-H6 competing worlds preserved: **True**",
+              "- future evidence used by intelligence: **False**",
+              "- protected certification holdout opened: **False**",
+              "- productive authority: **False**",
+              "",
+              "Negative result is a valid scientific outcome and does not stop the program.",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
