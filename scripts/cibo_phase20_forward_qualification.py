@@ -24,6 +24,9 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification import (
     Phase20QualificationReport,
     run_phase20d_v2_qualification,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t13_reserve_population import (
+    assess_phase20_t13_reserve_population,
+)
 from qore.infrastructure.cibo_ce2i_phase20_t14_path_readiness import (
     assess_phase20_t14_path_readiness,
 )
@@ -296,12 +299,16 @@ def main() -> None:
                 args.behavior_ledger
             ).events(),
         )
+    t13_reserve_population = assess_phase20_t13_reserve_population(
+        evidence
+    )
     t15_option_realization = assess_phase20_t15_option_realization(
         evidence
     )
     tool_readiness = assess_phase20_causal_tool_readiness(
         evidence_book=evidence,
         qualification_readiness=report.readiness,
+        t13_reserve_population=t13_reserve_population,
         t14_path_readiness=t14_path_readiness,
         t15_option_realization=t15_option_realization,
     )
@@ -353,6 +360,53 @@ def main() -> None:
                 t15_option_realization.distinct_origin_epochs
             ),
             "blockers": list(t15_option_realization.blockers),
+        },
+        "t13_reserve_population": {
+            "usable_decision_epochs": (
+                t13_reserve_population.usable_decision_epochs
+            ),
+            "candidate_epochs": t13_reserve_population.candidate_epochs,
+            "candidate_instances": (
+                t13_reserve_population.candidate_instances
+            ),
+            "settled_history_epochs": (
+                t13_reserve_population.settled_history_epochs
+            ),
+            "loss_cluster_epochs": (
+                t13_reserve_population.loss_cluster_epochs
+            ),
+            "settlement_drawdown_epochs": (
+                t13_reserve_population.settlement_drawdown_epochs
+            ),
+            "reserve_pressure_epochs": (
+                t13_reserve_population.reserve_pressure_epochs
+            ),
+            "scarce_risk_headroom_epochs": (
+                t13_reserve_population.scarce_risk_headroom_epochs
+            ),
+            "pressure_and_scarcity_epochs": (
+                t13_reserve_population.pressure_and_scarcity_epochs
+            ),
+            "maximum_loss_cluster": (
+                t13_reserve_population.maximum_loss_cluster
+            ),
+            "maximum_settlement_drawdown_usd": format(
+                t13_reserve_population.maximum_settlement_drawdown_usd,
+                "f",
+            ),
+            "minimum_decision_epochs": (
+                t13_reserve_population.minimum_decision_epochs
+            ),
+            "decision_threshold_met": (
+                t13_reserve_population.decision_threshold_met
+            ),
+            "reserve_policy_identified": (
+                t13_reserve_population.reserve_policy_identified
+            ),
+            "oos_utility_demonstrated": (
+                t13_reserve_population.oos_utility_demonstrated
+            ),
+            "blockers": list(t13_reserve_population.blockers),
         },
         "t14_path_readiness": (
             None
