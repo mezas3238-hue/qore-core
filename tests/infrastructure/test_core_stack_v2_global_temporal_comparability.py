@@ -32,6 +32,7 @@ from qore.infrastructure.core_stack_v2.global_temporal_comparability import (
     RelationalComparabilityPolicyRegistry,
     RelationalComparabilityState,
     TemporalComparabilityError,
+    TemporalGovernanceClosureStatus,
     TemporalMarketObservation,
     TemporalSkewPolicy,
     TemporalSkewPolicyRegistry,
@@ -39,6 +40,7 @@ from qore.infrastructure.core_stack_v2.global_temporal_comparability import (
     assess_liquidity_observability,
     assess_provider_observability,
     assess_relational_comparability,
+    assess_temporal_governance_closure,
     evaluate_market_session,
 )
 from qore.infrastructure.market_clock_schedule import WallClockBoundary
@@ -1149,6 +1151,53 @@ def test_same_inputs_are_deterministic() -> None:
 
     assert left == right
     assert left.fingerprint() == right.fingerprint()
+
+
+def test_temporal_governance_closure_reports_exact_current_blockers() -> None:
+    assessment = assess_temporal_governance_closure(
+        sensor_count=177,
+        canonical_mapping_verified_count=0,
+        calendar_count=0,
+        binding_count=0,
+        cadence_policy_registry_frozen=False,
+        liquidity_policy_registry_frozen=False,
+        temporal_skew_policy_registry_frozen=False,
+        comparability_policy_registry_frozen=False,
+        anti_leakage_pass=True,
+        deterministic_validation_pass=True,
+    )
+
+    assert assessment.status is TemporalGovernanceClosureStatus.NOT_READY
+    assert assessment.relational_claims_authorized is False
+    assert assessment.blockers == (
+        "CADENCE_POLICY_REGISTRY_NOT_FROZEN",
+        "CALENDAR_BINDING_INCOMPLETE",
+        "CANONICAL_CALENDAR_REGISTRY_EMPTY",
+        "CANONICAL_MAPPING_INCOMPLETE",
+        "COMPARABILITY_POLICY_REGISTRY_NOT_FROZEN",
+        "LIQUIDITY_POLICY_REGISTRY_NOT_FROZEN",
+        "TEMPORAL_SKEW_POLICY_REGISTRY_NOT_FROZEN",
+    )
+    assert len(assessment.fingerprint()) == 64
+
+
+def test_temporal_governance_closure_ready_does_not_authorize_relations() -> None:
+    assessment = assess_temporal_governance_closure(
+        sensor_count=177,
+        canonical_mapping_verified_count=177,
+        calendar_count=12,
+        binding_count=177,
+        cadence_policy_registry_frozen=True,
+        liquidity_policy_registry_frozen=True,
+        temporal_skew_policy_registry_frozen=True,
+        comparability_policy_registry_frozen=True,
+        anti_leakage_pass=True,
+        deterministic_validation_pass=True,
+    )
+
+    assert assessment.status is TemporalGovernanceClosureStatus.READY
+    assert assessment.blockers == ()
+    assert assessment.relational_claims_authorized is False
 
 
 def test_gen2_core_has_no_trader_specific_logic_or_hidden_runtime_io() -> None:
