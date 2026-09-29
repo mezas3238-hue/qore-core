@@ -1,0 +1,128 @@
+name: QORE Shared STI Causal Replay Preregistration
+
+concurrency:
+  group: qore-shared-sti-preregistration-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_trader_intelligence_preregistration.py
+      - tests/infrastructure/test_core_stack_v2_shared_trader_intelligence_preregistration.py
+      - docs/shared/QORE_SHARED_STI_CAUSAL_REPLAY_PREREGISTRATION_CONTRACT_001.md
+      - .github/workflows/qore-shared-sti-preregistration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate causal research preregistration
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/shared_trader_intelligence_preregistration.py \
+            tests/infrastructure/test_core_stack_v2_shared_trader_intelligence_preregistration.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/shared_trader_intelligence_preregistration.py
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_shared_trader_intelligence_preregistration.py \
+            --junitxml=result/junit.xml
+
+      - name: Seal preregistration contract evidence
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          root=ET.parse("result/junit.xml").getroot()
+          suites=(root,) if root.tag == "testsuite" else tuple(root.findall("testsuite"))
+          tests=sum(int(item.attrib.get("tests", "0")) for item in suites)
+          failures=sum(int(item.attrib.get("failures", "0")) for item in suites)
+          errors=sum(int(item.attrib.get("errors", "0")) for item in suites)
+          if tests <= 0:
+              raise SystemExit("STI preregistration refuses zero-test evidence")
+          if failures + errors:
+              raise SystemExit("STI preregistration refuses failing evidence")
+
+          evidence={
+              "identity":"QORE_SHARED_STI_CAUSAL_REPLAY_PREREGISTRATION_EVIDENCE_001",
+              "head":os.environ["GITHUB_SHA"],
+              "run_id":int(os.environ["GITHUB_RUN_ID"]),
+              "test_count":tests,
+              "failure_count":failures+errors,
+              "selection_rules_must_be_frozen":True,
+              "thresholds_must_be_frozen":True,
+              "same_universe_research_required":True,
+              "development_validation_only":True,
+              "protected_certification_holdout_opened":False,
+              "protected_certification_holdout_identity_allowed":False,
+              "outcome_aware_policy_mutation_authorized":False,
+              "predictive_value_proven":False,
+              "economic_value_proven":False,
+              "productive_behavior_authority":False,
+          }
+          Path("result/sti-preregistration-evidence.json").write_text(
+              json.dumps(evidence,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-sti-preregistration-${{ github.sha }}
+          path: result
+          retention-days: 90
+
+      - name: Report preregistration contract status
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence=json.loads(
+              Path("result/sti-preregistration-evidence.json").read_text()
+          )
+          body="\n".join([
+              "## Shared STI — Causal Replay Preregistration",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- tests: **{evidence['test_count']}** / failures: **{evidence['failure_count']}**",
+              "- selection rules + thresholds frozen before study: **Required**",
+              "- development/validation only: **True**",
+              "- protected certification holdout opened: **False**",
+              "- predictive/economic value proven: **False / False**",
+              "- productive behavior authority: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
