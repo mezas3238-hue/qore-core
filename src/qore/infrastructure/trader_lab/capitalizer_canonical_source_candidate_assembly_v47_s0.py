@@ -328,27 +328,39 @@ def build_readiness_report() -> dict[str, object]:
         ),
         S0Binder(
             key="HTF_POI_AND_CLOSURE_BINDING",
-            status=S0BinderStatus.COMPOSER_READY_REQUIRES_BINDING,
-            hard_blocker=True,
-            evidence="Source POI and Candle2/Candle3 detectors exist.",
+            status=S0BinderStatus.READY,
+            hard_blocker=False,
+            evidence=(
+                "V47-S0 source-context composition binds the latest causal H1 "
+                "Candle2/Candle3 closure to the authentic interacted source POI."
+            ),
         ),
         S0Binder(
             key="DAILY_BIAS_BINDING",
-            status=S0BinderStatus.COMPOSER_READY_REQUIRES_BINDING,
-            hard_blocker=True,
-            evidence="Daily bias composer exists once HTF closure is bound.",
+            status=S0BinderStatus.READY,
+            hard_blocker=False,
+            evidence=(
+                "V47-S0 derives daily bias directly from the bound causal H1 "
+                "source closure; no independent historical bias assertion is used."
+            ),
         ),
         S0Binder(
             key="M15_CISD_BINDING",
-            status=S0BinderStatus.COMPOSER_READY_REQUIRES_BINDING,
-            hard_blocker=True,
-            evidence="CISD detector exists; historical M15 series binding remains.",
+            status=S0BinderStatus.READY,
+            hard_blocker=False,
+            evidence=(
+                "V47-S0 binds the first causal M15 opposing-series CISD after "
+                "the HTF closure and before the decision timestamp."
+            ),
         ),
         S0Binder(
             key="PROTECTED_SWING_BINDING",
-            status=S0BinderStatus.COMPOSER_READY_REQUIRES_BINDING,
-            hard_blocker=True,
-            evidence="Protected-swing composer exists; causal series binding remains.",
+            status=S0BinderStatus.READY,
+            hard_blocker=False,
+            evidence=(
+                "V47-S0 binds the protected swing from the same causal M15 "
+                "opposing series that confirms CISD."
+            ),
         ),
         S0Binder(
             key="M1_MSS_FVG_OB_BINDING",
@@ -358,11 +370,11 @@ def build_readiness_report() -> dict[str, object]:
         ),
         S0Binder(
             key="STRUCTURAL_TARGET_CANDIDATE_BINDING",
-            status=S0BinderStatus.COMPOSER_READY_REQUIRES_BINDING,
-            hard_blocker=True,
+            status=S0BinderStatus.READY,
+            hard_blocker=False,
             evidence=(
-                "CIBO Target Destination V2 supplies causal target-family "
-                "semantics; S0 direct candidate binding remains."
+                "V47-S0 composes exact H1/H4/D1 source frames into the frozen "
+                "bounded target family and applies the V46 unambiguous resolver."
             ),
         ),
         S0Binder(
@@ -399,6 +411,7 @@ def build_readiness_report() -> dict[str, object]:
         "binders": [asdict(row) for row in binders],
         "blocking_binder_count": len(blockers),
         "blocking_binders": blockers,
+        "canonical_source_context_binding_ready": True,
         "exact_provider_tick_fill_ready": True,
         "legacy_m1_open_backdating_allowed": False,
         "v41_30s_threshold_reused": False,
