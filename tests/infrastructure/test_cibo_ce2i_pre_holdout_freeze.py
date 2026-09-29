@@ -48,7 +48,7 @@ def _manifest(
 
 
 def test_pre_holdout_freeze_rejects_missing_phase20d_or_phase21(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
         freeze_module,
@@ -77,7 +77,7 @@ def test_pre_holdout_freeze_rejects_missing_phase20d_or_phase21(
 
 
 def test_pre_holdout_freeze_accepts_complete_phase20d_phase21_lineage(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
         freeze_module,
