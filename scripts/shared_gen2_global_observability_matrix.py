@@ -151,6 +151,10 @@ def run(
         "binding_count": 0,
         "calendar_registry_fingerprint_sha256": calendar_fingerprint,
         "provider_schedule_is_not_canonical_market_calendar": True,
+        "canonical_mapping_governance_status": (
+            "IMPLEMENTED_NOT_POPULATED"
+        ),
+        "canonical_mapping_verified_count": 0,
     }
     calendar_output_path.parent.mkdir(parents=True, exist_ok=True)
     calendar_output_path.write_text(
@@ -259,6 +263,22 @@ def run(
         ),
         "readiness_counts": dict(sorted(readiness_counts.items())),
         "canonical_calendar_mapping_complete": False,
+        "canonical_mapping_governance_status": (
+            "IMPLEMENTED_NOT_POPULATED"
+        ),
+        "canonical_mapping_verified_count": 0,
+        "cadence_policy_registry_architecture_status": (
+            "IMPLEMENTED_NOT_FROZEN"
+        ),
+        "liquidity_policy_architecture_status": (
+            "IMPLEMENTED_NOT_FROZEN"
+        ),
+        "temporal_skew_policy_registry_architecture_status": (
+            "IMPLEMENTED_NOT_FROZEN"
+        ),
+        "comparability_policy_registry_architecture_status": (
+            "IMPLEMENTED_NOT_FROZEN"
+        ),
         "comparability_policy_registry_status": "NOT_FROZEN",
         "relational_claims_authorized": False,
         "automatic_sensor_admission": False,
