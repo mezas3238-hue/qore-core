@@ -39,6 +39,9 @@ from qore.infrastructure.cibo_ce2i_phase20_t08_oos_ablation import (
 from qore.infrastructure.cibo_ce2i_phase20_t09_t18_scarcity_readiness import (
     Phase20T09T18ScarcityReadiness,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t09_t18_scarcity_utility import (
+    Phase20T09T18ScarcityUtilityReport,
+)
 from qore.infrastructure.cibo_ce2i_phase20_t12_regime_population import (
     Phase20T12RegimePopulationAudit,
 )
@@ -203,6 +206,7 @@ def assess_phase20_causal_tool_readiness(
     qualification_readiness: Phase20QualificationReadiness,
     t08_oos_ablation: T08NettingOosAblationReport | None = None,
     t09_t18_scarcity_readiness: Phase20T09T18ScarcityReadiness | None = None,
+    t09_t18_scarcity_utility: Phase20T09T18ScarcityUtilityReport | None = None,
     t12_regime_population: Phase20T12RegimePopulationAudit | None = None,
     t13_reserve_population: Phase20T13ReservePopulationAudit | None = None,
     t13_oos_readiness: Phase20T13OosReadiness | None = None,
@@ -239,6 +243,16 @@ def assess_phase20_causal_tool_readiness(
     ):
         raise CiboCapitalManagementError(
             "Phase20 causal readiness T09/T18 scarcity evidence is invalid"
+        )
+    if (
+        t09_t18_scarcity_utility is not None
+        and not isinstance(
+            t09_t18_scarcity_utility,
+            Phase20T09T18ScarcityUtilityReport,
+        )
+    ):
+        raise CiboCapitalManagementError(
+            "Phase20 causal readiness T09/T18 scarcity utility is invalid"
         )
     if (
         t12_regime_population is not None
@@ -422,8 +436,6 @@ def assess_phase20_causal_tool_readiness(
         competition_stream = (
             t09_t18_scarcity_readiness.scarce_competition_epochs > 0
         )
-        t09_ready = False
-        t18_ready = False
         t09_observed = (
             t09_t18_scarcity_readiness.exact_competition_epochs
         )
@@ -436,16 +448,30 @@ def assess_phase20_causal_tool_readiness(
         t18_qualifying = (
             t09_t18_scarcity_readiness.cross_trader_scarce_epochs
         )
-        t09_blockers = list(t09_t18_scarcity_readiness.t09_blockers)
-        t18_blockers = list(t09_t18_scarcity_readiness.t18_blockers)
-        if t09_t18_scarcity_readiness.t09_ready_for_utility_analysis:
-            t09_blockers.append(
-                "T09_SCARCITY_POPULATION_READY_UTILITY_ANALYSIS_NOT_EXECUTED"
+        if t09_t18_scarcity_utility is None:
+            t09_ready = False
+            t18_ready = False
+            t09_blockers = list(t09_t18_scarcity_readiness.t09_blockers)
+            t18_blockers = list(t09_t18_scarcity_readiness.t18_blockers)
+            if t09_t18_scarcity_readiness.t09_ready_for_utility_analysis:
+                t09_blockers.append(
+                    "T09_SCARCITY_POPULATION_READY_UTILITY_ANALYSIS_NOT_EXECUTED"
+                )
+            if t09_t18_scarcity_readiness.t18_ready_for_utility_analysis:
+                t18_blockers.append(
+                    "T18_SCARCITY_POPULATION_READY_UTILITY_ANALYSIS_NOT_EXECUTED"
+                )
+        else:
+            t09_ready = (
+                t09_t18_scarcity_utility.t09.fresh_oos_utility_demonstrated
+                and global_ready
             )
-        if t09_t18_scarcity_readiness.t18_ready_for_utility_analysis:
-            t18_blockers.append(
-                "T18_SCARCITY_POPULATION_READY_UTILITY_ANALYSIS_NOT_EXECUTED"
+            t18_ready = (
+                t09_t18_scarcity_utility.t18.fresh_oos_utility_demonstrated
+                and global_ready
             )
+            t09_blockers = list(t09_t18_scarcity_utility.t09.blockers)
+            t18_blockers = list(t09_t18_scarcity_utility.t18.blockers)
         if not global_ready:
             t09_blockers.append("GLOBAL_PHASE20D_POPULATION_NOT_READY")
             t18_blockers.append("GLOBAL_PHASE20D_POPULATION_NOT_READY")
