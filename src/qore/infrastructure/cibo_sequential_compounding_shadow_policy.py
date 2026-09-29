@@ -133,6 +133,12 @@ def marginal_capital_evidence_sha256(
         "account_identity": _account_payload(evidence.account_identity),
         "trader_id": evidence.trader_id.value,
         "signal_fingerprint": evidence.signal_fingerprint,
+        "source_opportunity_decision_sha256": (
+            evidence.source_opportunity_decision_sha256
+        ),
+        "source_baseline_policy_record_sha256": (
+            evidence.source_baseline_policy_record_sha256
+        ),
         "current_compound_capacity_usd": str(
             evidence.current_compound_capacity_usd
         ),
