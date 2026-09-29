@@ -21,6 +21,7 @@ from qore.infrastructure.cibo_profit_preservation_shadow import (
     GENC7_POLICY_ID,
     Genc7Action,
     Genc7ProfitPreservationShadowDecision,
+    Genc7SourceBucket,
     genc7_policy_sha256,
 )
 
@@ -62,6 +63,9 @@ class Genc7ShadowDecisionSeal:
     account_ref: str
     state_evidence_sha256: str
     proposal_evidence_sha256: str
+    proposal_action: Genc7Action
+    proposal_source_bucket: Genc7SourceBucket
+    proposal_amount_usd: Decimal
     evaluation_horizon_minutes: int
     initial_realized_capital_usd: Decimal
     initial_realized_profit_usd: Decimal
@@ -118,7 +122,16 @@ class Genc7ShadowDecisionSeal:
             raise CiboCompoundCapitalError(
                 "GEN-C7 store seal cannot predate decision"
             )
+        if self.proposal_action is Genc7Action.HOLD_CURRENT_CAPITAL_STATE:
+            raise CiboCompoundCapitalError(
+                "GEN-C7 store proposal action cannot be control HOLD"
+            )
+        if self.proposal_amount_usd <= 0:
+            raise CiboCompoundCapitalError(
+                "GEN-C7 store proposal amount must be positive"
+            )
         for name in (
+            "proposal_amount_usd",
             "initial_realized_capital_usd",
             "initial_realized_profit_usd",
             "initial_protected_floor_usd",
@@ -496,6 +509,9 @@ def genc7_shadow_decision_json(
         "account_ref": decision.account_ref,
         "state_evidence_sha256": decision.state_evidence_sha256,
         "proposal_evidence_sha256": decision.proposal_evidence_sha256,
+        "proposal_action": decision.proposal_action.value,
+        "proposal_source_bucket": decision.proposal_source_bucket.value,
+        "proposal_amount_usd": str(decision.proposal_amount_usd),
         "evaluation_horizon_minutes": decision.evaluation_horizon_minutes,
         "initial_realized_capital_usd": str(
             decision.initial_realized_capital_usd
@@ -546,6 +562,9 @@ def genc7_shadow_decision_sha256(
         "account_ref": decision.account_ref,
         "state_evidence_sha256": decision.state_evidence_sha256,
         "proposal_evidence_sha256": decision.proposal_evidence_sha256,
+        "proposal_action": decision.proposal_action.value,
+        "proposal_source_bucket": decision.proposal_source_bucket.value,
+        "proposal_amount_usd": str(decision.proposal_amount_usd),
         "evaluation_horizon_minutes": decision.evaluation_horizon_minutes,
         "initial_realized_capital_usd": str(
             decision.initial_realized_capital_usd
@@ -618,6 +637,13 @@ def _seal_from_json(value: str) -> Genc7ShadowDecisionSeal:
             state_evidence_sha256=str(payload["state_evidence_sha256"]),
             proposal_evidence_sha256=str(
                 payload["proposal_evidence_sha256"]
+            ),
+            proposal_action=Genc7Action(str(payload["proposal_action"])),
+            proposal_source_bucket=Genc7SourceBucket(
+                str(payload["proposal_source_bucket"])
+            ),
+            proposal_amount_usd=Decimal(
+                str(payload["proposal_amount_usd"])
             ),
             evaluation_horizon_minutes=int(
                 payload["evaluation_horizon_minutes"]
