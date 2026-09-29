@@ -38,7 +38,6 @@ def _mean(values: Sequence[int]) -> int:
 
 
 @dataclass(frozen=True, slots=True)
-@dataclass(frozen=True, slots=True)
 class SharedOpportunitySourceObservation:
     """Source-only world evidence for one instrument at one causal timestamp."""
 
@@ -121,7 +120,6 @@ class SharedOpportunitySourceObservation:
 
 
 @dataclass(frozen=True, slots=True)
-@dataclass(frozen=True, slots=True)
 class SharedOpportunityEnginePolicy:
     policy_id: str
     version: str
@@ -189,7 +187,6 @@ class SharedOpportunityEnginePolicy:
         return hashlib.sha256(raw.encode()).hexdigest()
 
 
-@dataclass(frozen=True, slots=True)
 @dataclass(frozen=True, slots=True)
 class SharedOpportunityEngineAssessment:
     asset: str
