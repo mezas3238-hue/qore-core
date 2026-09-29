@@ -203,6 +203,13 @@ Provider-native identity descriptors are supporting evidence only. They do not
 promote a sensor into a canonical identity, venue, family or calendar mapping
 without separate governed evidence.
 
+GEN-2 acquires this metadata through a dedicated fail-closed read-only firewall.
+The firewall admits only finite symbol, asset, asset-class and symbol-category
+metadata requests. It rejects order-shaped requests and provider subscriptions.
+The source census also freezes the provider asset catalogue, asset-class
+catalogue, symbol-category catalogue and one deterministic descriptor
+fingerprint so future canonical mapping can cite exact source evidence.
+
 This is provider observability metadata only.
 
 No canonical instrument mapping is inferred from a provider symbol name.
