@@ -175,6 +175,10 @@ jobs:
           import xml.etree.ElementTree as ET
           from pathlib import Path
 
+          from qore.infrastructure.core_stack_v2.global_temporal_comparability import (
+              assess_temporal_governance_closure,
+          )
+
           schedule=json.loads(Path("result/provider-schedule-catalog.json").read_text())
           matrix=json.loads(Path("result/global-market-observability-matrix.json").read_text())
           calendar=json.loads(Path("result/global-calendar-registry.json").read_text())
@@ -187,6 +191,26 @@ jobs:
               raise SystemExit("GEN-2 evidence pack refuses zero-test JUnit evidence")
           if failures + errors != 0:
               raise SystemExit("GEN-2 evidence pack refuses failing JUnit evidence")
+          closure=assess_temporal_governance_closure(
+              sensor_count=matrix["sensor_count"],
+              canonical_mapping_verified_count=matrix["canonical_mapping_verified_count"],
+              calendar_count=calendar["calendar_count"],
+              binding_count=calendar["binding_count"],
+              cadence_policy_registry_frozen=(
+                  matrix["cadence_policy_registry_architecture_status"] == "FROZEN"
+              ),
+              liquidity_policy_registry_frozen=(
+                  matrix["liquidity_policy_architecture_status"] == "FROZEN"
+              ),
+              temporal_skew_policy_registry_frozen=(
+                  matrix["temporal_skew_policy_registry_architecture_status"] == "FROZEN"
+              ),
+              comparability_policy_registry_frozen=(
+                  matrix["comparability_policy_registry_status"] == "FROZEN"
+              ),
+              anti_leakage_pass=(failures + errors == 0),
+              deterministic_validation_pass=(tests > 0 and failures + errors == 0),
+          )
           pack={
               "identity":"QORE_SHARED_GEN2_TEMPORAL_COMPARABILITY_EVIDENCE_001",
               "head":os.environ["GITHUB_SHA"],
@@ -202,6 +226,9 @@ jobs:
               "temporal_skew_policy_registry_architecture_status":matrix["temporal_skew_policy_registry_architecture_status"],
               "comparability_policy_registry_architecture_status":matrix["comparability_policy_registry_architecture_status"],
               "comparability_policy_registry_status":"NOT_FROZEN",
+              "temporal_governance_closure_status":closure.status.value,
+              "temporal_governance_closure_blockers":closure.blockers,
+              "temporal_governance_closure_fingerprint":closure.fingerprint(),
               "global_observability_matrix_fingerprint":matrix["global_observability_matrix_fingerprint_sha256"],
               "test_count":tests,
               "failure_count":failures+errors,
@@ -244,6 +271,7 @@ jobs:
 
           schedule=json.loads(Path("result/provider-schedule-catalog.json").read_text())
           matrix=json.loads(Path("result/global-market-observability-matrix.json").read_text())
+          evidence=json.loads(Path("result/gen2-evidence-pack.json").read_text())
           body="\n".join([
               "## Shared GEN-2 — Temporal Comparability Source Census",
               "",
@@ -258,6 +286,9 @@ jobs:
               "- cadence/liquidity/skew/comparability policy architecture: **IMPLEMENTED_NOT_FROZEN**",
               "- canonical calendar mapping complete: **False**",
               "- comparability policy registry: **NOT_FROZEN**",
+              f"- temporal governance closure: **{evidence['temporal_governance_closure_status']}**",
+              f"- closure blockers: **{', '.join(evidence['temporal_governance_closure_blockers'])}**",
+              f"- validated tests: **{evidence['test_count']}** / failures: **{evidence['failure_count']}**",
               "- relational claims authorized: **False**",
               "- automatic sensor admission: **False**",
               "- Target/R6/R5/fresh holdout opened: **False**",
