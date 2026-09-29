@@ -10,7 +10,9 @@ on:
       - agent/qore-core-stack-v2-shared-001
     paths:
       - src/qore/infrastructure/core_stack_v2/shared_trader_intelligence.py
+      - src/qore/infrastructure/core_stack_v2/shared_trader_intelligence_lifecycle.py
       - tests/infrastructure/test_core_stack_v2_shared_trader_intelligence.py
+      - tests/infrastructure/test_core_stack_v2_shared_trader_intelligence_lifecycle.py
       - docs/shared/QORE_SHARED_PROACTIVE_TRADER_INTELLIGENCE_OWNER_DIRECTIVE_007.md
       - docs/shared/QORE_SHARED_TRADER_INTELLIGENCE_GAP_AUDIT_001.md
       - docs/architecture/QORE-SHARED-TRADER-INTELLIGENCE-ADR-001.md
