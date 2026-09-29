@@ -942,6 +942,77 @@ class CapitalScarcityEvent:
 
 
 @dataclass(frozen=True, slots=True)
+class Genc6LegalCapitalActionSet:
+    action_set_id: str
+    account_identity: CiboAccountCapitalIdentity
+    decision_at: datetime
+    candidate_set_sha256: str
+    legal_candidate_ids: tuple[str, ...]
+    rejected_candidate_reasons: tuple[
+        tuple[str, tuple[str, ...]],
+        ...,
+    ]
+    reserve_alternative_id: str
+    reserve_action_legal: bool = True
+
+    def __post_init__(self) -> None:
+        if not self.action_set_id:
+            raise CiboCompoundCapitalError(
+                "GEN-C6 legal action set identity is required"
+            )
+        if not isinstance(
+            self.account_identity,
+            CiboAccountCapitalIdentity,
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C6 legal action set account identity is invalid"
+            )
+        _aware(self.decision_at, "legal action set decision_at")
+        _sha(self.candidate_set_sha256, "legal action candidate set SHA")
+        if len(self.legal_candidate_ids) != len(
+            set(self.legal_candidate_ids)
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C6 legal candidate ids must be unique"
+            )
+        rejected_ids = tuple(
+            candidate_id
+            for candidate_id, _ in self.rejected_candidate_reasons
+        )
+        if len(rejected_ids) != len(set(rejected_ids)):
+            raise CiboCompoundCapitalError(
+                "GEN-C6 rejected candidate ids must be unique"
+            )
+        if set(self.legal_candidate_ids) & set(rejected_ids):
+            raise CiboCompoundCapitalError(
+                "GEN-C6 candidate cannot be both legal and rejected"
+            )
+        for candidate_id, reasons in self.rejected_candidate_reasons:
+            if not candidate_id or not reasons:
+                raise CiboCompoundCapitalError(
+                    "GEN-C6 rejected candidate requires reasons"
+                )
+            if len(reasons) != len(set(reasons)) or any(
+                not item for item in reasons
+            ):
+                raise CiboCompoundCapitalError(
+                    "GEN-C6 rejected candidate reasons must be unique/non-empty"
+                )
+        if self.reserve_alternative_id != GENC6_RESERVE_ID:
+            raise CiboCompoundCapitalError(
+                "GEN-C6 legal action reserve identity drift"
+            )
+        if type(self.reserve_action_legal) is not bool:
+            raise CiboCompoundCapitalError(
+                "GEN-C6 reserve_action_legal must be bool"
+            )
+        if not self.reserve_action_legal:
+            raise CiboCompoundCapitalError(
+                "GEN-C6 V1 reserve action must always remain legal"
+            )
+
+
+@dataclass(frozen=True, slots=True)
 class Genc6InternalCapitalMarketDecision:
     market_id: str
     policy_id: str
@@ -953,6 +1024,9 @@ class Genc6InternalCapitalMarketDecision:
     account_provider_key: str
     account_ref: str
     candidate_set_sha256: str
+    legal_action_set_sha256: str
+    legal_candidate_ids: tuple[str, ...]
+    reserve_action_legal: bool
     candidate_evidence_sha256s: tuple[str, ...]
     genc5_decision_sha256s: tuple[str, ...]
     portfolio_state_sha256: str
@@ -1010,6 +1084,7 @@ class Genc6InternalCapitalMarketDecision:
             )
         for name in (
             "candidate_set_sha256",
+            "legal_action_set_sha256",
             "portfolio_state_sha256",
             "t19_ledger_sha256",
         ):
@@ -1019,6 +1094,20 @@ class Genc6InternalCapitalMarketDecision:
             *self.genc5_decision_sha256s,
         ):
             _sha(value, "bound evidence SHA")
+        if len(self.legal_candidate_ids) != len(
+            set(self.legal_candidate_ids)
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C6 decision legal candidate ids must be unique"
+            )
+        if type(self.reserve_action_legal) is not bool:
+            raise CiboCompoundCapitalError(
+                "GEN-C6 decision reserve_action_legal must be bool"
+            )
+        if not self.reserve_action_legal:
+            raise CiboCompoundCapitalError(
+                "GEN-C6 V1 decision must retain legal reserve action"
+            )
         if len(self.candidate_evidence_sha256s) != len(
             set(self.candidate_evidence_sha256s)
         ):
@@ -1111,6 +1200,10 @@ def genc6_policy_sha256() -> str:
             "unique non-compensatory Pareto dominator across active dimensions "
             "AND expected net value per capital > capital-eligible reserve value; "
             "else RESERVE_NO_DEPLOYMENT"
+        ),
+        "legal_action_set": (
+            "provider-materializable candidate actions + always-legal reserve "
+            "sealed before selection"
         ),
         "one_marginal_action_per_clearing": True,
         "trader_identity_priority": False,
@@ -1233,6 +1326,71 @@ def build_capital_scarcity_event(
     )
 
 
+def build_genc6_legal_action_set(
+    event: CapitalScarcityEvent,
+) -> Genc6LegalCapitalActionSet:
+    if not isinstance(event, CapitalScarcityEvent):
+        raise CiboCompoundCapitalError(
+            "GEN-C6 legal action set requires canonical scarcity event"
+        )
+    legal_ids: list[str] = []
+    rejected: list[tuple[str, tuple[str, ...]]] = []
+    for candidate in sorted(
+        event.candidates,
+        key=lambda item: item.candidate_id,
+    ):
+        reasons = _candidate_blockers(
+            candidate,
+            event.portfolio_state,
+        )
+        if reasons:
+            rejected.append((candidate.candidate_id, reasons))
+        else:
+            legal_ids.append(candidate.candidate_id)
+    return Genc6LegalCapitalActionSet(
+        action_set_id=f"{event.event_id}:LEGAL_ACTION_SET",
+        account_identity=event.account_identity,
+        decision_at=event.decision_at,
+        candidate_set_sha256=event.candidate_set_sha256,
+        legal_candidate_ids=tuple(legal_ids),
+        rejected_candidate_reasons=tuple(rejected),
+        reserve_alternative_id=event.reserve_alternative.alternative_id,
+        reserve_action_legal=True,
+    )
+
+
+def genc6_legal_action_set_sha256(
+    action_set: Genc6LegalCapitalActionSet,
+) -> str:
+    if not isinstance(action_set, Genc6LegalCapitalActionSet):
+        raise CiboCompoundCapitalError(
+            "GEN-C6 legal action digest requires canonical action set"
+        )
+    payload = {
+        "action_set_id": action_set.action_set_id,
+        "account": {
+            "provider_key": action_set.account_identity.provider_key,
+            "account_ref": action_set.account_identity.account_ref,
+        },
+        "decision_at": action_set.decision_at.isoformat(),
+        "candidate_set_sha256": action_set.candidate_set_sha256,
+        "legal_candidate_ids": list(action_set.legal_candidate_ids),
+        "rejected_candidate_reasons": [
+            [candidate_id, list(reasons)]
+            for candidate_id, reasons
+            in action_set.rejected_candidate_reasons
+        ],
+        "reserve_alternative_id": action_set.reserve_alternative_id,
+        "reserve_action_legal": action_set.reserve_action_legal,
+    }
+    raw = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
 def evaluate_genc6_internal_capital_market_shadow(
     *,
     event: CapitalScarcityEvent,
@@ -1247,16 +1405,18 @@ def evaluate_genc6_internal_capital_market_shadow(
             "GEN-C6 decision id is required"
         )
 
-    legal: list[Genc6MarginalCapitalCandidate] = []
-    blockers: list[str] = []
-    for candidate in event.candidates:
-        reasons = _candidate_blockers(candidate, event.portfolio_state)
-        if reasons:
-            blockers.extend(
-                f"{candidate.candidate_id}:{reason}" for reason in reasons
-            )
-        else:
-            legal.append(candidate)
+    action_set = build_genc6_legal_action_set(event)
+    legal_ids = set(action_set.legal_candidate_ids)
+    legal = [
+        candidate
+        for candidate in event.candidates
+        if candidate.candidate_id in legal_ids
+    ]
+    blockers = [
+        f"{candidate_id}:{reason}"
+        for candidate_id, reasons in action_set.rejected_candidate_reasons
+        for reason in reasons
+    ]
 
     control_candidate = _control_choice(tuple(legal))
     active_dimensions = _active_treatment_dimensions(tuple(legal))
@@ -1308,6 +1468,11 @@ def evaluate_genc6_internal_capital_market_shadow(
         account_provider_key=event.account_identity.provider_key,
         account_ref=event.account_identity.account_ref,
         candidate_set_sha256=event.candidate_set_sha256,
+        legal_action_set_sha256=genc6_legal_action_set_sha256(
+            action_set
+        ),
+        legal_candidate_ids=action_set.legal_candidate_ids,
+        reserve_action_legal=action_set.reserve_action_legal,
         candidate_evidence_sha256s=candidate_shas,
         genc5_decision_sha256s=genc5_shas,
         portfolio_state_sha256=genc6_portfolio_state_sha256(
