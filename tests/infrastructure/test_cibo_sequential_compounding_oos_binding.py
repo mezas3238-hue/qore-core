@@ -370,3 +370,57 @@ def test_genc5_oos_binding_rejects_temporally_impossible_outcome(
     assert report.failures == (
         "OUTCOME_TEMPORAL_CONTAMINATION:genc5-oos-decision",
     )
+
+
+def test_genc5_population_reports_complete_coverage_descriptively(
+    tmp_path: Path,
+) -> None:
+    c4, c5, phase20, policy = _books(tmp_path)
+    report = describe_genc5_fresh_oos_population(
+        c4_book=c4,
+        c5_book=c5,
+        phase20_evidence_book=phase20,
+        phase20_policy_book=policy,
+    )
+    assert report.status is Genc5PopulationStatus.COVERAGE_COMPLETE
+    assert report.shadow_decision_count == 1
+    assert report.treatment_divergent_count == 1
+    assert report.treatment_hold_count == 0
+    assert report.c4_bound_count == 1
+    assert report.terminal_outcome_bound_count == 1
+    assert report.treatment_divergent_outcome_count == 1
+    assert report.outcome_coverage == Decimal("1")
+    assert report.treatment_divergent_outcome_coverage == Decimal("1")
+    assert report.calendar_span_days == 1
+    assert report.decision_calendar_days == 1
+    assert report.account_keys == ("ctrader:genc5-oos-demo",)
+    assert report.trader_ids == (TraderLineage.VT31_NAS100.value,)
+    assert report.blocker_counts == ()
+    assert report.descriptive_only is True
+    assert report.counterfactual_compound_pnl_computed is False
+    assert report.economic_utility_ready is False
+    assert report.certification_ready is False
+
+
+def test_genc5_population_collects_without_inventing_missing_outcomes(
+    tmp_path: Path,
+) -> None:
+    c4, c5, phase20, policy = _books(
+        tmp_path,
+        include_outcome=False,
+    )
+    report = describe_genc5_fresh_oos_population(
+        c4_book=c4,
+        c5_book=c5,
+        phase20_evidence_book=phase20,
+        phase20_policy_book=policy,
+    )
+    assert report.status is Genc5PopulationStatus.COLLECTING
+    assert report.shadow_decision_count == 1
+    assert report.terminal_outcome_bound_count == 0
+    assert report.outcome_coverage == Decimal("0")
+    assert report.missing_outcome_decision_ids == (
+        "genc5-oos-decision",
+    )
+    assert report.economic_utility_ready is False
+    assert report.certification_ready is False
