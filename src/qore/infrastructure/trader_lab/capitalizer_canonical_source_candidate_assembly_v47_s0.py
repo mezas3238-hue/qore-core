@@ -31,6 +31,9 @@ from qore.infrastructure.trader_lab import (
     capitalizer_canonical_source_context_binders_v47_s0 as context_binders,
 )
 from qore.infrastructure.trader_lab import (
+    capitalizer_native_source_fact_remediation_v46 as remediation,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 as v3_source,
 )
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
@@ -40,14 +43,29 @@ from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSessi
 from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
     CapitalizerCognitiveGateDecision,
 )
+from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
+    CapitalizerCISDObservation,
+    CapitalizerFailureToManipulateObservation,
+    CapitalizerLiquiditySideTaken,
+    assess_failure_to_manipulate,
+)
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
     CapitalizerSide,
 )
 from qore.infrastructure.trader_lab.capitalizer_full_ict_density_scanner_1y_v1 import (
     _aggregate_h1,
 )
+from qore.infrastructure.trader_lab.capitalizer_source_fractal_alignment_v2 import (
+    CapitalizerFractalAlignmentObservation,
+    assess_fractal_alignment,
+)
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
+    CapitalizerProtectedSwingObservation,
+    CapitalizerSourceClosureObservation,
     CapitalizerSourceDirection,
+)
+from qore.infrastructure.trader_lab.capitalizer_source_daily_bias_v2 import (
+    CapitalizerDailyBiasObservation,
 )
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     _aggregate_tf,
@@ -110,6 +128,11 @@ class S0ICTSourceEvent:
             raise ValueError("S0 primary armed level must be positive")
         if self.fallback_armed_level is not None and self.fallback_armed_level <= 0:
             raise ValueError("S0 fallback armed level must be positive")
+        if not self.zone.fvg_low <= self.primary_armed_level <= self.zone.fvg_high:
+            raise ValueError("S0 primary arm escaped confirmed FVG")
+        ce = (self.zone.fvg_low + self.zone.fvg_high) / Decimal("2")
+        if self.fallback_armed_level is not None and self.fallback_armed_level != ce:
+            raise ValueError("S0 fallback must be frozen FVG CE")
         if self.outcome_used or self.legacy_m1_fill_used or not self.causal:
             raise ValueError("S0 source event governance violated")
 
@@ -337,6 +360,133 @@ def bind_canonical_armed_candidates(
             ),
         )
     )
+
+
+@dataclass(frozen=True, slots=True)
+class S0RouteWickBinding:
+    direction: CapitalizerSourceDirection
+    fractal_alignment: CapitalizerFractalAlignmentObservation
+    failure_to_manipulate: CapitalizerFailureToManipulateObservation
+    wick_formation: remediation.CapitalizerWickFormationObservation
+    route_resolution: remediation.CapitalizerSourceRouteResolution
+    causal: bool = True
+    numeric_priority_used: bool = False
+    outcome_used: bool = False
+
+    def __post_init__(self) -> None:
+        if self.fractal_alignment.direction is not self.direction:
+            raise ValueError("S0 fractal direction drift")
+        if self.wick_formation.direction is not self.direction:
+            raise ValueError("S0 wick direction drift")
+        if (
+            not self.causal
+            or self.numeric_priority_used
+            or self.outcome_used
+        ):
+            raise ValueError("S0 route/wick governance violated")
+
+
+def resolve_s0_route_and_wick(
+    *,
+    direction: CapitalizerSourceDirection,
+    h1_closure: CapitalizerSourceClosureObservation,
+    daily_bias: CapitalizerDailyBiasObservation,
+    m15_cisd: CapitalizerCISDObservation,
+    m1_cisd: CapitalizerCISDObservation,
+    m1_protected_swing: CapitalizerProtectedSwingObservation,
+    liquidity_side_taken: CapitalizerLiquiditySideTaken,
+) -> S0RouteWickBinding:
+    """Compose the frozen FRACTAL/FTM/wick semantics and fail closed on ambiguity."""
+
+    fractal = assess_fractal_alignment(
+        higher_timeframe_bias=direction,
+        h1_closure=h1_closure,
+        m15_cisd=m15_cisd,
+        m1_protected_swing=m1_protected_swing,
+    )
+    ftm = assess_failure_to_manipulate(
+        taken_side=liquidity_side_taken,
+        level_taken=True,
+        post_sweep_closure_observed=True,
+        expected_reversal_cisd=m1_cisd,
+        continuation_protected_swing=m1_protected_swing,
+        daily_bias=daily_bias,
+    )
+    wick = remediation.assess_wick_formation(
+        direction=direction,
+        important_level_reached=m1_cisd.important_level_reached,
+        intracandle_cisd=m1_cisd,
+        protected_swing=m1_protected_swing,
+    )
+    route = remediation.resolve_source_entry_route(
+        fractal_alignment=fractal,
+        failure_to_manipulate=ftm,
+    )
+    return S0RouteWickBinding(
+        direction=direction,
+        fractal_alignment=fractal,
+        failure_to_manipulate=ftm,
+        wick_formation=wick,
+        route_resolution=route,
+    )
+
+
+def bind_s0_route_and_wick(
+    candidate: S0CanonicalArmedCandidate,
+) -> S0RouteWickBinding:
+    side = (
+        CapitalizerLiquiditySideTaken.HIGH
+        if candidate.event.closeback.reference.kind == "HIGH"
+        else CapitalizerLiquiditySideTaken.LOW
+    )
+    return resolve_s0_route_and_wick(
+        direction=candidate.context.direction,
+        h1_closure=candidate.context.htf.closure,
+        daily_bias=candidate.context.htf.daily_bias,
+        m15_cisd=candidate.context.m15.cisd,
+        m1_cisd=candidate.m1.m1_cisd,
+        m1_protected_swing=candidate.m1.protected_swing,
+        liquidity_side_taken=side,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class S0RoutedCanonicalCandidate:
+    candidate: S0CanonicalArmedCandidate
+    route_wick: S0RouteWickBinding
+
+    def __post_init__(self) -> None:
+        if not self.route_wick.route_resolution.resolved:
+            raise ValueError("S0 routed candidate requires deterministic source route")
+        if not self.route_wick.wick_formation.confirmed:
+            raise ValueError("S0 routed candidate requires confirmed wick formation")
+
+
+def bind_routed_canonical_armed_candidates(
+    bars: tuple[CapitalizerM1Bar, ...],
+    *,
+    session: CapitalizerSession,
+    operating_day: date,
+) -> tuple[S0RoutedCanonicalCandidate, ...]:
+    result: list[S0RoutedCanonicalCandidate] = []
+    for candidate in bind_canonical_armed_candidates(
+        bars,
+        session=session,
+        operating_day=operating_day,
+    ):
+        route_wick = bind_s0_route_and_wick(candidate)
+        if (
+            not route_wick.route_resolution.resolved
+            or not route_wick.wick_formation.confirmed
+        ):
+            continue
+        result.append(
+            S0RoutedCanonicalCandidate(
+                candidate=candidate,
+                route_wick=route_wick,
+            )
+        )
+    return tuple(result)
 
 
 @dataclass(frozen=True, slots=True)
@@ -670,9 +820,13 @@ def build_readiness_report() -> dict[str, object]:
         ),
         S0Binder(
             key="DETERMINISTIC_ROUTE_AND_WICK_BINDING",
-            status=S0BinderStatus.COMPOSER_READY_REQUIRES_BINDING,
-            hard_blocker=True,
-            evidence="V46-R1 route/wick composers exist.",
+            status=S0BinderStatus.READY,
+            hard_blocker=False,
+            evidence=(
+                "V47-S0 composes source FRACTAL and FTM observations, applies "
+                "the frozen exactly-one V46 route resolver, and binds wick "
+                "formation from actual M1 CISD/location/protected-swing evidence."
+            ),
         ),
         S0Binder(
             key="EXACT_PROVIDER_TICK_FILL",
@@ -704,6 +858,8 @@ def build_readiness_report() -> dict[str, object]:
         "blocking_binders": blockers,
         "canonical_source_context_binding_ready": True,
         "canonical_prefill_candidate_path_ready": True,
+        "deterministic_route_and_wick_binding_ready": True,
+        "no_chase_execution_area_bound": True,
         "exact_provider_tick_fill_ready": True,
         "legacy_m1_open_backdating_allowed": False,
         "v41_30s_threshold_reused": False,
