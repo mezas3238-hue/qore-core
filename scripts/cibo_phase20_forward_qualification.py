@@ -317,14 +317,26 @@ def main() -> None:
         policy_book=policy,
     )
     t14_path_readiness = None
+    t14_intervention_population = None
     behavior_ledger_sha256 = None
     if args.behavior_ledger is not None:
         behavior_ledger_sha256 = _sha256_path(args.behavior_ledger)
+        behavior_events = CTraderDemoLiveBehaviorLedger(
+            args.behavior_ledger
+        ).events()
         t14_path_readiness = assess_phase20_t14_path_readiness(
             evidence_book=evidence,
-            events=CTraderDemoLiveBehaviorLedger(
-                args.behavior_ledger
-            ).events(),
+            events=behavior_events,
+        )
+        from qore.infrastructure.cibo_ce2i_phase20_t14_intervention_population import (
+            assess_phase20_t14_natural_intervention_population,
+        )
+
+        t14_intervention_population = (
+            assess_phase20_t14_natural_intervention_population(
+                evidence_book=evidence,
+                events=behavior_events,
+            )
         )
     t11_execution_population = None
     t11_cost_binding = None
@@ -572,6 +584,56 @@ def main() -> None:
                     t08_oos_ablation.netting_credit_authorized
                 ),
                 "blockers": list(t08_oos_ablation.blockers),
+            }
+        ),
+        "t14_natural_intervention_population": (
+            None
+            if t14_intervention_population is None
+            else {
+                "forward_bound_positions": (
+                    t14_intervention_population.forward_bound_positions
+                ),
+                "physical_management_positions": (
+                    t14_intervention_population.physical_management_positions
+                ),
+                "management_events": (
+                    t14_intervention_population.management_events
+                ),
+                "qualifying_interventions": (
+                    t14_intervention_population.qualifying_interventions
+                ),
+                "pre_post_path_positions": (
+                    t14_intervention_population.pre_post_path_positions
+                ),
+                "protection_transition_positions": (
+                    t14_intervention_population.protection_transition_positions
+                ),
+                "volume_transition_positions": (
+                    t14_intervention_population.volume_transition_positions
+                ),
+                "terminally_settled_after_intervention_positions": (
+                    t14_intervention_population
+                    .terminally_settled_after_intervention_positions
+                ),
+                "eligible_natural_intervention_positions": (
+                    t14_intervention_population
+                    .eligible_natural_intervention_positions
+                ),
+                "represented_lineages": list(
+                    t14_intervention_population.represented_lineages
+                ),
+                "trader_owned_management_preserved": (
+                    t14_intervention_population
+                    .trader_owned_management_preserved
+                ),
+                "cibo_derisk_policy_identified": (
+                    t14_intervention_population.cibo_derisk_policy_identified
+                ),
+                "fresh_oos_utility_demonstrated": (
+                    t14_intervention_population
+                    .fresh_oos_utility_demonstrated
+                ),
+                "blockers": list(t14_intervention_population.blockers),
             }
         ),
         "t15_option_realization": {
