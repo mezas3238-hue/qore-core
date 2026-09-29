@@ -907,3 +907,51 @@ def _oos_books(
         phase20_book,
         policy_book,
     )
+
+
+def _ambiguous_event_and_decision(tmp_path: Path):
+    portfolio, source = _portfolio()
+    candidate_a = _candidate(
+        tmp_path=tmp_path,
+        portfolio=portfolio,
+        source_lot_id=source,
+        trader=TraderLineage.VT31_NAS100,
+        signal="signal-a",
+        expected_return="10",
+        stop_risk="2",
+        margin="8",
+        execution_cost="0.2",
+        concentration="1.2",
+        drawdown="1.3",
+        optionality="1.0",
+        duration="60",
+        uncertainty="0.30",
+    )
+    candidate_b = _candidate(
+        tmp_path=tmp_path,
+        portfolio=portfolio,
+        source_lot_id=source,
+        trader=TraderLineage.R34_XAUUSD,
+        signal="signal-b",
+        expected_return="7",
+        stop_risk="2",
+        margin="4",
+        execution_cost="0.1",
+        concentration="0.5",
+        drawdown="0.5",
+        optionality="0.3",
+        duration="20",
+        uncertainty="0.10",
+    )
+    event = build_capital_scarcity_event(
+        event_id="oos-scarcity",
+        decision_at=T0,
+        portfolio_state=_state(portfolio),
+        candidates=(candidate_a, candidate_b),
+        reserve_alternative=_reserve(portfolio.account_identity),
+    )
+    decision = evaluate_genc6_internal_capital_market_shadow(
+        event=event,
+        decision_id="oos-genc6-decision",
+    )
+    return event, decision
