@@ -30,18 +30,18 @@ def _authorization() -> T20CapitalAuthorizationEvidence:
         signal_fingerprint="signal-a",
         position_id=7001,
         requested_at=T0,
-        requested_capital_usd=Decimal("20"),
+        requested_margin_usd=Decimal("20"),
         requested_stop_risk_usd=Decimal("2"),
         risk_decision_id="risk-001",
         risk_disposition="REDUCE",
         risk_authorized_at=T0 + timedelta(seconds=1),
-        risk_authorized_capital_usd=Decimal("15"),
+        risk_authorized_margin_usd=Decimal("15"),
         risk_authorized_stop_risk_usd=Decimal("1.5"),
         execution_evidence_id="execution-risk-001",
         execution_realized_at=T0 + timedelta(seconds=3),
-        execution_realized_capital_usd=Decimal("12"),
+        execution_realized_margin_usd=Decimal("12"),
         execution_realized_stop_risk_usd=Decimal("1.2"),
-        capital_deployed_at=T0 + timedelta(seconds=2),
+        capacity_deployed_at=T0 + timedelta(seconds=2),
         source_refs=(
             "cibo-request:001",
             "qore-risk:001",
@@ -97,7 +97,7 @@ def _outcome() -> Phase20ForwardOutcomeSeal:
         realized_net_pnl_usd=Decimal("2.00"),
         executed_initial_stop_risk_usd=Decimal("1.2"),
         realized_structural_outcome_r=Decimal("1.666666666666666666666666667"),
-        capital_deployed_at=T0 + timedelta(seconds=2),
+        capacity_deployed_at=T0 + timedelta(seconds=2),
         capital_released_at=T0 + timedelta(minutes=10, seconds=2),
         capital_minutes=Decimal("10"),
     )
@@ -108,14 +108,16 @@ def _releases() -> tuple[T20CapitalReleaseSlice, ...]:
         T20CapitalReleaseSlice(
             settlement_deal_id=8001,
             released_at=T0 + timedelta(minutes=4, seconds=2),
-            returned_capacity_usd=Decimal("4"),
+            released_stop_risk_capacity_usd=Decimal("0.4"),
+            released_margin_capacity_usd=Decimal("4"),
             source_ref="capital-ledger-release:8001",
             terminal=False,
         ),
         T20CapitalReleaseSlice(
             settlement_deal_id=8002,
             released_at=T0 + timedelta(minutes=10, seconds=2),
-            returned_capacity_usd=Decimal("8"),
+            released_stop_risk_capacity_usd=Decimal("0.8"),
+            released_margin_capacity_usd=Decimal("8"),
             source_ref="capital-ledger-release:8002",
             terminal=True,
         ),
@@ -141,10 +143,11 @@ def _evidence():
 def test_t20_distinguishes_requested_authorized_realized_and_returned() -> None:
     evidence = _evidence()
 
-    assert evidence.authorization.requested_capital_usd == Decimal("20")
-    assert evidence.authorization.risk_authorized_capital_usd == Decimal("15")
-    assert evidence.authorization.execution_realized_capital_usd == Decimal("12")
-    assert evidence.total_returned_capacity_usd == Decimal("12")
+    assert evidence.authorization.requested_margin_usd == Decimal("20")
+    assert evidence.authorization.risk_authorized_margin_usd == Decimal("15")
+    assert evidence.authorization.execution_realized_margin_usd == Decimal("12")
+    assert evidence.total_released_stop_risk_capacity_usd == Decimal("1.2")
+    assert evidence.total_released_margin_capacity_usd == Decimal("12")
     assert evidence.release_latency_minutes == Decimal("10")
     assert len(evidence.releases) == 2
     assert evidence.releases[0].terminal is False
@@ -176,14 +179,15 @@ def test_t20_rejects_unreconciled_returned_capacity() -> None:
         T20CapitalReleaseSlice(
             settlement_deal_id=8002,
             released_at=T0 + timedelta(minutes=10, seconds=2),
-            returned_capacity_usd=Decimal("11"),
+            released_stop_risk_capacity_usd=Decimal("1.2"),
+            released_margin_capacity_usd=Decimal("11"),
             source_ref="bad-return-ledger",
             terminal=True,
         ),
     )
     with pytest.raises(
         CiboCompoundCapitalError,
-        match="must return all realized deployed capacity",
+        match="must restore all realized margin capacity",
     ):
         build_t20_capital_release_evidence(
             evidence_id="t20-bad-return",
@@ -208,18 +212,18 @@ def test_t20_rejects_execution_above_risk_authorization() -> None:
             signal_fingerprint=auth.signal_fingerprint,
             position_id=auth.position_id,
             requested_at=auth.requested_at,
-            requested_capital_usd=auth.requested_capital_usd,
+            requested_margin_usd=auth.requested_margin_usd,
             requested_stop_risk_usd=auth.requested_stop_risk_usd,
             risk_decision_id=auth.risk_decision_id,
             risk_disposition=auth.risk_disposition,
             risk_authorized_at=auth.risk_authorized_at,
-            risk_authorized_capital_usd=Decimal("10"),
+            risk_authorized_margin_usd=Decimal("10"),
             risk_authorized_stop_risk_usd=auth.risk_authorized_stop_risk_usd,
             execution_evidence_id=auth.execution_evidence_id,
             execution_realized_at=auth.execution_realized_at,
-            execution_realized_capital_usd=Decimal("12"),
+            execution_realized_margin_usd=Decimal("12"),
             execution_realized_stop_risk_usd=auth.execution_realized_stop_risk_usd,
-            capital_deployed_at=auth.capital_deployed_at,
+            capacity_deployed_at=auth.capacity_deployed_at,
             source_refs=auth.source_refs,
         )
 
