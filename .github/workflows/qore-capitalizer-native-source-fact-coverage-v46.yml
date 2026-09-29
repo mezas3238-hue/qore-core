@@ -73,7 +73,12 @@ jobs:
           assert report["predeclaration_comment_id"] == 5883088393
           assert report["r1_predeclaration_comment_id"] == 5883167207
           assert report["r2_predeclaration_comment_id"] == 5883247470
+          assert report["r3_predeclaration_comment_id"] == 5887860668
           assert report["canonical_historical_replay_adapter_status"] == "DETECTOR_READY"
+          assert report["blocking_fact_count"] == 0
+          assert report["blocking_facts"] == []
+          assert report["phase_a_ready"] is True
+          assert report["phase_b_authorized"] is True
           assert report["mandatory_fact_count"] == 26
           assert len(report["facts"]) == 26
           assert report["phase_b_executed"] is False
