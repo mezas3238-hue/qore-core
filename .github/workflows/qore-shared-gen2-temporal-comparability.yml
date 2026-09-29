@@ -49,10 +49,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p validation
-          ruff check             src/qore/infrastructure/market_clock_schedule.py             src/qore/infrastructure/core_stack_v2/global_temporal_comparability.py             src/qore/infrastructure/core_stack_v2/global_observability_matrix.py             src/qore/infrastructure/core_stack_v2/global_market_relational_graph.py             src/qore/infrastructure/core_stack_v2/global_market_intelligence_contract.py             scripts/shared_gen2_ctrader_temporal_metadata.py             scripts/shared_gen2_global_observability_matrix.py             tests/infrastructure/test_core_stack_v2_global_temporal_comparability.py             tests/infrastructure/test_core_stack_v2_global_observability_matrix.py             tests/infrastructure/test_shared_gen2_ctrader_temporal_metadata.py             tests/infrastructure/test_core_stack_v2_global_market_relational_graph.py             tests/infrastructure/test_core_stack_v2_global_market_intelligence_contract.py             tests/infrastructure/test_market_clock_schedule.py
+          ruff check             src/qore/infrastructure/market_clock_schedule.py             src/qore/infrastructure/core_stack_v2/global_temporal_comparability.py             src/qore/infrastructure/core_stack_v2/global_observability_matrix.py             src/qore/infrastructure/core_stack_v2/global_market_relational_graph.py             src/qore/infrastructure/core_stack_v2/global_market_intelligence_contract.py             src/qore/infrastructure/ctrader_metadata_read_only.py             scripts/shared_gen2_ctrader_temporal_metadata.py             scripts/shared_gen2_global_observability_matrix.py             tests/infrastructure/test_core_stack_v2_global_temporal_comparability.py             tests/infrastructure/test_core_stack_v2_global_observability_matrix.py             tests/infrastructure/test_ctrader_metadata_read_only.py             tests/infrastructure/test_shared_gen2_ctrader_temporal_metadata.py             tests/infrastructure/test_core_stack_v2_global_market_relational_graph.py             tests/infrastructure/test_core_stack_v2_global_market_intelligence_contract.py             tests/infrastructure/test_market_clock_schedule.py
           mypy             src/qore/infrastructure/core_stack_v2/global_temporal_comparability.py             src/qore/infrastructure/core_stack_v2/global_observability_matrix.py
-          python -m py_compile             scripts/shared_gen2_ctrader_temporal_metadata.py             scripts/shared_gen2_global_observability_matrix.py
-          pytest -q             tests/infrastructure/test_core_stack_v2_global_temporal_comparability.py             tests/infrastructure/test_core_stack_v2_global_observability_matrix.py             tests/infrastructure/test_shared_gen2_ctrader_temporal_metadata.py             tests/infrastructure/test_core_stack_v2_global_market_relational_graph.py             tests/infrastructure/test_core_stack_v2_global_market_intelligence_contract.py             tests/infrastructure/test_market_clock_schedule.py             --junitxml=validation/junit.xml
+          python -m py_compile             src/qore/infrastructure/ctrader_metadata_read_only.py             scripts/shared_gen2_ctrader_temporal_metadata.py             scripts/shared_gen2_global_observability_matrix.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_global_temporal_comparability.py             tests/infrastructure/test_core_stack_v2_global_observability_matrix.py             tests/infrastructure/test_ctrader_metadata_read_only.py             tests/infrastructure/test_shared_gen2_ctrader_temporal_metadata.py             tests/infrastructure/test_core_stack_v2_global_market_relational_graph.py             tests/infrastructure/test_core_stack_v2_global_market_intelligence_contract.py             tests/infrastructure/test_market_clock_schedule.py             --junitxml=validation/junit.xml
       - uses: actions/upload-artifact@v4
         with:
           name: gen2-temporal-validation
@@ -153,6 +153,10 @@ jobs:
           assert schedule["provider_native_identity_metadata_captured"] is True
           assert schedule["provider_native_identity_metadata_is_not_canonical_identity"] is True
           assert schedule["provider_native_identity_metadata_coverage_count"] == 177
+          assert schedule["provider_asset_count"] > 0
+          assert schedule["provider_asset_class_count"] > 0
+          assert schedule["provider_symbol_category_count"] > 0
+          assert len(schedule["provider_identity_descriptor_fingerprint_sha256"]) == 64
           assert schedule["market_history_read"] is False
           assert schedule["target_or_outcome_read"] is False
           assert matrix["sensor_count"] == 177
@@ -234,6 +238,10 @@ jobs:
               "provider_schedule_catalog_fingerprint":schedule["provider_schedule_catalog_fingerprint_sha256"],
               "provider_native_identity_metadata_coverage_count":schedule["provider_native_identity_metadata_coverage_count"],
               "provider_native_identity_metadata_is_not_canonical_identity":schedule["provider_native_identity_metadata_is_not_canonical_identity"],
+              "provider_asset_count":schedule["provider_asset_count"],
+              "provider_asset_class_count":schedule["provider_asset_class_count"],
+              "provider_symbol_category_count":schedule["provider_symbol_category_count"],
+              "provider_identity_descriptor_fingerprint":schedule["provider_identity_descriptor_fingerprint_sha256"],
               "calendar_registry_fingerprint":calendar["calendar_registry_fingerprint_sha256"],
               "canonical_mapping_governance_status":matrix["canonical_mapping_governance_status"],
               "canonical_mapping_registry_fingerprint":mapping["canonical_mapping_registry_fingerprint_sha256"],
@@ -300,6 +308,8 @@ jobs:
               f"- provider schedule census: **{schedule['sensor_count']} sensors**",
               f"- provider schedule fingerprint: `{schedule['provider_schedule_catalog_fingerprint_sha256']}`",
               f"- provider-native identity descriptors: **{schedule['provider_native_identity_metadata_coverage_count']}/177** (evidence only, not canonical identity)",
+              f"- provider taxonomy: **{schedule['provider_asset_count']} assets / {schedule['provider_asset_class_count']} asset classes / {schedule['provider_symbol_category_count']} symbol categories**",
+              f"- provider identity descriptor fingerprint: `{schedule['provider_identity_descriptor_fingerprint_sha256']}`",
               f"- observability matrix fingerprint: `{matrix['global_observability_matrix_fingerprint_sha256']}`",
               f"- readiness: **{matrix['readiness_counts']}**",
               "- canonical mapping governance: **UNRESOLVED_BASELINE_FROZEN**",
