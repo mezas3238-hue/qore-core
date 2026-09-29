@@ -41,6 +41,7 @@ def test_phase_b_coverage_row_passes_only_with_complete_causal_history() -> None
     state = phase_b._PeriodState(spec)
     decision = datetime(2024, 1, 22, 8, 0, tzinfo=UTC)
     state.earliest_artifact_at = spec.lookback_start
+    state.prelookback_source_seen = True
     state.source_rows = 100
     state.lookback_rows = 100
     state.first_source_at = spec.start
@@ -75,6 +76,7 @@ def test_phase_b_missing_history_stays_in_denominator_and_fails() -> None:
     state = phase_b._PeriodState(spec)
     decision = datetime(2024, 1, 22, 8, 0, tzinfo=UTC)
     state.earliest_artifact_at = spec.lookback_start
+    state.prelookback_source_seen = True
     assert state.eligible_clocks is not None
     assert state.m15_completed is not None
     state.eligible_clocks.append(decision)
@@ -102,6 +104,7 @@ def test_phase_b_contract_never_opens_economics() -> None:
     state = phase_b._PeriodState(spec)
     decision = datetime(2024, 1, 22, 8, 0, tzinfo=UTC)
     state.earliest_artifact_at = spec.lookback_start
+    state.prelookback_source_seen = True
     assert state.eligible_clocks is not None
     assert state.h1_completed is not None
     assert state.m15_completed is not None
