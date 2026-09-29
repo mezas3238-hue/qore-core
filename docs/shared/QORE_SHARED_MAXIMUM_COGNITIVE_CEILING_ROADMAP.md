@@ -482,3 +482,34 @@ SHARED = CERTIFIED SUPPORT INTELLIGENCE
 
 PR #635 remains DRAFT / UNMERGED and this roadmap grants no LIVE, production,
 capital, Risk, order or execution authority.
+
+
+## Global perception transversal expansion — Owner Directive 006
+
+Canonical directive:
+
+`docs/shared/QORE_SHARED_GLOBAL_PERCEPTION_OWNER_DIRECTIVE_006.md`
+
+Implementation roadmap:
+
+`docs/shared/QORE_SHARED_GLOBAL_MARKET_RELATIONAL_INTELLIGENCE_ROADMAP_001.md`
+
+Architecture audit:
+
+`docs/shared/QORE_SHARED_GLOBAL_PERCEPTION_ARCHITECTURE_AUDIT_001.md`
+
+This expansion is mandatory fuel for the existing maximum ceiling. It does not
+create a new work package or capability count.
+
+Owner invariants:
+
+```text
+SHARED OBSERVATION UNIVERSE >> QORE EXECUTION UNIVERSE
+CURRENT TRADER UNIVERSE MUST NOT DEFINE SHARED KNOWLEDGE CEILING
+OBSERVING A MARKET DOES NOT AUTHORIZE TRADING THAT MARKET
+```
+
+The existing MC-01..MC-28 remain exactly the certification capability set.
+Global sensor governance, generalized structural divergence, lead/lag
+discovery, relationship lifecycle intelligence and the global relational graph
+are transversal requirements implemented inside those capabilities.

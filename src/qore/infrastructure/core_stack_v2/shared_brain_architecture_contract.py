@@ -9,6 +9,9 @@ from __future__ import annotations
 
 from typing import Final
 
+from qore.infrastructure.core_stack_v2.global_market_intelligence_contract import (
+    global_market_intelligence_contract,
+)
 from qore.infrastructure.core_stack_v2.shared_cognitive_os_contract import (
     shared_cognitive_os_contract,
 )
@@ -18,6 +21,7 @@ SHARED_BRAIN_ARCHITECTURE_VERSION: Final = "QORE_META_COGNITIVE_SCIENTIFIC_INTEL
 _COGNITIVE_PIPELINE: Final = (
     "MARKET_CORE_COGNITIVE_OBSERVATION",
     "SENSORY_SYSTEM",
+    "GLOBAL_MARKET_OBSERVATION_UNIVERSE",
     "PROBABILISTIC_MARKET_DIGITAL_TWIN",
     "QORE_CORE_DIGITAL_TWIN",
     "HIERARCHICAL_WORLD_MODEL",
@@ -29,6 +33,7 @@ _COGNITIVE_PIPELINE: Final = (
     "SURPRISE_AND_NOVELTY",
     "UNKNOWN_UNKNOWN_DISCOVERY",
     "DYNAMIC_CAUSAL_GRAPH",
+    "GLOBAL_MARKET_RELATIONAL_GRAPH",
     "COMPETING_CAUSAL_HYPOTHESES",
     "ACTIVE_PERCEPTION",
     "BELIEF_STATE",
@@ -69,6 +74,11 @@ _REQUIRED_CAPABILITIES: Final = (
     "NEURAL_SYMBOLIC_REASONING",
     "MARKET_FOUNDATION_MODEL_INTERFACE",
     "DYNAMIC_GRAPH_MARKET_MODEL",
+    "GLOBAL_MARKET_OBSERVATION_UNIVERSE",
+    "GLOBAL_MARKET_RELATIONAL_INTELLIGENCE",
+    "GENERALIZED_CROSS_MARKET_STRUCTURAL_DIVERGENCE",
+    "LEAD_LAG_INFORMATION_FLOW_DISCOVERY",
+    "RELATIONSHIP_LIFECYCLE_INTELLIGENCE",
     "TEMPORAL_CAUSAL_TRANSFORMER_INTERFACE",
     "ALEATORIC_EPISTEMIC_UNCERTAINTY_DECOMPOSITION",
     "ENSEMBLE_OF_MINDS",
@@ -140,6 +150,10 @@ def shared_brain_architecture_contract() -> dict[str, object]:
         "owner_maximum_architecture_directive": (
             "docs/shared/QORE_SHARED_COGNITIVE_OS_OWNER_DIRECTIVE_005.md"
         ),
+        "owner_global_perception_directive": (
+            "docs/shared/QORE_SHARED_GLOBAL_PERCEPTION_OWNER_DIRECTIVE_006.md"
+        ),
+        "global_market_intelligence_contract": global_market_intelligence_contract(),
         "maximum_ceiling_program": "docs/shared/QORE_SHARED_MAXIMUM_COGNITIVE_CEILING_ROADMAP.md",
         "maximum_ceiling_master_issue": 638,
         "maximum_ceiling_work_packages": tuple(range(639, 651)),

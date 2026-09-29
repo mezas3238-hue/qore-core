@@ -41,6 +41,13 @@ TRANSVERSAL_ARCHITECTURE_REQUIREMENTS: Final = (
     "DEGRADED_MODE",
     "RUNTIME_COGNITIVE_TIERS",
     "DISTRIBUTED_COGNITIVE_ATTENTION",
+    "GLOBAL_MARKET_OBSERVATION_UNIVERSE",
+    "GLOBAL_SENSOR_GOVERNANCE",
+    "GLOBAL_MARKET_RELATIONAL_GRAPH",
+    "GENERALIZED_CROSS_MARKET_STRUCTURAL_DIVERGENCE",
+    "LEAD_LAG_INFORMATION_FLOW_DISCOVERY",
+    "RELATIONSHIP_LIFECYCLE_INTELLIGENCE",
+    "MARKET_HOURS_CAUSALITY_GUARD",
 )
 
 
@@ -92,6 +99,10 @@ PRE_CERTIFICATION_GATES: Final = (
     "no_hidden_trader_logic",
     "latency_and_availability_contract_pass",
     "certification_inputs_and_thresholds_frozen",
+    "global_perception_not_limited_by_current_traders",
+    "global_sensor_governance_pass",
+    "global_relational_graph_governance_pass",
+    "market_hours_causality_guard_pass",
 )
 
 

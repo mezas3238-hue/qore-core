@@ -214,3 +214,23 @@ def test_shared_maximum_objective_is_understanding_not_outcome_ownership() -> No
     assert objective["no_risk_authority"] is True
     assert objective["no_capital_authority"] is True
     assert objective["no_execution_authority"] is True
+
+
+def test_owner_global_perception_expands_knowledge_without_authority() -> None:
+    contract = shared_brain_architecture_contract()
+
+    assert contract["owner_global_perception_directive"] == (
+        "docs/shared/QORE_SHARED_GLOBAL_PERCEPTION_OWNER_DIRECTIVE_006.md"
+    )
+    global_contract = contract["global_market_intelligence_contract"]
+    assert global_contract["observation_universe_law"][
+        "current_trader_universe_must_not_define_shared_knowledge_ceiling"
+    ] is True
+    assert global_contract["global_graph_law"][
+        "qore_global_market_relational_graph_required"
+    ] is True
+    assert global_contract["generalized_smt_law"][
+        "cross_market_structural_divergence_required"
+    ] is True
+    assert global_contract["sovereignty"]["shared_execution_authority"] is False
+    assert global_contract["sovereignty"]["shared_risk_authority"] is False

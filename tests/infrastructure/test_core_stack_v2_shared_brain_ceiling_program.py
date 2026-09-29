@@ -120,3 +120,25 @@ def test_owner_cognitive_os_requirements_are_transversal_not_new_work_packages()
     assert tuple(package.work_id for package in WORK_CHAIN) == tuple(
         f"WP-{index:02d}" for index in range(1, 13)
     )
+
+
+def test_global_market_perception_is_transversal_without_mc_or_wp_inflation() -> None:
+    requirements = set(TRANSVERSAL_ARCHITECTURE_REQUIREMENTS)
+    gates = set(PRE_CERTIFICATION_GATES)
+
+    assert len(MAXIMUM_PRECERTIFICATION_CAPABILITIES) == 28
+    assert tuple(package.work_id for package in WORK_CHAIN) == tuple(
+        f"WP-{index:02d}" for index in range(1, 13)
+    )
+    assert "GLOBAL_MARKET_OBSERVATION_UNIVERSE" in requirements
+    assert "GLOBAL_SENSOR_GOVERNANCE" in requirements
+    assert "GLOBAL_MARKET_RELATIONAL_GRAPH" in requirements
+    assert "GENERALIZED_CROSS_MARKET_STRUCTURAL_DIVERGENCE" in requirements
+    assert "LEAD_LAG_INFORMATION_FLOW_DISCOVERY" in requirements
+    assert "RELATIONSHIP_LIFECYCLE_INTELLIGENCE" in requirements
+    assert "MARKET_HOURS_CAUSALITY_GUARD" in requirements
+
+    assert "global_perception_not_limited_by_current_traders" in gates
+    assert "global_sensor_governance_pass" in gates
+    assert "global_relational_graph_governance_pass" in gates
+    assert "market_hours_causality_guard_pass" in gates

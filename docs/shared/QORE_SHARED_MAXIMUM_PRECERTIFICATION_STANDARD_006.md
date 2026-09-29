@@ -970,3 +970,33 @@ HOW TO PROVE THAT A NEW CAPABILITY ADDS OOS VALUE
 
 That is the Owner-mandated maximum conceptual and engineering standard for
 Shared before certification.
+
+
+## Global market perception expansion gate
+
+Owner Directive 006 adds a mandatory transversal pre-certification condition.
+
+Shared may not be declared PRE_CERTIFICATION_READY if its perception ceiling is
+artificially bounded by the seven current Trader markets.
+
+Required evidence before freeze:
+
+- configuration/schema/adapter-driven global sensor registry;
+- provider discovery separated from scientific admission;
+- market-hours and timestamp-comparability guard;
+- instrument-level `QORE_GLOBAL_MARKET_RELATIONAL_GRAPH`;
+- provenance/uncertainty/freshness on material graph edges;
+- generalized cross-market structural divergence capability;
+- regime-conditioned lead/lag and information-flow research capability;
+- relationship stability/decay/break/recovery lifecycle;
+- multiple-testing and data-snooping controls;
+- Active Perception capable of reasoning over the broader market universe;
+- cross-market Foundation Model architecture;
+- proof that expanded observation creates no Risk, sizing, capital, order,
+  execution or broker-mutation authority.
+
+The required observable universe can be larger than the set of scientifically
+admitted productive sensors. Every sensor must remain governed.
+
+A failed hypothesis does not authorize deleting the underlying market from
+Shared knowledge.

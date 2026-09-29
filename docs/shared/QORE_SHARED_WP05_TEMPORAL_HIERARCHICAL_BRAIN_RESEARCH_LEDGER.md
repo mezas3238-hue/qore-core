@@ -1235,3 +1235,46 @@ Only after this catalogue is frozen may a genuinely new sensor family be
 nominated by economic/market semantics and subjected to a separate source-only
 historical availability audit before any V15 scientific preregistration or
 outcome access.
+
+
+## 18. Post-V14 cross-asset availability and global-perception expansion
+
+The post-V14 source-only cross-asset audit completed GREEN:
+
+- run: `36562380567`;
+- Git SHA: `b7694f22cf1dfc16ef05735cc00b134bb77f61dc`;
+- artifact: `11029908386`;
+- artifact digest:
+  `sha256:fb761b87cccb91ee69dbcd5f58cb91fe3f95164745378aa055335859ef498151`;
+- US2000 / EQUITY_BREADTH_PROXY: `full_bid_ask_history`,
+  BID 16,788 / ASK 16,788;
+- XAUUSD / DEFENSIVE_ASSET_PROXY: `full_bid_ask_history`,
+  BID 81,788 / ASK 74,011;
+- XTIUSD / CYCLICAL_COMMODITY_PROXY: `partial_bid_ask_history`,
+  BID 7,014 / ASK 6,796;
+- target/outcome read: false;
+- R6/R5 read: false;
+- fresh holdout opened: false;
+- scientific V15 opened: false.
+
+This audit proves new cross-asset source families exist. It does not select a
+winning scientific hypothesis.
+
+Owner Directive 006 now makes explicit that US2000/XAUUSD/XTIUSD are not the
+ceiling. The current Trader universe and the current experiment pair/trio may
+not define Shared perception.
+
+Before opening a new V15 scientific outcome, the transversal global-perception
+foundation is being built:
+
+- global provider/sensor registry;
+- market-hours/timestamp comparability;
+- generalized relation taxonomy;
+- instrument-level dynamic relational graph;
+- generalized structural divergence;
+- lead/lag and information-flow research;
+- relation lifecycle;
+- dynamic Active Perception.
+
+WP-05 remains ACTIVE. R8 Target-V2, R6/R5 and fresh holdout remain closed for a
+new V15 until a new scientific candidate is explicitly preregistered.
