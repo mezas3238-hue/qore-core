@@ -22,7 +22,6 @@ from qore.infrastructure.trader_lab.capitalizer_full_ict_density_scanner_1y_v1 i
 )
 from qore.infrastructure.trader_lab.capitalizer_native_source_fact_remediation_v46 import (
     CapitalizerHTFPOIContext,
-    resolve_htf_poi_context,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
     CapitalizerCISDObservation,
@@ -265,21 +264,8 @@ def bind_latest_h1_context(
         return None
     event = events[-1]
     bias = derive_daily_bias(event.closure)
-    context = resolve_htf_poi_context(
-        bar=CapitalizerSourceBar(
-            open=event.closure.direction is CapitalizerSourceDirection.BULLISH
-            and Decimal("1")
-            or Decimal("1"),
-            high=max(poi.upper_price for poi in event.pois),
-            low=min(poi.lower_price for poi in event.pois),
-            close=Decimal("1"),
-        ),
-        pois=event.pois,
-    )
-    # resolve_htf_poi_context is a generic bar/POI binder. The event POIs
-    # were already proven interacting with the actual H1 above; retain them
-    # directly rather than allowing a synthetic numeric bar to redefine that
-    # fact.
+    # The event POIs were already proven interacting with the actual
+    # completed H1 candle; retain that authentic causal set directly.
     context = CapitalizerHTFPOIContext(
         present=True,
         interacting_pois=event.pois,
