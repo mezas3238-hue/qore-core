@@ -604,10 +604,54 @@ def _event_json(event: CapitalScarcityEvent) -> str:
                     )
                 ),
                 "genc5_decision_sha256": item.genc5_seal.decision_sha256,
-                "provider_feasible": item.provider_feasible,
-                "provider_feasibility_evidence_sha256": (
-                    item.provider_feasibility_evidence_sha256
-                ),
+                "provider_action": {
+                    "evidence_id": item.provider_action.evidence_id,
+                    "evidence_sha256": (
+                        item.provider_action.evidence_sha256
+                    ),
+                    "produced_at": (
+                        item.provider_action.produced_at.isoformat()
+                    ),
+                    "observed_at": (
+                        item.provider_action.observed_at.isoformat()
+                    ),
+                    "source": item.provider_action.source,
+                    "policy_version": item.provider_action.policy_version,
+                    "requested_capital_usd": str(
+                        item.provider_action.requested_capital_usd
+                    ),
+                    "executable_volume": str(
+                        item.provider_action.executable_volume
+                    ),
+                    "minimum_executable_volume": str(
+                        item.provider_action.minimum_executable_volume
+                    ),
+                    "maximum_volume": str(
+                        item.provider_action.maximum_volume
+                    ),
+                    "volume_step": str(item.provider_action.volume_step),
+                    "minimum_execution_steps": (
+                        item.provider_action.minimum_execution_steps
+                    ),
+                    "projected_stop_risk_usd": str(
+                        item.provider_action.projected_stop_risk_usd
+                    ),
+                    "minimum_stop_risk_usd": str(
+                        item.provider_action.minimum_stop_risk_usd
+                    ),
+                    "projected_margin_usd": str(
+                        item.provider_action.projected_margin_usd
+                    ),
+                    "minimum_margin_usd": str(
+                        item.provider_action.minimum_margin_usd
+                    ),
+                    "projected_execution_cost_usd": str(
+                        item.provider_action.projected_execution_cost_usd
+                    ),
+                    "feasible": item.provider_action.feasible,
+                    "use": item.provider_action.use.value,
+                    "reason": item.provider_action.reason,
+                },
                 "facts": [
                     {
                         "fact_id": fact.fact_id,
