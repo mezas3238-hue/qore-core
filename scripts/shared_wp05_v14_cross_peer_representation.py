@@ -240,9 +240,9 @@ def _fill_peer(
                     snapshot,
                     selected_staleness_limit_ms=selected_staleness_limit_ms,
                 )
-                if int(normalized["causal_pair_available"]) == 1:
+                if normalized["causal_pair_available"] == 1:
                     usable_counts[peer.value][checkpoint_index] += 1
-                if int(normalized["crossed_causal_quote"]) == 1:
+                if normalized["crossed_causal_quote"] == 1:
                     crossed_counts[peer.value][checkpoint_index] += 1
                 prefix = f"{peer.value.lower()}_t{minute}_"
                 for field in V14_BASE_FEATURES:
@@ -272,7 +272,7 @@ def run(
     if anchor_digest != V14_EXPECTED_SOURCE_ANCHOR_SHA256:
         raise V14RepresentationError("V14 source anchor digest drift")
 
-    rows = [
+    rows: list[dict[str, object]] = [
         {
             "source_at": source_at.astimezone(UTC).isoformat(
                 timespec="microseconds"
