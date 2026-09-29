@@ -165,6 +165,8 @@ def _evidence(
         account_identity=portfolio.account_identity,
         trader_id=TraderLineage.VT31_NAS100,
         signal_fingerprint="genc5-signal",
+        source_opportunity_decision_sha256="sha256:" + "7" * 64,
+        source_baseline_policy_record_sha256="sha256:" + "8" * 64,
         current_compound_capacity_usd=(
             Decimal(capacity) if capacity is not None else current
         ),
