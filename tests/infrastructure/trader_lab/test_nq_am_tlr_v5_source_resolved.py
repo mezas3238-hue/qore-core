@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
