@@ -38,9 +38,6 @@ from qore.infrastructure.trader_lab import (
     capitalizer_master_cognitive_frame as master_frame,
 )
 from qore.infrastructure.trader_lab import (
-    capitalizer_metacognition_v2 as metacognition,
-)
-from qore.infrastructure.trader_lab import (
     capitalizer_opportunity_competition as competition,
 )
 from qore.infrastructure.trader_lab import (
@@ -93,10 +90,6 @@ def build_report() -> dict[str, Any]:
     census_source = _source(blocker_census)
     v46_source = _source(v46_adapter)
 
-    hypothesis_composer = (
-        "transition_hypothesis" in lifecycle_source
-        and "CapitalizerHypothesisStage" in lifecycle_source
-    )
     historical_hypothesis_resolver = (
         "historical" in lifecycle_source.lower()
         and "source_event" in lifecycle_source
@@ -105,7 +98,6 @@ def build_report() -> dict[str, Any]:
     attention_composer = "derive_attention_state" in attention_source
     knowledge_composer = "assess_knowledge_state" in confidence_source
     perception_composer = "assess_perception_integrity" in perception_source
-    regime_composer = "assess_regime" in regime_source
     cognitive_gate_composer = "assess_cognitive_gate" in sovereignty_source
     pressure_composer = "assess_cognitive_pressure" in pressure_source
     competition_composer = (
