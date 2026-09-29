@@ -1,0 +1,74 @@
+name: QORE Capitalizer Source Fidelity V45
+
+on:
+  push:
+    branches:
+      - agent/capitalizer-source-fidelity-v45-001
+    paths:
+      - '.github/workflows/qore-capitalizer-source-fidelity-v45.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_source_engine_replay_fidelity_audit_v45.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_source_engine_replay_fidelity_audit_v45.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qore-capitalizer-source-fidelity-v45-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_source_engine_replay_fidelity_audit_v45.py \
+            tests/infrastructure/trader_lab/test_capitalizer_source_engine_replay_fidelity_audit_v45.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_source_engine_replay_fidelity_audit_v45.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_source_engine_replay_fidelity_audit_v45.py
+      - name: Run frozen V45 fidelity audit
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_source_engine_replay_fidelity_audit_v45
+      - name: Enforce governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report=json.loads(
+              Path(
+                  "audit-output/"
+                  "capitalizer-source-engine-replay-fidelity-audit-v45.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_SOURCE_ENGINE_REPLAY_FIDELITY_AUDIT_V45"
+          )
+          assert report["predeclaration_comment_id"] == 5883038006
+          assert report["evaluation"] == "STATIC_CODE_CONTRACT_FIDELITY_ONLY"
+          assert report["economics_opened"] is False
+          assert report["fresh_holdout_opened"] is False
+          assert report["candidate_count"] == 0
+          assert report["trader_certified"] is False
+          print(json.dumps(report,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-source-fidelity-v45-${{ github.sha }}
+          path: audit-output
+          if-no-files-found: error
+          retention-days: 90
