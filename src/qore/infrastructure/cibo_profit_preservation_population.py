@@ -173,11 +173,15 @@ def describe_genc7_fresh_population(
             "GEN-C7 population requires canonical durable book"
         )
 
-    seals = tuple(
-        seal
-        for record in book.records
-        if (seal := book.seal_for_decision(record.decision_id)) is not None
-    )
+    seals_list = []
+    for record in book.records:
+        seal = book.seal_for_decision(record.decision_id)
+        if seal is None:
+            raise CiboCompoundCapitalError(
+                "GEN-C7 population durable decision seal missing"
+            )
+        seals_list.append(seal)
+    seals = tuple(seals_list)
     if not seals:
         return Genc7FreshPopulation(
             status=Genc7PopulationStatus.EMPTY,
