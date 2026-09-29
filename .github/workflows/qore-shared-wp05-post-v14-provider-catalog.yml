@@ -20,6 +20,9 @@ permissions:
   contents: read
   issues: write
 
+env:
+  GH_TOKEN: ${{ github.token }}
+
 jobs:
   validate:
     runs-on: ubuntu-24.04
