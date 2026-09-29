@@ -83,6 +83,7 @@ def _proposal(
         amount_usd=Decimal(amount),
         evidence_sha256="sha256:" + "b" * 64,
         rationale_code="FROZEN_CAUSAL_PROPOSAL",
+        evaluation_horizon_minutes=60,
         calibrated=calibrated,
         capital_eligible=capital_eligible,
     )
