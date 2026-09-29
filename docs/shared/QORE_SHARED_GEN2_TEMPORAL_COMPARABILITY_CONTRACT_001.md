@@ -238,6 +238,31 @@ All GEN-2 outputs remain read-only cognition.
 Shared methodology, sizing, Risk, order, execution and broker-mutation
 authority remain false.
 
+## Machine-readable closure gate
+
+GEN-2 now exposes a deterministic temporal-governance closure assessment.
+
+The closure assessment is intentionally stricter than workflow success. It
+requires, at minimum:
+
+- a non-empty sensor universe;
+- canonical mapping coverage equal to the governed sensor universe;
+- a non-empty canonical calendar registry;
+- calendar binding coverage equal to the governed sensor universe;
+- cadence policy registry frozen;
+- liquidity policy registry frozen;
+- temporal-skew policy registry frozen;
+- comparability policy registry frozen;
+- anti-leakage PASS;
+- deterministic validation PASS.
+
+Any unmet condition is emitted as a canonical blocker code and the result is
+`NOT_READY`.
+
+A `READY` temporal-governance result still does **not** authorize relational
+claims. GEN-2 establishes legal temporal comparability prerequisites; GEN-3+
+must separately establish and validate relation science.
+
 ## Current closure rule
 
 Classes alone do not close GEN-2.
