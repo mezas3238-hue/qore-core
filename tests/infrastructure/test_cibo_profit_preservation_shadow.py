@@ -22,6 +22,10 @@ from qore.infrastructure.cibo_profit_preservation_shadow import (
 from qore.infrastructure.cibo_profit_preservation_store import (
     DurableGenc7ProfitPreservationShadowStore,
 )
+from qore.infrastructure.cibo_profit_preservation_population import (
+    Genc7PopulationStatus,
+    describe_genc7_fresh_population,
+)
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
 T0 = datetime(2026, 9, 29, 23, 35, tzinfo=UTC)
@@ -283,3 +287,58 @@ def test_genc7_store_hash_chain_restart_cas_and_conflict(tmp_path) -> None:
             sealed_at=sealed_at,
             expected_generation=1,
         )
+
+
+def test_genc7_population_is_descriptive_not_economic(tmp_path) -> None:
+    decision = evaluate_genc7_profit_preservation_shadow(
+        state=_state(),
+        proposal=_proposal(),
+        decision_id="genc7-population-decision",
+    )
+    store = DurableGenc7ProfitPreservationShadowStore(
+        tmp_path / "genc7-population.json"
+    )
+    book = store.seal(
+        decision,
+        sealed_at=T0 + timedelta(seconds=1),
+        expected_generation=0,
+    )
+
+    population = describe_genc7_fresh_population(book=book)
+
+    assert population.status is Genc7PopulationStatus.DESCRIPTIVE_AVAILABLE
+    assert population.decision_epoch_count == 1
+    assert population.treatment_control_divergence_count == 1
+    assert population.protect_count == 1
+    assert population.hold_count == 0
+    assert population.account_keys == ("ctrader:genc7-test",)
+    assert population.decision_calendar_days == 1
+    assert population.calendar_span_days == 1
+    assert population.minimum_evaluation_horizon_minutes == 60
+    assert population.maximum_evaluation_horizon_minutes == 60
+    assert population.mean_giveback_amount_usd == Decimal("8")
+    assert population.mean_profit_retention_ratio == Decimal("0.8")
+    assert population.mean_base_drawdown_usd == Decimal("2")
+    assert population.mean_compound_drawdown_usd == Decimal("6")
+    assert population.mean_floor_growth_rate == Decimal("0.2")
+    assert population.descriptive_only is True
+    assert population.economic_utility_ready is False
+    assert population.certification_ready is False
+    assert "ECONOMIC_GATE_NOT_YET_PREREGISTERED" in population.blockers
+    assert "OUTCOME_BINDING_NOT_EVALUATED" in population.blockers
+
+
+def test_genc7_empty_population_fails_closed_descriptively() -> None:
+    from qore.infrastructure.cibo_profit_preservation_store import (
+        VersionedGenc7ShadowBook,
+    )
+
+    population = describe_genc7_fresh_population(
+        book=VersionedGenc7ShadowBook(generation=0)
+    )
+
+    assert population.status is Genc7PopulationStatus.EMPTY
+    assert population.decision_epoch_count == 0
+    assert population.economic_utility_ready is False
+    assert population.certification_ready is False
+    assert population.blockers == ("NO_GENC7_DECISIONS",)
