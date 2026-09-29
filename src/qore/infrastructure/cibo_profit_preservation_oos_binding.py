@@ -185,7 +185,11 @@ class Genc7BoundObservedPath:
     economic_utility_claimed: bool = False
 
     def __post_init__(self) -> None:
-        if not self.decision_id or not self.account_provider_key or not self.account_ref:
+        if (
+            not self.decision_id
+            or not self.account_provider_key
+            or not self.account_ref
+        ):
             raise CiboCompoundCapitalError(
                 "GEN-C7 OOS bound path identity is required"
             )
