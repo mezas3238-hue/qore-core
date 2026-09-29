@@ -193,8 +193,21 @@ It represents preserved:
 
 V1 does not fabricate a scalar reserve utility.
 
-Reserve becomes the treatment action when the evidence does not establish a
-unique robust capital use.
+When a capital-eligible RESERVE_VALUE fact exists, its semantics are frozen as
+expected preserved economic value per next marginal capital unit, expressed on
+the same per-capital scale as EXPECTED_NET_VALUE_PER_CAPITAL. A capital-eligible
+RESERVE_VALUE requires explicit model identity, calibration and fresh-OOS
+validation.
+
+Treatment may deploy a candidate only when its
+EXPECTED_NET_VALUE_PER_CAPITAL is strictly greater than the capital-eligible
+RESERVE_VALUE.
+
+If no capital-eligible RESERVE_VALUE exists, treatment chooses
+RESERVE_NO_DEPLOYMENT rather than pretending that reserve value is zero.
+
+Reserve also becomes the treatment action whenever the evidence does not
+establish a unique robust capital use.
 
 ## 11. No weighted-score theater
 
@@ -301,9 +314,14 @@ A candidate is treatment-eligible only when:
 For the legal candidate set, A robustly dominates B only if A is no worse than B
 on every active comparable dimension and strictly better on at least one.
 
-Treatment chooses a candidate only when exactly one candidate robustly dominates
-every other treatment-eligible candidate and its adjusted expected net value is
-positive.
+Treatment chooses a candidate only when:
+
+1. exactly one candidate robustly dominates every other treatment-eligible
+   candidate;
+2. its adjusted expected net value is positive;
+3. a capital-eligible RESERVE_VALUE exists; and
+4. the candidate's EXPECTED_NET_VALUE_PER_CAPITAL is strictly greater than the
+   RESERVE_VALUE.
 
 Otherwise:
 
