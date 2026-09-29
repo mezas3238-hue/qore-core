@@ -34,18 +34,18 @@ jobs:
           ruff check \
             src/qore/infrastructure/trader_lab/capitalizer_canonical_source_candidate_assembly_v47_s0.py \
             src/qore/infrastructure/trader_lab/capitalizer_canonical_source_context_binders_v47_s0.py \
-            src/qore/infrastructure/trader_lab/capitalizer_canonical_source_context_binders_v47_s0.py \
             tests/infrastructure/trader_lab/test_capitalizer_canonical_source_candidate_assembly_v47_s0.py \
-            tests/infrastructure/trader_lab/test_capitalizer_canonical_source_context_binders_v47_s0.py \
             tests/infrastructure/trader_lab/test_capitalizer_canonical_source_context_binders_v47_s0.py
       - name: Mypy
         run: |
           mypy \
-            src/qore/infrastructure/trader_lab/capitalizer_canonical_source_candidate_assembly_v47_s0.py
+            src/qore/infrastructure/trader_lab/capitalizer_canonical_source_candidate_assembly_v47_s0.py \
+            src/qore/infrastructure/trader_lab/capitalizer_canonical_source_context_binders_v47_s0.py
       - name: Focused tests
         run: |
           pytest -q --no-cov \
-            tests/infrastructure/trader_lab/test_capitalizer_canonical_source_candidate_assembly_v47_s0.py
+            tests/infrastructure/trader_lab/test_capitalizer_canonical_source_candidate_assembly_v47_s0.py \
+            tests/infrastructure/trader_lab/test_capitalizer_canonical_source_context_binders_v47_s0.py
       - name: Run frozen S0 readiness audit
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_canonical_source_candidate_assembly_v47_s0
