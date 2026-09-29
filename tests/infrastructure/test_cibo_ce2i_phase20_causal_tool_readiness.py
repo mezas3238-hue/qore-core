@@ -271,7 +271,7 @@ def _t13_population() -> Phase20T13ReservePopulationAudit:
 
 def test_readiness_uses_explicit_t08_oos_ablation_when_available() -> None:
     report = assess_phase20_causal_tool_readiness(
-        evidence_book=VersionedPhase20ForwardEvidenceBook(),
+        evidence_book=VersionedPhase20ForwardEvidenceBook(generation=0),
         qualification_readiness=_qualification(ready=True),
         t08_oos_ablation=_t08_oos_report(ready=True),
     )
@@ -285,7 +285,7 @@ def test_readiness_uses_explicit_t08_oos_ablation_when_available() -> None:
 
 def test_readiness_uses_t13_pressure_scarcity_population_when_available() -> None:
     report = assess_phase20_causal_tool_readiness(
-        evidence_book=VersionedPhase20ForwardEvidenceBook(),
+        evidence_book=VersionedPhase20ForwardEvidenceBook(generation=0),
         qualification_readiness=_qualification(ready=True),
         t13_reserve_population=_t13_population(),
     )
