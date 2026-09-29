@@ -42,6 +42,12 @@ from qore.infrastructure.cibo_ce2i_phase20_t09_t18_scarcity_readiness import (
 from qore.infrastructure.cibo_ce2i_phase20_t09_t18_scarcity_utility import (
     Phase20T09T18ScarcityUtilityReport,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t12_oos_readiness import (
+    Phase20T12OosReadiness,
+)
+from qore.infrastructure.cibo_ce2i_phase20_t12_oos_utility import (
+    Phase20T12UtilityReport,
+)
 from qore.infrastructure.cibo_ce2i_phase20_t12_regime_population import (
     Phase20T12RegimePopulationAudit,
 )
@@ -208,6 +214,8 @@ def assess_phase20_causal_tool_readiness(
     t09_t18_scarcity_readiness: Phase20T09T18ScarcityReadiness | None = None,
     t09_t18_scarcity_utility: Phase20T09T18ScarcityUtilityReport | None = None,
     t12_regime_population: Phase20T12RegimePopulationAudit | None = None,
+    t12_oos_readiness: Phase20T12OosReadiness | None = None,
+    t12_oos_utility: Phase20T12UtilityReport | None = None,
     t13_reserve_population: Phase20T13ReservePopulationAudit | None = None,
     t13_oos_readiness: Phase20T13OosReadiness | None = None,
     t14_path_readiness: Phase20T14PathReadiness | None = None,
@@ -263,6 +271,24 @@ def assess_phase20_causal_tool_readiness(
     ):
         raise CiboCapitalManagementError(
             "Phase20 causal readiness T12 regime population is invalid"
+        )
+    if (
+        t12_oos_readiness is not None
+        and not isinstance(t12_oos_readiness, Phase20T12OosReadiness)
+    ):
+        raise CiboCapitalManagementError(
+            "Phase20 causal readiness T12 OOS readiness is invalid"
+        )
+    if (
+        t12_oos_utility is not None
+        and not isinstance(t12_oos_utility, Phase20T12UtilityReport)
+    ):
+        raise CiboCapitalManagementError(
+            "Phase20 causal readiness T12 OOS utility is invalid"
+        )
+    if t12_oos_utility is not None and t12_oos_readiness is None:
+        raise CiboCapitalManagementError(
+            "Phase20 causal readiness T12 utility requires readiness"
         )
     if (
         t13_reserve_population is not None
@@ -476,18 +502,41 @@ def assess_phase20_causal_tool_readiness(
             t09_blockers.append("GLOBAL_PHASE20D_POPULATION_NOT_READY")
             t18_blockers.append("GLOBAL_PHASE20D_POPULATION_NOT_READY")
 
-    if t12_regime_population is None:
+    if t12_oos_readiness is not None:
+        t12_stream = (
+            t12_oos_readiness.post_freeze_decision_epochs > 0
+            and t12_oos_readiness.shadow_sealed_epochs > 0
+        )
+        t12_observed = t12_oos_readiness.post_freeze_decision_epochs
+        t12_qualifying = t12_oos_readiness.selection_changed_epochs
+        if t12_oos_utility is None:
+            t12_ready = False
+            t12_blockers = list(t12_oos_readiness.blockers)
+            if t12_oos_readiness.ready_for_utility_analysis:
+                t12_blockers.append(
+                    "T12_OOS_POPULATION_READY_UTILITY_ANALYSIS_NOT_EXECUTED"
+                )
+        else:
+            t12_ready = (
+                t12_oos_utility.fresh_oos_utility_demonstrated
+                and global_ready
+            )
+            t12_blockers = list(t12_oos_utility.blockers)
+        if not global_ready:
+            t12_blockers.append("GLOBAL_PHASE20D_POPULATION_NOT_READY")
+    elif t12_regime_population is None:
         t12_stream = total_usable > 0 and valid_regime_epochs == total_usable
-        t12_ready = t12_stream and global_ready
+        t12_ready = False
         t12_observed = total_usable
         t12_qualifying = valid_regime_epochs
-        t12_blockers: list[str] = []
+        t12_blockers = []
         if total_usable == 0:
             t12_blockers.append("NO_USABLE_FORWARD_DECISION_EPOCHS")
         elif valid_regime_epochs != total_usable:
             t12_blockers.append(
                 "CAUSAL_REGIME_STATE_COVERAGE_INCOMPLETE"
             )
+        t12_blockers.append("T12_PREOUTCOME_SHADOW_ABLATION_REQUIRED")
         if not global_ready:
             t12_blockers.append("GLOBAL_PHASE20D_POPULATION_NOT_READY")
     else:
@@ -496,6 +545,7 @@ def assess_phase20_causal_tool_readiness(
         t12_observed = t12_regime_population.usable_forward_epochs
         t12_qualifying = t12_regime_population.canonical_regime_epochs
         t12_blockers = list(t12_regime_population.blockers)
+        t12_blockers.append("T12_PREOUTCOME_SHADOW_ABLATION_REQUIRED")
         if not global_ready:
             t12_blockers.append("GLOBAL_PHASE20D_POPULATION_NOT_READY")
 
