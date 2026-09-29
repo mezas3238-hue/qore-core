@@ -111,6 +111,25 @@ No global staleness threshold is allowed.
 Cadence policies are explicit and scoped to instrument/provider/session.
 They carry their own version, provenance and fingerprint.
 
+## Governed comparability policy registry
+
+The codebase now contains a deterministic, versioned
+`RelationalComparabilityPolicyRegistry`.
+
+The registry:
+
+- requires canonical scope ordering;
+- rejects duplicate relation scopes;
+- carries provenance and a deterministic fingerprint;
+- resolves policies by exact scope only;
+- has no implicit global fallback.
+
+This is infrastructure hardening only. The production GEN-2 evidence pack must
+continue to report the comparability policy registry as not frozen until
+canonical calendar mappings and governed scope-specific policies are actually
+sealed. No relational claim is authorized by the existence of the registry
+class alone.
+
 ## Source census
 
 The first GEN-2 source census queries cTrader full symbol metadata for the
