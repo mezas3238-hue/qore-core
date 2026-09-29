@@ -50,8 +50,10 @@ from qore.infrastructure.cibo_internal_capital_market import (
     Genc6ProviderCapitalActionEvidence,
     Genc6ReserveAlternative,
     build_capital_scarcity_event,
+    build_genc6_legal_action_set,
     build_genc6_portfolio_state,
     evaluate_genc6_internal_capital_market_shadow,
+    genc6_legal_action_set_sha256,
     genc6_policy_sha256,
 )
 from qore.infrastructure.cibo_internal_capital_market_oos_binding import (
@@ -539,11 +541,23 @@ def test_genc6_true_scarcity_and_reserve_on_pareto_ambiguity(
     assert event.mutually_fundable_candidate_count == 1
     assert event.competition_intensity == Decimal("0.25")
 
+    action_set = build_genc6_legal_action_set(event)
     decision = evaluate_genc6_internal_capital_market_shadow(
         event=event,
         decision_id="genc6-decision-1",
     )
 
+    assert action_set.legal_candidate_ids == (
+        "candidate-signal-a",
+        "candidate-signal-b",
+    )
+    assert action_set.reserve_action_legal is True
+    assert (
+        decision.legal_action_set_sha256
+        == genc6_legal_action_set_sha256(action_set)
+    )
+    assert decision.legal_candidate_ids == action_set.legal_candidate_ids
+    assert decision.reserve_action_legal is True
     assert decision.market_id == GENC6_MARKET_ID
     assert decision.policy_id == GENC6_POLICY_ID
     assert decision.policy_sha256 == genc6_policy_sha256()
@@ -1259,3 +1273,33 @@ def test_genc6_missing_capital_eligible_reserve_value_fails_to_reserve(
         decision.treatment_reason
         == "RESERVE_VALUE_NOT_CAPITAL_ELIGIBLE_KEEP_RESERVE"
     )
+
+
+def test_genc6_provider_action_rejects_non_step_aligned_volume(
+    tmp_path: Path,
+) -> None:
+    portfolio, source = _portfolio()
+    candidate = _candidate(
+        tmp_path=tmp_path,
+        portfolio=portfolio,
+        source_lot_id=source,
+        trader=TraderLineage.VT31_NAS100,
+        signal="signal-a",
+        expected_return="9",
+        stop_risk="1",
+        margin="2",
+        execution_cost="0.1",
+        concentration="0.2",
+        drawdown="0.2",
+        optionality="0.1",
+        duration="10",
+        uncertainty="0.05",
+    )
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="not step aligned",
+    ):
+        replace(
+            candidate.provider_action,
+            executable_volume=Decimal("0.015"),
+        )
