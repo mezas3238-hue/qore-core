@@ -177,7 +177,8 @@ def run(
             reason_codes=(
                 "CANONICAL_CALENDAR_EVIDENCE_REQUIRED",
                 "CANONICAL_IDENTITY_EVIDENCE_REQUIRED",
-                "CANONICAL_VENUE_EVIDENCE_REQUIRED",
+                "CANONICAL_MARKET_STRUCTURE_EVIDENCE_REQUIRED",
+                "CANONICAL_VENUE_EVIDENCE_IF_CENTRALIZED_REQUIRED",
             ),
         )
         for key in sorted(by_key)
@@ -271,8 +272,11 @@ def run(
                 "current_mapping_status": record.status.value,
                 "required_canonical_evidence": (
                     "CANONICAL_INSTRUMENT_IDENTITY",
-                    "CANONICAL_MARKET_OR_VENUE",
+                    "CANONICAL_MARKET_STRUCTURE",
                     "CANONICAL_VERSIONED_CALENDAR",
+                ),
+                "venue_evidence_rule": (
+                    "REQUIRED_ONLY_FOR_CENTRALIZED_VENUE"
                 ),
                 "provider_metadata_is_supporting_only": True,
             }
@@ -307,6 +311,7 @@ def run(
         ),
         "automatic_identity_inference": False,
         "provider_schedule_is_not_canonical_identity_evidence": True,
+        "noncentralized_markets_do_not_require_single_venue": True,
         "provider_evidence_worklist_is_not_canonical_mapping": True,
         "provider_evidence_worklist_count": len(worklist_rows),
         "provider_evidence_worklist_fingerprint_sha256": worklist_fingerprint,
@@ -326,6 +331,11 @@ def run(
                 "status": item.status.value,
                 "canonical_instrument_id": item.canonical_instrument_id,
                 "venue": item.venue,
+                "market_structure": (
+                    None
+                    if item.market_structure is None
+                    else item.market_structure.value
+                ),
                 "calendar_id": item.calendar_id,
                 "calendar_version": item.calendar_version,
                 "iana_timezone": item.iana_timezone,
@@ -342,6 +352,9 @@ def run(
                 ),
                 "provider_schedule_evidence_refs": list(
                     item.provider_schedule_evidence_refs
+                ),
+                "market_structure_evidence_refs": list(
+                    item.market_structure_evidence_refs
                 ),
                 "reason_codes": list(item.reason_codes),
                 "mapping_fingerprint_sha256": item.fingerprint(),
