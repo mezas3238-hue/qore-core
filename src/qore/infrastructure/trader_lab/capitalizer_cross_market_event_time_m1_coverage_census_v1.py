@@ -7,7 +7,8 @@ representation, read terminal outcomes for selection, run STOP/TARGET
 separability, or touch the sealed Fresh Holdout.
 
 The result is deliberately descriptive: quote/bar-age thresholds are reported
-as coverage statistics, never used as post-observation admission gates.
+as coverage statistics, never used as post-observation admission gates. This
+keeps provider coverage discovery separate from later representation design.
 """
 
 from __future__ import annotations
