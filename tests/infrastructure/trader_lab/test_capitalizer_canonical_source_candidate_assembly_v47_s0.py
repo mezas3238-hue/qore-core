@@ -12,6 +12,21 @@ from qore.infrastructure.trader_lab import (
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
     CapitalizerSide,
 )
+from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
+    CapitalizerCISDObservation,
+    CapitalizerCausalSeriesKind,
+    CapitalizerLiquiditySideTaken,
+)
+from qore.infrastructure.trader_lab.capitalizer_source_daily_bias_v2 import (
+    derive_daily_bias,
+)
+from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
+    CapitalizerProtectedSwingOrigin,
+    CapitalizerSourceBar,
+    CapitalizerSourceDirection,
+    confirm_protected_swing,
+    detect_candle2_reversal_closure,
+)
 
 
 @dataclass(frozen=True)
@@ -170,7 +185,7 @@ def test_incomplete_provider_tick_response_fails_closed() -> None:
         )
 
 
-def test_s0_readiness_stays_pre_economic_and_not_ready_yet() -> None:
+def test_s0_readiness_passes_without_opening_economics() -> None:
     report = s0.build_readiness_report()
     assert report["exact_provider_tick_fill_ready"] is True
     assert report["legacy_m1_open_backdating_allowed"] is False
@@ -184,9 +199,13 @@ def test_s0_readiness_stays_pre_economic_and_not_ready_yet() -> None:
     assert report["trader_certified"] is False
     assert report["canonical_source_context_binding_ready"] is True
     assert report["canonical_prefill_candidate_path_ready"] is True
-    assert report["blocking_binder_count"] == 1
-    assert report["blocking_binders"] == ("DETERMINISTIC_ROUTE_AND_WICK_BINDING",)
-    assert report["next_phase"] == "CANONICAL_SOURCE_CANDIDATE_ASSEMBLY_GAPS_REMAIN"
+    assert report["deterministic_route_and_wick_binding_ready"] is True
+    assert report["no_chase_execution_area_bound"] is True
+    assert report["blocking_binder_count"] == 0
+    assert report["blocking_binders"] == ()
+    assert report["next_phase"] == (
+        "CANONICAL_SOURCE_CANDIDATE_ASSEMBLY_READY_FOR_ISOLATION_REPLAY"
+    )
 
 
 def test_a1_armed_level_prefers_directional_overlap_then_ce() -> None:
@@ -217,3 +236,81 @@ def test_a1_armed_level_prefers_directional_overlap_then_ce() -> None:
     assert short_primary == Decimal("100")
     assert short_fallback == Decimal("101")
     assert short_mode == "OB_FVG_RETEST"
+
+
+def _source_bar(open_: str, high: str, low: str, close: str) -> CapitalizerSourceBar:
+    return CapitalizerSourceBar(
+        open=Decimal(open_),
+        high=Decimal(high),
+        low=Decimal(low),
+        close=Decimal(close),
+    )
+
+
+def _confirmed_cisd(direction: CapitalizerSourceDirection) -> CapitalizerCISDObservation:
+    return CapitalizerCISDObservation(
+        direction=direction,
+        causal_series_kind=(
+            CapitalizerCausalSeriesKind.DOWN_CLOSE_SERIES
+            if direction is CapitalizerSourceDirection.BULLISH
+            else CapitalizerCausalSeriesKind.UP_CLOSE_SERIES
+        ),
+        causal_series_open=Decimal("100"),
+        confirmation_close=(
+            Decimal("101")
+            if direction is CapitalizerSourceDirection.BULLISH
+            else Decimal("99")
+        ),
+        important_level_reached=True,
+        higher_timeframe_closure_confirmed=True,
+        structural_confirmed=True,
+        setup_confirmed=True,
+        reasons=("TEST_SOURCE_CONFIRMED",),
+    )
+
+
+def test_route_wick_resolves_fractal_without_priority_and_fails_closed_on_both() -> None:
+    htf = detect_candle2_reversal_closure(
+        previous=_source_bar("100", "102", "98", "99"),
+        candle2=_source_bar("99", "101", "97", "99.5"),
+        point_of_interest_present=True,
+    )
+    assert htf is not None
+    assert htf.direction is CapitalizerSourceDirection.BULLISH
+    bias = derive_daily_bias(htf)
+    cisd = _confirmed_cisd(CapitalizerSourceDirection.BULLISH)
+    protected = confirm_protected_swing(
+        direction=CapitalizerSourceDirection.BULLISH,
+        swing_price=Decimal("98"),
+        origin=CapitalizerProtectedSwingOrigin.LIQUIDITY_SWEEP,
+        closure_through_causal_series_confirmed=True,
+    )
+
+    reversal = s0.resolve_s0_route_and_wick(
+        direction=CapitalizerSourceDirection.BULLISH,
+        h1_closure=htf,
+        daily_bias=bias,
+        m15_cisd=cisd,
+        m1_cisd=cisd,
+        m1_protected_swing=protected,
+        liquidity_side_taken=CapitalizerLiquiditySideTaken.LOW,
+    )
+    assert reversal.fractal_alignment.confirmed is True
+    assert reversal.failure_to_manipulate.confirmed is False
+    assert reversal.wick_formation.confirmed is True
+    assert reversal.route_resolution.resolved is True
+    assert reversal.route_resolution.numeric_score_used is False
+
+    ambiguous = s0.resolve_s0_route_and_wick(
+        direction=CapitalizerSourceDirection.BULLISH,
+        h1_closure=htf,
+        daily_bias=bias,
+        m15_cisd=cisd,
+        m1_cisd=cisd,
+        m1_protected_swing=protected,
+        liquidity_side_taken=CapitalizerLiquiditySideTaken.HIGH,
+    )
+    assert ambiguous.fractal_alignment.confirmed is True
+    assert ambiguous.failure_to_manipulate.confirmed is True
+    assert ambiguous.route_resolution.resolved is False
+    assert ambiguous.route_resolution.route is None
