@@ -678,6 +678,19 @@ def run(
         "canonical_mapping_record_count": len(mapping_registry.records),
         "canonical_mapping_verified_count": 0,
         "canonical_mapping_unresolved_count": len(mapping_registry.records),
+        "market_structure_evidence_manifest_fingerprint_sha256": (
+            market_structure_evidence_fingerprint
+        ),
+        "market_structure_counts": dict(
+            sorted(market_structure_counts.items())
+        ),
+        "market_structure_evidence_count": (
+            len(mapping_registry.records)
+            - market_structure_counts.get("UNRESOLVED", 0)
+        ),
+        "market_structure_unresolved_count": (
+            market_structure_counts.get("UNRESOLVED", 0)
+        ),
         "cadence_policy_registry_architecture_status": (
             "IMPLEMENTED_NOT_FROZEN"
         ),
