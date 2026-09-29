@@ -272,12 +272,18 @@ def main() -> None:
     parser.add_argument("--policy-store", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--behavior-ledger", type=Path)
+    parser.add_argument("--t08-oos-shadow-store", type=Path)
     parser.add_argument("--git-sha")
     args = parser.parse_args()
 
     git_sha = _resolve_git_sha(args.git_sha)
     evidence_store_sha256 = _sha256_path(args.evidence_store)
     policy_store_sha256 = _sha256_path(args.policy_store)
+    t08_oos_shadow_store_sha256 = (
+        None
+        if args.t08_oos_shadow_store is None
+        else _sha256_path(args.t08_oos_shadow_store)
+    )
     evidence = DurablePhase20ForwardEvidenceStore(
         args.evidence_store
     ).load()
@@ -296,6 +302,27 @@ def main() -> None:
                 args.behavior_ledger
             ).events(),
         )
+    t08_oos_ablation = None
+    t08_oos_shadow_generation = None
+    t08_oos_complete_epochs = 0
+    if args.t08_oos_shadow_store is not None:
+        from qore.infrastructure.cibo_ce2i_phase20_t08_oos_ablation import (
+            assess_t08_fresh_oos_netting_ablation,
+        )
+        from qore.infrastructure.cibo_ce2i_phase20_t08_oos_store import (
+            DurableT08OosShadowStore,
+        )
+
+        t08_oos_book = DurableT08OosShadowStore(
+            args.t08_oos_shadow_store
+        ).load()
+        t08_oos_epochs = t08_oos_book.complete_epochs()
+        t08_oos_shadow_generation = t08_oos_book.generation
+        t08_oos_complete_epochs = len(t08_oos_epochs)
+        t08_oos_ablation = assess_t08_fresh_oos_netting_ablation(
+            t08_oos_epochs
+        )
+
     from qore.infrastructure.cibo_ce2i_phase20_t13_reserve_population import (
         assess_phase20_t13_reserve_population,
     )
@@ -309,6 +336,7 @@ def main() -> None:
     tool_readiness = assess_phase20_causal_tool_readiness(
         evidence_book=evidence,
         qualification_readiness=report.readiness,
+        t08_oos_ablation=t08_oos_ablation,
         t13_reserve_population=t13_reserve_population,
         t14_path_readiness=t14_path_readiness,
         t15_option_realization=t15_option_realization,
@@ -334,6 +362,62 @@ def main() -> None:
         ),
         "known_option_epochs": tool_readiness.known_option_epochs,
         "causal_history_epochs": tool_readiness.causal_history_epochs,
+        "t08_oos_ablation": (
+            None
+            if t08_oos_ablation is None
+            else {
+                "sample_size": t08_oos_ablation.sample_size,
+                "minimum_epochs": t08_oos_ablation.minimum_epochs,
+                "required_folds": t08_oos_ablation.required_folds,
+                "baseline_selected_count": (
+                    t08_oos_ablation.baseline_selected_count
+                ),
+                "treatment_selected_count": (
+                    t08_oos_ablation.treatment_selected_count
+                ),
+                "incremental_selected_count": (
+                    t08_oos_ablation.incremental_selected_count
+                ),
+                "baseline_total_pnl_usd": format(
+                    t08_oos_ablation.baseline_total_pnl_usd,
+                    "f",
+                ),
+                "treatment_total_pnl_usd": format(
+                    t08_oos_ablation.treatment_total_pnl_usd,
+                    "f",
+                ),
+                "baseline_max_drawdown_usd": format(
+                    t08_oos_ablation.baseline_max_drawdown_usd,
+                    "f",
+                ),
+                "treatment_max_drawdown_usd": format(
+                    t08_oos_ablation.treatment_max_drawdown_usd,
+                    "f",
+                ),
+                "mapping_evidence_bound": (
+                    t08_oos_ablation.mapping_evidence_bound
+                ),
+                "correlation_evidence_bound": (
+                    t08_oos_ablation.correlation_evidence_bound
+                ),
+                "pathwise_authorization_respected": (
+                    t08_oos_ablation.pathwise_authorization_respected
+                ),
+                "fresh_oos_utility_demonstrated": (
+                    t08_oos_ablation.fresh_oos_utility_demonstrated
+                ),
+                "risk_mapping_verified": (
+                    t08_oos_ablation.risk_mapping_verified
+                ),
+                "correlation_state_verified": (
+                    t08_oos_ablation.correlation_state_verified
+                ),
+                "netting_credit_authorized": (
+                    t08_oos_ablation.netting_credit_authorized
+                ),
+                "blockers": list(t08_oos_ablation.blockers),
+            }
+        ),
         "t15_option_realization": {
             "stream_bound": t15_option_realization.stream_bound,
             "known_option_instances": (
@@ -472,6 +556,9 @@ def main() -> None:
         "evidence_store_sha256": evidence_store_sha256,
         "policy_store_sha256": policy_store_sha256,
         "behavior_ledger_sha256": behavior_ledger_sha256,
+        "t08_oos_shadow_store_sha256": t08_oos_shadow_store_sha256,
+        "t08_oos_shadow_generation": t08_oos_shadow_generation,
+        "t08_oos_complete_epochs": t08_oos_complete_epochs,
         "evidence_generation": evidence.generation,
         "policy_generation": policy.generation,
         "decision_count": len(evidence.decisions),
