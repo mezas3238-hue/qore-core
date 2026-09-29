@@ -256,6 +256,30 @@ def audit_v14_peer_page(
     )
 
 
+def _chronological_nonempty_pages(
+    pages: list[V14RawPageAudit],
+) -> list[V14RawPageAudit]:
+    """Order provider pages by observed event time, not download ordinal.
+
+    cTrader historical pagination is newest-first, so page_index increases
+    while event time moves backward. Ordering by page_index would invert the
+    chronology and create false overlap findings.
+    """
+
+    return sorted(
+        (
+            item
+            for item in pages
+            if item.first_event_at is not None and item.last_event_at is not None
+        ),
+        key=lambda item: (
+            item.first_event_at,
+            item.last_event_at,
+            item.page_index,
+        ),
+    )
+
+
 def _artifact_roots(raw_root: Path) -> list[Path]:
     return sorted(
         path.parent
@@ -398,19 +422,8 @@ def audit_v14_peer_source_dataset(
             if not pages:
                 missing_side_window_count += 1
                 continue
-            chronological = sorted(
-                pages,
-                key=lambda item: (
-                    item.request_from_at,
-                    item.page_index,
-                ),
-            )
-            empty_page_count += sum(item.tick_count == 0 for item in chronological)
-            nonempty = [
-                item
-                for item in chronological
-                if item.first_event_at is not None and item.last_event_at is not None
-            ]
+            empty_page_count += sum(item.tick_count == 0 for item in pages)
+            nonempty = _chronological_nonempty_pages(pages)
             max_gap = max(
                 (item.max_internal_gap_ms for item in nonempty),
                 default=0,

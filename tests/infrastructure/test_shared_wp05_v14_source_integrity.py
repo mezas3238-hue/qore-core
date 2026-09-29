@@ -13,7 +13,9 @@ from qore.infrastructure.core_stack_v2.active_perception_v14_peer_acquisition im
     peer_spec,
 )
 from qore.infrastructure.core_stack_v2.active_perception_v14_source_integrity import (
+    V14RawPageAudit,
     V14SourceIntegrityError,
+    _chronological_nonempty_pages,
     audit_v14_peer_page,
 )
 
@@ -109,3 +111,51 @@ def test_v14_raw_page_rejects_cross_peer_identity(tmp_path: Path) -> None:
     path = _write_page(tmp_path, peer=V14PeerFamily.SP500)
     with pytest.raises(V14SourceIntegrityError, match="provider symbol drift"):
         audit_v14_peer_page(path, peer=V14PeerFamily.US30)
+
+
+def test_v14_pagination_ordinal_does_not_define_event_chronology() -> None:
+    base = datetime(2017, 1, 2, 15, 0, tzinfo=UTC)
+
+    newer_page = V14RawPageAudit(
+        path="newer",
+        side="BID",
+        window_index=0,
+        page_index=0,
+        request_from_at=base,
+        request_to_at=base + timedelta(minutes=1),
+        retrieved_at=base + timedelta(days=1),
+        tick_count=2,
+        content_sha256="1" * 64,
+        provenance_sha256="2" * 64,
+        first_event_at=base + timedelta(seconds=40),
+        last_event_at=base + timedelta(seconds=50),
+        first_row_sha256="3" * 64,
+        last_row_sha256="4" * 64,
+        max_internal_gap_ms=10_000,
+        provider_identity_verified=True,
+        exact_same_timestamp_row_repeat_count=0,
+    )
+    older_page = V14RawPageAudit(
+        path="older",
+        side="BID",
+        window_index=0,
+        page_index=1,
+        request_from_at=base,
+        request_to_at=base + timedelta(seconds=39, milliseconds=999),
+        retrieved_at=base + timedelta(days=1),
+        tick_count=2,
+        content_sha256="5" * 64,
+        provenance_sha256="6" * 64,
+        first_event_at=base + timedelta(seconds=20),
+        last_event_at=base + timedelta(seconds=30),
+        first_row_sha256="7" * 64,
+        last_row_sha256="8" * 64,
+        max_internal_gap_ms=10_000,
+        provider_identity_verified=True,
+        exact_same_timestamp_row_repeat_count=0,
+    )
+
+    ordered = _chronological_nonempty_pages([newer_page, older_page])
+
+    assert [page.page_index for page in ordered] == [1, 0]
+    assert ordered[1].first_event_at > ordered[0].last_event_at
