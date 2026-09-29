@@ -1,0 +1,124 @@
+{
+  "identity": "QORE_SHARED_STI_ENGINE_MATURITY_CHECKPOINT_002",
+  "checkpoint_date": "2026-09-29",
+  "primary_pr": 635,
+  "branch": "agent/qore-core-stack-v2-shared-001",
+  "owner_law": {
+    "contract_implemented_is_not_engine_implemented": true,
+    "engine_implemented_is_not_value_demonstrated": true,
+    "value_demonstrated_is_not_certification": true
+  },
+  "engines": [
+    {
+      "workstream": "STI-2",
+      "capability": "GLOBAL_OPPORTUNITY_DISCOVERY",
+      "evidence_run_id": 36639842181,
+      "evidence_git_sha": "63a957cb01c18f51fdde6046b23629a6e9f51bf9",
+      "state": {
+        "CONTRACT_DEFINED": true,
+        "ENGINE_IMPLEMENTED": true,
+        "REAL_DATA_BOUND": true,
+        "CAUSAL_REPLAY_EXECUTED": true,
+        "VALUE_DEMONSTRATED": false,
+        "OOS_PASS": false,
+        "REPLICATION_PASS": false,
+        "CERTIFIED": false
+      },
+      "scientific_disposition": "STI2_V1_FALSIFIED_ON_CONSUMED_EVIDENCE",
+      "protected_holdout_opened": false
+    },
+    {
+      "workstream": "STI-5",
+      "capability": "REGIME_TRANSITION_INTELLIGENCE",
+      "evidence_run_id": 36640098773,
+      "evidence_git_sha": "a6f2855bacc6f472e8fe70267f6b6700a607c423",
+      "state": {
+        "CONTRACT_DEFINED": true,
+        "ENGINE_IMPLEMENTED": true,
+        "REAL_DATA_BOUND": true,
+        "CAUSAL_REPLAY_EXECUTED": true,
+        "VALUE_DEMONSTRATED": false,
+        "OOS_PASS": false,
+        "REPLICATION_PASS": false,
+        "CERTIFIED": false
+      },
+      "scientific_disposition": "STI5_V1_FALSIFIED_ON_CONSUMED_EVIDENCE",
+      "protected_holdout_opened": false
+    },
+    {
+      "workstream": "STI-6",
+      "capability": "CONTINUATION_POSITIVE_TAIL_INTELLIGENCE",
+      "evidence_run_id": 36640907470,
+      "evidence_git_sha": "711788d89521e051ab3969a9006830068381693e",
+      "state": {
+        "CONTRACT_DEFINED": true,
+        "ENGINE_IMPLEMENTED": true,
+        "REAL_DATA_BOUND": true,
+        "CAUSAL_REPLAY_EXECUTED": true,
+        "VALUE_DEMONSTRATED": false,
+        "OOS_PASS": false,
+        "REPLICATION_PASS": false,
+        "CERTIFIED": false
+      },
+      "scientific_disposition": "STI6_V1_FALSIFIED_ON_CONSUMED_R6",
+      "economic_position_management_value_proven": false,
+      "protected_holdout_opened": false
+    },
+    {
+      "workstream": "STI-8",
+      "capability": "POSITION_THREAT_INTELLIGENCE",
+      "evidence_run_id": 36640907470,
+      "evidence_git_sha": "711788d89521e051ab3969a9006830068381693e",
+      "state": {
+        "CONTRACT_DEFINED": true,
+        "ENGINE_IMPLEMENTED": true,
+        "REAL_DATA_BOUND": true,
+        "CAUSAL_REPLAY_EXECUTED": true,
+        "VALUE_DEMONSTRATED": true,
+        "OOS_PASS": false,
+        "REPLICATION_PASS": false,
+        "CERTIFIED": false
+      },
+      "value_scope": "PREDICTIVE_SIGNAL_VALUE_ON_CONSUMED_R6_ONLY",
+      "scientific_disposition": "SIGNAL_VALUE_DEMONSTRATED_R6",
+      "economic_position_management_value_proven": false,
+      "protected_holdout_opened": false
+    }
+  ],
+  "global_world": {
+    "workstream": "GW-1",
+    "evidence_run_id": 36641140388,
+    "evidence_git_sha": "a86e3571286622e8129e649ec17fea3cf784a6cc",
+    "state": {
+      "PROVIDER_CAPABILITY_AUDIT": true,
+      "REAL_PROVIDER_DATA_BOUND": true,
+      "CANONICAL_IDENTITY_COMPLETE": false,
+      "HISTORICAL_MARKET_DATA_BOUND": false,
+      "RELATIONAL_INTELLIGENCE_READY": false,
+      "CERTIFIED": false
+    },
+    "discovered_provider_candidates": {
+      "FX": 60,
+      "EQUITY_INDICES": 25,
+      "METALS": 16,
+      "ENERGY": 3,
+      "AGRICULTURE": 0,
+      "SOFTS": 0,
+      "LIVESTOCK": 0,
+      "RATES": 0,
+      "VOLATILITY": 0,
+      "CREDIT": 0,
+      "POWER": 0,
+      "FREIGHT": 0,
+      "ENVIRONMENTAL": 0
+    }
+  },
+  "productive_authority": {
+    "shared_order_authority": false,
+    "shared_sizing_authority": false,
+    "shared_capital_authority": false,
+    "shared_risk_authority": false,
+    "shared_execution_authority": false
+  },
+  "protected_shared_certification_holdout_opened": false
+}
