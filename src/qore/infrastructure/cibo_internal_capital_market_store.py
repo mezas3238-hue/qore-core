@@ -26,6 +26,8 @@ from qore.infrastructure.cibo_internal_capital_market import (
     GENC6_POLICY_ID,
     CapitalScarcityEvent,
     Genc6InternalCapitalMarketDecision,
+    build_genc6_legal_action_set,
+    genc6_legal_action_set_sha256,
     genc6_policy_sha256,
     genc6_portfolio_state_sha256,
 )
@@ -506,6 +508,22 @@ def _validate_event_decision_binding(
         raise CiboCompoundCapitalError(
             "GEN-C6 store decision/event candidate-set mismatch"
         )
+    legal_action_set = build_genc6_legal_action_set(event)
+    if (
+        decision.legal_action_set_sha256
+        != genc6_legal_action_set_sha256(legal_action_set)
+    ):
+        raise CiboCompoundCapitalError(
+            "GEN-C6 store decision/event legal-action-set mismatch"
+        )
+    if decision.legal_candidate_ids != legal_action_set.legal_candidate_ids:
+        raise CiboCompoundCapitalError(
+            "GEN-C6 store legal candidate identity drift"
+        )
+    if decision.reserve_action_legal != legal_action_set.reserve_action_legal:
+        raise CiboCompoundCapitalError(
+            "GEN-C6 store reserve action legality drift"
+        )
     if decision.portfolio_state_sha256 != genc6_portfolio_state_sha256(
         event.portfolio_state
     ):
@@ -733,6 +751,9 @@ def _decision_json(
         "account_provider_key": decision.account_provider_key,
         "account_ref": decision.account_ref,
         "candidate_set_sha256": decision.candidate_set_sha256,
+        "legal_action_set_sha256": decision.legal_action_set_sha256,
+        "legal_candidate_ids": list(decision.legal_candidate_ids),
+        "reserve_action_legal": decision.reserve_action_legal,
         "candidate_evidence_sha256s": list(
             decision.candidate_evidence_sha256s
         ),
