@@ -18,6 +18,9 @@ from pathlib import Path
 
 from qore.infrastructure.ctrader_open_api_client import SpotwareCTraderOpenApiClient
 from qore.infrastructure.trader_lab import (
+    capitalizer_canonical_historical_replay_adapter_v46 as v46_adapter,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_canonical_source_candidate_assembly_v47_s0 as s0,
 )
 from qore.infrastructure.trader_lab import (
@@ -25,6 +28,9 @@ from qore.infrastructure.trader_lab import (
 )
 from qore.infrastructure.trader_lab import (
     capitalizer_cibo_10y_m1_clone_v1 as m1_clone,
+)
+from qore.infrastructure.trader_lab import (
+    capitalizer_native_source_fact_remediation_v46 as remediation,
 )
 from qore.infrastructure.trader_lab import (
     capitalizer_source_strategy_isolation_v47_s1 as s1,
@@ -37,10 +43,14 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
     CapitalizerSession,
     market_is_allowed,
 )
+from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
+    CapitalizerCognitiveGateDecision,
+)
 from qore.kernel.result import Failure
 
 IDENTITY = "QORE_CAPITALIZER_SOURCE_STRATEGY_ISOLATION_V47_S2"
 PREDECLARATION_COMMENT_ID = 5900501860
+SEMANTIC_AMENDMENT_A1_COMMENT_ID = 5900663649
 COGNITIVE_TOKEN = s1.COGNITIVE_TOKEN
 SOURCE_M1_RUN_ID = s1.SOURCE_M1_RUN_ID
 SOURCE_M1_SHA = s1.SOURCE_M1_SHA
@@ -210,6 +220,122 @@ def _admitted_row(
     )
 
 
+def _s2_target_at_fill(
+    candidate: s2.S2CanonicalFractalCandidate,
+    *,
+    fill_price,
+    fill_at: datetime,
+) -> remediation.CapitalizerStructuralTargetResolution:
+    armed = candidate.routed.candidate
+    return remediation.resolve_structural_target(
+        direction=armed.context.direction,
+        entry_price=fill_price,
+        decision_at=fill_at,
+        candidates=armed.context.structural_target.candidates,
+    )
+
+
+def _s2_evidence_stamps(
+    candidate: s2.S2CanonicalFractalCandidate,
+    *,
+    fill_at: datetime,
+) -> tuple[v46_adapter.CapitalizerHistoricalEvidenceStamp, ...]:
+    armed = candidate.routed.candidate
+    event = armed.event
+    m1_mss_at = armed.m1.m1_mss.confirmed_at
+    if m1_mss_at is None:
+        raise ValueError("S2 admitted candidate requires M1 MSS timestamp")
+    rows = {
+        "HTF_POI": armed.context.htf.confirmed_at,
+        "HTF_CLOSURE": armed.context.htf.confirmed_at,
+        "HTF_BIAS": armed.context.htf.confirmed_at,
+        "STRUCTURAL_TARGET": armed.armed_at,
+        "PROTECTED_SWING": armed.m1.confirmed_at,
+        "ICT_LIQUIDITY_REFERENCE": event.closeback.sweep_at,
+        "ICT_LIQUIDITY_RAID": event.closeback.sweep_at,
+        "ICT_MSS": event.m3_mss.confirmed_at,
+        "ICT_DISPLACEMENT": event.m3_mss.confirmed_at,
+        "ICT_FVG": candidate.ict_displacement_fvg_confirmed_at,
+        "ICT_PD_ARRAY_RETRACE": fill_at,
+        "ICT_NO_CHASE": fill_at,
+        "TTRADES_LTF_CISD": armed.context.m15.confirmed_at,
+        "TTRADES_CONTINUATION": armed.m1.confirmed_at,
+        "TTRADES_WICK": armed.m1.confirmed_at,
+        "M1_MSS": m1_mss_at,
+        "M1_FVG": event.zone.fvg_confirmed_at,
+        "M1_ORDER_BLOCK": armed.m1.confirmed_at,
+    }
+    return tuple(
+        v46_adapter.CapitalizerHistoricalEvidenceStamp(
+            key=key,
+            observed_at=value,
+        )
+        for key, value in sorted(rows.items())
+    )
+
+
+def build_s2_post_fill_bundle(
+    candidate: s2.S2CanonicalFractalCandidate,
+    *,
+    fill: s1.S1ExactFill,
+) -> v46_adapter.CapitalizerCanonicalHistoricalBundle:
+    resolution = fill.resolution
+    if resolution.fill_at is None or resolution.fill_price is None:
+        raise ValueError("S2 post-fill bundle requires exact fill")
+    armed = candidate.routed.candidate
+    event = armed.event
+    fill_at = resolution.fill_at
+    fill_price = resolution.fill_price
+
+    target = _s2_target_at_fill(
+        candidate,
+        fill_price=fill_price,
+        fill_at=fill_at,
+    )
+    no_chase = remediation.assess_no_chase_entry(
+        entry_price=fill_price,
+        pd_array_lower=event.zone.fvg_low,
+        pd_array_upper=event.zone.fvg_high,
+        pd_array_confirmed_at=event.zone.fvg_confirmed_at,
+        entry_at=fill_at,
+    )
+    asian_open = (
+        v46_adapter.resolve_historical_asian_open_reference(fill_at)
+        if event.session is CapitalizerSession.ASIA
+        else None
+    )
+    return v46_adapter.CapitalizerCanonicalHistoricalBundle(
+        symbol=event.symbol,
+        side=event.side,
+        session=event.session,
+        decision_at=fill_at,
+        cognitive_gate_decision=CapitalizerCognitiveGateDecision.PASS_TO_STRATEGY,
+        entry_price=fill_price,
+        daily_bias=armed.context.htf.daily_bias,
+        htf_closure=armed.context.htf.closure,
+        structural_target=target,
+        protected_swing=armed.m1.protected_swing,
+        ict=v46_adapter.CapitalizerCanonicalICTFacts(
+            liquidity_reference_defined=bool(event.closeback.reference.source),
+            liquidity_raid_observed=True,
+            market_structure_shift_confirmed=True,
+            displacement_significant=True,
+            fvg_present_in_displacement=True,
+            entry_retrace_into_valid_pd_array=no_chase.confirmed,
+        ),
+        no_chase=no_chase,
+        ltf_cisd=armed.context.m15.cisd,
+        fractal_alignment=candidate.routed.route_wick.fractal_alignment,
+        failure_to_manipulate=candidate.routed.route_wick.failure_to_manipulate,
+        wick_formation=candidate.routed.route_wick.wick_formation,
+        m1_mss=armed.m1.m1_mss,
+        m1_fvg_confirmed=True,
+        m1_order_block=armed.m1.order_block,
+        evidence_timestamps=_s2_evidence_stamps(candidate, fill_at=fill_at),
+        asian_open_reference=asian_open,
+    )
+
+
 def select_max3(
     rows: tuple[S2AdmittedFillRow, ...],
 ) -> tuple[S2AdmittedFillRow, ...]:
@@ -301,7 +427,7 @@ def build_period_market_population(
                 _bump(forensic, "EXACT_PROVIDER_FILL_NOT_PROVEN")
                 continue
             exact_fills += 1
-            bundle = s1.build_post_fill_bundle(candidate.routed, fill=fill)
+            bundle = build_s2_post_fill_bundle(candidate, fill=fill)
             isolation = s0.assess_source_strategy_isolation_bundle(bundle)
             if not isolation.canonical_result.passes_to_qore_risk:
                 v46_rejected += 1
@@ -398,6 +524,7 @@ def aggregate_s2a(root: Path, output: Path) -> dict[str, object]:
     payload: dict[str, object] = {
         "identity": IDENTITY,
         "predeclaration_comment_id": PREDECLARATION_COMMENT_ID,
+        "semantic_amendment_a1_comment_id": SEMANTIC_AMENDMENT_A1_COMMENT_ID,
         "source_m1_run_id": SOURCE_M1_RUN_ID,
         "source_m1_sha": SOURCE_M1_SHA,
         "market_period_reports": len(reports),
