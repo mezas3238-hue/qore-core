@@ -13,8 +13,8 @@ from typing import Any, cast
 from qore.infrastructure.ctrader_demo_lab_probe import (
     compute_ctrader_demo_lab_account_fingerprint,
 )
-from qore.infrastructure.ctrader_historical_tick_collector import (
-    CTraderHistoricalReadOnlyMessageClient,
+from qore.infrastructure.ctrader_metadata_read_only import (
+    CTraderMetadataReadOnlyMessageClient,
 )
 from qore.infrastructure.ctrader_open_api_client import (
     CTraderOpenApiCredentials,
@@ -96,6 +96,102 @@ def _optional_int(value: object) -> int | None:
     if isinstance(value, bool) or type(value) is not int:
         raise Gen2ProviderScheduleError("provider metadata int field drift")
     return value
+
+
+def _positive_int(value: object, *, field_name: str) -> int:
+    parsed = _optional_int(value)
+    if parsed is None or parsed <= 0:
+        raise Gen2ProviderScheduleError(
+            f"{field_name} must be positive int"
+        )
+    return parsed
+
+
+def _optional_text(value: object, *, field_name: str) -> str | None:
+    if value in (None, ""):
+        return None
+    if not isinstance(value, str):
+        raise Gen2ProviderScheduleError(
+            f"{field_name} must be string or empty"
+        )
+    return value
+
+
+def _parse_provider_asset(native: object) -> dict[str, object]:
+    return {
+        "asset_id": _positive_int(
+            getattr(native, "assetId", None),
+            field_name="provider asset id",
+        ),
+        "name": _optional_text(
+            getattr(native, "name", None),
+            field_name="provider asset name",
+        ),
+        "display_name": _optional_text(
+            getattr(native, "displayName", None),
+            field_name="provider asset display name",
+        ),
+        "digits": _optional_int(getattr(native, "digits", None)),
+    }
+
+
+def _parse_provider_asset_class(native: object) -> dict[str, object]:
+    return {
+        "asset_class_id": _positive_int(
+            getattr(native, "id", None),
+            field_name="provider asset-class id",
+        ),
+        "name": _optional_text(
+            getattr(native, "name", None),
+            field_name="provider asset-class name",
+        ),
+    }
+
+
+def _parse_provider_symbol_category(native: object) -> dict[str, object]:
+    return {
+        "symbol_category_id": _positive_int(
+            getattr(native, "id", None),
+            field_name="provider symbol-category id",
+        ),
+        "asset_class_id": _positive_int(
+            getattr(native, "assetClassId", None),
+            field_name="provider symbol-category asset-class id",
+        ),
+        "name": _optional_text(
+            getattr(native, "name", None),
+            field_name="provider symbol-category name",
+        ),
+    }
+
+
+def _request_metadata_catalog(
+    *,
+    client: CTraderMetadataReadOnlyMessageClient,
+    message_name: str,
+    response_field: str,
+    client_msg_id: str,
+) -> tuple[object, ...]:
+    result = client.request(
+        message_name,
+        {"ctidTraderAccountId": client.account_id},
+        client_msg_id=client_msg_id,
+        timeout_seconds=20.0,
+    )
+    if isinstance(result, Failure):
+        raise Gen2ProviderScheduleError(
+            f"cTrader provider metadata request failed: {message_name}"
+        )
+    if getattr(result.value, "ctidTraderAccountId", None) != client.account_id:
+        raise Gen2ProviderScheduleError(
+            f"provider metadata account identity drift: {message_name}"
+        )
+    rows = tuple(getattr(result.value, response_field, ()))
+    if not rows:
+        raise Gen2ProviderScheduleError(
+            f"provider metadata response empty: {message_name}"
+        )
+    return rows
 
 
 def _parse_light_symbol_metadata(
@@ -316,7 +412,7 @@ def run(
         credentials=credentials,
         required_permission_scope=CTraderOpenApiPermissionScope.TRADE,
     )
-    read_only_client = CTraderHistoricalReadOnlyMessageClient(native_client)
+    read_only_client = CTraderMetadataReadOnlyMessageClient(native_client)
 
     parsed: list[dict[str, object]] = []
     try:
@@ -325,6 +421,70 @@ def run(
             raise Gen2ProviderScheduleError(
                 "cTrader DEMO authentication failed"
             )
+        assets = tuple(
+            sorted(
+                (
+                    _parse_provider_asset(item)
+                    for item in _request_metadata_catalog(
+                        client=read_only_client,
+                        message_name="ProtoOAAssetListReq",
+                        response_field="asset",
+                        client_msg_id="shared-gen2-provider-assets",
+                    )
+                ),
+                key=lambda item: int(item["asset_id"]),
+            )
+        )
+        asset_classes = tuple(
+            sorted(
+                (
+                    _parse_provider_asset_class(item)
+                    for item in _request_metadata_catalog(
+                        client=read_only_client,
+                        message_name="ProtoOAAssetClassListReq",
+                        response_field="assetClass",
+                        client_msg_id="shared-gen2-provider-asset-classes",
+                    )
+                ),
+                key=lambda item: int(item["asset_class_id"]),
+            )
+        )
+        symbol_categories = tuple(
+            sorted(
+                (
+                    _parse_provider_symbol_category(item)
+                    for item in _request_metadata_catalog(
+                        client=read_only_client,
+                        message_name="ProtoOASymbolCategoryListReq",
+                        response_field="symbolCategory",
+                        client_msg_id="shared-gen2-provider-symbol-categories",
+                    )
+                ),
+                key=lambda item: int(item["symbol_category_id"]),
+            )
+        )
+        asset_by_id = {int(item["asset_id"]): item for item in assets}
+        asset_class_by_id = {
+            int(item["asset_class_id"]): item
+            for item in asset_classes
+        }
+        category_by_id = {
+            int(item["symbol_category_id"]): item
+            for item in symbol_categories
+        }
+        if len(asset_by_id) != len(assets):
+            raise Gen2ProviderScheduleError(
+                "duplicate provider asset identity"
+            )
+        if len(asset_class_by_id) != len(asset_classes):
+            raise Gen2ProviderScheduleError(
+                "duplicate provider asset-class identity"
+            )
+        if len(category_by_id) != len(symbol_categories):
+            raise Gen2ProviderScheduleError(
+                "duplicate provider symbol-category identity"
+            )
+
         ids = tuple(sorted(by_id))
         listed = read_only_client.request(
             "ProtoOASymbolsListReq",
@@ -367,6 +527,52 @@ def run(
         if set(light_by_id) != set(ids):
             raise Gen2ProviderScheduleError(
                 "provider light-symbol coverage drift"
+            )
+        for symbol_id, item in light_by_id.items():
+            base_id = cast(int | None, item["provider_base_asset_id"])
+            quote_id = cast(int | None, item["provider_quote_asset_id"])
+            category_id = cast(
+                int | None,
+                item["provider_symbol_category_id"],
+            )
+            if base_id is None or base_id not in asset_by_id:
+                raise Gen2ProviderScheduleError(
+                    "provider base-asset coverage drift"
+                )
+            if quote_id is None or quote_id not in asset_by_id:
+                raise Gen2ProviderScheduleError(
+                    "provider quote-asset coverage drift"
+                )
+            if category_id is None or category_id not in category_by_id:
+                raise Gen2ProviderScheduleError(
+                    "provider symbol-category coverage drift"
+                )
+            category = category_by_id[category_id]
+            asset_class_id = int(category["asset_class_id"])
+            if asset_class_id not in asset_class_by_id:
+                raise Gen2ProviderScheduleError(
+                    "provider asset-class coverage drift"
+                )
+            item.update(
+                {
+                    "provider_base_asset_name": (
+                        asset_by_id[base_id]["name"]
+                    ),
+                    "provider_base_asset_display_name": (
+                        asset_by_id[base_id]["display_name"]
+                    ),
+                    "provider_quote_asset_name": (
+                        asset_by_id[quote_id]["name"]
+                    ),
+                    "provider_quote_asset_display_name": (
+                        asset_by_id[quote_id]["display_name"]
+                    ),
+                    "provider_symbol_category_name": category["name"],
+                    "provider_asset_class_id": asset_class_id,
+                    "provider_asset_class_name": (
+                        asset_class_by_id[asset_class_id]["name"]
+                    ),
+                }
             )
 
         for batch_index in range(0, len(ids), 50):
@@ -423,10 +629,44 @@ def run(
         raise Gen2ProviderScheduleError(
             "provider schedule catalogue count drift"
         )
+    descriptor_payload = {
+        "assets": assets,
+        "asset_classes": asset_classes,
+        "symbol_categories": symbol_categories,
+        "symbols": [
+            {
+                key: item.get(key)
+                for key in (
+                    "instrument_key",
+                    "provider_symbol_id",
+                    "provider_native_symbol_name",
+                    "provider_base_asset_id",
+                    "provider_base_asset_name",
+                    "provider_base_asset_display_name",
+                    "provider_quote_asset_id",
+                    "provider_quote_asset_name",
+                    "provider_quote_asset_display_name",
+                    "provider_symbol_category_id",
+                    "provider_symbol_category_name",
+                    "provider_asset_class_id",
+                    "provider_asset_class_name",
+                    "provider_description",
+                )
+            }
+            for item in parsed
+        ],
+    }
+    descriptor_fingerprint = _sha256(descriptor_payload)
     payload_for_hash = {
         "identity": IDENTITY,
         "source_registry_fingerprint": expected_registry_fingerprint,
         "captured_at": _aware(captured_at).isoformat(timespec="microseconds"),
+        "provider_assets": assets,
+        "provider_asset_classes": asset_classes,
+        "provider_symbol_categories": symbol_categories,
+        "provider_identity_descriptor_fingerprint_sha256": (
+            descriptor_fingerprint
+        ),
         "symbols": parsed,
     }
     schedule_fingerprint = _sha256(payload_for_hash)
@@ -447,6 +687,12 @@ def run(
         "provider_native_identity_metadata_captured": True,
         "provider_native_identity_metadata_is_not_canonical_identity": True,
         "provider_native_identity_metadata_coverage_count": len(light_by_id),
+        "provider_asset_count": len(assets),
+        "provider_asset_class_count": len(asset_classes),
+        "provider_symbol_category_count": len(symbol_categories),
+        "provider_identity_descriptor_fingerprint_sha256": (
+            descriptor_fingerprint
+        ),
         "account_fingerprint": (
             compute_ctrader_demo_lab_account_fingerprint(
                 read_only_client.account_id
