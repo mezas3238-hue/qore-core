@@ -986,14 +986,6 @@ def test_verified_mapping_promotes_only_against_exact_canonical_calendar() -> No
             "calendar venue drift",
         ),
         (
-            {
-                "market_structure": (
-                    CanonicalMarketStructure.MULTI_VENUE_COMPOSITE
-                )
-            },
-            "market structure drift",
-        ),
-        (
             {"iana_timezone": "UTC"},
             "calendar timezone drift",
         ),
@@ -1026,6 +1018,44 @@ def test_verified_mapping_calendar_drift_fails_closed(
     )
 
     with pytest.raises(TemporalComparabilityError, match=expected_error):
+        build_governed_global_market_calendar_registry(
+            version="calendar-registry-verified-001",
+            mapping_registry=mapping_registry,
+            calendars=(calendar,),
+            provenance_refs=("registry:calendar:test",),
+        )
+
+
+def test_verified_mapping_market_structure_drift_fails_closed() -> None:
+    calendar = _calendar(
+        venue=None,
+        market_structure=CanonicalMarketStructure.MULTI_VENUE_COMPOSITE,
+    )
+    verified = _canonical_mapping(
+        status=CanonicalCalendarMappingStatus.VERIFIED,
+        canonical_instrument_id="canonical:AAA",
+        venue="XNYS",
+        calendar_id=calendar.calendar_id,
+        calendar_version=calendar.version,
+        iana_timezone=calendar.iana_timezone,
+        timezone_mapping_version="tz-map-001",
+        identity_evidence_refs=("identity:instrument-master",),
+        venue_evidence_refs=("venue:exchange-master",),
+        calendar_evidence_refs=("calendar:official-version",),
+        market_structure=CanonicalMarketStructure.CENTRALIZED_VENUE,
+        market_structure_evidence_refs=("structure:centralized:test",),
+        reason_codes=("INDEPENDENT_EVIDENCE_VERIFIED",),
+    )
+    mapping_registry = CanonicalCalendarMappingRegistry(
+        version="canonical-map-registry-001",
+        records=(verified,),
+        provenance_refs=("registry:canonical-map:test",),
+    )
+
+    with pytest.raises(
+        TemporalComparabilityError,
+        match="market structure drift",
+    ):
         build_governed_global_market_calendar_registry(
             version="calendar-registry-verified-001",
             mapping_registry=mapping_registry,
