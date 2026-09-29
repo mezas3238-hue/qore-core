@@ -1,5 +1,9 @@
 name: QORE Shared GEN2 Temporal Comparability Foundation
 
+concurrency:
+  group: qore-shared-gen2-temporal-comparability-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:
