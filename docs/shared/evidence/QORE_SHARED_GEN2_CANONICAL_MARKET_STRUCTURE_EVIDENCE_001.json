@@ -1,0 +1,25 @@
+{
+  "identity": "QORE_SHARED_GEN2_CANONICAL_MARKET_STRUCTURE_EVIDENCE_001",
+  "version": "001",
+  "retrieved_at": "2026-09-29",
+  "entries": [
+    {
+      "evidence_id": "BIS_FX_OTC_STRUCTURE_2025",
+      "provider_asset_class_exact": "Forex",
+      "canonical_market_structure": "DISTRIBUTED_OTC",
+      "authority": "Bank for International Settlements",
+      "source_title": "The FX trade execution landscape through the prism of the 2025 BIS Triennial Survey",
+      "source_url": "https://www.bis.org/publications/qr-202512/fx-trade-execution-landscape-through-prism-2025-bis-triennial-survey",
+      "assertion": "FX spot and most FX derivatives transact over the counter; the global FX market is decentralized and fragmented.",
+      "independence_from_provider": true,
+      "scope_limited_to_market_structure": true,
+      "does_not_establish": [
+        "CANONICAL_INSTRUMENT_IDENTITY",
+        "CANONICAL_PROVIDER_EXECUTION_VENUE",
+        "CANONICAL_VERSIONED_CALENDAR",
+        "RELATIONAL_COMPARABILITY",
+        "SCIENTIFIC_ADMISSION"
+      ]
+    }
+  ]
+}
