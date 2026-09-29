@@ -35,6 +35,9 @@ from qore.infrastructure.cibo_ce2i_phase20_m5_shadow_batch import (
     Phase20M5ShadowTerminal,
     build_ctrader_demo_m5_observed_opportunity,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t12_shadow_store import (
+    DurableT12ShadowDecisionStore,
+)
 from qore.infrastructure.ctrader_demo_compat import (
     CTraderDemoAccountState,
     CTraderDemoSymbolSpecification,
@@ -315,13 +318,19 @@ def test_runtime_can_seal_evidence_before_submit_and_finalize_policy_after(
     assert policy.load().generation == 0
     sealed_sha = prepared.result.decision_record.evidence_sha256
 
+    t12_store = DurableT12ShadowDecisionStore(
+        tmp_path / "t12-shadow.json"
+    )
     finalized = finalize_ctrader_demo_m5_phase20_policy(
         prepared=prepared,
         evidence_store=evidence,
         policy_store=policy,
+        t12_shadow_store=t12_store,
     )
 
     assert policy.load().generation == 1
+    assert finalized.t12_shadow is None
+    assert t12_store.load().generation == 0
     assert policy.load().decisions[0].evidence_sha256 == sealed_sha
     assert finalized.observation.broker_mutation_performed is False
     assert finalized.execution_authority is False
