@@ -229,9 +229,19 @@ jobs:
               assert row["max3_is_ceiling_not_quota"] is True
               assert row["outcome_used_for_selection"] is False
               assert row["max3_selected_fills"] <= row["admitted_exact_fills"]
-          assert report["next_phase"] == (
-              "S1A_POPULATION_READY_FOR_FROZEN_GROSS_ECONOMICS"
+          total_admitted=sum(
+              row["admitted_exact_fills"] for row in report["periods"].values()
           )
+          if total_admitted:
+              assert report["next_phase"] == (
+                  "S1A_POPULATION_READY_FOR_FROZEN_GROSS_ECONOMICS"
+              )
+          else:
+              assert report["next_phase"] == (
+                  "S1A_ZERO_ADMITTED_POPULATION_FORENSICS_REQUIRED"
+              )
+          assert report["funnel"]["admitted_exact_fills"] == total_admitted
+          assert isinstance(report["forensic_rejections"], dict)
           PY
       - uses: actions/upload-artifact@v4
         with:
