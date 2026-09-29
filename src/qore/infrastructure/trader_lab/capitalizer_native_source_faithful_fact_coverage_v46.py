@@ -460,7 +460,10 @@ def _facts() -> tuple[FactOperationalization, ...]:
                 and "target_price=facts.structural_target_price" in plan_source
                 else OperationalizationStatus.DETECTOR_MISSING
             ),
-            "Canonical trade plan consumes a selected structural target; selector remains upstream.",
+            (
+                "Canonical trade plan consumes a selected structural target; "
+                "selector remains upstream."
+            ),
             trade_plan_ready,
             True,
         ),
