@@ -150,6 +150,9 @@ jobs:
           assert len(schedule["symbols"]) == 177
           assert schedule["canonical_calendar_mapping_performed"] is False
           assert schedule["provider_availability_is_canonical_market_hours"] is False
+          assert schedule["provider_native_identity_metadata_captured"] is True
+          assert schedule["provider_native_identity_metadata_is_not_canonical_identity"] is True
+          assert schedule["provider_native_identity_metadata_coverage_count"] == 177
           assert schedule["market_history_read"] is False
           assert schedule["target_or_outcome_read"] is False
           assert matrix["sensor_count"] == 177
@@ -229,6 +232,8 @@ jobs:
               "upstream_gen1_run_id":int(os.environ["GEN1_RUN_ID"]),
               "upstream_gen1_artifact_id":int(os.environ["GEN1_ARTIFACT_ID"]),
               "provider_schedule_catalog_fingerprint":schedule["provider_schedule_catalog_fingerprint_sha256"],
+              "provider_native_identity_metadata_coverage_count":schedule["provider_native_identity_metadata_coverage_count"],
+              "provider_native_identity_metadata_is_not_canonical_identity":schedule["provider_native_identity_metadata_is_not_canonical_identity"],
               "calendar_registry_fingerprint":calendar["calendar_registry_fingerprint_sha256"],
               "canonical_mapping_governance_status":matrix["canonical_mapping_governance_status"],
               "canonical_mapping_registry_fingerprint":mapping["canonical_mapping_registry_fingerprint_sha256"],
@@ -294,6 +299,7 @@ jobs:
               f"- run: `{os.environ['GITHUB_RUN_ID']}`",
               f"- provider schedule census: **{schedule['sensor_count']} sensors**",
               f"- provider schedule fingerprint: `{schedule['provider_schedule_catalog_fingerprint_sha256']}`",
+              f"- provider-native identity descriptors: **{schedule['provider_native_identity_metadata_coverage_count']}/177** (evidence only, not canonical identity)",
               f"- observability matrix fingerprint: `{matrix['global_observability_matrix_fingerprint_sha256']}`",
               f"- readiness: **{matrix['readiness_counts']}**",
               "- canonical mapping governance: **UNRESOLVED_BASELINE_FROZEN**",
