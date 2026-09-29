@@ -32,7 +32,6 @@ from qore.infrastructure.cibo_internal_capital_market import (
     GENC6_POLICY_FROZEN_AT,
     GENC6_POLICY_ID,
     GENC6_RESERVE_ID,
-    CapitalScarcityEvent,
     Genc6Action,
     Genc6CapitalEvidenceFact,
     Genc6EvidenceDirection,
