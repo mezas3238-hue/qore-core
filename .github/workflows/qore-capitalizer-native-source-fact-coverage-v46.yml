@@ -37,18 +37,21 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_native_source_faithful_fact_coverage_v46.py \
             src/qore/infrastructure/trader_lab/capitalizer_native_source_fact_remediation_v46.py \
             src/qore/infrastructure/trader_lab/capitalizer_canonical_historical_replay_adapter_v46.py \
-            src/qore/infrastructure/trader_lab/capitalizer_canonical_historical_replay_adapter_v46.py \
             tests/infrastructure/trader_lab/test_capitalizer_native_source_faithful_fact_coverage_v46.py \
             tests/infrastructure/trader_lab/test_capitalizer_native_source_fact_remediation_v46.py \
             tests/infrastructure/trader_lab/test_capitalizer_canonical_historical_replay_adapter_v46.py
       - name: Mypy
         run: |
           mypy \
-            src/qore/infrastructure/trader_lab/capitalizer_native_source_faithful_fact_coverage_v46.py
+            src/qore/infrastructure/trader_lab/capitalizer_native_source_faithful_fact_coverage_v46.py \
+            src/qore/infrastructure/trader_lab/capitalizer_native_source_fact_remediation_v46.py \
+            src/qore/infrastructure/trader_lab/capitalizer_canonical_historical_replay_adapter_v46.py
       - name: Focused tests
         run: |
           pytest -q --no-cov \
-            tests/infrastructure/trader_lab/test_capitalizer_native_source_faithful_fact_coverage_v46.py
+            tests/infrastructure/trader_lab/test_capitalizer_native_source_faithful_fact_coverage_v46.py \
+            tests/infrastructure/trader_lab/test_capitalizer_native_source_fact_remediation_v46.py \
+            tests/infrastructure/trader_lab/test_capitalizer_canonical_historical_replay_adapter_v46.py
       - name: Run frozen V46 Phase A
         run: |
           python -m qore.infrastructure.trader_lab.capitalizer_native_source_faithful_fact_coverage_v46
