@@ -1214,18 +1214,18 @@ def assess_relational_comparability(
     """Fail closed before any future relational claim is allowed."""
 
     evaluation = pair.evaluation_at.astimezone(UTC)
-    for item in (source_session, target_session):
-        if item.evaluation_at.astimezone(UTC) != evaluation:
+    for session_snapshot in (source_session, target_session):
+        if session_snapshot.evaluation_at.astimezone(UTC) != evaluation:
             raise TemporalComparabilityError(
                 "session snapshot evaluation time drift"
             )
-    for item in (source_provider, target_provider):
-        if item.evaluation_at.astimezone(UTC) != evaluation:
+    for provider_snapshot in (source_provider, target_provider):
+        if provider_snapshot.evaluation_at.astimezone(UTC) != evaluation:
             raise TemporalComparabilityError(
                 "provider snapshot evaluation time drift"
             )
-    for item in (source_liquidity, target_liquidity):
-        if item.evaluation_at.astimezone(UTC) != evaluation:
+    for liquidity_snapshot in (source_liquidity, target_liquidity):
+        if liquidity_snapshot.evaluation_at.astimezone(UTC) != evaluation:
             raise TemporalComparabilityError(
                 "liquidity snapshot evaluation time drift"
             )
