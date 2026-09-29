@@ -13,8 +13,8 @@ from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
     CapitalizerSide,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
-    CapitalizerCISDObservation,
     CapitalizerCausalSeriesKind,
+    CapitalizerCISDObservation,
     CapitalizerLiquiditySideTaken,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_daily_bias_v2 import (
