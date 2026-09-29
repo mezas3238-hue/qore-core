@@ -9,11 +9,13 @@ on:
       - 'src/qore/infrastructure/cibo_internal_capital_market_store.py'
       - 'src/qore/infrastructure/cibo_internal_capital_market_oos_binding.py'
       - 'src/qore/infrastructure/cibo_internal_capital_market_population.py'
+      - 'src/qore/infrastructure/cibo_t20_capital_release_evidence.py'
       - 'src/qore/infrastructure/cibo_marginal_capital_utility_evidence.py'
       - 'src/qore/infrastructure/cibo_sequential_compounding_shadow_policy.py'
       - 'src/qore/infrastructure/cibo_sequential_compounding_shadow_store.py'
       - 'src/qore/infrastructure/cibo_ce2i_portfolio_allocation_ledger.py'
       - 'tests/infrastructure/test_cibo_internal_capital_market.py'
+      - 'tests/infrastructure/test_cibo_t20_capital_release_evidence.py'
       - 'docs/research/CIBO-GEN-C6-INTERNAL-CAPITAL-MARKET-SHADOW-PREREGISTRATION-V1.md'
       - 'docs/research/CIBO-CE2I-ADR-003-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING.md'
       - 'docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md'
@@ -27,11 +29,13 @@ on:
       - 'src/qore/infrastructure/cibo_internal_capital_market_oos_binding.py'
       - 'src/qore/infrastructure/cibo_internal_capital_market_population.py'
       - 'src/qore/infrastructure/cibo_marginal_capital_utility_evidence.py'
+      - 'src/qore/infrastructure/cibo_t20_capital_release_evidence.py'
       - 'src/qore/infrastructure/cibo_sequential_compounding_shadow_policy.py'
       - 'src/qore/infrastructure/cibo_sequential_compounding_shadow_store.py'
       - 'src/qore/infrastructure/cibo_ce2i_portfolio_allocation_ledger.py'
       - 'tests/infrastructure/test_cibo_internal_capital_market.py'
       - 'docs/research/CIBO-GEN-C6-INTERNAL-CAPITAL-MARKET-SHADOW-PREREGISTRATION-V1.md'
+      - 'tests/infrastructure/test_cibo_t20_capital_release_evidence.py'
 
 permissions:
   contents: read
@@ -57,11 +61,15 @@ jobs:
             src/qore/infrastructure/cibo_internal_capital_market_store.py \
             src/qore/infrastructure/cibo_internal_capital_market_oos_binding.py \
             src/qore/infrastructure/cibo_internal_capital_market_population.py \
-            tests/infrastructure/test_cibo_internal_capital_market.py
+            src/qore/infrastructure/cibo_t20_capital_release_evidence.py \
+            tests/infrastructure/test_cibo_internal_capital_market.py \
+            tests/infrastructure/test_cibo_t20_capital_release_evidence.py
           python -m py_compile \
             src/qore/infrastructure/cibo_internal_capital_market.py \
             src/qore/infrastructure/cibo_internal_capital_market_store.py \
             src/qore/infrastructure/cibo_internal_capital_market_oos_binding.py \
-            src/qore/infrastructure/cibo_internal_capital_market_population.py
+            src/qore/infrastructure/cibo_internal_capital_market_population.py \
+            src/qore/infrastructure/cibo_t20_capital_release_evidence.py
           pytest -q --no-cov \
-            tests/infrastructure/test_cibo_internal_capital_market.py
+            tests/infrastructure/test_cibo_internal_capital_market.py \
+            tests/infrastructure/test_cibo_t20_capital_release_evidence.py
