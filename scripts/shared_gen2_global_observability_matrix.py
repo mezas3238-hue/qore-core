@@ -21,11 +21,17 @@ from qore.infrastructure.core_stack_v2.global_sensor_registry import (
     GlobalSensorRecord,
 )
 from qore.infrastructure.core_stack_v2.global_temporal_comparability import (
+    CanonicalCalendarMappingRecord,
+    CanonicalCalendarMappingRegistry,
+    CanonicalCalendarMappingStatus,
     GlobalMarketCalendarRegistry,
 )
 
 IDENTITY = "QORE_SHARED_GEN2_GLOBAL_MARKET_OBSERVABILITY_MATRIX_001"
 CALENDAR_REGISTRY_VERSION = "QORE_SHARED_GLOBAL_CALENDAR_REGISTRY_GEN2_001"
+CANONICAL_MAPPING_REGISTRY_VERSION = (
+    "QORE_SHARED_CANONICAL_CALENDAR_MAPPING_REGISTRY_GEN2_001"
+)
 
 
 class Gen2ObservabilityMatrixError(RuntimeError):
@@ -108,6 +114,7 @@ def run(
     provider_schedule_path: Path,
     output_path: Path,
     calendar_output_path: Path,
+    mapping_output_path: Path,
 ) -> dict[str, object]:
     registry_payload = _load(registry_path)
     provider_payload = _load(provider_schedule_path)
@@ -135,11 +142,120 @@ def run(
             "provider schedule coverage does not match GEN-1 registry"
         )
 
+    schedule_fingerprint = cast(
+        str,
+        provider_payload["provider_schedule_catalog_fingerprint_sha256"],
+    )
+    sensor_by_key = {
+        cast(str, item["instrument_key"]): item
+        for item in sensor_rows
+    }
+    unresolved_records = tuple(
+        CanonicalCalendarMappingRecord(
+            instrument_key=key,
+            provider=cast(str, sensor_by_key[key]["provider"]),
+            provider_symbol=cast(str, sensor_by_key[key]["provider_symbol"]),
+            provider_symbol_id=cast(int, sensor_by_key[key]["provider_symbol_id"]),
+            status=CanonicalCalendarMappingStatus.UNRESOLVED,
+            canonical_instrument_id=None,
+            venue=None,
+            calendar_id=None,
+            calendar_version=None,
+            iana_timezone=None,
+            provider_schedule_timezone=cast(
+                str | None,
+                by_key[key]["schedule_timezone"],
+            ),
+            timezone_mapping_version=None,
+            identity_evidence_refs=(),
+            venue_evidence_refs=(),
+            calendar_evidence_refs=(),
+            provider_schedule_evidence_refs=(
+                "provider-schedule:" + schedule_fingerprint,
+            ),
+            reason_codes=(
+                "CANONICAL_CALENDAR_EVIDENCE_REQUIRED",
+                "CANONICAL_IDENTITY_EVIDENCE_REQUIRED",
+                "CANONICAL_VENUE_EVIDENCE_REQUIRED",
+            ),
+        )
+        for key in sorted(by_key)
+    )
+    mapping_registry = CanonicalCalendarMappingRegistry(
+        version=CANONICAL_MAPPING_REGISTRY_VERSION,
+        records=unresolved_records,
+        provenance_refs=tuple(
+            sorted(
+                (
+                    "provider-schedule:" + schedule_fingerprint,
+                    "sensor-registry:"
+                    + cast(
+                        str,
+                        registry_payload[
+                            "sensor_registry_fingerprint_sha256"
+                        ],
+                    ),
+                )
+            )
+        ),
+    )
+    mapping_report = {
+        "identity": CANONICAL_MAPPING_REGISTRY_VERSION,
+        "status": "UNRESOLVED_BASELINE_FROZEN",
+        "record_count": len(mapping_registry.records),
+        "verified_count": 0,
+        "ambiguous_count": 0,
+        "rejected_count": 0,
+        "unresolved_count": len(mapping_registry.records),
+        "canonical_mapping_registry_fingerprint_sha256": (
+            mapping_registry.fingerprint()
+        ),
+        "automatic_identity_inference": False,
+        "provider_schedule_is_not_canonical_identity_evidence": True,
+        "records": [
+            {
+                "instrument_key": item.instrument_key,
+                "provider": item.provider,
+                "provider_symbol": item.provider_symbol,
+                "provider_symbol_id": item.provider_symbol_id,
+                "status": item.status.value,
+                "canonical_instrument_id": item.canonical_instrument_id,
+                "venue": item.venue,
+                "calendar_id": item.calendar_id,
+                "calendar_version": item.calendar_version,
+                "iana_timezone": item.iana_timezone,
+                "provider_schedule_timezone": (
+                    item.provider_schedule_timezone
+                ),
+                "timezone_mapping_version": item.timezone_mapping_version,
+                "identity_evidence_refs": list(
+                    item.identity_evidence_refs
+                ),
+                "venue_evidence_refs": list(item.venue_evidence_refs),
+                "calendar_evidence_refs": list(
+                    item.calendar_evidence_refs
+                ),
+                "provider_schedule_evidence_refs": list(
+                    item.provider_schedule_evidence_refs
+                ),
+                "reason_codes": list(item.reason_codes),
+                "mapping_fingerprint_sha256": item.fingerprint(),
+            }
+            for item in mapping_registry.records
+        ],
+    }
+    mapping_output_path.parent.mkdir(parents=True, exist_ok=True)
+    mapping_output_path.write_text(
+        json.dumps(mapping_report, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
     calendar_registry = GlobalMarketCalendarRegistry(
         version=CALENDAR_REGISTRY_VERSION,
         calendars=(),
         bindings=(),
         provenance_refs=(
+            "canonical-mapping-registry:" + mapping_registry.fingerprint(),
             "gen2:canonical-calendar-mapping-not-yet-authorized",
         ),
     )
@@ -152,9 +268,14 @@ def run(
         "calendar_registry_fingerprint_sha256": calendar_fingerprint,
         "provider_schedule_is_not_canonical_market_calendar": True,
         "canonical_mapping_governance_status": (
-            "IMPLEMENTED_NOT_POPULATED"
+            "UNRESOLVED_BASELINE_FROZEN"
         ),
+        "canonical_mapping_registry_fingerprint_sha256": (
+            mapping_registry.fingerprint()
+        ),
+        "canonical_mapping_record_count": len(mapping_registry.records),
         "canonical_mapping_verified_count": 0,
+        "canonical_mapping_unresolved_count": len(mapping_registry.records),
     }
     calendar_output_path.parent.mkdir(parents=True, exist_ok=True)
     calendar_output_path.write_text(
@@ -184,13 +305,9 @@ def run(
             liquidity_observability=False,
             comparability_ready=False,
             provenance_refs=(
-                "provider-schedule:"
-                + cast(
-                    str,
-                    provider_payload[
-                        "provider_schedule_catalog_fingerprint_sha256"
-                    ],
-                ),
+                "canonical-mapping-registry:"
+                + mapping_registry.fingerprint(),
+                "provider-schedule:" + schedule_fingerprint,
             ),
         )
         for key, item in sorted(by_key.items())
@@ -264,9 +381,14 @@ def run(
         "readiness_counts": dict(sorted(readiness_counts.items())),
         "canonical_calendar_mapping_complete": False,
         "canonical_mapping_governance_status": (
-            "IMPLEMENTED_NOT_POPULATED"
+            "UNRESOLVED_BASELINE_FROZEN"
         ),
+        "canonical_mapping_registry_fingerprint_sha256": (
+            mapping_registry.fingerprint()
+        ),
+        "canonical_mapping_record_count": len(mapping_registry.records),
         "canonical_mapping_verified_count": 0,
+        "canonical_mapping_unresolved_count": len(mapping_registry.records),
         "cadence_policy_registry_architecture_status": (
             "IMPLEMENTED_NOT_FROZEN"
         ),
@@ -306,12 +428,14 @@ def main() -> None:
     parser.add_argument("--provider-schedule", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--calendar-output", type=Path, required=True)
+    parser.add_argument("--mapping-output", type=Path, required=True)
     args = parser.parse_args()
     report = run(
         registry_path=args.registry,
         provider_schedule_path=args.provider_schedule,
         output_path=args.output,
         calendar_output_path=args.calendar_output,
+        mapping_output_path=args.mapping_output,
     )
     print(
         json.dumps(
@@ -321,6 +445,9 @@ def main() -> None:
                 "readiness_counts": report["readiness_counts"],
                 "calendar_registry_fingerprint_sha256": report[
                     "calendar_registry_fingerprint_sha256"
+                ],
+                "canonical_mapping_registry_fingerprint_sha256": report[
+                    "canonical_mapping_registry_fingerprint_sha256"
                 ],
                 "global_observability_matrix_fingerprint_sha256": report[
                     "global_observability_matrix_fingerprint_sha256"
