@@ -19,7 +19,6 @@ from qore.infrastructure.trader_lab import nq_am_temporal_liquidity_reversal_v1 
 from qore.infrastructure.trader_lab import nq_am_tlr_v4_ustec_capability as v4
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
     Bar,
-    BearishFvg,
     Evidence,
     _max_drawdown,
     _profit_factor,
@@ -150,7 +149,7 @@ def _delivery_fvg(
     *,
     start: datetime,
     sweep_at: datetime,
-) -> BearishFvg | None:
+) -> v1.BearishFvg | None:
     zones = v1._bearish_fvgs(
         bars,
         start=start,
@@ -164,7 +163,7 @@ def _delivery_fvg(
 def _causal_inversion_and_retest(
     bars: tuple[Bar, ...],
     *,
-    zone: BearishFvg,
+    zone: v1.BearishFvg,
     sweep_at: datetime,
     session_end: datetime,
 ) -> tuple[datetime, bool, datetime, Decimal] | None:
@@ -575,7 +574,11 @@ def summarize(records: list[DayRecord]) -> dict[str, Any]:
             "reached_before_new_sweep_low": len(hits),
             "reach_rate": None if not rows else len(hits) / len(rows),
             "time_to_target_minutes": _decimal_quantiles(
-                [Decimal(row.time_to_target_minutes) for row in hits]
+                [
+                    Decimal(row.time_to_target_minutes)
+                    for row in hits
+                    if row.time_to_target_minutes is not None
+                ]
             ),
         }
 
