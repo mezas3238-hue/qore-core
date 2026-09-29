@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import asdict
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -74,6 +75,12 @@ def _year_summary(report: utc_audit.ConsumedUtcAuditReport) -> list[dict[str, An
                 "mc_p95_drawdown_r": (
                     year.monte_carlo.conservative_p95_drawdown_r
                 ),
+                "sample_sufficiency_passed": (
+                    year.sample_sufficiency.passed
+                ),
+                "sample_sufficiency": asdict(year.sample_sufficiency),
+                "loss_cluster_gate_passed": year.loss_cluster_gate.passed,
+                "loss_cluster_gate": asdict(year.loss_cluster_gate),
                 "failed_gates": failed,
                 "missing_gates": missing,
             }
