@@ -184,20 +184,45 @@ class CalendarDateOverride:
             )
 
 
+class CanonicalMarketStructure(StrEnum):
+    """Canonical market organization without inventing a single venue."""
+
+    CENTRALIZED_VENUE = "CENTRALIZED_VENUE"
+    DISTRIBUTED_OTC = "DISTRIBUTED_OTC"
+    MULTI_VENUE_COMPOSITE = "MULTI_VENUE_COMPOSITE"
+    CONTINUOUS_NETWORK = "CONTINUOUS_NETWORK"
+
+
 @dataclass(frozen=True, slots=True)
 class GlobalMarketCalendar:
     calendar_id: str
     version: str
-    venue: str
+    venue: str | None
     iana_timezone: str
     weekly_sessions: tuple[WeeklySessionRule, ...]
     date_overrides: tuple[CalendarDateOverride, ...]
     provenance_refs: tuple[str, ...]
+    market_structure: CanonicalMarketStructure = (
+        CanonicalMarketStructure.CENTRALIZED_VENUE
+    )
 
     def __post_init__(self) -> None:
-        for name in ("calendar_id", "version", "venue", "iana_timezone"):
+        for name in ("calendar_id", "version", "iana_timezone"):
             if not str(getattr(self, name)).strip():
                 raise TemporalComparabilityError(f"{name} must be non-empty")
+        if self.venue is not None and not self.venue.strip():
+            raise TemporalComparabilityError(
+                "calendar venue must be non-empty or None"
+            )
+        if self.market_structure is CanonicalMarketStructure.CENTRALIZED_VENUE:
+            if self.venue is None:
+                raise TemporalComparabilityError(
+                    "centralized market calendar requires venue"
+                )
+        elif self.venue is not None:
+            raise TemporalComparabilityError(
+                "non-centralized market calendar cannot claim single venue"
+            )
         try:
             ZoneInfo(self.iana_timezone)
         except (ZoneInfoNotFoundError, ValueError) as exc:
@@ -228,6 +253,7 @@ class GlobalMarketCalendar:
                 "calendar_id": self.calendar_id,
                 "version": self.version,
                 "venue": self.venue,
+                "market_structure": self.market_structure.value,
                 "iana_timezone": self.iana_timezone,
                 "weekly_sessions": [
                     {
@@ -266,6 +292,9 @@ class MarketCalendarBinding:
     provider_schedule_timezone: str | None
     timezone_mapping_version: str
     provenance_refs: tuple[str, ...]
+    market_structure: CanonicalMarketStructure = (
+        CanonicalMarketStructure.CENTRALIZED_VENUE
+    )
 
     def __post_init__(self) -> None:
         for name in (
@@ -317,6 +346,8 @@ class CanonicalCalendarMappingRecord:
     calendar_evidence_refs: tuple[str, ...]
     provider_schedule_evidence_refs: tuple[str, ...]
     reason_codes: tuple[str, ...]
+    market_structure: CanonicalMarketStructure | None = None
+    market_structure_evidence_refs: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if (
@@ -337,6 +368,7 @@ class CanonicalCalendarMappingRecord:
             "calendar_evidence_refs",
             "provider_schedule_evidence_refs",
             "reason_codes",
+            "market_structure_evidence_refs",
         ):
             values = getattr(self, name)
             if values != tuple(sorted(set(values))):
@@ -353,7 +385,6 @@ class CanonicalCalendarMappingRecord:
         if self.status is CanonicalCalendarMappingStatus.VERIFIED:
             required = (
                 self.canonical_instrument_id,
-                self.venue,
                 self.calendar_id,
                 self.calendar_version,
                 self.iana_timezone,
@@ -363,20 +394,46 @@ class CanonicalCalendarMappingRecord:
                 raise TemporalComparabilityError(
                     "verified canonical mapping requires complete canonical identity"
                 )
+            if self.market_structure is None:
+                raise TemporalComparabilityError(
+                    "verified canonical mapping requires market structure"
+                )
             if not self.identity_evidence_refs:
                 raise TemporalComparabilityError(
                     "verified canonical mapping requires identity evidence"
                 )
-            if not self.venue_evidence_refs:
+            if not self.market_structure_evidence_refs:
                 raise TemporalComparabilityError(
-                    "verified canonical mapping requires venue evidence"
+                    "verified canonical mapping requires market structure evidence"
                 )
+            if (
+                self.market_structure
+                is CanonicalMarketStructure.CENTRALIZED_VENUE
+            ):
+                if self.venue is None or not self.venue.strip():
+                    raise TemporalComparabilityError(
+                        "centralized verified mapping requires venue"
+                    )
+                if not self.venue_evidence_refs:
+                    raise TemporalComparabilityError(
+                        "verified canonical mapping requires venue evidence"
+                    )
+            else:
+                if self.venue is not None:
+                    raise TemporalComparabilityError(
+                        "non-centralized verified mapping cannot claim single venue"
+                    )
+                if self.venue_evidence_refs:
+                    raise TemporalComparabilityError(
+                        "non-centralized verified mapping cannot carry venue evidence"
+                    )
             if not self.calendar_evidence_refs:
                 raise TemporalComparabilityError(
                     "verified canonical mapping requires calendar evidence"
                 )
             canonical_refs = (
                 self.identity_evidence_refs
+                + self.market_structure_evidence_refs
                 + self.venue_evidence_refs
                 + self.calendar_evidence_refs
             )
@@ -408,6 +465,11 @@ class CanonicalCalendarMappingRecord:
                 "status": self.status.value,
                 "canonical_instrument_id": self.canonical_instrument_id,
                 "venue": self.venue,
+                "market_structure": (
+                    None
+                    if self.market_structure is None
+                    else self.market_structure.value
+                ),
                 "calendar_id": self.calendar_id,
                 "calendar_version": self.calendar_version,
                 "iana_timezone": self.iana_timezone,
@@ -418,6 +480,9 @@ class CanonicalCalendarMappingRecord:
                 "calendar_evidence_refs": self.calendar_evidence_refs,
                 "provider_schedule_evidence_refs": (
                     self.provider_schedule_evidence_refs
+                ),
+                "market_structure_evidence_refs": (
+                    self.market_structure_evidence_refs
                 ),
                 "reason_codes": self.reason_codes,
             }
@@ -431,10 +496,12 @@ class CanonicalCalendarMappingRecord:
         assert self.canonical_instrument_id is not None
         assert self.calendar_id is not None
         assert self.timezone_mapping_version is not None
+        assert self.market_structure is not None
         provenance = tuple(
             sorted(
                 set(
                     self.identity_evidence_refs
+                    + self.market_structure_evidence_refs
                     + self.venue_evidence_refs
                     + self.calendar_evidence_refs
                     + self.provider_schedule_evidence_refs
@@ -448,6 +515,7 @@ class CanonicalCalendarMappingRecord:
             provider_schedule_timezone=self.provider_schedule_timezone,
             timezone_mapping_version=self.timezone_mapping_version,
             provenance_refs=provenance,
+            market_structure=self.market_structure,
         )
 
 
@@ -582,6 +650,7 @@ class GlobalMarketCalendarRegistry:
                         "instrument_key": item.instrument_key,
                         "canonical_instrument_id": item.canonical_instrument_id,
                         "calendar_id": item.calendar_id,
+                        "market_structure": item.market_structure.value,
                         "provider_schedule_timezone": (
                             item.provider_schedule_timezone
                         ),
@@ -662,6 +731,10 @@ def build_governed_global_market_calendar_registry(
         if calendar.version != record.calendar_version:
             raise TemporalComparabilityError(
                 "verified mapping calendar version drift"
+            )
+        if calendar.market_structure is not record.market_structure:
+            raise TemporalComparabilityError(
+                "verified mapping market structure drift"
             )
         if calendar.venue != record.venue:
             raise TemporalComparabilityError(
