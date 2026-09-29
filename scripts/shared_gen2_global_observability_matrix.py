@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
@@ -25,6 +26,7 @@ from qore.infrastructure.core_stack_v2.global_temporal_comparability import (
     CanonicalCalendarMappingRecord,
     CanonicalCalendarMappingRegistry,
     CanonicalCalendarMappingStatus,
+    CanonicalMarketStructure,
     GlobalMarketCalendarRegistry,
 )
 
@@ -32,6 +34,9 @@ IDENTITY = "QORE_SHARED_GEN2_GLOBAL_MARKET_OBSERVABILITY_MATRIX_001"
 CALENDAR_REGISTRY_VERSION = "QORE_SHARED_GLOBAL_CALENDAR_REGISTRY_GEN2_001"
 CANONICAL_MAPPING_REGISTRY_VERSION = (
     "QORE_SHARED_CANONICAL_CALENDAR_MAPPING_REGISTRY_GEN2_001"
+)
+MARKET_STRUCTURE_EVIDENCE_IDENTITY = (
+    "QORE_SHARED_GEN2_CANONICAL_MARKET_STRUCTURE_EVIDENCE_001"
 )
 
 
@@ -116,9 +121,33 @@ def run(
     output_path: Path,
     calendar_output_path: Path,
     mapping_output_path: Path,
+    market_structure_evidence_path: Path,
 ) -> dict[str, object]:
     registry_payload = _load(registry_path)
     provider_payload = _load(provider_schedule_path)
+    market_structure_evidence_payload = _load(
+        market_structure_evidence_path
+    )
+    if (
+        market_structure_evidence_payload.get("identity")
+        != MARKET_STRUCTURE_EVIDENCE_IDENTITY
+    ):
+        raise Gen2ObservabilityMatrixError(
+            "unexpected canonical market-structure evidence identity"
+        )
+    evidence_entries_raw = market_structure_evidence_payload.get("entries")
+    if not isinstance(evidence_entries_raw, list) or not evidence_entries_raw:
+        raise Gen2ObservabilityMatrixError(
+            "canonical market-structure evidence entries missing"
+        )
+    market_structure_evidence_fingerprint = hashlib.sha256(
+        json.dumps(
+            market_structure_evidence_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        ).encode("utf-8")
+    ).hexdigest()
     if provider_payload.get("source_registry_fingerprint") != (
         registry_payload.get("sensor_registry_fingerprint_sha256")
     ):
@@ -218,6 +247,127 @@ def run(
             provider_payload.get("provider_symbol_categories", []),
         )
     }
+    evidence_by_asset_class: dict[str, dict[str, object]] = {}
+    for raw_entry in evidence_entries_raw:
+        if not isinstance(raw_entry, dict):
+            raise Gen2ObservabilityMatrixError(
+                "market-structure evidence entry must be object"
+            )
+        entry = cast(dict[str, object], raw_entry)
+        asset_class_exact = entry.get("provider_asset_class_exact")
+        evidence_id = entry.get("evidence_id")
+        authority = entry.get("authority")
+        source_url = entry.get("source_url")
+        structure_raw = entry.get("canonical_market_structure")
+        if (
+            not isinstance(asset_class_exact, str)
+            or not asset_class_exact
+            or not isinstance(evidence_id, str)
+            or not evidence_id
+            or not isinstance(authority, str)
+            or not authority
+            or not isinstance(source_url, str)
+            or not source_url.startswith("https://")
+            or not isinstance(structure_raw, str)
+        ):
+            raise Gen2ObservabilityMatrixError(
+                "market-structure evidence identity fields invalid"
+            )
+        if asset_class_exact in evidence_by_asset_class:
+            raise Gen2ObservabilityMatrixError(
+                "duplicate market-structure evidence asset-class scope"
+            )
+        try:
+            CanonicalMarketStructure(structure_raw)
+        except ValueError as exc:
+            raise Gen2ObservabilityMatrixError(
+                "unknown canonical market structure in evidence"
+            ) from exc
+        if entry.get("independence_from_provider") is not True:
+            raise Gen2ObservabilityMatrixError(
+                "market-structure evidence must be provider-independent"
+            )
+        if entry.get("scope_limited_to_market_structure") is not True:
+            raise Gen2ObservabilityMatrixError(
+                "market-structure evidence scope must be structure-only"
+            )
+        does_not_establish = entry.get("does_not_establish")
+        required_limits = {
+            "CANONICAL_INSTRUMENT_IDENTITY",
+            "CANONICAL_PROVIDER_EXECUTION_VENUE",
+            "CANONICAL_VERSIONED_CALENDAR",
+            "RELATIONAL_COMPARABILITY",
+            "SCIENTIFIC_ADMISSION",
+        }
+        if (
+            not isinstance(does_not_establish, list)
+            or set(cast(list[str], does_not_establish)) != required_limits
+        ):
+            raise Gen2ObservabilityMatrixError(
+                "market-structure evidence limitation contract drift"
+            )
+        evidence_by_asset_class[asset_class_exact] = entry
+
+    enriched_records: list[CanonicalCalendarMappingRecord] = []
+    market_structure_counts: dict[str, int] = {}
+    for record in mapping_registry.records:
+        provider_row = by_key[record.instrument_key]
+        category_id = provider_row.get("provider_symbol_category_id")
+        if type(category_id) is not int or category_id not in categories:
+            raise Gen2ObservabilityMatrixError(
+                "provider mapping evidence category missing"
+            )
+        category = categories[category_id]
+        asset_class_id = category.get("asset_class_id")
+        if type(asset_class_id) is not int or asset_class_id not in asset_classes:
+            raise Gen2ObservabilityMatrixError(
+                "provider mapping evidence asset class missing"
+            )
+        asset_class_name = asset_classes[asset_class_id]
+        evidence_entry = evidence_by_asset_class.get(asset_class_name)
+        if evidence_entry is None:
+            enriched = record
+            structure_key = "UNRESOLVED"
+        else:
+            structure = CanonicalMarketStructure(
+                cast(str, evidence_entry["canonical_market_structure"])
+            )
+            evidence_ref = (
+                "canonical-market-structure-evidence:"
+                + cast(str, evidence_entry["evidence_id"])
+            )
+            reasons = set(record.reason_codes)
+            reasons.discard(
+                "CANONICAL_MARKET_STRUCTURE_EVIDENCE_REQUIRED"
+            )
+            reasons.add("CANONICAL_MARKET_STRUCTURE_EVIDENCE_OBSERVED")
+            enriched = replace(
+                record,
+                market_structure=structure,
+                market_structure_evidence_refs=(evidence_ref,),
+                reason_codes=tuple(sorted(reasons)),
+            )
+            structure_key = structure.value
+        enriched_records.append(enriched)
+        market_structure_counts[structure_key] = (
+            market_structure_counts.get(structure_key, 0) + 1
+        )
+
+    mapping_registry = CanonicalCalendarMappingRegistry(
+        version=CANONICAL_MAPPING_REGISTRY_VERSION,
+        records=tuple(enriched_records),
+        provenance_refs=tuple(
+            sorted(
+                set(
+                    mapping_registry.provenance_refs
+                    + (
+                        "market-structure-evidence-manifest:"
+                        + market_structure_evidence_fingerprint,
+                    )
+                )
+            )
+        ),
+    )
     worklist_rows: list[dict[str, object]] = []
     asset_class_counts: dict[str, int] = {}
     schedule_timezone_counts: dict[str, int] = {}
@@ -270,6 +420,14 @@ def run(
                 "provider_asset_class_name": asset_class_name,
                 "provider_schedule_timezone": schedule_timezone,
                 "current_mapping_status": record.status.value,
+                "current_market_structure": (
+                    None
+                    if record.market_structure is None
+                    else record.market_structure.value
+                ),
+                "market_structure_evidence_refs": list(
+                    record.market_structure_evidence_refs
+                ),
                 "required_canonical_evidence": (
                     "CANONICAL_INSTRUMENT_IDENTITY",
                     "CANONICAL_MARKET_STRUCTURE",
@@ -308,6 +466,19 @@ def run(
         "unresolved_count": len(mapping_registry.records),
         "canonical_mapping_registry_fingerprint_sha256": (
             mapping_registry.fingerprint()
+        ),
+        "market_structure_evidence_manifest_fingerprint_sha256": (
+            market_structure_evidence_fingerprint
+        ),
+        "market_structure_counts": dict(
+            sorted(market_structure_counts.items())
+        ),
+        "market_structure_evidence_count": (
+            len(mapping_registry.records)
+            - market_structure_counts.get("UNRESOLVED", 0)
+        ),
+        "market_structure_unresolved_count": (
+            market_structure_counts.get("UNRESOLVED", 0)
         ),
         "automatic_identity_inference": False,
         "provider_schedule_is_not_canonical_identity_evidence": True,
@@ -547,6 +718,11 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--calendar-output", type=Path, required=True)
     parser.add_argument("--mapping-output", type=Path, required=True)
+    parser.add_argument(
+        "--market-structure-evidence",
+        type=Path,
+        required=True,
+    )
     args = parser.parse_args()
     report = run(
         registry_path=args.registry,
@@ -554,6 +730,7 @@ def main() -> None:
         output_path=args.output,
         calendar_output_path=args.calendar_output,
         mapping_output_path=args.mapping_output,
+        market_structure_evidence_path=args.market_structure_evidence,
     )
     print(
         json.dumps(
@@ -566,6 +743,9 @@ def main() -> None:
                 ],
                 "canonical_mapping_registry_fingerprint_sha256": report[
                     "canonical_mapping_registry_fingerprint_sha256"
+                ],
+                "market_structure_counts": report[
+                    "market_structure_counts"
                 ],
                 "global_observability_matrix_fingerprint_sha256": report[
                     "global_observability_matrix_fingerprint_sha256"
