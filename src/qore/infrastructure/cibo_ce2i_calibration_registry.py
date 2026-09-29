@@ -241,8 +241,13 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
         "T03",
         CiboCalibrationState.PROVIDER_ECONOMICS_REQUIRED,
         CiboCalibrationType.ECONOMIC,
-        (_PROVIDER_GAP, _PHASE20_CONTRACT),
         (
+            _PROVIDER_GAP,
+            _PHASE20_CONTRACT,
+            "phase20:t03:forward-margin-efficiency-population",
+        ),
+        (
+            "FORWARD_PROVIDER_MARGIN_EFFICIENCY_AUDIT_IMPLEMENTED",
             "HISTORICAL_2017_MARGIN_TERMS_NOT_PROVEN",
             "EQUIVALENT_EXPRESSION_UNIVERSE_NOT_CERTIFIED",
         ),

@@ -35,6 +35,15 @@ from qore.infrastructure.cibo_provider_economic_normalization import (
 
 
 @dataclass(frozen=True, slots=True)
+class Phase20ForwardCandidateFacts:
+    decision_sha256: str
+    decision_at: datetime
+    provider_evidence_id: str
+    opportunity: TraderOpportunityEnvelope
+    provider_observation: ProviderEconomicObservation
+
+
+@dataclass(frozen=True, slots=True)
 class Phase20T08ForwardMagnitudePopulation:
     usable_forward_epochs: int
     candidate_epochs: int
@@ -108,6 +117,43 @@ class Phase20T08ForwardMagnitudePopulation:
             raise CiboCapitalManagementError(
                 "T08 population audit must retain non-promotion blockers"
             )
+
+
+def iter_phase20_forward_candidate_facts(
+    *,
+    evidence_book: VersionedPhase20ForwardEvidenceBook,
+) -> tuple[Phase20ForwardCandidateFacts, ...]:
+    """Decode only sealed fresh-forward candidate/provider facts."""
+
+    if not isinstance(evidence_book, VersionedPhase20ForwardEvidenceBook):
+        raise CiboCapitalManagementError(
+            "forward candidate facts require canonical evidence book"
+        )
+    result: list[Phase20ForwardCandidateFacts] = []
+    for decision in sorted(
+        evidence_book.decisions,
+        key=lambda item: (item.decision_at, item.evidence_sha256),
+    ):
+        payload = _usable_forward_payload(decision)
+        if payload is None:
+            continue
+        for item in _candidate_evidence(payload):
+            opportunity = _opportunity(item)
+            provider = _provider_observation(item)
+            _validate_candidate_identity(item, opportunity)
+            result.append(
+                Phase20ForwardCandidateFacts(
+                    decision_sha256=decision.evidence_sha256,
+                    decision_at=decision.decision_at,
+                    provider_evidence_id=_string(
+                        item.get("provider_evidence_id"),
+                        name="provider_evidence_id",
+                    ),
+                    opportunity=opportunity,
+                    provider_observation=provider,
+                )
+            )
+    return tuple(result)
 
 
 def assess_phase20_t08_forward_magnitude_population(
