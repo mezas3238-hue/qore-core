@@ -397,6 +397,9 @@ def main() -> None:
             t08_oos_epochs
         )
 
+    from qore.infrastructure.cibo_ce2i_phase20_t09_t18_scarcity_readiness import (
+        assess_phase20_t09_t18_scarcity_readiness,
+    )
     from qore.infrastructure.cibo_ce2i_phase20_t12_regime_population import (
         assess_phase20_t12_regime_population,
     )
@@ -407,6 +410,12 @@ def main() -> None:
         assess_phase20_t13_shadow_policy,
     )
 
+    t09_t18_scarcity_readiness = (
+        assess_phase20_t09_t18_scarcity_readiness(
+            evidence_book=evidence,
+            policy_book=policy,
+        )
+    )
     t12_regime_population = assess_phase20_t12_regime_population(evidence)
     t13_reserve_population = assess_phase20_t13_reserve_population(
         evidence
@@ -456,6 +465,7 @@ def main() -> None:
         evidence_book=evidence,
         qualification_readiness=report.readiness,
         t08_oos_ablation=t08_oos_ablation,
+        t09_t18_scarcity_readiness=t09_t18_scarcity_readiness,
         t12_regime_population=t12_regime_population,
         t13_reserve_population=t13_reserve_population,
         t13_oos_readiness=t13_oos_readiness,
@@ -485,6 +495,63 @@ def main() -> None:
         ),
         "known_option_epochs": tool_readiness.known_option_epochs,
         "causal_history_epochs": tool_readiness.causal_history_epochs,
+        "t09_t18_scarcity_readiness": {
+            "usable_forward_epochs": (
+                t09_t18_scarcity_readiness.usable_forward_epochs
+            ),
+            "exact_competition_epochs": (
+                t09_t18_scarcity_readiness.exact_competition_epochs
+            ),
+            "scarce_competition_epochs": (
+                t09_t18_scarcity_readiness.scarce_competition_epochs
+            ),
+            "cross_trader_scarce_epochs": (
+                t09_t18_scarcity_readiness.cross_trader_scarce_epochs
+            ),
+            "scarcity_candidate_instances": (
+                t09_t18_scarcity_readiness.scarcity_candidate_instances
+            ),
+            "scarcity_candidate_outcomes": (
+                t09_t18_scarcity_readiness.scarcity_candidate_outcomes
+            ),
+            "scarcity_selected_instances": (
+                t09_t18_scarcity_readiness.scarcity_selected_instances
+            ),
+            "scarcity_selected_outcomes": (
+                t09_t18_scarcity_readiness.scarcity_selected_outcomes
+            ),
+            "scarcity_candidate_outcome_coverage": format(
+                t09_t18_scarcity_readiness
+                .scarcity_candidate_outcome_coverage,
+                "f",
+            ),
+            "scarcity_selected_outcome_coverage": format(
+                t09_t18_scarcity_readiness
+                .scarcity_selected_outcome_coverage,
+                "f",
+            ),
+            "represented_lineages": list(
+                t09_t18_scarcity_readiness.represented_lineages
+            ),
+            "missing_policy_scarcity_epochs": (
+                t09_t18_scarcity_readiness.missing_policy_scarcity_epochs
+            ),
+            "t09_ready_for_utility_analysis": (
+                t09_t18_scarcity_readiness.t09_ready_for_utility_analysis
+            ),
+            "t18_ready_for_utility_analysis": (
+                t09_t18_scarcity_readiness.t18_ready_for_utility_analysis
+            ),
+            "fresh_oos_utility_demonstrated": (
+                t09_t18_scarcity_readiness.fresh_oos_utility_demonstrated
+            ),
+            "t09_blockers": list(
+                t09_t18_scarcity_readiness.t09_blockers
+            ),
+            "t18_blockers": list(
+                t09_t18_scarcity_readiness.t18_blockers
+            ),
+        },
         "t12_forward_regime_population": {
             "usable_forward_epochs": (
                 t12_regime_population.usable_forward_epochs

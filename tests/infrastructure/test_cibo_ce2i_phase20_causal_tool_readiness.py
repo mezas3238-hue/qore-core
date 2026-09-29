@@ -24,6 +24,9 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_readiness import (
 from qore.infrastructure.cibo_ce2i_phase20_t08_oos_ablation import (
     T08NettingOosAblationReport,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t09_t18_scarcity_readiness import (
+    Phase20T09T18ScarcityReadiness,
+)
 from qore.infrastructure.cibo_ce2i_phase20_t13_oos_readiness import (
     Phase20T13OosReadiness,
 )
@@ -438,4 +441,52 @@ def test_readiness_distinguishes_t13_oos_population_from_utility() -> None:
     assert t13.qualifying_epochs == 20
     assert t13.blockers == (
         "T13_OOS_POPULATION_READY_UTILITY_ANALYSIS_NOT_EXECUTED",
+    )
+
+
+
+def _scarcity_ready() -> Phase20T09T18ScarcityReadiness:
+    return Phase20T09T18ScarcityReadiness(
+        usable_forward_epochs=80,
+        exact_competition_epochs=32,
+        scarce_competition_epochs=32,
+        cross_trader_scarce_epochs=32,
+        scarcity_candidate_instances=64,
+        scarcity_candidate_outcomes=64,
+        scarcity_selected_instances=32,
+        scarcity_selected_outcomes=32,
+        scarcity_candidate_outcome_coverage=Decimal("1"),
+        scarcity_selected_outcome_coverage=Decimal("1"),
+        represented_lineages=("R38_EURUSD", "R43_GBPUSD"),
+        missing_policy_scarcity_epochs=0,
+        t09_folds=(),
+        t18_folds=(),
+        t09_ready_for_utility_analysis=True,
+        t18_ready_for_utility_analysis=True,
+        fresh_oos_utility_demonstrated=False,
+        t09_blockers=(),
+        t18_blockers=(),
+    )
+
+
+def test_competition_population_ready_does_not_self_promote_t09_t18() -> None:
+    report = assess_phase20_causal_tool_readiness(
+        evidence_book=VersionedPhase20ForwardEvidenceBook(generation=0),
+        qualification_readiness=_qualification(ready=True),
+        t09_t18_scarcity_readiness=_scarcity_ready(),
+    )
+
+    t09 = _row(report, "T09")
+    t18 = _row(report, "T18")
+    assert t09.state is Phase20ToolEvidenceState.COLLECTING_FORWARD
+    assert t18.state is Phase20ToolEvidenceState.COLLECTING_FORWARD
+    assert t09.forward_population_ready is False
+    assert t18.forward_population_ready is False
+    assert (
+        "T09_SCARCITY_POPULATION_READY_UTILITY_ANALYSIS_NOT_EXECUTED"
+        in t09.blockers
+    )
+    assert (
+        "T18_SCARCITY_POPULATION_READY_UTILITY_ANALYSIS_NOT_EXECUTED"
+        in t18.blockers
     )
