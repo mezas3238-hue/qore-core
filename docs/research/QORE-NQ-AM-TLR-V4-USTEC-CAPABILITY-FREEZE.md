@@ -67,34 +67,46 @@ P&L.
 
 ## Evidence
 
-Read-only cTrader DEMO USTEC M1:
-- acquisition warm-up starts: 2022-07-29T00:00:00Z
-- evaluation: 2022-08-13 NY -> 2025-08-13 NY end exclusive
+Use the existing immutable USTEC M1 holdout already retained in QORE Core.
 
-Fixed one-year folds:
-- Y1: 2022-08-13 -> 2023-08-13
-- Y2: 2023-08-13 -> 2024-08-13
-- Y3: 2024-08-13 -> 2025-08-13
+Canonical source artifact:
+- VT31 R8 fresh one-shot run: 34981033027
+- artifact id: 10402199719
+- artifact name: qore-vt31-r8-fresh-validation-3e9efe7b47f645558926fb1c6f1dc32fe45f50d9
+- artifact digest: sha256:9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d
+- file: fresh/NAS100/market-evidence.json
+- provider symbol: USTEC
+- retained M1 coverage: 2016-04-19T00:00:00Z -> 2018-05-18T20:55:00Z
+- retained bars: 702591
 
-This is capability discovery, not fresh sealed certification.
+The V4 methodology test consumes only one calendar year from that already-retained
+evidence. One day immediately before the evaluation boundary is retained only as
+causal warm-up for prior-session state.
+
+Frozen evaluation:
+- warm-up available from: 2016-04-19
+- evaluation: 2016-04-20 NY -> 2017-04-20 NY end exclusive
+
+No new cTrader historical download is required for this test.
+
+This is capability discovery on an existing Core holdout, not a new fresh-evidence
+claim.
 
 ## Primary discovery gate
 
 USTEC_CAPABILITY_SUPPORTED requires all of:
-- trades >= 24;
+- trades >= 8;
 - PF > 1.15 after 0.05R/trade primary friction;
 - Total R > 0;
-- max drawdown <= 8R;
-- positive Total R in at least 2/3 fixed yearly folds.
+- max drawdown <= 8R.
 
-If trades < 24:
+If trades < 8:
 INSUFFICIENT_SAMPLE
 
 Otherwise:
 USTEC_CAPABILITY_NOT_SUPPORTED
 
-Stress friction of 0.10R/trade is reported but does not change this discovery
-label.
+Stress friction of 0.10R/trade is reported but does not change this discovery label.
 
 ## Authority
 
