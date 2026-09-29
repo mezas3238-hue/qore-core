@@ -1,0 +1,156 @@
+name: QORE NQ Source Transcription
+
+on:
+  push:
+    branches:
+      - agent/nq-am-temporal-liquidity-reversal-v1-001
+    paths:
+      - '.github/workflows/qore-nq-am-source-transcription.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  transcribe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install transcription runtime
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install yt-dlp faster-whisper
+      - name: Download source audio
+        run: |
+          mkdir -p source-transcript
+          yt-dlp \
+            --no-playlist \
+            -f 'bestaudio/best' \
+            -o 'source-transcript/source.%(ext)s' \
+            'https://www.youtube.com/watch?v=UVVmS0de0g0'
+          ffmpeg -y -i source-transcript/source.* \
+            -vn -ar 16000 -ac 1 -c:a pcm_s16le \
+            source-transcript/source.wav
+      - name: Transcribe complete source with timestamps
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from faster_whisper import WhisperModel
+
+          root = Path("source-transcript")
+          model = WhisperModel(
+              "small.en",
+              device="cpu",
+              compute_type="int8",
+              cpu_threads=4,
+          )
+          prompt = (
+              "NQ Nasdaq futures trading review. ICT Inner Circle Trader. "
+              "RTH opening gap, settlement, consequent encroachment, daily wick, "
+              "sell-side liquidity, buy-side liquidity, relative equal highs, "
+              "quadrants, octants, standard deviation, fair value gap, "
+              "inversion fair value gap, IFVG, displacement, macro, "
+              "9:30 open, 10:50, 11:10, low of day."
+          )
+          segments, info = model.transcribe(
+              str(root / "source.wav"),
+              language="en",
+              beam_size=5,
+              best_of=5,
+              vad_filter=True,
+              word_timestamps=True,
+              initial_prompt=prompt,
+              condition_on_previous_text=True,
+          )
+
+          rows = []
+          for seg in segments:
+              words = []
+              for w in (seg.words or []):
+                  words.append({
+                      "start": w.start,
+                      "end": w.end,
+                      "word": w.word,
+                      "probability": w.probability,
+                  })
+              rows.append({
+                  "id": seg.id,
+                  "start": seg.start,
+                  "end": seg.end,
+                  "text": seg.text.strip(),
+                  "avg_logprob": seg.avg_logprob,
+                  "no_speech_prob": seg.no_speech_prob,
+                  "words": words,
+              })
+
+          def ts(seconds: float) -> str:
+              ms = int(round(seconds * 1000))
+              h, rem = divmod(ms, 3_600_000)
+              m, rem = divmod(rem, 60_000)
+              s, milli = divmod(rem, 1000)
+              return f"{h:02d}:{m:02d}:{s:02d},{milli:03d}"
+
+          srt = []
+          txt = []
+          stamped = []
+          for i, row in enumerate(rows, start=1):
+              srt.extend([
+                  str(i),
+                  f"{ts(row['start'])} --> {ts(row['end'])}",
+                  row["text"],
+                  "",
+              ])
+              txt.append(row["text"])
+              stamped.append(
+                  f"[{ts(row['start']).replace(',', '.')} - "
+                  f"{ts(row['end']).replace(',', '.')}] {row['text']}"
+              )
+
+          (root / "transcript.json").write_text(
+              json.dumps(
+                  {
+                      "language": info.language,
+                      "language_probability": info.language_probability,
+                      "duration": info.duration,
+                      "duration_after_vad": info.duration_after_vad,
+                      "segments": rows,
+                  },
+                  indent=2,
+                  ensure_ascii=False,
+              ) + "\n"
+          )
+          (root / "transcript.srt").write_text("\n".join(srt))
+          (root / "transcript.txt").write_text("\n".join(txt) + "\n")
+          (root / "transcript-timestamped.txt").write_text(
+              "\n".join(stamped) + "\n"
+          )
+          print(json.dumps({
+              "language": info.language,
+              "language_probability": info.language_probability,
+              "duration": info.duration,
+              "segments": len(rows),
+          }))
+          PY
+      - name: Bind provenance
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > source-transcript/git-sha.txt
+          sha256sum source-transcript/transcript.* \
+            source-transcript/transcript-timestamped.txt \
+            > source-transcript/SHA256SUMS.txt
+      - name: Upload source transcript
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-nq-source-transcript-${{ github.sha }}
+          path: |
+            source-transcript/transcript.json
+            source-transcript/transcript.srt
+            source-transcript/transcript.txt
+            source-transcript/transcript-timestamped.txt
+            source-transcript/git-sha.txt
+            source-transcript/SHA256SUMS.txt
+          retention-days: 7

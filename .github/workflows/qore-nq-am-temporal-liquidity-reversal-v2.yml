@@ -1,0 +1,208 @@
+name: QORE NQ AM Temporal Liquidity Reversal V2
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/nq-am-temporal-liquidity-reversal-v1-001
+    paths:
+      - '.github/workflows/qore-nq-am-temporal-liquidity-reversal-v2.yml'
+      - 'src/qore/infrastructure/trader_lab/nq_am_temporal_liquidity_reversal_v2.py'
+      - 'tests/infrastructure/trader_lab/test_nq_am_temporal_liquidity_reversal_v2.py'
+      - 'docs/research/QORE-NQ-AM-TLR-V2-PRE-HOLDOUT-FREEZE.md'
+
+concurrency:
+  group: qore-nq-am-tlr-v2-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev,ctrader]'
+      - name: Ruff focused gate
+        run: |
+          ruff check --ignore B009 \
+            src/qore/infrastructure/trader_lab/nq_am_temporal_liquidity_reversal_v2.py \
+            tests/infrastructure/trader_lab/test_nq_am_temporal_liquidity_reversal_v2.py
+      - name: Mypy focused gate
+        run: |
+          mypy src/qore/infrastructure/trader_lab/nq_am_temporal_liquidity_reversal_v2.py
+      - name: Focused source-fidelity tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_nq_am_temporal_liquidity_reversal_v2.py
+      - name: Governance and freeze assertions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          freeze = Path('docs/research/QORE-NQ-AM-TLR-V2-PRE-HOLDOUT-FREEZE.md').read_text()
+          module = Path(
+              'src/qore/infrastructure/trader_lab/nq_am_temporal_liquidity_reversal_v2.py'
+          ).read_text()
+
+          for flag in (
+              'DEMO_ELIGIBLE=false',
+              'LIVE_AUTHORIZED=false',
+              'REAL_CAPITAL_AUTHORIZED=false',
+              'PRODUCTION_AUTHORIZED=false',
+          ):
+              assert flag in freeze
+
+          assert '18:00 on D-1 -> 17:00 on D' in freeze
+          assert 'daily / electronic-hours low' in freeze
+          assert 'LOW_OF_DAY` is evaluation language only' in freeze
+          assert '2024-08-13 NY -> 2025-08-13 NY' in freeze
+          assert 'CONSUMED_1Y_METHODOLOGY_HOLDOUT_ACTIVE' in freeze
+          assert 'IDENTITY = "QORE_NQ_AM_TEMPORAL_LIQUIDITY_REVERSAL_V2"' in module
+          assert 'ETH_OPEN = time(18, 0)' in module
+          assert 'ETH_CLOSE = time(17, 0)' in module
+          assert 'tolerance = gap / Decimal(4)' in module
+          PY
+
+  consumed-development-replay:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install QORE cTrader runtime
+        run: python -m pip install -e '.[ctrader]'
+      - name: Verify DEMO read-only credential inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || { echo "missing required DEMO input: $name" >&2; exit 2; }
+          done
+      - name: Discover DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned an invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Collect consumed one-year NAS100/USTEC M1 development evidence
+        run: |
+          mkdir -p artifacts/dev
+          python -m qore.infrastructure.trader_lab.nq_am_temporal_liquidity_reversal_v2 \
+            collect-dev artifacts/dev/evidence.json \
+            | tee artifacts/dev/collection-summary.json
+      - name: Run frozen FULL V2 and explanatory ablations
+        run: |
+          python -m qore.infrastructure.trader_lab.nq_am_temporal_liquidity_reversal_v2 \
+            ablate artifacts/dev/evidence.json artifacts/dev/ablation
+      - name: Adjudicate consumed 1Y FULL V2 methodology holdout
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          p = Path('artifacts/dev/ablation/full/summary.json')
+          result = json.loads(p.read_text())
+          assert result['identity'] == 'QORE_NQ_AM_TEMPORAL_LIQUIDITY_REVERSAL_V2'
+          assert result['variant'] == 'FULL'
+          assert result['evidence_status'] == 'CONSUMED_DEVELOPMENT_ONLY'
+          assert result['demo_eligible'] is False
+          assert result['live_authorized'] is False
+          assert result['real_capital_authorized'] is False
+          assert result['production_authorized'] is False
+
+          trade_count = int(result['trade_count'])
+          total_r = Decimal(result['primary_total_r'])
+          pf = result['primary_pf']
+          pf_value = None if pf is None else Decimal(pf)
+
+          gate = {
+              'schema': 'qore.nq_am_tlr_v2.consumed_1y_methodology_adjudication.v1',
+              'identity': result['identity'],
+              'git_sha': '${{ github.sha }}',
+              'trade_count': trade_count,
+              'primary_total_r': str(total_r),
+              'primary_pf': None if pf_value is None else str(pf_value),
+              'requirements': {
+                  'trade_count_gte': 12,
+                  'primary_total_r_gt': '0',
+                  'primary_pf_gt': '1.0',
+              },
+              'pass': (
+                  trade_count >= 12
+                  and total_r > 0
+                  and pf_value is not None
+                  and pf_value > Decimal('1.0')
+              ),
+              'adjudication': (
+                  'METHODOLOGY_SUPPORTED_ON_CONSUMED_1Y'
+                  if (
+                      trade_count >= 12
+                      and total_r > 0
+                      and pf_value is not None
+                      and pf_value > Decimal('1.0')
+                  )
+                  else (
+                      'INSUFFICIENT_EXECUTABLE_SAMPLE'
+                      if trade_count < 12
+                      else 'METHODOLOGY_FALSIFIED_ON_CONSUMED_1Y'
+                  )
+              ),
+          }
+          Path('artifacts/dev/methodology-adjudication.json').write_text(
+              json.dumps(gate, indent=2, sort_keys=True) + '\n'
+          )
+          print(json.dumps(gate, indent=2, sort_keys=True))
+          PY
+      - name: Bind exact V2 candidate fingerprint
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/dev
+          printf '%s\n' "$GITHUB_SHA" > artifacts/dev/git-sha.txt
+          sha256sum \
+            src/qore/infrastructure/trader_lab/nq_am_temporal_liquidity_reversal_v2.py \
+            docs/research/QORE-NQ-AM-TLR-V2-PRE-HOLDOUT-FREEZE.md \
+            > artifacts/dev/candidate-input-sha256.txt
+          if [ -f artifacts/dev/evidence.json ]; then
+            sha256sum artifacts/dev/evidence.json > artifacts/dev/evidence-sha256.txt
+          fi
+          find artifacts/dev -type f ! -name SHA256SUMS.txt -print0 \
+            | sort -z \
+            | xargs -0 sha256sum > artifacts/dev/SHA256SUMS.txt
+      - name: Upload immutable V2 consumed-development evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-nq-am-tlr-v2-consumed-dev-${{ github.sha }}
+          path: artifacts/dev
+          if-no-files-found: error
+          retention-days: 90

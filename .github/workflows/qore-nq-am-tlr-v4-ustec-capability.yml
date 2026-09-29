@@ -1,0 +1,188 @@
+name: QORE NQ AM TLR V4 USTEC Capability
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/nq-am-temporal-liquidity-reversal-v1-001
+    paths:
+      - '.github/workflows/qore-nq-am-tlr-v4-ustec-capability.yml'
+      - 'src/qore/infrastructure/trader_lab/nq_am_tlr_v4_ustec_capability.py'
+      - 'tests/infrastructure/trader_lab/test_nq_am_tlr_v4_ustec_capability.py'
+      - 'docs/research/QORE-NQ-AM-TLR-V4-USTEC-CAPABILITY-FREEZE.md'
+
+concurrency:
+  group: qore-nq-am-tlr-v4-ustec-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_USTEC_SOURCE_RUN_ID: '34981033027'
+  QORE_USTEC_SOURCE_ARTIFACT_ID: '10402199719'
+  QORE_USTEC_SOURCE_ARTIFACT_DIGEST: 'sha256:9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d'
+  QORE_USTEC_NAS100_SHA256: '4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check --ignore B009 \
+            src/qore/infrastructure/trader_lab/nq_am_tlr_v4_ustec_capability.py \
+            tests/infrastructure/trader_lab/test_nq_am_tlr_v4_ustec_capability.py
+      - name: Mypy
+        run: |
+          mypy src/qore/infrastructure/trader_lab/nq_am_tlr_v4_ustec_capability.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_nq_am_tlr_v4_ustec_capability.py
+      - name: Freeze assertions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          freeze = Path(
+              'docs/research/QORE-NQ-AM-TLR-V4-USTEC-CAPABILITY-FREEZE.md'
+          ).read_text()
+          module = Path(
+              'src/qore/infrastructure/trader_lab/'
+              'nq_am_tlr_v4_ustec_capability.py'
+          ).read_text()
+
+          assert 'ROLLING_AM_LOW_M2' in freeze
+          assert 'Only ROLLING_AM_LOW_M2 adjudicates' in freeze
+          assert 'artifact id: 10402199719' in freeze
+          assert '2016-04-20 NY -> 2017-04-20 NY' in freeze
+          assert 'PRIMARY_VARIANT = "ROLLING_AM_LOW_M2"' in module
+          assert 'EVAL_OPEN_NY = date(2016, 4, 20)' in module
+          assert 'EVAL_CLOSE_NY = date(2017, 4, 20)' in module
+          assert 'USTEC_CAPABILITY_SUPPORTED' in module
+          for flag in (
+              'DEMO_ELIGIBLE=false',
+              'LIVE_AUTHORIZED=false',
+              'REAL_CAPITAL_AUTHORIZED=false',
+              'PRODUCTION_AUTHORIZED=false',
+          ):
+              assert flag in freeze
+          PY
+
+  ustec-capability:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install QORE research runtime
+        run: python -m pip install -e .
+      - name: Download immutable USTEC holdout already retained by Core
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-vt31-r8-fresh-validation-3e9efe7b47f645558926fb1c6f1dc32fe45f50d9
+          path: source
+          github-token: ${{ github.token }}
+          run-id: 34981033027
+      - name: Bind exact retained USTEC evidence file
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/v4
+          test -f source/fresh/NAS100/market-evidence.json
+          echo "$QORE_USTEC_NAS100_SHA256  source/fresh/NAS100/market-evidence.json" \
+            | sha256sum -c -
+          cp source/fresh/NAS100/market-evidence.json artifacts/v4/ustec-holdout.json
+      - name: Validate retained holdout identity and coverage before study
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(Path('artifacts/v4/ustec-holdout.json').read_text())
+          assert p['read_only'] is True
+          assert p['provider_symbol_name'] == 'USTEC'
+          assert p['decision_timeframe'] == 'M1'
+          assert p['coverage']['bar_count'] == 702591
+          assert p['coverage']['first_opened_at'].startswith('2016-04-19T00:00:00')
+          assert p['coverage']['last_closed_at'].startswith('2018-05-18T20:55:00')
+          assert p['software_sha'] == '3e9efe7b47f645558926fb1c6f1dc32fe45f50d9'
+          PY
+      - name: Run frozen one-year USTEC capability study
+        run: |
+          python -m qore.infrastructure.trader_lab.nq_am_tlr_v4_ustec_capability \
+            study artifacts/v4/ustec-holdout.json artifacts/v4/study \
+            | tee artifacts/v4/study-stdout.json
+      - name: Adjudicate primary only
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(Path('artifacts/v4/study/summary.json').read_text())
+          assert p['evaluation_open_ny'] == '2016-04-20'
+          assert p['evaluation_close_ny'] == '2017-04-20'
+          assert p['primary_variant'] == 'ROLLING_AM_LOW_M2'
+          assert p['diagnostic_selection_authority'] is False
+          assert p['source_artifact_id'] == 10402199719
+          assert p['source_run_id'] == 34981033027
+          assert p['demo_eligible'] is False
+          assert p['live_authorized'] is False
+          assert p['real_capital_authorized'] is False
+          assert p['production_authorized'] is False
+          result = {
+              'identity': p['identity'],
+              'evaluation_open_ny': p['evaluation_open_ny'],
+              'evaluation_close_ny': p['evaluation_close_ny'],
+              'primary_variant': p['primary_variant'],
+              'primary_adjudication': p['primary_adjudication'],
+              'primary_metrics': p['variants'][p['primary_variant']],
+          }
+          Path('artifacts/v4/adjudication.json').write_text(
+              json.dumps(result, indent=2, sort_keys=True) + '\n'
+          )
+          print(json.dumps(result, indent=2, sort_keys=True))
+          PY
+      - name: Bind immutable result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/v4
+          printf '%s\n' "$GITHUB_SHA" > artifacts/v4/git-sha.txt
+          printf '%s\n' "$QORE_USTEC_SOURCE_RUN_ID" > artifacts/v4/source-run-id.txt
+          printf '%s\n' "$QORE_USTEC_SOURCE_ARTIFACT_ID" > artifacts/v4/source-artifact-id.txt
+          printf '%s\n' "$QORE_USTEC_SOURCE_ARTIFACT_DIGEST" > artifacts/v4/source-artifact-digest.txt
+          printf '%s\n' "$QORE_USTEC_NAS100_SHA256" > artifacts/v4/source-nas100-sha256.txt
+          sha256sum \
+            src/qore/infrastructure/trader_lab/nq_am_tlr_v4_ustec_capability.py \
+            docs/research/QORE-NQ-AM-TLR-V4-USTEC-CAPABILITY-FREEZE.md \
+            > artifacts/v4/input-sha256.txt
+          if [ -f artifacts/v4/ustec-holdout.json ]; then
+            sha256sum artifacts/v4/ustec-holdout.json >> artifacts/v4/input-sha256.txt
+          fi
+          find artifacts/v4 -type f ! -name SHA256SUMS.txt -print0 \
+            | sort -z \
+            | xargs -0 sha256sum > artifacts/v4/SHA256SUMS.txt
+      - name: Upload one-year USTEC capability result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-nq-am-tlr-v4-ustec-1y-${{ github.sha }}
+          path: artifacts/v4
+          if-no-files-found: error
+          retention-days: 90

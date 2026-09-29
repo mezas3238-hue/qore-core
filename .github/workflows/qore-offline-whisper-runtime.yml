@@ -1,0 +1,47 @@
+name: QORE Offline Whisper Runtime
+
+on:
+  push:
+    branches:
+      - agent/nq-am-temporal-liquidity-reversal-v1-001
+    paths:
+      - '.github/workflows/qore-offline-whisper-runtime.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build whisper.cpp CPU runtime
+        run: |
+          git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git /tmp/whisper.cpp
+          cd /tmp/whisper.cpp
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DGGML_NATIVE=OFF \
+            -DGGML_AMX=OFF \
+            -DWHISPER_BUILD_TESTS=OFF \
+            -DWHISPER_BUILD_EXAMPLES=ON
+          cmake --build build -j2 --config Release
+          ./models/download-ggml-model.sh base.en
+          mkdir -p "$GITHUB_WORKSPACE/offline-whisper"
+          cp build/bin/whisper-cli "$GITHUB_WORKSPACE/offline-whisper/"
+          cp models/ggml-base.en.bin "$GITHUB_WORKSPACE/offline-whisper/"
+          "$GITHUB_WORKSPACE/offline-whisper/whisper-cli" --version \
+            > "$GITHUB_WORKSPACE/offline-whisper/version.txt"
+          sha256sum \
+            "$GITHUB_WORKSPACE/offline-whisper/whisper-cli" \
+            "$GITHUB_WORKSPACE/offline-whisper/ggml-base.en.bin" \
+            > "$GITHUB_WORKSPACE/offline-whisper/SHA256SUMS.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-offline-whisper-base-en-${{ github.sha }}
+          path: offline-whisper
+          compression-level: 0
+          retention-days: 1

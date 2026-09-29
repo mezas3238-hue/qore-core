@@ -1,0 +1,105 @@
+name: QORE NQ AM TLR V3 Exact NQ Acquisition
+
+on:
+  workflow_dispatch:
+    inputs:
+      contract_manifest_b64:
+        description: Base64-encoded provider-verified NQ contract manifest JSON
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_TRADESTATION_CLIENT_ID: ${{ secrets.QORE_TRADESTATION_CLIENT_ID }}
+  QORE_TRADESTATION_CLIENT_SECRET: ${{ secrets.QORE_TRADESTATION_CLIENT_SECRET }}
+  QORE_TRADESTATION_REFRESH_TOKEN: ${{ secrets.QORE_TRADESTATION_REFRESH_TOKEN }}
+  QORE_NQ_CONTRACT_MANIFEST_B64: ${{ inputs.contract_manifest_b64 }}
+
+jobs:
+  acquire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install QORE package
+        run: python -m pip install -e .
+      - name: Enforce read-only provider prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${QORE_TRADESTATION_CLIENT_ID:-}" || {
+            echo "missing QORE_TRADESTATION_CLIENT_ID" >&2
+            exit 2
+          }
+          test -n "${QORE_TRADESTATION_REFRESH_TOKEN:-}" || {
+            echo "missing QORE_TRADESTATION_REFRESH_TOKEN" >&2
+            exit 2
+          }
+          test -n "${QORE_NQ_CONTRACT_MANIFEST_B64:-}" || {
+            echo "missing contract manifest input" >&2
+            exit 2
+          }
+          mkdir -p artifacts/exact-nq
+          printf '%s' "$QORE_NQ_CONTRACT_MANIFEST_B64"             | base64 --decode > artifacts/exact-nq/contract-manifest.json
+      - name: Validate manifest before network acquisition
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from qore.infrastructure.trader_lab.nq_am_tlr_v3_tradestation_nq_evidence import (
+              contract_manifest_sha256,
+              parse_contract_manifest,
+          )
+
+          path = Path('artifacts/exact-nq/contract-manifest.json')
+          manifest = parse_contract_manifest(path.read_text())
+          print({
+              'root': manifest.root,
+              'contracts': [item.symbol for item in manifest.slices],
+              'opened_at': manifest.opened_at.isoformat(),
+              'closed_at': manifest.closed_at.isoformat(),
+              'manifest_sha256': contract_manifest_sha256(manifest),
+          })
+          PY
+      - name: Acquire exact NQ futures M1 evidence
+        run: |
+          python -m qore.infrastructure.trader_lab.nq_am_tlr_v3_tradestation_nq_evidence             artifacts/exact-nq/contract-manifest.json             artifacts/exact-nq/evidence.json             | tee artifacts/exact-nq/acquisition-summary.json
+      - name: Enforce exact-NQ evidence authority boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path('artifacts/exact-nq/evidence.json').read_text())
+          assert payload['identity'] == 'QORE_NQ_AM_TLR_V3_EXACT_NQ_EVIDENCE_V1'
+          assert payload['provider'] == 'tradestation-api-v3'
+          assert payload['source_instrument'] == 'NQ_FUTURES'
+          assert payload['resolution'] == 'M1'
+          assert payload['read_only'] is True
+          assert payload['brokerage_endpoint_used'] is False
+          assert payload['order_endpoint_used'] is False
+          assert payload['demo_eligible'] is False
+          assert payload['live_authorized'] is False
+          assert payload['real_capital_authorized'] is False
+          assert payload['production_authorized'] is False
+          assert int(payload['bar_count']) > 0
+          PY
+      - name: Bind immutable provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > artifacts/exact-nq/git-sha.txt
+          sha256sum             artifacts/exact-nq/contract-manifest.json             artifacts/exact-nq/evidence.json             artifacts/exact-nq/git-sha.txt             > artifacts/exact-nq/SHA256SUMS.txt
+      - name: Upload exact-NQ evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-nq-am-tlr-v3-exact-nq-${{ github.sha }}
+          path: artifacts/exact-nq
+          if-no-files-found: error
+          retention-days: 90
