@@ -26,6 +26,11 @@ from qore.infrastructure.cibo_profit_preservation_population import (
     Genc7PopulationStatus,
     describe_genc7_fresh_population,
 )
+from qore.infrastructure.cibo_profit_preservation_oos_binding import (
+    Genc7OosBindingStatus,
+    Genc7OutcomeEvidence,
+    bind_genc7_to_observed_paths,
+)
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
 T0 = datetime(2026, 9, 29, 23, 35, tzinfo=UTC)
@@ -342,3 +347,136 @@ def test_genc7_empty_population_fails_closed_descriptively() -> None:
     assert population.economic_utility_ready is False
     assert population.certification_ready is False
     assert population.blockers == ("NO_GENC7_DECISIONS",)
+
+
+def _oos_book(tmp_path):
+    decision = evaluate_genc7_profit_preservation_shadow(
+        state=_state(),
+        proposal=_proposal(),
+        decision_id="genc7-oos-decision",
+    )
+    store = DurableGenc7ProfitPreservationShadowStore(
+        tmp_path / "genc7-oos.json"
+    )
+    return store.seal(
+        decision,
+        sealed_at=T0 + timedelta(seconds=1),
+        expected_generation=0,
+    )
+
+
+def _outcome_for_book(book, **changes):
+    seal = book.seal_for_decision("genc7-oos-decision")
+    assert seal is not None
+    values = dict(
+        outcome_id="genc7-outcome-001",
+        decision_sha256=seal.decision_sha256,
+        account_provider_key=seal.account_provider_key,
+        account_ref=seal.account_ref,
+        window_end_at=T0 + timedelta(minutes=60),
+        observed_at=T0 + timedelta(minutes=61),
+        ending_realized_capital_usd=Decimal("95"),
+        ending_realized_profit_usd=Decimal("34"),
+        ending_protected_floor_usd=Decimal("20"),
+        ending_base_capital_usd=Decimal("59"),
+        ending_compound_capital_usd=Decimal("25"),
+        source_settlement_sha256="sha256:" + "c" * 64,
+        source_t20_release_sha256="sha256:" + "d" * 64,
+        path_evidence_sha256="sha256:" + "e" * 64,
+        path_complete=True,
+        settlement_coverage_complete=True,
+        release_coverage_complete=True,
+    )
+    values.update(changes)
+    return Genc7OutcomeEvidence(**values)
+
+
+def test_genc7_oos_binds_exact_preregistered_horizon_without_claiming_effect(
+    tmp_path,
+) -> None:
+    book = _oos_book(tmp_path)
+    outcome = _outcome_for_book(book)
+
+    report = bind_genc7_to_observed_paths(
+        book=book,
+        outcomes=(outcome,),
+    )
+
+    assert report.status is Genc7OosBindingStatus.COMPLETE
+    assert report.decision_count == 1
+    assert report.bound_count == 1
+    assert report.failures == ()
+    assert report.missing_decision_ids == ()
+    row = report.rows[0]
+    assert row.realized_capital_delta_usd == Decimal("3")
+    assert row.realized_profit_delta_usd == Decimal("2")
+    assert row.protected_floor_delta_usd == Decimal("2")
+    assert row.base_capital_delta_usd == Decimal("1")
+    assert row.compound_capital_delta_usd == Decimal("1")
+    assert row.treatment_effect_identified is False
+    assert row.counterfactual_treatment_pnl_computed is False
+    assert row.economic_utility_claimed is False
+    assert report.economic_utility_ready is False
+    assert report.certification_ready is False
+
+
+def test_genc7_oos_missing_outcome_stays_partial(tmp_path) -> None:
+    book = _oos_book(tmp_path)
+
+    report = bind_genc7_to_observed_paths(book=book, outcomes=())
+
+    assert report.status is Genc7OosBindingStatus.PARTIAL
+    assert report.bound_count == 0
+    assert report.missing_decision_ids == ("genc7-oos-decision",)
+    assert report.economic_utility_ready is False
+
+
+def test_genc7_oos_wrong_horizon_is_invalid(tmp_path) -> None:
+    book = _oos_book(tmp_path)
+    outcome = _outcome_for_book(
+        book,
+        window_end_at=T0 + timedelta(minutes=59),
+    )
+
+    report = bind_genc7_to_observed_paths(
+        book=book,
+        outcomes=(outcome,),
+    )
+
+    assert report.status is Genc7OosBindingStatus.INVALID
+    assert report.bound_count == 0
+    assert report.failures == (
+        "OUTCOME_HORIZON_BINDING_DRIFT:genc7-oos-decision",
+    )
+
+
+def test_genc7_oos_incomplete_release_coverage_is_invalid(tmp_path) -> None:
+    book = _oos_book(tmp_path)
+    outcome = _outcome_for_book(
+        book,
+        release_coverage_complete=False,
+    )
+
+    report = bind_genc7_to_observed_paths(
+        book=book,
+        outcomes=(outcome,),
+    )
+
+    assert report.status is Genc7OosBindingStatus.INVALID
+    assert report.release_complete_count == 0
+    assert report.failures == (
+        "OUTCOME_COVERAGE_INCOMPLETE:genc7-oos-decision",
+    )
+
+
+def test_genc7_oos_refuses_counterfactual_effect_claim(tmp_path) -> None:
+    book = _oos_book(tmp_path)
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="cannot invent treatment effect",
+    ):
+        _outcome_for_book(
+            book,
+            treatment_effect_identified=True,
+        )
