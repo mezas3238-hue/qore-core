@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from zoneinfo import ZoneInfo
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from qore.infrastructure.trader_lab import (
     capitalizer_native_source_fact_remediation_v46 as remediation,
@@ -118,7 +118,7 @@ class CapitalizerHistoricalEvidenceStamp:
 
 def resolve_historical_asian_open_reference(
     observed_at: datetime,
-) -> "CapitalizerHistoricalAsianOpenReferenceEvidence":
+) -> CapitalizerHistoricalAsianOpenReferenceEvidence:
     """Resolve the source-stated 7/8 PM NY Asian Open to 00:00 UTC.
 
     ICT's primary Asian Killzone lesson states that the Asian Open moves
