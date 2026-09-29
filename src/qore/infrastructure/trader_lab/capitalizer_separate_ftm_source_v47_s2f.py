@@ -13,11 +13,11 @@ Frozen by PR #623 comment 5900576271.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-from datetime import date, datetime, timedelta
-from decimal import Decimal
 import argparse
 import json
+from dataclasses import asdict, dataclass
+from datetime import date, datetime
+from decimal import Decimal
 from pathlib import Path
 
 from qore.infrastructure.ctrader_open_api_client import SpotwareCTraderOpenApiClient
@@ -57,9 +57,6 @@ from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
     CapitalizerCognitiveGateDecision,
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
-from qore.infrastructure.trader_lab.capitalizer_full_ict_density_scanner_1y_v1 import (
-    AggregatedBar,
-)
 from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
     CapitalizerFailureToManipulateObservation,
     CapitalizerLiquiditySideTaken,
