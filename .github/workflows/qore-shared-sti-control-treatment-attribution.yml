@@ -1,0 +1,125 @@
+name: QORE Shared STI Control Treatment Attribution
+
+concurrency:
+  group: qore-shared-sti-control-treatment-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_trader_value_attribution.py
+      - tests/infrastructure/test_core_stack_v2_shared_trader_value_attribution.py
+      - docs/shared/QORE_SHARED_STI_CONTROL_TREATMENT_ATTRIBUTION_CONTRACT_001.md
+      - .github/workflows/qore-shared-sti-control-treatment-attribution.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate attribution contracts
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/shared_trader_value_attribution.py \
+            tests/infrastructure/test_core_stack_v2_shared_trader_value_attribution.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/shared_trader_value_attribution.py
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_shared_trader_value_attribution.py \
+            --junitxml=result/junit.xml
+
+      - name: Seal attribution contract evidence
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          root=ET.parse("result/junit.xml").getroot()
+          suites=(root,) if root.tag == "testsuite" else tuple(root.findall("testsuite"))
+          tests=sum(int(item.attrib.get("tests", "0")) for item in suites)
+          failures=sum(int(item.attrib.get("failures", "0")) for item in suites)
+          errors=sum(int(item.attrib.get("errors", "0")) for item in suites)
+          if tests <= 0:
+              raise SystemExit("STI attribution refuses zero-test evidence")
+          if failures + errors:
+              raise SystemExit("STI attribution refuses failing evidence")
+
+          pack={
+              "identity":"QORE_SHARED_STI_CONTROL_TREATMENT_CONTRACT_EVIDENCE_001",
+              "head":os.environ["GITHUB_SHA"],
+              "run_id":int(os.environ["GITHUB_RUN_ID"]),
+              "test_count":tests,
+              "failure_count":failures+errors,
+              "same_opportunity_universe_required":True,
+              "control_can_consume_proactive_shared":False,
+              "decision_can_contain_future_outcome":False,
+              "behavior_difference_equals_economic_value":False,
+              "identical_behavior_grants_shared_value_credit":False,
+              "protected_holdout_opened":False,
+              "productive_behavior_authority":False,
+          }
+          Path("result/sti-control-treatment-evidence.json").write_text(
+              json.dumps(pack,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-sti-control-treatment-${{ github.sha }}
+          path: result
+          retention-days: 90
+
+      - name: Report attribution contract status
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence=json.loads(
+              Path("result/sti-control-treatment-evidence.json").read_text()
+          )
+          body="\n".join([
+              "## Shared STI — Control/Treatment Attribution Contract",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- tests: **{evidence['test_count']}** / failures: **{evidence['failure_count']}**",
+              "- same opportunity universe required: **True**",
+              "- future outcome in decision record: **Forbidden**",
+              "- behavioral difference == economic value: **False**",
+              "- identical behavior grants Shared value credit: **False**",
+              "- protected Shared holdout opened: **False**",
+              "- productive behavior authority: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
