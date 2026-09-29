@@ -74,6 +74,16 @@ from qore.infrastructure.cibo_ce2i_phase20_mpc import (
 from qore.infrastructure.cibo_ce2i_phase20_shadow_observer import (
     Phase20ForwardShadowObservation,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t13_runtime_shadow import (
+    Phase20T13RuntimeShadowSeal,
+    seal_phase20_t13_runtime_shadow,
+)
+from qore.infrastructure.cibo_ce2i_phase20_t13_shadow_store import (
+    DurableT13ShadowDecisionStore,
+)
+from qore.infrastructure.cibo_ce2i_phase20_t13_shadow_treatment_store import (
+    DurableT13ShadowTreatmentStore,
+)
 from qore.infrastructure.cibo_ce2i_regime_selector import (
     CiboCapitalRegimeState,
     CorrelationState,
@@ -178,6 +188,7 @@ class Phase20DemoSingleSlotObservation:
     observation: Phase20ForwardShadowObservation
     regime_policy_id: str
     regime_policy_sha256: str
+    t13_shadow: Phase20T13RuntimeShadowSeal | None = None
     broker_mutation_performed: bool = False
     execution_authority: bool = False
 
@@ -190,6 +201,21 @@ class Phase20DemoSingleSlotObservation:
             raise CiboCapitalManagementError(
                 "Phase20D single-slot finalized regime policy drift"
             )
+        if self.t13_shadow is not None:
+            if not isinstance(
+                self.t13_shadow,
+                Phase20T13RuntimeShadowSeal,
+            ):
+                raise CiboCapitalManagementError(
+                    "Phase20D single-slot T13 shadow must be canonical"
+                )
+            if (
+                self.t13_shadow.decision_evidence_sha256
+                != self.observation.collected.result.decision_record.evidence_sha256
+            ):
+                raise CiboCapitalManagementError(
+                    "Phase20D single-slot T13 evidence binding drift"
+                )
         if self.broker_mutation_performed or self.execution_authority:
             raise CiboCapitalManagementError(
                 "Phase20D single-slot finalized observer cannot mutate execution"
@@ -483,6 +509,8 @@ def finalize_ctrader_demo_single_slot_phase20_policy(
     prepared: Phase20DemoSingleSlotPrepared,
     evidence_store: DurablePhase20ForwardEvidenceStore,
     policy_store: DurablePhase20ForwardPolicyStore,
+    t13_recommendation_store: DurableT13ShadowDecisionStore | None = None,
+    t13_treatment_store: DurableT13ShadowTreatmentStore | None = None,
 ) -> Phase20DemoSingleSlotObservation:
     """Persist a precomputed single-slot policy record without rereading outcomes."""
 
@@ -490,12 +518,31 @@ def finalize_ctrader_demo_single_slot_phase20_policy(
         raise CiboCapitalManagementError(
             "Phase20D single-slot finalization requires prepared evidence"
         )
+    if (t13_recommendation_store is None) != (
+        t13_treatment_store is None
+    ):
+        raise CiboCapitalManagementError(
+            "Phase20D T13 runtime stores must be provided together"
+        )
     current = policy_store.load()
     policy_book = policy_store.seal_policy_decision(
         prepared.result.decision_record,
         evidence_store=evidence_store,
         expected_generation=current.generation,
     )
+    t13_shadow = None
+    if (
+        t13_recommendation_store is not None
+        and t13_treatment_store is not None
+    ):
+        t13_shadow = seal_phase20_t13_runtime_shadow(
+            evidence=prepared.result.evidence,
+            decision_record=prepared.result.decision_record,
+            evidence_book=evidence_store.load(),
+            policy_book=policy_book,
+            recommendation_store=t13_recommendation_store,
+            treatment_store=t13_treatment_store,
+        )
     collected = Phase20ForwardCollectedEpoch(
         evidence_generation=prepared.result.sealed_generation,
         policy_generation=policy_book.generation,
@@ -505,6 +552,7 @@ def finalize_ctrader_demo_single_slot_phase20_policy(
         observation=Phase20ForwardShadowObservation(collected=collected),
         regime_policy_id=prepared.regime_policy_id,
         regime_policy_sha256=prepared.regime_policy_sha256,
+        t13_shadow=t13_shadow,
     )
 
 
