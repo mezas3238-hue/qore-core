@@ -1,14 +1,14 @@
-"""Authoritative T20 capital release / returned-capacity provenance.
+"""Authoritative T20 risk/margin-capacity release provenance.
 
-This module seals the complete capital lifecycle required by CIBO T20:
+T20 releases capacity, not economic principal. This module seals:
 
-CIBO requested
--> QORE Risk authorized/reduced
--> Execution realized
--> capital deployed
+CIBO requested stop-risk/margin capacity
+-> QORE Risk authorized/reduced capacity
+-> Execution realized capacity
+-> capacity occupied
 -> partial releases
 -> terminal release
--> returned capacity reconciled
+-> risk and margin capacity fully reconciled
 
 It is evidence only. It grants no sizing, Risk, Execution, DEMO, LIVE or
 production authority.
@@ -31,7 +31,7 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
 from qore.infrastructure.cibo_cma_settlement_ledger import CmaSettlementState
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
 
-_SCHEMA = "CIBO_T20_CAPITAL_RELEASE_EVIDENCE_BOOK_V1"
+_SCHEMA = "CIBO_T20_CAPITAL_RELEASE_EVIDENCE_BOOK_V2"
 
 
 def _aware(value: datetime, name: str) -> None:
@@ -81,25 +81,25 @@ def _sha(value: str, name: str) -> None:
 
 @dataclass(frozen=True, slots=True)
 class T20CapitalAuthorizationEvidence:
-    """Pre-release identity of requested, authorized and realized capital."""
+    """Pre-release identity of requested, authorized and realized capacity."""
 
     evidence_id: str
     decision_evidence_sha256: str
     signal_fingerprint: str
     position_id: int
     requested_at: datetime
-    requested_capital_usd: Decimal
+    requested_margin_usd: Decimal
     requested_stop_risk_usd: Decimal
     risk_decision_id: str
     risk_disposition: str
     risk_authorized_at: datetime
-    risk_authorized_capital_usd: Decimal
+    risk_authorized_margin_usd: Decimal
     risk_authorized_stop_risk_usd: Decimal
     execution_evidence_id: str
     execution_realized_at: datetime
-    execution_realized_capital_usd: Decimal
+    execution_realized_margin_usd: Decimal
     execution_realized_stop_risk_usd: Decimal
-    capital_deployed_at: datetime
+    capacity_deployed_at: datetime
     source_refs: tuple[str, ...]
     outcome_present: bool = False
     productive_authority: bool = False
@@ -127,7 +127,7 @@ class T20CapitalAuthorizationEvidence:
             "requested_at",
             "risk_authorized_at",
             "execution_realized_at",
-            "capital_deployed_at",
+            "capacity_deployed_at",
         ):
             _aware(getattr(self, name), name)
         if self.risk_authorized_at < self.requested_at:
@@ -138,16 +138,16 @@ class T20CapitalAuthorizationEvidence:
             raise CiboCompoundCapitalError(
                 "T20 execution realization cannot predate Risk authorization"
             )
-        if self.capital_deployed_at > self.execution_realized_at:
+        if self.capacity_deployed_at > self.execution_realized_at:
             raise CiboCompoundCapitalError(
-                "T20 capital deployment cannot postdate execution realization"
+                "T20 capacity deployment cannot postdate execution realization"
             )
         for name in (
-            "requested_capital_usd",
+            "requested_margin_usd",
             "requested_stop_risk_usd",
-            "risk_authorized_capital_usd",
+            "risk_authorized_margin_usd",
             "risk_authorized_stop_risk_usd",
-            "execution_realized_capital_usd",
+            "execution_realized_margin_usd",
             "execution_realized_stop_risk_usd",
         ):
             _positive(getattr(self, name), name)
@@ -155,20 +155,20 @@ class T20CapitalAuthorizationEvidence:
             raise CiboCompoundCapitalError(
                 "T20 Risk disposition must be ALLOW or REDUCE"
             )
-        if self.risk_authorized_capital_usd > self.requested_capital_usd:
+        if self.risk_authorized_margin_usd > self.requested_margin_usd:
             raise CiboCompoundCapitalError(
-                "T20 Risk cannot authorize more capital than CIBO requested"
+                "T20 Risk cannot authorize more margin capacity than CIBO requested"
             )
         if self.risk_authorized_stop_risk_usd > self.requested_stop_risk_usd:
             raise CiboCompoundCapitalError(
                 "T20 Risk cannot authorize more stop risk than requested"
             )
         if (
-            self.execution_realized_capital_usd
-            > self.risk_authorized_capital_usd
+            self.execution_realized_margin_usd
+            > self.risk_authorized_margin_usd
         ):
             raise CiboCompoundCapitalError(
-                "T20 Execution cannot realize more capital than Risk authorized"
+                "T20 Execution cannot realize more margin capacity than Risk authorized"
             )
         if (
             self.execution_realized_stop_risk_usd
@@ -198,15 +198,15 @@ class T20CapitalAuthorizationEvidence:
             "requested_at",
             "risk_authorized_at",
             "execution_realized_at",
-            "capital_deployed_at",
+            "capacity_deployed_at",
         ):
             payload[name] = getattr(self, name).isoformat()
         for name in (
-            "requested_capital_usd",
+            "requested_margin_usd",
             "requested_stop_risk_usd",
-            "risk_authorized_capital_usd",
+            "risk_authorized_margin_usd",
             "risk_authorized_stop_risk_usd",
-            "execution_realized_capital_usd",
+            "execution_realized_margin_usd",
             "execution_realized_stop_risk_usd",
         ):
             payload[name] = str(getattr(self, name))
@@ -221,7 +221,8 @@ class T20CapitalReleaseSlice:
 
     settlement_deal_id: int
     released_at: datetime
-    returned_capacity_usd: Decimal
+    released_stop_risk_capacity_usd: Decimal
+    released_margin_capacity_usd: Decimal
     source_ref: str
     terminal: bool = False
 
@@ -235,7 +236,14 @@ class T20CapitalReleaseSlice:
                 "T20 release settlement_deal_id must be positive int"
             )
         _aware(self.released_at, "release released_at")
-        _positive(self.returned_capacity_usd, "returned_capacity_usd")
+        _positive(
+            self.released_stop_risk_capacity_usd,
+            "released_stop_risk_capacity_usd",
+        )
+        _positive(
+            self.released_margin_capacity_usd,
+            "released_margin_capacity_usd",
+        )
         if not self.source_ref:
             raise CiboCompoundCapitalError(
                 "T20 release source_ref is required"
@@ -248,14 +256,15 @@ class T20CapitalReleaseSlice:
 
 @dataclass(frozen=True, slots=True)
 class T20CapitalReleaseEvidence:
-    """Reconciled lifecycle proving when capital actually became reusable."""
+    """Reconciled lifecycle proving when risk/margin capacity became reusable."""
 
     evidence_id: str
     authorization: T20CapitalAuthorizationEvidence
     source_outcome_evidence_id: str
     settlement_deal_ids: tuple[int, ...]
     releases: tuple[T20CapitalReleaseSlice, ...]
-    total_returned_capacity_usd: Decimal
+    total_released_stop_risk_capacity_usd: Decimal
+    total_released_margin_capacity_usd: Decimal
     terminal_release_at: datetime
     release_latency_minutes: Decimal
     terminal_settlement_pnl_usd: Decimal
@@ -301,28 +310,56 @@ class T20CapitalReleaseEvidence:
             raise CiboCompoundCapitalError(
                 "T20 requires exactly one final terminal release"
             )
-        previous = self.authorization.capital_deployed_at
+        previous = self.authorization.capacity_deployed_at
         for item in self.releases:
             if item.released_at <= previous:
                 raise CiboCompoundCapitalError(
                     "T20 releases must be strictly chronological after deployment"
                 )
             previous = item.released_at
-        _positive(self.total_returned_capacity_usd, "total_returned_capacity_usd")
-        expected_returned = sum(
-            (item.returned_capacity_usd for item in self.releases),
+        _positive(
+            self.total_released_stop_risk_capacity_usd,
+            "total_released_stop_risk_capacity_usd",
+        )
+        _positive(
+            self.total_released_margin_capacity_usd,
+            "total_released_margin_capacity_usd",
+        )
+        expected_stop_risk_release = sum(
+            (
+                item.released_stop_risk_capacity_usd
+                for item in self.releases
+            ),
             Decimal("0"),
         )
-        if expected_returned != self.total_returned_capacity_usd:
-            raise CiboCompoundCapitalError(
-                "T20 returned capacity does not reconcile to release slices"
-            )
+        expected_margin_release = sum(
+            (item.released_margin_capacity_usd for item in self.releases),
+            Decimal("0"),
+        )
         if (
-            self.total_returned_capacity_usd
-            != self.authorization.execution_realized_capital_usd
+            expected_stop_risk_release
+            != self.total_released_stop_risk_capacity_usd
         ):
             raise CiboCompoundCapitalError(
-                "T20 terminal release must return all realized deployed capacity"
+                "T20 stop-risk capacity does not reconcile to release slices"
+            )
+        if expected_margin_release != self.total_released_margin_capacity_usd:
+            raise CiboCompoundCapitalError(
+                "T20 margin capacity does not reconcile to release slices"
+            )
+        if (
+            self.total_released_stop_risk_capacity_usd
+            != self.authorization.execution_realized_stop_risk_usd
+        ):
+            raise CiboCompoundCapitalError(
+                "T20 terminal release must restore all realized stop-risk capacity"
+            )
+        if (
+            self.total_released_margin_capacity_usd
+            != self.authorization.execution_realized_margin_usd
+        ):
+            raise CiboCompoundCapitalError(
+                "T20 terminal release must restore all realized margin capacity"
             )
         _aware(self.terminal_release_at, "terminal_release_at")
         if self.terminal_release_at != self.releases[-1].released_at:
@@ -334,7 +371,7 @@ class T20CapitalReleaseEvidence:
             str(
                 (
                     self.terminal_release_at
-                    - self.authorization.capital_deployed_at
+                    - self.authorization.capacity_deployed_at
                 ).total_seconds()
             )
         ) / Decimal("60")
@@ -387,14 +424,22 @@ class T20CapitalReleaseEvidence:
                 {
                     "settlement_deal_id": item.settlement_deal_id,
                     "released_at": item.released_at.isoformat(),
-                    "returned_capacity_usd": str(item.returned_capacity_usd),
+                    "released_stop_risk_capacity_usd": str(
+                        item.released_stop_risk_capacity_usd
+                    ),
+                    "released_margin_capacity_usd": str(
+                        item.released_margin_capacity_usd
+                    ),
                     "source_ref": item.source_ref,
                     "terminal": item.terminal,
                 }
                 for item in self.releases
             ],
-            "total_returned_capacity_usd": str(
-                self.total_returned_capacity_usd
+            "total_released_stop_risk_capacity_usd": str(
+                self.total_released_stop_risk_capacity_usd
+            ),
+            "total_released_margin_capacity_usd": str(
+                self.total_released_margin_capacity_usd
             ),
             "terminal_release_at": self.terminal_release_at.isoformat(),
             "release_latency_minutes": str(self.release_latency_minutes),
@@ -486,8 +531,8 @@ def build_t20_capital_release_evidence(
             "T20 settlement PnL binding drift"
         )
     if (
-        outcome.capital_deployed_at is not None
-        and outcome.capital_deployed_at != authorization.capital_deployed_at
+        outcome.capacity_deployed_at is not None
+        and outcome.capacity_deployed_at != authorization.capacity_deployed_at
     ):
         raise CiboCompoundCapitalError(
             "T20 deployment timestamp binding drift"
@@ -497,8 +542,12 @@ def build_t20_capital_release_evidence(
             "T20 builder refuses terminal-close-only release inference"
         )
 
-    total_returned = sum(
-        (item.returned_capacity_usd for item in releases),
+    total_released_stop_risk = sum(
+        (item.released_stop_risk_capacity_usd for item in releases),
+        Decimal("0"),
+    )
+    total_released_margin = sum(
+        (item.released_margin_capacity_usd for item in releases),
         Decimal("0"),
     )
     terminal_release_at = releases[-1].released_at
@@ -506,7 +555,7 @@ def build_t20_capital_release_evidence(
         str(
             (
                 terminal_release_at
-                - authorization.capital_deployed_at
+                - authorization.capacity_deployed_at
             ).total_seconds()
         )
     ) / Decimal("60")
@@ -528,7 +577,8 @@ def build_t20_capital_release_evidence(
         source_outcome_evidence_id=outcome.evidence_id,
         settlement_deal_ids=settlement_ids,
         releases=releases,
-        total_returned_capacity_usd=total_returned,
+        total_released_stop_risk_capacity_usd=total_released_stop_risk,
+        total_released_margin_capacity_usd=total_released_margin,
         terminal_release_at=terminal_release_at,
         release_latency_minutes=latency,
         terminal_settlement_pnl_usd=settlement.realized_net_pnl_usd,
@@ -806,14 +856,22 @@ def _seal_to_json(seal: T20CapitalReleaseSeal) -> dict[str, object]:
                 {
                     "settlement_deal_id": item.settlement_deal_id,
                     "released_at": item.released_at.isoformat(),
-                    "returned_capacity_usd": str(item.returned_capacity_usd),
+                    "released_stop_risk_capacity_usd": str(
+                        item.released_stop_risk_capacity_usd
+                    ),
+                    "released_margin_capacity_usd": str(
+                        item.released_margin_capacity_usd
+                    ),
                     "source_ref": item.source_ref,
                     "terminal": item.terminal,
                 }
                 for item in evidence.releases
             ],
-            "total_returned_capacity_usd": str(
-                evidence.total_returned_capacity_usd
+            "total_released_stop_risk_capacity_usd": str(
+                evidence.total_released_stop_risk_capacity_usd
+            ),
+            "total_released_margin_capacity_usd": str(
+                evidence.total_released_margin_capacity_usd
             ),
             "terminal_release_at": evidence.terminal_release_at.isoformat(),
             "release_latency_minutes": str(evidence.release_latency_minutes),
@@ -837,8 +895,8 @@ def _seal_to_json(seal: T20CapitalReleaseSeal) -> dict[str, object]:
                 "signal_fingerprint": authorization.signal_fingerprint,
                 "position_id": authorization.position_id,
                 "requested_at": authorization.requested_at.isoformat(),
-                "requested_capital_usd": str(
-                    authorization.requested_capital_usd
+                "requested_margin_usd": str(
+                    authorization.requested_margin_usd
                 ),
                 "requested_stop_risk_usd": str(
                     authorization.requested_stop_risk_usd
@@ -848,8 +906,8 @@ def _seal_to_json(seal: T20CapitalReleaseSeal) -> dict[str, object]:
                 "risk_authorized_at": (
                     authorization.risk_authorized_at.isoformat()
                 ),
-                "risk_authorized_capital_usd": str(
-                    authorization.risk_authorized_capital_usd
+                "risk_authorized_margin_usd": str(
+                    authorization.risk_authorized_margin_usd
                 ),
                 "risk_authorized_stop_risk_usd": str(
                     authorization.risk_authorized_stop_risk_usd
@@ -858,14 +916,14 @@ def _seal_to_json(seal: T20CapitalReleaseSeal) -> dict[str, object]:
                 "execution_realized_at": (
                     authorization.execution_realized_at.isoformat()
                 ),
-                "execution_realized_capital_usd": str(
-                    authorization.execution_realized_capital_usd
+                "execution_realized_margin_usd": str(
+                    authorization.execution_realized_margin_usd
                 ),
                 "execution_realized_stop_risk_usd": str(
                     authorization.execution_realized_stop_risk_usd
                 ),
-                "capital_deployed_at": (
-                    authorization.capital_deployed_at.isoformat()
+                "capacity_deployed_at": (
+                    authorization.capacity_deployed_at.isoformat()
                 ),
                 "source_refs": list(authorization.source_refs),
                 "outcome_present": authorization.outcome_present,
@@ -896,8 +954,8 @@ def _seal_from_json(value: object) -> T20CapitalReleaseSeal:
         signal_fingerprint=str(auth_raw["signal_fingerprint"]),
         position_id=int(auth_raw["position_id"]),
         requested_at=datetime.fromisoformat(str(auth_raw["requested_at"])),
-        requested_capital_usd=Decimal(
-            str(auth_raw["requested_capital_usd"])
+        requested_margin_usd=Decimal(
+            str(auth_raw["requested_margin_usd"])
         ),
         requested_stop_risk_usd=Decimal(
             str(auth_raw["requested_stop_risk_usd"])
@@ -907,8 +965,8 @@ def _seal_from_json(value: object) -> T20CapitalReleaseSeal:
         risk_authorized_at=datetime.fromisoformat(
             str(auth_raw["risk_authorized_at"])
         ),
-        risk_authorized_capital_usd=Decimal(
-            str(auth_raw["risk_authorized_capital_usd"])
+        risk_authorized_margin_usd=Decimal(
+            str(auth_raw["risk_authorized_margin_usd"])
         ),
         risk_authorized_stop_risk_usd=Decimal(
             str(auth_raw["risk_authorized_stop_risk_usd"])
@@ -917,14 +975,14 @@ def _seal_from_json(value: object) -> T20CapitalReleaseSeal:
         execution_realized_at=datetime.fromisoformat(
             str(auth_raw["execution_realized_at"])
         ),
-        execution_realized_capital_usd=Decimal(
-            str(auth_raw["execution_realized_capital_usd"])
+        execution_realized_margin_usd=Decimal(
+            str(auth_raw["execution_realized_margin_usd"])
         ),
         execution_realized_stop_risk_usd=Decimal(
             str(auth_raw["execution_realized_stop_risk_usd"])
         ),
-        capital_deployed_at=datetime.fromisoformat(
-            str(auth_raw["capital_deployed_at"])
+        capacity_deployed_at=datetime.fromisoformat(
+            str(auth_raw["capacity_deployed_at"])
         ),
         source_refs=tuple(str(item) for item in auth_raw["source_refs"]),
         outcome_present=bool(auth_raw["outcome_present"]),
@@ -934,8 +992,11 @@ def _seal_from_json(value: object) -> T20CapitalReleaseSeal:
         T20CapitalReleaseSlice(
             settlement_deal_id=int(item["settlement_deal_id"]),
             released_at=datetime.fromisoformat(str(item["released_at"])),
-            returned_capacity_usd=Decimal(
-                str(item["returned_capacity_usd"])
+            released_stop_risk_capacity_usd=Decimal(
+                str(item["released_stop_risk_capacity_usd"])
+            ),
+            released_margin_capacity_usd=Decimal(
+                str(item["released_margin_capacity_usd"])
             ),
             source_ref=str(item["source_ref"]),
             terminal=bool(item["terminal"]),
@@ -952,8 +1013,11 @@ def _seal_from_json(value: object) -> T20CapitalReleaseSeal:
             int(item) for item in evidence_raw["settlement_deal_ids"]
         ),
         releases=releases,
-        total_returned_capacity_usd=Decimal(
-            str(evidence_raw["total_returned_capacity_usd"])
+        total_released_stop_risk_capacity_usd=Decimal(
+            str(evidence_raw["total_released_stop_risk_capacity_usd"])
+        ),
+        total_released_margin_capacity_usd=Decimal(
+            str(evidence_raw["total_released_margin_capacity_usd"])
         ),
         terminal_release_at=datetime.fromisoformat(
             str(evidence_raw["terminal_release_at"])
