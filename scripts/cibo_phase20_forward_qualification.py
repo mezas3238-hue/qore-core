@@ -456,9 +456,12 @@ def main() -> None:
         evidence_book=evidence,
         qualification_readiness=report.readiness,
         t08_oos_ablation=t08_oos_ablation,
+        t12_regime_population=t12_regime_population,
         t13_reserve_population=t13_reserve_population,
         t14_path_readiness=t14_path_readiness,
+        t14_intervention_population=t14_intervention_population,
         t15_option_realization=t15_option_realization,
+        t15_reservation_binding=t15_reservation_binding,
     )
     payload = _report_json(report)
     payload["causal_tool_readiness"] = {

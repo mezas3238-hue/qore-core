@@ -36,14 +36,23 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_readiness import (
 from qore.infrastructure.cibo_ce2i_phase20_t08_oos_ablation import (
     T08NettingOosAblationReport,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t12_regime_population import (
+    Phase20T12RegimePopulationAudit,
+)
 from qore.infrastructure.cibo_ce2i_phase20_t13_reserve_population import (
     Phase20T13ReservePopulationAudit,
+)
+from qore.infrastructure.cibo_ce2i_phase20_t14_intervention_population import (
+    Phase20T14NaturalInterventionPopulation,
 )
 from qore.infrastructure.cibo_ce2i_phase20_t14_path_readiness import (
     Phase20T14PathReadiness,
 )
 from qore.infrastructure.cibo_ce2i_phase20_t15_option_realization import (
     Phase20T15OptionRealization,
+)
+from qore.infrastructure.cibo_ce2i_phase20_t15_reservation_binding import (
+    Phase20T15ReservationBinding,
 )
 
 
@@ -187,9 +196,14 @@ def assess_phase20_causal_tool_readiness(
     evidence_book: VersionedPhase20ForwardEvidenceBook,
     qualification_readiness: Phase20QualificationReadiness,
     t08_oos_ablation: T08NettingOosAblationReport | None = None,
+    t12_regime_population: Phase20T12RegimePopulationAudit | None = None,
     t13_reserve_population: Phase20T13ReservePopulationAudit | None = None,
     t14_path_readiness: Phase20T14PathReadiness | None = None,
+    t14_intervention_population: (
+        Phase20T14NaturalInterventionPopulation | None
+    ) = None,
     t15_option_realization: Phase20T15OptionRealization | None = None,
+    t15_reservation_binding: Phase20T15ReservationBinding | None = None,
 ) -> Phase20CausalToolReadinessReport:
     """Measure tool-specific causal evidence without granting calibration."""
 
@@ -209,6 +223,16 @@ def assess_phase20_causal_tool_readiness(
             "Phase20 causal readiness T08 OOS ablation is invalid"
         )
     if (
+        t12_regime_population is not None
+        and not isinstance(
+            t12_regime_population,
+            Phase20T12RegimePopulationAudit,
+        )
+    ):
+        raise CiboCapitalManagementError(
+            "Phase20 causal readiness T12 regime population is invalid"
+        )
+    if (
         t13_reserve_population is not None
         and not isinstance(
             t13_reserve_population,
@@ -226,11 +250,31 @@ def assess_phase20_causal_tool_readiness(
             "Phase20 causal readiness T14 path evidence is invalid"
         )
     if (
+        t14_intervention_population is not None
+        and not isinstance(
+            t14_intervention_population,
+            Phase20T14NaturalInterventionPopulation,
+        )
+    ):
+        raise CiboCapitalManagementError(
+            "Phase20 causal readiness T14 intervention population is invalid"
+        )
+    if (
         t15_option_realization is not None
         and not isinstance(t15_option_realization, Phase20T15OptionRealization)
     ):
         raise CiboCapitalManagementError(
             "Phase20 causal readiness T15 option evidence is invalid"
+        )
+    if (
+        t15_reservation_binding is not None
+        and not isinstance(
+            t15_reservation_binding,
+            Phase20T15ReservationBinding,
+        )
+    ):
+        raise CiboCapitalManagementError(
+            "Phase20 causal readiness T15 reservation binding is invalid"
         )
 
     usable: list[tuple[Phase20ForwardDecisionSeal, dict[str, Any]]] = []
@@ -342,17 +386,28 @@ def assess_phase20_causal_tool_readiness(
     if not global_ready:
         competition_blockers.append("GLOBAL_PHASE20D_POPULATION_NOT_READY")
 
-    t12_stream = total_usable > 0 and valid_regime_epochs == total_usable
-    t12_ready = t12_stream and global_ready
-    t12_blockers: list[str] = []
-    if total_usable == 0:
-        t12_blockers.append("NO_USABLE_FORWARD_DECISION_EPOCHS")
-    elif valid_regime_epochs != total_usable:
-        t12_blockers.append(
-            "CAUSAL_REGIME_STATE_COVERAGE_INCOMPLETE"
-        )
-    if not global_ready:
-        t12_blockers.append("GLOBAL_PHASE20D_POPULATION_NOT_READY")
+    if t12_regime_population is None:
+        t12_stream = total_usable > 0 and valid_regime_epochs == total_usable
+        t12_ready = t12_stream and global_ready
+        t12_observed = total_usable
+        t12_qualifying = valid_regime_epochs
+        t12_blockers: list[str] = []
+        if total_usable == 0:
+            t12_blockers.append("NO_USABLE_FORWARD_DECISION_EPOCHS")
+        elif valid_regime_epochs != total_usable:
+            t12_blockers.append(
+                "CAUSAL_REGIME_STATE_COVERAGE_INCOMPLETE"
+            )
+        if not global_ready:
+            t12_blockers.append("GLOBAL_PHASE20D_POPULATION_NOT_READY")
+    else:
+        t12_stream = t12_regime_population.usable_forward_epochs > 0
+        t12_ready = False
+        t12_observed = t12_regime_population.usable_forward_epochs
+        t12_qualifying = t12_regime_population.canonical_regime_epochs
+        t12_blockers = list(t12_regime_population.blockers)
+        if not global_ready:
+            t12_blockers.append("GLOBAL_PHASE20D_POPULATION_NOT_READY")
 
     if t13_reserve_population is None:
         t13_stream = causal_history_epochs > 0
@@ -403,8 +458,8 @@ def assess_phase20_causal_tool_readiness(
             "T12",
             stream_bound=t12_stream,
             ready=t12_ready,
-            observed=total_usable,
-            qualifying=valid_regime_epochs,
+            observed=t12_observed,
+            qualifying=t12_qualifying,
             blockers=t12_blockers,
         ),
         Phase20ToolEvidenceReadiness(
@@ -423,6 +478,7 @@ def assess_phase20_causal_tool_readiness(
         _t14_row(
             total_usable=total_usable,
             readiness=t14_path_readiness,
+            intervention_population=t14_intervention_population,
         ),
         _t15_row(
             total_usable=total_usable,
@@ -430,6 +486,7 @@ def assess_phase20_causal_tool_readiness(
             fallback_known_option_epochs=known_option_epochs,
             fallback_blockers=tuple(t15_blockers),
             realization=t15_option_realization,
+            reservation_binding=t15_reservation_binding,
         ),
         _row(
             "T18",
@@ -463,7 +520,35 @@ def _t15_row(
     fallback_known_option_epochs: int,
     fallback_blockers: tuple[str, ...],
     realization: Phase20T15OptionRealization | None,
+    reservation_binding: Phase20T15ReservationBinding | None,
 ) -> Phase20ToolEvidenceReadiness:
+    if reservation_binding is not None:
+        blockers = list(reservation_binding.blockers)
+        if realization is not None:
+            blockers.extend(realization.blockers)
+        blockers.append("FRESH_OOS_OPTIONALITY_UTILITY_ANALYSIS_REQUIRED")
+        unique_blockers = tuple(dict.fromkeys(blockers))
+        stream_bound = (
+            reservation_binding.origin_epochs_with_known_options > 0
+            and reservation_binding.policy_bound_origin_epochs > 0
+        )
+        return Phase20ToolEvidenceReadiness(
+            tool_code="T15",
+            state=(
+                Phase20ToolEvidenceState.COLLECTING_FORWARD
+                if stream_bound
+                else Phase20ToolEvidenceState.STREAM_BLOCKED
+            ),
+            stream_bound=stream_bound,
+            forward_population_ready=False,
+            observed_epochs=(
+                reservation_binding.origin_epochs_with_known_options
+            ),
+            qualifying_epochs=(
+                reservation_binding.completely_bound_origin_epochs
+            ),
+            blockers=unique_blockers,
+        )
     if realization is None:
         return Phase20ToolEvidenceReadiness(
             tool_code="T15",
@@ -503,7 +588,35 @@ def _t14_row(
     *,
     total_usable: int,
     readiness: Phase20T14PathReadiness | None,
+    intervention_population: (
+        Phase20T14NaturalInterventionPopulation | None
+    ),
 ) -> Phase20ToolEvidenceReadiness:
+    if intervention_population is not None:
+        blockers = list(intervention_population.blockers)
+        if readiness is not None:
+            blockers.extend(readiness.blockers)
+        blockers.append("FRESH_OOS_DYNAMIC_DERISK_UTILITY_ANALYSIS_REQUIRED")
+        unique_blockers = tuple(dict.fromkeys(blockers))
+        stream_bound = (
+            intervention_population.forward_bound_positions > 0
+            and intervention_population.physical_management_positions > 0
+        )
+        return Phase20ToolEvidenceReadiness(
+            tool_code="T14",
+            state=(
+                Phase20ToolEvidenceState.COLLECTING_FORWARD
+                if stream_bound
+                else Phase20ToolEvidenceState.REQUIRES_DIFFERENT_EVIDENCE
+            ),
+            stream_bound=stream_bound,
+            forward_population_ready=False,
+            observed_epochs=intervention_population.forward_bound_positions,
+            qualifying_epochs=(
+                intervention_population.eligible_natural_intervention_positions
+            ),
+            blockers=unique_blockers,
+        )
     if readiness is None:
         return Phase20ToolEvidenceReadiness(
             tool_code="T14",

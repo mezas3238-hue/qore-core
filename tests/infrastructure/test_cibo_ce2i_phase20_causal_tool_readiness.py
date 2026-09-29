@@ -27,6 +27,12 @@ from qore.infrastructure.cibo_ce2i_phase20_t08_oos_ablation import (
 from qore.infrastructure.cibo_ce2i_phase20_t13_reserve_population import (
     Phase20T13ReservePopulationAudit,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t14_intervention_population import (
+    Phase20T14NaturalInterventionPopulation,
+)
+from qore.infrastructure.cibo_ce2i_phase20_t15_reservation_binding import (
+    Phase20T15ReservationBinding,
+)
 
 BASE = datetime(2026, 9, 28, 5, 0, tzinfo=UTC)
 
@@ -297,3 +303,78 @@ def test_readiness_uses_t13_pressure_scarcity_population_when_available() -> Non
     assert t13.qualifying_epochs == 8
     assert "T13_RESERVE_POLICY_NOT_IDENTIFIED" in t13.blockers
 
+
+
+
+def _t14_natural_population() -> Phase20T14NaturalInterventionPopulation:
+    return Phase20T14NaturalInterventionPopulation(
+        forward_bound_positions=12,
+        physical_management_positions=8,
+        management_events=10,
+        qualifying_interventions=7,
+        pre_post_path_positions=7,
+        protection_transition_positions=5,
+        volume_transition_positions=3,
+        terminally_settled_after_intervention_positions=6,
+        eligible_natural_intervention_positions=6,
+        represented_lineages=("R38_EURUSD", "VT31_NAS100"),
+        trader_owned_management_preserved=True,
+        cibo_derisk_policy_identified=False,
+        fresh_oos_utility_demonstrated=False,
+        blockers=(
+            "NATURAL_TRADER_INTERVENTIONS_DO_NOT_IDENTIFY_CIBO_DERISK_POLICY",
+            "FRESH_OOS_DERISK_UTILITY_ANALYSIS_REQUIRED",
+        ),
+    )
+
+
+def _t15_binding() -> Phase20T15ReservationBinding:
+    return Phase20T15ReservationBinding(
+        origin_epochs_with_known_options=10,
+        known_option_instances=12,
+        in_horizon_option_instances=10,
+        considered_option_instances=10,
+        representative_option_instances=8,
+        policy_bound_origin_epochs=10,
+        geometry_verified_origin_epochs=10,
+        nonzero_reserve_origin_epochs=8,
+        completely_bound_origin_epochs=10,
+        missing_policy_origin_epochs=0,
+        considered_set_mismatch_epochs=0,
+        reserve_geometry_mismatch_epochs=0,
+        reservation_binding_complete=True,
+        future_materialization_used=False,
+        outcome_magnitudes_read=False,
+        counterfactual_reservation_effect_identified=False,
+        blockers=(
+            "COUNTERFACTUAL_RESERVATION_CAUSAL_EFFECT_NOT_IDENTIFIED",
+            "FRESH_OOS_OPTIONALITY_UTILITY_ANALYSIS_REQUIRED",
+        ),
+    )
+
+
+def test_readiness_consumes_stronger_t14_and_t15_audits() -> None:
+    report = assess_phase20_causal_tool_readiness(
+        evidence_book=VersionedPhase20ForwardEvidenceBook(generation=0),
+        qualification_readiness=_qualification(ready=True),
+        t14_intervention_population=_t14_natural_population(),
+        t15_reservation_binding=_t15_binding(),
+    )
+
+    t14 = _row(report, "T14")
+    assert t14.state is Phase20ToolEvidenceState.COLLECTING_FORWARD
+    assert t14.observed_epochs == 12
+    assert t14.qualifying_epochs == 6
+    assert (
+        "NATURAL_TRADER_INTERVENTIONS_DO_NOT_IDENTIFY_CIBO_DERISK_POLICY"
+        in t14.blockers
+    )
+
+    t15 = _row(report, "T15")
+    assert t15.state is Phase20ToolEvidenceState.COLLECTING_FORWARD
+    assert t15.observed_epochs == 10
+    assert t15.qualifying_epochs == 10
+    assert (
+        "COUNTERFACTUAL_RESERVATION_CAUSAL_EFFECT_NOT_IDENTIFIED"
+        in t15.blockers
+    )
