@@ -19,8 +19,8 @@ permissions:
   actions: read
 
 concurrency:
-  group: qore-capitalizer-source-strategy-isolation-v47-s1-${{ github.sha }}
-  cancel-in-progress: false
+  group: qore-capitalizer-source-strategy-isolation-v47-s1-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   SOURCE_M1_RUN_ID: '35548099334'
@@ -61,7 +61,7 @@ jobs:
     timeout-minutes: 330
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 1
       matrix:
         include:
           - {symbol: USDJPY, session: ASIA}

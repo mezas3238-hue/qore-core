@@ -52,6 +52,7 @@ from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_full_ict_density_scanner_1y_v1 import (
+    AggregatedBar,
     _aggregate_h1,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
@@ -59,6 +60,7 @@ from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 
 )
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     ReferenceLiquidity,
+    TFBar,
     _aggregate_tf,
     _pivots,
 )
@@ -220,6 +222,25 @@ class S1PeriodMarketReport:
             raise ValueError("S1 post-fill classification count drift")
 
 
+@dataclass(frozen=True, slots=True)
+class _PreparedSourceSeries:
+    h1: tuple[AggregatedBar, ...]
+    m5: tuple[TFBar, ...]
+    m3: tuple[TFBar, ...]
+
+
+def _prepare_source_series(
+    bars: tuple[CapitalizerM1Bar, ...],
+) -> _PreparedSourceSeries:
+    """Precompute immutable HTF series once per era without changing lookback."""
+
+    return _PreparedSourceSeries(
+        h1=_aggregate_h1(bars),
+        m5=_aggregate_tf(bars, minutes=5),
+        m3=_aggregate_tf(bars, minutes=3),
+    )
+
+
 def _aware(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError("S1 requires timezone-aware timestamps")
@@ -333,6 +354,7 @@ def bind_source_window_ict_events(
     *,
     session: CapitalizerSession,
     operating_day: date,
+    prepared: _PreparedSourceSeries | None = None,
 ) -> tuple[s0.S0ICTSourceEvent, ...]:
     """Run the frozen S0/V3 event primitives over the complete source window."""
 
@@ -362,10 +384,29 @@ def bind_source_window_ict_events(
         operating_day=operating_day,
         session=session,
     )
-    h1 = _aggregate_h1(ordered)
+    if prepared is None:
+        h1 = _aggregate_h1(ordered)
+        m5 = _aggregate_tf(ordered, minutes=5)
+        m3 = _aggregate_tf(ordered, minutes=3)
+    else:
+        context_start = source_start - LOOKBACK
+        context_end = source_end + timedelta(hours=1)
+        h1 = tuple(
+            row
+            for row in prepared.h1
+            if row.opened_at >= context_start and row.closed_at <= context_end
+        )
+        m5 = tuple(
+            row
+            for row in prepared.m5
+            if row.opened_at >= context_start and row.closed_at <= context_end
+        )
+        m3 = tuple(
+            row
+            for row in prepared.m3
+            if row.opened_at >= context_start and row.closed_at <= context_end
+        )
     h1_swings = v3_source._build_h1_swings(h1)
-    m5 = _aggregate_tf(ordered, minutes=5)
-    m3 = _aggregate_tf(ordered, minutes=3)
     m5_closes = tuple(item.closed_at for item in m5)
     m3_closes = tuple(item.closed_at for item in m3)
     m3_pivots = _pivots(m3)
@@ -444,12 +485,14 @@ def bind_source_window_routed_candidates(
     *,
     session: CapitalizerSession,
     operating_day: date,
+    prepared: _PreparedSourceSeries | None = None,
 ) -> tuple[s0.S0RoutedCanonicalCandidate, ...]:
     result: list[s0.S0RoutedCanonicalCandidate] = []
     for event in bind_source_window_ict_events(
         bars,
         session=session,
         operating_day=operating_day,
+        prepared=prepared,
     ):
         direction = _direction(event.side)
         context = context_binders.bind_canonical_source_context(
@@ -921,6 +964,13 @@ def build_period_market_population(
     if any(bar.symbol != symbol for bar in bars):
         raise ValueError("S1 M1 symbol mismatch")
     opened = tuple(bar.opened_at for bar in bars)
+    prepared = _prepare_source_series(bars)
+    operating_days = _operating_days(
+        bars,
+        session=session,
+        period_start=period_start,
+        period_end=period_end,
+    )
 
     routed = 0
     primary = 0
@@ -930,12 +980,7 @@ def build_period_market_population(
     requests = 0
     admitted: list[S1AdmittedFillRow] = []
 
-    for operating_day in _operating_days(
-        bars,
-        session=session,
-        period_start=period_start,
-        period_end=period_end,
-    ):
+    for operating_day in operating_days:
         local_bars = _day_slice(
             bars,
             opened,
@@ -948,6 +993,7 @@ def build_period_market_population(
             local_bars,
             session=session,
             operating_day=operating_day,
+            prepared=prepared,
         )
         for index, candidate in enumerate(candidates):
             routed += 1
@@ -996,14 +1042,7 @@ def build_period_market_population(
         session=session.value,
         period_start=period_start.isoformat(),
         period_end_exclusive=period_end.isoformat(),
-        operating_days_scanned=len(
-            _operating_days(
-                bars,
-                session=session,
-                period_start=period_start,
-                period_end=period_end,
-            )
-        ),
+        operating_days_scanned=len(operating_days),
         routed_armed_candidates=routed,
         primary_fill_passes=primary,
         fallback_fill_passes=fallback,
