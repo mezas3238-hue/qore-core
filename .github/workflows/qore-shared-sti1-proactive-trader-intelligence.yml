@@ -1,0 +1,138 @@
+name: QORE Shared STI-1 Proactive Trader Intelligence Contracts
+
+concurrency:
+  group: qore-shared-sti1-proactive-trader-intelligence-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_trader_intelligence.py
+      - tests/infrastructure/test_core_stack_v2_shared_trader_intelligence.py
+      - docs/shared/QORE_SHARED_PROACTIVE_TRADER_INTELLIGENCE_OWNER_DIRECTIVE_007.md
+      - docs/shared/QORE_SHARED_TRADER_INTELLIGENCE_GAP_AUDIT_001.md
+      - docs/architecture/QORE-SHARED-TRADER-INTELLIGENCE-ADR-001.md
+      - .github/workflows/qore-shared-sti1-proactive-trader-intelligence.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate STI-1 typed contracts
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          ruff check             src/qore/infrastructure/core_stack_v2/shared_trader_intelligence.py             tests/infrastructure/test_core_stack_v2_shared_trader_intelligence.py
+          mypy             src/qore/infrastructure/core_stack_v2/shared_trader_intelligence.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/shared_trader_intelligence.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_shared_trader_intelligence.py             --junitxml=result/junit.xml
+
+      - name: Seal STI-1 contract evidence
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          root=ET.parse("result/junit.xml").getroot()
+          suites=(root,) if root.tag == "testsuite" else tuple(root.findall("testsuite"))
+          tests=sum(int(item.attrib.get("tests", "0")) for item in suites)
+          failures=sum(int(item.attrib.get("failures", "0")) for item in suites)
+          errors=sum(int(item.attrib.get("errors", "0")) for item in suites)
+          if tests <= 0:
+              raise SystemExit("STI-1 refuses zero-test evidence")
+          if failures + errors:
+              raise SystemExit("STI-1 refuses failing test evidence")
+
+          pack={
+              "identity":"QORE_SHARED_STI1_TYPED_CONTRACT_EVIDENCE_001",
+              "head":os.environ["GITHUB_SHA"],
+              "run_id":int(os.environ["GITHUB_RUN_ID"]),
+              "test_count":tests,
+              "failure_count":failures+errors,
+              "owner_directive_007_present":Path(
+                  "docs/shared/QORE_SHARED_PROACTIVE_TRADER_INTELLIGENCE_OWNER_DIRECTIVE_007.md"
+              ).exists(),
+              "gap_audit_present":Path(
+                  "docs/shared/QORE_SHARED_TRADER_INTELLIGENCE_GAP_AUDIT_001.md"
+              ).exists(),
+              "authority_adr_present":Path(
+                  "docs/architecture/QORE-SHARED-TRADER-INTELLIGENCE-ADR-001.md"
+              ).exists(),
+              "anti_future_evidence_tests_required":True,
+              "trader_abstention_test_required":True,
+              "position_threat_no_exit_authority_test_required":True,
+              "shared_execution_authority":False,
+              "shared_risk_authority":False,
+              "shared_sizing_authority":False,
+              "shared_capital_authority":False,
+              "shared_strategy_mutation_authority":False,
+              "broker_mutation_authority":False,
+              "productive_admission":False,
+              "protected_holdout_opened":False,
+          }
+          Path("result/sti1-evidence-pack.json").write_text(
+              json.dumps(pack,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+          printf '%s\n' "$GITHUB_SHA" > result/sti1-code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/sti1-run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-sti1-contracts-${{ github.sha }}
+          path: result
+          retention-days: 90
+
+      - name: Report STI-1 contract status
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence=json.loads(Path("result/sti1-evidence-pack.json").read_text())
+          body="\n".join([
+              "## Shared STI-1 — Proactive Trader Intelligence Contracts",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- tests: **{evidence['test_count']}** / failures: **{evidence['failure_count']}**",
+              "- Shared opportunity == Trader setup: **False**",
+              "- Shared position threat == exit command: **False**",
+              "- Shared execution authority: **False**",
+              "- Shared sizing/capital authority: **False**",
+              "- Shared Risk authority: **False**",
+              "- Trader methodology mutation authority: **False**",
+              "- protected Shared holdout opened: **False**",
+              "- productive admission: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
