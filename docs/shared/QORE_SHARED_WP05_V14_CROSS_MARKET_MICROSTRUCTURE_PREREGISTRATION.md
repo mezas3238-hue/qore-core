@@ -184,6 +184,15 @@ confirmation and therefore vetoes the V11 declaration.
 
 ## 9. R8 folds and fit law
 
+Frozen inner split:
+
+- discovery = first 70% of each purged outer-training prefix;
+- calibration = final 30%;
+- matured-label purge requires discovery observed_at < calibration source_at;
+- at least 50 true V11 terminal confirmations are required in calibration;
+- the retained rule is score >= threshold.
+
+
 Frozen validation protocol:
 
 - four chronological expanding-window folds;
