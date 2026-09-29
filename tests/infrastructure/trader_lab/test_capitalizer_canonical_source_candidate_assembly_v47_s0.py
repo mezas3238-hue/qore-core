@@ -76,10 +76,9 @@ def test_long_fill_uses_first_ask_tick_at_or_below_level() -> None:
 
     assert result.quote_side == "ASK"
     assert result.filled is True
-    assert result.fill_at == start + timedelta(seconds=10)
-    assert result.fill_price == Decimal("1.20005")
-    # 1.20005 is above the armed level, so first executable touch is at 30s.
-    assert result.fill_at != start + timedelta(seconds=10)
+    assert result.fill_at == start + timedelta(seconds=30)
+    assert result.fill_price == Decimal("1.19990")
+    assert result.fill_at != start
 
 
 def test_long_fill_first_matching_tick_is_not_m1_open() -> None:
@@ -130,8 +129,9 @@ def test_short_fill_uses_first_bid_tick_at_or_above_level() -> None:
 
     assert result.quote_side == "BID"
     assert result.filled is True
-    assert result.fill_at == start + timedelta(seconds=15)
-    assert result.fill_price == Decimal("1.19995") or result.fill_at > start
+    assert result.fill_at == start + timedelta(seconds=30)
+    assert result.fill_price == Decimal("1.20015")
+    assert result.fill_at != start
 
 
 def test_no_provider_touch_means_no_fill() -> None:
