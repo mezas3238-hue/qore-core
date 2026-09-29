@@ -20,6 +20,9 @@ from qore.infrastructure.trader_lab import (
     capitalizer_attention as attention,
 )
 from qore.infrastructure.trader_lab import (
+    capitalizer_canonical_historical_replay_adapter_v46 as v46_adapter,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_cognitive_blocker_census_2r_v1 as blocker_census,
 )
 from qore.infrastructure.trader_lab import (
@@ -45,9 +48,6 @@ from qore.infrastructure.trader_lab import (
 )
 from qore.infrastructure.trader_lab import (
     capitalizer_regime_intelligence as regime,
-)
-from qore.infrastructure.trader_lab import (
-    capitalizer_canonical_historical_replay_adapter_v46 as v46_adapter,
 )
 
 IDENTITY = "QORE_CAPITALIZER_COGNITIVE_GATE_HISTORICAL_REPLAY_READINESS_V47_P0"
