@@ -394,8 +394,8 @@ def build_agricultural_provider_capability_matrix(
             maturity = AgriculturalScientificMaturity.DISCOVERED
         else:
             discovery_state = (
-                AgriculturalProviderDiscoveryState.
-                ABSENT_FROM_CURRENT_CATALOG_EVIDENCE
+                AgriculturalProviderDiscoveryState
+                .ABSENT_FROM_CURRENT_CATALOG_EVIDENCE
             )
             maturity = AgriculturalScientificMaturity.ABSENT
         rows.append(
