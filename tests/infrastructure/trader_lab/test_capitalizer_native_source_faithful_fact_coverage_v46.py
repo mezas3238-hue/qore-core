@@ -12,21 +12,20 @@ def test_v46_inventory_is_exactly_frozen_26_facts() -> None:
     assert [row["fact_index"] for row in report["facts"]] == list(range(1, 27))
 
 
-def test_v46_phase_b_fails_closed_when_operationalization_is_incomplete() -> None:
+def test_v46_phase_b_is_authorized_only_after_r3_closes_phase_a() -> None:
     report = v46.build_report()
-    assert report["phase_a_ready"] is False
-    assert report["phase_b_authorized"] is False
+    assert report["phase_a_ready"] is True
+    assert report["phase_b_authorized"] is True
     assert report["phase_b_executed"] is False
-    assert report["next_phase"] == (
-        "CANONICAL_FACT_OPERATIONALIZATION_GAPS_REQUIRE_IMPLEMENTATION"
-    )
+    assert report["next_phase"] == "PHASE_B_PROVIDER_TIME_COVERAGE_AUTHORIZED"
 
 
-def test_v46_r1_closes_internal_fact_blockers_only() -> None:
+def test_v46_r1_and_r3_close_all_phase_a_fact_blockers() -> None:
     report = v46.build_report()
     assert report["r1_predeclaration_comment_id"] == 5883167207
-    assert report["blocking_fact_count"] == 1
-    assert report["blocking_facts"] == ["HISTORICAL_ASIAN_OPEN_REFERENCE"]
+    assert report["r3_predeclaration_comment_id"] == 5887860668
+    assert report["blocking_fact_count"] == 0
+    assert report["blocking_facts"] == []
 
 
 def test_v46_preserves_ready_source_primitives() -> None:
@@ -69,10 +68,11 @@ def test_v46_never_opens_economics_or_fresh_holdout() -> None:
     assert report["trader_certified"] is False
 
 
-def test_v46_r2_historical_adapter_is_ready_but_asian_fact_still_blocks() -> None:
+def test_v46_r2_adapter_and_r3_asian_reference_make_phase_a_ready() -> None:
     report = v46.build_report()
     assert report["r2_predeclaration_comment_id"] == 5883247470
+    assert report["r3_predeclaration_comment_id"] == 5887860668
     assert report["canonical_historical_replay_adapter_status"] == "DETECTOR_READY"
-    assert report["blocking_facts"] == ["HISTORICAL_ASIAN_OPEN_REFERENCE"]
-    assert report["phase_a_ready"] is False
-    assert report["phase_b_authorized"] is False
+    assert report["blocking_facts"] == []
+    assert report["phase_a_ready"] is True
+    assert report["phase_b_authorized"] is True
