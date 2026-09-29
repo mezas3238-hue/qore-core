@@ -187,3 +187,34 @@ def test_t01_minimal_seed_is_causally_calibrated_not_historical_usd_ready() -> N
     assert record.certification_ready is False
     assert "HISTORICAL_2017_PROVIDER_TERMS_NOT_PROVEN" in record.blockers
     assert "FRESH_OOS_MINIMAL_SEED_UTILITY_PENDING" in record.blockers
+
+def test_t12_registry_records_shadow_oos_engineering_without_claiming_readiness() -> None:
+    record = calibration_record("T12")
+
+    assert record.state is CiboCalibrationState.CALIBRATION_UNAVAILABLE
+    assert record.oos_ready is False
+    assert record.certification_ready is False
+    assert "phase20:t12:tool-eligibility-shadow-preregistration" in (
+        record.calibration_sources
+    )
+    assert "phase20:t12:append-only-shadow-decision-ledger" in (
+        record.calibration_sources
+    )
+    assert "phase20:t12:pre-outcome-runtime-shadow-composition" in (
+        record.calibration_sources
+    )
+    assert "phase20:t12:fresh-oos-readiness-audit" in (
+        record.calibration_sources
+    )
+    assert "phase20:t12:frozen-oos-utility-analysis" in (
+        record.calibration_sources
+    )
+    assert "T12_TOOL_ELIGIBILITY_SHADOW_POLICY_PREREGISTERED" in (
+        record.blockers
+    )
+    assert "T12_FRESH_OOS_READINESS_AUDIT_IMPLEMENTED" in record.blockers
+    assert "T12_FROZEN_OOS_UTILITY_ANALYSIS_IMPLEMENTED" in record.blockers
+    assert "FRESH_OOS_T12_TOOL_ELIGIBILITY_UTILITY_REQUIRED" in (
+        record.blockers
+    )
+
