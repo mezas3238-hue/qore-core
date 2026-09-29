@@ -236,6 +236,8 @@ class MarginalCapitalUtilityEvidence:
     account_identity: CiboAccountCapitalIdentity
     trader_id: TraderLineage
     signal_fingerprint: str
+    source_opportunity_decision_sha256: str
+    source_baseline_policy_record_sha256: str
     current_compound_capacity_usd: Decimal
     requested_incremental_capital_usd: Decimal
     expected_incremental_return_usd: Decimal
@@ -331,6 +333,8 @@ class MarginalCapitalUtilityEvidence:
             )
 
         for name in (
+            "source_opportunity_decision_sha256",
+            "source_baseline_policy_record_sha256",
             "provider_evidence_sha256",
             "expectation_evidence_sha256",
             "duration_evidence_sha256",
