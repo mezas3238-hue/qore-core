@@ -3,10 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
-    Bar,
-    BearishFvg,
-)
+from qore.infrastructure.trader_lab import nq_am_temporal_liquidity_reversal_v1 as v1
+from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import Bar
 from qore.infrastructure.trader_lab.nq_am_tlr_v5_source_resolved import (
     _causal_inversion_and_retest,
     _complete_body_below,
@@ -59,7 +57,7 @@ def test_opening_signature_is_telemetry_for_specific_pair() -> None:
 
 
 def test_ifvg_trade_above_does_not_require_close_above() -> None:
-    zone = BearishFvg(
+    zone = v1.BearishFvg(
         created_at=_bar(0, o="105", h="106", lo="104", c="104.5").closed_at,
         low=Decimal("100"),
         high=Decimal("102"),
