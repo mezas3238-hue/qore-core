@@ -392,6 +392,11 @@ def main() -> None:
         assess_phase20_t13_shadow_policy,
     )
 
+    from qore.infrastructure.cibo_ce2i_phase20_t12_regime_population import (
+        assess_phase20_t12_regime_population,
+    )
+
+    t12_regime_population = assess_phase20_t12_regime_population(evidence)
     t13_reserve_population = assess_phase20_t13_reserve_population(
         evidence
     )
@@ -457,6 +462,63 @@ def main() -> None:
         ),
         "known_option_epochs": tool_readiness.known_option_epochs,
         "causal_history_epochs": tool_readiness.causal_history_epochs,
+        "t12_forward_regime_population": {
+            "usable_forward_epochs": (
+                t12_regime_population.usable_forward_epochs
+            ),
+            "canonical_regime_epochs": (
+                t12_regime_population.canonical_regime_epochs
+            ),
+            "account_risk_snapshot_bound_epochs": (
+                t12_regime_population.account_risk_snapshot_bound_epochs
+            ),
+            "provider_condition_bound_epochs": (
+                t12_regime_population.provider_condition_bound_epochs
+            ),
+            "represented_lineages": [
+                item.value
+                for item in t12_regime_population.represented_lineages
+            ],
+            "canonical_lineages": [
+                item.value
+                for item in t12_regime_population.canonical_lineages
+            ],
+            "noncanonical_lineages": [
+                item.value
+                for item in t12_regime_population.noncanonical_lineages
+            ],
+            "missing_lineages": [
+                item.value
+                for item in t12_regime_population.missing_lineages
+            ],
+            "forward_schema_7_of_7": (
+                t12_regime_population.forward_schema_7_of_7
+            ),
+            "burned_phase19_reinterpreted": (
+                t12_regime_population.burned_phase19_reinterpreted
+            ),
+            "fresh_oos_generalization_demonstrated": (
+                t12_regime_population.fresh_oos_generalization_demonstrated
+            ),
+            "lineage_coverage": [
+                {
+                    "trader_id": item.trader_id.value,
+                    "decision_epochs": item.decision_epochs,
+                    "canonical_regime_epochs": (
+                        item.canonical_regime_epochs
+                    ),
+                    "account_risk_snapshot_bound_epochs": (
+                        item.account_risk_snapshot_bound_epochs
+                    ),
+                    "provider_condition_bound_epochs": (
+                        item.provider_condition_bound_epochs
+                    ),
+                    "structurally_complete": item.structurally_complete,
+                }
+                for item in t12_regime_population.lineage_coverage
+            ],
+            "blockers": list(t12_regime_population.blockers),
+        },
         "t08_oos_ablation": (
             None
             if t08_oos_ablation is None
