@@ -529,7 +529,6 @@ def _adjudicate_primary(metrics: dict[str, Any]) -> dict[str, Any]:
             "primary_pf_gt": "1.15",
             "primary_total_r_gt": "0",
             "primary_max_drawdown_r_lte": "8",
-            "positive_yearly_folds_gte": 1,
         },
     }
 
