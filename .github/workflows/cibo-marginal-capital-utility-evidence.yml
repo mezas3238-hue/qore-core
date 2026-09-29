@@ -6,7 +6,9 @@ on:
     paths:
       - '.github/workflows/cibo-marginal-capital-utility-evidence.yml'
       - 'src/qore/infrastructure/cibo_marginal_capital_utility_evidence.py'
+      - 'src/qore/infrastructure/cibo_marginal_capital_utility_evidence_store.py'
       - 'tests/infrastructure/test_cibo_marginal_capital_utility_evidence.py'
+      - 'tests/infrastructure/test_cibo_marginal_capital_utility_evidence_store.py'
       - 'docs/research/CIBO-CE2I-ADR-003-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING.md'
       - 'docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md'
   push:
@@ -15,7 +17,9 @@ on:
     paths:
       - '.github/workflows/cibo-marginal-capital-utility-evidence.yml'
       - 'src/qore/infrastructure/cibo_marginal_capital_utility_evidence.py'
+      - 'src/qore/infrastructure/cibo_marginal_capital_utility_evidence_store.py'
       - 'tests/infrastructure/test_cibo_marginal_capital_utility_evidence.py'
+      - 'tests/infrastructure/test_cibo_marginal_capital_utility_evidence_store.py'
 
 permissions:
   contents: read
@@ -38,8 +42,12 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/cibo_marginal_capital_utility_evidence.py \
-            tests/infrastructure/test_cibo_marginal_capital_utility_evidence.py
+            src/qore/infrastructure/cibo_marginal_capital_utility_evidence_store.py \
+            tests/infrastructure/test_cibo_marginal_capital_utility_evidence.py \
+            tests/infrastructure/test_cibo_marginal_capital_utility_evidence_store.py
           python -m py_compile \
-            src/qore/infrastructure/cibo_marginal_capital_utility_evidence.py
+            src/qore/infrastructure/cibo_marginal_capital_utility_evidence.py \
+            src/qore/infrastructure/cibo_marginal_capital_utility_evidence_store.py
           pytest -q --no-cov \
-            tests/infrastructure/test_cibo_marginal_capital_utility_evidence.py
+            tests/infrastructure/test_cibo_marginal_capital_utility_evidence.py \
+            tests/infrastructure/test_cibo_marginal_capital_utility_evidence_store.py
