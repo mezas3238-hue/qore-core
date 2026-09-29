@@ -189,10 +189,19 @@ The first GEN-2 source census queries cTrader full symbol metadata for the
 exact GEN-1 177-symbol registry and freezes:
 
 - provider symbol/id;
+- provider-native symbol name;
+- provider base-asset ID;
+- provider quote-asset ID;
+- provider symbol-category ID;
+- provider description;
 - provider trading schedule intervals;
 - provider schedule timezone;
 - provider trading mode;
 - provider holidays.
+
+Provider-native identity descriptors are supporting evidence only. They do not
+promote a sensor into a canonical identity, venue, family or calendar mapping
+without separate governed evidence.
 
 This is provider observability metadata only.
 
