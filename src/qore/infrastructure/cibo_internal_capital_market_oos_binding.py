@@ -29,11 +29,11 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     Phase20ForwardOutcomeSeal,
     VersionedPhase20ForwardEvidenceBook,
 )
-from qore.infrastructure.cibo_compound_capital import (
-    CiboCompoundCapitalError,
-)
 from qore.infrastructure.cibo_cma_settlement_store import (
     VersionedCmaSettlementBook,
+)
+from qore.infrastructure.cibo_compound_capital import (
+    CiboCompoundCapitalError,
 )
 from qore.infrastructure.cibo_internal_capital_market_store import (
     VersionedGenc6InternalCapitalMarketBook,
