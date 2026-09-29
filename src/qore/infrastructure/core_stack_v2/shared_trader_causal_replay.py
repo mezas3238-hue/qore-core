@@ -147,17 +147,22 @@ class SharedTraderCausalReplayFrame:
             )
 
     def fingerprint(self) -> str:
+        trader_assessment_payload: dict[str, object] | None = None
+        if self.trader_assessment is not None:
+            trader_assessment_payload = asdict(self.trader_assessment)
+            trader_assessment_payload["assessed_at"] = (
+                self.trader_assessment.assessed_at.astimezone(UTC).isoformat()
+            )
+            trader_assessment_payload["disposition"] = (
+                self.trader_assessment.disposition.value
+            )
         payload = {
             "frame_id": self.frame_id,
             "decision_time": self.decision_time.astimezone(UTC).isoformat(),
             "shared_snapshot_fingerprint": (
                 self.shared_snapshot.fingerprint()
             ),
-            "trader_assessment": (
-                None
-                if self.trader_assessment is None
-                else asdict(self.trader_assessment)
-            ),
+            "trader_assessment": trader_assessment_payload,
             "position_entry_world_fingerprint": (
                 None
                 if self.position_entry_world is None
@@ -179,13 +184,6 @@ class SharedTraderCausalReplayFrame:
             "outcome_evidence_refs": (),
             "productive_behavior_authority": False,
         }
-        if self.trader_assessment is not None:
-            payload["trader_assessment"]["assessed_at"] = (
-                self.trader_assessment.assessed_at.astimezone(UTC).isoformat()
-            )
-            payload["trader_assessment"]["disposition"] = (
-                self.trader_assessment.disposition.value
-            )
         raw = json.dumps(
             payload,
             sort_keys=True,
