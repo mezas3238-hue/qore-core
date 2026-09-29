@@ -182,5 +182,11 @@ def test_s0_readiness_stays_pre_economic_and_not_ready_yet() -> None:
     assert report["fresh_holdout_opened"] is False
     assert report["candidate_count"] == 0
     assert report["trader_certified"] is False
-    assert report["blocking_binder_count"] > 0
+    assert report["canonical_source_context_binding_ready"] is True
+    assert report["blocking_binder_count"] == 3
+    assert set(report["blocking_binders"]) == {
+        "ICT_SOURCE_EVENT_ARMING",
+        "M1_MSS_FVG_OB_BINDING",
+        "DETERMINISTIC_ROUTE_AND_WICK_BINDING",
+    }
     assert report["next_phase"] == "CANONICAL_SOURCE_CANDIDATE_ASSEMBLY_GAPS_REMAIN"
