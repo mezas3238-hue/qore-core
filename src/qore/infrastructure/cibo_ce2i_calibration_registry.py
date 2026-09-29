@@ -305,6 +305,7 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
             "phase20:t08:delayed-full-universe-factor-store",
             "phase20:t08:delayed-finalized-m5-collector",
             "phase20:t08:covariance-risk-attribution-candidate",
+            "phase20:t08:fresh-oos-netting-ablation-contract",
             _PHASE19_NON_PROMOTION,
         ),
         (
@@ -315,6 +316,7 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
             "DELAYED_FULL_UNIVERSE_FACTOR_EVIDENCE_STORE_IMPLEMENTED",
             "FINALIZED_M5_SIX_MARKET_COLLECTOR_IMPLEMENTED_NOT_DEPLOYED",
             "COVARIANCE_RISK_ATTRIBUTION_CANDIDATE_IMPLEMENTED_NOT_CERTIFIED",
+            "FRESH_OOS_NETTING_ABLATION_CONTRACT_IMPLEMENTED_AWAITING_POPULATION",
             "SIGNED_FACTOR_RISK_MAP_NOT_CERTIFIED",
             "CAUSAL_CORRELATION_STATE_NOT_IDENTIFIED",
             "FRESH_OOS_NETTING_UTILITY_ANALYSIS_REQUIRED",
