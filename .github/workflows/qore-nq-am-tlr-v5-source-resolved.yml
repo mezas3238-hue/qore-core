@@ -61,7 +61,7 @@ jobs:
               'nq_am_tlr_v5_source_resolved.py'
           ).read_text()
 
-          assert 'MONDAY' in freeze
+          assert 'Monday-only' in freeze
           assert 'No opening M2 hard gate' in freeze
           assert 'No 2SD-distance hard gate' in freeze
           assert 'No 12:00 expiry' in freeze
