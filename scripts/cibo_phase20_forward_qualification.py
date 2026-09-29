@@ -272,6 +272,7 @@ def main() -> None:
     parser.add_argument("--policy-store", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--behavior-ledger", type=Path)
+    parser.add_argument("--executed-risk-store", type=Path)
     parser.add_argument("--t08-oos-shadow-store", type=Path)
     parser.add_argument("--git-sha")
     args = parser.parse_args()
@@ -279,6 +280,11 @@ def main() -> None:
     git_sha = _resolve_git_sha(args.git_sha)
     evidence_store_sha256 = _sha256_path(args.evidence_store)
     policy_store_sha256 = _sha256_path(args.policy_store)
+    executed_risk_store_sha256 = (
+        None
+        if args.executed_risk_store is None
+        else _sha256_path(args.executed_risk_store)
+    )
     t08_oos_shadow_store_sha256 = (
         None
         if args.t08_oos_shadow_store is None
@@ -302,6 +308,25 @@ def main() -> None:
                 args.behavior_ledger
             ).events(),
         )
+    t11_execution_population = None
+    t11_executed_risk_generation = None
+    if args.executed_risk_store is not None:
+        from qore.infrastructure.cibo_ce2i_phase20_execution_risk_store import (
+            DurablePhase20ExecutedRiskStore,
+        )
+        from qore.infrastructure.cibo_ce2i_phase20_t11_execution_population import (
+            assess_phase20_t11_execution_population,
+        )
+
+        executed_risk_book = DurablePhase20ExecutedRiskStore(
+            args.executed_risk_store
+        ).load()
+        t11_executed_risk_generation = executed_risk_book.generation
+        t11_execution_population = assess_phase20_t11_execution_population(
+            evidence_book=evidence,
+            executed_risk_book=executed_risk_book,
+        )
+
     t08_oos_ablation = None
     t08_oos_shadow_generation = None
     t08_oos_complete_epochs = 0
@@ -446,6 +471,103 @@ def main() -> None:
             ),
             "blockers": list(t15_option_realization.blockers),
         },
+        "t11_execution_population": (
+            None
+            if t11_execution_population is None
+            else {
+                "eligible_execution_instances": (
+                    t11_execution_population.eligible_execution_instances
+                ),
+                "adverse_slippage_instances": (
+                    t11_execution_population.adverse_slippage_instances
+                ),
+                "favorable_slippage_instances": (
+                    t11_execution_population.favorable_slippage_instances
+                ),
+                "flat_slippage_instances": (
+                    t11_execution_population.flat_slippage_instances
+                ),
+                "latency_bound_instances": (
+                    t11_execution_population.latency_bound_instances
+                ),
+                "represented_lineages": list(
+                    t11_execution_population.represented_lineages
+                ),
+                "minimum_instances_per_lineage": (
+                    t11_execution_population.minimum_instances_per_lineage
+                ),
+                "mean_signed_slippage_r": (
+                    None
+                    if t11_execution_population.mean_signed_slippage_r is None
+                    else format(
+                        t11_execution_population.mean_signed_slippage_r,
+                        "f",
+                    )
+                ),
+                "p50_signed_slippage_r": (
+                    None
+                    if t11_execution_population.p50_signed_slippage_r is None
+                    else format(
+                        t11_execution_population.p50_signed_slippage_r,
+                        "f",
+                    )
+                ),
+                "p95_signed_slippage_r": (
+                    None
+                    if t11_execution_population.p95_signed_slippage_r is None
+                    else format(
+                        t11_execution_population.p95_signed_slippage_r,
+                        "f",
+                    )
+                ),
+                "mean_decision_to_deployment_ms": (
+                    None
+                    if (
+                        t11_execution_population
+                        .mean_decision_to_deployment_ms
+                        is None
+                    )
+                    else format(
+                        t11_execution_population
+                        .mean_decision_to_deployment_ms,
+                        "f",
+                    )
+                ),
+                "p95_decision_to_deployment_ms": (
+                    None
+                    if (
+                        t11_execution_population
+                        .p95_decision_to_deployment_ms
+                        is None
+                    )
+                    else format(
+                        t11_execution_population
+                        .p95_decision_to_deployment_ms,
+                        "f",
+                    )
+                ),
+                "minimum_required_executions": (
+                    t11_execution_population.minimum_required_executions
+                ),
+                "minimum_required_lineages": (
+                    t11_execution_population.minimum_required_lineages
+                ),
+                "minimum_required_per_lineage": (
+                    t11_execution_population.minimum_required_per_lineage
+                ),
+                "empirical_execution_population_ready": (
+                    t11_execution_population
+                    .empirical_execution_population_ready
+                ),
+                "slippage_empirically_calibrated": (
+                    t11_execution_population.slippage_empirically_calibrated
+                ),
+                "execution_model_ready": (
+                    t11_execution_population.execution_model_ready
+                ),
+                "blockers": list(t11_execution_population.blockers),
+            }
+        ),
         "t13_reserve_population": {
             "usable_decision_epochs": (
                 t13_reserve_population.usable_decision_epochs
@@ -556,6 +678,8 @@ def main() -> None:
         "evidence_store_sha256": evidence_store_sha256,
         "policy_store_sha256": policy_store_sha256,
         "behavior_ledger_sha256": behavior_ledger_sha256,
+        "executed_risk_store_sha256": executed_risk_store_sha256,
+        "t11_executed_risk_generation": t11_executed_risk_generation,
         "t08_oos_shadow_store_sha256": t08_oos_shadow_store_sha256,
         "t08_oos_shadow_generation": t08_oos_shadow_generation,
         "t08_oos_complete_epochs": t08_oos_complete_epochs,
