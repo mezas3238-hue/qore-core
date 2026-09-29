@@ -1,57 +1,50 @@
-# QORE NQ AM TEMPORAL LIQUIDITY REVERSAL V1 — NAS100 HOLDOUT AUDIT
+# QORE NQ AM TEMPORAL LIQUIDITY REVERSAL V1 — 1Y EVIDENCE SELECTION NOTE
 
 Tracker: #653  
-Status: HOLDOUT SEALED
+Status: CONSUMED 1Y METHODOLOGY REPLAY AUTHORIZED
 
-## Repository evidence already consumed
+## Owner adjudication
 
-GitHub is the source of truth. The following repository evidence materially
-constrains a new historical NAS100 holdout:
+For the immediate objective — determine whether the reviewed methodology works —
+already-consumed evidence is explicitly acceptable.
 
-1. CIBO Market Atlas owner amendment #602 froze the primary consumed corpus to
-   `2016-09-17T00:00:00Z -> 2026-09-17T00:00:00Z` (end exclusive), with
-   canonical mapping `NAS100 -> USTEC`. Once used for research, this corpus is
-   consumed and cannot be relabeled fresh OOS.
+Consumption history is therefore NOT an exclusion criterion for the 1Y
+methodology replay.
 
-2. VT31 research additionally contains consumed NAS100 evidence in overlapping
-   historical windows, including the 2018-2022 family of Silver Bullet / WFO
-   studies.
+It remains relevant only to the later question of independent fresh
+certification.
 
-3. VT08 Index research marks `2022-09-15 -> 2023-09-15`,
-   `2023-09-15 -> 2024-08-13`, and `2024-08-13 -> 2026-09-12` as consumed.
+## Known NAS100 consumed evidence
 
-Therefore no interval wholly inside `2016-09-17 -> 2026-09-17` is eligible to
-be called fresh for this new candidate.
+Repository evidence includes:
+- CIBO Market Atlas NAS100/USTEC research spanning the 2016-09-17 to
+  2026-09-17 primary corpus;
+- VT31 M1 Silver Bullet / New York reversal evidence across earlier consumed
+  windows;
+- VT08 index evidence over later consumed windows.
 
-## Current defensible historical option
+These data are valid for methodology falsification/feasibility because the new
+candidate will be scored mechanically on them without claiming that the market
+interval itself was unseen by QORE.
 
-The only immediately plausible historical one-year class on the same provider
-is an interval ending no later than `2016-09-17T00:00:00Z`, subject to actual
-cTrader USTEC M1 availability and confirmation that the exact interval has not
-been consumed elsewhere.
+## Preferred 1Y source family
 
-Preferred availability candidate to probe, without retaining OHLC outcomes:
+Use retained/recoverable VT31 NAS100 M1 evidence where possible, because:
+- the candidate requires M1 timing;
+- evidence provenance and cTrader identity already exist;
+- it avoids degrading IFVG/reclaim logic to M5;
+- it provides a direct one-year chronological replay.
 
-`2015-09-17T00:00:00Z -> 2016-09-17T00:00:00Z`
+A practical first target is a one-year slice inside a known VT31 M1 acquisition
+window. Exact boundaries are frozen only after artifact recovery confirms
+coverage. Window selection is based on data availability, never on this
+candidate's PnL.
 
-This is NOT yet the holdout. It remains a proposed availability boundary only.
+## Result semantics
 
-If the provider cannot supply complete-enough M1 USTEC evidence for an eligible
-pre-2016 year, the correct result is:
+The run will be labeled:
+`CONSUMED_1Y_METHODOLOGY_REPLAY`
 
-`NO_FRESH_1Y_HISTORICAL_HOLDOUT_AVAILABLE`
-
-and the candidate must move to genuinely future forward evidence rather than
-launder consumed data as fresh.
-
-## Availability-probe law
-
-An availability probe may record only:
-- whether the canonical/provider symbol exists and is enabled;
-- digits / symbol identity;
-- first/last observed timestamps in the proposed boundary;
-- bar counts / timestamp continuity summaries;
-- data-quality gaps.
-
-It must not persist OHLC values, compute returns, inspect candidate signals, or
-run the strategy before the V1 freeze.
+A positive result means the mechanics deserve further validation.
+A negative result falsifies or weakens the current V1 mechanics.
+Neither outcome is relabeled fresh OOS.
