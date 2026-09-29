@@ -12,6 +12,8 @@ import argparse
 import json
 from collections import Counter
 from dataclasses import asdict, dataclass
+from datetime import datetime
+from decimal import Decimal
 from enum import StrEnum
 from pathlib import Path
 
@@ -29,6 +31,7 @@ from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     iter_cibo_m1,
 )
 from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
+from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
     CapitalizerSourceDirection,
 )
@@ -98,10 +101,10 @@ class TargetPeriodMarketReport:
             raise ValueError("target ambiguity governance drift")
 
 
-def _direction(side: s1.CapitalizerSide) -> CapitalizerSourceDirection:
+def _direction(side: CapitalizerSide) -> CapitalizerSourceDirection:
     return (
         CapitalizerSourceDirection.BULLISH
-        if side is s1.CapitalizerSide.LONG
+        if side is CapitalizerSide.LONG
         else CapitalizerSourceDirection.BEARISH
     )
 
@@ -110,8 +113,8 @@ def _candidate_provenance(
     bars: tuple[CapitalizerM1Bar, ...],
     *,
     direction: CapitalizerSourceDirection,
-    entry_price: s1.Decimal,
-    decision_at: s1.datetime,
+    entry_price: Decimal,
+    decision_at: datetime,
 ) -> tuple[str, ...]:
     frames = targets.build_exact_source_frames(bars)
     labels: list[str] = []
@@ -149,8 +152,8 @@ def audit_target(
     bars: tuple[CapitalizerM1Bar, ...],
     *,
     direction: CapitalizerSourceDirection,
-    entry_price: s1.Decimal,
-    decision_at: s1.datetime,
+    entry_price: Decimal,
+    decision_at: datetime,
 ) -> TargetAudit:
     binding = targets.bind_structural_target(
         bars,
