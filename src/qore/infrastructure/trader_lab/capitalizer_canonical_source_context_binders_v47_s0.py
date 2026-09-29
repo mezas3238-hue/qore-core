@@ -50,15 +50,15 @@ from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 
     detect_candle2_reversal_closure,
     detect_candle3_confirmation,
 )
-from qore.infrastructure.trader_lab.capitalizer_source_structural_extraction_v2 import (
-    protected_swing_from_cisd,
-)
 from qore.infrastructure.trader_lab.capitalizer_source_poi_v2 import (
     CapitalizerSourcePOI,
     CapitalizerSourcePOIKind,
     bar_interacts_with_poi,
     detect_external_liquidity_swing,
     detect_fair_value_gap,
+)
+from qore.infrastructure.trader_lab.capitalizer_source_structural_extraction_v2 import (
+    protected_swing_from_cisd,
 )
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
     _aggregate_tf,
