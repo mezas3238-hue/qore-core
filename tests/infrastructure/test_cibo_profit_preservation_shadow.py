@@ -134,6 +134,32 @@ def test_genc7_uses_exact_preregistered_amount_without_resizing() -> None:
     assert decision.execution_authority is False
 
 
+def test_genc7_rejects_any_treatment_resize_or_action_drift() -> None:
+    decision = evaluate_genc7_profit_preservation_shadow(
+        state=_state(),
+        proposal=_proposal(amount="10"),
+        decision_id="genc7-exact-proposal",
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="must equal exact proposal",
+    ):
+        replace(
+            decision,
+            treatment_amount_usd=Decimal("9"),
+        )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="must equal exact proposal",
+    ):
+        replace(
+            decision,
+            treatment_action=Genc7Action.HARVEST_TO_STRATEGIC_RESERVE,
+        )
+
+
 def test_genc7_holds_when_proposal_not_capital_eligible() -> None:
     decision = evaluate_genc7_profit_preservation_shadow(
         state=_state(),
@@ -281,7 +307,7 @@ def test_genc7_store_hash_chain_restart_cas_and_conflict(tmp_path) -> None:
 
     changed = replace(
         decision,
-        treatment_amount_usd=Decimal("9"),
+        base_drawdown_usd=Decimal("3"),
     )
     with pytest.raises(
         CiboCompoundCapitalError,
