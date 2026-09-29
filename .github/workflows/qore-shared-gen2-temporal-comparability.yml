@@ -135,7 +135,7 @@ jobs:
       - name: Build 177-row observability matrix
         run: |
           set -euo pipefail
-          python scripts/shared_gen2_global_observability_matrix.py             --registry result/global-sensor-registry.json             --provider-schedule result/provider-schedule-catalog.json             --output result/global-market-observability-matrix.json             --calendar-output result/global-calendar-registry.json             | tee result/global-market-observability-summary.json
+          python scripts/shared_gen2_global_observability_matrix.py             --registry result/global-sensor-registry.json             --provider-schedule result/provider-schedule-catalog.json             --output result/global-market-observability-matrix.json             --calendar-output result/global-calendar-registry.json             --mapping-output result/canonical-calendar-mapping-registry.json             | tee result/global-market-observability-summary.json
 
       - name: Validate source-only governance
         run: |
@@ -144,6 +144,7 @@ jobs:
           from pathlib import Path
 
           schedule=json.loads(Path("result/provider-schedule-catalog.json").read_text())
+          mapping=json.loads(Path("result/canonical-calendar-mapping-registry.json").read_text())
           matrix=json.loads(Path("result/global-market-observability-matrix.json").read_text())
           assert schedule["sensor_count"] == 177
           assert len(schedule["symbols"]) == 177
@@ -156,8 +157,17 @@ jobs:
           assert matrix["automatic_sensor_admission"] is False
           assert matrix["relational_claims_authorized"] is False
           assert matrix["canonical_calendar_mapping_complete"] is False
-          assert matrix["canonical_mapping_governance_status"] == "IMPLEMENTED_NOT_POPULATED"
+          assert mapping["status"] == "UNRESOLVED_BASELINE_FROZEN"
+          assert mapping["record_count"] == 177
+          assert mapping["verified_count"] == 0
+          assert mapping["unresolved_count"] == 177
+          assert mapping["automatic_identity_inference"] is False
+          assert mapping["provider_schedule_is_not_canonical_identity_evidence"] is True
+          assert matrix["canonical_mapping_governance_status"] == "UNRESOLVED_BASELINE_FROZEN"
+          assert matrix["canonical_mapping_record_count"] == 177
           assert matrix["canonical_mapping_verified_count"] == 0
+          assert matrix["canonical_mapping_unresolved_count"] == 177
+          assert matrix["canonical_mapping_registry_fingerprint_sha256"] == mapping["canonical_mapping_registry_fingerprint_sha256"]
           assert matrix["cadence_policy_registry_architecture_status"] == "IMPLEMENTED_NOT_FROZEN"
           assert matrix["liquidity_policy_architecture_status"] == "IMPLEMENTED_NOT_FROZEN"
           assert matrix["temporal_skew_policy_registry_architecture_status"] == "IMPLEMENTED_NOT_FROZEN"
@@ -180,6 +190,7 @@ jobs:
           )
 
           schedule=json.loads(Path("result/provider-schedule-catalog.json").read_text())
+          mapping=json.loads(Path("result/canonical-calendar-mapping-registry.json").read_text())
           matrix=json.loads(Path("result/global-market-observability-matrix.json").read_text())
           calendar=json.loads(Path("result/global-calendar-registry.json").read_text())
           root=ET.parse("validation/junit.xml").getroot()
@@ -220,7 +231,10 @@ jobs:
               "provider_schedule_catalog_fingerprint":schedule["provider_schedule_catalog_fingerprint_sha256"],
               "calendar_registry_fingerprint":calendar["calendar_registry_fingerprint_sha256"],
               "canonical_mapping_governance_status":matrix["canonical_mapping_governance_status"],
+              "canonical_mapping_registry_fingerprint":mapping["canonical_mapping_registry_fingerprint_sha256"],
+              "canonical_mapping_record_count":mapping["record_count"],
               "canonical_mapping_verified_count":matrix["canonical_mapping_verified_count"],
+              "canonical_mapping_unresolved_count":mapping["unresolved_count"],
               "cadence_policy_registry_architecture_status":matrix["cadence_policy_registry_architecture_status"],
               "liquidity_policy_architecture_status":matrix["liquidity_policy_architecture_status"],
               "temporal_skew_policy_registry_architecture_status":matrix["temporal_skew_policy_registry_architecture_status"],
@@ -270,6 +284,7 @@ jobs:
           from pathlib import Path
 
           schedule=json.loads(Path("result/provider-schedule-catalog.json").read_text())
+          mapping=json.loads(Path("result/canonical-calendar-mapping-registry.json").read_text())
           matrix=json.loads(Path("result/global-market-observability-matrix.json").read_text())
           evidence=json.loads(Path("result/gen2-evidence-pack.json").read_text())
           body="\n".join([
@@ -281,8 +296,9 @@ jobs:
               f"- provider schedule fingerprint: `{schedule['provider_schedule_catalog_fingerprint_sha256']}`",
               f"- observability matrix fingerprint: `{matrix['global_observability_matrix_fingerprint_sha256']}`",
               f"- readiness: **{matrix['readiness_counts']}**",
-              "- canonical mapping governance: **IMPLEMENTED_NOT_POPULATED**",
-              "- canonical mapping verified count: **0**",
+              "- canonical mapping governance: **UNRESOLVED_BASELINE_FROZEN**",
+              f"- canonical mapping registry: **{mapping['record_count']} records** / verified **{mapping['verified_count']}** / unresolved **{mapping['unresolved_count']}**",
+              f"- canonical mapping fingerprint: `{mapping['canonical_mapping_registry_fingerprint_sha256']}`",
               "- cadence/liquidity/skew/comparability policy architecture: **IMPLEMENTED_NOT_FROZEN**",
               "- canonical calendar mapping complete: **False**",
               "- comparability policy registry: **NOT_FROZEN**",
