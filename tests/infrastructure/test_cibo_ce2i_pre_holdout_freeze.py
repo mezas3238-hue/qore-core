@@ -1,9 +1,9 @@
 import pytest
 
+import qore.infrastructure.cibo_ce2i_pre_holdout_freeze as freeze_module
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
-import qore.infrastructure.cibo_ce2i_pre_holdout_freeze as freeze_module
 from qore.infrastructure.cibo_ce2i_pre_holdout_freeze import (
     ACTIVE_PRE_HOLDOUT_FREEZE,
     CURRENT_HOLDOUT_SEAL_STATE,
