@@ -1,0 +1,159 @@
+name: QORE Shared GW1 Global Multi Asset Provider Capability
+
+concurrency:
+  group: qore-shared-gw1-multi-asset-provider-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/shared_global_multi_asset_provider_capability_audit.py
+      - .github/workflows/qore-shared-gw1-multi-asset-provider-capability.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  UPSTREAM_GEN2_RUN_ID: "36623131862"
+  UPSTREAM_GEN2_ARTIFACT_ID: "11059307341"
+  UPSTREAM_GEN2_GIT_SHA: "f5fcd0c9552466132f6f47bb124805e49e774493"
+
+jobs:
+  provider-capability:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate GW-1 audit
+        run: |
+          set -euo pipefail
+          mkdir -p result input
+          ruff check scripts/shared_global_multi_asset_provider_capability_audit.py
+          python -m py_compile scripts/shared_global_multi_asset_provider_capability_audit.py
+
+      - name: Recover sealed GEN-2 provider catalogue
+        run: |
+          set -euo pipefail
+          status="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${UPSTREAM_GEN2_RUN_ID}" --jq '.status')"
+          conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${UPSTREAM_GEN2_RUN_ID}" --jq '.conclusion')"
+          head_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${UPSTREAM_GEN2_RUN_ID}" --jq '.head_sha')"
+          test "$status" = "completed"
+          test "$conclusion" = "success"
+          test "$head_sha" = "$UPSTREAM_GEN2_GIT_SHA"
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${UPSTREAM_GEN2_ARTIFACT_ID}/zip" > upstream.zip
+          unzip -q upstream.zip -d input
+          (cd input/result && sha256sum -c SHA256SUMS)
+          test "$(cat input/result/gen2-code-git-sha.txt)" = "$UPSTREAM_GEN2_GIT_SHA"
+
+      - name: Build real multi-asset capability matrix
+        run: |
+          set -euo pipefail
+          python scripts/shared_global_multi_asset_provider_capability_audit.py \
+            --provider-schedule input/result/provider-schedule-catalog.json \
+            --output result/global-multi-asset-provider-capability.json \
+            | tee result/global-multi-asset-provider-summary.json
+
+      - name: Validate provider-grounded world availability
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/global-multi-asset-provider-capability.json").read_text()
+          )
+          assert p["identity"] == "QORE_SHARED_GLOBAL_MULTI_ASSET_PROVIDER_CAPABILITY_001"
+          assert p["provider_sensor_count"] == 177
+          counts=p["provider_asset_class_counts"]
+          assert counts["Forex"] == 60
+          assert counts["Indices"] == 25
+          assert counts["Metals"] == 16
+          assert counts["Oil"] == 2
+          assert counts["Commodities"] == 1
+          families={row["family"]:row for row in p["families"]}
+          assert families["FX"]["provider_candidate_count"] == 60
+          assert families["EQUITY_INDICES"]["provider_candidate_count"] == 25
+          assert families["METALS"]["provider_candidate_count"] == 16
+          assert families["ENERGY"]["provider_candidate_count"] >= 3
+          assert families["AGRICULTURE"]["provider_candidate_count"] == 0
+          assert families["SOFTS"]["provider_candidate_count"] == 0
+          assert families["LIVESTOCK"]["provider_candidate_count"] == 0
+          assert p["provider_symbol_is_canonical_identity"] is False
+          assert p["automatic_sensor_admission"] is False
+          assert p["relational_claims_authorized"] is False
+          assert p["historical_market_data_read"] is False
+          assert p["target_or_outcome_read"] is False
+          assert p["protected_holdout_opened"] is False
+          assert p["productive_authority"] is False
+          assert len(p["matrix_fingerprint_sha256"]) == 64
+          PY
+
+      - name: Bind GW-1 evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-gw1-multi-asset-provider-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report GW-1 provider world
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/global-multi-asset-provider-capability.json").read_text()
+          )
+          families={row["family"]:row for row in p["families"]}
+          lines=[
+              "## Shared GW-1 — Real Multi-Asset Provider Capability",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- provider sensors inspected: **{p['provider_sensor_count']}**",
+              f"- FX candidates: **{families['FX']['provider_candidate_count']}**",
+              f"- Equity-index candidates: **{families['EQUITY_INDICES']['provider_candidate_count']}**",
+              f"- Metals candidates: **{families['METALS']['provider_candidate_count']}**",
+              f"- Energy candidates: **{families['ENERGY']['provider_candidate_count']}**",
+              f"- Agriculture / Softs / Livestock: **{families['AGRICULTURE']['provider_candidate_count']} / {families['SOFTS']['provider_candidate_count']} / {families['LIVESTOCK']['provider_candidate_count']}**",
+              "- provider availability = canonical identity: **False**",
+              "- automatic sensor admission: **False**",
+              "- relational claims authorized: **False**",
+              "- historical market data read: **False**",
+              "- protected holdout opened: **False**",
+          ]
+          for family in ("RATES","VOLATILITY","CREDIT","POWER","FREIGHT","ENVIRONMENTAL"):
+              row=families[family]
+              lines.append(
+                  f"- {family}: **{row['availability']} ({row['provider_candidate_count']})**"
+              )
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
