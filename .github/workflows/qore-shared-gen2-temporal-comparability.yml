@@ -156,6 +156,13 @@ jobs:
           assert matrix["automatic_sensor_admission"] is False
           assert matrix["relational_claims_authorized"] is False
           assert matrix["canonical_calendar_mapping_complete"] is False
+          assert matrix["canonical_mapping_governance_status"] == "IMPLEMENTED_NOT_POPULATED"
+          assert matrix["canonical_mapping_verified_count"] == 0
+          assert matrix["cadence_policy_registry_architecture_status"] == "IMPLEMENTED_NOT_FROZEN"
+          assert matrix["liquidity_policy_architecture_status"] == "IMPLEMENTED_NOT_FROZEN"
+          assert matrix["temporal_skew_policy_registry_architecture_status"] == "IMPLEMENTED_NOT_FROZEN"
+          assert matrix["comparability_policy_registry_architecture_status"] == "IMPLEMENTED_NOT_FROZEN"
+          assert matrix["comparability_policy_registry_status"] == "NOT_FROZEN"
           assert matrix["target_or_outcome_read"] is False
           assert all(row["scientific_disposition"] == "DISCOVERED" for row in matrix["rows"])
           PY
@@ -183,6 +190,12 @@ jobs:
               "upstream_gen1_artifact_id":int(os.environ["GEN1_ARTIFACT_ID"]),
               "provider_schedule_catalog_fingerprint":schedule["provider_schedule_catalog_fingerprint_sha256"],
               "calendar_registry_fingerprint":calendar["calendar_registry_fingerprint_sha256"],
+              "canonical_mapping_governance_status":matrix["canonical_mapping_governance_status"],
+              "canonical_mapping_verified_count":matrix["canonical_mapping_verified_count"],
+              "cadence_policy_registry_architecture_status":matrix["cadence_policy_registry_architecture_status"],
+              "liquidity_policy_architecture_status":matrix["liquidity_policy_architecture_status"],
+              "temporal_skew_policy_registry_architecture_status":matrix["temporal_skew_policy_registry_architecture_status"],
+              "comparability_policy_registry_architecture_status":matrix["comparability_policy_registry_architecture_status"],
               "comparability_policy_registry_status":"NOT_FROZEN",
               "global_observability_matrix_fingerprint":matrix["global_observability_matrix_fingerprint_sha256"],
               "test_count":tests,
