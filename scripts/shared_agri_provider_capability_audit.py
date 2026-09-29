@@ -11,7 +11,6 @@ from typing import Any, cast
 
 from qore.infrastructure.core_stack_v2.agricultural_sensor_governance import (
     AgriculturalDiscoveryTarget,
-    AgriculturalProviderDiscoveryState,
     AgriculturalWorldFamily,
     GlobalAgriculturalSensorMatrix,
     ProviderAgriculturalCandidate,
