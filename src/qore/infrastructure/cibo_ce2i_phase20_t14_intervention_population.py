@@ -31,9 +31,9 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
     FROZEN_PHASE20D_QUALIFICATION_PLAN,
 )
 from qore.infrastructure.ctrader_demo_live_behavior_lab import (
+    TRADER_BEHAVIOR_CONTRACTS,
     BehaviorStage,
     LiveBehaviorEvent,
-    TRADER_BEHAVIOR_CONTRACTS,
 )
 
 _INTERVENTION_TOKENS = (
