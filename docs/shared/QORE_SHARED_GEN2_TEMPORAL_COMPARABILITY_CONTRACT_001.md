@@ -111,6 +111,51 @@ No global staleness threshold is allowed.
 Cadence policies are explicit and scoped to instrument/provider/session.
 They carry their own version, provenance and fingerprint.
 
+## Canonical calendar mapping admission
+
+Provider schedule metadata is supporting evidence only. It is never sufficient
+to promote a provider instrument into a canonical venue/calendar binding.
+
+A mapping may become `VERIFIED` only with explicit, independently provenance-bound
+evidence for all three planes:
+
+- canonical instrument identity;
+- trading venue;
+- canonical versioned market calendar.
+
+`UNRESOLVED`, `AMBIGUOUS` and `REJECTED` mappings cannot create
+`MarketCalendarBinding` objects. The mapping registry is deterministic,
+provider-aware and exact-keyed.
+
+Current source-census status remains:
+
+```text
+MAPPING GOVERNANCE = IMPLEMENTED_NOT_POPULATED
+VERIFIED MAPPINGS  = 0
+MAPPING COMPLETE   = FALSE
+```
+
+This is deliberate. GEN-2 must not manufacture canonical truth from provider
+symbol names or provider schedules.
+
+## Governed cadence, liquidity and temporal-skew policy layers
+
+No global staleness, liquidity or temporal-skew fallback is allowed.
+
+The codebase contains deterministic exact-scope registries for:
+
+- expected update cadence by instrument/provider/session;
+- temporal skew by relation kind, source family, target family, horizon,
+  session scope and liquidity scope;
+- relational comparability policy by explicit relation scope.
+
+Liquidity interpretation is separately policy-bound. Provider degradation,
+unavailability, staleness or unknown observability forces liquidity to
+`UNKNOWN`; it cannot be relabeled as market illiquidity.
+
+These policy architectures are implemented but not frozen. Their existence does
+not authorize relational claims.
+
 ## Governed comparability policy registry
 
 The codebase now contains a deterministic, versioned
