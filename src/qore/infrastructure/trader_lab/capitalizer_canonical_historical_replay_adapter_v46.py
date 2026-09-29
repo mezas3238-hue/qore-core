@@ -441,6 +441,8 @@ def assess_canonical_historical_bundle(
         plan = engine.trade_plan
         if plan.initial_stop_price != bundle.protected_swing.swing_price:
             raise ValueError("canonical adapter stop drift")
+        if target_observation is None:
+            raise AssertionError("validated structural target unexpectedly missing")
         if plan.target_price != target_observation.target_price:
             raise ValueError("canonical adapter target drift")
         if plan.fixed_r_target_invented:
