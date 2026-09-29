@@ -607,6 +607,82 @@ class GlobalMarketCalendarRegistry:
         )
 
 
+def build_governed_global_market_calendar_registry(
+    *,
+    version: str,
+    mapping_registry: CanonicalCalendarMappingRegistry,
+    calendars: tuple[GlobalMarketCalendar, ...],
+    provenance_refs: tuple[str, ...],
+) -> GlobalMarketCalendarRegistry:
+    """Bind only independently verified mappings to exact canonical calendars."""
+
+    if not version.strip():
+        raise TemporalComparabilityError(
+            "governed calendar registry version must be non-empty"
+        )
+    if provenance_refs != tuple(sorted(set(provenance_refs))):
+        raise TemporalComparabilityError(
+            "governed calendar registry provenance must be canonical"
+        )
+    calendar_by_id = {item.calendar_id: item for item in calendars}
+    if len(calendar_by_id) != len(calendars):
+        raise TemporalComparabilityError(
+            "governed calendar registry calendars must be unique"
+        )
+
+    bindings: list[MarketCalendarBinding] = []
+    for record in mapping_registry.records:
+        if record.status is not CanonicalCalendarMappingStatus.VERIFIED:
+            continue
+        assert record.calendar_id is not None
+        assert record.calendar_version is not None
+        assert record.venue is not None
+        assert record.iana_timezone is not None
+        calendar = calendar_by_id.get(record.calendar_id)
+        if calendar is None:
+            raise TemporalComparabilityError(
+                "verified mapping references missing canonical calendar"
+            )
+        if calendar.version != record.calendar_version:
+            raise TemporalComparabilityError(
+                "verified mapping calendar version drift"
+            )
+        if calendar.venue != record.venue:
+            raise TemporalComparabilityError(
+                "verified mapping calendar venue drift"
+            )
+        if calendar.iana_timezone != record.iana_timezone:
+            raise TemporalComparabilityError(
+                "verified mapping calendar timezone drift"
+            )
+        bindings.append(record.to_binding())
+
+    registry_provenance = tuple(
+        sorted(
+            set(
+                provenance_refs
+                + (
+                    "canonical-mapping-registry:"
+                    + mapping_registry.fingerprint(),
+                )
+                + tuple(
+                    "canonical-calendar:"
+                    + item.calendar_id
+                    + ":"
+                    + item.fingerprint()
+                    for item in calendars
+                )
+            )
+        )
+    )
+    return GlobalMarketCalendarRegistry(
+        version=version,
+        calendars=calendars,
+        bindings=tuple(sorted(bindings, key=lambda item: item.instrument_key)),
+        provenance_refs=registry_provenance,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class MarketSessionSnapshot:
     instrument_key: str
