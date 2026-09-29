@@ -24,8 +24,14 @@ from typing import cast
 from qore.infrastructure.ctrader_open_api_client import (
     SpotwareCTraderOpenApiClient,
 )
+from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
+    CapitalizerCognitiveGateDecision,
+)
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
     CapitalizerSide,
+)
+from qore.infrastructure.trader_lab import (
+    capitalizer_canonical_historical_replay_adapter_v46 as v46_adapter,
 )
 from qore.kernel.result import Failure
 
@@ -263,6 +269,50 @@ def request_provider_tick_interval(
     return tick_data, has_more
 
 
+
+
+@dataclass(frozen=True, slots=True)
+class SourceStrategyIsolationAssessment:
+    canonical_result: v46_adapter.CapitalizerCanonicalHistoricalAdapterResult
+    cognitive_gate_source: str = "EXOGENOUS_PASS_FOR_SOURCE_STRATEGY_ISOLATION"
+    full_trader_fidelity_claimed: bool = False
+    candidate_promotion_allowed: bool = False
+    trader_certified: bool = False
+
+    def __post_init__(self) -> None:
+        if self.cognitive_gate_source != (
+            "EXOGENOUS_PASS_FOR_SOURCE_STRATEGY_ISOLATION"
+        ):
+            raise ValueError("S0 isolation cognitive source identity drift")
+        if (
+            self.full_trader_fidelity_claimed
+            or self.candidate_promotion_allowed
+            or self.trader_certified
+        ):
+            raise ValueError("S0 isolation cannot claim full Trader authority")
+
+
+def assess_source_strategy_isolation_bundle(
+    bundle: v46_adapter.CapitalizerCanonicalHistoricalBundle,
+) -> SourceStrategyIsolationAssessment:
+    """Run the official V46 adapter under an explicit exogenous PASS token.
+
+    This helper never synthesizes a PASS. The caller must construct the bundle
+    with PASS_TO_STRATEGY and accepts that the result is source-strategy
+    isolation only, not a historical replay of the full cognitive Trader.
+    """
+
+    if (
+        bundle.cognitive_gate_decision
+        is not CapitalizerCognitiveGateDecision.PASS_TO_STRATEGY
+    ):
+        raise ValueError(
+            "S0 source-strategy isolation requires explicit exogenous PASS"
+        )
+    result = v46_adapter.assess_canonical_historical_bundle(bundle)
+    return SourceStrategyIsolationAssessment(canonical_result=result)
+
+
 def build_readiness_report() -> dict[str, object]:
     """Track S0 construction blockers without opening economics."""
 
@@ -332,9 +382,13 @@ def build_readiness_report() -> dict[str, object]:
         ),
         S0Binder(
             key="V46_CANONICAL_BUNDLE_ASSEMBLY",
-            status=S0BinderStatus.COMPOSER_READY_REQUIRES_BINDING,
-            hard_blocker=True,
-            evidence="V46-R2 adapter is ready; S0 full bundle builder remains.",
+            status=S0BinderStatus.READY,
+            hard_blocker=False,
+            evidence=(
+                "S0 isolation wrapper calls the official V46-R2 adapter and "
+                "requires an explicit exogenous PASS token; it cannot claim "
+                "full-Trader fidelity or promotion authority."
+            ),
         ),
     )
     blockers = tuple(row.key for row in binders if row.hard_blocker)
