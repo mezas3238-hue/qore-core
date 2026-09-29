@@ -1151,6 +1151,11 @@ def main() -> None:
         "missing_collector_git_sha_decisions": missing_collector_git_sha,
     }
     certification_blockers: list[str] = []
+    causal_tool_blockers = [
+        f"CAUSAL_TOOL_{item.tool_code}_NOT_FORWARD_POPULATION_READY"
+        for item in tool_readiness.tools
+        if not item.forward_population_ready
+    ]
     if report.status.value != "PASS":
         certification_blockers.append("QUALIFICATION_NOT_PASS")
     if report.failures:
@@ -1161,6 +1166,8 @@ def main() -> None:
         certification_blockers.append("COLLECTOR_GIT_LINEAGE_INCOMPLETE")
     if len(collector_git_shas) != 1:
         certification_blockers.append("COLLECTOR_GIT_LINEAGE_NOT_SINGLE_SHA")
+    certification_blockers.extend(causal_tool_blockers)
+    certification_blockers = list(dict.fromkeys(certification_blockers))
     payload["phase20d_gate"] = {
         "status": (
             "PASS"
@@ -1171,6 +1178,10 @@ def main() -> None:
         "blockers": certification_blockers,
         "requires_exact_evidence_and_policy_digests": True,
         "requires_single_collector_git_sha": True,
+        "requires_all_causal_tool_gates_ready": True,
+        "causal_tool_gate_codes": [
+            item.tool_code for item in tool_readiness.tools
+        ],
     }
     final_blockers = list(certification_blockers)
     final_blockers.extend(
@@ -1188,6 +1199,7 @@ def main() -> None:
         "requires_phase22_sealed_holdout": True,
         "requires_exact_evidence_and_policy_digests": True,
         "requires_single_collector_git_sha": True,
+        "requires_all_causal_tool_gates_ready": True,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(

@@ -32,6 +32,17 @@ def build_report() -> dict[str, Any]:
         "phase20d_plan_id": plan.plan_id,
         "phase20d_plan_sha256": phase20d_qualification_plan_sha256(),
         "required_phase20d_status": "PASS",
+        "required_phase20d_causal_tool_codes": [
+            "T08",
+            "T09",
+            "T12",
+            "T13",
+            "T14",
+            "T15",
+            "T18",
+        ],
+        "required_phase20d_causal_tool_state": "FORWARD_POPULATION_READY",
+        "required_phase20d_causal_tool_blockers": [],
         "required_empirical_validations": sorted(
             item.value for item in Phase21EmpiricalValidationKind
         ),

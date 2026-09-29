@@ -59,6 +59,28 @@ def _qualification_artifact_json() -> str:
             "missing_policy_decisions": 0,
             "pre_freeze_decisions": 0,
         },
+        "causal_tool_readiness": {
+            "tools": [
+                {
+                    "tool_code": code,
+                    "state": "FORWARD_POPULATION_READY",
+                    "stream_bound": True,
+                    "forward_population_ready": True,
+                    "observed_epochs": 80,
+                    "qualifying_epochs": 80,
+                    "blockers": [],
+                }
+                for code in (
+                    "T08",
+                    "T09",
+                    "T12",
+                    "T13",
+                    "T14",
+                    "T15",
+                    "T18",
+                )
+            ],
+        },
         "economics": {
             "policy_net_delta_usd": "120",
             "baseline_net_delta_usd": "80",
@@ -96,11 +118,22 @@ def _qualification_artifact_json() -> str:
             "blockers": [],
             "requires_exact_evidence_and_policy_digests": True,
             "requires_single_collector_git_sha": True,
+            "requires_all_causal_tool_gates_ready": True,
+            "causal_tool_gate_codes": [
+                "T08",
+                "T09",
+                "T12",
+                "T13",
+                "T14",
+                "T15",
+                "T18",
+            ],
         },
         "final_certification": {
             "status": "PENDING_PHASE21_PHASE22",
             "eligible": False,
             "phase20d_eligible_for_phase21": True,
+            "requires_all_causal_tool_gates_ready": True,
         },
     }
     return json.dumps(report, indent=2, sort_keys=True) + "\n"
@@ -410,3 +443,39 @@ def test_phase21_manifest_digest_is_order_invariant_for_receipts() -> None:
     )
 
     assert forward.manifest_sha256() == reverse.manifest_sha256()
+
+
+
+def test_phase21_qualification_rejects_unready_causal_tool() -> None:
+    report = json.loads(_qualification_artifact_json())
+    row = report["causal_tool_readiness"]["tools"][3]
+    row["state"] = "COLLECTING_FORWARD"
+    row["forward_population_ready"] = False
+    row["blockers"] = ["FRESH_OOS_DRAWDOWN_RESERVE_UTILITY_ANALYSIS_REQUIRED"]
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="causal tool not ready: T13",
+    ):
+        build_phase21_qualification_receipt(
+            qualification_artifact_json=(
+                json.dumps(report, indent=2, sort_keys=True) + "\n"
+            ),
+            qualified_at=QUALIFIED_AT,
+        )
+
+
+def test_phase21_qualification_rejects_missing_causal_tool_gate_contract() -> None:
+    report = json.loads(_qualification_artifact_json())
+    report["phase20d_gate"]["requires_all_causal_tool_gates_ready"] = False
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="qualification gate is not eligible",
+    ):
+        build_phase21_qualification_receipt(
+            qualification_artifact_json=(
+                json.dumps(report, indent=2, sort_keys=True) + "\n"
+            ),
+            qualified_at=QUALIFIED_AT,
+        )

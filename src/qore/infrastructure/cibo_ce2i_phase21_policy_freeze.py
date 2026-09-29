@@ -41,6 +41,15 @@ class Phase21EmpiricalValidationKind(StrEnum):
 _REQUIRED_EMPIRICAL_VALIDATIONS = frozenset(Phase21EmpiricalValidationKind)
 _EMPIRICAL_REPORT_SCHEMA = "qore.cibo.phase21.empirical-validation.v1"
 _EMPIRICAL_PLAN_ID = "CIBO_PHASE21_EMPIRICAL_VALIDATION_LINEAGE_V1"
+_REQUIRED_CAUSAL_TOOL_CODES = (
+    "T08",
+    "T09",
+    "T12",
+    "T13",
+    "T14",
+    "T15",
+    "T18",
+)
 
 
 def _empirical_plan_payload() -> dict[str, object]:
@@ -537,6 +546,45 @@ class Phase21QualificationReceipt:
             raise CiboCapitalManagementError(
                 "Phase21 qualification collector lineage incomplete"
             )
+        causal_readiness = report.get("causal_tool_readiness")
+        if not isinstance(causal_readiness, dict):
+            raise CiboCapitalManagementError(
+                "Phase21 qualification causal tool readiness missing"
+            )
+        causal_tools = causal_readiness.get("tools")
+        if not isinstance(causal_tools, list):
+            raise CiboCapitalManagementError(
+                "Phase21 qualification causal tool rows missing"
+            )
+        if len(causal_tools) != len(_REQUIRED_CAUSAL_TOOL_CODES):
+            raise CiboCapitalManagementError(
+                "Phase21 qualification causal tool set incomplete"
+            )
+        seen_codes: list[str] = []
+        for row in causal_tools:
+            if not isinstance(row, dict):
+                raise CiboCapitalManagementError(
+                    "Phase21 qualification causal tool row must be object"
+                )
+            code = row.get("tool_code")
+            if not isinstance(code, str):
+                raise CiboCapitalManagementError(
+                    "Phase21 qualification causal tool code invalid"
+                )
+            seen_codes.append(code)
+            if (
+                row.get("state") != "FORWARD_POPULATION_READY"
+                or row.get("forward_population_ready") is not True
+                or row.get("stream_bound") is not True
+                or row.get("blockers") != []
+            ):
+                raise CiboCapitalManagementError(
+                    f"Phase21 qualification causal tool not ready: {code}"
+                )
+        if tuple(seen_codes) != _REQUIRED_CAUSAL_TOOL_CODES:
+            raise CiboCapitalManagementError(
+                "Phase21 qualification causal tool ordering/identity drift"
+            )
         gate = report.get("phase20d_gate")
         if (
             not isinstance(gate, dict)
@@ -545,6 +593,9 @@ class Phase21QualificationReceipt:
             or gate.get("blockers") != []
             or gate.get("requires_exact_evidence_and_policy_digests") is not True
             or gate.get("requires_single_collector_git_sha") is not True
+            or gate.get("requires_all_causal_tool_gates_ready") is not True
+            or gate.get("causal_tool_gate_codes")
+            != list(_REQUIRED_CAUSAL_TOOL_CODES)
         ):
             raise CiboCapitalManagementError(
                 "Phase21 qualification gate is not eligible"
@@ -555,6 +606,8 @@ class Phase21QualificationReceipt:
             or final_gate.get("status") != "PENDING_PHASE21_PHASE22"
             or final_gate.get("eligible") is not False
             or final_gate.get("phase20d_eligible_for_phase21") is not True
+            or final_gate.get("requires_all_causal_tool_gates_ready")
+            is not True
         ):
             raise CiboCapitalManagementError(
                 "Phase21 qualification artifact final gate drift"
