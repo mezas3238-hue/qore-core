@@ -182,6 +182,15 @@ def test_t08_uses_verified_stable_factor_offsets_and_caps_credit() -> None:
             correlation_state_id="corr-v1",
             correlation_stable=True,
             factor_map_verified=True,
+            risk_mapping_evidence_id="risk-map-oos-v1",
+            correlation_evidence_id="corr-oos-v1",
+            netting_utility_evidence_id="netting-utility-oos-v1",
+            risk_mapping_verified=True,
+            correlation_oos=True,
+            correlation_sample_size=120,
+            correlation_stability_folds=4,
+            netting_utility_oos=True,
+            netting_utility_sample_size=80,
             maximum_credit_fraction=Decimal("0.50"),
             exposures=(
                 FactorExposure(
@@ -200,6 +209,34 @@ def test_t08_uses_verified_stable_factor_offsets_and_caps_credit() -> None:
 
     assert decision.disposition is AdvancedToolDisposition.APPLIED
     assert decision.released_capacity_usd == Decimal("8")
+
+
+def test_t08_fails_closed_without_causal_risk_mapping_and_oos_utility() -> None:
+    decision = evaluate_portfolio_netting(
+        PortfolioNettingEvidence(
+            evidence_id="t08-unqualified",
+            observed_at=_NOW,
+            correlation_state_id="corr-boolean-only",
+            correlation_stable=True,
+            factor_map_verified=True,
+            exposures=(
+                FactorExposure(
+                    position_id="p1",
+                    factor_id="USD",
+                    signed_risk_usd=Decimal("10"),
+                ),
+                FactorExposure(
+                    position_id="p2",
+                    factor_id="USD",
+                    signed_risk_usd=Decimal("-6"),
+                ),
+            ),
+        )
+    )
+
+    assert decision.disposition is AdvancedToolDisposition.FAIL_CLOSED
+    assert decision.released_capacity_usd == Decimal(0)
+    assert "risk mapping" in decision.reason
 
 
 def test_t10_uses_oos_output_per_capital_minute_without_worse_tail() -> None:

@@ -375,6 +375,18 @@ class PortfolioNettingEvidence:
     correlation_state_id: str
     correlation_stable: bool
     factor_map_verified: bool
+    risk_mapping_evidence_id: str | None = None
+    correlation_evidence_id: str | None = None
+    netting_utility_evidence_id: str | None = None
+    risk_mapping_verified: bool = False
+    correlation_oos: bool = False
+    correlation_sample_size: int = 0
+    correlation_stability_folds: int = 0
+    netting_utility_oos: bool = False
+    netting_utility_sample_size: int = 0
+    minimum_correlation_sample: int = 30
+    minimum_correlation_folds: int = 4
+    minimum_netting_utility_sample: int = 30
     maximum_credit_fraction: Decimal = Decimal("0.50")
 
     def __post_init__(self) -> None:
@@ -383,10 +395,47 @@ class PortfolioNettingEvidence:
         _aware(self.observed_at, "observed_at")
         if not self.exposures:
             raise CiboCapitalManagementError("portfolio exposures are required")
-        if type(self.correlation_stable) is not bool:
-            raise CiboCapitalManagementError("correlation_stable must be bool")
-        if type(self.factor_map_verified) is not bool:
-            raise CiboCapitalManagementError("factor_map_verified must be bool")
+        for name in (
+            "correlation_stable",
+            "factor_map_verified",
+            "risk_mapping_verified",
+            "correlation_oos",
+            "netting_utility_oos",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(f"{name} must be bool")
+        for name in (
+            "correlation_sample_size",
+            "correlation_stability_folds",
+            "netting_utility_sample_size",
+        ):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, int)
+                or isinstance(value, bool)
+                or value < 0
+            ):
+                raise CiboCapitalManagementError(
+                    f"{name} must be non-negative int"
+                )
+        for name in (
+            "minimum_correlation_sample",
+            "minimum_correlation_folds",
+            "minimum_netting_utility_sample",
+        ):
+            _positive_int(getattr(self, name), name)
+        for flag, evidence_name in (
+            ("risk_mapping_verified", "risk_mapping_evidence_id"),
+            ("correlation_oos", "correlation_evidence_id"),
+            ("netting_utility_oos", "netting_utility_evidence_id"),
+        ):
+            evidence_id = getattr(self, evidence_name)
+            if evidence_id is not None:
+                _id(evidence_id, evidence_name)
+            if getattr(self, flag) and evidence_id is None:
+                raise CiboCapitalManagementError(
+                    f"{flag} requires {evidence_name}"
+                )
         _fraction(self.maximum_credit_fraction, "maximum_credit_fraction")
 
 
@@ -399,8 +448,41 @@ def evaluate_portfolio_netting(
         )
     if not evidence.factor_map_verified:
         return _fail("T08", "factor map is not verified")
+    if (
+        not evidence.risk_mapping_verified
+        or evidence.risk_mapping_evidence_id is None
+    ):
+        return _fail(
+            "T08",
+            "signed factor-risk mapping is not causally verified",
+        )
     if not evidence.correlation_stable:
-        return _fail("T08", "correlation state is not stable enough for netting credit")
+        return _fail(
+            "T08",
+            "correlation state is not stable enough for netting credit",
+        )
+    if (
+        not evidence.correlation_oos
+        or evidence.correlation_evidence_id is None
+        or evidence.correlation_sample_size
+        < evidence.minimum_correlation_sample
+        or evidence.correlation_stability_folds
+        < evidence.minimum_correlation_folds
+    ):
+        return _fail(
+            "T08",
+            "correlation state lacks sufficient causal OOS evidence",
+        )
+    if (
+        not evidence.netting_utility_oos
+        or evidence.netting_utility_evidence_id is None
+        or evidence.netting_utility_sample_size
+        < evidence.minimum_netting_utility_sample
+    ):
+        return _fail(
+            "T08",
+            "netting credit lacks sufficient fresh OOS utility evidence",
+        )
     gross = sum((abs(item.signed_risk_usd) for item in evidence.exposures), Decimal(0))
     by_factor: dict[str, Decimal] = {}
     for item in evidence.exposures:
