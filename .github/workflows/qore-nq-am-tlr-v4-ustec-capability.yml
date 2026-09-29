@@ -13,18 +13,17 @@ on:
 
 concurrency:
   group: qore-nq-am-tlr-v4-ustec-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
   actions: read
 
 env:
-  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
-  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
-  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
-  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
-  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  GH_TOKEN: ${{ github.token }}
+  QORE_USTEC_SOURCE_RUN_ID: '34981033027'
+  QORE_USTEC_SOURCE_ARTIFACT_ID: '10402199719'
+  QORE_USTEC_SOURCE_ARTIFACT_DIGEST: 'sha256:9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d'
 
 jobs:
   quality:
@@ -37,7 +36,7 @@ jobs:
           python-version: '3.12'
           cache: pip
       - name: Install development dependencies
-        run: python -m pip install -e '.[dev,ctrader]'
+        run: python -m pip install -e '.[dev]'
       - name: Ruff
         run: |
           ruff check --ignore B009 \
@@ -65,8 +64,11 @@ jobs:
 
           assert 'ROLLING_AM_LOW_M2' in freeze
           assert 'Only ROLLING_AM_LOW_M2 adjudicates' in freeze
-          assert '2022-08-13 NY -> 2025-08-13 NY' in freeze
+          assert 'artifact id: 10402199719' in freeze
+          assert '2016-04-20 NY -> 2017-04-20 NY' in freeze
           assert 'PRIMARY_VARIANT = "ROLLING_AM_LOW_M2"' in module
+          assert 'EVAL_OPEN_NY = date(2016, 4, 20)' in module
+          assert 'EVAL_CLOSE_NY = date(2017, 4, 20)' in module
           assert 'USTEC_CAPABILITY_SUPPORTED' in module
           for flag in (
               'DEMO_ELIGIBLE=false',
@@ -80,42 +82,48 @@ jobs:
   ustec-capability:
     needs: quality
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: pip
-      - name: Install cTrader runtime
-        run: python -m pip install -e '.[ctrader]'
-      - name: Verify read-only cTrader inputs
+      - name: Install QORE research runtime
+        run: python -m pip install -e .
+      - name: Reuse immutable USTEC holdout already retained by Core
         shell: bash
         run: |
           set -euo pipefail
-          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
-            test -n "${!name:-}" || { echo "missing required DEMO input: $name" >&2; exit 2; }
-          done
-      - name: Discover DEMO account when needed
-        shell: bash
+          mkdir -p source artifacts/v4
+          meta="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${QORE_USTEC_SOURCE_ARTIFACT_ID}")"
+          test "$(printf '%s' "$meta" | jq -r '.workflow_run.id')" = "$QORE_USTEC_SOURCE_RUN_ID"
+          test "$(printf '%s' "$meta" | jq -r '.digest')" = "$QORE_USTEC_SOURCE_ARTIFACT_DIGEST"
+          gh api \
+            "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${QORE_USTEC_SOURCE_ARTIFACT_ID}/zip" \
+            > source.zip
+          unzip -q source.zip -d source
+          test -f source/fresh/NAS100/market-evidence.json
+          cp source/fresh/NAS100/market-evidence.json artifacts/v4/ustec-holdout.json
+      - name: Validate retained holdout identity and coverage before study
         run: |
-          set -euo pipefail
-          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
-            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
-            test -n "$account_id"
-            echo "::add-mask::$account_id"
-            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
-          fi
-      - name: Collect three-year USTEC M1 evidence
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(Path('artifacts/v4/ustec-holdout.json').read_text())
+          assert p['read_only'] is True
+          assert p['provider_symbol_name'] == 'USTEC'
+          assert p['decision_timeframe'] == 'M1'
+          assert p['coverage']['bar_count'] == 702591
+          assert p['coverage']['first_opened_at'].startswith('2016-04-19T00:00:00')
+          assert p['coverage']['last_closed_at'].startswith('2018-05-18T20:55:00')
+          assert p['software_sha'] == '3e9efe7b47f645558926fb1c6f1dc32fe45f50d9'
+          PY
+      - name: Run frozen one-year USTEC capability study
         run: |
-          mkdir -p artifacts/v4
           python -m qore.infrastructure.trader_lab.nq_am_tlr_v4_ustec_capability \
-            collect artifacts/v4/evidence.json \
-            | tee artifacts/v4/collection-summary.json
-      - name: Run frozen USTEC capability study
-        run: |
-          python -m qore.infrastructure.trader_lab.nq_am_tlr_v4_ustec_capability \
-            study artifacts/v4/evidence.json artifacts/v4/study \
+            study artifacts/v4/ustec-holdout.json artifacts/v4/study \
             | tee artifacts/v4/study-stdout.json
       - name: Adjudicate primary only
         run: |
@@ -124,14 +132,20 @@ jobs:
           from pathlib import Path
 
           p = json.loads(Path('artifacts/v4/study/summary.json').read_text())
+          assert p['evaluation_open_ny'] == '2016-04-20'
+          assert p['evaluation_close_ny'] == '2017-04-20'
           assert p['primary_variant'] == 'ROLLING_AM_LOW_M2'
           assert p['diagnostic_selection_authority'] is False
+          assert p['source_artifact_id'] == 10402199719
+          assert p['source_run_id'] == 34981033027
           assert p['demo_eligible'] is False
           assert p['live_authorized'] is False
           assert p['real_capital_authorized'] is False
           assert p['production_authorized'] is False
           result = {
               'identity': p['identity'],
+              'evaluation_open_ny': p['evaluation_open_ny'],
+              'evaluation_close_ny': p['evaluation_close_ny'],
               'primary_variant': p['primary_variant'],
               'primary_adjudication': p['primary_adjudication'],
               'primary_metrics': p['variants'][p['primary_variant']],
@@ -141,27 +155,28 @@ jobs:
           )
           print(json.dumps(result, indent=2, sort_keys=True))
           PY
-      - name: Bind immutable evidence
+      - name: Bind immutable result
         if: always()
         shell: bash
         run: |
           set -euo pipefail
           printf '%s\n' "$GITHUB_SHA" > artifacts/v4/git-sha.txt
+          printf '%s\n' "$QORE_USTEC_SOURCE_RUN_ID" > artifacts/v4/source-run-id.txt
+          printf '%s\n' "$QORE_USTEC_SOURCE_ARTIFACT_ID" > artifacts/v4/source-artifact-id.txt
+          printf '%s\n' "$QORE_USTEC_SOURCE_ARTIFACT_DIGEST" > artifacts/v4/source-artifact-digest.txt
           sha256sum \
             src/qore/infrastructure/trader_lab/nq_am_tlr_v4_ustec_capability.py \
             docs/research/QORE-NQ-AM-TLR-V4-USTEC-CAPABILITY-FREEZE.md \
-            > artifacts/v4/candidate-input-sha256.txt
-          if [ -f artifacts/v4/evidence.json ]; then
-            sha256sum artifacts/v4/evidence.json > artifacts/v4/evidence-sha256.txt
-          fi
+            artifacts/v4/ustec-holdout.json \
+            > artifacts/v4/input-sha256.txt
           find artifacts/v4 -type f ! -name SHA256SUMS.txt -print0 \
             | sort -z \
             | xargs -0 sha256sum > artifacts/v4/SHA256SUMS.txt
-      - name: Upload V4 capability evidence
+      - name: Upload one-year USTEC capability result
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: qore-nq-am-tlr-v4-ustec-capability-${{ github.sha }}
+          name: qore-nq-am-tlr-v4-ustec-1y-${{ github.sha }}
           path: artifacts/v4
           if-no-files-found: error
           retention-days: 90
