@@ -260,20 +260,20 @@ class AgriculturalFuturesContractQualification:
         )
 
 
-def assert_not_continuous_execution_identity(
+def assert_agricultural_native_execution_identity(
     identity: EconomicIdentity,
 ) -> None:
-    """Defensive AGRI-2 guard carried forward for later continuous-series work."""
+    """Reject reference/composite/continuous identities as execution contracts."""
 
     if not isinstance(identity, EconomicIdentity):
         raise AgriculturalIdentityQualificationError(
-            "continuous-series guard requires UMI EconomicIdentity"
+            "execution identity guard requires UMI EconomicIdentity"
         )
-    if identity.construction is IdentityConstructionKind.CONTINUOUS_REFERENCE:
-        if identity.kind is not EconomicIdentityKind.REFERENCE_OBJECT:
-            raise AgriculturalIdentityQualificationError(
-                "continuous agricultural reference must remain reference object"
-            )
-        return
-    if identity.kind is EconomicIdentityKind.REFERENCE_OBJECT:
-        return
+    if identity.kind is not EconomicIdentityKind.TRADABLE_INSTRUMENT:
+        raise AgriculturalIdentityQualificationError(
+            "agricultural execution identity must be tradable instrument"
+        )
+    if identity.construction is not IdentityConstructionKind.NATIVE:
+        raise AgriculturalIdentityQualificationError(
+            "agricultural execution identity must be native contract"
+        )
