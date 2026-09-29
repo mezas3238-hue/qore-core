@@ -56,9 +56,12 @@ from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
     CapitalizerProtectedSwingOrigin,
     CapitalizerSourceBar,
+    CapitalizerSourceClosureObservation,
     CapitalizerSourceDirection,
+    confirm_protected_swing,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_poi_v2 import (
+    CapitalizerSourcePOI,
     CapitalizerSourcePOIKind,
     detect_fair_value_gap,
 )
@@ -188,7 +191,7 @@ def bind_s2_m15_cisd(
     bars: tuple[CapitalizerM1Bar, ...],
     *,
     direction: CapitalizerSourceDirection,
-    higher_timeframe_closure: object,
+    higher_timeframe_closure: CapitalizerSourceClosureObservation,
     after: datetime,
     before: datetime,
 ) -> context_binders.S0CISDBinding | None:
@@ -223,7 +226,7 @@ def bind_s2_m15_cisd(
         )
         if not observed.setup_confirmed:
             continue
-        protected = context_binders.confirm_protected_swing(
+        protected = confirm_protected_swing(
             direction=direction,
             swing_price=_series_extreme(series, direction),
             origin=CapitalizerProtectedSwingOrigin.LIQUIDITY_SWEEP,
@@ -267,7 +270,7 @@ def _directional_fvg(
     third: CapitalizerM1Bar,
     *,
     direction: CapitalizerSourceDirection,
-):
+) -> CapitalizerSourcePOI | None:
     poi = detect_fair_value_gap(
         candle1=_source(first),
         candle2=_source(middle),
@@ -287,7 +290,7 @@ def bind_independent_m1_structure(
     bars: tuple[CapitalizerM1Bar, ...],
     *,
     side: CapitalizerSide,
-    higher_timeframe_closure: object,
+    higher_timeframe_closure: CapitalizerSourceClosureObservation,
     after: datetime,
     before: datetime,
 ) -> S2IndependentM1 | None:
