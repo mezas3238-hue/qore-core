@@ -49,7 +49,6 @@ from qore.infrastructure.trader_lab.capitalizer_source_poi_v2 import (
     detect_fair_value_gap,
 )
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
-    TFBar,
     _aggregate_tf,
 )
 
