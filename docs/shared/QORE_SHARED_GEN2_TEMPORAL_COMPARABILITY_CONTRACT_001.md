@@ -146,6 +146,15 @@ This is deliberate. GEN-2 must not manufacture canonical truth from provider
 symbol names or provider schedules, and future verification must update an
 auditable record rather than create an implicit allowlist.
 
+Verified mappings are promoted to calendar bindings only through an exact
+cross-check against the governed canonical calendar registry. Calendar ID,
+calendar version, venue and IANA timezone must all match. Any drift fails
+closed. Provider-schedule provenance is explicitly forbidden from satisfying
+canonical identity, venue or calendar evidence requirements.
+
+A successful GEN-2 temporal-governance closure still does not authorize
+correlation, lead/lag or any other relational scientific claim.
+
 ## Governed cadence, liquidity and temporal-skew policy layers
 
 No global staleness, liquidity or temporal-skew fallback is allowed.
