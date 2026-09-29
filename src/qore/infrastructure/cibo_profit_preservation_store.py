@@ -63,6 +63,11 @@ class Genc7ShadowDecisionSeal:
     state_evidence_sha256: str
     proposal_evidence_sha256: str
     evaluation_horizon_minutes: int
+    initial_realized_capital_usd: Decimal
+    initial_realized_profit_usd: Decimal
+    initial_protected_floor_usd: Decimal
+    initial_base_capital_usd: Decimal
+    initial_compound_capital_usd: Decimal
     control_action: Genc7Action
     control_amount_usd: Decimal
     treatment_action: Genc7Action
@@ -110,6 +115,11 @@ class Genc7ShadowDecisionSeal:
                 "GEN-C7 store seal cannot predate decision"
             )
         for name in (
+            "initial_realized_capital_usd",
+            "initial_realized_profit_usd",
+            "initial_protected_floor_usd",
+            "initial_base_capital_usd",
+            "initial_compound_capital_usd",
             "control_amount_usd",
             "treatment_amount_usd",
             "giveback_amount_usd",
@@ -483,6 +493,21 @@ def genc7_shadow_decision_json(
         "state_evidence_sha256": decision.state_evidence_sha256,
         "proposal_evidence_sha256": decision.proposal_evidence_sha256,
         "evaluation_horizon_minutes": decision.evaluation_horizon_minutes,
+        "initial_realized_capital_usd": str(
+            decision.initial_realized_capital_usd
+        ),
+        "initial_realized_profit_usd": str(
+            decision.initial_realized_profit_usd
+        ),
+        "initial_protected_floor_usd": str(
+            decision.initial_protected_floor_usd
+        ),
+        "initial_base_capital_usd": str(
+            decision.initial_base_capital_usd
+        ),
+        "initial_compound_capital_usd": str(
+            decision.initial_compound_capital_usd
+        ),
         "control_action": decision.control_action.value,
         "control_amount_usd": str(decision.control_amount_usd),
         "treatment_action": decision.treatment_action.value,
@@ -518,6 +543,21 @@ def genc7_shadow_decision_sha256(
         "state_evidence_sha256": decision.state_evidence_sha256,
         "proposal_evidence_sha256": decision.proposal_evidence_sha256,
         "evaluation_horizon_minutes": decision.evaluation_horizon_minutes,
+        "initial_realized_capital_usd": str(
+            decision.initial_realized_capital_usd
+        ),
+        "initial_realized_profit_usd": str(
+            decision.initial_realized_profit_usd
+        ),
+        "initial_protected_floor_usd": str(
+            decision.initial_protected_floor_usd
+        ),
+        "initial_base_capital_usd": str(
+            decision.initial_base_capital_usd
+        ),
+        "initial_compound_capital_usd": str(
+            decision.initial_compound_capital_usd
+        ),
         "control_action": decision.control_action.value,
         "control_amount_usd": str(decision.control_amount_usd),
         "treatment_action": decision.treatment_action.value,
@@ -577,6 +617,21 @@ def _seal_from_json(value: str) -> Genc7ShadowDecisionSeal:
             ),
             evaluation_horizon_minutes=int(
                 payload["evaluation_horizon_minutes"]
+            ),
+            initial_realized_capital_usd=Decimal(
+                str(payload["initial_realized_capital_usd"])
+            ),
+            initial_realized_profit_usd=Decimal(
+                str(payload["initial_realized_profit_usd"])
+            ),
+            initial_protected_floor_usd=Decimal(
+                str(payload["initial_protected_floor_usd"])
+            ),
+            initial_base_capital_usd=Decimal(
+                str(payload["initial_base_capital_usd"])
+            ),
+            initial_compound_capital_usd=Decimal(
+                str(payload["initial_compound_capital_usd"])
             ),
             control_action=Genc7Action(str(payload["control_action"])),
             control_amount_usd=Decimal(str(payload["control_amount_usd"])),
