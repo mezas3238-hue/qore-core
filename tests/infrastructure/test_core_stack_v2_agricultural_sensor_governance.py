@@ -230,8 +230,7 @@ def test_agri1_row_cannot_grant_identity_or_sovereign_authority() -> None:
             target=target,
             provider="CTRADER_DEMO",
             discovery_state=(
-                AgriculturalProviderDiscoveryState.
-                ABSENT_FROM_CURRENT_CATALOG_EVIDENCE
+                AgriculturalProviderDiscoveryState.ABSENT_FROM_CURRENT_CATALOG_EVIDENCE
             ),
             candidates=(),
             identity_verified=True,
