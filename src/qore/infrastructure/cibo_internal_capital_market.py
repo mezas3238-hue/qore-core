@@ -216,9 +216,9 @@ class Genc6CapitalEvidenceFact:
         _sha(self.evidence_sha256, "evidence_sha256")
         _aware(self.produced_at, "produced_at")
         _aware(self.observed_at, "observed_at")
-        if self.produced_at > self.observed_at:
+        if self.produced_at < self.observed_at:
             raise CiboCompoundCapitalError(
-                "GEN-C6 evidence cannot be observed before production"
+                "GEN-C6 evidence cannot be produced before observation"
             )
         if type(self.use) is not Genc6EvidenceUse:
             raise CiboCompoundCapitalError(
@@ -324,7 +324,10 @@ class Genc6PortfolioStateSnapshot:
             _nonnegative(amount, "concentration headroom")
         _unique_fact_kinds(self.context_facts)
         for fact in self.context_facts:
-            if fact.observed_at > self.decision_at:
+            if (
+                fact.observed_at > self.decision_at
+                or fact.produced_at > self.decision_at
+            ):
                 raise CiboCompoundCapitalError(
                     "GEN-C6 portfolio context fact arrives from future"
                 )
@@ -461,7 +464,10 @@ class Genc6MarginalCapitalCandidate:
             )
         _unique_fact_kinds(self.comparable_facts)
         for fact in self.comparable_facts:
-            if fact.observed_at > self.decision_at:
+            if (
+                fact.observed_at > self.decision_at
+                or fact.produced_at > self.decision_at
+            ):
                 raise CiboCompoundCapitalError(
                     "GEN-C6 candidate fact arrives from future"
                 )
@@ -587,7 +593,10 @@ class Genc6ReserveAlternative:
         _aware(self.decision_at, "reserve decision_at")
         _unique_fact_kinds(self.evidence_facts)
         for fact in self.evidence_facts:
-            if fact.observed_at > self.decision_at:
+            if (
+                fact.observed_at > self.decision_at
+                or fact.produced_at > self.decision_at
+            ):
                 raise CiboCompoundCapitalError(
                     "GEN-C6 reserve fact arrives from future"
                 )
