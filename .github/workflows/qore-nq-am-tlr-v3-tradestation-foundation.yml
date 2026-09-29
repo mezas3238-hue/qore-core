@@ -7,6 +7,7 @@ on:
       - agent/nq-am-temporal-liquidity-reversal-v1-001
     paths:
       - '.github/workflows/qore-nq-am-tlr-v3-tradestation-foundation.yml'
+      - '.github/workflows/qore-nq-am-tlr-v3-tradestation-exact-nq-acquisition.yml'
       - 'src/qore/infrastructure/trader_lab/nq_am_tlr_v3_tradestation_nq_evidence.py'
       - 'tests/infrastructure/trader_lab/test_nq_am_tlr_v3_tradestation_nq_evidence.py'
       - 'docs/research/QORE-NQ-AM-TLR-V3-EXACT-NQ-EVIDENCE-CONTRACT.md'
@@ -47,6 +48,10 @@ jobs:
               'src/qore/infrastructure/trader_lab/'
               'nq_am_tlr_v3_tradestation_nq_evidence.py'
           ).read_text()
+          acquisition = Path(
+              '.github/workflows/'
+              'qore-nq-am-tlr-v3-tradestation-exact-nq-acquisition.yml'
+          ).read_text()
 
           assert 'no order endpoint' in contract.lower()
           assert 'PROVIDER_AUTH_NOT_CONFIGURED' in contract
@@ -55,6 +60,9 @@ jobs:
           assert 'marketdata/barcharts' in module
           assert 'brokerage_endpoint_used' in module
           assert 'order_endpoint_used' in module
+          assert 'workflow_dispatch:' in acquisition
+          assert 'Acquire exact NQ futures M1 evidence' in acquisition
+          assert 'QORE_TRADESTATION_REFRESH_TOKEN' in acquisition
           for flag in (
               'DEMO_ELIGIBLE=false',
               'LIVE_AUTHORIZED=false',
