@@ -1,0 +1,176 @@
+name: QORE Capitalizer Separate FTM Source V47 S2F
+
+on:
+  push:
+    branches:
+      - agent/capitalizer-separate-ftm-source-v47-s2f-001
+    paths:
+      - '.github/workflows/qore-capitalizer-separate-ftm-source-v47-s2f.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_separate_ftm_source_v47_s2f.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_ftm_raw_population_v47_s1r_c.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_canonical_source_composition_v47_s2.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_separate_ftm_source_v47_s2f.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-separate-ftm-source-v47-s2f-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_M1_RUN_ID: '35548099334'
+  SOURCE_M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,ctrader]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_separate_ftm_source_v47_s2f.py \
+            tests/infrastructure/trader_lab/test_capitalizer_separate_ftm_source_v47_s2f.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_separate_ftm_source_v47_s2f.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_separate_ftm_source_v47_s2f.py
+
+  market:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - {symbol: USDJPY, session: ASIA}
+          - {symbol: AUDJPY, session: ASIA}
+          - {symbol: AUDUSD, session: ASIA}
+          - {symbol: GBPJPY, session: ASIA}
+          - {symbol: EURUSD, session: LONDON}
+          - {symbol: GBPUSD, session: LONDON}
+          - {symbol: XAUUSD, session: NEW_YORK}
+          - {symbol: USDCAD, session: NEW_YORK}
+          - {symbol: NAS100, session: NEW_YORK}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download immutable provider-native 10Y M1
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.SOURCE_M1_SHA }}
+          path: m1-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M1_RUN_ID }}
+      - name: Run full prefill FTM census
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_separate_ftm_source_v47_s2f \
+            market m1-source \
+            --symbol "${{ matrix.symbol }}" \
+            --session "${{ matrix.session }}" \
+            --output s2f-output
+      - name: Enforce S2F governance
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+          SESSION: ${{ matrix.session }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          reports=sorted(Path("s2f-output").glob("capitalizer-v47-s2f-*.json"))
+          assert len(reports) == 3
+          for path in reports:
+              row=json.loads(path.read_text())
+              assert row["identity"] == "QORE_CAPITALIZER_SEPARATE_FTM_SOURCE_STREAM_V47_S2F"
+              assert row["symbol"] == os.environ["SYMBOL"]
+              assert row["session"] == os.environ["SESSION"]
+              assert row["raw_sweeps"] >= row["htf_continuation_aligned"]
+              assert row["htf_continuation_aligned"] >= row["continuation_m3_mss"]
+              assert row["continuation_m3_mss"] >= row["continuation_m15"]
+              assert row["continuation_m15"] >= row["continuation_m1"]
+              assert row["continuation_m1"] >= row["ftm_confirmed"]
+              assert row["ftm_confirmed"] >= row["target_bound"]
+              assert row["target_bound"] >= row["armed_ftm_candidates"]
+              assert row["exact_provider_fill_queried"] is False
+              assert row["terminal_outcome_read"] is False
+              assert row["economics_calculated"] is False
+              assert row["fresh_holdout_opened"] is False
+              assert row["trader_certified"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v47-s2f-${{ matrix.symbol }}-${{ github.sha }}
+          path: s2f-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v47-s2f-*-${{ github.sha }}
+          path: s2f-markets
+          merge-multiple: true
+      - name: Aggregate S2F
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_separate_ftm_source_v47_s2f \
+            aggregate s2f-markets \
+            --output s2f-aggregate
+      - name: Enforce aggregate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          row=json.loads(
+              Path("s2f-aggregate/capitalizer-v47-s2f-aggregate.json").read_text()
+          )
+          assert row["identity"] == "QORE_CAPITALIZER_SEPARATE_FTM_SOURCE_STREAM_V47_S2F"
+          assert row["predeclaration_comment_id"] == 5900576271
+          assert row["market_period_reports"] == 27
+          assert row["market_count"] == 9
+          assert row["exact_provider_fill_queried"] is False
+          assert row["terminal_outcome_read"] is False
+          assert row["economics_calculated"] is False
+          assert row["fresh_holdout_opened"] is False
+          assert row["trader_certified"] is False
+          if row["funnel"]["armed_ftm_candidates"] > 0:
+              assert row["next_phase"] == "S2F_READY_FOR_EXACT_FILL_V46"
+          else:
+              assert row["next_phase"] == (
+                  "S2F_NO_FULL_PREFILL_CANDIDATES_ROOT_CAUSE_REQUIRED"
+              )
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v47-s2f-aggregate-${{ github.sha }}
+          path: s2f-aggregate
+          if-no-files-found: error
+          retention-days: 90
