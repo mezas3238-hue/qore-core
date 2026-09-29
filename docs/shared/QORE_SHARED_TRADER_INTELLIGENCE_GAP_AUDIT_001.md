@@ -92,7 +92,13 @@ read-only cognition after Trader validation, never bypass the Trader.
 
 ---
 
-## 2. Current missing capability matrix
+## 2. Original missing-capability matrix — historical STI-0 snapshot
+
+> **Supersession note — 29-SEP-2026:** this matrix records the repository state
+> at STI-0 creation time. Its "absent" labels are historical and must not be
+> used as the current implementation state. The authoritative current
+> engineering checkpoint is section 2A below.
+
 
 | Desired capability | Current repository state | Reusable owner | Missing contract/implementation | Principal risk | Dependency |
 |---|---|---|---|---|---|
@@ -116,6 +122,75 @@ read-only cognition after Trader validation, never bypass the Trader.
 | Control/treatment attribution | no STI study | research evaluation infrastructure | treatment identity / same-universe replay | false value claim | STI-14 |
 | Fresh OOS / stress / replication | not opened | Shared certification | preregistered study | holdout contamination | STI-15 |
 | Productive admission | absent | governance | explicit promotion gate | architecture==certification error | STI-16 |
+
+---
+
+## 2A. Current implementation checkpoint — 29-SEP-2026
+
+The proactive Shared↔Trader program has advanced materially beyond the original
+STI-0 gap snapshot.
+
+Current repository state on PR #635 includes:
+
+| STI lane | Current state | What is proven | What is NOT proven |
+|---|---|---|---|
+| STI-0 / 0A | CONTRACT FOUNDATION CLOSED | gap audit + authority ADR exist | no productive authority |
+| STI-1 | CONTRACT IMPLEMENTED | typed Trader-facing cognition, causal-time and sovereignty validation | predictive value |
+| STI-4 | CONTRACT IMPLEMENTED | alert identity/lifecycle and non-resurrection semantics | calibrated alert quality |
+| STI-7 / STI-9 | CONTRACT IMPLEMENTED | causal world-at-entry lineage / position-world delta boundary | position-management benefit |
+| STI-10 | CONTRACT IMPLEMENTED | read-only Trader capability/routing and relevant projection boundary | Trader-specific predictive lift |
+| STI-11 | CONTRACT IMPLEMENTED / RESEARCH POLICY ONLY | explicit materiality policy, causal comparison, INSUFFICIENT behavior | empirically calibrated materiality threshold |
+| STI-12 | CONTRACT IMPLEMENTED / RESEARCH INTERFACE ONLY | Swing families + H1/H4/D1/W1 routing interface with zero Trader authority | existence/certification of any Swing Trader |
+| STI-13 | CONTRACT IMPLEMENTED | post-Trader read-only Shared→CIBO facts boundary | productive CIBO behavior change |
+| STI-14 | CONTRACT IMPLEMENTED | causal historical replay and same-universe Control/Treatment attribution contracts | historical replay result / economic lift |
+| STI readiness | RESEARCH_READY | contract, sovereignty, anti-leakage, lifecycle and lineage foundation | PRE_ADMISSION_READY / productive certification |
+| STI-15 | NOT STARTED AS CERTIFICATION EVIDENCE | protected holdout remains closed | OOS/stress/temporal replication PASS |
+| STI-16 | NOT READY | productive-promotion guard exists | productive admission |
+
+Binding interpretation:
+
+```text
+CONTRACT IMPLEMENTED != SCIENTIFIC VALUE PROVEN
+CI GREEN != PREDICTIVE VALUE
+RESEARCH_READY != PRE_ADMISSION_READY
+PRE_ADMISSION_READY != SHARED CERTIFIED
+```
+
+The next scientific bridge is therefore not more authority plumbing. It is a
+governed, preregistered, historical causal replay program for the four proactive
+value classes:
+
+```text
+OPPORTUNITY DISCOVERY
+REGIME TRANSITION
+CONTINUATION / POSITIVE TAIL
+POSITION THREAT
+```
+
+using the already frozen causal replay and Control/Treatment contracts.
+
+Before any such study can claim value it must freeze:
+
+- eligible Trader population and exact frozen Trader identities;
+- source-only opportunity universe;
+- causal decision timestamps and evidence cutoffs;
+- alert/materiality policy version and fingerprint;
+- horizons and market identities;
+- Control/Treatment behavior-difference contract;
+- false-alert and missed-alert definitions;
+- winner-preservation and early-exit-regret definitions;
+- stress and temporal-replication protocol;
+- explicit rule that protected Shared certification holdouts remain unopened.
+
+Current STI scientific disposition:
+
+```text
+STI CONTRACT FOUNDATION = RESEARCH_READY
+STI PREDICTIVE VALUE = NOT PROVEN
+STI ECONOMIC VALUE = NOT PROVEN
+STI PRODUCTIVE CAPABILITY = NOT CERTIFIED
+PROTECTED SHARED HOLDOUT = CLOSED
+```
 
 ---
 
