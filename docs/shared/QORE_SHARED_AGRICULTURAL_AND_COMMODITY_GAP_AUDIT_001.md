@@ -8,7 +8,7 @@ Repository: `mezas3238-hue/qore-core`
 Primary PR: #635  
 Branch: `agent/qore-core-stack-v2-shared-001`  
 Current branch HEAD at audit authoring: `7e03ba96c50d068f815a81be9a19cf4fed1b52cd`  
-Last fully sealed GREEN GEN-2 provider census used as provider evidence: run `36616300191`, artifact `11055546708`, HEAD `9c1a584556823318e3b697d38daecf83390ead43`  
+Last fully sealed GREEN GEN-2 provider census used as provider evidence: run `36621633989`, artifact `11057784900`, HEAD `7e03ba96c50d068f815a81be9a19cf4fed1b52cd`  
 Governance: DRAFT / research-first / no LIVE / no Production / no Risk, sizing, capital or execution authority.
 
 This audit is the required AGRI-0 starting artifact for the Owner-directed
@@ -230,8 +230,8 @@ Agricultural intelligence MUST inherit these laws.
 The last fully sealed source-census evidence pack used here is:
 
 ```text
-GEN-2 run: 36616300191
-artifact: 11055546708
+GEN-2 run: 36621633989
+artifact: 11057784900
 provider: CTRADER_DEMO
 provider sensors: 177
 provider-native identity coverage: 177/177
