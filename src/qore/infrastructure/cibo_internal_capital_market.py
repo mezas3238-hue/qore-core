@@ -256,6 +256,136 @@ class Genc6CapitalEvidenceFact:
 
 
 @dataclass(frozen=True, slots=True)
+class Genc6ProviderCapitalActionEvidence:
+    evidence_id: str
+    evidence_sha256: str
+    produced_at: datetime
+    observed_at: datetime
+    source: str
+    policy_version: str
+    account_identity: CiboAccountCapitalIdentity
+    qore_symbol: str
+    provider_symbol: str
+    requested_capital_usd: Decimal
+    executable_volume: Decimal
+    minimum_executable_volume: Decimal
+    maximum_volume: Decimal
+    volume_step: Decimal
+    minimum_execution_steps: int
+    projected_stop_risk_usd: Decimal
+    minimum_stop_risk_usd: Decimal
+    projected_margin_usd: Decimal
+    minimum_margin_usd: Decimal
+    projected_execution_cost_usd: Decimal
+    feasible: bool
+    use: Genc6EvidenceUse
+    reason: str
+
+    def __post_init__(self) -> None:
+        if not self.evidence_id or not self.source or not self.policy_version:
+            raise CiboCompoundCapitalError(
+                "GEN-C6 provider action evidence identity/source/policy is required"
+            )
+        _sha(self.evidence_sha256, "provider action evidence_sha256")
+        _aware(self.produced_at, "provider action produced_at")
+        _aware(self.observed_at, "provider action observed_at")
+        if self.produced_at < self.observed_at:
+            raise CiboCompoundCapitalError(
+                "GEN-C6 provider action cannot be produced before observation"
+            )
+        if not isinstance(
+            self.account_identity,
+            CiboAccountCapitalIdentity,
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C6 provider action account identity is invalid"
+            )
+        if not self.qore_symbol or not self.provider_symbol or not self.reason:
+            raise CiboCompoundCapitalError(
+                "GEN-C6 provider action symbol/reason is required"
+            )
+        for name in (
+            "requested_capital_usd",
+            "executable_volume",
+            "minimum_executable_volume",
+            "maximum_volume",
+            "volume_step",
+            "projected_stop_risk_usd",
+            "minimum_stop_risk_usd",
+            "projected_margin_usd",
+            "minimum_margin_usd",
+            "projected_execution_cost_usd",
+        ):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, Decimal)
+                or not value.is_finite()
+                or value < 0
+            ):
+                raise CiboCompoundCapitalError(
+                    f"GEN-C6 provider action {name} must be finite non-negative"
+                )
+        for name in (
+            "requested_capital_usd",
+            "executable_volume",
+            "minimum_executable_volume",
+            "maximum_volume",
+            "volume_step",
+            "projected_stop_risk_usd",
+            "projected_margin_usd",
+        ):
+            if getattr(self, name) <= 0:
+                raise CiboCompoundCapitalError(
+                    f"GEN-C6 provider action {name} must be positive"
+                )
+        if (
+            not isinstance(self.minimum_execution_steps, int)
+            or isinstance(self.minimum_execution_steps, bool)
+            or self.minimum_execution_steps < 1
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C6 provider minimum execution steps must be positive int"
+            )
+        if self.maximum_volume < self.minimum_executable_volume:
+            raise CiboCompoundCapitalError(
+                "GEN-C6 provider volume bounds are invalid"
+            )
+        if self.executable_volume < self.minimum_executable_volume:
+            raise CiboCompoundCapitalError(
+                "GEN-C6 provider action is below minimum executable volume"
+            )
+        if self.executable_volume > self.maximum_volume:
+            raise CiboCompoundCapitalError(
+                "GEN-C6 provider action exceeds maximum volume"
+            )
+        steps = self.executable_volume / self.volume_step
+        if steps != steps.to_integral_value():
+            raise CiboCompoundCapitalError(
+                "GEN-C6 provider action volume is not step aligned"
+            )
+        if self.projected_stop_risk_usd < self.minimum_stop_risk_usd:
+            raise CiboCompoundCapitalError(
+                "GEN-C6 provider action understates minimum stop risk"
+            )
+        if self.projected_margin_usd < self.minimum_margin_usd:
+            raise CiboCompoundCapitalError(
+                "GEN-C6 provider action understates minimum margin"
+            )
+        if type(self.feasible) is not bool:
+            raise CiboCompoundCapitalError(
+                "GEN-C6 provider action feasible must be bool"
+            )
+        if type(self.use) is not Genc6EvidenceUse:
+            raise CiboCompoundCapitalError(
+                "GEN-C6 provider action evidence use is invalid"
+            )
+
+    @property
+    def eligible_for_capital_use(self) -> bool:
+        return self.use is Genc6EvidenceUse.CAPITAL_ELIGIBLE
+
+
+@dataclass(frozen=True, slots=True)
 class Genc6PortfolioStateSnapshot:
     snapshot_id: str
     decision_at: datetime
@@ -369,8 +499,7 @@ class Genc6MarginalCapitalCandidate:
     concentration_group: str
     marginal_evidence: MarginalCapitalUtilityEvidence
     genc5_seal: Genc5ShadowDecisionSeal
-    provider_feasible: bool
-    provider_feasibility_evidence_sha256: str
+    provider_action: Genc6ProviderCapitalActionEvidence
     comparable_facts: tuple[Genc6CapitalEvidenceFact, ...]
 
     def __post_init__(self) -> None:
@@ -410,15 +539,18 @@ class Genc6MarginalCapitalCandidate:
             raise CiboCompoundCapitalError(
                 "GEN-C6 marginal unit index must be positive int"
             )
-        for name in ("technical_valid", "cancelled", "provider_feasible"):
+        for name in ("technical_valid", "cancelled"):
             if type(getattr(self, name)) is not bool:
                 raise CiboCompoundCapitalError(
                     f"GEN-C6 candidate {name} must be bool"
                 )
-        _sha(
-            self.provider_feasibility_evidence_sha256,
-            "provider feasibility evidence",
-        )
+        if not isinstance(
+            self.provider_action,
+            Genc6ProviderCapitalActionEvidence,
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C6 candidate requires canonical provider action evidence"
+            )
         if not isinstance(
             self.marginal_evidence,
             MarginalCapitalUtilityEvidence,
@@ -465,6 +597,42 @@ class Genc6MarginalCapitalCandidate:
         if self.genc5_seal.decision_at != self.decision_at:
             raise CiboCompoundCapitalError(
                 "GEN-C6 candidate GEN-C5 decision-time binding drift"
+            )
+        if self.provider_action.account_identity != self.account_identity:
+            raise CiboCompoundCapitalError(
+                "GEN-C6 candidate provider action account binding drift"
+            )
+        if (
+            self.provider_action.qore_symbol != self.qore_symbol
+            or self.provider_action.provider_symbol != self.provider_symbol
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C6 candidate provider action symbol binding drift"
+            )
+        if (
+            self.provider_action.requested_capital_usd
+            != self.requested_capital_usd
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C6 candidate provider action capital binding drift"
+            )
+        if (
+            self.provider_action.projected_stop_risk_usd
+            != self.marginal_evidence.incremental_stop_risk_usd
+            or self.provider_action.projected_margin_usd
+            != self.marginal_evidence.incremental_margin_usd
+            or self.provider_action.projected_execution_cost_usd
+            != self.marginal_evidence.incremental_execution_cost_usd
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C6 candidate provider economics/GEN-C4 binding drift"
+            )
+        if (
+            self.provider_action.observed_at > self.decision_at
+            or self.provider_action.produced_at > self.decision_at
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C6 provider action evidence arrives from future"
             )
         _unique_fact_kinds(self.comparable_facts)
         for fact in self.comparable_facts:
@@ -1200,9 +1368,8 @@ def genc6_candidate_set_sha256(
                 )
             ),
             "genc5_decision_sha256": item.genc5_seal.decision_sha256,
-            "provider_feasible": item.provider_feasible,
-            "provider_feasibility_evidence_sha256": (
-                item.provider_feasibility_evidence_sha256
+            "provider_action": _provider_action_payload(
+                item.provider_action
             ),
             "facts": [_fact_payload(fact) for fact in item.comparable_facts],
         }
@@ -1272,7 +1439,9 @@ def _candidate_blockers(
     reasons: list[str] = []
     if not candidate.valid_at_decision:
         reasons.append("OPPORTUNITY_NOT_VALID_AT_DECISION")
-    if not candidate.provider_feasible:
+    if not candidate.provider_action.eligible_for_capital_use:
+        reasons.append("PROVIDER_FEASIBILITY_EVIDENCE_NOT_CAPITAL_ELIGIBLE")
+    elif not candidate.provider_action.feasible:
         reasons.append("PROVIDER_ACTION_NOT_FEASIBLE")
     if not candidate.mandatory_facts_capital_eligible():
         reasons.append("MANDATORY_CAPITAL_EVIDENCE_NOT_ELIGIBLE")
@@ -1299,9 +1468,9 @@ def _candidate_blockers(
         provider_fact is None
         or not provider_fact.eligible_for_capital_use
         or provider_fact.evidence_sha256
-        != candidate.provider_feasibility_evidence_sha256
+        != candidate.provider_action.evidence_sha256
     ):
-        reasons.append("PROVIDER_FEASIBILITY_EVIDENCE_NOT_CAPITAL_ELIGIBLE")
+        reasons.append("PROVIDER_PRESSURE_EVIDENCE_BINDING_DRIFT")
     return tuple(reasons)
 
 
@@ -1551,6 +1720,45 @@ def _t19_ledger_sha256(ledger: PortfolioAllocationLedger) -> str:
         separators=(",", ":"),
     ).encode()
     return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+def _provider_action_payload(
+    evidence: Genc6ProviderCapitalActionEvidence,
+) -> dict[str, object]:
+    return {
+        "evidence_id": evidence.evidence_id,
+        "evidence_sha256": evidence.evidence_sha256,
+        "produced_at": evidence.produced_at.isoformat(),
+        "observed_at": evidence.observed_at.isoformat(),
+        "source": evidence.source,
+        "policy_version": evidence.policy_version,
+        "account": {
+            "provider_key": evidence.account_identity.provider_key,
+            "account_ref": evidence.account_identity.account_ref,
+        },
+        "qore_symbol": evidence.qore_symbol,
+        "provider_symbol": evidence.provider_symbol,
+        "requested_capital_usd": str(evidence.requested_capital_usd),
+        "executable_volume": str(evidence.executable_volume),
+        "minimum_executable_volume": str(
+            evidence.minimum_executable_volume
+        ),
+        "maximum_volume": str(evidence.maximum_volume),
+        "volume_step": str(evidence.volume_step),
+        "minimum_execution_steps": evidence.minimum_execution_steps,
+        "projected_stop_risk_usd": str(
+            evidence.projected_stop_risk_usd
+        ),
+        "minimum_stop_risk_usd": str(evidence.minimum_stop_risk_usd),
+        "projected_margin_usd": str(evidence.projected_margin_usd),
+        "minimum_margin_usd": str(evidence.minimum_margin_usd),
+        "projected_execution_cost_usd": str(
+            evidence.projected_execution_cost_usd
+        ),
+        "feasible": evidence.feasible,
+        "use": evidence.use.value,
+        "reason": evidence.reason,
+    }
 
 
 def _fact_payload(fact: Genc6CapitalEvidenceFact) -> dict[str, object]:
