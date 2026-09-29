@@ -206,3 +206,72 @@ def test_canonical_source_context_fails_closed_without_htf_context() -> None:
     )
 
     assert binding is None
+
+
+def test_m1_structure_binds_cisd_mss_order_block_and_m1_protected_swing() -> None:
+    start = datetime(2025, 1, 6, 9, 58, tzinfo=UTC)
+    bars = (
+        _m1(start, open_="99", high="100", low="98", close="99.5"),
+        _m1(
+            start + timedelta(minutes=1),
+            open_="99.5",
+            high="103",
+            low="99",
+            close="102",
+        ),
+        _m1(
+            start + timedelta(minutes=2),
+            open_="102",
+            high="102.5",
+            low="100",
+            close="101",
+        ),
+        _m1(
+            start + timedelta(minutes=3),
+            open_="101",
+            high="101.5",
+            low="99",
+            close="100",
+        ),
+        _m1(
+            start + timedelta(minutes=4),
+            open_="100",
+            high="104.5",
+            low="99.5",
+            close="104",
+        ),
+    )
+    htf = detect_candle2_reversal_closure(
+        previous=_source("100", "102", "98", "99"),
+        candle2=_source("99", "101", "97", "99.5"),
+        point_of_interest_present=True,
+    )
+    assert htf is not None
+    zone = binders.v3_source.M1EntryZone(
+        ob_opened_at=start + timedelta(minutes=3),
+        ob_low=Decimal("99"),
+        ob_high=Decimal("101.5"),
+        fvg_confirmed_at=start + timedelta(minutes=4),
+        fvg_low=Decimal("101"),
+        fvg_high=Decimal("102"),
+        overlap_low=Decimal("101"),
+        overlap_high=Decimal("101.5"),
+    )
+
+    result = binders.bind_m1_source_structure(
+        bars,
+        direction=CapitalizerSourceDirection.BULLISH,
+        higher_timeframe_closure=htf,
+        zone=zone,
+        after=start - timedelta(minutes=1),
+        before=start + timedelta(minutes=5),
+    )
+
+    assert result is not None
+    assert result.m1_cisd.setup_confirmed is True
+    assert result.m1_mss.confirmed is True
+    assert result.order_block.confirmed is True
+    assert result.protected_swing.confirmed is True
+    assert result.protected_swing.swing_price == Decimal("99")
+    assert result.confirmed_at == start + timedelta(minutes=5)
+    assert result.fvg_confirmed is True
