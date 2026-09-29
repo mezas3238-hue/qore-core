@@ -31,6 +31,13 @@ from qore.infrastructure.cibo_ce2i_phase20_t09_t18_scarcity_utility import (
     Phase20ScarcityUtilityScope,
     Phase20T09T18ScarcityUtilityReport,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t12_oos_readiness import (
+    Phase20T12OosReadiness,
+)
+from qore.infrastructure.cibo_ce2i_phase20_t12_oos_utility import (
+    T12_UTILITY_CONTRACT_ID,
+    Phase20T12UtilityReport,
+)
 from qore.infrastructure.cibo_ce2i_phase20_t13_oos_readiness import (
     Phase20T13OosReadiness,
 )
@@ -170,7 +177,8 @@ def test_forward_readiness_uses_frozen_exact_competition_threshold() -> None:
     t12 = _row(report, "T12")
     t18 = _row(report, "T18")
     assert t09.state is Phase20ToolEvidenceState.FORWARD_POPULATION_READY
-    assert t12.state is Phase20ToolEvidenceState.FORWARD_POPULATION_READY
+    assert t12.state is Phase20ToolEvidenceState.COLLECTING_FORWARD
+    assert "T12_PREOUTCOME_SHADOW_ABLATION_REQUIRED" in t12.blockers
     assert t18.state is Phase20ToolEvidenceState.FORWARD_POPULATION_READY
 
     t08 = _row(report, "T08")
@@ -428,6 +436,153 @@ def _t13_oos_population_ready() -> Phase20T13OosReadiness:
         fold_count=4,
         fresh_oos_utility_demonstrated=False,
     )
+
+
+def _t12_oos_population_ready() -> Phase20T12OosReadiness:
+    decision_sha256s = tuple(
+        f"sha256:{index:064x}" for index in range(80)
+    )
+    changed_sha256s = decision_sha256s[:20]
+    return Phase20T12OosReadiness(
+        ready_for_utility_analysis=True,
+        blockers=(),
+        post_freeze_decision_epochs=80,
+        pre_t12_freeze_decisions_excluded=0,
+        shadow_sealed_epochs=80,
+        missing_shadow_decisions=0,
+        missing_treatment_policy_decisions=0,
+        selection_changed_epochs=20,
+        allocator_changed_epochs=20,
+        candidate_instances=240,
+        candidate_outcomes=240,
+        candidate_outcome_coverage=Decimal("1"),
+        treatment_selected_instances=80,
+        treatment_selected_outcomes=80,
+        treatment_selected_outcome_coverage=Decimal("1"),
+        control_selected_instances=80,
+        control_selected_outcomes=80,
+        control_selected_outcome_coverage=Decimal("1"),
+        treatment_only_instances=20,
+        treatment_only_outcomes=20,
+        control_only_instances=20,
+        control_only_outcomes=20,
+        calendar_span_days=28,
+        distinct_trading_days=20,
+        represented_lineages=7,
+        minimum_outcomes_any_lineage=8,
+        minimum_fold_candidate_outcomes=60,
+        minimum_fold_lineages=4,
+        minimum_fold_selection_changed_epochs=5,
+        minimum_decision_epochs=80,
+        minimum_candidate_outcomes=200,
+        minimum_selected_outcomes=60,
+        required_candidate_coverage=Decimal("0.95"),
+        required_selected_coverage=Decimal("1"),
+        fold_count=4,
+        decision_sha256s=decision_sha256s,
+        changed_decision_sha256s=changed_sha256s,
+        fresh_oos_utility_demonstrated=False,
+    )
+
+
+def _t12_oos_utility_ready() -> Phase20T12UtilityReport:
+    from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
+        phase20d_qualification_plan_sha256,
+    )
+    from qore.infrastructure.cibo_ce2i_phase20_t12_shadow_policy import (
+        T12_SHADOW_POLICY_ID,
+        t12_shadow_policy_sha256,
+    )
+
+    return Phase20T12UtilityReport(
+        contract_id=T12_UTILITY_CONTRACT_ID,
+        qualification_plan_sha256=phase20d_qualification_plan_sha256(),
+        t12_policy_id=T12_SHADOW_POLICY_ID,
+        t12_policy_sha256=t12_shadow_policy_sha256(),
+        population_ready=True,
+        decision_epochs=80,
+        candidate_instances=240,
+        treatment_selected_instances=80,
+        control_selected_instances=80,
+        candidate_outcome_coverage=Decimal("1"),
+        treatment_selected_outcome_coverage=Decimal("1"),
+        control_selected_outcome_coverage=Decimal("1"),
+        treatment_net_delta_usd=Decimal("12"),
+        control_net_delta_usd=Decimal("10"),
+        treatment_settlement_cash_drawdown_usd=Decimal("4"),
+        control_settlement_cash_drawdown_usd=Decimal("5"),
+        treatment_capital_productivity=Decimal("0.20"),
+        control_capital_productivity=Decimal("0.10"),
+        fold_treatment_net_delta_usd=(
+            Decimal("3"),
+            Decimal("3"),
+            Decimal("3"),
+            Decimal("3"),
+        ),
+        fold_control_net_delta_usd=(
+            Decimal("2"),
+            Decimal("3"),
+            Decimal("2"),
+            Decimal("3"),
+        ),
+        fold_incremental_net_delta_usd=(
+            Decimal("1"),
+            Decimal("0"),
+            Decimal("1"),
+            Decimal("0"),
+        ),
+        fresh_oos_utility_demonstrated=True,
+        outcome_refit_performed=False,
+        runtime_authority=False,
+        blockers=(),
+    )
+
+
+def test_readiness_distinguishes_t12_oos_population_from_utility() -> None:
+    report = assess_phase20_causal_tool_readiness(
+        evidence_book=VersionedPhase20ForwardEvidenceBook(generation=0),
+        qualification_readiness=_qualification(ready=True),
+        t12_oos_readiness=_t12_oos_population_ready(),
+    )
+
+    t12 = _row(report, "T12")
+    assert t12.state is Phase20ToolEvidenceState.COLLECTING_FORWARD
+    assert t12.stream_bound is True
+    assert t12.forward_population_ready is False
+    assert t12.observed_epochs == 80
+    assert t12.qualifying_epochs == 20
+    assert t12.blockers == (
+        "T12_OOS_POPULATION_READY_UTILITY_ANALYSIS_NOT_EXECUTED",
+    )
+
+
+def test_t12_utility_promotes_only_with_global_readiness() -> None:
+    report = assess_phase20_causal_tool_readiness(
+        evidence_book=VersionedPhase20ForwardEvidenceBook(generation=0),
+        qualification_readiness=_qualification(ready=True),
+        t12_oos_readiness=_t12_oos_population_ready(),
+        t12_oos_utility=_t12_oos_utility_ready(),
+    )
+
+    t12 = _row(report, "T12")
+    assert t12.state is Phase20ToolEvidenceState.FORWARD_POPULATION_READY
+    assert t12.blockers == ()
+    assert t12.observed_epochs == 80
+    assert t12.qualifying_epochs == 20
+
+
+def test_t12_utility_cannot_bypass_global_phase20d_readiness() -> None:
+    report = assess_phase20_causal_tool_readiness(
+        evidence_book=VersionedPhase20ForwardEvidenceBook(generation=0),
+        qualification_readiness=_qualification(ready=False),
+        t12_oos_readiness=_t12_oos_population_ready(),
+        t12_oos_utility=_t12_oos_utility_ready(),
+    )
+
+    t12 = _row(report, "T12")
+    assert t12.state is Phase20ToolEvidenceState.COLLECTING_FORWARD
+    assert t12.forward_population_ready is False
+    assert "GLOBAL_PHASE20D_POPULATION_NOT_READY" in t12.blockers
 
 
 def test_readiness_distinguishes_t13_oos_population_from_utility() -> None:
