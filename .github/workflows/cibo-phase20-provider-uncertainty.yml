@@ -110,6 +110,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py'
       - 'tests/infrastructure/test_cibo_ce2i_full_surface.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_store.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_policy_store.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_epoch.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_epoch_aggregator.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_snapshots.py'
@@ -268,6 +269,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py'
       - 'tests/infrastructure/test_cibo_ce2i_full_surface.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_store.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_policy_store.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_epoch.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_epoch_aggregator.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_snapshots.py'
@@ -447,6 +449,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_full_surface.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_forward_policy_store.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_epoch.py \
             tests/infrastructure/test_cibo_ce2i_phase20_epoch_aggregator.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_snapshots.py \
@@ -636,6 +639,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_full_surface.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_forward_policy_store.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_epoch.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_snapshots.py \
             tests/infrastructure/test_cibo_ce2i_phase20_forward_collector.py \

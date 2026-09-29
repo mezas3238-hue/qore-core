@@ -9,6 +9,7 @@ Research-only. No QORE Risk, execution or broker mutation authority.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from dataclasses import dataclass
@@ -292,13 +293,70 @@ def _policy_from_json(value: object) -> Phase20ForwardPolicyDecisionSeal:
     selected = value["selected_signal_fingerprints"]
     if not isinstance(selected, list):
         raise TypeError("forward policy selected signals must be list")
-    return Phase20ForwardPolicyDecisionSeal(
+    seal = Phase20ForwardPolicyDecisionSeal(
         evidence_sha256=str(value["evidence_sha256"]),
         policy_record_sha256=str(value["policy_record_sha256"]),
         allocator_disposition=str(value["allocator_disposition"]),
         selected_signal_fingerprints=tuple(str(item) for item in selected),
         canonical_record_json=str(value["canonical_record_json"]),
     )
+    _validate_persisted_policy_binding(seal)
+    return seal
+
+
+def _validate_persisted_policy_binding(
+    seal: Phase20ForwardPolicyDecisionSeal,
+) -> None:
+    expected_sha = "sha256:" + hashlib.sha256(
+        seal.canonical_record_json.encode("utf-8")
+    ).hexdigest()
+    if seal.policy_record_sha256 != expected_sha:
+        raise DurablePhase20ForwardPolicyError(
+            "forward policy canonical record SHA mismatch"
+        )
+    try:
+        record = json.loads(seal.canonical_record_json)
+    except json.JSONDecodeError as error:
+        raise DurablePhase20ForwardPolicyError(
+            "forward policy canonical record is invalid JSON"
+        ) from error
+    if not isinstance(record, dict):
+        raise DurablePhase20ForwardPolicyError(
+            "forward policy canonical record must be object"
+        )
+    if record.get("evidence_sha256") != seal.evidence_sha256:
+        raise DurablePhase20ForwardPolicyError(
+            "forward policy canonical evidence binding mismatch"
+        )
+    allocator = record.get("allocator_decision")
+    if not isinstance(allocator, dict):
+        raise DurablePhase20ForwardPolicyError(
+            "forward policy canonical allocator decision missing"
+        )
+    if allocator.get("disposition") != seal.allocator_disposition:
+        raise DurablePhase20ForwardPolicyError(
+            "forward policy canonical allocator disposition mismatch"
+        )
+    allocation = allocator.get("allocation")
+    if allocation is None:
+        canonical_selected: tuple[str, ...] = ()
+    elif isinstance(allocation, dict):
+        raw_selected = allocation.get("selected_signal_fingerprints")
+        if not isinstance(raw_selected, list) or any(
+            not isinstance(item, str) or not item for item in raw_selected
+        ):
+            raise DurablePhase20ForwardPolicyError(
+                "forward policy canonical selected signals are invalid"
+            )
+        canonical_selected = tuple(raw_selected)
+    else:
+        raise DurablePhase20ForwardPolicyError(
+            "forward policy canonical allocation must be object/null"
+        )
+    if canonical_selected != seal.selected_signal_fingerprints:
+        raise DurablePhase20ForwardPolicyError(
+            "forward policy canonical selected-signal binding mismatch"
+        )
 
 
 def _generation(value: int) -> None:
