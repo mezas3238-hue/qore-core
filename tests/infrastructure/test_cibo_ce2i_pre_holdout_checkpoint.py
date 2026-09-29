@@ -25,5 +25,10 @@ def test_pre_holdout_checkpoint_fails_closed_before_full_calibration() -> None:
     )
     assert checkpoint.oos_ready_tools == ()
     assert checkpoint.certification_ready_tools == ()
+    assert checkpoint.structurally_disabled_tools == ("T16", "T17")
+    assert "T16" not in checkpoint.calibration_pending_tools
+    assert "T17" not in checkpoint.calibration_pending_tools
+    assert "T16" not in checkpoint.provider_economics_pending_tools
+    assert "T17" not in checkpoint.provider_economics_pending_tools
     assert checkpoint.ready_to_freeze is False
     assert len(checkpoint.matrix_sha256) == 64

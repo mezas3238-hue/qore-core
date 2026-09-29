@@ -17,6 +17,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_ce2i_calibration_matrix import (
     CIBO_T01_T20_CALIBRATION_MATRIX,
 )
+from qore.infrastructure.cibo_ce2i_calibration_registry import (
+    CiboCalibrationState,
+)
 from qore.infrastructure.cibo_ce2i_pre_holdout_freeze import (
     ACTIVE_PRE_HOLDOUT_FREEZE,
     CURRENT_HOLDOUT_SEAL_STATE,
@@ -33,6 +36,7 @@ class CiboPreHoldoutCheckpoint:
     provider_economics_pending_tools: tuple[str, ...]
     calibration_pending_tools: tuple[str, ...]
     fail_closed_tools: tuple[str, ...]
+    structurally_disabled_tools: tuple[str, ...]
     holdout_state: CiboHoldoutSealState
     holdout_2017h1_read: bool
     pre_holdout_freeze_active: bool
@@ -57,16 +61,22 @@ class CiboPreHoldoutCheckpoint:
 
     @property
     def ready_to_freeze(self) -> bool:
+        active_tool_count = 20 - len(self.structurally_disabled_tools)
         return (
             not self.provider_economics_pending_tools
             and not self.calibration_pending_tools
-            and len(self.oos_ready_tools) == 20
-            and len(self.certification_ready_tools) == 20
+            and len(self.oos_ready_tools) == active_tool_count
+            and len(self.certification_ready_tools) == active_tool_count
         )
 
 
 def build_pre_holdout_checkpoint() -> CiboPreHoldoutCheckpoint:
     rows = CIBO_T01_T20_CALIBRATION_MATRIX
+    structurally_disabled = tuple(
+        row.tool_code
+        for row in rows
+        if row.classification is CiboCalibrationState.FAIL_CLOSED
+    )
     canonical = [
         {
             "tool": row.tool_code,
@@ -101,15 +111,20 @@ def build_pre_holdout_checkpoint() -> CiboPreHoldoutCheckpoint:
         provider_economics_pending_tools=tuple(
             row.tool_code
             for row in rows
-            if row.provider_economics_required
+            if row.tool_code not in structurally_disabled
+            and row.provider_economics_required
             and not row.certification_ready
         ),
         calibration_pending_tools=tuple(
-            row.tool_code for row in rows if not row.calibrated
+            row.tool_code
+            for row in rows
+            if row.tool_code not in structurally_disabled
+            and not row.calibrated
         ),
         fail_closed_tools=tuple(
             row.tool_code for row in rows if row.fail_closed
         ),
+        structurally_disabled_tools=structurally_disabled,
         holdout_state=CURRENT_HOLDOUT_SEAL_STATE,
         holdout_2017h1_read=False,
         pre_holdout_freeze_active=ACTIVE_PRE_HOLDOUT_FREEZE is not None,
