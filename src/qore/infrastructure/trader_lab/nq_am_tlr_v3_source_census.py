@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from bisect import bisect_left
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -130,6 +131,47 @@ def _opening_signature(
         max(item.high for item in sample) < lower_quadrant
         and max(item.close for item in sample) < lower_octant
     )
+
+
+def _bar_window(
+    bars: tuple[Bar, ...],
+    opened: tuple[datetime, ...],
+    *,
+    start: datetime,
+    end: datetime,
+) -> tuple[Bar, ...]:
+    left = bisect_left(opened, start)
+    right = bisect_left(opened, end)
+    return bars[left:right]
+
+
+def _ifvg_entry_window(
+    bars: tuple[Bar, ...],
+    *,
+    sweep_at: datetime,
+    deadline: datetime,
+) -> tuple[v1.BearishFvg, datetime, Decimal] | None:
+    lookback = sweep_at - timedelta(minutes=v1.FVG_LOOKBACK_MINUTES)
+    zones = v1._bearish_fvgs(bars, start=lookback, end=sweep_at + v1.M1)
+    after = tuple(
+        bar for bar in bars if sweep_at <= bar.opened_at < deadline
+    )
+    for zone in reversed(zones):
+        inversion_index = next(
+            (
+                idx
+                for idx, bar in enumerate(after)
+                if bar.close > zone.high
+            ),
+            None,
+        )
+        if inversion_index is None:
+            continue
+        for bar in after[inversion_index:]:
+            overlaps = bar.low <= zone.high and bar.high >= zone.low
+            if overlaps and bar.close >= zone.midpoint:
+                return zone, bar.closed_at, bar.close
+    return None
 
 
 def _first_touch(
