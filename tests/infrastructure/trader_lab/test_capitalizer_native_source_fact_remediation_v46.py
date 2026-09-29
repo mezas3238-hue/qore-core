@@ -10,8 +10,8 @@ from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     CapitalizerM1Bar,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
-    CapitalizerCISDObservation,
     CapitalizerCausalSeriesKind,
+    CapitalizerCISDObservation,
     CapitalizerFailureToManipulateObservation,
     CapitalizerLiquiditySideTaken,
 )
