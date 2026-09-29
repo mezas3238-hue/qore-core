@@ -39,6 +39,9 @@ from qore.infrastructure.cibo_ce2i_phase20_t08_oos_ablation import (
 from qore.infrastructure.cibo_ce2i_phase20_t12_regime_population import (
     Phase20T12RegimePopulationAudit,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t13_oos_readiness import (
+    Phase20T13OosReadiness,
+)
 from qore.infrastructure.cibo_ce2i_phase20_t13_reserve_population import (
     Phase20T13ReservePopulationAudit,
 )
@@ -198,6 +201,7 @@ def assess_phase20_causal_tool_readiness(
     t08_oos_ablation: T08NettingOosAblationReport | None = None,
     t12_regime_population: Phase20T12RegimePopulationAudit | None = None,
     t13_reserve_population: Phase20T13ReservePopulationAudit | None = None,
+    t13_oos_readiness: Phase20T13OosReadiness | None = None,
     t14_path_readiness: Phase20T14PathReadiness | None = None,
     t14_intervention_population: (
         Phase20T14NaturalInterventionPopulation | None
@@ -241,6 +245,13 @@ def assess_phase20_causal_tool_readiness(
     ):
         raise CiboCapitalManagementError(
             "Phase20 causal readiness T13 reserve population is invalid"
+        )
+    if (
+        t13_oos_readiness is not None
+        and not isinstance(t13_oos_readiness, Phase20T13OosReadiness)
+    ):
+        raise CiboCapitalManagementError(
+            "Phase20 causal readiness T13 OOS readiness is invalid"
         )
     if (
         t14_path_readiness is not None
@@ -409,11 +420,25 @@ def assess_phase20_causal_tool_readiness(
         if not global_ready:
             t12_blockers.append("GLOBAL_PHASE20D_POPULATION_NOT_READY")
 
-    if t13_reserve_population is None:
+    if t13_oos_readiness is not None:
+        t13_stream = (
+            t13_oos_readiness.post_freeze_decision_epochs > 0
+            and t13_oos_readiness.treatment_sealed_epochs > 0
+        )
+        t13_observed = t13_oos_readiness.post_freeze_decision_epochs
+        t13_qualifying = t13_oos_readiness.selection_changed_epochs
+        t13_blockers = list(t13_oos_readiness.blockers)
+        if t13_oos_readiness.ready_for_utility_analysis:
+            t13_blockers.append(
+                "T13_OOS_POPULATION_READY_UTILITY_ANALYSIS_NOT_EXECUTED"
+            )
+        if not global_ready:
+            t13_blockers.append("GLOBAL_PHASE20D_POPULATION_NOT_READY")
+    elif t13_reserve_population is None:
         t13_stream = causal_history_epochs > 0
         t13_observed = candidate_epochs
         t13_qualifying = causal_history_epochs
-        t13_blockers: list[str] = []
+        t13_blockers = []
         if not t13_stream:
             t13_blockers.append("NO_RECONSTRUCTIBLE_CAUSAL_HISTORY_EPOCHS")
         t13_blockers.append(

@@ -458,6 +458,7 @@ def main() -> None:
         t08_oos_ablation=t08_oos_ablation,
         t12_regime_population=t12_regime_population,
         t13_reserve_population=t13_reserve_population,
+        t13_oos_readiness=t13_oos_readiness,
         t14_path_readiness=t14_path_readiness,
         t14_intervention_population=t14_intervention_population,
         t15_option_realization=t15_option_realization,

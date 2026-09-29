@@ -24,6 +24,9 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_readiness import (
 from qore.infrastructure.cibo_ce2i_phase20_t08_oos_ablation import (
     T08NettingOosAblationReport,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t13_oos_readiness import (
+    Phase20T13OosReadiness,
+)
 from qore.infrastructure.cibo_ce2i_phase20_t13_reserve_population import (
     Phase20T13ReservePopulationAudit,
 )
@@ -377,4 +380,62 @@ def test_readiness_consumes_stronger_t14_and_t15_audits() -> None:
     assert (
         "COUNTERFACTUAL_RESERVATION_CAUSAL_EFFECT_NOT_IDENTIFIED"
         in t15.blockers
+    )
+
+
+
+def _t13_oos_population_ready() -> Phase20T13OosReadiness:
+    return Phase20T13OosReadiness(
+        ready_for_utility_analysis=True,
+        blockers=(),
+        post_freeze_decision_epochs=80,
+        pre_t13_freeze_decisions_excluded=0,
+        treatment_sealed_epochs=80,
+        missing_treatment_decisions=0,
+        missing_baseline_policy_decisions=0,
+        selection_changed_epochs=20,
+        candidate_instances=240,
+        candidate_outcomes=240,
+        candidate_outcome_coverage=Decimal("1"),
+        baseline_selected_instances=80,
+        baseline_selected_outcomes=80,
+        baseline_selected_outcome_coverage=Decimal("1"),
+        treatment_selected_instances=80,
+        treatment_selected_outcomes=80,
+        treatment_selected_outcome_coverage=Decimal("1"),
+        baseline_only_instances=20,
+        baseline_only_outcomes=20,
+        treatment_only_instances=20,
+        treatment_only_outcomes=20,
+        calendar_span_days=28,
+        distinct_trading_days=20,
+        represented_lineages=7,
+        minimum_outcomes_any_lineage=8,
+        minimum_fold_candidate_outcomes=40,
+        minimum_fold_lineages=4,
+        minimum_decision_epochs=80,
+        minimum_candidate_outcomes=200,
+        minimum_selected_outcomes=60,
+        required_candidate_coverage=Decimal("0.95"),
+        required_selected_coverage=Decimal("1"),
+        fold_count=4,
+        fresh_oos_utility_demonstrated=False,
+    )
+
+
+def test_readiness_distinguishes_t13_oos_population_from_utility() -> None:
+    report = assess_phase20_causal_tool_readiness(
+        evidence_book=VersionedPhase20ForwardEvidenceBook(generation=0),
+        qualification_readiness=_qualification(ready=True),
+        t13_oos_readiness=_t13_oos_population_ready(),
+    )
+
+    t13 = _row(report, "T13")
+    assert t13.state is Phase20ToolEvidenceState.COLLECTING_FORWARD
+    assert t13.stream_bound is True
+    assert t13.forward_population_ready is False
+    assert t13.observed_epochs == 80
+    assert t13.qualifying_epochs == 20
+    assert t13.blockers == (
+        "T13_OOS_POPULATION_READY_UTILITY_ANALYSIS_NOT_EXECUTED",
     )
