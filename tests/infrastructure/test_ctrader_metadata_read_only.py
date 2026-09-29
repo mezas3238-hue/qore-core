@@ -6,6 +6,10 @@ from qore.infrastructure.ctrader_metadata_read_only import (
     CTraderMetadataReadOnlyClientError,
     CTraderMetadataReadOnlyMessageClient,
 )
+from qore.infrastructure.ctrader_open_api_client import (
+    CTRADER_METADATA_READ_ONLY_MESSAGE_PAIRS,
+    CTRADER_METADATA_READ_ONLY_REQUEST_MESSAGES,
+)
 from qore.kernel.result import Failure, Success
 
 
