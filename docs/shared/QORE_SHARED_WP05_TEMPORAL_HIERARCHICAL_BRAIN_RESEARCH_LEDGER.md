@@ -1030,3 +1030,129 @@ Only an unambiguous, replayable provider sensor can become the subject of a
 later V14 scientific preregistration. Source availability does not itself
 constitute V14, scientific admission or WP-05 progress against the 2000/9500
 gate.
+
+## 15. V14 — Cross-Market Microstructure Confirmation
+
+Post-V13 source availability was audited before defining any new scientific
+candidate.
+
+Authoritative source-availability run:
+
+- run: 36493895462;
+- Git SHA: 54521667936a123f5eac305d3be430fe34551564;
+- artifact: 11002743011;
+- enabled cTrader DEMO symbols: 177;
+- USTEC control present: true;
+- frozen temporal pilot: manifest indices 0 / 736 / 1473 / 2210 / 2947;
+- SP500 peer: exactly one candidate, US500, symbol id 10013, digits 2;
+- US500 pilot coverage: full_bid_ask_history;
+- US500 pilot totals: BID 11,397 / ASK 11,533;
+- US30 peer: exactly one candidate, US30, symbol id 10015, digits 2;
+- US30 pilot coverage: full_bid_ask_history;
+- US30 pilot totals: BID 37,012 / ASK 37,399;
+- target/outcome read: false;
+- R6/R5 read: false;
+- fresh holdout opened: false;
+- V14 scientific outcomes opened: false.
+
+This availability audit proved that cross-market microstructure is a real,
+historically replayable sensor family. It did not constitute scientific PASS.
+
+### Frozen V14 hypothesis
+
+Identity:
+
+QORE_SHARED_WP05_CROSS_MARKET_MICROSTRUCTURE_CONFIRMATION_V14_001
+
+V14 can only veto a V11 terminal confirmation. It can never create one.
+
+At the exact causal checkpoint where V11 first confirms terminality:
+
+PEER_CONFIRMATION(T) = min(LLR_US500(T), LLR_US30(T))
+
+Both peers therefore must support terminality.
+
+Frozen sensor universe:
+
+- US500 BID/ASK;
+- US30 BID/ASK;
+- checkpoints 0 / 3 / 5 / 10 / 15m;
+- M3_FULL_CAUSAL_MICROSTRUCTURE only;
+- 46 fields per peer/checkpoint;
+- 460 raw causal cells per source row;
+- provider-event-at <= checkpoint only;
+- independent BID/ASK as-of streams;
+- no force-pairing.
+
+Frozen source-only staleness grid:
+
+5s / 10s / 30s / 60s / 120s
+
+Selection law:
+
+choose the smallest one shared threshold for which BOTH peers satisfy >=9500
+bps causal BID+ASK usable coverage at EVERY checkpoint.
+
+If no threshold through 120s passes, V14 stops before outcomes.
+
+Frozen scientific protocol:
+
+- 4 chronological expanding-window validation folds;
+- outer matured-label purge;
+- inner discovery/calibration = 70% / 30%;
+- strict matured-label purge between discovery and calibration;
+- robust median/MAD terminal-vs-nonterminal density per peer/checkpoint;
+- 10 densities = 2 peers x 5 checkpoints;
+- minimum 50 true V11 confirmations in calibration;
+- one peer-confirmation threshold only;
+- threshold selected only from true V11 terminal confirmations;
+- calibration retention >=9800 bps;
+- retained declaration iff PEER_CONFIRMATION >= threshold;
+- no false-positive optimization during threshold calibration.
+
+R8 fold gates:
+
+- V14 true-confirmation retention vs V11 >=9800 bps;
+- absolute terminal preservation >=9500 bps;
+- incremental false-confirmation veto >0.
+
+R8 pooled gate:
+
+- incremental false-confirmation veto >=500 bps.
+
+All four folds are required.
+
+### Acquisition lineage
+
+The first acquisition run 36494671881 at
+a4b38555df77443f6c82d2539d9cb8674ff25ac6 is SUPERSEDED.
+
+Reason:
+
+the scientific evaluator was further preregistered/frozen before any V14
+outcome was opened. Updating the preregistration document legitimately
+re-triggered acquisition under workflow concurrency.
+
+Never combine artifacts from the superseded run with the replacement lineage.
+
+Authoritative replacement source acquisition:
+
+- run: 36501289744;
+- preregistration/source SHA:
+  b8cae94dec9028acb5230cb25b034bc25040b920;
+- target/outcome: CLOSED;
+- R6/R5: CLOSED;
+- fresh WP05 holdout: CLOSED.
+
+Scientific evaluator contract validation completed GREEN before outcome opening.
+
+The next legal sequence remains:
+
+1. exact 32-shard source acquisition;
+2. raw peer integrity audit;
+3. shared cross-peer staleness freeze;
+4. M3 source-only representation freeze;
+5. freeze exact representation fingerprint;
+6. only then open R8 Target-V2 outcomes once.
+
+No V14.1 or post-outcome rescue is authorized.
