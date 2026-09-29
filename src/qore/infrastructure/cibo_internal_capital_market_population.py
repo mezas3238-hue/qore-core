@@ -50,6 +50,7 @@ class Genc6FreshScarcityPopulation:
     true_scarcity_epoch_count: int
     non_scarcity_epoch_count: int
     candidate_count: int
+    eligible_candidate_count: int
     treatment_control_divergence_count: int
     treatment_reserve_count: int
     treatment_allocation_count: int
@@ -106,6 +107,7 @@ class Genc6FreshScarcityPopulation:
             "true_scarcity_epoch_count",
             "non_scarcity_epoch_count",
             "candidate_count",
+            "eligible_candidate_count",
             "treatment_control_divergence_count",
             "treatment_reserve_count",
             "treatment_allocation_count",
@@ -267,6 +269,7 @@ def describe_genc6_fresh_scarcity_population(
     reserve_count = 0
     allocation_count = 0
     candidate_count = 0
+    eligible_candidate_count = 0
     accounts: set[str] = set()
     traders: set[str] = set()
     days: set[date] = set()
@@ -293,6 +296,7 @@ def describe_genc6_fresh_scarcity_population(
                 "GEN-C6 population event candidate set invalid"
             )
         candidate_count += len(candidates)
+        eligible_candidate_count += int(event["eligible_candidate_count"])
         for candidate in candidates:
             if not isinstance(candidate, dict):
                 raise CiboCompoundCapitalError(
@@ -395,6 +399,7 @@ def describe_genc6_fresh_scarcity_population(
             len(genc6_book.records) - true_scarcity
         ),
         candidate_count=candidate_count,
+        eligible_candidate_count=eligible_candidate_count,
         treatment_control_divergence_count=divergence,
         treatment_reserve_count=reserve_count,
         treatment_allocation_count=allocation_count,
