@@ -791,3 +791,119 @@ def test_genc6_store_hash_chain_cas_restart_and_conflict(
             sealed_at=sealed_at,
             expected_generation=1,
         )
+
+
+def _oos_books(
+    *,
+    tmp_path: Path,
+    event,
+    decision,
+    include_release_timing: bool = True,
+    include_second_outcome: bool = True,
+):
+    market_store = DurableGenc6InternalCapitalMarketStore(
+        tmp_path / "genc6-oos-market.json"
+    )
+    genc6_book = market_store.seal(
+        event=event,
+        decision=decision,
+        sealed_at=T0 + timedelta(seconds=2),
+        expected_generation=0,
+    )
+
+    c4_store = DurableGenc4MarginalEvidenceStore(
+        tmp_path / "genc6-oos-c4.json"
+    )
+    generation = 0
+    for candidate in event.candidates:
+        c4_book = c4_store.seal(
+            candidate.marginal_evidence,
+            sealed_at=T0 + timedelta(seconds=1),
+            expected_generation=generation,
+        )
+        generation += 1
+
+    phase20_decisions = []
+    phase20_policies = []
+    phase20_outcomes = []
+    for index, candidate in enumerate(event.candidates, start=1):
+        evidence = candidate.marginal_evidence
+        source_sha = evidence.source_opportunity_decision_sha256
+        phase20_decisions.append(
+            Phase20ForwardDecisionSeal(
+                evidence_id=f"phase20-source-{index}",
+                decision_epoch_id=f"phase20-epoch-{index}",
+                evidence_sha256=source_sha,
+                decision_at=T0,
+                candidate_id=(
+                    "CIBO_PHASE20_FULL_SURFACE_FORWARD_CANDIDATE_V3"
+                ),
+                code_sha="a" * 40,
+                parameter_sha256="sha256:" + "b" * 64,
+                signal_fingerprints=(candidate.signal_fingerprint,),
+                canonical_payload_json="{}",
+            )
+        )
+        phase20_policies.append(
+            Phase20ForwardPolicyDecisionSeal(
+                evidence_sha256=source_sha,
+                policy_record_sha256=(
+                    evidence.source_baseline_policy_record_sha256
+                ),
+                allocator_disposition="ALLOW",
+                selected_signal_fingerprints=(
+                    candidate.signal_fingerprint,
+                ),
+                canonical_record_json="{}",
+            )
+        )
+        if index == 2 and not include_second_outcome:
+            continue
+        deployed_at = (
+            T0 + timedelta(minutes=index)
+            if include_release_timing
+            else None
+        )
+        released_at = (
+            T0 + timedelta(minutes=index + 10)
+            if include_release_timing
+            else None
+        )
+        capital_minutes = (
+            Decimal("10") if include_release_timing else None
+        )
+        phase20_outcomes.append(
+            Phase20ForwardOutcomeSeal(
+                evidence_id=f"phase20-outcome-{index}",
+                decision_evidence_sha256=source_sha,
+                signal_fingerprint=candidate.signal_fingerprint,
+                position_id=5000 + index,
+                execution_risk_evidence_id=f"risk-{index}",
+                settlement_deal_ids=(6000 + index,),
+                fill_evidence_refs=(f"fill-{index}",),
+                observed_at=T0 + timedelta(minutes=index + 11),
+                realized_net_pnl_usd=Decimal(str(index)),
+                executed_initial_stop_risk_usd=Decimal("1"),
+                realized_structural_outcome_r=Decimal(str(index)),
+                capital_deployed_at=deployed_at,
+                capital_released_at=released_at,
+                capital_minutes=capital_minutes,
+            )
+        )
+
+    phase20_book = VersionedPhase20ForwardEvidenceBook(
+        generation=len(phase20_decisions) + len(phase20_outcomes),
+        decisions=tuple(phase20_decisions),
+        outcomes=tuple(phase20_outcomes),
+    )
+    policy_book = VersionedPhase20ForwardPolicyBook(
+        generation=len(phase20_policies),
+        decisions=tuple(phase20_policies),
+    )
+    return (
+        genc6_book,
+        c4_book,
+        tuple(candidate.genc5_seal for candidate in event.candidates),
+        phase20_book,
+        policy_book,
+    )
