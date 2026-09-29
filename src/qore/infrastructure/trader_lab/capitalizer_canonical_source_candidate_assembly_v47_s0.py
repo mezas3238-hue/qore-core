@@ -43,8 +43,16 @@ from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
     CapitalizerSide,
 )
+from qore.infrastructure.trader_lab.capitalizer_full_ict_density_scanner_1y_v1 import (
+    _aggregate_h1,
+)
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
     CapitalizerSourceDirection,
+)
+from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
+    _aggregate_tf,
+    _index_day_inputs,
+    _pivots,
 )
 from qore.kernel.result import Failure
 
@@ -146,7 +154,7 @@ def bind_ict_source_events(
     if any(row.symbol != symbol for row in ordered):
         raise ValueError("S0 ICT arming requires one symbol")
 
-    execution_by_day, reference_by_day = v3_source._index_day_inputs(
+    execution_by_day, reference_by_day = _index_day_inputs(
         ordered,
         session=session,
     )
@@ -159,13 +167,13 @@ def bind_ict_source_events(
         ordered,
         operating_day=operating_day,
     )
-    h1 = v3_source._aggregate_h1(ordered)
+    h1 = _aggregate_h1(ordered)
     h1_swings = v3_source._build_h1_swings(h1)
-    m5 = v3_source._aggregate_tf(ordered, minutes=5)
-    m3 = v3_source._aggregate_tf(ordered, minutes=3)
+    m5 = _aggregate_tf(ordered, minutes=5)
+    m3 = _aggregate_tf(ordered, minutes=3)
     m5_closes = tuple(item.closed_at for item in m5)
     m3_closes = tuple(item.closed_at for item in m3)
-    m3_pivots = v3_source._pivots(m3)
+    m3_pivots = _pivots(m3)
 
     events: list[S0ICTSourceEvent] = []
     for h1_open, h1_deadline, hour_bars in v3_source._h1_windows(execution):
