@@ -13,6 +13,12 @@ from qore.infrastructure.cibo_ce2i_phase20_causal_tool_readiness import (
     Phase20ToolEvidenceState,
     assess_phase20_causal_tool_readiness,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t08_oos_ablation import (
+    T08NettingOosAblationReport,
+)
+from qore.infrastructure.cibo_ce2i_phase20_t13_reserve_population import (
+    Phase20T13ReservePopulationAudit,
+)
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     Phase20ForwardDecisionSeal,
     Phase20ForwardOutcomeSeal,
@@ -207,3 +213,87 @@ def test_t13_becomes_collecting_when_prior_causal_history_is_reconstructible() -
         "FRESH_OOS_DRAWDOWN_RESERVE_UTILITY_ANALYSIS_REQUIRED"
         in t13.blockers
     )
+
+def _t08_oos_report(*, ready: bool) -> T08NettingOosAblationReport:
+    return T08NettingOosAblationReport(
+        sample_size=32,
+        minimum_epochs=30,
+        required_folds=4,
+        folds=(),
+        baseline_selected_count=32,
+        treatment_selected_count=64 if ready else 32,
+        incremental_selected_count=32 if ready else 0,
+        baseline_total_pnl_usd=Decimal("10"),
+        treatment_total_pnl_usd=Decimal("12") if ready else Decimal("10"),
+        baseline_max_drawdown_usd=Decimal("4"),
+        treatment_max_drawdown_usd=Decimal("3") if ready else Decimal("4"),
+        mapping_evidence_bound=True,
+        correlation_evidence_bound=True,
+        pathwise_authorization_respected=True,
+        fresh_oos_utility_demonstrated=ready,
+        risk_mapping_verified=False,
+        correlation_state_verified=False,
+        netting_credit_authorized=False,
+        blockers=(
+            ("SIGNED_FACTOR_RISK_MAP_REQUIRES_INDEPENDENT_CERTIFICATION",)
+            if ready
+            else ("FRESH_OOS_NETTING_UTILITY_NOT_DEMONSTRATED",)
+        ),
+    )
+
+
+def _t13_population() -> Phase20T13ReservePopulationAudit:
+    return Phase20T13ReservePopulationAudit(
+        usable_decision_epochs=80,
+        candidate_epochs=60,
+        candidate_instances=120,
+        settled_history_epochs=50,
+        loss_cluster_epochs=20,
+        settlement_drawdown_epochs=25,
+        reserve_pressure_epochs=18,
+        scarce_risk_headroom_epochs=12,
+        pressure_and_scarcity_epochs=8,
+        maximum_loss_cluster=4,
+        maximum_settlement_drawdown_usd=Decimal("15"),
+        minimum_decision_epochs=80,
+        decision_threshold_met=True,
+        source_decision_sha256s=tuple(
+            f"sha256:{index:064x}" for index in range(80)
+        ),
+        reserve_policy_identified=False,
+        oos_utility_demonstrated=False,
+        blockers=(
+            "T13_RESERVE_POLICY_NOT_IDENTIFIED",
+            "FRESH_OOS_T13_RESERVE_UTILITY_REQUIRED",
+        ),
+    )
+
+
+def test_readiness_uses_explicit_t08_oos_ablation_when_available() -> None:
+    report = assess_phase20_causal_tool_readiness(
+        evidence_book=VersionedPhase20ForwardEvidenceBook(),
+        qualification_readiness=_qualification(ready=True),
+        t08_oos_ablation=_t08_oos_report(ready=True),
+    )
+
+    t08 = _row(report, "T08")
+    assert t08.state is Phase20ToolEvidenceState.FORWARD_POPULATION_READY
+    assert t08.observed_epochs == 32
+    assert t08.qualifying_epochs == 32
+    assert t08.blockers == ()
+
+
+def test_readiness_uses_t13_pressure_scarcity_population_when_available() -> None:
+    report = assess_phase20_causal_tool_readiness(
+        evidence_book=VersionedPhase20ForwardEvidenceBook(),
+        qualification_readiness=_qualification(ready=True),
+        t13_reserve_population=_t13_population(),
+    )
+
+    t13 = _row(report, "T13")
+    assert t13.state is Phase20ToolEvidenceState.COLLECTING_FORWARD
+    assert t13.stream_bound is True
+    assert t13.observed_epochs == 80
+    assert t13.qualifying_epochs == 8
+    assert "T13_RESERVE_POLICY_NOT_IDENTIFIED" in t13.blockers
+

@@ -33,6 +33,12 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
 from qore.infrastructure.cibo_ce2i_phase20_qualification_readiness import (
     Phase20QualificationReadiness,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t08_oos_ablation import (
+    T08NettingOosAblationReport,
+)
+from qore.infrastructure.cibo_ce2i_phase20_t13_reserve_population import (
+    Phase20T13ReservePopulationAudit,
+)
 from qore.infrastructure.cibo_ce2i_phase20_t14_path_readiness import (
     Phase20T14PathReadiness,
 )
@@ -180,6 +186,8 @@ def assess_phase20_causal_tool_readiness(
     *,
     evidence_book: VersionedPhase20ForwardEvidenceBook,
     qualification_readiness: Phase20QualificationReadiness,
+    t08_oos_ablation: T08NettingOosAblationReport | None = None,
+    t13_reserve_population: Phase20T13ReservePopulationAudit | None = None,
     t14_path_readiness: Phase20T14PathReadiness | None = None,
     t15_option_realization: Phase20T15OptionRealization | None = None,
 ) -> Phase20CausalToolReadinessReport:
@@ -192,6 +200,23 @@ def assess_phase20_causal_tool_readiness(
     if not isinstance(qualification_readiness, Phase20QualificationReadiness):
         raise CiboCapitalManagementError(
             "Phase20 causal readiness requires canonical qualification readiness"
+        )
+    if (
+        t08_oos_ablation is not None
+        and not isinstance(t08_oos_ablation, T08NettingOosAblationReport)
+    ):
+        raise CiboCapitalManagementError(
+            "Phase20 causal readiness T08 OOS ablation is invalid"
+        )
+    if (
+        t13_reserve_population is not None
+        and not isinstance(
+            t13_reserve_population,
+            Phase20T13ReservePopulationAudit,
+        )
+    ):
+        raise CiboCapitalManagementError(
+            "Phase20 causal readiness T13 reserve population is invalid"
         )
     if (
         t14_path_readiness is not None
@@ -254,20 +279,50 @@ def assess_phase20_causal_tool_readiness(
     global_ready = qualification_readiness.ready
     global_blockers = tuple(qualification_readiness.reasons)
 
-    t08_stream = (
-        candidate_epochs > 0
-        and portfolio_netting_epochs == candidate_epochs
-    )
-    t08_ready = t08_stream and global_ready
-    t08_blockers: list[str] = []
-    if candidate_epochs == 0:
-        t08_blockers.append("NO_FORWARD_CANDIDATE_EPOCHS")
-    elif portfolio_netting_epochs != candidate_epochs:
-        t08_blockers.append(
-            "PORTFOLIO_NETTING_EVIDENCE_COVERAGE_INCOMPLETE"
+    if t08_oos_ablation is None:
+        t08_stream = (
+            candidate_epochs > 0
+            and portfolio_netting_epochs == candidate_epochs
         )
-    if not global_ready:
-        t08_blockers.append("GLOBAL_PHASE20D_POPULATION_NOT_READY")
+        t08_ready = t08_stream and global_ready
+        t08_observed = candidate_epochs
+        t08_qualifying = portfolio_netting_epochs
+        t08_blockers: list[str] = []
+        if candidate_epochs == 0:
+            t08_blockers.append("NO_FORWARD_CANDIDATE_EPOCHS")
+        elif portfolio_netting_epochs != candidate_epochs:
+            t08_blockers.append(
+                "PORTFOLIO_NETTING_EVIDENCE_COVERAGE_INCOMPLETE"
+            )
+        if not global_ready:
+            t08_blockers.append("GLOBAL_PHASE20D_POPULATION_NOT_READY")
+    else:
+        t08_stream = (
+            t08_oos_ablation.mapping_evidence_bound
+            and t08_oos_ablation.correlation_evidence_bound
+        )
+        t08_ready = (
+            t08_stream
+            and global_ready
+            and t08_oos_ablation.fresh_oos_utility_demonstrated
+        )
+        t08_observed = t08_oos_ablation.sample_size
+        t08_qualifying = (
+            t08_oos_ablation.sample_size
+            if t08_oos_ablation.fresh_oos_utility_demonstrated
+            else 0
+        )
+        t08_blockers = []
+        if not t08_stream:
+            t08_blockers.append(
+                "T08_OOS_MAPPING_OR_CORRELATION_EVIDENCE_NOT_BOUND"
+            )
+        if not t08_oos_ablation.fresh_oos_utility_demonstrated:
+            t08_blockers.append(
+                "FRESH_OOS_NETTING_UTILITY_NOT_DEMONSTRATED"
+            )
+        if not global_ready:
+            t08_blockers.append("GLOBAL_PHASE20D_POPULATION_NOT_READY")
 
     competition_stream = total_usable > 0
     competition_ready = (
@@ -299,13 +354,23 @@ def assess_phase20_causal_tool_readiness(
     if not global_ready:
         t12_blockers.append("GLOBAL_PHASE20D_POPULATION_NOT_READY")
 
-    t13_stream = causal_history_epochs > 0
-    t13_blockers: list[str] = []
-    if not t13_stream:
-        t13_blockers.append("NO_RECONSTRUCTIBLE_CAUSAL_HISTORY_EPOCHS")
-    t13_blockers.append(
-        "FRESH_OOS_DRAWDOWN_RESERVE_UTILITY_ANALYSIS_REQUIRED"
-    )
+    if t13_reserve_population is None:
+        t13_stream = causal_history_epochs > 0
+        t13_observed = candidate_epochs
+        t13_qualifying = causal_history_epochs
+        t13_blockers: list[str] = []
+        if not t13_stream:
+            t13_blockers.append("NO_RECONSTRUCTIBLE_CAUSAL_HISTORY_EPOCHS")
+        t13_blockers.append(
+            "FRESH_OOS_DRAWDOWN_RESERVE_UTILITY_ANALYSIS_REQUIRED"
+        )
+    else:
+        t13_stream = t13_reserve_population.settled_history_epochs > 0
+        t13_observed = t13_reserve_population.usable_decision_epochs
+        t13_qualifying = (
+            t13_reserve_population.pressure_and_scarcity_epochs
+        )
+        t13_blockers = list(t13_reserve_population.blockers)
 
     t15_stream = total_usable > 0 and all(
         "known_options" in payload for _decision, payload in usable
@@ -322,8 +387,8 @@ def assess_phase20_causal_tool_readiness(
             "T08",
             stream_bound=t08_stream,
             ready=t08_ready,
-            observed=candidate_epochs,
-            qualifying=portfolio_netting_epochs,
+            observed=t08_observed,
+            qualifying=t08_qualifying,
             blockers=t08_blockers,
         ),
         _row(
@@ -351,8 +416,8 @@ def assess_phase20_causal_tool_readiness(
             ),
             stream_bound=t13_stream,
             forward_population_ready=False,
-            observed_epochs=candidate_epochs,
-            qualifying_epochs=causal_history_epochs,
+            observed_epochs=t13_observed,
+            qualifying_epochs=t13_qualifying,
             blockers=tuple(t13_blockers),
         ),
         _t14_row(
