@@ -92,6 +92,7 @@ class S2UpstreamICTEvent:
     h1_deadline: datetime
     closeback: v3_source.SweepCloseback
     m3_mss: v3_source.M3MssEvent
+    ict_displacement_fvg_confirmed_at: datetime
     causal: bool = True
     legacy_m1_zone_required: bool = False
     economics_read: bool = False
@@ -105,6 +106,9 @@ class S2UpstreamICTEvent:
             raise ValueError("S2 upstream identity must end at M3 MSS")
         if s1._aware(self.closeback.closeback_at) > confirmed:
             raise ValueError("S2 upstream closeback cannot follow M3 MSS")
+        fvg_at = s1._aware(self.ict_displacement_fvg_confirmed_at)
+        if fvg_at > confirmed:
+            raise ValueError("S2 ICT displacement FVG cannot confirm after M3 MSS")
         if confirmed >= deadline:
             raise ValueError("S2 upstream event must precede H1 deadline")
         if not self.causal or self.legacy_m1_zone_required or self.economics_read:
@@ -135,6 +139,7 @@ class S2IndependentM1:
 class S2CanonicalFractalCandidate:
     routed: s0.S0RoutedCanonicalCandidate
     upstream_confirmed_at: datetime
+    ict_displacement_fvg_confirmed_at: datetime
     target_provenance: str
     m15_same_h1_poi_retouch_required: bool = False
     m1_legacy_m3_zone_required: bool = False
@@ -464,6 +469,43 @@ def bind_independent_m1_structure(
     return None
 
 
+def _ict_displacement_fvg_confirmed_at(
+    execution: tuple[CapitalizerM1Bar, ...],
+    *,
+    event: v3_source.M3MssEvent,
+) -> datetime | None:
+    """Prove ICT FVG inside M3 displacement without inheriting its entry zone."""
+
+    displacement = tuple(
+        index
+        for index, row in enumerate(execution)
+        if event.displacement_opened_at
+        <= row.opened_at
+        < event.displacement_closed_at
+    )
+    if not displacement:
+        return None
+    confirmed: list[datetime] = []
+    direction = _direction(event.side)
+    for center in displacement:
+        if center <= 0 or center + 1 >= len(execution):
+            continue
+        first = execution[center - 1]
+        middle = execution[center]
+        third = execution[center + 1]
+        if third.closed_at > event.confirmed_at:
+            continue
+        fvg = _directional_fvg(
+            first,
+            middle,
+            third,
+            direction=direction,
+        )
+        if fvg is not None:
+            confirmed.append(third.closed_at)
+    return None if not confirmed else min(confirmed)
+
+
 def bind_upstream_source_events(
     bars: tuple[CapitalizerM1Bar, ...],
     *,
@@ -590,6 +632,12 @@ def bind_upstream_source_events(
         )
         if mss is None or mss.confirmed_at >= deadline:
             continue
+        ict_fvg_at = _ict_displacement_fvg_confirmed_at(
+            execution,
+            event=mss,
+        )
+        if ict_fvg_at is None:
+            continue
         result.append(
             S2UpstreamICTEvent(
                 symbol=symbol,
@@ -600,6 +648,7 @@ def bind_upstream_source_events(
                 h1_deadline=deadline,
                 closeback=closeback,
                 m3_mss=mss,
+                ict_displacement_fvg_confirmed_at=ict_fvg_at,
             )
         )
     return tuple(
@@ -814,6 +863,9 @@ def bind_s2_fractal_candidates(
             S2CanonicalFractalCandidate(
                 routed=routed,
                 upstream_confirmed_at=source_event.upstream_confirmed_at,
+                ict_displacement_fvg_confirmed_at=(
+                    source_event.ict_displacement_fvg_confirmed_at
+                ),
                 target_provenance=target_provenance,
             )
         )
