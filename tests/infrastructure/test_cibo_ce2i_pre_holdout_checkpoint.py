@@ -11,6 +11,8 @@ def test_pre_holdout_checkpoint_fails_closed_before_full_calibration() -> None:
 
     assert checkpoint.holdout_state is CiboHoldoutSealState.SEALED_UNTOUCHED
     assert checkpoint.holdout_2017h1_read is False
+    assert checkpoint.phase20d_causal_gate_passed is False
+    assert checkpoint.phase21_policy_freeze_sealed is False
     assert checkpoint.pre_holdout_freeze_active is False
     assert checkpoint.calibrated_tools == (
         "T01",
@@ -32,3 +34,13 @@ def test_pre_holdout_checkpoint_fails_closed_before_full_calibration() -> None:
     assert "T17" not in checkpoint.provider_economics_pending_tools
     assert checkpoint.ready_to_freeze is False
     assert len(checkpoint.matrix_sha256) == 64
+
+
+
+def test_pre_holdout_checkpoint_never_freezes_without_phase21_lineage() -> None:
+    checkpoint = build_pre_holdout_checkpoint(
+        phase20d_causal_gate_passed=True,
+        phase21_policy_freeze_sealed=False,
+    )
+
+    assert checkpoint.ready_to_freeze is False

@@ -77,6 +77,8 @@ def build_report(
     readiness = evaluate_pre_holdout_readiness(
         provider_economics_frozen=False,
         calibration_freeze_manifest_sealed=False,
+        phase20d_causal_gate_passed=False,
+        phase21_policy_freeze_sealed=False,
     )
     matrix = [
         {
@@ -137,6 +139,8 @@ def build_report(
             "target_aware": provider.target_aware,
         },
         "ready_to_unseal_2017h1": False,
+        "phase20d_causal_tool_gate_passed": False,
+        "phase21_policy_freeze_sealed": False,
         "pre_holdout_blockers": list(readiness.blockers),
         "protocol": protocol,
         "t01_t20_matrix": matrix,

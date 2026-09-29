@@ -16,6 +16,8 @@ from qore.infrastructure.cibo_ce2i_pre_holdout_gate import (
 # freeze action, not a calibration shortcut.
 PROVIDER_ECONOMICS_FROZEN = False
 CALIBRATION_FREEZE_MANIFEST_SEALED = False
+PHASE20D_CAUSAL_TOOL_GATE_PASSED = False
+PHASE21_POLICY_FREEZE_SEALED = False
 
 
 def build_report() -> dict[str, object]:
@@ -24,6 +26,8 @@ def build_report() -> dict[str, object]:
         calibration_freeze_manifest_sealed=(
             CALIBRATION_FREEZE_MANIFEST_SEALED
         ),
+        phase20d_causal_gate_passed=PHASE20D_CAUSAL_TOOL_GATE_PASSED,
+        phase21_policy_freeze_sealed=PHASE21_POLICY_FREEZE_SEALED,
     )
     authorized = readiness.status is CiboPreHoldoutStatus.READY_TO_UNSEAL_2017H1
     return {
@@ -40,6 +44,10 @@ def build_report() -> dict[str, object]:
         "holdout_outcomes_inspected": readiness.holdout_outcomes_inspected,
         "holdout_market_data_read": readiness.holdout_market_data_read,
         "provider_economics_frozen": PROVIDER_ECONOMICS_FROZEN,
+        "phase20d_causal_tool_gate_passed": (
+            PHASE20D_CAUSAL_TOOL_GATE_PASSED
+        ),
+        "phase21_policy_freeze_sealed": PHASE21_POLICY_FREEZE_SEALED,
         "calibration_freeze_manifest_sealed": (
             CALIBRATION_FREEZE_MANIFEST_SEALED
         ),

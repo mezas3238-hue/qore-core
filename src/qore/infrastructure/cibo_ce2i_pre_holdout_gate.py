@@ -36,6 +36,8 @@ class CiboPreHoldoutReadiness:
     blockers: tuple[str, ...]
     tool_matrix_sha256: str
     holdout_candidate_id: str
+    phase20d_causal_gate_passed: bool
+    phase21_policy_freeze_sealed: bool
     holdout_outcomes_inspected: bool
     holdout_market_data_read: bool
 
@@ -45,6 +47,10 @@ class CiboPreHoldoutReadiness:
         if self.status is CiboPreHoldoutStatus.READY_TO_UNSEAL_2017H1:
             if self.blockers:
                 raise ValueError("ready-to-unseal status cannot retain blockers")
+        if type(self.phase20d_causal_gate_passed) is not bool:
+            raise TypeError("phase20d causal gate flag must be bool")
+        if type(self.phase21_policy_freeze_sealed) is not bool:
+            raise TypeError("phase21 freeze flag must be bool")
         if self.holdout_outcomes_inspected or self.holdout_market_data_read:
             raise ValueError("pre-holdout readiness cannot consume 2017H1")
 
@@ -82,6 +88,8 @@ def evaluate_pre_holdout_readiness(
     *,
     provider_economics_frozen: bool = False,
     calibration_freeze_manifest_sealed: bool = False,
+    phase20d_causal_gate_passed: bool = False,
+    phase21_policy_freeze_sealed: bool = False,
 ) -> CiboPreHoldoutReadiness:
     """Evaluate readiness without reading any holdout source or outcome."""
 
@@ -128,6 +136,10 @@ def evaluate_pre_holdout_readiness(
             "UNRESOLVED_FAIL_CLOSED_TOOLS:" + ",".join(illegal_fail_closed)
         )
 
+    if not phase20d_causal_gate_passed:
+        blockers.append("PHASE20D_CAUSAL_TOOL_GATE_NOT_PASSED")
+    if not phase21_policy_freeze_sealed:
+        blockers.append("PHASE21_POLICY_FREEZE_NOT_SEALED")
     if not provider_economics_frozen:
         blockers.append("PROVIDER_ECONOMICS_NOT_FROZEN")
     if not calibration_freeze_manifest_sealed:
@@ -146,6 +158,8 @@ def evaluate_pre_holdout_readiness(
         blockers=tuple(blockers),
         tool_matrix_sha256=calibration_matrix_sha256(),
         holdout_candidate_id=candidate.candidate_id,
+        phase20d_causal_gate_passed=phase20d_causal_gate_passed,
+        phase21_policy_freeze_sealed=phase21_policy_freeze_sealed,
         holdout_outcomes_inspected=False,
         holdout_market_data_read=False,
     )

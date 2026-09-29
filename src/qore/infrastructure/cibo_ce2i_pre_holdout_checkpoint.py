@@ -39,6 +39,8 @@ class CiboPreHoldoutCheckpoint:
     structurally_disabled_tools: tuple[str, ...]
     holdout_state: CiboHoldoutSealState
     holdout_2017h1_read: bool
+    phase20d_causal_gate_passed: bool
+    phase21_policy_freeze_sealed: bool
     pre_holdout_freeze_active: bool
 
     def __post_init__(self) -> None:
@@ -54,6 +56,15 @@ class CiboPreHoldoutCheckpoint:
             raise CiboCapitalManagementError(
                 "pre-freeze checkpoint cannot claim 2017H1 was read"
             )
+        for name in (
+            "phase20d_causal_gate_passed",
+            "phase21_policy_freeze_sealed",
+            "pre_holdout_freeze_active",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(
+                    f"pre-freeze checkpoint {name} must be bool"
+                )
         if self.pre_holdout_freeze_active:
             raise CiboCapitalManagementError(
                 "readiness checkpoint cannot activate pre-holdout freeze"
@@ -63,14 +74,20 @@ class CiboPreHoldoutCheckpoint:
     def ready_to_freeze(self) -> bool:
         active_tool_count = 20 - len(self.structurally_disabled_tools)
         return (
-            not self.provider_economics_pending_tools
+            self.phase20d_causal_gate_passed
+            and self.phase21_policy_freeze_sealed
+            and not self.provider_economics_pending_tools
             and not self.calibration_pending_tools
             and len(self.oos_ready_tools) == active_tool_count
             and len(self.certification_ready_tools) == active_tool_count
         )
 
 
-def build_pre_holdout_checkpoint() -> CiboPreHoldoutCheckpoint:
+def build_pre_holdout_checkpoint(
+    *,
+    phase20d_causal_gate_passed: bool = False,
+    phase21_policy_freeze_sealed: bool = False,
+) -> CiboPreHoldoutCheckpoint:
     rows = CIBO_T01_T20_CALIBRATION_MATRIX
     structurally_disabled = tuple(
         row.tool_code
@@ -127,5 +144,7 @@ def build_pre_holdout_checkpoint() -> CiboPreHoldoutCheckpoint:
         structurally_disabled_tools=structurally_disabled,
         holdout_state=CURRENT_HOLDOUT_SEAL_STATE,
         holdout_2017h1_read=False,
+        phase20d_causal_gate_passed=phase20d_causal_gate_passed,
+        phase21_policy_freeze_sealed=phase21_policy_freeze_sealed,
         pre_holdout_freeze_active=ACTIVE_PRE_HOLDOUT_FREEZE is not None,
     )
