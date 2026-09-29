@@ -26,6 +26,9 @@ from qore.infrastructure.trader_lab import (
     capitalizer_max_recovery_direct_m1_replay_v1 as direct,
 )
 from qore.infrastructure.trader_lab import (
+    capitalizer_native_source_fact_remediation_v46 as remediation,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_owner_h1_m3_m1_causal_reversal_1y_v3 as v3,
 )
 from qore.infrastructure.trader_lab import (
@@ -99,7 +102,6 @@ def _facts() -> tuple[FactOperationalization, ...]:
     dual_source = _module_source(dual)
     engine_source = _module_source(source_engine)
     plan_source = _module_source(trade_plan)
-    plan_source = _module_source(trade_plan)
     direct_source = _module_source(direct)
     v3_source = _module_source(v3)
 
@@ -159,16 +161,37 @@ def _facts() -> tuple[FactOperationalization, ...]:
         source_engine,
         "assess_source_trader_engine",
     )
+    htf_poi_context_ready = _has_callable(
+        remediation,
+        "resolve_htf_poi_context",
+    )
+    target_selector_ready = _has_callable(
+        remediation,
+        "resolve_structural_target",
+    )
+    no_chase_ready = _has_callable(
+        remediation,
+        "assess_no_chase_entry",
+    )
+    wick_ready = _has_callable(
+        remediation,
+        "assess_wick_formation",
+    )
+    m1_mss_ready = _has_callable(
+        remediation,
+        "detect_m1_mss",
+    )
+    m1_order_block_ready = _has_callable(
+        remediation,
+        "assess_m1_order_block",
+    )
+    route_resolver_ready = _has_callable(
+        remediation,
+        "resolve_source_entry_route",
+    )
 
-    # Missing by current source contract inspection:
-    # - no bound historical Asian Open provider/reference;
-    # - POI primitives exist, but no canonical deterministic HTF POI selector;
-    # - structural-target assessment exists, but no canonical target selector;
-    # - native M1 no-chase fact is not a canonical detector;
-    # - wick-before-expansion/body is a mandatory boolean with no detector;
-    # - native M1 MSS is not implemented (current structural shift is M3);
-    # - canonical M1 order-block detector is not present in source modules;
-    # - route is supplied to the source engine rather than resolved causally.
+    # The historical Asian Open reference remains deliberately external.
+    # V46-R1 closes the seven internal deterministic/selection gaps.
     return (
         FactOperationalization(
             1,
@@ -201,15 +224,15 @@ def _facts() -> tuple[FactOperationalization, ...]:
             3,
             "HTF_SOURCE_POI",
             (
-                OperationalizationStatus.SELECTION_RULE_MISSING
-                if poi_primitives_ready
+                OperationalizationStatus.DETECTOR_READY
+                if poi_primitives_ready and htf_poi_context_ready
                 else OperationalizationStatus.DETECTOR_MISSING
             ),
             (
-                "FVG/swing POI primitives exist, but no canonical deterministic "
-                "rule selects the operative HTF POI when several are available."
+                "V46-R1 retains all causally interacting source POIs and resolves "
+                "the boolean HTF POI context without ranking them."
             ),
-            False,
+            poi_primitives_ready and htf_poi_context_ready,
             True,
         ),
         FactOperationalization(
@@ -240,15 +263,15 @@ def _facts() -> tuple[FactOperationalization, ...]:
             6,
             "STRUCTURAL_HTF_TARGET_SELECTION",
             (
-                OperationalizationStatus.SELECTION_RULE_MISSING
-                if target_primitive_ready
+                OperationalizationStatus.DETECTOR_READY
+                if target_primitive_ready and target_selector_ready
                 else OperationalizationStatus.DETECTOR_MISSING
             ),
             (
-                "assess_structural_target validates a supplied target_price, "
-                "but does not select the canonical target from HTF structure."
+                "V46-R1 resolves only one unambiguous causal HTF target and "
+                "fails closed when multiple distinct objectives survive."
             ),
-            False,
+            target_primitive_ready and target_selector_ready,
             True,
         ),
         FactOperationalization(
@@ -338,12 +361,16 @@ def _facts() -> tuple[FactOperationalization, ...]:
         FactOperationalization(
             14,
             "ICT_EXPLICIT_NO_CHASE",
-            OperationalizationStatus.DETECTOR_MISSING,
             (
-                "The strict M5 surrogate had an anti-chase check, but the "
-                "canonical native-M1 source stack has no dedicated bound detector."
+                OperationalizationStatus.DETECTOR_READY
+                if no_chase_ready
+                else OperationalizationStatus.DETECTOR_MISSING
             ),
-            False,
+            (
+                "V46-R1 requires entry to remain inside the already-confirmed "
+                "PD array at the entry timestamp, with no tolerance."
+            ),
+            no_chase_ready,
             True,
         ),
         FactOperationalization(
@@ -385,23 +412,31 @@ def _facts() -> tuple[FactOperationalization, ...]:
         FactOperationalization(
             18,
             "TTRADES_WICK_BEFORE_EXPANSION_BODY",
-            OperationalizationStatus.DETECTOR_MISSING,
             (
-                "Dual-source acceptance requires ttrades_wick_formation_confirmed, "
-                "but no deterministic source detector is bound."
+                OperationalizationStatus.COMPOSER_READY_REQUIRES_BOUND_INPUT
+                if wick_ready
+                else OperationalizationStatus.DETECTOR_MISSING
             ),
-            False,
+            (
+                "V46-R1 composes important-level reach, same-direction "
+                "intracandle CISD and protected swing; no wick-size threshold."
+            ),
+            wick_ready,
             True,
         ),
         FactOperationalization(
             19,
             "M1_MSS",
-            OperationalizationStatus.DETECTOR_MISSING,
             (
-                "Canonical M1EntryStructure requires M1 MSS; current replay's "
-                "explicit structural shift is M3 MSS."
+                OperationalizationStatus.DETECTOR_READY
+                if m1_mss_ready
+                else OperationalizationStatus.DETECTOR_MISSING
             ),
-            False,
+            (
+                "V46-R1 confirms the first completed M1 close through the "
+                "latest opposite structural swing."
+            ),
+            m1_mss_ready,
             True,
         ),
         FactOperationalization(
@@ -419,23 +454,31 @@ def _facts() -> tuple[FactOperationalization, ...]:
         FactOperationalization(
             21,
             "M1_ORDER_BLOCK",
-            OperationalizationStatus.DETECTOR_MISSING,
             (
-                "Canonical M1EntryStructure requires order_block_confirmed; "
-                "no source-equivalent M1 OB detector is exposed by the source stack."
+                OperationalizationStatus.COMPOSER_READY_REQUIRES_BOUND_INPUT
+                if m1_order_block_ready
+                else OperationalizationStatus.DETECTOR_MISSING
             ),
-            False,
+            (
+                "V46-R1 validates the opposing M1 causal series only after "
+                "source-POI reach and same-direction CISD confirmation."
+            ),
+            m1_order_block_ready,
             True,
         ),
         FactOperationalization(
             22,
             "DETERMINISTIC_SOURCE_ROUTE_RESOLUTION",
-            OperationalizationStatus.SELECTION_RULE_MISSING,
             (
-                "CapitalizerSourceTraderEngineFacts receives route as input; "
-                "no causal rule resolves FRACTAL vs FTM."
+                OperationalizationStatus.DETECTOR_READY
+                if route_resolver_ready
+                else OperationalizationStatus.DETECTOR_MISSING
             ),
-            False,
+            (
+                "V46-R1 resolves exactly-one-confirmed FRACTAL or FTM and "
+                "fails closed on neither/both."
+            ),
+            route_resolver_ready,
             True,
         ),
         FactOperationalization(
@@ -528,6 +571,7 @@ def build_report() -> dict[str, Any]:
     return {
         "identity": IDENTITY,
         "predeclaration_comment_id": PREDECLARATION_COMMENT_ID,
+        "r1_predeclaration_comment_id": remediation.PREDECLARATION_COMMENT_ID,
         "evaluation": "PHASE_A_STATIC_CANONICAL_FACT_OPERATIONALIZATION",
         "mandatory_fact_count": MANDATORY_FACT_COUNT,
         "facts": [asdict(row) for row in facts],
