@@ -17,6 +17,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: write
 
 jobs:
   validate:
@@ -110,6 +111,7 @@ jobs:
           retention-days: 90
 
       - name: Report CEL-1 / CEL-2 status
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
