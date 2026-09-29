@@ -864,15 +864,23 @@ def _period_bars(
 def _operating_days(
     bars: tuple[CapitalizerM1Bar, ...],
     *,
+    session: CapitalizerSession,
     period_start: datetime,
     period_end: datetime,
 ) -> tuple[date, ...]:
-    days = {
+    observed = {
         bar.opened_at.astimezone(NEW_YORK).date()
         for bar in bars
         if period_start <= bar.opened_at < period_end
     }
-    return tuple(sorted(days))
+    return tuple(
+        day
+        for day in sorted(observed)
+        if (
+            source_session_bounds(day, session=session)[1] > period_start
+            and source_session_bounds(day, session=session)[0] < period_end
+        )
+    )
 
 
 def _day_slice(
@@ -925,6 +933,7 @@ def build_period_market_population(
 
     for operating_day in _operating_days(
         bars,
+        session=session,
         period_start=period_start,
         period_end=period_end,
     ):
@@ -991,6 +1000,7 @@ def build_period_market_population(
         operating_days_scanned=len(
             _operating_days(
                 bars,
+                session=session,
                 period_start=period_start,
                 period_end=period_end,
             )
@@ -1034,6 +1044,16 @@ def write_market_outputs(
             handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
 
 
+def _load_reports(root: Path) -> tuple[S1PeriodMarketReport, ...]:
+    reports: list[S1PeriodMarketReport] = []
+    for path in sorted(root.rglob("capitalizer-s1a-*-report.json")):
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(raw, dict):
+            raise ValueError("S1 market report must be JSON object")
+        reports.append(S1PeriodMarketReport(**raw))
+    return tuple(reports)
+
+
 def _load_rows(root: Path) -> tuple[S1AdmittedFillRow, ...]:
     rows: list[S1AdmittedFillRow] = []
     for path in sorted(root.rglob("capitalizer-s1a-*-fills.jsonl")):
@@ -1045,7 +1065,29 @@ def _load_rows(root: Path) -> tuple[S1AdmittedFillRow, ...]:
 
 
 def aggregate_s1a(root: Path, output: Path) -> dict[str, object]:
+    reports = _load_reports(root)
     rows = _load_rows(root)
+    if len(reports) != 27:
+        raise ValueError(f"S1A aggregate requires 27 market-period reports, got {len(reports)}")
+    report_keys = {(row.period, row.symbol, row.session) for row in reports}
+    if len(report_keys) != 27:
+        raise ValueError("S1A aggregate market-period report identities are not unique")
+    expected = {
+        (period, symbol, session.value)
+        for period in PERIODS
+        for session in CapitalizerSession
+        for symbol in (
+            ("USDJPY", "AUDJPY", "AUDUSD", "GBPJPY")
+            if session is CapitalizerSession.ASIA
+            else ("EURUSD", "GBPUSD")
+            if session is CapitalizerSession.LONDON
+            else ("XAUUSD", "USDCAD", "NAS100")
+        )
+    }
+    if report_keys != expected:
+        missing = sorted(expected - report_keys)
+        extra = sorted(report_keys - expected)
+        raise ValueError(f"S1A report universe mismatch missing={missing} extra={extra}")
     payload: dict[str, object] = {
         "identity": IDENTITY,
         "predeclaration_comment_id": PREDECLARATION_COMMENT_ID,
@@ -1063,6 +1105,8 @@ def aggregate_s1a(root: Path, output: Path) -> dict[str, object]:
         "full_trader_fidelity_claimed": False,
         "candidate_promotion_allowed": False,
         "trader_certified": False,
+        "market_period_reports": len(reports),
+        "market_count": len({row.symbol for row in reports}),
         "periods": {},
     }
     period_payload: dict[str, object] = {}
