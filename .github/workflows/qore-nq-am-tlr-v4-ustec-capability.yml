@@ -1,0 +1,167 @@
+name: QORE NQ AM TLR V4 USTEC Capability
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/nq-am-temporal-liquidity-reversal-v1-001
+    paths:
+      - '.github/workflows/qore-nq-am-tlr-v4-ustec-capability.yml'
+      - 'src/qore/infrastructure/trader_lab/nq_am_tlr_v4_ustec_capability.py'
+      - 'tests/infrastructure/trader_lab/test_nq_am_tlr_v4_ustec_capability.py'
+      - 'docs/research/QORE-NQ-AM-TLR-V4-USTEC-CAPABILITY-FREEZE.md'
+
+concurrency:
+  group: qore-nq-am-tlr-v4-ustec-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install development dependencies
+        run: python -m pip install -e '.[dev,ctrader]'
+      - name: Ruff
+        run: |
+          ruff check --ignore B009 \
+            src/qore/infrastructure/trader_lab/nq_am_tlr_v4_ustec_capability.py \
+            tests/infrastructure/trader_lab/test_nq_am_tlr_v4_ustec_capability.py
+      - name: Mypy
+        run: |
+          mypy src/qore/infrastructure/trader_lab/nq_am_tlr_v4_ustec_capability.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_nq_am_tlr_v4_ustec_capability.py
+      - name: Freeze assertions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          freeze = Path(
+              'docs/research/QORE-NQ-AM-TLR-V4-USTEC-CAPABILITY-FREEZE.md'
+          ).read_text()
+          module = Path(
+              'src/qore/infrastructure/trader_lab/'
+              'nq_am_tlr_v4_ustec_capability.py'
+          ).read_text()
+
+          assert 'ROLLING_AM_LOW_M2' in freeze
+          assert 'Only ROLLING_AM_LOW_M2 adjudicates' in freeze
+          assert '2022-08-13 NY -> 2025-08-13 NY' in freeze
+          assert 'PRIMARY_VARIANT = "ROLLING_AM_LOW_M2"' in module
+          assert 'USTEC_CAPABILITY_SUPPORTED' in module
+          for flag in (
+              'DEMO_ELIGIBLE=false',
+              'LIVE_AUTHORIZED=false',
+              'REAL_CAPITAL_AUTHORIZED=false',
+              'PRODUCTION_AUTHORIZED=false',
+          ):
+              assert flag in freeze
+          PY
+
+  ustec-capability:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install cTrader runtime
+        run: python -m pip install -e '.[ctrader]'
+      - name: Verify read-only cTrader inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || { echo "missing required DEMO input: $name" >&2; exit 2; }
+          done
+      - name: Discover DEMO account when needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Collect three-year USTEC M1 evidence
+        run: |
+          mkdir -p artifacts/v4
+          python -m qore.infrastructure.trader_lab.nq_am_tlr_v4_ustec_capability \
+            collect artifacts/v4/evidence.json \
+            | tee artifacts/v4/collection-summary.json
+      - name: Run frozen USTEC capability study
+        run: |
+          python -m qore.infrastructure.trader_lab.nq_am_tlr_v4_ustec_capability \
+            study artifacts/v4/evidence.json artifacts/v4/study \
+            | tee artifacts/v4/study-stdout.json
+      - name: Adjudicate primary only
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(Path('artifacts/v4/study/summary.json').read_text())
+          assert p['primary_variant'] == 'ROLLING_AM_LOW_M2'
+          assert p['diagnostic_selection_authority'] is False
+          assert p['demo_eligible'] is False
+          assert p['live_authorized'] is False
+          assert p['real_capital_authorized'] is False
+          assert p['production_authorized'] is False
+          result = {
+              'identity': p['identity'],
+              'primary_variant': p['primary_variant'],
+              'primary_adjudication': p['primary_adjudication'],
+              'primary_metrics': p['variants'][p['primary_variant']],
+          }
+          Path('artifacts/v4/adjudication.json').write_text(
+              json.dumps(result, indent=2, sort_keys=True) + '\n'
+          )
+          print(json.dumps(result, indent=2, sort_keys=True))
+          PY
+      - name: Bind immutable evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > artifacts/v4/git-sha.txt
+          sha256sum \
+            src/qore/infrastructure/trader_lab/nq_am_tlr_v4_ustec_capability.py \
+            docs/research/QORE-NQ-AM-TLR-V4-USTEC-CAPABILITY-FREEZE.md \
+            > artifacts/v4/candidate-input-sha256.txt
+          if [ -f artifacts/v4/evidence.json ]; then
+            sha256sum artifacts/v4/evidence.json > artifacts/v4/evidence-sha256.txt
+          fi
+          find artifacts/v4 -type f ! -name SHA256SUMS.txt -print0 \
+            | sort -z \
+            | xargs -0 sha256sum > artifacts/v4/SHA256SUMS.txt
+      - name: Upload V4 capability evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-nq-am-tlr-v4-ustec-capability-${{ github.sha }}
+          path: artifacts/v4
+          if-no-files-found: error
+          retention-days: 90
