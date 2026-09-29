@@ -342,14 +342,14 @@ def build_report(
         }
 
         for provenance in sorted(grouped):
-            pathway_rows = tuple(grouped[provenance])
+            selected_pathway_trades = tuple(grouped[provenance])
             era_metrics.append(
                 _metrics(
                     period=period,
                     start=start,
                     end=end,
                     provenance=provenance,
-                    rows=pathway_rows,
+                    rows=selected_pathway_trades,
                     portfolio_rows=ledger,
                 )
             )
@@ -398,18 +398,18 @@ def build_report(
         for index, (period, *_rest) in enumerate(PERIOD_SPECS)
     }
     for provenance in sorted(all_provenances):
-        pathway_rows = tuple(
+        classification_rows: tuple[PathwayMetrics, ...] = tuple(
             sorted(
                 by_provenance.get(provenance, ()),
                 key=lambda metric_row: period_order.get(metric_row.period, 999),
             )
         )
-        if len(pathway_rows) != 3:
+        if len(classification_rows) != 3:
             classifications.append(
                 PathwayClassification(
                     provenance=provenance,
                     classification="INSUFFICIENT_STRUCTURAL_SAMPLE",
-                    era_rows=len(pathway_rows),
+                    era_rows=len(classification_rows),
                     all_eras_sample_sufficient=False,
                     all_eras_pf_above_one=False,
                     all_eras_expectancy_positive=False,
@@ -418,7 +418,7 @@ def build_report(
                 )
             )
         else:
-            classifications.append(_classify(provenance, pathway_rows))
+            classifications.append(_classify(provenance, classification_rows))
 
     frozen_classifications = tuple(classifications)
     return {
