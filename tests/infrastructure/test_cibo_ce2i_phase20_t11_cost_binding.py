@@ -204,3 +204,63 @@ def test_t11_cost_binding_fails_closed_when_commission_settlement_missing() -> N
         "T11_REALIZED_ENTRY_COMMISSION_COVERAGE_INCOMPLETE:0/1"
         in audit.blockers
     )
+
+
+def test_t11_cost_binding_excludes_non_forward_executions() -> None:
+    evidence, risks, signal = _evidence()
+    fresh = risks.evidences[0]
+    legacy = Phase20ExecutedRiskEvidence(
+        evidence_id="executed-risk-legacy",
+        decision_evidence_sha256="sha256:" + ("2" * 64),
+        signal_fingerprint="legacy-signal",
+        qore_symbol="GBPUSD",
+        provider_order_ref="legacy-order",
+        side="long",
+        position_id=202,
+        authorized_source_volume=Decimal("0.01"),
+        filled_source_volume=Decimal("0.01"),
+        weighted_fill_price=Decimal("100"),
+        intended_entry_price=Decimal("100"),
+        structural_stop_price=Decimal("99"),
+        stop_risk_per_volume_at_intended_entry_usd=Decimal("100"),
+        executed_initial_stop_risk_usd=Decimal("1"),
+        observed_at=BASE + timedelta(seconds=1),
+        fill_evidence_refs=("legacy-fill",),
+        fill_reconciled=True,
+        mutation_outcome_known=True,
+        capital_deployed_at=BASE + timedelta(milliseconds=500),
+    )
+    risks = VersionedPhase20ExecutedRiskBook(
+        generation=2,
+        evidences=(fresh, legacy),
+    )
+    settlement = VersionedCmaSettlementBook(
+        generation=1,
+        states=(
+            CmaSettlementState(
+                signal_fingerprint=signal,
+                position_id=101,
+                records=(
+                    CmaSettlementRecord(
+                        event="CTRADER_DEMO_ENTRY_COST_SETTLEMENT",
+                        deal_id=7002,
+                        signal_fingerprint=signal,
+                        position_id=101,
+                        net_profit_usd=Decimal("-0.01"),
+                        position_open_after=True,
+                    ),
+                ),
+                position_closed=False,
+            ),
+        ),
+    )
+
+    audit = assess_phase20_t11_cost_binding(
+        evidence_book=evidence,
+        executed_risk_book=risks,
+        settlement_book=settlement,
+    )
+
+    assert audit.execution_instances == 1
+    assert audit.unbound_execution_instances == 0
+    assert audit.realized_entry_commission_instances == 1
