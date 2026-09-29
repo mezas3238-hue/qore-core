@@ -7,6 +7,8 @@ on:
       - '.github/workflows/cibo-internal-capital-market.yml'
       - 'src/qore/infrastructure/cibo_internal_capital_market.py'
       - 'src/qore/infrastructure/cibo_internal_capital_market_store.py'
+      - 'src/qore/infrastructure/cibo_internal_capital_market_oos_binding.py'
+      - 'src/qore/infrastructure/cibo_internal_capital_market_population.py'
       - 'src/qore/infrastructure/cibo_marginal_capital_utility_evidence.py'
       - 'src/qore/infrastructure/cibo_sequential_compounding_shadow_policy.py'
       - 'src/qore/infrastructure/cibo_sequential_compounding_shadow_store.py'
@@ -22,6 +24,8 @@ on:
       - '.github/workflows/cibo-internal-capital-market.yml'
       - 'src/qore/infrastructure/cibo_internal_capital_market.py'
       - 'src/qore/infrastructure/cibo_internal_capital_market_store.py'
+      - 'src/qore/infrastructure/cibo_internal_capital_market_oos_binding.py'
+      - 'src/qore/infrastructure/cibo_internal_capital_market_population.py'
       - 'src/qore/infrastructure/cibo_marginal_capital_utility_evidence.py'
       - 'src/qore/infrastructure/cibo_sequential_compounding_shadow_policy.py'
       - 'src/qore/infrastructure/cibo_sequential_compounding_shadow_store.py'
@@ -51,9 +55,13 @@ jobs:
           ruff check \
             src/qore/infrastructure/cibo_internal_capital_market.py \
             src/qore/infrastructure/cibo_internal_capital_market_store.py \
+            src/qore/infrastructure/cibo_internal_capital_market_oos_binding.py \
+            src/qore/infrastructure/cibo_internal_capital_market_population.py \
             tests/infrastructure/test_cibo_internal_capital_market.py
           python -m py_compile \
             src/qore/infrastructure/cibo_internal_capital_market.py \
-            src/qore/infrastructure/cibo_internal_capital_market_store.py
+            src/qore/infrastructure/cibo_internal_capital_market_store.py \
+            src/qore/infrastructure/cibo_internal_capital_market_oos_binding.py \
+            src/qore/infrastructure/cibo_internal_capital_market_population.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_internal_capital_market.py
