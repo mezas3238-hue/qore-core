@@ -171,6 +171,9 @@ class S1PeriodMarketReport:
     period_start: str
     period_end_exclusive: str
     operating_days_scanned: int
+    source_events: int
+    context_bound_candidates: int
+    m1_structure_bound_candidates: int
     routed_armed_candidates: int
     primary_fill_passes: int
     fallback_fill_passes: int
@@ -209,6 +212,13 @@ class S1PeriodMarketReport:
             or self.trader_certified
         ):
             raise ValueError("S1 market report governance violated")
+        if not (
+            0 <= self.routed_armed_candidates
+            <= self.m1_structure_bound_candidates
+            <= self.context_bound_candidates
+            <= self.source_events
+        ):
+            raise ValueError("S1 candidate funnel count drift")
         classified = (
             self.primary_fill_passes
             + self.fallback_fill_passes
@@ -224,6 +234,9 @@ class S1PeriodMarketReport:
 
 @dataclass(frozen=True, slots=True)
 class _PreparedSourceSeries:
+    m1: tuple[CapitalizerM1Bar, ...]
+    opened: tuple[datetime, ...]
+    ny_day_ranges: dict[date, tuple[int, Decimal, Decimal]]
     h1: tuple[AggregatedBar, ...]
     m5: tuple[TFBar, ...]
     m3: tuple[TFBar, ...]
@@ -232,13 +245,52 @@ class _PreparedSourceSeries:
 def _prepare_source_series(
     bars: tuple[CapitalizerM1Bar, ...],
 ) -> _PreparedSourceSeries:
-    """Precompute immutable HTF series once per era without changing lookback."""
+    """Precompute immutable source indexes once per era without changing semantics."""
 
+    grouped: dict[date, list[CapitalizerM1Bar]] = defaultdict(list)
+    for bar in bars:
+        grouped[bar.opened_at.astimezone(NEW_YORK).date()].append(bar)
+    day_ranges = {
+        day: (
+            len(rows),
+            max(row.high for row in rows),
+            min(row.low for row in rows),
+        )
+        for day, rows in grouped.items()
+    }
     return _PreparedSourceSeries(
+        m1=bars,
+        opened=tuple(bar.opened_at for bar in bars),
+        ny_day_ranges=day_ranges,
         h1=_aggregate_h1(bars),
         m5=_aggregate_tf(bars, minutes=5),
         m3=_aggregate_tf(bars, minutes=3),
     )
+
+
+def _prepared_m1_between(
+    prepared: _PreparedSourceSeries,
+    *,
+    start: datetime,
+    end: datetime,
+) -> tuple[CapitalizerM1Bar, ...]:
+    left = bisect.bisect_left(prepared.opened, _aware(start))
+    right = bisect.bisect_left(prepared.opened, _aware(end))
+    return prepared.m1[left:right]
+
+
+def _prepared_previous_day_range(
+    prepared: _PreparedSourceSeries,
+    *,
+    operating_day: date,
+) -> tuple[Decimal, Decimal] | None:
+    """Exact indexed equivalent of V3 _previous_day_range."""
+
+    for offset in range(1, 5):
+        row = prepared.ny_day_ranges.get(operating_day - timedelta(days=offset))
+        if row is not None and row[0] >= 60:
+            return row[1], row[2]
+    return None
 
 
 def _aware(value: datetime) -> datetime:
@@ -324,12 +376,17 @@ def _reference_liquidity(
     *,
     operating_day: date,
     session: CapitalizerSession,
+    prepared: _PreparedSourceSeries | None = None,
 ) -> ReferenceLiquidity | None:
     start, end = prior_source_session_bounds(
         operating_day,
         session=session,
     )
-    rows = _bars_between(bars, start=start, end=end)
+    rows = (
+        _bars_between(bars, start=start, end=end)
+        if prepared is None
+        else _prepared_m1_between(prepared, start=start, end=end)
+    )
     if len(rows) < 30:
         return None
     prior = (
@@ -371,18 +428,34 @@ def bind_source_window_ict_events(
         operating_day,
         session=session,
     )
-    execution = _bars_between(ordered, start=source_start, end=source_end)
+    execution = (
+        _bars_between(ordered, start=source_start, end=source_end)
+        if prepared is None
+        else _prepared_m1_between(
+            prepared,
+            start=source_start,
+            end=source_end,
+        )
+    )
     if len(execution) < 15:
         return ()
 
-    previous_day = v3_source._previous_day_range(
-        ordered,
-        operating_day=operating_day,
+    previous_day = (
+        v3_source._previous_day_range(
+            ordered,
+            operating_day=operating_day,
+        )
+        if prepared is None
+        else _prepared_previous_day_range(
+            prepared,
+            operating_day=operating_day,
+        )
     )
     prior_session = _reference_liquidity(
         ordered,
         operating_day=operating_day,
         session=session,
+        prepared=prepared,
     )
     if prepared is None:
         h1 = _aggregate_h1(ordered)
@@ -486,14 +559,18 @@ def bind_source_window_routed_candidates(
     session: CapitalizerSession,
     operating_day: date,
     prepared: _PreparedSourceSeries | None = None,
+    funnel: dict[str, int] | None = None,
 ) -> tuple[s0.S0RoutedCanonicalCandidate, ...]:
     result: list[s0.S0RoutedCanonicalCandidate] = []
-    for event in bind_source_window_ict_events(
+    events = bind_source_window_ict_events(
         bars,
         session=session,
         operating_day=operating_day,
         prepared=prepared,
-    ):
+    )
+    if funnel is not None:
+        funnel["source_events"] = funnel.get("source_events", 0) + len(events)
+    for event in events:
         direction = _direction(event.side)
         context = context_binders.bind_canonical_source_context(
             bars,
@@ -503,6 +580,10 @@ def bind_source_window_routed_candidates(
         )
         if context is None:
             continue
+        if funnel is not None:
+            funnel["context_bound_candidates"] = (
+                funnel.get("context_bound_candidates", 0) + 1
+            )
         m1 = context_binders.bind_m1_source_structure(
             bars,
             direction=direction,
@@ -513,6 +594,10 @@ def bind_source_window_routed_candidates(
         )
         if m1 is None:
             continue
+        if funnel is not None:
+            funnel["m1_structure_bound_candidates"] = (
+                funnel.get("m1_structure_bound_candidates", 0) + 1
+            )
         try:
             candidate = s0.S0CanonicalArmedCandidate(
                 event=event,
@@ -532,6 +617,10 @@ def bind_source_window_routed_candidates(
                     route_wick=route_wick,
                 )
             )
+            if funnel is not None:
+                funnel["routed_armed_candidates"] = (
+                    funnel.get("routed_armed_candidates", 0) + 1
+                )
         except ValueError:
             continue
     return tuple(
@@ -972,7 +1061,7 @@ def build_period_market_population(
         period_end=period_end,
     )
 
-    routed = 0
+    funnel: dict[str, int] = {}
     primary = 0
     fallback = 0
     no_fill = 0
@@ -994,9 +1083,9 @@ def build_period_market_population(
             session=session,
             operating_day=operating_day,
             prepared=prepared,
+            funnel=funnel,
         )
         for index, candidate in enumerate(candidates):
-            routed += 1
             fill, fill_requests = resolve_candidate_exact_fill(
                 client,
                 candidate=candidate,
@@ -1043,7 +1132,13 @@ def build_period_market_population(
         period_start=period_start.isoformat(),
         period_end_exclusive=period_end.isoformat(),
         operating_days_scanned=len(operating_days),
-        routed_armed_candidates=routed,
+        source_events=funnel.get("source_events", 0),
+        context_bound_candidates=funnel.get("context_bound_candidates", 0),
+        m1_structure_bound_candidates=funnel.get(
+            "m1_structure_bound_candidates",
+            0,
+        ),
+        routed_armed_candidates=funnel.get("routed_armed_candidates", 0),
         primary_fill_passes=primary,
         fallback_fill_passes=fallback,
         no_provider_fill=no_fill,

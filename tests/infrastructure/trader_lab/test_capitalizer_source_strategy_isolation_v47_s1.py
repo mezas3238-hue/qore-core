@@ -204,6 +204,9 @@ def test_market_report_rejects_fill_classification_drift() -> None:
             period_start="2024-09-17T00:00:00+00:00",
             period_end_exclusive="2026-09-17T00:00:00+00:00",
             operating_days_scanned=1,
+            source_events=2,
+            context_bound_candidates=2,
+            m1_structure_bound_candidates=2,
             routed_armed_candidates=2,
             primary_fill_passes=1,
             fallback_fill_passes=0,
@@ -216,3 +219,30 @@ def test_market_report_rejects_fill_classification_drift() -> None:
         assert "fill classification count drift" in str(error)
     else:
         raise AssertionError("classification drift must fail closed")
+
+
+def test_market_report_rejects_candidate_funnel_drift() -> None:
+    try:
+        s1.S1PeriodMarketReport(
+            identity=s1.IDENTITY,
+            period="development",
+            symbol="EURUSD",
+            session="LONDON",
+            period_start="2024-09-17T00:00:00+00:00",
+            period_end_exclusive="2026-09-17T00:00:00+00:00",
+            operating_days_scanned=1,
+            source_events=1,
+            context_bound_candidates=2,
+            m1_structure_bound_candidates=1,
+            routed_armed_candidates=1,
+            primary_fill_passes=1,
+            fallback_fill_passes=0,
+            no_provider_fill=0,
+            v46_rejected_after_fill=0,
+            admitted_exact_fills=1,
+            provider_tick_requests=1,
+        )
+    except ValueError as error:
+        assert "candidate funnel count drift" in str(error)
+    else:
+        raise AssertionError("candidate funnel drift must fail closed")
