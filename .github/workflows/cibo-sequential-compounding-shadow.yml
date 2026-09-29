@@ -8,6 +8,7 @@ on:
       - 'src/qore/infrastructure/cibo_sequential_compounding_shadow_policy.py'
       - 'src/qore/infrastructure/cibo_sequential_compounding_shadow_store.py'
       - 'src/qore/infrastructure/cibo_sequential_compounding_oos_binding.py'
+      - 'src/qore/infrastructure/cibo_sequential_compounding_population.py'
       - 'src/qore/infrastructure/cibo_marginal_capital_utility_evidence_store.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_store.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_policy_store.py'
@@ -26,6 +27,7 @@ on:
       - 'src/qore/infrastructure/cibo_sequential_compounding_shadow_policy.py'
       - 'src/qore/infrastructure/cibo_sequential_compounding_shadow_store.py'
       - 'src/qore/infrastructure/cibo_sequential_compounding_oos_binding.py'
+      - 'src/qore/infrastructure/cibo_sequential_compounding_population.py'
       - 'src/qore/infrastructure/cibo_marginal_capital_utility_evidence_store.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_store.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_policy_store.py'
@@ -58,13 +60,15 @@ jobs:
             src/qore/infrastructure/cibo_sequential_compounding_shadow_policy.py \
             src/qore/infrastructure/cibo_sequential_compounding_shadow_store.py \
             src/qore/infrastructure/cibo_sequential_compounding_oos_binding.py \
+            src/qore/infrastructure/cibo_sequential_compounding_population.py \
             src/qore/infrastructure/cibo_marginal_capital_utility_evidence_store.py \
             tests/infrastructure/test_cibo_sequential_compounding_shadow.py \
             tests/infrastructure/test_cibo_sequential_compounding_oos_binding.py
           python -m py_compile \
             src/qore/infrastructure/cibo_sequential_compounding_shadow_policy.py \
             src/qore/infrastructure/cibo_sequential_compounding_shadow_store.py \
-            src/qore/infrastructure/cibo_sequential_compounding_oos_binding.py
+            src/qore/infrastructure/cibo_sequential_compounding_oos_binding.py \
+            src/qore/infrastructure/cibo_sequential_compounding_population.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_sequential_compounding_shadow.py \
             tests/infrastructure/test_cibo_sequential_compounding_oos_binding.py
