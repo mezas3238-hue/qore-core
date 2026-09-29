@@ -565,7 +565,9 @@ def evaluate_market_session(
 
     active_state: MarketSessionState | None = None
     current_day_windows: list[tuple[datetime, datetime]] = []
-    for anchor_date in (local_date - timedelta(days=1), local_date):
+    previous_day_windows: list[tuple[datetime, datetime]] = []
+    previous_anchor = local_date - timedelta(days=1)
+    for anchor_date in (previous_anchor, local_date):
         for rule in calendar.weekly_sessions:
             if rule.weekday != anchor_date.weekday():
                 continue
@@ -589,6 +591,8 @@ def evaluate_market_session(
                 )
             if anchor_date == local_date:
                 current_day_windows.append(bounds)
+            elif anchor_date == previous_anchor:
+                previous_day_windows.append(bounds)
             if bounds[0] <= evaluation < bounds[1]:
                 active_state = rule.state
 
@@ -610,8 +614,19 @@ def evaluate_market_session(
     else:
         first_open = min(item[0] for item in current_day_windows)
         last_close = max(item[1] for item in current_day_windows)
+        previous_closes_today = tuple(
+            closed
+            for _, closed in previous_day_windows
+            if closed.astimezone(zone).date() == local_date
+        )
         if evaluation < first_open:
-            inactive_state = MarketSessionState.PRE_SESSION
+            if (
+                previous_closes_today
+                and evaluation >= max(previous_closes_today)
+            ):
+                inactive_state = MarketSessionState.SESSION_BREAK
+            else:
+                inactive_state = MarketSessionState.PRE_SESSION
         elif evaluation >= last_close:
             inactive_state = MarketSessionState.POST_SESSION
         else:
