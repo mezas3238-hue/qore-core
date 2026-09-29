@@ -92,6 +92,9 @@ PERIODS: dict[str, tuple[datetime, datetime]] = {
     ),
 }
 
+CONSUMED_LOAD_START = PERIODS["reserved"][0] - LOOKBACK
+CONSUMED_LOAD_END = PERIODS["development"][1] + timedelta(days=2)
+
 
 @dataclass(frozen=True, slots=True)
 class S1ExactFill:
@@ -1013,6 +1016,16 @@ def select_max3(
     )
 
 
+def _load_consumed_bars(root: Path) -> tuple[CapitalizerM1Bar, ...]:
+    """Read the retained provider M1 once for all three consumed eras."""
+
+    return tuple(
+        bar
+        for bar in iter_cibo_m1(root)
+        if CONSUMED_LOAD_START <= bar.opened_at < CONSUMED_LOAD_END
+    )
+
+
 def _period_bars(
     root: Path,
     *,
@@ -1077,19 +1090,32 @@ def build_period_market_population(
     period: str,
     symbol_id: int,
     digits: int,
+    prepared_consumed: _PreparedSourceSeries | None = None,
 ) -> tuple[S1PeriodMarketReport, tuple[S1AdmittedFillRow, ...]]:
     if period not in PERIODS:
         raise ValueError("unknown S1 period")
     if not market_is_allowed(session=session, symbol=symbol):
         raise ValueError("S1 symbol/session outside frozen universe")
     period_start, period_end = PERIODS[period]
-    bars = _period_bars(m1_root, start=period_start, end=period_end)
+    bars = (
+        _period_bars(m1_root, start=period_start, end=period_end)
+        if prepared_consumed is None
+        else _prepared_m1_between(
+            prepared_consumed,
+            start=period_start - LOOKBACK,
+            end=period_end + timedelta(days=2),
+        )
+    )
     if not bars:
         raise ValueError("S1 period has no provider-native M1")
     if any(bar.symbol != symbol for bar in bars):
         raise ValueError("S1 M1 symbol mismatch")
     opened = tuple(bar.opened_at for bar in bars)
-    prepared = _prepare_source_series(bars)
+    prepared = (
+        _prepare_source_series(bars)
+        if prepared_consumed is None
+        else prepared_consumed
+    )
     operating_days = _operating_days(
         bars,
         session=session,
@@ -1317,6 +1343,12 @@ def _run_market(args: argparse.Namespace) -> None:
             client,
             args.symbol,
         )
+        consumed_bars = _load_consumed_bars(args.m1_root)
+        if not consumed_bars:
+            raise ValueError("S1 consumed M1 load is empty")
+        if any(bar.symbol != args.symbol for bar in consumed_bars):
+            raise ValueError("S1 consumed M1 symbol mismatch")
+        prepared_consumed = _prepare_source_series(consumed_bars)
         for period in PERIODS:
             report, rows = build_period_market_population(
                 client,
@@ -1326,6 +1358,7 @@ def _run_market(args: argparse.Namespace) -> None:
                 period=period,
                 symbol_id=symbol_id,
                 digits=digits,
+                prepared_consumed=prepared_consumed,
             )
             write_market_outputs(
                 output=args.output,
