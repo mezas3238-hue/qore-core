@@ -302,6 +302,7 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
             "phase20:t08:causal-factor-magnitude",
             "phase20:t08:forward-magnitude-population",
             "phase20:t08:unbiased-factor-return-contract",
+            "phase20:t08:covariance-risk-attribution-candidate",
             _PHASE19_NON_PROMOTION,
         ),
         (
@@ -309,6 +310,7 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
             "DIRECTIONAL_FACTOR_TOPOLOGY_IDENTIFIED_7_OF_7",
             "MONETARY_FACTOR_MAGNITUDE_CONTRACT_IMPLEMENTED_FOR_FROZEN_UNIVERSE",
             "FULL_UNIVERSE_FACTOR_RETURN_RECONSTRUCTION_IMPLEMENTED",
+            "COVARIANCE_RISK_ATTRIBUTION_CANDIDATE_IMPLEMENTED_NOT_CERTIFIED",
             "SIGNED_FACTOR_RISK_MAP_NOT_CERTIFIED",
             "CAUSAL_CORRELATION_STATE_NOT_IDENTIFIED",
             "FRESH_OOS_NETTING_UTILITY_ANALYSIS_REQUIRED",
