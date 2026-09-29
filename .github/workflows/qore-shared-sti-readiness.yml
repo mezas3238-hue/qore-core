@@ -1,0 +1,141 @@
+name: QORE Shared STI Readiness Gate
+
+concurrency:
+  group: qore-shared-sti-readiness-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_trader_intelligence_readiness.py
+      - tests/infrastructure/test_core_stack_v2_shared_trader_intelligence_readiness.py
+      - docs/shared/QORE_SHARED_STI_READINESS_GATE_001.md
+      - .github/workflows/qore-shared-sti-readiness.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate STI readiness semantics
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/shared_trader_intelligence_readiness.py \
+            tests/infrastructure/test_core_stack_v2_shared_trader_intelligence_readiness.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/shared_trader_intelligence_readiness.py
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_shared_trader_intelligence_readiness.py \
+            --junitxml=result/junit.xml
+
+      - name: Materialize current STI readiness blockers
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from qore.infrastructure.core_stack_v2.shared_trader_intelligence_readiness import (
+              assess_shared_trader_intelligence_readiness,
+          )
+
+          assessment=assess_shared_trader_intelligence_readiness(
+              contracts_frozen=True,
+              sovereignty_tests_pass=True,
+              anti_leakage_tests_pass=True,
+              alert_lifecycle_tests_pass=True,
+              position_lineage_tests_pass=True,
+              historical_causal_replay_pass=False,
+              opportunity_discovery_oos_pass=False,
+              regime_transition_oos_pass=False,
+              continuation_positive_tail_oos_pass=False,
+              position_threat_oos_pass=False,
+              control_treatment_attribution_pass=False,
+              false_alert_gate_pass=False,
+              missed_alert_gate_pass=False,
+              winner_preservation_gate_pass=False,
+              stress_validation_pass=False,
+              temporal_replication_pass=False,
+              runtime_sla_pass=False,
+              trader_integration_certified_separately=False,
+              cibo_read_only_contract_certified=False,
+              governed_productive_promotion=False,
+          )
+          payload={
+              "identity":"QORE_SHARED_STI_READINESS_ASSESSMENT_001",
+              "head":os.environ["GITHUB_SHA"],
+              "run_id":int(os.environ["GITHUB_RUN_ID"]),
+              "status":assessment.status.value,
+              "blockers":assessment.blockers,
+              "assessment_fingerprint":assessment.fingerprint(),
+              "productive_trader_behavior_change_authorized":False,
+              "productive_cibo_behavior_change_authorized":False,
+              "productive_risk_behavior_change_authorized":False,
+              "execution_behavior_change_authorized":False,
+              "protected_holdout_opened":False,
+          }
+          if payload["status"] != "RESEARCH_READY":
+              raise SystemExit(
+                  f"unexpected current STI readiness status: {payload['status']}"
+              )
+          Path("result/sti-readiness.json").write_text(
+              json.dumps(payload,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-sti-readiness-${{ github.sha }}
+          path: result
+          retention-days: 90
+
+      - name: Report current STI readiness
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          state=json.loads(Path("result/sti-readiness.json").read_text())
+          body="\n".join([
+              "## Shared STI — Readiness Gate",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- status: **{state['status']}**",
+              f"- blockers: **{len(state['blockers'])}**",
+              "- Productive Trader behavior change: **False**",
+              "- Productive CIBO behavior change: **False**",
+              "- Productive Risk behavior change: **False**",
+              "- Execution behavior change: **False**",
+              "- protected Shared holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
