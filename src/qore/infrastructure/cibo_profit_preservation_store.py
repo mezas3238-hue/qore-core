@@ -92,7 +92,11 @@ class Genc7ShadowDecisionSeal:
             raise CiboCompoundCapitalError(
                 "GEN-C7 store policy digest drift"
             )
-        if not self.decision_id or not self.account_provider_key or not self.account_ref:
+        if (
+            not self.decision_id
+            or not self.account_provider_key
+            or not self.account_ref
+        ):
             raise CiboCompoundCapitalError(
                 "GEN-C7 store decision/account identity is required"
             )
