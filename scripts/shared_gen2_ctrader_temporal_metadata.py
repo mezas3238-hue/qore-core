@@ -98,6 +98,57 @@ def _optional_int(value: object) -> int | None:
     return value
 
 
+def _parse_light_symbol_metadata(
+    *,
+    native: object,
+    registry_row: dict[str, object],
+) -> dict[str, object]:
+    """Preserve provider-native identity descriptors without canonical inference."""
+
+    symbol_id = getattr(native, "symbolId", None)
+    expected_id = registry_row.get("provider_symbol_id")
+    if type(symbol_id) is not int or symbol_id != expected_id:
+        raise Gen2ProviderScheduleError(
+            "provider light-symbol identity drift"
+        )
+    symbol_name = getattr(native, "symbolName", None)
+    expected_symbol = registry_row.get("provider_symbol")
+    if not isinstance(symbol_name, str) or not symbol_name:
+        raise Gen2ProviderScheduleError(
+            "provider light-symbol name missing"
+        )
+    if symbol_name != expected_symbol:
+        raise Gen2ProviderScheduleError(
+            "provider light-symbol name drift"
+        )
+    if getattr(native, "enabled", None) is not True:
+        raise Gen2ProviderScheduleError(
+            "provider light-symbol unexpectedly disabled"
+        )
+
+    description = getattr(native, "description", None)
+    if description == "":
+        description = None
+    if description is not None and not isinstance(description, str):
+        raise Gen2ProviderScheduleError(
+            "provider light-symbol description drift"
+        )
+
+    return {
+        "provider_native_symbol_name": symbol_name,
+        "provider_base_asset_id": _optional_int(
+            getattr(native, "baseAssetId", None)
+        ),
+        "provider_quote_asset_id": _optional_int(
+            getattr(native, "quoteAssetId", None)
+        ),
+        "provider_symbol_category_id": _optional_int(
+            getattr(native, "symbolCategoryId", None)
+        ),
+        "provider_description": description,
+    }
+
+
 def _parse_symbol_metadata(
     *,
     native: object,
@@ -275,6 +326,49 @@ def run(
                 "cTrader DEMO authentication failed"
             )
         ids = tuple(sorted(by_id))
+        listed = read_only_client.request(
+            "ProtoOASymbolsListReq",
+            {
+                "ctidTraderAccountId": read_only_client.account_id,
+                "includeArchivedSymbols": False,
+            },
+            client_msg_id="shared-gen2-provider-light-symbols",
+            timeout_seconds=20.0,
+        )
+        if isinstance(listed, Failure):
+            raise Gen2ProviderScheduleError(
+                "cTrader provider light-symbol metadata request failed"
+            )
+        if (
+            getattr(listed.value, "ctidTraderAccountId", None)
+            != read_only_client.account_id
+        ):
+            raise Gen2ProviderScheduleError(
+                "provider light-symbol account identity drift"
+            )
+        light_symbols = tuple(getattr(listed.value, "symbol", ()))
+        light_by_id: dict[int, dict[str, object]] = {}
+        for native in light_symbols:
+            symbol_id = getattr(native, "symbolId", None)
+            if symbol_id not in by_id:
+                continue
+            if type(symbol_id) is not int:
+                raise Gen2ProviderScheduleError(
+                    "provider light-symbol id drift"
+                )
+            if symbol_id in light_by_id:
+                raise Gen2ProviderScheduleError(
+                    "duplicate provider light-symbol identity"
+                )
+            light_by_id[symbol_id] = _parse_light_symbol_metadata(
+                native=native,
+                registry_row=by_id[symbol_id],
+            )
+        if set(light_by_id) != set(ids):
+            raise Gen2ProviderScheduleError(
+                "provider light-symbol coverage drift"
+            )
+
         for batch_index in range(0, len(ids), 50):
             batch = ids[batch_index : batch_index + 50]
             result = read_only_client.request(
@@ -315,12 +409,12 @@ def run(
                     raise Gen2ProviderScheduleError(
                         "provider symbol id missing from full metadata"
                     )
-                parsed.append(
-                    _parse_symbol_metadata(
-                        native=native,
-                        registry_row=by_id[symbol_id],
-                    )
+                full_metadata = _parse_symbol_metadata(
+                    native=native,
+                    registry_row=by_id[symbol_id],
                 )
+                full_metadata.update(light_by_id[symbol_id])
+                parsed.append(full_metadata)
     finally:
         read_only_client.close()
 
@@ -350,6 +444,9 @@ def run(
         "sensor_count": len(parsed),
         "provider_schedule_catalog_fingerprint_sha256": schedule_fingerprint,
         "metadata_status_counts": dict(sorted(status_counts.items())),
+        "provider_native_identity_metadata_captured": True,
+        "provider_native_identity_metadata_is_not_canonical_identity": True,
+        "provider_native_identity_metadata_coverage_count": len(light_by_id),
         "account_fingerprint": (
             compute_ctrader_demo_lab_account_fingerprint(
                 read_only_client.account_id
@@ -407,6 +504,9 @@ def main() -> None:
                 "identity": report["identity"],
                 "sensor_count": report["sensor_count"],
                 "metadata_status_counts": report["metadata_status_counts"],
+                "provider_native_identity_metadata_coverage_count": report[
+                    "provider_native_identity_metadata_coverage_count"
+                ],
                 "provider_schedule_catalog_fingerprint_sha256": report[
                     "provider_schedule_catalog_fingerprint_sha256"
                 ],
