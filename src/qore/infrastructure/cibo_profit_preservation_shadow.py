@@ -358,6 +358,11 @@ class Genc7ProfitPreservationShadowDecision:
     state_evidence_sha256: str
     proposal_evidence_sha256: str
     evaluation_horizon_minutes: int
+    initial_realized_capital_usd: Decimal
+    initial_realized_profit_usd: Decimal
+    initial_protected_floor_usd: Decimal
+    initial_base_capital_usd: Decimal
+    initial_compound_capital_usd: Decimal
     control_action: Genc7Action
     control_amount_usd: Decimal
     treatment_action: Genc7Action
@@ -410,6 +415,11 @@ class Genc7ProfitPreservationShadowDecision:
                 "GEN-C7 decision evaluation horizon must be positive int"
             )
         for name in (
+            "initial_realized_capital_usd",
+            "initial_realized_profit_usd",
+            "initial_protected_floor_usd",
+            "initial_base_capital_usd",
+            "initial_compound_capital_usd",
             "control_amount_usd",
             "treatment_amount_usd",
             "giveback_amount_usd",
@@ -584,6 +594,11 @@ def evaluate_genc7_profit_preservation_shadow(
         state_evidence_sha256=state.fingerprint(),
         proposal_evidence_sha256=proposal.fingerprint(),
         evaluation_horizon_minutes=proposal.evaluation_horizon_minutes,
+        initial_realized_capital_usd=state.current_realized_capital_usd,
+        initial_realized_profit_usd=state.current_realized_profit_usd,
+        initial_protected_floor_usd=state.protected_floor_usd,
+        initial_base_capital_usd=state.current_base_capital_usd,
+        initial_compound_capital_usd=state.current_compound_capital_usd,
         control_action=Genc7Action.HOLD_CURRENT_CAPITAL_STATE,
         control_amount_usd=Decimal("0"),
         treatment_action=treatment_action,
