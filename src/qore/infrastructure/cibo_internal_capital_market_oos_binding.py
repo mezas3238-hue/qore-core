@@ -45,6 +45,10 @@ from qore.infrastructure.cibo_marginal_capital_utility_evidence_store import (
 from qore.infrastructure.cibo_sequential_compounding_shadow_store import (
     Genc5ShadowDecisionSeal,
 )
+from qore.infrastructure.cibo_t20_capital_release_evidence import (
+    T20CapitalReleaseSeal,
+    VersionedT20CapitalReleaseBook,
+)
 
 
 class Genc6OosBindingStatus(StrEnum):
@@ -80,6 +84,14 @@ class Genc6BoundCandidateOutcome:
     executed_initial_stop_risk_usd: Decimal
     realized_structural_outcome_r: Decimal
     actual_capital_minutes: Decimal | None
+    t20_release_evidence_sha256: str | None = None
+    requested_capital_usd: Decimal | None = None
+    risk_authorized_capital_usd: Decimal | None = None
+    execution_realized_capital_usd: Decimal | None = None
+    returned_capacity_usd: Decimal | None = None
+    capital_deployed_at: datetime | None = None
+    capital_released_at: datetime | None = None
+    partial_release_count: int = 0
     settlement_bound: bool = True
     release_timing_bound: bool = False
     hypothetical_genc6_pnl_computed: bool = False
@@ -154,6 +166,56 @@ class Genc6BoundCandidateOutcome:
             raise CiboCompoundCapitalError(
                 "GEN-C6 OOS actual capital minutes must be positive"
             )
+        release_amounts = (
+            self.requested_capital_usd,
+            self.risk_authorized_capital_usd,
+            self.execution_realized_capital_usd,
+            self.returned_capacity_usd,
+        )
+        if any(item is not None for item in release_amounts):
+            if any(item is None for item in release_amounts):
+                raise CiboCompoundCapitalError(
+                    "GEN-C6 OOS T20 capital amounts must be complete"
+                )
+            for item in release_amounts:
+                assert item is not None
+                if (
+                    not isinstance(item, Decimal)
+                    or not item.is_finite()
+                    or item <= 0
+                ):
+                    raise CiboCompoundCapitalError(
+                        "GEN-C6 OOS T20 capital amounts must be positive"
+                    )
+            assert self.requested_capital_usd is not None
+            assert self.risk_authorized_capital_usd is not None
+            assert self.execution_realized_capital_usd is not None
+            assert self.returned_capacity_usd is not None
+            if (
+                self.execution_realized_capital_usd
+                > self.risk_authorized_capital_usd
+                or self.risk_authorized_capital_usd
+                > self.requested_capital_usd
+            ):
+                raise CiboCompoundCapitalError(
+                    "GEN-C6 OOS T20 request/Risk/Execution ordering drift"
+                )
+            if self.returned_capacity_usd != self.execution_realized_capital_usd:
+                raise CiboCompoundCapitalError(
+                    "GEN-C6 OOS T20 returned capacity reconciliation drift"
+                )
+        if (
+            not isinstance(self.partial_release_count, int)
+            or isinstance(self.partial_release_count, bool)
+            or self.partial_release_count < 0
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C6 OOS partial_release_count must be non-negative int"
+            )
+        for name in ("capital_deployed_at", "capital_released_at"):
+            value = getattr(self, name)
+            if value is not None:
+                _aware(value, name)
         for name in (
             "control_selected",
             "treatment_selected",
@@ -170,12 +232,39 @@ class Genc6BoundCandidateOutcome:
             raise CiboCompoundCapitalError(
                 "GEN-C6 bound outcome row requires terminal settlement"
             )
-        if self.release_timing_bound != (
+        release_payload_present = (
             self.actual_capital_minutes is not None
-        ):
+            or self.t20_release_evidence_sha256 is not None
+            or self.requested_capital_usd is not None
+            or self.risk_authorized_capital_usd is not None
+            or self.execution_realized_capital_usd is not None
+            or self.returned_capacity_usd is not None
+            or self.capital_deployed_at is not None
+            or self.capital_released_at is not None
+            or self.partial_release_count != 0
+        )
+        if self.release_timing_bound != release_payload_present:
             raise CiboCompoundCapitalError(
                 "GEN-C6 OOS release-timing flag drift"
             )
+        if self.release_timing_bound:
+            assert self.t20_release_evidence_sha256 is not None
+            _sha(
+                self.t20_release_evidence_sha256,
+                "t20_release_evidence_sha256",
+            )
+            if (
+                self.capital_deployed_at is None
+                or self.capital_released_at is None
+                or self.actual_capital_minutes is None
+            ):
+                raise CiboCompoundCapitalError(
+                    "GEN-C6 OOS T20 release timing must be complete"
+                )
+            if self.capital_released_at <= self.capital_deployed_at:
+                raise CiboCompoundCapitalError(
+                    "GEN-C6 OOS T20 release must follow deployment"
+                )
         if (
             self.hypothetical_genc6_pnl_computed
             or self.economic_utility_claimed
@@ -260,6 +349,7 @@ def bind_genc6_to_causal_outcomes(
     phase20_evidence_book: VersionedPhase20ForwardEvidenceBook,
     phase20_policy_book: VersionedPhase20ForwardPolicyBook,
     settlement_book: VersionedCmaSettlementBook,
+    t20_release_book: VersionedT20CapitalReleaseBook | None = None,
 ) -> Genc6OosBindingReport:
     """Bind GEN-C6 candidates to durable causal source outcomes."""
 
@@ -305,6 +395,13 @@ def bind_genc6_to_causal_outcomes(
     if not isinstance(settlement_book, VersionedCmaSettlementBook):
         raise CiboCompoundCapitalError(
             "GEN-C6 OOS requires canonical CMA settlement book"
+        )
+    if (
+        t20_release_book is not None
+        and not isinstance(t20_release_book, VersionedT20CapitalReleaseBook)
+    ):
+        raise CiboCompoundCapitalError(
+            "GEN-C6 OOS requires canonical T20 release book"
         )
 
     c5_by_sha = {
@@ -455,10 +552,60 @@ def bind_genc6_to_causal_outcomes(
                 _add_failure(failures, f"SETTLEMENT_PNL_BINDING_DRIFT:{key}")
                 continue
             settlement_bound += 1
-            if outcome.capital_minutes is not None:
-                release_bound += 1
-            else:
+
+            t20_release = (
+                None
+                if t20_release_book is None
+                else t20_release_book.for_signal_position(
+                    signal_fingerprint=signal,
+                    position_id=outcome.position_id,
+                )
+            )
+            if t20_release is None:
                 missing_release.append(key)
+            else:
+                release = t20_release.evidence
+                authorization = release.authorization
+                if (
+                    authorization.decision_evidence_sha256
+                    != c4.source_opportunity_decision_sha256
+                    or authorization.signal_fingerprint != signal
+                    or authorization.position_id != outcome.position_id
+                ):
+                    _add_failure(
+                        failures,
+                        f"T20_AUTHORIZATION_BINDING_DRIFT:{key}",
+                    )
+                    continue
+                if (
+                    authorization.execution_evidence_id
+                    != outcome.execution_risk_evidence_id
+                    or authorization.execution_realized_stop_risk_usd
+                    != outcome.executed_initial_stop_risk_usd
+                ):
+                    _add_failure(
+                        failures,
+                        f"T20_EXECUTION_BINDING_DRIFT:{key}",
+                    )
+                    continue
+                if (
+                    release.source_outcome_evidence_id != outcome.evidence_id
+                    or release.settlement_deal_ids != settlement_deal_ids
+                    or release.terminal_settlement_pnl_usd
+                    != settlement.realized_net_pnl_usd
+                ):
+                    _add_failure(
+                        failures,
+                        f"T20_SETTLEMENT_BINDING_DRIFT:{key}",
+                    )
+                    continue
+                if release.inferred_from_position_close_only:
+                    _add_failure(
+                        failures,
+                        f"T20_RELEASE_INFERRED_FROM_CLOSE:{key}",
+                    )
+                    continue
+                release_bound += 1
 
             rows.append(
                 _row(
@@ -468,6 +615,7 @@ def bind_genc6_to_causal_outcomes(
                     c4=c4,
                     c5=c5,
                     outcome=outcome,
+                    t20_release=t20_release,
                 )
             )
 
@@ -506,6 +654,7 @@ def _row(
     c4: Genc4MarginalEvidenceSeal,
     c5: Genc5ShadowDecisionSeal,
     outcome: Phase20ForwardOutcomeSeal,
+    t20_release: T20CapitalReleaseSeal | None,
 ) -> Genc6BoundCandidateOutcome:
     decision_id = str(decision["decision_id"])
     candidate_id = str(candidate["candidate_id"])
@@ -549,9 +698,63 @@ def _row(
         realized_structural_outcome_r=(
             outcome.realized_structural_outcome_r
         ),
-        actual_capital_minutes=outcome.capital_minutes,
+        actual_capital_minutes=(
+            None
+            if t20_release is None
+            else t20_release.evidence.release_latency_minutes
+        ),
+        t20_release_evidence_sha256=(
+            None
+            if t20_release is None
+            else t20_release.evidence_sha256
+        ),
+        requested_capital_usd=(
+            None
+            if t20_release is None
+            else t20_release.evidence.authorization.requested_capital_usd
+        ),
+        risk_authorized_capital_usd=(
+            None
+            if t20_release is None
+            else (
+                t20_release.evidence.authorization
+                .risk_authorized_capital_usd
+            )
+        ),
+        execution_realized_capital_usd=(
+            None
+            if t20_release is None
+            else (
+                t20_release.evidence.authorization
+                .execution_realized_capital_usd
+            )
+        ),
+        returned_capacity_usd=(
+            None
+            if t20_release is None
+            else t20_release.evidence.total_returned_capacity_usd
+        ),
+        capital_deployed_at=(
+            None
+            if t20_release is None
+            else t20_release.evidence.authorization.capital_deployed_at
+        ),
+        capital_released_at=(
+            None
+            if t20_release is None
+            else t20_release.evidence.terminal_release_at
+        ),
+        partial_release_count=(
+            0
+            if t20_release is None
+            else sum(
+                1
+                for item in t20_release.evidence.releases
+                if not item.terminal
+            )
+        ),
         settlement_bound=True,
-        release_timing_bound=outcome.capital_minutes is not None,
+        release_timing_bound=t20_release is not None,
         hypothetical_genc6_pnl_computed=False,
         economic_utility_claimed=False,
     )
