@@ -11,6 +11,10 @@ from pathlib import Path
 from time import monotonic, sleep
 from typing import Any, cast
 
+from qore.infrastructure.core_stack_v2.active_perception_post_v13_sensor_availability import (
+    HistoricalWindowCoverage,
+    classify_historical_peer_coverage,
+)
 from qore.infrastructure.core_stack_v2.active_perception_post_v14_cross_asset_availability import (
     FROZEN_CROSS_ASSET_CANDIDATES,
     POST_V14_CROSS_ASSET_AUDIT_IDENTITY,
@@ -18,10 +22,6 @@ from qore.infrastructure.core_stack_v2.active_perception_post_v14_cross_asset_av
 )
 from qore.infrastructure.core_stack_v2.active_perception_v12_coverage_pilot import (
     select_v12_temporal_coverage_pilot,
-)
-from qore.infrastructure.core_stack_v2.active_perception_post_v13_sensor_availability import (
-    HistoricalWindowCoverage,
-    classify_historical_peer_coverage,
 )
 from qore.infrastructure.ctrader_historical_tick_collector import (
     CTraderHistoricalReadOnlyMessageClient,
