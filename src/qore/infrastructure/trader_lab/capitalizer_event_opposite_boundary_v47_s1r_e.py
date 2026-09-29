@@ -16,7 +16,7 @@ import argparse
 import json
 from collections import Counter
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
 from pathlib import Path
@@ -195,10 +195,8 @@ def _h1_between(
 def _previous_day_pair(
     prepared: s1._PreparedSourceSeries,
     *,
-    operating_day: object,
+    operating_day: date,
 ) -> tuple[Decimal, Decimal, datetime] | None:
-    if not hasattr(operating_day, "year"):
-        raise ValueError("operating_day must be date-like")
     day = operating_day
     for offset in range(1, 5):
         prior = day - timedelta(days=offset)
