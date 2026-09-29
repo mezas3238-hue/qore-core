@@ -537,7 +537,7 @@ def run(
             raise Gen2ProviderScheduleError(
                 "provider light-symbol coverage drift"
             )
-        for symbol_id, item in light_by_id.items():
+        for item in light_by_id.values():
             base_id = cast(int | None, item["provider_base_asset_id"])
             quote_id = cast(int | None, item["provider_quote_asset_id"])
             category_id = cast(
