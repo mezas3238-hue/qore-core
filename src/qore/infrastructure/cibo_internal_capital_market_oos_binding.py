@@ -85,12 +85,16 @@ class Genc6BoundCandidateOutcome:
     realized_structural_outcome_r: Decimal
     actual_capital_minutes: Decimal | None
     t20_release_evidence_sha256: str | None = None
-    requested_capital_usd: Decimal | None = None
-    risk_authorized_capital_usd: Decimal | None = None
-    execution_realized_capital_usd: Decimal | None = None
-    returned_capacity_usd: Decimal | None = None
-    capital_deployed_at: datetime | None = None
-    capital_released_at: datetime | None = None
+    t20_requested_stop_risk_usd: Decimal | None = None
+    t20_requested_margin_usd: Decimal | None = None
+    t20_risk_authorized_stop_risk_usd: Decimal | None = None
+    t20_risk_authorized_margin_usd: Decimal | None = None
+    t20_execution_realized_stop_risk_usd: Decimal | None = None
+    t20_execution_realized_margin_usd: Decimal | None = None
+    t20_released_stop_risk_capacity_usd: Decimal | None = None
+    t20_released_margin_capacity_usd: Decimal | None = None
+    t20_capacity_deployed_at: datetime | None = None
+    t20_capacity_released_at: datetime | None = None
     partial_release_count: int = 0
     settlement_bound: bool = True
     release_timing_bound: bool = False
@@ -167,15 +171,19 @@ class Genc6BoundCandidateOutcome:
                 "GEN-C6 OOS actual capital minutes must be positive"
             )
         release_amounts = (
-            self.requested_capital_usd,
-            self.risk_authorized_capital_usd,
-            self.execution_realized_capital_usd,
-            self.returned_capacity_usd,
+            self.t20_requested_stop_risk_usd,
+            self.t20_requested_margin_usd,
+            self.t20_risk_authorized_stop_risk_usd,
+            self.t20_risk_authorized_margin_usd,
+            self.t20_execution_realized_stop_risk_usd,
+            self.t20_execution_realized_margin_usd,
+            self.t20_released_stop_risk_capacity_usd,
+            self.t20_released_margin_capacity_usd,
         )
         if any(item is not None for item in release_amounts):
             if any(item is None for item in release_amounts):
                 raise CiboCompoundCapitalError(
-                    "GEN-C6 OOS T20 capital amounts must be complete"
+                    "GEN-C6 OOS T20 risk/margin amounts must be complete"
                 )
             for item in release_amounts:
                 assert item is not None
@@ -185,24 +193,47 @@ class Genc6BoundCandidateOutcome:
                     or item <= 0
                 ):
                     raise CiboCompoundCapitalError(
-                        "GEN-C6 OOS T20 capital amounts must be positive"
+                        "GEN-C6 OOS T20 risk/margin amounts must be positive"
                     )
-            assert self.requested_capital_usd is not None
-            assert self.risk_authorized_capital_usd is not None
-            assert self.execution_realized_capital_usd is not None
-            assert self.returned_capacity_usd is not None
+            assert self.t20_requested_stop_risk_usd is not None
+            assert self.t20_requested_margin_usd is not None
+            assert self.t20_risk_authorized_stop_risk_usd is not None
+            assert self.t20_risk_authorized_margin_usd is not None
+            assert self.t20_execution_realized_stop_risk_usd is not None
+            assert self.t20_execution_realized_margin_usd is not None
+            assert self.t20_released_stop_risk_capacity_usd is not None
+            assert self.t20_released_margin_capacity_usd is not None
             if (
-                self.execution_realized_capital_usd
-                > self.risk_authorized_capital_usd
-                or self.risk_authorized_capital_usd
-                > self.requested_capital_usd
+                self.t20_execution_realized_stop_risk_usd
+                > self.t20_risk_authorized_stop_risk_usd
+                or self.t20_risk_authorized_stop_risk_usd
+                > self.t20_requested_stop_risk_usd
             ):
                 raise CiboCompoundCapitalError(
-                    "GEN-C6 OOS T20 request/Risk/Execution ordering drift"
+                    "GEN-C6 OOS T20 stop-risk request/Risk/Execution drift"
                 )
-            if self.returned_capacity_usd != self.execution_realized_capital_usd:
+            if (
+                self.t20_execution_realized_margin_usd
+                > self.t20_risk_authorized_margin_usd
+                or self.t20_risk_authorized_margin_usd
+                > self.t20_requested_margin_usd
+            ):
                 raise CiboCompoundCapitalError(
-                    "GEN-C6 OOS T20 returned capacity reconciliation drift"
+                    "GEN-C6 OOS T20 margin request/Risk/Execution drift"
+                )
+            if (
+                self.t20_released_stop_risk_capacity_usd
+                != self.t20_execution_realized_stop_risk_usd
+            ):
+                raise CiboCompoundCapitalError(
+                    "GEN-C6 OOS T20 stop-risk release reconciliation drift"
+                )
+            if (
+                self.t20_released_margin_capacity_usd
+                != self.t20_execution_realized_margin_usd
+            ):
+                raise CiboCompoundCapitalError(
+                    "GEN-C6 OOS T20 margin release reconciliation drift"
                 )
         if (
             not isinstance(self.partial_release_count, int)
@@ -212,7 +243,7 @@ class Genc6BoundCandidateOutcome:
             raise CiboCompoundCapitalError(
                 "GEN-C6 OOS partial_release_count must be non-negative int"
             )
-        for name in ("capital_deployed_at", "capital_released_at"):
+        for name in ("t20_capacity_deployed_at", "t20_capacity_released_at"):
             value = getattr(self, name)
             if value is not None:
                 _aware(value, name)
@@ -235,12 +266,16 @@ class Genc6BoundCandidateOutcome:
         release_payload_present = (
             self.actual_capital_minutes is not None
             or self.t20_release_evidence_sha256 is not None
-            or self.requested_capital_usd is not None
-            or self.risk_authorized_capital_usd is not None
-            or self.execution_realized_capital_usd is not None
-            or self.returned_capacity_usd is not None
-            or self.capital_deployed_at is not None
-            or self.capital_released_at is not None
+            or self.t20_requested_stop_risk_usd is not None
+            or self.t20_requested_margin_usd is not None
+            or self.t20_risk_authorized_stop_risk_usd is not None
+            or self.t20_risk_authorized_margin_usd is not None
+            or self.t20_execution_realized_stop_risk_usd is not None
+            or self.t20_execution_realized_margin_usd is not None
+            or self.t20_released_stop_risk_capacity_usd is not None
+            or self.t20_released_margin_capacity_usd is not None
+            or self.t20_capacity_deployed_at is not None
+            or self.t20_capacity_released_at is not None
             or self.partial_release_count != 0
         )
         if self.release_timing_bound != release_payload_present:
@@ -254,14 +289,14 @@ class Genc6BoundCandidateOutcome:
                 "t20_release_evidence_sha256",
             )
             if (
-                self.capital_deployed_at is None
-                or self.capital_released_at is None
+                self.t20_capacity_deployed_at is None
+                or self.t20_capacity_released_at is None
                 or self.actual_capital_minutes is None
             ):
                 raise CiboCompoundCapitalError(
                     "GEN-C6 OOS T20 release timing must be complete"
                 )
-            if self.capital_released_at <= self.capital_deployed_at:
+            if self.t20_capacity_released_at <= self.t20_capacity_deployed_at:
                 raise CiboCompoundCapitalError(
                     "GEN-C6 OOS T20 release must follow deployment"
                 )
@@ -708,38 +743,64 @@ def _row(
             if t20_release is None
             else t20_release.evidence_sha256
         ),
-        requested_capital_usd=(
+        t20_requested_stop_risk_usd=(
             None
             if t20_release is None
-            else t20_release.evidence.authorization.requested_capital_usd
+            else t20_release.evidence.authorization.requested_stop_risk_usd
         ),
-        risk_authorized_capital_usd=(
+        t20_requested_margin_usd=(
             None
             if t20_release is None
-            else (
-                t20_release.evidence.authorization
-                .risk_authorized_capital_usd
-            )
+            else t20_release.evidence.authorization.requested_margin_usd
         ),
-        execution_realized_capital_usd=(
+        t20_risk_authorized_stop_risk_usd=(
             None
             if t20_release is None
             else (
                 t20_release.evidence.authorization
-                .execution_realized_capital_usd
+                .risk_authorized_stop_risk_usd
             )
         ),
-        returned_capacity_usd=(
+        t20_risk_authorized_margin_usd=(
             None
             if t20_release is None
-            else t20_release.evidence.total_returned_capacity_usd
+            else (
+                t20_release.evidence.authorization
+                .risk_authorized_margin_usd
+            )
         ),
-        capital_deployed_at=(
+        t20_execution_realized_stop_risk_usd=(
             None
             if t20_release is None
-            else t20_release.evidence.authorization.capital_deployed_at
+            else (
+                t20_release.evidence.authorization
+                .execution_realized_stop_risk_usd
+            )
         ),
-        capital_released_at=(
+        t20_execution_realized_margin_usd=(
+            None
+            if t20_release is None
+            else (
+                t20_release.evidence.authorization
+                .execution_realized_margin_usd
+            )
+        ),
+        t20_released_stop_risk_capacity_usd=(
+            None
+            if t20_release is None
+            else t20_release.evidence.total_released_stop_risk_capacity_usd
+        ),
+        t20_released_margin_capacity_usd=(
+            None
+            if t20_release is None
+            else t20_release.evidence.total_released_margin_capacity_usd
+        ),
+        t20_capacity_deployed_at=(
+            None
+            if t20_release is None
+            else t20_release.evidence.authorization.capacity_deployed_at
+        ),
+        t20_capacity_released_at=(
             None
             if t20_release is None
             else t20_release.evidence.terminal_release_at
