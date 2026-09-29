@@ -82,10 +82,15 @@ jobs:
           assert report["fresh_holdout_opened"] is False
           assert report["candidate_count"] == 0
           assert report["trader_certified"] is False
-          assert report["next_phase"] in {
-              "CANONICAL_SOURCE_CANDIDATE_ASSEMBLY_READY_FOR_ISOLATION_REPLAY",
-              "CANONICAL_SOURCE_CANDIDATE_ASSEMBLY_GAPS_REMAIN",
-          }
+          assert report["canonical_source_context_binding_ready"] is True
+          assert report["canonical_prefill_candidate_path_ready"] is True
+          assert report["deterministic_route_and_wick_binding_ready"] is True
+          assert report["no_chase_execution_area_bound"] is True
+          assert report["blocking_binder_count"] == 0
+          assert report["blocking_binders"] == []
+          assert report["next_phase"] == (
+              "CANONICAL_SOURCE_CANDIDATE_ASSEMBLY_READY_FOR_ISOLATION_REPLAY"
+          )
           print(json.dumps(report,sort_keys=True))
           PY
       - uses: actions/upload-artifact@v4
