@@ -59,6 +59,13 @@ from qore.infrastructure.cibo_ce2i_phase20_m5_shadow_batch import (
 from qore.infrastructure.cibo_ce2i_phase20_shadow_observer import (
     Phase20ForwardShadowObservation,
 )
+from qore.infrastructure.cibo_ce2i_phase20_t12_runtime_shadow import (
+    Phase20T12RuntimeShadowSeal,
+    seal_phase20_t12_runtime_shadow,
+)
+from qore.infrastructure.cibo_ce2i_phase20_t12_shadow_store import (
+    DurableT12ShadowDecisionStore,
+)
 from qore.infrastructure.cibo_ce2i_phase20_t13_runtime_shadow import (
     Phase20T13RuntimeShadowSeal,
     seal_phase20_t13_runtime_shadow,
@@ -113,6 +120,7 @@ class Phase20DemoM5RuntimeObservation:
     observation: Phase20ForwardShadowObservation
     regime_policy_id: str
     regime_policy_sha256: str
+    t12_shadow: Phase20T12RuntimeShadowSeal | None = None
     t13_shadow: Phase20T13RuntimeShadowSeal | None = None
     broker_mutation_performed: bool = False
     execution_authority: bool = False
@@ -133,6 +141,21 @@ class Phase20DemoM5RuntimeObservation:
             raise CiboCapitalManagementError(
                 "Phase20D runtime bridge regime digest invalid"
             )
+        if self.t12_shadow is not None:
+            if not isinstance(
+                self.t12_shadow,
+                Phase20T12RuntimeShadowSeal,
+            ):
+                raise CiboCapitalManagementError(
+                    "Phase20D runtime bridge T12 shadow must be canonical"
+                )
+            if (
+                self.t12_shadow.decision_evidence_sha256
+                != self.observation.collected.result.decision_record.evidence_sha256
+            ):
+                raise CiboCapitalManagementError(
+                    "Phase20D runtime bridge T12 evidence binding drift"
+                )
         if self.t13_shadow is not None:
             if not isinstance(
                 self.t13_shadow,
@@ -251,6 +274,7 @@ def finalize_ctrader_demo_m5_phase20_policy(
     prepared: Phase20DemoM5PreparedShadow,
     evidence_store: DurablePhase20ForwardEvidenceStore,
     policy_store: DurablePhase20ForwardPolicyStore,
+    t12_shadow_store: DurableT12ShadowDecisionStore | None = None,
     t13_recommendation_store: DurableT13ShadowDecisionStore | None = None,
     t13_treatment_store: DurableT13ShadowTreatmentStore | None = None,
 ) -> Phase20DemoM5RuntimeObservation:
@@ -272,6 +296,15 @@ def finalize_ctrader_demo_m5_phase20_policy(
         evidence_store=evidence_store,
         expected_generation=current_policy.generation,
     )
+    t12_shadow = None
+    if t12_shadow_store is not None:
+        t12_shadow = seal_phase20_t12_runtime_shadow(
+            evidence=prepared.result.evidence,
+            decision_record=prepared.result.decision_record,
+            evidence_book=evidence_store.load(),
+            policy_book=policy_book,
+            shadow_store=t12_shadow_store,
+        )
     t13_shadow = None
     if (
         t13_recommendation_store is not None
@@ -294,6 +327,7 @@ def finalize_ctrader_demo_m5_phase20_policy(
         observation=Phase20ForwardShadowObservation(collected=collected),
         regime_policy_id=prepared.regime_policy_id,
         regime_policy_sha256=prepared.regime_policy_sha256,
+        t12_shadow=t12_shadow,
         t13_shadow=t13_shadow,
     )
 
@@ -309,6 +343,7 @@ def observe_ctrader_demo_m5_phase20_epoch(
     provider_specs: tuple[CTraderDemoSymbolSpecification, ...],
     evidence_store: DurablePhase20ForwardEvidenceStore,
     policy_store: DurablePhase20ForwardPolicyStore,
+    t12_shadow_store: DurableT12ShadowDecisionStore | None = None,
     t13_recommendation_store: DurableT13ShadowDecisionStore | None = None,
     t13_treatment_store: DurableT13ShadowTreatmentStore | None = None,
     account_identity: CiboAccountCapitalIdentity,
@@ -350,6 +385,7 @@ def observe_ctrader_demo_m5_phase20_epoch(
         prepared=prepared,
         evidence_store=evidence_store,
         policy_store=policy_store,
+        t12_shadow_store=t12_shadow_store,
         t13_recommendation_store=t13_recommendation_store,
         t13_treatment_store=t13_treatment_store,
     )
