@@ -1,4 +1,8 @@
-"""Cross-era STOP/TARGET separability for frozen V41 microstructure 18D.\n\nThe frozen V37 cross-era protocol is materialized on this research branch so\nV41 reuses the exact predeclared scoring contract without changing any gate.\n"""
+"""Cross-era STOP/TARGET separability for frozen V41 microstructure 18D.
+
+The frozen V37 cross-era protocol is materialized on this research branch so
+V41 reuses the exact predeclared scoring contract without changing any gate.
+"""
 
 from __future__ import annotations
 
