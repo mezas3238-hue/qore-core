@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab import (
@@ -60,6 +61,11 @@ from qore.infrastructure.trader_lab.capitalizer_source_trader_engine_v2 import (
 
 IDENTITY = "QORE_CAPITALIZER_CANONICAL_HISTORICAL_REPLAY_ADAPTER_V46_R2"
 PREDECLARATION_COMMENT_ID = 5883247470
+R3_PREDECLARATION_COMMENT_ID = 5887860668
+ASIAN_OPEN_PRIMARY_SOURCE = (
+    "ICT_FOREX_THE_ICT_ASIAN_KILLZONE_ley5HZs4bUM_0317_0405"
+)
+NEW_YORK = ZoneInfo("America/New_York")
 
 REQUIRED_EVIDENCE_KEYS = frozenset(
     {
@@ -108,6 +114,36 @@ class CapitalizerHistoricalEvidenceStamp:
         if self.key not in REQUIRED_EVIDENCE_KEYS:
             raise ValueError(f"unknown canonical evidence key: {self.key}")
         _aware(self.observed_at)
+
+
+def resolve_historical_asian_open_reference(
+    observed_at: datetime,
+) -> "CapitalizerHistoricalAsianOpenReferenceEvidence":
+    """Resolve the source-stated 7/8 PM NY Asian Open to 00:00 UTC.
+
+    ICT's primary Asian Killzone lesson states that the Asian Open moves
+    between roughly 7 PM and 8 PM New York with daylight-saving alignment.
+    Those local alternatives are the same UTC instant: midnight UTC.
+    """
+
+    observed = _aware(observed_at)
+    reference = observed.replace(hour=0, minute=0, second=0, microsecond=0)
+    local = reference.astimezone(NEW_YORK)
+    offset = local.utcoffset()
+    if offset is None:
+        raise ValueError("Asian Open historical timezone offset unresolved")
+    expected_hour = 19 if offset.total_seconds() == -5 * 3600 else 20
+    if offset.total_seconds() not in {-5 * 3600, -4 * 3600}:
+        raise ValueError("Asian Open source resolution requires NY EST/EDT")
+    if local.hour != expected_hour or local.minute != 0:
+        raise ValueError("Asian Open UTC/New-York source mapping drift")
+
+    return CapitalizerHistoricalAsianOpenReferenceEvidence(
+        reference_at=reference,
+        source_reference=ASIAN_OPEN_PRIMARY_SOURCE,
+        dst_resolved=True,
+        synthetic=False,
+    )
 
 
 @dataclass(frozen=True, slots=True)
