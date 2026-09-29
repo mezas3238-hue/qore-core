@@ -375,6 +375,22 @@ class CanonicalCalendarMappingRecord:
                 raise TemporalComparabilityError(
                     "verified canonical mapping requires calendar evidence"
                 )
+            canonical_refs = (
+                self.identity_evidence_refs
+                + self.venue_evidence_refs
+                + self.calendar_evidence_refs
+            )
+            if any(
+                item.startswith("provider-schedule:")
+                for item in canonical_refs
+            ):
+                raise TemporalComparabilityError(
+                    "provider schedule evidence cannot satisfy canonical evidence"
+                )
+            if set(canonical_refs) & set(self.provider_schedule_evidence_refs):
+                raise TemporalComparabilityError(
+                    "provider schedule evidence cannot satisfy canonical evidence"
+                )
             try:
                 ZoneInfo(self.iana_timezone or "")
             except (ZoneInfoNotFoundError, ValueError) as exc:
