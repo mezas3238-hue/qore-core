@@ -26,6 +26,7 @@ on:
       - tests/infrastructure/test_core_stack_v2_global_market_intelligence_contract.py
       - tests/infrastructure/test_market_clock_schedule.py
       - docs/shared/QORE_SHARED_GEN2_TEMPORAL_COMPARABILITY_CONTRACT_001.md
+      - docs/shared/evidence/QORE_SHARED_GEN2_CANONICAL_MARKET_STRUCTURE_EVIDENCE_001.json
       - .github/workflows/qore-shared-gen2-temporal-comparability.yml
   workflow_dispatch:
 
@@ -142,7 +143,7 @@ jobs:
       - name: Build 177-row observability matrix
         run: |
           set -euo pipefail
-          python scripts/shared_gen2_global_observability_matrix.py             --registry result/global-sensor-registry.json             --provider-schedule result/provider-schedule-catalog.json             --output result/global-market-observability-matrix.json             --calendar-output result/global-calendar-registry.json             --mapping-output result/canonical-calendar-mapping-registry.json             | tee result/global-market-observability-summary.json
+          python scripts/shared_gen2_global_observability_matrix.py             --registry result/global-sensor-registry.json             --provider-schedule result/provider-schedule-catalog.json             --output result/global-market-observability-matrix.json             --calendar-output result/global-calendar-registry.json             --mapping-output result/canonical-calendar-mapping-registry.json             --market-structure-evidence docs/shared/evidence/QORE_SHARED_GEN2_CANONICAL_MARKET_STRUCTURE_EVIDENCE_001.json             | tee result/global-market-observability-summary.json
 
       - name: Validate source-only governance
         run: |
@@ -180,6 +181,13 @@ jobs:
           assert mapping["noncentralized_markets_do_not_require_single_venue"] is True
           assert mapping["provider_evidence_worklist_is_not_canonical_mapping"] is True
           assert mapping["provider_evidence_worklist_count"] == 177
+          assert mapping["market_structure_counts"] == {
+              "DISTRIBUTED_OTC": 60,
+              "UNRESOLVED": 117,
+          }
+          assert mapping["market_structure_evidence_count"] == 60
+          assert mapping["market_structure_unresolved_count"] == 117
+          assert len(mapping["market_structure_evidence_manifest_fingerprint_sha256"]) == 64
           assert all(
               row["venue_evidence_rule"] == "REQUIRED_ONLY_FOR_CENTRALIZED_VENUE"
               for row in mapping["provider_evidence_worklist"]
@@ -187,6 +195,15 @@ jobs:
           assert all(
               row["current_mapping_status"] == "UNRESOLVED"
               for row in mapping["provider_evidence_worklist"]
+          )
+          assert sum(
+              row["current_market_structure"] == "DISTRIBUTED_OTC"
+              for row in mapping["provider_evidence_worklist"]
+          ) == 60
+          assert all(
+              row["current_market_structure"] == "DISTRIBUTED_OTC"
+              for row in mapping["provider_evidence_worklist"]
+              if row["provider_asset_class_name"] == "Forex"
           )
           assert len(mapping["provider_evidence_worklist"]) == 177
           assert sum(mapping["provider_evidence_worklist_asset_class_counts"].values()) == 177
@@ -270,6 +287,10 @@ jobs:
               "canonical_mapping_record_count":mapping["record_count"],
               "canonical_mapping_verified_count":matrix["canonical_mapping_verified_count"],
               "canonical_mapping_unresolved_count":mapping["unresolved_count"],
+              "market_structure_evidence_manifest_fingerprint":mapping["market_structure_evidence_manifest_fingerprint_sha256"],
+              "market_structure_counts":mapping["market_structure_counts"],
+              "market_structure_evidence_count":mapping["market_structure_evidence_count"],
+              "market_structure_unresolved_count":mapping["market_structure_unresolved_count"],
               "provider_evidence_worklist_count":mapping["provider_evidence_worklist_count"],
               "provider_evidence_worklist_fingerprint":mapping["provider_evidence_worklist_fingerprint_sha256"],
               "provider_evidence_worklist_asset_class_counts":mapping["provider_evidence_worklist_asset_class_counts"],
@@ -342,6 +363,8 @@ jobs:
               "- canonical mapping governance: **UNRESOLVED_BASELINE_FROZEN**",
               f"- canonical mapping registry: **{mapping['record_count']} records** / verified **{mapping['verified_count']}** / unresolved **{mapping['unresolved_count']}**",
               f"- canonical mapping fingerprint: `{mapping['canonical_mapping_registry_fingerprint_sha256']}`",
+              f"- canonical market structure evidence: **{mapping['market_structure_counts']}**",
+              f"- market structure evidence manifest fingerprint: `{mapping['market_structure_evidence_manifest_fingerprint_sha256']}`",
               f"- mapping evidence worklist: **{mapping['provider_evidence_worklist_count']} rows** / fingerprint `{mapping['provider_evidence_worklist_fingerprint_sha256']}`",
               f"- mapping worklist asset classes: **{mapping['provider_evidence_worklist_asset_class_counts']}**",
               "- non-centralized markets require a fake single venue: **False**",
