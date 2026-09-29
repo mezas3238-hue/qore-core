@@ -11,6 +11,9 @@ on:
       - src/qore/infrastructure/core_stack_v2/active_perception_v14_observability.py
       - scripts/shared_wp05_v14_cross_peer_observability.py
       - tests/infrastructure/test_shared_wp05_v14_observability.py
+      - src/qore/infrastructure/core_stack_v2/active_perception_v14_representation.py
+      - scripts/shared_wp05_v14_cross_peer_representation.py
+      - tests/infrastructure/test_shared_wp05_v14_representation.py
       - .github/workflows/qore-shared-wp05-v14-source-integrity.yml
   workflow_dispatch:
 
