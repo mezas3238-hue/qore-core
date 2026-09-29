@@ -14,6 +14,7 @@ import json
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 
 from qore.infrastructure.ctrader_open_api_client import SpotwareCTraderOpenApiClient
@@ -223,7 +224,7 @@ def _admitted_row(
 def _s2_target_at_fill(
     candidate: s2.S2CanonicalFractalCandidate,
     *,
-    fill_price,
+    fill_price: Decimal,
     fill_at: datetime,
 ) -> remediation.CapitalizerStructuralTargetResolution:
     armed = candidate.routed.candidate
