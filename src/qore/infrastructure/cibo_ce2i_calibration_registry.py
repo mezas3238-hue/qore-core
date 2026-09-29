@@ -389,10 +389,17 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
         "T13",
         CiboCalibrationState.CALIBRATION_UNAVAILABLE,
         CiboCalibrationType.CAUSAL_NORMALIZED,
-        (_PHASE19_WFO, _PHASE20_CONTRACT, _PHASE19_NON_PROMOTION),
+        (
+            _PHASE19_WFO,
+            _PHASE20_CONTRACT,
+            "phase20:t13:causal-reserve-pressure-population",
+            _PHASE19_NON_PROMOTION,
+        ),
         (
             "ZERO_WALK_FORWARD_POLICY_SURVIVORS",
+            "FORWARD_T13_RESERVE_PRESSURE_POPULATION_AUDIT_IMPLEMENTED",
             "NO_ROBUST_DRAWDOWN_RESERVE_POLICY_IDENTIFIED",
+            "FRESH_OOS_T13_RESERVE_UTILITY_REQUIRED",
         ),
     ),
     _row(
