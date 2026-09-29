@@ -41,10 +41,21 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p result
-          ruff check             src/qore/infrastructure/core_stack_v2/shared_trader_intelligence.py             tests/infrastructure/test_core_stack_v2_shared_trader_intelligence.py
-          mypy             src/qore/infrastructure/core_stack_v2/shared_trader_intelligence.py
-          python -m py_compile             src/qore/infrastructure/core_stack_v2/shared_trader_intelligence.py
-          pytest -q             tests/infrastructure/test_core_stack_v2_shared_trader_intelligence.py             --junitxml=result/junit.xml
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/shared_trader_intelligence.py \
+            src/qore/infrastructure/core_stack_v2/shared_trader_intelligence_lifecycle.py \
+            tests/infrastructure/test_core_stack_v2_shared_trader_intelligence.py \
+            tests/infrastructure/test_core_stack_v2_shared_trader_intelligence_lifecycle.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/shared_trader_intelligence.py \
+            src/qore/infrastructure/core_stack_v2/shared_trader_intelligence_lifecycle.py
+          python -m py_compile \
+            src/qore/infrastructure/core_stack_v2/shared_trader_intelligence.py \
+            src/qore/infrastructure/core_stack_v2/shared_trader_intelligence_lifecycle.py
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_shared_trader_intelligence.py \
+            tests/infrastructure/test_core_stack_v2_shared_trader_intelligence_lifecycle.py \
+            --junitxml=result/junit.xml
 
       - name: Seal STI-1 contract evidence
         run: |
