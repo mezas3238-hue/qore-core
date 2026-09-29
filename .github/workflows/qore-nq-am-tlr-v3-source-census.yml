@@ -1,0 +1,135 @@
+name: QORE NQ AM TLR V3 Source Event Census
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/nq-am-temporal-liquidity-reversal-v1-001
+    paths:
+      - '.github/workflows/qore-nq-am-tlr-v3-source-census.yml'
+      - 'src/qore/infrastructure/trader_lab/nq_am_tlr_v3_source_census.py'
+      - 'tests/infrastructure/trader_lab/test_nq_am_tlr_v3_source_census.py'
+      - 'docs/research/QORE-NQ-AM-TLR-V3-SOURCE-FIDELITY-CONTRACT.md'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev,ctrader]'
+      - name: Ruff focused gate
+        run: |
+          ruff check --ignore B009             src/qore/infrastructure/trader_lab/nq_am_tlr_v3_source_census.py             tests/infrastructure/trader_lab/test_nq_am_tlr_v3_source_census.py
+      - name: Mypy focused gate
+        run: mypy src/qore/infrastructure/trader_lab/nq_am_tlr_v3_source_census.py
+      - name: Focused V3 source-census tests
+        run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_nq_am_tlr_v3_source_census.py
+      - name: Contract assertions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          contract = Path(
+              'docs/research/QORE-NQ-AM-TLR-V3-SOURCE-FIDELITY-CONTRACT.md'
+          ).read_text()
+          module = Path(
+              'src/qore/infrastructure/trader_lab/nq_am_tlr_v3_source_census.py'
+          ).read_text()
+          assert 'SOURCE_EXPLICIT' in contract
+          assert 'QORE_MECHANIZATION' in contract
+          assert 'PROXY_LIMITATION' in contract
+          assert 'USTEC_PROXY_EVIDENCE != EXACT_NQ_CONTRACT_EVIDENCE' in contract
+          assert 'No P&L' in contract
+          assert 'IDENTITY = "QORE_NQ_AM_TLR_V3_SOURCE_CENSUS_001"' in module
+          PY
+
+  proxy-source-census:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install QORE cTrader runtime
+        run: python -m pip install -e '.[ctrader]'
+      - name: Verify DEMO read-only credential inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || { echo "missing required DEMO input: $name" >&2; exit 2; }
+          done
+      - name: Discover DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Collect consumed one-year USTEC M1 proxy evidence
+        run: |
+          mkdir -p artifacts/v3
+          python -m qore.infrastructure.trader_lab.nq_am_temporal_liquidity_reversal_v2             collect-dev artifacts/v3/evidence.json             | tee artifacts/v3/collection-summary.json
+      - name: Run outcome-blind source event census
+        run: |
+          python -m qore.infrastructure.trader_lab.nq_am_tlr_v3_source_census             artifacts/v3/evidence.json artifacts/v3/census             | tee artifacts/v3/census-stdout.json
+      - name: Enforce research-only semantics
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(Path('artifacts/v3/census/summary.json').read_text())
+          assert p['identity'] == 'QORE_NQ_AM_TLR_V3_SOURCE_CENSUS_001'
+          assert p['proxy_only'] is True
+          assert p['source_instrument_equivalence_proven'] is False
+          assert p['selection_authority'] is False
+          assert p['pnl_computed'] is False
+          assert p['demo_eligible'] is False
+          assert p['live_authorized'] is False
+          assert p['real_capital_authorized'] is False
+          assert p['production_authorized'] is False
+          print(json.dumps(p, indent=2, sort_keys=True))
+          PY
+      - name: Bind immutable evidence
+        if: always()
+        shell: bash
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > artifacts/v3/git-sha.txt
+          sha256sum             src/qore/infrastructure/trader_lab/nq_am_tlr_v3_source_census.py             docs/research/QORE-NQ-AM-TLR-V3-SOURCE-FIDELITY-CONTRACT.md             > artifacts/v3/candidate-input-sha256.txt
+          if [ -f artifacts/v3/evidence.json ]; then
+            sha256sum artifacts/v3/evidence.json > artifacts/v3/evidence-sha256.txt
+          fi
+          find artifacts/v3 -type f ! -name SHA256SUMS.txt -print0             | sort -z             | xargs -0 sha256sum > artifacts/v3/SHA256SUMS.txt
+      - name: Upload immutable V3 proxy census
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-nq-am-tlr-v3-source-census-${{ github.sha }}
+          path: artifacts/v3
+          if-no-files-found: error
+          retention-days: 90
