@@ -183,10 +183,37 @@ def test_s0_readiness_stays_pre_economic_and_not_ready_yet() -> None:
     assert report["candidate_count"] == 0
     assert report["trader_certified"] is False
     assert report["canonical_source_context_binding_ready"] is True
-    assert report["blocking_binder_count"] == 3
-    assert set(report["blocking_binders"]) == {
-        "ICT_SOURCE_EVENT_ARMING",
-        "M1_MSS_FVG_OB_BINDING",
-        "DETERMINISTIC_ROUTE_AND_WICK_BINDING",
-    }
+    assert report["canonical_prefill_candidate_path_ready"] is True
+    assert report["blocking_binder_count"] == 1
+    assert report["blocking_binders"] == ("DETERMINISTIC_ROUTE_AND_WICK_BINDING",)
     assert report["next_phase"] == "CANONICAL_SOURCE_CANDIDATE_ASSEMBLY_GAPS_REMAIN"
+
+
+def test_a1_armed_level_prefers_directional_overlap_then_ce() -> None:
+    start = datetime(2025, 1, 2, 10, 0, tzinfo=UTC)
+    zone = s0.v3_source.M1EntryZone(
+        ob_opened_at=start,
+        ob_low=Decimal("99"),
+        ob_high=Decimal("101"),
+        fvg_confirmed_at=start + timedelta(minutes=3),
+        fvg_low=Decimal("100"),
+        fvg_high=Decimal("102"),
+        overlap_low=Decimal("100"),
+        overlap_high=Decimal("101"),
+    )
+
+    long_primary, long_fallback, long_mode = s0.resolve_s0_armed_levels(
+        side=CapitalizerSide.LONG,
+        zone=zone,
+    )
+    short_primary, short_fallback, short_mode = s0.resolve_s0_armed_levels(
+        side=CapitalizerSide.SHORT,
+        zone=zone,
+    )
+
+    assert long_primary == Decimal("101")
+    assert long_fallback is None
+    assert long_mode == "OB_FVG_RETEST"
+    assert short_primary == Decimal("100")
+    assert short_fallback == Decimal("101")
+    assert short_mode == "OB_FVG_RETEST"
