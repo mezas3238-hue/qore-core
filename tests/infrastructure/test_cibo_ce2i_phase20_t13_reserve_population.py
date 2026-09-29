@@ -1,5 +1,5 @@
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from decimal import Decimal
 
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
