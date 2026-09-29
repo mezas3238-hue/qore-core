@@ -41,7 +41,8 @@ jobs:
           ruff check \
             scripts/shared_global_sensor_registry_from_catalog.py \
             tests/infrastructure/test_shared_global_sensor_registry_from_catalog.py
-          mypy scripts/shared_global_sensor_registry_from_catalog.py
+          mypy src/qore/infrastructure/core_stack_v2/global_sensor_registry.py
+          python -m py_compile scripts/shared_global_sensor_registry_from_catalog.py
           pytest -q tests/infrastructure/test_shared_global_sensor_registry_from_catalog.py
 
   freeze:
