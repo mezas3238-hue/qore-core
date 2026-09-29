@@ -538,8 +538,7 @@ class Genc6MarginalCapitalCandidate:
         amount = self.requested_capital_usd
         expected = {
             Genc6EvidenceKind.EXPECTED_NET_VALUE_PER_CAPITAL:
-                self.marginal_evidence.expected_incremental_return_usd
-                / amount,
+                self.adjusted_expected_net_value_usd / amount,
             Genc6EvidenceKind.EPISTEMIC_UNCERTAINTY:
                 self.marginal_evidence.epistemic_uncertainty,
             Genc6EvidenceKind.CAPITAL_DURATION_MINUTES:
