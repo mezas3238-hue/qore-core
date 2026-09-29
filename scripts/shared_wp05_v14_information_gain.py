@@ -14,10 +14,10 @@ from shared_wp05_sequential_changepoint_v10 import _prepare_partition
 
 from qore.infrastructure.core_stack_v2.active_perception_v14_information_gain import (
     V14_CALIBRATION_TRUE_CONFIRMATION_RETENTION_BPS,
-    V14_CHECKPOINTS_MINUTES,
     V14_DISCOVERY_FRACTION_BPS,
     V14_INFORMATION_GAIN_IDENTITY,
     V14_POOLED_INCREMENTAL_FALSE_VETO_BPS,
+    V14FoldEvaluation,
     V14PeerCheckpointDensity,
     evaluate_v14_fold,
     fit_v14_peer_checkpoint_density,
@@ -25,6 +25,9 @@ from qore.infrastructure.core_stack_v2.active_perception_v14_information_gain im
     pooled_v14_false_veto_bps,
     select_v14_peer_confirmation_threshold_micros,
     v14_density_set_fingerprint,
+)
+from qore.infrastructure.core_stack_v2.active_perception_v14_observability import (
+    V14_CHECKPOINTS_MINUTES,
 )
 from qore.infrastructure.core_stack_v2.active_perception_v14_peer_acquisition import (
     V14PeerFamily,
@@ -62,11 +65,11 @@ class _AlignedEpisode:
 
     @property
     def source_at(self) -> datetime:
-        return self.episode.checkpoints[0].as_of
+        return cast(datetime, self.episode.checkpoints[0].as_of)
 
     @property
     def observed_at(self) -> datetime:
-        return self.episode.observed_at
+        return cast(datetime, self.episode.observed_at)
 
     @property
     def label(self) -> bool:
@@ -301,7 +304,7 @@ def _evaluate_fold(
     fold_index: int,
     model: _FittedFoldModel,
     validation: tuple[_AlignedEpisode, ...],
-):
+) -> V14FoldEvaluation:
     labels: list[bool] = []
     confirmation_minutes: list[int | None] = []
     peer_scores: list[int | None] = []
