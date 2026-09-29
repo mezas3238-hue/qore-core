@@ -334,6 +334,138 @@ def test_comparability_policy_registry_is_deterministic_and_exact_match_only() -
         )
 
 
+def test_overnight_rollover_gap_is_explicit_session_break() -> None:
+    calendar = GlobalMarketCalendar(
+        calendar_id="XCME-OVERNIGHT",
+        version="calendar-overnight-001",
+        venue="XCME",
+        iana_timezone="America/Chicago",
+        weekly_sessions=tuple(
+            WeeklySessionRule(
+                weekday=weekday,
+                opens_at=WallClockBoundary(17),
+                closes_at=WallClockBoundary(16),
+            )
+            for weekday in range(5)
+        ),
+        date_overrides=(),
+        provenance_refs=("calendar:overnight:test",),
+    )
+    registry = GlobalMarketCalendarRegistry(
+        version="registry-overnight-001",
+        calendars=(calendar,),
+        bindings=(
+            MarketCalendarBinding(
+                instrument_key=SOURCE.instrument_key,
+                canonical_instrument_id="canonical:OVERNIGHT",
+                calendar_id=calendar.calendar_id,
+                provider_schedule_timezone="UTC",
+                timezone_mapping_version="tz-map-001",
+                provenance_refs=("binding:overnight:test",),
+            ),
+        ),
+        provenance_refs=("registry:overnight:test",),
+    )
+
+    before_break = evaluate_market_session(
+        registry=registry,
+        instrument_key=SOURCE.instrument_key,
+        evaluation_at=datetime(2026, 7, 7, 20, 30, tzinfo=UTC),
+    )
+    maintenance_break = evaluate_market_session(
+        registry=registry,
+        instrument_key=SOURCE.instrument_key,
+        evaluation_at=datetime(2026, 7, 7, 21, 30, tzinfo=UTC),
+    )
+    reopened = evaluate_market_session(
+        registry=registry,
+        instrument_key=SOURCE.instrument_key,
+        evaluation_at=datetime(2026, 7, 7, 22, 0, tzinfo=UTC),
+    )
+
+    assert before_break.state is MarketSessionState.OPEN_ACTIVE
+    assert maintenance_break.state is MarketSessionState.SESSION_BREAK
+    assert maintenance_break.is_economically_active is False
+    assert reopened.state is MarketSessionState.OPEN_ACTIVE
+
+
+def test_cross_timezone_overlap_respects_independent_dst_calendars() -> None:
+    london = GlobalMarketCalendar(
+        calendar_id="XLON-RTH",
+        version="calendar-london-001",
+        venue="XLON",
+        iana_timezone="Europe/London",
+        weekly_sessions=tuple(
+            WeeklySessionRule(
+                weekday=weekday,
+                opens_at=WallClockBoundary(8),
+                closes_at=WallClockBoundary(16, 30),
+            )
+            for weekday in range(5)
+        ),
+        date_overrides=(),
+        provenance_refs=("calendar:london:test",),
+    )
+    new_york = _calendar()
+    registry = GlobalMarketCalendarRegistry(
+        version="registry-cross-timezone-001",
+        calendars=(london, new_york),
+        bindings=tuple(
+            sorted(
+                (
+                    MarketCalendarBinding(
+                        instrument_key=SOURCE.instrument_key,
+                        canonical_instrument_id="canonical:NY",
+                        calendar_id=new_york.calendar_id,
+                        provider_schedule_timezone="UTC",
+                        timezone_mapping_version="tz-map-001",
+                        provenance_refs=("binding:NY",),
+                    ),
+                    MarketCalendarBinding(
+                        instrument_key=TARGET.instrument_key,
+                        canonical_instrument_id="canonical:LONDON",
+                        calendar_id=london.calendar_id,
+                        provider_schedule_timezone="UTC",
+                        timezone_mapping_version="tz-map-001",
+                        provenance_refs=("binding:LONDON",),
+                    ),
+                ),
+                key=lambda item: item.instrument_key,
+            )
+        ),
+        provenance_refs=("registry:cross-timezone:test",),
+    )
+
+    before_us_dst = datetime(2026, 3, 6, 14, 0, tzinfo=UTC)
+    after_us_before_uk_dst = datetime(2026, 3, 20, 13, 45, tzinfo=UTC)
+
+    ny_before = evaluate_market_session(
+        registry=registry,
+        instrument_key=SOURCE.instrument_key,
+        evaluation_at=before_us_dst,
+    )
+    london_before = evaluate_market_session(
+        registry=registry,
+        instrument_key=TARGET.instrument_key,
+        evaluation_at=before_us_dst,
+    )
+    ny_after = evaluate_market_session(
+        registry=registry,
+        instrument_key=SOURCE.instrument_key,
+        evaluation_at=after_us_before_uk_dst,
+    )
+    london_after = evaluate_market_session(
+        registry=registry,
+        instrument_key=TARGET.instrument_key,
+        evaluation_at=after_us_before_uk_dst,
+    )
+
+    assert ny_before.state is MarketSessionState.PRE_SESSION
+    assert london_before.state is MarketSessionState.OPEN_ACTIVE
+    assert ny_after.state is MarketSessionState.OPEN_ACTIVE
+    assert london_after.state is MarketSessionState.OPEN_ACTIVE
+
+
 def test_unknown_calendar_is_explicit_insufficient_input() -> None:
     session = evaluate_market_session(
         registry=_registry(),
