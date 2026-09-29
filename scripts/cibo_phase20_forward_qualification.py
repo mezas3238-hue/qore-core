@@ -273,6 +273,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--behavior-ledger", type=Path)
     parser.add_argument("--executed-risk-store", type=Path)
+    parser.add_argument("--settlement-store", type=Path)
     parser.add_argument("--t08-oos-shadow-store", type=Path)
     parser.add_argument("--git-sha")
     args = parser.parse_args()
@@ -284,6 +285,11 @@ def main() -> None:
         None
         if args.executed_risk_store is None
         else _sha256_path(args.executed_risk_store)
+    )
+    settlement_store_sha256 = (
+        None
+        if args.settlement_store is None
+        else _sha256_path(args.settlement_store)
     )
     t08_oos_shadow_store_sha256 = (
         None
@@ -309,7 +315,9 @@ def main() -> None:
             ).events(),
         )
     t11_execution_population = None
+    t11_cost_binding = None
     t11_executed_risk_generation = None
+    t11_settlement_generation = None
     if args.executed_risk_store is not None:
         from qore.infrastructure.cibo_ce2i_phase20_execution_risk_store import (
             DurablePhase20ExecutedRiskStore,
@@ -326,6 +334,23 @@ def main() -> None:
             evidence_book=evidence,
             executed_risk_book=executed_risk_book,
         )
+        if args.settlement_store is not None:
+            from qore.infrastructure.cibo_ce2i_phase20_t11_cost_binding import (
+                assess_phase20_t11_cost_binding,
+            )
+            from qore.infrastructure.cibo_cma_settlement_store import (
+                DurableCmaSettlementStore,
+            )
+
+            settlement_book = DurableCmaSettlementStore(
+                args.settlement_store
+            ).load()
+            t11_settlement_generation = settlement_book.generation
+            t11_cost_binding = assess_phase20_t11_cost_binding(
+                evidence_book=evidence,
+                executed_risk_book=executed_risk_book,
+                settlement_book=settlement_book,
+            )
 
     t08_oos_ablation = None
     t08_oos_shadow_generation = None
@@ -568,6 +593,70 @@ def main() -> None:
                 "blockers": list(t11_execution_population.blockers),
             }
         ),
+        "t11_cost_binding": (
+            None
+            if t11_cost_binding is None
+            else {
+                "execution_instances": t11_cost_binding.execution_instances,
+                "provider_spread_bound_instances": (
+                    t11_cost_binding.provider_spread_bound_instances
+                ),
+                "settlement_bound_instances": (
+                    t11_cost_binding.settlement_bound_instances
+                ),
+                "realized_entry_commission_instances": (
+                    t11_cost_binding.realized_entry_commission_instances
+                ),
+                "terminal_settlement_instances": (
+                    t11_cost_binding.terminal_settlement_instances
+                ),
+                "unbound_execution_instances": (
+                    t11_cost_binding.unbound_execution_instances
+                ),
+                "total_predecision_quoted_spread_usd": format(
+                    t11_cost_binding.total_predecision_quoted_spread_usd,
+                    "f",
+                ),
+                "mean_predecision_quoted_spread_usd": (
+                    None
+                    if t11_cost_binding.mean_predecision_quoted_spread_usd
+                    is None
+                    else format(
+                        t11_cost_binding.mean_predecision_quoted_spread_usd,
+                        "f",
+                    )
+                ),
+                "total_realized_entry_commission_usd": format(
+                    t11_cost_binding.total_realized_entry_commission_usd,
+                    "f",
+                ),
+                "mean_realized_entry_commission_usd": (
+                    None
+                    if t11_cost_binding.mean_realized_entry_commission_usd
+                    is None
+                    else format(
+                        t11_cost_binding.mean_realized_entry_commission_usd,
+                        "f",
+                    )
+                ),
+                "quoted_spread_coverage_complete": (
+                    t11_cost_binding.quoted_spread_coverage_complete
+                ),
+                "realized_entry_commission_coverage_complete": (
+                    t11_cost_binding.realized_entry_commission_coverage_complete
+                ),
+                "realized_spread_component_identified": (
+                    t11_cost_binding.realized_spread_component_identified
+                ),
+                "historical_2017_execution_terms_proven": (
+                    t11_cost_binding.historical_2017_execution_terms_proven
+                ),
+                "execution_cost_model_ready": (
+                    t11_cost_binding.execution_cost_model_ready
+                ),
+                "blockers": list(t11_cost_binding.blockers),
+            }
+        ),
         "t13_reserve_population": {
             "usable_decision_epochs": (
                 t13_reserve_population.usable_decision_epochs
@@ -679,7 +768,9 @@ def main() -> None:
         "policy_store_sha256": policy_store_sha256,
         "behavior_ledger_sha256": behavior_ledger_sha256,
         "executed_risk_store_sha256": executed_risk_store_sha256,
+        "settlement_store_sha256": settlement_store_sha256,
         "t11_executed_risk_generation": t11_executed_risk_generation,
+        "t11_settlement_generation": t11_settlement_generation,
         "t08_oos_shadow_store_sha256": t08_oos_shadow_store_sha256,
         "t08_oos_shadow_generation": t08_oos_shadow_generation,
         "t08_oos_complete_epochs": t08_oos_complete_epochs,
