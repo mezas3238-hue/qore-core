@@ -1,0 +1,172 @@
+name: QORE Shared Global Sensor Registry Freeze
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/shared_global_sensor_registry_from_catalog.py
+      - tests/infrastructure/test_shared_global_sensor_registry_from_catalog.py
+      - docs/shared/QORE_SHARED_GLOBAL_SENSOR_REGISTRY_FREEZE_001.md
+      - .github/workflows/qore-shared-global-sensor-registry.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  CATALOG_RUN_ID: "36561967069"
+  CATALOG_ARTIFACT_ID: "11030242325"
+  CATALOG_GIT_SHA: "420e6aca7b450a3e215c28dbab4a3efb13ece04a"
+  CATALOG_SHA256: "4c10aede99704b937caa772e1ae07257c8e12c3d0644c06ca751b6885b9a363f"
+  CATALOG_FROZEN_AT: "2026-09-29T11:29:45+00:00"
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate registry builder
+        run: |
+          set -euo pipefail
+          ruff check \
+            scripts/shared_global_sensor_registry_from_catalog.py \
+            tests/infrastructure/test_shared_global_sensor_registry_from_catalog.py
+          mypy scripts/shared_global_sensor_registry_from_catalog.py
+          pytest -q tests/infrastructure/test_shared_global_sensor_registry_from_catalog.py
+
+  freeze:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e .
+
+      - name: Verify exact upstream provider catalogue lineage
+        run: |
+          set -euo pipefail
+          status="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${CATALOG_RUN_ID}" --jq '.status')"
+          conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${CATALOG_RUN_ID}" --jq '.conclusion')"
+          head_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${CATALOG_RUN_ID}" --jq '.head_sha')"
+          test "$status" = "completed"
+          test "$conclusion" = "success"
+          test "$head_sha" = "$CATALOG_GIT_SHA"
+
+      - name: Recover exact provider catalogue
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${CATALOG_ARTIFACT_ID}/zip" > catalog.zip
+          test -s catalog.zip
+          unzip -q catalog.zip -d input
+          cp input/post-v14-provider-catalog.json result/provider-catalog.json
+          test "$(python -c 'import json; print(json.load(open("result/provider-catalog.json"))["provider_catalog_sha256"])')" = "$CATALOG_SHA256"
+
+      - name: Freeze 177-symbol discovery registry
+        run: |
+          set -euo pipefail
+          python scripts/shared_global_sensor_registry_from_catalog.py \
+            --catalog result/provider-catalog.json \
+            --output result/global-sensor-registry.json \
+            --provider CTRADER_DEMO \
+            --expected-catalog-sha256 "$CATALOG_SHA256" \
+            --catalog-frozen-at "$CATALOG_FROZEN_AT" \
+            --source-run-id "$CATALOG_RUN_ID" \
+            --source-artifact-id "$CATALOG_ARTIFACT_ID" \
+            --source-git-sha "$CATALOG_GIT_SHA" \
+            | tee result/global-sensor-registry-summary.json
+
+      - name: Validate discovery-only governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(Path("result/global-sensor-registry.json").read_text())
+          assert p["identity"] == "QORE_SHARED_GLOBAL_SENSOR_REGISTRY_001"
+          assert p["status"] == "global_provider_discovery_frozen"
+          assert p["sensor_count"] == 177
+          assert len(p["sensors"]) == 177
+          assert p["disposition_counts"] == {
+              "DISCOVERED": 177,
+              "QUALIFYING": 0,
+              "OBSERVE_ONLY": 0,
+              "ADMITTED": 0,
+              "REJECTED": 0,
+          }
+          assert p["all_sensor_families_unclassified"] is True
+          assert p["provider_discovery_is_not_scientific_admission"] is True
+          assert p["current_trader_universe_defines_ceiling"] is False
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["scientific_v15_opened"] is False
+          assert p["execution_authority"] is False
+          assert p["risk_authority"] is False
+          assert p["sizing_authority"] is False
+          assert p["capital_authority"] is False
+          assert p["strategy_mutation_authority"] is False
+          assert all(
+              row["completed_stages"] == ["DISCOVER_PROVIDER_SYMBOL"]
+              for row in p["sensors"]
+          )
+          assert all(row["disposition"] == "DISCOVERED" for row in p["sensors"])
+          assert all(row["uncertainty_bps"] == 10000 for row in p["sensors"])
+          PY
+
+      - name: Seal registry artifact
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > result/registry-code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/registry-run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-global-sensor-registry-${{ github.sha }}
+          path: result
+          retention-days: 90
+
+      - name: Report GEN-1 registry freeze
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(Path("result/global-sensor-registry.json").read_text())
+          body="\n".join([
+              "## Shared GEN-1 — Global Sensor Registry Freeze",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- provider catalogue: **{p['sensor_count']} symbols**",
+              f"- registry fingerprint: `{p['sensor_registry_fingerprint_sha256']}`",
+              "- disposition: **177 DISCOVERED / 0 ADMITTED**",
+              "- current Trader universe defines ceiling: **False**",
+              "- target/outcome read: **False**",
+              "- R6/R5 read: **False**",
+              "- fresh holdout opened: **False**",
+              "- Shared execution/Risk/sizing/capital authority: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
