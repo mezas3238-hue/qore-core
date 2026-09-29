@@ -202,6 +202,7 @@ jobs:
           )
           assert report["identity"] == "QORE_CAPITALIZER_SOURCE_STRATEGY_ISOLATION_V47_S2"
           assert report["predeclaration_comment_id"] == 5900501860
+          assert report["semantic_amendment_a1_comment_id"] == 5900663649
           assert report["market_period_reports"] == 27
           assert report["market_count"] == 9
           assert report["terminal_outcome_read"] is False
