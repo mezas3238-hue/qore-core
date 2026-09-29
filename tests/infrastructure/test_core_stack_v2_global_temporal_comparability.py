@@ -24,6 +24,7 @@ from qore.infrastructure.core_stack_v2.global_temporal_comparability import (
     ProviderObservabilityState,
     ProviderOperationalSignal,
     RelationalComparabilityPolicy,
+    RelationalComparabilityPolicyRegistry,
     RelationalComparabilityState,
     TemporalComparabilityError,
     TemporalMarketObservation,
@@ -139,10 +140,11 @@ def _session(
     state: MarketSessionState = MarketSessionState.OPEN_ACTIVE,
     *,
     active: bool = True,
+    evaluation_at: datetime = NOW,
 ) -> MarketSessionSnapshot:
     return MarketSessionSnapshot(
         instrument_key=identity.instrument_key,
-        evaluation_at=NOW,
+        evaluation_at=evaluation_at,
         state=state,
         is_economically_active=active,
         calendar_id="XNYS-RTH",
@@ -271,6 +273,65 @@ def test_market_calendar_uses_iana_dst_for_summer_and_winter() -> None:
 
     assert summer.state is MarketSessionState.OPEN_ACTIVE
     assert winter.state is MarketSessionState.OPEN_ACTIVE
+
+
+def test_dst_transition_preserves_local_open_across_utc_offset_change() -> None:
+    registry = _registry(calendar=_calendar())
+
+    before_dst = evaluate_market_session(
+        registry=registry,
+        instrument_key=SOURCE.instrument_key,
+        evaluation_at=datetime(2026, 3, 6, 14, 30, tzinfo=UTC),
+    )
+    after_dst = evaluate_market_session(
+        registry=registry,
+        instrument_key=SOURCE.instrument_key,
+        evaluation_at=datetime(2026, 3, 9, 13, 30, tzinfo=UTC),
+    )
+
+    assert before_dst.state is MarketSessionState.OPEN_ACTIVE
+    assert after_dst.state is MarketSessionState.OPEN_ACTIVE
+    assert before_dst.iana_timezone == "America/New_York"
+    assert after_dst.iana_timezone == "America/New_York"
+
+
+def test_comparability_policy_registry_is_deterministic_and_exact_match_only() -> None:
+    first = _policy(
+        relation_scope="correlation:index:index:m1",
+        version="compare-correlation-001",
+        provenance_refs=("policy:correlation",),
+    )
+    second = _policy(
+        relation_scope="lead_lag:index:index:m1",
+        version="compare-lead-lag-001",
+        max_temporal_skew_ms=250,
+        provenance_refs=("policy:lead-lag",),
+    )
+    registry = RelationalComparabilityPolicyRegistry(
+        version="comparability-registry-001",
+        policies=(first, second),
+        provenance_refs=("registry:comparability:test",),
+    )
+    replica = RelationalComparabilityPolicyRegistry(
+        version="comparability-registry-001",
+        policies=(first, second),
+        provenance_refs=("registry:comparability:test",),
+    )
+
+    assert registry.policy_for(first.relation_scope) == first
+    assert registry.policy_for("unknown:index:index:m1") is None
+    assert registry.fingerprint() == replica.fingerprint()
+    assert len(registry.fingerprint()) == 64
+
+    with pytest.raises(
+        TemporalComparabilityError,
+        match="canonical scope order",
+    ):
+        RelationalComparabilityPolicyRegistry(
+            version="comparability-registry-001",
+            policies=(second, first),
+            provenance_refs=("registry:comparability:test",),
+        )
 
 
 def test_unknown_calendar_is_explicit_insufficient_input() -> None:
@@ -508,6 +569,64 @@ def test_future_quote_cannot_be_paired_backwards_or_repair_missing_history() -> 
             (legal, future),
             evaluation_at=NOW,
             expected_identity=SOURCE,
+        )
+
+
+def test_future_session_snapshot_cannot_contaminate_prior_evaluation() -> None:
+    source = _observation(
+        SOURCE,
+        event_at=NOW - timedelta(milliseconds=900),
+    )
+    target = _observation(
+        TARGET,
+        event_at=NOW - timedelta(milliseconds=1000),
+    )
+    pair = GlobalTemporalAlignmentEngine.align_pair(
+        source_observations=(source,),
+        target_observations=(target,),
+        evaluation_at=NOW,
+        source_identity=SOURCE,
+        target_identity=TARGET,
+    )
+
+    with pytest.raises(
+        TemporalComparabilityError,
+        match="session snapshot evaluation time drift",
+    ):
+        assess_relational_comparability(
+            pair=pair,
+            source_session=_session(
+                SOURCE,
+                evaluation_at=NOW + timedelta(seconds=1),
+            ),
+            target_session=_session(TARGET),
+            source_provider=_provider(SOURCE, source),
+            target_provider=_provider(TARGET, target),
+            source_liquidity=_liquidity(SOURCE),
+            target_liquidity=_liquidity(TARGET),
+            policy=_policy(),
+            calendar_registry_fingerprint=CALENDAR_SHA,
+            provenance_refs=("relation:test",),
+        )
+
+
+def test_post_hoc_future_observation_cannot_repair_historical_pair() -> None:
+    source = _observation(
+        SOURCE,
+        event_at=NOW - timedelta(milliseconds=900),
+    )
+    future_target = _observation(
+        TARGET,
+        event_at=NOW + timedelta(milliseconds=1),
+    )
+
+    with pytest.raises(TemporalComparabilityError, match="future observation"):
+        GlobalTemporalAlignmentEngine.align_pair(
+            source_observations=(source,),
+            target_observations=(future_target,),
+            evaluation_at=NOW,
+            source_identity=SOURCE,
+            target_identity=TARGET,
         )
 
 
