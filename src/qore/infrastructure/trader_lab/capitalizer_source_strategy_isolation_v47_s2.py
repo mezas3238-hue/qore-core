@@ -13,7 +13,7 @@ import argparse
 import json
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from qore.infrastructure.ctrader_open_api_client import SpotwareCTraderOpenApiClient
@@ -250,7 +250,7 @@ def build_period_market_population(
     bars = s1._prepared_m1_between(
         prepared,
         start=period_start - s1.LOOKBACK,
-        end=period_end + s1.timedelta(days=2),
+        end=period_end + timedelta(days=2),
     )
     opened = tuple(row.opened_at for row in bars)
     operating_days = s1._operating_days(
