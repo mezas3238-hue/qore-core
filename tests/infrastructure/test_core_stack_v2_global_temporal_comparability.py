@@ -677,6 +677,31 @@ def test_temporal_skew_registry_has_no_cross_scope_fallback() -> None:
     assert len(registry.fingerprint()) == 64
 
 
+def test_partial_market_structure_evidence_does_not_promote_mapping() -> None:
+    unresolved = _canonical_mapping(
+        market_structure=CanonicalMarketStructure.DISTRIBUTED_OTC,
+        market_structure_evidence_refs=(
+            "canonical-market-structure-evidence:BIS_FX_OTC_STRUCTURE_2025",
+        ),
+        reason_codes=(
+            "CANONICAL_CALENDAR_EVIDENCE_REQUIRED",
+            "CANONICAL_IDENTITY_EVIDENCE_REQUIRED",
+            "CANONICAL_MARKET_STRUCTURE_EVIDENCE_OBSERVED",
+        ),
+    )
+
+    assert unresolved.status is CanonicalCalendarMappingStatus.UNRESOLVED
+    assert (
+        unresolved.market_structure
+        is CanonicalMarketStructure.DISTRIBUTED_OTC
+    )
+    with pytest.raises(
+        TemporalComparabilityError,
+        match="only VERIFIED canonical mapping",
+    ):
+        unresolved.to_binding()
+
+
 def test_provider_schedule_alone_cannot_create_canonical_binding() -> None:
     unresolved = _canonical_mapping()
 
