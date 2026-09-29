@@ -11,16 +11,17 @@ Frozen by PR #623 comments 5889541472 and 5889764029.
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
-from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
-    CapitalizerM1Bar,
-)
 from qore.infrastructure.trader_lab import (
     capitalizer_native_source_fact_remediation_v46 as remediation,
+)
+from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
+    CapitalizerM1Bar,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
     CapitalizerSourceBar,
@@ -172,7 +173,7 @@ def _aggregate_exact(
     frames: tuple[S0SourceFrame, ...],
     *,
     timeframe: str,
-    key_fn,
+    key_fn: Callable[[datetime], datetime],
     expected_count: int,
     duration: timedelta,
 ) -> tuple[S0SourceFrame, ...]:
