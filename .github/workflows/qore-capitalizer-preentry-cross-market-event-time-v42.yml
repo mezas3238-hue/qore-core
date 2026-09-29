@@ -63,29 +63,63 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install -e .
-      - name: Download all immutable provider-native M1 artifacts once
-        uses: actions/download-artifact@v4
-        with:
-          pattern: qore-capitalizer-cibo-10y-native-m1-*-${{ env.SOURCE_M1_SHA }}
-          path: m1-all
-          merge-multiple: false
-          github-token: ${{ github.token }}
-          run-id: ${{ env.SOURCE_M1_RUN_ID }}
-      - name: Download reconciled V38 entrant identities once
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ env.SOURCE_V38_SELECTED_ARTIFACT }}
-          path: selected-geometry
-          github-token: ${{ github.token }}
-          run-id: ${{ env.SOURCE_V38_RUN_ID }}
-      - name: Download authoritative reconstructed selected populations once
-        uses: actions/download-artifact@v4
-        with:
-          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
-          path: reconstructed
-          merge-multiple: true
-          github-token: ${{ github.token }}
-          run-id: ${{ env.V21_RUN_ID }}
+      - name: Download immutable source artifacts by public ID with SHA-256 verification
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          download_artifact() {
+            local id="$1"
+            local digest="$2"
+            local destination="$3"
+            local zip="artifact-${id}.zip"
+            mkdir -p "${destination}"
+            curl --fail --location --silent --show-error \
+              --retry 4 --retry-delay 2 --retry-all-errors \
+              -H "Accept: application/vnd.github+json" \
+              -H "User-Agent: qore-core-v42-research" \
+              "https://api.github.com/repos/mezas3238-hue/qore-core/actions/artifacts/${id}/zip" \
+              -o "${zip}"
+            echo "${digest}  ${zip}" | sha256sum -c -
+            unzip -q -o "${zip}" -d "${destination}"
+            rm -f "${zip}"
+          }
+
+          # Immutable provider-native M1 clone, source run 35548099334.
+          download_artifact 10617557766 0474dc66e7e9ff9f24a96827a85ffaaed3dc7ace201e422b73340f68ca073686 \
+            "m1-all/qore-capitalizer-cibo-10y-native-m1-USDJPY-${SOURCE_M1_SHA}"
+          download_artifact 10618120956 2fa9bce24faaa72716bd4efe7b213806147c96a79729c2b3613dd3ed8e7d0aa7 \
+            "m1-all/qore-capitalizer-cibo-10y-native-m1-AUDJPY-${SOURCE_M1_SHA}"
+          download_artifact 10618116387 858ad966c04dfe24ead37e1a4c3f5d698609d3762dff0307199e62ccbf98123e \
+            "m1-all/qore-capitalizer-cibo-10y-native-m1-AUDUSD-${SOURCE_M1_SHA}"
+          download_artifact 10618826746 2723cd6e4a2aebddf236c13e6398558f31011ba3c40e5759043964b0dde57c25 \
+            "m1-all/qore-capitalizer-cibo-10y-native-m1-GBPJPY-${SOURCE_M1_SHA}"
+          download_artifact 10618547852 891caa0aae3b665bc09d1cc3f16c00bcb7baef61bce18bbe69db97100516f353 \
+            "m1-all/qore-capitalizer-cibo-10y-native-m1-EURUSD-${SOURCE_M1_SHA}"
+          download_artifact 10618811910 c9840b4ad46871fd578c92c99a10fbd663e06bf99b708186bed4e5b85466040d \
+            "m1-all/qore-capitalizer-cibo-10y-native-m1-GBPUSD-${SOURCE_M1_SHA}"
+          download_artifact 10619681073 1dad5a1b57e8a606fa33616d97faf75bf1ab2431b4603e0036bfb9f832fa1fde \
+            "m1-all/qore-capitalizer-cibo-10y-native-m1-XAUUSD-${SOURCE_M1_SHA}"
+          download_artifact 10619306654 0a577295d6a3d9e889f805325e40facdff44a3c23fefe23cf1c2ac1c6faa173a \
+            "m1-all/qore-capitalizer-cibo-10y-native-m1-USDCAD-${SOURCE_M1_SHA}"
+          download_artifact 10618862813 d5f45e6594dfb8c5c5931c10ad4e3459f8a159fef8bfbe8d73dc11015996498c \
+            "m1-all/qore-capitalizer-cibo-10y-native-m1-NAS100-${SOURCE_M1_SHA}"
+
+          # Reconciled V38 entrant identities, authoritative resume run 36495104604.
+          download_artifact 11003255761 f95edee75d5ec88a1aadaedbd80f55837c28e7066d9c5381c4a70dc4f8eb12ef \
+            selected-geometry
+
+          # Authoritative V21 reconstructed selected populations, run 36264229554.
+          download_artifact 10914715285 caa40bca2c87262f2ec60772cbab0fd30cd0dc6160cad86bcb9e93049a196f6c reconstructed
+          download_artifact 10914665868 78c18ccf31479b3a6849d3263440bee495e77c4a0c7e420621d20a93107837cb reconstructed
+          download_artifact 10914561456 e5f5077b4eeaf05cb9249a17e12279e15e204b5fe667c4f8af08fae38d8f57c1 reconstructed
+          download_artifact 10914199618 f07753707946f5d08ddf3c7533cf905f653a52b4afc67e821ba06ae05b1254ea reconstructed
+          download_artifact 10914138724 ad5cda2f9e97ce4389f5c7b50f549e9cbd7ab0558b5db772331d8b9540ea2b93 reconstructed
+          download_artifact 10913983773 c0efa0f205c307f91b2c6316d2d020b06eec4added46c143ecafd3d81e0a0fe9 reconstructed
+          download_artifact 10913923737 82be4815fdaba543a8db6c1318df875edadbc54a9ea0d368060fd2364ec0014d reconstructed
+          download_artifact 10913787623 ec05d94d203e4b17b5554bb38545589f8e2a8d058bf86794ef886e4f4e8b8088 reconstructed
+          download_artifact 10913527657 0b02e0ae6ea65315fa7b16442e7b6849bcb2af20b4c0cc932ead882a300ec3ce reconstructed
+
       - name: Build all nine frozen V42 peer snapshot ledgers
         run: |
           set -euo pipefail
