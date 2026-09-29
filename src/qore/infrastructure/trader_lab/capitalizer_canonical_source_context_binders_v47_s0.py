@@ -376,6 +376,7 @@ def bind_first_m15_cisd(
     *,
     direction: CapitalizerSourceDirection,
     higher_timeframe_closure: CapitalizerSourceClosureObservation,
+    important_pois: tuple[CapitalizerSourcePOI, ...],
     after: datetime,
     before: datetime,
 ) -> S0CISDBinding | None:
@@ -413,11 +414,16 @@ def bind_first_m15_cisd(
         if not series_frames:
             continue
         series = tuple(frame.source for frame in series_frames)
+        important_level_reached = any(
+            bar_interacts_with_poi(bar=bar, poi=poi)
+            for bar in (*series, confirmation.source)
+            for poi in important_pois
+        )
         observed = detect_cisd(
             causal_series=series,
             confirmation_bar=confirmation.source,
             direction=direction,
-            important_level_reached=True,
+            important_level_reached=important_level_reached,
             higher_timeframe_closure=higher_timeframe_closure,
         )
         if not observed.setup_confirmed:
@@ -506,11 +512,12 @@ def bind_m1_source_structure(
         return None
 
     series = tuple(_m1_source(row) for row in series_rows)
+    source_zone_bound = series_rows[0].opened_at == zone.ob_opened_at
     cisd = detect_cisd(
         causal_series=series,
         confirmation_bar=_m1_source(confirmation),
         direction=direction,
-        important_level_reached=True,
+        important_level_reached=source_zone_bound,
         higher_timeframe_closure=higher_timeframe_closure,
     )
     if not cisd.setup_confirmed:
@@ -538,7 +545,7 @@ def bind_m1_source_structure(
     order_block = remediation.assess_m1_order_block(
         direction=direction,
         causal_series=series,
-        poi_reached=True,
+        poi_reached=source_zone_bound,
         cisd=cisd,
     )
     if not order_block.confirmed:
@@ -553,7 +560,7 @@ def bind_m1_source_structure(
         causal_series=series,
         confirmation_bar=_m1_source(confirmation),
         fvg_confirmed=True,
-        source_zone_bound=True,
+        source_zone_bound=source_zone_bound,
     )
 
 
@@ -588,6 +595,7 @@ def bind_canonical_source_context(
         bars,
         direction=direction,
         higher_timeframe_closure=htf.closure,
+        important_pois=htf.poi_context.interacting_pois,
         after=htf.confirmed_at,
         before=decision,
     )
