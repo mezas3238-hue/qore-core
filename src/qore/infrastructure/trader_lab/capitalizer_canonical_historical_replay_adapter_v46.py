@@ -111,6 +111,23 @@ class CapitalizerHistoricalEvidenceStamp:
 
 
 @dataclass(frozen=True, slots=True)
+class CapitalizerHistoricalAsianOpenReferenceEvidence:
+    reference_at: datetime
+    source_reference: str
+    dst_resolved: bool
+    synthetic: bool = False
+
+    def __post_init__(self) -> None:
+        _aware(self.reference_at)
+        if not self.source_reference.strip():
+            raise ValueError("Asian Open evidence requires source provenance")
+        if not self.dst_resolved:
+            raise ValueError("Asian Open evidence must resolve historical DST alignment")
+        if self.synthetic:
+            raise ValueError("synthetic Asian Open reference is prohibited")
+
+
+@dataclass(frozen=True, slots=True)
 class CapitalizerCanonicalICTFacts:
     liquidity_reference_defined: bool
     liquidity_raid_observed: bool
@@ -147,7 +164,7 @@ class CapitalizerCanonicalHistoricalBundle:
     m1_order_block: remediation.CapitalizerM1OrderBlockObservation
 
     evidence_timestamps: tuple[CapitalizerHistoricalEvidenceStamp, ...]
-    asian_open_reference_at: datetime | None = None
+    asian_open_reference: CapitalizerHistoricalAsianOpenReferenceEvidence | None = None
     contradictions: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
@@ -158,8 +175,8 @@ class CapitalizerCanonicalHistoricalBundle:
         if not self.entry_price.is_finite():
             raise ValueError("canonical adapter entry price must be finite")
         decision = _aware(self.decision_at)
-        if self.asian_open_reference_at is not None:
-            _aware(self.asian_open_reference_at)
+        if self.asian_open_reference is not None:
+            _aware(self.asian_open_reference.reference_at)
 
         keys = [stamp.key for stamp in self.evidence_timestamps]
         if len(keys) != len(set(keys)):
@@ -265,7 +282,11 @@ def assess_canonical_historical_bundle(
     source_session = assess_source_session_context(
         session=bundle.session,
         observed_at=bundle.decision_at,
-        asian_open_reference_at=bundle.asian_open_reference_at,
+        asian_open_reference_at=(
+            None
+            if bundle.asian_open_reference is None
+            else bundle.asian_open_reference.reference_at
+        ),
     )
 
     fractal = _directional_fractal(bundle)
