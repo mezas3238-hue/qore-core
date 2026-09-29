@@ -1,0 +1,121 @@
+{
+  "identity": "QORE_SHARED_AGRICULTURAL_CONCEPTUAL_UNIVERSE_001",
+  "version": "001",
+  "scope": "DISCOVERY_TARGETS_ONLY_NOT_ECONOMIC_IDENTITY",
+  "provider_symbols_authorized": false,
+  "automatic_canonical_identity_authorized": false,
+  "targets": [
+    {
+      "conceptual_market_key": "CORN",
+      "display_name": "Corn",
+      "world_family": "AGRICULTURE",
+      "complex_memberships": ["GRAINS"],
+      "discovery_terms": ["corn"]
+    },
+    {
+      "conceptual_market_key": "WHEAT",
+      "display_name": "Wheat",
+      "world_family": "AGRICULTURE",
+      "complex_memberships": ["GRAINS"],
+      "discovery_terms": ["wheat"]
+    },
+    {
+      "conceptual_market_key": "KC_WHEAT",
+      "display_name": "KC Wheat",
+      "world_family": "AGRICULTURE",
+      "complex_memberships": ["GRAINS"],
+      "discovery_terms": ["kc wheat", "kansas city wheat"]
+    },
+    {
+      "conceptual_market_key": "SOYBEANS",
+      "display_name": "Soybeans",
+      "world_family": "AGRICULTURE",
+      "complex_memberships": ["GRAINS", "SOY_COMPLEX", "OILSEEDS"],
+      "discovery_terms": ["soybean", "soybeans"]
+    },
+    {
+      "conceptual_market_key": "OATS",
+      "display_name": "Oats",
+      "world_family": "AGRICULTURE",
+      "complex_memberships": ["GRAINS"],
+      "discovery_terms": ["oat", "oats"]
+    },
+    {
+      "conceptual_market_key": "ROUGH_RICE",
+      "display_name": "Rough Rice",
+      "world_family": "AGRICULTURE",
+      "complex_memberships": ["GRAINS"],
+      "discovery_terms": ["rough rice"]
+    },
+    {
+      "conceptual_market_key": "SOYBEAN_MEAL",
+      "display_name": "Soybean Meal",
+      "world_family": "AGRICULTURE",
+      "complex_memberships": ["SOY_COMPLEX", "OILSEEDS"],
+      "discovery_terms": ["soybean meal", "soy meal"]
+    },
+    {
+      "conceptual_market_key": "SOYBEAN_OIL",
+      "display_name": "Soybean Oil",
+      "world_family": "AGRICULTURE",
+      "complex_memberships": ["SOY_COMPLEX", "OILSEEDS"],
+      "discovery_terms": ["soybean oil", "soy oil"]
+    },
+    {
+      "conceptual_market_key": "COFFEE",
+      "display_name": "Coffee",
+      "world_family": "SOFTS",
+      "complex_memberships": ["SOFTS"],
+      "discovery_terms": ["coffee"]
+    },
+    {
+      "conceptual_market_key": "COCOA",
+      "display_name": "Cocoa",
+      "world_family": "SOFTS",
+      "complex_memberships": ["SOFTS"],
+      "discovery_terms": ["cocoa"]
+    },
+    {
+      "conceptual_market_key": "SUGAR",
+      "display_name": "Sugar",
+      "world_family": "SOFTS",
+      "complex_memberships": ["SOFTS"],
+      "discovery_terms": ["sugar"]
+    },
+    {
+      "conceptual_market_key": "COTTON",
+      "display_name": "Cotton",
+      "world_family": "SOFTS",
+      "complex_memberships": ["SOFTS"],
+      "discovery_terms": ["cotton"]
+    },
+    {
+      "conceptual_market_key": "ORANGE_JUICE",
+      "display_name": "Orange Juice",
+      "world_family": "SOFTS",
+      "complex_memberships": ["SOFTS"],
+      "discovery_terms": ["orange juice"]
+    },
+    {
+      "conceptual_market_key": "LIVE_CATTLE",
+      "display_name": "Live Cattle",
+      "world_family": "LIVESTOCK",
+      "complex_memberships": ["LIVESTOCK"],
+      "discovery_terms": ["live cattle"]
+    },
+    {
+      "conceptual_market_key": "FEEDER_CATTLE",
+      "display_name": "Feeder Cattle",
+      "world_family": "LIVESTOCK",
+      "complex_memberships": ["LIVESTOCK"],
+      "discovery_terms": ["feeder cattle"]
+    },
+    {
+      "conceptual_market_key": "LEAN_HOGS",
+      "display_name": "Lean Hogs",
+      "world_family": "LIVESTOCK",
+      "complex_memberships": ["LIVESTOCK"],
+      "discovery_terms": ["lean hog", "lean hogs"]
+    }
+  ]
+}
