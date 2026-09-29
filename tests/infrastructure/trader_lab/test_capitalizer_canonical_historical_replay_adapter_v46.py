@@ -352,3 +352,69 @@ def test_evidence_timestamp_keys_are_exact_and_unique() -> None:
     duplicate = (*bundle.evidence_timestamps[:-1], bundle.evidence_timestamps[0])
     with pytest.raises(ValueError, match="duplicate keys"):
         replace(bundle, evidence_timestamps=duplicate)
+
+
+def test_r3_asian_open_source_resolution_is_dst_invariant() -> None:
+    winter = adapter.resolve_historical_asian_open_reference(
+        datetime(2024, 1, 15, 1, 0, tzinfo=UTC)
+    )
+    summer = adapter.resolve_historical_asian_open_reference(
+        datetime(2024, 7, 15, 1, 0, tzinfo=UTC)
+    )
+
+    assert winter.reference_at == datetime(2024, 1, 15, 0, 0, tzinfo=UTC)
+    assert summer.reference_at == datetime(2024, 7, 15, 0, 0, tzinfo=UTC)
+    assert winter.reference_at.astimezone(adapter.NEW_YORK).hour == 19
+    assert summer.reference_at.astimezone(adapter.NEW_YORK).hour == 20
+    assert winter.source_reference == adapter.ASIAN_OPEN_PRIMARY_SOURCE
+    assert summer.source_reference == adapter.ASIAN_OPEN_PRIMARY_SOURCE
+    assert winter.dst_resolved is True
+    assert summer.dst_resolved is True
+    assert winter.synthetic is False
+    assert summer.synthetic is False
+
+
+def test_r3_resolved_asian_open_binds_two_hour_source_window() -> None:
+    decision = datetime(2024, 7, 15, 1, 30, tzinfo=UTC)
+    evidence = adapter.resolve_historical_asian_open_reference(decision)
+    bundle = replace(
+        _bundle(
+            session=CapitalizerSession.ASIA,
+            symbol="AUDUSD",
+        ),
+        decision_at=decision,
+        asian_open_reference=evidence,
+        evidence_timestamps=tuple(
+            adapter.CapitalizerHistoricalEvidenceStamp(
+                key=key,
+                observed_at=decision - timedelta(minutes=1),
+            )
+            for key in sorted(adapter.REQUIRED_EVIDENCE_KEYS)
+        ),
+    )
+
+    result = adapter.assess_canonical_historical_bundle(bundle)
+
+    assert result.source_session.resolved is True
+    assert result.source_session.eligible is True
+    assert result.passes_to_qore_risk is True
+
+    outside_decision = datetime(2024, 7, 15, 2, 0, tzinfo=UTC)
+    outside_evidence = adapter.resolve_historical_asian_open_reference(
+        outside_decision
+    )
+    outside_bundle = replace(
+        bundle,
+        decision_at=outside_decision,
+        asian_open_reference=outside_evidence,
+        evidence_timestamps=tuple(
+            adapter.CapitalizerHistoricalEvidenceStamp(
+                key=key,
+                observed_at=outside_decision - timedelta(minutes=1),
+            )
+            for key in sorted(adapter.REQUIRED_EVIDENCE_KEYS)
+        ),
+    )
+    outside = adapter.assess_canonical_historical_bundle(outside_bundle)
+    assert outside.source_session.eligible is False
+    assert outside.passes_to_qore_risk is False
