@@ -11,6 +11,7 @@ from qore.infrastructure.core_stack_v2.global_temporal_comparability import (
     CanonicalCalendarMappingRecord,
     CanonicalCalendarMappingRegistry,
     CanonicalCalendarMappingStatus,
+    CanonicalMarketStructure,
     ComparabilityConfidence,
     ComparabilityUncertainty,
     DateSessionInterval,
@@ -64,11 +65,15 @@ TARGET = ProviderInstrumentIdentity(
 def _calendar(
     *,
     overrides: tuple[CalendarDateOverride, ...] = (),
+    venue: str | None = "XNYS",
+    market_structure: CanonicalMarketStructure = (
+        CanonicalMarketStructure.CENTRALIZED_VENUE
+    ),
 ) -> GlobalMarketCalendar:
     return GlobalMarketCalendar(
         calendar_id="XNYS-RTH",
         version="calendar-test-001",
-        venue="XNYS",
+        venue=venue,
         iana_timezone="America/New_York",
         weekly_sessions=tuple(
             WeeklySessionRule(
@@ -80,6 +85,7 @@ def _calendar(
         ),
         date_overrides=overrides,
         provenance_refs=("calendar:test",),
+        market_structure=market_structure,
     )
 
 
@@ -272,6 +278,16 @@ def _canonical_mapping(
         "calendar_evidence_refs": (),
         "provider_schedule_evidence_refs": ("provider:schedule:test",),
         "reason_codes": ("UNRESOLVED_CANONICAL_MAPPING",),
+        "market_structure": (
+            CanonicalMarketStructure.CENTRALIZED_VENUE
+            if status is CanonicalCalendarMappingStatus.VERIFIED
+            else None
+        ),
+        "market_structure_evidence_refs": (
+            ("structure:centralized:test",)
+            if status is CanonicalCalendarMappingStatus.VERIFIED
+            else ()
+        ),
     }
     values.update(overrides)
     return CanonicalCalendarMappingRecord(**values)  # type: ignore[arg-type]
@@ -754,8 +770,106 @@ def test_verified_canonical_mapping_emits_provenance_bound_binding() -> None:
         "calendar:official-version",
         "identity:instrument-master",
         "provider:schedule:test",
+        "structure:centralized:test",
         "venue:exchange-master",
     )
+    assert (
+        binding.market_structure
+        is CanonicalMarketStructure.CENTRALIZED_VENUE
+    )
+
+
+def test_distributed_otc_mapping_never_requires_fake_venue() -> None:
+    calendar = _calendar(
+        venue=None,
+        market_structure=CanonicalMarketStructure.DISTRIBUTED_OTC,
+    )
+    verified = _canonical_mapping(
+        status=CanonicalCalendarMappingStatus.VERIFIED,
+        canonical_instrument_id="canonical:EURUSD",
+        venue=None,
+        calendar_id=calendar.calendar_id,
+        calendar_version=calendar.version,
+        iana_timezone=calendar.iana_timezone,
+        timezone_mapping_version="tz-map-001",
+        identity_evidence_refs=("identity:fx-pair-master",),
+        venue_evidence_refs=(),
+        calendar_evidence_refs=("calendar:fx-global-24x5",),
+        market_structure=CanonicalMarketStructure.DISTRIBUTED_OTC,
+        market_structure_evidence_refs=("structure:fx-otc-market",),
+        reason_codes=("INDEPENDENT_EVIDENCE_VERIFIED",),
+    )
+    mapping_registry = CanonicalCalendarMappingRegistry(
+        version="canonical-map-registry-otc-001",
+        records=(verified,),
+        provenance_refs=("registry:canonical-map:otc:test",),
+    )
+
+    registry = build_governed_global_market_calendar_registry(
+        version="calendar-registry-otc-001",
+        mapping_registry=mapping_registry,
+        calendars=(calendar,),
+        provenance_refs=("registry:calendar:otc:test",),
+    )
+
+    binding = registry.binding_for(SOURCE.instrument_key)
+    assert binding is not None
+    assert binding.market_structure is CanonicalMarketStructure.DISTRIBUTED_OTC
+    assert calendar.venue is None
+
+
+@pytest.mark.parametrize(
+    "market_structure",
+    (
+        CanonicalMarketStructure.DISTRIBUTED_OTC,
+        CanonicalMarketStructure.MULTI_VENUE_COMPOSITE,
+        CanonicalMarketStructure.CONTINUOUS_NETWORK,
+    ),
+)
+def test_noncentralized_calendar_rejects_fabricated_single_venue(
+    market_structure: CanonicalMarketStructure,
+) -> None:
+    with pytest.raises(
+        TemporalComparabilityError,
+        match="cannot claim single venue",
+    ):
+        _calendar(
+            venue="FAKE_SINGLE_VENUE",
+            market_structure=market_structure,
+        )
+
+
+def test_centralized_calendar_requires_real_venue_identity() -> None:
+    with pytest.raises(
+        TemporalComparabilityError,
+        match="requires venue",
+    ):
+        _calendar(
+            venue=None,
+            market_structure=CanonicalMarketStructure.CENTRALIZED_VENUE,
+        )
+
+
+def test_noncentralized_mapping_rejects_venue_evidence() -> None:
+    with pytest.raises(
+        TemporalComparabilityError,
+        match="cannot carry venue evidence",
+    ):
+        _canonical_mapping(
+            status=CanonicalCalendarMappingStatus.VERIFIED,
+            canonical_instrument_id="canonical:EURUSD",
+            venue=None,
+            calendar_id="FX-GLOBAL-24X5",
+            calendar_version="calendar-fx-001",
+            iana_timezone="UTC",
+            timezone_mapping_version="tz-map-001",
+            identity_evidence_refs=("identity:fx-pair-master",),
+            venue_evidence_refs=("venue:fake",),
+            calendar_evidence_refs=("calendar:fx-global-24x5",),
+            market_structure=CanonicalMarketStructure.DISTRIBUTED_OTC,
+            market_structure_evidence_refs=("structure:fx-otc-market",),
+            reason_codes=("INDEPENDENT_EVIDENCE_VERIFIED",),
+        )
 
 
 def test_verified_mapping_rejects_invalid_iana_timezone() -> None:
@@ -870,6 +984,14 @@ def test_verified_mapping_promotes_only_against_exact_canonical_calendar() -> No
         (
             {"venue": "WRONG"},
             "calendar venue drift",
+        ),
+        (
+            {
+                "market_structure": (
+                    CanonicalMarketStructure.MULTI_VENUE_COMPOSITE
+                )
+            },
+            "market structure drift",
         ),
         (
             {"iana_timezone": "UTC"},
