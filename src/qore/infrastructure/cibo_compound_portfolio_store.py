@@ -604,9 +604,7 @@ def _chain_sha(
     sequence: int,
     payload_sha256: str,
 ) -> str:
-    raw = f"{previous}|{sequence}|{payload_sha256}".encode(
-        "utf-8"
-    )
+    raw = f"{previous}|{sequence}|{payload_sha256}".encode()
     return "sha256:" + hashlib.sha256(raw).hexdigest()
 
 
