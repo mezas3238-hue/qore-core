@@ -13,12 +13,10 @@ import argparse
 import bisect
 import json
 from collections import defaultdict
-from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import cast
 from zoneinfo import ZoneInfo
 
 from qore.infrastructure.ctrader_open_api_client import SpotwareCTraderOpenApiClient
