@@ -163,6 +163,26 @@ fingerprinted and explicitly cannot promote any mapping by itself. Its purpose
 is to make canonical-evidence acquisition finite, auditable and partitionable
 without turning broker taxonomy into canonical truth.
 
+A separate versioned market-structure evidence manifest may enrich an
+`UNRESOLVED` record with one independently supported market-structure fact
+without promoting the record. The first frozen entry uses Bank for
+International Settlements evidence about the global FX market to classify the
+60 provider records in the exact `Forex` asset-class scope as
+`DISTRIBUTED_OTC`.
+
+This enrichment is deliberately partial:
+
+- mapping status remains `UNRESOLVED`;
+- canonical instrument identity remains unresolved;
+- provider execution venue remains unresolved and is not required for OTC;
+- canonical calendar remains unresolved;
+- relational comparability remains unauthorized;
+- all non-FX market structures remain unresolved until independent evidence is
+  frozen for their exact scope.
+
+Provider asset class is used only as the exact scope selector for the
+independent evidence entry; it is not itself treated as canonical proof.
+
 This is deliberate. GEN-2 must not manufacture canonical truth from provider
 symbol names or provider schedules, and future verification must update an
 auditable record rather than create an implicit allowlist.
