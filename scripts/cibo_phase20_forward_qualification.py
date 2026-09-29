@@ -414,6 +414,17 @@ def main() -> None:
         t13_treatment_book = DurableT13ShadowTreatmentStore(
             args.t13_treatment_store
         ).load()
+    t13_oos_readiness = None
+    if t13_treatment_book is not None:
+        from qore.infrastructure.cibo_ce2i_phase20_t13_oos_readiness import (
+            assess_phase20_t13_oos_readiness,
+        )
+
+        t13_oos_readiness = assess_phase20_t13_oos_readiness(
+            evidence_book=evidence,
+            baseline_policy_book=policy,
+            treatment_decisions=t13_treatment_book.decisions,
+        )
     t15_option_realization = assess_phase20_t15_option_realization(
         evidence
     )
@@ -745,6 +756,81 @@ def main() -> None:
                 "generation": t13_shadow_book.generation,
                 "decision_count": len(t13_shadow_book.decisions),
                 "chain_sha256": t13_shadow_book.chain_sha256,
+            }
+        ),
+        "t13_oos_readiness": (
+            None
+            if t13_oos_readiness is None
+            else {
+                "ready_for_utility_analysis": (
+                    t13_oos_readiness.ready_for_utility_analysis
+                ),
+                "blockers": list(t13_oos_readiness.blockers),
+                "post_freeze_decision_epochs": (
+                    t13_oos_readiness.post_freeze_decision_epochs
+                ),
+                "pre_t13_freeze_decisions_excluded": (
+                    t13_oos_readiness.pre_t13_freeze_decisions_excluded
+                ),
+                "treatment_sealed_epochs": (
+                    t13_oos_readiness.treatment_sealed_epochs
+                ),
+                "missing_treatment_decisions": (
+                    t13_oos_readiness.missing_treatment_decisions
+                ),
+                "missing_baseline_policy_decisions": (
+                    t13_oos_readiness.missing_baseline_policy_decisions
+                ),
+                "selection_changed_epochs": (
+                    t13_oos_readiness.selection_changed_epochs
+                ),
+                "candidate_instances": t13_oos_readiness.candidate_instances,
+                "candidate_outcomes": t13_oos_readiness.candidate_outcomes,
+                "candidate_outcome_coverage": format(
+                    t13_oos_readiness.candidate_outcome_coverage,
+                    "f",
+                ),
+                "baseline_selected_instances": (
+                    t13_oos_readiness.baseline_selected_instances
+                ),
+                "baseline_selected_outcomes": (
+                    t13_oos_readiness.baseline_selected_outcomes
+                ),
+                "baseline_selected_outcome_coverage": format(
+                    t13_oos_readiness.baseline_selected_outcome_coverage,
+                    "f",
+                ),
+                "treatment_selected_instances": (
+                    t13_oos_readiness.treatment_selected_instances
+                ),
+                "treatment_selected_outcomes": (
+                    t13_oos_readiness.treatment_selected_outcomes
+                ),
+                "treatment_selected_outcome_coverage": format(
+                    t13_oos_readiness.treatment_selected_outcome_coverage,
+                    "f",
+                ),
+                "calendar_span_days": (
+                    t13_oos_readiness.calendar_span_days
+                ),
+                "distinct_trading_days": (
+                    t13_oos_readiness.distinct_trading_days
+                ),
+                "represented_lineages": (
+                    t13_oos_readiness.represented_lineages
+                ),
+                "minimum_outcomes_any_lineage": (
+                    t13_oos_readiness.minimum_outcomes_any_lineage
+                ),
+                "minimum_fold_candidate_outcomes": (
+                    t13_oos_readiness.minimum_fold_candidate_outcomes
+                ),
+                "minimum_fold_lineages": (
+                    t13_oos_readiness.minimum_fold_lineages
+                ),
+                "fresh_oos_utility_demonstrated": (
+                    t13_oos_readiness.fresh_oos_utility_demonstrated
+                ),
             }
         ),
         "t13_shadow_treatment_ledger": (
