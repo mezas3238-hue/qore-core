@@ -17,6 +17,10 @@ from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 
     CapitalizerSourceDirection,
     detect_candle2_reversal_closure,
 )
+from qore.infrastructure.trader_lab.capitalizer_source_poi_v2 import (
+    CapitalizerSourcePOI,
+    CapitalizerSourcePOIKind,
+)
 
 
 def _source(open_: str, high: str, low: str, close: str) -> CapitalizerSourceBar:
@@ -145,6 +149,14 @@ def test_m15_cisd_binder_uses_opposing_series_then_first_confirming_close() -> N
         tuple(bars),
         direction=CapitalizerSourceDirection.BULLISH,
         higher_timeframe_closure=htf,
+        important_pois=(
+            CapitalizerSourcePOI(
+                kind=CapitalizerSourcePOIKind.SWING_LOW,
+                lower_price=Decimal("99"),
+                upper_price=Decimal("99"),
+                source_bar_count=3,
+            ),
+        ),
         after=start - timedelta(minutes=1),
         before=start + timedelta(minutes=45),
     )
@@ -188,6 +200,14 @@ def test_m15_cisd_binder_never_uses_confirmation_after_before() -> None:
         tuple(bars),
         direction=CapitalizerSourceDirection.BULLISH,
         higher_timeframe_closure=htf,
+        important_pois=(
+            CapitalizerSourcePOI(
+                kind=CapitalizerSourcePOIKind.SWING_LOW,
+                lower_price=Decimal("99"),
+                upper_price=Decimal("99"),
+                source_bar_count=3,
+            ),
+        ),
         after=start - timedelta(minutes=1),
         before=start + timedelta(minutes=44),
     )
