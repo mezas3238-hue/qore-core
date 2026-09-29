@@ -86,6 +86,13 @@ from qore.infrastructure.cibo_sequential_compounding_shadow_policy import (
 from qore.infrastructure.cibo_sequential_compounding_shadow_store import (
     DurableGenc5SequentialCompoundingShadowStore,
 )
+from qore.infrastructure.cibo_t20_capital_release_evidence import (
+    DurableT20CapitalReleaseStore,
+    T20CapitalAuthorizationEvidence,
+    T20CapitalReleaseSlice,
+    VersionedT20CapitalReleaseBook,
+    build_t20_capital_release_evidence,
+)
 from qore.infrastructure.market_test_environment import (
     MarketRuntimeEnvironment,
 )
@@ -1014,6 +1021,98 @@ def _oos_books(
         generation=len(settlement_states),
         states=tuple(settlement_states),
     )
+    t20_book = VersionedT20CapitalReleaseBook(generation=0)
+    if include_release_timing:
+        t20_store = DurableT20CapitalReleaseStore(
+            tmp_path / "genc6-oos-t20-release.json"
+        )
+        t20_generation = 0
+        candidate_by_signal = {
+            item.signal_fingerprint: item
+            for item in event.candidates
+        }
+        state_by_position = {
+            item.position_id: item
+            for item in settlement_states
+        }
+        for outcome in phase20_outcomes:
+            candidate = candidate_by_signal[outcome.signal_fingerprint]
+            deployed_at = outcome.capital_deployed_at
+            released_at = outcome.capital_released_at
+            assert deployed_at is not None
+            assert released_at is not None
+            authorization = T20CapitalAuthorizationEvidence(
+                evidence_id=f"t20-auth-{outcome.position_id}",
+                decision_evidence_sha256=(
+                    outcome.decision_evidence_sha256
+                ),
+                signal_fingerprint=outcome.signal_fingerprint,
+                position_id=outcome.position_id,
+                requested_at=T0,
+                requested_capital_usd=(
+                    candidate.marginal_evidence
+                    .requested_incremental_capital_usd
+                ),
+                requested_stop_risk_usd=(
+                    candidate.marginal_evidence
+                    .incremental_stop_risk_usd
+                ),
+                risk_decision_id=f"risk-decision-{outcome.position_id}",
+                risk_disposition="REDUCE",
+                risk_authorized_at=T0 + timedelta(seconds=1),
+                risk_authorized_capital_usd=(
+                    candidate.marginal_evidence
+                    .requested_incremental_capital_usd
+                ),
+                risk_authorized_stop_risk_usd=(
+                    outcome.executed_initial_stop_risk_usd
+                ),
+                execution_evidence_id=(
+                    outcome.execution_risk_evidence_id
+                ),
+                execution_realized_at=deployed_at + timedelta(seconds=1),
+                execution_realized_capital_usd=(
+                    candidate.marginal_evidence
+                    .requested_incremental_capital_usd
+                ),
+                execution_realized_stop_risk_usd=(
+                    outcome.executed_initial_stop_risk_usd
+                ),
+                capital_deployed_at=deployed_at,
+                source_refs=(
+                    f"cibo-request:{outcome.position_id}",
+                    f"qore-risk:{outcome.position_id}",
+                    f"execution:{outcome.position_id}",
+                ),
+            )
+            release = T20CapitalReleaseSlice(
+                settlement_deal_id=outcome.settlement_deal_ids[-1],
+                released_at=released_at,
+                returned_capacity_usd=(
+                    authorization.execution_realized_capital_usd
+                ),
+                source_ref=f"capital-return:{outcome.position_id}",
+                terminal=True,
+            )
+            evidence = build_t20_capital_release_evidence(
+                evidence_id=f"t20-release-{outcome.position_id}",
+                authorization=authorization,
+                outcome=outcome,
+                settlement=state_by_position[outcome.position_id],
+                releases=(release,),
+                observed_at=outcome.observed_at,
+                source_refs=(
+                    f"phase20-outcome:{outcome.evidence_id}",
+                    f"settlement:{outcome.position_id}",
+                    f"capital-return-ledger:{outcome.position_id}",
+                ),
+            )
+            t20_book = t20_store.seal(
+                evidence,
+                sealed_at=outcome.observed_at + timedelta(seconds=1),
+                expected_generation=t20_generation,
+            )
+            t20_generation += 1
     return (
         genc6_book,
         c4_book,
@@ -1021,6 +1120,7 @@ def _oos_books(
         phase20_book,
         policy_book,
         settlement_book,
+        t20_book,
     )
 
 
@@ -1083,6 +1183,7 @@ def test_genc6_oos_binding_requires_full_causal_chain_and_release(
         phase20_book,
         policy_book,
         settlement_book,
+        t20_book,
     ) = _oos_books(
         tmp_path=tmp_path,
         event=event,
@@ -1097,6 +1198,7 @@ def test_genc6_oos_binding_requires_full_causal_chain_and_release(
         phase20_evidence_book=phase20_book,
         phase20_policy_book=policy_book,
         settlement_book=settlement_book,
+        t20_release_book=t20_book,
     )
 
     assert report.status is Genc6OosBindingStatus.COMPLETE
@@ -1132,6 +1234,7 @@ def test_genc6_missing_release_stays_partial_without_imputation(
         phase20_book,
         policy_book,
         settlement_book,
+        t20_book,
     ) = _oos_books(
         tmp_path=tmp_path,
         event=event,
@@ -1146,6 +1249,7 @@ def test_genc6_missing_release_stays_partial_without_imputation(
         phase20_evidence_book=phase20_book,
         phase20_policy_book=policy_book,
         settlement_book=settlement_book,
+        t20_release_book=t20_book,
     )
 
     assert report.status is Genc6OosBindingStatus.PARTIAL
@@ -1166,6 +1270,7 @@ def test_genc6_missing_candidate_outcome_stays_partial(
         phase20_book,
         policy_book,
         settlement_book,
+        t20_book,
     ) = _oos_books(
         tmp_path=tmp_path,
         event=event,
@@ -1181,6 +1286,7 @@ def test_genc6_missing_candidate_outcome_stays_partial(
         phase20_evidence_book=phase20_book,
         phase20_policy_book=policy_book,
         settlement_book=settlement_book,
+        t20_release_book=t20_book,
     )
 
     assert report.status is Genc6OosBindingStatus.PARTIAL
@@ -1200,6 +1306,7 @@ def test_genc6_population_is_descriptive_even_when_coverage_complete(
         phase20_book,
         policy_book,
         settlement_book,
+        t20_book,
     ) = _oos_books(
         tmp_path=tmp_path,
         event=event,
@@ -1213,6 +1320,7 @@ def test_genc6_population_is_descriptive_even_when_coverage_complete(
         phase20_evidence_book=phase20_book,
         phase20_policy_book=policy_book,
         settlement_book=settlement_book,
+        t20_release_book=t20_book,
     )
     population = describe_genc6_fresh_scarcity_population(
         genc6_book=genc6_book,
