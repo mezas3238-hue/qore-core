@@ -69,8 +69,10 @@ def test_v46_never_opens_economics_or_fresh_holdout() -> None:
     assert report["trader_certified"] is False
 
 
-def test_v46_historical_adapter_is_explicitly_missing() -> None:
+def test_v46_r2_historical_adapter_is_ready_but_asian_fact_still_blocks() -> None:
     report = v46.build_report()
-    assert report["canonical_historical_replay_adapter_status"] == (
-        "REPLAY_ADAPTER_MISSING"
-    )
+    assert report["r2_predeclaration_comment_id"] == 5883247470
+    assert report["canonical_historical_replay_adapter_status"] == "DETECTOR_READY"
+    assert report["blocking_facts"] == ["HISTORICAL_ASIAN_OPEN_REFERENCE"]
+    assert report["phase_a_ready"] is False
+    assert report["phase_b_authorized"] is False
