@@ -22,6 +22,9 @@ from enum import StrEnum
 from pathlib import Path
 
 from qore.infrastructure.trader_lab import (
+    capitalizer_canonical_source_candidate_assembly_v47_s0 as s0,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_canonical_source_context_binders_v47_s0 as binders,
 )
 from qore.infrastructure.trader_lab import (
@@ -189,6 +192,30 @@ def _h1_between(
     return tuple(row for row in raw if isinstance(row, AggregatedBar))
 
 
+def _previous_day_pair(
+    prepared: s1._PreparedSourceSeries,
+    *,
+    operating_day: object,
+) -> tuple[Decimal, Decimal, datetime] | None:
+    if not hasattr(operating_day, "year"):
+        raise ValueError("operating_day must be date-like")
+    day = operating_day
+    for offset in range(1, 5):
+        prior = day - timedelta(days=offset)
+        summary = prepared.ny_day_ranges.get(prior)
+        if summary is None or summary[0] < 60:
+            continue
+        rows = tuple(
+            row
+            for row in prepared.m1
+            if row.opened_at.astimezone(s1.NEW_YORK).date() == prior
+        )
+        if not rows:
+            continue
+        return summary[1], summary[2], max(row.closed_at for row in rows)
+    return None
+
+
 def _latest_matching_h1_swing_pivot(
     prepared: s1._PreparedSourceSeries,
     *,
@@ -234,7 +261,7 @@ def reconstruct_event_opposite_boundary(
     bars: tuple[CapitalizerM1Bar, ...],
     *,
     prepared: s1._PreparedSourceSeries,
-    event: s1.s0.S0ICTSourceEvent,
+    event: s0.S0ICTSourceEvent,
 ) -> PairedBoundary | None:
     """Recover only the paired boundary of the exact raided reference."""
 
@@ -269,24 +296,13 @@ def reconstruct_event_opposite_boundary(
         return None
 
     if source in {"PDH", "PDL"}:
-        previous = s1._prepared_previous_day_range(
+        previous = _previous_day_pair(
             prepared,
             operating_day=event.operating_date,
         )
         if previous is None:
             return None
-        high, low = previous
-        known_at = min(
-            (
-                row.closed_at
-                for row in prepared.m1
-                if row.opened_at.astimezone(s1.NEW_YORK).date()
-                < event.operating_date
-                and row.high <= high
-                and row.low >= low
-            ),
-            default=event.closeback.h1_open - timedelta(days=1),
-        )
+        high, low, known_at = previous
         if source == "PDH" and high == reference_price:
             return PairedBoundary(
                 price=low,
@@ -340,7 +356,7 @@ def audit_event_boundary(
     bars: tuple[CapitalizerM1Bar, ...],
     *,
     prepared: s1._PreparedSourceSeries,
-    event: s1.s0.S0ICTSourceEvent,
+    event: s0.S0ICTSourceEvent,
 ) -> EventBoundaryAudit:
     paired = reconstruct_event_opposite_boundary(
         bars,
