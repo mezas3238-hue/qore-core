@@ -20,6 +20,9 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.trader_lab import (
+    capitalizer_canonical_historical_replay_adapter_v46 as historical_adapter,
+)
+from qore.infrastructure.trader_lab import (
     capitalizer_dual_source_entry_acceptance_v1 as dual,
 )
 from qore.infrastructure.trader_lab import (
@@ -160,6 +163,10 @@ def _facts() -> tuple[FactOperationalization, ...]:
     engine_composer_ready = _has_callable(
         source_engine,
         "assess_source_trader_engine",
+    )
+    historical_adapter_ready = _has_callable(
+        historical_adapter,
+        "assess_canonical_historical_bundle",
     )
     htf_poi_context_ready = _has_callable(
         remediation,
@@ -554,13 +561,12 @@ def build_report() -> dict[str, Any]:
         if row.status in BLOCKING_STATUSES
     )
 
-    # No canonical chronological historical adapter currently invokes both
-    # canonical gate and engine over provider-native history. V45 proved the
-    # current direct replay does not.
-    replay_adapter_status = OperationalizationStatus.REPLAY_ADAPTER_MISSING
-    phase_a_ready = not blocking and (
-        replay_adapter_status is not OperationalizationStatus.REPLAY_ADAPTER_MISSING
+    replay_adapter_status = (
+        OperationalizationStatus.DETECTOR_READY
+        if historical_adapter_ready
+        else OperationalizationStatus.REPLAY_ADAPTER_MISSING
     )
+    phase_a_ready = not blocking and historical_adapter_ready
 
     status_counts: dict[str, int] = {}
     for row in facts:
@@ -572,6 +578,9 @@ def build_report() -> dict[str, Any]:
         "identity": IDENTITY,
         "predeclaration_comment_id": PREDECLARATION_COMMENT_ID,
         "r1_predeclaration_comment_id": remediation.PREDECLARATION_COMMENT_ID,
+        "r2_predeclaration_comment_id": (
+            historical_adapter.PREDECLARATION_COMMENT_ID
+        ),
         "evaluation": "PHASE_A_STATIC_CANONICAL_FACT_OPERATIONALIZATION",
         "mandatory_fact_count": MANDATORY_FACT_COUNT,
         "facts": [asdict(row) for row in facts],
