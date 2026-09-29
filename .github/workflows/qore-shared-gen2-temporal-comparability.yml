@@ -10,10 +10,13 @@ on:
       - src/qore/infrastructure/core_stack_v2/global_observability_matrix.py
       - src/qore/infrastructure/core_stack_v2/global_market_relational_graph.py
       - src/qore/infrastructure/core_stack_v2/global_market_intelligence_contract.py
+      - src/qore/infrastructure/ctrader_open_api_client.py
+      - src/qore/infrastructure/ctrader_metadata_read_only.py
       - scripts/shared_gen2_ctrader_temporal_metadata.py
       - scripts/shared_gen2_global_observability_matrix.py
       - tests/infrastructure/test_core_stack_v2_global_temporal_comparability.py
       - tests/infrastructure/test_core_stack_v2_global_observability_matrix.py
+      - tests/infrastructure/test_ctrader_metadata_read_only.py
       - tests/infrastructure/test_shared_gen2_ctrader_temporal_metadata.py
       - tests/infrastructure/test_core_stack_v2_global_market_relational_graph.py
       - tests/infrastructure/test_core_stack_v2_global_market_intelligence_contract.py
@@ -49,9 +52,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p validation
-          ruff check             src/qore/infrastructure/market_clock_schedule.py             src/qore/infrastructure/core_stack_v2/global_temporal_comparability.py             src/qore/infrastructure/core_stack_v2/global_observability_matrix.py             src/qore/infrastructure/core_stack_v2/global_market_relational_graph.py             src/qore/infrastructure/core_stack_v2/global_market_intelligence_contract.py             src/qore/infrastructure/ctrader_metadata_read_only.py             scripts/shared_gen2_ctrader_temporal_metadata.py             scripts/shared_gen2_global_observability_matrix.py             tests/infrastructure/test_core_stack_v2_global_temporal_comparability.py             tests/infrastructure/test_core_stack_v2_global_observability_matrix.py             tests/infrastructure/test_ctrader_metadata_read_only.py             tests/infrastructure/test_shared_gen2_ctrader_temporal_metadata.py             tests/infrastructure/test_core_stack_v2_global_market_relational_graph.py             tests/infrastructure/test_core_stack_v2_global_market_intelligence_contract.py             tests/infrastructure/test_market_clock_schedule.py
+          ruff check             src/qore/infrastructure/market_clock_schedule.py             src/qore/infrastructure/core_stack_v2/global_temporal_comparability.py             src/qore/infrastructure/core_stack_v2/global_observability_matrix.py             src/qore/infrastructure/core_stack_v2/global_market_relational_graph.py             src/qore/infrastructure/core_stack_v2/global_market_intelligence_contract.py             src/qore/infrastructure/ctrader_open_api_client.py             src/qore/infrastructure/ctrader_metadata_read_only.py             scripts/shared_gen2_ctrader_temporal_metadata.py             scripts/shared_gen2_global_observability_matrix.py             tests/infrastructure/test_core_stack_v2_global_temporal_comparability.py             tests/infrastructure/test_core_stack_v2_global_observability_matrix.py             tests/infrastructure/test_ctrader_metadata_read_only.py             tests/infrastructure/test_shared_gen2_ctrader_temporal_metadata.py             tests/infrastructure/test_core_stack_v2_global_market_relational_graph.py             tests/infrastructure/test_core_stack_v2_global_market_intelligence_contract.py             tests/infrastructure/test_market_clock_schedule.py
           mypy             src/qore/infrastructure/core_stack_v2/global_temporal_comparability.py             src/qore/infrastructure/core_stack_v2/global_observability_matrix.py
-          python -m py_compile             src/qore/infrastructure/ctrader_metadata_read_only.py             scripts/shared_gen2_ctrader_temporal_metadata.py             scripts/shared_gen2_global_observability_matrix.py
+          python -m py_compile             src/qore/infrastructure/ctrader_open_api_client.py             src/qore/infrastructure/ctrader_metadata_read_only.py             scripts/shared_gen2_ctrader_temporal_metadata.py             scripts/shared_gen2_global_observability_matrix.py
           pytest -q             tests/infrastructure/test_core_stack_v2_global_temporal_comparability.py             tests/infrastructure/test_core_stack_v2_global_observability_matrix.py             tests/infrastructure/test_ctrader_metadata_read_only.py             tests/infrastructure/test_shared_gen2_ctrader_temporal_metadata.py             tests/infrastructure/test_core_stack_v2_global_market_relational_graph.py             tests/infrastructure/test_core_stack_v2_global_market_intelligence_contract.py             tests/infrastructure/test_market_clock_schedule.py             --junitxml=validation/junit.xml
       - uses: actions/upload-artifact@v4
         with:
