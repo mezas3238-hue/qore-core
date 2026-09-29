@@ -216,6 +216,17 @@ def build_matrix(root: Path, output: Path) -> dict[str, object]:
                 }
             )
 
+    observed_ages: list[int] = []
+    for row in rows:
+        value = row["max_age_seconds"]
+        if value is None:
+            continue
+        if type(value) is not int:
+            raise ValueError("cross-market coverage max age must be integer")
+        observed_ages.append(value)
+    if not observed_ages:
+        raise ValueError("cross-market coverage matrix has no observed ages")
+
     result: dict[str, object] = {
         "identity": MATRIX_IDENTITY,
         "peer_market_count": len(reports),
@@ -223,11 +234,7 @@ def build_matrix(root: Path, output: Path) -> dict[str, object]:
         "all_rows_have_prior_bar": all(
             bool(row["all_entrants_have_prior_bar"]) for row in rows
         ),
-        "max_observed_age_seconds": max(
-            int(row["max_age_seconds"])
-            for row in rows
-            if row["max_age_seconds"] is not None
-        ),
+        "max_observed_age_seconds": max(observed_ages),
         "rows": sorted(
             rows,
             key=lambda row: (str(row["slug"]), str(row["peer_symbol"])),
