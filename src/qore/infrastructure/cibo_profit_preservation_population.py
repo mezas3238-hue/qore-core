@@ -14,6 +14,7 @@ from enum import StrEnum
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
 from qore.infrastructure.cibo_profit_preservation_shadow import Genc7Action
 from qore.infrastructure.cibo_profit_preservation_store import (
+    Genc7ShadowDecisionSeal,
     VersionedGenc7ShadowBook,
 )
 
@@ -173,7 +174,7 @@ def describe_genc7_fresh_population(
             "GEN-C7 population requires canonical durable book"
         )
 
-    seals_list = []
+    seals_list: list[Genc7ShadowDecisionSeal] = []
     for record in book.records:
         seal = book.seal_for_decision(record.decision_id)
         if seal is None:
