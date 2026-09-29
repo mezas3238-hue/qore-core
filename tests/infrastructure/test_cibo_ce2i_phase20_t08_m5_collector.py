@@ -14,6 +14,7 @@ from qore.infrastructure.cibo_ce2i_phase20_t08_m5_collector import (
 )
 
 BOUNDARY = datetime(2026, 9, 29, 1, tzinfo=UTC)
+LEGACY_SERVER_TZ = ZoneInfo("Europe/Helsinki")
 PROVIDER_SYMBOLS = {
     "AUDJPY": "AUDJPY",
     "EURUSD": "EURUSD",
@@ -66,8 +67,11 @@ def _row(
     opened_at: datetime,
     open_price: int,
 ) -> dict[str, object]:
+    provider_wall_clock = opened_at.astimezone(
+        LEGACY_SERVER_TZ
+    ).replace(tzinfo=UTC)
     return {
-        "time": int(opened_at.timestamp()),
+        "time": int(provider_wall_clock.timestamp()),
         "open": open_price,
         "high": open_price + 1,
         "low": open_price - 1,
