@@ -276,6 +276,7 @@ def main() -> None:
     parser.add_argument("--settlement-store", type=Path)
     parser.add_argument("--t08-oos-shadow-store", type=Path)
     parser.add_argument("--t13-shadow-store", type=Path)
+    parser.add_argument("--t13-treatment-store", type=Path)
     parser.add_argument("--git-sha")
     args = parser.parse_args()
 
@@ -301,6 +302,11 @@ def main() -> None:
         None
         if args.t13_shadow_store is None
         else _sha256_path(args.t13_shadow_store)
+    )
+    t13_treatment_store_sha256 = (
+        None
+        if args.t13_treatment_store is None
+        else _sha256_path(args.t13_treatment_store)
     )
     evidence = DurablePhase20ForwardEvidenceStore(
         args.evidence_store
@@ -398,6 +404,15 @@ def main() -> None:
 
         t13_shadow_book = DurableT13ShadowDecisionStore(
             args.t13_shadow_store
+        ).load()
+    t13_treatment_book = None
+    if args.t13_treatment_store is not None:
+        from qore.infrastructure.cibo_ce2i_phase20_t13_shadow_treatment_store import (
+            DurableT13ShadowTreatmentStore,
+        )
+
+        t13_treatment_book = DurableT13ShadowTreatmentStore(
+            args.t13_treatment_store
         ).load()
     t15_option_realization = assess_phase20_t15_option_realization(
         evidence
@@ -732,6 +747,20 @@ def main() -> None:
                 "chain_sha256": t13_shadow_book.chain_sha256,
             }
         ),
+        "t13_shadow_treatment_ledger": (
+            None
+            if t13_treatment_book is None
+            else {
+                "generation": t13_treatment_book.generation,
+                "decision_count": len(t13_treatment_book.decisions),
+                "chain_sha256": t13_treatment_book.chain_sha256,
+                "selection_changed_epochs": sum(
+                    1
+                    for item in t13_treatment_book.decisions
+                    if item.selection_changed
+                ),
+            }
+        ),
         "t13_shadow_policy": {
             "policy_id": t13_shadow_policy.policy_id,
             "policy_sha256": t13_shadow_policy.policy_sha256,
@@ -846,6 +875,7 @@ def main() -> None:
         "t11_settlement_generation": t11_settlement_generation,
         "t08_oos_shadow_store_sha256": t08_oos_shadow_store_sha256,
         "t13_shadow_store_sha256": t13_shadow_store_sha256,
+        "t13_treatment_store_sha256": t13_treatment_store_sha256,
         "t08_oos_shadow_generation": t08_oos_shadow_generation,
         "t08_oos_complete_epochs": t08_oos_complete_epochs,
         "evidence_generation": evidence.generation,

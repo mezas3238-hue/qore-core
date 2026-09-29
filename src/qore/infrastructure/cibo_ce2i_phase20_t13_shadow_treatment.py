@@ -131,6 +131,14 @@ class Phase20T13ShadowTreatmentDecision:
             raise CiboCapitalManagementError(
                 "Phase20 T13 treatment cannot use outcomes or runtime authority"
             )
+        allocator_selected = _selected(self.treatment_allocator)
+        if (
+            self.treatment_selected_signal_fingerprints
+            != allocator_selected
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20 T13 treatment selection/allocator drift"
+            )
         baseline = set(self.baseline_selected_signal_fingerprints)
         treatment = set(self.treatment_selected_signal_fingerprints)
         if len(baseline) != len(self.baseline_selected_signal_fingerprints):
