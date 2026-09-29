@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from shared_wp05_active_perception_v12_anchor_observability import (
@@ -38,7 +38,7 @@ def _peer_states(
     *,
     peer: V14PeerFamily,
     raw_root: Path,
-    anchors: tuple,
+    anchors: tuple[datetime, ...],
 ) -> list[V14PeerCheckpointQuoteState]:
     grouped, bounds = _discover_pages(raw_root)
     assigned = _assign_anchors_to_windows(anchors, bounds)
