@@ -1,0 +1,179 @@
+name: QORE Capitalizer FTM Raw Population V47 S1R C
+
+on:
+  push:
+    branches:
+      - agent/capitalizer-ftm-population-v47-s1r-c-001
+    paths:
+      - '.github/workflows/qore-capitalizer-ftm-raw-population-v47-s1r-c.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_ftm_raw_population_v47_s1r_c.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_source_strategy_isolation_v47_s1.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_source_cisd_ftm_v2.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_canonical_source_context_binders_v47_s0.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_ftm_raw_population_v47_s1r_c.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-ftm-raw-population-v47-s1r-c-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_M1_RUN_ID: '35548099334'
+  SOURCE_M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_ftm_raw_population_v47_s1r_c.py \
+            tests/infrastructure/trader_lab/test_capitalizer_ftm_raw_population_v47_s1r_c.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_ftm_raw_population_v47_s1r_c.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_ftm_raw_population_v47_s1r_c.py
+
+  market:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - {symbol: USDJPY, session: ASIA}
+          - {symbol: AUDJPY, session: ASIA}
+          - {symbol: AUDUSD, session: ASIA}
+          - {symbol: GBPJPY, session: ASIA}
+          - {symbol: EURUSD, session: LONDON}
+          - {symbol: GBPUSD, session: LONDON}
+          - {symbol: XAUUSD, session: NEW_YORK}
+          - {symbol: USDCAD, session: NEW_YORK}
+          - {symbol: NAS100, session: NEW_YORK}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download immutable provider-native 10Y M1
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.SOURCE_M1_SHA }}
+          path: m1-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M1_RUN_ID }}
+      - name: Run separate FTM raw-support census
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_ftm_raw_population_v47_s1r_c \
+            market m1-source \
+            --symbol "${{ matrix.symbol }}" \
+            --session "${{ matrix.session }}" \
+            --output ftm-output
+      - name: Enforce market governance
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+          SESSION: ${{ matrix.session }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          paths=sorted(Path("ftm-output").glob("capitalizer-v47-s1r-c-ftm-*.json"))
+          assert len(paths) == 3
+          for path in paths:
+              row=json.loads(path.read_text())
+              assert row["identity"] == "QORE_CAPITALIZER_FTM_RAW_POPULATION_SUPPORT_CENSUS_V47_S1R_C"
+              assert row["symbol"] == os.environ["SYMBOL"]
+              assert row["session"] == os.environ["SESSION"]
+              assert sum(row["classification_counts"].values()) == row["raw_liquidity_sweeps"]
+              assert row["current_reversal_stream_required"] is False
+              assert row["full_ftm_entry_constructed"] is False
+              assert row["protected_swing_required_for_raw_support"] is False
+              assert row["m1_entry_triad_required_for_raw_support"] is False
+              assert row["exact_provider_fill_queried"] is False
+              assert row["terminal_outcome_read"] is False
+              assert row["economics_calculated"] is False
+              assert row["fresh_holdout_opened"] is False
+              assert row["admission_changed"] is False
+              assert row["trader_certified"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v47-s1r-c-ftm-${{ matrix.symbol }}-${{ github.sha }}
+          path: ftm-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v47-s1r-c-ftm-*-${{ github.sha }}
+          path: ftm-markets
+          merge-multiple: true
+      - name: Aggregate FTM raw-support census
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_ftm_raw_population_v47_s1r_c \
+            aggregate ftm-markets \
+            --output ftm-aggregate
+      - name: Enforce aggregate governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          row=json.loads(
+              Path("ftm-aggregate/capitalizer-v47-s1r-c-ftm-aggregate.json").read_text()
+          )
+          assert row["identity"] == "QORE_CAPITALIZER_FTM_RAW_POPULATION_SUPPORT_CENSUS_V47_S1R_C"
+          assert row["predeclaration_comment_id"] == 5896470149
+          assert row["market_period_reports"] == 27
+          assert row["market_count"] == 9
+          assert sum(row["classification_counts"].values()) == row["raw_liquidity_sweeps"]
+          assert row["continuation_first_raw_support"] >= 0
+          assert row["current_reversal_stream_required"] is False
+          assert row["full_ftm_entry_constructed"] is False
+          assert row["exact_provider_fill_queried"] is False
+          assert row["terminal_outcome_read"] is False
+          assert row["economics_calculated"] is False
+          assert row["fresh_holdout_opened"] is False
+          assert row["admission_changed"] is False
+          assert row["trader_certified"] is False
+          assert row["decision"] in {
+              "SEPARATE_FTM_STREAM_ENGINEERING_JUSTIFIED_PRE_ECONOMICALLY",
+              "SEPARATE_FTM_HISTORICAL_SUPPORT_NOT_OBSERVED",
+          }
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v47-s1r-c-ftm-aggregate-${{ github.sha }}
+          path: ftm-aggregate
+          if-no-files-found: error
+          retention-days: 90
