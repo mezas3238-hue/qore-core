@@ -376,10 +376,14 @@ def main() -> None:
     from qore.infrastructure.cibo_ce2i_phase20_t13_reserve_population import (
         assess_phase20_t13_reserve_population,
     )
+    from qore.infrastructure.cibo_ce2i_phase20_t13_shadow_policy import (
+        assess_phase20_t13_shadow_policy,
+    )
 
     t13_reserve_population = assess_phase20_t13_reserve_population(
         evidence
     )
+    t13_shadow_policy = assess_phase20_t13_shadow_policy(evidence)
     t15_option_realization = assess_phase20_t15_option_realization(
         evidence
     )
@@ -703,6 +707,51 @@ def main() -> None:
                 t13_reserve_population.oos_utility_demonstrated
             ),
             "blockers": list(t13_reserve_population.blockers),
+        },
+        "t13_shadow_policy": {
+            "policy_id": t13_shadow_policy.policy_id,
+            "policy_sha256": t13_shadow_policy.policy_sha256,
+            "policy_frozen_at": (
+                t13_shadow_policy.policy_frozen_at.isoformat()
+            ),
+            "post_freeze_decision_epochs": (
+                t13_shadow_policy.post_freeze_decision_epochs
+            ),
+            "candidate_epochs": t13_shadow_policy.candidate_epochs,
+            "causal_pressure_epochs": (
+                t13_shadow_policy.causal_pressure_epochs
+            ),
+            "arrival_evidence_epochs": (
+                t13_shadow_policy.arrival_evidence_epochs
+            ),
+            "reserve_trigger_epochs": (
+                t13_shadow_policy.reserve_trigger_epochs
+            ),
+            "full_seed_reserve_epochs": (
+                t13_shadow_policy.full_seed_reserve_epochs
+            ),
+            "partial_headroom_reserve_epochs": (
+                t13_shadow_policy.partial_headroom_reserve_epochs
+            ),
+            "total_shadow_reserved_risk_usd": format(
+                t13_shadow_policy.total_shadow_reserved_risk_usd,
+                "f",
+            ),
+            "maximum_shadow_reserved_risk_usd": format(
+                t13_shadow_policy.maximum_shadow_reserved_risk_usd,
+                "f",
+            ),
+            "shadow_policy_preregistered": (
+                t13_shadow_policy.shadow_policy_preregistered
+            ),
+            "reserve_policy_empirically_identified": (
+                t13_shadow_policy.reserve_policy_empirically_identified
+            ),
+            "fresh_oos_utility_demonstrated": (
+                t13_shadow_policy.fresh_oos_utility_demonstrated
+            ),
+            "runtime_authority": t13_shadow_policy.runtime_authority,
+            "blockers": list(t13_shadow_policy.blockers),
         },
         "t14_path_readiness": (
             None
