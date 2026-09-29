@@ -23,7 +23,11 @@ class CiboPreHoldoutFreezeManifest:
     config_sha256: str
     calibration_sha256: str
     dataset_sha256: str
+    phase20d_qualification_sha256: str
+    phase21_policy_freeze_sha256: str
     anti_leakage_passed: bool
+    phase20d_causal_tool_gate_passed: bool
+    phase21_policy_freeze_sealed: bool
     all_calibrations_frozen: bool
     provider_economics_frozen: bool
 
@@ -33,6 +37,8 @@ class CiboPreHoldoutFreezeManifest:
             "config_sha256",
             "calibration_sha256",
             "dataset_sha256",
+            "phase20d_qualification_sha256",
+            "phase21_policy_freeze_sha256",
         ):
             value = getattr(self, name)
             if not isinstance(value, str) or not value:
@@ -41,6 +47,8 @@ class CiboPreHoldoutFreezeManifest:
                 )
         for name in (
             "anti_leakage_passed",
+            "phase20d_causal_tool_gate_passed",
+            "phase21_policy_freeze_sealed",
             "all_calibrations_frozen",
             "provider_economics_frozen",
         ):
@@ -62,6 +70,8 @@ def pre_holdout_freeze_ready() -> bool:
         is CiboHoldoutSealState.PRE_HOLDOUT_FROZEN
         and manifest is not None
         and manifest.anti_leakage_passed
+        and manifest.phase20d_causal_tool_gate_passed
+        and manifest.phase21_policy_freeze_sealed
         and manifest.all_calibrations_frozen
         and manifest.provider_economics_frozen
     )
