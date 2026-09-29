@@ -395,7 +395,11 @@ class Genc7ProfitPreservationShadowDecision:
             raise CiboCompoundCapitalError(
                 "GEN-C7 policy freeze drift"
             )
-        if not self.decision_id or not self.account_provider_key or not self.account_ref:
+        if (
+            not self.decision_id
+            or not self.account_provider_key
+            or not self.account_ref
+        ):
             raise CiboCompoundCapitalError(
                 "GEN-C7 decision/account identity is required"
             )
