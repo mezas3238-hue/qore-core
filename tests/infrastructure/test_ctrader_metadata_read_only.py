@@ -39,6 +39,22 @@ class _FakeClient:
         self.closed = True
 
 
+def test_metadata_runtime_admission_pairs_are_exact_and_complete() -> None:
+    assert CTRADER_METADATA_READ_ONLY_MESSAGE_PAIRS == (
+        ("ProtoOAAssetListReq", "ProtoOAAssetListRes"),
+        ("ProtoOAAssetClassListReq", "ProtoOAAssetClassListRes"),
+        ("ProtoOASymbolCategoryListReq", "ProtoOASymbolCategoryListRes"),
+        ("ProtoOASymbolByIdReq", "ProtoOASymbolByIdRes"),
+        ("ProtoOASymbolsListReq", "ProtoOASymbolsListRes"),
+    )
+    assert CTRADER_METADATA_READ_ONLY_REQUEST_MESSAGES == frozenset(
+        request_name
+        for request_name, _response_name in (
+            CTRADER_METADATA_READ_ONLY_MESSAGE_PAIRS
+        )
+    )
+
+
 def test_metadata_firewall_admits_only_finite_read_requests() -> None:
     native = _FakeClient()
     client = CTraderMetadataReadOnlyMessageClient(native)  # type: ignore[arg-type]
