@@ -412,6 +412,7 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
             "phase20:t13:causal-reserve-pressure-population",
             "phase20:t13:one-minimum-seed-shadow-preregistration",
             "phase20:t13:append-only-shadow-decision-ledger",
+            "phase20:t13:causal-shadow-treatment-allocation",
             _PHASE19_NON_PROMOTION,
         ),
         (
@@ -419,6 +420,7 @@ CIBO_TOOL_CALIBRATION_REGISTRY: tuple[CiboToolCalibrationRecord, ...] = (
             "FORWARD_T13_RESERVE_PRESSURE_POPULATION_AUDIT_IMPLEMENTED",
             "T13_ONE_MINIMUM_SEED_SHADOW_POLICY_PREREGISTERED",
             "T13_APPEND_ONLY_SHADOW_DECISION_LEDGER_IMPLEMENTED",
+            "T13_CAUSAL_SHADOW_TREATMENT_ALLOCATOR_IMPLEMENTED",
             "PREREGISTERED_T13_SHADOW_POLICY_NOT_EMPIRICALLY_IDENTIFIED",
             "NO_ROBUST_DRAWDOWN_RESERVE_POLICY_IDENTIFIED",
             "FRESH_OOS_T13_RESERVE_UTILITY_REQUIRED",
