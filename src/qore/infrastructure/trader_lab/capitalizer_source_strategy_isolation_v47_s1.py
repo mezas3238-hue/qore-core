@@ -317,7 +317,7 @@ def _reference_liquidity(
         closed_at=rows[-1].closed_at,
         high=max(row.high for row in rows),
         low=min(row.low for row in rows),
-        source=f"COMPLETED_{session.value}_PRIOR_SOURCE_SESSION",
+        source=source,
     )
 
 
@@ -610,7 +610,7 @@ def resolve_candidate_exact_fill(
     symbol_id: int,
     digits: int,
     request_prefix: str,
-) -> S1ExactFill | None:
+) -> tuple[S1ExactFill | None, int]:
     event = candidate.candidate.event
     deadline = event.h1_deadline
     levels: list[tuple[Decimal, str]] = [
@@ -641,13 +641,16 @@ def resolve_candidate_exact_fill(
             )
             total_requests += requests
             if resolved is not None:
-                return S1ExactFill(
-                    level=level,
-                    mode=mode,
-                    resolution=resolved,
-                    request_count=total_requests,
+                return (
+                    S1ExactFill(
+                        level=level,
+                        mode=mode,
+                        resolution=resolved,
+                        request_count=total_requests,
+                    ),
+                    total_requests,
                 )
-    return None
+    return None, total_requests
 
 
 def _target_resolution_at_fill(
@@ -859,7 +862,7 @@ def _operating_days(
     days = {
         bar.opened_at.astimezone(NEW_YORK).date()
         for bar in bars
-        if period_start - timedelta(days=1) <= bar.opened_at < period_end + timedelta(days=1)
+        if period_start <= bar.opened_at < period_end
     }
     return tuple(sorted(days))
 
@@ -932,7 +935,7 @@ def build_period_market_population(
         )
         for index, candidate in enumerate(candidates):
             routed += 1
-            fill = resolve_candidate_exact_fill(
+            fill, fill_requests = resolve_candidate_exact_fill(
                 client,
                 candidate=candidate,
                 bars=local_bars,
@@ -943,10 +946,10 @@ def build_period_market_population(
                     f"{operating_day.isoformat()}:{index}"
                 ),
             )
+            requests += fill_requests
             if fill is None:
                 no_fill += 1
                 continue
-            requests += fill.request_count
             if fill.mode == "FVG_CE_50" and (
                 candidate.candidate.event.primary_entry_mode != "FVG_CE_50"
             ):
