@@ -46,6 +46,20 @@ class CTraderOpenApiPermissionScope(IntEnum):
     TRADE = 1
 
 
+CTRADER_METADATA_READ_ONLY_MESSAGE_PAIRS = (
+    ("ProtoOAAssetListReq", "ProtoOAAssetListRes"),
+    ("ProtoOAAssetClassListReq", "ProtoOAAssetClassListRes"),
+    ("ProtoOASymbolCategoryListReq", "ProtoOASymbolCategoryListRes"),
+    ("ProtoOASymbolByIdReq", "ProtoOASymbolByIdRes"),
+    ("ProtoOASymbolsListReq", "ProtoOASymbolsListRes"),
+)
+
+CTRADER_METADATA_READ_ONLY_REQUEST_MESSAGES = frozenset(
+    request_name
+    for request_name, _response_name in CTRADER_METADATA_READ_ONLY_MESSAGE_PAIRS
+)
+
+
 def ctrader_permission_scope_matches(
     observed_scope: object,
     required_scope: CTraderOpenApiPermissionScope,
@@ -236,10 +250,11 @@ class _SdkBindings:
             "ProtoOAAccountAuthReq",
             "ProtoOAAccountAuthRes",
             "ProtoOANewOrderReq",
-            "ProtoOASymbolsListReq",
-            "ProtoOASymbolsListRes",
-            "ProtoOASymbolByIdReq",
-            "ProtoOASymbolByIdRes",
+            *(
+                name
+                for pair in CTRADER_METADATA_READ_ONLY_MESSAGE_PAIRS
+                for name in pair
+            ),
             "ProtoOACancelOrderReq",
             "ProtoOAOrderListReq",
             "ProtoOAOrderDetailsReq",
