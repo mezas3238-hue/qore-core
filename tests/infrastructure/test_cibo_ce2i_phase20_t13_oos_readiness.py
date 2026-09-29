@@ -25,7 +25,15 @@ from qore.infrastructure.cibo_ce2i_phase20_t13_shadow_treatment_store import (
     T13ShadowTreatmentSeal,
 )
 
-LINEAGES = tuple(TraderLineage)
+LINEAGES = (
+    TraderLineage.VT08_FOREX,
+    TraderLineage.R34_XAUUSD,
+    TraderLineage.R38_EURUSD,
+    TraderLineage.R43_GBPUSD,
+    TraderLineage.R38_GBPJPY,
+    TraderLineage.R42_AUDJPY,
+    TraderLineage.VT31_NAS100,
+)
 BASE = T13_SHADOW_POLICY_FROZEN_AT + timedelta(minutes=5)
 
 
