@@ -7,9 +7,14 @@ on:
       - '.github/workflows/cibo-sequential-compounding-shadow.yml'
       - 'src/qore/infrastructure/cibo_sequential_compounding_shadow_policy.py'
       - 'src/qore/infrastructure/cibo_sequential_compounding_shadow_store.py'
+      - 'src/qore/infrastructure/cibo_sequential_compounding_oos_binding.py'
+      - 'src/qore/infrastructure/cibo_marginal_capital_utility_evidence_store.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_store.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_policy_store.py'
       - 'src/qore/infrastructure/cibo_marginal_capital_utility_evidence.py'
       - 'src/qore/infrastructure/cibo_core_compound_portfolio.py'
       - 'tests/infrastructure/test_cibo_sequential_compounding_shadow.py'
+      - 'tests/infrastructure/test_cibo_sequential_compounding_oos_binding.py'
       - 'docs/research/CIBO-GEN-C5-SEQUENTIAL-COMPOUNDING-SHADOW-PREREGISTRATION-V1.md'
       - 'docs/research/CIBO-CE2I-ADR-003-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING.md'
       - 'docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md'
@@ -20,9 +25,14 @@ on:
       - '.github/workflows/cibo-sequential-compounding-shadow.yml'
       - 'src/qore/infrastructure/cibo_sequential_compounding_shadow_policy.py'
       - 'src/qore/infrastructure/cibo_sequential_compounding_shadow_store.py'
+      - 'src/qore/infrastructure/cibo_sequential_compounding_oos_binding.py'
+      - 'src/qore/infrastructure/cibo_marginal_capital_utility_evidence_store.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_store.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_policy_store.py'
       - 'src/qore/infrastructure/cibo_marginal_capital_utility_evidence.py'
       - 'src/qore/infrastructure/cibo_core_compound_portfolio.py'
       - 'tests/infrastructure/test_cibo_sequential_compounding_shadow.py'
+      - 'tests/infrastructure/test_cibo_sequential_compounding_oos_binding.py'
       - 'docs/research/CIBO-GEN-C5-SEQUENTIAL-COMPOUNDING-SHADOW-PREREGISTRATION-V1.md'
 
 permissions:
@@ -47,9 +57,14 @@ jobs:
           ruff check \
             src/qore/infrastructure/cibo_sequential_compounding_shadow_policy.py \
             src/qore/infrastructure/cibo_sequential_compounding_shadow_store.py \
-            tests/infrastructure/test_cibo_sequential_compounding_shadow.py
+            src/qore/infrastructure/cibo_sequential_compounding_oos_binding.py \
+            src/qore/infrastructure/cibo_marginal_capital_utility_evidence_store.py \
+            tests/infrastructure/test_cibo_sequential_compounding_shadow.py \
+            tests/infrastructure/test_cibo_sequential_compounding_oos_binding.py
           python -m py_compile \
             src/qore/infrastructure/cibo_sequential_compounding_shadow_policy.py \
-            src/qore/infrastructure/cibo_sequential_compounding_shadow_store.py
+            src/qore/infrastructure/cibo_sequential_compounding_shadow_store.py \
+            src/qore/infrastructure/cibo_sequential_compounding_oos_binding.py
           pytest -q --no-cov \
-            tests/infrastructure/test_cibo_sequential_compounding_shadow.py
+            tests/infrastructure/test_cibo_sequential_compounding_shadow.py \
+            tests/infrastructure/test_cibo_sequential_compounding_oos_binding.py
