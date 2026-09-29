@@ -230,16 +230,20 @@ class Genc6CapitalEvidenceFact:
                     f"GEN-C6 evidence {name} must be bool"
                 )
         if (
-            self.kind is Genc6EvidenceKind.EXPECTED_NET_VALUE_PER_CAPITAL
+            self.kind
+            in {
+                Genc6EvidenceKind.EXPECTED_NET_VALUE_PER_CAPITAL,
+                Genc6EvidenceKind.RESERVE_VALUE,
+            }
             and self.use is Genc6EvidenceUse.CAPITAL_ELIGIBLE
         ):
             if not self.model_identity:
                 raise CiboCompoundCapitalError(
-                    "capital-eligible expected value requires model identity"
+                    "capital-eligible expected/reserve value requires model identity"
                 )
             if not self.calibrated or not self.oos_validated:
                 raise CiboCompoundCapitalError(
-                    "capital-eligible expected value requires calibration/OOS"
+                    "capital-eligible expected/reserve value requires calibration/OOS"
                 )
 
     @property
@@ -937,6 +941,7 @@ def genc6_policy_sha256() -> str:
         ),
         "treatment_rule": (
             "unique non-compensatory Pareto dominator across active dimensions "
+            "AND expected net value per capital > capital-eligible reserve value; "
             "else RESERVE_NO_DEPLOYMENT"
         ),
         "one_marginal_action_per_clearing": True,
@@ -1087,9 +1092,10 @@ def evaluate_genc6_internal_capital_market_shadow(
 
     control_candidate = _control_choice(tuple(legal))
     active_dimensions = _active_treatment_dimensions(tuple(legal))
-    treatment_candidate = _treatment_choice(
+    treatment_candidate, treatment_reason = _treatment_choice(
         tuple(legal),
         active_dimensions=active_dimensions,
+        reserve_alternative=event.reserve_alternative,
     )
 
     if control_candidate is None:
@@ -1107,12 +1113,10 @@ def evaluate_genc6_internal_capital_market_shadow(
         treatment_action = Genc6Action.RESERVE_NO_DEPLOYMENT
         treatment_id = None
         treatment_amount = Decimal(0)
-        treatment_reason = "NO_UNIQUE_ROBUST_PARETO_DOMINATOR_KEEP_RESERVE"
     else:
         treatment_action = Genc6Action.ALLOCATE_MARGINAL_UNIT
         treatment_id = treatment_candidate.candidate_id
         treatment_amount = treatment_candidate.requested_capital_usd
-        treatment_reason = "UNIQUE_ROBUST_PARETO_DOMINATOR"
 
     reserve_amount = _reserve_atomic_amount(event)
     candidate_shas = tuple(
@@ -1340,28 +1344,65 @@ def _treatment_choice(
     candidates: tuple[Genc6MarginalCapitalCandidate, ...],
     *,
     active_dimensions: tuple[Genc6EvidenceKind, ...],
-) -> Genc6MarginalCapitalCandidate | None:
+    reserve_alternative: Genc6ReserveAlternative,
+) -> tuple[Genc6MarginalCapitalCandidate | None, str]:
+    reserve_value = _capital_eligible_reserve_value(reserve_alternative)
+    if reserve_value is None:
+        return None, "RESERVE_VALUE_NOT_CAPITAL_ELIGIBLE_KEEP_RESERVE"
+
     positive = tuple(
         item for item in candidates if item.adjusted_expected_net_value_usd > 0
     )
     if not positive:
-        return None
+        return None, "NO_POSITIVE_LEGAL_CANDIDATE_KEEP_RESERVE"
+
     if len(positive) == 1:
-        return positive[0]
-    winners = tuple(
-        left
-        for left in positive
-        if all(
-            left is right
-            or _dominates(
-                left,
-                right,
-                active_dimensions=active_dimensions,
+        winner = positive[0]
+    else:
+        winners = tuple(
+            left
+            for left in positive
+            if all(
+                left is right
+                or _dominates(
+                    left,
+                    right,
+                    active_dimensions=active_dimensions,
+                )
+                for right in positive
             )
-            for right in positive
         )
+        if len(winners) != 1:
+            return None, "NO_UNIQUE_ROBUST_PARETO_DOMINATOR_KEEP_RESERVE"
+        winner = winners[0]
+
+    expected_value_fact = winner.fact(
+        Genc6EvidenceKind.EXPECTED_NET_VALUE_PER_CAPITAL
     )
-    return winners[0] if len(winners) == 1 else None
+    if (
+        expected_value_fact is None
+        or not expected_value_fact.eligible_for_capital_use
+    ):
+        return None, "WINNER_EXPECTED_VALUE_NOT_CAPITAL_ELIGIBLE_KEEP_RESERVE"
+    if expected_value_fact.value <= reserve_value:
+        return None, "RESERVE_VALUE_NOT_BEATEN_KEEP_RESERVE"
+    return winner, "UNIQUE_ROBUST_PARETO_DOMINATOR_BEATS_RESERVE_VALUE"
+
+
+def _capital_eligible_reserve_value(
+    reserve: Genc6ReserveAlternative,
+) -> Decimal | None:
+    rows = tuple(
+        item
+        for item in reserve.evidence_facts
+        if item.kind is Genc6EvidenceKind.RESERVE_VALUE
+    )
+    if not rows:
+        return None
+    fact = rows[0]
+    if not fact.eligible_for_capital_use:
+        return None
+    return fact.value
 
 
 def _dominates(
