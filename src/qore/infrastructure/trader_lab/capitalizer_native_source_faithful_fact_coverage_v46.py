@@ -164,10 +164,6 @@ def _facts() -> tuple[FactOperationalization, ...]:
         source_engine,
         "assess_source_trader_engine",
     )
-    historical_adapter_ready = _has_callable(
-        historical_adapter,
-        "assess_canonical_historical_bundle",
-    )
     htf_poi_context_ready = _has_callable(
         remediation,
         "resolve_htf_poi_context",
@@ -547,6 +543,10 @@ def _facts() -> tuple[FactOperationalization, ...]:
 
 
 def build_report() -> dict[str, Any]:
+    historical_adapter_ready = _has_callable(
+        historical_adapter,
+        "assess_canonical_historical_bundle",
+    )
     facts = _facts()
     if len(facts) != MANDATORY_FACT_COUNT:
         raise ValueError("V46 mandatory fact inventory drift")
