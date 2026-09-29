@@ -142,6 +142,14 @@ fingerprint and explicit provenance. Every baseline record requires separate
 canonical identity, venue and calendar evidence before promotion to
 `VERIFIED`.
 
+The unresolved baseline also materializes a deterministic provider-evidence
+worklist for all 177 records. It carries provider-native symbol descriptors,
+base/quote asset IDs, symbol category, provider asset class and provider
+schedule timezone as **supporting evidence only**. The worklist is separately
+fingerprinted and explicitly cannot promote any mapping by itself. Its purpose
+is to make canonical-evidence acquisition finite, auditable and partitionable
+without turning broker taxonomy into canonical truth.
+
 This is deliberate. GEN-2 must not manufacture canonical truth from provider
 symbol names or provider schedules, and future verification must update an
 auditable record rather than create an implicit allowlist.
