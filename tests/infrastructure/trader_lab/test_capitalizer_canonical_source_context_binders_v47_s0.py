@@ -193,3 +193,16 @@ def test_m15_cisd_binder_never_uses_confirmation_after_before() -> None:
     )
 
     assert binding is None
+
+
+def test_canonical_source_context_fails_closed_without_htf_context() -> None:
+    decision = datetime(2025, 1, 6, 12, 0, tzinfo=UTC)
+
+    binding = binders.bind_canonical_source_context(
+        (),
+        direction=CapitalizerSourceDirection.BULLISH,
+        entry_price=Decimal("100"),
+        decision_at=decision,
+    )
+
+    assert binding is None
