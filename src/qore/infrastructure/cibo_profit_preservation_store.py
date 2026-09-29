@@ -62,6 +62,7 @@ class Genc7ShadowDecisionSeal:
     account_ref: str
     state_evidence_sha256: str
     proposal_evidence_sha256: str
+    evaluation_horizon_minutes: int
     control_action: Genc7Action
     control_amount_usd: Decimal
     treatment_action: Genc7Action
@@ -89,6 +90,14 @@ class Genc7ShadowDecisionSeal:
         if not self.decision_id or not self.account_provider_key or not self.account_ref:
             raise CiboCompoundCapitalError(
                 "GEN-C7 store decision/account identity is required"
+            )
+        if (
+            not isinstance(self.evaluation_horizon_minutes, int)
+            or isinstance(self.evaluation_horizon_minutes, bool)
+            or self.evaluation_horizon_minutes <= 0
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C7 store evaluation horizon must be positive int"
             )
         _aware(self.decision_at, "decision_at")
         _aware(self.sealed_at, "sealed_at")
@@ -473,6 +482,7 @@ def genc7_shadow_decision_json(
         "account_ref": decision.account_ref,
         "state_evidence_sha256": decision.state_evidence_sha256,
         "proposal_evidence_sha256": decision.proposal_evidence_sha256,
+        "evaluation_horizon_minutes": decision.evaluation_horizon_minutes,
         "control_action": decision.control_action.value,
         "control_amount_usd": str(decision.control_amount_usd),
         "treatment_action": decision.treatment_action.value,
@@ -507,6 +517,7 @@ def genc7_shadow_decision_sha256(
         "account_ref": decision.account_ref,
         "state_evidence_sha256": decision.state_evidence_sha256,
         "proposal_evidence_sha256": decision.proposal_evidence_sha256,
+        "evaluation_horizon_minutes": decision.evaluation_horizon_minutes,
         "control_action": decision.control_action.value,
         "control_amount_usd": str(decision.control_amount_usd),
         "treatment_action": decision.treatment_action.value,
@@ -563,6 +574,9 @@ def _seal_from_json(value: str) -> Genc7ShadowDecisionSeal:
             state_evidence_sha256=str(payload["state_evidence_sha256"]),
             proposal_evidence_sha256=str(
                 payload["proposal_evidence_sha256"]
+            ),
+            evaluation_horizon_minutes=int(
+                payload["evaluation_horizon_minutes"]
             ),
             control_action=Genc7Action(str(payload["control_action"])),
             control_amount_usd=Decimal(str(payload["control_amount_usd"])),
