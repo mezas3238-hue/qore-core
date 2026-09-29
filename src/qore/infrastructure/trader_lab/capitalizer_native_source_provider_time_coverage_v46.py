@@ -127,6 +127,7 @@ class _PeriodState:
     first_source_at: datetime | None = None
     last_source_at: datetime | None = None
     earliest_artifact_at: datetime | None = None
+    prelookback_source_seen: bool = False
     eligible_clocks: list[datetime] | None = None
     unresolved_source_clocks: int = 0
     asian_reference_resolution_count: int = 0
@@ -168,11 +169,12 @@ def _feed_state(
     session: CapitalizerSession,
 ) -> None:
     spec = state.spec
-    if bar.opened_at < spec.lookback_start or bar.opened_at >= spec.end:
-        return
-
     if state.earliest_artifact_at is None:
         state.earliest_artifact_at = bar.opened_at
+    if bar.opened_at <= spec.lookback_start:
+        state.prelookback_source_seen = True
+    if bar.opened_at < spec.lookback_start or bar.opened_at >= spec.end:
+        return
     if bar.opened_at < spec.start:
         state.lookback_rows += 1
     else:
@@ -258,10 +260,7 @@ def _coverage_row(
                     delta,
                 )
 
-    lookback_present = (
-        state.earliest_artifact_at is not None
-        and state.earliest_artifact_at <= spec.lookback_start
-    )
+    lookback_present = state.prelookback_source_seen
     coverage = "1" if eligible and both_ready == len(eligible) else (
         "0" if not eligible else str(both_ready / len(eligible))
     )
@@ -432,7 +431,11 @@ def main() -> int:
 
     market = sub.add_parser("market")
     market.add_argument("root", type=Path)
-    market.add_argument("--session", choices=[item.value for item in CapitalizerSession], required=True)
+    market.add_argument(
+        "--session",
+        choices=[item.value for item in CapitalizerSession],
+        required=True,
+    )
     market.add_argument("--output", type=Path, required=True)
 
     aggregate = sub.add_parser("aggregate")
@@ -453,7 +456,10 @@ def main() -> int:
         args.output.mkdir(parents=True, exist_ok=True)
         path = args.output / "capitalizer-v46-phase-b-aggregate.json"
 
-    path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(report, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     print(json.dumps(report, sort_keys=True))
     return 0
 
