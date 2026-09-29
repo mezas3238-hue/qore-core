@@ -75,6 +75,8 @@ class Phase20T13OosReadiness:
     required_candidate_coverage: Decimal
     required_selected_coverage: Decimal
     fold_count: int
+    decision_sha256s: tuple[str, ...]
+    changed_decision_sha256s: tuple[str, ...]
     fresh_oos_utility_demonstrated: bool
 
     def __post_init__(self) -> None:
@@ -147,6 +149,37 @@ class Phase20T13OosReadiness:
         if self.ready_for_utility_analysis != (not self.blockers):
             raise CiboCapitalManagementError(
                 "Phase20 T13 OOS readiness/blocker drift"
+            )
+        for values, label in (
+            (self.decision_sha256s, "decision identities"),
+            (self.changed_decision_sha256s, "changed decision identities"),
+        ):
+            if (
+                len(values) != len(set(values))
+                or any(
+                    not item.startswith("sha256:") or len(item) != 71
+                    for item in values
+                )
+            ):
+                raise CiboCapitalManagementError(
+                    f"Phase20 T13 OOS {label} invalid"
+                )
+        if len(self.decision_sha256s) != self.post_freeze_decision_epochs:
+            raise CiboCapitalManagementError(
+                "Phase20 T13 OOS decision identity count drift"
+            )
+        if (
+            len(self.changed_decision_sha256s)
+            != self.selection_changed_epochs
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20 T13 OOS changed decision identity count drift"
+            )
+        if not set(self.changed_decision_sha256s).issubset(
+            set(self.decision_sha256s)
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20 T13 OOS changed decisions outside population"
             )
 
 
@@ -230,6 +263,7 @@ def assess_phase20_t13_oos_readiness(
     missing_treatment = 0
     missing_baseline = 0
     changed_epochs = 0
+    changed_sha256s: list[str] = []
     outcome_rows: list[_OutcomeRow] = []
 
     for decision in decisions:
@@ -257,6 +291,7 @@ def assess_phase20_t13_oos_readiness(
             )
             if treatment.selection_changed:
                 changed_epochs += 1
+                changed_sha256s.append(decision.evidence_sha256)
         if baseline is None:
             missing_baseline += 1
             baseline_selected: tuple[str, ...] = ()
@@ -454,6 +489,10 @@ def assess_phase20_t13_oos_readiness(
         ),
         required_selected_coverage=plan.required_selected_outcome_coverage,
         fold_count=plan.fold_count,
+        decision_sha256s=tuple(
+            item.evidence_sha256 for item in decisions
+        ),
+        changed_decision_sha256s=tuple(changed_sha256s),
         fresh_oos_utility_demonstrated=False,
     )
 
