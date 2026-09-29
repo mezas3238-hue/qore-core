@@ -92,8 +92,28 @@ jobs:
             cd input/result
             sha256sum -c SHA256SUMS
           )
-          test "$(cat input/result/gen2-code-git-sha.txt)" = "$UPSTREAM_GEN2_GIT_SHA"
-          test "$(python -c 'import json; print(json.load(open("input/result/provider-schedule-catalog.json"))["sensor_count"])')" = "$UPSTREAM_PROVIDER_SENSOR_COUNT"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          actual_head=Path("input/result/gen2-code-git-sha.txt").read_text().strip()
+          expected_head=os.environ["UPSTREAM_GEN2_GIT_SHA"]
+          if actual_head != expected_head:
+              raise SystemExit(
+                  f"upstream GEN-2 artifact head drift: {actual_head} != {expected_head}"
+              )
+
+          catalog=json.loads(
+              Path("input/result/provider-schedule-catalog.json").read_text()
+          )
+          actual_count=int(catalog["sensor_count"])
+          expected_count=int(os.environ["UPSTREAM_PROVIDER_SENSOR_COUNT"])
+          if actual_count != expected_count:
+              raise SystemExit(
+                  f"upstream provider sensor count drift: {actual_count} != {expected_count}"
+              )
+          PY
 
       - name: Build agricultural provider capability audit
         run: |
