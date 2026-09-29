@@ -202,6 +202,8 @@ class DurablePhase20ForwardPolicyStore:
                     _policy_from_json(item) for item in decisions
                 ),
             )
+        except DurablePhase20ForwardPolicyError:
+            raise
         except (KeyError, TypeError, ValueError) as error:
             raise DurablePhase20ForwardPolicyError(
                 "durable forward policy payload invalid"
