@@ -28,6 +28,7 @@ from shared_wp03_historical_causal_discovery import (
     _source_state,
     _target_state,
 )
+
 from qore.infrastructure.core_stack_v2.dynamic_causal_graph import CausalConcept
 from qore.infrastructure.core_stack_v2.shared_global_opportunity_discovery import (
     SharedOpportunityEngineAssessment,
