@@ -7,6 +7,7 @@ on:
       - '.github/workflows/cibo-genc7-profit-preservation.yml'
       - 'src/qore/infrastructure/cibo_profit_preservation_shadow.py'
       - 'src/qore/infrastructure/cibo_profit_preservation_store.py'
+      - 'src/qore/infrastructure/cibo_profit_preservation_population.py'
       - 'tests/infrastructure/test_cibo_profit_preservation_shadow.py'
       - 'docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-GIVEBACK-SHADOW-PREREGISTRATION-V1.md'
   push:
@@ -16,6 +17,7 @@ on:
       - '.github/workflows/cibo-genc7-profit-preservation.yml'
       - 'src/qore/infrastructure/cibo_profit_preservation_shadow.py'
       - 'src/qore/infrastructure/cibo_profit_preservation_store.py'
+      - 'src/qore/infrastructure/cibo_profit_preservation_population.py'
       - 'tests/infrastructure/test_cibo_profit_preservation_shadow.py'
       - 'docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-GIVEBACK-SHADOW-PREREGISTRATION-V1.md'
 
@@ -41,12 +43,15 @@ jobs:
           ruff check \
             src/qore/infrastructure/cibo_profit_preservation_shadow.py \
             src/qore/infrastructure/cibo_profit_preservation_store.py \
+            src/qore/infrastructure/cibo_profit_preservation_population.py \
             tests/infrastructure/test_cibo_profit_preservation_shadow.py
           mypy \
             src/qore/infrastructure/cibo_profit_preservation_shadow.py \
-            src/qore/infrastructure/cibo_profit_preservation_store.py
+            src/qore/infrastructure/cibo_profit_preservation_store.py \
+            src/qore/infrastructure/cibo_profit_preservation_population.py
           python -m py_compile \
             src/qore/infrastructure/cibo_profit_preservation_shadow.py \
-            src/qore/infrastructure/cibo_profit_preservation_store.py
+            src/qore/infrastructure/cibo_profit_preservation_store.py \
+            src/qore/infrastructure/cibo_profit_preservation_population.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_profit_preservation_shadow.py
