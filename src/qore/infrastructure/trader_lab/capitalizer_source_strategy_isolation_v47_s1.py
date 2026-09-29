@@ -13,7 +13,7 @@ import argparse
 import bisect
 import json
 from collections import defaultdict
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -28,6 +28,9 @@ from qore.infrastructure.trader_lab import (
 )
 from qore.infrastructure.trader_lab import (
     capitalizer_canonical_source_context_binders_v47_s0 as context_binders,
+)
+from qore.infrastructure.trader_lab import (
+    capitalizer_canonical_structural_targets_v47_s0 as structural_targets,
 )
 from qore.infrastructure.trader_lab import (
     capitalizer_cibo_10y_m1_clone_v1 as m1_clone,
@@ -185,6 +188,7 @@ class S1PeriodMarketReport:
     v46_rejected_after_fill: int
     admitted_exact_fills: int
     provider_tick_requests: int
+    forensic_rejections: dict[str, int] = field(default_factory=dict)
     source_m1_run_id: int = SOURCE_M1_RUN_ID
     source_m1_sha: str = SOURCE_M1_SHA
     full_source_window_census: bool = True
@@ -234,6 +238,8 @@ class S1PeriodMarketReport:
             self.primary_fill_passes + self.fallback_fill_passes
         ):
             raise ValueError("S1 post-fill classification count drift")
+        if any(value < 0 for value in self.forensic_rejections.values()):
+            raise ValueError("S1 forensic rejection counts cannot be negative")
 
 
 @dataclass(frozen=True, slots=True)
@@ -616,6 +622,127 @@ def bind_source_window_ict_events(
     )
 
 
+def _bump(reasons: dict[str, int] | None, key: str) -> None:
+    if reasons is not None:
+        reasons[key] = reasons.get(key, 0) + 1
+
+
+def _diagnose_context_failure(
+    bars: tuple[CapitalizerM1Bar, ...],
+    *,
+    event: s0.S0ICTSourceEvent,
+) -> str:
+    """Classify a failed canonical context without changing admission semantics."""
+
+    direction = _direction(event.side)
+    htf = context_binders.bind_latest_h1_context(
+        bars,
+        decision_at=event.source_event_at,
+    )
+    if htf is None:
+        return "CTX_HTF_CLOSURE_AT_POI_UNRESOLVED"
+    if (
+        htf.closure.direction is not direction
+        or htf.daily_bias.direction is not direction
+    ):
+        return "CTX_HTF_DIRECTION_NOT_ALIGNED"
+    m15 = context_binders.bind_first_m15_cisd(
+        bars,
+        direction=direction,
+        higher_timeframe_closure=htf.closure,
+        important_pois=htf.poi_context.interacting_pois,
+        after=htf.confirmed_at,
+        before=event.source_event_at,
+    )
+    if m15 is None:
+        return "CTX_M15_CISD_UNRESOLVED"
+    target = structural_targets.bind_structural_target(
+        bars,
+        direction=direction,
+        entry_price=event.primary_armed_level,
+        decision_at=event.source_event_at,
+    )
+    if not target.resolution.resolved:
+        return "CTX_STRUCTURAL_TARGET_UNRESOLVED"
+    return "CTX_UNKNOWN_REJECTION"
+
+
+def _diagnose_m1_failure(
+    bars: tuple[CapitalizerM1Bar, ...],
+    *,
+    event: s0.S0ICTSourceEvent,
+    context: context_binders.S0SourceContextBinding,
+) -> str:
+    """Classify M1 binder failure while preserving the official binder result."""
+
+    after_at = _aware(context.m15.confirmed_at)
+    before_at = _aware(event.source_event_at)
+    causal = tuple(row for row in bars if row.closed_at <= before_at)
+    ob_index = next(
+        (
+            index
+            for index, row in enumerate(causal)
+            if row.opened_at == event.zone.ob_opened_at
+        ),
+        None,
+    )
+    if ob_index is None:
+        return "M1_ZONE_OB_NOT_IN_CAUSAL_SERIES"
+    if causal[ob_index].closed_at <= after_at:
+        return "M1_ZONE_PRECEDES_OR_EQUALS_M15_CISD"
+
+    series_rows: list[CapitalizerM1Bar] = []
+    cursor = ob_index
+    while (
+        cursor < len(causal)
+        and context_binders._opposing_m1(causal[cursor], context.direction)
+    ):
+        if causal[cursor].closed_at > after_at:
+            series_rows.append(causal[cursor])
+        cursor += 1
+    if not series_rows:
+        return "M1_OPPOSING_SERIES_UNRESOLVED_AFTER_M15"
+    if cursor >= len(causal):
+        return "M1_CONFIRMATION_BAR_UNAVAILABLE_BEFORE_EVENT"
+
+    confirmation = causal[cursor]
+    series = tuple(context_binders._m1_source(row) for row in series_rows)
+    cisd = context_binders.detect_cisd(
+        causal_series=series,
+        confirmation_bar=context_binders._m1_source(confirmation),
+        direction=context.direction,
+        important_level_reached=(
+            series_rows[0].opened_at == event.zone.ob_opened_at
+        ),
+        higher_timeframe_closure=context.htf.closure,
+    )
+    if not cisd.setup_confirmed:
+        return "M1_CISD_NOT_CONFIRMED"
+
+    mss = remediation.detect_m1_mss(
+        bars=causal,
+        direction=context.direction,
+        after=confirmation.opened_at,
+        before=before_at,
+    )
+    if not mss.confirmed or mss.confirmed_at is None:
+        return "M1_MSS_NOT_CONFIRMED"
+    if mss.confirmed_at < confirmation.closed_at:
+        return "M1_MSS_PRECEDES_CISD_CONFIRMATION"
+    if event.zone.fvg_confirmed_at > mss.confirmed_at:
+        return "M1_FVG_CONFIRMED_AFTER_M1_MSS"
+
+    order_block = remediation.assess_m1_order_block(
+        direction=context.direction,
+        causal_series=series,
+        poi_reached=True,
+        cisd=cisd,
+    )
+    if not order_block.confirmed:
+        return "M1_ORDER_BLOCK_NOT_CONFIRMED"
+    return "M1_UNKNOWN_REJECTION"
+
+
 def bind_source_window_routed_candidates(
     bars: tuple[CapitalizerM1Bar, ...],
     *,
@@ -623,6 +750,7 @@ def bind_source_window_routed_candidates(
     operating_day: date,
     prepared: _PreparedSourceSeries | None = None,
     funnel: dict[str, int] | None = None,
+    forensic: dict[str, int] | None = None,
 ) -> tuple[s0.S0RoutedCanonicalCandidate, ...]:
     result: list[s0.S0RoutedCanonicalCandidate] = []
     events = bind_source_window_ict_events(
@@ -642,6 +770,10 @@ def bind_source_window_routed_candidates(
             decision_at=event.source_event_at,
         )
         if context is None:
+            _bump(
+                forensic,
+                _diagnose_context_failure(bars, event=event),
+            )
             continue
         if funnel is not None:
             funnel["context_bound_candidates"] = (
@@ -656,6 +788,14 @@ def bind_source_window_routed_candidates(
             before=event.source_event_at,
         )
         if m1 is None:
+            _bump(
+                forensic,
+                _diagnose_m1_failure(
+                    bars,
+                    event=event,
+                    context=context,
+                ),
+            )
             continue
         if funnel is not None:
             funnel["m1_structure_bound_candidates"] = (
@@ -669,10 +809,14 @@ def bind_source_window_routed_candidates(
                 armed_at=event.source_event_at,
             )
             route_wick = s0.bind_s0_route_and_wick(candidate)
-            if (
-                not route_wick.route_resolution.resolved
-                or not route_wick.wick_formation.confirmed
-            ):
+            if not route_wick.route_resolution.resolved:
+                _bump(
+                    forensic,
+                    "ROUTE_" + "_".join(route_wick.route_resolution.reasons),
+                )
+                continue
+            if not route_wick.wick_formation.confirmed:
+                _bump(forensic, "ROUTE_WICK_NOT_CONFIRMED")
                 continue
             result.append(
                 s0.S0RoutedCanonicalCandidate(
@@ -685,6 +829,7 @@ def bind_source_window_routed_candidates(
                     funnel.get("routed_armed_candidates", 0) + 1
                 )
         except ValueError:
+            _bump(forensic, "CANONICAL_CANDIDATE_INVARIANT_REJECT")
             continue
     return tuple(
         sorted(
@@ -1148,6 +1293,7 @@ def build_period_market_population(
     )
 
     funnel: dict[str, int] = {}
+    forensic: dict[str, int] = {}
     primary = 0
     fallback = 0
     no_fill = 0
@@ -1170,6 +1316,7 @@ def build_period_market_population(
             operating_day=operating_day,
             prepared=prepared,
             funnel=funnel,
+            forensic=forensic,
         )
         for index, candidate in enumerate(candidates):
             fill, fill_requests = resolve_candidate_exact_fill(
@@ -1186,6 +1333,7 @@ def build_period_market_population(
             requests += fill_requests
             if fill is None:
                 no_fill += 1
+                _bump(forensic, "EXACT_PROVIDER_FILL_NOT_PROVEN")
                 continue
             if fill.mode == "FVG_CE_50" and (
                 candidate.candidate.event.primary_entry_mode != "FVG_CE_50"
@@ -1198,6 +1346,12 @@ def build_period_market_population(
             isolation = s0.assess_source_strategy_isolation_bundle(bundle)
             if not isolation.canonical_result.passes_to_qore_risk:
                 rejected += 1
+                for reason in isolation.canonical_result.reasons:
+                    _bump(forensic, f"V46:{reason}")
+                for reason in (
+                    isolation.canonical_result.dual_source_entry_acceptance.reasons
+                ):
+                    _bump(forensic, f"V46_DUAL:{reason}")
                 continue
             row = _row_from_admitted(
                 period=period,
@@ -1231,6 +1385,7 @@ def build_period_market_population(
         v46_rejected_after_fill=rejected,
         admitted_exact_fills=len(admitted),
         provider_tick_requests=requests,
+        forensic_rejections=dict(sorted(forensic.items())),
     )
     return report, tuple(
         sorted(
@@ -1328,6 +1483,42 @@ def aggregate_s1a(root: Path, output: Path) -> dict[str, object]:
         "market_period_reports": len(reports),
         "market_count": len({row.symbol for row in reports}),
         "periods": {},
+        "funnel": {
+            "source_events": sum(row.source_events for row in reports),
+            "context_bound_candidates": sum(
+                row.context_bound_candidates for row in reports
+            ),
+            "m1_structure_bound_candidates": sum(
+                row.m1_structure_bound_candidates for row in reports
+            ),
+            "routed_armed_candidates": sum(
+                row.routed_armed_candidates for row in reports
+            ),
+            "exact_fills": sum(
+                row.primary_fill_passes + row.fallback_fill_passes
+                for row in reports
+            ),
+            "v46_rejected_after_fill": sum(
+                row.v46_rejected_after_fill for row in reports
+            ),
+            "admitted_exact_fills": len(rows),
+        },
+        "forensic_rejections": dict(
+            sorted(
+                (
+                    key,
+                    sum(
+                        row.forensic_rejections.get(key, 0)
+                        for row in reports
+                    ),
+                )
+                for key in {
+                    key
+                    for row in reports
+                    for key in row.forensic_rejections
+                }
+            )
+        ),
     }
     period_payload: dict[str, object] = {}
     output.mkdir(parents=True, exist_ok=True)
@@ -1347,7 +1538,11 @@ def aggregate_s1a(root: Path, output: Path) -> dict[str, object]:
             for row in max3:
                 handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
     payload["periods"] = period_payload
-    payload["next_phase"] = "S1A_POPULATION_READY_FOR_FROZEN_GROSS_ECONOMICS"
+    payload["next_phase"] = (
+        "S1A_POPULATION_READY_FOR_FROZEN_GROSS_ECONOMICS"
+        if rows
+        else "S1A_ZERO_ADMITTED_POPULATION_FORENSICS_REQUIRED"
+    )
     (output / "capitalizer-s1a-aggregate.json").write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
