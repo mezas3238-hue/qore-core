@@ -1,0 +1,287 @@
+name: QORE Shared WP05 V14 R8 One-Shot Information Gain
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - .github/workflows/qore-shared-wp05-v14-r8-one-shot.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: qore-shared-wp05-v14-r8-one-shot
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  SOURCE_FREEZE_RUN_ID: "36502725114"
+  SOURCE_FREEZE_GIT_SHA: "f830eddd1cc0ae23fd829aabe247ac46d03c418a"
+  SOURCE_FREEZE_ARTIFACT: "qore-shared-wp05-v14-source-freeze-f830eddd1cc0ae23fd829aabe247ac46d03c418a"
+  R8_MARKET_EVIDENCE_ARTIFACT_ID: "10402199719"
+  V11_MODEL_FINGERPRINT: "cc74f7d3153dec34ebe8867efc27852ca8d5de95d471394f3d8ac9543147b01d"
+  V11_REPRESENTATION_FINGERPRINT: "1f1f2bd97e2f3541c7e37aca5571717a9908618ad1be2b4fce57cb9a09970ce8"
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate frozen V14 scientific protocol
+        run: |
+          set -euo pipefail
+          ruff check             src/qore/infrastructure/core_stack_v2/active_perception_v14_information_gain.py             scripts/shared_wp05_v14_information_gain.py             tests/infrastructure/test_shared_wp05_v14_information_gain.py
+          mypy             src/qore/infrastructure/core_stack_v2/active_perception_v14_information_gain.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/active_perception_v14_information_gain.py             scripts/shared_wp05_v14_information_gain.py
+          pytest -q             tests/infrastructure/test_shared_wp05_v14_information_gain.py             tests/infrastructure/test_shared_wp05_v14_representation.py
+
+  r8-one-shot:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e .
+
+      - name: Bind and await exact source-freeze run
+        shell: bash
+        run: |
+          set -euo pipefail
+          head_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_FREEZE_RUN_ID}" --jq '.head_sha')"
+          test "$head_sha" = "$SOURCE_FREEZE_GIT_SHA"
+          gh run watch "$SOURCE_FREEZE_RUN_ID" --repo "$GITHUB_REPOSITORY" --exit-status
+          status="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_FREEZE_RUN_ID}" --jq '.status')"
+          conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_FREEZE_RUN_ID}" --jq '.conclusion')"
+          test "$status" = "completed"
+          test "$conclusion" = "success"
+
+      - name: Download exact V14 source freeze
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_FREEZE_RUN_ID }}
+          name: ${{ env.SOURCE_FREEZE_ARTIFACT }}
+          path: input/source-freeze
+
+      - name: Verify exact source-only representation before outcome access
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd input/source-freeze && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root=Path("input/source-freeze")
+          assert (root/"freeze-code-git-sha.txt").read_text().strip() == os.environ[
+              "SOURCE_FREEZE_GIT_SHA"
+          ]
+          p=json.loads((root/"v14-cross-peer-representation.json").read_text())
+          assert p["identity"] == (
+              "QORE_SHARED_WP05_V14_CROSS_MARKET_MICROSTRUCTURE_REPRESENTATION_001"
+          )
+          assert p["status"] == "source_only_frozen"
+          assert p["partition"] == "r8_source_only"
+          assert p["row_count"] == 6804
+          assert len(p["rows"]) == 6804
+          assert p["peer_families"] == ["SP500_PEER","US30_PEER"]
+          assert p["checkpoints_minutes"] == [0,3,5,10,15]
+          assert p["base_feature_count"] == 46
+          assert p["raw_feature_cell_count"] == 460
+          assert p["selected_staleness_limit_ms"] in [5000,10000,30000,60000,120000]
+          for values in p["peer_checkpoint_coverage_bps"].values():
+              assert len(values) == 5
+              assert all(value >= 9500 for value in values)
+          for field in (
+              "contract_fingerprint_sha256",
+              "rows_sha256",
+              "representation_artifact_fingerprint_sha256",
+              "observability_sha256",
+          ):
+              assert len(p[field]) == 64
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["scientific_v14_outcomes_opened"] is False
+
+          Path("result").mkdir(exist_ok=True)
+          Path("result/representation-fingerprint.txt").write_text(
+              p["representation_artifact_fingerprint_sha256"]+"\n"
+          )
+          PY
+
+      - name: Recover immutable consumed R8 market evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p input/r8 result
+          for attempt in 1 2 3 4; do
+            if gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${R8_MARKET_EVIDENCE_ARTIFACT_ID}/zip" > r8.zip; then
+              break
+            fi
+            rm -f r8.zip
+            sleep $((attempt * 30))
+          done
+          test -s r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Open R8 once and execute frozen V14 evaluator
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPRESENTATION_FINGERPRINT="$(cat result/representation-fingerprint.txt)"
+          python scripts/shared_wp05_v14_information_gain.py             --representation input/source-freeze/v14-cross-peer-representation.json             --expected-representation-fingerprint "$REPRESENTATION_FINGERPRINT"             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --output result/wp05-v14-r8-information-gain.json             | tee result/summary.json
+
+      - name: Validate scientific result without forcing PASS
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(Path("result/wp05-v14-r8-information-gain.json").read_text())
+          fingerprint=Path("result/representation-fingerprint.txt").read_text().strip()
+          assert p["identity"] == (
+              "QORE_SHARED_WP05_CROSS_MARKET_MICROSTRUCTURE_CONFIRMATION_V14_001"
+          )
+          assert p["target_contract"] == "HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2"
+          assert p["protocol_pass"] is True
+          assert p["representation_fingerprint_sha256"] == fingerprint
+          assert p["aligned_target_count"] == 6397
+          assert p["v11_model_fingerprint_sha256"] == os.environ["V11_MODEL_FINGERPRINT"]
+          assert p["v11_representation_fingerprint_sha256"] == os.environ[
+              "V11_REPRESENTATION_FINGERPRINT"
+          ]
+          assert len(p["folds"]) == 4
+          assert [item["fold_index"] for item in p["folds"]] == [0,1,2,3]
+          for item in p["folds"]:
+              assert item["calibration_true_confirmation_count"] >= 50
+              assert item["calibration_true_confirmation_retention_bps"] >= 9800
+              assert len(item["density_set_fingerprint_sha256"]) == 64
+              evaluation=item["evaluation"]
+              assert evaluation["fold_index"] == item["fold_index"]
+              assert 0 <= evaluation["terminal_confirmation_retention_bps"] <= 10000
+              assert 0 <= evaluation["absolute_terminal_preservation_bps"] <= 10000
+              assert 0 <= evaluation["incremental_false_confirmation_veto_bps"] <= 10000
+          assert 0 <= p["pooled_incremental_false_confirmation_veto_bps"] <= 10000
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["shared_methodology_authority"] is False
+          assert p["shared_sizing_authority"] is False
+          assert p["shared_risk_authority"] is False
+          assert p["shared_order_authority"] is False
+          assert p["shared_execution_authority"] is False
+
+          if p["r8_information_gain_pass"]:
+              assert p["status"] == "WP05_V14_CROSS_MARKET_MICROSTRUCTURE_FROZEN"
+              assert len(p["final_density_set"]) == 10
+              assert len(p["final_density_set_fingerprint_sha256"]) == 64
+              assert p["final_calibration_true_confirmation_count"] >= 50
+              assert p["final_calibration_true_confirmation_retention_bps"] >= 9800
+              assert len(p["final_v14_model_fingerprint_sha256"]) == 64
+              assert p["next_authorized_step"] == (
+                  "R6_R5_SOURCE_ONLY_V14_PEER_ACQUISITION_WITH_OUTCOMES_CLOSED"
+              )
+          else:
+              assert p["status"] == "WP05_V14_CROSS_MARKET_MICROSTRUCTURE_FALSIFIED"
+              assert "final_v14_model_fingerprint_sha256" not in p
+          PY
+
+      - name: Seal V14 R8 one-shot result
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > result/r8-code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/r8-run-id.txt
+          printf '%s\n' "$SOURCE_FREEZE_RUN_ID" > result/source-freeze-run-id.txt
+          (
+            cd result
+            sha256sum               wp05-v14-r8-information-gain.json               summary.json               representation-fingerprint.txt               r8-code-git-sha.txt               r8-run-id.txt               source-freeze-run-id.txt > SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-wp05-v14-r8-one-shot-${{ github.sha }}
+          path: result
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report V14 R8 scientific result
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(Path("result/wp05-v14-r8-information-gain.json").read_text())
+          lines=[
+              "## WP-05 V14 cross-market microstructure R8 one-shot result",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- GitHub Actions run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- source-freeze run: `{os.environ['SOURCE_FREEZE_RUN_ID']}`",
+              f"- status: **{p['status']}**",
+              f"- aligned Target-V2 population: **{p['aligned_target_count']}**",
+              f"- V11 model fingerprint: `{p['v11_model_fingerprint_sha256']}`",
+              f"- V14 representation fingerprint: `{p['representation_fingerprint_sha256']}`",
+              f"- pooled incremental false-confirmation veto: **{p['pooled_incremental_false_confirmation_veto_bps']} bps**",
+              "",
+              "Fold results:",
+          ]
+          for item in p["folds"]:
+              e=item["evaluation"]
+              lines.append(
+                  f"- F{item['fold_index']}: "
+                  f"train={item['training_count_after_outer_purge']} "
+                  f"validation={item['validation_count']} "
+                  f"cal_true={item['calibration_true_confirmation_count']} "
+                  f"cal_retention={item['calibration_true_confirmation_retention_bps']} "
+                  f"threshold={item['peer_confirmation_threshold_micros']} | "
+                  f"retention={e['terminal_confirmation_retention_bps']} "
+                  f"abs_terminal={e['absolute_terminal_preservation_bps']} "
+                  f"false_veto={e['incremental_false_confirmation_veto_bps']} "
+                  f"abs_false_reduction={e['absolute_false_declaration_reduction_bps']} "
+                  f"pass={e['gate_pass']}"
+              )
+          if p["r8_information_gain_pass"]:
+              lines.extend([
+                  "",
+                  "- R8 V14 gate: **PASS**",
+                  f"- final density fingerprint: `{p['final_density_set_fingerprint_sha256']}`",
+                  f"- final peer-confirmation threshold: **{p['final_peer_confirmation_threshold_micros']} micros**",
+                  f"- final V14 model fingerprint: `{p['final_v14_model_fingerprint_sha256']}`",
+                  "- next authorized step: acquire/freeze R6/R5 peer source evidence with outcomes still CLOSED",
+              ])
+          else:
+              lines.extend([
+                  "",
+                  "- R8 V14 gate: **FALSIFIED**",
+                  "- V14 is closed. R6/R5 and fresh holdout remain CLOSED; no V14.1, peer/threshold/staleness/feature/fold rescue is authorized.",
+              ])
+          lines.extend([
+              "- R6/R5 read: **False**",
+              "- fresh holdout opened: **False**",
+          ])
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 643 --body-file result/issue-comment.md
