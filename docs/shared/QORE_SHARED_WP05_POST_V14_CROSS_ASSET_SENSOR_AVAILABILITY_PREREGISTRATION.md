@@ -20,6 +20,14 @@ catalogue SHA256:
 
 No performance or outcome information was used.
 
+Authoritative provider-catalogue lineage:
+
+- run: `36561967069` — SUCCESS;
+- Git SHA: `420e6aca7b450a3e215c28dbab4a3efb13ece04a`;
+- artifact: `11030242325`;
+- catalogue SHA256:
+  `4c10aede99704b937caa772e1ae07257c8e12c3d0644c06ca751b6885b9a363f`.
+
 Before any V15 scientific hypothesis exists, this audit asks whether three
 structurally different source families have replayable historical BID/ASK
 evidence on the already-consumed R8 source windows.
