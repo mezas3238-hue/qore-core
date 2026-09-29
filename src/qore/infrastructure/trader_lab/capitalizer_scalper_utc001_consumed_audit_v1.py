@@ -6,9 +6,8 @@ two exact anniversary-aligned 12-month exam years and each year is evaluated
 independently under UTC-001.
 
 Costs remain BLOCKED unless explicit bound provider economics are supplied.
-Loss-cluster and sample-sufficiency certification remain MISSING until their
-predeclared adjudication contracts exist; descriptive cluster metrics are still
-emitted.
+Loss-cluster and sample-sufficiency gates use the predeclared UTC-001 universal
+adjudication contract. They are evaluated independently per exam year.
 """
 
 from __future__ import annotations
@@ -33,6 +32,9 @@ from qore.infrastructure.trader_lab import (
 from qore.infrastructure.trader_lab import (
     universal_trader_certification_standard_001 as utc,
 )
+from qore.infrastructure.trader_lab import (
+    universal_trader_utc001_sample_cluster_gates_001 as utc_support,
+)
 
 IDENTITY = "QORE_CAPITALIZER_SCALPER_UTC001_CONSUMED_AUDIT_V1"
 MC_REPLICATES = 5000
@@ -50,6 +52,8 @@ class ExamYearReport:
     risk_adjusted: metrics.DailyRiskAdjustedMetrics
     loss_clustering: metrics.LossClusterMetrics
     monte_carlo: mc.MonteCarloReport
+    sample_sufficiency: utc_support.SampleSufficiencyGate
+    loss_cluster_gate: utc_support.LossClusterGate
     utc_evidence: utc.TemporalPeriodEvidence
     utc_gate_statuses: tuple[utc.GateResult, ...]
 
@@ -141,6 +145,8 @@ def _period_evidence(
     metrics.DailyRiskAdjustedMetrics,
     metrics.LossClusterMetrics,
     mc.MonteCarloReport,
+    utc_support.SampleSufficiencyGate,
+    utc_support.LossClusterGate,
     utc.TemporalPeriodEvidence,
 ]:
     economics = metrics._economics(rows)
@@ -159,6 +165,8 @@ def _period_evidence(
         provider_cost_evidence_bound=False,
         additional_cost_r_per_trade=None,
     )
+    sample_gate = utc_support.sample_sufficiency_gate(economics)
+    cluster_gate = utc_support.loss_cluster_gate(clusters, monte_carlo)
 
     evidence = utc.TemporalPeriodEvidence(
         period_id=period_id,
@@ -214,15 +222,23 @@ def _period_evidence(
         ),
         post_cost_profit_factor=None,
         post_cost_expectancy_r_per_trade=None,
-        loss_cluster_gate_passed=None,
-        sample_sufficiency_passed=None,
+        loss_cluster_gate_passed=cluster_gate.passed,
+        sample_sufficiency_passed=sample_gate.passed,
         cost_evidence_bound=False,
         cost_certification_blocked=True,
         development_only=development_only,
         consumed_for_engineering=consumed_for_engineering,
         fresh_holdout=False,
     )
-    return economics, risk, clusters, monte_carlo, evidence
+    return (
+        economics,
+        risk,
+        clusters,
+        monte_carlo,
+        sample_gate,
+        cluster_gate,
+        evidence,
+    )
 
 
 def build_report(
@@ -248,7 +264,15 @@ def build_report(
 
     for index, (start, end, year_rows) in enumerate(split, start=1):
         period_id = f"{population_role}:YEAR_{index}"
-        economics, risk, clusters, monte_carlo, evidence = _period_evidence(
+        (
+            economics,
+            risk,
+            clusters,
+            monte_carlo,
+            sample_gate,
+            cluster_gate,
+            evidence,
+        ) = _period_evidence(
             period_id=period_id,
             window_start=start,
             window_end_exclusive=end,
@@ -272,6 +296,8 @@ def build_report(
                 risk_adjusted=risk,
                 loss_clustering=clusters,
                 monte_carlo=monte_carlo,
+                sample_sufficiency=sample_gate,
+                loss_cluster_gate=cluster_gate,
                 utc_evidence=evidence,
                 utc_gate_statuses=gates,
             )
@@ -287,8 +313,8 @@ def build_report(
         consumed_for_engineering=consumed_for_engineering,
         fresh_certification_authority=False,
         cost_certification_blocked=True,
-        loss_cluster_certification_adjudication_available=False,
-        sample_sufficiency_rule_predeclared=False,
+        loss_cluster_certification_adjudication_available=True,
+        sample_sufficiency_rule_predeclared=True,
         exam_years=tuple(year_reports),
         failed_economic_gates=tuple(sorted(failed)),
         missing_mandatory_gates=tuple(sorted(missing)),
