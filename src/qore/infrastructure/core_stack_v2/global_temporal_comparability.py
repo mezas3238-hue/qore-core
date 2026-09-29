@@ -1710,6 +1710,163 @@ class RelationalComparabilityPolicyRegistry:
         )
 
 
+class TemporalGovernanceClosureStatus(StrEnum):
+    READY = "READY"
+    NOT_READY = "NOT_READY"
+
+
+@dataclass(frozen=True, slots=True)
+class TemporalGovernanceClosureAssessment:
+    """Machine-readable GEN-2 closure gate; never grants relational authority."""
+
+    status: TemporalGovernanceClosureStatus
+    sensor_count: int
+    canonical_mapping_verified_count: int
+    calendar_count: int
+    binding_count: int
+    cadence_policy_registry_frozen: bool
+    liquidity_policy_registry_frozen: bool
+    temporal_skew_policy_registry_frozen: bool
+    comparability_policy_registry_frozen: bool
+    anti_leakage_pass: bool
+    deterministic_validation_pass: bool
+    blockers: tuple[str, ...]
+    relational_claims_authorized: bool = False
+
+    def __post_init__(self) -> None:
+        for name in (
+            "sensor_count",
+            "canonical_mapping_verified_count",
+            "calendar_count",
+            "binding_count",
+        ):
+            value = getattr(self, name)
+            if type(value) is not int or value < 0:
+                raise TemporalComparabilityError(
+                    f"{name} must be non-negative int"
+                )
+        for name in (
+            "cadence_policy_registry_frozen",
+            "liquidity_policy_registry_frozen",
+            "temporal_skew_policy_registry_frozen",
+            "comparability_policy_registry_frozen",
+            "anti_leakage_pass",
+            "deterministic_validation_pass",
+            "relational_claims_authorized",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise TemporalComparabilityError(
+                    f"{name} must be strict bool"
+                )
+        if self.blockers != tuple(sorted(set(self.blockers))):
+            raise TemporalComparabilityError(
+                "temporal governance blockers must be canonical"
+            )
+        expected = (
+            TemporalGovernanceClosureStatus.READY
+            if not self.blockers
+            else TemporalGovernanceClosureStatus.NOT_READY
+        )
+        if self.status is not expected:
+            raise TemporalComparabilityError(
+                "temporal governance status/blocker mismatch"
+            )
+        if self.relational_claims_authorized:
+            raise TemporalComparabilityError(
+                "GEN-2 closure cannot authorize relational claims"
+            )
+
+    def fingerprint(self) -> str:
+        return _sha256(
+            {
+                "status": self.status.value,
+                "sensor_count": self.sensor_count,
+                "canonical_mapping_verified_count": (
+                    self.canonical_mapping_verified_count
+                ),
+                "calendar_count": self.calendar_count,
+                "binding_count": self.binding_count,
+                "cadence_policy_registry_frozen": (
+                    self.cadence_policy_registry_frozen
+                ),
+                "liquidity_policy_registry_frozen": (
+                    self.liquidity_policy_registry_frozen
+                ),
+                "temporal_skew_policy_registry_frozen": (
+                    self.temporal_skew_policy_registry_frozen
+                ),
+                "comparability_policy_registry_frozen": (
+                    self.comparability_policy_registry_frozen
+                ),
+                "anti_leakage_pass": self.anti_leakage_pass,
+                "deterministic_validation_pass": (
+                    self.deterministic_validation_pass
+                ),
+                "blockers": self.blockers,
+                "relational_claims_authorized": False,
+            }
+        )
+
+
+def assess_temporal_governance_closure(
+    *,
+    sensor_count: int,
+    canonical_mapping_verified_count: int,
+    calendar_count: int,
+    binding_count: int,
+    cadence_policy_registry_frozen: bool,
+    liquidity_policy_registry_frozen: bool,
+    temporal_skew_policy_registry_frozen: bool,
+    comparability_policy_registry_frozen: bool,
+    anti_leakage_pass: bool,
+    deterministic_validation_pass: bool,
+) -> TemporalGovernanceClosureAssessment:
+    """Evaluate GEN-2 closure independently from later relation science."""
+
+    blockers: list[str] = []
+    if sensor_count <= 0:
+        blockers.append("SENSOR_UNIVERSE_EMPTY")
+    if canonical_mapping_verified_count != sensor_count:
+        blockers.append("CANONICAL_MAPPING_INCOMPLETE")
+    if calendar_count <= 0:
+        blockers.append("CANONICAL_CALENDAR_REGISTRY_EMPTY")
+    if binding_count != sensor_count:
+        blockers.append("CALENDAR_BINDING_INCOMPLETE")
+    if not cadence_policy_registry_frozen:
+        blockers.append("CADENCE_POLICY_REGISTRY_NOT_FROZEN")
+    if not liquidity_policy_registry_frozen:
+        blockers.append("LIQUIDITY_POLICY_REGISTRY_NOT_FROZEN")
+    if not temporal_skew_policy_registry_frozen:
+        blockers.append("TEMPORAL_SKEW_POLICY_REGISTRY_NOT_FROZEN")
+    if not comparability_policy_registry_frozen:
+        blockers.append("COMPARABILITY_POLICY_REGISTRY_NOT_FROZEN")
+    if not anti_leakage_pass:
+        blockers.append("ANTI_LEAKAGE_NOT_PASS")
+    if not deterministic_validation_pass:
+        blockers.append("DETERMINISTIC_VALIDATION_NOT_PASS")
+
+    canonical_blockers = tuple(sorted(set(blockers)))
+    status = (
+        TemporalGovernanceClosureStatus.READY
+        if not canonical_blockers
+        else TemporalGovernanceClosureStatus.NOT_READY
+    )
+    return TemporalGovernanceClosureAssessment(
+        status=status,
+        sensor_count=sensor_count,
+        canonical_mapping_verified_count=canonical_mapping_verified_count,
+        calendar_count=calendar_count,
+        binding_count=binding_count,
+        cadence_policy_registry_frozen=cadence_policy_registry_frozen,
+        liquidity_policy_registry_frozen=liquidity_policy_registry_frozen,
+        temporal_skew_policy_registry_frozen=temporal_skew_policy_registry_frozen,
+        comparability_policy_registry_frozen=comparability_policy_registry_frozen,
+        anti_leakage_pass=anti_leakage_pass,
+        deterministic_validation_pass=deterministic_validation_pass,
+        blockers=canonical_blockers,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class RelationalObservation:
     source_identity: ProviderInstrumentIdentity
