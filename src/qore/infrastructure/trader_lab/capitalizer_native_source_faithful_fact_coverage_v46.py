@@ -112,9 +112,13 @@ def _facts() -> tuple[FactOperationalization, ...]:
         session_context,
         "assess_source_session_context",
     )
-    asian_reference_unbound = (
+    asian_reference_ready = (
         "ICT_ASIAN_OPEN_REFERENCE_REQUIRED" in session_source
         and "asian_open_reference_at" in session_source
+        and _has_callable(
+            historical_adapter,
+            "resolve_historical_asian_open_reference",
+        )
     )
 
     poi_primitives_ready = (
@@ -212,15 +216,16 @@ def _facts() -> tuple[FactOperationalization, ...]:
             2,
             "HISTORICAL_ASIAN_OPEN_REFERENCE",
             (
-                OperationalizationStatus.EXTERNAL_REFERENCE_REQUIRED
-                if asian_reference_unbound
-                else OperationalizationStatus.DETECTOR_MISSING
+                OperationalizationStatus.DETECTOR_READY
+                if asian_reference_ready
+                else OperationalizationStatus.EXTERNAL_REFERENCE_REQUIRED
             ),
             (
-                "ASIA fail-closes without asian_open_reference_at; no bound "
-                "historical Asian Open source exists in the canonical stack."
+                "V46-R3 binds the primary ICT Asian Killzone 7/8 PM "
+                "DST-relative reference to its invariant 00:00 UTC boundary "
+                "with explicit source provenance."
             ),
-            False,
+            asian_reference_ready,
             True,
         ),
         FactOperationalization(
@@ -581,6 +586,9 @@ def build_report() -> dict[str, Any]:
         "r2_predeclaration_comment_id": (
             historical_adapter.PREDECLARATION_COMMENT_ID
         ),
+        "r3_predeclaration_comment_id": (
+            historical_adapter.R3_PREDECLARATION_COMMENT_ID
+        ),
         "evaluation": "PHASE_A_STATIC_CANONICAL_FACT_OPERATIONALIZATION",
         "mandatory_fact_count": MANDATORY_FACT_COUNT,
         "facts": [asdict(row) for row in facts],
@@ -605,7 +613,7 @@ def build_report() -> dict[str, Any]:
         "candidate_count": 0,
         "trader_certified": False,
         "next_phase": (
-            "CANONICAL_FACT_COVERAGE_READY_FOR_SOURCE_FAITHFUL_ECONOMIC_REPLAY"
+            "PHASE_B_PROVIDER_TIME_COVERAGE_AUTHORIZED"
             if phase_a_ready
             else "CANONICAL_FACT_OPERATIONALIZATION_GAPS_REQUIRE_IMPLEMENTATION"
         ),
