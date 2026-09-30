@@ -85,6 +85,40 @@
       ],
       "partial_work_admitted": false,
       "protected_holdout_opened": false,
+      "master_regression_status": "PASSED_MASTER_REGRESSION",
+      "disposition": "INTEGRATED_AND_PROVEN",
+      "master_regression_evidence": [
+        "github-actions://36777564707/SUCCESS",
+        "github-actions://36777564727/SUCCESS",
+        "github-actions://36777564700/SUCCESS",
+        "github-actions://36777565027/SUCCESS",
+        "github-actions://36777564872/SUCCESS",
+        "github-actions://36777564682/SUCCESS",
+        "github-actions://36777564814/SUCCESS",
+        "github-actions://36777565112/SUCCESS",
+        "github-actions://36777564787/SUCCESS",
+        "github-actions://36777571547/SUCCESS",
+        "github-actions://36777571434/SUCCESS",
+        "github-actions://36777571396/SUCCESS"
+      ]
+    },
+    {
+      "integration_id": "INT-A-002",
+      "source_lane": "A",
+      "source_cut_sha": "84ef34893d93f20cd07343a0df2104909ef587a8",
+      "master_merge_sha": "064b484761784a687b39d298210e68fe083e7cb7",
+      "workstreams": [
+        "MC-06",
+        "MC-20"
+      ],
+      "source_evidence": [
+        "github-actions://36774921220/SUCCESS",
+        "github-actions://36775872235/SUCCESS",
+        "github-actions://36777725847/SUCCESS",
+        "github-actions://36777730070/SUCCESS"
+      ],
+      "partial_work_admitted": false,
+      "protected_holdout_opened": false,
       "master_regression_status": "RUNNING",
       "disposition": "MERGED_PENDING_MASTER_REGRESSION"
     }
@@ -92,24 +126,35 @@
   "next_integrations": [
     {
       "lane": "A",
-      "status": "STAGED_VALIDATION_RUNNING",
+      "status": "NEXT_TERMINAL_CANDIDATE",
       "workstreams": [
-        "MC-06",
-        "MC-20"
+        "MC-21"
       ],
-      "integration_pr": 678,
-      "rule": "Merge only after current master regression and exact slice validation are green."
+      "rule": "Stage independently; MC-26 is dependency-blocked by non-master A modules."
+    },
+    {
+      "lane": "A",
+      "status": "DEPENDENCY_BLOCKED",
+      "workstreams": [
+        "MC-26"
+      ],
+      "blockers": [
+        "counterfactual_world_engine.py absent from master",
+        "meta_learning_regime_adaptation.py absent from master / MC-23 not terminal"
+      ]
     },
     {
       "lane": "B",
       "status": "SUPPORT_CLOSURE_IN_PROGRESS",
       "workstreams": [
-        "B-21",
         "B-06",
+        "B-07",
         "B-08",
-        "B-14"
+        "B-21",
+        "B-22",
+        "B-24"
       ],
-      "rule": "Integrate terminal layers only; preserve external/open blockers."
+      "rule": "Preserve explicit unresolved/external blockers."
     }
   ]
 }
