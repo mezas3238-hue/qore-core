@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from enum import StrEnum
-from collections.abc import Mapping
 
 from qore.infrastructure.core_stack_v2.shared_global_opportunity_discovery import (
     SharedOpportunitySourceObservation,
