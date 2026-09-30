@@ -93,13 +93,18 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_CERTIFIED_EXPANSION_UTILITY_OPEN_ECONOMIC_PROTOCOL_PREREGISTERED",
+      "current_maturity": "CONTRACT_CERTIFIED_NONCOMPENSATORY_EXPANSION_UTILITY_GATE_CHILD_CI_GREEN_FRESH_OOS_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py",
         "github-actions://36649279224/SUCCESS",
-        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md"
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "src/qore/infrastructure/cibo_expansion_utility_gate.py",
+        "tests/infrastructure/test_cibo_expansion_utility_gate.py",
+        "docs/research/CIBO-T06-T07-EXPANSION-UTILITY-GATE-V1.md",
+        ".github/workflows/cibo-t06-t07-expansion-utility.yml",
+        "github-actions://36755770224/SUCCESS"
       ],
       "blockers": [
         "FRESH_OOS_PROFIT_FUNDED_EXPANSION_UTILITY_REQUIRED"
@@ -111,13 +116,18 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_CERTIFIED_PROTECTED_CAPACITY_EXPANSION_UTILITY_OPEN_ECONOMIC_PROTOCOL_PREREGISTERED",
+      "current_maturity": "CONTRACT_CERTIFIED_PROTECTED_CAPACITY_NONCOMPENSATORY_UTILITY_GATE_CHILD_CI_GREEN_FRESH_OOS_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py",
         "github-actions://36649279224/SUCCESS",
-        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md"
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "src/qore/infrastructure/cibo_expansion_utility_gate.py",
+        "tests/infrastructure/test_cibo_expansion_utility_gate.py",
+        "docs/research/CIBO-T06-T07-EXPANSION-UTILITY-GATE-V1.md",
+        ".github/workflows/cibo-t06-t07-expansion-utility.yml",
+        "github-actions://36755770224/SUCCESS"
       ],
       "blockers": [
         "FRESH_OOS_PROTECTED_CAPACITY_EXPANSION_UTILITY_REQUIRED"
@@ -222,11 +232,16 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED_ECONOMIC_PROTOCOL_PREREGISTERED",
+      "current_maturity": "CAUSAL_PARETO_UTILITY_GATE_CHILD_CI_GREEN_FRESH_FORWARD_PROOF_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
-        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md"
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "src/qore/infrastructure/cibo_t14_t15_utility_gate.py",
+        "tests/infrastructure/test_cibo_t14_t15_utility_gate.py",
+        "docs/research/CIBO-T14-T15-CAUSAL-PARETO-UTILITY-GATE-V1.md",
+        ".github/workflows/cibo-t14-t15-causal-utility.yml",
+        "github-actions://36755770128/SUCCESS"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
@@ -238,14 +253,20 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED_ECONOMIC_PROTOCOL_PREREGISTERED",
+      "current_maturity": "CAUSAL_PARETO_UTILITY_GATE_CHILD_CI_GREEN_CAUSAL_IDENTIFICATION_AND_FRESH_FORWARD_PROOF_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
-        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md"
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "src/qore/infrastructure/cibo_t14_t15_utility_gate.py",
+        "tests/infrastructure/test_cibo_t14_t15_utility_gate.py",
+        "docs/research/CIBO-T14-T15-CAUSAL-PARETO-UTILITY-GATE-V1.md",
+        ".github/workflows/cibo-t14-t15-causal-utility.yml",
+        "github-actions://36755770128/SUCCESS"
       ],
       "blockers": [
-        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
+        "COUNTERFACTUAL_RESERVATION_CAUSAL_EFFECT_NOT_IDENTIFIED"
       ],
       "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
     },
@@ -756,9 +777,15 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
+      "current_maturity": "GENC7_ENGINE_CHILD_CI_GREEN_FRESH_OOS_PROFIT_RETENTION_VALUE_OPEN",
       "terminal_disposition": null,
-      "evidence_refs": [],
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_profit_preservation_shadow.py",
+        "tests/infrastructure/test_cibo_profit_preservation_shadow.py",
+        ".github/workflows/cibo-genc7-profit-preservation.yml",
+        "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-GIVEBACK-SHADOW-PREREGISTRATION-V1.md",
+        "github-actions://36727848202/SUCCESS"
+      ],
       "blockers": [
         "FRESH_OOS_PROFIT_RETENTION_AND_GIVEBACK_VALUE_REQUIRED"
       ],
@@ -906,12 +933,14 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CAUSAL_ATTRIBUTION_INFRASTRUCTURE_IMPLEMENTED_REAL_MULTI_MECHANISM_EVIDENCE_OPEN",
+      "current_maturity": "CAUSAL_ATTRIBUTION_GATE_CHILD_CI_GREEN_REAL_MULTI_MECHANISM_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_causal_ablation.py",
         "tests/infrastructure/test_cibo_compound_causal_ablation.py",
-        "docs/research/CIBO-COMPOUND-CAUSAL-ABLATION-PROTOCOL-V1.md"
+        "docs/research/CIBO-COMPOUND-CAUSAL-ABLATION-PROTOCOL-V1.md",
+        ".github/workflows/cibo-compound-causal-ablation.yml",
+        "github-actions://36755770351/SUCCESS"
       ],
       "blockers": [
         "COMPOUND_PORTFOLIO_AND_GEN_C_CLOSURE_REQUIRED"
@@ -1164,7 +1193,7 @@
       "kind": "EVIDENCE_PROGRAM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTROL_SEALED_MEASUREMENT_PATH_RECONCILED_REAL_POPULATION_REQUIRED",
+      "current_maturity": "CONTROL_SEALED_MATERIALIZER_CHILD_CI_GREEN_REAL_POPULATION_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-GENERATION-CURRENT-CONTROL-CANDIDATE-V1.md",
@@ -1172,7 +1201,12 @@
         "docs/research/CIBO-AS-IS-ECONOMIC-BASELINE-BINDING-PLAN-V1.md",
         "src/qore/infrastructure/cibo_ce2i_phase20_qualification.py",
         "src/qore/infrastructure/cibo_ce2i_phase20_qualification_plan.py",
-        "src/qore/infrastructure/cibo_compound_real_population_binding.py"
+        "src/qore/infrastructure/cibo_compound_real_population_binding.py",
+        "src/qore/infrastructure/cibo_as_is_economic_baseline.py",
+        "tests/infrastructure/test_cibo_as_is_economic_baseline.py",
+        "docs/research/CIBO-AS-IS-ECONOMIC-BASELINE-MATERIALIZATION-V1.md",
+        ".github/workflows/cibo-as-is-economic-baseline.yml",
+        "github-actions://36755769831/SUCCESS"
       ],
       "blockers": [
         "FRESH_AS_IS_ECONOMIC_POPULATION_REQUIRED",
