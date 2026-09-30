@@ -14,7 +14,6 @@ from uuid import UUID
 
 from qore.infrastructure.core_stack_v2.active_perception_v15_cross_asset_acquisition import (
     EXPECTED_MANIFEST_SHA256,
-    FROZEN_SHARD_COUNT,
     V15_CROSS_ASSET_ACQUISITION_IDENTITY,
     V15CrossAssetFamily,
     cross_asset_spec,
