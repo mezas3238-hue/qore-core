@@ -85,10 +85,9 @@ def build_fx_market_hours_boundary(
                 "authority identity/url invalid"
             )
         authority_ids.append(authority_id)
-    if authority_ids != sorted(set(authority_ids)):
-        raise SharedBFxMarketHoursError(
-            "authority ids must be unique and canonical"
-        )
+    if len(authority_ids) != len(set(authority_ids)):
+        raise SharedBFxMarketHoursError("authority ids must be unique")
+    authority_ids = sorted(authority_ids)
 
     symbols = provider_schedule.get("symbols")
     if not isinstance(symbols, list):
@@ -143,12 +142,15 @@ def build_fx_market_hours_boundary(
             }
         )
 
-    rows.sort(
-        key=lambda row: (
-            str(row["provider"]),
-            int(row["provider_symbol_id"]),
-        )
-    )
+    def _row_key(row: dict[str, object]) -> tuple[str, int]:
+        symbol_id = row.get("provider_symbol_id")
+        if type(symbol_id) is not int:
+            raise SharedBFxMarketHoursError(
+                "provider FX symbol id lost integer type"
+            )
+        return (str(row.get("provider", "")), symbol_id)
+
+    rows.sort(key=_row_key)
     keys = [
         (row["provider"], row["provider_symbol_id"])
         for row in rows
