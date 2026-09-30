@@ -1,0 +1,115 @@
+name: QORE Shared A MC14 Latent Temporal Causal
+
+concurrency:
+  group: qore-shared-a-mc14-latent-temporal-causal
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/temporal_causal_latent_model.py
+      - tests/infrastructure/test_core_stack_v2_temporal_causal_latent_model.py
+      - scripts/shared_mc14_latent_temporal_causal.py
+      - .github/workflows/qore-shared-a-mc14-latent-temporal-causal.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  consumed-diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Validate MC14 contracts
+        run: |
+          set -euo pipefail
+          mkdir -p input/{r8,r6,r5} result
+          ruff check src/qore/infrastructure/core_stack_v2/temporal_causal_latent_model.py tests/infrastructure/test_core_stack_v2_temporal_causal_latent_model.py scripts/shared_mc14_latent_temporal_causal.py
+          mypy src/qore/infrastructure/core_stack_v2/temporal_causal_latent_model.py
+          pytest -q tests/infrastructure/test_core_stack_v2_temporal_causal_latent_model.py
+      - name: Recover immutable consumed evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+      - name: Run latent temporal causal diagnostic
+        run: |
+          set -euo pipefail
+          python scripts/shared_mc14_latent_temporal_causal.py             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/mc14-latent-temporal-causal.json             | tee result/summary.json
+      - name: Validate bounded disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc14-latent-temporal-causal.json").read_text())
+          assert p["status"] == "MC14_LATENT_TEMPORAL_CAUSAL_CONSUMED_DIAGNOSTIC_COMPLETE"
+          assert p["representation_fingerprint"] == "e2fc2ca059d5852b4e9107c467392e5e64aeabbd6aca2d8013951b93402bc987"
+          assert p["latent_concept_count"] == 6
+          assert p["target_count"] == 8
+          assert p["r8_source_thresholds_target_blind"] is True
+          assert p["r6_r5_used_for_threshold_fit"] is False
+          assert p["fresh_temporal_validation_used"] is False
+          assert p["knowledge_auto_promotion"] is False
+          assert p["mc14_completed_and_proven"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+      - name: Seal result
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc14-latent-temporal-causal-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report MC14
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(Path("result/mc14-latent-temporal-causal.json").read_text())
+          body="\n".join([
+              "## Shared A MC-14 — Latent Temporal Causal Diagnostic",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              f"- R8 candidates: **{p['r8_research_candidate_count']}**",
+              f"- consumed temporal replicated: **{p['consumed_temporal_replicated_count']}**",
+              f"- falsified candidates: **{p['falsified_candidate_count']}**",
+              f"- next gate: **{p['next_gate']}**",
+              "- fresh temporal validation used: **False**",
+              "- knowledge auto-promotion: **False**",
+              "- MC-14 completed-and-proven: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
