@@ -137,6 +137,9 @@ class V50RearmMarketReport:
     total_geometry_ready_setups: int
     recovered_cognitive_geometry_ready_after_rearm: int
     total_cognitive_geometry_ready_setups: int
+    geometry_ready_but_cognition_blocked: int
+    cognitive_rearm_attempts: int
+    cognitive_rearm_recovered_ready: int
     exhausted_rearmable_setups: int
     thesis_invalidated_before_trigger: int
     by_geometry_decision: tuple[tuple[str, int], ...]
@@ -439,8 +442,20 @@ def build_rearm_capacity(
                         counters["TOTAL_READY"] += 1
                         if cognitive_ready:
                             counters["TOTAL_COG_READY"] += 1
-                        recovered = True
-                        break
+                            if counters["COGNITIVE_REARM_ACTIVE"] > 0:
+                                counters["COGNITIVE_REARM_RECOVERED"] += 1
+                            recovered = True
+                            break
+
+                        # Geometry READY is not sufficient for the cognitive population.
+                        # A cognition-blocked first execution does not consume MAX3 and does
+                        # not invalidate the parent H1/M15 thesis. Continue only on a strictly
+                        # later source-valid M1 event while the protected swing remains intact.
+                        counters["GEOMETRY_READY_COGNITION_BLOCKED"] += 1
+                        counters["COGNITIVE_REARM_ACTIVE"] += 1
+                        counters["COGNITIVE_REARM_ATTEMPTS"] += 1
+                        cursor = trigger_at
+                        continue
 
                     if geometry.decision not in REARMABLE:
                         break
@@ -482,6 +497,11 @@ def build_rearm_capacity(
                 "RECOVERED_COG_READY"
             ],
             total_cognitive_geometry_ready_setups=counters["TOTAL_COG_READY"],
+            geometry_ready_but_cognition_blocked=counters[
+                "GEOMETRY_READY_COGNITION_BLOCKED"
+            ],
+            cognitive_rearm_attempts=counters["COGNITIVE_REARM_ATTEMPTS"],
+            cognitive_rearm_recovered_ready=counters["COGNITIVE_REARM_RECOVERED"],
             exhausted_rearmable_setups=counters["EXHAUSTED_REARMABLE"],
             thesis_invalidated_before_trigger=counters[
                 "THESIS_INVALIDATED_BEFORE_TRIGGER"
@@ -615,6 +635,15 @@ def build_matrix(root: Path) -> dict[str, Any]:
         ),
         "rearm_trigger_attempts": sum(
             int(row["rearm_trigger_attempts"]) for row in reports
+        ),
+        "geometry_ready_but_cognition_blocked": sum(
+            int(row["geometry_ready_but_cognition_blocked"]) for row in reports
+        ),
+        "cognitive_rearm_attempts": sum(
+            int(row["cognitive_rearm_attempts"]) for row in reports
+        ),
+        "cognitive_rearm_recovered_ready": sum(
+            int(row["cognitive_rearm_recovered_ready"]) for row in reports
         ),
         "thesis_invalidated_before_trigger": sum(
             int(row["thesis_invalidated_before_trigger"]) for row in reports
