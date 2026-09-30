@@ -1,5 +1,10 @@
 name: QORE Shared Continuous Integration Ledger
 
+concurrency:
+  group: qore-shared-continuous-integration-ledger-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+
 on:
   push:
     branches:
