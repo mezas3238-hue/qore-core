@@ -19,7 +19,13 @@ from qore.infrastructure.core_stack_v2.shared_trader_intelligence import (
 T0 = datetime(2026, 9, 30, 16, 30, tzinfo=UTC)
 
 
-def _obs(minute: int, *, close: int, efficiency: int, fragility: int) -> SharedPositionCausalObservation:
+def _obs(
+    minute: int,
+    *,
+    close: int,
+    efficiency: int,
+    fragility: int,
+) -> SharedPositionCausalObservation:
     return SharedPositionCausalObservation(
         observation_id=f"obs-{minute}",
         position_id="position-001",
