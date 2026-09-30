@@ -338,15 +338,15 @@ def assess_shared_b_global_data_health(
             else 10_000
         )
     else:
+        relation_age_ms = observation.relation_evidence_age_ms
+        relation_horizon_ms = observation.relation_validity_horizon_ms
         relation_evidence_present = (
-            observation.relation_evidence_age_ms is not None
-            and observation.relation_validity_horizon_ms is not None
+            relation_age_ms is not None
+            and relation_horizon_ms is not None
         )
-        relation_stale = (
-            relation_evidence_present
-            and observation.relation_evidence_age_ms
-            > observation.relation_validity_horizon_ms
-        )
+        relation_stale = False
+        if relation_age_ms is not None and relation_horizon_ms is not None:
+            relation_stale = relation_age_ms > relation_horizon_ms
         healthy_uncertainty = (
             0
             if (
