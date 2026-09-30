@@ -16,6 +16,10 @@ on:
       - "scripts/shared_mc10_transition_stability.py"
       - ".github/workflows/qore-shared-integrator-a-mc09-mc10-validation.yml"
 
+concurrency:
+  group: qore-shared-integrator-a-mc09-mc10-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   actions: read
