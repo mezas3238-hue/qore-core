@@ -1,5 +1,17 @@
 # CIBO MAXIMUM CAPITAL INTELLIGENCE + COMPOUNDING GAP AUDIT V1
 
+> **CURRENT-STATE NOTE — 29-SEP-2026:** This file is retained as the original
+> gap-audit provenance. Several `ABSENT/PARTIAL` rows below describe the state
+> at audit creation and are no longer the current implementation truth.
+> Current requirement routing and maturity are maintained in
+> `CIBO-WORLD-CUP-SOVEREIGN-CAPITAL-AMPLIFICATION-GAP-MATRIX-V1.md` and the
+> current GitHub HEAD/CI. Do not use historical rows below to downgrade or
+> duplicate capabilities already implemented in GEN-C1–GEN-C7.
+>
+> The governing mission is
+> `CIBO-SOVEREIGN-CAPITAL-AMPLIFICATION-WORLD-CUP-MISSION-V1.md`.
+
+
 Owner directive: 29-SEP-2026
 Primary PR: #651 — [DRAFT] CIBO Capital Management Authority + CE2I V1
 Branch: agent/cibo-capital-efficiency-sizing-lab-001
