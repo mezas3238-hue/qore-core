@@ -567,3 +567,101 @@ The active order is now:
 
 The +2,000% World Cup aspiration is an experimental North Star only. It must
 never become a tuning target or excuse for proportional risk expansion.
+
+
+---
+
+# ABSOLUTE CLOSURE GOVERNING AMENDMENT — 30-SEP-2026
+
+Canonical amendment:
+
+CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md
+
+Canonical machine-readable open-work inventory:
+
+CIBO-MASTER-OPEN-WORK-LEDGER-V1.json
+
+Canonical machine gate:
+
+scripts/cibo_zero_open_work_gate.py
+
+## Binding closure law
+
+CIBO cannot become FINAL CERTIFICATION CANDIDATE while any mandatory CIBO
+workstream lacks a terminal disposition.
+
+Allowed terminal dispositions:
+
+- COMPLETED_AND_PROVEN
+- FALSIFIED_AND_CLOSED
+- SUPERSEDED_WITH_PROVEN_LINEAGE
+- EXTERNAL_DEPENDENCY_BLOCKED
+
+A certification-critical EXTERNAL_DEPENDENCY_BLOCKED row keeps global
+certification blocked.
+
+## Non-compensatory critical path
+
+The following are mandatory and non-compensatory:
+
+- Compound Intelligence Engine;
+- Core Compound Portfolio;
+- Internal Capital Market;
+- Capital Generations;
+- Protected Capital Floor;
+- Sequential Compounding;
+- Profit Preservation;
+- Marginal Capital Utility;
+- GEN-C8 through GEN-C14;
+- CE2I T01–T20 closure;
+- provider economics;
+- forward qualification;
+- path-dependent Monte Carlo;
+- adversarial stress;
+- fresh OOS;
+- temporal replication;
+- final integrated CIBO exam.
+
+Great return cannot compensate for failure or incompleteness of any required
+capability.
+
+## Current ledger checkpoint
+
+At amendment creation the machine ledger contains 54 mandatory workstreams.
+
+Only GEN-C0 is currently recorded as terminally COMPLETED_AND_PROVEN.
+
+All other rows remain certification-blocking until their scientific or
+engineering closure evidence is produced.
+
+This statement is intentionally stricter than ENGINE_IMPLEMENTED or green CI.
+
+## GEN-C8 update
+
+GEN-C8 now has:
+
+- preregistration;
+- adaptive-speed shadow engine;
+- durable pre-outcome store;
+- descriptive population;
+- tests;
+- dedicated CI workflow.
+
+Its current state is ENGINE_IMPLEMENTED pending CI revalidation and fresh
+economic/OOS/stress/replication evidence. It is not certified and may not be
+counted as economic value.
+
+## Certification invocation
+
+Routine CI:
+
+    python scripts/cibo_zero_open_work_gate.py
+
+Final certification enforcement:
+
+    python scripts/cibo_zero_open_work_gate.py --enforce-certification
+
+The final command must exit successfully before CIBO may be considered a final
+certification candidate.
+
+ALL CI GREEN != CIBO CERTIFIED.
