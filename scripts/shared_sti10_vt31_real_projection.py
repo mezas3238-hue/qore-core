@@ -57,7 +57,7 @@ def _snapshot(observation, partition: str, index: int) -> SharedTraderIntelligen
     confidence = 10_000 - uncertainty
     coherence = (
         observation.leader_confirmation_bps
-        + observation.breadth_bps
+        + (10_000 - observation.leader_divergence_bps)
     ) // 2
     stability = 10_000 - (
         observation.leader_divergence_bps
