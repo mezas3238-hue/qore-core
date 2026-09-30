@@ -109,6 +109,7 @@ def build_identity_frontier_v2(
     new_records: list[dict[str, object]] = []
     transformed_keys: set[tuple[str, int]] = set()
     source_keys: set[tuple[str, int]] = set()
+    provider_description_trim_normalized_count = 0
     for raw in old_records:
         if not isinstance(raw, dict):
             raise SharedBIdentityFrontierV2Error("frontier v1 row invalid")
@@ -137,10 +138,19 @@ def build_identity_frontier_v2(
             )
         if row.get("provider_symbol") != attested.get("provider_symbol"):
             raise SharedBIdentityFrontierV2Error("provider symbol drift")
-        if row.get("provider_description") != attested.get(
-            "provider_description"
+        raw_description = row.get("provider_description")
+        attested_description = attested.get("provider_description")
+        if not isinstance(raw_description, str) or not isinstance(
+            attested_description, str
         ):
+            raise SharedBIdentityFrontierV2Error(
+                "provider description invalid"
+            )
+        if raw_description.strip() != attested_description:
             raise SharedBIdentityFrontierV2Error("provider description drift")
+        description_trimmed = raw_description != attested_description
+        if description_trimmed:
+            provider_description_trim_normalized_count += 1
         if row.get("provider_asset_class_name") != attested.get(
             "provider_asset_class_name"
         ):
@@ -159,6 +169,12 @@ def build_identity_frontier_v2(
         updated["canonical_economic_identity_verified"] = False
         updated["provider_metadata_is_canonical_proof"] = False
         updated["symbol_name_similarity_used"] = False
+        updated["provider_description_trim_normalized"] = description_trimmed
+        updated["provider_description_normalization"] = (
+            "TRIM_SURROUNDING_WHITESPACE_ONLY"
+            if description_trimmed
+            else "NONE"
+        )
         new_records.append(updated)
         transformed_keys.add(key)
 
@@ -200,6 +216,9 @@ def build_identity_frontier_v2(
         "dated_contract_descriptor_verified_count": 5,
         "provider_attested_economic_object_count": 98,
         "provider_native_only_count": 0,
+        "provider_description_trim_normalized_count": (
+            provider_description_trim_normalized_count
+        ),
         "provider_neutral_or_reference_mapped_count": 74,
         "full_canonical_identity_complete_count": 0,
         "full_177_identity_complete": False,
