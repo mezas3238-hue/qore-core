@@ -130,7 +130,19 @@ def _confirmed_execution_pivots(
             pivot = center.high > left.high and center.high > right.high
             price = center.high
             risk_side = price > entry_price
-        if pivot and risk_side:
+        if not (pivot and risk_side):
+            continue
+
+        # A senior pivot is usable at the current decision timestamp only if it has
+        # remained structurally intact since its causal right-hand confirmation.
+        # A pre-entry touch/breach would already have consumed that invalidation level.
+        later = window[index + 2 :]
+        intact = (
+            all(item.low > price for item in later)
+            if side is CapitalizerSide.LONG
+            else all(item.high < price for item in later)
+        )
+        if intact:
             result.append((right.closed_at, price))
     return tuple(result)
 
