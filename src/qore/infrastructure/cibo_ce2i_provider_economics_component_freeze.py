@@ -269,7 +269,16 @@ def freeze_current_ctrader_demo_provider_economics(
         holdout_outcomes_used=evidence.holdout_outcomes_used,
         target_aware=evidence.target_aware,
         broker_mutation_performed=evidence.broker_mutation_performed,
-        pre_holdout_provider_economics_ready=False,
+        pre_holdout_provider_economics_ready=(
+            current_terms
+            and slippage
+            and execution_model
+            and not evidence.historical_exact_claimed
+            and not evidence.holdout_outcomes_used
+            and not evidence.target_aware
+            and not evidence.broker_mutation_performed
+            and not blockers
+        ),
         blockers=tuple(blockers),
         execution_calibration_sha256=execution_calibration_sha256,
         productive_authority=False,
