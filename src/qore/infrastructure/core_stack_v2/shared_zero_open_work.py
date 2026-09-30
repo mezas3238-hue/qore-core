@@ -245,15 +245,26 @@ def build_shared_master_open_work_ledger() -> tuple[SharedOpenWorkItem, ...]:
     # WP closure does not automatically prove the corresponding MC capability.
     # MC-01..28 remain unresolved until an explicit verified-superset audit
     # binds each capability to scientific evidence satisfying Standard 006.
+    closed_mc_evidence = {
+        15: "mc15-six-source-uncertainty-run-36726927463",
+    }
     for index, title in enumerate(_MC_TITLES, start=1):
-        state = SharedWorkState.UNRESOLVED_REQUIRED_AUDIT
+        state = (
+            SharedWorkState.COMPLETED_AND_PROVEN
+            if index in closed_mc_evidence
+            else SharedWorkState.UNRESOLVED_REQUIRED_AUDIT
+        )
+        evidence = closed_mc_evidence.get(
+            index,
+            "maximum-precertification-standard-006",
+        )
         items.append(
             _item(
                 f"MC-{index:02d}",
                 "MC",
                 title,
                 state,
-                "maximum-precertification-standard-006",
+                evidence,
             )
         )
 
@@ -342,6 +353,7 @@ def build_shared_master_open_work_ledger() -> tuple[SharedOpenWorkItem, ...]:
         ("X-22", "Seven-Trader Two-Year Certification Protocol"),
     )
     closed_transversal_evidence = {
+        "X-11": "mc15-six-source-uncertainty-run-36726927463",
         "X-17": "transversal-x17-x19-closure-run-36726425709",
         "X-19": "transversal-x17-x19-closure-run-36726425709",
     }
