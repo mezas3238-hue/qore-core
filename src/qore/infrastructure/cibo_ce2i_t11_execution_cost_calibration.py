@@ -20,6 +20,7 @@ from math import ceil
 
 from qore.infrastructure.cibo_arch_b_forward_economic_manifest import (
     ArchBForwardEconomicManifest,
+    ArchBForwardEconomicManifestRow,
 )
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
@@ -171,7 +172,10 @@ def calibrate_t11_linear_execution_cost(
         item.qore_symbol: item
         for item in execution_calibration.symbol_summaries
     }
-    manifest_by_symbol: dict[str, list[object]] = {}
+    manifest_by_symbol: dict[
+        str,
+        list[ArchBForwardEconomicManifestRow],
+    ] = {}
     for row in manifest.rows:
         manifest_by_symbol.setdefault(row.qore_symbol, []).append(row)
 
