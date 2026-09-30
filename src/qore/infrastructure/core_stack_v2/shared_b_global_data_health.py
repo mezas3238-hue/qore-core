@@ -73,6 +73,7 @@ class SharedBGlobalDataObservation:
     relation_evidence_age_ms: int | None
     relation_validity_horizon_ms: int | None
     provenance_refs: tuple[str, ...]
+    relational_comparability_verified: bool = False
 
     def __post_init__(self) -> None:
         if not self.instrument_key.strip():
@@ -119,6 +120,7 @@ class SharedBGlobalDataObservation:
             "impossible_value",
             "canonical_identity_verified",
             "roll_identity_unambiguous",
+            "relational_comparability_verified",
         ):
             if type(getattr(self, name)) is not bool:
                 raise ValueError(f"{name} must be bool")
@@ -336,36 +338,62 @@ def assess_shared_b_global_data_health(
             else 10_000
         )
     else:
-        relation_stale = (
+        relation_evidence_present = (
             observation.relation_evidence_age_ms is not None
             and observation.relation_validity_horizon_ms is not None
+        )
+        relation_stale = (
+            relation_evidence_present
             and observation.relation_evidence_age_ms
             > observation.relation_validity_horizon_ms
         )
-        if relation_stale:
+        healthy_uncertainty = (
+            0
+            if (
+                provider_event_age_ms <= observation.expected_cadence_ms
+                and transport_age_ms <= observation.expected_cadence_ms
+            )
+            else 1_500
+        )
+        if (
+            relation_evidence_present
+            and not observation.relational_comparability_verified
+        ):
+            state = SharedBGlobalDataState.HEALTHY
+            interpretation = SharedBGlobalInterpretation.MARKET_OBSERVABLE
+            reasons = ["RELATIONAL_COMPARABILITY_UNVERIFIED"]
+            new_inference = True
+            relation_claim = False
+            context_usable = True
+            uncertainty = healthy_uncertainty
+        elif relation_stale:
             state = SharedBGlobalDataState.STALE_RELATION
             interpretation = (
                 SharedBGlobalInterpretation.RELATIONAL_EVIDENCE_DEGRADED
             )
             reasons = ["RELATIONAL_EVIDENCE_STALE"]
             new_inference = True
+            relation_claim = False
             context_usable = True
             uncertainty = 2_500
         else:
             state = SharedBGlobalDataState.HEALTHY
             interpretation = SharedBGlobalInterpretation.MARKET_OBSERVABLE
-            reasons = ["DATA_HEALTHY_AND_CAUSAL"]
-            new_inference = True
-            relation_claim = True
-            context_usable = True
-            uncertainty = (
-                0
-                if (
-                    provider_event_age_ms <= observation.expected_cadence_ms
-                    and transport_age_ms <= observation.expected_cadence_ms
+            reasons = [
+                (
+                    "DATA_HEALTHY_AND_CAUSAL"
+                    if relation_evidence_present
+                    and observation.relational_comparability_verified
+                    else "DATA_HEALTHY_RELATIONAL_EVIDENCE_INSUFFICIENT"
                 )
-                else 1_500
+            ]
+            new_inference = True
+            relation_claim = (
+                relation_evidence_present
+                and observation.relational_comparability_verified
             )
+            context_usable = True
+            uncertainty = healthy_uncertainty
 
     return SharedBGlobalDataAssessment(
         instrument_key=observation.instrument_key,
