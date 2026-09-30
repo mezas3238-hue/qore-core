@@ -1,7 +1,6 @@
 import json
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
 from pathlib import Path
 
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
