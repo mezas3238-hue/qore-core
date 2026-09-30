@@ -57,6 +57,11 @@ Final ledger promotion belongs to A/integrator after current-HEAD CI revalidatio
   exporter implemented. Frozen Phase20D real population thresholds remain open.
 - **FRESH_OOS** — Phase20D/Phase21/Phase22 plumbing exists; real prerequisites remain
   blocking and holdout stays sealed.
+- **Calibration Freeze Manifest** — a terminal A+B bridge now preserves the historical
+  calibration matrix while allowing later evidence to supersede historical blockers
+  only after all active T01..T20 tools are terminal, provider-dependent tools are
+  bound, and exact Phase20D/provider-freeze hashes match. T16/T17 alone may remain
+  structurally disabled with explicit provider evidence.
 - **USD60_CAPABILITY_PROGRAM** — robust target-free capacity + frozen six-month
   protocol + pre-exam readiness gate implemented. The pre-exam gate cannot grant
   holdout access, certification or productive authority.
