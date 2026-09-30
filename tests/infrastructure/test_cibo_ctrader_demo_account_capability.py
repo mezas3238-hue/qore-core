@@ -144,3 +144,50 @@ def test_catalog_fingerprint_is_deterministic() -> None:
     assert left.same_symbol_opposite_positions_supported is False
     assert left.catalog_sha256 == right.catalog_sha256
     assert left.fingerprint() == right.fingerprint()
+
+
+def test_limited_risk_account_fields_are_observed_without_promoting_t17() -> None:
+    client = _Client(
+        trader=_Proto(
+            present={
+                "accountType",
+                "isLimitedRisk",
+                "limitedRiskMarginCalculationStrategy",
+            },
+            accountType=0,
+            isLimitedRisk=True,
+            limitedRiskMarginCalculationStrategy=1,
+        )
+    )
+
+    result = collect_ctrader_demo_account_capability(
+        client,
+        observed_at=T0,
+    )
+
+    assert result.is_limited_risk is True
+    assert result.limited_risk_margin_calculation_strategy == 1
+    assert result.t17_option_structure_certified is False
+
+
+def test_non_limited_risk_account_drops_stray_margin_strategy() -> None:
+    client = _Client(
+        trader=_Proto(
+            present={
+                "accountType",
+                "isLimitedRisk",
+                "limitedRiskMarginCalculationStrategy",
+            },
+            accountType=1,
+            isLimitedRisk=False,
+            limitedRiskMarginCalculationStrategy=2,
+        )
+    )
+
+    result = collect_ctrader_demo_account_capability(
+        client,
+        observed_at=T0,
+    )
+
+    assert result.is_limited_risk is False
+    assert result.limited_risk_margin_calculation_strategy is None
