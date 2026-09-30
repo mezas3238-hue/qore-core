@@ -11,7 +11,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-
 IDENTITY = "QORE_CAPITALIZER_V48_HUMAN_DECISION_GRAPH"
 
 
@@ -245,7 +244,7 @@ ROUTES: tuple[V48HumanDecisionRoute, ...] = (
                 V48RouteStageRole.NARRATIVE,
                 "SESSION_CONTEXT",
                 True,
-                "London behavior/context determines whether the NY manipulation profile is plausible.",
+                (\n                    "London behavior/context determines whether the NY manipulation "\n                    "profile is plausible."\n                ),
             ),
             V48RouteStage(
                 "NY_LIQUIDITY_SWEEP",
@@ -280,7 +279,7 @@ ROUTES: tuple[V48HumanDecisionRoute, ...] = (
                 V48RouteStageRole.TARGET,
                 "HTF/DAILY",
                 True,
-                "Target is a structural liquidity objective such as PDH/PDL when context supports it.",
+                (\n                    "Target is a structural liquidity objective such as PDH/PDL when "\n                    "context supports it."\n                ),
             ),
         ),
         execution_alternatives=(
