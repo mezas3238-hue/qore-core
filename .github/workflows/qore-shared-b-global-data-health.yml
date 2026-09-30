@@ -142,7 +142,8 @@ jobs:
                   "crossed_quote_fail_closed":True,
                   "impossible_value_fail_closed":True,
                   "unknown_market_state_fail_closed":True,
-                  "stale_relation_blocks_relational_claim_only":True,
+                  "stale_relation_requires_verified_temporal_comparability":True,
+                  "healthy_market_does_not_imply_relational_authority":True,
               },
               "new_additive_capabilities_real_cross_asset_replication_complete":False,
               "reason_not_claimed_complete":"This gate proves additive contract behavior while preserving the 9000-sample replicated X15/X16 baseline; dedicated cross-asset real-source replication remains a separate B blocker.",
@@ -185,4 +186,4 @@ jobs:
         env:
           ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
         run: |
-          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-09 data-health expansion: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Preserved replicated X15/X16 real-data proof (9000 samples) and added fail-closed provider unavailable/feed unavailable/partial degradation/crossed quote/impossible value/unknown market state/stale relation semantics. Dedicated real cross-asset replication of the new additive states remains OPEN; no fresh holdout or productive authority."
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-09 data-health expansion: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Preserved replicated X15/X16 real-data proof (9000 samples) and enforced fail-closed provider/feed/degradation/quote/unknown-state semantics. STALE_RELATION now requires verified temporal comparability, and healthy market data alone cannot authorize a relational claim. Dedicated empirical stale-relation isolation remains OPEN behind B-07/B-08; no fresh holdout or productive authority."
