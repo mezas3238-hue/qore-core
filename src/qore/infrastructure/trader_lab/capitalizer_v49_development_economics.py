@@ -22,7 +22,7 @@ from __future__ import annotations
 import argparse
 import bisect
 import json
-from collections import Counter, defaultdict
+from collections import defaultdict
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -38,7 +38,6 @@ from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSessi
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
     DEV_WINDOW_END,
     DEV_WINDOW_START,
-    IDENTITY as CAPACITY_IDENTITY,
     V49Opportunity,
 )
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_trader_v49 import (
