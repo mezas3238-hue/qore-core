@@ -66,6 +66,45 @@ _HIGH_SIGNAL_MARKERS = (
     "NotImplementedError",
 )
 
+_WORKSTREAM_CLASSIFIERS = (
+    ("*zero_open_work*", "ZERO_OPEN_WORK_GATE"),
+    ("*generation_current_control*", "AS_IS_CONTROL"),
+    ("*adaptive_compound_speed*", "GEN-C8"),
+    ("*profit_preservation*", "GEN-C7"),
+    ("*internal_capital_market*", "INTERNAL_CAPITAL_MARKET"),
+    ("*sequential_compounding*", "GEN-C5"),
+    ("*marginal_capital_utility*", "GEN-C4"),
+    ("*compound_floor*", "GEN-C2"),
+    ("*core_compound_portfolio*", "COMPOUND_PORTFOLIO"),
+    ("*compound_portfolio*", "COMPOUND_PORTFOLIO"),
+    ("*compound_capital*", "COMPOUND_ENGINE"),
+    ("*t20_capital_release*", "T20"),
+    ("*phase20_t08*", "T08"),
+    ("*phase20_t09_t18*", "T09"),
+    ("*phase20_t12*", "T12"),
+    ("*phase20_t13*", "T13"),
+    ("*phase20_t14*", "T14"),
+    ("*phase20_t15*", "T15"),
+    ("*dynamic_derisking*", "T14"),
+    ("*optionality*", "T15"),
+    ("*opportunity_competition*", "T09"),
+    ("*opportunity_graph*", "T09"),
+    ("*recycling*", "T05"),
+    ("*execution_efficiency*", "T11"),
+    ("*t02*", "T02"),
+    ("*capital_efficient_exposure*", "T03"),
+    ("*provider*", "PROVIDER_ECONOMICS"),
+    ("*phase20*", "FORWARD_QUALIFICATION"),
+    ("*phase21*", "FORWARD_QUALIFICATION"),
+    ("*phase22*", "FORWARD_QUALIFICATION"),
+    ("*holdout*", "FORWARD_QUALIFICATION"),
+    ("*monte_carlo*", "PATH_DEPENDENT_MONTE_CARLO"),
+    ("*stress*", "ADVERSARIAL_STRESS"),
+    ("*risk*", "RISK_INTEGRATION"),
+    ("docs/research/CIBO*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    (".github/workflows/*cibo*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+)
+
 _LEDGER_OPEN_STATE_MARKERS = (
     "OPEN_REQUIRED",
     "PARTIAL",
@@ -94,6 +133,8 @@ class GateVerdict:
     missing_required_artifacts: tuple[str, ...]
     high_signal_marker_hits: tuple[str, ...]
     inventory_paths: tuple[str, ...]
+    inventory_assignments: tuple[tuple[str, str], ...]
+    orphan_candidate_paths: tuple[str, ...]
     reasons: tuple[str, ...]
 
     def as_dict(self) -> dict[str, Any]:
@@ -109,6 +150,11 @@ class GateVerdict:
             "missing_required_artifacts": list(self.missing_required_artifacts),
             "high_signal_marker_hits": list(self.high_signal_marker_hits),
             "inventory_paths": list(self.inventory_paths),
+            "inventory_assignments": [
+                {"path": path, "workstream_id": workstream_id}
+                for path, workstream_id in self.inventory_assignments
+            ],
+            "orphan_candidate_paths": list(self.orphan_candidate_paths),
             "reasons": list(self.reasons),
         }
 
@@ -189,6 +235,30 @@ def _validate_workstream(row: object) -> dict[str, Any]:
             "CIBO workstream next_gate must be non-empty string"
         )
     return row
+
+
+def _classify_inventory(
+    inventory: tuple[str, ...],
+    *,
+    ledger_ids: frozenset[str],
+) -> tuple[tuple[tuple[str, str], ...], tuple[str, ...]]:
+    assignments: list[tuple[str, str]] = []
+    orphan_candidates: list[str] = []
+    for relative in inventory:
+        workstream_id: str | None = None
+        for pattern, candidate in _WORKSTREAM_CLASSIFIERS:
+            if fnmatch.fnmatch(relative, pattern):
+                workstream_id = candidate
+                break
+        if workstream_id is None:
+            workstream_id = "ORPHAN_INVENTORY"
+            orphan_candidates.append(relative)
+        if workstream_id not in ledger_ids:
+            raise CiboZeroOpenWorkGateError(
+                f"inventory classifier points outside ledger: {workstream_id}"
+            )
+        assignments.append((relative, workstream_id))
+    return tuple(assignments), tuple(orphan_candidates)
 
 
 def _inventory_paths(repo_root: Path) -> tuple[str, ...]:
@@ -279,6 +349,10 @@ def evaluate_gate(
         if not (repo_root / path).is_file()
     )
     inventory = _inventory_paths(repo_root)
+    assignments, orphan_candidates = _classify_inventory(
+        inventory,
+        ledger_ids=frozenset(ids),
+    )
     marker_hits = _scan_high_signal_markers(repo_root, inventory)
 
     if open_ids:
@@ -289,12 +363,15 @@ def evaluate_gate(
         reasons.append("MISSING_REQUIRED_ARTIFACT")
     if marker_hits:
         reasons.append("HIGH_SIGNAL_UNRESOLVED_CODE_MARKER")
+    if orphan_candidates:
+        reasons.append("UNCLASSIFIED_ORPHAN_CANDIDATE")
 
     passed = not (
         open_ids
         or blocking_external
         or missing_artifacts
         or marker_hits
+        or orphan_candidates
     )
     return GateVerdict(
         passed=passed,
@@ -309,6 +386,8 @@ def evaluate_gate(
         missing_required_artifacts=missing_artifacts,
         high_signal_marker_hits=marker_hits,
         inventory_paths=inventory,
+        inventory_assignments=assignments,
+        orphan_candidate_paths=orphan_candidates,
         reasons=tuple(reasons),
     )
 
