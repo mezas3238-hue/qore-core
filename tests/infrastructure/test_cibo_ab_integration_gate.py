@@ -78,17 +78,15 @@ def test_consistent_partial_integration_is_valid_but_not_certified() -> None:
 def test_terminal_union_must_match_ledger() -> None:
     matrix, ledger = _state()
     matrix["integrated_terminal_ids"] = []
-    assert "integrated terminal set does not match canonical ledger" in gate.validate_state(
-        matrix, ledger
-    )
+    errors = gate.validate_state(matrix, ledger)
+    assert "integrated terminal set does not match canonical ledger" in errors
 
 
 def test_support_blockers_prevent_integration_ready() -> None:
     matrix, ledger = _state()
     matrix["integration_ready"] = True
-    assert "integration_ready cannot coexist with support blockers" in gate.validate_state(
-        matrix, ledger
-    )
+    errors = gate.validate_state(matrix, ledger)
+    assert "integration_ready cannot coexist with support blockers" in errors
 
 
 def test_open_work_cannot_be_relabelled_final_candidate() -> None:
@@ -104,9 +102,8 @@ def test_open_work_cannot_be_relabelled_final_candidate() -> None:
 def test_integrator_can_never_grant_productive_authority() -> None:
     matrix, ledger = _state()
     matrix["productive_authority"] = True
-    assert "integrator acceptance cannot grant productive authority" in gate.validate_state(
-        matrix, ledger
-    )
+    errors = gate.validate_state(matrix, ledger)
+    assert "integrator acceptance cannot grant productive authority" in errors
 
 
 def test_world_cup_exam_cannot_be_removed_from_mandatory_closure() -> None:
