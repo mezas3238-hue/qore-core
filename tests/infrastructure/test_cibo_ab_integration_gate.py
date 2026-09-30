@@ -24,6 +24,7 @@ def _state():
             "accepted_head_sha": "b" * 40,
             "latest_observed_head_sha": "c" * 40,
             "support_blockers": ["A-BLOCKER"],
+            "integrator_staged_repair_blockers": [],
             "integrator_resolved_support_blockers": [],
         },
         "architect_b": {
@@ -31,6 +32,7 @@ def _state():
             "accepted_head_sha": "d" * 40,
             "latest_observed_head_sha": "e" * 40,
             "support_blockers": [],
+            "integrator_staged_repair_blockers": [],
             "integrator_resolved_support_blockers": [],
         },
         "integrated_terminal_ids": ["T01"],
@@ -88,6 +90,21 @@ def test_unresolved_support_blockers_prevent_integration_ready() -> None:
     matrix, ledger = _state()
     matrix["integration_ready"] = True
     errors = gate.validate_state(matrix, ledger)
+    assert (
+        "integration_ready cannot coexist with unresolved support blockers"
+        in errors
+    )
+
+
+def test_staged_repair_does_not_unblock_integration_before_ci() -> None:
+    matrix, ledger = _state()
+    matrix["architect_a"]["integrator_staged_repair_blockers"] = [
+        "A-BLOCKER"
+    ]
+    matrix["integration_ready"] = True
+
+    errors = gate.validate_state(matrix, ledger)
+
     assert (
         "integration_ready cannot coexist with unresolved support blockers"
         in errors
