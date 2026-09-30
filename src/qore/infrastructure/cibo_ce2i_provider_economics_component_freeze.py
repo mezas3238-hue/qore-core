@@ -21,6 +21,9 @@ from qore.infrastructure.cibo_ce2i_provider_economics_provenance import (
     provider_economics_provenance_payload,
     provider_economics_provenance_sha256,
 )
+from qore.infrastructure.cibo_ce2i_provider_execution_calibration import (
+    CiboProviderExecutionCalibration,
+)
 
 PROVIDER_ECONOMICS_COMPONENT_FREEZE_ID = (
     "CIBO_CTRADER_DEMO_PROVIDER_ECONOMICS_COMPONENT_FREEZE_V1"
@@ -49,6 +52,7 @@ class CiboProviderEconomicsComponentFreeze:
     broker_mutation_performed: bool
     pre_holdout_provider_economics_ready: bool
     blockers: tuple[str, ...]
+    execution_calibration_sha256: str | None = None
     productive_authority: bool = False
 
     def __post_init__(self) -> None:
@@ -126,6 +130,26 @@ class CiboProviderEconomicsComponentFreeze:
             raise CiboCapitalManagementError(
                 "provider economics component readiness/blocker drift"
             )
+        if self.execution_calibration_sha256 is not None:
+            value = self.execution_calibration_sha256
+            if (
+                not value.startswith("sha256:")
+                or len(value) != 71
+                or any(
+                    char not in "0123456789abcdef"
+                    for char in value[7:]
+                )
+            ):
+                raise CiboCapitalManagementError(
+                    "provider economics execution calibration SHA invalid"
+                )
+        if (
+            (self.empirical_slippage_frozen or self.execution_model_frozen)
+            and self.execution_calibration_sha256 is None
+        ):
+            raise CiboCapitalManagementError(
+                "provider economics calibrated execution requires calibration SHA"
+            )
         if self.productive_authority:
             raise CiboCapitalManagementError(
                 "provider economics component freeze has no productive authority"
@@ -133,7 +157,9 @@ class CiboProviderEconomicsComponentFreeze:
 
 
 def freeze_current_ctrader_demo_provider_economics(
-    *, frozen_at: datetime
+    *,
+    frozen_at: datetime,
+    execution_calibration: CiboProviderExecutionCalibration | None = None,
 ) -> CiboProviderEconomicsComponentFreeze:
     """Freeze proven current terms while keeping unsupported components open."""
 
@@ -175,6 +201,32 @@ def freeze_current_ctrader_demo_provider_economics(
         evidence.execution_model_ready
         and provenance["execution_model_ready"] is True
     )
+    execution_calibration_sha256: str | None = None
+    if execution_calibration is not None:
+        if not isinstance(
+            execution_calibration,
+            CiboProviderExecutionCalibration,
+        ):
+            raise CiboCapitalManagementError(
+                "provider economics execution calibration is invalid"
+            )
+        if execution_calibration.provider_key != evidence.provider_key:
+            raise CiboCapitalManagementError(
+                "provider economics execution calibration provider drift"
+            )
+        if frozen_at < execution_calibration.frozen_at:
+            raise CiboCapitalManagementError(
+                "provider economics freeze cannot predate execution calibration"
+            )
+        slippage = (
+            slippage
+            or execution_calibration.empirical_slippage_calibrated
+        )
+        execution_model = (
+            execution_model
+            or execution_calibration.execution_model_ready
+        )
+        execution_calibration_sha256 = execution_calibration.fingerprint()
     blockers: list[str] = []
     if not current_terms:
         blockers.append("CURRENT_PROVIDER_TERMS_NOT_FROZEN")
@@ -208,5 +260,6 @@ def freeze_current_ctrader_demo_provider_economics(
         broker_mutation_performed=evidence.broker_mutation_performed,
         pre_holdout_provider_economics_ready=False,
         blockers=tuple(blockers),
+        execution_calibration_sha256=execution_calibration_sha256,
         productive_authority=False,
     )
