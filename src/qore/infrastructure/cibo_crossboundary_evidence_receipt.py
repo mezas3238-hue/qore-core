@@ -111,6 +111,8 @@ class CiboCrossBoundaryEvidenceReceipt:
 
         expected = {
             "schema": self.source_artifact_schema,
+            "evidence_binding_id": self.receipt_id,
+            "evidence_kind": self.evidence_kind,
             "producer_gate_id": self.producer_gate_id,
             "integrated_git_sha": self.integrated_git_sha,
             "policy_identity_sha256": self.policy_identity_sha256,
@@ -160,6 +162,8 @@ def bind_cross_boundary_pass_artifact(
     artifact = _parse_canonical_artifact(source_artifact_json)
     required = (
         "schema",
+        "evidence_binding_id",
+        "evidence_kind",
         "producer_gate_id",
         "integrated_git_sha",
         "policy_identity_sha256",
@@ -173,6 +177,14 @@ def bind_cross_boundary_pass_artifact(
     if missing:
         raise CiboCapitalManagementError(
             "cross-boundary source artifact missing fields: " + ",".join(missing)
+        )
+    if artifact["evidence_binding_id"] != receipt_id:
+        raise CiboCapitalManagementError(
+            "cross-boundary source artifact binding identity drift"
+        )
+    if artifact["evidence_kind"] != evidence_kind:
+        raise CiboCapitalManagementError(
+            "cross-boundary source artifact evidence kind drift"
         )
     if artifact["status"] != "PASS" or artifact["failures"] != []:
         raise CiboCapitalManagementError(
