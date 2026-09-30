@@ -508,15 +508,25 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ARCHITECTURE_DEFINED",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-GEN-C12-CRISIS-CAPITAL-INTELLIGENCE-V1.md",
+        "src/qore/infrastructure/cibo_crisis_capital_intelligence.py",
+        "tests/infrastructure/test_cibo_crisis_capital_intelligence.py",
+        ".github/workflows/cibo-genc12-crisis-capital.yml",
+        "src/qore/infrastructure/cibo_ce2i_regime_selector.py",
+        "src/qore/infrastructure/cibo_ce2i_dynamic_derisking.py",
+        "src/qore/infrastructure/cibo_capital_digital_twin.py"
       ],
       "blockers": [
-        "ENGINE_NOT_YET_IMPLEMENTED"
+        "GEN_C12_ENGINE_CI_REVALIDATION_REQUIRED",
+        "REAL_CRISIS_POPULATION_NOT_YET_BOUND",
+        "ADVERSARIAL_CRISIS_STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
+        "ECONOMIC_VALUE_NOT_YET_DEMONSTRATED"
       ],
-      "next_gate": "Implement crisis taxonomy/response/stress engine and Compound Portfolio survivability evidence."
+      "next_gate": "Pass GEN-C12 engine CI; bind real causal crisis populations; run correlation/provider/margin/liquidity/drawdown stress; then OOS and temporal replication."
     },
     {
       "id": "GEN-C13",
