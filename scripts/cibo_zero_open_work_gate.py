@@ -45,13 +45,19 @@ _REQUIRED_CANONICAL_ARTIFACTS = (
     "docs/research/CIBO-GENERATION-CURRENT-CONTROL-CI-EVIDENCE-V1.json",
 )
 
-_SOURCE_GLOBS = (
+_INVENTORY_GLOBS = (
     "src/qore/infrastructure/cibo_*.py",
     "scripts/cibo_*.py",
     "tests/infrastructure/test_cibo*.py",
     ".github/workflows/*cibo*.yml",
     "docs/research/CIBO*.md",
     "docs/research/CIBO*.json",
+)
+
+_MARKER_SCAN_GLOBS = (
+    "src/qore/infrastructure/cibo_*.py",
+    "scripts/cibo_*.py",
+    ".github/workflows/*cibo*.yml",
 )
 
 _HIGH_SIGNAL_MARKERS = (
@@ -191,7 +197,10 @@ def _inventory_paths(repo_root: Path) -> tuple[str, ...]:
         if not path.is_file():
             continue
         relative = path.relative_to(repo_root).as_posix()
-        if any(fnmatch.fnmatch(relative, pattern) for pattern in _SOURCE_GLOBS):
+        if any(
+            fnmatch.fnmatch(relative, pattern)
+            for pattern in _INVENTORY_GLOBS
+        ):
             found.add(relative)
     return tuple(sorted(found))
 
@@ -202,6 +211,11 @@ def _scan_high_signal_markers(
 ) -> tuple[str, ...]:
     hits: list[str] = []
     for relative in inventory:
+        if not any(
+            fnmatch.fnmatch(relative, pattern)
+            for pattern in _MARKER_SCAN_GLOBS
+        ):
+            continue
         path = repo_root / relative
         try:
             text = path.read_text(encoding="utf-8")
