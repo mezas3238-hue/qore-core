@@ -1105,18 +1105,22 @@
       "kind": "EVIDENCE_PROGRAM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTROL_IDENTITY_SEALED_FRESH_ECONOMIC_POPULATION_REQUIRED",
+      "current_maturity": "CONTROL_SEALED_MEASUREMENT_PATH_RECONCILED_REAL_POPULATION_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-GENERATION-CURRENT-CONTROL-CANDIDATE-V1.md",
-        "scripts/cibo_generation_current_control_freeze.py"
+        "scripts/cibo_generation_current_control_freeze.py",
+        "docs/research/CIBO-AS-IS-ECONOMIC-BASELINE-BINDING-PLAN-V1.md",
+        "src/qore/infrastructure/cibo_ce2i_phase20_qualification.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_qualification_plan.py",
+        "src/qore/infrastructure/cibo_compound_real_population_binding.py"
       ],
       "blockers": [
         "FRESH_AS_IS_ECONOMIC_POPULATION_REQUIRED",
-        "CURRENT_TRADER_CIBO_COMPOUND_ALLOCATION_UTILIZATION_MEASUREMENT_REQUIRED",
+        "CURRENT_TRADER_CIBO_COMPOUND_ALLOCATION_UTILIZATION_MEASUREMENT_RESULTS_REQUIRED",
         "NO_SYNTHETIC_BASELINE_ALLOWED"
       ],
-      "next_gate": "Bind the sealed pre-C8 control to a fresh causal comparison population and measure current Traders/CIBO/compound/allocation/capital-utilization/provider constraints without retuning."
+      "next_gate": "Consume the same provider-valid fresh population through the frozen Phase20D report and Compound real-population binding; materialize hashed AS-IS measurements without retuning or constructing a hindsight baseline."
     }
   ],
   "current_summary": {
