@@ -19,10 +19,12 @@ from qore.infrastructure.ctrader_open_api_client import (
     SpotwareCTraderOpenApiClient,
 )
 
-SOURCE_OPENED_AT = datetime(2024, 9, 29, 0, 0, tzinfo=UTC)
+SOURCE_OPENED_AT = datetime(2024, 9, 19, 0, 0, tzinfo=UTC)
 SOURCE_CHECKED_AT = datetime(2026, 9, 29, 0, 0, tzinfo=UTC)
 EVALUATION_OPENED_AT = datetime(2026, 7, 22, 0, 0, tzinfo=UTC)
 MINIMUM_COVERAGE_DAYS = 730
+REQUESTED_CALENDAR_SPAN_DAYS = 740
+BOUNDARY_PADDING_DAYS = 10
 IDENTITY = "QORE_SHARED_STI8_ECONOMIC_RESPONSE_V3_RECOVERY_SOURCE_001"
 
 
@@ -76,8 +78,10 @@ def main() -> None:
         last = datetime.fromisoformat(str(coverage["last_closed_at"]))
         if first < SOURCE_OPENED_AT or last > SOURCE_CHECKED_AT:
             raise CTraderDemoLabProbeError("V3 recovery crossed source envelope")
-        if last - first < SOURCE_CHECKED_AT - SOURCE_OPENED_AT:
-            raise CTraderDemoLabProbeError("V3 recovery source span is below 730 days")
+        if (last - first).days < MINIMUM_COVERAGE_DAYS:
+            raise CTraderDemoLabProbeError(
+                "V3 recovery actual-bar span is below 730 days"
+            )
 
         payload.update(
             {
@@ -88,6 +92,8 @@ def main() -> None:
                 "evaluation_opened_at_inclusive": EVALUATION_OPENED_AT.isoformat(),
                 "evaluation_checked_at_exclusive": SOURCE_CHECKED_AT.isoformat(),
                 "minimum_actual_coverage_days": MINIMUM_COVERAGE_DAYS,
+                "requested_calendar_span_days": REQUESTED_CALENDAR_SPAN_DAYS,
+                "fixed_calendar_boundary_padding_days": BOUNDARY_PADDING_DAYS,
                 "software_sha": software_sha,
                 "engineering_recovery_only": True,
                 "policy_changed": False,
