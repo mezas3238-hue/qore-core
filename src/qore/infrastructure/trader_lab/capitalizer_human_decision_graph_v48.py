@@ -244,7 +244,10 @@ ROUTES: tuple[V48HumanDecisionRoute, ...] = (
                 V48RouteStageRole.NARRATIVE,
                 "SESSION_CONTEXT",
                 True,
-                (\n                    "London behavior/context determines whether the NY manipulation "\n                    "profile is plausible."\n                ),
+                (
+                    "London behavior/context determines whether the NY manipulation "
+                    "profile is plausible."
+                ),
             ),
             V48RouteStage(
                 "NY_LIQUIDITY_SWEEP",
@@ -279,7 +282,10 @@ ROUTES: tuple[V48HumanDecisionRoute, ...] = (
                 V48RouteStageRole.TARGET,
                 "HTF/DAILY",
                 True,
-                (\n                    "Target is a structural liquidity objective such as PDH/PDL when "\n                    "context supports it."\n                ),
+                (
+                    "Target is a structural liquidity objective such as PDH/PDL when "
+                    "context supports it."
+                ),
             ),
         ),
         execution_alternatives=(
