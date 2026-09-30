@@ -1,0 +1,44 @@
+name: QORE CIBO USD60 Pre-Exam Readiness
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-usd60-pre-exam-readiness.yml'
+      - 'src/qore/infrastructure/cibo_usd60_exam_readiness.py'
+      - 'src/qore/infrastructure/cibo_usd60_prerequisite_receipts.py'
+      - 'src/qore/infrastructure/cibo_receipt_bound_usd60_exam_readiness.py'
+      - 'tests/infrastructure/test_cibo_usd60_exam_readiness.py'
+      - 'tests/infrastructure/test_cibo_usd60_prerequisite_receipts.py'
+      - 'tests/infrastructure/test_cibo_receipt_bound_usd60_exam_readiness.py'
+      - 'docs/research/CIBO-B-USD60-PRE-EXAM-READINESS-V1.md'
+  push:
+    branches:
+      - agent/cibo-integrator-ab-001
+    paths:
+      - '.github/workflows/cibo-usd60-pre-exam-readiness.yml'
+      - 'src/qore/infrastructure/cibo_usd60_exam_readiness.py'
+      - 'src/qore/infrastructure/cibo_usd60_prerequisite_receipts.py'
+      - 'src/qore/infrastructure/cibo_receipt_bound_usd60_exam_readiness.py'
+      - 'tests/infrastructure/test_cibo_usd60_exam_readiness.py'
+      - 'tests/infrastructure/test_cibo_usd60_prerequisite_receipts.py'
+      - 'tests/infrastructure/test_cibo_receipt_bound_usd60_exam_readiness.py'
+      - 'docs/research/CIBO-B-USD60-PRE-EXAM-READINESS-V1.md'
+
+permissions:
+  contents: read
+
+jobs:
+  usd60-pre-exam-readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: ruff check src/qore/infrastructure/cibo_usd60_exam_readiness.py src/qore/infrastructure/cibo_usd60_prerequisite_receipts.py src/qore/infrastructure/cibo_receipt_bound_usd60_exam_readiness.py tests/infrastructure/test_cibo_usd60_exam_readiness.py tests/infrastructure/test_cibo_usd60_prerequisite_receipts.py tests/infrastructure/test_cibo_receipt_bound_usd60_exam_readiness.py
+      - name: mypy
+        run: mypy src/qore/infrastructure/cibo_usd60_exam_readiness.py src/qore/infrastructure/cibo_usd60_prerequisite_receipts.py src/qore/infrastructure/cibo_receipt_bound_usd60_exam_readiness.py
+      - name: pytest
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_usd60_exam_readiness.py tests/infrastructure/test_cibo_usd60_prerequisite_receipts.py tests/infrastructure/test_cibo_receipt_bound_usd60_exam_readiness.py
