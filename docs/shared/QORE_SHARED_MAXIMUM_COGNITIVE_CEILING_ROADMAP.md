@@ -513,3 +513,50 @@ The existing MC-01..MC-28 remain exactly the certification capability set.
 Global sensor governance, generalized structural divergence, lead/lag
 discovery, relationship lifecycle intelligence and the global relational graph
 are transversal requirements implemented inside those capabilities.
+
+## Zero-open-work completion law
+
+Shared maximum cannot be inferred from the #638 WP checklist alone.
+
+The canonical machine-readable completion gate is:
+
+`src/qore/infrastructure/core_stack_v2/shared_zero_open_work.py`
+
+with evidence materialized by:
+
+`scripts/shared_master_open_work_ledger_v1.py`
+
+and enforced in CI by:
+
+`.github/workflows/qore-shared-maximum-zero-open-work.yml`
+
+The ledger retains WP-01..WP-12, MC-01..MC-28, STI-0..STI-16, Global World
+workstreams and transversal requirements. A required capability that remains
+architecture-only, contract-only, research-incomplete, unresolved, blocked,
+falsified without a verified replacement, or missing required scientific
+evidence remains an open blocker.
+
+Therefore:
+
+```text
+ONE EXCELLENT STI
+CANNOT COMPENSATE
+FOR AN UNFINISHED REQUIRED STI
+
+ONE CLOSED WP
+CANNOT COMPENSATE
+FOR AN OPEN MC
+
+A FALSIFIED V1
+CLOSES THE APPROACH
+NOT THE MANDATORY CAPABILITY
+
+ZERO OPEN REQUIRED WORK
+IS REQUIRED BEFORE
+PRE_CERTIFICATION_READY
+```
+
+The zero-open-work gate does not itself open the final examination. After all
+required work is closed and proven, the separate full pre-certification audit,
+freeze and Owner-governed final holdout sequence still apply.
+
