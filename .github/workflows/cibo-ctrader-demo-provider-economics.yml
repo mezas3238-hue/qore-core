@@ -54,6 +54,7 @@ permissions:
   contents: read
 
 env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
   QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
   QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
   QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
@@ -66,6 +67,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
 
       - uses: actions/setup-python@v5
         with:
@@ -204,7 +207,7 @@ jobs:
 
       - name: Seal provider economics evidence
         run: |
-          printf '%s\n' "$GITHUB_SHA" > provider-economics/git-sha.txt
+          printf '%s\n' "$EVIDENCE_SHA" > provider-economics/git-sha.txt
           cd provider-economics
           sha256sum \
             provider-economics.json \
@@ -216,7 +219,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: qore-cibo-provider-economics-${{ github.sha }}
+          name: qore-cibo-provider-economics-${{ env.EVIDENCE_SHA }}
           path: provider-economics
           if-no-files-found: error
           retention-days: 90
