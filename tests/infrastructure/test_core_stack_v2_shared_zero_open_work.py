@@ -47,7 +47,7 @@ def test_wp_closure_requires_explicit_mc_superset_evidence() -> None:
     assert by_id["WP-04"].state is SharedWorkState.COMPLETED_AND_PROVEN
     assert by_id["WP-05"].state is SharedWorkState.RESEARCH_INCOMPLETE
     assert by_id["MC-01"].state is SharedWorkState.UNRESOLVED_REQUIRED_AUDIT
-    assert by_id["MC-04"].state is SharedWorkState.UNRESOLVED_REQUIRED_AUDIT
+    assert by_id["MC-04"].state is SharedWorkState.COMPLETED_AND_PROVEN
     assert by_id["MC-05"].state is SharedWorkState.UNRESOLVED_REQUIRED_AUDIT
 
 
