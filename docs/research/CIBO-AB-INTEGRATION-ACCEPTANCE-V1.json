@@ -15,9 +15,10 @@
   "architect_b": {
     "pr": 661,
     "accepted_head_sha": "5d028b1ebc76a98db36d26f86bc872e2f60c5541",
-    "latest_observed_head_sha": "3895af47c32c473682700d07435ea437110e5c3e",
+    "latest_observed_head_sha": "41f0227e2136ac09c94bdd8187c2e6f5e625ee36",
     "support_blockers": [
-      "B-SUPPORT-001_USD60_READINESS_SELF_ATTESTATION"
+      "B-SUPPORT-001_USD60_READINESS_SELF_ATTESTATION",
+      "B-SUPPORT-002_RISK_HANDOFF_LEDGER_DRIFT"
     ]
   },
   "ledger_path": "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json",
