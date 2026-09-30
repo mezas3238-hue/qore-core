@@ -53,6 +53,38 @@
       ],
       "partial_work_admitted": false,
       "master_mc28_closed": false,
+      "master_regression_status": "PASSED_MASTER_REGRESSION",
+      "disposition": "INTEGRATED_AND_PROVEN",
+      "master_regression_evidence": [
+        "github-actions://36776162890/SUCCESS",
+        "github-actions://36776162948/SUCCESS",
+        "github-actions://36776163072/SUCCESS",
+        "github-actions://36776162896/SUCCESS",
+        "github-actions://36776163100/SUCCESS",
+        "github-actions://36776162891/SUCCESS",
+        "github-actions://36776162910/SUCCESS",
+        "github-actions://36776162895/SUCCESS",
+        "github-actions://36776170898/SUCCESS",
+        "github-actions://36776171032/SUCCESS"
+      ]
+    },
+    {
+      "integration_id": "INT-A-001",
+      "source_lane": "A",
+      "source_cut_sha": "f40dd5661ab9419b379c7d6c9f20213824db5194",
+      "master_merge_sha": "9170b32234563135a0fa4aa18433bece8a1a8e0b",
+      "workstreams": [
+        "MC-09",
+        "MC-10"
+      ],
+      "source_evidence": [
+        "github-actions://36754966932/SUCCESS",
+        "github-actions://36755380068/SUCCESS",
+        "github-actions://36768058305/SUCCESS",
+        "github-actions://36768058270/SUCCESS"
+      ],
+      "partial_work_admitted": false,
+      "protected_holdout_opened": false,
       "master_regression_status": "RUNNING",
       "disposition": "MERGED_PENDING_MASTER_REGRESSION"
     }
@@ -60,13 +92,24 @@
   "next_integrations": [
     {
       "lane": "A",
-      "status": "AWAIT_EXPLICIT_CLOSURE_MANIFEST",
-      "rule": "Do not infer terminal closure from commit-message wording alone."
+      "status": "STAGED_VALIDATION_RUNNING",
+      "workstreams": [
+        "MC-06",
+        "MC-20"
+      ],
+      "integration_pr": 678,
+      "rule": "Merge only after current master regression and exact slice validation are green."
     },
     {
       "lane": "B",
-      "status": "CONTINUE_FROM_NEXT_EVIDENCE_BACKED_CLOSED_SLICE",
-      "rule": "Do not admit B-06+ partial work."
+      "status": "SUPPORT_CLOSURE_IN_PROGRESS",
+      "workstreams": [
+        "B-21",
+        "B-06",
+        "B-08",
+        "B-14"
+      ],
+      "rule": "Integrate terminal layers only; preserve external/open blockers."
     }
   ]
 }
