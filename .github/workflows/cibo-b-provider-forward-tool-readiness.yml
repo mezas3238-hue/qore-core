@@ -57,6 +57,11 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_t11_execution_population.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t11_cost_binding.py \
             tests/infrastructure/test_cibo_ce2i_execution_efficiency.py
+          mypy \
+            src/qore/infrastructure/cibo_ce2i_phase20_t03_margin_population.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t11_execution_population.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t11_cost_binding.py \
+            src/qore/infrastructure/cibo_ce2i_execution_efficiency.py
           python -m py_compile \
             src/qore/infrastructure/cibo_ce2i_phase20_t03_margin_population.py \
             src/qore/infrastructure/cibo_ce2i_phase20_t11_execution_population.py \
