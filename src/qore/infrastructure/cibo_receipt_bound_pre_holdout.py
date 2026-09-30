@@ -27,6 +27,13 @@ from qore.infrastructure.cibo_ce2i_pre_holdout_gate import (
 from qore.infrastructure.cibo_ce2i_provider_economics_component_freeze import (
     CiboProviderEconomicsComponentFreeze,
 )
+from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
+    CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS,
+    provider_economics_evidence_ref,
+)
+from qore.infrastructure.cibo_ce2i_provider_economics_provenance import (
+    provider_economics_provenance_sha256,
+)
 from qore.infrastructure.cibo_crossboundary_evidence_receipt import (
     CiboCrossBoundaryEvidenceReceipt,
     require_cross_boundary_receipts,
@@ -66,6 +73,38 @@ def evaluate_receipt_bound_pre_holdout_readiness(
     ):
         raise CiboCapitalManagementError(
             "receipt-bound pre-holdout calibration manifest is invalid"
+        )
+
+    canonical_provider = CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS
+    if (
+        provider_economics_freeze.source_evidence_ref
+        != provider_economics_evidence_ref()
+        or provider_economics_freeze.source_provenance_sha256
+        != provider_economics_provenance_sha256()
+        or provider_economics_freeze.source_observed_at.isoformat()
+        != canonical_provider.observed_at
+        or provider_economics_freeze.provider_key
+        != canonical_provider.provider_key
+        or provider_economics_freeze.historical_2017_exact_claimed
+        != canonical_provider.historical_exact_claimed
+        or provider_economics_freeze.holdout_outcomes_used
+        != canonical_provider.holdout_outcomes_used
+        or provider_economics_freeze.target_aware
+        != canonical_provider.target_aware
+        or provider_economics_freeze.broker_mutation_performed
+        != canonical_provider.broker_mutation_performed
+    ):
+        raise CiboCapitalManagementError(
+            "receipt-bound pre-holdout provider canonical provenance mismatch"
+        )
+
+    if any(
+        len(tool.evidence_refs) != 2
+        or any(_SHA256_RE.fullmatch(ref) is None for ref in tool.evidence_refs)
+        for tool in calibration_freeze_manifest.tools
+    ):
+        raise CiboCapitalManagementError(
+            "receipt-bound pre-holdout calibration tools are not receipt-bound"
         )
 
     by_id = require_cross_boundary_receipts(
