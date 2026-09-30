@@ -174,6 +174,8 @@ class CiboProviderExecutionCalibration:
     provider_key: str
     environment: str
     manifest_sha256: str
+    manifest_candidate_rows: int
+    manifest_complete_lineage_rows: int
     frozen_at: datetime
     total_observations: int
     observations: tuple[CiboProviderExecutionObservation, ...]
@@ -200,6 +202,19 @@ class CiboProviderExecutionCalibration:
                 "provider execution calibration provider/environment drift"
             )
         _sha(self.manifest_sha256, "manifest_sha256")
+        for name in (
+            "manifest_candidate_rows",
+            "manifest_complete_lineage_rows",
+        ):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, int)
+                or isinstance(value, bool)
+                or value < 0
+            ):
+                raise CiboCapitalManagementError(
+                    f"provider execution calibration {name} invalid"
+                )
         _aware(self.frozen_at, "frozen_at")
         if self.total_observations != len(self.observations):
             raise CiboCapitalManagementError(
@@ -211,6 +226,51 @@ class CiboProviderExecutionCalibration:
             raise CiboCapitalManagementError(
                 "provider execution summaries must be symbol ordered"
             )
+        required = set(CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS.symbols)
+        summary_by_symbol = {
+            item.qore_symbol: item for item in self.symbol_summaries
+        }
+        expected_symbol_coverage = required.issubset(summary_by_symbol)
+        if self.required_symbol_coverage_met != expected_symbol_coverage:
+            raise CiboCapitalManagementError(
+                "provider execution calibration symbol coverage drift"
+            )
+        minimum_per_symbol = (
+            FROZEN_PHASE20D_QUALIFICATION_PLAN.minimum_outcomes_per_lineage
+        )
+        expected_minimum = expected_symbol_coverage and all(
+            summary_by_symbol[symbol].observation_count >= minimum_per_symbol
+            for symbol in required
+        )
+        if self.minimum_symbol_observations_met != expected_minimum:
+            raise CiboCapitalManagementError(
+                "provider execution calibration symbol minimum drift"
+            )
+        expected_reconciled = (
+            self.total_observations == self.manifest_complete_lineage_rows
+            and self.total_observations > 0
+        )
+        if self.all_complete_rows_reconciled != expected_reconciled:
+            raise CiboCapitalManagementError(
+                "provider execution calibration manifest reconciliation drift"
+            )
+        if self.manifest_scientifically_ready:
+            plan = FROZEN_PHASE20D_QUALIFICATION_PLAN
+            if self.manifest_candidate_rows < plan.minimum_candidate_outcomes:
+                raise CiboCapitalManagementError(
+                    "provider execution calibration manifest population below minimum"
+                )
+            if self.manifest_candidate_rows <= 0:
+                raise CiboCapitalManagementError(
+                    "provider execution calibration manifest candidate rows invalid"
+                )
+            coverage = Decimal(
+                self.manifest_complete_lineage_rows
+            ) / Decimal(self.manifest_candidate_rows)
+            if coverage < plan.minimum_candidate_outcome_coverage:
+                raise CiboCapitalManagementError(
+                    "provider execution calibration manifest coverage below minimum"
+                )
         for name in (
             "manifest_scientifically_ready",
             "all_complete_rows_reconciled",
@@ -346,6 +406,8 @@ def calibrate_ctrader_demo_forward_execution(
         provider_key="ctrader-demo",
         environment="demo",
         manifest_sha256=manifest.fingerprint(),
+        manifest_candidate_rows=manifest.candidate_rows,
+        manifest_complete_lineage_rows=manifest.complete_lineage_rows,
         frozen_at=frozen_at,
         total_observations=len(observations),
         observations=tuple(observations),
