@@ -175,6 +175,7 @@ def arbitrate_neural_symbolic(
     )
     _canonical_refs(causal_path_refs, name="causal_path_refs")
 
+    reasons: tuple[str, ...]
     if not physics.hard_constraints_pass:
         disposition = NeuralSymbolicDisposition.HARD_CONSTRAINT_VETO
         assertiveness = 0
