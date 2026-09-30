@@ -21,6 +21,35 @@ class CausalAblationEvidenceKind(StrEnum):
     FORWARD_OBSERVED = "FORWARD_OBSERVED"
 
 
+class CompoundCausalMechanism(StrEnum):
+    PROFIT_GRADUATION = "PROFIT_GRADUATION"
+    MARGINAL_CAPITAL_UTILITY = "MARGINAL_CAPITAL_UTILITY"
+    SEQUENTIAL_COMPOUNDING = "SEQUENTIAL_COMPOUNDING"
+    INTERNAL_CAPITAL_MARKET = "INTERNAL_CAPITAL_MARKET"
+    PROFIT_PRESERVATION = "PROFIT_PRESERVATION"
+    ADAPTIVE_COMPOUND_SPEED = "ADAPTIVE_COMPOUND_SPEED"
+    ROBUST_GROWTH_RUIN_CAPACITY = "ROBUST_GROWTH_RUIN_CAPACITY"
+    CAPITAL_DIGITAL_TWIN_USAGE = "CAPITAL_DIGITAL_TWIN_USAGE"
+    MULTI_PERIOD_MPC = "MULTI_PERIOD_MPC"
+    CRISIS_CAPITAL_INTELLIGENCE = "CRISIS_CAPITAL_INTELLIGENCE"
+    META_CAPITAL_MEMORY = "META_CAPITAL_MEMORY"
+
+
+_MECHANISM_WORKSTREAM = {
+    CompoundCausalMechanism.PROFIT_GRADUATION: "GEN-C2",
+    CompoundCausalMechanism.MARGINAL_CAPITAL_UTILITY: "GEN-C4",
+    CompoundCausalMechanism.SEQUENTIAL_COMPOUNDING: "GEN-C5",
+    CompoundCausalMechanism.INTERNAL_CAPITAL_MARKET: "GEN-C6",
+    CompoundCausalMechanism.PROFIT_PRESERVATION: "GEN-C7",
+    CompoundCausalMechanism.ADAPTIVE_COMPOUND_SPEED: "GEN-C8",
+    CompoundCausalMechanism.ROBUST_GROWTH_RUIN_CAPACITY: "GEN-C9",
+    CompoundCausalMechanism.CAPITAL_DIGITAL_TWIN_USAGE: "GEN-C10",
+    CompoundCausalMechanism.MULTI_PERIOD_MPC: "GEN-C11",
+    CompoundCausalMechanism.CRISIS_CAPITAL_INTELLIGENCE: "GEN-C12",
+    CompoundCausalMechanism.META_CAPITAL_MEMORY: "GEN-C13",
+}
+
+
 @dataclass(frozen=True, slots=True)
 class CompoundCausalAblationPair:
     ablation_id: str
@@ -28,7 +57,7 @@ class CompoundCausalAblationPair:
     root_control_id: str
     local_control_policy_id: str
     treatment_policy_id: str
-    changed_mechanism: str
+    changed_mechanism: CompoundCausalMechanism
     population_id: str
     control_population_sha256: str
     treatment_population_sha256: str
@@ -62,9 +91,13 @@ class CompoundCausalAblationPair:
             raise CiboCompoundCapitalError(
                 "compound causal ablation treatment must differ from control"
             )
-        if not self.changed_mechanism or "," in self.changed_mechanism:
+        if type(self.changed_mechanism) is not CompoundCausalMechanism:
             raise CiboCompoundCapitalError(
-                "compound causal ablation must declare one mechanism"
+                "compound causal ablation mechanism is invalid"
+            )
+        if _MECHANISM_WORKSTREAM[self.changed_mechanism] != self.workstream_id:
+            raise CiboCompoundCapitalError(
+                "compound causal ablation mechanism/workstream mismatch"
             )
         if self.population_id == SEALED_HOLDOUT_ID:
             raise CiboCompoundCapitalError(
