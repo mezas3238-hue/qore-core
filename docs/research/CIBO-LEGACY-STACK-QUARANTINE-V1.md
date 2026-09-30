@@ -21,3 +21,20 @@ real-capital authority.
 
 This workstream may close only when the machine audit reports zero forbidden
 external import edges.
+
+
+## Scope correction — Architect B
+
+The quarantine follows the original `QORE-CIBO-COGNITIVE-EXECUTIVE-001`
+architecture. It covers the historical cognitive/executive and reasoning
+modules (`cibo_cognitive_*`, `cibo_executive_*`, legacy reasoning runtimes and
+OpenAI reasoning adapters). It does **not** classify Trader capability/profile,
+Trader development, Trader Lab, operational supervision, or the later
+`src/qore/infrastructure/cibo/**` functional system as legacy merely because
+they share the CIBO name. Those surfaces were outside the bounded #482
+cognitive foundation and have independent authority boundaries.
+
+This correction narrows an over-broad audit classification; it does not grant
+productive authority to any cognitive/executive component. GEN-C13 remains the
+only approved current-generation consumer of the retained
+`cibo_executive_memory` substrate.
