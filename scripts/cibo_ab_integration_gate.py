@@ -42,6 +42,7 @@ def validate_state(
             errors.append(f"{name} must be lowercase 40-hex")
 
     support_blockers: list[str] = []
+    resolved_support_blockers: list[str] = []
     for key in ("architect_a", "architect_b"):
         row = matrix.get(key)
         if not isinstance(row, dict):
@@ -61,6 +62,37 @@ def validate_state(
         if any(not isinstance(item, str) or not item for item in blockers):
             errors.append(f"{key} support blockers must be non-empty strings")
         support_blockers.extend(item for item in blockers if isinstance(item, str))
+        resolved = row.get("integrator_resolved_support_blockers", [])
+        if not isinstance(resolved, list):
+            errors.append(
+                f"{key} integrator resolved support blockers must be list"
+            )
+            continue
+        if len(resolved) != len(set(resolved)):
+            errors.append(
+                f"{key} integrator resolved support blockers contain duplicates"
+            )
+        if any(not isinstance(item, str) or not item for item in resolved):
+            errors.append(
+                f"{key} integrator resolved support blockers must be non-empty strings"
+            )
+        unknown_resolved = tuple(
+            item for item in resolved if item not in blockers
+        )
+        if unknown_resolved:
+            errors.append(
+                f"{key} resolved blocker is not present in upstream blockers: "
+                + ",".join(unknown_resolved)
+            )
+        resolved_support_blockers.extend(
+            item for item in resolved if isinstance(item, str)
+        )
+
+    effective_support_blockers = tuple(
+        item
+        for item in support_blockers
+        if item not in set(resolved_support_blockers)
+    )
 
     workstreams = ledger.get("workstreams")
     if not isinstance(workstreams, list):
@@ -143,14 +175,18 @@ def validate_state(
     if matrix.get("productive_authority") is True:
         errors.append("integrator acceptance cannot grant productive authority")
 
-    if matrix.get("integration_ready") is True and support_blockers:
-        errors.append("integration_ready cannot coexist with support blockers")
+    if matrix.get("integration_ready") is True and effective_support_blockers:
+        errors.append(
+            "integration_ready cannot coexist with unresolved support blockers"
+        )
 
     if matrix.get("certification_ready") is True:
         if matrix.get("integration_ready") is not True:
             errors.append("certification_ready requires integration_ready")
-        if support_blockers:
-            errors.append("certification_ready cannot coexist with support blockers")
+        if effective_support_blockers:
+            errors.append(
+                "certification_ready cannot coexist with unresolved support blockers"
+            )
         if open_ids:
             errors.append("certification_ready requires zero open mandatory work")
         if (
