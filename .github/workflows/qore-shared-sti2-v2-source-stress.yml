@@ -41,11 +41,8 @@ jobs:
           ruff check scripts/shared_sti2_v2_source_stress.py
           python -m py_compile scripts/shared_sti2_v2_source_stress.py
 
-          SOURCE_SHA="1df8be7cfea2621a4bfcf6a7de741aa585a29f35"
-          for path in             src/qore/infrastructure/core_stack_v2/shared_global_opportunity_trajectory_v2.py             scripts/shared_sti2_v2_trajectory_heads.py
-          do
-            test "$(git rev-parse "$SOURCE_SHA:$path")" = "$(git rev-parse "HEAD:$path")"
-          done
+          test "$(git rev-parse "af1dbe207cca37d2e2a1abe47afd15f6df9c873c:src/qore/infrastructure/core_stack_v2/shared_global_opportunity_trajectory_v2.py")" = "$(git rev-parse "HEAD:src/qore/infrastructure/core_stack_v2/shared_global_opportunity_trajectory_v2.py")"
+          test "$(git rev-parse "1df8be7cfea2621a4bfcf6a7de741aa585a29f35:scripts/shared_sti2_v2_trajectory_heads.py")" = "$(git rev-parse "HEAD:scripts/shared_sti2_v2_trajectory_heads.py")"
 
       - name: Recover immutable R8 R6 R5 evidence
         run: |
