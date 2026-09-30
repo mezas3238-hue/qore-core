@@ -160,7 +160,6 @@ def propose_v50_geometry(
             reasons=("M1_EXECUTION_INVALIDATION_UNAVAILABLE",),
         )
 
-    digits = None
     # The snapshot distances are already expressed in ticks. Convert the execution risk to
     # the same local-noise scale using its ratio to thesis risk.
     if (
