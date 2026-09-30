@@ -1,0 +1,111 @@
+name: QORE Shared A STI8 V3 Failure Knowledge
+
+concurrency:
+  group: qore-shared-a-sti8-v3-failure-knowledge
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - scripts/shared_sti8_response_v3_failure_diagnostic.py
+      - .github/workflows/qore-shared-a-sti8-v3-failure-knowledge.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Recover exact burned V2/V3 evidence and frozen signal policy
+        run: |
+          set -euo pipefail
+          mkdir -p input/{v2,v3,policy} result
+          ruff check scripts/shared_sti8_response_v3_failure_diagnostic.py
+          python -m py_compile scripts/shared_sti8_response_v3_failure_diagnostic.py
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11077196478/zip" > v2.zip
+          unzip -q v2.zip -d input/v2
+          (cd input/v2/result && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11111448747/zip" > v3.zip
+          unzip -q v3.zip -d input/v3
+          (cd input/v3 && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11065709899/zip" > policy.zip
+          unzip -q policy.zip -d input/policy
+          (cd input/policy && sha256sum -c SHA256SUMS)
+
+      - name: Generate V3 failure knowledge only
+        run: |
+          set -euo pipefail
+          python scripts/shared_sti8_response_v3_failure_diagnostic.py             --policy input/policy/sti6-sti8-source-only-policies.json             --v2-trades input/v2/result/sti8-v2-oos-trades.json             --v2-nas input/v2/fresh/NAS100/market-evidence.json             --v2-sp input/v2/fresh/SP500/market-evidence.json             --v2-us input/v2/fresh/US30/market-evidence.json             --v3-trades input/v3/sti8-v3-oos-trades.json             --v3-nas input/v3/fresh/NAS100/market-evidence.json             --v3-sp input/v3/fresh/SP500/market-evidence.json             --v3-us input/v3/fresh/US30/market-evidence.json             --output result/sti8-v3-failure-knowledge.json             | tee result/summary.json
+      - name: Validate non-promotional disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/sti8-v3-failure-knowledge.json").read_text())
+          assert p["status"] == "STI8_V3_FAILURE_KNOWLEDGE_COMPLETE"
+          assert p["v3_reopened"] is False
+          assert p["v3_policy_changed"] is False
+          assert p["v4_policy_selected"] is False
+          assert p["v4_value_demonstrated"] is False
+          assert p["governance"]["burned_v2_or_v3_may_demonstrate_v4_value"] is False
+          assert p["governance"]["protected_certification_holdout_opened"] is False
+          PY
+      - name: Seal result
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-sti8-v3-failure-knowledge-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report V3 failure knowledge
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/sti8-v3-failure-knowledge.json").read_text())
+          body="\n".join([
+              "## Shared A STI-8 — V3 Failure Knowledge",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- candidates: **{p['mechanistic_hypothesis_candidates']}**",
+              f"- burned V2 diagnostic: **{p['datasets']['BURNED_V2_OOS']}**",
+              f"- burned V3 diagnostic: **{p['datasets']['BURNED_V3_OOS']}**",
+              "- V3 reopened / changed: **False / False**",
+              "- V4 policy selected / value demonstrated: **False / False**",
+              "- protected certification holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
