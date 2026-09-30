@@ -37,6 +37,8 @@ def _base(
 ) -> dict:
     return {
         "schema": "qore.cibo.calibration-freeze-test.v1",
+        "evidence_binding_id": receipt_id,
+        "evidence_kind": evidence_kind,
         "producer_gate_id": f"gate:{receipt_id}",
         "integrated_git_sha": head,
         "policy_identity_sha256": POLICY,
@@ -49,7 +51,6 @@ def _base(
         "holdout_mining_used": False,
         "outcome_aware_refit": False,
         "operational_authority_claimed": False,
-        "evidence_kind_marker": evidence_kind,
     }
 
 
