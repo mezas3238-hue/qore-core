@@ -1,0 +1,126 @@
+name: QORE Shared A STI8 V2 Failure Knowledge
+
+concurrency:
+  group: qore-shared-a-sti8-v2-failure-knowledge
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - scripts/shared_sti8_response_v2_failure_diagnostic.py
+      - .github/workflows/qore-shared-a-sti8-v2-failure-knowledge.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Validate diagnostic code and frozen parents
+        run: |
+          set -euo pipefail
+          mkdir -p input/v2 input/policy result
+          ruff check scripts/shared_sti8_response_v2_failure_diagnostic.py
+          python -m py_compile scripts/shared_sti8_response_v2_failure_diagnostic.py
+          SOURCE_SHA="711788d89521e051ab3969a9006830068381693e"
+          for path in             scripts/shared_sti6_sti8_real_position_intelligence.py             src/qore/infrastructure/core_stack_v2/shared_continuation_positive_tail_intelligence.py             src/qore/infrastructure/core_stack_v2/shared_position_threat_intelligence.py             src/qore/infrastructure/traders/vt31_silver_bullet_r2_2.py
+          do
+            test "$(git rev-parse "$SOURCE_SHA:$path")" = "$(git rev-parse "HEAD:$path")"
+          done
+          test "$(git rev-parse "2aaecd9b273c437de8a273fc1704cb5fcaed98bd:src/qore/infrastructure/traders/vt31_shared_threat_consumer_v2_research.py")" = "$(git rev-parse "HEAD:src/qore/infrastructure/traders/vt31_shared_threat_consumer_v2_research.py")"
+
+      - name: Recover exact burned V2 OOS and frozen signal policy
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11077196478/zip" > v2.zip
+          unzip -q v2.zip -d input/v2
+          (cd input/v2/result && sha256sum -c SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11065709899/zip" > policy.zip
+          unzip -q policy.zip -d input/policy
+          (cd input/policy && sha256sum -c SHA256SUMS)
+
+      - name: Generate failure knowledge only
+        run: |
+          set -euo pipefail
+          python scripts/shared_sti8_response_v2_failure_diagnostic.py             --policy input/policy/sti6-sti8-source-only-policies.json             --trades input/v2/result/sti8-v2-oos-trades.json             --nas input/v2/fresh/NAS100/market-evidence.json             --sp input/v2/fresh/SP500/market-evidence.json             --us input/v2/fresh/US30/market-evidence.json             --output result/sti8-v2-failure-knowledge.json             | tee result/summary.json
+
+      - name: Validate non-promotional disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/sti8-v2-failure-knowledge.json").read_text())
+          assert p["status"] == "STI8_V2_FAILURE_KNOWLEDGE_COMPLETE"
+          assert p["burned_v2_oos_used"] is True
+          assert p["v2_reopened"] is False
+          assert p["sti8_signal_engine_changed"] is False
+          assert p["sti8_thresholds_changed"] is False
+          assert p["v2_response_changed"] is False
+          assert p["v3_policy_selected"] is False
+          assert p["v3_value_demonstrated"] is False
+          assert p["governance"]["burned_evidence_may_demonstrate_v3_value"] is False
+          assert p["governance"]["protected_certification_holdout_opened"] is False
+          PY
+
+      - name: Seal diagnostic
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-sti8-v2-failure-knowledge-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report STI-8 V2 failure knowledge
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/sti8-v2-failure-knowledge.json").read_text())
+          body="\n".join([
+              "## Shared A STI-8 — V2 Failure Knowledge",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- trades: **{p['trade_count']}**",
+              f"- mechanistic candidates: **{p['mechanistic_hypothesis_candidates']}**",
+              f"- group diagnostics: **{p['groups']}**",
+              f"- fixed 1/2/3 confirmation sensitivity: **{p['fixed_confirmation_sensitivity']}**",
+              "- V3 policy selected: **False**",
+              "- V3 value demonstrated: **False**",
+              "- protected certification holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
