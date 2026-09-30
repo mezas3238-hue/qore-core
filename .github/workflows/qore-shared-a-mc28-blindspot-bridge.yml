@@ -40,27 +40,40 @@ jobs:
           ruff check src/qore/infrastructure/core_stack_v2/core_broker_blindspot_cognition.py tests/infrastructure/test_core_stack_v2_core_broker_blindspot_cognition.py scripts/shared_mc28_core_broker_blindspot_bridge.py src/qore/infrastructure/core_stack_v2/second_order_blindspot_cognition.py tests/infrastructure/test_core_stack_v2_second_order_blindspot_cognition.py
           mypy src/qore/infrastructure/core_stack_v2/core_broker_blindspot_cognition.py src/qore/infrastructure/core_stack_v2/second_order_blindspot_cognition.py
           pytest -q tests/infrastructure/test_core_stack_v2_core_broker_blindspot_cognition.py tests/infrastructure/test_core_stack_v2_second_order_blindspot_cognition.py
-      - name: Verify Architect B source evidence
+      - name: Verify Architect B immutable evidence chain
         run: |
           set -euo pipefail
-          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/36763268609" --jq '.conclusion // ""')" = "success"
-          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11119388121" --jq '.expired' | grep '^false$'
+          for spec in \
+            "36763268609:11119388121" \
+            "36764365409:11120521150" \
+            "36764376550:11120391213"
+          do
+            run_id="${spec%%:*}"
+            artifact_id="${spec#*:}"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.status')" = "completed"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.conclusion')" = "success"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" --jq '.expired')" = "false"
+          done
       - name: Build A-side MC28 bridge
         run: |
           python scripts/shared_mc28_core_broker_blindspot_bridge.py | tee result/summary.json
-      - name: Validate bounded disposition
+      - name: Validate completed disposition
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           p=json.loads(Path("result/mc28-core-broker-blindspot-bridge.json").read_text())
-          assert p["status"] == "MC28_A_SIDE_BLINDSPOT_BRIDGE_FOUNDATION_PASS"
-          assert p["bridge_state"] == "OBSERVABILITY_INCOMPLETE"
-          assert p["runtime_core_broker_replication_complete"] is False
-          assert p["second_order_inventory_complete"] is False
+          assert p["status"] == "MC28_COMPLETED_AND_PROVEN"
+          assert p["bridge_state"] == "SECOND_ORDER_RESEARCH_PRIORITY"
+          assert p["runtime_core_broker_replication_complete"] is True
+          assert p["second_order_inventory_complete"] is True
+          assert p["open_world_boundary_preserved"] is True
+          assert p["all_unknown_unknowns_eliminated"] is False
           assert p["broker_mutation_authority"] is False
           assert p["execution_authority"] is False
-          assert p["mc28_completed_and_proven"] is False
+          assert p["mc28_completed_and_proven"] is True
+          assert p["master_ledger_mutated"] is False
+          assert p["protected_certification_holdout_opened"] is False
           PY
       - name: Seal
         run: |
@@ -76,11 +89,13 @@ jobs:
           {
             echo "## Shared A MC-28 — Core/Broker Blindspot Bridge"
             echo
-            echo "- B source run/artifact: **36763268609 / 11119388121**"
-            echo "- X-12 cognition executed in this workflow: **Yes**"
-            echo "- runtime Core/Broker replication complete: **False**"
-            echo "- second-order inventory complete: **False**"
+            echo "- B foundation run/artifact: **36763268609 / 11119388121**"
+            echo "- B real Core/Broker run/artifact: **36764365409 / 11120521150**"
+            echo "- B declared-scope inventory run/artifact: **36764376550 / 11120391213**"
+            echo "- runtime Core/Broker replication complete: **True**"
+            echo "- declared-scope second-order inventory complete: **True**"
+            echo "- open-world boundary / unknown-unknown possibility preserved: **True**"
             echo "- mutation authority: **None**"
-            echo "- MC-28 completed-and-proven: **False**"
+            echo "- MC-28 completed-and-proven: **True**"
           } > result/issue-comment.md
           gh issue comment 638 --body-file result/issue-comment.md
