@@ -219,12 +219,17 @@ def fail_closed_route_collisions(
         else:
             surviving.extend(group)
 
-    key = lambda row: (
-        datetime.fromisoformat(row.entry_at),
-        row.symbol,
-        row.route,
+    def sort_key(row: S2DPopulationRow) -> tuple[datetime, str, str]:
+        return (
+            datetime.fromisoformat(row.entry_at),
+            row.symbol,
+            row.route,
+        )
+
+    return (
+        tuple(sorted(surviving, key=sort_key)),
+        tuple(sorted(collisions, key=sort_key)),
     )
-    return tuple(sorted(surviving, key=key)), tuple(sorted(collisions, key=key))
 
 
 def select_combined_max3(
