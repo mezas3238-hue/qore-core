@@ -257,18 +257,24 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED",
+      "current_maturity": "DRAWNDOWN_RESERVE_OOS_UTILITY_ENGINE_STAGED_CI_PENDING_REAL_FRESH_POPULATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
         "github-actions://36767442915/SUCCESS",
-        "github-actions://36767442878/SUCCESS"
+        "github-actions://36767442878/SUCCESS",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t13_oos_utility.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_t13_oos_utility.py",
+        ".github/workflows/cibo-t13-drawdown-reserve-oos-utility.yml"
       ],
       "blockers": [
-        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+        "INTEGRATOR_T13_OOS_UTILITY_CI_REQUIRED",
+        "FRESH_PHASE20D_T13_TREATMENT_POPULATION_THRESHOLDS_REQUIRED",
+        "FOUR_FOLD_POSITIVE_TREATMENT_AND_NONWORSE_DRAWDOWN_EVIDENCE_REQUIRED",
+        "STRICT_CAPITAL_PRODUCTIVITY_IMPROVEMENT_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "Pass integrated T13 OOS utility CI; then run the preregistered reserve treatment on the real post-freeze Phase20D population and require all four folds positive, treatment drawdown no worse than baseline, and strictly higher capital productivity."
     },
     {
       "id": "T14",
