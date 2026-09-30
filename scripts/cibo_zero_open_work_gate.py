@@ -70,6 +70,23 @@ _COMMENT_MARKERS = (
 )
 
 _WORKSTREAM_CLASSIFIERS = (
+    ("tests/infrastructure/test_cibo/*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
+    ("*cibo_adaptive_reasoning*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
+    ("*cibo_reasoning_*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
+    ("*cibo_supervised_runtime*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
+    ("*cibo_operational_supervision_evidence*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
+    ("*cibo_trader_capability_profile*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
+    ("*cibo_trader_development_review*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
+    ("*cibo_trader_lab_authority*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
+    ("*cibo_trader_manager*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
+    ("*cibo_adaptive_router_492*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
+    ("*cibo_fundednext_seed*", "CMA_FOUNDATION_INTEGRATION"),
+    ("*cibo_fundednext_cma_binding*", "CMA_FOUNDATION_INTEGRATION"),
+    ("*cibo_fundednext_runtime_authority*", "RISK_INTEGRATION"),
+    ("*cibo_trader_opportunity_adapter*", "CAPITAL_AMPLIFICATION"),
+    ("*cibo_direct_trader_opportunities*", "CAPITAL_AMPLIFICATION"),
+    ("*cibo_ce2i_sizing_reconstruction_report*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
+    ("*cibo_final_certification_contract*", "SOURCE_OF_TRUTH_RECONCILIATION"),
     ("*phase18*", "HISTORICAL_PHASE18_REPLAY_EVIDENCE"),
     ("*phase19*", "BURNED_PHASE19_RESEARCH_EVIDENCE"),
     ("*cibo_cma_*", "CMA_FOUNDATION_INTEGRATION"),
