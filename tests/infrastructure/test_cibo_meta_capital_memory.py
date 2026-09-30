@@ -29,6 +29,7 @@ from qore.infrastructure.cibo_meta_capital_memory import (
 from qore.infrastructure.market_test_environment import (
     MarketRuntimeEnvironment,
 )
+from qore.kernel.result import Success
 
 T0 = datetime(2026, 9, 30, 8, 20, tzinfo=UTC)
 
@@ -176,7 +177,8 @@ def test_genc13_exports_into_existing_governed_memory() -> None:
     assert len(item.evidence_refs) == 3
     assert not hasattr(item, "config")
     assert not hasattr(item, "promotion")
-    assert result.is_success()
+    assert isinstance(result, Success)
+    assert result.value.items == (item,)
 
 
 def test_genc13_memory_export_is_deterministic() -> None:
