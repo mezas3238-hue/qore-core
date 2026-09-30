@@ -30,6 +30,7 @@ from qore.infrastructure.cibo_compound_market_cycle import (
     settle_compound_deployment,
 )
 from qore.infrastructure.cibo_internal_capital_market import (
+    GENC6_RESERVE_ID,
     Genc6Action,
     Genc6CapitalEvidenceFact,
     Genc6EvidenceDirection,
@@ -409,7 +410,7 @@ def _candidate(
 
 def _reserve() -> Genc6ReserveAlternative:
     return Genc6ReserveAlternative(
-        alternative_id="RESERVE_NO_DEPLOYMENT",
+        alternative_id=GENC6_RESERVE_ID,
         account_identity=_identity(),
         decision_at=T0,
         evidence_facts=(
