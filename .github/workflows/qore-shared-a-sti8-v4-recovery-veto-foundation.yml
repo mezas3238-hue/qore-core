@@ -1,0 +1,54 @@
+name: QORE Shared A STI8 V4 Recovery Veto Foundation
+
+concurrency:
+  group: qore-shared-a-sti8-v4-recovery-veto-foundation
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - docs/shared/evidence/QORE_SHARED_STI8_ECONOMIC_RESPONSE_V4_PREREGISTRATION_001.json
+      - src/qore/infrastructure/traders/vt31_shared_threat_consumer_v4_research.py
+      - tests/infrastructure/test_vt31_shared_threat_consumer_v4_research.py
+      - .github/workflows/qore-shared-a-sti8-v4-recovery-veto-foundation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Validate preregistered V4 without opening OOS
+        run: |
+          set -euo pipefail
+          ruff check             src/qore/infrastructure/traders/vt31_shared_threat_consumer_v4_research.py             tests/infrastructure/test_vt31_shared_threat_consumer_v4_research.py
+          mypy src/qore/infrastructure/traders/vt31_shared_threat_consumer_v4_research.py
+          pytest -q tests/infrastructure/test_vt31_shared_threat_consumer_v4_research.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("docs/shared/evidence/QORE_SHARED_STI8_ECONOMIC_RESPONSE_V4_PREREGISTRATION_001.json").read_text())
+          assert p["status"] == "PREREGISTERED_AWAITING_FUTURE_OOS_MATURITY"
+          assert p["parent_v3"]["reopened"] is False
+          assert p["failure_knowledge"]["burned_datasets_may_demonstrate_v4_value"] is False
+          assert p["failure_knowledge"]["selected_mechanism"] == "V4_ONE_STEP_RECOVERY_VETO"
+          assert p["failure_knowledge"]["numeric_severity_candidate_selected"] is False
+          assert p["scientific_hypothesis"]["uses_numeric_rescue_threshold"] is False
+          assert p["future_research_oos"]["must_be_temporally_disjoint_from_v3"] is True
+          assert p["future_research_oos"]["window_end"] == "NOT_YET_FROZEN_BECAUSE_EVIDENCE_NOT_MATURE"
+          assert p["governance"]["future_oos_opened"] is False
+          assert p["governance"]["protected_certification_holdout_opened"] is False
+          PY
