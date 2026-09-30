@@ -1,0 +1,38 @@
+name: QORE Capitalizer Two Route Freeze V47 S2D
+
+on:
+  push:
+    branches:
+      - agent/capitalizer-two-route-freeze-v47-s2d-001
+    paths:
+      - '.github/workflows/qore-capitalizer-two-route-freeze-v47-s2d.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_two_route_population_v47_s2d.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_two_route_population_v47_s2d.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_two_route_population_v47_s2d.py \
+            tests/infrastructure/trader_lab/test_capitalizer_two_route_population_v47_s2d.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_two_route_population_v47_s2d.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_two_route_population_v47_s2d.py
