@@ -1309,7 +1309,7 @@
       "kind": "CERTIFICATION",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "EXECUTABLE_GATE_GREEN_RECEIPT_BOUND_PHASE21_PHASE22_DERIVATION_IMPLEMENTED_CI_PENDING_EXECUTION_BLOCKED",
+      "current_maturity": "RECEIPT_BOUND_CANONICAL_ENTRY_ENFORCED_IN_FINAL_EXAM_CI_PENDING_PRE_EXAM_AND_PHASE21_22_EXECUTION",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md",
@@ -1329,13 +1329,13 @@
         "tests/infrastructure/test_cibo_ce2i_final_certification.py"
       ],
       "blockers": [
+        "INTEGRATOR_FINAL_EXAM_RECEIPT_BOUND_CI_REQUIRED",
         "PRE_EXAM_NON_EXAM_ZERO_OPEN_PASS_REQUIRED",
         "FINAL_A_B_INTEGRATED_SOURCE_OF_TRUTH_RECONCILIATION_REQUIRED",
         "PHASE20D_PHASE21_PHASE22_AND_HOLDOUT_CHAIN_REQUIRED",
-        "ALL_MANDATORY_SCIENTIFIC_AND_INTEGRATION_GATES_REQUIRED",
-        "INTEGRATOR_RECEIPT_BOUND_PHASE21_PHASE22_FINAL_EXAM_CI_REQUIRED"
+        "ALL_MANDATORY_SCIENTIFIC_AND_INTEGRATION_GATES_REQUIRED"
       ],
-      "next_gate": "Pass receipt-bound Phase21/Phase22 Final Exam CI; later require exact Phase21 manifest + canonical Phase22 receipt + all 18 exact-head PASS receipts before executing the integrated exam ahead of World Cup."
+      "next_gate": "Pass Final Exam CI with the receipt-bound path mandatory; then after PRE_EXAM and exact Phase21/Phase22 certification, execute the 18-receipt integrated exam before World Cup and STRICT zero-open."
     },
     {
       "id": "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
