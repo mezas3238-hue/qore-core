@@ -333,3 +333,87 @@ def test_gate_rejects_unsafe_final_candidate_flag(
         match="final-certification candidate contradicts gate evidence",
     ):
         gate.evaluate_gate(repo_root=tmp_path, ledger_path=ledger)
+
+
+def _pre_exam_ledger() -> dict:
+    payload = _ledger(disposition="COMPLETED_AND_PROVEN")
+    payload["workstreams"][0]["id"] = "SCIENTIFIC_WORK"
+    payload["workstreams"].append(
+        {
+            "id": "FINAL_INTEGRATED_CIBO_EXAM",
+            "kind": "CERTIFICATION",
+            "mandatory": True,
+            "certification_blocking": True,
+            "current_maturity": "FINAL_EXAM_EXECUTION_BLOCKED",
+            "terminal_disposition": None,
+            "evidence_refs": ["docs/research/final-exam.md"],
+            "blockers": ["PRE_EXAM_ZERO_OPEN_PASS_REQUIRED"],
+            "next_gate": "Run the final integrated exam.",
+        }
+    )
+    payload["current_summary"] = {
+        "mandatory_count": 2,
+        "terminal_count": 1,
+        "open_count": 1,
+        "zero_open_work_pass": False,
+        "final_certification_candidate": False,
+    }
+    return payload
+
+
+def test_pre_exam_gate_excludes_only_final_exam(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    _write(ledger, _pre_exam_ledger())
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
+
+    pre_exam = gate.evaluate_pre_exam_gate(
+        repo_root=tmp_path,
+        ledger_path=ledger,
+    )
+    strict = gate.evaluate_gate(
+        repo_root=tmp_path,
+        ledger_path=ledger,
+    )
+
+    assert pre_exam.scope == "PRE_EXAM"
+    assert pre_exam.passed is True
+    assert pre_exam.open_workstream_ids == ()
+    assert pre_exam.mandatory_workstream_count == 1
+    assert strict.scope == "STRICT"
+    assert strict.passed is False
+    assert strict.open_workstream_ids == ("FINAL_INTEGRATED_CIBO_EXAM",)
+
+
+def test_pre_exam_gate_still_blocks_other_open_work(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    payload = _pre_exam_ledger()
+    payload["workstreams"][0]["current_maturity"] = "OPEN_REQUIRED"
+    payload["workstreams"][0]["terminal_disposition"] = None
+    payload["workstreams"][0]["evidence_refs"] = []
+    payload["current_summary"] = {
+        "mandatory_count": 2,
+        "terminal_count": 0,
+        "open_count": 2,
+        "zero_open_work_pass": False,
+        "final_certification_candidate": False,
+    }
+    _write(ledger, payload)
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
+
+    verdict = gate.evaluate_pre_exam_gate(
+        repo_root=tmp_path,
+        ledger_path=ledger,
+    )
+
+    assert verdict.passed is False
+    assert verdict.open_workstream_ids == ("SCIENTIFIC_WORK",)

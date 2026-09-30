@@ -65,23 +65,32 @@ jobs:
       - name: Generate current closure verdict
         run: |
           python scripts/cibo_zero_open_work_gate.py
+          python scripts/cibo_zero_open_work_gate.py --pre-exam
           python - <<'PY'
           import json
           from pathlib import Path
 
-          path = Path("artifacts/cibo_zero_open_work_gate_v1.json")
-          payload = json.loads(path.read_text(encoding="utf-8"))
-          assert payload["schema"] == "QORE_CIBO_ZERO_OPEN_WORK_GATE_V1"
-          assert isinstance(payload["pass"], bool)
-          assert isinstance(payload["open_workstream_ids"], list)
-          assert isinstance(payload["inventory_paths"], list)
-          assert payload["orphan_candidate_paths"] == []
-          assert payload["missing_required_artifacts"] == []
-          assert payload["high_signal_marker_hits"] == []
+          strict_path = Path("artifacts/cibo_zero_open_work_gate_v1.json")
+          pre_path = Path("artifacts/cibo_zero_open_work_gate_pre_exam_v1.json")
+          strict = json.loads(strict_path.read_text(encoding="utf-8"))
+          pre = json.loads(pre_path.read_text(encoding="utf-8"))
+          assert strict["schema"] == "QORE_CIBO_ZERO_OPEN_WORK_GATE_V1"
+          assert strict["scope"] == "STRICT"
+          assert pre["schema"] == "QORE_CIBO_ZERO_OPEN_WORK_GATE_V1"
+          assert pre["scope"] == "PRE_EXAM"
+          for payload in (strict, pre):
+              assert isinstance(payload["pass"], bool)
+              assert isinstance(payload["open_workstream_ids"], list)
+              assert isinstance(payload["inventory_paths"], list)
+              assert payload["orphan_candidate_paths"] == []
+              assert payload["missing_required_artifacts"] == []
+              assert payload["high_signal_marker_hits"] == []
           PY
       - name: Upload zero-open-work gate verdict
         uses: actions/upload-artifact@v4
         with:
           name: cibo-zero-open-work-gate-v1
-          path: artifacts/cibo_zero_open_work_gate_v1.json
+          path: |
+            artifacts/cibo_zero_open_work_gate_v1.json
+            artifacts/cibo_zero_open_work_gate_pre_exam_v1.json
           if-no-files-found: error

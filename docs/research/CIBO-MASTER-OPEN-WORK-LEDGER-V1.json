@@ -1029,44 +1029,50 @@
       "kind": "GOVERNANCE",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "AUDITOR_HARDENED_INVENTORY_CLASSIFICATION_CHILD_CI_GREEN_MASTER_LEDGER_OPEN",
+      "current_maturity": "AUDITOR_HARDENED_STRICT_AND_PRE_EXAM_SCOPES_IMPLEMENTED_CI_PENDING_MASTER_LEDGER_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "scripts/cibo_zero_open_work_gate.py",
         "tests/infrastructure/test_cibo_zero_open_work_gate.py",
         "github-actions://36753334521/SUCCESS",
         "github-actions://36757582137/SUCCESS",
-        "github-actions://36760959191/SUCCESS"
+        "github-actions://36760959191/SUCCESS",
+        "artifacts/cibo_zero_open_work_gate_pre_exam_v1.json"
       ],
       "blockers": [
-        "MASTER_LEDGER_HAS_OPEN_REQUIRED_WORK"
+        "MASTER_LEDGER_HAS_OPEN_REQUIRED_WORK",
+        "STRICT_AND_PRE_EXAM_SCOPE_CHILD_CI_REQUIRED"
       ],
-      "next_gate": "Keep the hardened auditor green while the canonical ledger remains open; terminal closure is legal only after every mandatory workstream is terminal and no certification-blocking external dependency remains."
+      "next_gate": "Pass strict + PRE_EXAM scope CI. PRE_EXAM excludes only FINAL_INTEGRATED_CIBO_EXAM; after all ordinary mandatory work except the exam is terminal it may admit exam execution. After the exam is terminal, STRICT must pass."
     },
     {
       "id": "FINAL_INTEGRATED_CIBO_EXAM",
       "kind": "CERTIFICATION",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "FINAL_EXAM_PROTOCOL_PREREGISTERED_EXECUTION_BLOCKED",
+      "current_maturity": "FINAL_EXAM_PROTOCOL_AND_EXECUTABLE_GATE_IMPLEMENTED_CI_PENDING_EXECUTION_BLOCKED",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-FINAL-INTEGRATED-CERTIFICATION-EXAM-PROTOCOL-V1.md",
-        "docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md"
+        "docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md",
+        "src/qore/infrastructure/cibo_final_integrated_exam.py",
+        "tests/infrastructure/test_cibo_final_integrated_exam.py",
+        ".github/workflows/cibo-final-integrated-exam.yml"
       ],
       "blockers": [
         "ZERO_OPEN_WORK_PASS_REQUIRED",
         "FINAL_A_B_INTEGRATED_SOURCE_OF_TRUTH_RECONCILIATION_REQUIRED",
         "PHASE20D_PHASE21_PHASE22_AND_HOLDOUT_CHAIN_REQUIRED",
-        "ALL_MANDATORY_SCIENTIFIC_AND_INTEGRATION_GATES_REQUIRED"
+        "ALL_MANDATORY_SCIENTIFIC_AND_INTEGRATION_GATES_REQUIRED",
+        "FINAL_EXAM_EXECUTABLE_GATE_CHILD_CI_REQUIRED"
       ],
-      "next_gate": "Run only after the integrated A+B HEAD satisfies the preregistered entry prerequisites, zero-open-work enforcement, governed holdout chain and all scientific/integration closures; then execute every non-compensatory assertion deterministically."
+      "next_gate": "Pass the executable final-exam gate CI; later, after PRE_EXAM zero-open and Phase22 economic receipt, run P1-P8 plus E1-E10 on the integrated A+B evidence HEAD, terminally disposition the exam, then require STRICT zero-open PASS."
     },
     {
       "id": "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
       "kind": "CERTIFICATION",
-      "mandatory": true,
-      "certification_blocking": true,
+      "mandatory": false,
+      "certification_blocking": false,
       "current_maturity": "SEPARATE_POST_ORDINARY_CERTIFICATION_PROGRAM_PROTOCOL_NOT_YET_ELIGIBLE_TO_FREEZE",
       "terminal_disposition": null,
       "evidence_refs": [],
@@ -1074,7 +1080,7 @@
         "ORDINARY_CIBO_CERTIFICATION_REQUIRED_BEFORE_WORLD_CUP_EXAM_PROTOCOL_FREEZE",
         "SEPARATE_WORLD_CUP_PROVIDER_AND_COMPETITION_EVIDENCE_REQUIRED"
       ],
-      "next_gate": "Do not conflate with ordinary certification. After ordinary CIBO certification, freeze a separate World Cup maximum-capability exam protocol before consuming its competition-specific evidence."
+      "next_gate": "Post-ordinary-certification program only. Freeze and execute the separate World Cup exam after ordinary CIBO certification; it does not block the ordinary mandatory zero-open count."
     },
     {
       "id": "HISTORICAL_PHASE18_REPLAY_EVIDENCE",
@@ -1244,9 +1250,9 @@
     }
   ],
   "current_summary": {
-    "mandatory_count": 64,
+    "mandatory_count": 63,
     "terminal_count": 10,
-    "open_count": 54,
+    "open_count": 53,
     "zero_open_work_pass": false,
     "final_certification_candidate": false
   }

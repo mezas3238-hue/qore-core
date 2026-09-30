@@ -23,6 +23,7 @@ from typing import Any
 
 LEDGER_PATH = Path("docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json")
 OUTPUT_PATH = Path("artifacts/cibo_zero_open_work_gate_v1.json")
+PRE_EXAM_OUTPUT_PATH = Path("artifacts/cibo_zero_open_work_gate_pre_exam_v1.json")
 
 _SCHEMA = "QORE_CIBO_MASTER_OPEN_WORK_LEDGER_V1"
 _GATE_SCHEMA = "QORE_CIBO_ZERO_OPEN_WORK_GATE_V1"
@@ -35,6 +36,8 @@ _TERMINAL = frozenset(
         "EXTERNAL_DEPENDENCY_BLOCKED",
     }
 )
+
+_PRE_EXAM_EXCLUDED_WORKSTREAM_IDS = frozenset({"FINAL_INTEGRATED_CIBO_EXAM"})
 
 _REQUIRED_CANONICAL_ARTIFACTS = (
     "docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md",
@@ -133,6 +136,8 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_trader_opportunity_adapter*", "CAPITAL_AMPLIFICATION"),
     ("*cibo_direct_trader_opportunities*", "CAPITAL_AMPLIFICATION"),
     ("*cibo_ce2i_sizing_reconstruction_report*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
+    ("*cibo_final_integrated_exam*", "FINAL_INTEGRATED_CIBO_EXAM"),
+    ("*final-integrated-exam*", "FINAL_INTEGRATED_CIBO_EXAM"),
     ("*cibo_final_certification_contract*", "SOURCE_OF_TRUTH_RECONCILIATION"),
     ("*phase18*", "HISTORICAL_PHASE18_REPLAY_EVIDENCE"),
     ("*phase19*", "BURNED_PHASE19_RESEARCH_EVIDENCE"),
@@ -228,6 +233,7 @@ class CiboZeroOpenWorkGateError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class GateVerdict:
+    scope: str
     passed: bool
     mandatory_workstream_count: int
     terminal_workstream_count: int
@@ -243,6 +249,7 @@ class GateVerdict:
     def as_dict(self) -> dict[str, Any]:
         return {
             "schema": _GATE_SCHEMA,
+            "scope": self.scope,
             "pass": self.passed,
             "mandatory_workstream_count": self.mandatory_workstream_count,
             "terminal_workstream_count": self.terminal_workstream_count,
@@ -508,6 +515,8 @@ def evaluate_gate(
     *,
     repo_root: Path = Path("."),
     ledger_path: Path = LEDGER_PATH,
+    excluded_mandatory_ids: frozenset[str] = frozenset(),
+    scope: str = "STRICT",
 ) -> GateVerdict:
     raw = _load_ledger(ledger_path)
     rows = tuple(_validate_workstream(row) for row in raw["workstreams"])
@@ -517,7 +526,19 @@ def evaluate_gate(
             "CIBO closure ledger contains duplicate workstream ids"
         )
 
-    mandatory = tuple(row for row in rows if row["mandatory"])
+    all_mandatory = tuple(row for row in rows if row["mandatory"])
+    unknown_exclusions = excluded_mandatory_ids - frozenset(ids)
+    if unknown_exclusions:
+        raise CiboZeroOpenWorkGateError(
+            f"CIBO zero-open scope excludes unknown ids: {sorted(unknown_exclusions)}"
+        )
+    if scope not in {"STRICT", "PRE_EXAM"}:
+        raise CiboZeroOpenWorkGateError("CIBO zero-open scope is invalid")
+    mandatory = tuple(
+        row
+        for row in all_mandatory
+        if str(row["id"]) not in excluded_mandatory_ids
+    )
     open_ids: list[str] = []
     blocking_external: list[str] = []
     reasons: list[str] = []
@@ -557,9 +578,11 @@ def evaluate_gate(
 
     summary = _validate_current_summary(
         raw,
-        mandatory_count=len(mandatory),
+        mandatory_count=len(all_mandatory),
         terminal_count=sum(
-            1 for row in mandatory if row["terminal_disposition"] is not None
+            1
+            for row in all_mandatory
+            if row["terminal_disposition"] is not None
         ),
     )
 
@@ -598,6 +621,7 @@ def evaluate_gate(
             "CIBO final-certification candidate contradicts gate evidence"
         )
     return GateVerdict(
+        scope=scope,
         passed=passed,
         mandatory_workstream_count=len(mandatory),
         terminal_workstream_count=sum(
@@ -616,9 +640,24 @@ def evaluate_gate(
     )
 
 
-def _write(verdict: GateVerdict) -> None:
-    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_PATH.write_text(
+def evaluate_pre_exam_gate(
+    *,
+    repo_root: Path = Path("."),
+    ledger_path: Path = LEDGER_PATH,
+) -> GateVerdict:
+    """Audit ordinary-certification closure before the final exam itself runs."""
+
+    return evaluate_gate(
+        repo_root=repo_root,
+        ledger_path=ledger_path,
+        excluded_mandatory_ids=_PRE_EXAM_EXCLUDED_WORKSTREAM_IDS,
+        scope="PRE_EXAM",
+    )
+
+
+def _write(verdict: GateVerdict, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
         json.dumps(verdict.as_dict(), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
@@ -631,9 +670,15 @@ def main() -> int:
         action="store_true",
         help="Exit non-zero when the zero-open-work gate does not pass.",
     )
+    parser.add_argument(
+        "--pre-exam",
+        action="store_true",
+        help="Exclude only FINAL_INTEGRATED_CIBO_EXAM from the closure scope.",
+    )
     args = parser.parse_args()
-    verdict = evaluate_gate()
-    _write(verdict)
+    verdict = evaluate_pre_exam_gate() if args.pre_exam else evaluate_gate()
+    output_path = PRE_EXAM_OUTPUT_PATH if args.pre_exam else OUTPUT_PATH
+    _write(verdict, output_path)
     print(json.dumps(verdict.as_dict(), sort_keys=True))
     if args.enforce_certification and not verdict.passed:
         return 2

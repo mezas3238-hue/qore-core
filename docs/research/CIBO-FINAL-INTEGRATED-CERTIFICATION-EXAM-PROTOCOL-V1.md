@@ -247,6 +247,44 @@ The root cause must be assigned to one of:
 
 The exam must not rewrite history to obtain a green verdict.
 
+## Closure topology — no circular certification
+
+The executable closure order is:
+
+```text
+ZERO-OPEN AUDITOR IMPLEMENTATION PROVEN
+        ↓
+ALL ORDINARY MANDATORY WORK EXCEPT FINAL_EXAM TERMINAL
+        ↓
+PRE-EXAM ZERO-OPEN PASS
+        ↓
+PHASE21 / PHASE22 ECONOMIC RECEIPT AVAILABLE
+        ↓
+FINAL INTEGRATED EXAM P1-P8 + E1-E10
+        ↓
+FINAL_INTEGRATED_CIBO_EXAM TERMINAL
+        ↓
+STRICT ZERO-OPEN PASS
+        ↓
+ORDINARY CIBO FINAL CERTIFICATION CANDIDATE
+```
+
+`PRE_EXAM` excludes only `FINAL_INTEGRATED_CIBO_EXAM` from the mandatory
+closure set. It does not exclude scientific, provider, Risk, CMA, forward,
+Compound, OOS, stress, replication or governance work.
+
+The Zero Open Work auditor itself is normal mandatory infrastructure and must
+already have a terminal engineering disposition before PRE_EXAM can pass.
+
+The post-ordinary `WORLD_CUP_MAXIMUM_CAPABILITY_EXAM` is tracked in the
+ledger but is not part of the ordinary-certification mandatory count. Its
+preparation may not leave orphan work, and its exam cannot run before ordinary
+certification.
+
+The legacy Phase22 economic receipt remains necessary but is not sufficient for
+global CIBO certification. Global certification additionally requires this
+integrated exam and the final strict zero-open verdict.
+
 ## World Cup separation
 
 Passing this ordinary exam does **not** imply World Cup maximum-capability
