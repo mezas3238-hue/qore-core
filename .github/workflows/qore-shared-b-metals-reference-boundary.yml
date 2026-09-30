@@ -1,0 +1,116 @@
+name: QORE Shared B Metals Reference Identity Boundary
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b_metals_reference_boundary.py
+      - tests/infrastructure/test_shared_b_metals_reference_boundary.py
+      - .github/workflows/qore-shared-b-metals-reference-boundary.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-metals-reference-boundary-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  COMMODITY_RUN_ID: "36755839843"
+  COMMODITY_ARTIFACT_ID: "11115769948"
+  COMMODITY_GIT_SHA: "52092649a3f78e6449e52288786e1839a58ff916"
+
+jobs:
+  boundary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate metals reference boundary
+        run: |
+          set -euo pipefail
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/shared_b_metals_reference_boundary.py \
+            tests/infrastructure/test_shared_b_metals_reference_boundary.py
+          mypy src/qore/infrastructure/core_stack_v2/shared_b_metals_reference_boundary.py
+          pytest -q tests/infrastructure/test_shared_b_metals_reference_boundary.py
+      - name: Verify exact sealed commodity lineage
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${COMMODITY_RUN_ID}" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${COMMODITY_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${COMMODITY_RUN_ID}" --jq '.head_sha')" = "$COMMODITY_GIT_SHA"
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${COMMODITY_ARTIFACT_ID}/zip" > commodity.zip
+          unzip -q commodity.zip -d input
+          (cd input && sha256sum -c SHA256SUMS)
+      - name: Build exact metals reference-only boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from qore.infrastructure.core_stack_v2.shared_b_metals_reference_boundary import (
+              build_metals_reference_identity_boundary,
+          )
+          p=json.loads(
+              Path("input/shared-b-commodity-observation-identity-pack.json").read_text()
+          )
+          out=build_metals_reference_identity_boundary(p)
+          Path("result/shared-b-metals-reference-boundary.json").write_text(
+              json.dumps(out,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+      - name: Enforce exact unknown identity boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/shared-b-metals-reference-boundary.json").read_text())
+          assert p["metals_sensor_count"] == 11
+          assert p["provider_reference_object_verified_count"] == 11
+          assert p["provider_neutral_reference_identity_verified_count"] == 0
+          assert p["unknown_provider_neutral_identity_count"] == 11
+          assert p["tradable_product_identity_verified_count"] == 0
+          assert p["exchange_venue_identity_verified_count"] == 0
+          assert p["front_contract_identity_verified_count"] == 0
+          assert p["continuous_series_identity_verified_count"] == 0
+          assert p["roll_semantics_verified_count"] == 0
+          assert p["symbol_similarity_used_as_identity_proof"] is False
+          assert p["automatic_spot_benchmark_mapping"] is False
+          assert p["automatic_futures_mapping"] is False
+          assert p["unknown_identity_preserved"] is True
+          assert p["b15_complete"] is False
+          PY
+      - name: Seal B-15 metals boundary
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+      - name: Upload B-15 metals boundary
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-metals-reference-boundary-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report B-15 metals frontier
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-15 metals identity boundary: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Exact 11 METALS sensors are provider REFERENCE_OBJECTs but all 11 carry NULL provider-neutral current_reference_identity in the sealed commodity pack. UNKNOWN is preserved: 0 neutral identities, 0 tradable products, 0 venues, 0 front contracts, 0 continuous series and 0 roll semantics. No symbol-name mapping was allowed; B-15 remains OPEN."
