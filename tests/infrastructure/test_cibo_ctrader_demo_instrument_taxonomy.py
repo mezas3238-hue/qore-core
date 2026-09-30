@@ -15,6 +15,11 @@ from qore.infrastructure.cibo_ctrader_demo_account_capability import (
     _catalog_sha256,
 )
 from qore.infrastructure.cibo_ctrader_demo_instrument_taxonomy import (
+    CTraderDemoAssetClassEvidence,
+    CTraderDemoInstrumentTaxonomyObservation,
+    CTraderDemoSymbolCategoryEvidence,
+    _taxonomy_sha256,
+    assert_taxonomy_bound_to_capability,
     collect_ctrader_demo_instrument_taxonomy,
 )
 from qore.kernel.result import Success
@@ -168,4 +173,36 @@ def test_taxonomy_rejects_account_binding_mismatch() -> None:
             _Client(),
             capability=bad,
             observed_at=T0,
+        )
+
+
+def test_consumer_binding_rejects_forged_complete_flag() -> None:
+    capability = _capability(category_id=999)
+    asset_classes = (
+        CTraderDemoAssetClassEvidence(asset_class_id=1, name="Forex"),
+    )
+    categories = (
+        CTraderDemoSymbolCategoryEvidence(
+            category_id=10,
+            asset_class_id=1,
+            name="Majors",
+        ),
+    )
+    taxonomy = CTraderDemoInstrumentTaxonomyObservation(
+        account_ref=capability.account_ref,
+        observed_at=T0,
+        symbol_catalog_sha256=capability.catalog_sha256,
+        asset_classes=asset_classes,
+        symbol_categories=categories,
+        taxonomy_sha256=_taxonomy_sha256(asset_classes, categories),
+        catalog_binding_complete=True,
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="completeness flag drift",
+    ):
+        assert_taxonomy_bound_to_capability(
+            capability=capability,
+            taxonomy=taxonomy,
         )
