@@ -70,6 +70,8 @@ _COMMENT_MARKERS = (
 )
 
 _WORKSTREAM_CLASSIFIERS = (
+    ("*cibo_legacy_stack_quarantine*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
+    ("*legacy-stack-quarantine*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
     ("*cibo_compound_temporal_replication*", "TEMPORAL_REPLICATION"),
     ("*COMPOUND-TEMPORAL-REPLICATION*", "TEMPORAL_REPLICATION"),
     ("*cibo_compound_adversarial_stress*", "ADVERSARIAL_STRESS"),

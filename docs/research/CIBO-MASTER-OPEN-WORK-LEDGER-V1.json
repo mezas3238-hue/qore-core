@@ -997,13 +997,18 @@
       "kind": "LEGACY_PROGRAM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "LEGACY_PROGRAM_STATUS_UNRESOLVED",
+      "current_maturity": "RESEARCH_QUARANTINE_GATE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "COGNITIVE_AND_EXECUTIVE_MODULES_MUST_BE_PROVEN_ACTIVE_OR_SUPERSEDED_WITH_PROVEN_LINEAGE"
+      "evidence_refs": [
+        "scripts/cibo_legacy_stack_quarantine.py",
+        "tests/infrastructure/test_cibo_legacy_stack_quarantine.py",
+        ".github/workflows/cibo-legacy-stack-quarantine.yml",
+        "docs/research/CIBO-LEGACY-STACK-QUARANTINE-V1.md"
       ],
-      "next_gate": "Trace imports/runtime use and formally keep, complete, or supersede every legacy cognitive/executive module."
+      "blockers": [
+        "LEGACY_STACK_QUARANTINE_CI_REVALIDATION_REQUIRED"
+      ],
+      "next_gate": "Pass AST import quarantine with zero forbidden current/runtime consumers; retain only GEN-C13 executive-memory reuse, then close legacy program without deleting research evidence."
     },
     {
       "id": "USD60_CAPABILITY_PROGRAM",
