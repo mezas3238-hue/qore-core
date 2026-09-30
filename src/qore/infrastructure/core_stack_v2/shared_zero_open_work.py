@@ -260,11 +260,11 @@ def build_shared_master_open_work_ledger() -> tuple[SharedOpenWorkItem, ...]:
     sti_states = {
         0: SharedWorkState.CONTRACT_IMPLEMENTED,
         1: SharedWorkState.CONTRACT_IMPLEMENTED,
-        2: SharedWorkState.RESEARCH_INCOMPLETE,
+        2: SharedWorkState.STRESS_PASS,
         3: SharedWorkState.NOT_STARTED,
         4: SharedWorkState.CONTRACT_IMPLEMENTED,
-        5: SharedWorkState.RESEARCH_INCOMPLETE,
-        6: SharedWorkState.RESEARCH_INCOMPLETE,
+        5: SharedWorkState.EXTERNAL_DEPENDENCY_BLOCKED,
+        6: SharedWorkState.EXTERNAL_DEPENDENCY_BLOCKED,
         7: SharedWorkState.CONTRACT_IMPLEMENTED,
         8: SharedWorkState.RESEARCH_OOS_PASS,
         9: SharedWorkState.CONTRACT_IMPLEMENTED,
@@ -277,10 +277,15 @@ def build_shared_master_open_work_ledger() -> tuple[SharedOpenWorkItem, ...]:
         16: SharedWorkState.NOT_STARTED,
     }
     for index, title in enumerate(_STI_TITLES):
-        evidence = (
-            "sti8-research-oos-run-36653177299"
-            if index == 8
-            else "owner-directive-007-and-current-sti-evidence"
+        evidence_by_index = {
+            2: "sti2-v2-source-stress-run-36685171375",
+            5: "sti5-v1-failure-diagnostic-run-36685175913",
+            6: "sti6-v3-latent-trajectory-run-36684414954",
+            8: "sti8-research-oos-run-36653177299",
+        }
+        evidence = evidence_by_index.get(
+            index,
+            "owner-directive-007-and-current-sti-evidence",
         )
         items.append(
             _item(
