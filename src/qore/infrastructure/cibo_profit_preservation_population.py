@@ -225,7 +225,7 @@ def describe_genc7_fresh_population(
     )
     if divergence_count == 0:
         blockers.append("NO_TREATMENT_CONTROL_DIVERGENCE")
-    blockers.append("ECONOMIC_GATE_NOT_YET_PREREGISTERED")
+    blockers.append("CAUSAL_EFFECT_IDENTIFICATION_NOT_EVALUATED")
     blockers.append("OUTCOME_BINDING_NOT_EVALUATED")
 
     return Genc7FreshPopulation(
