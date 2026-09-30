@@ -128,3 +128,34 @@ def test_world_cup_exam_cannot_be_removed_from_mandatory_closure() -> None:
         "required certification workstream is not blocking: "
         "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM"
     ) in errors
+
+
+def test_local_evidence_paths_must_exist(tmp_path: Path) -> None:
+    _matrix, ledger = _state()
+    ledger["workstreams"][0]["evidence_refs"] = [
+        "docs/research/missing-evidence.md"
+    ]
+
+    errors = gate.validate_local_evidence_paths(
+        ledger,
+        repo_root=tmp_path,
+    )
+
+    assert errors == [
+        "T01 local evidence missing: docs/research/missing-evidence.md"
+    ]
+
+
+def test_nonlocal_evidence_refs_are_not_treated_as_files(
+    tmp_path: Path,
+) -> None:
+    _matrix, ledger = _state()
+    ledger["workstreams"][0]["evidence_refs"] = [
+        "github-actions://123/SUCCESS",
+        "github-pr://651",
+    ]
+
+    assert gate.validate_local_evidence_paths(
+        ledger,
+        repo_root=tmp_path,
+    ) == []
