@@ -14,6 +14,7 @@ from qore.infrastructure.cibo_ctrader_demo_account_capability import (
 )
 from qore.infrastructure.cibo_ctrader_demo_instrument_taxonomy import (
     CTraderDemoInstrumentTaxonomyObservation,
+    assert_taxonomy_bound_to_capability,
     collect_ctrader_demo_instrument_taxonomy,
 )
 from qore.infrastructure.ctrader_demo_free_sink import (
@@ -40,10 +41,10 @@ def build_report(
         for item in observation.symbols
     ]
     if taxonomy is not None:
-        if taxonomy.account_ref != observation.account_ref:
-            raise ValueError("taxonomy/account capability binding mismatch")
-        if taxonomy.symbol_catalog_sha256 != observation.catalog_sha256:
-            raise ValueError("taxonomy/symbol catalog binding mismatch")
+        assert_taxonomy_bound_to_capability(
+            capability=observation,
+            taxonomy=taxonomy,
+        )
     taxonomy_asset_classes = (
         [] if taxonomy is None else [asdict(item) for item in taxonomy.asset_classes]
     )
