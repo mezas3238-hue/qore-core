@@ -6,18 +6,26 @@ on:
       - 'src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py'
       - 'src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam.py'
       - 'src/qore/infrastructure/cibo_usd60_prerequisite_receipts.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py'
+      - 'src/qore/infrastructure/cibo_receipt_bound_calibration_freeze.py'
       - 'tests/infrastructure/test_cibo_crossboundary_evidence_receipt.py'
       - 'tests/infrastructure/test_cibo_receipt_bound_final_integrated_exam.py'
       - 'tests/infrastructure/test_cibo_usd60_prerequisite_receipts.py'
+      - 'tests/infrastructure/test_cibo_ce2i_calibration_freeze_manifest.py'
+      - 'tests/infrastructure/test_cibo_receipt_bound_calibration_freeze.py'
       - '.github/workflows/cibo-crossboundary-evidence-receipt.yml'
   push:
     paths:
       - 'src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py'
       - 'src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam.py'
       - 'src/qore/infrastructure/cibo_usd60_prerequisite_receipts.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py'
+      - 'src/qore/infrastructure/cibo_receipt_bound_calibration_freeze.py'
       - 'tests/infrastructure/test_cibo_crossboundary_evidence_receipt.py'
       - 'tests/infrastructure/test_cibo_receipt_bound_final_integrated_exam.py'
       - 'tests/infrastructure/test_cibo_usd60_prerequisite_receipts.py'
+      - 'tests/infrastructure/test_cibo_ce2i_calibration_freeze_manifest.py'
+      - 'tests/infrastructure/test_cibo_receipt_bound_calibration_freeze.py'
       - '.github/workflows/cibo-crossboundary-evidence-receipt.yml'
 
 jobs:
@@ -35,14 +43,22 @@ jobs:
             src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py \
             src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam.py \
             src/qore/infrastructure/cibo_usd60_prerequisite_receipts.py \
+            src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py \
+            src/qore/infrastructure/cibo_receipt_bound_calibration_freeze.py \
             tests/infrastructure/test_cibo_crossboundary_evidence_receipt.py \
             tests/infrastructure/test_cibo_receipt_bound_final_integrated_exam.py \
-            tests/infrastructure/test_cibo_usd60_prerequisite_receipts.py
+            tests/infrastructure/test_cibo_usd60_prerequisite_receipts.py \
+            tests/infrastructure/test_cibo_ce2i_calibration_freeze_manifest.py \
+            tests/infrastructure/test_cibo_receipt_bound_calibration_freeze.py
           mypy \
             src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py \
             src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam.py \
-            src/qore/infrastructure/cibo_usd60_prerequisite_receipts.py
+            src/qore/infrastructure/cibo_usd60_prerequisite_receipts.py \
+            src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py \
+            src/qore/infrastructure/cibo_receipt_bound_calibration_freeze.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_crossboundary_evidence_receipt.py \
             tests/infrastructure/test_cibo_receipt_bound_final_integrated_exam.py \
-            tests/infrastructure/test_cibo_usd60_prerequisite_receipts.py
+            tests/infrastructure/test_cibo_usd60_prerequisite_receipts.py \
+            tests/infrastructure/test_cibo_ce2i_calibration_freeze_manifest.py \
+            tests/infrastructure/test_cibo_receipt_bound_calibration_freeze.py
