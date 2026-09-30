@@ -18,7 +18,7 @@ import bisect
 import json
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -34,9 +34,6 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_generic_scalp_census_v48 import (
-    LOOKBACK_START,
-    WINDOW_END,
-    WINDOW_START,
     V48AggregatedBar,
     _aggregate,
     _build_h1_bias_events,
@@ -70,6 +67,9 @@ from qore.infrastructure.trader_lab.capitalizer_ttrades_structural_cisd_v48 impo
 
 IDENTITY = "QORE_CAPITALIZER_V49_HIGH_FREQUENCY_CAPACITY_CENSUS"
 MATRIX_IDENTITY = "QORE_CAPITALIZER_V49_NINE_MARKET_HIGH_FREQUENCY_CAPACITY"
+DEV_WINDOW_START = datetime(2025, 9, 17, tzinfo=UTC)
+DEV_WINDOW_END = datetime(2026, 9, 17, tzinfo=UTC)
+DEFAULT_LOOKBACK = timedelta(days=14)
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,10 +195,12 @@ def _session_groups(
     bars: tuple[CapitalizerM1Bar, ...],
     *,
     session: CapitalizerSession,
+    window_start: datetime,
+    window_end: datetime,
 ) -> tuple[tuple[str, tuple[CapitalizerM1Bar, ...]], ...]:
     grouped: dict[str, list[CapitalizerM1Bar]] = defaultdict(list)
     for bar in bars:
-        if not (WINDOW_START <= bar.opened_at < WINDOW_END):
+        if not (window_start <= bar.opened_at < window_end):
             continue
         if capitalizer_session_at(bar.opened_at) is not session:
             continue
@@ -310,11 +312,20 @@ def build_market_capacity(
     m1_root: Path,
     *,
     session: CapitalizerSession,
+    window_start: datetime = DEV_WINDOW_START,
+    window_end: datetime = DEV_WINDOW_END,
 ) -> tuple[V49MarketCapacity, tuple[V49Opportunity, ...]]:
+    if window_start.tzinfo is None or window_start.utcoffset() is None:
+        raise ValueError("V49 window_start must be timezone-aware")
+    if window_end.tzinfo is None or window_end.utcoffset() is None:
+        raise ValueError("V49 window_end must be timezone-aware")
+    if window_end <= window_start:
+        raise ValueError("V49 capacity window must be positive")
+    lookback_start = window_start - DEFAULT_LOOKBACK
     bars = tuple(
         bar
         for bar in iter_cibo_m1(m1_root)
-        if LOOKBACK_START <= bar.opened_at < WINDOW_END
+        if lookback_start <= bar.opened_at < window_end
     )
     if not bars:
         raise ValueError("V49 capacity census found no retained M1")
@@ -331,7 +342,7 @@ def build_market_capacity(
     bias_events = tuple(
         item
         for item in _build_h1_bias_events(h1)
-        if LOOKBACK_START <= item.confirmed_at < WINDOW_END
+        if lookback_start <= item.confirmed_at < window_end
     )
     signals = tuple(
         V49H1BiasSignal(
@@ -346,7 +357,12 @@ def build_market_capacity(
     trigger_families: Counter[str] = Counter()
     opportunities: list[V49Opportunity] = []
 
-    for operating_day, session_bars in _session_groups(bars, session=session):
+    for operating_day, session_bars in _session_groups(
+        bars,
+        session=session,
+        window_start=window_start,
+        window_end=window_end,
+    ):
         session_start = session_bars[0].opened_at
         session_end = session_bars[-1].closed_at
         states = build_h1_context_states(
@@ -448,7 +464,7 @@ def build_market_capacity(
             symbol=symbol,
             session=session.value,
             h1_bias_events=sum(
-                1 for item in bias_events if WINDOW_START <= item.confirmed_at < WINDOW_END
+                1 for item in bias_events if window_start <= item.confirmed_at < window_end
             ),
             h1_states=counters["H1_STATES"],
             m15_setups=counters["M15_SETUPS"],
@@ -512,8 +528,8 @@ def build_matrix(root: Path) -> dict[str, Any]:
 
     return {
         "identity": MATRIX_IDENTITY,
-        "window_start": WINDOW_START.isoformat(),
-        "window_end_exclusive": WINDOW_END.isoformat(),
+        "window_start": DEV_WINDOW_START.isoformat(),
+        "window_end_exclusive": DEV_WINDOW_END.isoformat(),
         "decision_timeframes": ["H1", "M15", "M1"],
         "daily_used": False,
         "h4_used": False,
@@ -550,6 +566,8 @@ def main() -> None:
         required=True,
         choices=[item.value for item in CapitalizerSession],
     )
+    market.add_argument("--window-start")
+    market.add_argument("--window-end")
 
     matrix = sub.add_parser("matrix")
     matrix.add_argument("input_root", type=Path)
@@ -557,9 +575,21 @@ def main() -> None:
 
     args = parser.parse_args()
     if args.command == "market":
+        window_start = (
+            datetime.fromisoformat(args.window_start)
+            if args.window_start
+            else DEV_WINDOW_START
+        )
+        window_end = (
+            datetime.fromisoformat(args.window_end)
+            if args.window_end
+            else DEV_WINDOW_END
+        )
         report, opportunities = build_market_capacity(
             args.m1_root,
             session=CapitalizerSession(args.session),
+            window_start=window_start,
+            window_end=window_end,
         )
         write_market(report, opportunities, args.output)
         print(json.dumps(asdict(report), sort_keys=True))
