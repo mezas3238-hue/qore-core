@@ -21,6 +21,8 @@ Please add deterministic assignments for these B surfaces:
 | `*cibo_t20_capital_release*` | `T20` |
 | `*cibo_usd60_exam_readiness*` | `USD60_CAPABILITY_PROGRAM` |
 | `*cibo_integrated_capital_forward_binding*` | `INTEGRATED_CAPITAL_TRUTH` |
+| `*cibo_ce2i_calibration_freeze_manifest*` | `FRESH_OOS` |
+| `*cibo_calibration_freeze_manifest*` | `FRESH_OOS` |
 | `*cibo_research_memory*` | `LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK` |
 | `*cibo_risk_integration_closure*` | `RISK_INTEGRATION` |
 
