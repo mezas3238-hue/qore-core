@@ -69,6 +69,7 @@ from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 
     CapitalizerProtectedSwingObservation,
     CapitalizerProtectedSwingOrigin,
     CapitalizerSourceBar,
+    CapitalizerSourceClosureObservation,
     CapitalizerSourceDirection,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_structural_extraction_v2 import (
@@ -319,7 +320,7 @@ def first_setup_cisd_binding(
     direction: CapitalizerSourceDirection,
     after: datetime,
     before: datetime,
-    htf_closure: object,
+    htf_closure: CapitalizerSourceClosureObservation,
 ) -> FTMContinuationBinding | None:
     """Return first HTF-aligned setup-confirmed M1 CISD after a sweep."""
 
@@ -346,7 +347,7 @@ def first_setup_cisd_binding(
             confirmation_bar=_source(confirmation),
             direction=direction,
             important_level_reached=True,
-            higher_timeframe_closure=htf_closure,  # type: ignore[arg-type]
+            higher_timeframe_closure=htf_closure,
         )
         if not observed.setup_confirmed:
             continue
@@ -376,7 +377,7 @@ def _continuation_m3(
         for row in s1._prepared_tf_between(
             prepared.m3,
             prepared.m3_opened,
-            start=sweep.sweep_at - timedelta(minutes=30),
+            start=sweep.sweep_at - s1.LOOKBACK,
             end=sweep.deadline,
         )
         if isinstance(row, TFBar)
