@@ -20,6 +20,7 @@ from qore.infrastructure.core_stack_v2.runtime import CoreStackV2Runtime
 from qore.infrastructure.core_stack_v2.shared_b_core_broker_observability import (
     SharedBObservedSystemKind,
     SharedBObservedSystemState,
+    SharedBSystemAssessment,
     SharedBSystemObservation,
     assess_system_observation,
 )
@@ -156,7 +157,9 @@ def _first_real_tick(
     )
 
 
-def _system_payload(assessment: object) -> dict[str, object]:
+def _system_payload(
+    assessment: SharedBSystemAssessment,
+) -> dict[str, object]:
     item = assessment
     return {
         "system_id": item.system_id,
