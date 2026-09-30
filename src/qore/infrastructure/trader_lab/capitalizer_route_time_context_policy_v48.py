@@ -14,7 +14,6 @@ from qore.infrastructure.trader_lab.capitalizer_source_native_route_registry_v48
     V48RouteId,
 )
 
-
 IDENTITY = "QORE_CAPITALIZER_V48_ROUTE_TIME_CONTEXT_POLICY"
 
 
@@ -72,7 +71,7 @@ ROUTE_TIME_CONTEXTS: tuple[V48RouteTimeContext, ...] = (
     V48RouteTimeContext(
         V48RouteId.ICT_2022_EXECUTION,
         V48TimeContextMode.SOURCE_WINDOW_BINDING_PENDING,
-        "ICT route timing remains blocked until exact primary-source timestamp binding is complete.",
+        (\n            "ICT route timing remains blocked until exact primary-source timestamp "\n            "binding is complete."\n        ),
     ),
 )
 
