@@ -6,7 +6,7 @@ import argparse
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 from qore.infrastructure.core_stack_v2.shared_b_fx_reference_mapping import (
     resolve_current_fx_reference_mappings,
