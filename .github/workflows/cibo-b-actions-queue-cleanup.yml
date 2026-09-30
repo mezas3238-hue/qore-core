@@ -195,12 +195,20 @@ jobs:
               }
             }
 
-            active = await listActive();
-            const remainingBad = active.filter((run) => {
-              if (run.head_sha !== targetHead) return true;
-              if (!keepNames.has(run.name)) return true;
-              return !keepIds.has(run.id);
-            });
+            let remainingBad = [];
+            for (let settleAttempt = 0; settleAttempt < 8; settleAttempt += 1) {
+              active = await listActive();
+              remainingBad = active.filter((run) => {
+                if (run.head_sha !== targetHead) return true;
+                if (!keepNames.has(run.name)) return true;
+                return !keepIds.has(run.id);
+              });
+              core.info(
+                `settle attempt=${settleAttempt + 1} remaining_bad=${remainingBad.length}`
+              );
+              if (remainingBad.length === 0) break;
+              await sleep(3000);
+            }
 
             core.summary
               .addHeading("Architect B queue cleanup")
