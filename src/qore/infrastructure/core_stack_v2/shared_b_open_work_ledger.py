@@ -266,10 +266,18 @@ B_WORK_ITEMS: Final = (
         "B-15",
         "Commodity world",
         SharedBWorkStatus.PARTIAL_EVIDENCE_OPEN,
-        ("artifact:11115769948", "run:36755839843"),
+        (
+            "artifact:11115769948",
+            "artifact:11128416668",
+            "run:36755839843",
+            "run:36782329462",
+        ),
         (
             "energy tradable product identity remains unresolved",
-            "GC front/roll/continuous-series semantics remain unresolved",
+            "all 5 sealed dated GC contracts are now proven expired before SEP-2026; "
+            "the current provider chain/front contract is absent from the observed set",
+            "GC roll and continuous-series semantics remain unresolved and cannot be "
+            "inferred from contract-month ordering",
         ),
     ),
     SharedBWorkItem(
