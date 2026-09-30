@@ -61,7 +61,7 @@ def _terminal_time(
         row,
     )
     terminal_bar = day_bars[exit_index]
-    return _aware(getattr(terminal_bar, "closed_at"))
+    return _aware(cast(Any, terminal_bar).closed_at)
 
 
 def _episode_entries(
