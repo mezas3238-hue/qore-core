@@ -11,6 +11,7 @@ Research/shadow only. No productive authority is granted.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from datetime import datetime
 from decimal import Decimal
 
 from qore.infrastructure.cibo_capital_management_authority import CapitalSource
@@ -202,7 +203,7 @@ def settle_funded_compound_deployment(
     state: IntegratedCompoundFundingState,
     *,
     event_id: str,
-    occurred_at,
+    occurred_at: datetime,
     deployment_id: str,
     settlement: CmaSettlementState,
 ) -> IntegratedCompoundFundingState:
