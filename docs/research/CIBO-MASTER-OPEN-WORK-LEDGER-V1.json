@@ -46,15 +46,23 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "current_maturity": "FORWARD_STRUCTURAL_OOS_EXPLICIT_TERMINAL_REASON_ENGINE_STAGED_CI_PENDING_REAL_POPULATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "src/qore/infrastructure/cibo_ce2i_t02_terminal_reason_evidence.py",
+        "tests/infrastructure/test_cibo_ce2i_t02_terminal_reason_evidence.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_t02_structural_oos.py",
+        ".github/workflows/cibo-t02-forward-structural-oos.yml",
+        "docs/research/CIBO-B-T02-FORWARD-STRUCTURAL-OOS-V1.md"
       ],
       "blockers": [
-        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
+        "T02_FORWARD_STRUCTURAL_OOS_CI_REQUIRED",
+        "REAL_POST_FREEZE_STRUCTURAL_TERMINAL_REASON_POPULATION_REQUIRED",
+        "PROVIDER_BOUND_LEVERAGE_ECONOMIC_ABLATION_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "Pass T02 forward-structural CI; collect explicit terminal-reason post-freeze population without PnL/price inference; then run provider-bound leverage economic ablation before terminal disposition."
     },
     {
       "id": "T03",
@@ -207,13 +215,24 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "current_maturity": "PROVIDER_BOUND_LINEAR_EXECUTION_COST_ENGINE_STAGED_CI_PENDING_POLICY_UTILITY_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py",
+        "src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py",
+        "tests/infrastructure/test_cibo_ce2i_t11_execution_cost_calibration.py",
+        ".github/workflows/cibo-t11-execution-cost-calibration.yml",
+        "docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md"
       ],
-      "blockers": [],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "blockers": [
+        "T11_LINEAR_EXECUTION_COST_CI_REQUIRED",
+        "REAL_SCIENTIFICALLY_READY_FORWARD_EXECUTION_POPULATION_REQUIRED",
+        "T11_GROSS_EDGE_MODEL_NOT_IDENTIFIED",
+        "T11_MARKET_IMPACT_MODEL_NOT_IDENTIFIED",
+        "T11_HISTORICAL_2017_EXECUTION_TERMS_NOT_PROVEN"
+      ],
+      "next_gate": "Pass T11 calibration CI; bind scientifically-ready provider execution population; identify gross edge and nonlinear market-impact inputs separately; do not promote linear cost calibration into policy readiness."
     },
     {
       "id": "T12",
