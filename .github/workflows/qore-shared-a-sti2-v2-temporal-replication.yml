@@ -1,0 +1,236 @@
+name: QORE Shared A STI2 V2 Temporal Replication
+
+concurrency:
+  group: qore-shared-a-sti2-v2-temporal-replication
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - docs/shared/evidence/QORE_SHARED_STI2_V2_TEMPORAL_REPLICATION_PREREGISTRATION_001.json
+      - scripts/shared_sti2_v2_temporal_replication_probe.py
+      - scripts/shared_sti2_v2_temporal_replication_eval.py
+      - .github/workflows/qore-shared-a-sti2-v2-temporal-replication.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  temporal-replication:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install research and cTrader dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,ctrader]"
+
+      - name: Validate preregistration and immutable V2 engine
+        run: |
+          set -euo pipefail
+          mkdir -p input/r8 fresh/{NAS100,SP500,US30} result raw-evidence
+          ruff check scripts/shared_sti2_v2_temporal_replication_probe.py scripts/shared_sti2_v2_temporal_replication_eval.py
+          python -m py_compile scripts/shared_sti2_v2_temporal_replication_probe.py scripts/shared_sti2_v2_temporal_replication_eval.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("docs/shared/evidence/QORE_SHARED_STI2_V2_TEMPORAL_REPLICATION_PREREGISTRATION_001.json").read_text())
+          assert p["status"] == "PREREGISTERED_BEFORE_ACQUISITION"
+          assert p["window"]["opened_at_inclusive"] == "2026-04-01T00:00:00+00:00"
+          assert p["window"]["checked_at_exclusive"] == "2026-07-01T00:00:00+00:00"
+          assert p["window"]["minimum_actual_coverage_days"] == 80
+          assert p["window"]["certification_holdout"] is False
+          assert p["frozen_policy"]["policy_freeze"] == "R8_SOURCE_ONLY"
+          assert p["frozen_policy"]["outcome_aware_retuning"] is False
+          assert p["evaluation_law"]["replication_used_for_policy_fit"] is False
+          assert p["governance"]["retuning_against_replication_authorized"] is False
+          assert p["governance"]["protected_certification_holdout_opened"] is False
+          PY
+          test "$(git rev-parse "af1dbe207cca37d2e2a1abe47afd15f6df9c873c:src/qore/infrastructure/core_stack_v2/shared_global_opportunity_trajectory_v2.py")" = "$(git rev-parse "HEAD:src/qore/infrastructure/core_stack_v2/shared_global_opportunity_trajectory_v2.py")"
+          test "$(git rev-parse "1df8be7cfea2621a4bfcf6a7de741aa585a29f35:scripts/shared_sti2_v2_trajectory_heads.py")" = "$(git rev-parse "HEAD:scripts/shared_sti2_v2_trajectory_heads.py")"
+
+      - name: Recover immutable R8 source-only calibration evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Enforce one-shot temporal-replication opening
+        run: |
+          set -euo pipefail
+          marker_name="qore-shared-a-sti2-v2-temporal-replication-open-marker"
+          count="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${marker_name}" --jq '.artifacts | length')"
+          test "$count" = "0"
+          cat > result/replication-open-marker.json <<'JSON'
+          {
+            "identity":"QORE_SHARED_STI2_V2_TEMPORAL_REPLICATION_001",
+            "window_opened_at":"2026-04-01T00:00:00+00:00",
+            "window_checked_at":"2026-07-01T00:00:00+00:00",
+            "policy_fit":"R8_SOURCE_ONLY",
+            "retuning_authorized":false,
+            "protected_certification_holdout":false
+          }
+          JSON
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-sti2-v2-temporal-replication-open-marker
+          path: result/replication-open-marker.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Verify DEMO credentials
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}"
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Acquire preregistered temporal replication once
+        run: |
+          set -euo pipefail
+          for market in NAS100 SP500 US30
+          do
+            QORE_DEMO_LAB_SYMBOL="$market" python scripts/shared_sti2_v2_temporal_replication_probe.py > "fresh/$market/market-evidence.json"
+          done
+          sha256sum fresh/*/market-evidence.json > fresh/EVIDENCE-SHA256SUMS
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from pathlib import Path
+          start=datetime.fromisoformat("2026-04-01T00:00:00+00:00")
+          end=datetime.fromisoformat("2026-07-01T00:00:00+00:00")
+          for market in ("NAS100","SP500","US30"):
+              p=json.loads(Path(f"fresh/{market}/market-evidence.json").read_text())
+              assert p["shared_identity"] == "QORE_SHARED_STI2_V2_TEMPORAL_REPLICATION_001"
+              assert p["minimum_actual_coverage_days"] == 80
+              assert p["retuning_against_replication_authorized"] is False
+              assert p["protected_certification_holdout"] is False
+              first=datetime.fromisoformat(p["coverage"]["first_opened_at"])
+              last=datetime.fromisoformat(p["coverage"]["last_closed_at"])
+              assert first >= start
+              assert last <= end
+          PY
+
+      - name: Persist raw replication evidence before evaluation
+        run: |
+          set -euo pipefail
+          cp -R fresh raw-evidence/
+          cp docs/shared/evidence/QORE_SHARED_STI2_V2_TEMPORAL_REPLICATION_PREREGISTRATION_001.json raw-evidence/
+          printf '%s\n' "${GITHUB_SHA}" > raw-evidence/code-git-sha.txt
+          (
+            cd raw-evidence
+            find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-sti2-v2-temporal-replication-raw-${{ github.sha }}
+          path: raw-evidence/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Evaluate frozen V1 and V2 on temporal replication
+        run: |
+          set -euo pipefail
+          python scripts/shared_sti2_v2_temporal_replication_eval.py             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --replication-nas fresh/NAS100/market-evidence.json             --replication-sp fresh/SP500/market-evidence.json             --replication-us fresh/US30/market-evidence.json             --output result/sti2-v2-temporal-replication.json             | tee result/summary.json
+
+      - name: Validate scientific disposition without forcing PASS
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/sti2-v2-temporal-replication.json").read_text())
+          assert p["status"] in {
+              "STI2_V2_TEMPORAL_REPLICATION_PASS",
+              "STI2_V2_TEMPORAL_REPLICATION_FALSIFIED",
+          }
+          assert p["sample_count"] > 0
+          assert p["v1_control"]["sample_count"] == p["v2_treatment"]["sample_count"]
+          assert p["governance"]["same_observation_universe"] is True
+          assert p["governance"]["same_target_definition"] is True
+          assert p["governance"]["both_source_arms_materialized_before_target_scoring"] is True
+          assert p["governance"]["future_market_used_for_inference"] is False
+          assert p["governance"]["replication_used_for_policy_fit"] is False
+          assert p["governance"]["protected_certification_holdout_opened"] is False
+          assert p["governance"]["productive_authority"] is False
+          PY
+
+      - name: Bind final evidence
+        run: |
+          set -euo pipefail
+          cp fresh/EVIDENCE-SHA256SUMS result/EVIDENCE-SHA256SUMS
+          cp docs/shared/evidence/QORE_SHARED_STI2_V2_TEMPORAL_REPLICATION_PREREGISTRATION_001.json result/preregistration.json
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-sti2-v2-temporal-replication-result-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report temporal replication
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/sti2-v2-temporal-replication.json").read_text())
+          a=p["v1_control"]; b=p["v2_treatment"]
+          body="\n".join([
+              "## Shared A STI-2 — V2 Temporal Replication 001",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              f"- samples: **{p['sample_count']}**",
+              f"- V1 precision/recall: **{a['precision_bps']}/{a['recall_bps']} bps**",
+              f"- V2 precision/recall: **{b['precision_bps']}/{b['recall_bps']} bps**",
+              f"- V2 recall uplift vs V1: **{p['v2_recall_uplift_vs_v1_same_replication_bps']} bps**",
+              f"- gates: **{p['gates']}**",
+              "- protected certification holdout opened: **False**",
+              "- productive authority: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
