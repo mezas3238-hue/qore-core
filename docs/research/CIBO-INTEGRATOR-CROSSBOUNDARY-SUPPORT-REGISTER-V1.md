@@ -92,3 +92,48 @@ Integrator acceptance condition:
 - then #670 may import the terminal Risk closure.
 
 Status: OPEN pending CI + B source-of-truth reconciliation.
+
+
+### B-SUPPORT-004 — Provider geometry fixture breakage
+
+Observed at B HEAD `2b13c4395e4bf8dc0d47118040a6915e3df5911c`:
+- provider execution calibration test duplicated `provider_contract_size/tick_size/tick_value`
+  keyword arguments and broke indentation;
+- integrated-capital-forward-binding test still used the old manifest-row schema.
+
+Integrator repair:
+- `5331472d86023fe619ae6f6d650fcdf57c21c262`
+- `bbb2415a16af9f3bffc42422632c36646759fffe`
+
+Status: REPAIRED_IN_670 / MIRROR_IN_B_REQUIRED.
+
+### B-SUPPORT-005 — T11 dedicated validation missing
+
+Observed:
+- B introduced `cibo_ce2i_t11_execution_cost_calibration.py` without a dedicated
+  unit test/workflow proving provider-native tick-cost arithmetic and fail-closed
+  policy readiness.
+
+Integrator repair:
+- `tests/infrastructure/test_cibo_ce2i_t11_execution_cost_calibration.py`
+- `.github/workflows/cibo-t11-execution-cost-calibration.yml`
+
+The Integrator test proves spread + commission + adverse-slippage cost arithmetic
+and keeps gross-edge, market-impact and historical-2017 terms explicitly open.
+
+Status: REPAIRED_IN_670 / MIRROR_IN_B_REQUIRED.
+
+### Integrator trust hardening — receipt anti-laundering
+
+The shared receipt artifact must now embed and cryptographically bind:
+- `evidence_binding_id`;
+- `evidence_kind`;
+- producer identity;
+- exact integrated Git HEAD;
+- policy identity;
+- PASS/failures/governance state.
+
+A source artifact cannot be rebound as another P/E/Txx control or another evidence
+kind without changing its canonical JSON and digest.
+
+Status: IMPLEMENTED_IN_670 / CI_PENDING.
