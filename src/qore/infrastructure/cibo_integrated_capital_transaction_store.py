@@ -21,7 +21,6 @@ from enum import StrEnum
 from pathlib import Path
 from threading import RLock
 
-
 _SCHEMA = "CIBO_INTEGRATED_CAPITAL_TRANSACTION_BOOK_V1"
 
 

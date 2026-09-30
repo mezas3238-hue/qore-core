@@ -112,7 +112,7 @@ class IntegratedCompoundFundingState:
             raise CiboCompoundCapitalError(
                 "integrated funding has no productive authority"
             )
-        self.capital_truth
+        _ = self.capital_truth
 
     @property
     def capital_truth(self) -> IntegratedCapitalTruth:
@@ -194,7 +194,7 @@ def apply_funded_internal_market_decision(
         source_ledger=source_ledger,
         funding_links=state.funding_links + (link,),
     )
-    updated.capital_truth
+    _ = updated.capital_truth
     return updated
 
 
@@ -262,7 +262,7 @@ def settle_funded_compound_deployment(
         realized_profit_bindings=bindings,
         funding_links=links,
     )
-    updated.capital_truth
+    _ = updated.capital_truth
     return updated
 
 
