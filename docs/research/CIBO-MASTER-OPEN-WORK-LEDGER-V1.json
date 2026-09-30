@@ -533,15 +533,23 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ARCHITECTURE_DEFINED",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-GEN-C13-META-CAPITAL-MEMORY-SKEPTIC-V1.md",
+        "src/qore/infrastructure/cibo_meta_capital_memory.py",
+        "tests/infrastructure/test_cibo_meta_capital_memory.py",
+        ".github/workflows/cibo-genc13-meta-capital-memory.yml",
+        "src/qore/infrastructure/cibo_executive_memory.py"
       ],
       "blockers": [
-        "ENGINE_NOT_YET_IMPLEMENTED"
+        "GEN_C13_ENGINE_CI_REVALIDATION_REQUIRED",
+        "REAL_POST_OUTCOME_EPISODE_POPULATION_NOT_YET_BOUND",
+        "COUNTERFACTUAL_CAUSAL_IDENTIFICATION_NOT_YET_PROVEN",
+        "TEMPORAL_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Implement immutable memory/counterfactual lab with leakage firewall."
+      "next_gate": "Pass GEN-C13 leakage/memory CI; bind reconciled post-outcome capital episodes; keep counterfactuals non-causal until identified; then replicate findings across time."
     },
     {
       "id": "GEN-C14",
