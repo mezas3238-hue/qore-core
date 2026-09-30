@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -245,12 +246,10 @@ def test_genc9_requires_identical_scenario_coverage() -> None:
 
 def test_genc9_rejects_mixed_numeraire() -> None:
     candidates, scenarios, paths = _fixture()
-    replacement = Genc9PathEvidence(
-        **{
-            **paths[0].__dict__,
-            "numeraire": Genc9Numeraire.PROVIDER_VALID_USD,
-            "provider_economics_sha256": "sha256:" + "d" * 64,
-        }
+    replacement = replace(
+        paths[0],
+        numeraire=Genc9Numeraire.PROVIDER_VALID_USD,
+        provider_economics_sha256="sha256:" + "d" * 64,
     )
     mixed = (replacement,) + paths[1:]
     with pytest.raises(
