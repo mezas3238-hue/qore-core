@@ -181,6 +181,8 @@ def bind_forward_population_to_integrated_capital_truth(
             "forward capital binding compound state invalid"
         )
 
+    manifest_trader_lineages(manifest)
+
     account_scope = (
         compound_state.account_identity == account_identity
         and all(
