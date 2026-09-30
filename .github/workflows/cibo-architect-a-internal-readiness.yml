@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/cibo-architect-a-internal-readiness.yml'
+      - 'src/qore/infrastructure/cibo_arch_a_internal_readiness.py'
       - 'scripts/cibo_arch_a_internal_readiness_gate.py'
       - 'tests/infrastructure/test_cibo_arch_a_internal_readiness_gate.py'
       - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
@@ -30,9 +31,12 @@ jobs:
       - name: Architect A internal-readiness contract
         run: |
           ruff check \
+            src/qore/infrastructure/cibo_arch_a_internal_readiness.py \
             scripts/cibo_arch_a_internal_readiness_gate.py \
             tests/infrastructure/test_cibo_arch_a_internal_readiness_gate.py
-          mypy scripts/cibo_arch_a_internal_readiness_gate.py
+          mypy \
+            src/qore/infrastructure/cibo_arch_a_internal_readiness.py \
+            scripts/cibo_arch_a_internal_readiness_gate.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_arch_a_internal_readiness_gate.py
           python scripts/cibo_arch_a_internal_readiness_gate.py
