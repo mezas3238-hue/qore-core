@@ -1,0 +1,93 @@
+name: QORE Capitalizer Fractal Causal Failure Screen V47 S2C1
+
+on:
+  push:
+    branches:
+      - agent/capitalizer-canonical-source-remediation-v47-s2-001
+    paths:
+      - '.github/workflows/qore-capitalizer-fractal-causal-failure-screen-v47-s2c1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_fractal_causal_failure_screen_v47_s2c1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_fractal_causal_failure_screen_v47_s2c1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-fractal-causal-failure-screen-v47-s2c1-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_S2A_RUN_ID: '36642644284'
+  SOURCE_S2A_SHA: 'ff6c9745690dde76520aecf608e44401622a1074'
+  SOURCE_S2B_RUN_ID: '36651366703'
+  SOURCE_S2B_SHA: '59d826f3b24031e52e6c0f32e8cca1ecfb4d0524'
+
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_fractal_causal_failure_screen_v47_s2c1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_fractal_causal_failure_screen_v47_s2c1.py
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_fractal_causal_failure_screen_v47_s2c1.py
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_fractal_causal_failure_screen_v47_s2c1.py
+      - name: Download frozen S2-A MAX3 population
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-v47-s2a-aggregate-${{ env.SOURCE_S2A_SHA }}
+          path: s2a
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_S2A_RUN_ID }}
+      - name: Download frozen S2-B chronology
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-v47-s2b-aggregate-${{ env.SOURCE_S2B_SHA }}
+          path: s2b
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_S2B_RUN_ID }}
+      - name: Build decision-time causal failure screen
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_fractal_causal_failure_screen_v47_s2c1 \
+            s2a s2b \
+            --output screen
+      - name: Enforce governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          row=json.loads(
+              Path("screen/capitalizer-v47-s2c1-fractal-causal-failure-screen.json").read_text()
+          )
+          assert row["identity"] == "QORE_CAPITALIZER_V47_S2C1_FRACTAL_CAUSAL_FAILURE_SCREEN"
+          assert row["predeclaration_comment_id"] == 5901906100
+          assert row["source_s2a_run_id"] == 36642644284
+          assert row["source_s2b_run_id"] == 36651366703
+          assert row["frozen_population_rows"] == 91
+          assert row["feature_promotion_allowed"] is False
+          assert row["combined_metrics_have_certification_authority"] is False
+          assert row["fresh_holdout_opened"] is False
+          assert row["trader_certified"] is False
+          assert set(row["features"]) == {
+              "symbol","session","side","entry_mode","target_kind",
+              "target_provenance","ny_entry_hour","weekday","target_r_band"
+          }
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v47-s2c1-fractal-failure-screen-${{ github.sha }}
+          path: screen
+          if-no-files-found: error
+          retention-days: 90
