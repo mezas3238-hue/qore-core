@@ -1039,13 +1039,23 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "PARTIAL_INTEGRATION",
+      "current_maturity": "MINIMAL_SEED_ALLOW_AND_DOWNSIZE_ENGINEERING_EVIDENCE_STAGED_CI_PENDING_REAL_E2E_OPEN",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "END_TO_END_DOWNSIZE_MINIMAL_SEED_NO_REJECT_ALL_EVIDENCE_REQUIRED"
+      "evidence_refs": [
+        "tests/infrastructure/test_cibo_risk_integration_closure.py",
+        ".github/workflows/cibo-risk-integration-closure.yml",
+        "docs/research/CIBO-RISK-INTEGRATION-CLOSURE-V1.md",
+        "src/qore/infrastructure/account_wide_risk.py",
+        "src/qore/infrastructure/account_wide_risk_ledger.py",
+        "src/qore/infrastructure/cibo_cma_risk_request.py",
+        "src/qore/infrastructure/cibo_fundednext_seed.py"
       ],
-      "next_gate": "Prove CIBO optimizes while Risk independently bounds without nominal-cost reject-all behavior."
+      "blockers": [
+        "INTEGRATOR_RISK_INTEGRATION_CI_REQUIRED",
+        "REAL_END_TO_END_CIBO_TO_RISK_TO_EXECUTION_EVIDENCE_REQUIRED",
+        "NO_REJECT_ALL_FORWARD_EVIDENCE_REQUIRED"
+      ],
+      "next_gate": "Pass staged Risk integration CI proving FundedNext USD60 minimal seed ALLOW, large-request REDUCE and reject only when broker minimum cannot fit; then prove the same invariant end-to-end on real forward evidence."
     },
     {
       "id": "CAPITAL_AMPLIFICATION",
