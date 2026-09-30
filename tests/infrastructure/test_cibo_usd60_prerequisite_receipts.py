@@ -81,21 +81,15 @@ def test_missing_usd60_prerequisite_fails_closed() -> None:
 
 def test_wrong_evidence_kind_is_rejected_by_source_binder() -> None:
     receipt_id = required_usd60_pre_exam_receipt_ids()[0]
-    receipts = list(_receipts())
-    receipts[0] = bind_cross_boundary_pass_artifact(
-        receipt_id=receipt_id,
-        evidence_kind="FINAL_INTEGRATED_EXAM_CONTROL",
-        source_artifact_json=_artifact(receipt_id),
-    )
 
     with pytest.raises(
         CiboCapitalManagementError,
         match="evidence kind drift",
     ):
-        require_usd60_pre_exam_receipts(
-            receipts=tuple(receipts),
-            integrated_git_sha=HEAD,
-            policy_identity_sha256=POLICY,
+        bind_cross_boundary_pass_artifact(
+            receipt_id=receipt_id,
+            evidence_kind="FINAL_INTEGRATED_EXAM_CONTROL",
+            source_artifact_json=_artifact(receipt_id),
         )
 
 
