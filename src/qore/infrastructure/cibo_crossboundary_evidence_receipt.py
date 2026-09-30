@@ -1,9 +1,10 @@
-"""Canonical cross-boundary evidence receipt for CIBO certification gates.
+"""Canonical cross-boundary evidence binding for CIBO certification gates.
 
-This is a reusable trust primitive for Architect-A Final Integrated Exam and
-Architect-B USD60 pre-exam readiness. It validates canonical artifact content,
-recomputes its digest, binds evidence to one integrated Git HEAD and never
-grants productive authority.
+The binder cannot create evidence from booleans. It accepts only an existing
+canonical PASS artifact produced by an upstream gate, recomputes its digest and
+binds that artifact to one integrated Git HEAD and policy identity.
+
+Research/certification governance only. No productive authority is granted.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
@@ -20,7 +22,28 @@ from qore.infrastructure.cibo_capital_management_authority import (
 
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
-_SCHEMA = "qore.cibo.crossboundary-evidence-receipt.v1"
+
+
+def _canonical_json(payload: dict[str, Any]) -> str:
+    return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+
+
+def _parse_canonical_artifact(value: str) -> dict[str, Any]:
+    try:
+        payload = json.loads(value)
+    except json.JSONDecodeError as error:
+        raise CiboCapitalManagementError(
+            "cross-boundary source artifact is invalid JSON"
+        ) from error
+    if not isinstance(payload, dict):
+        raise CiboCapitalManagementError(
+            "cross-boundary source artifact must be object"
+        )
+    if _canonical_json(payload) != value:
+        raise CiboCapitalManagementError(
+            "cross-boundary source artifact must use canonical JSON"
+        )
+    return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,15 +53,19 @@ class CiboCrossBoundaryEvidenceReceipt:
     producer_gate_id: str
     integrated_git_sha: str
     policy_identity_sha256: str
-    artifact_sha256: str
-    artifact_json: str
+    source_artifact_schema: str
+    source_artifact_sha256: str
+    source_artifact_json: str
     observed_at: datetime
-    passed: bool
-    holdout_outcomes_inspected: bool = False
     productive_authority: bool = False
 
     def __post_init__(self) -> None:
-        for name in ("receipt_id", "evidence_kind", "producer_gate_id"):
+        for name in (
+            "receipt_id",
+            "evidence_kind",
+            "producer_gate_id",
+            "source_artifact_schema",
+        ):
             value = getattr(self, name)
             if not isinstance(value, str) or not value:
                 raise CiboCapitalManagementError(
@@ -52,9 +79,9 @@ class CiboCrossBoundaryEvidenceReceipt:
             raise CiboCapitalManagementError(
                 "cross-boundary receipt policy identity must be canonical sha256"
             )
-        if _SHA256_RE.fullmatch(self.artifact_sha256) is None:
+        if _SHA256_RE.fullmatch(self.source_artifact_sha256) is None:
             raise CiboCapitalManagementError(
-                "cross-boundary receipt artifact digest must be canonical sha256"
+                "cross-boundary source artifact digest must be canonical sha256"
             )
         if (
             self.observed_at.tzinfo is None
@@ -63,54 +90,27 @@ class CiboCrossBoundaryEvidenceReceipt:
             raise CiboCapitalManagementError(
                 "cross-boundary receipt observed_at must be timezone-aware"
             )
-        for name in (
-            "passed",
-            "holdout_outcomes_inspected",
-            "productive_authority",
-        ):
-            if type(getattr(self, name)) is not bool:
-                raise CiboCapitalManagementError(
-                    f"cross-boundary receipt {name} must be bool"
-                )
-        if self.holdout_outcomes_inspected:
+        if type(self.productive_authority) is not bool:
             raise CiboCapitalManagementError(
-                "cross-boundary pre-certification receipt cannot inspect holdout outcomes"
+                "cross-boundary receipt productive_authority must be bool"
             )
         if self.productive_authority:
             raise CiboCapitalManagementError(
                 "cross-boundary evidence receipt grants no productive authority"
             )
 
-        try:
-            artifact = json.loads(self.artifact_json)
-        except json.JSONDecodeError as error:
+        artifact = _parse_canonical_artifact(self.source_artifact_json)
+        digest = (
+            "sha256:"
+            + hashlib.sha256(self.source_artifact_json.encode("utf-8")).hexdigest()
+        )
+        if digest != self.source_artifact_sha256:
             raise CiboCapitalManagementError(
-                "cross-boundary receipt artifact is invalid JSON"
-            ) from error
-        if not isinstance(artifact, dict):
-            raise CiboCapitalManagementError(
-                "cross-boundary receipt artifact must be object"
-            )
-
-        canonical = json.dumps(
-            artifact,
-            indent=2,
-            sort_keys=True,
-        ) + "\n"
-        if canonical != self.artifact_json:
-            raise CiboCapitalManagementError(
-                "cross-boundary receipt artifact must use canonical JSON"
-            )
-        digest = "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-        if digest != self.artifact_sha256:
-            raise CiboCapitalManagementError(
-                "cross-boundary receipt artifact digest mismatch"
+                "cross-boundary source artifact digest mismatch"
             )
 
         expected = {
-            "schema": _SCHEMA,
-            "receipt_id": self.receipt_id,
-            "evidence_kind": self.evidence_kind,
+            "schema": self.source_artifact_schema,
             "producer_gate_id": self.producer_gate_id,
             "integrated_git_sha": self.integrated_git_sha,
             "policy_identity_sha256": self.policy_identity_sha256,
@@ -122,15 +122,11 @@ class CiboCrossBoundaryEvidenceReceipt:
         for key, value in expected.items():
             if artifact.get(key) != value:
                 raise CiboCapitalManagementError(
-                    f"cross-boundary receipt artifact field mismatch: {key}"
+                    f"cross-boundary source artifact field mismatch: {key}"
                 )
         if artifact.get("failures") != []:
             raise CiboCapitalManagementError(
-                "cross-boundary receipt artifact contains failures"
-            )
-        if self.passed is not True:
-            raise CiboCapitalManagementError(
-                "cross-boundary receipt requires derived PASS"
+                "cross-boundary source artifact contains failures"
             )
 
     def fingerprint(self) -> str:
@@ -140,53 +136,77 @@ class CiboCrossBoundaryEvidenceReceipt:
             "producer_gate_id": self.producer_gate_id,
             "integrated_git_sha": self.integrated_git_sha,
             "policy_identity_sha256": self.policy_identity_sha256,
-            "artifact_sha256": self.artifact_sha256,
+            "source_artifact_schema": self.source_artifact_schema,
+            "source_artifact_sha256": self.source_artifact_sha256,
             "observed_at": self.observed_at.isoformat(),
-            "passed": self.passed,
-            "holdout_outcomes_inspected": self.holdout_outcomes_inspected,
             "productive_authority": self.productive_authority,
         }
         raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
         return "sha256:" + hashlib.sha256(raw).hexdigest()
 
 
-def build_cross_boundary_evidence_receipt(
+def bind_cross_boundary_pass_artifact(
     *,
     receipt_id: str,
     evidence_kind: str,
-    producer_gate_id: str,
-    integrated_git_sha: str,
-    policy_identity_sha256: str,
-    observed_at: datetime,
+    source_artifact_json: str,
 ) -> CiboCrossBoundaryEvidenceReceipt:
-    artifact = {
-        "schema": _SCHEMA,
-        "receipt_id": receipt_id,
-        "evidence_kind": evidence_kind,
-        "producer_gate_id": producer_gate_id,
-        "integrated_git_sha": integrated_git_sha,
-        "policy_identity_sha256": policy_identity_sha256,
-        "observed_at": observed_at.isoformat(),
-        "status": "PASS",
-        "failures": [],
-        "holdout_outcomes_inspected": False,
-        "productive_authority": False,
-    }
-    artifact_json = json.dumps(artifact, indent=2, sort_keys=True) + "\n"
-    artifact_sha256 = (
-        "sha256:" + hashlib.sha256(artifact_json.encode("utf-8")).hexdigest()
+    """Bind one already-produced canonical PASS artifact.
+
+    PASS, HEAD, policy identity and timestamps are derived from the artifact;
+    callers do not provide a pass boolean.
+    """
+
+    artifact = _parse_canonical_artifact(source_artifact_json)
+    required = (
+        "schema",
+        "producer_gate_id",
+        "integrated_git_sha",
+        "policy_identity_sha256",
+        "observed_at",
+        "status",
+        "failures",
+        "holdout_outcomes_inspected",
+        "productive_authority",
+    )
+    missing = tuple(key for key in required if key not in artifact)
+    if missing:
+        raise CiboCapitalManagementError(
+            "cross-boundary source artifact missing fields: " + ",".join(missing)
+        )
+    if artifact["status"] != "PASS" or artifact["failures"] != []:
+        raise CiboCapitalManagementError(
+            "cross-boundary source artifact is not PASS"
+        )
+    if artifact["holdout_outcomes_inspected"] is not False:
+        raise CiboCapitalManagementError(
+            "cross-boundary source artifact inspected holdout outcomes"
+        )
+    if artifact["productive_authority"] is not False:
+        raise CiboCapitalManagementError(
+            "cross-boundary source artifact claims productive authority"
+        )
+    try:
+        observed_at = datetime.fromisoformat(str(artifact["observed_at"]))
+    except ValueError as error:
+        raise CiboCapitalManagementError(
+            "cross-boundary source artifact observed_at invalid"
+        ) from error
+
+    digest = (
+        "sha256:"
+        + hashlib.sha256(source_artifact_json.encode("utf-8")).hexdigest()
     )
     return CiboCrossBoundaryEvidenceReceipt(
         receipt_id=receipt_id,
         evidence_kind=evidence_kind,
-        producer_gate_id=producer_gate_id,
-        integrated_git_sha=integrated_git_sha,
-        policy_identity_sha256=policy_identity_sha256,
-        artifact_sha256=artifact_sha256,
-        artifact_json=artifact_json,
+        producer_gate_id=str(artifact["producer_gate_id"]),
+        integrated_git_sha=str(artifact["integrated_git_sha"]),
+        policy_identity_sha256=str(artifact["policy_identity_sha256"]),
+        source_artifact_schema=str(artifact["schema"]),
+        source_artifact_sha256=digest,
+        source_artifact_json=source_artifact_json,
         observed_at=observed_at,
-        passed=True,
-        holdout_outcomes_inspected=False,
         productive_authority=False,
     )
 
