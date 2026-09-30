@@ -350,7 +350,7 @@ def test_unknown_t16_capability_blocks_pre_holdout() -> None:
     registry = _CALIBRATION_FIXTURE._registry(
         hedge=CapabilityStatus.UNKNOWN,
     )
-    manifest, risks, calibration, provider = _provider_state()
+    manifest, _risks, _calibration, provider = _provider_state()
     calibration_receipts = _calibration_receipts(
         forward_sha=manifest.fingerprint(),
         provider_sha=provider.fingerprint(),
