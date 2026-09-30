@@ -70,6 +70,9 @@ _COMMENT_MARKERS = (
 )
 
 _WORKSTREAM_CLASSIFIERS = (
+    ("*cibo_arch_b_forward_economic_manifest*", "FORWARD_QUALIFICATION"),
+    ("*cibo_ctrader_demo_account_capability*", "PROVIDER_ECONOMICS"),
+    ("*cibo_research_memory*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
     ("*cibo_cma_compound_authority_boundary*", "CMA_FOUNDATION_INTEGRATION"),
     ("*cma-compound-boundary*", "CMA_FOUNDATION_INTEGRATION"),
     ("*CMA-COMPOUND-AUTHORITY-BOUNDARY*", "CMA_FOUNDATION_INTEGRATION"),
