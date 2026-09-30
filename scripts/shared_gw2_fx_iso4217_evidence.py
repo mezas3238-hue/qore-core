@@ -13,7 +13,7 @@ import hashlib
 import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 IDENTITY = "QORE_SHARED_GW2_FX_ISO4217_EVIDENCE_001"
 EXPECTED_CENSUS_IDENTITY = "QORE_SHARED_GW2_FX_IDENTITY_EVIDENCE_CENSUS_001"
