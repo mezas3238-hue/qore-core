@@ -1287,7 +1287,7 @@
       "kind": "GOVERNANCE",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "A_INTERNAL_READINESS_STAGED_INTEGRATOR_TWO_EXAM_AUDITOR_CI_PENDING",
+      "current_maturity": "FULL_INVENTORY_STRICT_AND_PRE_EXAM_AUDITOR_STAGED_CI_PENDING_OPEN_WORK_REMAINS",
       "terminal_disposition": null,
       "evidence_refs": [
         "scripts/cibo_zero_open_work_gate.py",
@@ -1296,13 +1296,14 @@
         "github-actions://36767443016/SUCCESS",
         "scripts/cibo_arch_a_internal_readiness_gate.py",
         "tests/infrastructure/test_cibo_arch_a_internal_readiness_gate.py",
-        ".github/workflows/cibo-architect-a-internal-readiness.yml"
+        ".github/workflows/cibo-architect-a-internal-readiness.yml",
+        ".github/workflows/cibo-zero-open-work-gate.yml"
       ],
       "blockers": [
-        "MASTER_LEDGER_HAS_OPEN_REQUIRED_WORK",
-        "INTEGRATOR_TWO_EXAM_ZERO_OPEN_CI_REQUIRED"
+        "INTEGRATOR_ZERO_OPEN_FULL_INVENTORY_CI_REQUIRED",
+        "MASTER_LEDGER_HAS_OPEN_REQUIRED_WORK"
       ],
-      "next_gate": "Pass the Integrator two-exam sequencing CI; PRE_EXAM may then exclude only Final Integrated Exam and World Cup while STRICT continues to require every mandatory row terminal."
+      "next_gate": "Pass the full-inventory auditor with zero orphans/missing artifacts/markers while OPEN work remains visible; after all non-exam work closes, PRE_EXAM may pass; after Final Exam + World Cup terminalize, STRICT must pass."
     },
     {
       "id": "FINAL_INTEGRATED_CIBO_EXAM",
