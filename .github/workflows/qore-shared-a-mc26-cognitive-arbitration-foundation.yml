@@ -14,6 +14,9 @@ permissions:
   contents: read
   issues: write
 
+env:
+  GH_TOKEN: ${{ github.token }}
+
 jobs:
   foundation:
     runs-on: ubuntu-24.04
@@ -56,11 +59,14 @@ jobs:
           retention-days: 90
       - name: Report
         run: |
-          gh issue comment 638 --body "## Shared A MC-26 — Cognitive Arbitration foundation
-
-- nine required facets: **Present**
-- negative evidence preserved: **True**
-- information gaps preserved: **True**
-- downstream authority: **None**
-- real all-facet runtime binding complete: **False**
-- MC-26 completed-and-proven: **False**"
+          {
+            echo "## Shared A MC-26 — Cognitive Arbitration foundation"
+            echo
+            echo "- nine required facets: **Present**"
+            echo "- negative evidence preserved: **True**"
+            echo "- information gaps preserved: **True**"
+            echo "- downstream authority: **None**"
+            echo "- real all-facet runtime binding complete: **False**"
+            echo "- MC-26 completed-and-proven: **False**"
+          } > result/issue-comment.md
+          gh issue comment 638 --body-file result/issue-comment.md
