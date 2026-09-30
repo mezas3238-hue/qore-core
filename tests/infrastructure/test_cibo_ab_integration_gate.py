@@ -210,3 +210,67 @@ def test_nonlocal_evidence_refs_are_not_treated_as_files(
         ledger,
         repo_root=tmp_path,
     ) == []
+
+
+def _child_accounting(matrix):
+    return {
+        "schema": "CIBO_AB_CHILD_DELTA_ACCOUNTING_V1",
+        "all_child_delta_files_accounted": True,
+        "productive_authority": False,
+        "certification_claim": False,
+        "architect_a": {
+            "pr": matrix["architect_a"]["pr"],
+            "head_sha": matrix["architect_a"]["latest_observed_head_sha"],
+            "changed_files": 2,
+            "files_present_in_integrator_delta": 1,
+            "deliberate_overrides": [{"path": "a"}],
+            "unaccounted_files": [],
+        },
+        "architect_b": {
+            "pr": matrix["architect_b"]["pr"],
+            "head_sha": matrix["architect_b"]["latest_observed_head_sha"],
+            "changed_files": 2,
+            "files_present_in_integrator_delta": 1,
+            "deliberate_noncanonical_snapshots": ["b"],
+            "unaccounted_files": [],
+        },
+    }
+
+
+def test_child_delta_accounting_accepts_complete_reconciled_inventory() -> None:
+    matrix, _ledger = _state()
+    accounting = _child_accounting(matrix)
+
+    assert gate.validate_child_delta_accounting(matrix, accounting) == []
+
+
+def test_child_delta_accounting_rejects_head_drift() -> None:
+    matrix, _ledger = _state()
+    accounting = _child_accounting(matrix)
+    accounting["architect_b"]["head_sha"] = "f" * 40
+
+    errors = gate.validate_child_delta_accounting(matrix, accounting)
+
+    assert "child delta architect_b HEAD drift" in errors
+
+
+def test_child_delta_accounting_rejects_unaccounted_files() -> None:
+    matrix, _ledger = _state()
+    accounting = _child_accounting(matrix)
+    accounting["architect_a"]["unaccounted_files"] = ["missing.py"]
+    accounting["all_child_delta_files_accounted"] = False
+
+    errors = gate.validate_child_delta_accounting(matrix, accounting)
+
+    assert "child delta accounting reports unaccounted files" in errors
+    assert "child delta architect_a has unaccounted files" in errors
+
+
+def test_child_delta_accounting_rejects_count_drift() -> None:
+    matrix, _ledger = _state()
+    accounting = _child_accounting(matrix)
+    accounting["architect_a"]["changed_files"] = 3
+
+    errors = gate.validate_child_delta_accounting(matrix, accounting)
+
+    assert "child delta architect_a accounting count drift" in errors
