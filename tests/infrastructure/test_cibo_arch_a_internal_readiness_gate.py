@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts import cibo_arch_a_internal_readiness_gate as gate
+from qore.infrastructure import cibo_arch_a_internal_readiness as gate
 
 
 def _row(
