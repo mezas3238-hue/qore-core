@@ -72,6 +72,7 @@ jobs:
             {"evidence_id":"B09_CROSS_ASSET_REVALIDATED","capability_scope":"B-09","kind":"REAL_REPLICATION_EVIDENCE","run_id":36783197825,"artifact_id":11128552806,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B10_12_RELATIONAL_LIFECYCLE","capability_scope":"B-10/B-11/B-12","kind":"ARCHITECTURE_EVIDENCE","run_id":36755296952,"artifact_id":11116372968,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B13_STRUCTURAL_DIVERGENCE","capability_scope":"B-13","kind":"ARCHITECTURE_EVIDENCE","run_id":36757804153,"artifact_id":11116897631,"source_hash":true,"provider_free_replay":true},
+            {"evidence_id":"B10_13_RELATIONAL_POPULATION_GATE","capability_scope":"B-10/B-11/B-12/B-13","kind":"GOVERNANCE_EVIDENCE","run_id":36784397525,"artifact_id":11128896679,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B14_AGRI_INHERITED_REBIND","capability_scope":"B-14","kind":"GOVERNANCE_EVIDENCE","run_id":36777269692,"artifact_id":11126270432,"source_hash":false,"provider_free_replay":true},
             {"evidence_id":"B14_SECONDARY_PROVIDER_INTAKE_BOUNDARY","capability_scope":"B-14","kind":"GOVERNANCE_EVIDENCE","run_id":36783743044,"artifact_id":11128508597,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B15_COMMODITY_IDENTITY","capability_scope":"B-15","kind":"IDENTITY_EVIDENCE","run_id":36755839843,"artifact_id":11115769948,"source_hash":true,"provider_free_replay":true},
