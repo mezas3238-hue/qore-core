@@ -18,6 +18,9 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_final_certification.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py'
       - 'tests/infrastructure/test_cibo_ce2i_final_certification.py'
+      - 'src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_execution_calibration.py'
       - '.github/workflows/cibo-crossboundary-evidence-receipt.yml'
   push:
     paths:
@@ -36,6 +39,9 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_final_certification.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py'
       - 'tests/infrastructure/test_cibo_ce2i_final_certification.py'
+      - 'src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_execution_calibration.py'
       - '.github/workflows/cibo-crossboundary-evidence-receipt.yml'
 
 jobs:
