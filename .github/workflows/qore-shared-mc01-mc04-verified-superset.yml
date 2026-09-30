@@ -1,0 +1,99 @@
+name: QORE Shared MC01 MC04 Verified Superset Audit
+
+concurrency:
+  group: qore-shared-mc01-mc04-verified-superset
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - docs/shared/evidence/QORE_SHARED_MC01_MC04_VERIFIED_SUPERSET_AUDIT_001.json
+      - .github/workflows/qore-shared-mc01-mc04-verified-superset.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate closed issue and run evidence
+        run: |
+          set -euo pipefail
+          mkdir -p result
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path(
+                  "docs/shared/evidence/"
+                  "QORE_SHARED_MC01_MC04_VERIFIED_SUPERSET_AUDIT_001.json"
+              ).read_text()
+          )
+          assert p["law"]["wp_closed_does_not_automatically_close_mc"] is True
+          assert p["items"]["MC-01"]["state"] == "RESEARCH_INCOMPLETE"
+          assert p["items"]["MC-02"]["state"] == "COMPLETED_AND_PROVEN"
+          assert p["items"]["MC-03"]["state"] == "COMPLETED_AND_PROVEN"
+          assert p["items"]["MC-04"]["state"] == "COMPLETED_AND_PROVEN"
+          assert p["items"]["MC-03"]["evidence"]["accepted_causal_relations"] == 0
+          assert p["items"]["MC-03"]["evidence"]["empty_accepted_set_preserved"] is True
+          assert p["items"]["MC-04"]["evidence"]["representation_refit_after_freeze"] is False
+          assert p["governance"]["protected_certification_holdout_opened_by_this_audit"] is False
+          PY
+
+          for issue in 639 640 641 642
+          do
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/issues/$issue" --jq '.state')" = "closed"
+          done
+
+          check_run () {
+            run_id="$1"
+            expected_sha="$2"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/$run_id" --jq '.status')" = "completed"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/$run_id" --jq '.conclusion')" = "success"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/$run_id" --jq '.head_sha')" = "$expected_sha"
+          }
+
+          check_run 36213616534 3d40ecf9360b853b2a75a41cacf552ad39ef780d
+          check_run 36235159291 1dbdb676a8e780da8704d83fd19a5fc918f5fec2
+          check_run 36235159219 1dbdb676a8e780da8704d83fd19a5fc918f5fec2
+          check_run 36236760353 6cb1aecaf6d247922dec0932d82aa0764f2cb065
+          check_run 36247407353 182302a6c9dde2d3a78bb3b5dd96f28bb9968867
+          check_run 36248025384 7958632f33e707c8f46e85ceac17236c30c4b478
+
+          for artifact in 10903578165 10904203504 10908500161 10908077821
+          do
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/$artifact" --jq '.expired')" = "false"
+          done
+
+      - name: Seal audit evidence
+        run: |
+          set -euo pipefail
+          cp             docs/shared/evidence/QORE_SHARED_MC01_MC04_VERIFIED_SUPERSET_AUDIT_001.json             result/audit.json
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            sha256sum audit.json code-git-sha.txt > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-mc01-mc04-verified-superset-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
