@@ -272,7 +272,8 @@ B_WORK_ITEMS: Final = (
             "run:36758248635",
         ),
         (
-            "provenance coverage is verified for current sealed B evidence but does not yet cover all mandatory B workstreams",
+            "provenance coverage is verified for current sealed B evidence but does "
+            "not yet cover all mandatory B workstreams",
         ),
     ),
     SharedBWorkItem(
