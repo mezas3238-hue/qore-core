@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -129,6 +130,10 @@ def test_path_history_materializes_initial_and_each_chronological_state() -> Non
         "loss",
     )
     assert all(item.state_sha256.startswith("sha256:") for item in history.snapshots)
+    assert all(
+        item.t19_ledger_sha256.startswith("sha256:")
+        for item in history.snapshots
+    )
 
     summary = history.summary
     assert summary.minimum_original_base_usd == Decimal("90")
@@ -190,4 +195,33 @@ def test_reversed_event_chronology_fails_closed() -> None:
             initial_state=_initial_state(),
             initial_observed_at=T0 - timedelta(minutes=1),
             events=tuple(events),
+        )
+
+
+def test_initial_snapshot_cannot_predate_existing_state_history() -> None:
+    state = replace(
+        _initial_state(),
+        last_event_at=T0,
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="initial observation predates state history",
+    ):
+        materialize_compound_path_history(
+            initial_state=state,
+            initial_observed_at=T0 - timedelta(seconds=1),
+            events=(
+                BaseSettlementEvent(
+                    event_id="later-win",
+                    occurred_at=T0 + timedelta(seconds=1),
+                    trader_id=TraderLineage.VT31_NAS100,
+                    settlement=_settlement(
+                        signal="later-win",
+                        position_id=103,
+                        deal_id=203,
+                        pnl="1",
+                    ),
+                ),
+            ),
         )
