@@ -20,7 +20,7 @@
   "architect_b": {
     "pr": 661,
     "accepted_head_sha": "5d028b1ebc76a98db36d26f86bc872e2f60c5541",
-    "latest_observed_head_sha": "2b13c4395e4bf8dc0d47118040a6915e3df5911c",
+    "latest_observed_head_sha": "85a54ad0a7ba77f9633c4e3621bda9810ba1fb57",
     "support_blockers": [
       "B-SUPPORT-001_USD60_READINESS_SELF_ATTESTATION",
       "B-SUPPORT-002_RISK_HANDOFF_LEDGER_DRIFT",
