@@ -86,6 +86,8 @@ class CiboCurrentGenerationControlManifest:
     world_cup_gap_matrix_sha256: str
     all_required_ci_green: bool
     holdout_2017h1_untouched: bool
+    economic_baseline_measurement_bound: bool
+    economic_baseline_measurement_blockers: tuple[str, ...]
     phase20_v3_mutated: bool = False
     outcome_data_used_to_select_control: bool = False
     runtime_authority: bool = False
@@ -157,6 +159,7 @@ class CiboCurrentGenerationControlManifest:
         for name in (
             "all_required_ci_green",
             "holdout_2017h1_untouched",
+            "economic_baseline_measurement_bound",
             "phase20_v3_mutated",
             "outcome_data_used_to_select_control",
             "runtime_authority",
@@ -170,6 +173,28 @@ class CiboCurrentGenerationControlManifest:
                 raise CiboCompoundCapitalError(
                     f"current control {name} must be bool"
                 )
+        if len(self.economic_baseline_measurement_blockers) != len(
+            set(self.economic_baseline_measurement_blockers)
+        ):
+            raise CiboCompoundCapitalError(
+                "current control economic baseline blockers must be unique"
+            )
+        if any(
+            not isinstance(item, str) or not item
+            for item in self.economic_baseline_measurement_blockers
+        ):
+            raise CiboCompoundCapitalError(
+                "current control economic baseline blockers are invalid"
+            )
+        if self.economic_baseline_measurement_bound:
+            if self.economic_baseline_measurement_blockers:
+                raise CiboCompoundCapitalError(
+                    "bound economic baseline cannot retain blockers"
+                )
+        elif not self.economic_baseline_measurement_blockers:
+            raise CiboCompoundCapitalError(
+                "unbound economic baseline must state explicit blockers"
+            )
         if not self.all_required_ci_green:
             raise CiboCompoundCapitalError(
                 "current control cannot seal while required CI is not green"
@@ -230,6 +255,8 @@ def seal_current_generation_control(
     world_cup_gap_matrix_sha256: str,
     all_required_ci_green: bool,
     holdout_2017h1_untouched: bool,
+    economic_baseline_measurement_bound: bool,
+    economic_baseline_measurement_blockers: tuple[str, ...],
 ) -> CiboCurrentGenerationControlManifest:
     """Seal the exact green AS-IS research generation as future control."""
 
@@ -264,6 +291,12 @@ def seal_current_generation_control(
         world_cup_gap_matrix_sha256=world_cup_gap_matrix_sha256,
         all_required_ci_green=all_required_ci_green,
         holdout_2017h1_untouched=holdout_2017h1_untouched,
+        economic_baseline_measurement_bound=(
+            economic_baseline_measurement_bound
+        ),
+        economic_baseline_measurement_blockers=(
+            economic_baseline_measurement_blockers
+        ),
         phase20_v3_mutated=False,
         outcome_data_used_to_select_control=False,
         runtime_authority=False,
