@@ -520,7 +520,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_SCIENTIFIC_EVIDENCE_OPEN",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_UTILITY_GATE_PREREGISTERED_REAL_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -531,14 +531,16 @@
         "src/qore/infrastructure/cibo_ce2i_phase20_mpc.py",
         "src/qore/infrastructure/cibo_capital_digital_twin.py",
         "github-actions://36727848107/SUCCESS",
-        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md"
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "docs/research/CIBO-GEN-C11-NONCOMPENSATORY-UTILITY-GATE-V1.md",
+        "docs/research/CIBO-COMPOUND-TEMPORAL-ECONOMIC-REPLICATION-CRITERION-V1.md"
       ],
       "blockers": [
         "FRESH_MULTI_PERIOD_OOS_UTILITY_NOT_YET_PROVEN",
         "STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
         "GEN_C10_TRANSITION_UNCERTAINTY_NOT_YET_CALIBRATED"
       ],
-      "next_gate": "Bind synchronized fresh GEN-C10 world populations; preregister economic utility gate; then OOS, stress and temporal replication."
+      "next_gate": "After GEN-C10 transition uncertainty is causally calibrated, bind synchronized fresh world populations and apply the preregistered non-compensatory utility gate, adversarial stress and 4/4 temporal replication."
     },
     {
       "id": "GEN-C12",
@@ -698,7 +700,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "RESEARCH_OVERLAY_ENGINE_IMPLEMENTED_CI_GREEN_SCIENTIFIC_EVIDENCE_OPEN",
+      "current_maturity": "RESEARCH_OVERLAY_ENGINE_CI_GREEN_POLICY_SEMANTICS_PREREGISTERED_CAUSAL_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md",
@@ -708,13 +710,14 @@
         "src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py",
         "src/qore/infrastructure/cibo_capital_source_ledger.py",
         "github-actions://36727848187/SUCCESS",
-        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md"
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "docs/research/CIBO-PROTECTED-BASE-POLICY-BEHAVIOR-PREREGISTRATION-V1.md"
       ],
       "blockers": [
-        "PROTECTED_BASE_POLICY_CALIBRATION_AND_CAUSAL_VALUE_NOT_YET_PROVEN",
+        "PROTECTED_BASE_NUMERIC_POLICY_CALIBRATION_AND_CAUSAL_VALUE_NOT_YET_PROVEN",
         "PROTECTED_BASE_REMAINS_RESEARCH_ONLY_AND_MUST_NOT_RETROACTIVELY_CHANGE_V3"
       ],
-      "next_gate": "Reconcile with robust protected-operating-floor semantics, preregister policy behavior, then prove chronological/OOS/stress value without retrospectively changing frozen V3."
+      "next_gate": "Freeze a new numeric protected-base candidate before outcome use, then prove chronological/OOS/stress/4-fold value without changing frozen V3 or treating accounting protection as provider guarantee."
     },
     {
       "id": "PROFIT_PROTECTION",
