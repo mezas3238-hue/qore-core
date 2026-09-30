@@ -30,9 +30,12 @@ def test_b_ledger_does_not_hide_external_or_architecture_only_blockers() -> None
     assert items["B-07"]["status"] == "EXTERNALLY_BLOCKED"
     assert items["B-10"]["status"] == "ARCHITECTURE_VALIDATED_EVIDENCE_OPEN"
     assert items["B-14"]["status"] == "EXTERNALLY_BLOCKED"
-    assert items["B-18"]["status"] == "ARCHITECTURE_VALIDATED_EVIDENCE_OPEN"
-    for work_id in ("B-07","B-10","B-14","B-18"):
+    for work_id in ("B-07","B-10","B-14"):
         assert items[work_id]["blockers"]
+    assert items["B-18"]["status"] == "COMPLETE_AND_PROVEN"
+    assert items["B-19"]["status"] == "COMPLETE_AND_PROVEN"
+    assert not items["B-18"]["blockers"]
+    assert not items["B-19"]["blockers"]
 
 
 def test_complete_work_cannot_retain_blockers() -> None:
