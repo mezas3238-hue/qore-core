@@ -305,14 +305,16 @@ B_WORK_ITEMS: Final = (
             "artifact:11117991672",
             "artifact:11121310503",
             "artifact:11125588197",
+            "artifact:11126485523",
             "run:36746337433",
             "run:36758248635",
             "run:36765319771",
             "run:36776003986",
+            "run:36777484441",
         ),
         (
-            "current sealed provenance explicitly covers 17/24 B workstream IDs; "
-            "B-04/B-07/B-08/B-14/B-21/B-22/B-24 still lack final coverage",
+            "current sealed provenance explicitly covers 18/24 B workstream IDs; "
+            "B-04/B-07/B-08/B-21/B-22/B-24 still lack final coverage",
             "total provenance cannot close before all mandatory B workstreams have "
             "a terminal or explicitly governed blocked disposition",
         ),
