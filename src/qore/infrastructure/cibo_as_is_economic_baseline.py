@@ -299,6 +299,14 @@ def materialize_as_is_economic_baseline(
             raise CiboCompoundCapitalError(
                 "AS-IS baseline decision timestamp lineage drift"
             )
+        if (
+            row.trader_id != item.trader_id.value
+            or row.stop_risk_usd != item.stop_risk_usd
+            or row.margin_usd != item.margin_usd
+        ):
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline Trader/risk/margin lineage drift"
+            )
         if row.realized_net_pnl_usd is None:
             raise CiboCompoundCapitalError(
                 "AS-IS baseline Compound deployment lacks realized outcome"
