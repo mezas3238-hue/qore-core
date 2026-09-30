@@ -11,11 +11,12 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Callable
 from dataclasses import replace
 from decimal import Decimal
 from pathlib import Path
 from statistics import median
-from typing import Callable, cast
+from typing import cast
 
 import shared_sti6_sti8_real_position_intelligence as base
 
