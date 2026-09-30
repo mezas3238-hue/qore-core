@@ -1,0 +1,41 @@
+{
+  "schema": "CIBO_AB_INTEGRATION_ACCEPTANCE_V1",
+  "common_split_base_sha": "1460435615a663a614cd5ee8873f719d08086200",
+  "integrator_pr": 670,
+  "integrator_branch": "agent/cibo-integrator-ab-001",
+  "architect_a": {
+    "pr": 660,
+    "accepted_head_sha": "9f7a24a86c04a1d0554996ab57523e7338465002",
+    "latest_observed_head_sha": "4b39952718640b1f723f03cd71a68c72afb3d76b",
+    "support_blockers": [
+      "A-SUPPORT-001_FINAL_EXAM_SELF_ATTESTATION"
+    ]
+  },
+  "architect_b": {
+    "pr": 661,
+    "accepted_head_sha": "5d028b1ebc76a98db36d26f86bc872e2f60c5541",
+    "latest_observed_head_sha": "3895af47c32c473682700d07435ea437110e5c3e",
+    "support_blockers": [
+      "B-SUPPORT-001_USD60_READINESS_SELF_ATTESTATION"
+    ]
+  },
+  "ledger_path": "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json",
+  "integrated_terminal_ids": [
+    "T01",
+    "T05",
+    "T19",
+    "GEN-C0",
+    "GEN-C1",
+    "AS_IS_CONTROL",
+    "ORPHAN_INVENTORY",
+    "HISTORICAL_PHASE18_REPLAY_EVIDENCE",
+    "BURNED_PHASE19_RESEARCH_EVIDENCE",
+    "CMA_FOUNDATION_INTEGRATION",
+    "CE2I_CALIBRATION_GOVERNANCE",
+    "CE2I_CROSS_TOOL_INFRASTRUCTURE",
+    "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"
+  ],
+  "integration_ready": false,
+  "certification_ready": false,
+  "productive_authority": false
+}
