@@ -26,7 +26,7 @@ def test_source_pack_contains_multiple_distinct_timeframe_models() -> None:
 
 
 def test_reversal_sequence_is_not_encoded_as_full_and_gate() -> None:
-    rule = next(rule for rule in RULES if rule.rule_id == "REVERSAL_SEQUENCE_PROGRESSIVE_CONFIRMATION")
+    rule = next(\n        rule\n        for rule in RULES\n        if rule.rule_id == "REVERSAL_SEQUENCE_PROGRESSIVE_CONFIRMATION"\n    )
     assert rule.semantics is V48RuleSemantics.ALTERNATIVE_ENTRY_TECHNIQUE
     assert rule.universal_gate_supported is False
 
