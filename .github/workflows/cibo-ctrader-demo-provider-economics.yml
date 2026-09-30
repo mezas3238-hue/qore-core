@@ -4,19 +4,50 @@ on:
   push:
     branches:
       - agent/cibo-capital-efficiency-sizing-lab-001
+      - agent/cibo-certification-architect-b-integration-001
     paths:
       - '.github/workflows/cibo-ctrader-demo-provider-economics.yml'
       - 'src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py'
+      - 'src/qore/infrastructure/cibo_ctrader_demo_account_capability.py'
+      - 'src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py'
       - 'src/qore/infrastructure/ctrader_open_api_client.py'
       - 'scripts/cibo_ctrader_demo_provider_economics_probe.py'
+      - 'scripts/cibo_ctrader_demo_account_capability_probe.py'
+      - 'scripts/cibo_phase20_provider_execution_calibration.py'
       - 'tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py'
+      - 'tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_execution_calibration.py'
+      - 'tests/infrastructure/test_cibo_phase20_provider_execution_calibration_export.py'
+      - 'docs/research/CIBO-B-PROVIDER-ECONOMICS-COMPONENT-FREEZE-V1.md'
   pull_request:
     paths:
       - '.github/workflows/cibo-ctrader-demo-provider-economics.yml'
       - 'src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py'
+      - 'src/qore/infrastructure/cibo_ctrader_demo_account_capability.py'
+      - 'src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py'
       - 'src/qore/infrastructure/ctrader_open_api_client.py'
       - 'scripts/cibo_ctrader_demo_provider_economics_probe.py'
+      - 'scripts/cibo_ctrader_demo_account_capability_probe.py'
+      - 'scripts/cibo_phase20_provider_execution_calibration.py'
       - 'tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py'
+      - 'tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_execution_calibration.py'
+      - 'tests/infrastructure/test_cibo_phase20_provider_execution_calibration_export.py'
+      - 'docs/research/CIBO-B-PROVIDER-ECONOMICS-COMPONENT-FREEZE-V1.md'
   workflow_dispatch:
 
 permissions:
@@ -49,14 +80,49 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py \
+            src/qore/infrastructure/cibo_ctrader_demo_account_capability.py \
+            src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py \
+            src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py \
             src/qore/infrastructure/ctrader_open_api_client.py \
             scripts/cibo_ctrader_demo_provider_economics_probe.py \
-            tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py
+            scripts/cibo_ctrader_demo_account_capability_probe.py \
+            scripts/cibo_phase20_provider_execution_calibration.py \
+            tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py \
+            tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py \
+            tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py \
+            tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py \
+            tests/infrastructure/test_cibo_ce2i_provider_execution_calibration.py \
+            tests/infrastructure/test_cibo_phase20_provider_execution_calibration_export.py
           mypy \
             src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py \
-            scripts/cibo_ctrader_demo_provider_economics_probe.py
+            src/qore/infrastructure/cibo_ctrader_demo_account_capability.py \
+            src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py \
+            src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py \
+            scripts/cibo_ctrader_demo_provider_economics_probe.py \
+            scripts/cibo_ctrader_demo_account_capability_probe.py \
+            scripts/cibo_phase20_provider_execution_calibration.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py \
+            src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py \
+            scripts/cibo_ctrader_demo_account_capability_probe.py \
+            scripts/cibo_phase20_provider_execution_calibration.py
           pytest -q --no-cov \
-            tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py
+            tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py \
+            tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py \
+            tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py \
+            tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py \
+            tests/infrastructure/test_cibo_ce2i_provider_execution_calibration.py \
+            tests/infrastructure/test_cibo_phase20_provider_execution_calibration_export.py
 
       - name: Verify DEMO credentials without printing them
         shell: bash
@@ -84,6 +150,9 @@ jobs:
           python scripts/cibo_ctrader_demo_provider_economics_probe.py \
             --output provider-economics/provider-economics.json \
             > provider-economics/provider-economics.stdout.json
+          python scripts/cibo_ctrader_demo_account_capability_probe.py \
+            --output provider-economics/account-capability.json \
+            > provider-economics/account-capability.stdout.json
 
       - name: Enforce no-mutation/no-history governance
         run: |
@@ -116,6 +185,21 @@ jobs:
               assert row["provenance"] == (
                   "PROVIDER_NATIVE_SYMBOL_SPOT_AND_EXPECTED_MARGIN"
               ), symbol
+
+          capability = json.loads(
+              Path("provider-economics/account-capability.json").read_text()
+          )
+          assert capability["provider_key"] == "ctrader-demo"
+          assert capability["environment"] == "demo"
+          assert capability["account_type"] in {
+              "HEDGED", "NETTED", "SPREAD_BETTING", "UNKNOWN"
+          }
+          assert capability["catalog_sha256"].startswith("sha256:")
+          assert capability["symbol_count"] > 0
+          assert capability["broker_mutation_performed"] is False
+          assert capability["t16_hedge_instrument_certified"] is False
+          assert capability["t17_option_structure_certified"] is False
+          assert capability["productive_authority"] is False
           PY
 
       - name: Seal provider economics evidence
@@ -125,6 +209,8 @@ jobs:
           sha256sum \
             provider-economics.json \
             provider-economics.stdout.json \
+            account-capability.json \
+            account-capability.stdout.json \
             git-sha.txt > SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
 
