@@ -589,7 +589,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_SCIENTIFIC_EVIDENCE_OPEN",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_CAUSAL_IDENTIFICATION_PROTOCOL_PREREGISTERED_REAL_PROSPECTIVE_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -599,14 +599,16 @@
         ".github/workflows/cibo-genc13-meta-capital-memory.yml",
         "src/qore/infrastructure/cibo_executive_memory.py",
         "github-actions://36727848318/SUCCESS",
-        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md"
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "docs/research/CIBO-GEN-C13-CAUSAL-IDENTIFICATION-PROTOCOL-V1.md",
+        "docs/research/CIBO-COMPOUND-CAUSAL-ABLATION-PROTOCOL-V1.md"
       ],
       "blockers": [
         "REAL_POST_OUTCOME_EPISODE_POPULATION_NOT_YET_BOUND",
-        "COUNTERFACTUAL_CAUSAL_IDENTIFICATION_NOT_YET_PROVEN",
+        "PROSPECTIVE_MEMORY_USE_CAUSAL_ABLATION_NOT_YET_RUN",
         "TEMPORAL_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Bind reconciled post-outcome capital episodes; keep counterfactuals non-causal until identified; then replicate findings across time."
+      "next_gate": "Bind real reconciled post-outcome episodes; generate only hypothesis-level retrospective counterfactuals; preregister any memory-conditioned treatment for later decisions and prove it prospectively via equal-population ablation, non-compensatory gate, stress and 4/4 temporal replication."
     },
     {
       "id": "GEN-C14",
