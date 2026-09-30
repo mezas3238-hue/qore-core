@@ -1,0 +1,159 @@
+name: QORE Shared B Temporal Source Clock Audit
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - scripts/shared_b_temporal_source_clock_audit.py
+      - .github/workflows/qore-shared-b-temporal-source-clock-audit.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-temporal-source-clock-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  RAW_RUN_ID: "36746337433"
+  RAW_ARTIFACT_ID: "11113260581"
+  RAW_GIT_SHA: "80c83baf2538195e2c8ece17e286e80603aae571"
+  RAW_ARTIFACT_DIGEST: "sha256:2d763ed01e66e223ba384ae3273db07beb7337dc6aede71bd4bc02aea69d839f"
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate source-clock audit
+        run: |
+          set -euo pipefail
+          ruff check scripts/shared_b_temporal_source_clock_audit.py
+          mypy scripts/shared_b_temporal_source_clock_audit.py
+          python -m py_compile scripts/shared_b_temporal_source_clock_audit.py
+
+      - name: Verify exact sealed B-03 lineage
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${RAW_RUN_ID}" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${RAW_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${RAW_RUN_ID}" --jq '.head_sha')" = "$RAW_GIT_SHA"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${RAW_ARTIFACT_ID}" --jq '.workflow_run.id')" = "$RAW_RUN_ID"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${RAW_ARTIFACT_ID}" --jq '.digest')" = "$RAW_ARTIFACT_DIGEST"
+
+      - name: Recover sealed raw evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/raw result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${RAW_ARTIFACT_ID}/zip" > raw.zip
+          unzip -q raw.zip -d input/raw
+          (cd input/raw && sha256sum -c SHA256SUMS)
+          test -f input/raw/shared-b-cross-asset-raw-manifest.json
+
+      - name: Audit all sealed source clocks
+        run: |
+          set -euo pipefail
+          python scripts/shared_b_temporal_source_clock_audit.py             --raw-root input/raw             --raw-manifest input/raw/shared-b-cross-asset-raw-manifest.json             --output result/shared-b-temporal-source-clock-audit.json             | tee result/summary.json
+
+      - name: Enforce causal clock boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/shared-b-temporal-source-clock-audit.json").read_text()
+          )
+          assert p["identity"] == "SHARED_B_TEMPORAL_SOURCE_CLOCK_INTEGRITY_001"
+          assert p["status"] == "SEALED_SOURCE_CLOCK_INTEGRITY_PASS"
+          assert p["sensor_count"] == 3
+          assert p["sealed_shard_count"] > 0
+          assert p["tick_count"] > 0
+          assert p["provider_event_after_retrieval_count"] == 0
+          assert p["provider_event_retrieval_clock_separation_pass"] is True
+          assert p["future_provider_event_rejected"] is True
+          assert p["raw_shard_monotonicity_pass"] is True
+          assert p[
+              "historical_retrieval_proves_past_point_in_time_availability"
+          ] is False
+          assert p["historical_retrieval_can_reset_market_freshness"] is False
+          assert p["causal_historical_use_authorized"] is False
+          assert p["canonical_market_hours_resolved"] is False
+          assert p["relational_comparability_authorized"] is False
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["broker_mutation"] is False
+          assert p["productive_authority"] is False
+          assert all(
+              row["provider_event_after_retrieval_count"] == 0
+              for row in p["sensor_reports"]
+          )
+          PY
+
+      - name: Seal B-08 source-clock evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          printf '%s\n' "$RAW_RUN_ID" > result/upstream-run-id.txt
+          printf '%s\n' "$RAW_ARTIFACT_ID" > result/upstream-artifact-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload B-08 source-clock evidence
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-temporal-source-clock-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report B-08 source-clock frontier
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/shared-b-temporal-source-clock-audit.json").read_text()
+          )
+          body="\n".join([
+              "## Architect B — B-08 sealed source-clock integrity",
+              "",
+              f"- Git SHA: {os.environ['GITHUB_SHA']}",
+              f"- run: {os.environ['GITHUB_RUN_ID']}",
+              f"- artifact: {os.environ['ARTIFACT_ID']}",
+              f"- sensors: **{p['sensor_count']}**",
+              f"- sealed shards: **{p['sealed_shard_count']}**",
+              f"- real ticks audited: **{p['tick_count']}**",
+              "- provider_event_at > retrieved_at: **0**",
+              "- provider/retrieval clock separation: **PASS**",
+              "- historical download implies historical point-in-time availability: **False**",
+              "- historical download resets market freshness: **False**",
+              "- canonical market-hours/comparability closure: **Still OPEN**",
+              "- outcome/R6/R5/fresh holdout/broker mutation: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body-file result/issue-comment.md
