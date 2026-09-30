@@ -274,6 +274,64 @@ def _load_ledger(path: Path = LEDGER_PATH) -> dict[str, Any]:
     return raw
 
 
+def _validate_current_summary(
+    raw: dict[str, Any],
+    *,
+    mandatory_count: int,
+    terminal_count: int,
+) -> dict[str, Any]:
+    summary = raw.get("current_summary")
+    if not isinstance(summary, dict):
+        raise CiboZeroOpenWorkGateError(
+            "CIBO closure ledger current_summary is required"
+        )
+    required = (
+        "mandatory_count",
+        "terminal_count",
+        "open_count",
+        "zero_open_work_pass",
+        "final_certification_candidate",
+    )
+    missing = tuple(key for key in required if key not in summary)
+    if missing:
+        raise CiboZeroOpenWorkGateError(
+            f"CIBO current_summary missing fields: {missing}"
+        )
+    expected_open = mandatory_count - terminal_count
+    expected = {
+        "mandatory_count": mandatory_count,
+        "terminal_count": terminal_count,
+        "open_count": expected_open,
+    }
+    for key, value in expected.items():
+        actual = summary[key]
+        if (
+            not isinstance(actual, int)
+            or isinstance(actual, bool)
+            or actual != value
+        ):
+            raise CiboZeroOpenWorkGateError(
+                f"CIBO current_summary {key} drift"
+            )
+    for key in (
+        "zero_open_work_pass",
+        "final_certification_candidate",
+    ):
+        if type(summary[key]) is not bool:
+            raise CiboZeroOpenWorkGateError(
+                f"CIBO current_summary {key} must be bool"
+            )
+    if summary["zero_open_work_pass"] != (expected_open == 0):
+        raise CiboZeroOpenWorkGateError(
+            "CIBO current_summary zero-open verdict drift"
+        )
+    if summary["final_certification_candidate"] and expected_open != 0:
+        raise CiboZeroOpenWorkGateError(
+            "CIBO final-certification candidate cannot retain open work"
+        )
+    return summary
+
+
 def _validate_workstream(row: object) -> dict[str, Any]:
     if not isinstance(row, dict):
         raise CiboZeroOpenWorkGateError(
@@ -461,6 +519,12 @@ def evaluate_gate(
             open_ids.append(str(row["id"]))
             continue
 
+        evidence_refs = tuple(str(item) for item in row["evidence_refs"])
+        if not evidence_refs:
+            raise CiboZeroOpenWorkGateError(
+                "terminal workstream requires evidence references"
+            )
+
         if disposition == "EXTERNAL_DEPENDENCY_BLOCKED":
             if bool(row["certification_blocking"]):
                 blocking_external.append(str(row["id"]))
@@ -468,16 +532,24 @@ def evaluate_gate(
                 raise CiboZeroOpenWorkGateError(
                     "external-dependency disposition requires blocker evidence"
                 )
+            continue
 
-        if disposition == "COMPLETED_AND_PROVEN":
-            if any(marker in maturity for marker in _LEDGER_OPEN_STATE_MARKERS):
-                raise CiboZeroOpenWorkGateError(
-                    "completed workstream cannot retain open maturity marker"
-                )
-            if blockers:
-                raise CiboZeroOpenWorkGateError(
-                    "completed workstream cannot retain blockers"
-                )
+        if blockers:
+            raise CiboZeroOpenWorkGateError(
+                "closed terminal workstream cannot retain blockers"
+            )
+        if any(marker in maturity for marker in _LEDGER_OPEN_STATE_MARKERS):
+            raise CiboZeroOpenWorkGateError(
+                "closed terminal workstream cannot retain open maturity marker"
+            )
+
+    summary = _validate_current_summary(
+        raw,
+        mandatory_count=len(mandatory),
+        terminal_count=sum(
+            1 for row in mandatory if row["terminal_disposition"] is not None
+        ),
+    )
 
     missing_artifacts = tuple(
         path
@@ -509,6 +581,10 @@ def evaluate_gate(
         or marker_hits
         or orphan_candidates
     )
+    if summary["final_certification_candidate"] and not passed:
+        raise CiboZeroOpenWorkGateError(
+            "CIBO final-certification candidate contradicts gate evidence"
+        )
     return GateVerdict(
         passed=passed,
         mandatory_workstream_count=len(mandatory),
