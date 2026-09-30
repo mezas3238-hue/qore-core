@@ -17,7 +17,7 @@ concurrency:
 jobs:
   prune-obsolete-runs:
     runs-on: windows-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - name: Cancel obsolete Architect B runs
         uses: actions/github-script@v7
@@ -54,15 +54,49 @@ jobs:
 
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-            async function listActive() {
-              const runs = await github.paginate(
-                github.rest.actions.listWorkflowRunsForRepo,
-                {
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  branch,
-                  per_page: 100,
+            function rateResetDelay(error) {
+              const message = String(error.message || "");
+              const status = Number(error.status || 0);
+              if (status !== 403 || !/rate limit/i.test(message)) return null;
+              const headers = error.response?.headers || {};
+              const raw =
+                headers["x-ratelimit-reset"] ||
+                headers["X-RateLimit-Reset"] ||
+                null;
+              const reset = Number(raw || 0);
+              if (Number.isFinite(reset) && reset > 0) {
+                return Math.max(2000, reset * 1000 - Date.now() + 5000);
+              }
+              return 60000;
+            }
+
+            async function withRateRetry(label, fn) {
+              while (true) {
+                try {
+                  return await fn();
+                } catch (error) {
+                  const delay = rateResetDelay(error);
+                  if (delay === null) throw error;
+                  core.warning(
+                    `${label}: GitHub API rate limit reached; retrying after reset`
+                  );
+                  await sleep(delay);
                 }
+              }
+            }
+
+            async function listActive() {
+              const runs = await withRateRetry(
+                "list workflow runs",
+                () => github.paginate(
+                  github.rest.actions.listWorkflowRunsForRepo,
+                  {
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    branch,
+                    per_page: 100,
+                  }
+                )
               );
               return runs.filter(
                 (run) => run.status !== "completed" && run.id !== currentRunId
@@ -71,7 +105,7 @@ jobs:
 
             async function waitForCurrentHeadRuns() {
               let active = [];
-              for (let attempt = 0; attempt < 8; attempt += 1) {
+              for (let attempt = 0; attempt < 10; attempt += 1) {
                 active = await listActive();
                 const currentNames = new Set(
                   active
@@ -84,29 +118,10 @@ jobs:
                 core.info(
                   `registration attempt=${attempt + 1} useful_current_head=${usefulPresent}`
                 );
-                if (usefulPresent >= 15 || attempt === 7) return active;
+                if (usefulPresent >= 15 || attempt === 9) return active;
                 await sleep(5000);
               }
               return active;
-            }
-
-            async function waitForRateBudget(required) {
-              while (true) {
-                const rate = await github.rest.rateLimit.get();
-                const coreRate = rate.data.resources.core;
-                core.info(
-                  `rate remaining=${coreRate.remaining} reset=${coreRate.reset} required=${required}`
-                );
-                if (coreRate.remaining >= required) return;
-                const delay = Math.max(
-                  1000,
-                  coreRate.reset * 1000 - Date.now() + 3000
-                );
-                core.warning(
-                  `GitHub API budget insufficient; sleeping until reset for ${delay}ms`
-                );
-                await sleep(delay);
-              }
             }
 
             let active = await waitForCurrentHeadRuns();
@@ -124,6 +139,13 @@ jobs:
               if (candidates.length) keepIds.add(candidates[0].id);
             }
 
+            if (keepIds.size < 15) {
+              core.setFailed(
+                `Only ${keepIds.size} protected Architect-B runs registered for current HEAD`
+              );
+              return;
+            }
+
             const cancel = [];
             for (const run of active) {
               let reason = null;
@@ -138,47 +160,37 @@ jobs:
             }
 
             const selected = cancel.slice(0, maxCancels);
-            await waitForRateBudget(selected.length + 25);
-
             const reasonCounts = {};
             let cancelled = 0;
             let benignRace = 0;
             let failed = 0;
 
             for (const item of selected) {
-              let done = false;
-              while (!done) {
-                try {
-                  await github.rest.actions.cancelWorkflowRun({
+              try {
+                await withRateRetry(
+                  `cancel run ${item.run.id}`,
+                  () => github.rest.actions.cancelWorkflowRun({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
                     run_id: item.run.id,
-                  });
-                  cancelled += 1;
-                  reasonCounts[item.reason] = (reasonCounts[item.reason] || 0) + 1;
-                  done = true;
-                } catch (error) {
-                  const message = String(error.message || "");
-                  const status = Number(error.status || 0);
-                  if (
-                    status === 409 ||
-                    status === 404 ||
-                    /cannot be cancelled|not found|already completed/i.test(message)
-                  ) {
-                    benignRace += 1;
-                    done = true;
-                  } else if (
-                    status === 403 &&
-                    /rate limit/i.test(message)
-                  ) {
-                    await waitForRateBudget(50);
-                  } else {
-                    failed += 1;
-                    core.warning(
-                      `cancel failed run=${item.run.id} name=${item.run.name}: ${message}`
-                    );
-                    done = true;
-                  }
+                  })
+                );
+                cancelled += 1;
+                reasonCounts[item.reason] = (reasonCounts[item.reason] || 0) + 1;
+              } catch (error) {
+                const message = String(error.message || "");
+                const status = Number(error.status || 0);
+                if (
+                  status === 409 ||
+                  status === 404 ||
+                  /cannot be cancelled|not found|already completed/i.test(message)
+                ) {
+                  benignRace += 1;
+                } else {
+                  failed += 1;
+                  core.warning(
+                    `cancel failed run=${item.run.id} name=${item.run.name}: ${message}`
+                  );
                 }
               }
             }
