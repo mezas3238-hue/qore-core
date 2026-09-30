@@ -1,0 +1,37 @@
+name: QORE Shared A X05 X06 Position Trajectory Memory
+
+concurrency:
+  group: qore-shared-a-x05-x06-position-trajectory-memory
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_position_trajectory_memory.py
+      - tests/infrastructure/test_core_stack_v2_shared_position_trajectory_memory.py
+      - .github/workflows/qore-shared-a-x05-x06-position-trajectory-memory.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Validate position trajectory memory
+        run: |
+          ruff check src/qore/infrastructure/core_stack_v2/shared_position_trajectory_memory.py tests/infrastructure/test_core_stack_v2_shared_position_trajectory_memory.py
+          mypy src/qore/infrastructure/core_stack_v2/shared_position_trajectory_memory.py
+          pytest -q tests/infrastructure/test_core_stack_v2_shared_position_trajectory_memory.py
