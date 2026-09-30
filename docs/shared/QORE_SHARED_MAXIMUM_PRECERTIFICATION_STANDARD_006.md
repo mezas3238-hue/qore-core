@@ -1000,3 +1000,52 @@ admitted productive sensors. Every sensor must remain governed.
 
 A failed hypothesis does not authorize deleting the underlying market from
 Shared knowledge.
+
+## Absolute zero-open-work gate
+
+The maximum-ceiling standard is now enforced by a machine-readable master
+ledger and an explicit certification blockade:
+
+- `src/qore/infrastructure/core_stack_v2/shared_zero_open_work.py`
+- `scripts/shared_master_open_work_ledger_v1.py`
+- `.github/workflows/qore-shared-maximum-zero-open-work.yml`
+
+Canonical law:
+
+```text
+MANDATORY CAPABILITY
+!= CLOSED
+BECAUSE ONE V1 WAS FALSIFIED
+
+MANDATORY CAPABILITY
+!= CLOSED
+BECAUSE ARCHITECTURE OR CONTRACT EXISTS
+
+CI GREEN
+!= SCIENTIFIC CLOSURE
+
+EXTERNAL_DEPENDENCY_BLOCKED
+!= COMPLETED
+```
+
+A mandatory work item reaches terminal closure only as
+`COMPLETED_AND_PROVEN`. Optional scientific hypotheses may terminate as
+`FALSIFIED_AND_CLOSED`, but falsification of one approach never deletes a
+mandatory capability.
+
+The master ledger must retain the full required organism, including WP-01..12,
+MC-01..28, STI-0..16, Global World workstreams and transversal certification
+requirements. Any required item that is partial, unresolved, blocked,
+research-incomplete or otherwise non-terminal forces:
+
+```text
+ZERO_OPEN_REQUIRED_WORK = FALSE
+PRE_CERTIFICATION_READY = FALSE
+FINAL CERTIFICATION EXAM = CLOSED
+PROTECTED CERTIFICATION HOLDOUT = CLOSED
+```
+
+Passing the zero-open-work gate is necessary but not sufficient. The gate
+itself never authorizes a protected holdout, final certification exam, LIVE,
+production, capital, Risk, order, execution or broker mutation.
+
