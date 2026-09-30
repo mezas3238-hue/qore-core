@@ -137,6 +137,7 @@ class V50RearmMarketReport:
     recovered_cognitive_geometry_ready_after_rearm: int
     total_cognitive_geometry_ready_setups: int
     exhausted_rearmable_setups: int
+    thesis_invalidated_before_trigger: int
     by_geometry_decision: tuple[tuple[str, int], ...]
     by_attempt_index: tuple[tuple[int, int], ...]
     maximum_attempt_index: int
@@ -177,6 +178,29 @@ def _session_groups(
         for day, rows in sorted(grouped.items())
         if rows
     )
+
+
+def _thesis_intact_until(
+    bars: tuple[CapitalizerM1Bar, ...],
+    opened: tuple[datetime, ...],
+    *,
+    setup_confirmed_at: datetime,
+    trigger_confirmed_at: datetime,
+    protected_swing_price: Decimal,
+    direction: CapitalizerSourceDirection,
+) -> bool:
+    """Return whether the M15 protected swing remains intact through trigger confirmation."""
+
+    window = _slice(
+        bars,
+        opened,
+        start=setup_confirmed_at,
+        end=trigger_confirmed_at,
+        context=0,
+    )
+    if direction is CapitalizerSourceDirection.BULLISH:
+        return not any(bar.low <= protected_swing_price for bar in window)
+    return not any(bar.high >= protected_swing_price for bar in window)
 
 
 def _opportunity(
@@ -323,6 +347,17 @@ def build_rearm_capacity(
                         cursor = trigger_at
                         continue
 
+                    if not _thesis_intact_until(
+                        bars,
+                        m1_opened,
+                        setup_confirmed_at=setup.confirmed_at,
+                        trigger_confirmed_at=trigger_at,
+                        protected_swing_price=setup.swing_price,
+                        direction=state.direction,
+                    ):
+                        counters["THESIS_INVALIDATED_BEFORE_TRIGGER"] += 1
+                        break
+
                     target = _untouched_h1_target_fast(
                         h1,
                         bars,
@@ -444,6 +479,9 @@ def build_rearm_capacity(
             ],
             total_cognitive_geometry_ready_setups=counters["TOTAL_COG_READY"],
             exhausted_rearmable_setups=counters["EXHAUSTED_REARMABLE"],
+            thesis_invalidated_before_trigger=counters[
+                "THESIS_INVALIDATED_BEFORE_TRIGGER"
+            ],
             by_geometry_decision=tuple(sorted(geometry_counts.items())),
             by_attempt_index=tuple(sorted(attempt_counts.items())),
             maximum_attempt_index=max(attempt_counts, default=0),
@@ -494,6 +532,9 @@ def build_matrix(root: Path) -> dict[str, Any]:
         ),
         "rearm_trigger_attempts": sum(
             int(row["rearm_trigger_attempts"]) for row in reports
+        ),
+        "thesis_invalidated_before_trigger": sum(
+            int(row["thesis_invalidated_before_trigger"]) for row in reports
         ),
         "outcome_used": False,
         "economics_used": False,
