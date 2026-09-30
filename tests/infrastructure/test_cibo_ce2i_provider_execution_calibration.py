@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -23,6 +24,7 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
 )
 from qore.infrastructure.cibo_ce2i_provider_execution_calibration import (
     calibrate_ctrader_demo_forward_execution,
+    provider_execution_risk_sha256,
 )
 
 T0 = datetime(2026, 9, 30, 20, 30, tzinfo=UTC)
@@ -137,6 +139,12 @@ def _population() -> tuple[
                     decision_at + timedelta(milliseconds=1000)
                 ),
             )
+        )
+        rows[-1] = replace(
+            rows[-1],
+            executed_risk_sha256=provider_execution_risk_sha256(
+                risks[-1]
+            ),
         )
     manifest = ArchBForwardEconomicManifest(
         manifest_id=ARCH_B_FORWARD_ECONOMIC_MANIFEST_ID,
@@ -258,10 +266,9 @@ def test_favorable_fill_is_preserved_as_negative_signed_slippage() -> None:
         capital_deployed_at=first.capital_deployed_at,
     )
     first_row = manifest.rows[0]
-    from dataclasses import replace
-
     adjusted_row = replace(
         first_row,
+        executed_risk_sha256=provider_execution_risk_sha256(favorable),
         executed_initial_stop_risk_usd=Decimal("0.995"),
         released_stop_risk_capacity_usd=Decimal("0.995"),
     )
