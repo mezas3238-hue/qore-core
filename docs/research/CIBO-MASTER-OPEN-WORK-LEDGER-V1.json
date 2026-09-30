@@ -76,11 +76,12 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED_ECONOMIC_PROTOCOL_PREREGISTERED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
-        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md"
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "github-actions://36767442915/SUCCESS"
       ],
       "blockers": [
         "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
@@ -155,11 +156,12 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED_ECONOMIC_PROTOCOL_PREREGISTERED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
-        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md"
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "github-actions://36767442915/SUCCESS"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
@@ -171,11 +173,12 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED_ECONOMIC_PROTOCOL_PREREGISTERED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
-        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md"
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "github-actions://36767442915/SUCCESS"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
@@ -187,11 +190,12 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED_ECONOMIC_PROTOCOL_PREREGISTERED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
-        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md"
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "github-actions://36767442915/SUCCESS"
       ],
       "blockers": [
         "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
@@ -216,11 +220,13 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED_ECONOMIC_PROTOCOL_PREREGISTERED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
-        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md"
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "github-actions://36767442915/SUCCESS",
+        "github-actions://36767442725/SUCCESS"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
@@ -232,11 +238,13 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED_ECONOMIC_PROTOCOL_PREREGISTERED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
-        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md"
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "github-actions://36767442915/SUCCESS",
+        "github-actions://36767442878/SUCCESS"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
@@ -331,11 +339,12 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED_ECONOMIC_PROTOCOL_PREREGISTERED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
-        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md"
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "github-actions://36767442915/SUCCESS"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
@@ -1036,39 +1045,44 @@
       "kind": "GOVERNANCE",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "INTEGRATOR_HARDENED_STRICT_AND_TWO_EXAM_PRE_EXAM_SEQUENCE_IMPLEMENTED_CI_PENDING_MASTER_LEDGER_OPEN",
+      "current_maturity": "A_AUDITOR_IMPL_PROVEN_INTEGRATOR_TWO_EXAM_SEQUENCE_IMPLEMENTED_CI_PENDING",
       "terminal_disposition": null,
       "evidence_refs": [
         "scripts/cibo_zero_open_work_gate.py",
         "tests/infrastructure/test_cibo_zero_open_work_gate.py",
-        "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md"
+        "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md",
+        "github-actions://36767443016/SUCCESS"
       ],
       "blockers": [
         "MASTER_LEDGER_HAS_OPEN_REQUIRED_WORK",
-        "INTEGRATOR_ZERO_OPEN_CI_REQUIRED"
+        "INTEGRATOR_TWO_EXAM_ZERO_OPEN_CI_REQUIRED"
       ],
-      "next_gate": "PRE_EXAM excludes only FINAL_INTEGRATED_CIBO_EXAM and WORLD_CUP_MAXIMUM_CAPABILITY_EXAM; after all non-exam mandatory work is terminal, run Final Integrated Exam, then World Cup Exam, then require STRICT zero-open PASS."
+      "next_gate": "Pass the Integrator two-exam sequencing CI; PRE_EXAM may then exclude only Final Integrated Exam and World Cup while STRICT continues to require every mandatory row terminal."
     },
     {
       "id": "FINAL_INTEGRATED_CIBO_EXAM",
       "kind": "CERTIFICATION",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "PROTOCOL_REVIEWED_EXECUTABLE_GATE_NOT_ACCEPTED_TRUST_HARDENING_REQUIRED",
+      "current_maturity": "EXECUTABLE_GATE_CHILD_CI_GREEN_TYPED_RECEIPT_HARDENING_AND_EXECUTION_BLOCKED",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md",
-        "docs/research/CIBO-CROSSBOUNDARY-EVIDENCE-BINDING-REUSE-V1.md"
+        "docs/research/CIBO-CROSSBOUNDARY-EVIDENCE-BINDING-REUSE-V1.md",
+        "src/qore/infrastructure/cibo_final_integrated_exam.py",
+        "tests/infrastructure/test_cibo_final_integrated_exam.py",
+        ".github/workflows/cibo-final-integrated-exam.yml",
+        "docs/research/CIBO-FINAL-INTEGRATED-CERTIFICATION-EXAM-PROTOCOL-V1.md",
+        "github-actions://36767442737/SUCCESS"
       ],
       "blockers": [
         "PRE_EXAM_NON_EXAM_ZERO_OPEN_PASS_REQUIRED",
         "FINAL_A_B_INTEGRATED_SOURCE_OF_TRUTH_RECONCILIATION_REQUIRED",
         "PHASE20D_PHASE21_PHASE22_AND_HOLDOUT_CHAIN_REQUIRED",
         "ALL_MANDATORY_SCIENTIFIC_AND_INTEGRATION_GATES_REQUIRED",
-        "FINAL_EXAM_TYPED_CANONICAL_RECEIPT_HARDENING_REQUIRED",
-        "FINAL_EXAM_EXECUTABLE_GATE_CI_REQUIRED"
+        "FINAL_EXAM_TYPED_CANONICAL_RECEIPT_HARDENING_REQUIRED"
       ],
-      "next_gate": "Harden P1-P8/E1-E10 against self-attestation using canonical typed receipts; after PRE_EXAM and Phase22 receipt pass, execute the integrated exam and terminally disposition it before World Cup."
+      "next_gate": "Harden P1-P8/E1-E10 with canonical typed receipts bound to the integrated HEAD; after PRE_EXAM and Phase22 receipt pass, execute the integrated exam and terminally disposition it before World Cup."
     },
     {
       "id": "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
