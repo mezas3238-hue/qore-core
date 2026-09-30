@@ -19,6 +19,7 @@ from decimal import Decimal
 
 from qore.infrastructure.cibo_capital_digital_twin import (
     Genc10CapitalFlow,
+    Genc10KnownCapitalOption,
     Genc10ObservedCapitalTwin,
     Genc10ProjectedTwinState,
     Genc10WorldKind,
@@ -512,7 +513,7 @@ def _validate_option_schedules(
 def _known_option(
     twin: Genc10ObservedCapitalTwin,
     option_id: str,
-):
+) -> Genc10KnownCapitalOption:
     rows = tuple(
         item for item in twin.known_options if item.option_id == option_id
     )
