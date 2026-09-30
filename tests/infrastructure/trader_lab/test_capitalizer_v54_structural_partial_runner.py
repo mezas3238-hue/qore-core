@@ -121,3 +121,44 @@ def test_post_t1_same_bar_be_and_runner_resolves_be_first() -> None:
     assert Decimal(trade.realized_gross_r) == Decimal("1")
     assert trade.exit_reason == "RUNNER_BE_FIRST_AMBIGUOUS"
     assert trade.same_bar_be_runner_ambiguity is True
+
+
+def _geometry_without_runner() -> V50GeometryProposal:
+    base = _geometry()
+    return V50GeometryProposal(
+        identity=base.identity,
+        decision=base.decision,
+        side=base.side,
+        entry_price=base.entry_price,
+        stop_mode=base.stop_mode,
+        stop_price=base.stop_price,
+        stop_risk_price=base.stop_risk_price,
+        stop_to_noise_ratio=base.stop_to_noise_ratio,
+        t1=base.t1,
+        t1_reward_r=base.t1_reward_r,
+        runner=None,
+        runner_reward_r=None,
+        reasons=("TEST_NO_RUNNER",),
+    )
+
+
+def test_no_runner_keeps_full_t1_exit_identical() -> None:
+    trade = _treatment_replay(
+        opportunity=_opportunity(),
+        bars=(_bar(0, high="102.1", low="99.5", close="102"),),
+        geometry=_geometry_without_runner(),
+    )
+    assert trade is not None
+    assert Decimal(trade.realized_gross_r) == Decimal("2")
+    assert trade.exit_reason == "T1_FULL_NO_RUNNER"
+
+
+def test_pre_t1_stop_is_unchanged_full_minus_one_r() -> None:
+    trade = _treatment_replay(
+        opportunity=_opportunity(),
+        bars=(_bar(0, high="101", low="98.9", close="99"),),
+        geometry=_geometry(),
+    )
+    assert trade is not None
+    assert Decimal(trade.realized_gross_r) == Decimal("-1")
+    assert trade.exit_reason == "STOP"
