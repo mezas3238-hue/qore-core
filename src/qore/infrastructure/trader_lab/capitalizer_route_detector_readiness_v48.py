@@ -122,13 +122,6 @@ FACTS: tuple[V48RouteDetectorFact, ...] = (
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_ASIA_4H_15M,
-        "M15_CONTINUATION_AVAILABLE",
-        V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND,
-        "capitalizer_ttrades_continuation_v48.py::assess_source_native_continuation",
-        "Continuation semantics exist; Asia still needs causal 15M POI orchestration.",
-    ),
-    V48RouteDetectorFact(
-        V48RouteId.TTRADES_ASIA_4H_15M,
         "STRUCTURAL_TARGET_AVAILABLE",
         V48DetectorReadiness.REUSABLE_CAUSAL_PRIMITIVE,
         "capitalizer_structural_target_candidate_set_v48.py",
