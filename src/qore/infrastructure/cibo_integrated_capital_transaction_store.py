@@ -329,13 +329,33 @@ class DurableIntegratedCapitalTransactionStore:
                     raise IntegratedCapitalTransactionError(
                         "integrated transaction prepare is missing"
                     )
-                if transaction_id not in current.unresolved_transaction_ids:
-                    return current
                 _validate_refs(observed_after_refs, "observed after")
                 _sha(
                     observed_capital_truth_sha256,
                     "observed_capital_truth_sha256",
                 )
+                if transaction_id not in current.unresolved_transaction_ids:
+                    commits = tuple(
+                        item
+                        for item in current.events
+                        if item.transaction_id == transaction_id
+                        and item.event_type
+                        is IntegratedCapitalTransactionEventType.COMMIT
+                    )
+                    if len(commits) != 1:
+                        raise IntegratedCapitalTransactionError(
+                            "committed transaction evidence is ambiguous"
+                        )
+                    prior_commit = commits[0]
+                    if (
+                        observed_after_refs != prior_commit.after_refs
+                        or observed_capital_truth_sha256
+                        != prior_commit.capital_truth_after_sha256
+                    ):
+                        raise IntegratedCapitalTransactionError(
+                            "conflicting integrated transaction recommit"
+                        )
+                    return current
                 if observed_after_refs != prepare.after_refs:
                     raise IntegratedCapitalTransactionError(
                         "observed component state differs from prepared target"

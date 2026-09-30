@@ -25,6 +25,7 @@ on:
       - 'tests/infrastructure/test_cibo_integrated_capital_truth.py'
       - 'tests/infrastructure/test_cibo_integrated_capital_transaction_store.py'
       - 'tests/infrastructure/test_cibo_integrated_capital_component_adapter.py'
+      - 'tests/infrastructure/test_cibo_integrated_capital_recovery.py'
       - 'docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md'
       - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
   push:
@@ -52,6 +53,7 @@ on:
       - 'tests/infrastructure/test_cibo_integrated_capital_truth.py'
       - 'tests/infrastructure/test_cibo_integrated_capital_transaction_store.py'
       - 'tests/infrastructure/test_cibo_integrated_capital_component_adapter.py'
+      - 'tests/infrastructure/test_cibo_integrated_capital_recovery.py'
       - 'docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md'
       - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
 
@@ -88,7 +90,8 @@ jobs:
             tests/infrastructure/test_cibo_compound_cycle_replay.py \
             tests/infrastructure/test_cibo_integrated_capital_truth.py \
             tests/infrastructure/test_cibo_integrated_capital_transaction_store.py \
-            tests/infrastructure/test_cibo_integrated_capital_component_adapter.py
+            tests/infrastructure/test_cibo_integrated_capital_component_adapter.py \
+            tests/infrastructure/test_cibo_integrated_capital_recovery.py
           mypy \
             src/qore/infrastructure/cibo_compound_cycle_state.py \
             src/qore/infrastructure/cibo_compound_market_cycle.py \
@@ -113,4 +116,5 @@ jobs:
             tests/infrastructure/test_cibo_compound_cycle_replay.py \
             tests/infrastructure/test_cibo_integrated_capital_truth.py \
             tests/infrastructure/test_cibo_integrated_capital_transaction_store.py \
-            tests/infrastructure/test_cibo_integrated_capital_component_adapter.py
+            tests/infrastructure/test_cibo_integrated_capital_component_adapter.py \
+            tests/infrastructure/test_cibo_integrated_capital_recovery.py

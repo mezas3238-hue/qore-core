@@ -196,3 +196,45 @@ def test_transaction_component_coverage_is_non_compensatory(
             prepared_at=T0,
             expected_generation=0,
         )
+
+
+def test_committed_transaction_only_allows_identical_recommit(
+    tmp_path: Path,
+) -> None:
+    store = DurableIntegratedCapitalTransactionStore(tmp_path / "tx.json")
+    store.prepare(
+        transaction_id="tx-1",
+        before_refs=_refs(generation=1, digit="1"),
+        after_refs=_refs(generation=2, digit="2"),
+        capital_truth_before_sha256="sha256:" + "3" * 64,
+        capital_truth_after_sha256="sha256:" + "4" * 64,
+        prepared_at=T0,
+        expected_generation=0,
+    )
+    committed = store.commit(
+        transaction_id="tx-1",
+        observed_after_refs=_refs(generation=2, digit="2"),
+        observed_capital_truth_sha256="sha256:" + "4" * 64,
+        committed_at=T0 + timedelta(seconds=1),
+        expected_generation=1,
+    )
+    same = store.commit(
+        transaction_id="tx-1",
+        observed_after_refs=_refs(generation=2, digit="2"),
+        observed_capital_truth_sha256="sha256:" + "4" * 64,
+        committed_at=T0 + timedelta(seconds=2),
+        expected_generation=2,
+    )
+    assert same == committed
+
+    with pytest.raises(
+        IntegratedCapitalTransactionError,
+        match="conflicting integrated transaction recommit",
+    ):
+        store.commit(
+            transaction_id="tx-1",
+            observed_after_refs=_refs(generation=2, digit="9"),
+            observed_capital_truth_sha256="sha256:" + "4" * 64,
+            committed_at=T0 + timedelta(seconds=3),
+            expected_generation=2,
+        )

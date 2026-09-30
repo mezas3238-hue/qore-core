@@ -915,7 +915,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "REAL_STORE_ADAPTER_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "REAL_STORE_RECOVERY_EXERCISE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_integrated_capital_truth.py",
@@ -927,14 +927,15 @@
         "src/qore/infrastructure/cibo_integrated_capital_transaction_store.py",
         "tests/infrastructure/test_cibo_integrated_capital_transaction_store.py",
         "src/qore/infrastructure/cibo_integrated_capital_component_adapter.py",
-        "tests/infrastructure/test_cibo_integrated_capital_component_adapter.py"
+        "tests/infrastructure/test_cibo_integrated_capital_component_adapter.py",
+        "tests/infrastructure/test_cibo_integrated_capital_recovery.py"
       ],
       "blockers": [
-        "REAL_STORE_COMPONENT_ADAPTER_CI_REVALIDATION_REQUIRED",
-        "REAL_RESTART_PARTIAL_WRITE_RECOVERY_EXERCISE_REQUIRED",
-        "LEGACY_SOURCE_T19_SETTLEMENT_SCHEMAS_LACK_EMBEDDED_ACCOUNT_IDENTITY"
+        "REAL_STORE_RECOVERY_EXERCISE_CI_REVALIDATION_REQUIRED",
+        "LEGACY_SOURCE_T19_SETTLEMENT_SCHEMAS_LACK_EMBEDDED_ACCOUNT_IDENTITY",
+        "REAL_CHRONOLOGICAL_POPULATION_BINDING_REQUIRED"
       ],
-      "next_gate": "Pass real-store adapter CI; run partial-write/restart recovery against all five durable stores; then migrate legacy Source/T19/Settlement schemas to embedded account identity or provide equivalent durable scope proof."
+      "next_gate": "Pass five-store partial-write/restart recovery CI; then migrate or durably bind account identity into legacy Source/T19/Settlement stores and run the integrated journal on real chronological research evidence."
     }
   ],
   "current_summary": {
