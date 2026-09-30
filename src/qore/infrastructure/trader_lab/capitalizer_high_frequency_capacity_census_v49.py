@@ -104,6 +104,8 @@ class V49MarketCapacity:
     identity: str
     symbol: str
     session: str
+    window_start: str
+    window_end_exclusive: str
     h1_bias_events: int
     h1_states: int
     m15_setups: int
@@ -463,6 +465,8 @@ def build_market_capacity(
             identity=IDENTITY,
             symbol=symbol,
             session=session.value,
+            window_start=window_start.isoformat(),
+            window_end_exclusive=window_end.isoformat(),
             h1_bias_events=sum(
                 1 for item in bias_events if window_start <= item.confirmed_at < window_end
             ),
