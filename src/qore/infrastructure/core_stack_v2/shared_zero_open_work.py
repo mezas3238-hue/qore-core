@@ -271,7 +271,7 @@ def build_shared_master_open_work_ledger() -> tuple[SharedOpenWorkItem, ...]:
         10: SharedWorkState.CONTRACT_IMPLEMENTED,
         11: SharedWorkState.CONTRACT_IMPLEMENTED,
         12: SharedWorkState.CONTRACT_IMPLEMENTED,
-        13: SharedWorkState.CONTRACT_IMPLEMENTED,
+        13: SharedWorkState.COMPLETED_AND_PROVEN,
         14: SharedWorkState.CAUSAL_REPLAY_EXECUTED,
         15: SharedWorkState.RESEARCH_INCOMPLETE,
         16: SharedWorkState.NOT_STARTED,
@@ -282,6 +282,7 @@ def build_shared_master_open_work_ledger() -> tuple[SharedOpenWorkItem, ...]:
             5: "sti5-v1-failure-diagnostic-run-36685175913",
             6: "sti6-v3-latent-trajectory-run-36684414954",
             8: "sti8-research-oos-run-36653177299",
+            13: "transversal-x17-x19-closure-run-36726425709",
         }
         evidence = evidence_by_index.get(
             index,
@@ -340,14 +341,27 @@ def build_shared_master_open_work_ledger() -> tuple[SharedOpenWorkItem, ...]:
         ("X-21", "Final Shared Freeze"),
         ("X-22", "Seven-Trader Two-Year Certification Protocol"),
     )
+    closed_transversal_evidence = {
+        "X-17": "transversal-x17-x19-closure-run-36726425709",
+        "X-19": "transversal-x17-x19-closure-run-36726425709",
+    }
     for work_id, title in cross_cutting:
+        evidence = closed_transversal_evidence.get(
+            work_id,
+            "owner-maximum-shared-directive-and-canonical-roadmaps",
+        )
+        state = (
+            SharedWorkState.COMPLETED_AND_PROVEN
+            if work_id in closed_transversal_evidence
+            else SharedWorkState.UNRESOLVED_REQUIRED_AUDIT
+        )
         items.append(
             _item(
                 work_id,
                 "TRANSVERSAL",
                 title,
-                SharedWorkState.UNRESOLVED_REQUIRED_AUDIT,
-                "owner-maximum-shared-directive-and-canonical-roadmaps",
+                state,
+                evidence,
             )
         )
 
