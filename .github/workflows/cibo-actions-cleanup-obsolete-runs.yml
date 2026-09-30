@@ -1,0 +1,104 @@
+name: QORE CIBO Actions Cleanup Obsolete Runs
+
+on:
+  push:
+    branches:
+      - ops/cibo-actions-cleanup-20260930
+    paths:
+      - '.github/workflows/cibo-actions-cleanup-obsolete-runs.yml'
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+jobs:
+  cancel-obsolete-cibo-runs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel obsolete CIBO runs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const targets = [
+              { branch: 'agent/cibo-certification-architect-a-science-001', pr: 660, label: 'A' },
+              { branch: 'agent/cibo-certification-architect-b-integration-001', pr: 661, label: 'B' },
+              { branch: 'agent/cibo-integrator-ab-001', pr: 670, label: 'INTEGRATOR' },
+            ];
+            const activeStatuses = ['queued', 'in_progress'];
+            let cancelled = 0;
+            let preserved = 0;
+            let skipped = 0;
+
+            async function cancelBatch(runIds) {
+              const batchSize = 20;
+              for (let i = 0; i < runIds.length; i += batchSize) {
+                const batch = runIds.slice(i, i + batchSize);
+                const results = await Promise.allSettled(
+                  batch.map(runId =>
+                    github.rest.actions.cancelWorkflowRun({
+                      owner,
+                      repo,
+                      run_id: runId,
+                    })
+                  )
+                );
+                for (const result of results) {
+                  if (result.status === 'fulfilled') {
+                    cancelled += 1;
+                  } else {
+                    const status = result.reason?.status;
+                    if (status === 404 || status === 409) {
+                      skipped += 1;
+                    } else {
+                      throw result.reason;
+                    }
+                  }
+                }
+                await new Promise(resolve => setTimeout(resolve, 250));
+              }
+            }
+
+            for (const target of targets) {
+              const pr = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: target.pr,
+              });
+              const keepSha = pr.data.head.sha;
+              core.info(`${target.label}: preserving current HEAD ${keepSha}`);
+
+              const obsolete = new Map();
+              for (const status of activeStatuses) {
+                const runs = await github.paginate(
+                  github.rest.actions.listWorkflowRunsForRepo,
+                  {
+                    owner,
+                    repo,
+                    branch: target.branch,
+                    status,
+                    per_page: 100,
+                  }
+                );
+                for (const run of runs) {
+                  if (run.head_sha === keepSha) {
+                    preserved += 1;
+                  } else {
+                    obsolete.set(run.id, run);
+                  }
+                }
+              }
+
+              core.info(
+                `${target.label}: cancelling ${obsolete.size} obsolete active runs; preserving current-head runs`
+              );
+              await cancelBatch([...obsolete.keys()]);
+            }
+
+            core.info(
+              `Cleanup complete: cancelled=${cancelled}, preserved=${preserved}, skipped_already_terminal=${skipped}`
+            );
+            core.setOutput('cancelled', String(cancelled));
+            core.setOutput('preserved', String(preserved));
+            core.setOutput('skipped', String(skipped));
