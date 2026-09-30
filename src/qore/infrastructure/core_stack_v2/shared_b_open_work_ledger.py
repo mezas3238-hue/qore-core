@@ -209,12 +209,17 @@ B_WORK_ITEMS: Final = (
         (
             "artifact:11115754374",
             "artifact:11119762780",
+            "artifact:11128342964",
+            "artifact:11128552806",
             "run:36755357039",
             "run:36764279123",
+            "run:36783197722",
+            "run:36783197825",
         ),
         (
-            "stale-relation empirical isolation remains gated by B-07/B-08 "
-            "canonical temporal comparability",
+            "STALE_RELATION now requires verified temporal comparability and "
+            "cross-asset regression is GREEN, but empirical stale-relation "
+            "isolation remains gated by B-07/B-08 canonical comparability",
         ),
     ),
     SharedBWorkItem(
