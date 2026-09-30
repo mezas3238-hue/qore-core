@@ -1,0 +1,146 @@
+name: QORE Shared B Temporal Governance Readiness
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b_temporal_governance_readiness.py
+      - scripts/shared_b_temporal_governance_readiness.py
+      - tests/infrastructure/test_shared_b_temporal_governance_readiness.py
+      - .github/workflows/qore-shared-b-temporal-governance-readiness.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-temporal-governance-readiness-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  CALENDAR_RUN_ID: "36782105126"
+  CALENDAR_ARTIFACT_ID: "11128361589"
+  CALENDAR_GIT_SHA: "512a007e1ba72e97bea397906b99423d6469bca6"
+  CLOCK_RUN_ID: "36767735668"
+  CLOCK_ARTIFACT_ID: "11124500250"
+  CLOCK_GIT_SHA: "f50fdfc2e42177648e4368f5314eb46ad4814b57"
+
+jobs:
+  readiness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate B-08 readiness reducer
+        run: |
+          set -euo pipefail
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/shared_b_temporal_governance_readiness.py \
+            scripts/shared_b_temporal_governance_readiness.py \
+            tests/infrastructure/test_shared_b_temporal_governance_readiness.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/shared_b_temporal_governance_readiness.py \
+            scripts/shared_b_temporal_governance_readiness.py
+          pytest -q tests/infrastructure/test_shared_b_temporal_governance_readiness.py
+      - name: Verify exact sealed upstream lineages
+        run: |
+          set -euo pipefail
+          for spec in \
+            "${CALENDAR_RUN_ID}:${CALENDAR_GIT_SHA}" \
+            "${CLOCK_RUN_ID}:${CLOCK_GIT_SHA}"
+          do
+            run_id="${spec%%:*}"
+            sha="${spec#*:}"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.status')" = "completed"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.conclusion')" = "success"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.head_sha')" = "$sha"
+          done
+      - name: Recover sealed B-07/B-08 inputs
+        run: |
+          set -euo pipefail
+          mkdir -p input/calendar input/clock result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${CALENDAR_ARTIFACT_ID}/zip" > calendar.zip
+          unzip -q calendar.zip -d input/calendar
+          (cd input/calendar && sha256sum -c SHA256SUMS)
+          calendar_file="$(find input/calendar -name shared-b-canonical-calendar-worklist.json -print -quit)"
+          test -n "$calendar_file"
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${CLOCK_ARTIFACT_ID}/zip" > clock.zip
+          unzip -q clock.zip -d input/clock
+          (cd input/clock && sha256sum -c SHA256SUMS)
+          clock_file="$(find input/clock -name shared-b-temporal-source-clock-audit.json -print -quit)"
+          test -n "$clock_file"
+
+          printf 'CALENDAR_FILE=%s\n' "$calendar_file" >> "$GITHUB_ENV"
+          printf 'CLOCK_FILE=%s\n' "$clock_file" >> "$GITHUB_ENV"
+      - name: Build B-08 temporal governance readiness
+        run: |
+          python scripts/shared_b_temporal_governance_readiness.py \
+            --calendar-worklist "$CALENDAR_FILE" \
+            --source-clock-audit "$CLOCK_FILE" \
+            --output result/shared-b-temporal-governance-readiness.json \
+            | tee result/summary.json
+      - name: Enforce exact fail-closed readiness
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/shared-b-temporal-governance-readiness.json").read_text())
+          assert p["identity"] == "SHARED_B_TEMPORAL_GOVERNANCE_READINESS_001"
+          assert p["status"] == "B08_TEMPORAL_GOVERNANCE_NOT_READY_EXACT_BLOCKERS_FROZEN"
+          assert p["sensor_universe_count"] == 177
+          assert p["source_clock_tick_count"] == 203185
+          assert p["temporal_governance_status"] == "NOT_READY"
+          assert set(p["temporal_governance_blockers"]) == {
+              "CANONICAL_MAPPING_INCOMPLETE",
+              "CANONICAL_CALENDAR_REGISTRY_EMPTY",
+              "CALENDAR_BINDING_INCOMPLETE",
+              "CADENCE_POLICY_REGISTRY_NOT_FROZEN",
+              "LIQUIDITY_POLICY_REGISTRY_NOT_FROZEN",
+              "TEMPORAL_SKEW_POLICY_REGISTRY_NOT_FROZEN",
+              "COMPARABILITY_POLICY_REGISTRY_NOT_FROZEN",
+          }
+          assert p["policy_thresholds_invented"] is False
+          assert p["global_threshold_extrapolation_from_three_sensors"] is False
+          assert p["relational_comparability_authorized"] is False
+          assert p["stale_relation_empirical_isolation_authorized"] is False
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["broker_mutation"] is False
+          assert p["productive_authority"] is False
+          assert p["b08_complete"] is False
+          assert len(p["readiness_fingerprint_sha256"]) == 64
+          PY
+      - name: Seal B-08 readiness evidence
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+      - name: Upload B-08 readiness evidence
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-temporal-governance-readiness-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report B-08 readiness
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-08 temporal governance readiness: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Source-clock integrity PASS on 3 sensors / 41 shards / 203185 ticks and exact calendar blockers frozen for 177/177 sensors. Temporal governance remains NOT_READY with 7 exact blockers: canonical mapping/calendar/binding plus cadence/liquidity/skew/comparability registries. No thresholds were invented or extrapolated from the 3-sensor clock audit; relational and STALE_RELATION authority remain CLOSED."
