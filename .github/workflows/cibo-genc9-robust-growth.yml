@@ -6,7 +6,9 @@ on:
     paths:
       - '.github/workflows/cibo-genc9-robust-growth.yml'
       - 'src/qore/infrastructure/cibo_robust_growth_ruin_capacity.py'
+      - 'src/qore/infrastructure/cibo_compound_path_monte_carlo.py'
       - 'tests/infrastructure/test_cibo_robust_growth_ruin_capacity.py'
+      - 'tests/infrastructure/test_cibo_compound_path_monte_carlo.py'
       - 'docs/research/CIBO-GEN-C9-ROBUST-GROWTH-RUIN-CAPACITY-PREREGISTRATION-V1.md'
       - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
   push:
@@ -15,7 +17,9 @@ on:
     paths:
       - '.github/workflows/cibo-genc9-robust-growth.yml'
       - 'src/qore/infrastructure/cibo_robust_growth_ruin_capacity.py'
+      - 'src/qore/infrastructure/cibo_compound_path_monte_carlo.py'
       - 'tests/infrastructure/test_cibo_robust_growth_ruin_capacity.py'
+      - 'tests/infrastructure/test_cibo_compound_path_monte_carlo.py'
       - 'docs/research/CIBO-GEN-C9-ROBUST-GROWTH-RUIN-CAPACITY-PREREGISTRATION-V1.md'
       - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
 
@@ -40,9 +44,15 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/cibo_robust_growth_ruin_capacity.py \
-            tests/infrastructure/test_cibo_robust_growth_ruin_capacity.py
-          mypy src/qore/infrastructure/cibo_robust_growth_ruin_capacity.py
+            src/qore/infrastructure/cibo_compound_path_monte_carlo.py \
+            tests/infrastructure/test_cibo_robust_growth_ruin_capacity.py \
+            tests/infrastructure/test_cibo_compound_path_monte_carlo.py
+          mypy \
+            src/qore/infrastructure/cibo_robust_growth_ruin_capacity.py \
+            src/qore/infrastructure/cibo_compound_path_monte_carlo.py
           python -m py_compile \
-            src/qore/infrastructure/cibo_robust_growth_ruin_capacity.py
+            src/qore/infrastructure/cibo_robust_growth_ruin_capacity.py \
+            src/qore/infrastructure/cibo_compound_path_monte_carlo.py
           pytest -q --no-cov \
-            tests/infrastructure/test_cibo_robust_growth_ruin_capacity.py
+            tests/infrastructure/test_cibo_robust_growth_ruin_capacity.py \
+            tests/infrastructure/test_cibo_compound_path_monte_carlo.py

@@ -70,6 +70,7 @@ _COMMENT_MARKERS = (
 )
 
 _WORKSTREAM_CLASSIFIERS = (
+    ("*cibo_compound_path_monte_carlo*", "PATH_DEPENDENT_MONTE_CARLO"),
     ("*cibo_governed_capital_science*", "GEN-C14"),
     ("*genc14-autonomous-capital-science*", "GEN-C14"),
     ("*GEN-C14-GOVERNED-AUTONOMOUS-CAPITAL-SCIENCE*", "GEN-C14"),

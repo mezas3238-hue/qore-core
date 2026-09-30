@@ -440,22 +440,23 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "ENGINE_PLUS_COMPOUND_MONTE_CARLO_ADAPTER_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
         "docs/research/CIBO-GEN-C9-ROBUST-GROWTH-RUIN-CAPACITY-PREREGISTRATION-V1.md",
         "src/qore/infrastructure/cibo_robust_growth_ruin_capacity.py",
         "tests/infrastructure/test_cibo_robust_growth_ruin_capacity.py",
-        ".github/workflows/cibo-genc9-robust-growth.yml"
+        ".github/workflows/cibo-genc9-robust-growth.yml",
+        "src/qore/infrastructure/cibo_compound_path_monte_carlo.py"
       ],
       "blockers": [
-        "GEN_C9_ENGINE_CI_REVALIDATION_REQUIRED",
-        "COMPOUND_PATH_MONTE_CARLO_ADAPTER_NOT_YET_BOUND",
+        "GEN_C9_COMPOUND_MONTE_CARLO_CI_REVALIDATION_REQUIRED",
         "ECONOMIC_GATE_NOT_YET_PREREGISTERED",
+        "REAL_PROVIDER_VALID_COMPOUND_PATH_POPULATION_REQUIRED",
         "FRESH_OOS_STRESS_TEMPORAL_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Pass GEN-C9 engine CI; bind path-dependent compound Monte Carlo and real provider/NCU evidence; preregister economic gate before comparative outcome inspection; then OOS/stress/replicate."
+      "next_gate": "Pass GEN-C9 + compound-path Monte Carlo CI; preregister economic gate before comparative outcome inspection; bind real provider-valid compound population; then OOS/stress/replicate."
     },
     {
       "id": "GEN-C10",
@@ -593,7 +594,7 @@
       "blockers": [
         "INTEGRATED_COMPOUND_CYCLE_CI_REVALIDATION_REQUIRED",
         "REAL_CHRONOLOGICAL_POPULATION_REPLAY_REQUIRED",
-        "PATH_DEPENDENT_MONTE_CARLO_STRESS_OOS_REPLICATION_REQUIRED"
+        "COMPOUND_MONTE_CARLO_REAL_POPULATION_STRESS_OOS_REPLICATION_REQUIRED"
       ],
       "next_gate": "Pass integrated-cycle CI, then bind real chronological population and close scientific gates."
     },
@@ -715,13 +716,19 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "PARTIAL_FOUNDATION",
+      "current_maturity": "COMPOUND_DEPENDENCY_ADAPTER_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "COMPOUND_GENERATIONS_FLOOR_ICM_RELEASE_PATHS_NOT_YET_FULLY_PRESERVED"
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_compound_path_monte_carlo.py",
+        "tests/infrastructure/test_cibo_compound_path_monte_carlo.py",
+        ".github/workflows/cibo-genc9-robust-growth.yml"
       ],
-      "next_gate": "Extend Monte Carlo to full compound path dependencies."
+      "blockers": [
+        "COMPOUND_PATH_MONTE_CARLO_CI_REVALIDATION_REQUIRED",
+        "REAL_COMPOUND_EPISODE_POPULATION_AND_FLOOR_ATTRIBUTION_REQUIRED",
+        "ADVERSARIAL_STRESS_AND_TEMPORAL_REPLICATION_REQUIRED"
+      ],
+      "next_gate": "Pass dependency-aware Compound Monte Carlo CI; bind real chronological settled compound episodes plus protected-floor attribution; run adversarial paths and temporal replication."
     },
     {
       "id": "ADVERSARIAL_STRESS",
