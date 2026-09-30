@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "docs/research/CIBO-AB-INTEGRATION-ACCEPTANCE-V1.json"
+      - "docs/research/CIBO-AB-CHILD-DELTA-ACCOUNTING-V1.json"
+      - "docs/research/CIBO-AB-CHILD-DELTA-ACCOUNTING-V1.json"
       - "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json"
       - "scripts/cibo_ab_integration_gate.py"
       - "tests/infrastructure/test_cibo_ab_integration_gate.py"
@@ -38,6 +40,9 @@ jobs:
             scripts/cibo_zero_open_work_gate.py
           python -m json.tool \
             docs/research/CIBO-AB-INTEGRATION-ACCEPTANCE-V1.json \
+            >/dev/null
+          python -m json.tool \
+            docs/research/CIBO-AB-CHILD-DELTA-ACCOUNTING-V1.json \
             >/dev/null
           python -m json.tool \
             docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json \
