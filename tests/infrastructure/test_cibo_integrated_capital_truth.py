@@ -9,7 +9,10 @@ from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
 )
-from qore.infrastructure.cibo_capital_management_authority import CapitalSource
+from qore.infrastructure.cibo_capital_management_authority import (
+    CapitalSource,
+    CapitalStage,
+)
 from qore.infrastructure.cibo_capital_source_ledger import CapitalSourceLedger
 from qore.infrastructure.cibo_ce2i_portfolio_allocation_ledger import (
     PortfolioAllocationLedger,
@@ -212,10 +215,7 @@ def _protected_observation(
         symbol="XAUUSD",
         signal_fingerprint="protected-open",
         position_id=903,
-        stage=__import__(
-            "qore.infrastructure.cibo_capital_management_authority",
-            fromlist=["CapitalStage"],
-        ).CapitalStage.CAPITALIZE,
+        stage=CapitalStage.CAPITALIZE,
         evidence_sufficient=True,
         expansion_eligible=eligible,
         realized_net_pnl_usd=Decimal("5"),
