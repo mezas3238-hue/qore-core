@@ -1,0 +1,165 @@
+name: QORE Shared B Sensor Qualification Frontier
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b_sensor_qualification_frontier.py
+      - scripts/shared_b_sensor_qualification_frontier.py
+      - tests/infrastructure/test_shared_b_sensor_qualification_frontier.py
+      - .github/workflows/qore-shared-b-sensor-qualification-frontier.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-sensor-qualification-frontier-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  REGISTRY_RUN_ID: "36745412605"
+  REGISTRY_ARTIFACT_ID: "11112621544"
+  REGISTRY_GIT_SHA: "0c85532b650cbb78b061c39f73bc04b4b505830e"
+  IDENTITY_RUN_ID: "36775635034"
+  IDENTITY_ARTIFACT_ID: "11125412870"
+  IDENTITY_GIT_SHA: "d4956bd7fa02830be56648338c871a78c00374bd"
+  CALENDAR_RUN_ID: "36782105126"
+  CALENDAR_ARTIFACT_ID: "11128361589"
+  CALENDAR_GIT_SHA: "512a007e1ba72e97bea397906b99423d6469bca6"
+  ACTIVE_RUN_ID: "36757173753"
+  ACTIVE_ARTIFACT_ID: "11116986748"
+  ACTIVE_GIT_SHA: "aacf3f67389b254b38e1d7a50ad1dd2836eea4d2"
+
+jobs:
+  frontier:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate B-16 frontier
+        run: |
+          set -euo pipefail
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/shared_b_sensor_qualification_frontier.py \
+            scripts/shared_b_sensor_qualification_frontier.py \
+            tests/infrastructure/test_shared_b_sensor_qualification_frontier.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/shared_b_sensor_qualification_frontier.py \
+            scripts/shared_b_sensor_qualification_frontier.py
+          pytest -q tests/infrastructure/test_shared_b_sensor_qualification_frontier.py
+      - name: Verify exact sealed upstream lineages
+        run: |
+          set -euo pipefail
+          for spec in \
+            "${REGISTRY_RUN_ID}:${REGISTRY_GIT_SHA}" \
+            "${IDENTITY_RUN_ID}:${IDENTITY_GIT_SHA}" \
+            "${CALENDAR_RUN_ID}:${CALENDAR_GIT_SHA}" \
+            "${ACTIVE_RUN_ID}:${ACTIVE_GIT_SHA}"
+          do
+            run_id="${spec%%:*}"
+            sha="${spec#*:}"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.status')" = "completed"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.conclusion')" = "success"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.head_sha')" = "$sha"
+          done
+      - name: Recover sealed qualification inputs
+        run: |
+          set -euo pipefail
+          mkdir -p input/registry input/identity input/calendar input/active result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${REGISTRY_ARTIFACT_ID}/zip" > registry.zip
+          unzip -q registry.zip -d input/registry
+          (cd input/registry && sha256sum -c SHA256SUMS)
+          registry_file="$(find input/registry -name global-sensor-registry.json -print -quit)"
+          test -n "$registry_file"
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${IDENTITY_ARTIFACT_ID}/zip" > identity.zip
+          unzip -q identity.zip -d input/identity
+          (cd input/identity && sha256sum -c SHA256SUMS)
+          identity_file="$(find input/identity -name shared-b-global-identity-frontier-v3.json -print -quit)"
+          test -n "$identity_file"
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${CALENDAR_ARTIFACT_ID}/zip" > calendar.zip
+          unzip -q calendar.zip -d input/calendar
+          (cd input/calendar && sha256sum -c SHA256SUMS)
+          calendar_file="$(find input/calendar -name shared-b-canonical-calendar-worklist.json -print -quit)"
+          test -n "$calendar_file"
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ACTIVE_ARTIFACT_ID}/zip" > active.zip
+          unzip -q active.zip -d input/active
+          (cd input/active && sha256sum -c SHA256SUMS)
+          active_file="$(find input/active -name shared-b-active-perception-resource-boundary.json -print -quit)"
+          test -n "$active_file"
+
+          printf 'REGISTRY_FILE=%s\n' "$registry_file" >> "$GITHUB_ENV"
+          printf 'IDENTITY_FILE=%s\n' "$identity_file" >> "$GITHUB_ENV"
+          printf 'CALENDAR_FILE=%s\n' "$calendar_file" >> "$GITHUB_ENV"
+          printf 'ACTIVE_FILE=%s\n' "$active_file" >> "$GITHUB_ENV"
+      - name: Build exact 177-sensor qualification frontier
+        run: |
+          python scripts/shared_b_sensor_qualification_frontier.py \
+            --sensor-registry "$REGISTRY_FILE" \
+            --identity-frontier "$IDENTITY_FILE" \
+            --calendar-worklist "$CALENDAR_FILE" \
+            --active-perception-boundary "$ACTIVE_FILE" \
+            --output result/shared-b-sensor-qualification-frontier.json \
+            | tee result/summary.json
+      - name: Enforce zero automatic admission
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/shared-b-sensor-qualification-frontier.json").read_text())
+          assert p["identity"] == "SHARED_B_SENSOR_QUALIFICATION_FRONTIER_001"
+          assert p["sensor_count"] == 177
+          assert p["discovered_count"] == 177
+          assert p["identity_next_step_ready_count"] == 90
+          assert p["canonical_calendar_binding_verified_count"] == 0
+          assert p["full_real_source_evidence_count"] == 2
+          assert p["partial_real_source_evidence_count"] == 1
+          assert p["no_bound_real_source_evidence_count"] == 174
+          assert p["scientific_value_proven_count"] == 0
+          assert p["causal_qualification_complete_count"] == 0
+          assert p["admitted_count"] == 0
+          assert p["provider_presence_is_scientific_admission"] is False
+          assert p["automatic_sensor_admission"] is False
+          assert p["target_or_outcome_used_for_selection"] is False
+          assert p["r6_r5_read_for_selection"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["broker_mutation"] is False
+          assert p["productive_authority"] is False
+          assert p["b16_complete"] is False
+          assert len(p["frontier_fingerprint_sha256"]) == 64
+          PY
+      - name: Seal B-16 frontier evidence
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+      - name: Upload B-16 qualification frontier
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-sensor-qualification-frontier-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report B-16 frontier
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-16 qualification frontier: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Exact 177 discovered sensors reconciled against identity/calendar/real-source evidence: 90 have identity evidence sufficient for the next qualification step, 2 have full real BID/ASK history evidence, 1 partial, 174 no bound real causal history; canonical calendar bindings=0 and scientific admissions=0. Provider presence did not become admission; B-16 remains OPEN."
