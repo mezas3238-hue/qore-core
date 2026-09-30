@@ -16,7 +16,7 @@ def _status(route: V48RouteId, fact_id: str) -> V48DetectorReadiness:
     )
 
 
-def test_london_cisd_protected_swing_is_one_fact_and_continuation_is_missing() -> None:
+def test_london_cisd_and_continuation_have_v48_primitives_but_need_route_binding() -> None:
     assert _status(
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
         "M15_PROTECTED_SWING_CONFIRMED_BY_CISD",
@@ -24,14 +24,14 @@ def test_london_cisd_protected_swing_is_one_fact_and_continuation_is_missing() -
     assert _status(
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
         "M15_CONTINUATION_AVAILABLE",
-    ) is V48DetectorReadiness.DETECTOR_MISSING
+    ) is V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND
 
 
-def test_scalp_raw_m1_cisd_is_not_mislabeled_as_complete_continuation_detector() -> None:
+def test_scalp_continuation_semantics_exist_but_still_need_m1_poi_binding() -> None:
     assert _status(
         V48RouteId.TTRADES_GENERIC_SCALP_H1_M15_M1,
         "M1_CONTINUATION_CONFIRMED",
-    ) is V48DetectorReadiness.DETECTOR_MISSING
+    ) is V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND
 
 
 def test_ftm_source_native_primitive_is_now_reusable() -> None:
