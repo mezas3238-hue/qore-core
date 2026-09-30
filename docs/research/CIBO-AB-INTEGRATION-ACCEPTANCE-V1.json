@@ -6,7 +6,7 @@
   "architect_a": {
     "pr": 660,
     "accepted_head_sha": "9f7a24a86c04a1d0554996ab57523e7338465002",
-    "latest_observed_head_sha": "a597b439da22cadc3929193c851140e0559fc906",
+    "latest_observed_head_sha": "f10e47e8f3127c5997168dd221fd30d9160dbe08",
     "support_blockers": [
       "A-SUPPORT-001_FINAL_EXAM_SELF_ATTESTATION",
       "A-SUPPORT-002_MANDATORY_WORKSTREAM_DRIFT"
@@ -20,7 +20,7 @@
   "architect_b": {
     "pr": 661,
     "accepted_head_sha": "5d028b1ebc76a98db36d26f86bc872e2f60c5541",
-    "latest_observed_head_sha": "85a54ad0a7ba77f9633c4e3621bda9810ba1fb57",
+    "latest_observed_head_sha": "868213aa07309b1d3e65745e581c11d45d851fcf",
     "support_blockers": [
       "B-SUPPORT-001_USD60_READINESS_SELF_ATTESTATION",
       "B-SUPPORT-002_RISK_HANDOFF_LEDGER_DRIFT",
