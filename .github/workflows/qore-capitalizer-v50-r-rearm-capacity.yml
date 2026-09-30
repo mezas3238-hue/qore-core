@@ -17,8 +17,10 @@ permissions:
   actions: read
 
 concurrency:
-  group: qore-capitalizer-v50-r-${{ github.ref }}
-  cancel-in-progress: true
+  # A V50-R run is an expensive deterministic census. A newer source commit must not
+  # cancel a run that already passed quality and started consuming retained M1.
+  group: qore-capitalizer-v50-r-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
 
 env:
   SOURCE_M1_RUN_ID: '35548099334'
