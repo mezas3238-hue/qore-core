@@ -45,14 +45,20 @@ FACTS: tuple[V48RouteDetectorFact, ...] = (
         "HTF_FRACTAL_BIAS_CONFIRMED",
         V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND,
         "capitalizer_source_daily_bias_v2.py",
-        "Existing bias detector freezes one C2/C3-at-POI route; Asia needs route-native HTF framing.",
+        (
+            "Existing bias detector freezes one C2/C3-at-POI route; Asia needs "
+            "route-native HTF framing."
+        ),
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_ASIA_POSITIONAL,
         "LTF_CISD_CONFIRMED",
         V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND,
         "capitalizer_source_cisd_ftm_v2.py::detect_cisd",
-        "Raw structural CISD mechanics are reusable but V2 setup_confirmed carries old HTF coupling.",
+        (
+            "Raw structural CISD mechanics are reusable but V2 setup_confirmed carries "
+            "old HTF coupling."
+        ),
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_ASIA_POSITIONAL,
