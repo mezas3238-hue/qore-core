@@ -76,12 +76,12 @@ Missing material evidence fails closed. It is never reconstructed.
 
 ## Temporal law
 
-All four frozen qualification folds must be represented:
+All four canonical Phase20D qualification folds must be represented:
 
-- FOLD_1
-- FOLD_2
-- FOLD_3
-- FOLD_4
+- WF1
+- WF2
+- WF3
+- WF4
 
 Folds may not overlap or interleave. IDs for episode, deployment, market event
 and decision must be unique.
