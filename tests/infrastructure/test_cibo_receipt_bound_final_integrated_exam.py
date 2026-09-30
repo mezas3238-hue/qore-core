@@ -48,6 +48,8 @@ def _artifact(
 ) -> str:
     payload = {
         "schema": "qore.cibo.bound-final-exam-test.v1",
+        "evidence_binding_id": receipt_id,
+        "evidence_kind": "FINAL_INTEGRATED_EXAM_CONTROL",
         "producer_gate_id": f"gate:{receipt_id}",
         "integrated_git_sha": head,
         "policy_identity_sha256": POLICY,
