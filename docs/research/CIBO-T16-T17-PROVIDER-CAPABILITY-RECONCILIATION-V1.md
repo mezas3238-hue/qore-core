@@ -103,3 +103,37 @@ This narrows T17 but deliberately does not promote it:
 T16 is unchanged: account mode and taxonomy do not establish economic hedge
 utility. Basis risk, cost, correlation, execution feasibility and fresh OOS
 utility remain mandatory.
+
+
+## Limited-Risk / Guaranteed Stop Loss equivalent candidate
+
+The current cTrader Open API also exposes a provider-native limited-downside
+mechanism that must be evaluated before T17 can be falsified solely from the
+absence of options:
+
+- `ProtoOATrader.isLimitedRisk`;
+- `ProtoOATrader.limitedRiskMarginCalculationStrategy`;
+- `ProtoOASymbol.guaranteedStopLoss`;
+- `ProtoOASymbol.gslDistance`;
+- `ProtoOASymbol.gslCharge`.
+
+Architect B now captures these fields read-only and produces a sanitized,
+account-fingerprint-bound assessment:
+
+`qore.cibo.t17.limited_risk_capability.v1`
+
+This assessment may identify a **provider-native GSL candidate** when the
+connected account is Limited Risk and the observed QORE provider universe has
+complete GSL support.
+
+That is not terminal T17 proof. The assessment hard-codes:
+
+- `option_structure_proven=false`;
+- `defined_risk_spread_proven=false`;
+- `gsl_execution_economics_proven=false`;
+- `fresh_oos_utility_demonstrated=false`;
+- `t17_policy_ready=false`;
+- `productive_authority=false`.
+
+If a GSL candidate exists, B still needs empirical execution/cost evidence and
+fresh OOS economic utility before it can become a terminal T17 disposition.
