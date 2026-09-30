@@ -9,7 +9,7 @@ on:
     branches:
       - agent/shared-a-cognitive-science-001
     paths:
-      - docs/shared/evidence/QORE_SHARED_STI8_ECONOMIC_RESPONSE_V3_ENGINEERING_RECOVERY_AMENDMENT_001.json
+      - docs/shared/evidence/QORE_SHARED_STI8_ECONOMIC_RESPONSE_V3_ENGINEERING_RECOVERY_AMENDMENT_002.json
       - scripts/shared_sti8_economic_response_v3_recovery_probe.py
       - scripts/shared_sti8_v3_fresh_trade_filter.py
       - .github/workflows/qore-shared-a-sti8-economic-response-v3-recovery.yml
@@ -57,7 +57,7 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          a=json.loads(Path("docs/shared/evidence/QORE_SHARED_STI8_ECONOMIC_RESPONSE_V3_ENGINEERING_RECOVERY_AMENDMENT_001.json").read_text())
+          a=json.loads(Path("docs/shared/evidence/QORE_SHARED_STI8_ECONOMIC_RESPONSE_V3_ENGINEERING_RECOVERY_AMENDMENT_002.json").read_text())
           assert a["status"] == "ENGINEERING_RECOVERY_ONLY"
           assert a["failed_run"]["run_id"] == 36740059589
           assert a["failed_run"]["economic_evaluation_started"] is False
@@ -124,7 +124,7 @@ jobs:
           cp -R fresh raw-evidence/
           cp result/sti8-v3-oos-trades.json raw-evidence/
           cp docs/shared/evidence/QORE_SHARED_STI8_ECONOMIC_RESPONSE_V3_PREREGISTRATION_001.json raw-evidence/preregistration.json
-          cp docs/shared/evidence/QORE_SHARED_STI8_ECONOMIC_RESPONSE_V3_ENGINEERING_RECOVERY_AMENDMENT_001.json raw-evidence/recovery-amendment.json
+          cp docs/shared/evidence/QORE_SHARED_STI8_ECONOMIC_RESPONSE_V3_ENGINEERING_RECOVERY_AMENDMENT_002.json raw-evidence/recovery-amendment.json
           printf '%s\n' "${GITHUB_SHA}" > raw-evidence/code-git-sha.txt
           (
             cd raw-evidence
@@ -168,7 +168,7 @@ jobs:
       - name: Seal recovery result
         run: |
           cp docs/shared/evidence/QORE_SHARED_STI8_ECONOMIC_RESPONSE_V3_PREREGISTRATION_001.json result/preregistration.json
-          cp docs/shared/evidence/QORE_SHARED_STI8_ECONOMIC_RESPONSE_V3_ENGINEERING_RECOVERY_AMENDMENT_001.json result/recovery-amendment.json
+          cp docs/shared/evidence/QORE_SHARED_STI8_ECONOMIC_RESPONSE_V3_ENGINEERING_RECOVERY_AMENDMENT_002.json result/recovery-amendment.json
           cp fresh/EVIDENCE-SHA256SUMS result/EVIDENCE-SHA256SUMS
           printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
           (
@@ -198,7 +198,7 @@ jobs:
               f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
               f"- run: `{os.environ['GITHUB_RUN_ID']}`",
               "- parent failed run economic evaluation started: **False**",
-              "- source reconstruction envelope: **730 days**",
+              "- source reconstruction envelope: **740 calendar days / >=730 actual-bar days**",
               "- V3 evaluation window: **2026-07-22 → 2026-09-29**",
               f"- disposition: **{p['status']}**",
               f"- fresh trades / observations: **{p['trade_count']} / {p['source_observation_count']}**",
