@@ -909,12 +909,33 @@
         "PROVIDER_VALID_USD_ECONOMICS_AND_FINAL_FROZEN_EXAM_REQUIRED"
       ],
       "next_gate": "Reconcile robust-capacity/protected-operating-floor mechanics and run provider-valid capability challenge only after prerequisites."
+    },
+    {
+      "id": "INTEGRATED_CAPITAL_TRUTH",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_integrated_capital_truth.py",
+        "tests/infrastructure/test_cibo_integrated_capital_truth.py",
+        ".github/workflows/cibo-compound-engine-integrated-cycle.yml",
+        "src/qore/infrastructure/cibo_capital_source_ledger.py",
+        "src/qore/infrastructure/cibo_compound_cycle_audit.py"
+      ],
+      "blockers": [
+        "INTEGRATED_CAPITAL_TRUTH_CI_REVALIDATION_REQUIRED",
+        "PROTECTED_ECONOMIC_FLOOR_SOURCE_LINEAGE_NOT_YET_GENERALIZED",
+        "REAL_CHRONOLOGICAL_SOURCE_LEDGER_BINDING_REQUIRED"
+      ],
+      "next_gate": "Pass cross-ledger equivalence CI, then bind real chronological source/settlement/compound/T19 evidence and generalize protected-profit lineage without double counting."
     }
   ],
   "current_summary": {
-    "mandatory_count": 62,
+    "mandatory_count": 63,
     "terminal_count": 1,
-    "open_count": 61,
+    "open_count": 62,
     "zero_open_work_pass": false,
     "final_certification_candidate": false
   }
