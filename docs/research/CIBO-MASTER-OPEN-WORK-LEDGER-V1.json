@@ -494,7 +494,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_MONTE_CARLO_AND_ECONOMIC_GATE_IMPLEMENTED_CI_GREEN_SCIENTIFIC_EVIDENCE_OPEN",
+      "current_maturity": "ENGINE_REAL_POPULATION_BINDING_AND_TEMPORAL_CRITERION_CHILD_CI_GREEN_REAL_ECONOMIC_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -509,10 +509,10 @@
         "github-actions://36727848052/SUCCESS",
         "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
         "src/qore/infrastructure/cibo_compound_real_population_binding.py",
-        "src/qore/infrastructure/cibo_compound_temporal_replication_gate.py"
+        "src/qore/infrastructure/cibo_compound_temporal_replication_gate.py",
+        "github-actions://36754064447/SUCCESS"
       ],
       "blockers": [
-        "REAL_POPULATION_BINDING_AND_TEMPORAL_CRITERION_CHILD_CI_REVALIDATION_REQUIRED",
         "REAL_PROVIDER_VALID_COMPOUND_PATH_POPULATION_REQUIRED",
         "FRESH_OOS_STRESS_TEMPORAL_REPLICATION_REQUIRED"
       ],
@@ -523,7 +523,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_AND_TRANSITION_CALIBRATION_PROTOCOL_IMPLEMENTED_CI_PENDING_REAL_CALIBRATION_OPEN",
+      "current_maturity": "ENGINE_AND_TRANSITION_CALIBRATION_PROTOCOL_CHILD_CI_GREEN_REAL_CALIBRATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -535,10 +535,10 @@
         "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
         "src/qore/infrastructure/cibo_genc10_transition_uncertainty_calibration.py",
         "tests/infrastructure/test_cibo_genc10_transition_uncertainty_calibration.py",
-        "docs/research/CIBO-GEN-C10-TRANSITION-UNCERTAINTY-CALIBRATION-PROTOCOL-V1.md"
+        "docs/research/CIBO-GEN-C10-TRANSITION-UNCERTAINTY-CALIBRATION-PROTOCOL-V1.md",
+        "github-actions://36754064440/SUCCESS"
       ],
       "blockers": [
-        "GEN_C10_TRANSITION_CALIBRATION_ENGINE_CI_REVALIDATION_REQUIRED",
         "REAL_CHRONOLOGICAL_TWIN_TRANSITION_POPULATION_NOT_YET_BOUND",
         "REAL_TRANSITION_UNCERTAINTY_CALIBRATION_RESULTS_NOT_YET_PROVEN",
         "FRESH_OOS_STRESS_TEMPORAL_REPLICATION_REQUIRED"
@@ -801,7 +801,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "MONTE_CARLO_ENGINE_COMMON_CI_GREEN_REAL_POPULATION_BINDING_IMPLEMENTED_CHILD_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "MONTE_CARLO_ENGINE_AND_REAL_POPULATION_BINDING_CHILD_CI_GREEN_REAL_POPULATION_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_path_monte_carlo.py",
@@ -811,10 +811,10 @@
         "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
         "src/qore/infrastructure/cibo_compound_real_population_binding.py",
         "tests/infrastructure/test_cibo_compound_real_population_binding.py",
-        "docs/research/CIBO-COMPOUND-REAL-POPULATION-BINDING-V1.md"
+        "docs/research/CIBO-COMPOUND-REAL-POPULATION-BINDING-V1.md",
+        "github-actions://36754064447/SUCCESS"
       ],
       "blockers": [
-        "REAL_POPULATION_BINDING_CHILD_CI_REVALIDATION_REQUIRED",
         "REAL_COMPOUND_EPISODE_POPULATION_AND_FLOOR_ATTRIBUTION_REQUIRED",
         "ADVERSARIAL_STRESS_AND_TEMPORAL_REPLICATION_REQUIRED"
       ],
@@ -869,7 +869,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "REPLICATION_HARNESS_COMMON_CI_GREEN_ECONOMIC_4_OF_4_CRITERION_IMPLEMENTED_CHILD_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "REPLICATION_HARNESS_AND_ECONOMIC_4_OF_4_CRITERION_CHILD_CI_GREEN_REAL_FOLDS_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_temporal_replication.py",
@@ -879,10 +879,10 @@
         "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
         "src/qore/infrastructure/cibo_compound_temporal_replication_gate.py",
         "tests/infrastructure/test_cibo_compound_temporal_replication_gate.py",
-        "docs/research/CIBO-COMPOUND-TEMPORAL-ECONOMIC-REPLICATION-CRITERION-V1.md"
+        "docs/research/CIBO-COMPOUND-TEMPORAL-ECONOMIC-REPLICATION-CRITERION-V1.md",
+        "github-actions://36754064447/SUCCESS"
       ],
       "blockers": [
-        "TEMPORAL_ECONOMIC_CRITERION_CHILD_CI_REVALIDATION_REQUIRED",
         "REAL_FROZEN_TEMPORAL_FOLDS_REQUIRED",
         "REAL_4_OF_4_ECONOMIC_REPLICATION_RESULTS_REQUIRED"
       ],
