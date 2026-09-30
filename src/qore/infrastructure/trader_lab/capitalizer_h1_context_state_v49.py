@@ -89,11 +89,24 @@ def build_h1_context_states(
     if ordered != signals:
         raise ValueError("H1 bias signals must be chronological")
 
-    relevant = tuple(
+    prior = tuple(item for item in signals if item.confirmed_at < session_start)
+    relevant_list = [
         item
         for item in signals
         if session_start <= item.confirmed_at < session_end
-    )
+    ]
+    if prior:
+        seed = prior[-1]
+        relevant_list.insert(
+            0,
+            V49H1BiasSignal(
+                confirmed_at=session_start,
+                direction=seed.direction,
+                basis_id=f"SESSION_INHERITED:{seed.basis_id}",
+            ),
+        )
+    relevant = tuple(relevant_list)
+
     states: list[V49H1ContextState] = []
     for index, signal in enumerate(relevant):
         if index > 0 and relevant[index - 1].direction is signal.direction:
