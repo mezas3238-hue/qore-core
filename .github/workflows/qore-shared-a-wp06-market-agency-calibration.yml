@@ -1,0 +1,134 @@
+name: QORE Shared A WP06 Market Agency Calibration
+
+concurrency:
+  group: qore-shared-a-wp06-market-agency-calibration
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - docs/shared/evidence/QORE_SHARED_WP06_MARKET_AGENCY_CALIBRATION_PREREGISTRATION_001.json
+      - scripts/shared_wp06_market_agency_calibration.py
+      - .github/workflows/qore-shared-a-wp06-market-agency-calibration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  calibration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Validate preregistration
+        run: |
+          set -euo pipefail
+          mkdir -p input/{r6,r5} result
+          ruff check scripts/shared_wp06_market_agency_calibration.py
+          python -m py_compile scripts/shared_wp06_market_agency_calibration.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("docs/shared/evidence/QORE_SHARED_WP06_MARKET_AGENCY_CALIBRATION_PREREGISTRATION_001.json").read_text())
+          assert p["status"] == "PREREGISTERED_BEFORE_OUTCOME_SCORING"
+          assert p["dataset_protocol"]["r5_used_for_fit"] is False
+          assert p["models"]["hyperparameter_search"] is False
+          assert p["governance"]["protected_certification_holdout_opened"] is False
+          PY
+
+      - name: Recover immutable R6/R5 source evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Evaluate incremental agency representation
+        run: |
+          set -euo pipefail
+          python scripts/shared_wp06_market_agency_calibration.py             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/wp06-market-agency-calibration.json             | tee result/summary.json
+
+      - name: Validate scientific disposition without forcing pass
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/wp06-market-agency-calibration.json").read_text())
+          assert p["status"] in {
+              "WP06_MARKET_AGENCY_CALIBRATION_OOS_PASS",
+              "WP06_MARKET_AGENCY_CALIBRATION_OOS_FALSIFIED",
+          }
+          assert p["agency_engine_changed"] is False
+          assert p["hyperparameter_search_used"] is False
+          assert p["r5_used_for_fit"] is False
+          assert p["future_market_used_for_inference"] is False
+          assert p["outcome_used_for_agency_inference"] is False
+          assert p["wp05_dependency_closed"] is False
+          assert p["wp06_completed_and_proven"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+
+      - name: Seal result
+        run: |
+          cp docs/shared/evidence/QORE_SHARED_WP06_MARKET_AGENCY_CALIBRATION_PREREGISTRATION_001.json result/preregistration.json
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-wp06-market-agency-calibration-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report WP-06 calibration
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/wp06-market-agency-calibration.json").read_text())
+          body="\n".join([
+              "## Shared A WP-06 / MC-17 — Market Agency Calibration",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              f"- R6 tail: **{p['results']['r6_tail']}**",
+              f"- R5: **{p['results']['r5']}**",
+              f"- scenario discrimination improved: **{p['scenario_discrimination_improved']}**",
+              f"- calibration improved: **{p['calibration_improved']}**",
+              "- WP-05 dependency closed: **False**",
+              "- WP-06 completed-and-proven: **False**",
+              "- protected certification holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 644 --body-file result/issue-comment.md
