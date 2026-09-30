@@ -314,7 +314,7 @@ def build_shared_master_open_work_ledger() -> tuple[SharedOpenWorkItem, ...]:
 
     gw_states = {
         0: SharedWorkState.ARCHITECTURE_DEFINED,
-        1: SharedWorkState.REAL_DATA_BOUND,
+        1: SharedWorkState.COMPLETED_AND_PROVEN,
         2: SharedWorkState.RESEARCH_INCOMPLETE,
         3: SharedWorkState.RESEARCH_INCOMPLETE,
     }
@@ -325,7 +325,11 @@ def build_shared_master_open_work_ledger() -> tuple[SharedOpenWorkItem, ...]:
                 "GLOBAL_WORLD",
                 title,
                 gw_states.get(index, SharedWorkState.NOT_STARTED),
-                "owner-directive-006-and-current-global-world-evidence",
+                (
+                    "gw1-provider-capability-run-36641140388-artifact-11066159026"
+                    if index == 1
+                    else "owner-directive-006-and-current-global-world-evidence"
+                ),
             )
         )
 
