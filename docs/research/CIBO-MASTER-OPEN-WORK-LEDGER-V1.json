@@ -70,7 +70,7 @@
       "blockers": [
         "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "Bind provider-valid marginal-capital economics and prove value under the frozen CE2I economic protocol; then OOS/stress/replication and terminal disposition."
     },
     {
       "id": "T05",
@@ -150,7 +150,7 @@
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "Bind the fresh forward causal population and execute the frozen factor-neutralization ablation; require non-compensatory OOS/stress/replication before terminal disposition."
     },
     {
       "id": "T09",
@@ -167,7 +167,7 @@
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "Bind fresh true-scarcity forward evidence and prove opportunity-competition economic value without hindsight selection; then stress/replication and terminal disposition."
     },
     {
       "id": "T10",
@@ -184,7 +184,7 @@
       "blockers": [
         "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "Bind provider-valid chronological capital-duration/release economics and prove capital-velocity value without hidden leverage or outcome leakage; then OOS/stress/replication."
     },
     {
       "id": "T11",
@@ -215,7 +215,7 @@
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "Bind fresh forward regime-eligibility treatment/control outcomes to the fixed T12 utility contract; require 4-fold non-compensatory OOS/stress evidence before terminal disposition."
     },
     {
       "id": "T13",
@@ -233,7 +233,7 @@
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "Bind fresh forward drawdown-reserve treatment/control outcomes to the fixed T13 utility contract; require 4-fold non-compensatory OOS/stress evidence before terminal disposition."
     },
     {
       "id": "T14",
@@ -333,7 +333,7 @@
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "Bind fresh cross-Trader scarcity evidence and prove portfolio-allocation value on the frozen population; then stress/replication and terminal disposition."
     },
     {
       "id": "T19",

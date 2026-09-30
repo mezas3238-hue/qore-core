@@ -136,6 +136,8 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_trader_opportunity_adapter*", "CAPITAL_AMPLIFICATION"),
     ("*cibo_direct_trader_opportunities*", "CAPITAL_AMPLIFICATION"),
     ("*cibo_ce2i_sizing_reconstruction_report*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
+    ("*cibo_arch_a_internal_readiness*", "ZERO_OPEN_WORK_GATE"),
+    ("*ARCH-A-INTERNAL-READINESS*", "ZERO_OPEN_WORK_GATE"),
     ("*cibo_final_integrated_exam*", "FINAL_INTEGRATED_CIBO_EXAM"),
     ("*final-integrated-exam*", "FINAL_INTEGRATED_CIBO_EXAM"),
     ("*cibo_final_certification_contract*", "SOURCE_OF_TRUTH_RECONCILIATION"),
