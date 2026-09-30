@@ -133,6 +133,7 @@ def _receipt(
         kind = "PHASE20D_FORWARD_MANIFEST"
         payload = _base(receipt_id, evidence_kind=kind, head=head)
         payload["phase20d_forward_manifest_sha256"] = FORWARD_SHA
+        payload["provider_capability_registry_sha256"] = registry.fingerprint()
     elif receipt_id == "PROVIDER_ECONOMICS_FREEZE":
         kind = "PROVIDER_ECONOMICS_FREEZE"
         payload = _base(receipt_id, evidence_kind=kind, head=head)
@@ -319,3 +320,19 @@ def test_t16_registry_fingerprint_mismatch_fails_closed() -> None:
         match="provider registry binding mismatch",
     ):
         _build(registry=registry, receipts=tuple(receipts))
+
+
+def test_capability_time_must_equal_registry_snapshot() -> None:
+    registry = _registry()
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="capability time must equal registry capture",
+    ):
+        build_receipt_bound_calibration_freeze(
+            receipts=_receipts(registry=registry),
+            integrated_git_sha=HEAD,
+            policy_identity_sha256=POLICY,
+            provider_capability_registry=registry,
+            capability_at=datetime(2026, 9, 30, 21, 29, tzinfo=UTC),
+        )
