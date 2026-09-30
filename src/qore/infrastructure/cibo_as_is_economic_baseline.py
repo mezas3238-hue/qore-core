@@ -26,6 +26,7 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
 from qore.infrastructure.cibo_compound_real_population_binding import (
     ForwardCompoundEconomicRecord,
+    bind_forward_compound_population,
 )
 
 AS_IS_CONTROL_ID = "CIBO_GENERATION_CURRENT_CONTROL_V1"
@@ -210,6 +211,11 @@ def materialize_as_is_economic_baseline(
     ):
         raise CiboCompoundCapitalError(
             "AS-IS baseline requires real forward Compound records"
+        )
+    bound_episodes = bind_forward_compound_population(compound_records)
+    if len(bound_episodes) != len(compound_records):
+        raise CiboCompoundCapitalError(
+            "AS-IS baseline Compound binding count drift"
         )
 
     manifests = {item.source_manifest_sha256 for item in compound_records}
