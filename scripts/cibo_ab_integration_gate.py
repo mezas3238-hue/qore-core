@@ -59,6 +59,26 @@ def validate_state(
     if not isinstance(workstreams, list):
         return errors + ["canonical ledger workstreams missing"]
 
+    by_id = {
+        row.get("id"): row
+        for row in workstreams
+        if isinstance(row, dict) and isinstance(row.get("id"), str)
+    }
+    for required_exam in (
+        "FINAL_INTEGRATED_CIBO_EXAM",
+        "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
+    ):
+        row = by_id.get(required_exam)
+        if row is None:
+            errors.append(f"required certification workstream missing: {required_exam}")
+            continue
+        if row.get("mandatory") is not True:
+            errors.append(f"required certification workstream is not mandatory: {required_exam}")
+        if row.get("certification_blocking") is not True:
+            errors.append(
+                f"required certification workstream is not blocking: {required_exam}"
+            )
+
     mandatory = [row for row in workstreams if row.get("mandatory") is True]
     terminal = [
         row["id"]
