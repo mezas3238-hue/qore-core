@@ -169,6 +169,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*zero_open_work*", "ZERO_OPEN_WORK_GATE"),
     ("*generation_current_control*", "AS_IS_CONTROL"),
     ("*adaptive_compound_speed*", "GEN-C8"),
+    ("*GEN-C8-ADAPTIVE-COMPOUND-SPEED*", "GEN-C8"),
     ("*profit_preservation*", "GEN-C7"),
     ("*internal_capital_market*", "INTERNAL_CAPITAL_MARKET"),
     ("*sequential_compounding*", "GEN-C5"),
