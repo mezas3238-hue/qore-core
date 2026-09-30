@@ -1,0 +1,44 @@
+{
+  "identity": "QORE_SHARED_MC09_BELIEF_STATE_CALIBRATION_PREREGISTRATION_001",
+  "capability": "MC-09_EXPLICIT_BELIEF_STATE",
+  "status": "PREREGISTERED_BEFORE_CALIBRATION_SCORING",
+  "engine": {
+    "module": "src/qore/infrastructure/core_stack_v2/causal_hypothesis_belief.py",
+    "binding": "scripts/shared_mc09_belief_state_real_position_replay.py",
+    "engine_retuning_authorized": false
+  },
+  "evaluation": {
+    "partitions": ["R6_CONSUMED", "R5_CONSUMED"],
+    "position_level_weighting": "ONE_POSITION_ONE_SCORE",
+    "belief_snapshot": "FIFTH_CAUSAL_OBSERVATION_OR_LAST_IF_SEQUENCE_SHORTER",
+    "minimum_frames": 2,
+    "terminal_probability": "belief.terminal_bps / 10000",
+    "terminal_adverse_outcome": "net_r_after_friction < 0",
+    "source_decision_materialized_before_outcome_read": true
+  },
+  "frozen_gates": {
+    "minimum_positions": 150,
+    "brier_skill_vs_prevalence_bps_gt": 0,
+    "maximum_ece_bps": 2500,
+    "top_quartile_adverse_rate_gt_bottom_quartile": true,
+    "all_partitions_required": true
+  },
+  "calibration_bins": {
+    "type": "FIXED_EQUAL_WIDTH",
+    "edges_bps": [0, 2000, 4000, 6000, 8000, 10000]
+  },
+  "disposition": {
+    "pass": "MC09_BELIEF_STATE_CALIBRATION_REPLICATED_PASS",
+    "fail": "MC09_BELIEF_STATE_CALIBRATION_FALSIFIED",
+    "threshold_rescue_authorized": false,
+    "post_result_engine_retuning_authorized": false
+  },
+  "governance": {
+    "fresh_holdout_opened": false,
+    "protected_certification_holdout_opened": false,
+    "future_market_used_for_belief": false,
+    "future_outcome_used_for_belief": false,
+    "pnl_used_for_belief": false,
+    "productive_authority": false
+  }
+}

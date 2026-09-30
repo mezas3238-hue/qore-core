@@ -1,0 +1,124 @@
+name: QORE Shared A MC10 Transition Stability
+
+concurrency:
+  group: qore-shared-a-mc10-transition-stability
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - docs/shared/evidence/QORE_SHARED_MC10_MARKET_PHYSICS_TRANSITION_STABILITY_PREREGISTRATION_001.json
+      - scripts/shared_mc10_transition_stability.py
+      - .github/workflows/qore-shared-a-mc10-transition-stability.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  stability:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Validate preregistration
+        run: |
+          set -euo pipefail
+          mkdir -p input/{r8,r6,r5} result
+          ruff check scripts/shared_mc10_transition_stability.py
+          python -m py_compile scripts/shared_mc10_transition_stability.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("docs/shared/evidence/QORE_SHARED_MC10_MARKET_PHYSICS_TRANSITION_STABILITY_PREREGISTRATION_001.json").read_text())
+          assert p["status"] == "PREREGISTERED_BEFORE_VALIDATION_REPLAY"
+          assert p["r8_source_only_freeze"]["chronological_train_fraction_bps"] == 6000
+          assert p["validation"]["future_market_read"] is False
+          assert p["governance"]["unseen_transition_is_hard_impossibility"] is False
+          assert p["governance"]["protected_certification_holdout_opened"] is False
+          PY
+      - name: Recover immutable R8 R6 R5 source evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+      - name: Validate transition stability
+        run: |
+          set -euo pipefail
+          python scripts/shared_mc10_transition_stability.py             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/mc10-transition-stability.json             | tee result/summary.json
+      - name: Validate disposition without forcing pass
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc10-transition-stability.json").read_text())
+          assert p["status"] in {
+              "MC10_TRANSITION_STABILITY_REPLICATED_PASS",
+              "MC10_TRANSITION_STABILITY_FALSIFIED",
+          }
+          assert p["unseen_transition_treated_as_impossibility"] is False
+          assert p["future_market_used"] is False
+          assert p["future_outcome_used"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+      - name: Seal result
+        run: |
+          cp docs/shared/evidence/QORE_SHARED_MC10_MARKET_PHYSICS_TRANSITION_STABILITY_PREREGISTRATION_001.json result/preregistration.json
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc10-transition-stability-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report MC-10 stability
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/mc10-transition-stability.json").read_text())
+          body="\n".join([
+              "## Shared A MC-10 — Transition Stability",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              f"- R8 source-only freeze: **{p['r8_source_only']}**",
+              f"- R6: **{p['results']['r6']}**",
+              f"- R5: **{p['results']['r5']}**",
+              f"- MC-10 completed-and-proven: **{p['mc10_completed_and_proven']}**",
+              "- future/outcome used: **False / False**",
+              "- protected certification holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md

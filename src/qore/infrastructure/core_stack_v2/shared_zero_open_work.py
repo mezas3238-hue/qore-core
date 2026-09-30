@@ -250,6 +250,8 @@ def build_shared_master_open_work_ledger() -> tuple[SharedOpenWorkItem, ...]:
         3: "mc01-mc04-verified-superset-run-36727403860",
         4: "mc01-mc04-verified-superset-run-36727403860",
         7: "mc07-predictive-coding-real-replay-run-36729370321",
+        9: "mc09-belief-calibration-v2-run-36754966932",
+        10: "mc10-transition-stability-run-36755380068",
         15: "mc15-six-source-uncertainty-run-36726927463",
     }
     for index, title in enumerate(_MC_TITLES, start=1):

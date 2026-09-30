@@ -1,0 +1,36 @@
+{
+  "identity": "QORE_SHARED_MC10_MARKET_PHYSICS_TRANSITION_STABILITY_PREREGISTRATION_001",
+  "capability": "MC-10_MARKET_PHYSICS_CONSTRAINT_ENGINE",
+  "status": "PREREGISTERED_BEFORE_VALIDATION_REPLAY",
+  "parent_foundation": {
+    "run_id": 36754500334,
+    "status": "MC10_MARKET_PHYSICS_ENGINE_REAL_DATA_BOUND_REPLAY_PASS"
+  },
+  "scientific_hypothesis": {
+    "statement": "A useful learned market-physics transition grammar should remain distributionally stable across later source-only partitions without treating unseen transitions as impossible."
+  },
+  "r8_source_only_freeze": {
+    "chronological_train_fraction_bps": 6000,
+    "chronological_calibration_fraction_bps": 4000,
+    "tvd_tolerance_formula": "MAX_500_BPS_OR_2X_R8_INTERNAL_CALIBRATION_TVD_CAPPED_AT_5000_BPS",
+    "unseen_tolerance_formula": "MAX_100_BPS_OR_2X_R8_INTERNAL_UNSEEN_RATE_CAPPED_AT_2000_BPS"
+  },
+  "validation": {
+    "partitions": ["R6", "R5"],
+    "future_market_read": false,
+    "outcome_read": false,
+    "trader_methodology_read": false
+  },
+  "frozen_gates": {
+    "validation_tvd_lte_source_only_tolerance": true,
+    "validation_unseen_rate_lte_source_only_tolerance": true,
+    "hard_constraint_violation_rate_lte_100_bps": true,
+    "both_partitions_required": true
+  },
+  "governance": {
+    "unseen_transition_is_hard_impossibility": false,
+    "threshold_rescue_authorized": false,
+    "protected_certification_holdout_opened": false,
+    "productive_authority": false
+  }
+}
