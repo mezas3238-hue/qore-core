@@ -1,0 +1,126 @@
+name: QORE Shared A MC10 Market Physics Foundation
+
+concurrency:
+  group: qore-shared-a-mc10-market-physics-foundation
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/market_physics_constraints.py
+      - tests/infrastructure/test_core_stack_v2_market_physics_constraints.py
+      - scripts/shared_mc10_market_physics_real_replay.py
+      - .github/workflows/qore-shared-a-mc10-market-physics-foundation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Validate MC-10 foundation
+        run: |
+          set -euo pipefail
+          mkdir -p input/{r8,r6,r5} result
+          ruff check src/qore/infrastructure/core_stack_v2/market_physics_constraints.py tests/infrastructure/test_core_stack_v2_market_physics_constraints.py scripts/shared_mc10_market_physics_real_replay.py
+          mypy src/qore/infrastructure/core_stack_v2/market_physics_constraints.py
+          pytest -q tests/infrastructure/test_core_stack_v2_market_physics_constraints.py
+
+      - name: Recover immutable source evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Learn R8 source transitions and replay R6/R5
+        run: |
+          set -euo pipefail
+          python scripts/shared_mc10_market_physics_real_replay.py             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/mc10-market-physics-real-replay.json             | tee result/summary.json
+
+      - name: Validate bounded disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc10-market-physics-real-replay.json").read_text())
+          assert p["status"] == "MC10_MARKET_PHYSICS_ENGINE_REAL_DATA_BOUND_REPLAY_PASS"
+          assert p["hard_constraints_enforced"] is True
+          assert p["learned_transition_constraints_bound"] is True
+          assert p["unseen_transition_treated_as_impossibility"] is False
+          assert p["transition_stability_demonstrated"] is False
+          assert p["mc10_completed_and_proven"] is False
+          assert p["future_market_used"] is False
+          assert p["future_outcome_used"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+
+      - name: Seal result
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc10-market-physics-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report MC-10
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/mc10-market-physics-real-replay.json").read_text())
+          body="\n".join([
+              "## Shared A MC-10 — Market Physics / Constraint Engine",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              f"- R8 learned transitions: **{p['r8_learned_transition_count']}**",
+              f"- R6: **{p['results']['r6']}**",
+              f"- R5: **{p['results']['r5']}**",
+              "- hard constraints enforced: **True**",
+              "- unseen transition treated as impossibility: **False**",
+              "- transition stability demonstrated: **False**",
+              "- MC-10 completed-and-proven: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
