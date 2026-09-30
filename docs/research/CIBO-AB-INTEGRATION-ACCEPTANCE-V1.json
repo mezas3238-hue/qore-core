@@ -10,7 +10,12 @@
     "support_blockers": [
       "A-SUPPORT-001_FINAL_EXAM_SELF_ATTESTATION",
       "A-SUPPORT-002_MANDATORY_WORKSTREAM_DRIFT"
-    ]
+    ],
+    "integrator_staged_repair_blockers": [
+      "A-SUPPORT-001_FINAL_EXAM_SELF_ATTESTATION",
+      "A-SUPPORT-002_MANDATORY_WORKSTREAM_DRIFT"
+    ],
+    "integrator_resolved_support_blockers": []
   },
   "architect_b": {
     "pr": 661,
@@ -23,7 +28,15 @@
       "B-SUPPORT-004_PROVIDER_GEOMETRY_FIXTURE_BREAKAGE",
       "B-SUPPORT-005_T11_DEDICATED_TEST_MISSING",
       "B-SUPPORT-006_T16_T17_STRUCTURAL_DISABLEMENT_REQUIRES_TYPED_PROVIDER_STATUS"
-    ]
+    ],
+    "integrator_staged_repair_blockers": [
+      "B-SUPPORT-001_USD60_READINESS_SELF_ATTESTATION",
+      "B-SUPPORT-003_CALIBRATION_FREEZE_SELF_ATTESTATION",
+      "B-SUPPORT-004_PROVIDER_GEOMETRY_FIXTURE_BREAKAGE",
+      "B-SUPPORT-005_T11_DEDICATED_TEST_MISSING",
+      "B-SUPPORT-006_T16_T17_STRUCTURAL_DISABLEMENT_REQUIRES_TYPED_PROVIDER_STATUS"
+    ],
+    "integrator_resolved_support_blockers": []
   },
   "ledger_path": "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json",
   "integrated_terminal_ids": [
