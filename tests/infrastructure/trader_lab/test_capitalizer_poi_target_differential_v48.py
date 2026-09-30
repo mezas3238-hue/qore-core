@@ -19,9 +19,11 @@ def test_exactly_one_target_rule_is_qore_overconstraint() -> None:
     finding = _finding("TARGET_EXACTLY_ONE_PRICE_AND_KIND_REQUIRED")
     assert finding.status is V48POITargetStatus.QORE_OVERCONSTRAINT
     assert finding.consumed_run_id == 36615057309
-    assert finding.affected_count == 465
-    assert finding.denominator == 487
-    assert finding.affected_count / finding.denominator > 0.95
+    affected_count = finding.affected_count
+    denominator = finding.denominator
+    assert affected_count == 465
+    assert denominator == 487
+    assert affected_count / denominator > 0.95
 
 
 def test_event_specific_recovery_is_diagnostic_not_new_policy() -> None:
