@@ -1,0 +1,148 @@
+name: QORE Shared MC16 Scientific Memory V2
+
+concurrency:
+  group: qore-shared-mc16-scientific-memory-v2
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/scientific_memory_v2.py
+      - tests/infrastructure/test_core_stack_v2_scientific_memory_v2.py
+      - scripts/shared_mc16_scientific_memory_real_data.py
+      - .github/workflows/qore-shared-mc16-scientific-memory-v2.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  real-data-memory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate scientific memory engine
+        run: |
+          set -euo pipefail
+          mkdir -p result input/{pure,r6,r5,sti2,sti5,sti6}
+          ruff check             src/qore/infrastructure/core_stack_v2/scientific_memory_v2.py             tests/infrastructure/test_core_stack_v2_scientific_memory_v2.py             scripts/shared_mc16_scientific_memory_real_data.py
+          mypy src/qore/infrastructure/core_stack_v2/scientific_memory_v2.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/scientific_memory_v2.py             scripts/shared_mc16_scientific_memory_real_data.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_scientific_memory_v2.py             --junitxml=result/junit.xml
+
+      - name: Recover immutable real evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10799064861/zip" > pure.zip
+          unzip -q pure.zip -d input/pure
+          (cd input/pure && sha256sum -c SHA256SUMS)
+          test -f input/pure/r6.json
+          test -f input/pure/r5.json
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11076956277/zip" > sti2.zip
+          unzip -q sti2.zip -d input/sti2
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11082953096/zip" > sti5.zip
+          unzip -q sti5.zip -d input/sti5
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11082582105/zip" > sti6.zip
+          unzip -q sti6.zip -d input/sti6
+
+      - name: Build and causally replay Scientific Memory V2
+        run: |
+          set -euo pipefail
+          python scripts/shared_mc16_scientific_memory_real_data.py             --r6-trades input/pure/r6.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r5-trades input/pure/r5.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --sti2-artifact input/sti2             --sti5-artifact input/sti5             --sti6-artifact input/sti6             --output result/mc16-scientific-memory-v2.json             | tee result/summary.json
+
+      - name: Validate MC-16 disposition
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(Path("result/mc16-scientific-memory-v2.json").read_text())
+          assert p["status"] == "MC16_REAL_DATA_MEMORY_BOUND_CAUSAL_RECALL_PASS"
+          assert p["episodic_counts"] == {"r5":316,"r6":278}
+          assert p["entry_count"] == 598
+          assert p["memory_kind_counts"]["EPISODIC"] == 594
+          assert p["memory_kind_counts"]["SEMANTIC"] == 1
+          assert p["memory_kind_counts"]["REGIME"] == 1
+          assert p["memory_kind_counts"]["FAILURE"] == 2
+          assert p["pre_learning_failure_recall_count"] == 0
+          assert p["pre_learning_future_suppressed"] == 2
+          assert p["post_learning_failure_recall_count"] == 2
+          assert p["causal_gate_pass"] is True
+          assert p["failure_memory_pass"] is True
+          assert p["four_memory_classes_present"] is True
+          assert p["productive_authority"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+
+      - name: Bind evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-mc16-scientific-memory-v2-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report MC-16
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/mc16-scientific-memory-v2.json").read_text())
+          body="\n".join([
+              "## Shared MC-16 — Scientific Memory V2",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              f"- entries: **{p['entry_count']}**",
+              f"- R6/R5 episodes: **{p['episodic_counts']['r6']} / {p['episodic_counts']['r5']}**",
+              "- memory classes: **EPISODIC / SEMANTIC / REGIME / FAILURE**",
+              f"- pre-learning failure recall: **{p['pre_learning_failure_recall_count']}**",
+              f"- post-learning failure recall: **{p['post_learning_failure_recall_count']}**",
+              "- future-learned failure knowledge leaks backward: **False**",
+              "- productive authority: **False**",
+              "- protected certification holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
