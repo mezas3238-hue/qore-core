@@ -46,6 +46,8 @@ def test_closed_wp_status_does_not_close_later_mandatory_capabilities() -> None:
     assert by_id["WP-01"].state is SharedWorkState.COMPLETED_AND_PROVEN
     assert by_id["WP-04"].state is SharedWorkState.COMPLETED_AND_PROVEN
     assert by_id["WP-05"].state is SharedWorkState.RESEARCH_INCOMPLETE
+    assert by_id["MC-01"].state is SharedWorkState.UNRESOLVED_REQUIRED_AUDIT
+    assert by_id["MC-04"].state is SharedWorkState.UNRESOLVED_REQUIRED_AUDIT
     assert by_id["MC-05"].state is SharedWorkState.UNRESOLVED_REQUIRED_AUDIT
 
 
