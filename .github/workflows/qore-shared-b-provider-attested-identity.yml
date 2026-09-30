@@ -21,6 +21,7 @@ permissions:
   issues: write
 
 env:
+  GH_TOKEN: ${{ github.token }}
   GEN2_RUN_ID: "36623131862"
   GEN2_ARTIFACT_ID: "11059307341"
   GEN2_GIT_SHA: "f5fcd0c9552466132f6f47bb124805e49e774493"
