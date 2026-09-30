@@ -12,6 +12,13 @@ on:
       - 'tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py'
       - 'scripts/cibo_ctrader_demo_account_capability_probe.py'
       - 'src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py'
+      - 'docs/research/CIBO-B-PROVIDER-ECONOMICS-COMPONENT-FREEZE-V1.md'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py'
       - 'src/qore/infrastructure/cibo_ctrader_demo_account_capability.py'
       - 'tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py'
   pull_request:
@@ -23,6 +30,13 @@ on:
       - 'tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py'
       - 'scripts/cibo_ctrader_demo_account_capability_probe.py'
       - 'src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py'
+      - 'docs/research/CIBO-B-PROVIDER-ECONOMICS-COMPONENT-FREEZE-V1.md'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py'
       - 'src/qore/infrastructure/cibo_ctrader_demo_account_capability.py'
       - 'tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py'
   workflow_dispatch:
@@ -59,15 +73,27 @@ jobs:
             src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py \
             src/qore/infrastructure/cibo_ctrader_demo_account_capability.py \
             src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py \
             src/qore/infrastructure/ctrader_open_api_client.py \
             scripts/cibo_ctrader_demo_provider_economics_probe.py \
             scripts/cibo_ctrader_demo_account_capability_probe.py \
             tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py \
-            tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py
+            tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py \
+            tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py \
+            tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py \
+            tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py \
+            tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py
           mypy \
             src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py \
             src/qore/infrastructure/cibo_ctrader_demo_account_capability.py \
             src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py \
             scripts/cibo_ctrader_demo_provider_economics_probe.py \
             scripts/cibo_ctrader_demo_account_capability_probe.py
           pytest -q --no-cov \
