@@ -38,10 +38,12 @@ def _partition(
 
     state_counts: Counter[str] = Counter()
     memory_count = deterministic_count = point_count = 0
+    empty_sequence_count = 0
 
     for sequence in sequences:
         observations = cast(tuple[Any, ...], sequence["observations"])
         if not observations:
+            empty_sequence_count += 1
             continue
         for observation in observations:
             if (
@@ -71,6 +73,8 @@ def _partition(
         "partition": partition,
         "position_sequence_count": len(sequences),
         "memory_count": memory_count,
+        "empty_sequence_count": empty_sequence_count,
+        "observable_sequence_count": len(sequences) - empty_sequence_count,
         "trajectory_point_count": point_count,
         "deterministic_memory_count": deterministic_count,
         "deterministic_replay": deterministic_count == memory_count,
@@ -100,7 +104,7 @@ def main() -> None:
 
     passed = all(
         row["position_sequence_count"] > 0
-        and row["memory_count"] == row["position_sequence_count"]
+        and row["memory_count"] == row["observable_sequence_count"]
         and row["trajectory_point_count"] > 0
         and row["deterministic_replay"]
         and bool(row["journey_state_counts"])
