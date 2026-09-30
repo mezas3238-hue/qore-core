@@ -16,8 +16,8 @@ import re
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
-from qore.infrastructure.cibo_ce2i_calibration_freeze_manifest import (
-    CiboCalibrationFreezeManifest,
+from qore.infrastructure.cibo_receipt_bound_calibration_freeze import (
+    build_receipt_bound_calibration_freeze,
 )
 from qore.infrastructure.cibo_ce2i_pre_holdout_gate import (
     CiboPreHoldoutReadiness,
@@ -57,8 +57,8 @@ def evaluate_receipt_bound_pre_holdout_readiness(
     integrated_git_sha: str,
     policy_identity_sha256: str,
     receipts: tuple[CiboCrossBoundaryEvidenceReceipt, ...],
+    calibration_receipts: tuple[CiboCrossBoundaryEvidenceReceipt, ...],
     provider_economics_freeze: CiboProviderEconomicsComponentFreeze,
-    calibration_freeze_manifest: CiboCalibrationFreezeManifest,
 ) -> CiboPreHoldoutReadiness:
     if not isinstance(
         provider_economics_freeze,
@@ -67,14 +67,6 @@ def evaluate_receipt_bound_pre_holdout_readiness(
         raise CiboCapitalManagementError(
             "receipt-bound pre-holdout provider freeze is invalid"
         )
-    if not isinstance(
-        calibration_freeze_manifest,
-        CiboCalibrationFreezeManifest,
-    ):
-        raise CiboCapitalManagementError(
-            "receipt-bound pre-holdout calibration manifest is invalid"
-        )
-
     canonical_provider = CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS
     if (
         provider_economics_freeze.source_evidence_ref
@@ -106,6 +98,12 @@ def evaluate_receipt_bound_pre_holdout_readiness(
         raise CiboCapitalManagementError(
             "receipt-bound pre-holdout calibration tools are not receipt-bound"
         )
+
+    calibration_freeze_manifest = build_receipt_bound_calibration_freeze(
+        receipts=calibration_receipts,
+        integrated_git_sha=integrated_git_sha,
+        policy_identity_sha256=policy_identity_sha256,
+    )
 
     by_id = require_cross_boundary_receipts(
         receipts=receipts,
