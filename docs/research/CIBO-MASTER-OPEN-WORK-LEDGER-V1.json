@@ -1201,8 +1201,8 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "MINIMAL_SEED_ALLOW_AND_DOWNSIZE_ENGINEERING_EVIDENCE_STAGED_CI_PENDING_REAL_E2E_OPEN",
-      "terminal_disposition": null,
+      "current_maturity": "MECHANICAL_AUTHORITY_AND_DOWNSIZE_CLOSURE_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
         "tests/infrastructure/test_cibo_risk_integration_closure.py",
         ".github/workflows/cibo-risk-integration-closure.yml",
@@ -1210,14 +1210,12 @@
         "src/qore/infrastructure/account_wide_risk.py",
         "src/qore/infrastructure/account_wide_risk_ledger.py",
         "src/qore/infrastructure/cibo_cma_risk_request.py",
-        "src/qore/infrastructure/cibo_fundednext_seed.py"
+        "src/qore/infrastructure/cibo_fundednext_seed.py",
+        "github-actions://36769958686/SUCCESS",
+        "docs/research/CIBO-INTEGRATOR-RISK-MECHANICAL-CLOSURE-RECONCILIATION-V1.md"
       ],
-      "blockers": [
-        "INTEGRATOR_RISK_INTEGRATION_CI_REQUIRED",
-        "REAL_END_TO_END_CIBO_TO_RISK_TO_EXECUTION_EVIDENCE_REQUIRED",
-        "NO_REJECT_ALL_FORWARD_EVIDENCE_REQUIRED"
-      ],
-      "next_gate": "Pass staged Risk integration CI proving FundedNext USD60 minimal seed ALLOW, large-request REDUCE and reject only when broker minimum cannot fit; then prove the same invariant end-to-end on real forward evidence."
+      "blockers": [],
+      "next_gate": "Mechanical Risk boundary is terminal. Real forward provider/execution/economic proof remains in FORWARD_QUALIFICATION, PROVIDER_ECONOMICS and USD60_CAPABILITY_PROGRAM."
     },
     {
       "id": "CAPITAL_AMPLIFICATION",
@@ -1567,8 +1565,8 @@
   ],
   "current_summary": {
     "mandatory_count": 64,
-    "terminal_count": 13,
-    "open_count": 51,
+    "terminal_count": 14,
+    "open_count": 50,
     "zero_open_work_pass": false,
     "final_certification_candidate": false
   }
