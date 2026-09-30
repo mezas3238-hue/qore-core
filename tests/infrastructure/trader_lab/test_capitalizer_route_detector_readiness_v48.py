@@ -16,11 +16,11 @@ def _status(route: V48RouteId, fact_id: str) -> V48DetectorReadiness:
     )
 
 
-def test_london_cisd_and_continuation_have_v48_primitives_but_need_route_binding() -> None:
+def test_london_cisd_primitive_is_reusable_but_continuation_needs_route_binding() -> None:
     assert _status(
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
         "M15_PROTECTED_SWING_CONFIRMED_BY_CISD",
-    ) is V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND
+    ) is V48DetectorReadiness.REUSABLE_CAUSAL_PRIMITIVE
     assert _status(
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
         "M15_CONTINUATION_AVAILABLE",
