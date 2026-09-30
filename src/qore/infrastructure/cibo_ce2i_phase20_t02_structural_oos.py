@@ -29,6 +29,9 @@ from qore.infrastructure.cibo_ce2i_t02_calibration_binding import (
     T02_BURNED_CONTEXT_RULES,
     T02BurnedContextRule,
 )
+from qore.infrastructure.cibo_ce2i_t02_terminal_reason_evidence import (
+    T02TerminalReasonEvidence,
+)
 
 T02_FORWARD_STRUCTURAL_AUDIT_ID = "CIBO_T02_FORWARD_STRUCTURAL_OOS_V1"
 T02_FORWARD_STRUCTURAL_FROZEN_AT = datetime(2026, 9, 30, 19, 0, tzinfo=UTC)
@@ -43,10 +46,7 @@ class T02ForwardStructuralOutcome:
     source_outcome_evidence_id: str
     provider_economics_evidence_id: str
     execution_risk_evidence_id: str
-    settlement_deal_ids: tuple[int, ...]
-    stopped_at_structural_stop: bool
-    terminal_reason_evidence_ref: str
-    observed_at: datetime
+    terminal_reason_evidence: T02TerminalReasonEvidence
 
     def __post_init__(self) -> None:
         if (
@@ -66,42 +66,48 @@ class T02ForwardStructuralOutcome:
             "source_outcome_evidence_id",
             "provider_economics_evidence_id",
             "execution_risk_evidence_id",
-            "terminal_reason_evidence_ref",
         ):
             value = getattr(self, name)
             if not isinstance(value, str) or not value:
                 raise CiboCapitalManagementError(
                     f"T02 forward structural outcome {name} required"
                 )
-        if (
-            not self.settlement_deal_ids
-            or len(self.settlement_deal_ids)
-            != len(set(self.settlement_deal_ids))
-            or any(
-                not isinstance(item, int)
-                or isinstance(item, bool)
-                or item <= 0
-                for item in self.settlement_deal_ids
-            )
+        if not isinstance(
+            self.terminal_reason_evidence,
+            T02TerminalReasonEvidence,
         ):
             raise CiboCapitalManagementError(
-                "T02 forward structural settlement ids invalid"
+                "T02 forward structural terminal reason evidence required"
             )
-        if type(self.stopped_at_structural_stop) is not bool:
-            raise CiboCapitalManagementError(
-                "T02 forward structural stop flag must be bool"
-            )
+        terminal = self.terminal_reason_evidence
         if (
-            self.observed_at.tzinfo is None
-            or self.observed_at.utcoffset() is None
+            terminal.decision_evidence_sha256
+            != self.decision_evidence_sha256
+            or terminal.signal_fingerprint != self.signal_fingerprint
         ):
             raise CiboCapitalManagementError(
-                "T02 forward structural observed_at must be timezone-aware"
+                "T02 forward structural terminal reason lineage drift"
             )
-        if self.observed_at < T02_FORWARD_STRUCTURAL_FROZEN_AT:
+        if terminal.observed_at < T02_FORWARD_STRUCTURAL_FROZEN_AT:
             raise CiboCapitalManagementError(
                 "T02 forward structural outcome predates frozen audit"
             )
+
+    @property
+    def settlement_deal_ids(self) -> tuple[int, ...]:
+        return self.terminal_reason_evidence.settlement_deal_ids
+
+    @property
+    def stopped_at_structural_stop(self) -> bool:
+        return self.terminal_reason_evidence.stopped_at_structural_stop
+
+    @property
+    def terminal_reason_evidence_ref(self) -> str:
+        return self.terminal_reason_evidence.fingerprint()
+
+    @property
+    def observed_at(self) -> datetime:
+        return self.terminal_reason_evidence.observed_at
 
 
 @dataclass(frozen=True, slots=True)
@@ -351,6 +357,10 @@ def _bind_source_outcome(
     if source.execution_risk_evidence_id != item.execution_risk_evidence_id:
         raise CiboCapitalManagementError(
             "T02 structural/canonical execution-risk binding drift"
+        )
+    if source.position_id != item.terminal_reason_evidence.position_id:
+        raise CiboCapitalManagementError(
+            "T02 structural/canonical position binding drift"
         )
     if source.settlement_deal_ids != item.settlement_deal_ids:
         raise CiboCapitalManagementError(
