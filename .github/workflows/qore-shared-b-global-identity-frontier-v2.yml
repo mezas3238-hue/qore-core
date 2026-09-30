@@ -1,0 +1,168 @@
+name: QORE Shared B Global Identity Frontier V2
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b_global_identity_frontier_v2.py
+      - scripts/shared_b_global_identity_frontier_v2.py
+      - tests/infrastructure/test_shared_b_global_identity_frontier_v2.py
+      - .github/workflows/qore-shared-b-global-identity-frontier-v2.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-global-identity-frontier-v2-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  FRONTIER_V1_RUN_ID: "36764899352"
+  FRONTIER_V1_ARTIFACT_ID: "11119439556"
+  FRONTIER_V1_GIT_SHA: "3a119e5cde0d6531693609d80234b636973b0810"
+  ATTESTED_RUN_ID: "36774358236"
+  ATTESTED_ARTIFACT_ID: "11124811192"
+  ATTESTED_GIT_SHA: "92f1f076871b791b7d0c1fa7c5b3a69aeb5d0014"
+
+jobs:
+  frontier-v2:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate B-06 frontier V2 reducer
+        run: |
+          set -euo pipefail
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/shared_b_global_identity_frontier_v2.py \
+            scripts/shared_b_global_identity_frontier_v2.py \
+            tests/infrastructure/test_shared_b_global_identity_frontier_v2.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/shared_b_global_identity_frontier_v2.py \
+            scripts/shared_b_global_identity_frontier_v2.py
+          pytest -q tests/infrastructure/test_shared_b_global_identity_frontier_v2.py
+
+      - name: Verify exact upstream lineages
+        run: |
+          set -euo pipefail
+          for spec in \
+            "${FRONTIER_V1_RUN_ID}:${FRONTIER_V1_GIT_SHA}" \
+            "${ATTESTED_RUN_ID}:${ATTESTED_GIT_SHA}"
+          do
+            run_id="${spec%%:*}"
+            sha="${spec#*:}"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.status')" = "completed"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.conclusion')" = "success"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.head_sha')" = "$sha"
+          done
+
+      - name: Recover sealed B-06 evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/frontier-v1 input/attested result
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${FRONTIER_V1_ARTIFACT_ID}/zip" > frontier-v1.zip
+          unzip -q frontier-v1.zip -d input/frontier-v1
+          sums="$(find input/frontier-v1 -name SHA256SUMS -print -quit)"
+          test -n "$sums"
+          (cd "$(dirname "$sums")" && sha256sum -c SHA256SUMS)
+          frontier_file="$(find input/frontier-v1 -name shared-b-global-identity-resolution-worklist.json -print -quit)"
+          test -n "$frontier_file"
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ATTESTED_ARTIFACT_ID}/zip" > attested.zip
+          unzip -q attested.zip -d input/attested
+          sums="$(find input/attested -name SHA256SUMS -print -quit)"
+          test -n "$sums"
+          (cd "$(dirname "$sums")" && sha256sum -c SHA256SUMS)
+          attested_file="$(find input/attested -name shared-b-provider-attested-identity-boundary.json -print -quit)"
+          test -n "$attested_file"
+
+          printf 'FRONTIER_FILE=%s\n' "$frontier_file" >> "$GITHUB_ENV"
+          printf 'ATTESTED_FILE=%s\n' "$attested_file" >> "$GITHUB_ENV"
+
+      - name: Reconcile exact 177-sensor identity frontier V2
+        run: |
+          set -euo pipefail
+          python scripts/shared_b_global_identity_frontier_v2.py \
+            --frontier-v1 "$FRONTIER_FILE" \
+            --provider-attested "$ATTESTED_FILE" \
+            --output result/shared-b-global-identity-frontier-v2.json \
+            | tee result/summary.json
+
+      - name: Enforce exact V2 frontier and open B-06 status
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path(
+                  "result/shared-b-global-identity-frontier-v2.json"
+              ).read_text()
+          )
+          assert p["identity"] == "SHARED_B_GLOBAL_IDENTITY_FRONTIER_V2_001"
+          assert p["status"] == "EXACT_177_SENSOR_IDENTITY_FRONTIER_V2_MATERIALIZED"
+          assert p["sensor_count"] == 177
+          assert p["current_reference_mapped_count"] == 74
+          assert p["dated_contract_descriptor_verified_count"] == 5
+          assert p["provider_attested_economic_object_count"] == 98
+          assert p["provider_native_only_count"] == 0
+          assert p["stage_counts"] == {
+              "CURRENT_REFERENCE_OBJECT_MAPPED": 74,
+              "DATED_CONTRACT_DESCRIPTOR_VERIFIED": 5,
+              "PROVIDER_ATTESTED_ECONOMIC_OBJECT": 98,
+          }
+          assert p["full_canonical_identity_complete_count"] == 0
+          assert p["full_177_identity_complete"] is False
+          assert p["provider_metadata_is_canonical_proof"] is False
+          assert p["automatic_identity_inference"] is False
+          assert p["historical_pre_freeze_mapping_authorized"] is False
+          assert p["sensor_admission_authorized"] is False
+          assert p["relational_claims_authorized"] is False
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["broker_mutation"] is False
+          assert p["productive_authority"] is False
+          assert p["b06_complete"] is False
+          assert len(p["frontier_v2_fingerprint_sha256"]) == 64
+          PY
+
+      - name: Seal B-06 identity frontier V2
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload B-06 identity frontier V2
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-global-identity-frontier-v2-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report B-06 frontier V2
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-06 frontier V2: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Exact 177 sensors reconciled: 74 current reference-object mappings + 5 dated contract descriptors + 98 provider-attested economic objects; provider-native-only=0. Canonical/provider-neutral/tradable/listing/calendar/historical identity remains deliberately unproven where absent, so B-06 remains OPEN."
