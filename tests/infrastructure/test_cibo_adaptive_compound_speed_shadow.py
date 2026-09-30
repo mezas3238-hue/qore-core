@@ -16,8 +16,13 @@ from qore.infrastructure.cibo_adaptive_compound_speed_shadow import (
     evaluate_genc8_adaptive_compound_speed,
     genc8_policy_sha256,
 )
+from qore.infrastructure.cibo_adaptive_compound_speed_population import (
+    Genc8PopulationStatus,
+    describe_genc8_population,
+)
 from qore.infrastructure.cibo_adaptive_compound_speed_store import (
     DurableGenc8AdaptiveCompoundSpeedStore,
+    VersionedGenc8ShadowBook,
 )
 from qore.infrastructure.cibo_ce2i_regime_selector import (
     CiboRegimePosture,
@@ -304,3 +309,45 @@ def test_genc8_store_is_restart_cas_and_conflict_safe(tmp_path) -> None:
             sealed_at=sealed_at,
             expected_generation=1,
         )
+
+
+def test_genc8_population_is_descriptive_only(tmp_path) -> None:
+    decision = evaluate_genc8_adaptive_compound_speed(
+        decision_id="genc8-population",
+        genc5=_genc5(),
+        regime=_regime(),
+        facts=_facts(),
+    )
+    store = DurableGenc8AdaptiveCompoundSpeedStore(
+        tmp_path / "genc8-population.json"
+    )
+    book = store.seal(
+        decision,
+        sealed_at=T0 + timedelta(seconds=2),
+        expected_generation=0,
+    )
+
+    report = describe_genc8_population(book=book)
+
+    assert report.status is Genc8PopulationStatus.COLLECTING
+    assert report.decision_count == 1
+    assert report.accelerated_count == 1
+    assert report.treatment_control_divergence_count == 1
+    assert report.account_keys == ("ctrader:genc8-test",)
+    assert report.descriptive_only is True
+    assert report.real_outcome_binding_complete is False
+    assert report.economic_utility_ready is False
+    assert report.stress_pass is False
+    assert report.temporal_replication_pass is False
+    assert report.certification_ready is False
+
+
+def test_genc8_empty_population_claims_nothing() -> None:
+    report = describe_genc8_population(
+        book=VersionedGenc8ShadowBook(generation=0)
+    )
+
+    assert report.status is Genc8PopulationStatus.EMPTY
+    assert report.decision_count == 0
+    assert report.economic_utility_ready is False
+    assert report.certification_ready is False
