@@ -79,3 +79,27 @@ evidence with:
 
 No missing capability is converted into support. No cTrader platform feature is
 silently treated as broker/account support.
+
+
+## Machine-readable account taxonomy bridge
+
+Architect B now has an additional provider-native evidence surface:
+
+`cibo_ctrader_demo_instrument_taxonomy.py`
+
+It binds the observed DEMO account catalog to cTrader's account-scoped symbol
+categories and asset classes. The binding is deterministic, hashed and
+read-only. Consumers recompute enabled-symbol coverage before trusting the
+taxonomy-complete flag.
+
+This narrows T17 but deliberately does not promote it:
+
+- taxonomy incomplete -> `T17_ACCOUNT_TAXONOMY_BINDING_INCOMPLETE`;
+- explicit option taxonomy candidate -> further instrument/execution proof is
+  still required;
+- no explicit option taxonomy candidate -> T17 remains fail-closed rather than
+  treating symbol-name absence as universal proof.
+
+T16 is unchanged: account mode and taxonomy do not establish economic hedge
+utility. Basis risk, cost, correlation, execution feasibility and fresh OOS
+utility remain mandatory.
