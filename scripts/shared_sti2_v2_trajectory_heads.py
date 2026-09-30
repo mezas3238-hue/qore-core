@@ -176,7 +176,7 @@ def _first_material_minute(
     future: dict[str, tuple[Any, ...]],
 ) -> int | None:
     horizon = len(future["NAS100"])
-    for minute in range(1, horizon + 1):
+    for minute in range(2, horizon + 1):
         partial = {
             market: bars[:minute]
             for market, bars in future.items()
