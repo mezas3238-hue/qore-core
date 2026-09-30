@@ -28,6 +28,10 @@ def _seal(**overrides):
         "world_cup_gap_matrix_sha256": SHA,
         "all_required_ci_green": True,
         "holdout_2017h1_untouched": True,
+        "economic_baseline_measurement_bound": False,
+        "economic_baseline_measurement_blockers": (
+            "FRESH_AS_IS_ECONOMIC_POPULATION_REQUIRED",
+        ),
     }
     values.update(overrides)
     return seal_current_generation_control(**values)
@@ -48,6 +52,29 @@ def test_current_control_seals_exact_research_generation() -> None:
     assert manifest.real_capital_authority is False
     assert manifest.merge_authority is False
     assert manifest.fingerprint().startswith("sha256:")
+
+
+def test_current_control_separates_freeze_from_economic_measurement() -> None:
+    manifest = _seal()
+
+    assert manifest.economic_baseline_measurement_bound is False
+    assert manifest.economic_baseline_measurement_blockers == (
+        "FRESH_AS_IS_ECONOMIC_POPULATION_REQUIRED",
+    )
+
+    bound = _seal(
+        economic_baseline_measurement_bound=True,
+        economic_baseline_measurement_blockers=(),
+    )
+    assert bound.economic_baseline_measurement_bound is True
+
+
+def test_current_control_unbound_measurement_requires_explicit_blocker() -> None:
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="unbound economic baseline must state explicit blockers",
+    ):
+        _seal(economic_baseline_measurement_blockers=())
 
 
 def test_current_control_rejects_non_green_ci() -> None:
