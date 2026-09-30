@@ -665,7 +665,11 @@ def main() -> None:
     market = sub.add_parser("market")
     market.add_argument("m1_root", type=Path)
     market.add_argument("output", type=Path)
-    market.add_argument("--session", required=True, choices=[item.value for item in CapitalizerSession])
+    market.add_argument(
+        "--session",
+        required=True,
+        choices=[item.value for item in CapitalizerSession],
+    )
 
     matrix = sub.add_parser("matrix")
     matrix.add_argument("input_root", type=Path)
