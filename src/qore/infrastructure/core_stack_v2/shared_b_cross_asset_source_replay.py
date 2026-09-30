@@ -261,7 +261,7 @@ def raw_dataset_digest(
     payload = [
         (
             provider_symbol,
-            shard.quote_side,
+            shard.quote_side.casefold(),
             shard.window_index,
             shard.page_index,
             shard.tick_count,
