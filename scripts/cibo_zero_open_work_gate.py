@@ -75,6 +75,8 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*CMA-COMPOUND-AUTHORITY-BOUNDARY*", "CMA_FOUNDATION_INTEGRATION"),
     ("*cibo_legacy_stack_quarantine*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
     ("*legacy-stack-quarantine*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
+    ("*cibo_compound_causal_ablation*", "CAPITAL_AMPLIFICATION"),
+    ("*compound-causal-ablation*", "CAPITAL_AMPLIFICATION"),
     ("*cibo_compound_temporal_replication*", "TEMPORAL_REPLICATION"),
     ("*COMPOUND-TEMPORAL-REPLICATION*", "TEMPORAL_REPLICATION"),
     ("*cibo_compound_adversarial_stress*", "ADVERSARIAL_STRESS"),
