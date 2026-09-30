@@ -509,7 +509,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_SCIENTIFIC_EVIDENCE_OPEN",
+      "current_maturity": "ENGINE_AND_TRANSITION_CALIBRATION_PROTOCOL_IMPLEMENTED_CI_PENDING_REAL_CALIBRATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -518,14 +518,18 @@
         "tests/infrastructure/test_cibo_capital_digital_twin.py",
         ".github/workflows/cibo-genc10-capital-digital-twin.yml",
         "github-actions://36727848250/SUCCESS",
-        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md"
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_genc10_transition_uncertainty_calibration.py",
+        "tests/infrastructure/test_cibo_genc10_transition_uncertainty_calibration.py",
+        "docs/research/CIBO-GEN-C10-TRANSITION-UNCERTAINTY-CALIBRATION-PROTOCOL-V1.md"
       ],
       "blockers": [
-        "CALIBRATED_TRANSITION_UNCERTAINTY_NOT_YET_PROVEN",
-        "REAL_CHRONOLOGICAL_TWIN_POPULATION_NOT_YET_BOUND",
+        "GEN_C10_TRANSITION_CALIBRATION_ENGINE_CI_REVALIDATION_REQUIRED",
+        "REAL_CHRONOLOGICAL_TWIN_TRANSITION_POPULATION_NOT_YET_BOUND",
+        "REAL_TRANSITION_UNCERTAINTY_CALIBRATION_RESULTS_NOT_YET_PROVEN",
         "FRESH_OOS_STRESS_TEMPORAL_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Bind real chronological twin snapshots; calibrate transition uncertainty without future leakage; then OOS, stress and temporal replication."
+      "next_gate": "Require the updated GEN-C10 workflow to pass; then bind a real provider-valid chronological twin-transition population, calibrate descriptive transition support strictly before evaluation cutoff, and run fresh OOS/stress/4-fold replication without mutating frozen GEN-C10 V1."
     },
     {
       "id": "GEN-C11",
