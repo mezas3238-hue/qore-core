@@ -7,6 +7,9 @@ from decimal import Decimal
 import pytest
 
 from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
+    FROZEN_PHASE20_POLICY_CANDIDATE,
+)
 from qore.infrastructure.cibo_compound_capital import (
     CiboCompoundCapitalError,
 )
@@ -14,9 +17,6 @@ from qore.infrastructure.cibo_compound_real_population_binding import (
     CompoundPopulationEvidenceKind,
     ForwardCompoundEconomicRecord,
     bind_forward_compound_population,
-)
-from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
-    FROZEN_PHASE20_POLICY_CANDIDATE,
 )
 
 T0 = datetime(2026, 9, 29, 0, 0, tzinfo=UTC)
