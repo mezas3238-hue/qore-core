@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import Iterable
+from collections.abc import Iterable
 
 import numpy as np
 import shared_sti2_real_opportunity_discovery as v1
