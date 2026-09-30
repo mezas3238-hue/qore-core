@@ -36,7 +36,9 @@
       "B-SUPPORT-005_T11_DEDICATED_TEST_MISSING",
       "B-SUPPORT-006_T16_T17_STRUCTURAL_DISABLEMENT_REQUIRES_TYPED_PROVIDER_STATUS"
     ],
-    "integrator_resolved_support_blockers": []
+    "integrator_resolved_support_blockers": [
+      "B-SUPPORT-002_RISK_HANDOFF_LEDGER_DRIFT"
+    ]
   },
   "ledger_path": "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json",
   "integrated_terminal_ids": [
@@ -52,7 +54,8 @@
     "CMA_FOUNDATION_INTEGRATION",
     "CE2I_CALIBRATION_GOVERNANCE",
     "CE2I_CROSS_TOOL_INFRASTRUCTURE",
-    "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"
+    "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK",
+    "RISK_INTEGRATION"
   ],
   "integration_ready": false,
   "certification_ready": false,
