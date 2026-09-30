@@ -1,6 +1,7 @@
 from qore.infrastructure.trader_lab.capitalizer_human_decision_graph_v48 import (
     ROUTES,
     V48_HUMAN_DECISION_GRAPH,
+    V48HumanDecisionRoute,
     V48Route,
     V48RouteStageRole,
     V48Session,
@@ -8,7 +9,7 @@ from qore.infrastructure.trader_lab.capitalizer_human_decision_graph_v48 import 
 )
 
 
-def _route(route_id: V48Route):
+def _route(route_id: V48Route) -> V48HumanDecisionRoute:
     return next(route for route in ROUTES if route.route is route_id)
 
 
@@ -24,11 +25,17 @@ def test_asia_has_two_independent_source_routes() -> None:
 def test_london_is_not_forced_through_h1_m15_m1() -> None:
     london = _route(V48Route.LONDON_DAILY_4H_15M)
     timeframes = {stage.timeframe for stage in london.stages}
+    stage_ids = {stage.stage_id for stage in london.stages}
     assert "DAILY" in timeframes
     assert "4H" in timeframes
     assert "15M" in timeframes
     assert "M1" not in timeframes
     assert "H1" not in timeframes
+    assert {
+        "LONDON_DAILY_WICK",
+        "LONDON_15M_CISD_PROTECTED_SWING",
+        "LONDON_15M_CONTINUATION",
+    }.issubset(stage_ids)
 
 
 def test_new_york_entry_models_are_alternatives_not_and_requirements() -> None:
@@ -46,6 +53,7 @@ def test_scalp_m1_is_execution_layer_not_primary_narrative() -> None:
     m1 = [stage for stage in scalp.stages if stage.timeframe == "M1"]
     assert len(m1) == 1
     assert m1[0].role is V48RouteStageRole.EXECUTION
+    assert scalp.execution_alternatives == ()
 
 
 def test_ftm_core_route_does_not_require_m1_fvg_and_ob_stage_ids() -> None:
