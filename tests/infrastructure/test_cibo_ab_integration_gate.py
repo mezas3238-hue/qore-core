@@ -41,11 +41,23 @@ def _state():
                 "terminal_disposition": "COMPLETED_AND_PROVEN",
             },
             {"id": "T02", "mandatory": True, "terminal_disposition": None},
+            {
+                "id": "FINAL_INTEGRATED_CIBO_EXAM",
+                "mandatory": True,
+                "certification_blocking": True,
+                "terminal_disposition": None,
+            },
+            {
+                "id": "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
+                "mandatory": True,
+                "certification_blocking": True,
+                "terminal_disposition": None,
+            },
         ],
         "current_summary": {
-            "mandatory_count": 2,
+            "mandatory_count": 4,
             "terminal_count": 1,
-            "open_count": 1,
+            "open_count": 3,
             "zero_open_work_pass": False,
             "final_certification_candidate": False,
         },
@@ -92,3 +104,27 @@ def test_integrator_can_never_grant_productive_authority() -> None:
     assert "integrator acceptance cannot grant productive authority" in gate.validate_state(
         matrix, ledger
     )
+
+
+def test_world_cup_exam_cannot_be_removed_from_mandatory_closure() -> None:
+    matrix, ledger = _state()
+    world_cup = next(
+        row
+        for row in ledger["workstreams"]
+        if row["id"] == "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM"
+    )
+    world_cup["mandatory"] = False
+    world_cup["certification_blocking"] = False
+    ledger["current_summary"]["mandatory_count"] = 3
+    ledger["current_summary"]["open_count"] = 2
+
+    errors = gate.validate_state(matrix, ledger)
+
+    assert (
+        "required certification workstream is not mandatory: "
+        "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM"
+    ) in errors
+    assert (
+        "required certification workstream is not blocking: "
+        "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM"
+    ) in errors
