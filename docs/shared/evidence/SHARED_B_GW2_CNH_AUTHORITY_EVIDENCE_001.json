@@ -1,0 +1,39 @@
+{
+  "identity": "SHARED_B_GW2_CNH_AUTHORITY_EVIDENCE_001",
+  "status": "FROZEN_EXTERNAL_IDENTITY_AUTHORITY_REFERENCES",
+  "retrieved_at": "2026-09-30",
+  "sources": [
+    {
+      "authority": "HONG_KONG_MONETARY_AUTHORITY",
+      "title": "Supervisory Policy Manual IR-1 return instructions",
+      "url": "https://www.hkma.gov.hk/media/eng/doc/key-functions/banking-stability/supervisory-policy-manual/IR-1-return-jun-2017.pdf",
+      "claim": "Onshore Renminbi (CNY) and offshore Renminbi (CNH) are treated as separate currencies; CNH denomination is associated with offshore reference rates such as CNH HIBOR.",
+      "scope": "CNH_COMPONENT_IDENTITY_ONLY"
+    },
+    {
+      "authority": "HONG_KONG_MONETARY_AUTHORITY",
+      "title": "Currency Conversion Arrangement Involving Onshore RMB (CNY) under Northbound Swap Connect",
+      "url": "https://www.hkma.gov.hk/media/eng/doc/key-information/guidelines-and-circular/2023/20230428c1.pdf",
+      "claim": "HKMA distinguishes offshore RMB (CNH) used by investors from CNY foreign-exchange conversion and the onshore interbank FX market.",
+      "scope": "CNH_VS_CNY_MARKET_DISTINCTION_CORROBORATION"
+    }
+  ],
+  "assertions": {
+    "provider_code": "CNH",
+    "economic_identity": "OFFSHORE_RENMINBI",
+    "canonical_alias_to_cny": false,
+    "cny_and_cnh_interchangeable": false,
+    "iso4217_current_code_claim": false,
+    "tradable_instrument_identity_claim": false,
+    "provider_symbol_mapping_claim": false,
+    "calendar_claim": false,
+    "venue_claim": false
+  },
+  "governance": {
+    "target_or_outcome_read": false,
+    "r6_r5_read": false,
+    "fresh_holdout_opened": false,
+    "historical_market_data_read": false,
+    "productive_authority": false
+  }
+}
