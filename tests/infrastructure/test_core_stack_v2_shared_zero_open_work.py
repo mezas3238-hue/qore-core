@@ -39,7 +39,7 @@ def test_zero_open_work_is_blocked_by_current_required_items() -> None:
     assert "X-20" in assessment.blocker_ids
 
 
-def test_closed_wp_status_does_not_close_later_mandatory_capabilities() -> None:
+def test_wp_closure_requires_explicit_mc_superset_evidence() -> None:
     ledger = build_shared_master_open_work_ledger()
     by_id = {item.work_id: item for item in ledger}
 
