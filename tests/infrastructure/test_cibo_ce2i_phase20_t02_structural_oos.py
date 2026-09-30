@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import timedelta
 from decimal import Decimal
 
@@ -23,9 +24,16 @@ from qore.infrastructure.cibo_ce2i_phase20_t02_structural_oos import (
 from qore.infrastructure.cibo_ce2i_t02_calibration_binding import (
     T02_BURNED_CONTEXT_RULES,
 )
+from qore.infrastructure.cibo_ce2i_t02_terminal_reason_evidence import (
+    T02TerminalReason,
+    T02TerminalReasonEvidence,
+    T02TerminalReasonSource,
+)
 
 ELIGIBLE = tuple(
-    row for row in T02_BURNED_CONTEXT_RULES if row.eligible_for_structural_leverage
+    row
+    for row in T02_BURNED_CONTEXT_RULES
+    if row.eligible_for_structural_leverage
 )
 
 
@@ -74,6 +82,30 @@ def _decision(
     )
 
 
+def _terminal_reason(
+    *,
+    decision: Phase20ForwardDecisionSeal,
+    outcome: Phase20ForwardOutcomeSeal,
+    stopped: bool,
+    index: int,
+) -> T02TerminalReasonEvidence:
+    return T02TerminalReasonEvidence(
+        evidence_id=f"terminal-reason-{index}",
+        decision_evidence_sha256=decision.evidence_sha256,
+        signal_fingerprint=outcome.signal_fingerprint,
+        position_id=outcome.position_id,
+        settlement_deal_ids=outcome.settlement_deal_ids,
+        reason=(
+            T02TerminalReason.STRUCTURAL_STOP
+            if stopped
+            else T02TerminalReason.TAKE_PROFIT
+        ),
+        source=T02TerminalReasonSource.PROVIDER_NATIVE_EXPLICIT,
+        source_ref=f"synthetic-explicit-terminal:{index}",
+        observed_at=outcome.observed_at + timedelta(seconds=1),
+    )
+
+
 def _population():
     decisions = []
     outcomes = []
@@ -111,10 +143,12 @@ def _population():
                 source_outcome_evidence_id=outcome.evidence_id,
                 provider_economics_evidence_id=f"provider-{index}",
                 execution_risk_evidence_id=outcome.execution_risk_evidence_id,
-                settlement_deal_ids=outcome.settlement_deal_ids,
-                stopped_at_structural_stop=stopped,
-                terminal_reason_evidence_ref=f"terminal-reason-{index}",
-                observed_at=outcome.observed_at + timedelta(seconds=1),
+                terminal_reason_evidence=_terminal_reason(
+                    decision=decision,
+                    outcome=outcome,
+                    stopped=stopped,
+                    index=index,
+                ),
             )
             decisions.append(decision)
             outcomes.append(outcome)
@@ -154,17 +188,15 @@ def test_negative_pnl_does_not_implicitly_become_structural_stop() -> None:
     first = rows[0]
     source = book.outcomes[0]
     assert source.realized_structural_outcome_r == Decimal("-1")
-    changed = T02ForwardStructuralOutcome(
-        decision_evidence_sha256=first.decision_evidence_sha256,
-        signal_fingerprint=first.signal_fingerprint,
-        trader_id=first.trader_id,
-        source_outcome_evidence_id=first.source_outcome_evidence_id,
-        provider_economics_evidence_id=first.provider_economics_evidence_id,
-        execution_risk_evidence_id=first.execution_risk_evidence_id,
-        settlement_deal_ids=first.settlement_deal_ids,
-        stopped_at_structural_stop=False,
-        terminal_reason_evidence_ref="manual-terminal-classification:not-stop",
-        observed_at=first.observed_at,
+
+    explicit_not_stop = replace(
+        first.terminal_reason_evidence,
+        reason=T02TerminalReason.TAKE_PROFIT,
+        source_ref="explicit-not-stop",
+    )
+    changed = replace(
+        first,
+        terminal_reason_evidence=explicit_not_stop,
     )
     report = assess_t02_forward_structural_oos(
         evidence_book=book,
@@ -180,18 +212,8 @@ def test_negative_pnl_does_not_implicitly_become_structural_stop() -> None:
 def test_structural_outcome_requires_canonical_phase20_outcome_binding() -> None:
     book, rows = _population()
     first = rows[0]
-    broken = T02ForwardStructuralOutcome(
-        decision_evidence_sha256=first.decision_evidence_sha256,
-        signal_fingerprint=first.signal_fingerprint,
-        trader_id=first.trader_id,
-        source_outcome_evidence_id="missing-outcome",
-        provider_economics_evidence_id=first.provider_economics_evidence_id,
-        execution_risk_evidence_id=first.execution_risk_evidence_id,
-        settlement_deal_ids=first.settlement_deal_ids,
-        stopped_at_structural_stop=first.stopped_at_structural_stop,
-        terminal_reason_evidence_ref=first.terminal_reason_evidence_ref,
-        observed_at=first.observed_at,
-    )
+    broken = replace(first, source_outcome_evidence_id="missing-outcome")
+
     with pytest.raises(
         CiboCapitalManagementError,
         match="canonical outcome binding missing",
@@ -202,7 +224,40 @@ def test_structural_outcome_requires_canonical_phase20_outcome_binding() -> None
         )
 
 
+def test_terminal_reason_position_must_match_phase20_outcome() -> None:
+    book, rows = _population()
+    first = rows[0]
+    bad_terminal = replace(
+        first.terminal_reason_evidence,
+        position_id=999999,
+    )
+    broken = replace(first, terminal_reason_evidence=bad_terminal)
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="position binding drift",
+    ):
+        assess_t02_forward_structural_oos(
+            evidence_book=book,
+            structural_outcomes=(broken,) + rows[1:],
+        )
+
+
 def test_pre_freeze_structural_classification_is_rejected() -> None:
+    terminal = T02TerminalReasonEvidence(
+        evidence_id="terminal-pre-freeze",
+        decision_evidence_sha256="sha256:" + "1" * 64,
+        signal_fingerprint="signal",
+        position_id=1,
+        settlement_deal_ids=(1,),
+        reason=T02TerminalReason.STRUCTURAL_STOP,
+        source=T02TerminalReasonSource.PROVIDER_NATIVE_EXPLICIT,
+        source_ref="explicit-pre-freeze",
+        observed_at=(
+            T02_FORWARD_STRUCTURAL_FROZEN_AT - timedelta(seconds=1)
+        ),
+    )
+
     with pytest.raises(
         CiboCapitalManagementError,
         match="predates frozen audit",
@@ -214,8 +269,5 @@ def test_pre_freeze_structural_classification_is_rejected() -> None:
             source_outcome_evidence_id="outcome",
             provider_economics_evidence_id="provider",
             execution_risk_evidence_id="risk",
-            settlement_deal_ids=(1,),
-            stopped_at_structural_stop=True,
-            terminal_reason_evidence_ref="reason",
-            observed_at=T02_FORWARD_STRUCTURAL_FROZEN_AT - timedelta(seconds=1),
+            terminal_reason_evidence=terminal,
         )
