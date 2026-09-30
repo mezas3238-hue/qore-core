@@ -760,28 +760,32 @@ def main() -> None:
 
     args = parser.parse_args()
     if args.command == "market":
-        report, opportunities = build_market_census(
+        market_report, opportunities = build_market_census(
             args.m1_root,
             session=CapitalizerSession(args.session),
         )
-        write_market_census(report, opportunities, args.output)
+        write_market_census(market_report, opportunities, args.output)
         print(
             json.dumps(
                 {
-                    "symbol": report.symbol,
-                    "session": report.session,
-                    "h1_bias_events": report.h1_bias_events,
-                    "source_complete_opportunities": report.source_complete_opportunities,
-                    "max3_chronological_selected": report.max3_chronological_selected,
+                    "symbol": market_report.symbol,
+                    "session": market_report.session,
+                    "h1_bias_events": market_report.h1_bias_events,
+                    "source_complete_opportunities": (
+                        market_report.source_complete_opportunities
+                    ),
+                    "max3_chronological_selected": (
+                        market_report.max3_chronological_selected
+                    ),
                 },
                 sort_keys=True,
             )
         )
         return
 
-    report = build_matrix(args.input_root)
-    write_matrix(report, args.output)
-    print(json.dumps(report, sort_keys=True))
+    matrix_report = build_matrix(args.input_root)
+    write_matrix(matrix_report, args.output)
+    print(json.dumps(matrix_report, sort_keys=True))
 
 
 if __name__ == "__main__":
