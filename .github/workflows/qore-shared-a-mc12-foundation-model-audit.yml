@@ -51,10 +51,10 @@ jobs:
           (cd input/freeze && sha256sum -c SHA256SUMS)
           gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10908500161/zip" > holdout.zip
           unzip -q holdout.zip -d input/holdout
-          (cd input/holdout && sha256sum -c result/SHA256SUMS)
+          (cd input/holdout/result && sha256sum -c SHA256SUMS)
           gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10908077821/zip" > replication.zip
           unzip -q replication.zip -d input/replication
-          (cd input/replication && sha256sum -c result/SHA256SUMS)
+          (cd input/replication/result && sha256sum -c SHA256SUMS)
       - name: Audit bounded MC12 foundation
         run: |
           set -euo pipefail
