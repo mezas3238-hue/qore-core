@@ -76,13 +76,25 @@
         "CAUSAL_REPLAY_EXECUTED": true,
         "VALUE_DEMONSTRATED": true,
         "OOS_PASS": false,
-        "REPLICATION_PASS": false,
+        "REPLICATION_PASS": true,
         "CERTIFIED": false
       },
       "value_scope": "PREDICTIVE_SIGNAL_VALUE_ON_CONSUMED_R6_ONLY",
       "scientific_disposition": "SIGNAL_VALUE_DEMONSTRATED_R6",
       "economic_position_management_value_proven": false,
-      "protected_holdout_opened": false
+      "protected_holdout_opened": false,
+      "replication_scope": "CONSUMED_R5_EXACT_FROZEN_REPLICATION",
+      "replication_run_id": 36650551765,
+      "replication_git_sha": "d48427d8e05642f10f7ab778d8e4b9388988af6c",
+      "replication_metrics": {
+        "r5_trade_count": 316,
+        "r5_source_observation_count": 7130,
+        "loss_precision_bps": 8248,
+        "loss_recall_bps": 6509,
+        "false_threat_on_nonlosses_bps": 1751,
+        "missed_loss_bps": 3490,
+        "median_true_threat_lead_minutes": 3
+      }
     }
   ],
   "global_world": {
