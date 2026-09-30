@@ -60,14 +60,17 @@ from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_source_cisd_ftm_v2 import (
+    CapitalizerCISDObservation,
     CapitalizerFailureToManipulateObservation,
     CapitalizerLiquiditySideTaken,
     assess_failure_to_manipulate,
     detect_cisd,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
+    CapitalizerProtectedSwingObservation,
     CapitalizerProtectedSwingOrigin,
     CapitalizerSourceBar,
+    CapitalizerSourceClosureObservation,
     CapitalizerSourceDirection,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_structural_extraction_v2 import (
@@ -90,8 +93,8 @@ PERIODS = s1.PERIODS
 @dataclass(frozen=True, slots=True)
 class FTMContinuationBinding:
     confirmed_at: datetime
-    cisd: object
-    protected_swing: object
+    cisd: CapitalizerCISDObservation
+    protected_swing: CapitalizerProtectedSwingObservation
     causal_series: tuple[CapitalizerSourceBar, ...]
 
     def __post_init__(self) -> None:
@@ -305,7 +308,7 @@ def first_continuation_binding(
     direction: CapitalizerSourceDirection,
     after: datetime,
     before: datetime,
-    htf_closure: object,
+    htf_closure: CapitalizerSourceClosureObservation,
 ) -> FTMContinuationBinding | None:
     selected = tuple(
         row
