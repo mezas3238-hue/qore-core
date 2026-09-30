@@ -70,6 +70,8 @@ _COMMENT_MARKERS = (
 )
 
 _WORKSTREAM_CLASSIFIERS = (
+    ("*cibo_compound_adversarial_stress*", "ADVERSARIAL_STRESS"),
+    ("*COMPOUND-ADVERSARIAL-STRESS*", "ADVERSARIAL_STRESS"),
     ("*cibo_genc9_economic_gate*", "GEN-C9"),
     ("*GEN-C9-NONCOMPENSATORY-ECONOMIC-GATE*", "GEN-C9"),
     ("*cibo_compound_path_monte_carlo*", "PATH_DEPENDENT_MONTE_CARLO"),

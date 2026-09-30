@@ -737,13 +737,19 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "PARTIAL_FOUNDATION",
+      "current_maturity": "COMPOUND_STRESS_ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "FULL_COMPOUND_AND_CRISIS_STRESS_MATRIX_NOT_YET_CLOSED"
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_compound_adversarial_stress.py",
+        "tests/infrastructure/test_cibo_compound_adversarial_stress.py",
+        "docs/research/CIBO-COMPOUND-ADVERSARIAL-STRESS-MATRIX-V1.md"
       ],
-      "next_gate": "Run compound-specific and crisis stress with non-compensatory gates."
+      "blockers": [
+        "COMPOUND_STRESS_ENGINE_CI_REVALIDATION_REQUIRED",
+        "REAL_COMPOUND_POPULATION_STRESS_EXECUTION_REQUIRED",
+        "CRISIS_PROVIDER_FACTOR_STRESS_INTEGRATION_REQUIRED"
+      ],
+      "next_gate": "Pass stress-engine CI; execute frozen matrix on real compound population; integrate GEN-C12 provider/liquidity/correlation crisis evidence; retain non-compensatory verdicts."
     },
     {
       "id": "FRESH_OOS",
