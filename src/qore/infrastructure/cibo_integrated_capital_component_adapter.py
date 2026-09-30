@@ -23,6 +23,9 @@ from qore.infrastructure.cibo_account_capital_mission import (
 from qore.infrastructure.cibo_capital_source_ledger_store import (
     DurableCapitalSourceLedgerStore,
 )
+from qore.infrastructure.cibo_ce2i_portfolio_allocation_ledger import (
+    PortfolioAllocationLedger,
+)
 from qore.infrastructure.cibo_ce2i_portfolio_allocation_store import (
     DurablePortfolioAllocationStore,
 )
@@ -161,7 +164,9 @@ def read_integrated_component_refs(
     return tuple(sorted(refs, key=lambda item: item.component.value))
 
 
-def portfolio_allocation_ledger_sha256(ledger) -> str:
+def portfolio_allocation_ledger_sha256(
+    ledger: PortfolioAllocationLedger,
+) -> str:
     """Canonical public-state digest for the T19 ledger."""
 
     payload = {
