@@ -1,0 +1,783 @@
+{
+  "schema": "QORE_CIBO_MASTER_OPEN_WORK_LEDGER_V1",
+  "directive": "CIBO_ABSOLUTE_CLOSURE_AMENDMENT_V1",
+  "audit_started_from_head": "398c2426173c961ea10797500899f9c8dd7a0bb5",
+  "source_of_truth": "GitHub HEAD + code + tests + CI + artifacts + ADR + roadmap + PR body",
+  "terminal_dispositions": [
+    "COMPLETED_AND_PROVEN",
+    "FALSIFIED_AND_CLOSED",
+    "SUPERSEDED_WITH_PROVEN_LINEAGE",
+    "EXTERNAL_DEPENDENCY_BLOCKED"
+  ],
+  "external_dependency_rule": "If certification_blocking=true, EXTERNAL_DEPENDENCY_BLOCKED keeps global certification blocked.",
+  "global_certification_non_compensatory": true,
+  "workstreams": [
+    {
+      "id": "T01",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+      ],
+      "blockers": [],
+      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+    },
+    {
+      "id": "T02",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+      ],
+      "blockers": [
+        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
+      ],
+      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+    },
+    {
+      "id": "T03",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+      ],
+      "blockers": [
+        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
+      ],
+      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+    },
+    {
+      "id": "T04",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+      ],
+      "blockers": [
+        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
+      ],
+      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+    },
+    {
+      "id": "T05",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+      ],
+      "blockers": [],
+      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+    },
+    {
+      "id": "T06",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+      ],
+      "blockers": [],
+      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+    },
+    {
+      "id": "T07",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+      ],
+      "blockers": [],
+      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+    },
+    {
+      "id": "T08",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+      ],
+      "blockers": [
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+      ],
+      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+    },
+    {
+      "id": "T09",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+      ],
+      "blockers": [
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+      ],
+      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+    },
+    {
+      "id": "T10",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+      ],
+      "blockers": [
+        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
+      ],
+      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+    },
+    {
+      "id": "T11",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+      ],
+      "blockers": [],
+      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+    },
+    {
+      "id": "T12",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+      ],
+      "blockers": [
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+      ],
+      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+    },
+    {
+      "id": "T13",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+      ],
+      "blockers": [
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+      ],
+      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+    },
+    {
+      "id": "T14",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+      ],
+      "blockers": [
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+      ],
+      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+    },
+    {
+      "id": "T15",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+      ],
+      "blockers": [
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+      ],
+      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+    },
+    {
+      "id": "T16",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+      ],
+      "blockers": [
+        "PROVIDER_UNIVERSE_SUPPORT_AND_ECONOMIC_EVIDENCE_REQUIRED_OR_FORMAL_INELIGIBILITY"
+      ],
+      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+    },
+    {
+      "id": "T17",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+      ],
+      "blockers": [
+        "PROVIDER_UNIVERSE_SUPPORT_AND_ECONOMIC_EVIDENCE_REQUIRED_OR_FORMAL_INELIGIBILITY"
+      ],
+      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+    },
+    {
+      "id": "T18",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+      ],
+      "blockers": [
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+      ],
+      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+    },
+    {
+      "id": "T19",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+      ],
+      "blockers": [],
+      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+    },
+    {
+      "id": "T20",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ENGINE_IMPLEMENTED_REAL_DATA_CLOSURE_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+      ],
+      "blockers": [
+        "FRESH_AUTHORITATIVE_RELEASE_RETURNED_CAPACITY_POPULATION_REQUIRED"
+      ],
+      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+    },
+    {
+      "id": "GEN-C0",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "COMPLETED_AND_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
+      "evidence_refs": [
+        "docs/research/CIBO-CE2I-ADR-003-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING.md",
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+      ],
+      "blockers": [],
+      "next_gate": "Preserve constitutional separation and freeze guards."
+    },
+    {
+      "id": "GEN-C1",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ENGINE_IMPLEMENTED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+      ],
+      "blockers": [
+        "END_TO_END_MATHEMATICAL_RECONCILIATION_REPLAY_REQUIRED"
+      ],
+      "next_gate": "Prove no double count/phantom/lost/unexplained capital under chronological replay."
+    },
+    {
+      "id": "GEN-C2",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ENGINE_IMPLEMENTED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+      ],
+      "blockers": [
+        "CAUSAL_PROFIT_GRADUATION_POLICY_VALUE_REQUIRED"
+      ],
+      "next_gate": "Close floor behavior with OOS profit graduation/giveback evidence."
+    },
+    {
+      "id": "GEN-C3",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ENGINE_IMPLEMENTED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+      ],
+      "blockers": [
+        "END_TO_END_COMPOUND_PORTFOLIO_ECONOMIC_CYCLE_REQUIRED"
+      ],
+      "next_gate": "Integrate settlements, floor, generations, reserves, Internal Capital Market and release/recycling."
+    },
+    {
+      "id": "GEN-C4",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ENGINE_IMPLEMENTED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+      ],
+      "blockers": [
+        "REAL_DATA_BOUND_CAUSAL_VALUE_PROOF_REQUIRED"
+      ],
+      "next_gate": "Integrate next-unit compound-capital decisions with Compound Portfolio and prove value."
+    },
+    {
+      "id": "GEN-C5",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ENGINE_IMPLEMENTED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+      ],
+      "blockers": [
+        "FRESH_PATH_DEPENDENT_OOS_STRESS_REPLICATION_REQUIRED"
+      ],
+      "next_gate": "Run chronological settlement→classification→capacity→next-opportunity control/treatment."
+    },
+    {
+      "id": "GEN-C6",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ENGINE_IMPLEMENTED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+      ],
+      "blockers": [
+        "FRESH_TRUE_SCARCITY_OOS_STRESS_REPLICATION_REQUIRED"
+      ],
+      "next_gate": "Prove competition among base/profit/expansion/reserve/optionality/compound uses."
+    },
+    {
+      "id": "GEN-C7",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ENGINE_IMPLEMENTED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+      ],
+      "blockers": [
+        "FRESH_OOS_GIVEBACK_RETENTION_STRESS_REPLICATION_REQUIRED"
+      ],
+      "next_gate": "Close harvesting/protection/reserve/compoundable-profit utility."
+    },
+    {
+      "id": "GEN-C8",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+      ],
+      "blockers": [
+        "CURRENT_HEAD_GEN_C8_CI_REVALIDATION_REQUIRED",
+        "FRESH_OOS_STRESS_REPLICATION_REQUIRED"
+      ],
+      "next_gate": "Restore green CI then bind calibrated causal states and prove adaptive-speed value."
+    },
+    {
+      "id": "GEN-C9",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ARCHITECTURE_DEFINED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+      ],
+      "blockers": [
+        "ENGINE_NOT_YET_IMPLEMENTED"
+      ],
+      "next_gate": "Implement robust growth/ruin/capacity research engine, preregistration, tests and evidence."
+    },
+    {
+      "id": "GEN-C10",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ARCHITECTURE_DEFINED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+      ],
+      "blockers": [
+        "ENGINE_NOT_YET_IMPLEMENTED"
+      ],
+      "next_gate": "Implement conserved full-capital Digital Twin and scenario transition engine."
+    },
+    {
+      "id": "GEN-C11",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ARCHITECTURE_DEFINED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+      ],
+      "blockers": [
+        "ENGINE_NOT_YET_IMPLEMENTED"
+      ],
+      "next_gate": "Implement no-leak multi-period shadow MPC and causal scenario interface."
+    },
+    {
+      "id": "GEN-C12",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ARCHITECTURE_DEFINED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+      ],
+      "blockers": [
+        "ENGINE_NOT_YET_IMPLEMENTED"
+      ],
+      "next_gate": "Implement crisis taxonomy/response/stress engine and Compound Portfolio survivability evidence."
+    },
+    {
+      "id": "GEN-C13",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ARCHITECTURE_DEFINED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+      ],
+      "blockers": [
+        "ENGINE_NOT_YET_IMPLEMENTED"
+      ],
+      "next_gate": "Implement immutable memory/counterfactual lab with leakage firewall."
+    },
+    {
+      "id": "GEN-C14",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ARCHITECTURE_DEFINED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+      ],
+      "blockers": [
+        "ENGINE_NOT_YET_IMPLEMENTED"
+      ],
+      "next_gate": "Implement hypothesis→prereg→test→OOS→stress→replication→governance research pipeline."
+    },
+    {
+      "id": "COMPOUND_ENGINE",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "PARTIAL_INTEGRATION",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "END_TO_END_CAUSAL_COMPOUND_CYCLE_NOT_YET_PROVEN"
+      ],
+      "next_gate": "Execute realized-profit→classification→protection→reserve→compoundability→allocation→next-generation replay."
+    },
+    {
+      "id": "COMPOUND_PORTFOLIO",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ENGINE_FOUNDATION_IMPLEMENTED",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "ECONOMIC_PORTFOLIO_CYCLE_NOT_YET_PROVEN"
+      ],
+      "next_gate": "Turn account-local portfolio from foundation into reconciled economic research unit."
+    },
+    {
+      "id": "INTERNAL_CAPITAL_MARKET",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ENGINE_IMPLEMENTED",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "COMPOUND_PORTFOLIO_CYCLE_AND_FRESH_SCARCITY_VALUE_NOT_YET_PROVEN"
+      ],
+      "next_gate": "Close GEN-C6 as economic cycle, not isolated module."
+    },
+    {
+      "id": "CAPITAL_GENERATIONS",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ENGINE_FOUNDATION_IMPLEMENTED",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "FULL_PARENT_CHILD_GENERATION_REPLAY_AND_ATTRIBUTION_REQUIRED"
+      ],
+      "next_gate": "Prove GEN-0→GEN-N provenance through settlement/redeployment."
+    },
+    {
+      "id": "PROFIT_PROTECTION",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ENGINE_IMPLEMENTED",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "FRESH_OOS_PROFIT_RETENTION_AND_GIVEBACK_VALUE_REQUIRED"
+      ],
+      "next_gate": "Close GEN-C2/7 floor+harvest behavior."
+    },
+    {
+      "id": "PROVIDER_ECONOMICS",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "PARTIAL_REAL_BINDING",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "ALL_REQUIRED_PROVIDER_FIELDS_NOT_YET_PROVEN_FOR_ALL_CERTIFICATION_PATHS"
+      ],
+      "next_gate": "Bind real provider-normalized equity/margin/volume/spec/tick/commission/spread/slippage semantics or mark ineligible."
+    },
+    {
+      "id": "FORWARD_QUALIFICATION",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "COLLECTING",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "PHASE20D_FRESH_POPULATION_THRESHOLDS_NOT_YET_MET_OR_REVALIDATED"
+      ],
+      "next_gate": "Revalidate durable books and pass frozen Phase20D qualification without threshold changes."
+    },
+    {
+      "id": "PATH_DEPENDENT_MONTE_CARLO",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "PARTIAL_FOUNDATION",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "COMPOUND_GENERATIONS_FLOOR_ICM_RELEASE_PATHS_NOT_YET_FULLY_PRESERVED"
+      ],
+      "next_gate": "Extend Monte Carlo to full compound path dependencies."
+    },
+    {
+      "id": "ADVERSARIAL_STRESS",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "PARTIAL_FOUNDATION",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "FULL_COMPOUND_AND_CRISIS_STRESS_MATRIX_NOT_YET_CLOSED"
+      ],
+      "next_gate": "Run compound-specific and crisis stress with non-compensatory gates."
+    },
+    {
+      "id": "FRESH_OOS",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "OPEN_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "MANDATORY_CAPABILITIES_NOT_READY_FOR_FINAL_OOS"
+      ],
+      "next_gate": "Run only after mechanisms/policies/gates freeze."
+    },
+    {
+      "id": "TEMPORAL_REPLICATION",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "OPEN_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "MANDATORY_CAPABILITIES_NOT_READY_FOR_REPLICATION"
+      ],
+      "next_gate": "Replicate surviving mechanisms across frozen temporal partitions."
+    },
+    {
+      "id": "RISK_INTEGRATION",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "PARTIAL_INTEGRATION",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "END_TO_END_DOWNSIZE_MINIMAL_SEED_NO_REJECT_ALL_EVIDENCE_REQUIRED"
+      ],
+      "next_gate": "Prove CIBO optimizes while Risk independently bounds without nominal-cost reject-all behavior."
+    },
+    {
+      "id": "CAPITAL_AMPLIFICATION",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "PARTIAL_INTEGRATION",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "COMPOUND_PORTFOLIO_AND_GEN_C_CLOSURE_REQUIRED"
+      ],
+      "next_gate": "Integrate seed→journey→expansion→profit→compound portfolio→ICM→next opportunity."
+    },
+    {
+      "id": "AS_IS_CONTROL",
+      "kind": "GOVERNANCE",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTROL_SELECTED_MACHINE_SEAL_REVALIDATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "CURRENT_CONTROL_SEAL_ARTIFACT_AND_HEAD_WORKFLOW_REVALIDATION_REQUIRED"
+      ],
+      "next_gate": "Generate and retain immutable pre-C8 control seal artifact."
+    },
+    {
+      "id": "SOURCE_OF_TRUTH_RECONCILIATION",
+      "kind": "GOVERNANCE",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "OPEN_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "REGISTRY_ROADMAP_PR_BODY_CODE_STATE_DIVERGENCE_EXISTS"
+      ],
+      "next_gate": "Reconcile HEAD→code→tests→CI→artifacts→ADR→roadmap→PR body."
+    },
+    {
+      "id": "ORPHAN_INVENTORY",
+      "kind": "GOVERNANCE",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "OPEN_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "FULL_CIBO_FILE_EXPERIMENT_WORKFLOW_CLASSIFICATION_REQUIRED"
+      ],
+      "next_gate": "Generate complete CIBO source/workflow/script/test/doc inventory and disposition all orphan candidates."
+    },
+    {
+      "id": "ZERO_OPEN_WORK_GATE",
+      "kind": "GOVERNANCE",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "IMPLEMENTATION_IN_PROGRESS",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "MASTER_LEDGER_HAS_OPEN_REQUIRED_WORK"
+      ],
+      "next_gate": "Gate must remain pass=false until every mandatory row has terminal disposition."
+    },
+    {
+      "id": "FINAL_INTEGRATED_CIBO_EXAM",
+      "kind": "CERTIFICATION",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "OPEN_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "ALL_PRECEDING_MANDATORY_WORKSTREAMS_MUST_CLOSE"
+      ],
+      "next_gate": "Run full chronological integrated capital cycle with exact accounting identity."
+    },
+    {
+      "id": "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
+      "kind": "CERTIFICATION",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "BLOCKED_BY_ORDINARY_CLOSURE",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "ZERO_OPEN_WORK_GATE_MUST_PASS_FIRST"
+      ],
+      "next_gate": "Run only after ordinary CIBO absolute closure."
+    }
+  ],
+  "current_summary": {
+    "mandatory_count": 54,
+    "terminal_count": 1,
+    "open_count": 53,
+    "zero_open_work_pass": false,
+    "final_certification_candidate": false
+  }
+}
