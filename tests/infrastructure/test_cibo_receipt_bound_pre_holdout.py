@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import importlib.util
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 
@@ -14,19 +16,17 @@ from qore.infrastructure.cibo_ce2i_calibration_freeze_manifest import (
 from qore.infrastructure.cibo_ce2i_calibration_matrix import (
     CIBO_T01_T20_CALIBRATION_MATRIX,
 )
+from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
+    FROZEN_PHASE20_POLICY_CANDIDATE,
+)
 from qore.infrastructure.cibo_ce2i_pre_holdout_gate import (
     CiboPreHoldoutStatus,
 )
 from qore.infrastructure.cibo_ce2i_provider_economics_component_freeze import (
-    PROVIDER_ECONOMICS_COMPONENT_FREEZE_ID,
-    CiboProviderEconomicsComponentFreeze,
+    freeze_current_ctrader_demo_provider_economics,
 )
-from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
-    CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS,
-    provider_economics_evidence_ref,
-)
-from qore.infrastructure.cibo_ce2i_provider_economics_provenance import (
-    provider_economics_provenance_sha256,
+from qore.infrastructure.cibo_ce2i_provider_execution_calibration import (
+    calibrate_ctrader_demo_forward_execution,
 )
 from qore.infrastructure.cibo_crossboundary_evidence_receipt import (
     bind_cross_boundary_pass_artifact,
@@ -40,11 +40,21 @@ from qore.infrastructure.cibo_receipt_bound_pre_holdout import (
     required_pre_holdout_receipt_ids,
 )
 
-T0 = datetime(2026, 9, 30, 22, 0, tzinfo=UTC)
+FREEZE_AT = datetime(2026, 10, 1, 1, 0, tzinfo=UTC)
 HEAD = "a" * 40
-POLICY = "sha256:" + "b" * 64
-FORWARD_SHA = "sha256:" + "c" * 64
+POLICY = FROZEN_PHASE20_POLICY_CANDIDATE.parameter_sha256()
 PHASE21_SHA = "sha256:" + "d" * 64
+
+_PROVIDER_TEST = Path(__file__).with_name(
+    "test_cibo_ce2i_provider_execution_calibration.py"
+)
+_SPEC = importlib.util.spec_from_file_location(
+    "_cibo_provider_execution_fixture",
+    _PROVIDER_TEST,
+)
+assert _SPEC is not None and _SPEC.loader is not None
+_PROVIDER_FIXTURE = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(_PROVIDER_FIXTURE)
 
 
 def _base(receipt_id: str, *, kind: str, head: str = HEAD) -> dict:
@@ -53,7 +63,7 @@ def _base(receipt_id: str, *, kind: str, head: str = HEAD) -> dict:
         "producer_gate_id": f"gate:{receipt_id}",
         "integrated_git_sha": head,
         "policy_identity_sha256": POLICY,
-        "observed_at": T0.isoformat(),
+        "observed_at": FREEZE_AT.isoformat(),
         "status": "PASS",
         "failures": [],
         "holdout_outcomes_inspected": False,
@@ -74,36 +84,32 @@ def _bind(receipt_id: str, kind: str, payload: dict):
     )
 
 
-def _provider_freeze() -> CiboProviderEconomicsComponentFreeze:
-    evidence = CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS
-    observed_at = datetime.fromisoformat(evidence.observed_at)
-    return CiboProviderEconomicsComponentFreeze(
-        freeze_id=PROVIDER_ECONOMICS_COMPONENT_FREEZE_ID,
-        provider_key=evidence.provider_key,
-        environment="demo",
-        source_evidence_ref=provider_economics_evidence_ref(),
-        source_provenance_sha256=provider_economics_provenance_sha256(),
-        source_observed_at=observed_at,
-        frozen_at=T0 - timedelta(minutes=1),
-        point_in_time_terms_frozen=True,
-        spread_terms_frozen=True,
-        commission_terms_frozen=True,
-        expected_margin_terms_frozen=True,
-        volume_contract_terms_frozen=True,
-        empirical_slippage_frozen=True,
-        execution_model_frozen=True,
-        historical_2017_exact_claimed=evidence.historical_exact_claimed,
-        holdout_outcomes_used=evidence.holdout_outcomes_used,
-        target_aware=evidence.target_aware,
-        broker_mutation_performed=evidence.broker_mutation_performed,
-        pre_holdout_provider_economics_ready=True,
-        blockers=(),
-        execution_calibration_sha256="sha256:" + "e" * 64,
-        productive_authority=False,
+def _forward_inputs():
+    return _PROVIDER_FIXTURE._population()
+
+
+def _provider_state():
+    manifest, risks = _forward_inputs()
+    calibration = calibrate_ctrader_demo_forward_execution(
+        manifest=manifest,
+        executed_risk_book=risks,
+        frozen_at=FREEZE_AT,
     )
+    provider = freeze_current_ctrader_demo_provider_economics(
+        frozen_at=FREEZE_AT,
+        execution_calibration=calibration,
+    )
+    assert calibration.execution_model_ready is True
+    assert provider.pre_holdout_provider_economics_ready is True
+    return manifest, risks, calibration, provider
 
 
-def _calibration_receipts(provider_sha: str, *, head: str = HEAD):
+def _calibration_receipts(
+    *,
+    forward_sha: str,
+    provider_sha: str,
+    head: str = HEAD,
+):
     provider_required = {
         row.tool_code
         for row in CIBO_T01_T20_CALIBRATION_MATRIX
@@ -114,7 +120,7 @@ def _calibration_receipts(provider_sha: str, *, head: str = HEAD):
         if receipt_id == "PHASE20D_FORWARD_MANIFEST":
             kind = "PHASE20D_FORWARD_MANIFEST"
             payload = _base(receipt_id, kind=kind, head=head)
-            payload["phase20d_forward_manifest_sha256"] = FORWARD_SHA
+            payload["phase20d_forward_manifest_sha256"] = forward_sha
         elif receipt_id == "PROVIDER_ECONOMICS_FREEZE":
             kind = "PROVIDER_ECONOMICS_FREEZE"
             payload = _base(receipt_id, kind=kind, head=head)
@@ -148,7 +154,9 @@ def _calibration_receipts(provider_sha: str, *, head: str = HEAD):
 
 def _pre_holdout_receipts(
     *,
+    forward_sha: str,
     provider_sha: str,
+    execution_calibration_sha: str,
     calibration_sha: str,
     phase21_sealed: bool = True,
 ):
@@ -158,12 +166,13 @@ def _pre_holdout_receipts(
         payload = _base(receipt_id, kind=kind)
         if receipt_id == "PHASE20D_CAUSAL_GATE":
             payload["phase20d_causal_gate_passed"] = True
-            payload["phase20d_forward_manifest_sha256"] = FORWARD_SHA
+            payload["phase20d_forward_manifest_sha256"] = forward_sha
         elif receipt_id == "PHASE21_POLICY_FREEZE":
             payload["phase21_policy_freeze_sealed"] = phase21_sealed
             payload["phase21_policy_freeze_sha256"] = PHASE21_SHA
         elif receipt_id == "PROVIDER_ECONOMICS_FREEZE":
             payload["provider_economics_freeze_sha256"] = provider_sha
+            payload["execution_calibration_sha256"] = execution_calibration_sha
             payload["pre_holdout_provider_economics_ready"] = True
         elif receipt_id == "CALIBRATION_FREEZE_MANIFEST":
             payload["calibration_freeze_manifest_sha256"] = calibration_sha
@@ -173,30 +182,37 @@ def _pre_holdout_receipts(
 
 
 def _valid_inputs():
-    provider = _provider_freeze()
+    manifest, risks, calibration, provider = _provider_state()
+    forward_sha = manifest.fingerprint()
     provider_sha = provider.fingerprint()
-    calibration_receipts = _calibration_receipts(provider_sha)
-    manifest = build_receipt_bound_calibration_freeze(
+    calibration_receipts = _calibration_receipts(
+        forward_sha=forward_sha,
+        provider_sha=provider_sha,
+    )
+    freeze = build_receipt_bound_calibration_freeze(
         receipts=calibration_receipts,
         integrated_git_sha=HEAD,
         policy_identity_sha256=POLICY,
     )
     pre_receipts = _pre_holdout_receipts(
+        forward_sha=forward_sha,
         provider_sha=provider_sha,
-        calibration_sha=manifest.fingerprint(),
+        execution_calibration_sha=calibration.fingerprint(),
+        calibration_sha=freeze.fingerprint(),
     )
-    return provider, calibration_receipts, pre_receipts
+    return manifest, risks, calibration_receipts, pre_receipts
 
 
 def test_receipt_bound_pre_holdout_can_reach_ready_without_reading_holdout() -> None:
-    provider, calibration_receipts, pre_receipts = _valid_inputs()
+    manifest, risks, calibration_receipts, pre_receipts = _valid_inputs()
 
     readiness = evaluate_receipt_bound_pre_holdout_readiness(
         integrated_git_sha=HEAD,
         policy_identity_sha256=POLICY,
         receipts=pre_receipts,
         calibration_receipts=calibration_receipts,
-        provider_economics_freeze=provider,
+        forward_manifest=manifest,
+        executed_risk_book=risks,
     )
 
     assert readiness.status is CiboPreHoldoutStatus.READY_TO_UNSEAL_2017H1
@@ -206,15 +222,26 @@ def test_receipt_bound_pre_holdout_can_reach_ready_without_reading_holdout() -> 
 
 
 def test_phase21_false_cannot_be_laundered_by_pass_envelope() -> None:
-    provider, calibration_receipts, _ = _valid_inputs()
-    manifest = build_receipt_bound_calibration_freeze(
+    manifest, risks, calibration_receipts, _ = _valid_inputs()
+    calibration = calibrate_ctrader_demo_forward_execution(
+        manifest=manifest,
+        executed_risk_book=risks,
+        frozen_at=FREEZE_AT,
+    )
+    provider = freeze_current_ctrader_demo_provider_economics(
+        frozen_at=FREEZE_AT,
+        execution_calibration=calibration,
+    )
+    freeze = build_receipt_bound_calibration_freeze(
         receipts=calibration_receipts,
         integrated_git_sha=HEAD,
         policy_identity_sha256=POLICY,
     )
     pre_receipts = _pre_holdout_receipts(
+        forward_sha=manifest.fingerprint(),
         provider_sha=provider.fingerprint(),
-        calibration_sha=manifest.fingerprint(),
+        execution_calibration_sha=calibration.fingerprint(),
+        calibration_sha=freeze.fingerprint(),
         phase21_sealed=False,
     )
 
@@ -227,20 +254,28 @@ def test_phase21_false_cannot_be_laundered_by_pass_envelope() -> None:
             policy_identity_sha256=POLICY,
             receipts=pre_receipts,
             calibration_receipts=calibration_receipts,
-            provider_economics_freeze=provider,
+            forward_manifest=manifest,
+            executed_risk_book=risks,
         )
 
 
 def test_provider_fingerprint_mismatch_fails_closed() -> None:
-    provider, calibration_receipts, _ = _valid_inputs()
-    manifest = build_receipt_bound_calibration_freeze(
+    manifest, risks, calibration_receipts, _ = _valid_inputs()
+    calibration = calibrate_ctrader_demo_forward_execution(
+        manifest=manifest,
+        executed_risk_book=risks,
+        frozen_at=FREEZE_AT,
+    )
+    freeze = build_receipt_bound_calibration_freeze(
         receipts=calibration_receipts,
         integrated_git_sha=HEAD,
         policy_identity_sha256=POLICY,
     )
     pre_receipts = _pre_holdout_receipts(
+        forward_sha=manifest.fingerprint(),
         provider_sha="sha256:" + "f" * 64,
-        calibration_sha=manifest.fingerprint(),
+        execution_calibration_sha=calibration.fingerprint(),
+        calibration_sha=freeze.fingerprint(),
     )
 
     with pytest.raises(
@@ -252,12 +287,13 @@ def test_provider_fingerprint_mismatch_fails_closed() -> None:
             policy_identity_sha256=POLICY,
             receipts=pre_receipts,
             calibration_receipts=calibration_receipts,
-            provider_economics_freeze=provider,
+            forward_manifest=manifest,
+            executed_risk_book=risks,
         )
 
 
 def test_missing_calibration_tool_receipt_fails_before_holdout() -> None:
-    provider, calibration_receipts, pre_receipts = _valid_inputs()
+    manifest, risks, calibration_receipts, pre_receipts = _valid_inputs()
     calibration_receipts = tuple(
         item for item in calibration_receipts if item.receipt_id != "T07"
     )
@@ -271,5 +307,6 @@ def test_missing_calibration_tool_receipt_fails_before_holdout() -> None:
             policy_identity_sha256=POLICY,
             receipts=pre_receipts,
             calibration_receipts=calibration_receipts,
-            provider_economics_freeze=provider,
+            forward_manifest=manifest,
+            executed_risk_book=risks,
         )
