@@ -24,8 +24,9 @@ permissions:
 env:
   GH_TOKEN: ${{ github.token }}
   SOURCE_MANIFEST_SHA256: 2f18b9f11d5893effa46ac85c712edd6646d1d90a9de521b235143e42155d191
-  SOURCE_MANIFEST_ARTIFACT_ID: "10982052296"
-  SOURCE_MANIFEST_PRODUCER_SHA: 99e60783fb270c40ae23805fbb3d16ae76d9c4f2
+  SOURCE_MANIFEST_ARTIFACT_ID: "11084157200"
+  SOURCE_MANIFEST_ARTIFACT_DIGEST: "sha256:bf370750aec63fbd4abe0072d60700e6d78f83514e518a37490fedd2728902b0"
+  SOURCE_MANIFEST_PRODUCER_SHA: 5dac82424cdf45c63c37b5f156697b7287cc3252
 
 jobs:
   validate:
@@ -98,6 +99,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p input/manifest result
+          artifact_digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${SOURCE_MANIFEST_ARTIFACT_ID}" --jq '.digest')"
+          test "$artifact_digest" = "$SOURCE_MANIFEST_ARTIFACT_DIGEST"
           gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${SOURCE_MANIFEST_ARTIFACT_ID}/zip" > manifest.zip
           test -s manifest.zip
           unzip -q manifest.zip -d input/manifest
@@ -108,7 +111,14 @@ jobs:
       - name: Run post-V13 source availability audit
         run: |
           set -euo pipefail
-          python scripts/shared_wp05_post_v13_cross_market_sensor_availability.py             --manifest result/source-manifest.json             --expected-manifest-sha256 "$SOURCE_MANIFEST_SHA256"             --output result/post-v13-sensor-availability.json             | tee result/post-v13-sensor-availability-summary.json
+          python scripts/shared_wp05_post_v13_cross_market_sensor_availability.py \
+            --manifest result/source-manifest.json \
+            --expected-manifest-sha256 "$SOURCE_MANIFEST_SHA256" \
+            --source-manifest-artifact-id "$SOURCE_MANIFEST_ARTIFACT_ID" \
+            --source-manifest-artifact-digest "$SOURCE_MANIFEST_ARTIFACT_DIGEST" \
+            --source-manifest-producer-sha "$SOURCE_MANIFEST_PRODUCER_SHA" \
+            --output result/post-v13-sensor-availability.json \
+            | tee result/post-v13-sensor-availability-summary.json
 
       - name: Validate governance
         run: |
@@ -125,6 +135,18 @@ jobs:
               "FIRST_Q1_MID_Q3_LAST_BY_FROZEN_MANIFEST_ORDINAL"
           )
           assert p["selected_manifest_indices"] == [0, 736, 1473, 2210, 2947]
+          assert [row["label"] for row in p["selected_windows"]] == [
+              "FIRST", "Q1", "MID", "Q3", "LAST"
+          ]
+          assert p["source_manifest_artifact_id"] == 11084157200
+          assert p["source_manifest_artifact_digest"] == (
+              "sha256:bf370750aec63fbd4abe0072d60700e6d78f83514e518a37490fedd2728902b0"
+          )
+          assert p["source_manifest_producer_sha"] == (
+              "5dac82424cdf45c63c37b5f156697b7287cc3252"
+          )
+          assert len(p["enabled_symbols"]) == p["enabled_symbol_count"]
+          assert len(p["enabled_symbol_catalogue_sha256"]) == 64
           assert p["read_only_message_firewall"] is True
           assert p["target_or_outcome_used_for_selection"] is False
           assert p["target_or_outcome_read"] is False
@@ -138,13 +160,24 @@ jobs:
           assert p["shared_execution_authority"] is False
           PY
 
+      - name: Seal replayable source-only audit evidence
+        if: always()
+        run: |
+          if [ -d result ]; then
+            printf '%s\n' "${GITHUB_SHA}" > result/git-sha.txt
+            (
+              cd result
+              find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+                | sort -z | xargs -0 sha256sum > SHA256SUMS
+              sha256sum -c SHA256SUMS
+            )
+          fi
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: qore-shared-wp05-post-v13-sensor-availability-${{ github.sha }}
-          path: |
-            result/post-v13-sensor-availability.json
-            result/post-v13-sensor-availability-summary.json
+          path: result/
           if-no-files-found: warn
           retention-days: 90
 
@@ -167,8 +200,12 @@ jobs:
               f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
               f"- GitHub Actions run: `{os.environ['GITHUB_RUN_ID']}`",
               f"- enabled cTrader symbols: **{p['enabled_symbol_count']}**",
+              f"- enabled catalogue SHA256: `{p['enabled_symbol_catalogue_sha256']}`",
+              f"- source manifest artifact: **{p['source_manifest_artifact_id']}**",
+              f"- source manifest producer SHA: `{p['source_manifest_producer_sha']}`",
               f"- USTEC control present: **{p['ustec_control_present']}**",
               f"- frozen manifest indices: **{p['selected_manifest_indices']}**",
+              f"- frozen windows: **{[(w['label'], w['manifest_index'], w['from_at'], w['to_at']) for w in p['selected_windows']]}**",
           ]
           for family, report in p["peer_families"].items():
               lines.append(f"- {family} matched symbols: **{report['matched_symbols']}**")
