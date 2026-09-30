@@ -22,7 +22,7 @@ jobs:
         env:
           TARGET_BRANCH: agent/cibo-certification-architect-b-integration-001
           TARGET_HEAD: ${{ github.event.before }}
-          MAX_CANCELS: "850"
+          MAX_CANCELS: "300"
         with:
           script: |
             const branch = process.env.TARGET_BRANCH;
