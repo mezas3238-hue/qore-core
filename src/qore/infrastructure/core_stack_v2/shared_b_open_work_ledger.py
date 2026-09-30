@@ -117,13 +117,18 @@ B_WORK_ITEMS: Final = (
             "artifact:11115769948",
             "artifact:11115828701",
             "artifact:11112587007",
+            "artifact:11119439556",
             "run:36754912247",
             "run:36755839843",
+            "run:36764899352",
         ),
         (
-            "canonical identity is not resolved for the full 177-sensor provider universe",
-            "energy tradable product identities remain unresolved",
-            "futures front/roll/continuous identity remains unresolved",
+            "98/177 sensors remain provider-native-only with no canonical "
+            "economic/reference identity",
+            "74/177 have current reference-object mappings but not full "
+            "tradable/listing/calendar identity",
+            "5/177 GC dated contracts are verified but front/roll/continuous "
+            "identity remains unresolved",
         ),
     ),
     SharedBWorkItem(
