@@ -538,3 +538,68 @@ def test_integrator_classifies_new_crossboundary_and_forward_inventory() -> None
         ),
     }
     assert orphans == ()
+
+
+def test_integrator_resolves_architect_b_crossboundary_request_002() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py",
+        "scripts/cibo_phase20_arch_b_forward_economic_manifest.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t03_margin_population.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t11_execution_population.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t11_cost_binding.py",
+        "src/qore/infrastructure/cibo_ce2i_execution_efficiency.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py",
+        "src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py",
+        "scripts/cibo_phase20_provider_execution_calibration.py",
+        "src/qore/infrastructure/cibo_t20_capital_release.py",
+        "src/qore/infrastructure/cibo_usd60_exam_readiness.py",
+        "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py",
+        "src/qore/infrastructure/cibo_research_memory.py",
+        "tests/infrastructure/test_cibo_risk_integration_closure.py",
+        ".github/workflows/cibo-risk-integration-closure.yml",
+        "docs/research/CIBO-RISK-INTEGRATION-CLOSURE-V1.md",
+    )
+    ledger_ids = frozenset(
+        {
+            "FORWARD_QUALIFICATION",
+            "T02",
+            "T03",
+            "T11",
+            "PROVIDER_ECONOMICS",
+            "T20",
+            "USD60_CAPABILITY_PROGRAM",
+            "INTEGRATED_CAPITAL_TRUTH",
+            "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK",
+            "RISK_INTEGRATION",
+        }
+    )
+
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    expected = (
+        "FORWARD_QUALIFICATION",
+        "FORWARD_QUALIFICATION",
+        "T02",
+        "T03",
+        "T11",
+        "T11",
+        "T11",
+        "PROVIDER_ECONOMICS",
+        "PROVIDER_ECONOMICS",
+        "PROVIDER_ECONOMICS",
+        "PROVIDER_ECONOMICS",
+        "T20",
+        "USD60_CAPABILITY_PROGRAM",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK",
+        "RISK_INTEGRATION",
+        "RISK_INTEGRATION",
+        "RISK_INTEGRATION",
+    )
+    assert tuple(item[1] for item in assignments) == expected
+    assert orphans == ()
