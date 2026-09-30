@@ -60,6 +60,8 @@ _SPEC.loader.exec_module(_PROVIDER_FIXTURE)
 def _base(receipt_id: str, *, kind: str, head: str = HEAD) -> dict:
     return {
         "schema": "qore.cibo.pre-holdout-receipt-test.v1",
+        "evidence_binding_id": receipt_id,
+        "evidence_kind": kind,
         "producer_gate_id": f"gate:{receipt_id}",
         "integrated_git_sha": head,
         "policy_identity_sha256": POLICY,
@@ -72,7 +74,6 @@ def _base(receipt_id: str, *, kind: str, head: str = HEAD) -> dict:
         "holdout_mining_used": False,
         "outcome_aware_refit": False,
         "operational_authority_claimed": False,
-        "kind_marker": kind,
     }
 
 
