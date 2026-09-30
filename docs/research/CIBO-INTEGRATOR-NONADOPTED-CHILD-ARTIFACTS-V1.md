@@ -61,6 +61,7 @@ Its requested evidence bridge is being implemented by the Integrator through:
 
 ### `docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.json`
 ### `docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.md`
+### `docs/research/CIBO-ARCH-B-HANDOFF-MAESTRO-CONTINUIDAD-2026-09-30.md`
 
 Disposition: **DO NOT USE AS CANONICAL INTEGRATED STATE**
 
