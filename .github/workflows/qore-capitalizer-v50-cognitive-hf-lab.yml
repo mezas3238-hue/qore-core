@@ -10,12 +10,14 @@ on:
       - 'src/qore/infrastructure/trader_lab/capitalizer_v50_target_stop_intelligence.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_v50_cognitive_opportunity.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_v50_cognitive_geometry_specialist.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_v50_master_cognitive_adapter.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_v50_cognitive_feature_atlas.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_v50_prequential_cognitive_memory.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_v50_cognitive_hf_bridge.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_v50_target_stop_intelligence.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_v50_cognitive_opportunity.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_v50_cognitive_geometry_specialist.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_v50_master_cognitive_adapter.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_v50_cognitive_feature_atlas.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_v50_prequential_cognitive_memory.py'
   workflow_dispatch:
@@ -50,12 +52,14 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_v50_target_stop_intelligence.py \
             src/qore/infrastructure/trader_lab/capitalizer_v50_cognitive_opportunity.py \
             src/qore/infrastructure/trader_lab/capitalizer_v50_cognitive_geometry_specialist.py \
+            src/qore/infrastructure/trader_lab/capitalizer_v50_master_cognitive_adapter.py \
             src/qore/infrastructure/trader_lab/capitalizer_v50_cognitive_feature_atlas.py \
             src/qore/infrastructure/trader_lab/capitalizer_v50_prequential_cognitive_memory.py \
             tests/infrastructure/trader_lab/test_capitalizer_v50_cognitive_hf_bridge.py \
             tests/infrastructure/trader_lab/test_capitalizer_v50_target_stop_intelligence.py \
             tests/infrastructure/trader_lab/test_capitalizer_v50_cognitive_opportunity.py \
             tests/infrastructure/trader_lab/test_capitalizer_v50_cognitive_geometry_specialist.py \
+            tests/infrastructure/trader_lab/test_capitalizer_v50_master_cognitive_adapter.py \
             tests/infrastructure/trader_lab/test_capitalizer_v50_cognitive_feature_atlas.py \
             tests/infrastructure/trader_lab/test_capitalizer_v50_prequential_cognitive_memory.py
       - name: Mypy
