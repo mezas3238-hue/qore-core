@@ -12,7 +12,6 @@ import argparse
 import json
 from collections import deque
 from pathlib import Path
-from statistics import median
 from typing import Any
 
 import shared_sti2_real_opportunity_discovery as v1
@@ -171,27 +170,6 @@ def _ratio(numerator: int, denominator: int) -> int:
     return 0 if denominator <= 0 else numerator * 10_000 // denominator
 
 
-def _first_material_minute(
-    pre: dict[str, tuple[Any, ...]],
-    future: dict[str, tuple[Any, ...]],
-) -> int | None:
-    horizon = len(future["NAS100"])
-    for minute in range(2, horizon + 1):
-        partial = {
-            market: bars[:minute]
-            for market, bars in future.items()
-        }
-        target = v1._target_state(pre, partial)
-        if max(
-            target[CausalConcept.EXPANSION_READINESS],
-            target[CausalConcept.DISPLACEMENT],
-            target[CausalConcept.CONTINUATION],
-            target[CausalConcept.REVERSAL],
-        ) >= TARGET_BPS:
-            return minute
-    return None
-
-
 def _evaluate(
     *,
     partition: str,
@@ -208,7 +186,6 @@ def _evaluate(
     )
     tp = fp = fn = tn = 0
     alert_count = 0
-    leads: list[int] = []
     mechanism_counts: dict[str, dict[str, int]] = {
         mechanism.value: {"signals": 0, "tp": 0, "fp": 0, "fn": 0}
         for mechanism in SharedOpportunityMechanism
@@ -234,9 +211,6 @@ def _evaluate(
 
         if alert and future_material:
             tp += 1
-            first = _first_material_minute(pre, future)
-            if first is not None:
-                leads.append(first)
         elif alert:
             fp += 1
         elif future_material:
@@ -296,9 +270,9 @@ def _evaluate(
         "missed_opportunity_rate_bps": missed,
         "v1_recall_bps": V1_RECALL[partition],
         "recall_uplift_vs_v1_bps": v1_uplift,
-        "median_minutes_to_first_material_future_state": (
-            None if not leads else median(leads)
-        ),
+        "target_window_lead_minutes": 30,
+        "event_level_lead_time_identifiable": False,
+        "lead_time_metric_status": "WINDOW_LEVEL_LEAD_ONLY",
         "mechanism_metrics": mechanism_metrics,
         "gate_pass": gate,
     }
