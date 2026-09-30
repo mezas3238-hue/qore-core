@@ -418,15 +418,20 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_REAL_DATA_CLOSURE_REQUIRED",
+      "current_maturity": "MECHANICAL_RELEASE_PROVENANCE_ENGINE_STAGED_DEDICATED_CI_PENDING_REAL_FORWARD_POPULATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "src/qore/infrastructure/cibo_t20_capital_release_evidence.py",
+        "tests/infrastructure/test_cibo_t20_capital_release_evidence.py",
+        ".github/workflows/cibo-t20-capital-release.yml",
+        "docs/research/CIBO-B-T20-CAPITAL-RELEASE-MECHANICAL-CLOSURE-V1.md"
       ],
       "blockers": [
+        "INTEGRATOR_T20_CAPITAL_RELEASE_CI_REQUIRED",
         "FRESH_AUTHORITATIVE_RELEASE_RETURNED_CAPACITY_POPULATION_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "Pass dedicated T20 mechanical CI; then populate the frozen FORWARD_OBSERVED qualification set with exact provider→Risk→execution→settlement→terminal-release lifecycles and Phase20D coverage."
     },
     {
       "id": "GEN-C0",
