@@ -1,0 +1,27 @@
+name: QORE Shared Continuous Integration Ledger
+
+on:
+  push:
+    branches:
+      - agent/shared-integration-ledger-sync-001
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - "docs/shared/integration/SHARED_CONTINUOUS_INTEGRATION_LEDGER_001.json"
+      - "tests/infrastructure/test_shared_continuous_integration_ledger.py"
+      - ".github/workflows/qore-shared-continuous-integration-ledger.yml"
+  pull_request:
+    paths:
+      - "docs/shared/integration/SHARED_CONTINUOUS_INTEGRATION_LEDGER_001.json"
+      - "tests/infrastructure/test_shared_continuous_integration_ledger.py"
+      - ".github/workflows/qore-shared-continuous-integration-ledger.yml"
+
+jobs:
+  validate-ledger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e . pytest
+      - run: pytest -q tests/infrastructure/test_shared_continuous_integration_ledger.py
