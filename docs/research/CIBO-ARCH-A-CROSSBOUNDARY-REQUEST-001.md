@@ -59,21 +59,23 @@ Every decision epoch supplied to A must be causally timestamped and, where avail
 3. decision epoch id and decision timestamp;
 4. Trader lineage and signal fingerprint;
 5. candidate identity / selected identity / baseline-selected identity;
-6. pre-outcome decision evidence SHA;
-7. selected policy/control/treatment identity;
-8. structural stop risk;
-9. provider-native requested volume and executable/minimum volume;
-10. projected and/or observed margin, with source semantics;
-11. provider-native execution cost/slippage evidence where observed;
-12. Risk requested -> authorized -> executed lineage;
-13. CMA reservation/allocation/release identifiers;
-14. settlement/deal identifiers and terminal timestamp;
-15. realized net PnL only after terminal settlement;
-16. capital-release / T20 lineage;
-17. coverage flags required by frozen Phase20D;
-18. explicit evidence_kind showing FORWARD_OBSERVED where appropriate;
-19. no fabricated covariance, hedge credit, netting credit, provider history or missing USD economics;
-20. immutable source/artifact hashes sufficient for deterministic replay.
+6. frozen qualification fold id (FOLD_1..FOLD_4) for selected settled episodes;
+7. pre-outcome decision evidence SHA;
+8. selected policy/control/treatment identity;
+9. structural stop risk;
+10. provider-native requested volume and executable/minimum volume;
+11. projected and/or observed margin, with source semantics;
+12. provider-native execution cost/slippage evidence where observed;
+13. Risk requested -> authorized -> executed lineage plus immutable SHA-256;
+14. CMA reservation/allocation/release identifiers plus immutable SHA-256;
+15. settlement/deal identifiers, terminal timestamp and settlement SHA-256;
+16. realized net PnL only after terminal settlement;
+17. capital-release / T20 lineage plus immutable SHA-256;
+18. coverage flags required by frozen Phase20D;
+19. explicit evidence_kind showing FORWARD_OBSERVED where appropriate;
+20. source-manifest SHA-256 and provider-economics SHA-256;
+21. no fabricated covariance, hedge credit, netting credit, provider history or missing USD economics;
+22. immutable source/artifact hashes sufficient for deterministic replay.
 
 ## T16 / T17 provider capability dependency
 
@@ -123,3 +125,18 @@ Architect B must not edit:
 - PR #651 body
 
 Architect A will reconcile the delivered B artifact into the canonical ledger after integration.
+
+## Architect A receiving adapter
+
+A-side contract now implemented at:
+
+`src/qore/infrastructure/cibo_compound_real_population_binding.py`
+
+Preregistration:
+
+`docs/research/CIBO-COMPOUND-REAL-POPULATION-BINDING-V1.md`
+
+The adapter accepts only exact V3, post-freeze, FORWARD_OBSERVED, provider-valid
+records with all four frozen temporal folds and immutable provider/Risk/CMA/
+settlement/release hashes. B does not need to edit the adapter; it only needs to
+supply evidence conforming to the contract.
