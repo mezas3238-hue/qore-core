@@ -134,6 +134,8 @@ class V48ScalpMarketCensus:
     h1_bias_events: int
     m15_cisd_protected_swings: int
     m1_sweep_cisd_continuations: int
+    m1_fvg_cisd_continuations: int
+    m1_source_valid_continuations: int
     session_matched_continuations: int
     structural_stop_available: int
     structural_target_available: int
@@ -605,6 +607,8 @@ def build_market_census(
         h1_bias_events=stages["H1_BIAS_EVENT"],
         m15_cisd_protected_swings=stages["M15_CISD_PROTECTED_SWING"],
         m1_sweep_cisd_continuations=stages["M1_SWEEP_CISD_CONTINUATION"],
+        m1_fvg_cisd_continuations=stages["M1_FVG_CISD_CONTINUATION"],
+        m1_source_valid_continuations=stages["M1_SOURCE_VALID_CONTINUATION"],
         session_matched_continuations=stages["SESSION_MATCHED_CONTINUATION"],
         structural_stop_available=stages["STRUCTURAL_STOP_AVAILABLE"],
         structural_target_available=stages["STRUCTURAL_TARGET_AVAILABLE"],
