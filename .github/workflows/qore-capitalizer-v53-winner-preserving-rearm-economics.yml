@@ -7,6 +7,9 @@ on:
     paths:
       - 'src/qore/infrastructure/trader_lab/capitalizer_v53_winner_preserving_rearm_economics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_v53_winner_preserving_rearm_economics.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_v50_m1_rearm_capacity.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_v50_m1_rearm_capacity.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_v51_multi_era_repair.py'
       - '.github/workflows/qore-capitalizer-v53-winner-preserving-rearm-economics.yml'
   workflow_dispatch:
 
