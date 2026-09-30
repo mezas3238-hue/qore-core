@@ -629,23 +629,100 @@ def test_compound_deployment_loss_consumes_compound_before_gen0(
             signal="signal-a",
             position_id=3002,
             deal_id=4002,
-            pnl="-15",
+            pnl="-1.5",
         ),
     )
 
     assert state.current_original_base_usd == Decimal("100")
-    assert state.cumulative_realized_losses_usd == Decimal("15")
+    assert state.cumulative_realized_losses_usd == Decimal("1.5")
     assert state.compound_ledger.balance(
         CompoundCapitalState.CONSUMED
-    ) == Decimal("15")
+    ) == Decimal("1.5")
     assert state.compound_ledger.balance(
         CompoundCapitalState.COMPOUNDABLE
-    ) == Decimal("25")
-    assert state.closing_realized_capital_usd == Decimal("185")
-    assert state.accounting_identity_usd == Decimal("185")
+    ) == Decimal("38.5")
+    assert state.closing_realized_capital_usd == Decimal("198.5")
+    assert state.accounting_identity_usd == Decimal("198.5")
 
     audit = reconcile_compound_cycle(state)
-    assert audit.consumed_compound_capital_usd == Decimal("15")
+    assert audit.consumed_compound_capital_usd == Decimal("1.5")
     assert audit.base_capital_loss_usd == Decimal("0")
     assert audit.accounting_residual_usd == Decimal("0")
     assert audit.no_unexplained_destruction_pass is True
+
+
+def test_compound_deployment_excess_loss_requires_explicit_evidence(
+    tmp_path: Path,
+) -> None:
+    state = _funded_compound_state()
+    dominant = _candidate(
+        tmp_path=tmp_path,
+        state=state,
+        trader=TraderLineage.R34_XAUUSD,
+        signal="signal-a",
+        expected_return="9",
+        stop_risk="1.5",
+        margin="3",
+        execution_cost="0.1",
+        concentration="0.3",
+        drawdown="0.3",
+        optionality="0.2",
+        duration="15",
+        uncertainty="0.05",
+    )
+    inferior = _candidate(
+        tmp_path=tmp_path,
+        state=state,
+        trader=TraderLineage.VT31_NAS100,
+        signal="signal-b",
+        expected_return="6",
+        stop_risk="2.5",
+        margin="6",
+        execution_cost="0.3",
+        concentration="0.8",
+        drawdown="0.9",
+        optionality="0.6",
+        duration="45",
+        uncertainty="0.20",
+    )
+    portfolio_state = build_genc6_portfolio_state(
+        snapshot_id="compound-gap-state",
+        decision_at=T0,
+        portfolio=state.core_portfolio,
+        t19_ledger=state.t19_ledger,
+    )
+    scarcity = build_capital_scarcity_event(
+        event_id="compound-gap-scarcity",
+        decision_at=T0,
+        portfolio_state=portfolio_state,
+        candidates=(dominant, inferior),
+        reserve_alternative=_reserve(),
+    )
+    decision = evaluate_genc6_internal_capital_market_shadow(
+        event=scarcity,
+        decision_id="compound-gap-decision",
+    )
+    state = apply_internal_capital_market_decision(
+        state,
+        event_id="gap-allocation",
+        scarcity_event=scarcity,
+        decision=decision,
+        source_lot_id="activate:moved",
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="exceeds sealed stop risk",
+    ):
+        settle_compound_deployment(
+            state,
+            event_id="gap-settlement",
+            occurred_at=T0 + timedelta(minutes=30),
+            deployment_id="gap-allocation:deployment",
+            settlement=_settlement(
+                signal="signal-a",
+                position_id=3003,
+                deal_id=4003,
+                pnl="-15",
+            ),
+        )

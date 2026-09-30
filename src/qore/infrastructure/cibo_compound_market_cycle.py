@@ -200,6 +200,7 @@ def settle_compound_deployment(
     occurred_at: datetime,
     deployment_id: str,
     settlement: CmaSettlementState,
+    excess_loss_evidence_sha256: str | None = None,
 ) -> CiboCompoundCycleState:
     """Settle one deployed compound lot, release T19 and create GEN-N profit."""
 
@@ -220,6 +221,20 @@ def settle_compound_deployment(
     deployed = state.compound_ledger.lot(deployment.deployed_lot_id)
     pnl = settlement.realized_net_pnl_usd
     loss = -pnl if pnl < 0 else Decimal(0)
+    if loss > deployment.stop_risk_usd:
+        if (
+            excess_loss_evidence_sha256 is None
+            or not excess_loss_evidence_sha256.startswith("sha256:")
+            or len(excess_loss_evidence_sha256) != 71
+        ):
+            raise CiboCompoundCapitalError(
+                "compound settlement loss exceeds sealed stop risk "
+                "without explicit excess-loss evidence"
+            )
+    elif excess_loss_evidence_sha256 is not None:
+        raise CiboCompoundCapitalError(
+            "excess-loss evidence is invalid when stop risk was not exceeded"
+        )
     consumed = min(loss, deployed.amount_usd)
     returned = deployed.amount_usd - consumed
     excess_base_loss = max(Decimal(0), loss - deployed.amount_usd)
