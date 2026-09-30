@@ -1,0 +1,192 @@
+name: QORE Shared STI6 V3 Latent Trajectory States
+
+concurrency:
+  group: qore-shared-sti6-v3-latent-trajectory
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - docs/shared/evidence/QORE_SHARED_STI6_V3_LATENT_TRAJECTORY_STATE_PREREGISTRATION_001.json
+      - src/qore/infrastructure/core_stack_v2/shared_continuation_latent_trajectory_v3.py
+      - tests/infrastructure/test_core_stack_v2_shared_continuation_latent_trajectory_v3.py
+      - scripts/shared_sti6_v3_latent_trajectory_states.py
+      - .github/workflows/qore-shared-sti6-v3-latent-trajectory-states.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  latent-state-study:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate V3 and preregistration
+        run: |
+          set -euo pipefail
+          mkdir -p result input/pure input/r8 input/r6 input/r5
+          ruff check             src/qore/infrastructure/core_stack_v2/shared_continuation_latent_trajectory_v3.py             tests/infrastructure/test_core_stack_v2_shared_continuation_latent_trajectory_v3.py             scripts/shared_sti6_v3_latent_trajectory_states.py
+          mypy             src/qore/infrastructure/core_stack_v2/shared_continuation_latent_trajectory_v3.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/shared_continuation_latent_trajectory_v3.py             scripts/shared_sti6_v3_latent_trajectory_states.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_shared_continuation_latent_trajectory_v3.py             --junitxml=result/junit.xml
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(
+              Path(
+                  "docs/shared/evidence/"
+                  "QORE_SHARED_STI6_V3_LATENT_TRAJECTORY_STATE_PREREGISTRATION_001.json"
+              ).read_text()
+          )
+          assert p["status"] == "PREREGISTERED_RESEARCH_ONLY"
+          assert p["parent_v2"]["disposition"] == "STI6_V2_FALSIFIED_ON_CONSUMED_R6"
+          assert p["parent_v2"]["threshold_rescue_allowed"] is False
+          h=p["scientific_hypothesis"]
+          assert h["cluster_count"] == 6
+          assert h["sequence_window"] == 5
+          assert h["human_tail_interpretation_before_validation"] is False
+          s1=p["stage_1_unsupervised_representation"]
+          assert s1["partition"] == "R8_SOURCE_ONLY"
+          assert s1["outcomes_allowed"] is False
+          s2=p["stage_2_development_mapping"]
+          assert s2["partition"] == "R6_CONSUMED"
+          s3=p["stage_3_temporal_validation"]
+          assert s3["partition"] == "R5_CONSUMED_TEMPORAL_VALIDATION"
+          assert s3["state_centroids_frozen"] is True
+          assert s3["selected_state_ids_frozen"] is True
+          assert p["governance"]["protected_certification_holdout_opened"] is False
+          PY
+
+      - name: Recover immutable R8 R6 R5 evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10799064861/zip" > pure.zip
+          unzip -q pure.zip -d input/pure
+          (cd input/pure && sha256sum -c SHA256SUMS)
+          for partition in r8 r6 r5
+          do
+            test -f "input/pure/${partition}.json"
+          done
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Execute latent state discovery and temporal validation
+        run: |
+          set -euo pipefail
+          python scripts/shared_sti6_v3_latent_trajectory_states.py             --r8-trades input/pure/r8.json             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --r6-trades input/pure/r6.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-trades input/pure/r5.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/sti6-v3-latent-trajectory-states.json             | tee result/summary.json
+
+      - name: Validate scientific disposition without forcing PASS
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/sti6-v3-latent-trajectory-states.json").read_text())
+          assert p["scientific_status"] in {
+              "STI6_V3_TEMPORAL_VALIDATION_PASS_R5",
+              "STI6_V3_FALSIFIED_R6_DEVELOPMENT_MAPPING",
+              "STI6_V3_FALSIFIED_R5_TEMPORAL_VALIDATION",
+          }
+          fit=p["source_only_model_fit"]
+          assert fit["cluster_count"] == 6
+          assert fit["iterations"] == 25
+          assert fit["outcomes_used_for_state_formation"] is False
+          assert fit["future_market_used_for_state_formation"] is False
+          assert len(fit["model_fingerprint"]) == 64
+          dev=p["r6_development_mapping"]
+          assert dev["mapping_frozen_after_r6"] is True
+          g=p["governance"]
+          assert g["r8_outcomes_used_for_cluster_fit"] is False
+          assert g["r6_outcomes_used_only_after_state_paths_materialized"] is True
+          assert g["r5_used_for_cluster_fit"] is False
+          assert g["r5_used_for_state_selection"] is False
+          assert g["future_market_used_for_inference"] is False
+          assert g["v1_or_v2_threshold_rescue_used"] is False
+          assert g["protected_certification_holdout_opened"] is False
+          assert g["productive_authority"] is False
+          PY
+
+      - name: Bind evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          cp             docs/shared/evidence/QORE_SHARED_STI6_V3_LATENT_TRAJECTORY_STATE_PREREGISTRATION_001.json             result/preregistration.json
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-sti6-v3-latent-trajectory-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report STI-6 V3
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/sti6-v3-latent-trajectory-states.json").read_text())
+          dev=p["r6_development_mapping"]
+          r5=p["r5_temporal_validation"]
+          lines=[
+              "## Shared STI-6 — Latent Trajectory States V3",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['scientific_status']}**",
+              f"- R8 source-only state rows: **{p['source_only_model_fit']['r8_source_state_rows']}**",
+              f"- model fingerprint: `{p['source_only_model_fit']['model_fingerprint']}`",
+              f"- continuation states selected on consumed R6: **{list(dev['continuation_state_ids'])}**",
+              f"- positive-tail states selected on consumed R6: **{list(dev['positive_tail_state_ids'])}**",
+              f"- R5 opened: **{p['governance']['r5_opened']}**",
+          ]
+          if p["governance"]["r5_opened"]:
+              lines.extend([
+                  f"- R5 winner precision/recall: **{r5['winner_precision_bps']}/{r5['winner_recall_bps']} bps**",
+                  f"- R5 tail precision/recall: **{r5['positive_tail_precision_bps']}/{r5['positive_tail_recall_bps']} bps**",
+                  f"- R5 false continuation: **{r5['false_continuation_on_nonwinners_bps']} bps**",
+                  f"- R5 gate: **{r5['gate_pass']}**",
+              ])
+          lines.extend([
+              "- V1/V2 threshold rescue used: **False**",
+              "- protected certification holdout opened: **False**",
+              "- productive authority: **False**",
+          ])
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
