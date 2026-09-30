@@ -70,6 +70,8 @@ _COMMENT_MARKERS = (
 )
 
 _WORKSTREAM_CLASSIFIERS = (
+    ("*cibo_protected_base_overlay*", "PROTECTED_BASE_CAPITAL"),
+    ("*protected-base-overlay*", "PROTECTED_BASE_CAPITAL"),
     ("tests/infrastructure/test_cibo/*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
     ("*cibo_adaptive_reasoning*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
     ("*cibo_reasoning_*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),

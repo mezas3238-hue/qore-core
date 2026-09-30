@@ -604,16 +604,22 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "GAP_IDENTIFIED",
+      "current_maturity": "RESEARCH_OVERLAY_ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md"
+        "docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md",
+        "src/qore/infrastructure/cibo_protected_base_overlay.py",
+        "tests/infrastructure/test_cibo_protected_base_overlay.py",
+        ".github/workflows/cibo-protected-base-overlay.yml",
+        "src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py",
+        "src/qore/infrastructure/cibo_capital_source_ledger.py"
       ],
       "blockers": [
-        "CANONICAL_PROTECTED_ORIGINAL_BASE_SEMANTICS_NOT_YET_IMPLEMENTED",
-        "PROTECTED_BASE_MUST_NOT_BE_CONFUSED_WITH_PROTECTED_PROFIT_OR_BROKER_GUARANTEE"
+        "PROTECTED_BASE_OVERLAY_CI_REVALIDATION_REQUIRED",
+        "PROTECTED_BASE_POLICY_CALIBRATION_AND_CAUSAL_VALUE_NOT_YET_PROVEN",
+        "PROTECTED_BASE_REMAINS_RESEARCH_ONLY_AND_MUST_NOT_RETROACTIVELY_CHANGE_V3"
       ],
-      "next_gate": "Define account-local protected-original-base accounting semantics, transitions and replay evidence without inventing broker guarantees."
+      "next_gate": "Pass overlay CI, reconcile with robust protected-operating-floor semantics, preregister policy behavior, then prove chronological/OOS/stress value without V3 mutation."
     },
     {
       "id": "PROFIT_PROTECTION",
