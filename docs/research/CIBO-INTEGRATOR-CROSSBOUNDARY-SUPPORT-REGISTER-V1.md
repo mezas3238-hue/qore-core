@@ -12,7 +12,7 @@ mutating either architect's active branch.
 ## Architect A — current support item
 
 Source HEAD reviewed:
-`4b39952718640b1f723f03cd71a68c72afb3d76b`
+`f10e47e8f3127c5997168dd221fd30d9160dbe08`
 
 ### A-SUPPORT-001 — Final Integrated Exam evidence must not be self-attestable
 
@@ -28,7 +28,9 @@ Integrator acceptance condition:
 - stale/cross-head/cross-candidate rejection;
 - adversarial test: dummy SHA + `passed=True` cannot PASS.
 
-Integrator repair: receipt-bound Final Exam wrapper exists in #670 and requires canonical source-bound P1–P8/E1–E10 evidence tied to exact integrated HEAD/policy identity.\n\nStatus: STAGED_REPAIR_IN_670 / CI_PENDING / MIRROR_IN_A_REQUIRED.
+Integrator repair: receipt-bound Final Exam wrapper exists in #670 and requires canonical source-bound P1–P8/E1–E10 evidence tied to exact integrated HEAD/policy identity.
+
+Status: STAGED_REPAIR_IN_670 / CI_PENDING / MIRROR_IN_A_REQUIRED.
 
 ### A-SUPPORT-002 — Mandatory workstream governance drift
 
@@ -46,7 +48,7 @@ Resolution implemented in #670: keep World Cup mandatory, let PRE_EXAM exclude b
 ## Architect B — current support item
 
 Source HEAD reviewed:
-`3895af47c32c473682700d07435ea437110e5c3e`
+`868213aa07309b1d3e65745e581c11d45d851fcf`
 
 ### B-SUPPORT-001 — USD60 pre-exam prerequisites must not be self-attestable
 
@@ -62,7 +64,9 @@ Integrator acceptance condition:
 - stale/cross-head/cross-candidate rejection;
 - adversarial test: dummy refs + `passed=True` cannot unlock readiness.
 
-Integrator repair: receipt-bound USD60 readiness now derives the seven prerequisite PASS rows only after canonical receipt validation against the exact integrated HEAD and frozen policy identity. Forward scientific thresholds remain independently blocking.\n\nStatus: STAGED_REPAIR_IN_670 / CI_PENDING / MIRROR_IN_B_REQUIRED.
+Integrator repair: receipt-bound USD60 readiness now derives the seven prerequisite PASS rows only after canonical receipt validation against the exact integrated HEAD and frozen policy identity. Forward scientific thresholds remain independently blocking.
+
+Status: STAGED_REPAIR_IN_670 / CI_PENDING / MIRROR_IN_B_REQUIRED.
 
 ## Integration policy
 
@@ -70,29 +74,28 @@ A/B active heads remain moving work surfaces. PR #670 absorbs only frozen,
 evidence-backed batches. Pending CI is not GREEN, and engineering GREEN is not
 economic certification.
 
-Current reconciled terminal ledger remains:
+Current reconciled terminal ledger:
 - mandatory: 64
-- terminal: 13
-- open: 51
+- terminal: 14
+- open: 50
 - zero-open-work: false
 - final certification candidate: false
 
 
 ### B-SUPPORT-002 — Risk handoff / canonical-ledger drift
 
-Observed at B HEAD `41f0227e2136ac09c94bdd8187c2e6f5e625ee36`:
-- B closure handoff recommends `RISK_INTEGRATION = COMPLETED_AND_PROVEN`.
-- B canonical master ledger still leaves RISK_INTEGRATION open/partial.
-- the mechanical test surface covers minimal-seed ALLOW, safe REDUCE and genuine minimum-fit REJECT semantics.
-- current Risk workflow remains queued.
+Observed:
+- B handoff recommends `RISK_INTEGRATION = COMPLETED_AND_PROVEN`;
+- B local master ledger remains stale/open;
+- Risk run `36769958686` completed SUCCESS;
+- the Risk closure surface is byte-identical from the successful-run checkpoint through current B and #670.
 
-Integrator acceptance condition:
-- Risk workflow SUCCESS on the accepted checkpoint;
-- B handoff and canonical ledger reconciled in the same checkpoint;
-- then #670 may import the terminal Risk closure.
+Integrator reconciliation:
+- `docs/research/CIBO-INTEGRATOR-RISK-MECHANICAL-CLOSURE-RECONCILIATION-V1.md`;
+- `RISK_INTEGRATION` is terminal `COMPLETED_AND_PROVEN` in the canonical integrated ledger;
+- forward provider/execution/economic evidence remains OPEN only in its own workstreams.
 
-Status: OPEN pending CI + B source-of-truth reconciliation.
-
+Status: **RESOLVED_IN_INTEGRATOR_CANONICAL_STATE**. B local ledger remains stale but no longer blocks #670.
 
 ### B-SUPPORT-004 — Provider geometry fixture breakage
 
@@ -121,7 +124,7 @@ Integrator repair:
 The Integrator test proves spread + commission + adverse-slippage cost arithmetic
 and keeps gross-edge, market-impact and historical-2017 terms explicitly open.
 
-Status: REPAIRED_IN_670 / MIRROR_IN_B_REQUIRED.
+Status: STAGED_REPAIR_IN_670 / CI_PENDING / MIRROR_IN_B_REQUIRED.
 
 ### Integrator trust hardening — receipt anti-laundering
 
@@ -149,9 +152,18 @@ Status: STAGED_REPAIR_IN_670 / CI_PENDING / MIRROR_IN_B_REQUIRED.
 
 ### B-SUPPORT-006 — T16/T17 structural disablement requires typed provider status
 
-Integrator repair:
-- cTrader DEMO account-capability parser and typed capability registry are staged in #670;
-- account mode `HEDGED` is not treated as proof of T16 economic hedge support;
-- T16/T17 remain UNKNOWN/blocking until provider-verified support or provider-verified unavailable evidence exists.
+Integrator/B combined repair now includes:
+- account-bound cTrader capability observation;
+- provider-native instrument taxonomy via AssetClass/SymbolCategory endpoints;
+- typed fail-closed capability registry;
+- Limited Risk / Guaranteed Stop Loss candidate assessment;
+- source-bound T17 provider-capability receipt tied to exact integrated HEAD/policy identity.
 
-Status: STAGED_REPAIR_IN_670 / CI_PENDING / REAL_PROVIDER_STATUS_STILL_REQUIRED.
+Preserved safety semantics:
+- HEDGED account mode is not T16 economic-hedge proof;
+- taxonomy labels are not option/spread proof;
+- GSL candidate is not option/spread equivalence;
+- T17 remains OPEN until execution economics + fresh OOS utility are proven if a candidate exists;
+- all productive authority remains false.
+
+Status: **STAGED_REPAIR_IN_670 / CI_PENDING / REAL_PROVIDER_OBSERVATION_AND_ECONOMIC_EVIDENCE_STILL_REQUIRED**.
