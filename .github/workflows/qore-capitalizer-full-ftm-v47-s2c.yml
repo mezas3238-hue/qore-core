@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/qore-capitalizer-full-ftm-v47-s2c.yml'
       - 'src/qore/infrastructure/trader_lab/capitalizer_full_ftm_stream_v47_s2c.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_ftm_raw_population_v47_s1r_c.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_full_ftm_stream_v47_s2c.py'
   workflow_dispatch:
 
