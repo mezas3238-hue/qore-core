@@ -867,13 +867,22 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "COLLECTING",
+      "current_maturity": "PHASE20D_COLLECTION_PLUS_RECEIPT_BOUND_T01_T20_FREEZE_IMPLEMENTED_CI_PENDING",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "PHASE20D_FRESH_POPULATION_THRESHOLDS_NOT_YET_MET_OR_REVALIDATED"
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py",
+        "tests/infrastructure/test_cibo_ce2i_calibration_freeze_manifest.py",
+        "src/qore/infrastructure/cibo_receipt_bound_calibration_freeze.py",
+        "tests/infrastructure/test_cibo_receipt_bound_calibration_freeze.py",
+        ".github/workflows/cibo-crossboundary-evidence-receipt.yml"
       ],
-      "next_gate": "Revalidate durable books and pass frozen Phase20D qualification without threshold changes."
+      "blockers": [
+        "PHASE20D_FRESH_POPULATION_THRESHOLDS_NOT_YET_MET_OR_REVALIDATED",
+        "INTEGRATOR_RECEIPT_BOUND_CALIBRATION_FREEZE_CI_REQUIRED",
+        "T01_T20_SOURCE_BOUND_RECEIPTS_NOT_YET_AVAILABLE",
+        "PHASE20D_FORWARD_AND_PROVIDER_FREEZE_RECEIPTS_NOT_YET_AVAILABLE"
+      ],
+      "next_gate": "Pass receipt-bound calibration-freeze CI; complete the frozen Phase20D forward population; then seal T01..T20 only from exact-head source-bound PASS receipts, with T16/T17 disabled only by verified provider capability evidence."
     },
     {
       "id": "PATH_DEPENDENT_MONTE_CARLO",
