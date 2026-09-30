@@ -1,0 +1,148 @@
+name: QORE Shared A MC21 Real Engine Scientific Society
+
+concurrency:
+  group: qore-shared-a-mc21-real-engine-scientific-society
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/scientific_society.py
+      - src/qore/infrastructure/core_stack_v2/hypothesis_ensemble.py
+      - src/qore/infrastructure/core_stack_v2/perception.py
+      - scripts/shared_mc21_real_engine_society_cycle.py
+      - .github/workflows/qore-shared-a-mc21-real-engine-scientific-society.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  society:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install and validate
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p input/r6 input/sti5 result
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/scientific_society.py \
+            src/qore/infrastructure/core_stack_v2/hypothesis_ensemble.py \
+            src/qore/infrastructure/core_stack_v2/perception.py \
+            scripts/shared_mc21_real_engine_society_cycle.py
+          mypy src/qore/infrastructure/core_stack_v2/scientific_society.py
+          pytest -q tests/infrastructure/test_core_stack_v2_scientific_society.py
+      - name: Verify immutable real-engine evidence
+        run: |
+          set -euo pipefail
+          for spec in \
+            "36640098773:11066541040" \
+            "36685175913:11082953096" \
+            "36755380068:11115664725" \
+            "36731394336:11104578542" \
+            "36754966932:11116522138" \
+            "36236760353:10904203504" \
+            "36764204066:11119876541" \
+            "36764215198:11120695398" \
+            "36248025384:10908077821"
+          do
+            run_id="${spec%%:*}"
+            artifact_id="${spec#*:}"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.status')" = "completed"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.conclusion')" = "success"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" --jq '.expired')" = "false"
+          done
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524" --jq '.expired')" = "false"
+      - name: Recover real source and falsification evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11066541040/zip" > sti5.zip
+          unzip -q sti5.zip -d input/sti5
+          (cd input/sti5 && sha256sum -c SHA256SUMS)
+      - name: Execute real-engine Society cycle
+        run: |
+          python scripts/shared_mc21_real_engine_society_cycle.py \
+            --sti5-root input/sti5 \
+            --r6-nas input/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp input/r6/fresh/SP500/market-evidence.json \
+            --r6-us input/r6/fresh/US30/market-evidence.json \
+            --output result/mc21-real-engine-society-cycle.json \
+            | tee result/summary.json
+      - name: Validate completed disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc21-real-engine-society-cycle.json").read_text())
+          assert p["status"] == "MC21_SCIENTIFIC_SOCIETY_COMPLETED_AND_PROVEN"
+          assert p["required_role_count"] == 12
+          assert p["real_engine_bound_role_count"] == 12
+          assert p["all_roles_real_engine_bound"] is True
+          assert p["verdict"] == "REJECTED_BY_FALSIFICATION"
+          assert p["material_falsifier_roles"]
+          assert p["minority_falsification_preserved"] is True
+          assert p["simple_majority_voting_used"] is False
+          assert p["real_hypothesis_generator_binding"]["pass"] is True
+          assert p["sti5_v1_falsification_preserved"] is True
+          assert p["knowledge_promotion_authority"] is False
+          assert p["methodology_authority"] is False
+          assert p["execution_authority"] is False
+          assert p["risk_authority"] is False
+          assert p["sizing_authority"] is False
+          assert p["productive_authority"] is False
+          assert p["mc21_completed_and_proven"] is True
+          assert p["master_ledger_mutated"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+      - name: Seal
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (cd result && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc21-real-engine-society-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report MC21
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/mc21-real-engine-society-cycle.json").read_text())
+          body="\n".join([
+              "## Shared A MC-21 — Real-Engine Scientific Society",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              f"- real-engine-bound roles: **{p['real_engine_bound_role_count']}/12**",
+              f"- heterogeneous model families: **{p['heterogeneous_model_family_count']}**",
+              f"- real cycle verdict: **{p['verdict']}**",
+              f"- material falsifier roles: **{', '.join(p['material_falsifier_roles'])}**",
+              "- STI-5 V1 falsification preserved: **True**",
+              "- simple-majority voting: **False**",
+              "- self-promotion / trading authority: **None**",
+              "- MC-21 completed-and-proven: **True**",
+              "- protected certification holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
