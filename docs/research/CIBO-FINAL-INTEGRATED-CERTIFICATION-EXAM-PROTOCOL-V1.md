@@ -254,11 +254,11 @@ The executable closure order is:
 ```text
 ZERO-OPEN AUDITOR IMPLEMENTATION PROVEN
         ↓
-ALL ORDINARY MANDATORY WORK EXCEPT FINAL_EXAM TERMINAL
+PHASE21 / PHASE22 GOVERNED HOLDOUT CHAIN COMPLETE
+        ↓
+ALL OTHER ORDINARY MANDATORY WORK EXCEPT FINAL_EXAM TERMINAL
         ↓
 PRE-EXAM ZERO-OPEN PASS
-        ↓
-PHASE21 / PHASE22 ECONOMIC RECEIPT AVAILABLE
         ↓
 FINAL INTEGRATED EXAM P1-P8 + E1-E10
         ↓
@@ -281,9 +281,7 @@ ledger but is not part of the ordinary-certification mandatory count. Its
 preparation may not leave orphan work, and its exam cannot run before ordinary
 certification.
 
-The legacy Phase22 economic receipt remains necessary but is not sufficient for
-global CIBO certification. Global certification additionally requires this
-integrated exam and the final strict zero-open verdict.
+The Phase22 economic receipt must already exist before PRE_EXAM can pass because FORWARD_QUALIFICATION is itself ordinary mandatory work. That receipt remains necessary but is not sufficient for global CIBO certification. Global certification additionally requires this integrated exam and the final strict zero-open verdict.
 
 ## World Cup separation
 
