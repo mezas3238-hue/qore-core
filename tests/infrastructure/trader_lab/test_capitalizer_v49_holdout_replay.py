@@ -4,15 +4,17 @@ from pathlib import Path
 
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
     IDENTITY as CAPACITY_IDENTITY,
-    V49Opportunity,
 )
-from qore.infrastructure.trader_lab.capitalizer_v49_holdout_replay import (
-    IDENTITY,
-    build_holdout_report,
+from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
+    V49Opportunity,
 )
 from qore.infrastructure.trader_lab.capitalizer_v49_holdout_contract import (
     HOLDOUT_END,
     HOLDOUT_START,
+)
+from qore.infrastructure.trader_lab.capitalizer_v49_holdout_replay import (
+    IDENTITY,
+    build_holdout_report,
 )
 
 
