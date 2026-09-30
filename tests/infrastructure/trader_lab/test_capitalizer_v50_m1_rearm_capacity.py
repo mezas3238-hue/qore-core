@@ -25,7 +25,7 @@ def test_rearm_attempt_is_pre_economic_and_does_not_consume_slot() -> None:
         h1_state_from=at.isoformat(),
         h1_state_until=(at + timedelta(hours=2)).isoformat(),
         h1_state_basis="CANDLE2_REVERSAL:BULLISH_FVG",
-        m15_setup_confirmed_at=at.isoformat(),
+        m15_setup_confirmed_at=setup_at.isoformat(),
         m15_protected_swing_price=str(Decimal("99")),
         trigger_confirmed_at=(at + timedelta(minutes=5)).isoformat(),
         trigger_family="FVG_RETRACE_CISD",
@@ -128,8 +128,10 @@ def _ready_attempt(
     minute: int,
     attempt_index: int,
     cognitive_ready: bool = True,
+    setup_minute: int = 0,
 ) -> V50RearmAttempt:
     at = datetime(2026, 1, 5, 12, 0, tzinfo=UTC)
+    setup_at = at + timedelta(minutes=setup_minute)
     return V50RearmAttempt(
         symbol=symbol,
         session="LONDON",
@@ -153,10 +155,18 @@ def _ready_attempt(
 
 def test_rearm_portfolio_capacity_applies_max3_chronologically() -> None:
     rows = (
-        _ready_attempt(symbol="EURUSD", minute=5, attempt_index=2),
-        _ready_attempt(symbol="GBPUSD", minute=6, attempt_index=1),
-        _ready_attempt(symbol="EURUSD", minute=7, attempt_index=1),
-        _ready_attempt(symbol="GBPUSD", minute=8, attempt_index=2),
+        _ready_attempt(
+            symbol="EURUSD", minute=5, attempt_index=2, setup_minute=0
+        ),
+        _ready_attempt(
+            symbol="GBPUSD", minute=6, attempt_index=1, setup_minute=1
+        ),
+        _ready_attempt(
+            symbol="EURUSD", minute=7, attempt_index=1, setup_minute=2
+        ),
+        _ready_attempt(
+            symbol="GBPUSD", minute=8, attempt_index=2, setup_minute=3
+        ),
     )
     selected = _portfolio_ready(rows, cognitive=False)
     assert len(selected) == 3
@@ -183,6 +193,27 @@ def test_cognitive_rearm_capacity_excludes_non_cognitive_ready_geometry() -> Non
     cognitive = _portfolio_ready(rows, cognitive=True)
     assert len(cognitive) == 1
     assert cognitive[0].symbol == "EURUSD"
+
+
+def test_geometry_portfolio_executes_parent_m15_setup_only_once() -> None:
+    first_ready = _ready_attempt(
+        symbol="GBPUSD",
+        minute=5,
+        attempt_index=1,
+        cognitive_ready=False,
+    )
+    later_ready = _ready_attempt(
+        symbol="GBPUSD",
+        minute=9,
+        attempt_index=2,
+        cognitive_ready=True,
+    )
+    selected = _portfolio_ready((first_ready, later_ready), cognitive=False)
+    assert selected == (first_ready,)
+    breakdown = _capacity_breakdown(selected)
+    assert breakdown["trades_after_max3"] == 1
+    assert breakdown["first_attempt_ready"] == 1
+    assert breakdown["recovered_after_rearm"] == 0
 
 
 def test_cognition_blocked_geometry_never_enters_cognitive_portfolio() -> None:
