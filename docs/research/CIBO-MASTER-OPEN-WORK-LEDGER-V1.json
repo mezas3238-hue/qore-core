@@ -108,26 +108,46 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "current_maturity": "CONTRACT_CERTIFIED_NONCOMPENSATORY_EXPANSION_UTILITY_GATE_CHILD_CI_GREEN_FRESH_OOS_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py",
+        "github-actions://36649279224/SUCCESS",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "src/qore/infrastructure/cibo_expansion_utility_gate.py",
+        "tests/infrastructure/test_cibo_expansion_utility_gate.py",
+        "docs/research/CIBO-T06-T07-EXPANSION-UTILITY-GATE-V1.md",
+        ".github/workflows/cibo-t06-t07-expansion-utility.yml",
+        "github-actions://36755770224/SUCCESS"
       ],
-      "blockers": [],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "blockers": [
+        "FRESH_OOS_PROFIT_FUNDED_EXPANSION_UTILITY_REQUIRED"
+      ],
+      "next_gate": "Using only legally fresh causal evidence, prove that profit-funded expansion adds robust economic value without unacceptable plausible-loss, drawdown, tail, margin or optionality degradation."
     },
     {
       "id": "T07",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "current_maturity": "CONTRACT_CERTIFIED_PROTECTED_CAPACITY_NONCOMPENSATORY_UTILITY_GATE_CHILD_CI_GREEN_FRESH_OOS_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py",
+        "github-actions://36649279224/SUCCESS",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "src/qore/infrastructure/cibo_expansion_utility_gate.py",
+        "tests/infrastructure/test_cibo_expansion_utility_gate.py",
+        "docs/research/CIBO-T06-T07-EXPANSION-UTILITY-GATE-V1.md",
+        ".github/workflows/cibo-t06-t07-expansion-utility.yml",
+        "github-actions://36755770224/SUCCESS"
       ],
-      "blockers": [],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "blockers": [
+        "FRESH_OOS_PROTECTED_CAPACITY_EXPANSION_UTILITY_REQUIRED"
+      ],
+      "next_gate": "Using only reconciled protected-floor evidence and fresh causal outcomes, prove that protected-capacity expansion adds robust economic value without treating accounting protection as broker guarantee."
     },
     {
       "id": "T08",
@@ -222,10 +242,16 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "current_maturity": "CAUSAL_PARETO_UTILITY_GATE_CHILD_CI_GREEN_FRESH_FORWARD_PROOF_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "src/qore/infrastructure/cibo_t14_t15_utility_gate.py",
+        "tests/infrastructure/test_cibo_t14_t15_utility_gate.py",
+        "docs/research/CIBO-T14-T15-CAUSAL-PARETO-UTILITY-GATE-V1.md",
+        ".github/workflows/cibo-t14-t15-causal-utility.yml",
+        "github-actions://36755770128/SUCCESS"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
@@ -237,13 +263,20 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "current_maturity": "CAUSAL_PARETO_UTILITY_GATE_CHILD_CI_GREEN_CAUSAL_IDENTIFICATION_AND_FRESH_FORWARD_PROOF_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "src/qore/infrastructure/cibo_t14_t15_utility_gate.py",
+        "tests/infrastructure/test_cibo_t14_t15_utility_gate.py",
+        "docs/research/CIBO-T14-T15-CAUSAL-PARETO-UTILITY-GATE-V1.md",
+        ".github/workflows/cibo-t14-t15-causal-utility.yml",
+        "github-actions://36755770128/SUCCESS"
       ],
       "blockers": [
-        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
+        "COUNTERFACTUAL_RESERVATION_CAUSAL_EFFECT_NOT_IDENTIFIED"
       ],
       "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
     },
@@ -447,31 +480,44 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
+      "current_maturity": "ENGINE_AND_CAUSAL_NONCOMPENSATORY_ECONOMIC_GATE_CHILD_CI_GREEN_REAL_EFFECT_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
+        "github-actions://36727848202/SUCCESS",
+        "src/qore/infrastructure/cibo_profit_preservation_economic_gate.py",
+        "tests/infrastructure/test_cibo_profit_preservation_economic_gate.py",
+        "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        ".github/workflows/cibo-genc7-profit-preservation.yml",
+        "github-actions://36760959025/SUCCESS"
       ],
       "blockers": [
         "FRESH_OOS_GIVEBACK_RETENTION_STRESS_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Close harvesting/protection/reserve/compoundable-profit utility."
+      "next_gate": "Require the updated GEN-C7 workflow to pass; then identify causal treatment effects on the frozen provider-valid population, apply the non-compensatory gate, adversarial stress and WF1..WF4 replication without using descriptive OOS paths as counterfactual proof."
     },
     {
       "id": "GEN-C8",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "ENGINE_AND_NONCOMPENSATORY_ECONOMIC_GATE_CHILD_CI_GREEN_REAL_OUTCOME_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "github-actions://36727848331/SUCCESS",
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_adaptive_compound_speed_economic_gate.py",
+        "tests/infrastructure/test_cibo_adaptive_compound_speed_economic_gate.py",
+        "docs/research/CIBO-GEN-C8-ADAPTIVE-COMPOUND-SPEED-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        ".github/workflows/cibo-genc8-adaptive-compound-speed.yml",
+        "github-actions://36760958950/SUCCESS"
       ],
       "blockers": [
-        "CURRENT_HEAD_GEN_C8_CI_REVALIDATION_REQUIRED",
         "FRESH_OOS_STRESS_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Restore green CI then bind calibrated causal states and prove adaptive-speed value."
+      "next_gate": "Require the updated GEN-C8 workflow to pass; then bind the frozen causal population to provider-valid outcomes and apply the non-compensatory gate, fresh OOS, adversarial stress and 4/4 temporal replication without retuning V1."
     },
     {
       "id": "GEN-C9",
@@ -549,7 +595,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "ENGINE_AND_NONCOMPENSATORY_ECONOMIC_GATE_CHILD_CI_GREEN_REAL_CRISIS_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -559,15 +605,20 @@
         ".github/workflows/cibo-genc12-crisis-capital.yml",
         "src/qore/infrastructure/cibo_ce2i_regime_selector.py",
         "src/qore/infrastructure/cibo_ce2i_dynamic_derisking.py",
-        "src/qore/infrastructure/cibo_capital_digital_twin.py"
+        "src/qore/infrastructure/cibo_capital_digital_twin.py",
+        "github-actions://36727848425/SUCCESS",
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_genc12_economic_gate.py",
+        "tests/infrastructure/test_cibo_genc12_economic_gate.py",
+        "docs/research/CIBO-GEN-C12-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        "github-actions://36757582127/SUCCESS"
       ],
       "blockers": [
-        "GEN_C12_ENGINE_CI_REVALIDATION_REQUIRED",
         "REAL_CRISIS_POPULATION_NOT_YET_BOUND",
         "ADVERSARIAL_CRISIS_STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
         "ECONOMIC_VALUE_NOT_YET_DEMONSTRATED"
       ],
-      "next_gate": "Pass GEN-C12 engine CI; bind real causal crisis populations; run correlation/provider/margin/liquidity/drawdown stress; then OOS and temporal replication."
+      "next_gate": "Bind real causal crisis populations; run correlation/provider/margin/liquidity/drawdown stress; then fresh OOS and temporal replication."
     },
     {
       "id": "GEN-C13",
@@ -695,7 +746,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "RESEARCH_OVERLAY_ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "RESEARCH_OVERLAY_ENGINE_POLICY_SEMANTICS_AND_NONCOMPENSATORY_NUMERIC_GATE_CHILD_CI_GREEN_REAL_CALIBRATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md",
@@ -703,14 +754,22 @@
         "tests/infrastructure/test_cibo_protected_base_overlay.py",
         ".github/workflows/cibo-protected-base-overlay.yml",
         "src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py",
-        "src/qore/infrastructure/cibo_capital_source_ledger.py"
+        "src/qore/infrastructure/cibo_capital_source_ledger.py",
+        "github-actions://36727848187/SUCCESS",
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "docs/research/CIBO-PROTECTED-BASE-POLICY-BEHAVIOR-PREREGISTRATION-V1.md",
+        "src/qore/infrastructure/cibo_protected_base_policy_gate.py",
+        "tests/infrastructure/test_cibo_protected_base_policy_gate.py",
+        "docs/research/CIBO-PROTECTED-BASE-NONCOMPENSATORY-NUMERIC-POLICY-GATE-V1.md",
+        "github-actions://36760959053/SUCCESS"
       ],
       "blockers": [
-        "PROTECTED_BASE_OVERLAY_CI_REVALIDATION_REQUIRED",
-        "PROTECTED_BASE_POLICY_CALIBRATION_AND_CAUSAL_VALUE_NOT_YET_PROVEN",
+        "PROTECTED_BASE_NUMERIC_CANDIDATE_NOT_YET_FROZEN_ON_REAL_PROVIDER_VALID_POPULATION",
+        "PROTECTED_BASE_CAUSAL_VALUE_NOT_YET_PROVEN",
+        "FRESH_OOS_STRESS_AND_4_OF_4_TEMPORAL_REPLICATION_REQUIRED",
         "PROTECTED_BASE_REMAINS_RESEARCH_ONLY_AND_MUST_NOT_RETROACTIVELY_CHANGE_V3"
       ],
-      "next_gate": "Pass overlay CI, reconcile with robust protected-operating-floor semantics, preregister policy behavior, then prove chronological/OOS/stress value without V3 mutation."
+      "next_gate": "Require the updated Protected Base workflow to pass; then freeze one or more numeric candidates before outcome use on the real provider-valid population, apply the non-compensatory gate, stress and WF1..WF4 replication without mutating frozen V3."
     },
     {
       "id": "PROFIT_PROTECTION",
@@ -730,19 +789,22 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "POINT_IN_TIME_PROVIDER_TERMS_BOUND_HISTORICAL_AND_CAPABILITY_GAPS_OPEN",
+      "current_maturity": "REAL_POINT_IN_TIME_CTRADER_DEMO_PROVIDER_TERMS_PROVEN_HISTORICAL_CAPABILITY_AND_FORWARD_COST_GAPS_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py",
         "src/qore/infrastructure/cibo_fundednext_provider.py",
-        "src/qore/infrastructure/cibo_instrument_capability_registry.py"
+        "src/qore/infrastructure/cibo_instrument_capability_registry.py",
+        "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-ECONOMICS-EVIDENCE-2026-09-30.json",
+        "github-actions://36727848127/SUCCESS"
       ],
       "blockers": [
         "HISTORICAL_PROVIDER_USD_ECONOMICS_NOT_AVAILABLE_FOR_LEGACY_REPLAY",
         "EMPIRICAL_SLIPPAGE_CALIBRATION_REQUIRED_WHERE_USD_CLAIMS_REQUIRE_IT",
-        "T16_T17_PROVIDER_CAPABILITY_UNIVERSE_NOT_PROVIDER_VERIFIED"
+        "CTRADER_DEMO_ACCOUNT_BOUND_CAPABILITY_CATALOG_REQUIRED",
+        "T16_ACCOUNT_BOUND_HEDGE_ECONOMICS_REQUIRED_IF_SUPPORTED"
       ],
-      "next_gate": "Bind only provider-native point-in-time terms and forward observed costs; keep historical research R-denominated where USD fields are absent; obtain provider-verified T16/T17 capability evidence."
+      "next_gate": "Preserve the verified point-in-time cTrader DEMO provider terms; bind current account-specific capability observations and forward realized costs; keep legacy history R-denominated where provider USD economics are absent."
     },
     {
       "id": "FORWARD_QUALIFICATION",
@@ -1096,18 +1158,27 @@
       "kind": "EVIDENCE_PROGRAM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTROL_IDENTITY_SEALED_FRESH_ECONOMIC_POPULATION_REQUIRED",
+      "current_maturity": "CONTROL_SEALED_MATERIALIZER_CHILD_CI_GREEN_REAL_POPULATION_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-GENERATION-CURRENT-CONTROL-CANDIDATE-V1.md",
-        "scripts/cibo_generation_current_control_freeze.py"
+        "scripts/cibo_generation_current_control_freeze.py",
+        "docs/research/CIBO-AS-IS-ECONOMIC-BASELINE-BINDING-PLAN-V1.md",
+        "src/qore/infrastructure/cibo_ce2i_phase20_qualification.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_qualification_plan.py",
+        "src/qore/infrastructure/cibo_compound_real_population_binding.py",
+        "src/qore/infrastructure/cibo_as_is_economic_baseline.py",
+        "tests/infrastructure/test_cibo_as_is_economic_baseline.py",
+        "docs/research/CIBO-AS-IS-ECONOMIC-BASELINE-MATERIALIZATION-V1.md",
+        ".github/workflows/cibo-as-is-economic-baseline.yml",
+        "github-actions://36755769831/SUCCESS"
       ],
       "blockers": [
         "FRESH_AS_IS_ECONOMIC_POPULATION_REQUIRED",
-        "CURRENT_TRADER_CIBO_COMPOUND_ALLOCATION_UTILIZATION_MEASUREMENT_REQUIRED",
+        "CURRENT_TRADER_CIBO_COMPOUND_ALLOCATION_UTILIZATION_MEASUREMENT_RESULTS_REQUIRED",
         "NO_SYNTHETIC_BASELINE_ALLOWED"
       ],
-      "next_gate": "Bind the sealed pre-C8 control to a fresh causal comparison population and measure current Traders/CIBO/compound/allocation/capital-utilization/provider constraints without retuning."
+      "next_gate": "Consume the same provider-valid fresh population through the frozen Phase20D report and Compound real-population binding; materialize hashed AS-IS measurements without retuning or constructing a hindsight baseline."
     }
   ],
   "current_summary": {
