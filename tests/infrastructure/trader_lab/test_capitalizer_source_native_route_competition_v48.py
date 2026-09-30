@@ -2,12 +2,12 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from qore.infrastructure.trader_lab.capitalizer_source_native_route_registry_v48 import (
-    V48RouteId,
-)
 from qore.infrastructure.trader_lab.capitalizer_source_native_route_competition_v48 import (
     V48AdmittedRouteOpportunity,
     compete_session_day,
+)
+from qore.infrastructure.trader_lab.capitalizer_source_native_route_registry_v48 import (
+    V48RouteId,
 )
 
 
