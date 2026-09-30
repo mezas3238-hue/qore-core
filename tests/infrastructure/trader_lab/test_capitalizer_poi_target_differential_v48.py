@@ -1,11 +1,12 @@
 from qore.infrastructure.trader_lab.capitalizer_poi_target_differential_v48 import (
     FINDINGS,
     V48_POI_TARGET_DIFFERENTIAL,
+    V48POITargetFinding,
     V48POITargetStatus,
 )
 
 
-def _finding(finding_id: str):
+def _finding(finding_id: str) -> V48POITargetFinding:
     return next(item for item in FINDINGS if item.finding_id == finding_id)
 
 
