@@ -814,19 +814,18 @@
       "kind": "GOVERNANCE",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "SEAL_WORKFLOW_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "SEALED_CONTROL_IDENTITY_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
         "docs/research/CIBO-GENERATION-CURRENT-CONTROL-CANDIDATE-V1.md",
         "docs/research/CIBO-GENERATION-CURRENT-CONTROL-CI-EVIDENCE-V1.json",
         "scripts/cibo_generation_current_control_freeze.py",
         "src/qore/infrastructure/cibo_generation_current_control.py",
-        ".github/workflows/cibo-generation-current-control.yml"
+        ".github/workflows/cibo-generation-current-control.yml",
+        "github-actions://36725688605/SUCCESS"
       ],
-      "blockers": [
-        "CURRENT_CONTROL_SEAL_WORKFLOW_CI_REVALIDATION_REQUIRED"
-      ],
-      "next_gate": "Pass exact-SHA seal workflow and retain its immutable artifact; AS-IS control identity may then close while economic baseline measurement remains a separate evidence dependency."
+      "blockers": [],
+      "next_gate": "Terminal: immutable pre-C8 control identity is sealed and proven. Fresh economic baseline measurement is tracked separately by AS_IS_ECONOMIC_BASELINE."
     },
     {
       "id": "SOURCE_OF_TRUTH_RECONCILIATION",
@@ -846,16 +845,15 @@
       "kind": "GOVERNANCE",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "MACHINE_INVENTORY_ASSERTION_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ZERO_ORPHAN_INVENTORY_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
         "scripts/cibo_zero_open_work_gate.py",
-        ".github/workflows/cibo-zero-open-work-gate.yml"
+        ".github/workflows/cibo-zero-open-work-gate.yml",
+        "github-actions://36725688105/SUCCESS"
       ],
-      "blockers": [
-        "ZERO_ORPHAN_MACHINE_ASSERTION_CI_REVALIDATION_REQUIRED"
-      ],
-      "next_gate": "Pass machine inventory assertion with orphan_candidate_paths=[], no missing canonical artifacts and no high-signal unresolved code markers."
+      "blockers": [],
+      "next_gate": "Terminal: machine inventory classified all CIBO files with zero orphan candidates, zero missing canonical artifacts and zero high-signal unresolved code markers."
     },
     {
       "id": "ZERO_OPEN_WORK_GATE",
@@ -1017,12 +1015,30 @@
         "REAL_CHRONOLOGICAL_POPULATION_BINDING_REQUIRED"
       ],
       "next_gate": "Pass account-scoped five-store recovery CI, then bind the journal and IntegratedCapitalTruth to real chronological research population and close OOS/stress/replication gates."
+    },
+    {
+      "id": "AS_IS_ECONOMIC_BASELINE",
+      "kind": "EVIDENCE_PROGRAM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "CONTROL_IDENTITY_SEALED_FRESH_ECONOMIC_POPULATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "docs/research/CIBO-GENERATION-CURRENT-CONTROL-CANDIDATE-V1.md",
+        "scripts/cibo_generation_current_control_freeze.py"
+      ],
+      "blockers": [
+        "FRESH_AS_IS_ECONOMIC_POPULATION_REQUIRED",
+        "CURRENT_TRADER_CIBO_COMPOUND_ALLOCATION_UTILIZATION_MEASUREMENT_REQUIRED",
+        "NO_SYNTHETIC_BASELINE_ALLOWED"
+      ],
+      "next_gate": "Bind the sealed pre-C8 control to a fresh causal comparison population and measure current Traders/CIBO/compound/allocation/capital-utilization/provider constraints without retuning."
     }
   ],
   "current_summary": {
-    "mandatory_count": 63,
-    "terminal_count": 1,
-    "open_count": 62,
+    "mandatory_count": 64,
+    "terminal_count": 3,
+    "open_count": 61,
     "zero_open_work_pass": false,
     "final_certification_candidate": false
   }

@@ -1,6 +1,6 @@
 # CIBO Generation Current Control V1 — Freeze Candidate
 
-Status: **PRE-C8 AS-IS CONTROL CANDIDATE / NOT YET SEALED**
+Status: **PRE-C8 AS-IS CONTROL IDENTITY SEALED / ECONOMIC BASELINE POPULATION STILL PENDING**
 
 Control identity:
 
@@ -57,8 +57,13 @@ all_required_ci_green = NOT YET PROVEN
 control_sealed        = FALSE
 ```
 
-The candidate may not be relabelled as sealed until the exact-SHA required CI
-evidence is complete and green.
+The exact-SHA CI evidence is now complete and green: 26/26 required workflows
+are recorded as SUCCESS in
+`CIBO-GENERATION-CURRENT-CONTROL-CI-EVIDENCE-V1.json`.
+
+The immutable control identity is therefore sealed. This closes control
+selection/freeze only; it does **not** fabricate the still-missing fresh
+economic baseline population.
 
 ## Holdout and policy protection
 
@@ -113,3 +118,27 @@ This preserves:
 TODAY'S BEST CIBO
 IS TOMORROW'S CONTROL.
 ```
+
+
+## Machine-seal closure
+
+The N+1 branch now contains a dedicated machine-seal workflow:
+
+`.github/workflows/cibo-generation-current-control.yml`
+
+Verified successful run:
+
+`36725688605`
+
+The workflow materializes the immutable pre-C8 control manifest and reasserts
+the exact baseline Git SHA, all-green exact-SHA CI, untouched 2017H1 holdout,
+no V3 mutation and no outcome-based control selection.
+
+The following remain deliberately separate:
+
+`AS_IS_CONTROL = COMPLETED_AND_PROVEN`
+
+`AS_IS_ECONOMIC_BASELINE = OPEN`
+
+The second cannot close until a fresh causal population exists. Synthetic
+utilization or retrospective invented USD economics are forbidden.
