@@ -76,6 +76,7 @@ from qore.infrastructure.trader_lab.capitalizer_source_structural_extraction_v2 
     protected_swing_from_cisd,
 )
 from qore.infrastructure.trader_lab.capitalizer_strict_htf_gate_1y_v1 import (
+    Pivot,
     TFBar,
     _pivots,
 )
@@ -369,7 +370,7 @@ def first_setup_cisd_binding(
 def _continuation_m3(
     rows: tuple[TFBar, ...],
     closes: tuple[datetime, ...],
-    pivots: tuple[object, ...],
+    pivots: tuple[Pivot, ...],
     *,
     sweep: raw_ftm.FTMRawSweep,
     side: CapitalizerSide,
@@ -379,7 +380,7 @@ def _continuation_m3(
     return v3_source._find_m3_mss(
         rows,
         closes,
-        pivots,  # type: ignore[arg-type]
+        pivots,
         after=sweep.sweep_at,
         before=sweep.deadline,
         side=side,
