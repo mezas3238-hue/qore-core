@@ -306,7 +306,7 @@ Mandatory capabilities are non-compensatory.
 
 ## 39. Final master closure matrix
 
-Before final certification one canonical matrix must carry terminal dispositions for CE2I T01–T20, GEN-C0–GEN-C14, Compound Engine, Compound Portfolio, Internal Capital Market, Provider Economics, Forward Qualification, Monte Carlo, Stress, OOS, Replication and Final Integrated Exam.
+Before final certification one canonical matrix must carry terminal dispositions for CE2I T01–T20, GEN-C0–GEN-C14, Compound Engine, Compound Portfolio, Internal Capital Market, Provider Economics, Forward Qualification, Monte Carlo, Stress, OOS, Replication, Final Integrated Exam and the mandatory World Cup Maximum-Capability Exam.
 
 CLOSED means only COMPLETED_AND_PROVEN, FALSIFIED_AND_CLOSED, SUPERSEDED_WITH_PROVEN_LINEAGE, or an explicit external dependency that still blocks global certification when certification-critical.
 
@@ -348,7 +348,7 @@ Protected, available, reserved, deployed and compoundable subdivisions must reco
 
 ## 46. World Cup exam ordering
 
-The definitive +491 / +1,473 / +1,964 maximum-capability exam cannot be used as final evidence until CIBO_ZERO_OPEN_WORK_GATE = TRUE and Compound Engine, Compound Portfolio, Internal Capital Market, Capital Amplification and Risk Integration are closed.
+The definitive +491 / +1,473 / +1,964 maximum-capability exam cannot begin until PRE_EXAM has passed, every non-exam mandatory workstream is terminal, the Final Integrated CIBO Exam is terminal, and the World Cup protocol/evidence identity is frozen. The World Cup exam itself must then become terminal before STRICT CIBO_ZERO_OPEN_WORK_GATE may become TRUE. This ordering prevents circular dependency while preserving zero loose work.
 
 ## 47. Absolute Owner order
 
