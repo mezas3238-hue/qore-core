@@ -1,0 +1,108 @@
+name: QORE Shared A X01 X02 X03 Real Replay
+
+concurrency:
+  group: qore-shared-a-x01-x02-x03-real-replay
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - scripts/shared_x01_x02_x03_opportunity_surface_replay.py
+      - .github/workflows/qore-shared-a-x01-x02-x03-real-replay.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Recover immutable source evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/{r8,r6,r5} result
+          ruff check scripts/shared_x01_x02_x03_opportunity_surface_replay.py
+          python -m py_compile scripts/shared_x01_x02_x03_opportunity_surface_replay.py
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+      - name: Replay surface rarity and asymmetry
+        run: |
+          set -euo pipefail
+          python scripts/shared_x01_x02_x03_opportunity_surface_replay.py             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/x01-x02-x03-real-replay.json             | tee result/summary.json
+      - name: Validate bounded disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/x01-x02-x03-real-replay.json").read_text())
+          assert p["status"] == "X01_X02_X03_REAL_DATA_BOUND_CAUSAL_REPLAY_PASS"
+          assert p["proof"]["future_market_read"] is False
+          assert p["proof"]["future_outcome_read"] is False
+          assert p["proof"]["rarity_uses_past_boards_only"] is True
+          assert p["proof"]["order_or_capital_priority"] is False
+          assert p["scientific_claims"]["global_multi_family_world_complete"] is False
+          assert p["governance"]["protected_certification_holdout_opened"] is False
+          PY
+      - name: Seal result
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-x01-x02-x03-real-replay-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report surface replay
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/x01-x02-x03-real-replay.json").read_text())
+          body="\n".join([
+              "## Shared A X-01/X-02/X-03 — Opportunity Surface Real Replay",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              f"- R6: **{p['results']['r6']}**",
+              f"- R5: **{p['results']['r5']}**",
+              "- rarity uses only past boards: **True**",
+              "- future/outcome read: **False / False**",
+              "- order/capital priority: **False**",
+              "- global multi-family world complete: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
