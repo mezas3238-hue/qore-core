@@ -84,7 +84,7 @@ def test_holdout_counts_portfolio_trades_after_max3(tmp_path: Path) -> None:
     )
     for symbol, session in universe:
         day = "2025-01-02"
-        rows = (
+        rows = tuple(
             _opportunity(
                 symbol=symbol,
                 session=session,
