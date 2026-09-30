@@ -6,6 +6,8 @@ from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
 )
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_trader_v49 import (
     IDENTITY as TRADER_IDENTITY,
+)
+from qore.infrastructure.trader_lab.capitalizer_high_frequency_trader_v49 import (
     V49TradeDirection,
     V49TradeIntent,
 )
