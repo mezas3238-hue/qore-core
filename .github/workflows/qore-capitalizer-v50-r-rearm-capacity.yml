@@ -16,6 +16,10 @@ permissions:
   contents: read
   actions: read
 
+concurrency:
+  group: qore-capitalizer-v50-r-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   SOURCE_M1_RUN_ID: '35548099334'
   SOURCE_M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
