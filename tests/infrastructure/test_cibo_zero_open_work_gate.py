@@ -55,7 +55,8 @@ def test_zero_open_work_gate_blocks_open_required_work(
     ledger = tmp_path / "ledger.json"
     _write(ledger, _ledger(disposition=None))
     monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
-    monkeypatch.setattr(gate, "_SOURCE_GLOBS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
 
     verdict = gate.evaluate_gate(
         repo_root=tmp_path,
@@ -74,7 +75,8 @@ def test_zero_open_work_gate_passes_only_terminal_proven_work(
     ledger = tmp_path / "ledger.json"
     _write(ledger, _ledger(disposition="COMPLETED_AND_PROVEN"))
     monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
-    monkeypatch.setattr(gate, "_SOURCE_GLOBS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
 
     verdict = gate.evaluate_gate(
         repo_root=tmp_path,
@@ -100,7 +102,8 @@ def test_external_dependency_blocks_when_certification_critical(
         ),
     )
     monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
-    monkeypatch.setattr(gate, "_SOURCE_GLOBS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
 
     verdict = gate.evaluate_gate(
         repo_root=tmp_path,
@@ -124,7 +127,8 @@ def test_gate_detects_missing_required_artifact(
         "_REQUIRED_CANONICAL_ARTIFACTS",
         ("required/missing.json",),
     )
-    monkeypatch.setattr(gate, "_SOURCE_GLOBS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
 
     verdict = gate.evaluate_gate(
         repo_root=tmp_path,
@@ -151,7 +155,8 @@ def test_gate_detects_high_signal_orphan_marker(
         encoding="utf-8",
     )
     monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
-    monkeypatch.setattr(gate, "_SOURCE_GLOBS", ("src/cibo_*.py",))
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ("src/cibo_*.py",))
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ("src/cibo_*.py",))
 
     verdict = gate.evaluate_gate(
         repo_root=tmp_path,
