@@ -136,6 +136,25 @@ def evaluate_receipt_bound_pre_holdout_readiness(
             "receipt-bound pre-holdout forward manifest not scientifically ready"
         )
 
+    account_scopes = {
+        (
+            row.provider_key,
+            row.account_ref,
+            row.environment.lower(),
+        )
+        for row in forward_manifest.rows
+    }
+    registry_identity = provider_capability_registry.account_identity
+    expected_scope = (
+        registry_identity.provider_key,
+        registry_identity.account_ref,
+        registry_identity.environment.value.lower(),
+    )
+    if account_scopes != {expected_scope}:
+        raise CiboCapitalManagementError(
+            "receipt-bound pre-holdout capability registry account/provider scope mismatch"
+        )
+
     if p21.get("phase21_policy_freeze_sealed") is not True:
         raise CiboCapitalManagementError(
             "receipt-bound pre-holdout Phase21 policy freeze not sealed"
