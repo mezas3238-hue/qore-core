@@ -31,13 +31,13 @@ def test_generic_scalp_does_not_require_m1_mss_fvg_and_ob_superintersection() ->
     assert "M1_MSS_CONFIRMED" not in all_facts
     assert "M1_ORDER_BLOCK_CONFIRMED" not in all_facts
     assert "M1_FVG_INTERACTION_CONFIRMED" not in all_facts
+    assert "DAILY_CONTEXT_RESOLVED" not in all_facts
     assert "M1_CONTINUATION_CONFIRMED" in all_facts
     assert contract.alternative_groups == ()
 
 
 def test_generic_scalp_requires_confirmed_continuation_not_one_raw_behavior() -> None:
     base = {
-        "DAILY_CONTEXT_RESOLVED": True,
         "H1_SCALP_BIAS_CONFIRMED": True,
         "M15_PROTECTED_SWING_CONFIRMED_BY_CISD": True,
         "LOGICAL_PROTECTED_SWING_STOP_AVAILABLE": True,
