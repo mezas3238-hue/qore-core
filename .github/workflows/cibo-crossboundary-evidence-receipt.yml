@@ -1,0 +1,28 @@
+name: QORE CIBO Cross-Boundary Evidence Receipt
+
+on:
+  pull_request:
+    paths:
+      - 'src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py'
+      - 'tests/infrastructure/test_cibo_crossboundary_evidence_receipt.py'
+      - '.github/workflows/cibo-crossboundary-evidence-receipt.yml'
+  push:
+    paths:
+      - 'src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py'
+      - 'tests/infrastructure/test_cibo_crossboundary_evidence_receipt.py'
+      - '.github/workflows/cibo-crossboundary-evidence-receipt.yml'
+
+jobs:
+  crossboundary-receipt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Cross-boundary receipt quality
+        run: |
+          ruff check             src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py             tests/infrastructure/test_cibo_crossboundary_evidence_receipt.py
+          mypy             src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py
+          pytest -q --no-cov             tests/infrastructure/test_cibo_crossboundary_evidence_receipt.py
