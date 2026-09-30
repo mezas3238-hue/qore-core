@@ -28,6 +28,8 @@ from qore.infrastructure.core_stack_v2.shared_trader_intelligence import (
 )
 
 IDENTITY = "QORE_SHARED_STI2_V2_SOURCE_STRESS_001"
+AUTHORITATIVE_ENGINE_SHA = "af1dbe207cca37d2e2a1abe47afd15f6df9c873c"
+AUTHORITATIVE_REPLAY_SHA = "1df8be7cfea2621a4bfcf6a7de741aa585a29f35"
 STRESSES = (
     "BASELINE",
     "RELATIONSHIP_STRESS",
@@ -215,6 +217,8 @@ def main() -> None:
     )
     payload = {
         "identity": IDENTITY,
+        "authoritative_engine_sha": AUTHORITATIVE_ENGINE_SHA,
+        "authoritative_replay_sha": AUTHORITATIVE_REPLAY_SHA,
         "scientific_status": (
             "STI2_V2_SOURCE_STRESS_PASS"
             if robust and fail_closed
