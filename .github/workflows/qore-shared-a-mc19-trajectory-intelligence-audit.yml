@@ -1,0 +1,105 @@
+name: QORE Shared A MC19 Trajectory Intelligence Audit
+
+concurrency:
+  group: qore-shared-a-mc19-trajectory-intelligence-audit
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - scripts/shared_mc19_trajectory_intelligence_audit.py
+      - .github/workflows/qore-shared-a-mc19-trajectory-intelligence-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Validate audit
+        run: |
+          set -euo pipefail
+          mkdir -p input/{journey,lineage} result
+          ruff check scripts/shared_mc19_trajectory_intelligence_audit.py
+          python -m py_compile scripts/shared_mc19_trajectory_intelligence_audit.py
+      - name: Recover immutable trajectory evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11112433663/zip" > journey.zip
+          unzip -q journey.zip -d input/journey
+          (cd input/journey && sha256sum -c SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11117550814/zip" > lineage.zip
+          unzip -q lineage.zip -d input/lineage
+          (cd input/lineage && sha256sum -c SHA256SUMS)
+      - name: Audit MC19 foundation
+        run: |
+          set -euo pipefail
+          python scripts/shared_mc19_trajectory_intelligence_audit.py             --journey input/journey             --lineage input/lineage             --output result/mc19-trajectory-intelligence-audit.json             | tee result/summary.json
+      - name: Validate bounded disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc19-trajectory-intelligence-audit.json").read_text())
+          assert p["status"] == "MC19_TRAJECTORY_INTELLIGENCE_REAL_FOUNDATION_PASS"
+          assert p["world_at_entry_lineage_completed"] is True
+          assert p["world_now_delta_lineage_completed"] is True
+          assert p["source_time_points_only"] is True
+          assert p["position_management_authority"] is False
+          assert p["avoidable_loss_reduction_with_winner_preservation_proven"] is False
+          assert p["mc19_completed_and_proven"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+      - name: Seal result
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc19-trajectory-intelligence-audit-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report MC19
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(Path("result/mc19-trajectory-intelligence-audit.json").read_text())
+          body="\n".join([
+              "## Shared A MC-19 — Trajectory Intelligence Audit",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              f"- R6/R5 trajectory points: **{p['r6_trajectory_point_count']} / {p['r5_trajectory_point_count']}**",
+              f"- R6/R5 memories: **{p['r6_memory_count']} / {p['r5_memory_count']}**",
+              "- winner-preserving economic value proven: **False**",
+              f"- dependency: **{p['dependency']}**",
+              "- MC-19 completed-and-proven: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
