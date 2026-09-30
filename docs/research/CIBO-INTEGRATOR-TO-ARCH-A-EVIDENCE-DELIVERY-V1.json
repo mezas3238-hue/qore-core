@@ -1,13 +1,16 @@
 {
   "schema": "CIBO_INTEGRATOR_TO_ARCH_A_EVIDENCE_DELIVERY_V1",
   "request_id": "CIBO-ARCH-A-CROSSBOUNDARY-REQUEST-001",
-  "status": "SETTLEMENT_DELIVERY_ADAPTER_IMPLEMENTED_PATH_HISTORY_STILL_OPEN",
+  "status": "PARTIAL_CANONICAL_DELIVERY_PATH_INFRASTRUCTURE_STAGED_REAL_POPULATION_PENDING",
   "source_planes": {
     "architect_b_forward_manifest": "src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py",
     "integrated_capital_forward_binding": "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py",
     "integrated_capital_truth": "src/qore/infrastructure/cibo_integrated_capital_truth.py",
     "compound_cycle_state": "src/qore/infrastructure/cibo_compound_cycle_state.py",
-    "capital_source_ledger": "src/qore/infrastructure/cibo_capital_source_ledger.py"
+    "capital_source_ledger": "src/qore/infrastructure/cibo_capital_source_ledger.py",
+    "compound_path_history": "src/qore/infrastructure/cibo_compound_path_history.py",
+    "arch_a_path_evidence_delivery": "src/qore/infrastructure/cibo_arch_a_path_evidence_delivery.py",
+    "arch_a_forward_compound_delivery": "src/qore/infrastructure/cibo_arch_a_forward_compound_delivery.py"
   },
   "forward_manifest_fields_available": [
     "decision_epoch_id",
@@ -65,8 +68,8 @@
   "gaps": [
     {
       "field": "minimum_realized_base_compound_liquid_optional_reserves",
-      "owner": "INTEGRATOR_CAPITAL_PATH_HISTORY",
-      "reason": "PATH_STATE_HISTORY_NOT_YET_CANONICALLY_MATERIALIZED",
+      "owner": "INTEGRATOR_PLUS_ARCHITECT_A",
+      "reason": "CANONICAL_CHRONOLOGICAL_PATH_ENGINE_AND_A_DELIVERY_STAGED_REAL_FORWARD_EVENT_STREAM_REQUIRED",
       "blocking_for_a": true
     },
     {
@@ -77,8 +80,8 @@
     },
     {
       "field": "profit_giveback_path",
-      "owner": "ARCHITECT_A_PLUS_INTEGRATOR",
-      "reason": "REQUIRES_FROZEN_CHRONOLOGICAL_STATE_HISTORY",
+      "owner": "INTEGRATOR_PLUS_ARCHITECT_A",
+      "reason": "CANONICAL_CHRONOLOGICAL_PATH_ENGINE_AND_A_DELIVERY_STAGED_REAL_FORWARD_EVENT_STREAM_REQUIRED",
       "blocking_for_a": true
     },
     {
@@ -95,7 +98,7 @@
     "frozen_phase20_v3_mutated": false,
     "productive_authority": false
   },
-  "next_gate": "Materialize canonical chronological capital-state history keyed to the exact forward settlement population; derive path minima/floor graduation/giveback without inferring them from terminal state; then deliver the immutable path-state receipt to Architect A.",
+  "next_gate": "Pass all Integrator A-delivery CI; then feed the real scientifically-ready forward event stream through settlement/capital/compound/path adapters and hand the resulting immutable hashes to Architect A for causal/OOS/stress/replication gates.",
   "implemented_adapter": {
     "module": "src/qore/infrastructure/cibo_arch_a_capital_state_delivery.py",
     "test": "tests/infrastructure/test_cibo_arch_a_capital_state_delivery.py",
@@ -117,5 +120,18 @@
       "terminal_compound_balances",
       "highest_generation"
     ]
-  }
+  },
+  "resolved_delivery_surfaces": [
+    "src/qore/infrastructure/cibo_arch_a_capital_state_delivery.py",
+    "src/qore/infrastructure/cibo_arch_a_forward_compound_delivery.py",
+    "src/qore/infrastructure/cibo_compound_path_history.py",
+    "src/qore/infrastructure/cibo_arch_a_path_evidence_delivery.py"
+  ],
+  "pending_validation": [
+    "INTEGRATOR_ARCH_A_CAPITAL_STATE_DELIVERY_CI_REQUIRED",
+    "INTEGRATOR_ARCH_A_FORWARD_COMPOUND_DELIVERY_CI_REQUIRED",
+    "INTEGRATOR_COMPOUND_PATH_HISTORY_CI_REQUIRED",
+    "INTEGRATOR_ARCH_A_PATH_EVIDENCE_DELIVERY_CI_REQUIRED",
+    "REAL_SCIENTIFICALLY_READY_FORWARD_POPULATION_REQUIRED"
+  ]
 }
