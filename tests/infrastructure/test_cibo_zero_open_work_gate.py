@@ -647,3 +647,32 @@ def test_integrator_classifies_pre_holdout_chain_inventory() -> None:
         ),
     }
     assert orphans == ()
+
+
+def test_integrator_classifies_t02_t11_forward_surfaces() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_ce2i_t02_terminal_reason_evidence.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py",
+        ".github/workflows/cibo-t02-forward-structural-oos.yml",
+        "docs/research/CIBO-B-T02-FORWARD-STRUCTURAL-OOS-V1.md",
+        "src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py",
+        ".github/workflows/cibo-t11-execution-cost-calibration.yml",
+        "docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md",
+    )
+    ledger_ids = frozenset({"T02", "T11"})
+
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    assert dict(assignments) == {
+        "src/qore/infrastructure/cibo_ce2i_t02_terminal_reason_evidence.py": "T02",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py": "T02",
+        ".github/workflows/cibo-t02-forward-structural-oos.yml": "T02",
+        "docs/research/CIBO-B-T02-FORWARD-STRUCTURAL-OOS-V1.md": "T02",
+        "src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py": "T11",
+        ".github/workflows/cibo-t11-execution-cost-calibration.yml": "T11",
+        "docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md": "T11",
+    }
+    assert orphans == ()
