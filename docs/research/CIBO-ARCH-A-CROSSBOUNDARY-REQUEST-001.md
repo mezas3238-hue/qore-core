@@ -59,7 +59,7 @@ Every decision epoch supplied to A must be causally timestamped and, where avail
 3. decision epoch id and decision timestamp;
 4. Trader lineage and signal fingerprint;
 5. candidate identity / selected identity / baseline-selected identity;
-6. frozen qualification fold id (FOLD_1..FOLD_4) for selected settled episodes;
+6. canonical Phase20D qualification fold id (WF1..WF4) for selected settled episodes;
 7. pre-outcome decision evidence SHA;
 8. selected policy/control/treatment identity;
 9. structural stop risk;
@@ -137,6 +137,6 @@ Preregistration:
 `docs/research/CIBO-COMPOUND-REAL-POPULATION-BINDING-V1.md`
 
 The adapter accepts only exact V3, post-freeze, FORWARD_OBSERVED, provider-valid
-records with all four frozen temporal folds and immutable provider/Risk/CMA/
+records with all four canonical Phase20D temporal folds and immutable provider/Risk/CMA/
 settlement/release hashes. B does not need to edit the adapter; it only needs to
 supply evidence conforming to the contract.
