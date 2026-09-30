@@ -231,13 +231,41 @@ def main() -> None:
             "run:36247407353",
             "run:36248025384",
         ),
-        reproducibility_ref="representation:e2fc2ca059d5852b4e9107c467392e5e64aeabbd6aca2d8013951b93402bc987",
+        reproducibility_ref=(
+            "representation:"
+            "e2fc2ca059d5852b4e9107c467392e5e64aeabbd6aca2d8013951b93402bc987"
+        ),
         stages=(
-            ImprovementStageEvidence(ImprovementStage.DISCOVERY, "run:36242978209", True, "R8_R6_R5_CONSUMED"),
-            ImprovementStageEvidence(ImprovementStage.SANDBOX, "run:36244726347", True, "R8_R6_R5_CONSUMED"),
-            ImprovementStageEvidence(ImprovementStage.FALSIFICATION, "run:36244726347", True, "R8_R6_R5_LOO"),
-            ImprovementStageEvidence(ImprovementStage.REPLICATION, "run:36248025384", True, "TEMPORAL_REPLICATION_D"),
-            ImprovementStageEvidence(ImprovementStage.HOLDOUT, "run:36247407353", True, "HOLDOUT_E"),
+            ImprovementStageEvidence(
+                ImprovementStage.DISCOVERY,
+                "run:36242978209",
+                True,
+                "R8_R6_R5_CONSUMED",
+            ),
+            ImprovementStageEvidence(
+                ImprovementStage.SANDBOX,
+                "run:36244726347",
+                True,
+                "R8_R6_R5_CONSUMED",
+            ),
+            ImprovementStageEvidence(
+                ImprovementStage.FALSIFICATION,
+                "run:36244726347",
+                True,
+                "R8_R6_R5_LOO",
+            ),
+            ImprovementStageEvidence(
+                ImprovementStage.REPLICATION,
+                "run:36248025384",
+                True,
+                "TEMPORAL_REPLICATION_D",
+            ),
+            ImprovementStageEvidence(
+                ImprovementStage.HOLDOUT,
+                "run:36247407353",
+                True,
+                "HOLDOUT_E",
+            ),
         ),
     )
 
