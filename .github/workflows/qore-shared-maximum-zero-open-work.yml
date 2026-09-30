@@ -66,8 +66,8 @@ jobs:
 
           assert a["total_items"] == 103
           assert a["mandatory_items"] == 103
-          assert a["mandatory_closed"] == 8
-          assert a["blocker_count"] == 95
+          assert a["mandatory_closed"] == 4
+          assert a["blocker_count"] == 99
           assert a["zero_open_required_work"] is False
           assert a["pre_certification_ready"] is False
           assert a["final_certification_exam_authorized"] is False
