@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import asdict
+
 from qore.infrastructure.trader_lab import (
     capitalizer_two_route_gross_economics_v47_s2e as s2e,
 )
@@ -55,13 +57,10 @@ def test_metrics_mix_routes_without_route_priority() -> None:
 
 def test_gross_trade_rejects_route_priority() -> None:
     row = _trade("1", stream="FTM", reason="TARGET")
+    payload = asdict(row)
+    payload["route_priority_used"] = True
     try:
-        s2e.S2EGrossTrade(
-            **{
-                **row.__dict__,
-                "route_priority_used": True,
-            }
-        )
-    except (ValueError, AttributeError):
+        s2e.S2EGrossTrade(**payload)
+    except ValueError:
         return
     raise AssertionError("S2E must reject route-priority selection")
