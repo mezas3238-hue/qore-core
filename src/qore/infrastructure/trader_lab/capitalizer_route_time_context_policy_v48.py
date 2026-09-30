@@ -71,7 +71,10 @@ ROUTE_TIME_CONTEXTS: tuple[V48RouteTimeContext, ...] = (
     V48RouteTimeContext(
         V48RouteId.ICT_2022_EXECUTION,
         V48TimeContextMode.SOURCE_WINDOW_BINDING_PENDING,
-        (\n            "ICT route timing remains blocked until exact primary-source timestamp "\n            "binding is complete."\n        ),
+        (
+            "ICT route timing remains blocked until exact primary-source timestamp "
+            "binding is complete."
+        ),
     ),
 )
 
