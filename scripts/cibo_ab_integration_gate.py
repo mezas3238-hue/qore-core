@@ -17,6 +17,7 @@ from typing import Any
 
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 _SCHEMA = "CIBO_AB_INTEGRATION_ACCEPTANCE_V1"
+_CHILD_DELTA_SCHEMA = "CIBO_AB_CHILD_DELTA_ACCOUNTING_V1"
 _LOCAL_EVIDENCE_PREFIXES = (
     ".github/",
     "docs/",
@@ -219,6 +220,67 @@ def validate_state(
     return errors
 
 
+
+def validate_child_delta_accounting(
+    matrix: dict[str, Any],
+    accounting: dict[str, Any],
+) -> list[str]:
+    errors: list[str] = []
+    if accounting.get("schema") != _CHILD_DELTA_SCHEMA:
+        errors.append("child delta accounting schema drift")
+        return errors
+    if accounting.get("all_child_delta_files_accounted") is not True:
+        errors.append("child delta accounting reports unaccounted files")
+    if accounting.get("productive_authority") is not False:
+        errors.append("child delta accounting cannot grant productive authority")
+    if accounting.get("certification_claim") is not False:
+        errors.append("child delta accounting cannot claim certification")
+
+    for matrix_key, accounting_key in (
+        ("architect_a", "architect_a"),
+        ("architect_b", "architect_b"),
+    ):
+        mrow = matrix.get(matrix_key)
+        arow = accounting.get(accounting_key)
+        if not isinstance(mrow, dict) or not isinstance(arow, dict):
+            errors.append(f"child delta {accounting_key} row missing")
+            continue
+        if arow.get("pr") != mrow.get("pr"):
+            errors.append(f"child delta {accounting_key} PR drift")
+        if arow.get("head_sha") != mrow.get("latest_observed_head_sha"):
+            errors.append(f"child delta {accounting_key} HEAD drift")
+        changed = arow.get("changed_files")
+        present = arow.get("files_present_in_integrator_delta")
+        if (
+            not isinstance(changed, int)
+            or isinstance(changed, bool)
+            or changed < 0
+            or not isinstance(present, int)
+            or isinstance(present, bool)
+            or present < 0
+            or present > changed
+        ):
+            errors.append(f"child delta {accounting_key} counts invalid")
+            continue
+        exclusions = (
+            arow.get("deliberate_overrides", [])
+            if accounting_key == "architect_a"
+            else arow.get("deliberate_noncanonical_snapshots", [])
+        )
+        if not isinstance(exclusions, list):
+            errors.append(f"child delta {accounting_key} exclusions invalid")
+            continue
+        unaccounted = arow.get("unaccounted_files")
+        if not isinstance(unaccounted, list):
+            errors.append(f"child delta {accounting_key} unaccounted list invalid")
+            continue
+        if unaccounted:
+            errors.append(f"child delta {accounting_key} has unaccounted files")
+        if present + len(exclusions) != changed:
+            errors.append(f"child delta {accounting_key} accounting count drift")
+
+    return errors
+
 def validate_local_evidence_paths(
     ledger: dict[str, Any],
     *,
@@ -273,11 +335,15 @@ def main() -> int:
     root = Path(__file__).resolve().parents[1]
     matrix = _load(root / "docs/research/CIBO-AB-INTEGRATION-ACCEPTANCE-V1.json")
     ledger = _load(root / "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json")
+    accounting = _load(
+        root / "docs/research/CIBO-AB-CHILD-DELTA-ACCOUNTING-V1.json"
+    )
     errors = validate_state(
         matrix,
         ledger,
         enforce_certification=args.enforce_certification,
     )
+    errors.extend(validate_child_delta_accounting(matrix, accounting))
     errors.extend(
         validate_local_evidence_paths(
             ledger,
