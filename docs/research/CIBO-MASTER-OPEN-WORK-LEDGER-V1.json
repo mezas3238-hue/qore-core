@@ -405,25 +405,32 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_GENC7_CAUSAL_GRADUATION_GATE_CHILD_CI_GREEN_PROFIT_GRADUATION_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
+        "github-actions://36727848363/SUCCESS",
+        "src/qore/infrastructure/cibo_profit_preservation_economic_gate.py",
+        "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        "github-actions://36760959025/SUCCESS"
       ],
       "blockers": [
         "CAUSAL_PROFIT_GRADUATION_POLICY_VALUE_REQUIRED"
       ],
-      "next_gate": "Close floor behavior with OOS profit graduation/giveback evidence."
+      "next_gate": "After GEN-C7 causal-effect evidence exists, prove that PROTECT/graduation to the floor adds non-compensatory economic value with no base/compound/tail/optionality degradation, then stress and replicate 4/4."
     },
     {
       "id": "GEN-C3",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_REAL_ECONOMIC_CYCLE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
+        "github-actions://36727848288/SUCCESS"
       ],
       "blockers": [
         "END_TO_END_COMPOUND_PORTFOLIO_ECONOMIC_CYCLE_REQUIRED"
@@ -435,10 +442,12 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_REAL_DATA_CAUSAL_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
+        "github-actions://36727848441/SUCCESS"
       ],
       "blockers": [
         "REAL_DATA_BOUND_CAUSAL_VALUE_PROOF_REQUIRED"
@@ -450,10 +459,12 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_PATH_DEPENDENT_UTILITY_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
+        "github-actions://36727848514/SUCCESS"
       ],
       "blockers": [
         "FRESH_PATH_DEPENDENT_OOS_STRESS_REPLICATION_REQUIRED"
@@ -465,10 +476,12 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_TRUE_SCARCITY_UTILITY_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
+        "github-actions://36727848088/SUCCESS"
       ],
       "blockers": [
         "FRESH_TRUE_SCARCITY_OOS_STRESS_REPLICATION_REQUIRED"
@@ -524,7 +537,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_MONTE_CARLO_AND_ECONOMIC_GATE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "ENGINE_REAL_POPULATION_BINDING_AND_TEMPORAL_CRITERION_CHILD_CI_GREEN_REAL_ECONOMIC_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -535,14 +548,18 @@
         "src/qore/infrastructure/cibo_compound_path_monte_carlo.py",
         "src/qore/infrastructure/cibo_genc9_economic_gate.py",
         "tests/infrastructure/test_cibo_genc9_economic_gate.py",
-        "docs/research/CIBO-GEN-C9-NONCOMPENSATORY-ECONOMIC-GATE-V1.md"
+        "docs/research/CIBO-GEN-C9-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        "github-actions://36727848052/SUCCESS",
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_compound_real_population_binding.py",
+        "src/qore/infrastructure/cibo_compound_temporal_replication_gate.py",
+        "github-actions://36754064447/SUCCESS"
       ],
       "blockers": [
-        "GEN_C9_FULL_ENGINE_CI_REVALIDATION_REQUIRED",
         "REAL_PROVIDER_VALID_COMPOUND_PATH_POPULATION_REQUIRED",
         "FRESH_OOS_STRESS_TEMPORAL_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Pass GEN-C9 full CI; bind provider-valid real compound path population without tuning; apply frozen non-compensatory gate; then fresh OOS/stress/temporal replication."
+      "next_gate": "Bind provider-valid real compound path population without tuning; apply frozen non-compensatory gate; then fresh OOS, adversarial stress and temporal replication."
     },
     {
       "id": "GEN-C10",
@@ -672,7 +689,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "INTEGRATED_ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "INTEGRATED_ENGINE_IMPLEMENTED_CI_GREEN_REAL_REPLAY_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_cycle_state.py",
@@ -680,66 +697,70 @@
         "src/qore/infrastructure/cibo_compound_cycle_audit.py",
         "tests/infrastructure/test_cibo_compound_cycle_state.py",
         "tests/infrastructure/test_cibo_compound_market_cycle.py",
-        ".github/workflows/cibo-compound-engine-integrated-cycle.yml"
+        ".github/workflows/cibo-compound-engine-integrated-cycle.yml",
+        "github-actions://36727848373/SUCCESS",
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md"
       ],
       "blockers": [
-        "INTEGRATED_COMPOUND_CYCLE_CI_REVALIDATION_REQUIRED",
         "REAL_CHRONOLOGICAL_POPULATION_REPLAY_REQUIRED",
         "COMPOUND_MONTE_CARLO_REAL_POPULATION_STRESS_OOS_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Pass integrated-cycle CI, then bind real chronological population and close scientific gates."
+      "next_gate": "Bind the integrated engine to a real chronological population and close Monte Carlo, fresh OOS, stress and temporal-replication scientific gates."
     },
     {
       "id": "COMPOUND_PORTFOLIO",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "INTEGRATED_ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "INTEGRATED_ENGINE_IMPLEMENTED_CI_GREEN_REAL_ECONOMIC_REPLAY_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_cycle_state.py",
-        "src/qore/infrastructure/cibo_compound_market_cycle.py"
+        "src/qore/infrastructure/cibo_compound_market_cycle.py",
+        "github-actions://36750376948/SUCCESS",
+        "docs/research/CIBO-GENC1-MATHEMATICAL-RECONCILIATION-CLOSURE-V1.md"
       ],
       "blockers": [
-        "INTEGRATED_COMPOUND_CYCLE_CI_REVALIDATION_REQUIRED",
         "REAL_ECONOMIC_PORTFOLIO_REPLAY_REQUIRED",
         "FRESH_OOS_STRESS_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Use the account-local Compound Portfolio in real chronological integrated replay and prove closure gates."
+      "next_gate": "Use the account-local Compound Portfolio in real chronological integrated replay and prove fresh OOS, stress and temporal-replication closure gates."
     },
     {
       "id": "INTERNAL_CAPITAL_MARKET",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "INTEGRATED_WITH_COMPOUND_CYCLE_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "INTEGRATED_WITH_COMPOUND_CYCLE_CI_GREEN_SCIENTIFIC_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_compound_market_cycle.py"
+        "src/qore/infrastructure/cibo_compound_market_cycle.py",
+        "github-actions://36750376948/SUCCESS",
+        "docs/research/CIBO-GENC1-MATHEMATICAL-RECONCILIATION-CLOSURE-V1.md"
       ],
       "blockers": [
-        "INTEGRATED_COMPOUND_CYCLE_CI_REVALIDATION_REQUIRED",
         "FRESH_TRUE_SCARCITY_ECONOMIC_VALUE_REQUIRED",
         "STRESS_AND_TEMPORAL_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Pass integrated-cycle mechanics, then prove fresh scarcity value and non-compensatory stress/replication."
+      "next_gate": "Bind a fresh real scarcity population and prove non-compensatory economic value, stress robustness and temporal replication."
     },
     {
       "id": "CAPITAL_GENERATIONS",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "GEN0_TO_GEN2_MECHANICS_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "GEN0_TO_GEN2_MECHANICS_IMPLEMENTED_CI_GREEN_REAL_REPLAY_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_compound_cycle_audit.py"
+        "src/qore/infrastructure/cibo_compound_cycle_audit.py",
+        "github-actions://36750376948/SUCCESS",
+        "docs/research/CIBO-GENC1-MATHEMATICAL-RECONCILIATION-CLOSURE-V1.md"
       ],
       "blockers": [
-        "INTEGRATED_COMPOUND_CYCLE_CI_REVALIDATION_REQUIRED",
         "MULTI_GENERATION_REAL_REPLAY_REQUIRED",
         "FRESH_OOS_ATTRIBUTION_REQUIRED"
       ],
-      "next_gate": "Prove GEN-0→GEN-N parent/child provenance over real chronological replay, not only test fixtures."
+      "next_gate": "Prove GEN-0→GEN-N parent/child provenance and attribution over real chronological replay, then fresh OOS attribution."
     },
     {
       "id": "PROTECTED_BASE_CAPITAL",
@@ -776,13 +797,22 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
+      "current_maturity": "GENC7_ENGINE_AND_CAUSAL_ECONOMIC_GATE_CHILD_CI_GREEN_FRESH_PROFIT_RETENTION_VALUE_OPEN",
       "terminal_disposition": null,
-      "evidence_refs": [],
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_profit_preservation_shadow.py",
+        "tests/infrastructure/test_cibo_profit_preservation_shadow.py",
+        ".github/workflows/cibo-genc7-profit-preservation.yml",
+        "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-GIVEBACK-SHADOW-PREREGISTRATION-V1.md",
+        "github-actions://36727848202/SUCCESS",
+        "src/qore/infrastructure/cibo_profit_preservation_economic_gate.py",
+        "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        "github-actions://36760959025/SUCCESS"
+      ],
       "blockers": [
         "FRESH_OOS_PROFIT_RETENTION_AND_GIVEBACK_VALUE_REQUIRED"
       ],
-      "next_gate": "Close GEN-C2/7 floor+harvest behavior."
+      "next_gate": "Use causally identified GEN-C7 control/treatment evidence to prove profit-retention/giveback value, then stress and replicate 4/4 before terminal Profit Protection closure."
     },
     {
       "id": "PROVIDER_ECONOMICS",
@@ -824,38 +854,44 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "COMPOUND_DEPENDENCY_ADAPTER_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "MONTE_CARLO_ENGINE_AND_REAL_POPULATION_BINDING_CHILD_CI_GREEN_REAL_POPULATION_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_path_monte_carlo.py",
         "tests/infrastructure/test_cibo_compound_path_monte_carlo.py",
-        ".github/workflows/cibo-genc9-robust-growth.yml"
+        ".github/workflows/cibo-genc9-robust-growth.yml",
+        "github-actions://36727848052/SUCCESS",
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_compound_real_population_binding.py",
+        "tests/infrastructure/test_cibo_compound_real_population_binding.py",
+        "docs/research/CIBO-COMPOUND-REAL-POPULATION-BINDING-V1.md",
+        "github-actions://36754064447/SUCCESS"
       ],
       "blockers": [
-        "COMPOUND_PATH_MONTE_CARLO_CI_REVALIDATION_REQUIRED",
         "REAL_COMPOUND_EPISODE_POPULATION_AND_FLOOR_ATTRIBUTION_REQUIRED",
         "ADVERSARIAL_STRESS_AND_TEMPORAL_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Pass dependency-aware Compound Monte Carlo CI; bind real chronological settled compound episodes plus protected-floor attribution; run adversarial paths and temporal replication."
+      "next_gate": "Bind real chronological settled compound episodes plus protected-floor attribution; run the frozen Monte Carlo on real population and connect adversarial stress plus temporal replication."
     },
     {
       "id": "ADVERSARIAL_STRESS",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "COMPOUND_STRESS_ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "COMPOUND_STRESS_ENGINE_IMPLEMENTED_CI_GREEN_REAL_STRESS_EXECUTION_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_adversarial_stress.py",
         "tests/infrastructure/test_cibo_compound_adversarial_stress.py",
-        "docs/research/CIBO-COMPOUND-ADVERSARIAL-STRESS-MATRIX-V1.md"
+        "docs/research/CIBO-COMPOUND-ADVERSARIAL-STRESS-MATRIX-V1.md",
+        "github-actions://36727848052/SUCCESS",
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md"
       ],
       "blockers": [
-        "COMPOUND_STRESS_ENGINE_CI_REVALIDATION_REQUIRED",
         "REAL_COMPOUND_POPULATION_STRESS_EXECUTION_REQUIRED",
         "CRISIS_PROVIDER_FACTOR_STRESS_INTEGRATION_REQUIRED"
       ],
-      "next_gate": "Pass stress-engine CI; execute frozen matrix on real compound population; integrate GEN-C12 provider/liquidity/correlation crisis evidence; retain non-compensatory verdicts."
+      "next_gate": "Execute the frozen stress matrix on real compound population; integrate GEN-C12 provider/liquidity/correlation crisis evidence; retain non-compensatory verdicts."
     },
     {
       "id": "FRESH_OOS",
@@ -886,19 +922,24 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "COMPOUND_REPLICATION_HARNESS_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "REPLICATION_HARNESS_AND_ECONOMIC_4_OF_4_CRITERION_CHILD_CI_GREEN_REAL_FOLDS_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_temporal_replication.py",
         "tests/infrastructure/test_cibo_compound_temporal_replication.py",
-        "docs/research/CIBO-COMPOUND-TEMPORAL-REPLICATION-V1.md"
+        "docs/research/CIBO-COMPOUND-TEMPORAL-REPLICATION-V1.md",
+        "github-actions://36727848052/SUCCESS",
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_compound_temporal_replication_gate.py",
+        "tests/infrastructure/test_cibo_compound_temporal_replication_gate.py",
+        "docs/research/CIBO-COMPOUND-TEMPORAL-ECONOMIC-REPLICATION-CRITERION-V1.md",
+        "github-actions://36754064447/SUCCESS"
       ],
       "blockers": [
-        "COMPOUND_TEMPORAL_REPLICATION_CI_REVALIDATION_REQUIRED",
         "REAL_FROZEN_TEMPORAL_FOLDS_REQUIRED",
-        "ECONOMIC_REPLICATION_CRITERION_AND_RESULTS_REQUIRED"
+        "REAL_4_OF_4_ECONOMIC_REPLICATION_RESULTS_REQUIRED"
       ],
-      "next_gate": "Pass replication-harness CI; bind real frozen non-overlapping folds and fold-specific initial snapshots; apply predeclared economic criterion without pooling outcomes."
+      "next_gate": "Require child GEN-C9 CI to pass the frozen 4/4 criterion; then bind real WF1..WF4 populations and apply the same non-compensatory gate independently without pooling."
     },
     {
       "id": "RISK_INTEGRATION",
@@ -918,13 +959,19 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "PARTIAL_INTEGRATION",
+      "current_maturity": "CAUSAL_ATTRIBUTION_GATE_CHILD_CI_GREEN_REAL_MULTI_MECHANISM_EVIDENCE_OPEN",
       "terminal_disposition": null,
-      "evidence_refs": [],
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_compound_causal_ablation.py",
+        "tests/infrastructure/test_cibo_compound_causal_ablation.py",
+        "docs/research/CIBO-COMPOUND-CAUSAL-ABLATION-PROTOCOL-V1.md",
+        ".github/workflows/cibo-compound-causal-ablation.yml",
+        "github-actions://36755770351/SUCCESS"
+      ],
       "blockers": [
         "COMPOUND_PORTFOLIO_AND_GEN_C_CLOSURE_REQUIRED"
       ],
-      "next_gate": "Integrate seed→journey→expansion→profit→compound portfolio→ICM→next opportunity."
+      "next_gate": "After provider-valid forward populations exist, run preregistered one-mechanism-at-a-time causal ablations across eligible GEN-C/CE2I mechanisms, combine only proven non-compensatory contributions through the integrated Compound Portfolio, then close OOS/stress/4-fold attribution without winner selection after outcomes."
     },
     {
       "id": "AS_IS_CONTROL",
