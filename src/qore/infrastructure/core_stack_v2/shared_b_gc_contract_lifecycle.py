@@ -248,6 +248,7 @@ def build_gc_observed_contract_lifecycle(
 
     all_observed_expired = expired_count == len(gc_rows)
     current_front_absent = all_observed_expired
+    observed_set_can_prove_current_chain = False
     payload: dict[str, object] = {
         "identity": IDENTITY,
         "status": "OBSERVED_GC_CHAIN_LIFECYCLE_FROZEN",
@@ -268,7 +269,9 @@ def build_gc_observed_contract_lifecycle(
         "current_front_contract_absent_from_observed_set": (
             current_front_absent
         ),
-        "observed_set_can_prove_current_gc_chain": not current_front_absent,
+        "observed_set_can_prove_current_gc_chain": (
+            observed_set_can_prove_current_chain
+        ),
         "front_contract_identity_complete": False,
         "roll_semantics_complete": False,
         "continuous_series_semantics_complete": False,
