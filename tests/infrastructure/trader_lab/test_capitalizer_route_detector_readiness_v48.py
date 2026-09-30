@@ -16,11 +16,11 @@ def _status(route: V48RouteId, fact_id: str) -> V48DetectorReadiness:
     )
 
 
-def test_london_daily_wick_and_continuation_detectors_are_explicitly_missing() -> None:
+def test_london_cisd_protected_swing_is_one_fact_and_continuation_is_missing() -> None:
     assert _status(
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
-        "DAILY_WICK_FORMATION_CONFIRMED",
-    ) is V48DetectorReadiness.DETECTOR_MISSING
+        "M15_PROTECTED_SWING_CONFIRMED_BY_CISD",
+    ) is V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND
     assert _status(
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
         "M15_CONTINUATION_AVAILABLE",
