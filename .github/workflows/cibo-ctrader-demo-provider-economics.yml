@@ -15,6 +15,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py'
       - 'src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py'
       - 'src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py'
       - 'src/qore/infrastructure/ctrader_open_api_client.py'
       - 'scripts/cibo_ctrader_demo_provider_economics_probe.py'
       - 'scripts/cibo_ctrader_demo_account_capability_probe.py'
@@ -26,6 +27,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py'
       - 'tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py'
       - 'tests/infrastructure/test_cibo_ce2i_provider_execution_calibration.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py'
       - 'tests/infrastructure/test_cibo_phase20_provider_execution_calibration_export.py'
       - 'docs/research/CIBO-B-PROVIDER-ECONOMICS-COMPONENT-FREEZE-V1.md'
   pull_request:
@@ -39,6 +41,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py'
       - 'src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py'
       - 'src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py'
       - 'src/qore/infrastructure/ctrader_open_api_client.py'
       - 'scripts/cibo_ctrader_demo_provider_economics_probe.py'
       - 'scripts/cibo_ctrader_demo_account_capability_probe.py'
@@ -50,6 +53,7 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py'
       - 'tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py'
       - 'tests/infrastructure/test_cibo_ce2i_provider_execution_calibration.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py'
       - 'tests/infrastructure/test_cibo_phase20_provider_execution_calibration_export.py'
       - 'docs/research/CIBO-B-PROVIDER-ECONOMICS-COMPONENT-FREEZE-V1.md'
   workflow_dispatch:
@@ -94,6 +98,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py \
             src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py \
             src/qore/infrastructure/ctrader_open_api_client.py \
             scripts/cibo_ctrader_demo_provider_economics_probe.py \
             scripts/cibo_ctrader_demo_account_capability_probe.py \
@@ -105,6 +110,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py \
             tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py \
             tests/infrastructure/test_cibo_ce2i_provider_execution_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py \
             tests/infrastructure/test_cibo_phase20_provider_execution_calibration_export.py
           mypy \
             src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py \
@@ -115,6 +121,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py \
             src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py \
             scripts/cibo_ctrader_demo_provider_economics_probe.py \
             scripts/cibo_ctrader_demo_account_capability_probe.py \
             scripts/cibo_phase20_provider_execution_calibration.py
@@ -123,6 +130,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py \
             src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py \
             scripts/cibo_ctrader_demo_account_capability_probe.py \
             scripts/cibo_phase20_provider_execution_calibration.py
           pytest -q --no-cov \
@@ -133,6 +141,7 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py \
             tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py \
             tests/infrastructure/test_cibo_ce2i_provider_execution_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py \
             tests/infrastructure/test_cibo_phase20_provider_execution_calibration_export.py
 
       - name: Verify DEMO credentials without printing them
