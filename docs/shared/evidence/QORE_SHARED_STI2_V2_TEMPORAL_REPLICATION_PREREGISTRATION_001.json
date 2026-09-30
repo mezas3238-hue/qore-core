@@ -1,0 +1,64 @@
+{
+  "identity": "QORE_SHARED_STI2_V2_TEMPORAL_REPLICATION_PREREGISTRATION_001",
+  "workstream": "STI-2",
+  "generation": "V2",
+  "status": "PREREGISTERED_BEFORE_ACQUISITION",
+  "window": {
+    "opened_at_inclusive": "2026-04-01T00:00:00+00:00",
+    "checked_at_exclusive": "2026-07-01T00:00:00+00:00",
+    "classification": "BURNABLE_TEMPORAL_REPLICATION_PRE_SHORT_OOS",
+    "minimum_actual_coverage_days": 80,
+    "short_oos_gap_days": 21,
+    "temporal_replication_claim_authorized_if_all_gates_pass": true,
+    "certification_holdout": false
+  },
+  "markets": ["NAS100", "SP500", "US30"],
+  "timeframe": "M1",
+  "frozen_policy": {
+    "engine": "QORE_SHARED_STI2_V2_TRAJECTORY_HEADS_001",
+    "authoritative_engine_sha": "af1dbe207cca37d2e2a1abe47afd15f6df9c873c",
+    "authoritative_replay_sha": "1df8be7cfea2621a4bfcf6a7de741aa585a29f35",
+    "policy_freeze": "R8_SOURCE_ONLY",
+    "outcome_aware_retuning": false,
+    "short_oos_retuning": false
+  },
+  "control": {
+    "engine": "QORE_SHARED_STI2_REAL_GLOBAL_OPPORTUNITY_DISCOVERY_V1",
+    "policy_freeze": "R8_SOURCE_ONLY"
+  },
+  "frozen_absolute_gates": {
+    "minimum_sample_count": 2000,
+    "minimum_precision_bps": 5000,
+    "minimum_recall_bps": 3500,
+    "maximum_false_alert_rate_bps": 5000,
+    "maximum_missed_opportunity_rate_bps": 6500
+  },
+  "frozen_relative_gate": {
+    "minimum_v2_recall_uplift_vs_v1_same_replication_bps": 1500
+  },
+  "evaluation_law": {
+    "same_observation_universe_v1_v2": true,
+    "same_future_target_definition_v1_v2": true,
+    "source_inference_materialized_before_future_target": true,
+    "future_market_used_for_inference": false,
+    "replication_used_for_policy_fit": false,
+    "short_oos_used_for_policy_fit": false,
+    "policy_changed_after_short_oos": false
+  },
+  "disposition_law": {
+    "all_gates_required": true,
+    "failure_closes_this_replication_attempt": true,
+    "threshold_rescue_authorized": false,
+    "feature_rescue_authorized": false,
+    "window_rescue_authorized": false,
+    "protected_holdout_rescue_authorized": false
+  },
+  "governance": {
+    "replication_is_burned_after_first_open": true,
+    "retuning_against_replication_authorized": false,
+    "protected_certification_holdout_opened": false,
+    "productive_authority": false,
+    "live_authorized": false,
+    "broker_mutation_authorized": false
+  }
+}
