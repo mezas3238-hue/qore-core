@@ -7,10 +7,9 @@ does not read terminal outcomes.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from math import log2
-from typing import Mapping, Sequence
-
 
 IDENTITY = "QORE_CAPITALIZER_V48_OPPORTUNITY_SURVIVAL_INFORMATION_MATRIX"
 
