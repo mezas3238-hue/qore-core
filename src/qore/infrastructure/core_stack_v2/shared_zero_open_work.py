@@ -260,7 +260,7 @@ def build_shared_master_open_work_ledger() -> tuple[SharedOpenWorkItem, ...]:
     sti_states = {
         0: SharedWorkState.CONTRACT_IMPLEMENTED,
         1: SharedWorkState.CONTRACT_IMPLEMENTED,
-        2: SharedWorkState.STRESS_PASS,
+        2: SharedWorkState.RESEARCH_OOS_PASS,
         3: SharedWorkState.NOT_STARTED,
         4: SharedWorkState.CONTRACT_IMPLEMENTED,
         5: SharedWorkState.EXTERNAL_DEPENDENCY_BLOCKED,
@@ -278,7 +278,7 @@ def build_shared_master_open_work_ledger() -> tuple[SharedOpenWorkItem, ...]:
     }
     for index, title in enumerate(_STI_TITLES):
         evidence_by_index = {
-            2: "sti2-v2-source-stress-run-36685171375",
+            2: "sti2-v2-short-research-oos-run-36686214891",
             5: "sti5-v1-failure-diagnostic-run-36685175913",
             6: "sti6-v3-latent-trajectory-run-36684414954",
             8: "sti8-research-oos-run-36653177299",
