@@ -114,21 +114,35 @@ B_WORK_ITEMS: Final = (
         "Global instrument identity",
         SharedBWorkStatus.PARTIAL_EVIDENCE_OPEN,
         (
+            "artifact:11112587007",
             "artifact:11115769948",
             "artifact:11115828701",
-            "artifact:11112587007",
             "artifact:11119439556",
+            "artifact:11124554816",
+            "artifact:11124811192",
+            "artifact:11124952981",
+            "artifact:11125151831",
+            "artifact:11125412870",
             "run:36754912247",
             "run:36755839843",
             "run:36764899352",
+            "run:36774358236",
+            "run:36775105295",
+            "run:36775310025",
+            "run:36775635034",
+            "run:36775855021",
         ),
         (
-            "98/177 sensors remain provider-native-only with no canonical "
-            "economic/reference identity",
-            "74/177 have current reference-object mappings but not full "
-            "tradable/listing/calendar identity",
+            "85/177 sensors have current reference mappings but not full "
+            "tradable/listing/calendar/historical identity",
             "5/177 GC dated contracts are verified but front/roll/continuous "
             "identity remains unresolved",
+            "2/25 index sensors are preserved as legacy lineages without "
+            "current automatic reference binding",
+            "12/25 index sensors still lack explicit provider-to-official-index "
+            "binding evidence",
+            "73 cryptocurrency sensors now have explicit provider unit/scale "
+            "semantics but canonical/provider-neutral identity remains unproven",
         ),
     ),
     SharedBWorkItem(
@@ -145,8 +159,14 @@ B_WORK_ITEMS: Final = (
         "B-08",
         "Temporal synchronization and comparability",
         SharedBWorkStatus.PARTIAL_EVIDENCE_OPEN,
-        ("run:36623131862",),
         (
+            "artifact:11124500250",
+            "run:36623131862",
+            "run:36767735668",
+        ),
+        (
+            "source-clock integrity is sealed for 3 sensors / 41 shards / "
+            "203185 real ticks, but canonical market-hours closure remains open",
             "cadence policy registry is not frozen",
             "canonical calendar binding remains incomplete",
             "comparability policy registry is not frozen",
@@ -284,13 +304,17 @@ B_WORK_ITEMS: Final = (
             "artifact:11113260581",
             "artifact:11117991672",
             "artifact:11121310503",
+            "artifact:11125588197",
             "run:36746337433",
             "run:36758248635",
             "run:36765319771",
+            "run:36776003986",
         ),
         (
-            "provenance coverage is verified for current sealed B evidence but does "
-            "not yet cover all mandatory B workstreams",
+            "current sealed provenance explicitly covers 17/24 B workstream IDs; "
+            "B-04/B-07/B-08/B-14/B-21/B-22/B-24 still lack final coverage",
+            "total provenance cannot close before all mandatory B workstreams have "
+            "a terminal or explicitly governed blocked disposition",
         ),
     ),
     SharedBWorkItem(
