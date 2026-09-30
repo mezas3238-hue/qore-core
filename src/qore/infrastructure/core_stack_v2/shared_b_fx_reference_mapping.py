@@ -63,14 +63,14 @@ def resolve_current_fx_reference_mappings(
     if component_resolution.get("provider_symbol_to_reference_mapping_authorized") is not False:
         raise SharedBFxReferenceMappingError("upstream component evidence widened authority")
 
-    frozen_raw = provider_schedule.get("catalog_frozen_at")
+    frozen_raw = provider_schedule.get("captured_at")
     if not isinstance(frozen_raw, str):
-        raise SharedBFxReferenceMappingError("provider schedule freeze time missing")
+        raise SharedBFxReferenceMappingError("provider schedule captured_at missing")
     try:
         frozen_at = datetime.fromisoformat(frozen_raw.replace("Z", "+00:00"))
     except ValueError as exc:
         raise SharedBFxReferenceMappingError("provider freeze time invalid") from exc
-    frozen_at = _aware(frozen_at, name="catalog_frozen_at")
+    frozen_at = _aware(frozen_at, name="provider_schedule_captured_at")
     if known_at < frozen_at:
         raise SharedBFxReferenceMappingError(
             "mapping knowledge cutoff cannot predate provider freeze"
