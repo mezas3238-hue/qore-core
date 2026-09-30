@@ -7,8 +7,10 @@ on:
     paths:
       - '.github/workflows/qore-capitalizer-two-route-freeze-v47-s2d.yml'
       - 'src/qore/infrastructure/trader_lab/capitalizer_two_route_population_v47_s2d.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_two_route_gross_economics_v47_s2e.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_ftm_raw_population_v47_s1r_c.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_two_route_population_v47_s2d.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_two_route_gross_economics_v47_s2e.py'
   workflow_dispatch:
 
 permissions:
@@ -28,12 +30,16 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/trader_lab/capitalizer_two_route_population_v47_s2d.py \
-            tests/infrastructure/trader_lab/test_capitalizer_two_route_population_v47_s2d.py
+            src/qore/infrastructure/trader_lab/capitalizer_two_route_gross_economics_v47_s2e.py \
+            tests/infrastructure/trader_lab/test_capitalizer_two_route_population_v47_s2d.py \
+            tests/infrastructure/trader_lab/test_capitalizer_two_route_gross_economics_v47_s2e.py
       - name: Mypy
         run: |
           mypy \
-            src/qore/infrastructure/trader_lab/capitalizer_two_route_population_v47_s2d.py
+            src/qore/infrastructure/trader_lab/capitalizer_two_route_population_v47_s2d.py \
+            src/qore/infrastructure/trader_lab/capitalizer_two_route_gross_economics_v47_s2e.py
       - name: Focused tests
         run: |
           pytest -q --no-cov \
-            tests/infrastructure/trader_lab/test_capitalizer_two_route_population_v47_s2d.py
+            tests/infrastructure/trader_lab/test_capitalizer_two_route_population_v47_s2d.py \
+            tests/infrastructure/trader_lab/test_capitalizer_two_route_gross_economics_v47_s2e.py
