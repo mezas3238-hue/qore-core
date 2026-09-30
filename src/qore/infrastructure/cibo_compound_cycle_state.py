@@ -160,8 +160,48 @@ class CompoundCycleSettlementRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class CompoundCycleMarketRecord:
+    event_id: str
+    occurred_at: datetime
+    decision_id: str
+    action: str
+    candidate_id: str | None
+    amount_usd: Decimal
+    scarcity_event_id: str
+    portfolio_state_sha256: str
+    t19_ledger_sha256: str
+
+    def __post_init__(self) -> None:
+        if (
+            not self.event_id
+            or not self.decision_id
+            or not self.action
+            or not self.scarcity_event_id
+        ):
+            raise CiboCompoundCapitalError(
+                "compound cycle market record identity is required"
+            )
+        _aware(self.occurred_at, "market occurred_at")
+        _money(self.amount_usd, "market amount")
+        for name in (
+            "portfolio_state_sha256",
+            "t19_ledger_sha256",
+        ):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, str)
+                or not value.startswith("sha256:")
+                or len(value) != 71
+            ):
+                raise CiboCompoundCapitalError(
+                    f"compound cycle market {name} is invalid"
+                )
+
+
+@dataclass(frozen=True, slots=True)
 class CompoundCycleDeployment:
     deployment_id: str
+    market_event_id: str
     decision_id: str
     candidate_id: str
     deployed_at: datetime
@@ -179,6 +219,7 @@ class CompoundCycleDeployment:
     def __post_init__(self) -> None:
         for name in (
             "deployment_id",
+            "market_event_id",
             "decision_id",
             "candidate_id",
             "signal_fingerprint",
@@ -223,6 +264,7 @@ class CiboCompoundCycleState:
     floor_ledger: ProtectedCapitalFloorLedger
     t19_ledger: PortfolioAllocationLedger
     settlements: tuple[CompoundCycleSettlementRecord, ...] = ()
+    market_records: tuple[CompoundCycleMarketRecord, ...] = ()
     deployments: tuple[CompoundCycleDeployment, ...] = ()
     event_ids: tuple[str, ...] = ()
     cumulative_realized_gains_usd: Decimal = Decimal(0)
@@ -273,6 +315,18 @@ class CiboCompoundCycleState:
         if len(settlement_ids) != len(set(settlement_ids)):
             raise CiboCompoundCapitalError(
                 "compound cycle settlement evidence cannot be reused"
+            )
+        market_event_ids = tuple(item.event_id for item in self.market_records)
+        if len(market_event_ids) != len(set(market_event_ids)):
+            raise CiboCompoundCapitalError(
+                "compound cycle market event ids must be unique"
+            )
+        market_decision_ids = tuple(
+            item.decision_id for item in self.market_records
+        )
+        if len(market_decision_ids) != len(set(market_decision_ids)):
+            raise CiboCompoundCapitalError(
+                "compound cycle market decision ids must be unique"
             )
         deployment_ids = tuple(item.deployment_id for item in self.deployments)
         if len(deployment_ids) != len(set(deployment_ids)):
