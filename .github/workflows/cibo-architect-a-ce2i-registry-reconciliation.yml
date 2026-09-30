@@ -1,0 +1,75 @@
+name: QORE CIBO Architect A CE2I Registry Reconciliation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-architect-a-ce2i-registry-reconciliation.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_tool_registry.py'
+      - 'src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py'
+      - 'src/qore/infrastructure/cibo_marginal_leverage_utility.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_ablation.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_utility.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_utility.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_oos_utility.py'
+      - 'tests/infrastructure/test_cibo_ce2i_tool_registry.py'
+      - 'tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py'
+      - 'tests/infrastructure/test_cibo_marginal_leverage_utility.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_utility.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility_ready.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t13_oos_utility.py'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  ce2i-registry-reconciliation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Architect A CE2I registry contract and utility coverage
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_ce2i_tool_registry.py \
+            src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py \
+            src/qore/infrastructure/cibo_marginal_leverage_utility.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_ablation.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_utility.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_utility.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t13_oos_utility.py \
+            tests/infrastructure/test_cibo_ce2i_tool_registry.py \
+            tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py \
+            tests/infrastructure/test_cibo_marginal_leverage_utility.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_utility.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility_ready.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_oos_utility.py
+          mypy \
+            src/qore/infrastructure/cibo_ce2i_tool_registry.py \
+            src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py \
+            src/qore/infrastructure/cibo_marginal_leverage_utility.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_ablation.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_utility.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_utility.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t13_oos_utility.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_tool_registry.py \
+            tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py \
+            tests/infrastructure/test_cibo_marginal_leverage_utility.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_utility.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility_ready.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_oos_utility.py
