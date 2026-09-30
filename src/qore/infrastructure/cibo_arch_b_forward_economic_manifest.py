@@ -276,6 +276,15 @@ class ArchBForwardEconomicManifest:
             raise CiboCapitalManagementError(
                 "Architect-B scientific readiness cannot coexist with blocking gaps"
             )
+        if self.ready_for_scientific_consumption and (
+            self.qualification_status not in {"PASS", "FAIL"}
+            or self.decision_epochs <= 0
+            or self.candidate_rows <= 0
+            or self.complete_lineage_rows <= 0
+        ):
+            raise CiboCapitalManagementError(
+                "Architect-B scientific readiness requires non-empty qualified lineage"
+            )
         if self.certification_ready or self.productive_authority:
             raise CiboCapitalManagementError(
                 "Architect-B manifest cannot certify or grant productive authority"
