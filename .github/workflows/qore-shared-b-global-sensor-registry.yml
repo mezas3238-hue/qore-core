@@ -27,6 +27,7 @@ env:
   CATALOG_ARTIFACT_ID: "11110976806"
   CATALOG_GIT_SHA: "b29cc9b5e2f1b22db93426e70a6d12ec187a827a"
   CATALOG_SHA256: "4c10aede99704b937caa772e1ae07257c8e12c3d0644c06ca751b6885b9a363f"
+  PROVIDER_CATALOG_RAW_SHA256: "2cc807599b1afb13b6b6ecf4bb97a165a14ba3d05b66b841a90b61f9e1405b5f"
   CATALOG_FROZEN_AT: "2026-09-30T16:13:50+00:00"
 
 jobs:
@@ -191,4 +192,4 @@ jobs:
           VALIDATE_RESULT: ${{ needs.validate.result }}
           FREEZE_RESULT: ${{ needs.freeze.result }}
         run: |
-          gh issue comment 638 --body "Architect B global sensor registry workflow ${GITHUB_RUN_ID} on ${GITHUB_SHA}: validate=${VALIDATE_RESULT}, freeze=${FREEZE_RESULT}. Registry discovery is not sensor admission or certification."
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B global sensor registry workflow ${GITHUB_RUN_ID} on ${GITHUB_SHA}: validate=${VALIDATE_RESULT}, freeze=${FREEZE_RESULT}. Registry discovery is not sensor admission or certification."
