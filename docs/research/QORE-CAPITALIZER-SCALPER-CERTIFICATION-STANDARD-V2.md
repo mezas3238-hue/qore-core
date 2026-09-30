@@ -38,7 +38,7 @@ Density may be expanded only after edge is demonstrated and only when the expans
 - Development may generate hypotheses and falsify them; Development never certifies generalization.
 - Any period inspected and then used to change the system is consumed for future tuning.
 - A consumed period may be used for diagnosis and regression evidence, but cannot be relabelled as fresh OOS.
-- The sealed pre-2016 holdout may not expose Scalper economics before immutable candidate freeze.
+- Owner research-data amendment (30-Sep-2026): historical holdouts, including pre-2016, may be opened for diagnosis/repair. Any opened period is consumed research evidence and cannot later satisfy final fresh certification evidence.
 - No outcome-aware entry, sizing, filtering, protection, or routing logic is allowed.
 - No martingale or loss-recovery sizing is allowed.
 - Every decision feature must exist at or before the relevant decision timestamp.
@@ -376,18 +376,22 @@ A lower-density strategy with materially stronger edge is preferable to a higher
 
 The final candidate still requires enough observations for meaningful OOS/tail evaluation, but no trade-count expansion may damage quality.
 
-## 5. Fresh holdout
+## 5. Final independent / prospective OOS
 
-The pre-2016 holdout is sealed provider-native M1 and remains economically unopened.
+Owner research-data amendment (30-Sep-2026):
 
-It may be opened exactly once only after:
-1. consumed-data causal architecture is frozen;
-2. full-source chronological recompetition is complete;
-3. entrant reconciliation is complete;
-4. deterministic replay is complete;
-5. immutable candidate fingerprint is frozen.
+Historical holdouts may be used to diagnose and repair the Trader, including the provider-native pre-2016 window. Once outcomes from any historical period are used to change methodology, cognition, admission, execution geometry, lifecycle, or policy, that period is consumed and has zero authority as final fresh certification evidence.
 
-If the fresh holdout falsifies the candidate, the holdout becomes consumed and cannot be reused as fresh evidence after retuning.
+The mandatory final fresh-evidence gates therefore require one of:
+
+1. a genuinely independent governed provider/source whose outcomes were not used for tuning; or
+2. a prospective frozen evaluation period beginning after the immutable candidate fingerprint is frozen.
+
+The final OOS object must be frozen before its outcomes are read and may be evaluated exactly once for that immutable candidate.
+
+If final independent/prospective OOS falsifies the candidate, that candidate is rejected and the observed OOS evidence becomes consumed. Retuning requires a new independent/prospective validation object.
+
+Historical evidence may still contribute to temporal robustness, regression, falsification, MAE/MFE, loss-cluster, winner-preservation and multi-era research, but it may not be relabelled as fresh certification evidence.
 
 ## 6. Shared / CIBO authority boundary
 
