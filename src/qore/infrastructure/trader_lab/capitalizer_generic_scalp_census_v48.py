@@ -40,6 +40,9 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
     allowed_markets,
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
+from qore.infrastructure.trader_lab.capitalizer_human_decision_graph_v48 import (
+    V48Session,
+)
 from qore.infrastructure.trader_lab.capitalizer_session_clock import capitalizer_session_at
 from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
     CapitalizerSourceBar,
@@ -57,9 +60,6 @@ from qore.infrastructure.trader_lab.capitalizer_source_poi_v2 import (
 from qore.infrastructure.trader_lab.capitalizer_three_session_coverage_gate_v48 import (
     V48SessionMarketCoverage,
     assess_three_session_coverage,
-)
-from qore.infrastructure.trader_lab.capitalizer_human_decision_graph_v48 import (
-    V48Session,
 )
 from qore.infrastructure.trader_lab.capitalizer_ttrades_m1_cisd_observer_v48 import (
     V48M1CISDStatus,
