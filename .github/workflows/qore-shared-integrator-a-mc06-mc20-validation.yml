@@ -9,7 +9,6 @@ on:
       - "src/qore/infrastructure/core_stack_v2/latent_state_reconstruction.py"
       - "src/qore/infrastructure/core_stack_v2/stability_engine.py"
       - "src/qore/infrastructure/core_stack_v2/stability_operational_binding.py"
-      - "src/qore/infrastructure/core_stack_v2/shared_zero_open_work.py"
       - "tests/infrastructure/test_core_stack_v2_latent_state_reconstruction.py"
       - "tests/infrastructure/test_core_stack_v2_stability_engine.py"
       - "tests/infrastructure/test_core_stack_v2_stability_operational_binding.py"
