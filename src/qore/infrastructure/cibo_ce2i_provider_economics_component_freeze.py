@@ -7,7 +7,9 @@ This module cannot activate the global pre-holdout freeze.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import hashlib
+import json
+from dataclasses import asdict, dataclass
 from datetime import datetime
 
 from qore.infrastructure.cibo_capital_management_authority import (
@@ -155,6 +157,15 @@ class CiboProviderEconomicsComponentFreeze:
                 "provider economics component freeze has no productive authority"
             )
 
+    def fingerprint(self) -> str:
+        raw = json.dumps(
+            _canonical(asdict(self)),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        ).encode("utf-8")
+        return "sha256:" + hashlib.sha256(raw).hexdigest()
+
 
 def freeze_current_ctrader_demo_provider_economics(
     *,
@@ -235,17 +246,6 @@ def freeze_current_ctrader_demo_provider_economics(
     if not execution_model:
         blockers.append("EXECUTION_MODEL_NOT_FROZEN")
 
-    pre_holdout_ready = (
-        current_terms
-        and slippage
-        and execution_model
-        and not evidence.historical_exact_claimed
-        and not evidence.holdout_outcomes_used
-        and not evidence.target_aware
-        and not evidence.broker_mutation_performed
-        and not blockers
-    )
-
     return CiboProviderEconomicsComponentFreeze(
         freeze_id=PROVIDER_ECONOMICS_COMPONENT_FREEZE_ID,
         provider_key=evidence.provider_key,
@@ -269,8 +269,32 @@ def freeze_current_ctrader_demo_provider_economics(
         holdout_outcomes_used=evidence.holdout_outcomes_used,
         target_aware=evidence.target_aware,
         broker_mutation_performed=evidence.broker_mutation_performed,
-        pre_holdout_provider_economics_ready=pre_holdout_ready,
+        pre_holdout_provider_economics_ready=(
+            current_terms
+            and slippage
+            and execution_model
+            and not evidence.historical_exact_claimed
+            and not evidence.holdout_outcomes_used
+            and not evidence.target_aware
+            and not evidence.broker_mutation_performed
+            and not blockers
+        ),
         blockers=tuple(blockers),
         execution_calibration_sha256=execution_calibration_sha256,
         productive_authority=False,
     )
+
+
+def _canonical(value: object) -> object:
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, tuple):
+        return [_canonical(item) for item in value]
+    if isinstance(value, list):
+        return [_canonical(item) for item in value]
+    if isinstance(value, dict):
+        return {
+            str(key): _canonical(item)
+            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+        }
+    return value
