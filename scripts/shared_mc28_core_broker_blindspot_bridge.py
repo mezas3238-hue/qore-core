@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MC-28 A-side cognitive bridge against completed B observability evidence."""
+"""MC-28 A-side audit after B runtime/inventory gates were satisfied."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from qore.infrastructure.core_stack_v2.second_order_blindspot_cognition import (
     assess_second_order_blindspot,
 )
 
-IDENTITY = "QORE_SHARED_MC28_CORE_BROKER_BLINDSPOT_BRIDGE_AUDIT_002"
+IDENTITY = "QORE_SHARED_MC28_CORE_BROKER_BLINDSPOT_BRIDGE_AUDIT_003"
 
 B_FOUNDATION_RUN_ID = 36763268609
 B_FOUNDATION_ARTIFACT_ID = 11119388121
@@ -45,7 +45,7 @@ def main() -> None:
             "gap:sensor-family-absent",
         ),
     )
-    now = datetime(2026, 9, 30, 20, 50, tzinfo=UTC)
+    now = datetime(2026, 9, 30, 20, 55, tzinfo=UTC)
     cognition = assess_second_order_blindspot(
         SharedBlindspotEvidence(
             evidence_id="mc28-completed-b-evidence-bridge",
@@ -74,19 +74,28 @@ def main() -> None:
         )
     )
     situation = build_core_broker_blindspot_situation(external, cognition)
-    completed = (
-        situation.state.value == "SECOND_ORDER_RESEARCH_PRIORITY"
-        and external.runtime_core_broker_replication_complete
-        and external.second_order_inventory_complete
-        and not situation.broker_mutation_authority
-        and not situation.execution_authority
+
+    diagnostics = {
+        "feed_degradation": "BOUND",
+        "data_holes": "BOUND",
+        "clock_drift": "PARTIAL_HISTORICAL_SOURCE_CLOCK_ONLY",
+        "latency_anomalies": "BOUND",
+        "mapping_errors": "OPEN_EXPLICIT_ERROR_DIAGNOSTIC_REQUIRED",
+        "broker_provider_mismatch": "OPEN_COMPARATOR_REQUIRED",
+        "spread_slippage_rejection_deterioration": "OPEN_RUNTIME_TELEMETRY_REQUIRED",
+        "model_runtime_instability": "OPEN_EXPLICIT_INSTABILITY_DIAGNOSTIC_REQUIRED",
+    }
+    open_diagnostics = tuple(
+        sorted(
+            name
+            for name, state in diagnostics.items()
+            if not state.startswith("BOUND")
+        )
     )
     payload = {
         "identity": IDENTITY,
         "status": (
-            "MC28_COMPLETED_AND_PROVEN"
-            if completed
-            else "MC28_COMPLETION_GATE_FAILED"
+            "MC28_RUNTIME_AND_INVENTORY_GATES_SATISFIED_DIAGNOSTIC_TAXONOMY_OPEN"
         ),
         "b_foundation_run_id": B_FOUNDATION_RUN_ID,
         "b_foundation_artifact_id": B_FOUNDATION_ARTIFACT_ID,
@@ -101,9 +110,12 @@ def main() -> None:
         "second_order_inventory_complete": True,
         "open_world_boundary_preserved": True,
         "all_unknown_unknowns_eliminated": False,
+        "standard_006_diagnostic_coverage": diagnostics,
+        "open_diagnostics": open_diagnostics,
         "broker_mutation_authority": situation.broker_mutation_authority,
         "execution_authority": situation.execution_authority,
-        "mc28_completed_and_proven": completed,
+        "mc28_completed_and_proven": False,
+        "next_gate": "MC28_STANDARD_006_DIAGNOSTIC_TAXONOMY_CLOSURE",
         "master_ledger_mutated": False,
         "protected_certification_holdout_opened": False,
     }

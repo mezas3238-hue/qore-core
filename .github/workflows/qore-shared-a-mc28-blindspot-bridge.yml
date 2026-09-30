@@ -57,21 +57,22 @@ jobs:
       - name: Build A-side MC28 bridge
         run: |
           python scripts/shared_mc28_core_broker_blindspot_bridge.py | tee result/summary.json
-      - name: Validate completed disposition
+      - name: Validate bounded post-B disposition
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           p=json.loads(Path("result/mc28-core-broker-blindspot-bridge.json").read_text())
-          assert p["status"] == "MC28_COMPLETED_AND_PROVEN"
+          assert p["status"] == "MC28_RUNTIME_AND_INVENTORY_GATES_SATISFIED_DIAGNOSTIC_TAXONOMY_OPEN"
           assert p["bridge_state"] == "SECOND_ORDER_RESEARCH_PRIORITY"
           assert p["runtime_core_broker_replication_complete"] is True
           assert p["second_order_inventory_complete"] is True
           assert p["open_world_boundary_preserved"] is True
           assert p["all_unknown_unknowns_eliminated"] is False
+          assert len(p["open_diagnostics"]) == 5
           assert p["broker_mutation_authority"] is False
           assert p["execution_authority"] is False
-          assert p["mc28_completed_and_proven"] is True
+          assert p["mc28_completed_and_proven"] is False
           assert p["master_ledger_mutated"] is False
           assert p["protected_certification_holdout_opened"] is False
           PY
@@ -87,15 +88,18 @@ jobs:
       - name: Report MC28
         run: |
           {
-            echo "## Shared A MC-28 — Core/Broker Blindspot Bridge"
+            echo "## Shared A MC-28 — post B-18/B-19 diagnostic audit"
             echo
-            echo "- B foundation run/artifact: **36763268609 / 11119388121**"
-            echo "- B real Core/Broker run/artifact: **36764365409 / 11120521150**"
-            echo "- B declared-scope inventory run/artifact: **36764376550 / 11120391213**"
-            echo "- runtime Core/Broker replication complete: **True**"
-            echo "- declared-scope second-order inventory complete: **True**"
-            echo "- open-world boundary / unknown-unknown possibility preserved: **True**"
-            echo "- mutation authority: **None**"
-            echo "- MC-28 completed-and-proven: **True**"
+            echo "- B runtime Core/Broker replication: **Satisfied**"
+            echo "- B declared-scope blindspot inventory: **Satisfied**"
+            echo "- open-world boundary preserved: **True**"
+            echo "- feed degradation / data holes / latency anomaly diagnostics: **Bound**"
+            echo "- clock drift: **Partial (historical source-clock integrity only)**"
+            echo "- mapping error diagnostic: **Open**"
+            echo "- broker/provider mismatch comparator: **Open**"
+            echo "- spread/slippage/rejection deterioration telemetry: **Open**"
+            echo "- explicit model/runtime instability diagnostic: **Open**"
+            echo "- MC-28 completed-and-proven: **False**"
+            echo "- next gate: **MC28_STANDARD_006_DIAGNOSTIC_TAXONOMY_CLOSURE**"
           } > result/issue-comment.md
           gh issue comment 638 --body-file result/issue-comment.md
