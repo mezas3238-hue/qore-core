@@ -7,8 +7,10 @@ on:
       - '.github/workflows/cibo-ctrader-demo-account-capability.yml'
       - 'src/qore/infrastructure/cibo_ctrader_demo_account_capability.py'
       - 'src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py'
+      - 'src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py'
       - 'tests/infrastructure/test_cibo_ctrader_demo_account_capability.py'
       - 'tests/infrastructure/test_cibo_ctrader_demo_capability_registry.py'
+      - 'tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py'
       - 'docs/research/CIBO-CTRADER-DEMO-ACCOUNT-CAPABILITY-V1.md'
   push:
     branches:
@@ -17,8 +19,10 @@ on:
       - '.github/workflows/cibo-ctrader-demo-account-capability.yml'
       - 'src/qore/infrastructure/cibo_ctrader_demo_account_capability.py'
       - 'src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py'
+      - 'src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py'
       - 'tests/infrastructure/test_cibo_ctrader_demo_account_capability.py'
       - 'tests/infrastructure/test_cibo_ctrader_demo_capability_registry.py'
+      - 'tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py'
       - 'docs/research/CIBO-CTRADER-DEMO-ACCOUNT-CAPABILITY-V1.md'
 
 permissions:
@@ -43,14 +47,19 @@ jobs:
           ruff check \
             src/qore/infrastructure/cibo_ctrader_demo_account_capability.py \
             src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py \
+            src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py \
             tests/infrastructure/test_cibo_ctrader_demo_account_capability.py \
-            tests/infrastructure/test_cibo_ctrader_demo_capability_registry.py
+            tests/infrastructure/test_cibo_ctrader_demo_capability_registry.py \
+            tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py
           mypy \
             src/qore/infrastructure/cibo_ctrader_demo_account_capability.py \
-            src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py
+            src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py \
+            src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py
           python -m py_compile \
             src/qore/infrastructure/cibo_ctrader_demo_account_capability.py \
-            src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py
+            src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py \
+            src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ctrader_demo_account_capability.py \
-            tests/infrastructure/test_cibo_ctrader_demo_capability_registry.py
+            tests/infrastructure/test_cibo_ctrader_demo_capability_registry.py \
+            tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py
