@@ -152,10 +152,11 @@ def evaluate_pre_holdout_readiness(
                 raise TypeError(
                     "provider_economics_component_freeze must be canonical"
                 )
-            effective_provider_frozen = (
+            provider_ready = (
                 provider_economics_component_freeze
                 .pre_holdout_provider_economics_ready
             )
+            effective_provider_frozen = provider_ready
             if (
                 provider_economics_component_freeze.fingerprint()
                 != calibration_freeze_manifest.provider_economics_freeze_sha256
