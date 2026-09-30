@@ -230,6 +230,22 @@ class CiboProviderExecutionCalibration:
         summary_by_symbol = {
             item.qore_symbol: item for item in self.symbol_summaries
         }
+        observation_counts: dict[str, int] = {}
+        for observation in self.observations:
+            observation_counts[observation.qore_symbol] = (
+                observation_counts.get(observation.qore_symbol, 0) + 1
+            )
+        if set(summary_by_symbol) != set(observation_counts):
+            raise CiboCapitalManagementError(
+                "provider execution calibration summary/observation symbol drift"
+            )
+        if any(
+            summary_by_symbol[symbol].observation_count != count
+            for symbol, count in observation_counts.items()
+        ):
+            raise CiboCapitalManagementError(
+                "provider execution calibration summary count drift"
+            )
         expected_symbol_coverage = required.issubset(summary_by_symbol)
         if self.required_symbol_coverage_met != expected_symbol_coverage:
             raise CiboCapitalManagementError(
