@@ -9,14 +9,13 @@ The contract only determines pre-economic source completeness. It cannot execute
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Mapping
 
 from qore.infrastructure.trader_lab.capitalizer_source_native_route_registry_v48 import (
     V48RouteId,
 )
-
 
 IDENTITY = "QORE_CAPITALIZER_V48_ROUTE_SPECIFIC_SOURCE_CONTRACT"
 
