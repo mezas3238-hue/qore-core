@@ -65,6 +65,9 @@ from qore.infrastructure.trader_lab.capitalizer_ttrades_m1_cisd_observer_v48 imp
     V48M1CISDStatus,
     observe_first_m1_cisd,
 )
+from qore.infrastructure.trader_lab.capitalizer_ttrades_m1_fvg_cisd_continuation_v48 import (
+    observe_first_m1_fvg_cisd_continuation,
+)
 from qore.infrastructure.trader_lab.capitalizer_ttrades_structural_cisd_v48 import (
     V48TimedSourceBar,
     observe_first_structural_cisd,
@@ -138,8 +141,11 @@ class V48ScalpMarketCensus:
     max3_chronological_selected: int
     by_year: tuple[tuple[int, int], ...]
     stage_counts: tuple[tuple[str, int], ...]
-    continuation_families_implemented: tuple[str, ...] = ("LIQUIDITY_SWEEP_CISD",)
-    fvg_cisd_continuation_implemented: bool = False
+    continuation_families_implemented: tuple[str, ...] = (
+        "LIQUIDITY_SWEEP_CISD",
+        "FVG_RETRACE_CISD",
+    )
+    fvg_cisd_continuation_implemented: bool = True
     census_is_lower_bound: bool = True
     outcome_used: bool = False
     economics_calculated: bool = False
@@ -151,8 +157,8 @@ class V48ScalpMarketCensus:
     def __post_init__(self) -> None:
         if self.identity != IDENTITY:
             raise ValueError("unexpected V48 scalp census identity")
-        if self.fvg_cisd_continuation_implemented:
-            raise ValueError("this census predeclares sweep+CISD only")
+        if not self.fvg_cisd_continuation_implemented:
+            raise ValueError("this census requires both documented continuation families")
         if not self.census_is_lower_bound:
             raise ValueError("partial continuation coverage must remain lower-bound evidence")
         if (
@@ -472,22 +478,69 @@ def build_market_census(
         if len(m1_window) < 4:
             stages["M1_CONTINUATION_WINDOW_TOO_SPARSE"] += 1
             continue
-        m1_cisd = observe_first_m1_cisd(
+        sweep_cisd = observe_first_m1_cisd(
             m1_window,
             thesis_at=m15_cisd.confirmed_at,
             deadline_at=deadline,
             side=_side(bias.direction),
         )
-        if (
-            m1_cisd.status is not V48M1CISDStatus.CONFIRMED
-            or m1_cisd.confirmed_at is None
-            or m1_cisd.confirmation_close is None
-        ):
-            stages["M1_SWEEP_CISD_CONTINUATION_MISSING"] += 1
-            continue
-        stages["M1_SWEEP_CISD_CONTINUATION"] += 1
+        fvg_cisd = observe_first_m1_fvg_cisd_continuation(
+            m1_window,
+            thesis_at=m15_cisd.confirmed_at,
+            deadline_at=deadline,
+            direction=bias.direction,
+        )
 
-        observed_session = capitalizer_session_at(m1_cisd.confirmed_at)
+        continuation_candidates: list[tuple[datetime, str, Decimal]] = []
+        if (
+            sweep_cisd.status is V48M1CISDStatus.CONFIRMED
+            and sweep_cisd.confirmed_at is not None
+            and sweep_cisd.confirmation_close is not None
+        ):
+            stages["M1_SWEEP_CISD_CONTINUATION"] += 1
+            continuation_candidates.append(
+                (
+                    sweep_cisd.confirmed_at,
+                    "LIQUIDITY_SWEEP_CISD",
+                    sweep_cisd.confirmation_close,
+                )
+            )
+        else:
+            stages["M1_SWEEP_CISD_CONTINUATION_MISSING"] += 1
+
+        if fvg_cisd.confirmed and fvg_cisd.cisd_confirmed_at is not None:
+            fvg_confirmation_bar = next(
+                (
+                    bar
+                    for bar in m1_window
+                    if bar.closed_at == fvg_cisd.cisd_confirmed_at
+                ),
+                None,
+            )
+            if fvg_confirmation_bar is None:
+                raise ValueError("FVG+CISD confirmation bar must exist in causal window")
+            stages["M1_FVG_CISD_CONTINUATION"] += 1
+            continuation_candidates.append(
+                (
+                    fvg_cisd.cisd_confirmed_at,
+                    "FVG_RETRACE_CISD",
+                    fvg_confirmation_bar.close,
+                )
+            )
+        else:
+            stages["M1_FVG_CISD_CONTINUATION_MISSING"] += 1
+
+        if not continuation_candidates:
+            stages["M1_SOURCE_VALID_CONTINUATION_MISSING"] += 1
+            continue
+
+        continuation_at, continuation_family, decision_price = min(
+            continuation_candidates,
+            key=lambda item: (item[0], item[1]),
+        )
+        stages["M1_SOURCE_VALID_CONTINUATION"] += 1
+
+        observed_session = capitalizer_session_at(continuation_at)
         if observed_session is not session:
             stages["CONTINUATION_OUTSIDE_ASSIGNED_SESSION"] += 1
             continue
@@ -496,9 +549,9 @@ def build_market_census(
         if m15_cisd.swing_price is None:
             raise ValueError("source-valid M15 CISD requires protected swing")
         stop_valid = (
-            m15_cisd.swing_price < m1_cisd.confirmation_close
+            m15_cisd.swing_price < decision_price
             if bias.direction is CapitalizerSourceDirection.BULLISH
-            else m15_cisd.swing_price > m1_cisd.confirmation_close
+            else m15_cisd.swing_price > decision_price
         )
         if not stop_valid:
             stages["STRUCTURAL_STOP_INVALID_GEOMETRY"] += 1
@@ -508,8 +561,8 @@ def build_market_census(
         target = _untouched_h1_target(
             h1,
             bars,
-            decision_at=m1_cisd.confirmed_at,
-            decision_price=m1_cisd.confirmation_close,
+            decision_at=continuation_at,
+            decision_price=decision_price,
             direction=bias.direction,
         )
         if target is None:
@@ -520,16 +573,16 @@ def build_market_census(
         opportunity = V48ScalpOpportunity(
             symbol=symbol,
             session=session.value,
-            operating_date=_operating_date(m1_cisd.confirmed_at, session),
+            operating_date=_operating_date(continuation_at, session),
             direction=bias.direction.value,
             h1_bias_confirmed_at=bias.confirmed_at.isoformat(),
             h1_closure_kind=bias.closure_kind,
             h1_poi_kind=bias.poi_kind,
             m15_cisd_confirmed_at=m15_cisd.confirmed_at.isoformat(),
             m15_protected_swing_price=str(m15_cisd.swing_price),
-            m1_continuation_confirmed_at=m1_cisd.confirmed_at.isoformat(),
-            m1_continuation_family="LIQUIDITY_SWEEP_CISD",
-            decision_reference_price=str(m1_cisd.confirmation_close),
+            m1_continuation_confirmed_at=continuation_at.isoformat(),
+            m1_continuation_family=continuation_family,
+            decision_reference_price=str(decision_price),
             structural_target_witness_price=str(target),
         )
         opportunities.append(opportunity)
@@ -662,8 +715,11 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "missing_market_rows": list(coverage.missing_market_rows),
         "empty_sessions": [item.value for item in coverage.empty_sessions],
         "markets": sorted(reports, key=lambda row: str(row["symbol"])),
-        "continuation_families_implemented": ["LIQUIDITY_SWEEP_CISD"],
-        "fvg_cisd_continuation_implemented": False,
+        "continuation_families_implemented": [
+            "LIQUIDITY_SWEEP_CISD",
+            "FVG_RETRACE_CISD",
+        ],
+        "fvg_cisd_continuation_implemented": True,
         "census_is_lower_bound": True,
         "h4_routes_included": False,
         "outcome_used": False,
