@@ -64,10 +64,12 @@ jobs:
             tests/infrastructure/test_cibo_compound_market_cycle.py
           mypy \
             src/qore/infrastructure/cibo_compound_cycle_state.py \
-            src/qore/infrastructure/cibo_compound_market_cycle.py
+            src/qore/infrastructure/cibo_compound_market_cycle.py \
+            src/qore/infrastructure/cibo_compound_cycle_audit.py
           python -m py_compile \
             src/qore/infrastructure/cibo_compound_cycle_state.py \
-            src/qore/infrastructure/cibo_compound_market_cycle.py
+            src/qore/infrastructure/cibo_compound_market_cycle.py \
+            src/qore/infrastructure/cibo_compound_cycle_audit.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_compound_cycle_state.py \
             tests/infrastructure/test_cibo_compound_market_cycle.py
