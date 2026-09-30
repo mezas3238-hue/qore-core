@@ -124,7 +124,7 @@ def _scientific_entries(
         evidence_cutoff_at=learned_at,
         knowledge_state=ScientificKnowledgeState.REPLICATED_RESEARCH,
         source_partition="R6_R5_CONSUMED",
-        evidence_refs=("run:36667303884", "artifact:11076956277"),
+        evidence_refs=tuple(sorted(("run:36667303884", "artifact:11076956277"))),
         payload=tuple(
             sorted(
                 (
@@ -143,7 +143,7 @@ def _scientific_entries(
         evidence_cutoff_at=learned_at,
         knowledge_state=ScientificKnowledgeState.RESEARCH,
         source_partition="R6_R5_CONSUMED",
-        evidence_refs=("run:36685175913", "artifact:11082953096"),
+        evidence_refs=tuple(sorted(("run:36685175913", "artifact:11082953096"))),
         payload=tuple(
             sorted(
                 (
@@ -165,7 +165,7 @@ def _scientific_entries(
         evidence_cutoff_at=learned_at,
         knowledge_state=ScientificKnowledgeState.FALSIFIED,
         source_partition="R6_R5_CONSUMED",
-        evidence_refs=("run:36685175913", "artifact:11082953096"),
+        evidence_refs=tuple(sorted(("run:36685175913", "artifact:11082953096"))),
         payload=(("diagnostic_status", sti5_status),),
         hypothesis_id="STI5_V1_STATIC_REGIME_TRANSITION",
         falsification_reasons=(
@@ -182,7 +182,7 @@ def _scientific_entries(
         evidence_cutoff_at=learned_at,
         knowledge_state=ScientificKnowledgeState.FALSIFIED,
         source_partition="R6_CONSUMED",
-        evidence_refs=("run:36682712727", "artifact:11082582105"),
+        evidence_refs=tuple(sorted(("run:36682712727", "artifact:11082582105"))),
         payload=(("diagnostic_status", sti6_status),),
         hypothesis_id="STI6_V1_STATIC_CONTINUATION_LEVEL",
         falsification_reasons=(
