@@ -743,3 +743,34 @@ def test_integrator_classifies_new_crossboundary_delivery_surfaces_precisely() -
     )
     assert tuple(item[1] for item in assignments) == expected
     assert orphans == ()
+
+
+def test_integrator_classifies_ctrader_taxonomy_and_t17_limited_risk() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
+        "tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py",
+        "src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py",
+        "scripts/cibo_t17_limited_risk_capability_probe.py",
+        "tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py",
+        "tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py",
+    )
+    ledger_ids = frozenset({"PROVIDER_ECONOMICS", "T17"})
+
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    assert dict(assignments) == {
+        "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py": (
+            "PROVIDER_ECONOMICS"
+        ),
+        "tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py": (
+            "PROVIDER_ECONOMICS"
+        ),
+        "src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py": "T17",
+        "scripts/cibo_t17_limited_risk_capability_probe.py": "T17",
+        "tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py": "T17",
+        "tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py": "T17",
+    }
+    assert orphans == ()
