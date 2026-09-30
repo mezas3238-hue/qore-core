@@ -1,0 +1,32 @@
+name: QORE CIBO A+B Integrator Reconciliation
+
+on:
+  pull_request:
+    paths:
+      - "docs/research/CIBO-AB-INTEGRATION-ACCEPTANCE-V1.json"
+      - "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json"
+      - "scripts/cibo_ab_integration_gate.py"
+      - "tests/infrastructure/test_cibo_ab_integration_gate.py"
+      - ".github/workflows/cibo-ab-integration-gate.yml"
+  push:
+    paths:
+      - "docs/research/CIBO-AB-INTEGRATION-ACCEPTANCE-V1.json"
+      - "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json"
+      - "scripts/cibo_ab_integration_gate.py"
+      - "tests/infrastructure/test_cibo_ab_integration_gate.py"
+      - ".github/workflows/cibo-ab-integration-gate.yml"
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dev dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Validate staged A+B reconciliation
+        run: python scripts/cibo_ab_integration_gate.py
+      - name: Run integrator gate tests
+        run: pytest -q tests/infrastructure/test_cibo_ab_integration_gate.py
