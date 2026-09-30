@@ -769,13 +769,19 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "OPEN_REQUIRED",
+      "current_maturity": "COMPOUND_REPLICATION_HARNESS_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "MANDATORY_CAPABILITIES_NOT_READY_FOR_REPLICATION"
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_compound_temporal_replication.py",
+        "tests/infrastructure/test_cibo_compound_temporal_replication.py",
+        "docs/research/CIBO-COMPOUND-TEMPORAL-REPLICATION-V1.md"
       ],
-      "next_gate": "Replicate surviving mechanisms across frozen temporal partitions."
+      "blockers": [
+        "COMPOUND_TEMPORAL_REPLICATION_CI_REVALIDATION_REQUIRED",
+        "REAL_FROZEN_TEMPORAL_FOLDS_REQUIRED",
+        "ECONOMIC_REPLICATION_CRITERION_AND_RESULTS_REQUIRED"
+      ],
+      "next_gate": "Pass replication-harness CI; bind real frozen non-overlapping folds and fold-specific initial snapshots; apply predeclared economic criterion without pooling outcomes."
     },
     {
       "id": "RISK_INTEGRATION",

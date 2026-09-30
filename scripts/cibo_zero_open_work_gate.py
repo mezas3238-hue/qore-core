@@ -70,6 +70,8 @@ _COMMENT_MARKERS = (
 )
 
 _WORKSTREAM_CLASSIFIERS = (
+    ("*cibo_compound_temporal_replication*", "TEMPORAL_REPLICATION"),
+    ("*COMPOUND-TEMPORAL-REPLICATION*", "TEMPORAL_REPLICATION"),
     ("*cibo_compound_adversarial_stress*", "ADVERSARIAL_STRESS"),
     ("*COMPOUND-ADVERSARIAL-STRESS*", "ADVERSARIAL_STRESS"),
     ("*cibo_genc9_economic_gate*", "GEN-C9"),
