@@ -1398,7 +1398,7 @@
       "kind": "EVIDENCE_PROGRAM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_PLUS_RECEIPT_BOUND_PREREQUISITES_AND_PRE_HOLDOUT_CHAIN_IMPLEMENTED_CI_PENDING_EXAM_NOT_RUN",
+      "current_maturity": "ENGINE_PLUS_RECEIPT_BOUND_USD60_AND_PRE_HOLDOUT_CHAINS_STAGED_CI_PENDING_EXAM_NOT_RUN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py",
@@ -1408,9 +1408,16 @@
         "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
         "tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py",
         "src/qore/infrastructure/cibo_receipt_bound_pre_holdout.py",
-        "tests/infrastructure/test_cibo_receipt_bound_pre_holdout.py"
+        "tests/infrastructure/test_cibo_receipt_bound_pre_holdout.py",
+        "src/qore/infrastructure/cibo_usd60_exam_readiness.py",
+        "tests/infrastructure/test_cibo_usd60_exam_readiness.py",
+        "docs/research/CIBO-B-USD60-PRE-EXAM-READINESS-V1.md",
+        "src/qore/infrastructure/cibo_receipt_bound_usd60_exam_readiness.py",
+        "tests/infrastructure/test_cibo_receipt_bound_usd60_exam_readiness.py",
+        ".github/workflows/cibo-usd60-pre-exam-readiness.yml"
       ],
       "blockers": [
+        "INTEGRATOR_RECEIPT_BOUND_USD60_READINESS_CI_REQUIRED",
         "INTEGRATOR_RECEIPT_BOUND_PRE_HOLDOUT_CI_REQUIRED",
         "PHASE20D_FRESH_POPULATION_AND_CAUSAL_PASS_RECEIPT_REQUIRED",
         "PHASE21_POLICY_FREEZE_RECEIPT_REQUIRED",
@@ -1419,7 +1426,7 @@
         "FINAL_FROZEN_USD60_EXAM_NOT_RUN",
         "T16_T17_TYPED_PROVIDER_CAPABILITY_RESOLUTION_REQUIRED"
       ],
-      "next_gate": "Pass receipt-bound pre-holdout CI; then satisfy Phase20D/Phase21/provider/T01..T20 receipts plus same-account provider capability registry on the exact integrated HEAD before any governed unseal of 2017H1."
+      "next_gate": "Pass receipt-bound USD60 + pre-holdout CI; then satisfy real Phase20D/Phase21/provider/T01..T20 receipts and typed provider capability on the exact integrated HEAD before any governed 2017H1 unseal."
     },
     {
       "id": "INTEGRATED_CAPITAL_TRUTH",
