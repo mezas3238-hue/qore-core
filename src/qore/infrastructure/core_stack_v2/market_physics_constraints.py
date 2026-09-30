@@ -11,7 +11,7 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass
 from enum import StrEnum
-from typing import Mapping
+from collections.abc import Mapping
 
 from qore.infrastructure.core_stack_v2.shared_global_opportunity_discovery import (
     SharedOpportunitySourceObservation,
