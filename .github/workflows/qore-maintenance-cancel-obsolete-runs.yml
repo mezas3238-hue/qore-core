@@ -7,6 +7,10 @@ on:
     paths:
       - .github/workflows/qore-maintenance-cancel-obsolete-runs.yml
 
+concurrency:
+  group: qore-maintenance-cancel-obsolete-runs
+  cancel-in-progress: true
+
 permissions:
   contents: read
   actions: write
@@ -19,7 +23,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       TARGET_BRANCH: agent/cibo-integrator-ab-001
     steps:
-      - name: Cancel every superseded active run on target branch
+      - name: Build full paginated cancellation set
         run: |
           set -euo pipefail
           repo="${GITHUB_REPOSITORY}"
@@ -30,59 +34,116 @@ jobs:
           for status in queued in_progress; do
             gh api --paginate               "/repos/${repo}/actions/runs?branch=${TARGET_BRANCH}&status=${status}&per_page=100"               --jq '.workflow_runs[] | [.id,.head_sha,.path] | @tsv'               >> active.tsv
           done
-
           sort -u active.tsv -o active.tsv
-          total="$(wc -l < active.tsv | tr -d ' ')"
-          echo "active_before=${total}"
 
-          declare -A kept_path
-          cancelled=0
-          already_terminal=0
-          failed=0
-          kept=0
+          echo "snapshot_built=true"
+      - name: Resolve target HEAD for reducer
+        id: head
+        run: |
+          set -euo pipefail
+          head="$(gh api "/repos/${GITHUB_REPOSITORY}/branches/${TARGET_BRANCH}" --jq '.commit.sha')"
+          echo "head=${head}" >> "$GITHUB_OUTPUT"
 
-          while IFS=$'\t' read -r id sha path; do
-            [ -n "${id}" ] || continue
-            cancel=false
+      - name: Rebuild cancellation set with exact HEAD
+        env:
+          TARGET_HEAD: ${{ steps.head.outputs.head }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          from pathlib import Path
 
-            if [ "${sha}" != "${head}" ]; then
-              cancel=true
-            elif [ -n "${kept_path[${path}]+x}" ]; then
-              cancel=true
-            else
-              kept_path["${path}"]="${id}"
-              kept=$((kept+1))
-            fi
+          head = os.environ["TARGET_HEAD"]
+          rows = []
+          for line in Path("active.tsv").read_text().splitlines():
+              if not line.strip():
+                  continue
+              run_id, sha, path = line.split("\t", 2)
+              rows.append((int(run_id), sha, path))
 
-            if [ "${cancel}" = false ]; then
-              echo "keep ${id} ${path}"
-              continue
-            fi
+          keep_by_path = {}
+          for run_id, sha, path in sorted(rows, reverse=True):
+              if sha == head and path not in keep_by_path:
+                  keep_by_path[path] = run_id
 
-            status="$(gh api "/repos/${repo}/actions/runs/${id}" --jq '.status' 2>/dev/null || true)"
-            case "${status}" in
-              queued|in_progress|waiting|requested|pending)
-                if gh api -X POST "/repos/${repo}/actions/runs/${id}/cancel" >/dev/null 2>&1; then
-                  echo "cancelled ${id} ${path} (${status}, sha=${sha})"
-                  cancelled=$((cancelled+1))
-                else
-                  echo "cancel request failed ${id} ${path} (${status})"
-                  failed=$((failed+1))
-                fi
-                ;;
-              completed|"")
-                echo "already terminal or unavailable ${id} (${status:-unknown})"
-                already_terminal=$((already_terminal+1))
-                ;;
-              *)
-                echo "unexpected state ${id} (${status})"
-                failed=$((failed+1))
-                ;;
+          cancel = [
+              run_id
+              for run_id, sha, path in rows
+              if sha != head or keep_by_path.get(path) != run_id
+          ]
+          Path("cancel-ids.txt").write_text(
+              "".join(f"{item}\n" for item in sorted(cancel))
+          )
+          Path("keep-ids.txt").write_text(
+              "".join(f"{item}\n" for item in sorted(keep_by_path.values()))
+          )
+          print(f"active_snapshot={len(rows)}")
+          print(f"keep_current_head={len(keep_by_path)}")
+          print(f"cancel_candidates={len(cancel)}")
+          PY
+
+      - name: Cancel superseded runs in parallel
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY}"
+          export repo GH_TOKEN
+          if [ ! -s cancel-ids.txt ]; then
+            echo "nothing_to_cancel=true"
+            exit 0
+          fi
+
+          xargs -P 8 -n 1 bash -c '
+            id="$1"
+            code="$(curl -sS -o /dev/null -w "%{http_code}"               -X POST               -H "Authorization: Bearer ${GH_TOKEN}"               -H "Accept: application/vnd.github+json"               -H "X-GitHub-Api-Version: 2022-11-28"               "https://api.github.com/repos/${repo}/actions/runs/${id}/cancel")"
+            case "$code" in
+              202) echo "cancelled ${id}" ;;
+              409) echo "already_terminal ${id}" ;;
+              *) echo "cancel_http_${code} ${id}" ;;
             esac
-          done < <(sort -t$'\t' -k1,1nr active.tsv)
+          ' _ < cancel-ids.txt | tee cancel-results.txt
 
-          echo "kept_current_head=${kept}"
+          bad="$(grep -c '^cancel_http_' cancel-results.txt || true)"
+          cancelled="$(grep -c '^cancelled ' cancel-results.txt || true)"
+          terminal="$(grep -c '^already_terminal ' cancel-results.txt || true)"
           echo "cancelled=${cancelled}"
-          echo "already_terminal=${already_terminal}"
-          echo "failed=${failed}"
-          test "${failed}" -eq 0
+          echo "already_terminal=${terminal}"
+          echo "bad=${bad}"
+          test "$bad" -eq 0
+
+      - name: Verify target branch cleanup
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY}"
+          head="$(gh api "/repos/${repo}/branches/${TARGET_BRANCH}" --jq '.commit.sha')"
+          : > remaining.tsv
+          for status in queued in_progress; do
+            gh api --paginate               "/repos/${repo}/actions/runs?branch=${TARGET_BRANCH}&status=${status}&per_page=100"               --jq '.workflow_runs[] | [.id,.head_sha,.path] | @tsv'               >> remaining.tsv
+          done
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          head = os.environ["TARGET_HEAD"]
+          rows = []
+          for line in Path("remaining.tsv").read_text().splitlines():
+              if line.strip():
+                  run_id, sha, path = line.split("\t", 2)
+                  rows.append((int(run_id), sha, path))
+          old = [row for row in rows if row[1] != head]
+          by_path = {}
+          dup = []
+          for row in sorted(rows, reverse=True):
+              if row[1] != head:
+                  continue
+              if row[2] in by_path:
+                  dup.append(row)
+              else:
+                  by_path[row[2]] = row
+          print(f"remaining_active={len(rows)}")
+          print(f"remaining_old_sha={len(old)}")
+          print(f"remaining_head_duplicates={len(dup)}")
+          if old or dup:
+              raise SystemExit(2)
+          PY
+        env:
+          TARGET_HEAD: ${{ steps.head.outputs.head }}
