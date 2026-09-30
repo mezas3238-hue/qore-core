@@ -4,12 +4,13 @@ import pytest
 
 from qore.infrastructure.trader_lab.capitalizer_v50_m1_rearm_contract import (
     V50RearmState,
+    V50RearmTicket,
     arm_v50_reassessment,
     observe_new_m1_event,
 )
 
 
-def _ticket():
+def _ticket() -> V50RearmTicket:
     return arm_v50_reassessment(
         symbol="AUDUSD",
         session="ASIA",
