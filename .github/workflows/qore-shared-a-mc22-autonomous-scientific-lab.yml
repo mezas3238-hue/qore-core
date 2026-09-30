@@ -1,0 +1,105 @@
+name: QORE Shared A MC22 Autonomous Scientific Lab
+
+concurrency:
+  group: qore-shared-a-mc22-autonomous-scientific-lab
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/autonomous_scientific_lab.py
+      - tests/infrastructure/test_core_stack_v2_autonomous_scientific_lab.py
+      - scripts/shared_mc22_autonomous_scientific_lab_audit.py
+      - .github/workflows/qore-shared-a-mc22-autonomous-scientific-lab.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Validate lab governance
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          ruff check src/qore/infrastructure/core_stack_v2/autonomous_scientific_lab.py tests/infrastructure/test_core_stack_v2_autonomous_scientific_lab.py scripts/shared_mc22_autonomous_scientific_lab_audit.py
+          mypy src/qore/infrastructure/core_stack_v2/autonomous_scientific_lab.py
+          pytest -q tests/infrastructure/test_core_stack_v2_autonomous_scientific_lab.py
+      - name: Verify real research lineage runs
+        run: |
+          set -euo pipefail
+          for run_id in 36746172379 36753425521 36754966932 36258083080 36258083044 36244726347 36258083075 36248025384 36247407353
+          do
+            conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.conclusion // ""')"
+            test "$conclusion" = "success"
+          done
+      - name: Audit autonomous lab lineage
+        run: |
+          set -euo pipefail
+          python scripts/shared_mc22_autonomous_scientific_lab_audit.py             | tee result/summary.json
+      - name: Validate bounded disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc22-autonomous-scientific-lab-audit.json").read_text())
+          assert p["status"] == "MC22_AUTONOMOUS_SCIENTIFIC_LAB_FOUNDATION_PASS"
+          assert p["falsification_preserved"] is True
+          assert p["validated_without_auto_promotion"] is True
+          assert p["full_shadow_to_knowledge_decision_loop_bound"] is False
+          assert p["certified_runtime_mutation_from_research"] is False
+          assert p["mc22_completed_and_proven"] is False
+          PY
+      - name: Seal result
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc22-autonomous-scientific-lab-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report MC22
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(Path("result/mc22-autonomous-scientific-lab-audit.json").read_text())
+          body="\n".join([
+              "## Shared A MC-22 — Autonomous Scientific Laboratory",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- real research lineages: **{p['real_research_lineage_count']}**",
+              "- falsification preserved: **True**",
+              "- validated evidence auto-promoted: **False**",
+              "- full stress→shadow→knowledge-decision loop bound: **False**",
+              f"- next gate: **{p['next_gate']}**",
+              "- MC-22 completed-and-proven: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
