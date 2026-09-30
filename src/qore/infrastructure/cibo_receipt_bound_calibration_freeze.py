@@ -9,6 +9,7 @@ tool rows from booleans or arbitrary evidence refs.
 from __future__ import annotations
 
 import json
+import re
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
@@ -34,6 +35,7 @@ _REQUIRED_RECEIPT_IDS = _TOOL_IDS + (
     _FORWARD_RECEIPT_ID,
     _PROVIDER_RECEIPT_ID,
 )
+_SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
 def required_calibration_freeze_receipt_ids() -> tuple[str, ...]:
@@ -62,6 +64,29 @@ def build_receipt_bound_calibration_freeze(
     if provider.evidence_kind != "PROVIDER_ECONOMICS_FREEZE":
         raise CiboCapitalManagementError(
             "calibration freeze provider receipt kind invalid"
+        )
+
+    forward_payload = json.loads(forward.source_artifact_json)
+    provider_payload = json.loads(provider.source_artifact_json)
+    forward_manifest_sha256 = forward_payload.get(
+        "phase20d_forward_manifest_sha256"
+    )
+    provider_freeze_sha256 = provider_payload.get(
+        "provider_economics_freeze_sha256"
+    )
+    if (
+        not isinstance(forward_manifest_sha256, str)
+        or _SHA256_RE.fullmatch(forward_manifest_sha256) is None
+    ):
+        raise CiboCapitalManagementError(
+            "calibration freeze forward manifest SHA invalid"
+        )
+    if (
+        not isinstance(provider_freeze_sha256, str)
+        or _SHA256_RE.fullmatch(provider_freeze_sha256) is None
+    ):
+        raise CiboCapitalManagementError(
+            "calibration freeze provider freeze SHA invalid"
         )
 
     provider_required = {
@@ -155,7 +180,7 @@ def build_receipt_bound_calibration_freeze(
     frozen_at = max(item.observed_at for item in receipts)
     return build_calibration_freeze_manifest(
         frozen_at=frozen_at,
-        phase20d_forward_manifest_sha256=forward.source_artifact_sha256,
-        provider_economics_freeze_sha256=provider.source_artifact_sha256,
+        phase20d_forward_manifest_sha256=forward_manifest_sha256,
+        provider_economics_freeze_sha256=provider_freeze_sha256,
         tools=tuple(tools),
     )
