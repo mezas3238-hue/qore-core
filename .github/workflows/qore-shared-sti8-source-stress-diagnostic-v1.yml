@@ -1,0 +1,156 @@
+name: QORE Shared STI8 Source Stress Diagnostic V1
+
+concurrency:
+  group: qore-shared-sti8-source-stress-v1
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/shared_sti8_source_stress_diagnostic_v1.py
+      - .github/workflows/qore-shared-sti8-source-stress-diagnostic-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  stress:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate frozen stress harness
+        run: |
+          set -euo pipefail
+          mkdir -p input/policy input/pure input/r6 input/r5 result
+          ruff check scripts/shared_sti8_source_stress_diagnostic_v1.py
+          python -m py_compile scripts/shared_sti8_source_stress_diagnostic_v1.py
+
+          SOURCE_SHA="711788d89521e051ab3969a9006830068381693e"
+          for path in             scripts/shared_sti6_sti8_real_position_intelligence.py             src/qore/infrastructure/core_stack_v2/shared_continuation_positive_tail_intelligence.py             src/qore/infrastructure/core_stack_v2/shared_position_threat_intelligence.py
+          do
+            test "$(git rev-parse "$SOURCE_SHA:$path")" = "$(git rev-parse "HEAD:$path")"
+          done
+
+      - name: Recover frozen policy and consumed evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11065709899/zip" > policy.zip
+          unzip -q policy.zip -d input/policy
+          (cd input/policy && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10799064861/zip" > pure.zip
+          unzip -q pure.zip -d input/pure
+          (cd input/pure && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Execute preregistered source-evidence stress matrix
+        run: |
+          set -euo pipefail
+          python scripts/shared_sti8_source_stress_diagnostic_v1.py             --policy input/policy/sti6-sti8-source-only-policies.json             --r6-trades input/pure/r6.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-trades input/pure/r5.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/sti8-source-stress-diagnostic-v1.json             | tee result/summary.json
+
+      - name: Validate diagnostic governance
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(Path("result/sti8-source-stress-diagnostic-v1.json").read_text())
+          assert p["identity"] == "QORE_SHARED_STI8_SOURCE_STRESS_DIAGNOSTIC_V1"
+          assert p["mode"] == "CONSUMED_SOURCE_EVIDENCE_STRESS_DIAGNOSTIC"
+          assert p["stress_definitions_frozen_in_code"] is True
+          assert p["stress_is_fresh_oos"] is False
+          assert p["engine_or_threshold_retuning_used"] is False
+          assert p["outcome_used_to_define_stresses"] is False
+          assert p["future_data_used_for_intelligence"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          assert p["productive_authority"] is False
+          assert p["partitions"]["r6"]["baseline_reproduced"] is True
+          assert p["partitions"]["r5"]["baseline_reproduced"] is True
+          assert p["data_integrity_stress_fails_closed"] is True
+          for partition in ("r6","r5"):
+              rows=p["partitions"][partition]["stress_results"]
+              assert len(rows) == 6
+              assert {row["stress"] for row in rows} == {
+                  "BASELINE",
+                  "WORLD_SUPPORT_MINUS_1000",
+                  "WORLD_FRAGILITY_PLUS_1000",
+                  "PEER_TRANSITION_ADVERSE_PLUS_1000",
+                  "CROSS_ASSET_STRESS_COMBINED",
+                  "DATA_INTEGRITY_BELOW_GATE",
+              }
+          PY
+
+      - name: Bind stress evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-sti8-source-stress-v1-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report STI-8 stress state
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(Path("result/sti8-source-stress-diagnostic-v1.json").read_text())
+          lines=[
+              "## Shared STI-8 — Source-Evidence Stress Diagnostic V1",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- all non-integrity stresses pass frozen gate: **{p['all_non_integrity_stresses_pass_frozen_gate']}**",
+              f"- data-integrity degradation fails closed: **{p['data_integrity_stress_fails_closed']}**",
+              "- fresh OOS evidence: **False**",
+              "- engine/threshold retuning: **False**",
+              "- protected holdout opened: **False**",
+          ]
+          for partition in ("r6","r5"):
+              lines.append(f"- {partition.upper()}:")
+              for row in p["partitions"][partition]["stress_results"]:
+                  lines.append(
+                      f"  - {row['stress']}: precision/recall {row['loss_precision_bps']}/{row['loss_recall_bps']} bps; gate={row['frozen_gate_pass']}"
+                  )
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
