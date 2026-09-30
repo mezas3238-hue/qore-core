@@ -62,31 +62,42 @@ def validate_state(
         if any(not isinstance(item, str) or not item for item in blockers):
             errors.append(f"{key} support blockers must be non-empty strings")
         support_blockers.extend(item for item in blockers if isinstance(item, str))
+        staged = row.get("integrator_staged_repair_blockers", [])
         resolved = row.get("integrator_resolved_support_blockers", [])
-        if not isinstance(resolved, list):
-            errors.append(
-                f"{key} integrator resolved support blockers must be list"
+        for label, values in (
+            ("staged repair", staged),
+            ("resolved support", resolved),
+        ):
+            if not isinstance(values, list):
+                errors.append(
+                    f"{key} integrator {label} blockers must be list"
+                )
+                continue
+            if len(values) != len(set(values)):
+                errors.append(
+                    f"{key} integrator {label} blockers contain duplicates"
+                )
+            if any(not isinstance(item, str) or not item for item in values):
+                errors.append(
+                    f"{key} integrator {label} blockers must be non-empty strings"
+                )
+            unknown = tuple(item for item in values if item not in blockers)
+            if unknown:
+                errors.append(
+                    f"{key} {label} blocker is not present in upstream blockers: "
+                    + ",".join(unknown)
+                )
+        if isinstance(staged, list) and isinstance(resolved, list):
+            overlap = tuple(sorted(set(staged) & set(resolved)))
+            if overlap:
+                errors.append(
+                    f"{key} blocker cannot be both staged and resolved: "
+                    + ",".join(overlap)
+                )
+        if isinstance(resolved, list):
+            resolved_support_blockers.extend(
+                item for item in resolved if isinstance(item, str)
             )
-            continue
-        if len(resolved) != len(set(resolved)):
-            errors.append(
-                f"{key} integrator resolved support blockers contain duplicates"
-            )
-        if any(not isinstance(item, str) or not item for item in resolved):
-            errors.append(
-                f"{key} integrator resolved support blockers must be non-empty strings"
-            )
-        unknown_resolved = tuple(
-            item for item in resolved if item not in blockers
-        )
-        if unknown_resolved:
-            errors.append(
-                f"{key} resolved blocker is not present in upstream blockers: "
-                + ",".join(unknown_resolved)
-            )
-        resolved_support_blockers.extend(
-            item for item in resolved if isinstance(item, str)
-        )
 
     effective_support_blockers = tuple(
         item
