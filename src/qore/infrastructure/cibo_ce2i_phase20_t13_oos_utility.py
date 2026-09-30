@@ -247,14 +247,14 @@ def assess_phase20_t13_oos_utility(
     baseline_rows: list[Phase20QualificationRow] = []
     treatment_rows: list[Phase20QualificationRow] = []
     for row in scoped:
-        treatment = treatment_by_sha.get(row.decision_evidence_sha256)
-        if treatment is None:
+        treatment_seal = treatment_by_sha.get(row.decision_evidence_sha256)
+        if treatment_seal is None:
             continue
         baseline_set = set(
-            treatment.baseline_selected_signal_fingerprints
+            treatment_seal.baseline_selected_signal_fingerprints
         )
         treatment_set = set(
-            treatment.treatment_selected_signal_fingerprints
+            treatment_seal.treatment_selected_signal_fingerprints
         )
         if row.policy_selected != (row.signal_fingerprint in baseline_set):
             raise CiboCapitalManagementError(
