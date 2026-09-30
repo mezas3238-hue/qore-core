@@ -54,7 +54,10 @@ FACTS: tuple[V48RouteDetectorFact, ...] = (
         "DAILY_PROFILE_TIME_BINDING",
         V48DetectorReadiness.ROUTE_BOUND_PRE_ECONOMIC,
         "capitalizer_ttrades_forex_daily_profile_v48.py",
-        "TTrades Forex Daily clock is source-bound at 17:00 New York from the primary timing table.",
+        (
+            "TTrades Forex Daily clock is source-bound at 17:00 New York "
+            "from the primary timing table."
+        ),
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_ASIA_POSITIONAL,
