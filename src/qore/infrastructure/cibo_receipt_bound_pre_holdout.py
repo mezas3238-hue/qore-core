@@ -1,9 +1,11 @@
 """Receipt-bound pre-holdout readiness for CIBO USD60.
 
-This wrapper removes caller-controlled readiness booleans from the final
-pre-holdout decision path. Phase20D, Phase21, Provider Economics and the T01..T20
-Calibration Freeze must each arrive as canonical PASS receipts bound to the same
-integrated HEAD and policy identity.
+This wrapper removes caller-controlled readiness booleans and pre-built
+provider-readiness objects from the final pre-holdout decision path.
+
+Phase20D forward evidence, exact executed-risk fills, Phase21, Provider
+Economics and the T01..T20 Calibration Freeze must converge on the same frozen
+candidate/policy identity and source-bound receipts.
 
 No holdout data is read here and no productive authority is granted.
 """
@@ -13,11 +15,14 @@ from __future__ import annotations
 import json
 import re
 
+from qore.infrastructure.cibo_arch_b_forward_economic_manifest import (
+    ArchBForwardEconomicManifest,
+)
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
-from qore.infrastructure.cibo_receipt_bound_calibration_freeze import (
-    build_receipt_bound_calibration_freeze,
+from qore.infrastructure.cibo_ce2i_phase20_execution_risk_store import (
+    VersionedPhase20ExecutedRiskBook,
 )
 from qore.infrastructure.cibo_ce2i_pre_holdout_gate import (
     CiboPreHoldoutReadiness,
@@ -25,18 +30,17 @@ from qore.infrastructure.cibo_ce2i_pre_holdout_gate import (
     evaluate_pre_holdout_readiness,
 )
 from qore.infrastructure.cibo_ce2i_provider_economics_component_freeze import (
-    CiboProviderEconomicsComponentFreeze,
+    freeze_current_ctrader_demo_provider_economics,
 )
-from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
-    CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS,
-    provider_economics_evidence_ref,
-)
-from qore.infrastructure.cibo_ce2i_provider_economics_provenance import (
-    provider_economics_provenance_sha256,
+from qore.infrastructure.cibo_ce2i_provider_execution_calibration import (
+    calibrate_ctrader_demo_forward_execution,
 )
 from qore.infrastructure.cibo_crossboundary_evidence_receipt import (
     CiboCrossBoundaryEvidenceReceipt,
     require_cross_boundary_receipts,
+)
+from qore.infrastructure.cibo_receipt_bound_calibration_freeze import (
+    build_receipt_bound_calibration_freeze,
 )
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -58,50 +62,18 @@ def evaluate_receipt_bound_pre_holdout_readiness(
     policy_identity_sha256: str,
     receipts: tuple[CiboCrossBoundaryEvidenceReceipt, ...],
     calibration_receipts: tuple[CiboCrossBoundaryEvidenceReceipt, ...],
-    provider_economics_freeze: CiboProviderEconomicsComponentFreeze,
+    forward_manifest: ArchBForwardEconomicManifest,
+    executed_risk_book: VersionedPhase20ExecutedRiskBook,
 ) -> CiboPreHoldoutReadiness:
-    if not isinstance(
-        provider_economics_freeze,
-        CiboProviderEconomicsComponentFreeze,
-    ):
-        raise CiboCapitalManagementError(
-            "receipt-bound pre-holdout provider freeze is invalid"
-        )
-    canonical_provider = CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS
-    if (
-        provider_economics_freeze.source_evidence_ref
-        != provider_economics_evidence_ref()
-        or provider_economics_freeze.source_provenance_sha256
-        != provider_economics_provenance_sha256()
-        or provider_economics_freeze.source_observed_at.isoformat()
-        != canonical_provider.observed_at
-        or provider_economics_freeze.provider_key
-        != canonical_provider.provider_key
-        or provider_economics_freeze.historical_2017_exact_claimed
-        != canonical_provider.historical_exact_claimed
-        or provider_economics_freeze.holdout_outcomes_used
-        != canonical_provider.holdout_outcomes_used
-        or provider_economics_freeze.target_aware
-        != canonical_provider.target_aware
-        or provider_economics_freeze.broker_mutation_performed
-        != canonical_provider.broker_mutation_performed
-    ):
-        raise CiboCapitalManagementError(
-            "receipt-bound pre-holdout provider canonical provenance mismatch"
-        )
+    """Rebuild every readiness-critical provider object before evaluating."""
 
-    calibration_freeze_manifest = build_receipt_bound_calibration_freeze(
-        receipts=calibration_receipts,
-        integrated_git_sha=integrated_git_sha,
-        policy_identity_sha256=policy_identity_sha256,
-    )
-    if any(
-        len(tool.evidence_refs) != 2
-        or any(_SHA256_RE.fullmatch(ref) is None for ref in tool.evidence_refs)
-        for tool in calibration_freeze_manifest.tools
-    ):
+    if not isinstance(forward_manifest, ArchBForwardEconomicManifest):
         raise CiboCapitalManagementError(
-            "receipt-bound pre-holdout calibration tools are not receipt-bound"
+            "receipt-bound pre-holdout forward manifest is invalid"
+        )
+    if not isinstance(executed_risk_book, VersionedPhase20ExecutedRiskBook):
+        raise CiboCapitalManagementError(
+            "receipt-bound pre-holdout executed-risk book is invalid"
         )
 
     by_id = require_cross_boundary_receipts(
@@ -110,12 +82,6 @@ def evaluate_receipt_bound_pre_holdout_readiness(
         integrated_git_sha=integrated_git_sha,
         policy_identity_sha256=policy_identity_sha256,
     )
-
-    phase20 = by_id["PHASE20D_CAUSAL_GATE"]
-    phase21 = by_id["PHASE21_POLICY_FREEZE"]
-    provider_receipt = by_id["PROVIDER_ECONOMICS_FREEZE"]
-    calibration_receipt = by_id["CALIBRATION_FREEZE_MANIFEST"]
-
     expected_kinds = {
         "PHASE20D_CAUSAL_GATE": "PHASE20D_CAUSAL_GATE",
         "PHASE21_POLICY_FREEZE": "PHASE21_POLICY_FREEZE",
@@ -128,13 +94,21 @@ def evaluate_receipt_bound_pre_holdout_readiness(
                 f"receipt-bound pre-holdout evidence kind invalid: {receipt_id}"
             )
 
+    phase20 = by_id["PHASE20D_CAUSAL_GATE"]
+    phase21 = by_id["PHASE21_POLICY_FREEZE"]
+    provider_receipt = by_id["PROVIDER_ECONOMICS_FREEZE"]
+    calibration_receipt = by_id["CALIBRATION_FREEZE_MANIFEST"]
+
     p20 = json.loads(phase20.source_artifact_json)
     p21 = json.loads(phase21.source_artifact_json)
     provider_payload = json.loads(provider_receipt.source_artifact_json)
     calibration_payload = json.loads(calibration_receipt.source_artifact_json)
 
     forward_sha = p20.get("phase20d_forward_manifest_sha256")
-    if not isinstance(forward_sha, str) or _SHA256_RE.fullmatch(forward_sha) is None:
+    if (
+        not isinstance(forward_sha, str)
+        or _SHA256_RE.fullmatch(forward_sha) is None
+    ):
         raise CiboCapitalManagementError(
             "receipt-bound pre-holdout Phase20D forward SHA invalid"
         )
@@ -142,26 +116,77 @@ def evaluate_receipt_bound_pre_holdout_readiness(
         raise CiboCapitalManagementError(
             "receipt-bound pre-holdout Phase20D causal gate not passed"
         )
+    if forward_manifest.fingerprint() != forward_sha:
+        raise CiboCapitalManagementError(
+            "receipt-bound pre-holdout Phase20D forward manifest mismatch"
+        )
+    if not forward_manifest.ready_for_scientific_consumption:
+        raise CiboCapitalManagementError(
+            "receipt-bound pre-holdout forward manifest not scientifically ready"
+        )
+
     if p21.get("phase21_policy_freeze_sealed") is not True:
         raise CiboCapitalManagementError(
             "receipt-bound pre-holdout Phase21 policy freeze not sealed"
         )
     phase21_sha = p21.get("phase21_policy_freeze_sha256")
-    if not isinstance(phase21_sha, str) or _SHA256_RE.fullmatch(phase21_sha) is None:
+    if (
+        not isinstance(phase21_sha, str)
+        or _SHA256_RE.fullmatch(phase21_sha) is None
+    ):
         raise CiboCapitalManagementError(
             "receipt-bound pre-holdout Phase21 freeze SHA invalid"
         )
 
+    execution_calibration = calibrate_ctrader_demo_forward_execution(
+        manifest=forward_manifest,
+        executed_risk_book=executed_risk_book,
+        frozen_at=provider_receipt.observed_at,
+    )
+    if (
+        not execution_calibration.empirical_slippage_calibrated
+        or not execution_calibration.execution_model_ready
+        or execution_calibration.blockers
+    ):
+        raise CiboCapitalManagementError(
+            "receipt-bound pre-holdout provider execution calibration not ready"
+        )
+
+    provider_economics_freeze = (
+        freeze_current_ctrader_demo_provider_economics(
+            frozen_at=provider_receipt.observed_at,
+            execution_calibration=execution_calibration,
+        )
+    )
     provider_fingerprint = provider_economics_freeze.fingerprint()
     if (
         provider_payload.get("provider_economics_freeze_sha256")
         != provider_fingerprint
+        or provider_payload.get("execution_calibration_sha256")
+        != execution_calibration.fingerprint()
         or provider_payload.get("pre_holdout_provider_economics_ready")
         is not True
         or not provider_economics_freeze.pre_holdout_provider_economics_ready
     ):
         raise CiboCapitalManagementError(
             "receipt-bound pre-holdout provider freeze binding mismatch"
+        )
+
+    calibration_freeze_manifest = build_receipt_bound_calibration_freeze(
+        receipts=calibration_receipts,
+        integrated_git_sha=integrated_git_sha,
+        policy_identity_sha256=policy_identity_sha256,
+    )
+    if any(
+        len(tool.evidence_refs) != 2
+        or any(
+            _SHA256_RE.fullmatch(ref) is None
+            for ref in tool.evidence_refs
+        )
+        for tool in calibration_freeze_manifest.tools
+    ):
+        raise CiboCapitalManagementError(
+            "receipt-bound pre-holdout calibration tools are not receipt-bound"
         )
 
     calibration_fingerprint = calibration_freeze_manifest.fingerprint()
@@ -174,8 +199,10 @@ def evaluate_receipt_bound_pre_holdout_readiness(
         raise CiboCapitalManagementError(
             "receipt-bound pre-holdout calibration freeze binding mismatch"
         )
-
-    if calibration_freeze_manifest.phase20d_forward_manifest_sha256 != forward_sha:
+    if (
+        calibration_freeze_manifest.phase20d_forward_manifest_sha256
+        != forward_sha
+    ):
         raise CiboCapitalManagementError(
             "receipt-bound pre-holdout Phase20D/calibration binding mismatch"
         )
