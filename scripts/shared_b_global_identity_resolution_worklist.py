@@ -130,6 +130,7 @@ def run(
 
         fx_row=fx_by_key.get(key)
         commodity_row=commodity_by_key.get(key)
+        missing: tuple[str, ...]
         if fx_row is not None:
             if fx_row.get("provider_symbol") != symbol:
                 raise SharedBIdentityWorklistError("FX provider symbol drift")
