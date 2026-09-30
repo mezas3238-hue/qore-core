@@ -6,11 +6,9 @@ on:
     paths:
       - '.github/workflows/cibo-arch-b-forward-economic-manifest.yml'
       - 'src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py'
-      - 'tests/infrastructure/test_cibo_phase20_arch_b_forward_economic_manifest_export.py'
-      - 'tests/infrastructure/test_cibo_phase20_arch_b_forward_economic_manifest_export.py'
-      - 'scripts/cibo_phase20_arch_b_forward_economic_manifest.py'
       - 'scripts/cibo_phase20_arch_b_forward_economic_manifest.py'
       - 'tests/infrastructure/test_cibo_arch_b_forward_economic_manifest.py'
+      - 'tests/infrastructure/test_cibo_phase20_arch_b_forward_economic_manifest_export.py'
       - 'docs/research/CIBO-ARCH-B-FORWARD-ECONOMIC-EVIDENCE-MANIFEST-V1.md'
   push:
     branches:
@@ -18,7 +16,9 @@ on:
     paths:
       - '.github/workflows/cibo-arch-b-forward-economic-manifest.yml'
       - 'src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py'
+      - 'scripts/cibo_phase20_arch_b_forward_economic_manifest.py'
       - 'tests/infrastructure/test_cibo_arch_b_forward_economic_manifest.py'
+      - 'tests/infrastructure/test_cibo_phase20_arch_b_forward_economic_manifest_export.py'
       - 'docs/research/CIBO-ARCH-B-FORWARD-ECONOMIC-EVIDENCE-MANIFEST-V1.md'
 
 permissions:
