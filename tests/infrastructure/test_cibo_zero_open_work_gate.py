@@ -676,3 +676,70 @@ def test_integrator_classifies_t02_t11_forward_surfaces() -> None:
         "docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md": "T11",
     }
     assert orphans == ()
+
+
+def test_integrator_classifies_new_crossboundary_delivery_surfaces_precisely() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_arch_a_capital_state_delivery.py",
+        "tests/infrastructure/test_cibo_arch_a_capital_state_delivery.py",
+        ".github/workflows/cibo-architect-a-capital-state-delivery.yml",
+        "src/qore/infrastructure/cibo_arch_a_forward_compound_delivery.py",
+        "tests/infrastructure/test_cibo_arch_a_forward_compound_delivery.py",
+        ".github/workflows/cibo-architect-a-forward-compound-delivery.yml",
+        "src/qore/infrastructure/cibo_compound_path_history.py",
+        "tests/infrastructure/test_cibo_compound_path_history.py",
+        ".github/workflows/cibo-compound-path-history.yml",
+        "src/qore/infrastructure/cibo_arch_a_path_evidence_delivery.py",
+        "tests/infrastructure/test_cibo_arch_a_path_evidence_delivery.py",
+        ".github/workflows/cibo-architect-a-path-evidence-delivery.yml",
+        "src/qore/infrastructure/cibo_receipt_bound_usd60_exam_readiness.py",
+        "tests/infrastructure/test_cibo_receipt_bound_usd60_exam_readiness.py",
+        ".github/workflows/cibo-usd60-pre-exam-readiness.yml",
+        ".github/workflows/cibo-arch-b-forward-economic-manifest.yml",
+        ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
+        ".github/workflows/cibo-t13-drawdown-reserve-oos-utility.yml",
+        ".github/workflows/cibo-t20-capital-release.yml",
+        ".github/workflows/cibo-ctrader-demo-account-capability.yml",
+    )
+    ledger_ids = frozenset(
+        {
+            "INTEGRATED_CAPITAL_TRUTH",
+            "COMPOUND_ENGINE",
+            "USD60_CAPABILITY_PROGRAM",
+            "FORWARD_QUALIFICATION",
+            "T11",
+            "T13",
+            "T20",
+            "PROVIDER_ECONOMICS",
+        }
+    )
+
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    expected = (
+        "INTEGRATED_CAPITAL_TRUTH",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "COMPOUND_ENGINE",
+        "COMPOUND_ENGINE",
+        "COMPOUND_ENGINE",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "USD60_CAPABILITY_PROGRAM",
+        "USD60_CAPABILITY_PROGRAM",
+        "USD60_CAPABILITY_PROGRAM",
+        "FORWARD_QUALIFICATION",
+        "T11",
+        "T13",
+        "T20",
+        "PROVIDER_ECONOMICS",
+    )
+    assert tuple(item[1] for item in assignments) == expected
+    assert orphans == ()
