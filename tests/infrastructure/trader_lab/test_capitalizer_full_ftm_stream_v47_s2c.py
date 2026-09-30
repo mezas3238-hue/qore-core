@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 import pytest
-from qore.infrastructure.trader_lab.capitalizer_ftm_raw_population_v47_s1r_c import (
-    FTMTakenSide,
-)
 
 from qore.infrastructure.trader_lab import (
     capitalizer_full_ftm_stream_v47_s2c as s2c,
@@ -12,6 +9,9 @@ from qore.infrastructure.trader_lab import (
     capitalizer_source_strategy_isolation_v47_s2 as s2,
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
+from qore.infrastructure.trader_lab.capitalizer_ftm_raw_population_v47_s1r_c import (
+    FTMTakenSide,
+)
 
 
 def _row(at: str, symbol: str) -> s2c.S2CAdmittedFillRow:
