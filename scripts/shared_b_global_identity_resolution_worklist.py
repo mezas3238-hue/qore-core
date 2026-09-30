@@ -217,7 +217,8 @@ def run(
             "execution_authority":False,
         })
 
-    if set(fx_by_key) | set(commodity_by_key) - source_keys:
+    resolved_keys = set(fx_by_key) | set(commodity_by_key)
+    if resolved_keys - source_keys:
         raise SharedBIdentityWorklistError(
             "sealed identity evidence escaped provider universe"
         )
