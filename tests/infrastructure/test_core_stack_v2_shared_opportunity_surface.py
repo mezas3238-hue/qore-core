@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 from qore.infrastructure.core_stack_v2.shared_global_opportunity_board import (
@@ -40,11 +41,17 @@ def _entry(candidate: str = "candidate-001") -> SharedOpportunityBoardEntry:
 
 
 def _board(index: int, *, include: bool = True) -> SharedGlobalOpportunityAttentionBoard:
+    board_time = NOW - timedelta(minutes=10 - index)
+    entry = replace(
+        _entry(f"history-{index}"),
+        observed_at=board_time,
+        evidence_cutoff_at=board_time,
+    )
     return SharedGlobalOpportunityAttentionBoard(
         board_id=f"board-{index}",
-        as_of=NOW - timedelta(minutes=10 - index),
-        evidence_cutoff_at=NOW - timedelta(minutes=10 - index),
-        entries=(_entry(f"history-{index}"),) if include else (),
+        as_of=board_time,
+        evidence_cutoff_at=board_time,
+        entries=(entry,) if include else (),
     )
 
 
