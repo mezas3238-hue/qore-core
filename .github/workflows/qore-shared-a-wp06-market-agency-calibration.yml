@@ -10,6 +10,7 @@ on:
       - agent/shared-a-cognitive-science-001
     paths:
       - docs/shared/evidence/QORE_SHARED_WP06_MARKET_AGENCY_CALIBRATION_PREREGISTRATION_001.json
+      - docs/shared/evidence/QORE_SHARED_WP06_MARKET_AGENCY_CALIBRATION_ENGINEERING_RECOVERY_AMENDMENT_001.json
       - scripts/shared_wp06_market_agency_calibration.py
       - .github/workflows/qore-shared-a-wp06-market-agency-calibration.yml
   workflow_dispatch:
@@ -38,6 +39,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
+          python -m pip install scikit-learn
 
       - name: Validate preregistration
         run: |
@@ -53,6 +55,11 @@ jobs:
           assert p["dataset_protocol"]["r5_used_for_fit"] is False
           assert p["models"]["hyperparameter_search"] is False
           assert p["governance"]["protected_certification_holdout_opened"] is False
+          a=json.loads(Path("docs/shared/evidence/QORE_SHARED_WP06_MARKET_AGENCY_CALIBRATION_ENGINEERING_RECOVERY_AMENDMENT_001.json").read_text())
+          assert a["status"] == "ENGINEERING_RECOVERY_ONLY"
+          assert a["failed_run_id"] == 36754494468
+          assert a["scientific_evaluation_started"] is False
+          assert a["engineering_change_only"]["outcome_aware_retuning"] is False
           PY
 
       - name: Recover immutable R6/R5 source evidence
