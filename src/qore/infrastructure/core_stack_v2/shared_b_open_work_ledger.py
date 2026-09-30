@@ -164,10 +164,13 @@ B_WORK_ITEMS: Final = (
             "calendar bindings remain 0/177",
             "60 FX sensors require governed distributed-OTC weekly market-state "
             "semantics rather than a fabricated single venue",
-            "11 current official indices still require official calculation-calendar binding",
-            "2 legacy indices require historical versioned calendars and cannot inherit current calendars",
+            "11 current official indices still require official "
+            "calculation-calendar binding",
+            "2 legacy indices require historical versioned calendars and "
+            "cannot inherit current calendars",
             "12 indices remain identity-blocked before calendar binding",
-            "73 crypto sensors remain identity/market-structure blocked before canonical temporal semantics",
+            "73 crypto sensors remain identity/market-structure blocked before "
+            "canonical temporal semantics",
             "5 dated futures require versioned session/holiday calendars and 14 commodity "
             "reference objects require explicit temporal semantics",
         ),
@@ -339,11 +342,13 @@ B_WORK_ITEMS: Final = (
             "artifact:11121310503",
             "artifact:11125588197",
             "artifact:11126485523",
+            "artifact:11127424217",
             "run:36746337433",
             "run:36758248635",
             "run:36765319771",
             "run:36776003986",
             "run:36777484441",
+            "run:36782511198",
         ),
         (
             "current sealed provenance explicitly covers 18/24 B workstream IDs; "
