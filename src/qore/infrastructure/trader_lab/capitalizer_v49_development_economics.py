@@ -244,17 +244,12 @@ def _session_bars(
     index = bisect.bisect_left(opened, intent.entry_at)
     result: list[CapitalizerM1Bar] = []
     expected_session = CapitalizerSession(intent.session)
-    expected_day = intent.operating_date
     for bar in all_bars[index:]:
         observed = capitalizer_session_at(bar.opened_at)
         if observed is not expected_session:
             if result:
                 break
             continue
-        # The opportunity ledger already froze operating_date. Stop when chronology
-        # reaches a later occurrence of this session rather than leaking overnight.
-        if bar.opened_at.date().isoformat() > expected_day and result:
-            break
         result.append(bar)
     return tuple(result)
 
