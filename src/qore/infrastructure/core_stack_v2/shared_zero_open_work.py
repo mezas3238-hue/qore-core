@@ -246,6 +246,9 @@ def build_shared_master_open_work_ledger() -> tuple[SharedOpenWorkItem, ...]:
     # MC-01..28 remain unresolved until an explicit verified-superset audit
     # binds each capability to scientific evidence satisfying Standard 006.
     closed_mc_evidence = {
+        2: "mc01-mc04-verified-superset-run-36727403860",
+        3: "mc01-mc04-verified-superset-run-36727403860",
+        4: "mc01-mc04-verified-superset-run-36727403860",
         15: "mc15-six-source-uncertainty-run-36726927463",
     }
     for index, title in enumerate(_MC_TITLES, start=1):
