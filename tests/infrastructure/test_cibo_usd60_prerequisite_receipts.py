@@ -24,6 +24,8 @@ POLICY = "sha256:" + "b" * 64
 def _artifact(receipt_id: str, *, contaminated: bool = False) -> str:
     payload = {
         "schema": "qore.cibo.usd60-prerequisite-test.v1",
+        "evidence_binding_id": receipt_id,
+        "evidence_kind": "USD60_PRE_EXAM_PREREQUISITE",
         "producer_gate_id": f"gate:{receipt_id}",
         "integrated_git_sha": HEAD,
         "policy_identity_sha256": POLICY,
@@ -77,7 +79,7 @@ def test_missing_usd60_prerequisite_fails_closed() -> None:
         )
 
 
-def test_wrong_evidence_kind_fails_closed() -> None:
+def test_wrong_evidence_kind_is_rejected_by_source_binder() -> None:
     receipt_id = required_usd60_pre_exam_receipt_ids()[0]
     receipts = list(_receipts())
     receipts[0] = bind_cross_boundary_pass_artifact(
@@ -88,7 +90,7 @@ def test_wrong_evidence_kind_fails_closed() -> None:
 
     with pytest.raises(
         CiboCapitalManagementError,
-        match="USD60 receipt evidence kind invalid",
+        match="evidence kind drift",
     ):
         require_usd60_pre_exam_receipts(
             receipts=tuple(receipts),
