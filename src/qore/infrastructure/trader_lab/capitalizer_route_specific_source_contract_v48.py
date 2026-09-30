@@ -1,8 +1,8 @@
 """V48 route-specific source contract for Capitalizer.
 
-Each route owns its mandatory facts and OR-groups. No fact is inherited globally from
-another route or author. This replaces the V47 assumption that all source concepts belong
-to one universal AND gate.
+Each route owns its mandatory facts and any source-proven alternative groups. No fact is
+inherited globally from another route or author. This replaces the V47 assumption that all
+source concepts belong to one universal AND gate.
 
 The contract only determines pre-economic source completeness. It cannot execute or size.
 """
@@ -62,8 +62,8 @@ CONTRACTS: tuple[V48RouteContract, ...] = (
     V48RouteContract(
         V48RouteId.TTRADES_ASIA_POSITIONAL,
         (
-            "HTF_BIAS_CONFIRMED",
-            "COMPLETED_FRACTAL_MODEL",
+            "HTF_FRACTAL_BIAS_CONFIRMED",
+            "LTF_CISD_CONFIRMED",
             "PROTECTED_SWING_CONFIRMED",
             "POSITIONAL_OPEN_AVAILABLE",
             "STRUCTURAL_TARGET_AVAILABLE",
@@ -72,10 +72,11 @@ CONTRACTS: tuple[V48RouteContract, ...] = (
     V48RouteContract(
         V48RouteId.TTRADES_ASIA_4H_15M,
         (
-            "DAILY_BIAS_CONFIRMED",
+            "HTF_FRACTAL_BIAS_CONFIRMED",
             "H4_C2_CONFIRMATION",
             "M15_CISD_CONFIRMED",
             "M15_PROTECTED_SWING_CONFIRMED",
+            "M15_CONTINUATION_AVAILABLE",
             "STRUCTURAL_TARGET_AVAILABLE",
         ),
     ),
@@ -83,9 +84,11 @@ CONTRACTS: tuple[V48RouteContract, ...] = (
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
         (
             "DAILY_BIAS_CONFIRMED",
+            "DAILY_WICK_FORMATION_CONFIRMED",
             "H4_WICK_SWING_STRUCTURE_CONFIRMED",
             "M15_CISD_CONFIRMED",
             "M15_PROTECTED_SWING_CONFIRMED",
+            "M15_CONTINUATION_AVAILABLE",
             "STRUCTURAL_TARGET_AVAILABLE",
         ),
     ),
@@ -115,18 +118,9 @@ CONTRACTS: tuple[V48RouteContract, ...] = (
             "DAILY_CONTEXT_RESOLVED",
             "H1_SCALP_BIAS_CONFIRMED",
             "M15_SWING_STRUCTURE_CONFIRMED",
+            "M1_CONTINUATION_CONFIRMED",
             "LOGICAL_PROTECTED_SWING_STOP_AVAILABLE",
             "STRUCTURAL_TARGET_AVAILABLE",
-        ),
-        (
-            V48AlternativeGroup(
-                "M1_EXECUTION_BEHAVIOR",
-                (
-                    "M1_FVG_INTERACTION_CONFIRMED",
-                    "M1_CISD_CONFIRMED",
-                    "M1_PROTECTED_SWING_FORMATION_CONFIRMED",
-                ),
-            ),
         ),
     ),
     V48RouteContract(
