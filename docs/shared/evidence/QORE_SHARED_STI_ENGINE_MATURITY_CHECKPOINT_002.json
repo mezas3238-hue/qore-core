@@ -157,6 +157,22 @@
       },
       "provider_symbol_is_canonical_identity": false,
       "protected_holdout_opened": false
+    },
+    "gw2_fx_iso4217": {
+      "workstream": "GW-2_FX_CURRENCY_COMPONENT_AUTHORITY",
+      "evidence_run_id": 36652231167,
+      "evidence_git_sha": "27a9004c7feb6bc1985edf119fe7a372811ef29b",
+      "authority": "SIX_FINANCIAL_INFORMATION_AG_ISO4217_MAINTENANCE_AGENCY",
+      "provider_currency_codes": 21,
+      "iso4217_verified_currency_codes": 20,
+      "unresolved_currency_codes": [
+        "CNH"
+      ],
+      "fx_pairs_with_both_currency_components_verified": 59,
+      "fx_pair_count": 60,
+      "cnh_auto_aliased_to_cny": false,
+      "fx_pair_canonical_identity_verified_count": 0,
+      "protected_holdout_opened": false
     }
   },
   "productive_authority": {
