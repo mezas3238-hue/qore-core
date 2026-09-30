@@ -113,7 +113,7 @@ def _rows(
                     (margin - prior_margin) / 10_000.0,
                     min(20, run) / 20.0,
                     float(assessment.insufficient),
-                    float(getattr(prior_assessment, "insufficient")),
+                    float(prior_assessment.insufficient),
                 ]
             )
             treatment = baseline + trajectory
