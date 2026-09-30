@@ -6,7 +6,7 @@
   "architect_a": {
     "pr": 660,
     "accepted_head_sha": "9f7a24a86c04a1d0554996ab57523e7338465002",
-    "latest_observed_head_sha": "f3480a4f6f949c7cb6d34f9b825c35ab488eabfc",
+    "latest_observed_head_sha": "a597b439da22cadc3929193c851140e0559fc906",
     "support_blockers": [
       "A-SUPPORT-001_FINAL_EXAM_SELF_ATTESTATION",
       "A-SUPPORT-002_MANDATORY_WORKSTREAM_DRIFT"
@@ -15,10 +15,11 @@
   "architect_b": {
     "pr": 661,
     "accepted_head_sha": "5d028b1ebc76a98db36d26f86bc872e2f60c5541",
-    "latest_observed_head_sha": "e15b9b64a4daf09634899131ad2c29071168f2e8",
+    "latest_observed_head_sha": "2b13c4395e4bf8dc0d47118040a6915e3df5911c",
     "support_blockers": [
       "B-SUPPORT-001_USD60_READINESS_SELF_ATTESTATION",
-      "B-SUPPORT-002_RISK_HANDOFF_LEDGER_DRIFT"
+      "B-SUPPORT-002_RISK_HANDOFF_LEDGER_DRIFT",
+      "B-SUPPORT-003_CALIBRATION_FREEZE_SELF_ATTESTATION"
     ]
   },
   "ledger_path": "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json",
@@ -44,7 +45,13 @@
     "module": "src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py",
     "tests": "tests/infrastructure/test_cibo_crossboundary_evidence_receipt.py",
     "workflow": ".github/workflows/cibo-crossboundary-evidence-receipt.yml",
-    "purpose": "Canonical artifact digest + exact integrated-head + policy-identity binding for A Final Exam and B USD60 readiness",
+    "consumers": [
+      "src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam.py",
+      "src/qore/infrastructure/cibo_usd60_prerequisite_receipts.py",
+      "src/qore/infrastructure/cibo_receipt_bound_calibration_freeze.py",
+      "src/qore/infrastructure/cibo_receipt_bound_pre_holdout.py"
+    ],
+    "purpose": "Exact-head/policy source-bound evidence for Phase21/22 Final Exam, USD60, T01-T20 calibration freeze and pre-holdout readiness",
     "accepted": false,
     "blocker": "INTEGRATOR_CROSSBOUNDARY_RECEIPT_CI_REQUIRED"
   }
