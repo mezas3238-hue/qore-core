@@ -317,9 +317,9 @@ def build_integrated_capital_truth(
     }
     protected_capacity = Decimal(0)
     protected_nonconsumed = Decimal(0)
-    for binding in protected_floor_bindings:
-        source = protected_by_id[binding.source_id]
-        observation = binding.observation
+    for protected_binding in protected_floor_bindings:
+        source = protected_by_id[protected_binding.source_id]
+        observation = protected_binding.observation
         if (
             not observation.evidence_sufficient
             or not observation.expansion_eligible
