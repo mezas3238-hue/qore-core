@@ -258,10 +258,13 @@ def build_dual_invalidation(
             pivot = center.high > left.high and center.high > right.high
             price = center.high
             valid_side = price > entry_price
-        if not (pivot and valid_side):
+        inside_thesis = abs(entry_price - price) < thesis_risk
+        if not (pivot and valid_side and inside_thesis):
             continue
 
-        # An execution invalidation must still exist at decision time.
+        # Execution invalidation must remain strictly inside the M15 thesis boundary.
+        # A deeper/equal pivot would allow the trade to survive beyond thesis invalidation.
+        # The selected M1 level must also still exist at decision time.
         # If price has already touched/breached the pivot after its causal
         # right-hand confirmation, that level has been consumed and cannot
         # serve as a fresh stop anchor for a new entry.
