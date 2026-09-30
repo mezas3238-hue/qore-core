@@ -524,21 +524,21 @@ def main() -> None:
 
     args = parser.parse_args()
     if args.command == "market":
-        report, attempts = build_rearm_capacity(
+        market_report, attempts = build_rearm_capacity(
             args.m1_root,
             session=CapitalizerSession(args.session),
         )
-        write_market(report, attempts, args.output)
-        print(json.dumps(asdict(report), sort_keys=True))
+        write_market(market_report, attempts, args.output)
+        print(json.dumps(asdict(market_report), sort_keys=True))
         return
 
-    report = build_matrix(args.input_root)
+    matrix_report = build_matrix(args.input_root)
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / "capitalizer-v50-r-nine-market-rearm-capacity.json").write_text(
-        json.dumps(report, indent=2, sort_keys=True) + "\n",
+        json.dumps(matrix_report, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    print(json.dumps(report, sort_keys=True))
+    print(json.dumps(matrix_report, sort_keys=True))
 
 
 if __name__ == "__main__":
