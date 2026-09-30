@@ -301,10 +301,16 @@ B_WORK_ITEMS: Final = (
             "artifact:11112547465",
             "artifact:11113260581",
             "artifact:11116986748",
+            "artifact:11127854507",
             "run:36757173753",
+            "run:36783433192",
         ),
         (
-            "global 177-sensor causal qualification remains incomplete",
+            "exact 177-sensor qualification frontier is frozen with 0 admissions; "
+            "90 sensors have identity evidence for the next step, 2 have full "
+            "real BID/ASK history, 1 partial, and 174 lack bound real causal history",
+            "canonical calendar bindings remain 0/177 and scientific value is "
+            "not yet proven for any sensor",
         ),
     ),
     SharedBWorkItem(
