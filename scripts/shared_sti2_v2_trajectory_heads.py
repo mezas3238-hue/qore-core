@@ -13,7 +13,7 @@ import json
 from collections import deque
 from pathlib import Path
 from statistics import median
-from typing import Any, cast
+from typing import Any
 
 import shared_sti2_real_opportunity_discovery as v1
 
