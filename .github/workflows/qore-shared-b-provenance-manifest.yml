@@ -48,6 +48,8 @@ jobs:
           mkdir -p input/meta result
           cat > input/specs.json <<'JSON'
           [
+            {"evidence_id":"B01_GOVERNANCE_REVALIDATION","capability_scope":"B-01","kind":"GOVERNANCE_EVIDENCE","run_id":36765392663,"artifact_id":11120068080,"source_hash":false,"provider_free_replay":true},
+            {"evidence_id":"B23_ZERO_OPEN_AUDIT","capability_scope":"B-23","kind":"GOVERNANCE_EVIDENCE","run_id":36757894898,"artifact_id":11117192542,"source_hash":false,"provider_free_replay":true},
             {"evidence_id":"B02_PROVIDER_RAW","capability_scope":"B-02","kind":"RAW_PROVIDER_EVIDENCE","run_id":36742519707,"artifact_id":11110976806,"source_hash":true,"provider_free_replay":false},
             {"evidence_id":"B02_PROVIDER_PROVENANCE","capability_scope":"B-02","kind":"GOVERNANCE_EVIDENCE","run_id":36742519707,"artifact_id":11111176548,"source_hash":true,"provider_free_replay":false},
             {"evidence_id":"B03_CROSS_RAW","capability_scope":"B-03","kind":"RAW_PROVIDER_EVIDENCE","run_id":36746337433,"artifact_id":11113260581,"source_hash":true,"provider_free_replay":false},
