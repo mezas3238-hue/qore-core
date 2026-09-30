@@ -58,3 +58,21 @@ forward calibration becomes ready, the existing blockers remain:
 
 - `EMPIRICAL_SLIPPAGE_NOT_FROZEN`;
 - `EXECUTION_MODEL_NOT_FROZEN`.
+
+
+## T17 limited-risk evidence
+
+The provider-economics workflow now seals an additional read-only artifact:
+
+`t17-limited-risk-capability.json`
+
+It is derived from the same account fingerprint as the account-capability and
+provider-economics probes and partitions the observed QORE symbols into:
+
+- GSL supported;
+- GSL unsupported;
+- GSL unknown.
+
+The artifact can identify a Limited-Risk/GSL candidate, but it cannot freeze
+T17 as ready. Execution economics and fresh OOS utility remain independent
+mandatory gates.
