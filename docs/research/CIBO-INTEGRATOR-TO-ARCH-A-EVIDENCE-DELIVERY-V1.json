@@ -1,0 +1,135 @@
+{
+  "schema": "CIBO_INTEGRATOR_TO_ARCH_A_EVIDENCE_DELIVERY_V1",
+  "request_id": "CIBO-ARCH-A-CROSSBOUNDARY-REQUEST-001",
+  "status": "PARTIAL_CANONICAL_DELIVERY_REAL_POPULATION_PENDING",
+  "source_planes": {
+    "architect_b_forward_manifest": "src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py",
+    "integrated_capital_forward_binding": "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py",
+    "integrated_capital_truth": "src/qore/infrastructure/cibo_integrated_capital_truth.py",
+    "compound_cycle_state": "src/qore/infrastructure/cibo_compound_cycle_state.py",
+    "capital_source_ledger": "src/qore/infrastructure/cibo_capital_source_ledger.py"
+  },
+  "forward_manifest_fields_available": [
+    "decision_epoch_id",
+    "decision_evidence_sha256",
+    "decision_at",
+    "fold_id",
+    "signal_fingerprint",
+    "trader_id",
+    "candidate_id",
+    "code_sha",
+    "parameter_sha256",
+    "collector_git_sha",
+    "provider_key",
+    "account_ref",
+    "environment",
+    "provider_evidence_id",
+    "qore_symbol",
+    "provider_symbol",
+    "provider_economics_sha256",
+    "provider_observed_at",
+    "provider_minimum_volume",
+    "provider_volume_step",
+    "provider_margin_per_volume_usd",
+    "provider_commission_per_volume_usd",
+    "provider_slippage_reserve_per_volume_usd",
+    "provider_bid",
+    "provider_ask",
+    "policy_record_sha256",
+    "policy_selected",
+    "baseline_policy_id",
+    "baseline_selected",
+    "execution_risk_evidence_id",
+    "executed_risk_sha256",
+    "executed_source_volume",
+    "executed_initial_stop_risk_usd",
+    "settlement_sha256",
+    "settlement_deal_ids",
+    "realized_net_pnl_usd",
+    "outcome_observed_at",
+    "release_evidence_sha256",
+    "release_chain_sha256",
+    "released_stop_risk_capacity_usd",
+    "released_margin_capacity_usd",
+    "terminal_release_at",
+    "capital_minutes"
+  ],
+  "integrated_binding_invariants_available": [
+    "exact_account_scope",
+    "exact_settlement_population",
+    "positive_realized_profit_equivalence",
+    "source_ledger_sha256_after_truth_pass",
+    "compound_cycle_state_sha256_after_truth_pass",
+    "zero_productive_authority"
+  ],
+  "gaps": [
+    {
+      "field": "source_manifest_sha256_per_row_or_delivery",
+      "owner": "INTEGRATOR",
+      "reason": "ARCH_B_ROW_HAS_PROVIDER_ECONOMICS_SHA_BUT_NO_EXPLICIT_SOURCE_MANIFEST_SHA_FIELD",
+      "blocking_for_a": true
+    },
+    {
+      "field": "deployment_id",
+      "owner": "INTEGRATOR_CAPITAL_TRUTH_ADAPTER",
+      "reason": "NOT_EXPORTED_BY_ARCH_B_FORWARD_ROW",
+      "blocking_for_a": true
+    },
+    {
+      "field": "market_event_id",
+      "owner": "INTEGRATOR_CAPITAL_TRUTH_ADAPTER",
+      "reason": "NOT_EXPORTED_BY_ARCH_B_FORWARD_ROW",
+      "blocking_for_a": true
+    },
+    {
+      "field": "source_lot_id",
+      "owner": "INTEGRATOR_CAPITAL_TRUTH_ADAPTER",
+      "reason": "MUST_COME_FROM_CANONICAL_SOURCE_LEDGER_NOT_PROVIDER_ROW",
+      "blocking_for_a": true
+    },
+    {
+      "field": "source_capital_generation",
+      "owner": "INTEGRATOR_CAPITAL_TRUTH_ADAPTER",
+      "reason": "MUST_COME_FROM_CANONICAL_SOURCE_LEDGER",
+      "blocking_for_a": true
+    },
+    {
+      "field": "deployed_capital_usd",
+      "owner": "INTEGRATOR_CAPITAL_TRUTH_ADAPTER",
+      "reason": "MUST_COME_FROM_COMPOUND_DEPLOYMENT_STATE",
+      "blocking_for_a": true
+    },
+    {
+      "field": "protected_floor_graduation_usd_and_sha256",
+      "owner": "INTEGRATOR_CAPITAL_TRUTH_ADAPTER",
+      "reason": "MUST_COME_FROM_PROTECTED_FLOOR_EQUIVALENCE_BINDING",
+      "blocking_for_a": true
+    },
+    {
+      "field": "minimum_realized_base_compound_liquid_optional_reserves",
+      "owner": "INTEGRATOR_CAPITAL_TRUTH_ADAPTER",
+      "reason": "PATH_STATE_EXPORT_NOT_YET_CANONICALLY_BOUND",
+      "blocking_for_a": true
+    },
+    {
+      "field": "profit_giveback_path",
+      "owner": "ARCHITECT_A_PLUS_INTEGRATOR",
+      "reason": "SCIENTIFIC_PATH_DERIVATION_REQUIRES_FROZEN_CHRONOLOGICAL_POPULATION",
+      "blocking_for_a": true
+    },
+    {
+      "field": "crisis_factor_set_and_observed_factors",
+      "owner": "ARCHITECT_A_PLUS_PROVIDER_EVIDENCE",
+      "reason": "MUST_BE_PREREGISTERED_AND_OBSERVED_NOT_POST_HOC",
+      "blocking_for_a": true
+    }
+  ],
+  "governance": {
+    "synthetic_fill_for_gaps_forbidden": true,
+    "historical_provider_usd_imputation_forbidden": true,
+    "holdout_2017h1_opened": false,
+    "frozen_phase20_v3_mutated": false,
+    "productive_authority": false
+  },
+  "next_gate": "Implement canonical capital-state delivery adapter joining exact Arch-B settlement rows to source-ledger/compound/protected-floor path state, then validate immutable delivery digest and hand to Architect A."
+}
