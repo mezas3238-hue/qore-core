@@ -1,12 +1,16 @@
-"""V48 H4 profile/time binding ledger for TTrades Asia and London routes.
+"""V48 H4 profile/time binding ledger for TTrades Asia and London Forex routes.
 
-The TTrades Asia/London source material uses 4H candles as methodology objects. The reviewed
-PDFs visibly show profile labels such as 22:00, 02:00 and 06:00 around H4 examples. cTrader
-also exposes provider-native H4 trendbars.
+Source adjudication is now closed for the H4 *profile clock* used by Capitalizer's Forex
+markets:
+- TTrades 4-Hour Power of 3 distinguishes futures anchors 02/06/10 from Forex 01/05/09.
+- TTrades' timing material uses New York chart time.
+- The four-hour Forex cycle therefore continues 01/05/09/13/17/21 New York time.
 
-What is *not* yet proven is that the provider H4 candle boundary is identical to the TTrades
-chart/profile boundary. V48 therefore fails closed for productive H4-route census until this
-clock identity is source-bound. Generic H1/M15/M1 Scalping and non-H4 routes are independent.
+V48 does not assume the broker's native H4 boundary is equivalent. Instead, it is authorized
+to construct source-bound H4 methodology candles from retained provider-native M1 using
+capitalizer_ttrades_forex_h4_profile_v48.py.
+
+This resolves H4 clock identity only. Daily Forex profile/open binding remains independent.
 """
 
 from __future__ import annotations
@@ -14,16 +18,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-from qore.infrastructure.trader_lab.capitalizer_source_native_route_registry_v48 import (
-    V48RouteId,
-)
-
 IDENTITY = "QORE_CAPITALIZER_V48_H4_PROFILE_BINDING"
 
 
 class V48H4BindingState(StrEnum):
-    SOURCE_BINDING_BLOCKED = "SOURCE_BINDING_BLOCKED"
-    RESOLVED = "RESOLVED"
+    RESOLVED_FOREX_SOURCE_PROFILE = "RESOLVED_FOREX_SOURCE_PROFILE"
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,7 +30,8 @@ class V48H4ProfileEvidence:
     source_id: str
     source_url: str
     evidence: str
-    proves_exact_provider_boundary: bool = False
+    source_clock_fact: bool
+    proves_native_broker_h4_equivalence: bool = False
 
     def __post_init__(self) -> None:
         if not self.source_id or self.source_id != self.source_id.upper():
@@ -39,30 +39,33 @@ class V48H4ProfileEvidence:
         if not self.source_url.startswith("https://"):
             raise ValueError("H4 evidence requires source URL")
         if not self.evidence:
-            raise ValueError("H4 evidence requires a description")
+            raise ValueError("H4 evidence requires description")
 
 
 EVIDENCE: tuple[V48H4ProfileEvidence, ...] = (
     V48H4ProfileEvidence(
-        "TTRADES_LONDON_PDF_H4_PROFILE_LABELS",
-        "https://ttrades.com/wp-content/uploads/2026/09/TTrades-Trading-London.pdf",
+        "TTRADES_FOREX_H4_ANCHORS",
+        "https://ttrades.com/trading-the-4-hour-power-of-3-open-high-low-close-strategy/",
         (
-            "Reviewed London PDF H4 examples visibly label profile candles around "
-            "22:00, 02:00 and 06:00."
+            "TTrades distinguishes futures 02/06/10 anchors from Forex 01/05/09 anchors "
+            "and pairs the H4 structure with 15M confirmation."
         ),
+        True,
     ),
     V48H4ProfileEvidence(
-        "TTRADES_ASIA_PDF_D1_H4_15M_STACK",
-        "https://ttrades.com/wp-content/uploads/2026/08/TTrades-Asia-Entries.pdf",
-        "Reviewed Asia PDF explicitly demonstrates D1 to H4 and H4 to 15M fractal stacks.",
+        "TTRADES_NEW_YORK_TIME_CONVENTION",
+        "https://ttrades.com/kill-zones-explained-best-trading-sessions-for-entries/",
+        "TTrades instructs chart/session timing to be read in New York time.",
+        True,
     ),
     V48H4ProfileEvidence(
-        "CTRADER_PROVIDER_NATIVE_H4_AVAILABLE",
-        "https://help.ctrader.com/open-api/model-messages/",
+        "TTRADES_LONDON_FOREX_ONE_HOUR_SHIFT",
+        "https://ttrades.com/how-to-trade-london-using-ttrades-fractal-model/",
         (
-            "cTrader Open API exposes provider-native H4 trendbars, but availability alone "
-            "does not prove candle-boundary identity with the TTrades chart."
+            "London Forex examples use the same fractal logic with the Forex higher-timeframe "
+            "open shifted one hour from the futures examples."
         ),
+        True,
     ),
 )
 
@@ -70,16 +73,16 @@ EVIDENCE: tuple[V48H4ProfileEvidence, ...] = (
 @dataclass(frozen=True, slots=True)
 class V48H4ProfileBinding:
     identity: str = IDENTITY
-    state: V48H4BindingState = V48H4BindingState.SOURCE_BINDING_BLOCKED
+    state: V48H4BindingState = V48H4BindingState.RESOLVED_FOREX_SOURCE_PROFILE
     evidence: tuple[V48H4ProfileEvidence, ...] = EVIDENCE
-    provider_native_h4_available: bool = True
-    provider_boundary_equals_ttrades_profile_proven: bool = False
-    synthetic_h4_authorized: bool = False
-    productive_h4_route_census_authorized: bool = False
-    blocked_routes: tuple[V48RouteId, ...] = (
-        V48RouteId.TTRADES_ASIA_4H_15M,
-        V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
-    )
+    forex_anchor_hours_ny: tuple[int, ...] = (1, 5, 9, 13, 17, 21)
+    provider_native_m1_required: bool = True
+    native_broker_h4_equivalence_assumed: bool = False
+    source_bound_m1_resampling_authorized: bool = True
+    synthetic_price_authorized: bool = False
+    h4_profile_construction_authorized: bool = True
+    full_asia_london_route_authorized: bool = False
+    daily_profile_binding_still_required: bool = True
     generic_scalp_blocked: bool = False
     fresh_holdout_authorized: bool = False
     economics_authorized: bool = False
@@ -87,16 +90,24 @@ class V48H4ProfileBinding:
     def __post_init__(self) -> None:
         if self.identity != IDENTITY:
             raise ValueError("H4 binding identity is frozen")
-        if self.state is V48H4BindingState.RESOLVED:
-            if not self.provider_boundary_equals_ttrades_profile_proven:
-                raise ValueError("resolved H4 binding requires proven boundary identity")
-        if self.synthetic_h4_authorized:
-            raise ValueError("V48 cannot synthesize an unbound H4 methodology candle")
-        if self.productive_h4_route_census_authorized:
-            if self.state is not V48H4BindingState.RESOLVED:
-                raise ValueError("blocked H4 binding cannot authorize productive census")
+        if self.forex_anchor_hours_ny != (1, 5, 9, 13, 17, 21):
+            raise ValueError("Forex H4 source clock is frozen to 01/05/09/13/17/21 NY")
+        if not self.provider_native_m1_required:
+            raise ValueError("source-bound H4 construction requires provider-native M1")
+        if self.native_broker_h4_equivalence_assumed:
+            raise ValueError("V48 may not assume broker H4 clock equivalence")
+        if not self.source_bound_m1_resampling_authorized:
+            raise ValueError("resolved Forex H4 source clock must authorize M1 resampling")
+        if self.synthetic_price_authorized:
+            raise ValueError("V48 H4 construction cannot synthesize price")
+        if not self.h4_profile_construction_authorized:
+            raise ValueError("resolved Forex H4 clock must allow profile construction")
+        if self.full_asia_london_route_authorized:
+            raise ValueError("H4 clock closure alone cannot authorize full Asia/London route")
+        if not self.daily_profile_binding_still_required:
+            raise ValueError("Daily Forex profile remains independently unresolved")
         if self.generic_scalp_blocked:
-            raise ValueError("H4 binding cannot block independent H1/M15/M1 Scalping route")
+            raise ValueError("H4 work cannot block independent H1/M15/M1 Scalping")
         if self.fresh_holdout_authorized or self.economics_authorized:
             raise ValueError("H4 binding ledger grants no Fresh/economic authority")
 
