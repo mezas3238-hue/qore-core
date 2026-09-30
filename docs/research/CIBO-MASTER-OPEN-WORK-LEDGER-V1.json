@@ -761,7 +761,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "RESEARCH_OVERLAY_ENGINE_CI_GREEN_POLICY_SEMANTICS_PREREGISTERED_CAUSAL_VALUE_OPEN",
+      "current_maturity": "RESEARCH_OVERLAY_ENGINE_CI_GREEN_POLICY_SEMANTICS_FROZEN_NONCOMPENSATORY_NUMERIC_GATE_IMPLEMENTED_CI_PENDING_REAL_CALIBRATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md",
@@ -772,13 +772,18 @@
         "src/qore/infrastructure/cibo_capital_source_ledger.py",
         "github-actions://36727848187/SUCCESS",
         "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
-        "docs/research/CIBO-PROTECTED-BASE-POLICY-BEHAVIOR-PREREGISTRATION-V1.md"
+        "docs/research/CIBO-PROTECTED-BASE-POLICY-BEHAVIOR-PREREGISTRATION-V1.md",
+        "src/qore/infrastructure/cibo_protected_base_policy_gate.py",
+        "tests/infrastructure/test_cibo_protected_base_policy_gate.py",
+        "docs/research/CIBO-PROTECTED-BASE-NONCOMPENSATORY-NUMERIC-POLICY-GATE-V1.md"
       ],
       "blockers": [
-        "PROTECTED_BASE_NUMERIC_POLICY_CALIBRATION_AND_CAUSAL_VALUE_NOT_YET_PROVEN",
+        "PROTECTED_BASE_NUMERIC_CANDIDATE_NOT_YET_FROZEN_ON_REAL_PROVIDER_VALID_POPULATION",
+        "PROTECTED_BASE_CAUSAL_VALUE_NOT_YET_PROVEN",
+        "FRESH_OOS_STRESS_AND_4_OF_4_TEMPORAL_REPLICATION_REQUIRED",
         "PROTECTED_BASE_REMAINS_RESEARCH_ONLY_AND_MUST_NOT_RETROACTIVELY_CHANGE_V3"
       ],
-      "next_gate": "Freeze a new numeric protected-base candidate before outcome use, then prove chronological/OOS/stress/4-fold value without changing frozen V3 or treating accounting protection as provider guarantee."
+      "next_gate": "Require the updated Protected Base workflow to pass; then freeze one or more numeric candidates before outcome use on the real provider-valid population, apply the non-compensatory gate, stress and WF1..WF4 replication without mutating frozen V3."
     },
     {
       "id": "PROFIT_PROTECTION",
