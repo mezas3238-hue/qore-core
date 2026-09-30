@@ -39,6 +39,9 @@ from qore.infrastructure.cibo_crossboundary_evidence_receipt import (
     CiboCrossBoundaryEvidenceReceipt,
     require_cross_boundary_receipts,
 )
+from qore.infrastructure.cibo_instrument_capability_registry import (
+    ProviderInstrumentCapabilityRegistry,
+)
 from qore.infrastructure.cibo_receipt_bound_calibration_freeze import (
     build_receipt_bound_calibration_freeze,
 )
@@ -64,6 +67,7 @@ def evaluate_receipt_bound_pre_holdout_readiness(
     calibration_receipts: tuple[CiboCrossBoundaryEvidenceReceipt, ...],
     forward_manifest: ArchBForwardEconomicManifest,
     executed_risk_book: VersionedPhase20ExecutedRiskBook,
+    provider_capability_registry: ProviderInstrumentCapabilityRegistry,
 ) -> CiboPreHoldoutReadiness:
     """Rebuild every readiness-critical provider object before evaluating."""
 
@@ -74,6 +78,13 @@ def evaluate_receipt_bound_pre_holdout_readiness(
     if not isinstance(executed_risk_book, VersionedPhase20ExecutedRiskBook):
         raise CiboCapitalManagementError(
             "receipt-bound pre-holdout executed-risk book is invalid"
+        )
+    if not isinstance(
+        provider_capability_registry,
+        ProviderInstrumentCapabilityRegistry,
+    ):
+        raise CiboCapitalManagementError(
+            "receipt-bound pre-holdout capability registry is invalid"
         )
 
     by_id = require_cross_boundary_receipts(
@@ -158,6 +169,10 @@ def evaluate_receipt_bound_pre_holdout_readiness(
             execution_calibration=execution_calibration,
         )
     )
+    if provider_capability_registry.captured_at > provider_receipt.observed_at:
+        raise CiboCapitalManagementError(
+            "receipt-bound pre-holdout capability registry postdates provider freeze"
+        )
     provider_fingerprint = provider_economics_freeze.fingerprint()
     if (
         provider_payload.get("provider_economics_freeze_sha256")
@@ -176,6 +191,8 @@ def evaluate_receipt_bound_pre_holdout_readiness(
         receipts=calibration_receipts,
         integrated_git_sha=integrated_git_sha,
         policy_identity_sha256=policy_identity_sha256,
+        provider_capability_registry=provider_capability_registry,
+        capability_at=provider_capability_registry.captured_at,
     )
     if any(
         len(tool.evidence_refs) != 2
