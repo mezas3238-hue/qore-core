@@ -140,3 +140,23 @@ The adapter accepts only exact V3, post-freeze, FORWARD_OBSERVED, provider-valid
 records with all four canonical Phase20D temporal folds and immutable provider/Risk/CMA/
 settlement/release hashes. B does not need to edit the adapter; it only needs to
 supply evidence conforming to the contract.
+
+
+## Architect B CI blocker observed from A branch
+
+A branch revalidation at `1fee6dbd4612df9b408b1af2b62b764371c5e97e`
+observed B-owned workflow run:
+
+`github-actions://36757582130/FAILURE`
+
+Workflow:
+
+`QORE CIBO Legacy Stack Quarantine`
+
+Failure is an import-path defect in the B-owned quarantine test:
+
+`ModuleNotFoundError: No module named 'scripts'`
+
+A does not modify the legacy-quarantine implementation or its test. Architect B
+must resolve this on the B boundary and return GREEN evidence before final A+B
+integration. This observation does not alter A scientific dispositions.
