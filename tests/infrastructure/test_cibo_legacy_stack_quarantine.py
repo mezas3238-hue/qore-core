@@ -8,7 +8,7 @@ def test_legacy_stack_is_quarantined_from_current_runtime() -> None:
 
     assert report["schema"] == "CIBO_LEGACY_STACK_QUARANTINE_V1"
     assert report["legacy_module_count"] > 0
-    assert report["productive_runtime_import_detected"] is False
+    assert report["productive_runtime_import_detected"] is False, report["forbidden_external_edges"]
     assert report["forbidden_external_edges"] == []
     assert report["legacy_productive_authority"] is False
     assert report["pass"] is True
