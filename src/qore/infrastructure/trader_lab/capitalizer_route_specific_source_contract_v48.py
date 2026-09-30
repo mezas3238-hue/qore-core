@@ -74,7 +74,6 @@ CONTRACTS: tuple[V48RouteContract, ...] = (
             "HTF_FRACTAL_BIAS_CONFIRMED",
             "H4_C2_CONFIRMATION",
             "M15_PROTECTED_SWING_CONFIRMED_BY_CISD",
-            "M15_CONTINUATION_AVAILABLE",
             "STRUCTURAL_TARGET_AVAILABLE",
         ),
     ),
