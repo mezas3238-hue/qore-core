@@ -1,0 +1,188 @@
+name: QORE Shared B Global Data Health Expansion
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b_global_data_health.py
+      - tests/infrastructure/test_shared_b_global_data_health.py
+      - .github/workflows/qore-shared-b-global-data-health.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-global-data-health-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  X15_X16_RUN_ID: "36731386099"
+  X15_X16_ARTIFACT_ID: "11105029411"
+  X15_X16_GIT_SHA: "0e2130194d7e7cb644ae3fe60eda2ccd8bc7e52d"
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate additive global data-health layer
+        run: |
+          set -euo pipefail
+          ruff check             src/qore/infrastructure/core_stack_v2/shared_b_global_data_health.py             tests/infrastructure/test_shared_b_global_data_health.py
+          mypy src/qore/infrastructure/core_stack_v2/shared_b_global_data_health.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/shared_b_global_data_health.py
+          pytest -q tests/infrastructure/test_shared_b_global_data_health.py
+
+  evidence:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e .
+
+      - name: Verify exact replicated X15/X16 upstream
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${X15_X16_RUN_ID}" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${X15_X16_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${X15_X16_RUN_ID}" --jq '.head_sha')" = "$X15_X16_GIT_SHA"
+
+      - name: Recover replicated real-data evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${X15_X16_ARTIFACT_ID}/zip" > x15x16.zip
+          unzip -q x15x16.zip -d input
+          (cd input && sha256sum -c SHA256SUMS)
+          test "$(cat input/code-git-sha.txt)" = "$X15_X16_GIT_SHA"
+          test -f input/x15-x16-replicated-data-health.json
+
+      - name: Verify inherited real-data safety proof
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("input/x15-x16-replicated-data-health.json").read_text())
+          assert p["identity"] == "QORE_SHARED_X15_X16_REPLICATED_DATA_HEALTH_001"
+          assert p["status"] == "COMPLETED_AND_PROVEN_REPLICATED_REAL_DATA"
+          assert p["all_pass"] is True
+          proof=p["proof"]
+          assert proof["real_data_bound"] is True
+          assert proof["causal_replay_executed"] is True
+          assert proof["fault_injection_stress"] is True
+          assert proof["temporal_replication_r8_r6_r5"] is True
+          assert proof["market_closed_distinguished_from_feed_failure"] is True
+          assert proof["future_evidence_fails_closed"] is True
+          assert proof["duplicate_fails_closed"] is True
+          assert proof["out_of_order_fails_closed"] is True
+          assert proof["identity_ambiguity_fails_closed"] is True
+          assert proof["roll_ambiguity_fails_closed"] is True
+          assert proof["provider_anomaly_fails_closed"] is True
+          assert p["governance"]["protected_certification_holdout_opened"] is False
+          assert p["governance"]["productive_authority"] is False
+          PY
+
+      - name: Build B global degraded-mode evidence pack
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          upstream_path=Path("input/x15-x16-replicated-data-health.json")
+          upstream=json.loads(upstream_path.read_text())
+          samples=sum(
+              int(row["sample_count"])
+              for rows in upstream["partitions"].values()
+              for row in rows.values()
+          )
+          pack={
+              "identity":"SHARED_B_GLOBAL_DATA_HEALTH_EXPANSION_001",
+              "status":"REAL_REPLICATED_BASELINE_PRESERVED_GLOBAL_DEGRADED_MODE_CONTRACT_PASS",
+              "git_sha":os.environ["GITHUB_SHA"],
+              "workflow_run_id":int(os.environ["GITHUB_RUN_ID"]),
+              "upstream_run_id":int(os.environ["X15_X16_RUN_ID"]),
+              "upstream_artifact_id":int(os.environ["X15_X16_ARTIFACT_ID"]),
+              "upstream_git_sha":os.environ["X15_X16_GIT_SHA"],
+              "upstream_evidence_sha256":hashlib.sha256(upstream_path.read_bytes()).hexdigest(),
+              "real_replicated_sample_count":samples,
+              "real_replicated_partitions":["r8","r6","r5"],
+              "real_replicated_markets":["NAS100","SP500","US30"],
+              "preserved_proven_capabilities":{
+                  "market_closed_distinct_from_feed_failure":True,
+                  "future_evidence_fail_closed":True,
+                  "duplicate_fail_closed":True,
+                  "out_of_order_fail_closed":True,
+                  "identity_ambiguity_fail_closed":True,
+                  "roll_ambiguity_fail_closed":True,
+                  "provider_anomaly_fail_closed":True,
+              },
+              "new_additive_contract_capabilities":{
+                  "provider_unavailable_distinct":True,
+                  "feed_unavailable_distinct":True,
+                  "provider_degraded_distinct":True,
+                  "partial_degradation_distinct":True,
+                  "crossed_quote_fail_closed":True,
+                  "impossible_value_fail_closed":True,
+                  "unknown_market_state_fail_closed":True,
+                  "stale_relation_blocks_relational_claim_only":True,
+              },
+              "new_additive_capabilities_real_cross_asset_replication_complete":False,
+              "reason_not_claimed_complete":"This gate proves additive contract behavior while preserving the 9000-sample replicated X15/X16 baseline; dedicated cross-asset real-source replication remains a separate B blocker.",
+              "target_or_outcome_read":False,
+              "r6_r5_reused_only_as_preexisting_sealed_safety_evidence":True,
+              "fresh_holdout_opened":False,
+              "broker_mutation":False,
+              "productive_authority":False,
+              "execution_authority":False,
+              "risk_authority":False,
+              "sizing_authority":False,
+              "capital_authority":False,
+          }
+          Path("result/shared-b-global-data-health-expansion.json").write_text(
+              json.dumps(pack,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+
+      - name: Seal B data-health evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload B global data-health evidence
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-global-data-health-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report B-09 contract disposition
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-09 data-health expansion: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Preserved replicated X15/X16 real-data proof (9000 samples) and added fail-closed provider unavailable/feed unavailable/partial degradation/crossed quote/impossible value/unknown market state/stale relation semantics. Dedicated real cross-asset replication of the new additive states remains OPEN; no fresh holdout or productive authority."
