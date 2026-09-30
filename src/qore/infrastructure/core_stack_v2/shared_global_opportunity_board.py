@@ -8,9 +8,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from collections.abc import Iterable
 
 from qore.infrastructure.core_stack_v2.shared_global_opportunity_trajectory_v2 import (
     SharedOpportunityMechanism,
