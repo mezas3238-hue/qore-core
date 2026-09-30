@@ -2,10 +2,11 @@ from qore.infrastructure.trader_lab.capitalizer_historical_specification_lineage
     DECISIONS,
     V48_HISTORICAL_SPECIFICATION_LINEAGE,
     V48HistoricalAuthority,
+    V48HistoricalDecision,
 )
 
 
-def _decision(decision_id: str):
+def _decision(decision_id: str) -> V48HistoricalDecision:
     return next(item for item in DECISIONS if item.decision_id == decision_id)
 
 
