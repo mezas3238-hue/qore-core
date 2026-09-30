@@ -113,7 +113,10 @@ ROUTES: tuple[V48HumanDecisionRoute, ...] = (
                 V48RouteStageRole.STRUCTURE,
                 "HTF+LTF",
                 True,
-                "Valid fractal framework and protected swing already exist before the new candle.",
+                (
+                    "Valid HTF Candle-2/3 framework, lower-timeframe CISD and protected swing "
+                    "already exist before the new candle."
+                ),
             ),
             V48RouteStage(
                 "ASIA_POSITIONAL_OPEN",
@@ -150,9 +153,9 @@ ROUTES: tuple[V48HumanDecisionRoute, ...] = (
             V48RouteStage(
                 "ASIA_DAILY_BIAS",
                 V48RouteStageRole.NARRATIVE,
-                "DAILY",
+                "DAILY/HTF",
                 True,
-                "Daily/HTF expansion reason is established.",
+                "Higher-timeframe fractal bias/reason for expansion is established.",
             ),
             V48RouteStage(
                 "ASIA_4H_C2_CONFIRMATION",
@@ -163,10 +166,17 @@ ROUTES: tuple[V48HumanDecisionRoute, ...] = (
             ),
             V48RouteStage(
                 "ASIA_15M_CISD_PROTECTED_SWING",
+                V48RouteStageRole.STRUCTURE,
+                "15M",
+                True,
+                "15M intra-candle CISD confirms a new protected swing.",
+            ),
+            V48RouteStage(
+                "ASIA_15M_CONTINUATION",
                 V48RouteStageRole.EXECUTION,
                 "15M",
                 True,
-                "15M intra-candle delivery shift and protected swing provide execution.",
+                "Execute only after continuation aligns with the confirmed HTF/4H thesis.",
             ),
             V48RouteStage(
                 "ASIA_15M_PROTECTED_SWING_STOP",
@@ -189,8 +199,8 @@ ROUTES: tuple[V48HumanDecisionRoute, ...] = (
         session=V48Session.LONDON,
         source_url="https://ttrades.com/how-to-trade-london-using-ttrades-fractal-model/",
         thesis=(
-            "Establish daily bias, let the daily/4H wick form, then use 15M CISD/protected "
-            "swing confirmation to trade the body/expansion."
+            "Establish daily bias, let the daily and 4H wick form, then use 15M CISD/protected "
+            "swing confirmation and continuation to trade the body/expansion."
         ),
         stages=(
             V48RouteStage(
@@ -201,18 +211,32 @@ ROUTES: tuple[V48HumanDecisionRoute, ...] = (
                 "Daily bias/narrative precedes lower-timeframe execution.",
             ),
             V48RouteStage(
+                "LONDON_DAILY_WICK",
+                V48RouteStageRole.STRUCTURE,
+                "DAILY",
+                True,
+                "Allow the daily wick to form before trading the expected daily body.",
+            ),
+            V48RouteStage(
                 "LONDON_4H_WICK_SWING",
                 V48RouteStageRole.STRUCTURE,
                 "4H",
                 True,
-                "4H wick/swing structure defines the expansion layer.",
+                "4H wick/swing structure defines the next expansion layer.",
             ),
             V48RouteStage(
                 "LONDON_15M_CISD_PROTECTED_SWING",
+                V48RouteStageRole.STRUCTURE,
+                "15M",
+                True,
+                "15M CISD confirms the protected swing.",
+            ),
+            V48RouteStage(
+                "LONDON_15M_CONTINUATION",
                 V48RouteStageRole.EXECUTION,
                 "15M",
                 True,
-                "15M CISD confirms the protected swing and continuation.",
+                "Continuation aligned with daily and 4H provides the entry.",
             ),
             V48RouteStage(
                 "LONDON_PROTECTED_SWING_STOP",
@@ -328,18 +352,22 @@ ROUTES: tuple[V48HumanDecisionRoute, ...] = (
                 "M15 forms the swing/wick structure aligned with H1.",
             ),
             V48RouteStage(
-                "SCALP_M1_EXECUTION",
+                "SCALP_M1_CONTINUATION",
                 V48RouteStageRole.EXECUTION,
                 "M1",
                 True,
-                "M1 executes; it does not create a new independent narrative.",
+                (
+                    "M1 confirms an executable continuation of the pre-existing thesis. FVG "
+                    "interaction, CISD and protected-swing formation are source examples of "
+                    "continuation behavior, not individually frozen sufficient conditions."
+                ),
             ),
             V48RouteStage(
                 "SCALP_PROTECTED_SWING_STOP",
                 V48RouteStageRole.INVALIDATION,
                 "STRUCTURAL",
                 True,
-                "Logical protected swing anchors the stop.",
+                "A logical route-valid protected swing anchors the stop.",
             ),
             V48RouteStage(
                 "SCALP_HTF_OBJECTIVE",
@@ -348,11 +376,6 @@ ROUTES: tuple[V48HumanDecisionRoute, ...] = (
                 True,
                 "Target is based on higher-timeframe objectives.",
             ),
-        ),
-        execution_alternatives=(
-            V48ExecutionAlternative("SCALP_M1_FVG_INTERACTION", "M1 FVG interaction."),
-            V48ExecutionAlternative("SCALP_M1_CISD", "M1 change in state of delivery."),
-            V48ExecutionAlternative("SCALP_M1_PROTECTED_SWING", "M1 protected-swing formation."),
         ),
         session_binding_explicit=False,
     ),
