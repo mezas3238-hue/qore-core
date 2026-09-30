@@ -23,6 +23,7 @@ from typing import Any
 
 LEDGER_PATH = Path("docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json")
 OUTPUT_PATH = Path("artifacts/cibo_zero_open_work_gate_v1.json")
+PRE_EXAM_OUTPUT_PATH = Path("artifacts/cibo_zero_open_work_gate_pre_exam_v1.json")
 
 _SCHEMA = "QORE_CIBO_MASTER_OPEN_WORK_LEDGER_V1"
 _GATE_SCHEMA = "QORE_CIBO_ZERO_OPEN_WORK_GATE_V1"
@@ -35,6 +36,8 @@ _TERMINAL = frozenset(
         "EXTERNAL_DEPENDENCY_BLOCKED",
     }
 )
+
+_PRE_EXAM_EXCLUDED_WORKSTREAM_IDS = frozenset({"FINAL_INTEGRATED_CIBO_EXAM"})
 
 _REQUIRED_CANONICAL_ARTIFACTS = (
     "docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md",
@@ -75,6 +78,11 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*CMA-COMPOUND-AUTHORITY-BOUNDARY*", "CMA_FOUNDATION_INTEGRATION"),
     ("*cibo_legacy_stack_quarantine*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
     ("*legacy-stack-quarantine*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
+    ("*cibo_compound_causal_ablation*", "CAPITAL_AMPLIFICATION"),
+    ("*compound-causal-ablation*", "CAPITAL_AMPLIFICATION"),
+    ("*cibo_as_is_economic_baseline*", "AS_IS_ECONOMIC_BASELINE"),
+    ("*cibo_expansion_utility_gate*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
+    ("*cibo_t14_t15_utility_gate*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
     ("*cibo_compound_temporal_replication*", "TEMPORAL_REPLICATION"),
     ("*COMPOUND-TEMPORAL-REPLICATION*", "TEMPORAL_REPLICATION"),
     ("*cibo_compound_adversarial_stress*", "ADVERSARIAL_STRESS"),
@@ -82,12 +90,14 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_genc9_economic_gate*", "GEN-C9"),
     ("*GEN-C9-NONCOMPENSATORY-ECONOMIC-GATE*", "GEN-C9"),
     ("*cibo_compound_path_monte_carlo*", "PATH_DEPENDENT_MONTE_CARLO"),
+    ("*cibo_compound_real_population_binding*", "PATH_DEPENDENT_MONTE_CARLO"),
     ("*cibo_governed_capital_science*", "GEN-C14"),
     ("*genc14-autonomous-capital-science*", "GEN-C14"),
     ("*GEN-C14-GOVERNED-AUTONOMOUS-CAPITAL-SCIENCE*", "GEN-C14"),
     ("*cibo_meta_capital_memory*", "GEN-C13"),
     ("*genc13-meta-capital-memory*", "GEN-C13"),
     ("*GEN-C13-META-CAPITAL-MEMORY*", "GEN-C13"),
+    ("*cibo_genc12_economic_gate*", "GEN-C12"),
     ("*cibo_crisis_capital_intelligence*", "GEN-C12"),
     ("*genc12-crisis-capital*", "GEN-C12"),
     ("*GEN-C12-CRISIS-CAPITAL-INTELLIGENCE*", "GEN-C12"),
@@ -95,6 +105,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*genc11-multi-period-mpc*", "GEN-C11"),
     ("*GEN-C11-ROBUST-MULTI-PERIOD-MPC*", "GEN-C11"),
     ("*cibo_capital_digital_twin*", "GEN-C10"),
+    ("*cibo_genc10_transition_uncertainty_calibration*", "GEN-C10"),
     ("*genc10-capital-digital-twin*", "GEN-C10"),
     ("*GEN-C10-CAPITAL-DIGITAL-TWIN*", "GEN-C10"),
     ("*cibo_robust_growth_ruin_capacity*", "GEN-C9"),
@@ -105,6 +116,8 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_integrated_capital_transaction_store*", "INTEGRATED_CAPITAL_TRUTH"),
     ("*cibo_compound_funding_coordination*", "INTEGRATED_CAPITAL_TRUTH"),
     ("*cibo_integrated_capital_truth*", "INTEGRATED_CAPITAL_TRUTH"),
+    ("*cibo_protected_base_policy_gate*", "PROTECTED_BASE_CAPITAL"),
+    ("*PROTECTED-BASE-NONCOMPENSATORY*", "PROTECTED_BASE_CAPITAL"),
     ("*cibo_protected_base_overlay*", "PROTECTED_BASE_CAPITAL"),
     ("*protected-base-overlay*", "PROTECTED_BASE_CAPITAL"),
     ("tests/infrastructure/test_cibo/*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
@@ -123,6 +136,8 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_trader_opportunity_adapter*", "CAPITAL_AMPLIFICATION"),
     ("*cibo_direct_trader_opportunities*", "CAPITAL_AMPLIFICATION"),
     ("*cibo_ce2i_sizing_reconstruction_report*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
+    ("*cibo_final_integrated_exam*", "FINAL_INTEGRATED_CIBO_EXAM"),
+    ("*final-integrated-exam*", "FINAL_INTEGRATED_CIBO_EXAM"),
     ("*cibo_final_certification_contract*", "SOURCE_OF_TRUTH_RECONCILIATION"),
     ("*phase18*", "HISTORICAL_PHASE18_REPLAY_EVIDENCE"),
     ("*phase19*", "BURNED_PHASE19_RESEARCH_EVIDENCE"),
@@ -161,7 +176,9 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*zero_open_work*", "ZERO_OPEN_WORK_GATE"),
     ("*generation_current_control*", "AS_IS_CONTROL"),
     ("*adaptive_compound_speed*", "GEN-C8"),
+    ("*GEN-C8-ADAPTIVE-COMPOUND-SPEED*", "GEN-C8"),
     ("*profit_preservation*", "GEN-C7"),
+    ("*GEN-C7-PROFIT-PRESERVATION*", "GEN-C7"),
     ("*internal_capital_market*", "INTERNAL_CAPITAL_MARKET"),
     ("*sequential_compounding*", "GEN-C5"),
     ("*marginal_capital_utility*", "GEN-C4"),
@@ -216,6 +233,7 @@ class CiboZeroOpenWorkGateError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class GateVerdict:
+    scope: str
     passed: bool
     mandatory_workstream_count: int
     terminal_workstream_count: int
@@ -231,6 +249,7 @@ class GateVerdict:
     def as_dict(self) -> dict[str, Any]:
         return {
             "schema": _GATE_SCHEMA,
+            "scope": self.scope,
             "pass": self.passed,
             "mandatory_workstream_count": self.mandatory_workstream_count,
             "terminal_workstream_count": self.terminal_workstream_count,
@@ -272,6 +291,64 @@ def _load_ledger(path: Path = LEDGER_PATH) -> dict[str, Any]:
             "CIBO closure ledger requires workstreams"
         )
     return raw
+
+
+def _validate_current_summary(
+    raw: dict[str, Any],
+    *,
+    mandatory_count: int,
+    terminal_count: int,
+) -> dict[str, Any]:
+    summary = raw.get("current_summary")
+    if not isinstance(summary, dict):
+        raise CiboZeroOpenWorkGateError(
+            "CIBO closure ledger current_summary is required"
+        )
+    required = (
+        "mandatory_count",
+        "terminal_count",
+        "open_count",
+        "zero_open_work_pass",
+        "final_certification_candidate",
+    )
+    missing = tuple(key for key in required if key not in summary)
+    if missing:
+        raise CiboZeroOpenWorkGateError(
+            f"CIBO current_summary missing fields: {missing}"
+        )
+    expected_open = mandatory_count - terminal_count
+    expected = {
+        "mandatory_count": mandatory_count,
+        "terminal_count": terminal_count,
+        "open_count": expected_open,
+    }
+    for key, value in expected.items():
+        actual = summary[key]
+        if (
+            not isinstance(actual, int)
+            or isinstance(actual, bool)
+            or actual != value
+        ):
+            raise CiboZeroOpenWorkGateError(
+                f"CIBO current_summary {key} drift"
+            )
+    for key in (
+        "zero_open_work_pass",
+        "final_certification_candidate",
+    ):
+        if type(summary[key]) is not bool:
+            raise CiboZeroOpenWorkGateError(
+                f"CIBO current_summary {key} must be bool"
+            )
+    if summary["zero_open_work_pass"] != (expected_open == 0):
+        raise CiboZeroOpenWorkGateError(
+            "CIBO current_summary zero-open verdict drift"
+        )
+    if summary["final_certification_candidate"] and expected_open != 0:
+        raise CiboZeroOpenWorkGateError(
+            "CIBO final-certification candidate cannot retain open work"
+        )
+    return summary
 
 
 def _validate_workstream(row: object) -> dict[str, Any]:
@@ -438,6 +515,8 @@ def evaluate_gate(
     *,
     repo_root: Path = Path("."),
     ledger_path: Path = LEDGER_PATH,
+    excluded_mandatory_ids: frozenset[str] = frozenset(),
+    scope: str = "STRICT",
 ) -> GateVerdict:
     raw = _load_ledger(ledger_path)
     rows = tuple(_validate_workstream(row) for row in raw["workstreams"])
@@ -447,7 +526,19 @@ def evaluate_gate(
             "CIBO closure ledger contains duplicate workstream ids"
         )
 
-    mandatory = tuple(row for row in rows if row["mandatory"])
+    all_mandatory = tuple(row for row in rows if row["mandatory"])
+    unknown_exclusions = excluded_mandatory_ids - frozenset(ids)
+    if unknown_exclusions:
+        raise CiboZeroOpenWorkGateError(
+            f"CIBO zero-open scope excludes unknown ids: {sorted(unknown_exclusions)}"
+        )
+    if scope not in {"STRICT", "PRE_EXAM"}:
+        raise CiboZeroOpenWorkGateError("CIBO zero-open scope is invalid")
+    mandatory = tuple(
+        row
+        for row in all_mandatory
+        if str(row["id"]) not in excluded_mandatory_ids
+    )
     open_ids: list[str] = []
     blocking_external: list[str] = []
     reasons: list[str] = []
@@ -461,6 +552,12 @@ def evaluate_gate(
             open_ids.append(str(row["id"]))
             continue
 
+        evidence_refs = tuple(str(item) for item in row["evidence_refs"])
+        if not evidence_refs:
+            raise CiboZeroOpenWorkGateError(
+                "terminal workstream requires evidence references"
+            )
+
         if disposition == "EXTERNAL_DEPENDENCY_BLOCKED":
             if bool(row["certification_blocking"]):
                 blocking_external.append(str(row["id"]))
@@ -468,16 +565,26 @@ def evaluate_gate(
                 raise CiboZeroOpenWorkGateError(
                     "external-dependency disposition requires blocker evidence"
                 )
+            continue
 
-        if disposition == "COMPLETED_AND_PROVEN":
-            if any(marker in maturity for marker in _LEDGER_OPEN_STATE_MARKERS):
-                raise CiboZeroOpenWorkGateError(
-                    "completed workstream cannot retain open maturity marker"
-                )
-            if blockers:
-                raise CiboZeroOpenWorkGateError(
-                    "completed workstream cannot retain blockers"
-                )
+        if blockers:
+            raise CiboZeroOpenWorkGateError(
+                "closed terminal workstream cannot retain blockers"
+            )
+        if any(marker in maturity for marker in _LEDGER_OPEN_STATE_MARKERS):
+            raise CiboZeroOpenWorkGateError(
+                "closed terminal workstream cannot retain open maturity marker"
+            )
+
+    summary = _validate_current_summary(
+        raw,
+        mandatory_count=len(all_mandatory),
+        terminal_count=sum(
+            1
+            for row in all_mandatory
+            if row["terminal_disposition"] is not None
+        ),
+    )
 
     missing_artifacts = tuple(
         path
@@ -509,7 +616,12 @@ def evaluate_gate(
         or marker_hits
         or orphan_candidates
     )
+    if summary["final_certification_candidate"] and not passed:
+        raise CiboZeroOpenWorkGateError(
+            "CIBO final-certification candidate contradicts gate evidence"
+        )
     return GateVerdict(
+        scope=scope,
         passed=passed,
         mandatory_workstream_count=len(mandatory),
         terminal_workstream_count=sum(
@@ -528,9 +640,24 @@ def evaluate_gate(
     )
 
 
-def _write(verdict: GateVerdict) -> None:
-    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_PATH.write_text(
+def evaluate_pre_exam_gate(
+    *,
+    repo_root: Path = Path("."),
+    ledger_path: Path = LEDGER_PATH,
+) -> GateVerdict:
+    """Audit ordinary-certification closure before the final exam itself runs."""
+
+    return evaluate_gate(
+        repo_root=repo_root,
+        ledger_path=ledger_path,
+        excluded_mandatory_ids=_PRE_EXAM_EXCLUDED_WORKSTREAM_IDS,
+        scope="PRE_EXAM",
+    )
+
+
+def _write(verdict: GateVerdict, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
         json.dumps(verdict.as_dict(), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
@@ -543,9 +670,15 @@ def main() -> int:
         action="store_true",
         help="Exit non-zero when the zero-open-work gate does not pass.",
     )
+    parser.add_argument(
+        "--pre-exam",
+        action="store_true",
+        help="Exclude only FINAL_INTEGRATED_CIBO_EXAM from the closure scope.",
+    )
     args = parser.parse_args()
-    verdict = evaluate_gate()
-    _write(verdict)
+    verdict = evaluate_pre_exam_gate() if args.pre_exam else evaluate_gate()
+    output_path = PRE_EXAM_OUTPUT_PATH if args.pre_exam else OUTPUT_PATH
+    _write(verdict, output_path)
     print(json.dumps(verdict.as_dict(), sort_keys=True))
     if args.enforce_certification and not verdict.passed:
         return 2
