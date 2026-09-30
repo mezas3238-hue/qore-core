@@ -1,0 +1,66 @@
+name: QORE Shared A MC26 Cognitive Arbitration Foundation
+
+on:
+  push:
+    branches: [agent/shared-a-cognitive-science-001]
+    paths:
+      - src/qore/infrastructure/core_stack_v2/cognitive_arbitration.py
+      - tests/infrastructure/test_core_stack_v2_cognitive_arbitration.py
+      - scripts/shared_mc26_cognitive_arbitration_audit.py
+      - .github/workflows/qore-shared-a-mc26-cognitive-arbitration-foundation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Validate
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p result
+          ruff check src/qore/infrastructure/core_stack_v2/cognitive_arbitration.py tests/infrastructure/test_core_stack_v2_cognitive_arbitration.py scripts/shared_mc26_cognitive_arbitration_audit.py
+          mypy src/qore/infrastructure/core_stack_v2/cognitive_arbitration.py
+          pytest -q tests/infrastructure/test_core_stack_v2_cognitive_arbitration.py
+          python scripts/shared_mc26_cognitive_arbitration_audit.py | tee result/summary.json
+      - name: Bound disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc26-cognitive-arbitration-audit.json").read_text())
+          assert p["status"] == "MC26_COGNITIVE_ARBITRATION_FOUNDATION_PASS"
+          assert p["facet_count"] == 9
+          assert p["critical_negative_preserved"] is True
+          assert p["information_gap_preserved"] is True
+          assert p["trading_command"] is False
+          assert p["real_all-facet_runtime_binding_complete"] is False
+          assert p["mc26_completed_and_proven"] is False
+          PY
+      - name: Seal
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (cd result && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc26-cognitive-arbitration-${{ github.sha }}
+          path: result/
+          retention-days: 90
+      - name: Report
+        run: |
+          gh issue comment 638 --body "## Shared A MC-26 — Cognitive Arbitration foundation
+
+- nine required facets: **Present**
+- negative evidence preserved: **True**
+- information gaps preserved: **True**
+- downstream authority: **None**
+- real all-facet runtime binding complete: **False**
+- MC-26 completed-and-proven: **False**"
