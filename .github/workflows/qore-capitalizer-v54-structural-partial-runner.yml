@@ -15,8 +15,8 @@ permissions:
   actions: read
 
 concurrency:
-  group: qore-capitalizer-v54-runner-${{ github.ref }}
-  cancel-in-progress: true
+  group: qore-capitalizer-v54-runner-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
 
 env:
   SOURCE_M1_RUN_ID: '35548099334'
