@@ -38,7 +38,9 @@ def _states(paths: dict[str, Path], partition: str) -> tuple[MarketPhysicsState,
     return tuple(classify_market_physics_state(item[0]) for item in rows)
 
 
-def _counts(states: tuple[MarketPhysicsState, ...]) -> Counter[tuple[MarketPhysicsState, MarketPhysicsState]]:
+def _counts(
+    states: tuple[MarketPhysicsState, ...],
+) -> Counter[tuple[MarketPhysicsState, MarketPhysicsState]]:
     return Counter(zip(states, states[1:], strict=False))
 
 
