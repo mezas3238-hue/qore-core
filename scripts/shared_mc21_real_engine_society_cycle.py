@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -35,6 +37,30 @@ STI5_ARTIFACT_ID = 11066541040
 STI5_DIAGNOSTIC_RUN_ID = 36685175913
 STI5_DIAGNOSTIC_ARTIFACT_ID = 11082953096
 R6_SOURCE_ARTIFACT_ID = 10389112524
+
+
+@dataclass(frozen=True, slots=True)
+class _PerceptionBar:
+    opened_at: datetime
+    closed_at: datetime
+    open: Decimal
+    high: Decimal
+    low: Decimal
+    close: Decimal
+
+
+def _perception_bars(bars: tuple[Any, ...]) -> tuple[_PerceptionBar, ...]:
+    return tuple(
+        _PerceptionBar(
+            opened_at=source._parse_key(bar.opened_key),
+            closed_at=source._parse_key(bar.closed_key),
+            open=Decimal(str(bar.opened)),
+            high=Decimal(str(bar.high)),
+            low=Decimal(str(bar.low)),
+            close=Decimal(str(bar.close)),
+        )
+        for bar in bars
+    )
 
 
 def _find_sti5(root: Path) -> dict[str, Any]:
@@ -74,8 +100,10 @@ def _real_hypothesis_binding(paths: dict[str, Path]) -> dict[str, object]:
         us = pre["US30"]
         if len(nas) < 30 or len(sp) < 10 or len(us) < 10:
             continue
-        recent = nas[-10:]
-        prior = nas[-30:-10]
+        recent = _perception_bars(nas[-10:])
+        prior = _perception_bars(nas[-30:-10])
+        sp_recent = _perception_bars(sp[-10:])
+        us_recent = _perception_bars(us[-10:])
         low = min(Decimal(str(item.low)) for item in recent)
         high = max(Decimal(str(item.high)) for item in recent)
         width = high - low
@@ -89,8 +117,8 @@ def _real_hypothesis_binding(paths: dict[str, Path]) -> dict[str, object]:
             nas_recent=recent,
             nas_prior=prior,
             sweep_to_signal=recent,
-            sp500_recent=sp[-10:],
-            us30_recent=us[-10:],
+            sp500_recent=sp_recent,
+            us30_recent=us_recent,
         )
         first = evaluate_reversal_hypotheses(perception)
         second = evaluate_reversal_hypotheses(perception)

@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -41,6 +43,30 @@ from qore.infrastructure.core_stack_v2.uncertainty_decomposition_v2 import (
 IDENTITY = "QORE_SHARED_MC26_REAL_ALL_FACET_ARBITRATION_001"
 
 R6_SOURCE_ARTIFACT_ID = 10389112524
+
+
+@dataclass(frozen=True, slots=True)
+class _PerceptionBar:
+    opened_at: datetime
+    closed_at: datetime
+    open: Decimal
+    high: Decimal
+    low: Decimal
+    close: Decimal
+
+
+def _perception_bars(bars: tuple[Any, ...]) -> tuple[_PerceptionBar, ...]:
+    return tuple(
+        _PerceptionBar(
+            opened_at=source._parse_key(bar.opened_key),
+            closed_at=source._parse_key(bar.closed_key),
+            open=Decimal(str(bar.opened)),
+            high=Decimal(str(bar.high)),
+            low=Decimal(str(bar.low)),
+            close=Decimal(str(bar.close)),
+        )
+        for bar in bars
+    )
 MC15_RUN_ID = 36726927463
 MC15_ARTIFACT_ID = 11102652639
 MC18_RUN_ID = 36764204066
@@ -107,8 +133,10 @@ def _specialist_disagreement(pre: dict[str, tuple[Any, ...]], observation: Any) 
     us = pre["US30"]
     if len(nas) < 30 or len(sp) < 10 or len(us) < 10:
         return 0, 10_000
-    recent = nas[-10:]
-    prior = nas[-30:-10]
+    recent = _perception_bars(nas[-10:])
+    prior = _perception_bars(nas[-30:-10])
+    sp_recent = _perception_bars(sp[-10:])
+    us_recent = _perception_bars(us[-10:])
     low = min(Decimal(str(item.low)) for item in recent)
     high = max(Decimal(str(item.high)) for item in recent)
     width = high - low
@@ -122,8 +150,8 @@ def _specialist_disagreement(pre: dict[str, tuple[Any, ...]], observation: Any) 
         nas_recent=recent,
         nas_prior=prior,
         sweep_to_signal=recent,
-        sp500_recent=sp[-10:],
-        us30_recent=us[-10:],
+        sp500_recent=sp_recent,
+        us30_recent=us_recent,
     )
     ensemble = evaluate_reversal_hypotheses(vector)
     scores = sorted(
