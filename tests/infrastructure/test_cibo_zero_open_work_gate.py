@@ -1,11 +1,27 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
-import scripts.cibo_zero_open_work_gate as gate
+
+def _load_gate_module() -> ModuleType:
+    path = Path("scripts/cibo_zero_open_work_gate.py")
+    spec = importlib.util.spec_from_file_location(
+        "cibo_zero_open_work_gate",
+        path,
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("cannot load CIBO zero-open-work gate")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+gate = _load_gate_module()
 
 
 def _ledger(*, disposition: str | None, blocking: bool = True) -> dict:
