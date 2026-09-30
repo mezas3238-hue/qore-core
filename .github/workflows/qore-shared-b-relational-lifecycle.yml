@@ -1,0 +1,115 @@
+name: QORE Shared B Relational Lifecycle Foundation
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b_relation_lifecycle.py
+      - tests/infrastructure/test_shared_b_relation_lifecycle.py
+      - .github/workflows/qore-shared-b-relational-lifecycle.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-relational-lifecycle-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate relational lifecycle infrastructure
+        run: |
+          set -euo pipefail
+          ruff check             src/qore/infrastructure/core_stack_v2/shared_b_relation_lifecycle.py             tests/infrastructure/test_shared_b_relation_lifecycle.py             src/qore/infrastructure/core_stack_v2/global_market_relational_graph.py             tests/infrastructure/test_core_stack_v2_global_market_relational_graph.py
+          mypy src/qore/infrastructure/core_stack_v2/shared_b_relation_lifecycle.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/shared_b_relation_lifecycle.py
+          pytest -q             tests/infrastructure/test_shared_b_relation_lifecycle.py             tests/infrastructure/test_core_stack_v2_global_market_relational_graph.py
+
+      - name: Build architecture evidence
+        run: |
+          mkdir -p result
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          pack={
+              "identity":"SHARED_B_RELATIONAL_LIFECYCLE_FOUNDATION_001",
+              "status":"ARCHITECTURE_VALIDATED_EMPIRICAL_POPULATION_OPEN",
+              "git_sha":os.environ["GITHUB_SHA"],
+              "workflow_run_id":int(os.environ["GITHUB_RUN_ID"]),
+              "capabilities":{
+                  "relation_lifecycle_states":[
+                      "UNKNOWN","INSUFFICIENT","EMERGING","STABLE",
+                      "STRENGTHENING","WEAKENING","BREAKING","DECOUPLED"
+                  ],
+                  "lead_lag_states":[
+                      "UNKNOWN","INSUFFICIENT","ALIGNED_NO_LEADER",
+                      "SOURCE_LEADS","TARGET_LEADS","LEADER_REVERSAL"
+                  ],
+                  "point_in_time_evidence_cutoff":True,
+                  "comparability_required_for_metrics":True,
+                  "future_evidence_fail_closed":True,
+                  "hindsight_append_fail_closed":True,
+                  "relation_age_supported":True,
+                  "relationship_half_life_supported":True,
+                  "leader_reversal_supported":True,
+                  "provenance_required":True,
+              },
+              "causal_influence_claimed":False,
+              "predictive_value_claimed":False,
+              "scientific_admission_claimed":False,
+              "empirical_global_relation_population_complete":False,
+              "reason_empirical_population_open":"Canonical temporal comparability and family-level identity/calendar closure remain prerequisites before global relation population.",
+              "target_or_outcome_read":False,
+              "fresh_holdout_opened":False,
+              "productive_authority":False,
+              "execution_authority":False,
+              "risk_authority":False,
+              "sizing_authority":False,
+              "capital_authority":False,
+          }
+          raw=json.dumps(pack,sort_keys=True,separators=(",",":")).encode()
+          pack["evidence_fingerprint_sha256"]=hashlib.sha256(raw).hexdigest()
+          Path("result/shared-b-relational-lifecycle-foundation.json").write_text(
+              json.dumps(pack,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload lifecycle foundation
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-relational-lifecycle-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report B-10/B-11 foundation disposition
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-10/B-11 relational lifecycle foundation: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Lifecycle + lead/lag + leader reversal + relation age/half-life contracts pass fail-closed tests. This is architecture only: empirical global relation population remains OPEN until canonical temporal comparability is closed; no causal/predictive/productive authority claimed."
