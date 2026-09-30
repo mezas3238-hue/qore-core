@@ -72,7 +72,11 @@ def test_v4_vetoes_when_next_causal_state_recovers() -> None:
     current = _obs(3, close=5_000, efficiency=5_000)
     decision = decide_vt31_threat_response_v4(
         prior_observation=prior,
-        prior_assessment=_assessment(prior),
+        prior_assessment=replace(
+            _assessment(prior),
+            continuation_support_bps=3_000,
+            failure_hazard_bps=5_000,
+        ),
         previous_observation=previous,
         previous_assessment=_assessment(previous),
         observation=current,
@@ -93,7 +97,11 @@ def test_v4_acts_only_after_nonrecovery_confirmation() -> None:
     current = _obs(3, close=-4_000, efficiency=-5_000)
     decision = decide_vt31_threat_response_v4(
         prior_observation=prior,
-        prior_assessment=_assessment(prior),
+        prior_assessment=replace(
+            _assessment(prior),
+            continuation_support_bps=3_000,
+            failure_hazard_bps=5_000,
+        ),
         previous_observation=previous,
         previous_assessment=_assessment(previous),
         observation=current,
