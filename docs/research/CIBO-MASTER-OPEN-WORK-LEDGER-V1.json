@@ -530,52 +530,90 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "PARTIAL_INTEGRATION",
+      "current_maturity": "INTEGRATED_ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "END_TO_END_CAUSAL_COMPOUND_CYCLE_NOT_YET_PROVEN"
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_compound_cycle_state.py",
+        "src/qore/infrastructure/cibo_compound_market_cycle.py",
+        "src/qore/infrastructure/cibo_compound_cycle_audit.py",
+        "tests/infrastructure/test_cibo_compound_cycle_state.py",
+        "tests/infrastructure/test_cibo_compound_market_cycle.py",
+        ".github/workflows/cibo-compound-engine-integrated-cycle.yml"
       ],
-      "next_gate": "Execute realized-profit→classification→protection→reserve→compoundability→allocation→next-generation replay."
+      "blockers": [
+        "INTEGRATED_COMPOUND_CYCLE_CI_REVALIDATION_REQUIRED",
+        "REAL_CHRONOLOGICAL_POPULATION_REPLAY_REQUIRED",
+        "PATH_DEPENDENT_MONTE_CARLO_STRESS_OOS_REPLICATION_REQUIRED"
+      ],
+      "next_gate": "Pass integrated-cycle CI, then bind real chronological population and close scientific gates."
     },
     {
       "id": "COMPOUND_PORTFOLIO",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_FOUNDATION_IMPLEMENTED",
+      "current_maturity": "INTEGRATED_ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "ECONOMIC_PORTFOLIO_CYCLE_NOT_YET_PROVEN"
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_compound_cycle_state.py",
+        "src/qore/infrastructure/cibo_compound_market_cycle.py"
       ],
-      "next_gate": "Turn account-local portfolio from foundation into reconciled economic research unit."
+      "blockers": [
+        "INTEGRATED_COMPOUND_CYCLE_CI_REVALIDATION_REQUIRED",
+        "REAL_ECONOMIC_PORTFOLIO_REPLAY_REQUIRED",
+        "FRESH_OOS_STRESS_REPLICATION_REQUIRED"
+      ],
+      "next_gate": "Use the account-local Compound Portfolio in real chronological integrated replay and prove closure gates."
     },
     {
       "id": "INTERNAL_CAPITAL_MARKET",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
+      "current_maturity": "INTEGRATED_WITH_COMPOUND_CYCLE_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "COMPOUND_PORTFOLIO_CYCLE_AND_FRESH_SCARCITY_VALUE_NOT_YET_PROVEN"
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_compound_market_cycle.py"
       ],
-      "next_gate": "Close GEN-C6 as economic cycle, not isolated module."
+      "blockers": [
+        "INTEGRATED_COMPOUND_CYCLE_CI_REVALIDATION_REQUIRED",
+        "FRESH_TRUE_SCARCITY_ECONOMIC_VALUE_REQUIRED",
+        "STRESS_AND_TEMPORAL_REPLICATION_REQUIRED"
+      ],
+      "next_gate": "Pass integrated-cycle mechanics, then prove fresh scarcity value and non-compensatory stress/replication."
     },
     {
       "id": "CAPITAL_GENERATIONS",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_FOUNDATION_IMPLEMENTED",
+      "current_maturity": "GEN0_TO_GEN2_MECHANICS_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "FULL_PARENT_CHILD_GENERATION_REPLAY_AND_ATTRIBUTION_REQUIRED"
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_compound_cycle_audit.py"
       ],
-      "next_gate": "Prove GEN-0→GEN-N provenance through settlement/redeployment."
+      "blockers": [
+        "INTEGRATED_COMPOUND_CYCLE_CI_REVALIDATION_REQUIRED",
+        "MULTI_GENERATION_REAL_REPLAY_REQUIRED",
+        "FRESH_OOS_ATTRIBUTION_REQUIRED"
+      ],
+      "next_gate": "Prove GEN-0→GEN-N parent/child provenance over real chronological replay, not only test fixtures."
+    },
+    {
+      "id": "PROTECTED_BASE_CAPITAL",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "GAP_IDENTIFIED",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md"
+      ],
+      "blockers": [
+        "CANONICAL_PROTECTED_ORIGINAL_BASE_SEMANTICS_NOT_YET_IMPLEMENTED",
+        "PROTECTED_BASE_MUST_NOT_BE_CONFUSED_WITH_PROTECTED_PROFIT_OR_BROKER_GUARANTEE"
+      ],
+      "next_gate": "Define account-local protected-original-base accounting semantics, transitions and replay evidence without inventing broker guarantees."
     },
     {
       "id": "PROFIT_PROTECTION",
@@ -774,9 +812,9 @@
     }
   ],
   "current_summary": {
-    "mandatory_count": 54,
+    "mandatory_count": 55,
     "terminal_count": 1,
-    "open_count": 53,
+    "open_count": 54,
     "zero_open_work_pass": false,
     "final_certification_candidate": false
   }
