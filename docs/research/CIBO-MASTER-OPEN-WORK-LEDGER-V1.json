@@ -903,7 +903,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "GENC7_ENGINE_AND_CAUSAL_ECONOMIC_GATE_CHILD_CI_GREEN_FRESH_PROFIT_RETENTION_VALUE_OPEN",
+      "current_maturity": "GENC7_CAUSAL_GATE_GREEN_CHRONOLOGICAL_GIVEBACK_HISTORY_ENGINE_STAGED_CI_PENDING_FRESH_CAUSAL_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_profit_preservation_shadow.py",
@@ -913,12 +913,17 @@
         "github-actions://36727848202/SUCCESS",
         "src/qore/infrastructure/cibo_profit_preservation_economic_gate.py",
         "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
-        "github-actions://36760959025/SUCCESS"
+        "github-actions://36760959025/SUCCESS",
+        "src/qore/infrastructure/cibo_compound_path_history.py",
+        "tests/infrastructure/test_cibo_compound_path_history.py",
+        ".github/workflows/cibo-compound-path-history.yml"
       ],
       "blockers": [
-        "FRESH_OOS_PROFIT_RETENTION_AND_GIVEBACK_VALUE_REQUIRED"
+        "INTEGRATOR_COMPOUND_PATH_HISTORY_CI_REQUIRED",
+        "REAL_FORWARD_GIVEBACK_PATH_HISTORY_REQUIRED",
+        "FRESH_OOS_PROFIT_RETENTION_AND_GIVEBACK_CAUSAL_VALUE_REQUIRED"
       ],
-      "next_gate": "Use causally identified GEN-C7 control/treatment evidence to prove profit-retention/giveback value, then stress and replicate 4/4 before terminal Profit Protection closure."
+      "next_gate": "Pass path-history CI; bind the same fresh forward event stream to treatment/control evidence, then prove causal profit-retention/giveback value and replicate under stress/WF1..WF4."
     },
     {
       "id": "PROVIDER_ECONOMICS",
@@ -990,9 +995,13 @@
         "github-actions://36754064447/SUCCESS",
         "src/qore/infrastructure/cibo_arch_a_forward_compound_delivery.py",
         "tests/infrastructure/test_cibo_arch_a_forward_compound_delivery.py",
-        ".github/workflows/cibo-architect-a-forward-compound-delivery.yml"
+        ".github/workflows/cibo-architect-a-forward-compound-delivery.yml",
+        "src/qore/infrastructure/cibo_compound_path_history.py",
+        "tests/infrastructure/test_cibo_compound_path_history.py",
+        ".github/workflows/cibo-compound-path-history.yml"
       ],
       "blockers": [
+        "INTEGRATOR_COMPOUND_PATH_HISTORY_CI_REQUIRED",
         "INTEGRATOR_ARCH_A_FORWARD_COMPOUND_DELIVERY_CI_REQUIRED",
         "REAL_COMPOUND_EPISODE_POPULATION_AND_FLOOR_ATTRIBUTION_REQUIRED",
         "ADVERSARIAL_STRESS_AND_TEMPORAL_REPLICATION_REQUIRED"
@@ -1363,7 +1372,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "FORWARD_BINDING_PLUS_ARCH_A_CAPITAL_STATE_DELIVERY_STAGED_CI_PENDING_PATH_HISTORY_OPEN",
+      "current_maturity": "FORWARD_CAPITAL_DELIVERY_PLUS_CHRONOLOGICAL_PATH_HISTORY_ENGINE_STAGED_CI_PENDING_REAL_POPULATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_integrated_capital_truth.py",
@@ -1385,17 +1394,20 @@
         "src/qore/infrastructure/cibo_arch_a_capital_state_delivery.py",
         "tests/infrastructure/test_cibo_arch_a_capital_state_delivery.py",
         ".github/workflows/cibo-architect-a-capital-state-delivery.yml",
-        "docs/research/CIBO-INTEGRATOR-TO-ARCH-A-EVIDENCE-DELIVERY-V1.json"
+        "docs/research/CIBO-INTEGRATOR-TO-ARCH-A-EVIDENCE-DELIVERY-V1.json",
+        "src/qore/infrastructure/cibo_compound_path_history.py",
+        "tests/infrastructure/test_cibo_compound_path_history.py",
+        ".github/workflows/cibo-compound-path-history.yml"
       ],
       "blockers": [
         "INTEGRATOR_ARCH_A_CAPITAL_STATE_DELIVERY_CI_REQUIRED",
+        "INTEGRATOR_COMPOUND_PATH_HISTORY_CI_REQUIRED",
         "REAL_CHRONOLOGICAL_FORWARD_POPULATION_BINDING_REQUIRED",
-        "PATH_MINIMUM_CAPITAL_STATE_HISTORY_REQUIRED",
-        "PROTECTED_FLOOR_GRADUATION_PATH_EVIDENCE_REQUIRED",
-        "PROFIT_GIVEBACK_PATH_EVIDENCE_REQUIRED",
+        "REAL_FORWARD_COMPOUND_EVENT_STREAM_PATH_HISTORY_REQUIRED",
+        "PROTECTED_FLOOR_GRADUATION_CAUSAL_PATH_BINDING_REQUIRED",
         "ACCOUNT_SCOPED_FIVE_STORE_RECOVERY_CI_REVALIDATION_REQUIRED"
       ],
-      "next_gate": "Pass Architect-A capital-state delivery CI; bind real scientifically-ready forward settlements to exact Source Ledger/Compound deployment lineage; then materialize chronological path minima, protected-floor graduation and giveback histories without semantic substitution."
+      "next_gate": "Pass capital-state + path-history CI; materialize the real forward Compound event stream into canonical snapshots/minima/giveback; bind protected-floor graduation timing without using terminal state as path history."
     },
     {
       "id": "AS_IS_ECONOMIC_BASELINE",
