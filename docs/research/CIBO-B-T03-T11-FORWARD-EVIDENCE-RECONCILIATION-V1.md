@@ -47,3 +47,25 @@ are adequate. No synthetic slippage calibration is allowed.
 CI proves only that the evidence and fail-closed mechanics are executable and
 deterministic. Neither T03 nor T11 receives a terminal disposition from this
 reconciliation.
+
+
+## T11 linear execution-cost calibration coverage
+
+The provider-bound linear cost bridge is now explicitly CI-covered through:
+
+- `cibo_ce2i_t11_execution_cost_calibration.py`;
+- `test_cibo_ce2i_t11_execution_cost_calibration.py`;
+- `QORE CIBO B Provider Forward Tool Readiness`.
+
+The contract can become `linear_cost_model_ready=true` only after the
+Architect-B forward manifest and empirical provider execution calibration are
+ready with required-symbol coverage. That state still does **not** promote T11.
+
+The following remain independent mandatory blockers:
+
+- `T11_GROSS_EDGE_MODEL_NOT_IDENTIFIED`;
+- `T11_MARKET_IMPACT_MODEL_NOT_IDENTIFIED`;
+- `T11_HISTORICAL_2017_EXECUTION_TERMS_NOT_PROVEN`.
+
+No fixture, linear-cost readiness result, or current provider observation may
+be relabeled as a terminal T11 policy proof.
