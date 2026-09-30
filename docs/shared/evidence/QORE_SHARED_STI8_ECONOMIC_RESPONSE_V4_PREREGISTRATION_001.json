@@ -1,0 +1,76 @@
+{
+  "identity": "QORE_SHARED_STI8_ECONOMIC_RESPONSE_V4_PREREGISTRATION_001",
+  "workstream": "STI-8",
+  "generation": "ECONOMIC_RESPONSE_V4",
+  "status": "PREREGISTERED_AWAITING_FUTURE_OOS_MATURITY",
+  "parent_v3": {
+    "run_id": 36743402436,
+    "status": "STI8_RESPONSE_V3_RESEARCH_OOS_FALSIFIED",
+    "reopened": false,
+    "retuning_authorized": false
+  },
+  "failure_knowledge": {
+    "run_id": 36745783337,
+    "identity": "QORE_SHARED_STI8_V3_FAILURE_KNOWLEDGE_001",
+    "burned_datasets": [
+      "STI8_RESPONSE_V2_RESEARCH_OOS",
+      "STI8_RESPONSE_V3_RESEARCH_OOS"
+    ],
+    "burned_datasets_may_demonstrate_v4_value": false,
+    "selected_mechanism": "V4_ONE_STEP_RECOVERY_VETO",
+    "numeric_severity_candidate_selected": false
+  },
+  "scientific_hypothesis": {
+    "statement": "A V3-actionable threat should be acted on only after one additional causal observation shows that both local-failure and failure-hazard-over-continuation remain positive; recovery of either sign vetoes the intervention.",
+    "new_information_mechanism": "NEXT_CAUSAL_OBSERVATION_RECOVERY_OR_NONRECOVERY",
+    "uses_numeric_rescue_threshold": false,
+    "uses_outcome_at_decision": false
+  },
+  "trader_owned_response_rule": {
+    "step_1": "MATERIALIZE_V3_DECISION_AT_T_MINUS_1",
+    "step_2": "OBSERVE_NEXT_CAUSAL_SOURCE_STATE_AT_T",
+    "recovery_veto": "HOLD_IF_LOCAL_MARGIN_LTE_ZERO_OR_HAZARD_MARGIN_LTE_ZERO",
+    "otherwise": "EXIT_NEXT_M1_OPEN",
+    "same_initial_entry_stop_target": true,
+    "same_sizing": true,
+    "stop_mutation": false,
+    "target_mutation": false,
+    "shared_exit_authority": false,
+    "productive_authority": false
+  },
+  "future_research_oos": {
+    "earliest_opened_at_inclusive": "2026-09-29T00:00:00+00:00",
+    "must_be_temporally_disjoint_from_v3": true,
+    "minimum_methodology_valid_trade_count": 20,
+    "window_end": "NOT_YET_FROZEN_BECAUSE_EVIDENCE_NOT_MATURE",
+    "one_shot_open_before_value_evaluation": true,
+    "protected_certification_holdout": false
+  },
+  "economic_gates": {
+    "same_as_v3": true,
+    "treatment_total_r_gte_control": true,
+    "treatment_profit_factor_gt_control": true,
+    "treatment_max_dd_lt_control": true,
+    "treatment_p95_bootstrap_dd_lte_control": true,
+    "treatment_p99_bootstrap_dd_lte_control": true,
+    "loss_r_avoided_gt_zero": true,
+    "net_economic_utility_r_gt_zero": true,
+    "winner_count_retention_min": 0.98,
+    "winner_r_retention_min": 0.90,
+    "top_decile_winner_r_retention_min": 0.90,
+    "top_5pct_winner_r_retention_min": 0.90,
+    "positive_tail_r_retention_min": 0.90,
+    "all_gates_required": true
+  },
+  "governance": {
+    "future_oos_opened": false,
+    "protected_certification_holdout_opened": false,
+    "outcome_aware_retuning_authorized": false,
+    "threshold_rescue_authorized": false,
+    "live_authorized": false,
+    "production_authorized": false,
+    "real_capital_authorized": false,
+    "broker_mutation_authorized": false,
+    "productive_authority": false
+  }
+}
