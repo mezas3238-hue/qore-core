@@ -37,3 +37,17 @@ authority.
 
 Canonical B status/evidence package:
 `docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.json`.
+
+
+## Addendum — provider taxonomy and T11 calibration surfaces
+
+Please also classify the following B-owned surfaces deterministically:
+
+| Pattern / path | Workstream |
+|---|---|
+| `*cibo_ctrader_demo_instrument_taxonomy*` | `PROVIDER_ECONOMICS` |
+| `*cibo_ce2i_t11_execution_cost_calibration*` | `T11` |
+
+The same ownership applies to their tests, CI workflow coverage and associated
+closure documentation. This addendum changes inventory ownership only; it does
+not alter any scientific threshold or terminal disposition.
