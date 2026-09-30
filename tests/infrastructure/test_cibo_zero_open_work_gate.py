@@ -603,3 +603,47 @@ def test_integrator_resolves_architect_b_crossboundary_request_002() -> None:
     )
     assert tuple(item[1] for item in assignments) == expected
     assert orphans == ()
+
+
+def test_integrator_classifies_pre_holdout_chain_inventory() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py",
+        "src/qore/infrastructure/cibo_receipt_bound_calibration_freeze.py",
+        ".github/workflows/cibo-calibration-freeze-manifest.yml",
+        "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
+        "src/qore/infrastructure/cibo_receipt_bound_pre_holdout.py",
+        "tests/infrastructure/test_cibo_receipt_bound_pre_holdout.py",
+    )
+    ledger_ids = frozenset(
+        {
+            "FORWARD_QUALIFICATION",
+            "USD60_CAPABILITY_PROGRAM",
+        }
+    )
+
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    assert dict(assignments) == {
+        "src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py": (
+            "FORWARD_QUALIFICATION"
+        ),
+        "src/qore/infrastructure/cibo_receipt_bound_calibration_freeze.py": (
+            "FORWARD_QUALIFICATION"
+        ),
+        ".github/workflows/cibo-calibration-freeze-manifest.yml": (
+            "FORWARD_QUALIFICATION"
+        ),
+        "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py": (
+            "USD60_CAPABILITY_PROGRAM"
+        ),
+        "src/qore/infrastructure/cibo_receipt_bound_pre_holdout.py": (
+            "USD60_CAPABILITY_PROGRAM"
+        ),
+        "tests/infrastructure/test_cibo_receipt_bound_pre_holdout.py": (
+            "USD60_CAPABILITY_PROGRAM"
+        ),
+    }
+    assert orphans == ()
