@@ -189,7 +189,10 @@ class T09T18ScarcityFoldObservation:
                 "T09/T18 scarcity observation governance/causal drift"
             )
 
-        if self.tool is T09T18ScarcityTool.T18 and not self.trader_sovereignty_preserved:
+        if (
+            self.tool is T09T18ScarcityTool.T18
+            and not self.trader_sovereignty_preserved
+        ):
             raise CiboCompoundCapitalError(
                 "T18 scarcity allocation must preserve Trader sovereignty"
             )
