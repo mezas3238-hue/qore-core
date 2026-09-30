@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -33,6 +34,7 @@ from qore.infrastructure.cibo_crossboundary_evidence_receipt import (
 )
 from qore.infrastructure.cibo_instrument_capability_registry import (
     CapabilityStatus,
+    ProviderInstrumentCapabilityRegistry,
 )
 from qore.infrastructure.cibo_receipt_bound_calibration_freeze import (
     build_receipt_bound_calibration_freeze,
@@ -370,4 +372,53 @@ def test_unknown_t16_capability_blocks_pre_holdout() -> None:
             policy_identity_sha256=POLICY,
             provider_capability_registry=registry,
             capability_at=registry.captured_at,
+        )
+
+
+def test_capability_registry_from_another_account_is_rejected() -> None:
+    base_registry = _CALIBRATION_FIXTURE._registry()
+    other_identity = replace(
+        base_registry.account_identity,
+        account_ref="different-account",
+    )
+    other_registry = ProviderInstrumentCapabilityRegistry(
+        account_identity=other_identity,
+        entries=tuple(
+            replace(item, account_identity=other_identity)
+            for item in base_registry.entries
+        ),
+        captured_at=base_registry.captured_at,
+    )
+    manifest, risks, calibration, provider = _provider_state()
+    calibration_receipts = _calibration_receipts(
+        forward_sha=manifest.fingerprint(),
+        provider_sha=provider.fingerprint(),
+        provider_capability_registry=other_registry,
+    )
+    freeze = build_receipt_bound_calibration_freeze(
+        receipts=calibration_receipts,
+        integrated_git_sha=HEAD,
+        policy_identity_sha256=POLICY,
+        provider_capability_registry=other_registry,
+        capability_at=other_registry.captured_at,
+    )
+    pre_receipts = _pre_holdout_receipts(
+        forward_sha=manifest.fingerprint(),
+        provider_sha=provider.fingerprint(),
+        execution_calibration_sha=calibration.fingerprint(),
+        calibration_sha=freeze.fingerprint(),
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="capability registry account/provider scope mismatch",
+    ):
+        evaluate_receipt_bound_pre_holdout_readiness(
+            integrated_git_sha=HEAD,
+            policy_identity_sha256=POLICY,
+            receipts=pre_receipts,
+            calibration_receipts=calibration_receipts,
+            forward_manifest=manifest,
+            executed_risk_book=risks,
+            provider_capability_registry=other_registry,
         )
