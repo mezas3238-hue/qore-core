@@ -86,7 +86,7 @@ jobs:
           assert p["front_contract_identity_verified_count"] == 0
           assert p["continuous_series_identity_verified_count"] == 0
           assert p["roll_semantics_verified_count"] == 0
-          assert p["provider_symbol_similarity_used_as_futures_proof"] is False
+          assert p["provider_symbol_similarity_used_as_identity_proof"] is False
           assert p["automatic_futures_mapping"] is False
           assert p["b15_complete"] is False
           PY
