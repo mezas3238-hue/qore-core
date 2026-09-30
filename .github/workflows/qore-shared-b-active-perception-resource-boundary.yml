@@ -1,0 +1,206 @@
+name: QORE Shared B Active Perception Resource Boundary
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b_active_perception_acquisition.py
+      - tests/infrastructure/test_shared_b_active_perception_acquisition.py
+      - .github/workflows/qore-shared-b-active-perception-resource-boundary.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-active-perception-resource-boundary-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  X13_RUN_ID: "36730806113"
+  X13_ARTIFACT_ID: "11105226668"
+  X13_GIT_SHA: "53de7c6c99cbf022ebe04e39f53b7da1b57ae657"
+  CROSS_RUN_ID: "36746337433"
+  CROSS_REPLAY_ARTIFACT_ID: "11112547465"
+  CROSS_RAW_ARTIFACT_ID: "11113260581"
+  CROSS_GIT_SHA: "80c83baf2538195e2c8ece17e286e80603aae571"
+
+jobs:
+  validate-and-bind:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate B sensor-side acquisition boundary
+        run: |
+          set -euo pipefail
+          ruff check             src/qore/infrastructure/core_stack_v2/shared_b_active_perception_acquisition.py             tests/infrastructure/test_shared_b_active_perception_acquisition.py
+          mypy             src/qore/infrastructure/core_stack_v2/shared_b_active_perception_acquisition.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/shared_b_active_perception_acquisition.py
+          pytest -q             tests/infrastructure/test_shared_b_active_perception_acquisition.py             tests/infrastructure/test_core_stack_v2_shared_attention_budget.py             tests/infrastructure/test_core_stack_v2_active_perception_sensor_governance.py
+
+      - name: Verify sealed X13 and cross-asset lineages
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${X13_RUN_ID}" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${X13_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${X13_RUN_ID}" --jq '.head_sha')" = "$X13_GIT_SHA"
+
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${CROSS_RUN_ID}" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${CROSS_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${CROSS_RUN_ID}" --jq '.head_sha')" = "$CROSS_GIT_SHA"
+
+      - name: Recover X13 and cross-asset replay evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/x13 input/cross result
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${X13_ARTIFACT_ID}/zip" > x13.zip
+          unzip -q x13.zip -d input/x13
+          x13_sums="$(find input/x13 -name SHA256SUMS -print -quit)"
+          test -n "$x13_sums"
+          (cd "$(dirname "$x13_sums")" && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${CROSS_REPLAY_ARTIFACT_ID}/zip" > cross.zip
+          unzip -q cross.zip -d input/cross
+
+      - name: Verify replay pack and build B-16/B-17 evidence
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          x13_path=next(Path("input/x13").rglob("x13-attention-budget.json"))
+          x13=json.loads(x13_path.read_text())
+          assert x13["status"] == "X13_COMPLETED_AND_PROVEN_REPLICATED_REAL_POSITIONS"
+          assert x13["all_pass"] is True
+          observations=sum(
+              int(row["source_observation_count"])
+              for row in x13["partitions"].values()
+          )
+          assert observations == 3000
+          assert x13["proof"]["attention_budget_never_exceeded"] is True
+          assert x13["proof"]["data_health_can_veto_highest_priority"] is True
+          assert x13["proof"]["trade_outcome_value_used_for_ranking"] is False
+          assert x13["governance"]["protected_certification_holdout_opened"] is False
+          assert x13["governance"]["productive_authority"] is False
+
+          replay_path=next(
+              Path("input/cross").rglob("shared-b-cross-asset-availability.json")
+          )
+          pack_path=next(
+              Path("input/cross").rglob("shared-b-cross-asset-evidence-pack.json")
+          )
+          replay=json.loads(replay_path.read_text())
+          pack=json.loads(pack_path.read_text())
+          assert replay["raw_evidence_verified"] is True
+          assert replay["replay_requires_provider"] is False
+          assert pack["replay_requires_provider"] is False
+          assert pack["raw_artifact_id"] == int(os.environ["CROSS_RAW_ARTIFACT_ID"])
+          assert pack["replay_sha256"] == hashlib.sha256(
+              replay_path.read_bytes()
+          ).hexdigest()
+          statuses={
+              row["provider_symbol"]:row["coverage_status"]
+              for row in replay["candidate_reports"]
+          }
+          assert statuses == {
+              "US2000":"full_bid_ask_history",
+              "XAUUSD":"full_bid_ask_history",
+              "XTIUSD":"partial_bid_ask_history",
+          }
+          assert replay["target_or_outcome_read"] is False
+          assert replay["r6_r5_read"] is False
+          assert replay["fresh_holdout_opened"] is False
+          assert replay["broker_mutation"] is False
+
+          evidence={
+              "identity":"SHARED_B_ACTIVE_PERCEPTION_RESOURCE_BOUNDARY_001",
+              "status":"B16_B17_SENSOR_SIDE_BOUNDARY_PROVEN",
+              "git_sha":os.environ["GITHUB_SHA"],
+              "workflow_run_id":int(os.environ["GITHUB_RUN_ID"]),
+              "active_perception_sensor_side":{
+                  "cross_asset_real_source_replay_verified":True,
+                  "replay_requires_provider":False,
+                  "real_sensor_statuses":statuses,
+                  "raw_artifact_id":int(os.environ["CROSS_RAW_ARTIFACT_ID"]),
+                  "replay_artifact_id":int(os.environ["CROSS_REPLAY_ARTIFACT_ID"]),
+                  "can_express_availability":True,
+                  "can_express_causal_cutoff":True,
+                  "can_express_acquisition_cost":True,
+                  "can_express_latency":True,
+                  "can_express_redundancy":True,
+                  "can_express_health":True,
+                  "can_express_degraded_state":True,
+                  "can_seal_acquisition_result":True,
+              },
+              "attention_resource_budget":{
+                  "upstream_x13_run_id":int(os.environ["X13_RUN_ID"]),
+                  "upstream_x13_artifact_id":int(os.environ["X13_ARTIFACT_ID"]),
+                  "real_causal_observation_count":observations,
+                  "open_position_priority_under_scarcity_pass":True,
+                  "data_health_veto_pass":True,
+                  "budget_never_exceeded_pass":True,
+                  "outcome_value_used_for_ranking":False,
+              },
+              "b_boundary":{
+                  "cognitive_value_decision_authorized":False,
+                  "predictive_value_decision_authorized":False,
+                  "economic_value_decision_authorized":False,
+                  "trade_priority_authority":False,
+                  "order_priority_authority":False,
+                  "capital_priority_authority":False,
+                  "scientific_sensor_admission_authority":False,
+                  "execution_authority":False,
+                  "risk_authority":False,
+              },
+              "full_global_sensor_universe_active_perception_complete":False,
+              "reason_global_completion_open":"Current proof binds real X13 resource allocation and real cross-asset sensor acquisition; global 177-sensor causal identity/calendar/health qualification remains incomplete.",
+              "target_or_outcome_read_for_sensor_selection":False,
+              "fresh_holdout_opened":False,
+              "broker_mutation":False,
+              "productive_authority":False,
+          }
+          Path("result/shared-b-active-perception-resource-boundary.json").write_text(
+              json.dumps(evidence,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+
+      - name: Seal B-16/B-17 evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload B Active Perception evidence
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-active-perception-resource-boundary-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report B-16/B-17 disposition
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-16/B-17 Active Perception sensor/resource boundary: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Bound real cross-asset raw/replay evidence plus X13 3000-observation attention-budget proof. B may express availability/cost/latency/redundancy/health/degradation and sealed acquisition results; cognitive/predictive/economic value, trade/order/capital priority and scientific admission authority remain False. Full global 177-sensor qualification remains OPEN."
