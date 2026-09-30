@@ -1,16 +1,17 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
-from qore.infrastructure.cibo_ce2i_final_certification import (
-    CiboEconomicCertificationDecision,
-    CiboEconomicCertificationStatus,
+from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
+    FROZEN_PHASE20_POLICY_CANDIDATE,
 )
 from qore.infrastructure.cibo_crossboundary_evidence_receipt import (
     bind_cross_boundary_pass_artifact,
@@ -25,10 +26,26 @@ from qore.infrastructure.cibo_receipt_bound_final_integrated_exam import (
 
 T0 = datetime(2026, 9, 30, 21, 0, tzinfo=UTC)
 HEAD = "a" * 40
-POLICY = "sha256:" + "b" * 64
+POLICY = FROZEN_PHASE20_POLICY_CANDIDATE.parameter_sha256()
+
+_FINAL_CERT_TEST = Path(__file__).with_name(
+    "test_cibo_ce2i_final_certification.py"
+)
+_SPEC = importlib.util.spec_from_file_location(
+    "_cibo_final_certification_fixture",
+    _FINAL_CERT_TEST,
+)
+assert _SPEC is not None and _SPEC.loader is not None
+_FIXTURE = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(_FIXTURE)
 
 
-def _artifact(receipt_id: str, *, head: str = HEAD, contaminated: bool = False) -> str:
+def _artifact(
+    receipt_id: str,
+    *,
+    head: str = HEAD,
+    contaminated: bool = False,
+) -> str:
     payload = {
         "schema": "qore.cibo.bound-final-exam-test.v1",
         "producer_gate_id": f"gate:{receipt_id}",
@@ -47,7 +64,11 @@ def _artifact(receipt_id: str, *, head: str = HEAD, contaminated: bool = False) 
     return json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
 
-def _receipts(*, contaminated_id: str | None = None, head: str = HEAD):
+def _receipts(
+    *,
+    contaminated_id: str | None = None,
+    head: str = HEAD,
+):
     return tuple(
         bind_cross_boundary_pass_artifact(
             receipt_id=receipt_id,
@@ -62,21 +83,21 @@ def _receipts(*, contaminated_id: str | None = None, head: str = HEAD):
     )
 
 
-def _economic() -> CiboEconomicCertificationDecision:
-    return CiboEconomicCertificationDecision(
-        status=CiboEconomicCertificationStatus.CERTIFIED,
-        candidate_id="phase20-v3",
-        candidate_parameter_sha256=POLICY,
-        phase21_manifest_sha256="sha256:" + "c" * 64,
-        phase22_plan_sha256="sha256:" + "d" * 64,
-        blockers=(),
+def _canonical_chain():
+    phase21 = _FIXTURE._phase21_manifest()
+    phase22 = _FIXTURE._receipt(
+        phase21_sha=phase21.manifest_sha256(),
     )
+    return phase21, phase22
 
 
 def test_eighteen_bound_receipts_drive_final_exam_pass() -> None:
+    phase21, phase22 = _canonical_chain()
+
     report = assess_receipt_bound_final_integrated_exam(
         integrated_head_sha=HEAD,
-        economic_certification=_economic(),
+        phase21_manifest=phase21,
+        phase22_receipt=phase22,
         receipts=_receipts(),
     )
 
@@ -89,7 +110,7 @@ def test_eighteen_bound_receipts_drive_final_exam_pass() -> None:
 
 
 def test_missing_receipt_fails_closed_before_exam() -> None:
-    receipts = _receipts()[:-1]
+    phase21, phase22 = _canonical_chain()
 
     with pytest.raises(
         CiboCapitalManagementError,
@@ -97,13 +118,14 @@ def test_missing_receipt_fails_closed_before_exam() -> None:
     ):
         assess_receipt_bound_final_integrated_exam(
             integrated_head_sha=HEAD,
-            economic_certification=_economic(),
-            receipts=receipts,
+            phase21_manifest=phase21,
+            phase22_receipt=phase22,
+            receipts=_receipts()[:-1],
         )
 
 
 def test_cross_head_receipt_fails_closed_before_exam() -> None:
-    receipts = _receipts(head="e" * 40)
+    phase21, phase22 = _canonical_chain()
 
     with pytest.raises(
         CiboCapitalManagementError,
@@ -111,12 +133,14 @@ def test_cross_head_receipt_fails_closed_before_exam() -> None:
     ):
         assess_receipt_bound_final_integrated_exam(
             integrated_head_sha=HEAD,
-            economic_certification=_economic(),
-            receipts=receipts,
+            phase21_manifest=phase21,
+            phase22_receipt=phase22,
+            receipts=_receipts(head="e" * 40),
         )
 
 
 def test_governance_contamination_fails_closed_before_exam() -> None:
+    phase21, phase22 = _canonical_chain()
     receipt_id = required_final_exam_receipt_ids()[0]
 
     with pytest.raises(
@@ -125,6 +149,25 @@ def test_governance_contamination_fails_closed_before_exam() -> None:
     ):
         assess_receipt_bound_final_integrated_exam(
             integrated_head_sha=HEAD,
-            economic_certification=_economic(),
+            phase21_manifest=phase21,
+            phase22_receipt=phase22,
             receipts=_receipts(contaminated_id=receipt_id),
+        )
+
+
+def test_phase22_receipt_must_match_exact_phase21_chain() -> None:
+    phase21 = _FIXTURE._phase21_manifest()
+    detached = _FIXTURE._receipt(
+        phase21_sha="sha256:" + "f" * 64,
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="exact Phase21/Phase22 economic certification",
+    ):
+        assess_receipt_bound_final_integrated_exam(
+            integrated_head_sha=HEAD,
+            phase21_manifest=phase21,
+            phase22_receipt=detached,
+            receipts=_receipts(),
         )
