@@ -989,13 +989,15 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_FAMILY_IMPLEMENTED_TOOL_LEVEL_CLOSURE_REQUIRED",
-      "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "CROSS_TOOL_PIPELINE_FULL_SURFACE_MULTI_SOURCE_AND_PORTFOLIO_COORDINATION_REQUIRE_FINAL_EVIDENCE_DISPOSITION"
+      "current_maturity": "CROSS_TOOL_INFRASTRUCTURE_PROVEN_AND_RECONCILED",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
+      "evidence_refs": [
+        "docs/research/CIBO-CE2I-CROSS-TOOL-INFRASTRUCTURE-CLOSURE-V1.md",
+        ".github/workflows/cibo-capital-efficiency-sizing-lab.yml",
+        "github-actions://36649279224/SUCCESS"
       ],
-      "next_gate": "Reconcile common CE2I engines with T01–T20 closures and remove/supersede duplicate paths."
+      "blockers": [],
+      "next_gate": "Terminal engineering-infrastructure closure. Individual T01–T20 causal/economic workstreams remain separate and blocking until their own disposition."
     },
     {
       "id": "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK",
@@ -1079,8 +1081,8 @@
   ],
   "current_summary": {
     "mandatory_count": 64,
-    "terminal_count": 6,
-    "open_count": 58,
+    "terminal_count": 7,
+    "open_count": 57,
     "zero_open_work_pass": false,
     "final_certification_candidate": false
   }
