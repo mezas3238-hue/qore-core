@@ -65,7 +65,11 @@
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
-        "github-actions://36767442915/SUCCESS"
+        "github-actions://36767442915/SUCCESS",
+        "src/qore/infrastructure/cibo_marginal_leverage_utility.py",
+        "tests/infrastructure/test_cibo_marginal_leverage_utility.py",
+        "src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py",
+        "tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py"
       ],
       "blockers": [
         "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
@@ -145,7 +149,11 @@
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
-        "github-actions://36767442915/SUCCESS"
+        "github-actions://36767442915/SUCCESS",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_ablation.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py",
+        "src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py",
+        "tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
@@ -162,7 +170,11 @@
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
-        "github-actions://36767442915/SUCCESS"
+        "github-actions://36767442915/SUCCESS",
+        "src/qore/infrastructure/cibo_ce2i_opportunity_competition.py",
+        "tests/infrastructure/test_cibo_ce2i_opportunity_competition.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_utility.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_utility.py"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
@@ -179,7 +191,11 @@
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
-        "github-actions://36767442915/SUCCESS"
+        "github-actions://36767442915/SUCCESS",
+        "src/qore/infrastructure/cibo_ce2i_chronological_replay.py",
+        "tests/infrastructure/test_cibo_ce2i_chronological_replay.py",
+        "src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py",
+        "tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py"
       ],
       "blockers": [
         "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
@@ -210,7 +226,14 @@
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
         "github-actions://36767442915/SUCCESS",
-        "github-actions://36767442725/SUCCESS"
+        "github-actions://36767442725/SUCCESS",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_utility.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility_ready.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_policy.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_policy.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_store.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_store.py"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
@@ -228,7 +251,15 @@
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
         "github-actions://36767442915/SUCCESS",
-        "github-actions://36767442878/SUCCESS"
+        "github-actions://36767442878/SUCCESS",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t13_oos_utility.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_t13_oos_utility.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_policy.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_policy.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_store.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_store.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_treatment.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_treatment.py"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
@@ -328,7 +359,13 @@
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
-        "github-actions://36767442915/SUCCESS"
+        "github-actions://36767442915/SUCCESS",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_utility.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_utility.py",
+        "src/qore/infrastructure/cibo_ce2i_portfolio_allocation_ledger.py",
+        "tests/infrastructure/test_cibo_ce2i_portfolio_allocation_ledger.py",
+        "src/qore/infrastructure/cibo_ce2i_portfolio_allocation_store.py",
+        "tests/infrastructure/test_cibo_ce2i_portfolio_allocation_store.py"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
@@ -413,7 +450,10 @@
         "github-actions://36727848363/SUCCESS",
         "src/qore/infrastructure/cibo_profit_preservation_economic_gate.py",
         "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
-        "github-actions://36760959025/SUCCESS"
+        "github-actions://36760959025/SUCCESS",
+        "src/qore/infrastructure/cibo_compound_floor.py",
+        "tests/infrastructure/test_cibo_compound_floor.py",
+        "tests/infrastructure/test_cibo_profit_preservation_economic_gate.py"
       ],
       "blockers": [
         "CAUSAL_PROFIT_GRADUATION_POLICY_VALUE_REQUIRED"
@@ -430,7 +470,12 @@
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
         "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
-        "github-actions://36727848288/SUCCESS"
+        "github-actions://36727848288/SUCCESS",
+        "src/qore/infrastructure/cibo_core_compound_portfolio.py",
+        "tests/infrastructure/test_cibo_core_compound_portfolio.py",
+        "src/qore/infrastructure/cibo_compound_portfolio_ledger.py",
+        "src/qore/infrastructure/cibo_compound_portfolio_store.py",
+        "tests/infrastructure/test_cibo_compound_portfolio.py"
       ],
       "blockers": [
         "END_TO_END_COMPOUND_PORTFOLIO_ECONOMIC_CYCLE_REQUIRED"
@@ -447,7 +492,13 @@
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
         "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
-        "github-actions://36727848441/SUCCESS"
+        "github-actions://36727848441/SUCCESS",
+        "src/qore/infrastructure/cibo_marginal_capital_utility_evidence.py",
+        "tests/infrastructure/test_cibo_marginal_capital_utility_evidence.py",
+        "src/qore/infrastructure/cibo_marginal_capital_utility_evidence_store.py",
+        "tests/infrastructure/test_cibo_marginal_capital_utility_evidence_store.py",
+        "src/qore/infrastructure/cibo_marginal_leverage_utility.py",
+        "tests/infrastructure/test_cibo_marginal_leverage_utility.py"
       ],
       "blockers": [
         "REAL_DATA_BOUND_CAUSAL_VALUE_PROOF_REQUIRED"
@@ -464,7 +515,14 @@
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
         "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
-        "github-actions://36727848514/SUCCESS"
+        "github-actions://36727848514/SUCCESS",
+        "src/qore/infrastructure/cibo_sequential_compounding_shadow_policy.py",
+        "src/qore/infrastructure/cibo_sequential_compounding_shadow_store.py",
+        "src/qore/infrastructure/cibo_sequential_compounding_population.py",
+        "src/qore/infrastructure/cibo_sequential_compounding_oos_binding.py",
+        "tests/infrastructure/test_cibo_sequential_compounding_shadow.py",
+        "tests/infrastructure/test_cibo_sequential_compounding_oos_binding.py",
+        ".github/workflows/cibo-sequential-compounding-shadow.yml"
       ],
       "blockers": [
         "FRESH_PATH_DEPENDENT_OOS_STRESS_REPLICATION_REQUIRED"
@@ -481,7 +539,11 @@
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
         "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
-        "github-actions://36727848088/SUCCESS"
+        "github-actions://36727848088/SUCCESS",
+        "src/qore/infrastructure/cibo_internal_capital_market.py",
+        "src/qore/infrastructure/cibo_internal_capital_market_population.py",
+        "src/qore/infrastructure/cibo_internal_capital_market_oos_binding.py",
+        "tests/infrastructure/test_cibo_internal_capital_market.py"
       ],
       "blockers": [
         "FRESH_TRUE_SCARCITY_OOS_STRESS_REPLICATION_REQUIRED"
@@ -730,7 +792,9 @@
         "src/qore/infrastructure/cibo_compound_cycle_state.py",
         "src/qore/infrastructure/cibo_compound_market_cycle.py",
         "github-actions://36750376948/SUCCESS",
-        "docs/research/CIBO-GENC1-MATHEMATICAL-RECONCILIATION-CLOSURE-V1.md"
+        "docs/research/CIBO-GENC1-MATHEMATICAL-RECONCILIATION-CLOSURE-V1.md",
+        "tests/infrastructure/test_cibo_compound_cycle_state.py",
+        "tests/infrastructure/test_cibo_compound_market_cycle.py"
       ],
       "blockers": [
         "REAL_ECONOMIC_PORTFOLIO_REPLAY_REQUIRED",
@@ -748,7 +812,9 @@
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_market_cycle.py",
         "github-actions://36750376948/SUCCESS",
-        "docs/research/CIBO-GENC1-MATHEMATICAL-RECONCILIATION-CLOSURE-V1.md"
+        "docs/research/CIBO-GENC1-MATHEMATICAL-RECONCILIATION-CLOSURE-V1.md",
+        "src/qore/infrastructure/cibo_internal_capital_market.py",
+        "tests/infrastructure/test_cibo_internal_capital_market.py"
       ],
       "blockers": [
         "FRESH_TRUE_SCARCITY_ECONOMIC_VALUE_REQUIRED",
@@ -766,7 +832,9 @@
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_cycle_audit.py",
         "github-actions://36750376948/SUCCESS",
-        "docs/research/CIBO-GENC1-MATHEMATICAL-RECONCILIATION-CLOSURE-V1.md"
+        "docs/research/CIBO-GENC1-MATHEMATICAL-RECONCILIATION-CLOSURE-V1.md",
+        "tests/infrastructure/test_cibo_compound_cycle_state.py",
+        "tests/infrastructure/test_cibo_compound_market_cycle.py"
       ],
       "blockers": [
         "MULTI_GENERATION_REAL_REPLAY_REQUIRED",
