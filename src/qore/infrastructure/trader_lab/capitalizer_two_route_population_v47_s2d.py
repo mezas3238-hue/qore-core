@@ -46,6 +46,7 @@ class S2DPopulationRow:
     symbol: str
     session: str
     operating_date: str
+    side: str
     route: str
     entry_at: str
     entry_price: str
@@ -127,6 +128,7 @@ def _from_s2a(row: s2a.S2AdmittedFillRow) -> S2DPopulationRow:
         symbol=row.symbol,
         session=row.session,
         operating_date=row.operating_date,
+        side=row.side,
         route=row.route,
         entry_at=row.entry_at,
         entry_price=row.entry_price,
@@ -152,6 +154,7 @@ def _from_s2c(
         symbol=row.symbol,
         session=row.session,
         operating_date=row.operating_date,
+        side=row.side,
         route=row.route,
         entry_at=row.entry_at,
         entry_price=row.entry_price,
