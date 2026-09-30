@@ -13,6 +13,12 @@ from qore.infrastructure.cibo_ctrader_demo_account_capability import (
     CTraderDemoAccountType,
     CTraderDemoCatalogSymbol,
 )
+from qore.infrastructure.cibo_ctrader_demo_instrument_taxonomy import (
+    CTraderDemoAssetClassEvidence,
+    CTraderDemoInstrumentTaxonomyObservation,
+    CTraderDemoSymbolCategoryEvidence,
+    _taxonomy_sha256,
+)
 from qore.infrastructure.cibo_ctrader_demo_capability_registry import (
     reconcile_ctrader_demo_capability_registry,
 )
@@ -67,6 +73,35 @@ def _observation(
         catalog_sha256=_catalog_sha256((symbol,)),
     )
 
+
+
+def _taxonomy(
+    observation: CTraderDemoAccountCapabilityObservation,
+    *,
+    option_candidate: bool,
+) -> CTraderDemoInstrumentTaxonomyObservation:
+    asset_classes = (
+        CTraderDemoAssetClassEvidence(
+            asset_class_id=1,
+            name="Options" if option_candidate else "Indices",
+        ),
+    )
+    categories = (
+        CTraderDemoSymbolCategoryEvidence(
+            category_id=1,
+            asset_class_id=1,
+            name="Index Options" if option_candidate else "US Indices",
+        ),
+    )
+    return CTraderDemoInstrumentTaxonomyObservation(
+        account_ref=observation.account_ref,
+        observed_at=T0,
+        symbol_catalog_sha256=observation.catalog_sha256,
+        asset_classes=asset_classes,
+        symbol_categories=categories,
+        taxonomy_sha256=_taxonomy_sha256(asset_classes, categories),
+        catalog_binding_complete=True,
+    )
 
 def test_hedged_account_does_not_promote_t16_or_t17() -> None:
     report = reconcile_ctrader_demo_capability_registry(
@@ -137,3 +172,35 @@ def test_account_binding_mismatch_is_rejected() -> None:
             account_identity=_identity("other"),
             observation=_observation(CTraderDemoAccountType.HEDGED),
         )
+
+
+def test_provider_taxonomy_is_bound_without_promoting_t17() -> None:
+    observation = _observation(CTraderDemoAccountType.HEDGED)
+    report = reconcile_ctrader_demo_capability_registry(
+        account_identity=_identity(),
+        observation=observation,
+        taxonomy=_taxonomy(observation, option_candidate=True),
+    )
+
+    assert report.taxonomy_binding_complete is True
+    assert report.option_taxonomy_candidates == ("Index Options", "Options")
+    assert report.t17_option_status is CapabilityStatus.UNKNOWN
+    assert report.t17_defined_risk_spread_status is CapabilityStatus.UNKNOWN
+    assert (
+        "T17_OPTION_TAXONOMY_CANDIDATE_REQUIRES_INSTRUMENT_EXECUTION_PROOF"
+        in report.blockers
+    )
+
+
+def test_complete_taxonomy_without_option_label_remains_fail_closed() -> None:
+    observation = _observation(CTraderDemoAccountType.HEDGED)
+    report = reconcile_ctrader_demo_capability_registry(
+        account_identity=_identity(),
+        observation=observation,
+        taxonomy=_taxonomy(observation, option_candidate=False),
+    )
+
+    assert report.taxonomy_binding_complete is True
+    assert report.option_taxonomy_candidates == ()
+    assert report.t17_option_status is CapabilityStatus.UNKNOWN
+    assert "T17_NO_EXPLICIT_OPTION_TAXONOMY_CANDIDATE" in report.blockers
