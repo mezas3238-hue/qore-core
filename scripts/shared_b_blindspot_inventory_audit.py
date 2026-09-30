@@ -229,10 +229,10 @@ def run(
                 "agricultural row invalid"
             )
         row = cast(dict[str, object], row_any)
-        key = row.get("conceptual_market_key")
+        conceptual_key = row.get("conceptual_market_key")
         state = row.get("discovery_state")
         candidates = row.get("provider_candidates")
-        if not isinstance(key, str) or not key:
+        if not isinstance(conceptual_key, str) or not conceptual_key:
             raise SharedBBlindspotInventoryAuditError(
                 "agricultural conceptual key missing"
             )
@@ -244,8 +244,8 @@ def run(
             raise SharedBBlindspotInventoryAuditError(
                 "agricultural provider candidates unexpectedly appeared"
             )
-        requirement_id = f"B19_AGRI_{key}"
-        family = f"AGRICULTURE::{key}"
+        requirement_id = f"B19_AGRI_{conceptual_key}"
+        family = f"AGRICULTURE::{conceptual_key}"
         requirements.append(
             SharedBObservationRequirement(
                 requirement_id=requirement_id,
@@ -263,7 +263,7 @@ def run(
         agricultural_requirements.append(
             {
                 "requirement_id": requirement_id,
-                "conceptual_market_key": key,
+                "conceptual_market_key": conceptual_key,
                 "world_family": row.get("world_family"),
                 "provider_candidate_count": 0,
                 "known_missing_from_current_provider": True,
