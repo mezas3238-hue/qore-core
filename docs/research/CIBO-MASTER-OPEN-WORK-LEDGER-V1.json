@@ -484,15 +484,24 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ARCHITECTURE_DEFINED",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-GEN-C11-ROBUST-MULTI-PERIOD-MPC-V1.md",
+        "src/qore/infrastructure/cibo_multi_period_capital_mpc.py",
+        "tests/infrastructure/test_cibo_multi_period_capital_mpc.py",
+        ".github/workflows/cibo-genc11-multi-period-mpc.yml",
+        "src/qore/infrastructure/cibo_ce2i_phase20_mpc.py",
+        "src/qore/infrastructure/cibo_capital_digital_twin.py"
       ],
       "blockers": [
-        "ENGINE_NOT_YET_IMPLEMENTED"
+        "GEN_C11_ENGINE_CI_REVALIDATION_REQUIRED",
+        "FRESH_MULTI_PERIOD_OOS_UTILITY_NOT_YET_PROVEN",
+        "STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
+        "GEN_C10_TRANSITION_UNCERTAINTY_NOT_YET_CALIBRATED"
       ],
-      "next_gate": "Implement no-leak multi-period shadow MPC and causal scenario interface."
+      "next_gate": "Pass GEN-C11 no-oracle CI; bind synchronized fresh GEN-C10 world populations; preregister economic utility gate; then OOS/stress/replicate."
     },
     {
       "id": "GEN-C12",

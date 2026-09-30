@@ -70,6 +70,9 @@ _COMMENT_MARKERS = (
 )
 
 _WORKSTREAM_CLASSIFIERS = (
+    ("*cibo_multi_period_capital_mpc*", "GEN-C11"),
+    ("*genc11-multi-period-mpc*", "GEN-C11"),
+    ("*GEN-C11-ROBUST-MULTI-PERIOD-MPC*", "GEN-C11"),
     ("*cibo_capital_digital_twin*", "GEN-C10"),
     ("*genc10-capital-digital-twin*", "GEN-C10"),
     ("*GEN-C10-CAPITAL-DIGITAL-TWIN*", "GEN-C10"),
