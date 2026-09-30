@@ -63,8 +63,7 @@ CONTRACTS: tuple[V48RouteContract, ...] = (
         V48RouteId.TTRADES_ASIA_POSITIONAL,
         (
             "HTF_FRACTAL_BIAS_CONFIRMED",
-            "LTF_CISD_CONFIRMED",
-            "PROTECTED_SWING_CONFIRMED",
+            "LTF_PROTECTED_SWING_CONFIRMED_BY_CISD",
             "POSITIONAL_OPEN_AVAILABLE",
             "STRUCTURAL_TARGET_AVAILABLE",
         ),
@@ -74,8 +73,7 @@ CONTRACTS: tuple[V48RouteContract, ...] = (
         (
             "HTF_FRACTAL_BIAS_CONFIRMED",
             "H4_C2_CONFIRMATION",
-            "M15_CISD_CONFIRMED",
-            "M15_PROTECTED_SWING_CONFIRMED",
+            "M15_PROTECTED_SWING_CONFIRMED_BY_CISD",
             "M15_CONTINUATION_AVAILABLE",
             "STRUCTURAL_TARGET_AVAILABLE",
         ),
@@ -84,10 +82,8 @@ CONTRACTS: tuple[V48RouteContract, ...] = (
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
         (
             "DAILY_BIAS_CONFIRMED",
-            "DAILY_WICK_FORMATION_CONFIRMED",
             "H4_WICK_SWING_STRUCTURE_CONFIRMED",
-            "M15_CISD_CONFIRMED",
-            "M15_PROTECTED_SWING_CONFIRMED",
+            "M15_PROTECTED_SWING_CONFIRMED_BY_CISD",
             "M15_CONTINUATION_AVAILABLE",
             "STRUCTURAL_TARGET_AVAILABLE",
         ),
