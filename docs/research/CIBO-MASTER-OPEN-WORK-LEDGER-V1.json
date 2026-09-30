@@ -440,7 +440,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_PLUS_COMPOUND_MONTE_CARLO_ADAPTER_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "ENGINE_MONTE_CARLO_AND_ECONOMIC_GATE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -448,15 +448,17 @@
         "src/qore/infrastructure/cibo_robust_growth_ruin_capacity.py",
         "tests/infrastructure/test_cibo_robust_growth_ruin_capacity.py",
         ".github/workflows/cibo-genc9-robust-growth.yml",
-        "src/qore/infrastructure/cibo_compound_path_monte_carlo.py"
+        "src/qore/infrastructure/cibo_compound_path_monte_carlo.py",
+        "src/qore/infrastructure/cibo_genc9_economic_gate.py",
+        "tests/infrastructure/test_cibo_genc9_economic_gate.py",
+        "docs/research/CIBO-GEN-C9-NONCOMPENSATORY-ECONOMIC-GATE-V1.md"
       ],
       "blockers": [
-        "GEN_C9_COMPOUND_MONTE_CARLO_CI_REVALIDATION_REQUIRED",
-        "ECONOMIC_GATE_NOT_YET_PREREGISTERED",
+        "GEN_C9_FULL_ENGINE_CI_REVALIDATION_REQUIRED",
         "REAL_PROVIDER_VALID_COMPOUND_PATH_POPULATION_REQUIRED",
         "FRESH_OOS_STRESS_TEMPORAL_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Pass GEN-C9 + compound-path Monte Carlo CI; preregister economic gate before comparative outcome inspection; bind real provider-valid compound population; then OOS/stress/replicate."
+      "next_gate": "Pass GEN-C9 full CI; bind provider-valid real compound path population without tuning; apply frozen non-compensatory gate; then fresh OOS/stress/temporal replication."
     },
     {
       "id": "GEN-C10",
