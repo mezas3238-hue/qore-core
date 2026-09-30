@@ -339,7 +339,10 @@ ROUTES: tuple[V48HumanDecisionRoute, ...] = (
                 V48RouteStageRole.NARRATIVE,
                 "DAILY",
                 False,
-                "Daily gives broader directional context but does not replace H1 decision authority.",
+                (
+                    "Daily gives broader directional context but does not replace "
+                    "H1 decision authority."
+                ),
             ),
             V48RouteStage(
                 "SCALP_H1_BIAS",
