@@ -11,8 +11,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from qore.infrastructure.core_stack_v2.shared_b_open_work_ledger import (
+    B_WORK_ITEMS,
     SharedBWorkStatus,
-    build_shared_b_open_work_ledger,
 )
 
 EXPECTED_B_IDS = tuple(f"B-{i:02d}" for i in range(1, 25))
@@ -62,17 +62,16 @@ def assess_b_provenance_coverage(
     )
     missing = tuple(x for x in EXPECTED_B_IDS if x not in covered)
 
-    ledger = build_shared_b_open_work_ledger()
-    rows = {item["work_id"]: item for item in ledger["items"]}
+    rows = {item.work_id: item for item in B_WORK_ITEMS}
     missing_terminal = tuple(
         ident
         for ident in missing
-        if rows[ident]["status"] == SharedBWorkStatus.COMPLETE_AND_PROVEN.value
+        if rows[ident].status is SharedBWorkStatus.COMPLETE_AND_PROVEN
     )
     missing_external = tuple(
         ident
         for ident in missing
-        if rows[ident]["status"] == SharedBWorkStatus.EXTERNALLY_BLOCKED.value
+        if rows[ident].status is SharedBWorkStatus.EXTERNALLY_BLOCKED
     )
     missing_nonterminal = tuple(
         ident
