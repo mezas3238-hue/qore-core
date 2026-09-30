@@ -157,21 +157,26 @@ def _baseline_records(
     opportunities: tuple[V49Opportunity, ...],
     trades: tuple[V49EconomicTrade, ...],
 ) -> tuple[V53TradeRecord, ...]:
-    lookup = {
-        _trade_key(
-            item.symbol,
-            item.m1_trigger_confirmed_at,
-            item.m1_trigger_family,
-        ): item
-        for item in opportunities
-    }
+    lookup: dict[tuple[str, str, str], list[V49Opportunity]] = defaultdict(list)
+    for item in opportunities:
+        lookup[
+            _trade_key(
+                item.symbol,
+                item.m1_trigger_confirmed_at,
+                item.m1_trigger_family,
+            )
+        ].append(item)
+
+    consumed_by_key: defaultdict[tuple[str, str, str], int] = defaultdict(int)
     result: list[V53TradeRecord] = []
     for trade in trades:
-        opportunity = lookup.get(
-            _trade_key(trade.symbol, trade.entry_at, trade.trigger_family)
-        )
-        if opportunity is None:
+        key = _trade_key(trade.symbol, trade.entry_at, trade.trigger_family)
+        matches = lookup.get(key, [])
+        index = consumed_by_key[key]
+        if index >= len(matches):
             raise ValueError("V53 baseline trade missing V49 parent opportunity")
+        opportunity = matches[index]
+        consumed_by_key[key] += 1
         result.append(
             V53TradeRecord(
                 source_policy="V49_BASELINE",
