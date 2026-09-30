@@ -13,6 +13,9 @@ from datetime import datetime
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
 )
+from qore.infrastructure.cibo_capital_management_authority import (
+    CiboCapitalManagementError,
+)
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
 from qore.infrastructure.cibo_ctrader_demo_account_capability import (
     CTraderDemoAccountCapabilityObservation,
@@ -132,7 +135,7 @@ def reconcile_ctrader_demo_capability_registry(
                 capability=observation,
                 taxonomy=taxonomy,
             )
-        except Exception as error:
+        except CiboCapitalManagementError as error:
             raise CiboCompoundCapitalError(
                 f"cTrader capability taxonomy binding invalid: {error}"
             ) from error
