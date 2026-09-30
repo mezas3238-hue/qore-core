@@ -154,6 +154,8 @@ class SharedBGlobalDataAssessment:
     state: SharedBGlobalDataState
     interpretation: SharedBGlobalInterpretation
     evidence_age_ms: int | None
+    provider_event_age_ms: int | None
+    transport_age_ms: int | None
     market_plane_known: bool
     provider_plane_available: bool
     feed_plane_available: bool
@@ -168,8 +170,14 @@ class SharedBGlobalDataAssessment:
     capital_authority: bool = False
 
     def __post_init__(self) -> None:
-        if self.evidence_age_ms is not None and self.evidence_age_ms < 0:
-            raise ValueError("evidence_age_ms cannot be negative")
+        for name in (
+            "evidence_age_ms",
+            "provider_event_age_ms",
+            "transport_age_ms",
+        ):
+            value = getattr(self, name)
+            if value is not None and value < 0:
+                raise ValueError(f"{name} cannot be negative")
         if not 0 <= self.uncertainty_floor_bps <= _MAX_BPS:
             raise ValueError("uncertainty_floor_bps outside 0..10000")
         if (
@@ -186,14 +194,13 @@ class SharedBGlobalDataAssessment:
             raise ValueError("global data health carries no downstream authority")
 
 
-def _age_ms(observation: SharedBGlobalDataObservation) -> int | None:
-    if observation.retrieved_at is None:
+def _age_ms(
+    decision_time: datetime,
+    observed_at: datetime | None,
+) -> int | None:
+    if observed_at is None:
         return None
-    age = int(
-        (observation.decision_time - observation.retrieved_at).total_seconds()
-        * 1000
-    )
-    return age
+    return int((decision_time - observed_at).total_seconds() * 1000)
 
 
 def assess_shared_b_global_data_health(
@@ -201,7 +208,14 @@ def assess_shared_b_global_data_health(
 ) -> SharedBGlobalDataAssessment:
     """Fail closed across distinct market, provider, feed and relation planes."""
 
-    age_ms = _age_ms(observation)
+    provider_event_age_ms = _age_ms(
+        observation.decision_time,
+        observation.provider_event_at,
+    )
+    transport_age_ms = _age_ms(
+        observation.decision_time,
+        observation.retrieved_at,
+    )
     state = SharedBGlobalDataState.INSUFFICIENT
     interpretation = SharedBGlobalInterpretation.INSUFFICIENT
     reasons: list[str] = []
@@ -224,7 +238,13 @@ def assess_shared_b_global_data_health(
     ) or (
         observation.retrieved_at is not None
         and observation.retrieved_at > observation.decision_time
-    ) or (age_ms is not None and age_ms < 0):
+    ) or (
+        provider_event_age_ms is not None
+        and provider_event_age_ms < 0
+    ) or (
+        transport_age_ms is not None
+        and transport_age_ms < 0
+    ):
         state = SharedBGlobalDataState.FUTURE_EVIDENCE
         interpretation = SharedBGlobalInterpretation.DATA_QUALITY_FAILURE
         reasons = ["FUTURE_EVIDENCE_REJECTED"]
@@ -288,17 +308,33 @@ def assess_shared_b_global_data_health(
         state = SharedBGlobalDataState.MARKET_CLOSED
         interpretation = SharedBGlobalInterpretation.EXPECTED_MARKET_CLOSED_ABSENCE
         reasons = ["MARKET_CLOSED_STALENESS_NOT_FEED_FAILURE"]
-        context_usable = age_ms is not None and age_ms <= observation.decay_horizon_ms
+        context_usable = (
+            provider_event_age_ms is not None
+            and provider_event_age_ms <= observation.decay_horizon_ms
+        )
         uncertainty = 3_500 if context_usable else 8_000
-    elif age_ms is None:
+    elif provider_event_age_ms is None or transport_age_ms is None:
         state = SharedBGlobalDataState.INSUFFICIENT
         interpretation = SharedBGlobalInterpretation.INSUFFICIENT
         reasons = ["EVIDENCE_AGE_UNRESOLVED"]
-    elif age_ms > observation.validity_horizon_ms:
+    elif provider_event_age_ms > observation.validity_horizon_ms:
         state = SharedBGlobalDataState.STALE_UNEXPECTED
         interpretation = SharedBGlobalInterpretation.DATA_PLANE_FAILURE
-        reasons = ["OPEN_MARKET_DATA_STALE"]
-        uncertainty = 8_000 if age_ms <= observation.decay_horizon_ms else 10_000
+        reasons = ["MARKET_EVENT_STALE"]
+        uncertainty = (
+            8_000
+            if provider_event_age_ms <= observation.decay_horizon_ms
+            else 10_000
+        )
+    elif transport_age_ms > observation.validity_horizon_ms:
+        state = SharedBGlobalDataState.STALE_UNEXPECTED
+        interpretation = SharedBGlobalInterpretation.DATA_PLANE_FAILURE
+        reasons = ["TRANSPORT_EVIDENCE_STALE"]
+        uncertainty = (
+            8_000
+            if transport_age_ms <= observation.decay_horizon_ms
+            else 10_000
+        )
     else:
         relation_stale = (
             observation.relation_evidence_age_ms is not None
@@ -322,13 +358,34 @@ def assess_shared_b_global_data_health(
             new_inference = True
             relation_claim = True
             context_usable = True
-            uncertainty = 0 if age_ms <= observation.expected_cadence_ms else 1_500
+            uncertainty = (
+                0
+                if (
+                    provider_event_age_ms <= observation.expected_cadence_ms
+                    and transport_age_ms <= observation.expected_cadence_ms
+                )
+                else 1_500
+            )
 
     return SharedBGlobalDataAssessment(
         instrument_key=observation.instrument_key,
         state=state,
         interpretation=interpretation,
-        evidence_age_ms=None if age_ms is None or age_ms < 0 else age_ms,
+        evidence_age_ms=(
+            None
+            if provider_event_age_ms is None or provider_event_age_ms < 0
+            else provider_event_age_ms
+        ),
+        provider_event_age_ms=(
+            None
+            if provider_event_age_ms is None or provider_event_age_ms < 0
+            else provider_event_age_ms
+        ),
+        transport_age_ms=(
+            None
+            if transport_age_ms is None or transport_age_ms < 0
+            else transport_age_ms
+        ),
         market_plane_known=observation.canonical_market_open is not None,
         provider_plane_available=observation.provider_available,
         feed_plane_available=observation.feed_available,
