@@ -123,6 +123,30 @@
       "POWER": 0,
       "FREIGHT": 0,
       "ENVIRONMENTAL": 0
+    },
+    "gw2": {
+      "workstream": "GW-2",
+      "evidence_run_id": 36650858244,
+      "evidence_git_sha": "6dca87b61404dd95fd7ecbc3714bbc0c8f3a6015",
+      "state": {
+        "REAL_PROVIDER_IDENTITY_EVIDENCE_BOUND": true,
+        "PROVIDER_DESCRIPTOR_COMPLETE_COUNT": 104,
+        "CANONICAL_IDENTITY_VERIFIED_COUNT": 0,
+        "CANONICAL_IDENTITY_UNRESOLVED_COUNT": 104,
+        "CANONICAL_IDENTITY_COMPLETE": false,
+        "AUTOMATIC_IDENTITY_INFERENCE": false,
+        "SENSOR_ADMISSION_AUTHORIZED": false,
+        "RELATIONAL_INTELLIGENCE_READY": false,
+        "CERTIFIED": false
+      },
+      "families": {
+        "FX": 60,
+        "EQUITY_INDICES": 25,
+        "METALS": 16,
+        "ENERGY": 3
+      },
+      "provider_symbol_is_canonical_identity": false,
+      "protected_holdout_opened": false
     }
   },
   "productive_authority": {
