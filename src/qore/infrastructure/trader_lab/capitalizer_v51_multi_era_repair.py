@@ -261,10 +261,14 @@ def _values(rows: tuple[Trade, ...], *, cost_r: Decimal = Decimal("0")) -> tuple
     return tuple(Decimal(item.realized_gross_r) - cost_r for item in rows)
 
 
-def _risk_adjusted(rows: tuple[Trade, ...]) -> dict[str, Any]:
+def _risk_adjusted(
+    rows: tuple[Trade, ...],
+    *,
+    cost_r: Decimal = Decimal("0"),
+) -> dict[str, Any]:
     daily: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     for item in rows:
-        daily[item.operating_date] += Decimal(item.realized_gross_r)
+        daily[item.operating_date] += Decimal(item.realized_gross_r) - cost_r
     values = [float(value) for _, value in sorted(daily.items())]
     if not values:
         return {
@@ -304,7 +308,7 @@ def _metrics(rows: tuple[Trade, ...], *, cost_r: Decimal = Decimal("0")) -> dict
             "stops": 0,
             "targets": 0,
             "session_exits": 0,
-            "risk_adjusted": _risk_adjusted(rows),
+            "risk_adjusted": _risk_adjusted(rows, cost_r=cost_r),
         }
 
     ordered = tuple(
@@ -362,7 +366,7 @@ def _metrics(rows: tuple[Trade, ...], *, cost_r: Decimal = Decimal("0")) -> dict
         "stops": sum(item.exit_reason == "STOP" for item in rows),
         "targets": sum(item.exit_reason == "TARGET" for item in rows),
         "session_exits": sum(item.exit_reason == "SESSION_EXIT" for item in rows),
-        "risk_adjusted": _risk_adjusted(rows),
+        "risk_adjusted": _risk_adjusted(rows, cost_r=cost_r),
     }
 
 
@@ -504,6 +508,12 @@ def build_matrix(root: Path, *, era: str) -> dict[str, Any]:
     if len(windows) != 1:
         raise ValueError("V51 market reports disagree on era window")
     window_start, window_end = next(iter(windows))
+    geometry_decisions: Counter[str] = Counter()
+    geometry_reasons: Counter[str] = Counter()
+    for row in reports:
+        geometry_decisions.update(dict(row["geometry_decisions"]))
+        geometry_reasons.update(dict(row["geometry_reasons"]))
+
     return {
         "identity": MATRIX_IDENTITY,
         "era": era,
@@ -512,12 +522,8 @@ def build_matrix(root: Path, *, era: str) -> dict[str, Any]:
         "decision_timeframes": ["H1", "M15", "M1"],
         "source_opportunities": sum(int(row["source_opportunities"]) for row in reports),
         "policies": policies,
-        "geometry_decisions": dict(
-            sum(
-                (list(row["geometry_decisions"]) for row in reports),
-                [],
-            )
-        ),
+        "geometry_decisions": dict(sorted(geometry_decisions.items())),
+        "geometry_reasons": dict(sorted(geometry_reasons.items())),
         "historical_research": True,
         "all_historical_windows_authorized_for_repair": True,
         "outcome_used_for_admission": False,
