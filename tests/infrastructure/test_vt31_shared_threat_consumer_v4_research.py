@@ -48,7 +48,9 @@ def _obs(minute: int, *, close: int, efficiency: int) -> SharedPositionCausalObs
     )
 
 
-def _assessment(observation: SharedPositionCausalObservation) -> SharedPositionThreatEngineAssessment:
+def _assessment(
+    observation: SharedPositionCausalObservation,
+) -> SharedPositionThreatEngineAssessment:
     return SharedPositionThreatEngineAssessment(
         threat_level=SharedPositionThreatLevel.HIGH,
         threat_scope=SharedPositionThreatScope.CROSS_ASSET_THREAT,
