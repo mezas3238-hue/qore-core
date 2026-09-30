@@ -295,3 +295,35 @@ The target identity is:
 QORE SOVEREIGN CAPITAL INTELLIGENCE, COMPOUNDING AND CAPITAL-GROWTH OPERATING SYSTEM.
 
 CIBO must learn how capital grows, how realized profit becomes future productive capacity, how conquered capital is protected, when to compound, when not to compound, where to compound, how fast to compound and how much marginal capital an opportunity actually deserves.
+
+---
+
+## WORLD CUP SOVEREIGN CAPITAL AMPLIFICATION AMENDMENT — 29-SEP-2026
+
+The Owner has clarified the economic identity of this program.
+
+Canonical mission document:
+
+`CIBO-SOVEREIGN-CAPITAL-AMPLIFICATION-WORLD-CUP-MISSION-V1.md`
+
+This amendment does not add a parallel allocator or leverage engine. CE2I
+T01–T20 and GEN-C0–GEN-C14 remain the implementation roots.
+
+Binding interpretation:
+
+```text
+CIBO DOES NOT SEEK MAXIMUM LEVERAGE.
+CIBO SEEKS MAXIMUM ROBUST ECONOMIC VALUE
+PER UNIT OF PLAUSIBLE LOSS.
+
+SHARED INFORMS.
+TRADERS CREATE VALID EDGE.
+CIBO CAPITALIZES.
+RISK BOUNDS.
+EXECUTION MATERIALIZES AUTHORIZED INTENT.
+```
+
+Therefore future CIBO work must distinguish mechanical implementation from
+economic proof and report maturity using the World Cup mission's staged
+scientific vocabulary. The ~+2,000% competition aspiration is a separate
+post-certification maximum-capability North Star and is never a tuning target.
