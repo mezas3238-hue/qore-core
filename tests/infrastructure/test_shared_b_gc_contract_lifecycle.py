@@ -121,7 +121,7 @@ def test_same_delivery_month_refuses_to_guess_exact_expiry() -> None:
     payload = build_gc_observed_contract_lifecycle(
         commodity_pack=pack,
         authority_evidence=_authority(),
-        assessed_at=datetime(2026, 9, 15, 12, 0, tzinfo=UTC),
+        assessed_at=datetime(2026, 9, 30, 21, 42, tzinfo=UTC),
     )
 
     assert payload["expired_before_assessment_month_count"] == 4
@@ -155,6 +155,7 @@ def test_future_contract_does_not_prove_front_contract() -> None:
     future = payload["records"][-1]
     assert future["lifecycle_status"] == "FUTURE_CONTRACT_NOT_FRONT_PROOF"
     assert future["front_contract_verified"] is False
+    assert payload["observed_set_can_prove_current_gc_chain"] is False
 
 
 def test_authority_cannot_silently_enable_roll_inference() -> None:
