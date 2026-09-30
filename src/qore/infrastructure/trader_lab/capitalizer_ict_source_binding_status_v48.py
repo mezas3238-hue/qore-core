@@ -10,7 +10,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-
 IDENTITY = "QORE_CAPITALIZER_V48_ICT_SOURCE_BINDING_STATUS"
 
 
