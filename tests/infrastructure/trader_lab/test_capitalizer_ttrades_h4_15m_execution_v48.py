@@ -7,6 +7,8 @@ from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 
 )
 from qore.infrastructure.trader_lab.capitalizer_ttrades_forex_h4_profile_v48 import (
     IDENTITY as H4_IDENTITY,
+)
+from qore.infrastructure.trader_lab.capitalizer_ttrades_forex_h4_profile_v48 import (
     V48ForexH4Profile,
 )
 from qore.infrastructure.trader_lab.capitalizer_ttrades_h4_15m_execution_v48 import (
