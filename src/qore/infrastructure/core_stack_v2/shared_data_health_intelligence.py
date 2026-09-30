@@ -130,10 +130,11 @@ class SharedDataHealthAssessment:
 def _age_ms(observation: SharedDataHealthObservation) -> int | None:
     if observation.available_at is None:
         return None
-    return int(
+    age = int(
         (observation.decision_time - observation.available_at).total_seconds()
         * 1000
     )
+    return None if age < 0 else age
 
 
 def _freshness(
