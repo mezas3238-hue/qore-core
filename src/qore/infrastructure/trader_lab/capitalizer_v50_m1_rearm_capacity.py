@@ -575,9 +575,10 @@ def _capacity_breakdown(rows: tuple[V50RearmAttempt, ...]) -> dict[str, Any]:
             symbol: sum(item.symbol == symbol for item in rows)
             for symbol in sorted({item.symbol for item in rows})
         },
-        "active_operating_days": len(
+        "active_session_days": len(
             {(item.session, item.operating_date) for item in rows}
         ),
+        "active_operating_dates": len({item.operating_date for item in rows}),
     }
 
 
