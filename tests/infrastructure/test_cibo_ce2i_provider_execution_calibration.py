@@ -85,7 +85,13 @@ def _population() -> tuple[
                 qore_symbol=qore_symbol,
                 provider_symbol=provider_symbol,
                 provider_economics_sha256="sha256:" + "2" * 64,
-                provider_observed_at=(
+                provider_contract_size=Decimal("1"),
+                provider_tick_size=Decimal("0.01"),
+                provider_tick_value=Decimal("1"),
+                provider_contract_size=Decimal("1"),
+        provider_tick_size=Decimal("0.01"),
+        provider_tick_value=Decimal("1"),
+        provider_observed_at=(
                     decision_at - timedelta(milliseconds=100)
                 ).isoformat(),
                 provider_minimum_volume=Decimal("0.01"),
