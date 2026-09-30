@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from dataclasses import dataclass
@@ -48,7 +49,6 @@ from qore.infrastructure.historical_quote_side_evidence import (
 from qore.infrastructure.historical_quote_side_shards import (
     HistoricalQuoteSideShardRecord,
     HistoricalQuoteSideShardSink,
-    historical_shard_dataset_digest,
 )
 from qore.infrastructure.market_data import Instrument
 from qore.infrastructure.market_observation import MarketPriceSide
@@ -123,6 +123,39 @@ def _load_json(path: Path) -> dict[str, Any]:
             f"{path} must contain a JSON object"
         )
     return cast(dict[str, Any], raw)
+
+
+def _raw_dataset_digest(
+    *,
+    provider_symbol: str,
+    records: list[HistoricalQuoteSideShardRecord],
+) -> str:
+    payload = [
+        (
+            provider_symbol,
+            record.quote_side.value,
+            record.window_index,
+            record.page_index,
+            record.tick_count,
+            record.content_sha256,
+        )
+        for record in sorted(
+            records,
+            key=lambda item: (
+                item.quote_side.value,
+                item.window_index,
+                item.page_index,
+            ),
+        )
+    ]
+    return hashlib.sha256(
+        json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        ).encode("utf-8")
+    ).hexdigest()
 
 
 def _record_payload(record: HistoricalQuoteSideShardRecord) -> dict[str, object]:
@@ -424,8 +457,9 @@ def run(
                     ),
                     "data_root": data_root.as_posix(),
                     "technical_error": technical_error,
-                    "raw_dataset_sha256": historical_shard_dataset_digest(
-                        tuple(all_records)
+                    "raw_dataset_sha256": _raw_dataset_digest(
+                        provider_symbol=identity.provider_symbol,
+                        records=all_records,
                     ),
                     "records": [
                         _record_payload(record)
