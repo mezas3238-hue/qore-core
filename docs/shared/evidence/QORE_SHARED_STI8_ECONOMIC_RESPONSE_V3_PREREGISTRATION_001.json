@@ -1,0 +1,93 @@
+{
+  "identity": "QORE_SHARED_STI8_ECONOMIC_RESPONSE_V3_PREREGISTRATION_001",
+  "workstream": "STI-8",
+  "generation": "ECONOMIC_RESPONSE_V3",
+  "status": "PREREGISTERED_BEFORE_NEW_RESEARCH_OOS",
+  "signal_engine": {
+    "source_sha": "711788d89521e051ab3969a9006830068381693e",
+    "policy_artifact_id": 11065709899,
+    "engine_changed": false,
+    "threat_thresholds_changed": false
+  },
+  "parent_response_v2": {
+    "run_id": 36666605996,
+    "artifact_id": 11077196478,
+    "status": "STI8_RESPONSE_V2_RESEARCH_OOS_FALSIFIED",
+    "reopened": false,
+    "threshold_rescue_allowed": false
+  },
+  "failure_knowledge": {
+    "run_id": 36739167756,
+    "status": "STI8_V2_FAILURE_KNOWLEDGE_COMPLETE",
+    "burned_evidence_used_for_hypothesis_generation_only": true,
+    "burned_evidence_may_demonstrate_v3_value": false,
+    "candidate_mechanisms": [
+      "V3_HAZARD_OVER_CONTINUATION_PERSISTENCE",
+      "V3_LOCAL_FAILURE_MARGIN_TRAJECTORY"
+    ]
+  },
+  "scientific_hypothesis": {
+    "statement": "False economic exits arise when threat is material but local failure and failure-hazard dominance are not jointly worsening. Requiring both source-time margins to be positive and strictly worsen versus the immediately prior causal observation should preserve healthy winners while retaining a subset of avoidable-loss protection.",
+    "representation_change": "JOINT_CAUSAL_MARGIN_TRAJECTORY",
+    "numeric_rescue_threshold_added": false,
+    "uses_outcome_in_decision": false
+  },
+  "trader_owned_response_rule": {
+    "parent_v2_must_be_actionable": true,
+    "current_local_failure_margin_gt_zero": true,
+    "current_hazard_margin_gt_zero": true,
+    "local_failure_margin_gt_previous": true,
+    "hazard_margin_gt_previous": true,
+    "previous_state_must_strictly_precede_current": true,
+    "otherwise": "HOLD",
+    "same_initial_entry_stop_target": true,
+    "same_sizing": true,
+    "stop_mutation": false,
+    "target_mutation": false,
+    "shared_exit_authority": false,
+    "productive_authority": false
+  },
+  "new_research_oos": {
+    "opened_at_inclusive": "2026-07-22T00:00:00+00:00",
+    "checked_at_exclusive": "2026-09-29T00:00:00+00:00",
+    "minimum_coverage_days": 65,
+    "minimum_trade_count": 20,
+    "markets": ["NAS100", "SP500", "US30"],
+    "timeframe": "M1",
+    "one_shot": true,
+    "temporally_disjoint_from_parent_v2_oos": true,
+    "sti8_terminal_outcomes_previously_consumed": false,
+    "temporal_replication_claim_authorized": false,
+    "protected_certification_holdout": false
+  },
+  "economic_gates": {
+    "minimum_trade_count": 20,
+    "treatment_total_r_gte_control": true,
+    "treatment_profit_factor_gt_control": true,
+    "treatment_max_dd_lt_control": true,
+    "treatment_p95_bootstrap_dd_lte_control": true,
+    "treatment_p99_bootstrap_dd_lte_control": true,
+    "loss_r_avoided_gt_zero": true,
+    "net_economic_utility_r_gt_zero": true,
+    "winner_count_retention_min": 0.98,
+    "winner_r_retention_min": 0.90,
+    "top_decile_winner_r_retention_min": 0.90,
+    "top_5pct_winner_r_retention_min": 0.90,
+    "positive_tail_r_retention_min": 0.90,
+    "all_gates_required": true
+  },
+  "monte_carlo": {
+    "paired_trade_index_bootstrap": true,
+    "paths": 5000,
+    "seed": 20260930
+  },
+  "governance": {
+    "future_market_in_decision": false,
+    "future_outcome_in_decision": false,
+    "outcome_aware_retuning_authorized": false,
+    "protected_certification_holdout_opened": false,
+    "productive_authority": false,
+    "live_authorized": false,
+    "broker_mutation_authorized": false
+  }
+}
