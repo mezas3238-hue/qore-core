@@ -126,7 +126,7 @@ def _session_bars(
         if bar.opened_at < entry_at:
             continue
         observed = capitalizer_session_at(bar.opened_at)
-        if observed.value != expected_session:
+        if observed is None or observed.value != expected_session:
             if started:
                 break
             continue
