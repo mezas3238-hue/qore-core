@@ -21,6 +21,7 @@ from qore.infrastructure.cibo_ce2i_calibration_freeze_manifest import (
 )
 from qore.infrastructure.cibo_ce2i_calibration_matrix import (
     CIBO_T01_T20_CALIBRATION_MATRIX,
+    CiboToolCalibrationMatrixRow,
 )
 from qore.infrastructure.cibo_ce2i_calibration_registry import (
     CiboCalibrationState,
@@ -199,7 +200,7 @@ def evaluate_pre_holdout_readiness(
 
 
 def _historical_matrix_blockers(
-    rows: dict[str, object],
+    rows: dict[str, CiboToolCalibrationMatrixRow],
 ) -> list[str]:
     typed_rows = {
         row.tool_code: row
