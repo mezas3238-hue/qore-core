@@ -62,7 +62,7 @@ def test_arch_b_manifest_cannot_mint_scientific_readiness_without_rows() -> None
 
     with pytest.raises(
         ValueError,
-        match="non-empty qualified lineage",
+        match="frozen population minima",
     ):
         replace(
             manifest,
