@@ -106,5 +106,6 @@ def test_dual_invalidation_separates_m1_execution_from_m15_thesis_stop() -> None
     assert result.execution_stop_price == Decimal("99.5")
     assert result.execution_risk_price == Decimal("0.8")
     assert result.thesis_risk_price == Decimal("2.3")
+    assert result.execution_vs_thesis_ratio is not None
     assert result.execution_vs_thesis_ratio < Decimal("0.5")
     assert result.stop_widening_authorized is False
