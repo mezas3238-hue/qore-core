@@ -21,6 +21,7 @@ class SharedBBlindspotKind(StrEnum):
     DATA_HEALTH_NOT_OBSERVED = "DATA_HEALTH_NOT_OBSERVED"
     RELATION_COMPARABILITY_UNKNOWN = "RELATION_COMPARABILITY_UNKNOWN"
     COVERAGE_INVENTORY_INCOMPLETE = "COVERAGE_INVENTORY_INCOMPLETE"
+    OPEN_WORLD_BOUNDARY = "OPEN_WORLD_BOUNDARY"
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,6 +112,7 @@ class SharedBBlindspotReport:
     as_of: datetime
     blindspots: tuple[SharedBBlindspot, ...]
     coverage_inventory_complete: bool
+    open_world_boundary: bool
     second_order_blindspot_possible: bool
     productive_authority: bool = False
     sensor_admission_authority: bool = False
@@ -144,6 +146,7 @@ def detect_sensor_blindspots(
     coverage: tuple[SharedBSensorCoverageFact, ...],
     as_of: datetime,
     coverage_inventory_complete: bool,
+    open_world_boundary: bool = False,
 ) -> SharedBBlindspotReport:
     """Detect only evidence-supported gaps; never synthesize missing sensors."""
 
@@ -255,6 +258,22 @@ def detect_sensor_blindspots(
                 provenance_refs=("blindspot:inventory-completeness",),
             )
         )
+    elif open_world_boundary:
+        blindspots.append(
+            SharedBBlindspot(
+                requirement_id="__OPEN_WORLD_BOUNDARY__",
+                sensor_family="__UNKNOWN_UNKNOWN__",
+                horizon="__UNKNOWN__",
+                kind=SharedBBlindspotKind.OPEN_WORLD_BOUNDARY,
+                reason_code=(
+                    "SECOND_ORDER_BLINDSPOT_REMAINS_POSSIBLE_"
+                    "OUTSIDE_DECLARED_SCOPE"
+                ),
+                known_missing=False,
+                second_order_possible=True,
+                provenance_refs=("blindspot:open-world-boundary",),
+            )
+        )
 
     return SharedBBlindspotReport(
         as_of=as_of,
@@ -270,5 +289,8 @@ def detect_sensor_blindspots(
             )
         ),
         coverage_inventory_complete=coverage_inventory_complete,
-        second_order_blindspot_possible=not coverage_inventory_complete,
+        open_world_boundary=open_world_boundary,
+        second_order_blindspot_possible=(
+            not coverage_inventory_complete or open_world_boundary
+        ),
     )
