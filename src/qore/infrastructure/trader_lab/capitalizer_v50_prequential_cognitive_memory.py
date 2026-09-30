@@ -23,11 +23,12 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from statistics import median
 from typing import Any
 
 from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_feature_atlas import (
     IDENTITY as ATLAS_IDENTITY,
+)
+from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_feature_atlas import (
     V50CognitiveFeatureRow,
 )
 
