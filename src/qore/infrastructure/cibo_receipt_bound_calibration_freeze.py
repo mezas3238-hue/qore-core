@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import datetime
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
@@ -26,6 +27,11 @@ from qore.infrastructure.cibo_ce2i_calibration_matrix import (
 from qore.infrastructure.cibo_crossboundary_evidence_receipt import (
     CiboCrossBoundaryEvidenceReceipt,
     require_cross_boundary_receipts,
+)
+from qore.infrastructure.cibo_instrument_capability_registry import (
+    CapabilityStatus,
+    InstrumentCapability,
+    ProviderInstrumentCapabilityRegistry,
 )
 
 _TOOL_IDS = tuple(f"T{index:02d}" for index in range(1, 21))
@@ -47,7 +53,25 @@ def build_receipt_bound_calibration_freeze(
     receipts: tuple[CiboCrossBoundaryEvidenceReceipt, ...],
     integrated_git_sha: str,
     policy_identity_sha256: str,
+    provider_capability_registry: ProviderInstrumentCapabilityRegistry,
+    capability_at: datetime,
 ) -> CiboCalibrationFreezeManifest:
+    if not isinstance(
+        provider_capability_registry,
+        ProviderInstrumentCapabilityRegistry,
+    ):
+        raise CiboCapitalManagementError(
+            "calibration freeze requires canonical provider capability registry"
+        )
+    if capability_at.tzinfo is None or capability_at.utcoffset() is None:
+        raise CiboCapitalManagementError(
+            "calibration freeze capability_at must be timezone-aware"
+        )
+    if capability_at > provider_capability_registry.captured_at:
+        raise CiboCapitalManagementError(
+            "calibration freeze capability time exceeds registry capture"
+        )
+
     by_id = require_cross_boundary_receipts(
         receipts=receipts,
         required_receipt_ids=_REQUIRED_RECEIPT_IDS,
@@ -135,6 +159,12 @@ def build_receipt_bound_calibration_freeze(
                 raise CiboCapitalManagementError(
                     f"calibration freeze active tool state invalid: {tool_code}"
                 )
+            _validate_t16_t17_active_capability(
+                tool_code=tool_code,
+                registry=provider_capability_registry,
+                at=capability_at,
+                payload=payload,
+            )
         else:
             if tool_code not in {"T16", "T17"}:
                 raise CiboCapitalManagementError(
@@ -144,13 +174,18 @@ def build_receipt_bound_calibration_freeze(
                 payload["oos_ready"]
                 or payload["certification_ready"]
                 or not payload["structurally_disabled"]
-                or payload.get("provider_capability_verified") is not True
                 or not isinstance(payload.get("structural_disable_reason"), str)
                 or not payload["structural_disable_reason"]
             ):
                 raise CiboCapitalManagementError(
                     f"calibration freeze structural disablement evidence invalid: {tool_code}"
                 )
+            _validate_t16_t17_disabled_capability(
+                tool_code=tool_code,
+                registry=provider_capability_registry,
+                at=capability_at,
+                payload=payload,
+            )
 
         if (
             tool_code in provider_required
@@ -184,3 +219,114 @@ def build_receipt_bound_calibration_freeze(
         provider_economics_freeze_sha256=provider_freeze_sha256,
         tools=tuple(tools),
     )
+
+
+def _registry_status(
+    *,
+    registry: ProviderInstrumentCapabilityRegistry,
+    capability: InstrumentCapability,
+    at: datetime,
+) -> CapabilityStatus:
+    return registry.status(
+        capability=capability,
+        at=at,
+    )
+
+
+def _require_registry_binding(
+    *,
+    payload: dict[str, object],
+    registry: ProviderInstrumentCapabilityRegistry,
+    tool_code: str,
+) -> None:
+    if payload.get("provider_capability_registry_sha256") != registry.fingerprint():
+        raise CiboCapitalManagementError(
+            f"calibration freeze provider registry binding mismatch: {tool_code}"
+        )
+
+
+def _validate_t16_t17_disabled_capability(
+    *,
+    tool_code: str,
+    registry: ProviderInstrumentCapabilityRegistry,
+    at: datetime,
+    payload: dict[str, object],
+) -> None:
+    _require_registry_binding(
+        payload=payload,
+        registry=registry,
+        tool_code=tool_code,
+    )
+    if tool_code == "T16":
+        if _registry_status(
+            registry=registry,
+            capability=InstrumentCapability.HEDGE,
+            at=at,
+        ) is not CapabilityStatus.UNAVAILABLE:
+            raise CiboCapitalManagementError(
+                "T16 structural disablement requires provider-verified HEDGE UNAVAILABLE"
+            )
+        return
+
+    option_status = _registry_status(
+        registry=registry,
+        capability=InstrumentCapability.OPTION,
+        at=at,
+    )
+    spread_status = _registry_status(
+        registry=registry,
+        capability=InstrumentCapability.DEFINED_RISK_SPREAD,
+        at=at,
+    )
+    if (
+        option_status is not CapabilityStatus.UNAVAILABLE
+        or spread_status is not CapabilityStatus.UNAVAILABLE
+    ):
+        raise CiboCapitalManagementError(
+            "T17 structural disablement requires provider-verified OPTION and SPREAD UNAVAILABLE"
+        )
+
+
+def _validate_t16_t17_active_capability(
+    *,
+    tool_code: str,
+    registry: ProviderInstrumentCapabilityRegistry,
+    at: datetime,
+    payload: dict[str, object],
+) -> None:
+    if tool_code not in {"T16", "T17"}:
+        return
+    _require_registry_binding(
+        payload=payload,
+        registry=registry,
+        tool_code=tool_code,
+    )
+    supported = {
+        CapabilityStatus.SUPPORTED,
+        CapabilityStatus.CONDITIONALLY_SUPPORTED,
+    }
+    if tool_code == "T16":
+        if _registry_status(
+            registry=registry,
+            capability=InstrumentCapability.HEDGE,
+            at=at,
+        ) not in supported:
+            raise CiboCapitalManagementError(
+                "T16 active calibration requires provider-supported HEDGE capability"
+            )
+        return
+
+    option_status = _registry_status(
+        registry=registry,
+        capability=InstrumentCapability.OPTION,
+        at=at,
+    )
+    spread_status = _registry_status(
+        registry=registry,
+        capability=InstrumentCapability.DEFINED_RISK_SPREAD,
+        at=at,
+    )
+    if option_status not in supported and spread_status not in supported:
+        raise CiboCapitalManagementError(
+            "T17 active calibration requires provider-supported OPTION or SPREAD capability"
+        )
