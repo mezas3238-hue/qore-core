@@ -63,4 +63,6 @@ def test_market_dislocation_is_descriptive_only() -> None:
 
 def test_snapshot_is_deterministic() -> None:
     rows = tuple(_evidence(domain) for domain in StabilityDomain)
-    assert build_stability_snapshot(rows).fingerprint() == build_stability_snapshot(rows).fingerprint()
+    first = build_stability_snapshot(rows).fingerprint()
+    second = build_stability_snapshot(rows).fingerprint()
+    assert first == second
