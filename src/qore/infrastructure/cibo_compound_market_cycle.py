@@ -36,6 +36,7 @@ from qore.infrastructure.cibo_internal_capital_market import (
     CapitalScarcityEvent,
     Genc6Action,
     Genc6InternalCapitalMarketDecision,
+    Genc6MarginalCapitalCandidate,
     build_genc6_portfolio_state,
     evaluate_genc6_internal_capital_market_shadow,
     genc6_portfolio_state_sha256,
@@ -318,7 +319,7 @@ def settle_compound_deployment(
 def _selected_candidate(
     event: CapitalScarcityEvent,
     decision: Genc6InternalCapitalMarketDecision,
-):
+) -> Genc6MarginalCapitalCandidate:
     candidate_id = decision.treatment_candidate_id
     if candidate_id is None:
         raise CiboCompoundCapitalError(
