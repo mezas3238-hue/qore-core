@@ -1,0 +1,105 @@
+{
+  "identity": "QORE_SHARED_STI8_ECONOMIC_VALUE_PREREGISTRATION_001",
+  "workstream": "STI-8",
+  "study": "POSITION_THREAT_ECONOMIC_VALUE_CONTROL_TREATMENT",
+  "status": "PREREGISTERED_RESEARCH_ONLY",
+  "frozen_before_economic_counterfactual_scoring": true,
+  "signal_engine": {
+    "source_sha": "711788d89521e051ab3969a9006830068381693e",
+    "policy_artifact_id": 11065709899,
+    "policy_artifact_digest": "sha256:10c9941d119878159dfe10ae57997ebe18d638c0fcde07cb5bed176e5a18a415",
+    "material_threat_levels": [
+      "CRITICAL",
+      "ELEVATED",
+      "HIGH"
+    ],
+    "retuning_authorized": false
+  },
+  "trader_consumer": {
+    "module": "src/qore/infrastructure/traders/vt31_shared_threat_consumer_research.py",
+    "policy_id": "VT31_STI8_MATERIAL_THREAT_EXIT_NEXT_M1_OPEN_V1",
+    "owner": "TRADER_RESEARCH_CONSUMER",
+    "same_code_both_arms": true,
+    "decision_effective": "NEXT_M1_OPEN_AFTER_CLOSED_M1_THREAT",
+    "control_behavior": "NO_PROACTIVE_SHARED_INPUT_THEREFORE_HOLD",
+    "treatment_behavior": "MATERIAL_STI8_THREAT_THEREFORE_TRADER_EXIT_NEXT_M1_OPEN",
+    "same_initial_setup": true,
+    "same_entry": true,
+    "same_initial_stop": true,
+    "same_initial_target": true,
+    "same_sizing": true,
+    "stop_mutation": false,
+    "target_mutation": false,
+    "shared_exit_authority": false,
+    "shared_position_management_authority": false,
+    "productive_authority": false
+  },
+  "research_partitions": {
+    "r6": "CONSUMED_RESEARCH_VALIDATION",
+    "r5": "CONSUMED_TEMPORAL_REPLICATION",
+    "sti8_research_oos_v1": "BURNED_RESEARCH_OOS",
+    "protected_certification_holdout": "CLOSED"
+  },
+  "evaluation_metrics": [
+    "TOTAL_R",
+    "PROFIT_FACTOR",
+    "MAX_DD_R",
+    "P95_BOOTSTRAP_DD_R",
+    "P99_BOOTSTRAP_DD_R",
+    "TAIL_LOSS",
+    "EXPECTED_SHORTFALL_5PCT",
+    "LOSS_R_AVOIDED",
+    "MAX_LOSS_CLUSTER",
+    "WINNER_COUNT_RETENTION",
+    "WINNER_R_RETENTION",
+    "TOP_DECILE_WINNER_R_RETENTION",
+    "TOP_5PCT_WINNER_R_RETENTION",
+    "POSITIVE_TAIL_R_RETENTION",
+    "FALSE_THREAT_COST_R",
+    "PREMATURE_EXIT_REGRET_R",
+    "NET_ECONOMIC_UTILITY_R",
+    "MEDIAN_TRUE_THREAT_LEAD_MINUTES"
+  ],
+  "frozen_pass_gates": {
+    "treatment_total_r_gte_control": true,
+    "treatment_profit_factor_gt_control": true,
+    "treatment_max_dd_lt_control": true,
+    "treatment_p95_bootstrap_dd_lte_control": true,
+    "treatment_p99_bootstrap_dd_lte_control": true,
+    "loss_r_avoided_gt_zero": true,
+    "net_economic_utility_r_gt_zero": true,
+    "winner_count_retention_min": 0.98,
+    "winner_r_retention_min": 0.90,
+    "top_decile_winner_r_retention_min": 0.90,
+    "top_5pct_winner_r_retention_min": 0.90,
+    "positive_tail_r_retention_min": 0.90
+  },
+  "monte_carlo": {
+    "method": "PAIRED_BOOTSTRAP_TRADE_INDEX_RESAMPLING",
+    "paths": 5000,
+    "seed": 20260930,
+    "same_sampled_trade_indices_control_treatment": true
+  },
+  "causal_laws": {
+    "evidence_cutoff_lte_decision_time": true,
+    "future_market_in_decision": false,
+    "future_trade_outcome_in_decision": false,
+    "terminal_outcome_scored_only_after_decision_materialized": true,
+    "same_opportunity_universe": true,
+    "same_trade_count": true,
+    "shared_is_only_information_difference": true
+  },
+  "interpretation_law": {
+    "signal_pass_is_not_economic_pass": true,
+    "economic_pass_is_not_certification": true,
+    "economic_failure_closes_response_policy_not_sti8_signal_capability": true,
+    "winner_destruction_for_loss_reduction_is_failure": true
+  },
+  "governance": {
+    "protected_certification_holdout_opened": false,
+    "live_authorized": false,
+    "production_authorized": false,
+    "real_capital_authorized": false,
+    "merge_authorized": false
+  }
+}
