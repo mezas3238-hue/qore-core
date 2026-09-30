@@ -129,3 +129,24 @@ def test_blindspot_report_never_gains_authority() -> None:
     assert report.productive_authority is False
     assert report.sensor_admission_authority is False
     assert report.relation_authority is False
+
+
+def test_complete_declared_scope_preserves_open_world_unknown_unknowns() -> None:
+    report=detect_sensor_blindspots(
+        requirements=(_req("R01","EQUITY_BREADTH_PROXY","M1"),),
+        coverage=(_fact(),),
+        as_of=NOW,
+        coverage_inventory_complete=True,
+        open_world_boundary=True,
+    )
+    assert report.coverage_inventory_complete is True
+    assert report.open_world_boundary is True
+    assert report.second_order_blindspot_possible is True
+    boundary=next(
+        item
+        for item in report.blindspots
+        if item.kind is SharedBBlindspotKind.OPEN_WORLD_BOUNDARY
+    )
+    assert boundary.known_missing is False
+    assert boundary.second_order_possible is True
+    assert boundary.requirement_id=="__OPEN_WORLD_BOUNDARY__"
