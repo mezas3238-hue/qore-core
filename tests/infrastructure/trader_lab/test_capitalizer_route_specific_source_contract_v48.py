@@ -63,21 +63,21 @@ def test_asia_positional_requires_completed_fractal_confirmation_before_open() -
     contract = contract_for(V48RouteId.TTRADES_ASIA_POSITIONAL)
     assert {
         "HTF_FRACTAL_BIAS_CONFIRMED",
-        "LTF_CISD_CONFIRMED",
-        "PROTECTED_SWING_CONFIRMED",
+        "LTF_PROTECTED_SWING_CONFIRMED_BY_CISD",
         "POSITIONAL_OPEN_AVAILABLE",
     }.issubset(set(contract.required_fact_ids))
 
 
-def test_london_requires_wick_then_cisd_then_continuation_sequence() -> None:
+def test_london_uses_wick_structure_then_one_cisd_protected_swing_fact() -> None:
     contract = contract_for(V48RouteId.TTRADES_LONDON_DAILY_4H_15M)
+    facts = set(contract.required_fact_ids)
     assert {
-        "DAILY_WICK_FORMATION_CONFIRMED",
         "H4_WICK_SWING_STRUCTURE_CONFIRMED",
-        "M15_CISD_CONFIRMED",
-        "M15_PROTECTED_SWING_CONFIRMED",
+        "M15_PROTECTED_SWING_CONFIRMED_BY_CISD",
         "M15_CONTINUATION_AVAILABLE",
-    }.issubset(set(contract.required_fact_ids))
+    }.issubset(facts)
+    assert "DAILY_WICK_FORMATION_CONFIRMED" not in facts
+    assert "M15_CISD_CONFIRMED" not in facts
 
 
 def test_ftm_contract_contains_core_failure_then_continuation_only() -> None:
