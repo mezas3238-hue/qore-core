@@ -1,0 +1,73 @@
+name: QORE Shared A MC27 Meta Cognitive Foundation
+
+on:
+  push:
+    branches: [agent/shared-a-cognitive-science-001]
+    paths:
+      - src/qore/infrastructure/core_stack_v2/meta_cognitive_scientific_intelligence.py
+      - tests/infrastructure/test_core_stack_v2_meta_cognitive_scientific_intelligence.py
+      - scripts/shared_mc27_meta_cognitive_audit.py
+      - .github/workflows/qore-shared-a-mc27-meta-cognitive-foundation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p result
+          ruff check src/qore/infrastructure/core_stack_v2/meta_cognitive_scientific_intelligence.py tests/infrastructure/test_core_stack_v2_meta_cognitive_scientific_intelligence.py scripts/shared_mc27_meta_cognitive_audit.py
+          mypy src/qore/infrastructure/core_stack_v2/meta_cognitive_scientific_intelligence.py
+          pytest -q tests/infrastructure/test_core_stack_v2_meta_cognitive_scientific_intelligence.py
+          for run_id in 36753425521 36754966932
+          do
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.conclusion // ""')" = "success"
+          done
+          python scripts/shared_mc27_meta_cognitive_audit.py | tee result/summary.json
+      - name: Validate bounded disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc27-meta-cognitive-audit.json").read_text())
+          assert p["status"] == "MC27_META_COGNITIVE_FOUNDATION_PASS"
+          assert p["top_research_concern"] == "OVERCONFIDENCE"
+          assert p["measurable_oos_improvement_observed_in_lineage"] is True
+          assert p["automatic_priority_generated_before_v2_historically"] is False
+          assert p["continuous_self_observation_bound"] is False
+          assert p["mc27_completed_and_proven"] is False
+          PY
+      - name: Seal
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (cd result && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc27-meta-cognition-${{ github.sha }}
+          path: result/
+          retention-days: 90
+      - name: Report
+        run: |
+          gh issue comment 638 --body "## Shared A MC-27 — Meta-Cognitive foundation
+
+- historical failure diagnosed: **MC09 OVERCONFIDENCE**
+- subsequent OOS improvement exists: **True**
+- diagnosis was generated prospectively before V2: **False**
+- continuous self-observation bound: **False**
+- MC-27 completed-and-proven: **False**"
