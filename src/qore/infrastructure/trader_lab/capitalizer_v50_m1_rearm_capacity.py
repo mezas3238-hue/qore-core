@@ -21,7 +21,6 @@ It measures only whether re-arm can recover executable high-frequency capacity.
 from __future__ import annotations
 
 import argparse
-import bisect
 import json
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
