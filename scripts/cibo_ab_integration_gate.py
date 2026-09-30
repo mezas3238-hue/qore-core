@@ -17,6 +17,13 @@ from typing import Any
 
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 _SCHEMA = "CIBO_AB_INTEGRATION_ACCEPTANCE_V1"
+_LOCAL_EVIDENCE_PREFIXES = (
+    ".github/",
+    "docs/",
+    "scripts/",
+    "src/",
+    "tests/",
+)
 
 
 def validate_state(
@@ -165,6 +172,41 @@ def validate_state(
     return errors
 
 
+def validate_local_evidence_paths(
+    ledger: dict[str, Any],
+    *,
+    repo_root: Path,
+) -> list[str]:
+    errors: list[str] = []
+    workstreams = ledger.get("workstreams")
+    if not isinstance(workstreams, list):
+        return ["canonical ledger workstreams missing"]
+
+    for row in workstreams:
+        if not isinstance(row, dict):
+            continue
+        workstream_id = str(row.get("id", "UNKNOWN"))
+        refs = row.get("evidence_refs", [])
+        if not isinstance(refs, list):
+            errors.append(
+                f"{workstream_id} evidence_refs must be a list"
+            )
+            continue
+        for ref in refs:
+            if not isinstance(ref, str):
+                errors.append(
+                    f"{workstream_id} evidence ref must be string"
+                )
+                continue
+            if not ref.startswith(_LOCAL_EVIDENCE_PREFIXES):
+                continue
+            if not (repo_root / ref).is_file():
+                errors.append(
+                    f"{workstream_id} local evidence missing: {ref}"
+                )
+    return errors
+
+
 def _load(path: Path) -> dict[str, Any]:
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
@@ -188,6 +230,12 @@ def main() -> int:
         matrix,
         ledger,
         enforce_certification=args.enforce_certification,
+    )
+    errors.extend(
+        validate_local_evidence_paths(
+            ledger,
+            repo_root=root,
+        )
     )
     if errors:
         for error in errors:
