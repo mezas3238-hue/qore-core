@@ -60,7 +60,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_EXECUTABLE_NONCOMPENSATORY_ECONOMIC_GATE_CI_PENDING_REAL_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -69,12 +69,17 @@
         "src/qore/infrastructure/cibo_marginal_leverage_utility.py",
         "tests/infrastructure/test_cibo_marginal_leverage_utility.py",
         "src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py",
-        "tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py"
+        "tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py",
+        "src/qore/infrastructure/cibo_ce2i_t04_t10_economic_gate.py",
+        "tests/infrastructure/test_cibo_ce2i_t04_t10_economic_gate.py",
+        "docs/research/CIBO-CE2I-T04-T10-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        ".github/workflows/cibo-t04-t10-economic-gate.yml"
       ],
       "blockers": [
-        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
+        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED",
+        "T04_T10_ECONOMIC_GATE_CHILD_CI_REQUIRED"
       ],
-      "next_gate": "Bind provider-valid marginal-capital economics and prove value under the frozen CE2I economic protocol; then OOS/stress/replication and terminal disposition."
+      "next_gate": "Pass the executable T04/T10 economic-gate CI; then bind provider-valid marginal-capital control/treatment evidence and require independent WF1..WF4 non-compensatory risk-efficiency value, stress and terminal disposition."
     },
     {
       "id": "T05",
@@ -186,7 +191,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_EXECUTABLE_NONCOMPENSATORY_ECONOMIC_GATE_CI_PENDING_REAL_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -195,12 +200,17 @@
         "src/qore/infrastructure/cibo_ce2i_chronological_replay.py",
         "tests/infrastructure/test_cibo_ce2i_chronological_replay.py",
         "src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py",
-        "tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py"
+        "tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py",
+        "src/qore/infrastructure/cibo_ce2i_t04_t10_economic_gate.py",
+        "tests/infrastructure/test_cibo_ce2i_t04_t10_economic_gate.py",
+        "docs/research/CIBO-CE2I-T04-T10-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        ".github/workflows/cibo-t04-t10-economic-gate.yml"
       ],
       "blockers": [
-        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
+        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED",
+        "T04_T10_ECONOMIC_GATE_CHILD_CI_REQUIRED"
       ],
-      "next_gate": "Bind provider-valid chronological capital-duration/release economics and prove capital-velocity value without hidden leverage or outcome leakage; then OOS/stress/replication."
+      "next_gate": "Pass the executable T04/T10 economic-gate CI; then bind authoritative deployment/release provider economics and require independent WF1..WF4 non-compensatory capital-velocity value, stress and terminal disposition."
     },
     {
       "id": "T11",
