@@ -1,0 +1,152 @@
+name: QORE Shared X18 Seven Trader Routing Proof
+
+concurrency:
+  group: qore-shared-x18-seven-trader-routing
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_trader_routing.py
+      - tests/infrastructure/test_core_stack_v2_shared_trader_routing.py
+      - scripts/shared_x18_seven_trader_routing_proof.py
+      - .github/workflows/qore-shared-x18-seven-trader-routing.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  CIBO_SOURCE_SHA: 1460435615a663a614cd5ee8873f719d08086200
+
+jobs:
+  proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate routing engine
+        run: |
+          set -euo pipefail
+          mkdir -p result input/trader-sources
+          ruff check             src/qore/infrastructure/core_stack_v2/shared_trader_routing.py             tests/infrastructure/test_core_stack_v2_shared_trader_routing.py             scripts/shared_x18_seven_trader_routing_proof.py
+          mypy             src/qore/infrastructure/core_stack_v2/shared_trader_routing.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/shared_trader_routing.py             scripts/shared_x18_seven_trader_routing_proof.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_shared_trader_routing.py             --junitxml=result/junit.xml
+
+      - name: Verify canonical seven-Trader roster from PR 635
+        run: |
+          set -euo pipefail
+          gh pr view 635 --repo "${GITHUB_REPOSITORY}" --json body --jq .body > input/pr635-body.txt
+          grep -F "1. R38 GBPJPY" input/pr635-body.txt
+          grep -F "2. R43 GBPUSD" input/pr635-body.txt
+          grep -F "3. R42 AUDJPY" input/pr635-body.txt
+          grep -F "4. R38 EURUSD" input/pr635-body.txt
+          grep -F "5. R34 XAUUSD" input/pr635-body.txt
+          grep -F "6. VT08 FOREX" input/pr635-body.txt
+          grep -F "7. VT31 NAS100" input/pr635-body.txt
+
+      - name: Recover pinned current-Trader source surfaces from CIBO
+        run: |
+          set -euo pipefail
+          git fetch origin "${CIBO_SOURCE_SHA}" --depth=1
+
+          git show "${CIBO_SOURCE_SHA}:src/qore/infrastructure/r38_gbpjpy_live.py"             > input/trader-sources/r38_gbpjpy_live.py
+          git show "${CIBO_SOURCE_SHA}:src/qore/infrastructure/r43_gbpusd_live.py"             > input/trader-sources/r43_gbpusd_live.py
+          git show "${CIBO_SOURCE_SHA}:src/qore/infrastructure/r42_audjpy_live.py"             > input/trader-sources/r42_audjpy_live.py
+          git show "${CIBO_SOURCE_SHA}:src/qore/infrastructure/r38_eurusd_live.py"             > input/trader-sources/r38_eurusd_live.py
+          git show "${CIBO_SOURCE_SHA}:src/qore/infrastructure/r34_xauusd_live.py"             > input/trader-sources/r34_xauusd_live.py
+          git show "${CIBO_SOURCE_SHA}:src/qore/infrastructure/vt31_nas100_live.py"             > input/trader-sources/vt31_nas100_live.py
+          git show "${CIBO_SOURCE_SHA}:src/qore/infrastructure/traders/vt08_forex.py"             > input/trader-sources/vt08_forex.py
+          git show "${CIBO_SOURCE_SHA}:src/qore/infrastructure/traders/vt08_source_kernel_r3_2.py"             > input/trader-sources/vt08_source_kernel_r3_2.py
+
+      - name: Execute seven-Trader routing proof
+        run: |
+          set -euo pipefail
+          python scripts/shared_x18_seven_trader_routing_proof.py             --source-root input/trader-sources             --output result/x18-seven-trader-routing.json             | tee result/summary.json
+
+      - name: Enforce deterministic closure proof
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/x18-seven-trader-routing.json").read_text())
+          assert p["status"] == "X18_COMPLETED_AND_PROVEN_SEVEN_CURRENT_TRADERS"
+          assert p["all_pass"] is True
+          assert len(p["traders"]) == 7
+          proof=p["proof"]
+          assert proof["seven_current_traders_covered"] is True
+          assert proof["market_horizon_surface_bound_to_pinned_source"] is True
+          assert proof["materiality_respected"] is True
+          assert proof["data_health_respected"] is True
+          assert proof["global_truth_unchanged"] is True
+          assert proof["methodology_inspected"] is False
+          assert proof["methodology_mutated"] is False
+          g=p["governance"]
+          assert g["trader_methodology_authority"] is False
+          assert g["capital_authority"] is False
+          assert g["risk_authority"] is False
+          assert g["execution_authority"] is False
+          assert g["protected_certification_holdout_opened"] is False
+          assert g["productive_authority"] is False
+          PY
+
+      - name: Bind evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          printf '%s\n' "${CIBO_SOURCE_SHA}" > result/cibo-source-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-x18-seven-trader-routing-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report X18 proof
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/x18-seven-trader-routing.json").read_text())
+          body="\n".join([
+              "## Shared X-18 — Seven Current Trader Routing Proof",
+              "",
+              f"- Shared Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- CIBO Trader-source SHA: `{os.environ['CIBO_SOURCE_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              "- current Traders covered: **7/7**",
+              "- methodology inspected/mutated: **False / False**",
+              "- market/horizon/materiality/data-health routing: **PASS**",
+              "- global truth mutated by projection: **False**",
+              "- protected certification holdout opened: **False**",
+              "- productive authority: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
