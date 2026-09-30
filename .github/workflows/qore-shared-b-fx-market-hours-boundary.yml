@@ -1,0 +1,185 @@
+name: QORE Shared B FX Market Hours Boundary
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - docs/shared/evidence/SHARED_B_FX_MARKET_HOURS_AUTHORITY_EVIDENCE_001.json
+      - src/qore/infrastructure/core_stack_v2/shared_b_fx_market_hours_boundary.py
+      - scripts/shared_b_fx_market_hours_boundary.py
+      - tests/infrastructure/test_shared_b_fx_market_hours_boundary.py
+      - .github/workflows/qore-shared-b-fx-market-hours-boundary.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-fx-market-hours-boundary-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  GEN2_RUN_ID: "36623131862"
+  GEN2_ARTIFACT_ID: "11059307341"
+  GEN2_GIT_SHA: "f5fcd0c9552466132f6f47bb124805e49e774493"
+
+jobs:
+  boundary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate FX market-hours boundary
+        run: |
+          set -euo pipefail
+          mkdir -p input/gen2 result
+          ruff check             src/qore/infrastructure/core_stack_v2/shared_b_fx_market_hours_boundary.py             scripts/shared_b_fx_market_hours_boundary.py             tests/infrastructure/test_shared_b_fx_market_hours_boundary.py
+          mypy             src/qore/infrastructure/core_stack_v2/shared_b_fx_market_hours_boundary.py             scripts/shared_b_fx_market_hours_boundary.py
+          pytest -q tests/infrastructure/test_shared_b_fx_market_hours_boundary.py
+
+      - name: Validate frozen independent authority evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path(
+                  "docs/shared/evidence/"
+                  "SHARED_B_FX_MARKET_HOURS_AUTHORITY_EVIDENCE_001.json"
+              ).read_text()
+          )
+          assert p["identity"] == "SHARED_B_FX_MARKET_HOURS_AUTHORITY_EVIDENCE_001"
+          assert len(p["authorities"]) == 3
+          assert {row["organization"] for row in p["authorities"]} == {
+              "Bank for International Settlements",
+              "Federal Reserve Bank of New York Foreign Exchange Committee",
+              "Bank of England",
+          }
+          assert all(
+              row["source_url"].startswith("https://")
+              for row in p["authorities"]
+          )
+          c=p["frozen_conclusions"]
+          assert c["canonical_market_structure"] == "DISTRIBUTED_OTC"
+          assert c["single_canonical_venue_exists"] is False
+          assert c["daily_24_hour_operation_supported"] is True
+          assert c["exact_universal_weekly_boundary_verified"] is False
+          assert c["provider_schedule_is_canonical_market_hours"] is False
+          assert c[
+              "canonical_market_closed_state_derivable_from_provider_schedule"
+          ] is False
+          assert c[
+              "unknown_required_when_global_market_state_unresolved"
+          ] is True
+          g=p["governance"]
+          assert g["target_or_outcome_read"] is False
+          assert g["r6_r5_read"] is False
+          assert g["fresh_holdout_opened"] is False
+          assert g["sensor_admission_authorized"] is False
+          assert g["relational_claims_authorized"] is False
+          assert g["productive_authority"] is False
+          PY
+
+      - name: Verify and recover sealed GEN2 provider schedule
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${GEN2_RUN_ID}" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${GEN2_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${GEN2_RUN_ID}" --jq '.head_sha')" = "$GEN2_GIT_SHA"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${GEN2_ARTIFACT_ID}/zip" > gen2.zip
+          unzip -q gen2.zip -d input/gen2
+          sums="$(find input/gen2 -name SHA256SUMS -print -quit)"
+          test -n "$sums"
+          (cd "$(dirname "$sums")" && sha256sum -c SHA256SUMS)
+          provider_file="$(find input/gen2 -name provider-schedule-catalog.json -print -quit)"
+          test -n "$provider_file"
+          printf 'PROVIDER_FILE=%s\n' "$provider_file" >> "$GITHUB_ENV"
+
+      - name: Build exact 60-sensor FX hours boundary
+        run: |
+          set -euo pipefail
+          python scripts/shared_b_fx_market_hours_boundary.py             --provider-schedule "$PROVIDER_FILE"             --authority-evidence               docs/shared/evidence/SHARED_B_FX_MARKET_HOURS_AUTHORITY_EVIDENCE_001.json             --output result/shared-b-fx-market-hours-boundary.json             | tee result/summary.json
+
+      - name: Enforce no fabricated calendar or venue
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/shared-b-fx-market-hours-boundary.json").read_text()
+          )
+          assert p["identity"] == "SHARED_B_FX_MARKET_HOURS_BOUNDARY_001"
+          assert p["status"] == "FX_DISTRIBUTED_OTC_HOURS_BOUNDARY_FROZEN"
+          assert p["fx_sensor_count"] == 60
+          assert p["canonical_market_structure"] == "DISTRIBUTED_OTC"
+          assert p["single_canonical_venue_count"] == 0
+          assert p["daily_24_hour_operation_supported"] is True
+          assert p["exact_universal_weekly_boundary_verified"] is False
+          assert p["canonical_calendar_verified_count"] == 0
+          assert p["provider_schedule_is_canonical_market_hours"] is False
+          assert p[
+              "canonical_market_closed_state_derivable_from_provider_schedule"
+          ] is False
+          assert p["unknown_required_when_global_market_state_unresolved"] is True
+          assert p["calendar_mapping_complete"] is False
+          assert p["relational_claims_authorized"] is False
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["broker_mutation"] is False
+          assert p["productive_authority"] is False
+          assert len(p["records"]) == 60
+          assert all(
+              row["canonical_single_venue"] is None
+              and row["canonical_calendar_status"] == "UNRESOLVED"
+              and row[
+                  "canonical_market_open_derivable_from_provider_schedule"
+              ] is False
+              and row["market_closed_if_provider_closed"] is False
+              and row["provider_schedule_role"] == "PROVIDER_OBSERVABILITY_ONLY"
+              and row["calendar_binding_authorized"] is False
+              and row["relational_comparability_authorized"] is False
+              for row in p["records"]
+          )
+          PY
+
+      - name: Seal B-07 FX boundary evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          printf '%s\n' "$GEN2_RUN_ID" > result/upstream-run-id.txt
+          printf '%s\n' "$GEN2_ARTIFACT_ID" > result/upstream-artifact-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload B-07 FX boundary evidence
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-fx-market-hours-boundary-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report B-07 FX market-hours frontier
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-07 FX market-hours boundary: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. 60/60 FX sensors classified as DISTRIBUTED_OTC with independent BIS/NYFed/BoE authority; 24-hour daily operation supported, single venue=none, exact universal weekly boundary=unverified, canonical calendars=0, provider schedule remains observability-only and cannot imply global FX market closed. B-07 remains open for canonical temporal closure beyond this boundary."
