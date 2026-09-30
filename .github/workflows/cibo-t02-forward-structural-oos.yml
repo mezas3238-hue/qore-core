@@ -6,7 +6,9 @@ on:
     paths:
       - '.github/workflows/cibo-t02-forward-structural-oos.yml'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t02_terminal_reason_evidence.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t02_structural_oos.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t02_terminal_reason_evidence.py'
       - 'docs/research/CIBO-B-T02-FORWARD-STRUCTURAL-OOS-V1.md'
   push:
     branches:
@@ -14,7 +16,9 @@ on:
     paths:
       - '.github/workflows/cibo-t02-forward-structural-oos.yml'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t02_terminal_reason_evidence.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t02_structural_oos.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t02_terminal_reason_evidence.py'
       - 'docs/research/CIBO-B-T02-FORWARD-STRUCTURAL-OOS-V1.md'
 
 permissions:
@@ -38,7 +42,15 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py \
-            tests/infrastructure/test_cibo_ce2i_phase20_t02_structural_oos.py
-          mypy src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py
-          python -m py_compile src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py
-          pytest -q --no-cov tests/infrastructure/test_cibo_ce2i_phase20_t02_structural_oos.py
+            src/qore/infrastructure/cibo_ce2i_t02_terminal_reason_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t02_structural_oos.py \
+            tests/infrastructure/test_cibo_ce2i_t02_terminal_reason_evidence.py
+          mypy \
+            src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py \
+            src/qore/infrastructure/cibo_ce2i_t02_terminal_reason_evidence.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py \
+            src/qore/infrastructure/cibo_ce2i_t02_terminal_reason_evidence.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_phase20_t02_structural_oos.py \
+            tests/infrastructure/test_cibo_ce2i_t02_terminal_reason_evidence.py
