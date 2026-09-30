@@ -1,0 +1,233 @@
+{
+  "identity": "SHARED_B_INDEX_REFERENCE_AUTHORITY_EVIDENCE_001",
+  "status": "FROZEN_EXTERNAL_INDEX_REFERENCE_AUTHORITY",
+  "retrieved_at": "2026-09-30",
+  "purpose": "Resolve only provider index descriptions that explicitly name a current official reference index, preserve documented legacy lineages separately, and keep all generic or ambiguous provider descriptions unresolved.",
+  "mapping_policy": {
+    "provider_symbol_name_used_as_mapping_proof": false,
+    "provider_description_required": true,
+    "official_authority_required": true,
+    "semantic_guessing_allowed": false,
+    "generic_country_plus_constituent_count_is_sufficient": false,
+    "legacy_constituent_count_auto_promotes_to_current_index": false
+  },
+  "current_reference_mappings": [
+    {
+      "provider_symbol_id": 10000,
+      "provider_symbol": "AUS200",
+      "expected_provider_description": "Australian S&P/ASX 200 Index",
+      "canonical_reference_identity": "INDEX:S&P_ASX_200",
+      "canonical_reference_name": "S&P/ASX 200",
+      "authority": "S&P Dow Jones Indices",
+      "source_url": "https://www.spglobal.com/spdji/en/indices/equity/sp-asx-200/"
+    },
+    {
+      "provider_symbol_id": 10001,
+      "provider_symbol": "STOXX50",
+      "expected_provider_description": "EURO STOXX 50 Index",
+      "canonical_reference_identity": "INDEX:EURO_STOXX_50",
+      "canonical_reference_name": "EURO STOXX 50",
+      "authority": "STOXX",
+      "source_url": "https://stoxx.com/index/sx5e/"
+    },
+    {
+      "provider_symbol_id": 10002,
+      "provider_symbol": "F40",
+      "expected_provider_description": "French CAC 40 Index",
+      "canonical_reference_identity": "INDEX:CAC_40",
+      "canonical_reference_name": "CAC 40",
+      "authority": "Euronext",
+      "source_url": "https://live.euronext.com/en/products/indices"
+    },
+    {
+      "provider_symbol_id": 10005,
+      "provider_symbol": "IT40",
+      "expected_provider_description": "Italian FTSE MIB Index",
+      "canonical_reference_identity": "INDEX:FTSE_MIB",
+      "canonical_reference_name": "FTSE MIB Index",
+      "authority": "FTSE Russell / LSEG",
+      "source_url": "https://www.lseg.com/en/ftse-russell/indices/italia"
+    },
+    {
+      "provider_symbol_id": 10006,
+      "provider_symbol": "JP225",
+      "expected_provider_description": "Japan Nikkei 225 Index",
+      "canonical_reference_identity": "INDEX:NIKKEI_225",
+      "canonical_reference_name": "Nikkei Stock Average (Nikkei 225)",
+      "authority": "Nikkei",
+      "source_url": "https://indexes.nikkei.co.jp/en/nkave/index/profile?idx=nk225"
+    },
+    {
+      "provider_symbol_id": 10009,
+      "provider_symbol": "ES35",
+      "expected_provider_description": "Spanish IBEX 35 Index",
+      "canonical_reference_identity": "INDEX:IBEX_35",
+      "canonical_reference_name": "IBEX 35",
+      "authority": "BME",
+      "source_url": "https://www.bolsasymercados.es/en/bme-exchange/indices/ibex.html"
+    },
+    {
+      "provider_symbol_id": 10012,
+      "provider_symbol": "US2000",
+      "expected_provider_description": "USA Russell 2000 Index",
+      "canonical_reference_identity": "INDEX:RUSSELL_2000",
+      "canonical_reference_name": "Russell 2000 Index",
+      "authority": "FTSE Russell / LSEG",
+      "source_url": "https://www.lseg.com/en/ftse-russell/indices/russell-2000-index"
+    },
+    {
+      "provider_symbol_id": 10013,
+      "provider_symbol": "US500",
+      "expected_provider_description": "USA S&P 500 Index",
+      "canonical_reference_identity": "INDEX:S&P_500",
+      "canonical_reference_name": "S&P 500",
+      "authority": "S&P Dow Jones Indices",
+      "source_url": "https://www.spglobal.com/spdji/en/indices/equity/sp-500/"
+    },
+    {
+      "provider_symbol_id": 10014,
+      "provider_symbol": "USTEC",
+      "expected_provider_description": "USA NASDAQ 100 Index",
+      "canonical_reference_identity": "INDEX:NASDAQ_100",
+      "canonical_reference_name": "Nasdaq-100 Index",
+      "authority": "Nasdaq",
+      "source_url": "https://www.nasdaq.com/products/global-indexes/nasdaq-100"
+    },
+    {
+      "provider_symbol_id": 10025,
+      "provider_symbol": "CHINA50",
+      "expected_provider_description": "FTSE China A50 Index",
+      "canonical_reference_identity": "INDEX:FTSE_CHINA_A50",
+      "canonical_reference_name": "FTSE China A50 Index",
+      "authority": "FTSE Russell / LSEG",
+      "source_url": "https://www.lseg.com/en/ftse-russell/indices/ftse-china-a50-index"
+    },
+    {
+      "provider_symbol_id": 10046,
+      "provider_symbol": "DE40",
+      "expected_provider_description": "German DAX 40 Index",
+      "canonical_reference_identity": "INDEX:DAX_40",
+      "canonical_reference_name": "DAX",
+      "authority": "Deutsche Börse",
+      "source_url": "https://www.deutsche-boerse.com/dbg-en/media/news-stories/press-releases/DAX-welcomes-ten-new-members--2766886"
+    }
+  ],
+  "legacy_lineage_only": [
+    {
+      "provider_symbol_id": 10003,
+      "provider_symbol": "DE30",
+      "expected_provider_description": "German DAX 30 Index",
+      "legacy_reference_family": "DAX",
+      "current_reference_identity": "INDEX:DAX_40",
+      "disposition": "LEGACY_CONSTITUENT_COUNT_NOT_CURRENT_REFERENCE_BINDING",
+      "authority": "Deutsche Börse",
+      "source_url": "https://www.deutsche-boerse.com/dbg-en/media/news-stories/press-releases/DAX-welcomes-ten-new-members--2766886",
+      "evidence": "DAX expanded from 30 to 40 constituents effective September 20, 2021."
+    },
+    {
+      "provider_symbol_id": 10035,
+      "provider_symbol": "MidDE60",
+      "expected_provider_description": "Germany Mid 60 Index",
+      "legacy_reference_family": "MDAX",
+      "current_reference_identity": "INDEX:MDAX_50",
+      "disposition": "LEGACY_CONSTITUENT_COUNT_NOT_CURRENT_REFERENCE_BINDING",
+      "authority": "Deutsche Börse",
+      "source_url": "https://www.deutsche-boerse.com/dbg-en/about-us/contact/glossary/glossary-article/MDAX-243032",
+      "evidence": "MDAX was reduced from 60 to 50 stocks when DAX expanded to 40."
+    }
+  ],
+  "unresolved_provider_bindings": [
+    {
+      "provider_symbol_id": 10004,
+      "provider_symbol": "HK50",
+      "expected_provider_description": "Chinese Hang Seng 50 Index",
+      "reason": "CURRENT_HANG_SENG_INDEX_CONSTITUENT_COUNT_CONFLICTS_WITH_PROVIDER_DESCRIPTOR",
+      "authority_url": "https://www.hsi.com.hk/static/uploads/contents/en/news/pressRelease/20260522T174500.pdf"
+    },
+    {
+      "provider_symbol_id": 10011,
+      "provider_symbol": "UK100",
+      "expected_provider_description": "UK 100 Index",
+      "reason": "GENERIC_PROVIDER_DESCRIPTION_DOES_NOT_NAME_OFFICIAL_INDEX"
+    },
+    {
+      "provider_symbol_id": 10015,
+      "provider_symbol": "US30",
+      "expected_provider_description": "USA Dow Jones IA Index",
+      "reason": "PROVIDER_ABBREVIATION_REQUIRES_EXPLICIT_BINDING_EVIDENCE"
+    },
+    {
+      "provider_symbol_id": 10033,
+      "provider_symbol": "CA60",
+      "expected_provider_description": "Canada 60 Index",
+      "reason": "GENERIC_PROVIDER_DESCRIPTION_DOES_NOT_NAME_OFFICIAL_INDEX"
+    },
+    {
+      "provider_symbol_id": 10034,
+      "provider_symbol": "TecDE30",
+      "expected_provider_description": "Germany Tech 30 Index",
+      "reason": "GENERIC_PROVIDER_DESCRIPTION_DOES_NOT_NAME_OFFICIAL_INDEX"
+    },
+    {
+      "provider_symbol_id": 10036,
+      "provider_symbol": "NETH25",
+      "expected_provider_description": "Netherlands 25 Index",
+      "reason": "GENERIC_PROVIDER_DESCRIPTION_DOES_NOT_NAME_OFFICIAL_INDEX"
+    },
+    {
+      "provider_symbol_id": 10037,
+      "provider_symbol": "SWI20",
+      "expected_provider_description": "Switzerland 20 Index",
+      "reason": "GENERIC_PROVIDER_DESCRIPTION_AND_PROVIDER_BASE_ASSET_ANOMALY"
+    },
+    {
+      "provider_symbol_id": 10039,
+      "provider_symbol": "CHINAH",
+      "expected_provider_description": "Hong Kong China H-shares Index",
+      "reason": "GENERIC_H_SHARE_DESCRIPTION_DOES_NOT_PROVE_SPECIFIC_HANG_SENG_INDEX_BINDING"
+    },
+    {
+      "provider_symbol_id": 10040,
+      "provider_symbol": "NOR25",
+      "expected_provider_description": "Norway 25 Index",
+      "reason": "GENERIC_PROVIDER_DESCRIPTION_DOES_NOT_PROVE_OBX_BINDING"
+    },
+    {
+      "provider_symbol_id": 10041,
+      "provider_symbol": "SA40",
+      "expected_provider_description": "South Africa 40 Index",
+      "reason": "GENERIC_PROVIDER_DESCRIPTION_DOES_NOT_PROVE_FTSE_JSE_TOP40_BINDING"
+    },
+    {
+      "provider_symbol_id": 10042,
+      "provider_symbol": "SE30",
+      "expected_provider_description": "Sweden 30 Index",
+      "reason": "GENERIC_PROVIDER_DESCRIPTION_DOES_NOT_NAME_OFFICIAL_INDEX"
+    },
+    {
+      "provider_symbol_id": 10045,
+      "provider_symbol": "MidDE50",
+      "expected_provider_description": "Germany Mid 50 Index",
+      "reason": "GENERIC_PROVIDER_DESCRIPTION_DOES_NOT_PROVE_MDAX_BINDING"
+    }
+  ],
+  "counts": {
+    "provider_index_sensors": 25,
+    "current_reference_mappings": 11,
+    "legacy_lineage_only": 2,
+    "unresolved_provider_bindings": 12
+  },
+  "governance": {
+    "provider_symbol_name_used_as_mapping_proof": false,
+    "historical_market_outcomes_read": false,
+    "target_or_outcome_read": false,
+    "r6_r5_read": false,
+    "fresh_holdout_opened": false,
+    "tradable_identity_authorized": false,
+    "listing_identity_authorized": false,
+    "calendar_binding_authorized": false,
+    "sensor_admission_authorized": false,
+    "relational_claims_authorized": false,
+    "productive_authority": false
+  }
+}
