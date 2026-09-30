@@ -10,8 +10,8 @@ def test_stop_ladder_uses_newest_eligible_deeper_pivot() -> None:
     at = datetime(2026, 1, 5, 12, 0, tzinfo=UTC)
     pivots = (
         (at, Decimal("95")),
-        (at.replace(minute=1), Decimal("97")),
-        (at.replace(minute=2), Decimal("99.5")),
+        (at.replace(minute=1), Decimal("99.5")),
+        (at.replace(minute=2), Decimal("99.8")),
     )
     rescue = _choose_rescue(
         pivots,
@@ -23,6 +23,8 @@ def test_stop_ladder_uses_newest_eligible_deeper_pivot() -> None:
     )
     assert rescue is not None
     _, stop, noise, target, reward_r = rescue
+    # Latest 99.8 stop is only 2x local noise and must be skipped.
+    # The immediately older 99.5 causal pivot is 5x noise and is admissible.
     assert stop == Decimal("99.5")
     assert noise == Decimal("5")
     assert target == Decimal("104")
