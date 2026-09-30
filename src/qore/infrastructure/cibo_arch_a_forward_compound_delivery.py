@@ -30,8 +30,8 @@ from qore.infrastructure.cibo_arch_b_forward_economic_manifest import (
 from qore.infrastructure.cibo_capital_source_ledger import CapitalSourceLedger
 from qore.infrastructure.cibo_compound_cycle_state import CiboCompoundCycleState
 from qore.infrastructure.cibo_compound_path_monte_carlo import (
+    CompoundMonteCarloEpisode,
     CompoundMonteCarloFloorAttribution,
-    extract_compound_monte_carlo_episodes,
 )
 from qore.infrastructure.cibo_compound_real_population_binding import (
     CompoundPopulationEvidenceKind,
@@ -111,21 +111,16 @@ def build_arch_a_forward_compound_delivery(
         raise ValueError("A forward-compound source manifest drift")
 
     floor_attributions = _derive_floor_attributions(compound_state)
-    episodes = extract_compound_monte_carlo_episodes(
+    floor_by_deployment = {
+        item.deployment_id: item for item in floor_attributions
+    }
+    episode_by_settlement = _settled_episode_map(
         state=compound_state,
-        floor_attributions=floor_attributions,
+        floor_by_deployment=floor_by_deployment,
+        allowed_settlement_sha256={
+            row.settlement_sha256 for row in manifest.rows
+        },
     )
-    episode_by_settlement: dict[str, object] = {}
-    for episode in episodes:
-        deployment = next(
-            item
-            for item in compound_state.deployments
-            if item.deployment_id == episode.deployment_id
-        )
-        assert deployment.settlement_sha256 is not None
-        if deployment.settlement_sha256 in episode_by_settlement:
-            raise ValueError("A forward-compound settlement reused by episodes")
-        episode_by_settlement[deployment.settlement_sha256] = episode
 
     records: list[ForwardCompoundEconomicRecord] = []
     for row in manifest.rows:
@@ -191,14 +186,10 @@ def build_arch_a_forward_compound_delivery(
 def _record(
     *,
     row: ArchBForwardEconomicManifestRow,
-    episode: object,
+    episode: CompoundMonteCarloEpisode,
     account_identity: CiboAccountCapitalIdentity,
     source_manifest_sha256: str,
 ) -> ForwardCompoundEconomicRecord:
-    from qore.infrastructure.cibo_compound_path_monte_carlo import (
-        CompoundMonteCarloEpisode,
-    )
-
     if not isinstance(episode, CompoundMonteCarloEpisode):
         raise ValueError("A forward-compound episode type invalid")
     if (
@@ -244,6 +235,64 @@ def _record(
         future_leakage_used=False,
     )
 
+
+
+def _settled_episode_map(
+    *,
+    state: CiboCompoundCycleState,
+    floor_by_deployment: dict[str, CompoundMonteCarloFloorAttribution],
+    allowed_settlement_sha256: set[str],
+) -> dict[str, CompoundMonteCarloEpisode]:
+    result: dict[str, CompoundMonteCarloEpisode] = {}
+    for deployment in state.deployments:
+        if not deployment.settled or deployment.settlement_sha256 is None:
+            continue
+        if deployment.settlement_sha256 not in allowed_settlement_sha256:
+            continue
+        settlements = tuple(
+            item
+            for item in state.settlements
+            if item.deployment_id == deployment.deployment_id
+        )
+        if len(settlements) != 1:
+            raise ValueError("A forward-compound deployment settlement not unique")
+        markets = tuple(
+            item
+            for item in state.market_records
+            if item.event_id == deployment.market_event_id
+            and item.decision_id == deployment.decision_id
+        )
+        if len(markets) != 1:
+            raise ValueError("A forward-compound deployment market record not unique")
+        settlement = settlements[0]
+        floor = floor_by_deployment.get(deployment.deployment_id)
+        graduation = Decimal(0) if floor is None else floor.amount_usd
+        floor_sha = None if floor is None else floor.evidence_sha256
+        episode = CompoundMonteCarloEpisode(
+            episode_id=deployment.deployment_id,
+            deployment_id=deployment.deployment_id,
+            market_event_id=deployment.market_event_id,
+            decision_id=deployment.decision_id,
+            candidate_id=deployment.candidate_id,
+            trader_id=deployment.trader_id,
+            signal_fingerprint=deployment.signal_fingerprint,
+            deployed_at=deployment.deployed_at,
+            settled_at=settlement.occurred_at,
+            source_generation=deployment.source_generation,
+            deployed_capital_usd=deployment.amount_usd,
+            stop_risk_usd=deployment.stop_risk_usd,
+            margin_usd=deployment.margin_usd,
+            realized_pnl_usd=settlement.realized_net_pnl_usd,
+            protected_floor_graduation_usd=graduation,
+            floor_evidence_sha256=floor_sha,
+            market_record_present=True,
+            terminal_release_present=True,
+            future_leakage_used=False,
+        )
+        if deployment.settlement_sha256 in result:
+            raise ValueError("A forward-compound settlement reused by episodes")
+        result[deployment.settlement_sha256] = episode
+    return result
 
 def _derive_floor_attributions(
     state: CiboCompoundCycleState,
