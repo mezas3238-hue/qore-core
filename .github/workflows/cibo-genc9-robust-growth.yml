@@ -1,0 +1,48 @@
+name: QORE CIBO GEN-C9 Robust Growth Ruin Capacity
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-genc9-robust-growth.yml'
+      - 'src/qore/infrastructure/cibo_robust_growth_ruin_capacity.py'
+      - 'tests/infrastructure/test_cibo_robust_growth_ruin_capacity.py'
+      - 'docs/research/CIBO-GEN-C9-ROBUST-GROWTH-RUIN-CAPACITY-PREREGISTRATION-V1.md'
+      - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-genc9-robust-growth.yml'
+      - 'src/qore/infrastructure/cibo_robust_growth_ruin_capacity.py'
+      - 'tests/infrastructure/test_cibo_robust_growth_ruin_capacity.py'
+      - 'docs/research/CIBO-GEN-C9-ROBUST-GROWTH-RUIN-CAPACITY-PREREGISTRATION-V1.md'
+      - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  genc9-robust-growth:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: GEN-C9 robust-growth quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_robust_growth_ruin_capacity.py \
+            tests/infrastructure/test_cibo_robust_growth_ruin_capacity.py
+          mypy src/qore/infrastructure/cibo_robust_growth_ruin_capacity.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_robust_growth_ruin_capacity.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_robust_growth_ruin_capacity.py

@@ -440,15 +440,22 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ARCHITECTURE_DEFINED",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-GEN-C9-ROBUST-GROWTH-RUIN-CAPACITY-PREREGISTRATION-V1.md",
+        "src/qore/infrastructure/cibo_robust_growth_ruin_capacity.py",
+        "tests/infrastructure/test_cibo_robust_growth_ruin_capacity.py",
+        ".github/workflows/cibo-genc9-robust-growth.yml"
       ],
       "blockers": [
-        "ENGINE_NOT_YET_IMPLEMENTED"
+        "GEN_C9_ENGINE_CI_REVALIDATION_REQUIRED",
+        "COMPOUND_PATH_MONTE_CARLO_ADAPTER_NOT_YET_BOUND",
+        "ECONOMIC_GATE_NOT_YET_PREREGISTERED",
+        "FRESH_OOS_STRESS_TEMPORAL_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Implement robust growth/ruin/capacity research engine, preregistration, tests and evidence."
+      "next_gate": "Pass GEN-C9 engine CI; bind path-dependent compound Monte Carlo and real provider/NCU evidence; preregister economic gate before comparative outcome inspection; then OOS/stress/replicate."
     },
     {
       "id": "GEN-C10",
