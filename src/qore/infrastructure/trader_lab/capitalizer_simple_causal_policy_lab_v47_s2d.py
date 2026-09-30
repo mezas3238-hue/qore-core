@@ -306,13 +306,14 @@ def _rank_key(
     winner_r = preservation_report.winner_r_preservation
     winner_count = preservation_report.winner_count_preservation
     pf = row.development.metrics.profit_factor
+    # Lower tuple is better; policy_id supplies the final ascending tie-break.
     return (
-        Decimal("-1") if winner_r is None else winner_r,
-        Decimal("-1") if winner_count is None else winner_count,
-        row.development.trades,
-        Decimal(row.development.metrics.total_r),
-        Decimal("-1") if pf is None else Decimal(pf),
-        "".join(chr(255 - ord(char)) for char in row.policy.policy_id),
+        -(Decimal("-1") if winner_r is None else winner_r),
+        -(Decimal("-1") if winner_count is None else winner_count),
+        -row.development.trades,
+        -Decimal(row.development.metrics.total_r),
+        -(Decimal("-1") if pf is None else Decimal(pf)),
+        row.policy.policy_id,
     )
 
 
@@ -344,7 +345,7 @@ def build_lab(
     eligible = tuple(
         row for row in evaluations if row.development_eligible
     )
-    winner = max(eligible, key=_rank_key) if eligible else None
+    winner = min(eligible, key=_rank_key) if eligible else None
 
     if winner is None:
         decision = "SIMPLE_CAUSAL_POLICY_FAMILY_FALSIFIED"
