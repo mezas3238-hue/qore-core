@@ -221,6 +221,8 @@ def test_calibration_mechanics_use_provider_quote_to_weighted_fill() -> None:
     assert first.provider_quote_price == Decimal("101")
     assert first.weighted_fill_price == Decimal("101.01")
     assert first.signed_slippage_price == Decimal("0.01")
+    assert first.signed_slippage_cost_per_volume_usd == Decimal("1")
+    assert first.adverse_slippage_cost_per_volume_usd == Decimal("1")
     assert first.provider_quote_age_ms == Decimal("100")
     assert first.decision_to_fill_ms == Decimal("1000")
     assert first.fill_to_risk_reconciliation_ms == Decimal("500")
@@ -296,3 +298,8 @@ def test_favorable_fill_is_preserved_as_negative_signed_slippage() -> None:
     assert report.observations[0].signed_slippage_price == Decimal("-0.01")
     assert report.observations[0].signed_slippage_bps < 0
     assert report.observations[0].adverse_slippage_bps == 0
+    assert (
+        report.observations[0].signed_slippage_cost_per_volume_usd
+        == Decimal("-1")
+    )
+    assert report.observations[0].adverse_slippage_cost_per_volume_usd == 0
