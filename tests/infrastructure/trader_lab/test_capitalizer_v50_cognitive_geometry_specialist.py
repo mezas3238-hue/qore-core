@@ -5,6 +5,10 @@ from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSessi
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
     V49Opportunity,
 )
+from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_geometry_specialist import (
+    V50GeometryDecision,
+    propose_v50_geometry,
+)
 from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_hf_bridge import (
     V50CognitiveAssessment,
     V50CognitiveDisposition,
@@ -15,12 +19,10 @@ from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_hf_bridge import (
     V50SessionRunway,
     V50StopNoiseState,
 )
-from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_geometry_specialist import (
-    V50GeometryDecision,
-    propose_v50_geometry,
-)
 from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_opportunity import (
     IDENTITY as SNAPSHOT_IDENTITY,
+)
+from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_opportunity import (
     V50CognitiveOpportunitySnapshot,
 )
 from qore.infrastructure.trader_lab.capitalizer_v50_target_stop_intelligence import (
