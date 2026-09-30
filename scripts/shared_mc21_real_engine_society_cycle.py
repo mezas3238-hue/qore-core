@@ -38,21 +38,19 @@ R6_SOURCE_ARTIFACT_ID = 10389112524
 
 
 def _find_sti5(root: Path) -> dict[str, Any]:
-    matches: list[dict[str, Any]] = []
-    for path in root.rglob("*.json"):
-        try:
-            payload = json.loads(path.read_text())
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            continue
-        if (
-            isinstance(payload, dict)
-            and payload.get("identity") == "QORE_SHARED_STI5_REAL_REGIME_TRANSITION_V1"
-            and payload.get("mode") == "CAUSAL_HISTORICAL_REPLAY"
-        ):
-            matches.append(payload)
+    matches = list(root.rglob("sti5-causal-replay.json"))
     if len(matches) != 1:
-        raise ValueError(f"expected one STI5 evaluation payload, found {len(matches)}")
-    return matches[0]
+        raise ValueError(
+            f"expected one canonical sti5-causal-replay.json, found {len(matches)}"
+        )
+    payload = json.loads(matches[0].read_text())
+    if not isinstance(payload, dict):
+        raise ValueError("canonical STI5 replay payload must be an object")
+    if payload.get("identity") != "QORE_SHARED_STI5_REAL_REGIME_TRANSITION_V1":
+        raise ValueError("canonical STI5 replay identity drifted")
+    if payload.get("mode") != "CAUSAL_HISTORICAL_REPLAY":
+        raise ValueError("canonical STI5 replay mode drifted")
+    return payload
 
 
 def _real_hypothesis_binding(paths: dict[str, Path]) -> dict[str, object]:
