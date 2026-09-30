@@ -65,19 +65,25 @@ def _initial():
     )
 
 
-def _settlement() -> CmaSettlementState:
+def _settlement(
+    *,
+    signal: str = "replay-profit",
+    position_id: int = 7001,
+    deal_id: int = 8001,
+    pnl: str = "20",
+) -> CmaSettlementState:
     state = CmaSettlementState(
-        signal_fingerprint="replay-profit",
-        position_id=7001,
+        signal_fingerprint=signal,
+        position_id=position_id,
     )
     return apply_settlement(
         state,
         CmaSettlementRecord(
             event="CTRADER_DEMO_EXIT_SETTLEMENT",
-            deal_id=8001,
-            signal_fingerprint="replay-profit",
-            position_id=7001,
-            net_profit_usd=Decimal("20"),
+            deal_id=deal_id,
+            signal_fingerprint=signal,
+            position_id=position_id,
+            net_profit_usd=Decimal(pnl),
             position_open_after=False,
         ),
     )
@@ -128,6 +134,75 @@ def test_compound_cycle_runner_is_chronological_and_reconciled() -> None:
     assert result.reconciliation.protected_floor_usd == Decimal("5")
     assert result.reconciliation.compoundable_usd == Decimal("15")
     assert result.reconciliation.certification_ready is False
+
+
+def test_genc1_end_to_end_mathematical_reconciliation_replay() -> None:
+    events = (
+        BaseSettlementEvent(
+            event_id="genc1-profit",
+            occurred_at=T0,
+            trader_id=TraderLineage.VT31_NAS100,
+            settlement=_settlement(
+                signal="genc1-profit",
+                position_id=7101,
+                deal_id=8101,
+                pnl="20",
+            ),
+        ),
+        ProtectProfitEvent(
+            event_id="genc1-protect",
+            occurred_at=T0 + timedelta(seconds=1),
+            source_lot_id="genc1-profit:gen1",
+            amount_usd=Decimal("5"),
+        ),
+        ClassificationEvent(
+            event_id="genc1-compoundable",
+            occurred_at=T0 + timedelta(seconds=2),
+            source_lot_id="genc1-protect:remainder",
+            to_state=CompoundCapitalState.COMPOUNDABLE,
+            amount_usd=Decimal("15"),
+        ),
+        BaseSettlementEvent(
+            event_id="genc1-loss",
+            occurred_at=T0 + timedelta(seconds=3),
+            trader_id=TraderLineage.R34_XAUUSD,
+            settlement=_settlement(
+                signal="genc1-loss",
+                position_id=7102,
+                deal_id=8102,
+                pnl="-7",
+            ),
+        ),
+    )
+
+    result = replay_compound_cycle(
+        initial_state=_initial(),
+        events=events,
+    )
+    audit = result.reconciliation
+
+    assert result.chronological is True
+    assert result.future_leakage_used is False
+    assert audit.opening_original_base_usd == Decimal("100")
+    assert audit.current_original_base_usd == Decimal("93")
+    assert audit.admitted_realized_profit_usd == Decimal("20")
+    assert audit.cumulative_realized_gains_usd == Decimal("20")
+    assert audit.cumulative_realized_losses_usd == Decimal("7")
+    assert audit.consumed_compound_capital_usd == Decimal("0")
+    assert audit.base_capital_loss_usd == Decimal("7")
+    assert audit.closing_realized_capital_usd == Decimal("113")
+    assert audit.accounting_identity_usd == Decimal("113")
+    assert audit.accounting_residual_usd == Decimal("0")
+    assert audit.protected_floor_usd == Decimal("5")
+    assert audit.compoundable_usd == Decimal("15")
+    assert audit.accounting_integrity_pass is True
+    assert audit.provenance_pass is True
+    assert audit.no_double_counting_pass is True
+    assert audit.no_unexplained_creation_pass is True
+    assert audit.no_unexplained_destruction_pass is True
+    assert audit.path_dependence_mechanics_pass is True
+    assert audit.economic_value_demonstrated is False
+    assert audit.certification_ready is False
 
 
 def test_compound_cycle_runner_rejects_reversed_input() -> None:
