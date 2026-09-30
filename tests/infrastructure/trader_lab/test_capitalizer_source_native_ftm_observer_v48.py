@@ -59,3 +59,20 @@ def test_htf_bias_must_align_with_continuation() -> None:
     )
     assert result.state is V48FTMState.WAIT
     assert result.htf_bias_aligned is False
+
+
+
+def test_ftm_observer_does_not_inherit_v47_superintersection() -> None:
+    facts = V48FTMFacts(
+        taken_side=V48FTMTakenSide.HIGH,
+        level_taken=True,
+        post_sweep_closure_observed=True,
+        expected_reversal_structure_confirmed=False,
+        continuation_structure_confirmed=True,
+        continuation_protected_swing_confirmed=True,
+        htf_bias_direction=CapitalizerSourceDirection.BULLISH,
+    )
+    assert facts.ict_mss_required is False
+    assert facts.ict_fvg_required is False
+    assert facts.m1_order_block_required is False
+    assert facts.outcome_used is False
