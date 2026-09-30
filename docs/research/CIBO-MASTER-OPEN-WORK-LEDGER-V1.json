@@ -17,13 +17,21 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "MECHANICAL_MINIMAL_EXECUTABLE_SEED_CONTRACT_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "src/qore/infrastructure/cibo_cma_initial_seed.py",
+        "src/qore/infrastructure/cibo_fundednext_seed.py",
+        "src/qore/infrastructure/cibo_cma_risk_request.py",
+        "tests/infrastructure/test_cibo_cma_initial_seed.py",
+        "tests/infrastructure/test_cibo_fundednext_seed.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py",
+        "docs/research/CIBO-ARCH-B-T01-MINIMAL-SEED-MECHANICAL-CLOSURE-V1.md",
+        "github-actions://36727848357/SUCCESS"
       ],
       "blockers": [],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "Terminal mechanical minimal-seed primitive. Economic utility of larger deployment remains independently blocking elsewhere."
     },
     {
       "id": "T02",
@@ -721,13 +729,18 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "COLLECTING",
+      "current_maturity": "COLLECTING_ARCH_B_IMMUTABLE_ECONOMIC_MANIFEST_CONTRACT_GREEN",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "PHASE20D_FRESH_POPULATION_THRESHOLDS_NOT_YET_MET_OR_REVALIDATED"
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py",
+        "docs/research/CIBO-ARCH-B-FORWARD-ECONOMIC-EVIDENCE-MANIFEST-V1.md",
+        "github-actions://36759730229/SUCCESS"
       ],
-      "next_gate": "Revalidate durable books and pass frozen Phase20D qualification without threshold changes."
+      "blockers": [
+        "PHASE20D_FRESH_POPULATION_THRESHOLDS_NOT_YET_MET_OR_REVALIDATED",
+        "REAL_PHASE20D_POPULATION_THRESHOLDS_STILL_REQUIRED"
+      ],
+      "next_gate": "Accumulate the frozen real FORWARD_OBSERVED population and emit only fully reconciled provider→Risk→execution→CMA→T20 rows for scientific consumption."
     },
     {
       "id": "PATH_DEPENDENT_MONTE_CARLO",
@@ -1005,18 +1018,20 @@
       "kind": "LEGACY_PROGRAM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "RESEARCH_QUARANTINE_GATE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "QUARANTINED_AND_CURRENT_RUNTIME_DECOUPLED_CI_GREEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
         "scripts/cibo_legacy_stack_quarantine.py",
         "tests/infrastructure/test_cibo_legacy_stack_quarantine.py",
         ".github/workflows/cibo-legacy-stack-quarantine.yml",
-        "docs/research/CIBO-LEGACY-STACK-QUARANTINE-V1.md"
+        "docs/research/CIBO-LEGACY-STACK-QUARANTINE-V1.md",
+        "src/qore/infrastructure/cibo_research_memory.py",
+        "src/qore/infrastructure/traders/vt31_nas100_cibo_market_memory.py",
+        "tests/infrastructure/test_vt31_cibo_market_memory_quarantine.py",
+        "github-actions://36759730275/SUCCESS"
       ],
-      "blockers": [
-        "LEGACY_STACK_QUARANTINE_CI_REVALIDATION_REQUIRED"
-      ],
-      "next_gate": "Pass AST import quarantine with zero forbidden current/runtime consumers; retain only GEN-C13 executive-memory reuse, then close legacy program without deleting research evidence."
+      "blockers": [],
+      "next_gate": "Terminal quarantine: historical cognitive/executive stack has no productive runtime import edge; retained memory reuse remains limited to explicitly governed research consumers."
     },
     {
       "id": "USD60_CAPABILITY_PROGRAM",
@@ -1082,8 +1097,8 @@
   ],
   "current_summary": {
     "mandatory_count": 64,
-    "terminal_count": 8,
-    "open_count": 56,
+    "terminal_count": 10,
+    "open_count": 54,
     "zero_open_work_pass": false,
     "final_certification_candidate": false
   }
