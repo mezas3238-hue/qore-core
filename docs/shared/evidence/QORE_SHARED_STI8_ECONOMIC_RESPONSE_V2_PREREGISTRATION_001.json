@@ -1,0 +1,106 @@
+{
+  "identity": "QORE_SHARED_STI8_ECONOMIC_RESPONSE_V2_PREREGISTRATION_001",
+  "workstream": "STI-8",
+  "generation": "ECONOMIC_RESPONSE_V2",
+  "status": "PREREGISTERED_BEFORE_NEW_RESEARCH_OOS",
+  "signal_engine": {
+    "source_sha": "711788d89521e051ab3969a9006830068381693e",
+    "policy_artifact_id": 11065709899,
+    "engine_changed": false,
+    "threat_thresholds_changed": false
+  },
+  "parent_response_v1": {
+    "run_id": 36665151377,
+    "status": "STI8_V1_ECONOMIC_RESPONSE_POLICY_FALSIFIED",
+    "reopened": false,
+    "threshold_rescue_allowed": false
+  },
+  "failure_knowledge": {
+    "diagnostic_run_id": 36665876381,
+    "cross_partition_hypotheses": [
+      "V2_LOCAL_THESIS_RESILIENCE_COUNTERSIGNATURE",
+      "V2_THREAT_SCOPE_CONDITIONAL_RESPONSE"
+    ],
+    "burned_partitions_used_for_hypothesis_generation_only": [
+      "R6",
+      "R5",
+      "STI8_RESEARCH_OOS_V1"
+    ],
+    "burned_partitions_may_demonstrate_v2_value": false
+  },
+  "scientific_hypothesis": {
+    "statement": "A material Shared threat is economically actionable only when the Trader's local thesis also deteriorates; cross-asset threat alone often occurs inside eventual winners.",
+    "local_resilience_components": [
+      "MAX_0_SIGNED_CLOSE_R",
+      "MAX_0_EFFICIENCY_R"
+    ],
+    "local_failure_components": [
+      "MAX_0_NEGATIVE_SIGNED_CLOSE_R",
+      "MAX_0_NEGATIVE_EFFICIENCY_R",
+      "OVERLAP"
+    ],
+    "uses_relative_resilience_vs_failure": true,
+    "numeric_rescue_threshold_added": false
+  },
+  "trader_owned_response_rule": {
+    "material_threat_levels": [
+      "ELEVATED",
+      "HIGH",
+      "CRITICAL"
+    ],
+    "LOCAL_ASSET_THREAT": "EXIT_NEXT_M1_OPEN_IF_LOCAL_FAILURE_GTE_LOCAL_RESILIENCE",
+    "CROSS_ASSET_THREAT": "EXIT_NEXT_M1_OPEN_IF_LOCAL_FAILURE_GT_LOCAL_RESILIENCE_AND_FAILURE_HAZARD_GTE_CONTINUATION_SUPPORT",
+    "SYSTEMIC_WORLD_THREAT": "EXIT_NEXT_M1_OPEN_IF_LOCAL_FAILURE_GT_LOCAL_RESILIENCE_OR_CRITICAL_WITH_FAILURE_HAZARD_GTE_CONTINUATION_SUPPORT",
+    "otherwise": "HOLD",
+    "same_initial_entry_stop_target": true,
+    "same_sizing": true,
+    "stop_mutation": false,
+    "target_mutation": false,
+    "shared_exit_authority": false,
+    "productive_authority": false
+  },
+  "new_research_oos": {
+    "opened_at_inclusive": "2024-07-22T00:00:00+00:00",
+    "checked_at_exclusive": "2026-07-22T00:00:00+00:00",
+    "minimum_coverage_days": 730,
+    "markets": [
+      "NAS100",
+      "SP500",
+      "US30"
+    ],
+    "one_shot": true,
+    "temporally_disjoint_from_prior_research_oos": true,
+    "protected_certification_holdout": false
+  },
+  "economic_gates": {
+    "treatment_total_r_gte_control": true,
+    "treatment_profit_factor_gt_control": true,
+    "treatment_max_dd_lt_control": true,
+    "treatment_p95_bootstrap_dd_lte_control": true,
+    "treatment_p99_bootstrap_dd_lte_control": true,
+    "loss_r_avoided_gt_zero": true,
+    "net_economic_utility_r_gt_zero": true,
+    "winner_count_retention_min": 0.98,
+    "winner_r_retention_min": 0.90,
+    "top_decile_winner_r_retention_min": 0.90,
+    "top_5pct_winner_r_retention_min": 0.90,
+    "positive_tail_r_retention_min": 0.90,
+    "all_gates_required": true
+  },
+  "monte_carlo": {
+    "paired_trade_index_bootstrap": true,
+    "paths": 5000,
+    "seed": 20260930
+  },
+  "governance": {
+    "future_market_in_decision": false,
+    "future_outcome_in_decision": false,
+    "outcome_aware_retuning": false,
+    "shared_position_management_authority": false,
+    "protected_certification_holdout_opened": false,
+    "live_authorized": false,
+    "production_authorized": false,
+    "real_capital_authorized": false,
+    "broker_mutation_authorized": false
+  }
+}
