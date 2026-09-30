@@ -73,11 +73,14 @@ jobs:
           retention-days: 90
       - name: Report MC28
         run: |
-          gh issue comment 638 --body "## Shared A MC-28 — Core/Broker Blindspot Bridge
-
-- B source run/artifact: **36763268609 / 11119388121**
-- X-12 cognition executed in this workflow: **Yes**
-- runtime Core/Broker replication complete: **False**
-- second-order inventory complete: **False**
-- mutation authority: **None**
-- MC-28 completed-and-proven: **False**"
+          {
+            echo "## Shared A MC-28 — Core/Broker Blindspot Bridge"
+            echo
+            echo "- B source run/artifact: **36763268609 / 11119388121**"
+            echo "- X-12 cognition executed in this workflow: **Yes**"
+            echo "- runtime Core/Broker replication complete: **False**"
+            echo "- second-order inventory complete: **False**"
+            echo "- mutation authority: **None**"
+            echo "- MC-28 completed-and-proven: **False**"
+          } > result/issue-comment.md
+          gh issue comment 638 --body-file result/issue-comment.md
