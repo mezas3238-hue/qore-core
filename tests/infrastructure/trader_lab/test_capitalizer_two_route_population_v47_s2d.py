@@ -20,6 +20,7 @@ def _row(
         symbol=symbol,
         session="LONDON",
         operating_date="2026-01-05",
+        side="LONG",
         route=route,
         entry_at=entry_at,
         entry_price="100",
