@@ -65,6 +65,18 @@
           "class": "ENGINEERING_GREEN_OPEN_REAL_CALIBRATION",
           "workflow_run_id": 36760959053,
           "status": "SUCCESS"
+        },
+        {
+          "id": "GEN-C10",
+          "class": "ENGINEERING_GREEN_OPEN_REAL_TRANSITION_CALIBRATION",
+          "workflow_run_id": 36767443083,
+          "status": "SUCCESS"
+        },
+        {
+          "id": "COMPOUND_ENGINE_CURRENT_HEAD_REVALIDATION",
+          "class": "ENGINEERING_GREEN_OPEN_REAL_REPLAY",
+          "workflow_run_id": 36767443011,
+          "status": "SUCCESS"
         }
       ]
     },
@@ -111,9 +123,18 @@
       "owner": "ARCHITECT_A",
       "latest_head_sha": "4b39952718640b1f723f03cd71a68c72afb3d76b",
       "reasons": [
-        "CURRENT_HEAD_CI_PENDING",
         "A_SUPPORT_001_FINAL_EXAM_SELF_ATTESTATION",
-        "A_SUPPORT_002_MANDATORY_WORKSTREAM_DRIFT"
+        "A_SUPPORT_002_MANDATORY_WORKSTREAM_DRIFT",
+        "LEGACY_QUARANTINE_RED_IS_B_OWNED_AND_INTEGRATED_IN_670",
+        "REMAINING_CURRENT_HEAD_CI_PENDING"
+      ],
+      "engineering_green_not_accepted_as_certification_gate": [
+        {
+          "id": "FINAL_INTEGRATED_CIBO_EXAM_GATE",
+          "workflow_run_id": 36767442737,
+          "status": "SUCCESS",
+          "blocker": "TYPED_CANONICAL_RECEIPT_HARDENING_REQUIRED"
+        }
       ]
     },
     {
