@@ -5,7 +5,7 @@ from qore.infrastructure.trader_lab.capitalizer_v48_migration_manifest import (
 )
 
 
-def _action(item_id: str):
+def _action(item_id: str) -> V48MigrationAction:
     return next(item.action for item in ITEMS if item.item_id == item_id)
 
 
