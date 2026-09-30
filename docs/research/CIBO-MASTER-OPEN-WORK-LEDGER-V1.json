@@ -170,7 +170,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_SCARCITY_UTILITY_AND_NONCOMPENSATORY_SAFETY_GATE_CI_PENDING_REAL_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -179,12 +179,17 @@
         "src/qore/infrastructure/cibo_ce2i_opportunity_competition.py",
         "tests/infrastructure/test_cibo_ce2i_opportunity_competition.py",
         "src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_utility.py",
-        "tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_utility.py"
+        "tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_utility.py",
+        "src/qore/infrastructure/cibo_t09_t18_scarcity_safety_gate.py",
+        "tests/infrastructure/test_cibo_t09_t18_scarcity_safety_gate.py",
+        "docs/research/CIBO-T09-T18-NONCOMPENSATORY-SCARCITY-SAFETY-GATE-V1.md",
+        ".github/workflows/cibo-t09-t18-scarcity-safety.yml"
       ],
       "blockers": [
-        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
+        "T09_T18_SCARCITY_SAFETY_GATE_CHILD_CI_REQUIRED"
       ],
-      "next_gate": "Bind fresh true-scarcity forward evidence and prove opportunity-competition economic value without hindsight selection; then stress/replication and terminal disposition."
+      "next_gate": "Pass the supplemental T09/T18 scarcity-safety CI; then bind the same fresh true-scarcity population to both frozen scarcity utility and starvation/concentration safety gates, followed by stress/4-fold evidence and terminal disposition."
     },
     {
       "id": "T10",
@@ -364,7 +369,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_SCARCITY_UTILITY_AND_NONCOMPENSATORY_SAFETY_GATE_CI_PENDING_REAL_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -375,12 +380,17 @@
         "src/qore/infrastructure/cibo_ce2i_portfolio_allocation_ledger.py",
         "tests/infrastructure/test_cibo_ce2i_portfolio_allocation_ledger.py",
         "src/qore/infrastructure/cibo_ce2i_portfolio_allocation_store.py",
-        "tests/infrastructure/test_cibo_ce2i_portfolio_allocation_store.py"
+        "tests/infrastructure/test_cibo_ce2i_portfolio_allocation_store.py",
+        "src/qore/infrastructure/cibo_t09_t18_scarcity_safety_gate.py",
+        "tests/infrastructure/test_cibo_t09_t18_scarcity_safety_gate.py",
+        "docs/research/CIBO-T09-T18-NONCOMPENSATORY-SCARCITY-SAFETY-GATE-V1.md",
+        ".github/workflows/cibo-t09-t18-scarcity-safety.yml"
       ],
       "blockers": [
-        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
+        "T09_T18_SCARCITY_SAFETY_GATE_CHILD_CI_REQUIRED"
       ],
-      "next_gate": "Bind fresh cross-Trader scarcity evidence and prove portfolio-allocation value on the frozen population; then stress/replication and terminal disposition."
+      "next_gate": "Pass the supplemental T09/T18 scarcity-safety CI; then bind the same fresh cross-Trader scarcity population to both frozen scarcity utility and starvation/concentration safety gates while preserving Trader sovereignty, followed by stress/4-fold evidence and terminal disposition."
     },
     {
       "id": "T19",
