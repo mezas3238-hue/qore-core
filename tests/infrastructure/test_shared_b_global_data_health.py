@@ -37,6 +37,7 @@ def _obs(**overrides: object) -> SharedBGlobalDataObservation:
         "relation_evidence_age_ms": 1_000,
         "relation_validity_horizon_ms": 5_000,
         "provenance_refs": ("sealed-source",),
+        "relational_comparability_verified": True,
     }
     values.update(overrides)
     return SharedBGlobalDataObservation(**values)  # type: ignore[arg-type]
@@ -114,6 +115,37 @@ def test_partial_and_provider_degradation_are_not_market_events() -> None:
     assert provider.state is SharedBGlobalDataState.PROVIDER_DEGRADED
     assert partial.new_market_change_inference_allowed is False
     assert provider.new_market_change_inference_allowed is False
+
+
+def test_unverified_comparability_cannot_emit_stale_relation() -> None:
+    assessment = assess_shared_b_global_data_health(
+        _obs(
+            relational_comparability_verified=False,
+            relation_evidence_age_ms=6_000,
+            relation_validity_horizon_ms=5_000,
+        )
+    )
+    assert assessment.state is SharedBGlobalDataState.HEALTHY
+    assert assessment.interpretation is SharedBGlobalInterpretation.MARKET_OBSERVABLE
+    assert assessment.reason_codes == ("RELATIONAL_COMPARABILITY_UNVERIFIED",)
+    assert assessment.new_market_change_inference_allowed is True
+    assert assessment.relational_claim_allowed is False
+    assert assessment.historical_context_usable is True
+
+
+def test_healthy_market_without_relational_evidence_cannot_claim_relation() -> None:
+    assessment = assess_shared_b_global_data_health(
+        _obs(
+            relational_comparability_verified=False,
+            relation_evidence_age_ms=None,
+            relation_validity_horizon_ms=None,
+        )
+    )
+    assert assessment.state is SharedBGlobalDataState.HEALTHY
+    assert assessment.reason_codes == (
+        "DATA_HEALTHY_RELATIONAL_EVIDENCE_INSUFFICIENT",
+    )
+    assert assessment.relational_claim_allowed is False
 
 
 def test_stale_relation_blocks_relation_but_not_fresh_market_observation() -> None:
