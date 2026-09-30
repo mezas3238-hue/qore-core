@@ -70,6 +70,9 @@ _COMMENT_MARKERS = (
 )
 
 _WORKSTREAM_CLASSIFIERS = (
+    ("*cibo_governed_capital_science*", "GEN-C14"),
+    ("*genc14-autonomous-capital-science*", "GEN-C14"),
+    ("*GEN-C14-GOVERNED-AUTONOMOUS-CAPITAL-SCIENCE*", "GEN-C14"),
     ("*cibo_meta_capital_memory*", "GEN-C13"),
     ("*genc13-meta-capital-memory*", "GEN-C13"),
     ("*GEN-C13-META-CAPITAL-MEMORY*", "GEN-C13"),

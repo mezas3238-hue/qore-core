@@ -556,15 +556,24 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ARCHITECTURE_DEFINED",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-GEN-C14-GOVERNED-AUTONOMOUS-CAPITAL-SCIENCE-V1.md",
+        "src/qore/infrastructure/cibo_governed_capital_science.py",
+        "tests/infrastructure/test_cibo_governed_capital_science.py",
+        ".github/workflows/cibo-genc14-autonomous-capital-science.yml",
+        "src/qore/infrastructure/cibo_ce2i_burned_non_promotion.py",
+        "src/qore/infrastructure/cibo_ce2i_final_certification.py"
       ],
       "blockers": [
-        "ENGINE_NOT_YET_IMPLEMENTED"
+        "GEN_C14_ENGINE_CI_REVALIDATION_REQUIRED",
+        "REAL_HYPOTHESIS_LINEAGES_NOT_YET_RUN_THROUGH_FULL_PIPELINE",
+        "OWNER_REVIEW_IS_EXTERNAL_AND_CANNOT_BE_FABRICATED",
+        "FINAL_PROMOTION_EVIDENCE_NOT_YET_AVAILABLE"
       ],
-      "next_gate": "Implement hypothesis→prereg→test→OOS→stress→replication→governance research pipeline."
+      "next_gate": "Pass GEN-C14 governance CI; run real capital hypotheses through prereg/simulation/OOS/stress/replication; stop at OWNER_REVIEW_REQUIRED; never auto-promote."
     },
     {
       "id": "COMPOUND_ENGINE",
