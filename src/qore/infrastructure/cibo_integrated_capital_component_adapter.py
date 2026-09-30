@@ -39,6 +39,10 @@ from qore.infrastructure.cibo_compound_floor_store import (
 from qore.infrastructure.cibo_compound_portfolio_store import (
     DurableCompoundPortfolioStore,
 )
+from qore.infrastructure.cibo_integrated_capital_scope_store import (
+    DurableLegacyCapitalStoreScopeStore,
+    VersionedLegacyCapitalStoreScopeBook,
+)
 from qore.infrastructure.cibo_integrated_capital_transaction_store import (
     IntegratedCapitalComponent,
     IntegratedCapitalComponentRef,
@@ -57,7 +61,7 @@ class IntegratedCapitalStoreSet:
     floor_store: DurableProtectedCapitalFloorStore
     t19_store: DurablePortfolioAllocationStore
     settlement_store: DurableCmaSettlementStore
-    legacy_path_scope_verified: bool = False
+    legacy_scope_store: DurableLegacyCapitalStoreScopeStore
 
     def __post_init__(self) -> None:
         if not isinstance(
@@ -73,26 +77,47 @@ class IntegratedCapitalStoreSet:
             (self.floor_store, DurableProtectedCapitalFloorStore),
             (self.t19_store, DurablePortfolioAllocationStore),
             (self.settlement_store, DurableCmaSettlementStore),
+            (
+                self.legacy_scope_store,
+                DurableLegacyCapitalStoreScopeStore,
+            ),
         )
         if any(not isinstance(value, kind) for value, kind in expected):
             raise IntegratedCapitalTransactionError(
                 "integrated component store set is invalid"
-            )
-        if type(self.legacy_path_scope_verified) is not bool:
-            raise IntegratedCapitalTransactionError(
-                "legacy path-scope flag must be bool"
-            )
-        if not self.legacy_path_scope_verified:
-            raise IntegratedCapitalTransactionError(
-                "legacy Source/T19/Settlement paths require explicit "
-                "account-scope verification"
             )
 
 
 def read_integrated_component_refs(
     stores: IntegratedCapitalStoreSet,
 ) -> tuple[IntegratedCapitalComponentRef, ...]:
-    """Read the exact durable generations and canonical component digests."""
+    """Read exact refs only when legacy account scope is currently sealed."""
+
+    refs = read_unverified_component_refs_for_recovery(stores)
+    stores.legacy_scope_store.verify(_legacy_refs(refs))
+    return refs
+
+
+def seal_current_legacy_scope(
+    stores: IntegratedCapitalStoreSet,
+    *,
+    sealed_at,
+    expected_generation: int,
+) -> VersionedLegacyCapitalStoreScopeBook:
+    """Explicitly bind the current legacy refs to this account identity."""
+
+    refs = read_unverified_component_refs_for_recovery(stores)
+    return stores.legacy_scope_store.seal(
+        _legacy_refs(refs),
+        sealed_at=sealed_at,
+        expected_generation=expected_generation,
+    )
+
+
+def read_unverified_component_refs_for_recovery(
+    stores: IntegratedCapitalStoreSet,
+) -> tuple[IntegratedCapitalComponentRef, ...]:
+    """Diagnostic refs for crash recovery; not accepted as scoped truth."""
 
     if not isinstance(stores, IntegratedCapitalStoreSet):
         raise IntegratedCapitalTransactionError(
@@ -162,6 +187,19 @@ def read_integrated_component_refs(
         ),
     )
     return tuple(sorted(refs, key=lambda item: item.component.value))
+
+
+def _legacy_refs(
+    refs: tuple[IntegratedCapitalComponentRef, ...],
+) -> tuple[IntegratedCapitalComponentRef, ...]:
+    allowed = {
+        IntegratedCapitalComponent.SOURCE_LEDGER,
+        IntegratedCapitalComponent.T19_ALLOCATION,
+        IntegratedCapitalComponent.CMA_SETTLEMENT,
+    }
+    return tuple(
+        item for item in refs if item.component in allowed
+    )
 
 
 def portfolio_allocation_ledger_sha256(

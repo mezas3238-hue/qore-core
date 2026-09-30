@@ -13,6 +13,7 @@ on:
       - 'src/qore/infrastructure/cibo_compound_funding_coordination.py'
       - 'src/qore/infrastructure/cibo_integrated_capital_transaction_store.py'
       - 'src/qore/infrastructure/cibo_integrated_capital_component_adapter.py'
+      - 'src/qore/infrastructure/cibo_integrated_capital_scope_store.py'
       - 'src/qore/infrastructure/cibo_compound_capital.py'
       - 'src/qore/infrastructure/cibo_compound_portfolio_ledger.py'
       - 'src/qore/infrastructure/cibo_compound_floor.py'
@@ -25,6 +26,7 @@ on:
       - 'tests/infrastructure/test_cibo_integrated_capital_truth.py'
       - 'tests/infrastructure/test_cibo_integrated_capital_transaction_store.py'
       - 'tests/infrastructure/test_cibo_integrated_capital_component_adapter.py'
+      - 'tests/infrastructure/test_cibo_integrated_capital_scope_store.py'
       - 'tests/infrastructure/test_cibo_integrated_capital_recovery.py'
       - 'docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md'
       - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
@@ -41,6 +43,7 @@ on:
       - 'src/qore/infrastructure/cibo_compound_funding_coordination.py'
       - 'src/qore/infrastructure/cibo_integrated_capital_transaction_store.py'
       - 'src/qore/infrastructure/cibo_integrated_capital_component_adapter.py'
+      - 'src/qore/infrastructure/cibo_integrated_capital_scope_store.py'
       - 'src/qore/infrastructure/cibo_compound_capital.py'
       - 'src/qore/infrastructure/cibo_compound_portfolio_ledger.py'
       - 'src/qore/infrastructure/cibo_compound_floor.py'
@@ -53,6 +56,7 @@ on:
       - 'tests/infrastructure/test_cibo_integrated_capital_truth.py'
       - 'tests/infrastructure/test_cibo_integrated_capital_transaction_store.py'
       - 'tests/infrastructure/test_cibo_integrated_capital_component_adapter.py'
+      - 'tests/infrastructure/test_cibo_integrated_capital_scope_store.py'
       - 'tests/infrastructure/test_cibo_integrated_capital_recovery.py'
       - 'docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md'
       - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
@@ -85,12 +89,14 @@ jobs:
             src/qore/infrastructure/cibo_compound_funding_coordination.py \
             src/qore/infrastructure/cibo_integrated_capital_transaction_store.py \
             src/qore/infrastructure/cibo_integrated_capital_component_adapter.py \
+            src/qore/infrastructure/cibo_integrated_capital_scope_store.py \
             tests/infrastructure/test_cibo_compound_cycle_state.py \
             tests/infrastructure/test_cibo_compound_market_cycle.py \
             tests/infrastructure/test_cibo_compound_cycle_replay.py \
             tests/infrastructure/test_cibo_integrated_capital_truth.py \
             tests/infrastructure/test_cibo_integrated_capital_transaction_store.py \
             tests/infrastructure/test_cibo_integrated_capital_component_adapter.py \
+            tests/infrastructure/test_cibo_integrated_capital_scope_store.py \
             tests/infrastructure/test_cibo_integrated_capital_recovery.py
           mypy \
             src/qore/infrastructure/cibo_compound_cycle_state.py \
@@ -100,7 +106,8 @@ jobs:
             src/qore/infrastructure/cibo_integrated_capital_truth.py \
             src/qore/infrastructure/cibo_compound_funding_coordination.py \
             src/qore/infrastructure/cibo_integrated_capital_transaction_store.py \
-            src/qore/infrastructure/cibo_integrated_capital_component_adapter.py
+            src/qore/infrastructure/cibo_integrated_capital_component_adapter.py \
+            src/qore/infrastructure/cibo_integrated_capital_scope_store.py
           python -m py_compile \
             src/qore/infrastructure/cibo_compound_cycle_state.py \
             src/qore/infrastructure/cibo_compound_market_cycle.py \
@@ -117,4 +124,5 @@ jobs:
             tests/infrastructure/test_cibo_integrated_capital_truth.py \
             tests/infrastructure/test_cibo_integrated_capital_transaction_store.py \
             tests/infrastructure/test_cibo_integrated_capital_component_adapter.py \
+            tests/infrastructure/test_cibo_integrated_capital_scope_store.py \
             tests/infrastructure/test_cibo_integrated_capital_recovery.py

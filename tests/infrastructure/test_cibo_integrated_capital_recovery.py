@@ -48,6 +48,11 @@ from qore.infrastructure.cibo_compound_portfolio_store import (
 from qore.infrastructure.cibo_integrated_capital_component_adapter import (
     IntegratedCapitalStoreSet,
     read_integrated_component_refs,
+    read_unverified_component_refs_for_recovery,
+    seal_current_legacy_scope,
+)
+from qore.infrastructure.cibo_integrated_capital_scope_store import (
+    DurableLegacyCapitalStoreScopeStore,
 )
 from qore.infrastructure.cibo_integrated_capital_transaction_store import (
     DurableIntegratedCapitalTransactionStore,
@@ -122,15 +127,24 @@ def _stores(root: Path) -> IntegratedCapitalStoreSet:
         expected_generation=0,
     )
 
-    return IntegratedCapitalStoreSet(
+    stores = IntegratedCapitalStoreSet(
         account_identity=identity,
         source_store=source,
         compound_store=compound,
         floor_store=floor,
         t19_store=t19,
         settlement_store=settlement,
-        legacy_path_scope_verified=True,
+        legacy_scope_store=DurableLegacyCapitalStoreScopeStore(
+            root / "legacy-scope.json",
+            account_identity=identity,
+        ),
     )
+    seal_current_legacy_scope(
+        stores,
+        sealed_at=T0 - timedelta(seconds=1),
+        expected_generation=0,
+    )
+    return stores
 
 
 def _mutate_source(stores: IntegratedCapitalStoreSet) -> None:
@@ -252,6 +266,11 @@ def test_partial_write_restart_blocks_until_all_real_stores_match(
 
     _mutate_source(expected)
     _mutate_remaining(expected)
+    seal_current_legacy_scope(
+        expected,
+        sealed_at=T0 + timedelta(seconds=1),
+        expected_generation=1,
+    )
     target_refs = read_integrated_component_refs(expected)
 
     journal_path = tmp_path / "integrated-journal.json"
@@ -268,7 +287,12 @@ def test_partial_write_restart_blocks_until_all_real_stores_match(
     assert prepared.unresolved_transaction_ids == ("tx-real-stores",)
 
     _mutate_source(actual)
-    partial_refs = read_integrated_component_refs(actual)
+    with pytest.raises(
+        IntegratedCapitalTransactionError,
+        match="legacy capital store scope is stale",
+    ):
+        read_integrated_component_refs(actual)
+    partial_refs = read_unverified_component_refs_for_recovery(actual)
     assert partial_refs != target_refs
 
     with pytest.raises(
@@ -289,6 +313,11 @@ def test_partial_write_restart_blocks_until_all_real_stores_match(
     )
 
     _mutate_remaining(actual)
+    seal_current_legacy_scope(
+        actual,
+        sealed_at=T0 + timedelta(seconds=2),
+        expected_generation=1,
+    )
     recovered_refs = read_integrated_component_refs(actual)
     assert recovered_refs == target_refs
 

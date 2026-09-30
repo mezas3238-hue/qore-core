@@ -39,6 +39,10 @@ from qore.infrastructure.cibo_compound_portfolio_store import (
 from qore.infrastructure.cibo_integrated_capital_component_adapter import (
     IntegratedCapitalStoreSet,
     read_integrated_component_refs,
+    seal_current_legacy_scope,
+)
+from qore.infrastructure.cibo_integrated_capital_scope_store import (
+    DurableLegacyCapitalStoreScopeStore,
 )
 from qore.infrastructure.cibo_integrated_capital_transaction_store import (
     IntegratedCapitalComponent,
@@ -118,15 +122,26 @@ def _persisted_stores(
         expected_generation=0,
     )
 
-    return IntegratedCapitalStoreSet(
+    stores = IntegratedCapitalStoreSet(
         account_identity=identity,
         source_store=source,
         compound_store=compound,
         floor_store=floor,
         t19_store=t19,
         settlement_store=settlement,
-        legacy_path_scope_verified=True,
+        legacy_scope_store=DurableLegacyCapitalStoreScopeStore(
+            tmp_path / "legacy-scope.json",
+            account_identity=identity,
+        ),
     )
+    seal_current_legacy_scope(
+        stores,
+        sealed_at=__import__("datetime").datetime.now(
+            __import__("datetime").UTC
+        ),
+        expected_generation=0,
+    )
+    return stores
 
 
 def test_adapter_reads_all_five_real_store_refs(tmp_path: Path) -> None:
@@ -156,6 +171,18 @@ def test_only_mutated_source_ref_changes(tmp_path: Path) -> None:
         ),
         expected_generation=current.generation,
     )
+    with pytest.raises(
+        IntegratedCapitalTransactionError,
+        match="legacy capital store scope is stale",
+    ):
+        read_integrated_component_refs(stores)
+    seal_current_legacy_scope(
+        stores,
+        sealed_at=__import__("datetime").datetime.now(
+            __import__("datetime").UTC
+        ),
+        expected_generation=1,
+    )
     after = {
         item.component: item
         for item in read_integrated_component_refs(stores)
@@ -181,7 +208,7 @@ def test_adapter_rejects_uninitialized_t19(tmp_path: Path) -> None:
         floor_store=stores.floor_store,
         t19_store=empty_t19,
         settlement_store=stores.settlement_store,
-        legacy_path_scope_verified=True,
+        legacy_scope_store=stores.legacy_scope_store,
     )
 
     with pytest.raises(
@@ -191,22 +218,28 @@ def test_adapter_rejects_uninitialized_t19(tmp_path: Path) -> None:
         read_integrated_component_refs(broken)
 
 
-def test_adapter_requires_explicit_legacy_path_scope(tmp_path: Path) -> None:
+def test_adapter_requires_current_durable_legacy_scope(
+    tmp_path: Path,
+) -> None:
     stores = _persisted_stores(tmp_path)
+    unsealed = IntegratedCapitalStoreSet(
+        account_identity=stores.account_identity,
+        source_store=stores.source_store,
+        compound_store=stores.compound_store,
+        floor_store=stores.floor_store,
+        t19_store=stores.t19_store,
+        settlement_store=stores.settlement_store,
+        legacy_scope_store=DurableLegacyCapitalStoreScopeStore(
+            tmp_path / "unsealed-scope.json",
+            account_identity=stores.account_identity,
+        ),
+    )
 
     with pytest.raises(
         IntegratedCapitalTransactionError,
-        match="account-scope verification",
+        match="legacy capital store scope is not sealed",
     ):
-        IntegratedCapitalStoreSet(
-            account_identity=stores.account_identity,
-            source_store=stores.source_store,
-            compound_store=stores.compound_store,
-            floor_store=stores.floor_store,
-            t19_store=stores.t19_store,
-            settlement_store=stores.settlement_store,
-            legacy_path_scope_verified=False,
-        )
+        read_integrated_component_refs(unsealed)
 
 
 def test_adapter_rejects_compound_account_mismatch(tmp_path: Path) -> None:
