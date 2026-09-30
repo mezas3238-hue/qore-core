@@ -54,11 +54,9 @@ FACTS: tuple[V48RouteDetectorFact, ...] = (
         V48RouteId.TTRADES_ASIA_POSITIONAL,
         "LTF_PROTECTED_SWING_CONFIRMED_BY_CISD",
         V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND,
-        "capitalizer_source_cisd_ftm_v2.py::detect_cisd",
-        (
-            "Raw CISD/protected-swing mechanics are reusable but V2 setup_confirmed "
-            "carries old HTF coupling."
-        ),
+        "capitalizer_ttrades_structural_cisd_v48.py::observe_first_structural_cisd",
+        "V48 source-native CISD now confirms the protected swing without old V2 coupling.",
+
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_ASIA_POSITIONAL,
@@ -78,15 +76,15 @@ FACTS: tuple[V48RouteDetectorFact, ...] = (
         V48RouteId.TTRADES_ASIA_4H_15M,
         "M15_PROTECTED_SWING_CONFIRMED_BY_CISD",
         V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND,
-        "capitalizer_source_cisd_ftm_v2.py::detect_cisd",
+        "capitalizer_ttrades_structural_cisd_v48.py::observe_first_structural_cisd",
         "Use one causal CISD-to-protected-swing fact, not two independent gates.",
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_ASIA_4H_15M,
         "M15_CONTINUATION_AVAILABLE",
-        V48DetectorReadiness.DETECTOR_MISSING,
-        "V48_ASIA_15M_CONTINUATION_DETECTOR_REQUIRED",
-        "The repository does not yet have the route-native continuation detector.",
+        V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND,
+        "capitalizer_ttrades_continuation_v48.py::assess_source_native_continuation",
+        "Continuation semantics exist; Asia still needs causal POI binding on 15M.",
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
@@ -106,15 +104,15 @@ FACTS: tuple[V48RouteDetectorFact, ...] = (
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
         "M15_PROTECTED_SWING_CONFIRMED_BY_CISD",
         V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND,
-        "capitalizer_source_cisd_ftm_v2.py::detect_cisd",
+        "capitalizer_ttrades_structural_cisd_v48.py::observe_first_structural_cisd",
         "CISD confirms the protected swing; keep it as one causal route fact.",
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
         "M15_CONTINUATION_AVAILABLE",
-        V48DetectorReadiness.DETECTOR_MISSING,
-        "V48_LONDON_15M_CONTINUATION_DETECTOR_REQUIRED",
-        "Source requires continuation after protected-swing confirmation.",
+        V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND,
+        "capitalizer_ttrades_continuation_v48.py::assess_source_native_continuation",
+        "Continuation semantics exist; London still needs causal POI binding on 15M.",
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_NEW_YORK_MANIPULATION,
@@ -139,17 +137,17 @@ FACTS: tuple[V48RouteDetectorFact, ...] = (
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_GENERIC_SCALP_H1_M15_M1,
-        "M15_SWING_STRUCTURE_CONFIRMED",
+        "M15_PROTECTED_SWING_CONFIRMED_BY_CISD",
         V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND,
-        "capitalizer_source_observation_detectors_v2.py",
-        "Need M15 swing specifically tied to forming the H1 wick.",
+        "capitalizer_ttrades_structural_cisd_v48.py::observe_first_structural_cisd",
+        "Bind H1 closure to the M15 CISD that confirms the hourly wick swing.",
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_GENERIC_SCALP_H1_M15_M1,
         "M1_CONTINUATION_CONFIRMED",
-        V48DetectorReadiness.DETECTOR_MISSING,
-        "capitalizer_ttrades_m1_cisd_observer_v48.py",
-        "Raw M1 CISD exists, but source-valid continuation semantics are broader than CISD alone.",
+        V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND,
+        "capitalizer_ttrades_continuation_v48.py::assess_source_native_continuation",
+        "Continuation semantics exist; M1 still needs causal FVG/sweep POI binding.",
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_FAILURE_TO_MANIPULATE,
