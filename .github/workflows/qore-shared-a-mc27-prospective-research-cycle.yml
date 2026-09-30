@@ -1,0 +1,153 @@
+name: QORE Shared A MC27 Prospective Research Cycle
+
+concurrency:
+  group: qore-shared-a-mc27-prospective-research-cycle
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - docs/shared/evidence/QORE_SHARED_MC27_PROSPECTIVE_META_COGNITIVE_RESEARCH_CYCLE_001.json
+      - src/qore/infrastructure/core_stack_v2/meta_cognitive_scientific_intelligence.py
+      - scripts/shared_mc27_prospective_priority_preregistration.py
+      - .github/workflows/qore-shared-a-mc27-prospective-research-cycle.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  preregister:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install and validate
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p input/{mc18,mc28} result
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/meta_cognitive_scientific_intelligence.py \
+            scripts/shared_mc27_prospective_priority_preregistration.py
+          mypy src/qore/infrastructure/core_stack_v2/meta_cognitive_scientific_intelligence.py
+          pytest -q tests/infrastructure/test_core_stack_v2_meta_cognitive_scientific_intelligence.py
+
+      - name: Validate future preregistration
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("docs/shared/evidence/QORE_SHARED_MC27_PROSPECTIVE_META_COGNITIVE_RESEARCH_CYCLE_001.json").read_text())
+          assert p["status"] == "PREREGISTERED_BEFORE_FUTURE_RESEARCH_OOS"
+          assert p["future_research_oos"]["start_inclusive"] == "2026-10-01T00:00:00+00:00"
+          assert p["future_research_oos"]["end_exclusive"] == "2026-11-01T00:00:00+00:00"
+          assert p["future_research_oos"]["opened"] is False
+          assert p["future_research_oos"]["protected_certification_holdout"] is False
+          assert p["calibration_fit"]["future_oos_used_for_fit"] is False
+          assert p["frozen_gates"]["no_threshold_rescue"] is True
+          assert p["governance"]["protected_certification_holdout_opened"] is False
+          PY
+
+      - name: Verify immutable current weakness evidence
+        run: |
+          set -euo pipefail
+          for spec in \
+            "36764204066:11119876541" \
+            "36777388801:11126275619"
+          do
+            run_id="${spec%%:*}"
+            artifact_id="${spec#*:}"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.status')" = "completed"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.conclusion')" = "success"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" --jq '.expired')" = "false"
+          done
+
+      - name: Recover exact evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11119876541/zip" > mc18.zip
+          unzip -q mc18.zip -d input/mc18
+          (cd input/mc18 && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11126275619/zip" > mc28.zip
+          unzip -q mc28.zip -d input/mc28
+          (cd input/mc28 && sha256sum -c SHA256SUMS)
+
+      - name: Generate prospective priority
+        run: |
+          python scripts/shared_mc27_prospective_priority_preregistration.py \
+            --mc18 input/mc18/mc18-counterfactual-world-real-replay.json \
+            --mc28 input/mc28/mc28-standard-006-diagnostic-taxonomy.json \
+            --preregistration docs/shared/evidence/QORE_SHARED_MC27_PROSPECTIVE_META_COGNITIVE_RESEARCH_CYCLE_001.json \
+            --output result/mc27-prospective-research-cycle.json \
+            | tee result/summary.json
+
+      - name: Validate bounded progress
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc27-prospective-research-cycle.json").read_text())
+          assert p["status"] == "MC27_PROSPECTIVE_RESEARCH_PRIORITY_PREREGISTERED"
+          assert p["top_concern"] == "UNKNOWN_UNKNOWN"
+          assert p["prospective_priority_generated"] is True
+          assert p["future_experiment_preregistered"] is True
+          assert p["future_oos_opened"] is False
+          assert p["future_oos_improvement_demonstrated"] is False
+          assert p["self_modification_authority"] is False
+          assert p["certified_runtime_mutation"] is False
+          assert p["productive_authority"] is False
+          assert p["mc27_completed_and_proven"] is False
+          assert p["master_ledger_mutated"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+
+      - name: Seal
+        run: |
+          cp docs/shared/evidence/QORE_SHARED_MC27_PROSPECTIVE_META_COGNITIVE_RESEARCH_CYCLE_001.json result/preregistration.json
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (cd result && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc27-prospective-cycle-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/mc27-prospective-research-cycle.json").read_text())
+          body="\n".join([
+              "## Shared A MC-27 — Prospective Meta-Cognitive Research Cycle",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- detected top concern: **{p['top_concern']}**",
+              f"- priority index: **{p['top_priority_bps']} bps**",
+              "- prospective experiment preregistered: **True**",
+              "- future research OOS: **2026-10-01 → 2026-11-01**",
+              "- future OOS opened: **False**",
+              "- protected certification holdout opened: **False**",
+              "- MC-27 completed-and-proven: **False**",
+              "- next gate: **future OOS improvement under frozen gates**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
