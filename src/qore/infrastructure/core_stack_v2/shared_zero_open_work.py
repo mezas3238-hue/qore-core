@@ -242,15 +242,11 @@ def build_shared_master_open_work_ledger() -> tuple[SharedOpenWorkItem, ...]:
             )
         )
 
-    # MC-01..04 correspond to the four already-closed canonical work packages.
-    # Every later maximum-ceiling capability remains required until separately
-    # reconciled against engine/data/OOS/stress/replication/economic evidence.
+    # WP closure does not automatically prove the corresponding MC capability.
+    # MC-01..28 remain unresolved until an explicit verified-superset audit
+    # binds each capability to scientific evidence satisfying Standard 006.
     for index, title in enumerate(_MC_TITLES, start=1):
-        state = (
-            SharedWorkState.COMPLETED_AND_PROVEN
-            if index <= 4
-            else SharedWorkState.UNRESOLVED_REQUIRED_AUDIT
-        )
+        state = SharedWorkState.UNRESOLVED_REQUIRED_AUDIT
         items.append(
             _item(
                 f"MC-{index:02d}",
