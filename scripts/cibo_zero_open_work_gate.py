@@ -82,6 +82,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_genc9_economic_gate*", "GEN-C9"),
     ("*GEN-C9-NONCOMPENSATORY-ECONOMIC-GATE*", "GEN-C9"),
     ("*cibo_compound_path_monte_carlo*", "PATH_DEPENDENT_MONTE_CARLO"),
+    ("*cibo_compound_real_population_binding*", "PATH_DEPENDENT_MONTE_CARLO"),
     ("*cibo_governed_capital_science*", "GEN-C14"),
     ("*genc14-autonomous-capital-science*", "GEN-C14"),
     ("*GEN-C14-GOVERNED-AUTONOMOUS-CAPITAL-SCIENCE*", "GEN-C14"),
