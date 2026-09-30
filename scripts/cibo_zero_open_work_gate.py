@@ -96,6 +96,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*genc11-multi-period-mpc*", "GEN-C11"),
     ("*GEN-C11-ROBUST-MULTI-PERIOD-MPC*", "GEN-C11"),
     ("*cibo_capital_digital_twin*", "GEN-C10"),
+    ("*cibo_genc10_transition_uncertainty_calibration*", "GEN-C10"),
     ("*genc10-capital-digital-twin*", "GEN-C10"),
     ("*GEN-C10-CAPITAL-DIGITAL-TWIN*", "GEN-C10"),
     ("*cibo_robust_growth_ruin_capacity*", "GEN-C9"),
