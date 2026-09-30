@@ -68,6 +68,13 @@ def test_asia_positional_requires_completed_fractal_confirmation_before_open() -
     }.issubset(set(contract.required_fact_ids))
 
 
+def test_asia_h4_route_stops_at_source_required_15m_cisd_execution() -> None:
+    contract = contract_for(V48RouteId.TTRADES_ASIA_4H_15M)
+    facts = set(contract.required_fact_ids)
+    assert "M15_PROTECTED_SWING_CONFIRMED_BY_CISD" in facts
+    assert "M15_CONTINUATION_AVAILABLE" not in facts
+
+
 def test_london_uses_wick_structure_then_one_cisd_protected_swing_fact() -> None:
     contract = contract_for(V48RouteId.TTRADES_LONDON_DAILY_4H_15M)
     facts = set(contract.required_fact_ids)
