@@ -753,6 +753,9 @@ def test_integrator_classifies_ctrader_taxonomy_and_t17_limited_risk() -> None:
         "scripts/cibo_t17_limited_risk_capability_probe.py",
         "tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py",
         "tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py",
+        "src/qore/infrastructure/cibo_t17_provider_capability_receipt.py",
+        "tests/infrastructure/test_cibo_t17_provider_capability_receipt.py",
+        ".github/workflows/cibo-t17-provider-capability-receipt.yml",
     )
     ledger_ids = frozenset({"PROVIDER_ECONOMICS", "T17"})
 
@@ -772,5 +775,8 @@ def test_integrator_classifies_ctrader_taxonomy_and_t17_limited_risk() -> None:
         "scripts/cibo_t17_limited_risk_capability_probe.py": "T17",
         "tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py": "T17",
         "tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py": "T17",
+        "src/qore/infrastructure/cibo_t17_provider_capability_receipt.py": "T17",
+        "tests/infrastructure/test_cibo_t17_provider_capability_receipt.py": "T17",
+        ".github/workflows/cibo-t17-provider-capability-receipt.yml": "T17",
     }
     assert orphans == ()
