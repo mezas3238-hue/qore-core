@@ -63,8 +63,10 @@ jobs:
           assert a["failed_run"]["economic_evaluation_started"] is False
           assert a["scientific_invariants_unchanged"]["v3_policy"] is True
           assert a["scientific_invariants_unchanged"]["economic_gates"] is True
-          assert a["engineering_recovery"]["minimum_source_span_days"] == 730
-          assert a["engineering_recovery"]["only_fresh_window_rows_may_reach_sti8_evaluator"] is True
+          assert a["engineering_recovery"]["requested_calendar_span_days"] == 740
+          assert a["engineering_recovery"]["minimum_actual_bar_span_days"] == 730
+          assert a["engineering_recovery"]["fixed_calendar_boundary_padding_days"] == 10
+          assert a["engineering_recovery"]["only_2026_07_22_to_2026_09_29_rows_may_reach_sti8_evaluator"] is True
           assert a["anti_leakage"]["outcome_aware_retuning_authorized"] is False
           PY
           count="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/36740059589/artifacts" --jq '.artifacts | length')"
