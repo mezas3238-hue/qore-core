@@ -5,6 +5,8 @@ on:
     branches:
       - agent/qore-capitalizer-cognitive-v1-001
     paths:
+      - 'src/qore/infrastructure/trader_lab/capitalizer_v50_target_stop_intelligence.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_v50_target_stop_intelligence.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_v51_multi_era_repair.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_v51_multi_era_repair.py'
       - '.github/workflows/qore-capitalizer-v51-pre2016-multi-era-repair.yml'

@@ -5,6 +5,7 @@ on:
     branches:
       - agent/qore-capitalizer-cognitive-v1-001
     paths:
+      - 'tests/infrastructure/trader_lab/test_capitalizer_v50_target_stop_intelligence.py'
       - '.github/workflows/qore-capitalizer-v50-g-cognitive-geometry.yml'
       - 'src/qore/infrastructure/trader_lab/capitalizer_v50_cognitive_geometry_economics.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_v50_cognitive_geometry_specialist.py'

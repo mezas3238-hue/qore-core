@@ -5,6 +5,8 @@ on:
     branches:
       - agent/qore-capitalizer-cognitive-v1-001
     paths:
+      - 'src/qore/infrastructure/trader_lab/capitalizer_v50_target_stop_intelligence.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_v50_target_stop_intelligence.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_v53_winner_preserving_rearm_economics.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_v53_winner_preserving_rearm_economics.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_v50_m1_rearm_capacity.py'
