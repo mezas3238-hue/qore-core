@@ -36,6 +36,7 @@ class CompoundPathSnapshot:
     event_id: str
     observed_at: datetime
     state_sha256: str
+    t19_ledger_sha256: str
     original_base_usd: Decimal
     compound_economic_value_usd: Decimal
     protected_floor_usd: Decimal
@@ -63,6 +64,7 @@ class CompoundPathSnapshot:
             )
         _aware(self.observed_at, "snapshot observed_at")
         _sha(self.state_sha256, "snapshot state_sha256")
+        _sha(self.t19_ledger_sha256, "snapshot t19_ledger_sha256")
         for name in (
             "original_base_usd",
             "compound_economic_value_usd",
@@ -232,6 +234,13 @@ def materialize_compound_path_history(
         raise CiboCompoundCapitalError(
             "compound path history requires non-empty events"
         )
+    if (
+        initial_state.last_event_at is not None
+        and initial_observed_at < initial_state.last_event_at
+    ):
+        raise CiboCompoundCapitalError(
+            "compound path initial observation predates state history"
+        )
     first_at = events[0].occurred_at
     if initial_observed_at > first_at:
         raise CiboCompoundCapitalError(
@@ -280,6 +289,7 @@ def _snapshot(
         event_id=event_id,
         observed_at=at,
         state_sha256=compound_cycle_state_sha256(state),
+        t19_ledger_sha256=_t19_ledger_sha256(state),
         original_base_usd=state.current_original_base_usd,
         compound_economic_value_usd=(
             state.compound_ledger.current_economic_value_usd
@@ -372,6 +382,50 @@ def _snapshot_json(item: CompoundPathSnapshot) -> dict[str, object]:
     ):
         payload[name] = format(getattr(item, name), "f")
     return payload
+
+
+def _t19_ledger_sha256(state: CiboCompoundCycleState) -> str:
+    ledger = state.t19_ledger
+    payload = {
+        "total_stop_risk_capacity_usd": format(
+            ledger.total_stop_risk_capacity_usd,
+            "f",
+        ),
+        "total_margin_capacity_usd": format(
+            ledger.total_margin_capacity_usd,
+            "f",
+        ),
+        "concentration_limit_by_group": [
+            [group, format(limit, "f")]
+            for group, limit in sorted(ledger.concentration_limit_by_group)
+        ],
+        "reservations": [
+            {
+                "signal_fingerprint": item.signal_fingerprint,
+                "trader_id": item.trader_id.value,
+                "qore_symbol": item.qore_symbol,
+                "stop_risk_usd": format(item.stop_risk_usd, "f"),
+                "margin_usd": format(item.margin_usd, "f"),
+                "concentration_group": item.concentration_group,
+                "concentration_risk_usd": format(
+                    item.concentration_risk_usd,
+                    "f",
+                ),
+                "state": item.state.value,
+            }
+            for item in sorted(
+                ledger.reservations,
+                key=lambda row: (
+                    row.signal_fingerprint,
+                    row.trader_id.value,
+                    row.qore_symbol,
+                    row.state.value,
+                ),
+            )
+        ],
+    }
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return "sha256:" + hashlib.sha256(raw).hexdigest()
 
 
 def _summary_json(item: CompoundPathDescriptiveSummary) -> dict[str, object]:
