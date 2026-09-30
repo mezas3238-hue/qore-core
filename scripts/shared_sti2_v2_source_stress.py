@@ -14,14 +14,13 @@ from collections import deque
 from dataclasses import replace
 from pathlib import Path
 
-import shared_sti2_v2_trajectory_heads as v2
 import shared_sti2_real_opportunity_discovery as v1
+import shared_sti2_v2_trajectory_heads as v2
 
 from qore.infrastructure.core_stack_v2.shared_global_opportunity_discovery import (
     SharedOpportunitySourceObservation,
 )
 from qore.infrastructure.core_stack_v2.shared_global_opportunity_trajectory_v2 import (
-    SharedOpportunityMechanism,
     assess_opportunity_trajectory,
 )
 from qore.infrastructure.core_stack_v2.shared_trader_intelligence import (
