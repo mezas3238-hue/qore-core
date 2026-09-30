@@ -10,7 +10,7 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from typing import Iterable
+from collections.abc import Iterable
 
 from qore.infrastructure.core_stack_v2.shared_global_opportunity_trajectory_v2 import (
     SharedOpportunityMechanism,
