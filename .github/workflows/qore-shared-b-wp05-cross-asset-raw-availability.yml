@@ -298,3 +298,17 @@ jobs:
           )
           PY
           gh issue comment 643 --body-file result/replay/issue-comment.md
+
+  notify:
+    needs: [validate, acquire, replay]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Report B raw/replay workflow disposition
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VALIDATE_RESULT: ${{ needs.validate.result }}
+          ACQUIRE_RESULT: ${{ needs.acquire.result }}
+          REPLAY_RESULT: ${{ needs.replay.result }}
+        run: |
+          gh issue comment 643 --body "Architect B raw/replay workflow ${GITHUB_RUN_ID} on ${GITHUB_SHA}: validate=${VALIDATE_RESULT}, acquire=${ACQUIRE_RESULT}, replay=${REPLAY_RESULT}. This status comment grants no scientific or productive authority."
