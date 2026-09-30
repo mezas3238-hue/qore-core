@@ -37,11 +37,11 @@ from qore.infrastructure.trader_lab.capitalizer_generic_scalp_census_v48 import 
     LOOKBACK_START,
     WINDOW_END,
     WINDOW_START,
+    V48AggregatedBar,
     _aggregate,
     _build_h1_bias_events,
     _operating_date,
     _timed_m15,
-    _untouched_h1_target,
 )
 from qore.infrastructure.trader_lab.capitalizer_h1_context_state_v49 import (
     V49H1BiasSignal,
@@ -130,6 +130,44 @@ class V49MarketCapacity:
             or self.live_authorized
         ):
             raise ValueError("V49 capacity census is pre-economic H1/M15/M1 only")
+
+
+def _untouched_h1_target_fast(
+    h1: tuple[V48AggregatedBar, ...],
+    m1: tuple[CapitalizerM1Bar, ...],
+    m1_opened: tuple[datetime, ...],
+    *,
+    decision_at: datetime,
+    decision_price: Decimal,
+    direction: CapitalizerSourceDirection,
+) -> Decimal | None:
+    eligible = tuple(bar for bar in h1 if bar.closed_at <= decision_at)
+    right = bisect.bisect_right(m1_opened, decision_at)
+    for candidate in reversed(eligible[-24:]):
+        target = (
+            candidate.source.high
+            if direction is CapitalizerSourceDirection.BULLISH
+            else candidate.source.low
+        )
+        ahead = (
+            target > decision_price
+            if direction is CapitalizerSourceDirection.BULLISH
+            else target < decision_price
+        )
+        if not ahead:
+            continue
+        left = bisect.bisect_right(m1_opened, candidate.closed_at)
+        touched = any(
+            (
+                bar.high >= target
+                if direction is CapitalizerSourceDirection.BULLISH
+                else bar.low <= target
+            )
+            for bar in m1[left:right]
+        )
+        if not touched:
+            return target
+    return None
 
 
 def _side(direction: CapitalizerSourceDirection) -> CapitalizerSide:
@@ -371,9 +409,10 @@ def build_market_capacity(
                 if not stop_valid:
                     continue
 
-                target = _untouched_h1_target(
+                target = _untouched_h1_target_fast(
                     h1,
                     bars,
+                    m1_opened,
                     decision_at=trigger_at,
                     decision_price=decision_price,
                     direction=state.direction,
