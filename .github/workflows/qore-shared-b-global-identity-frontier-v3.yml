@@ -1,0 +1,178 @@
+name: QORE Shared B Global Identity Frontier V3
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b_global_identity_frontier_v3.py
+      - scripts/shared_b_global_identity_frontier_v3.py
+      - tests/infrastructure/test_shared_b_global_identity_frontier_v3.py
+      - .github/workflows/qore-shared-b-global-identity-frontier-v3.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-global-identity-frontier-v3-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  FRONTIER_V2_RUN_ID: "36775105295"
+  FRONTIER_V2_ARTIFACT_ID: "11125151831"
+  FRONTIER_V2_GIT_SHA: "60e75ff4b67caaea67eff652e3d90dda73d305de"
+  INDEX_RUN_ID: "36775310025"
+  INDEX_ARTIFACT_ID: "11124554816"
+  INDEX_GIT_SHA: "9696b874505818bb21d08cefbc4880a68e74ca50"
+
+jobs:
+  frontier-v3:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate B-06 frontier V3 reducer
+        run: |
+          set -euo pipefail
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/shared_b_global_identity_frontier_v3.py \
+            scripts/shared_b_global_identity_frontier_v3.py \
+            tests/infrastructure/test_shared_b_global_identity_frontier_v3.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/shared_b_global_identity_frontier_v3.py \
+            scripts/shared_b_global_identity_frontier_v3.py
+          pytest -q tests/infrastructure/test_shared_b_global_identity_frontier_v3.py
+
+      - name: Verify exact sealed upstream lineages
+        run: |
+          set -euo pipefail
+          for spec in \
+            "${FRONTIER_V2_RUN_ID}:${FRONTIER_V2_GIT_SHA}" \
+            "${INDEX_RUN_ID}:${INDEX_GIT_SHA}"
+          do
+            run_id="${spec%%:*}"
+            sha="${spec#*:}"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.status')" = "completed"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.conclusion')" = "success"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.head_sha')" = "$sha"
+          done
+
+      - name: Recover sealed V2 and index artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p input/frontier-v2 input/index result
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${FRONTIER_V2_ARTIFACT_ID}/zip" > frontier-v2.zip
+          unzip -q frontier-v2.zip -d input/frontier-v2
+          sums="$(find input/frontier-v2 -name SHA256SUMS -print -quit)"
+          test -n "$sums"
+          (cd "$(dirname "$sums")" && sha256sum -c SHA256SUMS)
+          frontier_file="$(find input/frontier-v2 -name shared-b-global-identity-frontier-v2.json -print -quit)"
+          test -n "$frontier_file"
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${INDEX_ARTIFACT_ID}/zip" > index.zip
+          unzip -q index.zip -d input/index
+          sums="$(find input/index -name SHA256SUMS -print -quit)"
+          test -n "$sums"
+          (cd "$(dirname "$sums")" && sha256sum -c SHA256SUMS)
+          index_file="$(find input/index -name shared-b-index-reference-mapping.json -print -quit)"
+          test -n "$index_file"
+
+          printf 'FRONTIER_V2_FILE=%s\n' "$frontier_file" >> "$GITHUB_ENV"
+          printf 'INDEX_FILE=%s\n' "$index_file" >> "$GITHUB_ENV"
+
+      - name: Build exact 177-sensor identity frontier V3
+        run: |
+          set -euo pipefail
+          python scripts/shared_b_global_identity_frontier_v3.py \
+            --frontier-v2 "$FRONTIER_V2_FILE" \
+            --index-mapping "$INDEX_FILE" \
+            --output result/shared-b-global-identity-frontier-v3.json \
+            | tee result/summary.json
+
+      - name: Enforce exact V3 epistemic partition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path(
+                  "result/shared-b-global-identity-frontier-v3.json"
+              ).read_text()
+          )
+          assert p["identity"] == "SHARED_B_GLOBAL_IDENTITY_FRONTIER_V3_001"
+          assert p["status"] == "EXACT_177_SENSOR_IDENTITY_FRONTIER_V3_MATERIALIZED"
+          assert p["sensor_count"] == 177
+          assert p["current_reference_mapped_count"] == 85
+          assert p["preexisting_current_reference_mapped_count"] == 74
+          assert p["new_current_official_index_reference_mapped_count"] == 11
+          assert p["dated_contract_descriptor_verified_count"] == 5
+          assert p["legacy_index_reference_lineage_only_count"] == 2
+          assert p["index_provider_binding_unresolved_count"] == 12
+          assert p["cryptocurrency_provider_attested_only_count"] == 73
+          assert p["provider_native_only_count"] == 0
+          assert p["stage_counts"] == {
+              "CURRENT_REFERENCE_OBJECT_MAPPED": 74,
+              "CURRENT_OFFICIAL_REFERENCE_MAPPED": 11,
+              "DATED_CONTRACT_DESCRIPTOR_VERIFIED": 5,
+              "LEGACY_REFERENCE_LINEAGE_ONLY": 2,
+              "PROVIDER_BINDING_UNRESOLVED": 12,
+              "PROVIDER_ATTESTED_ECONOMIC_OBJECT": 73,
+          }
+          assert p["full_177_canonical_identity_complete"] is False
+          assert p["tradable_product_identity_complete"] is False
+          assert p["listing_identity_complete"] is False
+          assert p["canonical_calendar_binding_complete"] is False
+          assert p["historical_pre_freeze_mapping_complete"] is False
+          assert p["automatic_identity_inference"] is False
+          assert p["symbol_name_similarity_used"] is False
+          assert p["sensor_admission_authorized"] is False
+          assert p["relational_claims_authorized"] is False
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["historical_market_data_read"] is False
+          assert p["broker_mutation"] is False
+          assert p["productive_authority"] is False
+          assert p["b06_complete"] is False
+          assert len(p["frontier_v3_fingerprint_sha256"]) == 64
+          PY
+
+      - name: Seal B-06 identity frontier V3
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload B-06 identity frontier V3
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-global-identity-frontier-v3-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report B-06 frontier V3
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-06 frontier V3: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Exact 177-sensor identity partition now records 85 current reference mappings (74 prior + 11 official current indices), 5 dated contract descriptors, 2 legacy index lineages, 12 unresolved index provider bindings, and 73 cryptocurrency provider-attested-only objects. No automatic inference or tradable/listing/calendar/historical/admission/relational/productive authority; B-06 remains OPEN."
