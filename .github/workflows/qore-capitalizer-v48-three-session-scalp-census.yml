@@ -11,12 +11,14 @@ on:
       - 'src/qore/infrastructure/trader_lab/capitalizer_ttrades_structural_cisd_v48.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_ttrades_m1_cisd_observer_v48.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_ttrades_continuation_v48.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_ttrades_m1_fvg_cisd_continuation_v48.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_source_observation_detectors_v2.py'
       - 'src/qore/infrastructure/trader_lab/capitalizer_source_poi_v2.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_generic_scalp_census_v48.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_three_session_coverage_gate_v48.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_ttrades_structural_cisd_v48.py'
       - 'tests/infrastructure/trader_lab/test_capitalizer_ttrades_continuation_v48.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_ttrades_m1_fvg_cisd_continuation_v48.py'
   workflow_dispatch:
 
 permissions:
@@ -49,10 +51,14 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_three_session_coverage_gate_v48.py \
             src/qore/infrastructure/trader_lab/capitalizer_ttrades_structural_cisd_v48.py \
             src/qore/infrastructure/trader_lab/capitalizer_ttrades_continuation_v48.py \
+            src/qore/infrastructure/trader_lab/capitalizer_ttrades_m1_fvg_cisd_continuation_v48.py \
+            src/qore/infrastructure/trader_lab/capitalizer_ttrades_m1_fvg_cisd_continuation_v48.py \
             tests/infrastructure/trader_lab/test_capitalizer_generic_scalp_census_v48.py \
             tests/infrastructure/trader_lab/test_capitalizer_three_session_coverage_gate_v48.py \
             tests/infrastructure/trader_lab/test_capitalizer_ttrades_structural_cisd_v48.py \
-            tests/infrastructure/trader_lab/test_capitalizer_ttrades_continuation_v48.py
+            tests/infrastructure/trader_lab/test_capitalizer_ttrades_continuation_v48.py \
+            tests/infrastructure/trader_lab/test_capitalizer_ttrades_m1_fvg_cisd_continuation_v48.py \
+            tests/infrastructure/trader_lab/test_capitalizer_ttrades_m1_fvg_cisd_continuation_v48.py
       - name: Mypy
         run: |
           mypy \
@@ -154,8 +160,11 @@ jobs:
           assert result["symbol"] == symbol
           assert result["session"] == os.environ["EXPECTED_SESSION"]
           assert result["census_is_lower_bound"] is True
-          assert result["continuation_families_implemented"] == ["LIQUIDITY_SWEEP_CISD"]
-          assert result["fvg_cisd_continuation_implemented"] is False
+          assert result["continuation_families_implemented"] == [
+              "LIQUIDITY_SWEEP_CISD",
+              "FVG_RETRACE_CISD",
+          ]
+          assert result["fvg_cisd_continuation_implemented"] is True
           assert result["outcome_used"] is False
           assert result["economics_calculated"] is False
           assert result["fresh_holdout_used"] is False
