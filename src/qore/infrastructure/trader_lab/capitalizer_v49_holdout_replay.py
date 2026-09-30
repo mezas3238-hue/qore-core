@@ -23,6 +23,8 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
 )
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
     IDENTITY as CAPACITY_IDENTITY,
+)
+from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
     V49Opportunity,
 )
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_trader_v49 import (
@@ -32,8 +34,10 @@ from qore.infrastructure.trader_lab.capitalizer_high_frequency_trader_v49 import
 from qore.infrastructure.trader_lab.capitalizer_v49_holdout_contract import (
     HOLDOUT_END,
     HOLDOUT_START,
-    IDENTITY as HOLDOUT_IDENTITY,
     V49_RESERVED_HOLDOUT_1Y,
+)
+from qore.infrastructure.trader_lab.capitalizer_v49_holdout_contract import (
+    IDENTITY as HOLDOUT_IDENTITY,
 )
 
 IDENTITY = "QORE_CAPITALIZER_V49_RESERVED_HOLDOUT_REPLAY_1Y"
