@@ -2,8 +2,15 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
+    V49Opportunity,
+)
+from qore.infrastructure.trader_lab.capitalizer_v49_development_economics import (
+    V49EconomicTrade,
+)
 from qore.infrastructure.trader_lab.capitalizer_v53_winner_preserving_rearm_economics import (
     V53TradeRecord,
+    _baseline_records,
     _portfolio,
     _preservation,
 )
@@ -105,4 +112,64 @@ def test_portfolio_uses_one_execution_per_parent_and_max3() -> None:
         "2026-01-05T09:00:00+00:00",
         "2026-01-05T09:01:00+00:00",
         "2026-01-05T09:02:00+00:00",
+    )
+
+
+def test_baseline_parent_join_preserves_duplicate_trigger_keys_one_to_one() -> None:
+    trigger = "2026-01-05T10:05:00+00:00"
+    opportunities = (
+        V49Opportunity(
+            symbol="EURUSD",
+            session="LONDON",
+            operating_date="2026-01-05",
+            h1_state_direction="BULLISH",
+            h1_state_from="2026-01-05T09:00:00+00:00",
+            h1_state_until="2026-01-05T11:00:00+00:00",
+            h1_state_basis="TEST_A",
+            m15_setup_confirmed_at="2026-01-05T09:15:00+00:00",
+            m15_protected_swing_price="99",
+            m1_trigger_confirmed_at=trigger,
+            m1_trigger_family="FVG_RETRACE_CISD",
+            decision_reference_price="100",
+            structural_target_witness_price="102",
+        ),
+        V49Opportunity(
+            symbol="EURUSD",
+            session="LONDON",
+            operating_date="2026-01-05",
+            h1_state_direction="BULLISH",
+            h1_state_from="2026-01-05T09:00:00+00:00",
+            h1_state_until="2026-01-05T11:00:00+00:00",
+            h1_state_basis="TEST_B",
+            m15_setup_confirmed_at="2026-01-05T09:30:00+00:00",
+            m15_protected_swing_price="99",
+            m1_trigger_confirmed_at=trigger,
+            m1_trigger_family="FVG_RETRACE_CISD",
+            decision_reference_price="100",
+            structural_target_witness_price="102",
+        ),
+    )
+    trade = V49EconomicTrade(
+        symbol="EURUSD",
+        session="LONDON",
+        operating_date="2026-01-05",
+        ordinal_candidate_at=trigger,
+        direction="LONG",
+        entry_at=trigger,
+        exit_at="2026-01-05T10:10:00+00:00",
+        entry_price="100",
+        stop_price="99",
+        target_price="102",
+        planned_reward_r="2",
+        realized_gross_r="2",
+        exit_reason="TARGET",
+        m1_bars_held=5,
+        trigger_family="FVG_RETRACE_CISD",
+        h1_state_basis="TEST",
+    )
+
+    rows = _baseline_records(opportunities, (trade, trade))
+    assert tuple(item.m15_setup_confirmed_at for item in rows) == (
+        "2026-01-05T09:15:00+00:00",
+        "2026-01-05T09:30:00+00:00",
     )
