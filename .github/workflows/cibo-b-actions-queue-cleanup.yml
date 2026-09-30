@@ -4,36 +4,33 @@ on:
   push:
     branches:
       - agent/cibo-certification-architect-b-integration-001
-    paths:
-      - '.github/workflows/cibo-b-actions-queue-cleanup.yml'
   workflow_dispatch:
 
 permissions:
   actions: write
   contents: read
 
+concurrency:
+  group: cibo-b-actions-queue-cleanup-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   prune-obsolete-runs:
     runs-on: windows-latest
-    timeout-minutes: 10
+    timeout-minutes: 35
     steps:
       - name: Cancel obsolete Architect B runs
         uses: actions/github-script@v7
         env:
           TARGET_BRANCH: agent/cibo-certification-architect-b-integration-001
-          TARGET_HEAD: ${{ github.event.before }}
-          MAX_CANCELS: "300"
+          TARGET_HEAD: ${{ github.sha }}
+          MAX_CANCELS: "250"
         with:
           script: |
             const branch = process.env.TARGET_BRANCH;
             const targetHead = process.env.TARGET_HEAD;
             const currentRunId = Number(process.env.GITHUB_RUN_ID);
             const maxCancels = Number(process.env.MAX_CANCELS);
-
-            if (!targetHead || /^0+$/.test(targetHead)) {
-              core.setFailed("TARGET_HEAD is unavailable; refusing to prune");
-              return;
-            }
 
             const keepNames = new Set([
               "QORE CIBO T02 Forward Structural OOS",
@@ -55,19 +52,64 @@ jobs:
               "QORE CIBO Protected Base Overlay",
             ]);
 
-            const runs = await github.paginate(
-              github.rest.actions.listWorkflowRunsForRepo,
-              {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                branch,
-                per_page: 100,
-              }
-            );
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-            const active = runs.filter(
-              (run) => run.status !== "completed" && run.id !== currentRunId
-            );
+            async function listActive() {
+              const runs = await github.paginate(
+                github.rest.actions.listWorkflowRunsForRepo,
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  branch,
+                  per_page: 100,
+                }
+              );
+              return runs.filter(
+                (run) => run.status !== "completed" && run.id !== currentRunId
+              );
+            }
+
+            async function waitForCurrentHeadRuns() {
+              let active = [];
+              for (let attempt = 0; attempt < 8; attempt += 1) {
+                active = await listActive();
+                const currentNames = new Set(
+                  active
+                    .filter((run) => run.head_sha === targetHead)
+                    .map((run) => run.name)
+                );
+                const usefulPresent = [...keepNames].filter(
+                  (name) => currentNames.has(name)
+                ).length;
+                core.info(
+                  `registration attempt=${attempt + 1} useful_current_head=${usefulPresent}`
+                );
+                if (usefulPresent >= 15 || attempt === 7) return active;
+                await sleep(5000);
+              }
+              return active;
+            }
+
+            async function waitForRateBudget(required) {
+              while (true) {
+                const rate = await github.rest.rateLimit.get();
+                const coreRate = rate.data.resources.core;
+                core.info(
+                  `rate remaining=${coreRate.remaining} reset=${coreRate.reset} required=${required}`
+                );
+                if (coreRate.remaining >= required) return;
+                const delay = Math.max(
+                  1000,
+                  coreRate.reset * 1000 - Date.now() + 3000
+                );
+                core.warning(
+                  `GitHub API budget insufficient; sleeping until reset for ${delay}ms`
+                );
+                await sleep(delay);
+              }
+            }
+
+            let active = await waitForCurrentHeadRuns();
 
             const keepIds = new Set();
             for (const name of keepNames) {
@@ -90,43 +132,75 @@ jobs:
               } else if (!keepNames.has(run.name)) {
                 reason = "not_arch_b_scope";
               } else if (!keepIds.has(run.id)) {
-                reason = "duplicate_current_checkpoint";
+                reason = "duplicate_current_head";
               }
               if (reason) cancel.push({ run, reason });
             }
 
+            const selected = cancel.slice(0, maxCancels);
+            await waitForRateBudget(selected.length + 25);
+
             const reasonCounts = {};
             let cancelled = 0;
+            let benignRace = 0;
             let failed = 0;
-            for (const item of cancel.slice(0, maxCancels)) {
-              try {
-                await github.rest.actions.cancelWorkflowRun({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  run_id: item.run.id,
-                });
-                cancelled += 1;
-                reasonCounts[item.reason] = (reasonCounts[item.reason] || 0) + 1;
-              } catch (error) {
-                failed += 1;
-                core.warning(
-                  `cancel failed run=${item.run.id} name=${item.run.name}: ${error.message}`
-                );
+
+            for (const item of selected) {
+              let done = false;
+              while (!done) {
+                try {
+                  await github.rest.actions.cancelWorkflowRun({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    run_id: item.run.id,
+                  });
+                  cancelled += 1;
+                  reasonCounts[item.reason] = (reasonCounts[item.reason] || 0) + 1;
+                  done = true;
+                } catch (error) {
+                  const message = String(error.message || "");
+                  const status = Number(error.status || 0);
+                  if (
+                    status === 409 ||
+                    status === 404 ||
+                    /cannot be cancelled|not found|already completed/i.test(message)
+                  ) {
+                    benignRace += 1;
+                    done = true;
+                  } else if (
+                    status === 403 &&
+                    /rate limit/i.test(message)
+                  ) {
+                    await waitForRateBudget(50);
+                  } else {
+                    failed += 1;
+                    core.warning(
+                      `cancel failed run=${item.run.id} name=${item.run.name}: ${message}`
+                    );
+                    done = true;
+                  }
+                }
               }
             }
+
+            active = await listActive();
+            const remainingBad = active.filter((run) => {
+              if (run.head_sha !== targetHead) return true;
+              if (!keepNames.has(run.name)) return true;
+              return !keepIds.has(run.id);
+            });
 
             core.summary
               .addHeading("Architect B queue cleanup")
               .addTable([
                 [{data:"Metric",header:true},{data:"Value",header:true}],
-                ["Target checkpoint", targetHead],
-                ["Active runs scanned", String(active.length)],
+                ["Target HEAD", targetHead],
                 ["Useful runs retained", String(keepIds.size)],
-                ["Eligible for cancellation", String(cancel.length)],
-                ["Cancellation attempts", String(Math.min(cancel.length, maxCancels))],
+                ["Eligible at scan", String(cancel.length)],
                 ["Cancelled", String(cancelled)],
+                ["Benign races", String(benignRace)],
                 ["Failed cancellations", String(failed)],
-                ["Remaining eligible after cap", String(Math.max(0, cancel.length - maxCancels))],
+                ["Remaining non-B/obsolete active", String(remainingBad.length)],
               ])
               .addRaw("\nReasons: " + JSON.stringify(reasonCounts))
               .write();
@@ -134,16 +208,18 @@ jobs:
             core.info(
               JSON.stringify({
                 targetHead,
-                activeRuns: active.length,
                 retainedUsefulRuns: keepIds.size,
-                eligibleForCancellation: cancel.length,
+                eligibleAtScan: cancel.length,
                 cancelled,
+                benignRace,
                 failed,
-                remainingAfterCap: Math.max(0, cancel.length - maxCancels),
+                remainingBad: remainingBad.length,
                 reasons: reasonCounts,
               })
             );
 
-            if (failed > 0) {
-              core.setFailed(`Failed to cancel ${failed} obsolete workflow runs`);
+            if (failed > 0 || remainingBad.length > 0) {
+              core.setFailed(
+                `Cleanup incomplete: failed=${failed} remainingBad=${remainingBad.length}`
+              );
             }
