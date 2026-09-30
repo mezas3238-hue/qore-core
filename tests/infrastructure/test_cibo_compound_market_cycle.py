@@ -17,6 +17,9 @@ from qore.infrastructure.cibo_cma_settlement_ledger import (
     apply_settlement,
 )
 from qore.infrastructure.cibo_compound_capital import CompoundCapitalState
+from qore.infrastructure.cibo_compound_cycle_audit import (
+    reconcile_compound_cycle,
+)
 from qore.infrastructure.cibo_compound_cycle_state import (
     CiboCompoundCycleState,
     classify_compound_capital,
@@ -535,6 +538,22 @@ def test_compound_portfolio_icm_cycle_creates_cross_trader_gen2(
     )
     assert origin.origin_trader is TraderLineage.VT31_NAS100
 
+    audit = reconcile_compound_cycle(state)
+    assert audit.accounting_integrity_pass is True
+    assert audit.provenance_pass is True
+    assert audit.no_double_counting_pass is True
+    assert audit.no_unexplained_creation_pass is True
+    assert audit.no_unexplained_destruction_pass is True
+    assert audit.path_dependence_mechanics_pass is True
+    assert audit.accounting_residual_usd == Decimal("0")
+    assert audit.highest_generation == 2
+    assert len(audit.generation_edges) == 1
+    edge = audit.generation_edges[0]
+    assert edge.parent_origin_trader is TraderLineage.VT31_NAS100
+    assert edge.child_origin_trader is TraderLineage.R34_XAUUSD
+    assert audit.economic_value_demonstrated is False
+    assert audit.certification_ready is False
+
 
 def test_compound_deployment_loss_consumes_compound_before_gen0(
     tmp_path: Path,
@@ -617,3 +636,9 @@ def test_compound_deployment_loss_consumes_compound_before_gen0(
     ) == Decimal("25")
     assert state.closing_realized_capital_usd == Decimal("185")
     assert state.accounting_identity_usd == Decimal("185")
+
+    audit = reconcile_compound_cycle(state)
+    assert audit.consumed_compound_capital_usd == Decimal("15")
+    assert audit.base_capital_loss_usd == Decimal("0")
+    assert audit.accounting_residual_usd == Decimal("0")
+    assert audit.no_unexplained_destruction_pass is True
