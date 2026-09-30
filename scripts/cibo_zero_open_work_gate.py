@@ -230,6 +230,8 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_ctrader_demo_instrument_taxonomy*", "PROVIDER_ECONOMICS"),
     ("*cibo_ce2i_t17_limited_risk_capability*", "T17"),
     ("*cibo_t17_limited_risk_capability_probe*", "T17"),
+    ("*cibo_t17_provider_capability_receipt*", "T17"),
+    ("*t17-provider-capability-receipt*", "T17"),
     ("*cibo_t20_capital_release*", "T20"),
     ("*cibo_usd60_exam_readiness*", "USD60_CAPABILITY_PROGRAM"),
     ("*cibo_risk_integration_closure*", "RISK_INTEGRATION"),
