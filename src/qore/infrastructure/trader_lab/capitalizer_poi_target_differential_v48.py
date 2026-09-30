@@ -37,7 +37,7 @@ class V48POITargetFinding:
             raise ValueError("finding requires source URL")
         if (self.affected_count is None) != (self.denominator is None):
             raise ValueError("affected_count and denominator must be supplied together")
-        if self.affected_count is not None:
+        if self.affected_count is not None and self.denominator is not None:
             if not 0 <= self.affected_count <= self.denominator:
                 raise ValueError("invalid affected population")
 
