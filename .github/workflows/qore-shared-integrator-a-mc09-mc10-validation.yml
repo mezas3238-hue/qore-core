@@ -60,7 +60,7 @@ jobs:
           gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11116522138/zip" > mc09.zip
           unzip -q mc09.zip -d input/mc09
           (cd input/mc09 && sha256sum -c SHA256SUMS)
-          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11117164463/zip" > mc10.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11115664725/zip" > mc10.zip
           unzip -q mc10.zip -d input/mc10
           (cd input/mc10 && sha256sum -c SHA256SUMS)
       - name: Verify terminal evidence claims
