@@ -10,6 +10,7 @@ on:
       - 'src/qore/infrastructure/cibo_compound_cycle_audit.py'
       - 'src/qore/infrastructure/cibo_compound_cycle_replay.py'
       - 'src/qore/infrastructure/cibo_integrated_capital_truth.py'
+      - 'src/qore/infrastructure/cibo_compound_funding_coordination.py'
       - 'src/qore/infrastructure/cibo_compound_capital.py'
       - 'src/qore/infrastructure/cibo_compound_portfolio_ledger.py'
       - 'src/qore/infrastructure/cibo_compound_floor.py'
@@ -32,6 +33,7 @@ on:
       - 'src/qore/infrastructure/cibo_compound_cycle_audit.py'
       - 'src/qore/infrastructure/cibo_compound_cycle_replay.py'
       - 'src/qore/infrastructure/cibo_integrated_capital_truth.py'
+      - 'src/qore/infrastructure/cibo_compound_funding_coordination.py'
       - 'src/qore/infrastructure/cibo_compound_capital.py'
       - 'src/qore/infrastructure/cibo_compound_portfolio_ledger.py'
       - 'src/qore/infrastructure/cibo_compound_floor.py'
@@ -70,6 +72,7 @@ jobs:
             src/qore/infrastructure/cibo_compound_cycle_audit.py \
             src/qore/infrastructure/cibo_compound_cycle_replay.py \
             src/qore/infrastructure/cibo_integrated_capital_truth.py \
+            src/qore/infrastructure/cibo_compound_funding_coordination.py \
             tests/infrastructure/test_cibo_compound_cycle_state.py \
             tests/infrastructure/test_cibo_compound_market_cycle.py \
             tests/infrastructure/test_cibo_compound_cycle_replay.py \
@@ -79,13 +82,15 @@ jobs:
             src/qore/infrastructure/cibo_compound_market_cycle.py \
             src/qore/infrastructure/cibo_compound_cycle_audit.py \
             src/qore/infrastructure/cibo_compound_cycle_replay.py \
-            src/qore/infrastructure/cibo_integrated_capital_truth.py
+            src/qore/infrastructure/cibo_integrated_capital_truth.py \
+            src/qore/infrastructure/cibo_compound_funding_coordination.py
           python -m py_compile \
             src/qore/infrastructure/cibo_compound_cycle_state.py \
             src/qore/infrastructure/cibo_compound_market_cycle.py \
             src/qore/infrastructure/cibo_compound_cycle_audit.py \
             src/qore/infrastructure/cibo_compound_cycle_replay.py \
-            src/qore/infrastructure/cibo_integrated_capital_truth.py
+            src/qore/infrastructure/cibo_integrated_capital_truth.py \
+            src/qore/infrastructure/cibo_compound_funding_coordination.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_compound_cycle_state.py \
             tests/infrastructure/test_cibo_compound_market_cycle.py \

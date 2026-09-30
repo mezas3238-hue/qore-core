@@ -28,9 +28,17 @@ from qore.infrastructure.cibo_compound_cycle_state import (
     policy_protect_floor,
     protect_compound_capital,
 )
+from qore.infrastructure.cibo_compound_funding_coordination import (
+    IntegratedCompoundFundingState,
+    apply_funded_internal_market_decision,
+    settle_funded_compound_deployment,
+)
 from qore.infrastructure.cibo_compound_market_cycle import (
     apply_internal_capital_market_decision,
     settle_compound_deployment,
+)
+from qore.infrastructure.cibo_integrated_capital_truth import (
+    RealizedProfitEquivalenceBinding,
 )
 from qore.infrastructure.cibo_internal_capital_market import (
     GENC6_RESERVE_ID,
@@ -55,6 +63,8 @@ from qore.infrastructure.cibo_sequential_compounding_shadow_policy import (
 from qore.infrastructure.cibo_sequential_compounding_shadow_store import (
     DurableGenc5SequentialCompoundingShadowStore,
 )
+from qore.infrastructure.cibo_capital_management_authority import CapitalSource
+from qore.infrastructure.cibo_capital_source_ledger import CapitalSourceLedger
 from qore.infrastructure.market_test_environment import (
     MarketRuntimeEnvironment,
 )
@@ -726,3 +736,256 @@ def test_compound_deployment_excess_loss_requires_explicit_evidence(
                 pnl="-15",
             ),
         )
+
+
+def _integrated_funding_state() -> IntegratedCompoundFundingState:
+    cycle = _funded_compound_state()
+    source = CapitalSourceLedger().add_source(
+        source_id="origin-profit-source",
+        source=CapitalSource.REALIZED_PROFIT,
+        proven_amount_usd=Decimal("100"),
+    )
+    return IntegratedCompoundFundingState(
+        cycle=cycle,
+        source_ledger=source,
+        realized_profit_bindings=(
+            RealizedProfitEquivalenceBinding(
+                source_id="origin-profit-source",
+                admission_lot_ids=("origin-profit:gen1",),
+            ),
+        ),
+    )
+
+
+def test_compound_funding_coordinates_capital_risk_and_t19(
+    tmp_path: Path,
+) -> None:
+    state = _integrated_funding_state()
+    dominant = _candidate(
+        tmp_path=tmp_path,
+        state=state.cycle,
+        trader=TraderLineage.R34_XAUUSD,
+        signal="signal-a",
+        expected_return="9",
+        stop_risk="1.5",
+        margin="3",
+        execution_cost="0.1",
+        concentration="0.3",
+        drawdown="0.3",
+        optionality="0.2",
+        duration="15",
+        uncertainty="0.05",
+    )
+    inferior = _candidate(
+        tmp_path=tmp_path,
+        state=state.cycle,
+        trader=TraderLineage.VT31_NAS100,
+        signal="signal-b",
+        expected_return="6",
+        stop_risk="2.5",
+        margin="6",
+        execution_cost="0.3",
+        concentration="0.8",
+        drawdown="0.9",
+        optionality="0.6",
+        duration="45",
+        uncertainty="0.20",
+    )
+    portfolio_state = build_genc6_portfolio_state(
+        snapshot_id="funding-state",
+        decision_at=T0,
+        portfolio=state.cycle.core_portfolio,
+        t19_ledger=state.cycle.t19_ledger,
+    )
+    scarcity = build_capital_scarcity_event(
+        event_id="funding-scarcity",
+        decision_at=T0,
+        portfolio_state=portfolio_state,
+        candidates=(dominant, inferior),
+        reserve_alternative=_reserve(),
+    )
+    decision = evaluate_genc6_internal_capital_market_shadow(
+        event=scarcity,
+        decision_id="funding-decision",
+    )
+    state = apply_funded_internal_market_decision(
+        state,
+        event_id="funded-allocation",
+        scarcity_event=scarcity,
+        decision=decision,
+        source_lot_id="activate:moved",
+    )
+
+    source = state.source_ledger.accounts[0]
+    assert source.deployed_usd == Decimal("1.5")
+    assert state.cycle.compound_ledger.balance(
+        CompoundCapitalState.DEPLOYED_COMPOUND_CAPITAL
+    ) == Decimal("40")
+    assert len(state.cycle.t19_ledger.active_reservations) == 1
+    assert state.capital_truth.no_double_counting_pass is True
+
+
+def test_compound_funding_win_returns_risk_and_creates_new_profit_source(
+    tmp_path: Path,
+) -> None:
+    state = _integrated_funding_state()
+    dominant = _candidate(
+        tmp_path=tmp_path,
+        state=state.cycle,
+        trader=TraderLineage.R34_XAUUSD,
+        signal="signal-a",
+        expected_return="9",
+        stop_risk="1.5",
+        margin="3",
+        execution_cost="0.1",
+        concentration="0.3",
+        drawdown="0.3",
+        optionality="0.2",
+        duration="15",
+        uncertainty="0.05",
+    )
+    inferior = _candidate(
+        tmp_path=tmp_path,
+        state=state.cycle,
+        trader=TraderLineage.VT31_NAS100,
+        signal="signal-b",
+        expected_return="6",
+        stop_risk="2.5",
+        margin="6",
+        execution_cost="0.3",
+        concentration="0.8",
+        drawdown="0.9",
+        optionality="0.6",
+        duration="45",
+        uncertainty="0.20",
+    )
+    portfolio_state = build_genc6_portfolio_state(
+        snapshot_id="funding-win-state",
+        decision_at=T0,
+        portfolio=state.cycle.core_portfolio,
+        t19_ledger=state.cycle.t19_ledger,
+    )
+    scarcity = build_capital_scarcity_event(
+        event_id="funding-win-scarcity",
+        decision_at=T0,
+        portfolio_state=portfolio_state,
+        candidates=(dominant, inferior),
+        reserve_alternative=_reserve(),
+    )
+    decision = evaluate_genc6_internal_capital_market_shadow(
+        event=scarcity,
+        decision_id="funding-win-decision",
+    )
+    state = apply_funded_internal_market_decision(
+        state,
+        event_id="funded-win-allocation",
+        scarcity_event=scarcity,
+        decision=decision,
+        source_lot_id="activate:moved",
+    )
+    state = settle_funded_compound_deployment(
+        state,
+        event_id="funded-win-settlement",
+        occurred_at=T0 + timedelta(minutes=30),
+        deployment_id="funded-win-allocation:deployment",
+        settlement=_settlement(
+            signal="signal-a",
+            position_id=3101,
+            deal_id=4101,
+            pnl="30",
+        ),
+    )
+
+    by_id = {item.source_id: item for item in state.source_ledger.accounts}
+    assert by_id["origin-profit-source"].consumed_usd == Decimal("0")
+    assert by_id["origin-profit-source"].cumulative_released_usd == Decimal(
+        "1.5"
+    )
+    assert by_id[
+        "funded-win-settlement:realized-profit-source"
+    ].proven_amount_usd == Decimal("30")
+    assert state.capital_truth.realized_profit_proven_usd == Decimal("130")
+    assert state.cycle.highest_generation == 2
+    assert len(state.cycle.t19_ledger.active_reservations) == 0
+
+
+def test_compound_funding_loss_consumes_same_amount_in_both_ledgers(
+    tmp_path: Path,
+) -> None:
+    state = _integrated_funding_state()
+    dominant = _candidate(
+        tmp_path=tmp_path,
+        state=state.cycle,
+        trader=TraderLineage.R34_XAUUSD,
+        signal="signal-a",
+        expected_return="9",
+        stop_risk="1.5",
+        margin="3",
+        execution_cost="0.1",
+        concentration="0.3",
+        drawdown="0.3",
+        optionality="0.2",
+        duration="15",
+        uncertainty="0.05",
+    )
+    inferior = _candidate(
+        tmp_path=tmp_path,
+        state=state.cycle,
+        trader=TraderLineage.VT31_NAS100,
+        signal="signal-b",
+        expected_return="6",
+        stop_risk="2.5",
+        margin="6",
+        execution_cost="0.3",
+        concentration="0.8",
+        drawdown="0.9",
+        optionality="0.6",
+        duration="45",
+        uncertainty="0.20",
+    )
+    portfolio_state = build_genc6_portfolio_state(
+        snapshot_id="funding-loss-state",
+        decision_at=T0,
+        portfolio=state.cycle.core_portfolio,
+        t19_ledger=state.cycle.t19_ledger,
+    )
+    scarcity = build_capital_scarcity_event(
+        event_id="funding-loss-scarcity",
+        decision_at=T0,
+        portfolio_state=portfolio_state,
+        candidates=(dominant, inferior),
+        reserve_alternative=_reserve(),
+    )
+    decision = evaluate_genc6_internal_capital_market_shadow(
+        event=scarcity,
+        decision_id="funding-loss-decision",
+    )
+    state = apply_funded_internal_market_decision(
+        state,
+        event_id="funded-loss-allocation",
+        scarcity_event=scarcity,
+        decision=decision,
+        source_lot_id="activate:moved",
+    )
+    state = settle_funded_compound_deployment(
+        state,
+        event_id="funded-loss-settlement",
+        occurred_at=T0 + timedelta(minutes=30),
+        deployment_id="funded-loss-allocation:deployment",
+        settlement=_settlement(
+            signal="signal-a",
+            position_id=3102,
+            deal_id=4102,
+            pnl="-1.5",
+        ),
+    )
+
+    source = state.source_ledger.accounts[0]
+    assert source.consumed_usd == Decimal("1.5")
+    assert state.capital_truth.realized_profit_nonconsumed_usd == Decimal(
+        "98.5"
+    )
+    assert state.capital_truth.compound_current_economic_value_usd == Decimal(
+        "98.5"
+    )
+    assert state.capital_truth.nonconsumed_residual_usd == Decimal("0")

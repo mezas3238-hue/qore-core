@@ -915,21 +915,22 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "CROSS_LEDGER_FUNDING_ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_integrated_capital_truth.py",
         "tests/infrastructure/test_cibo_integrated_capital_truth.py",
         ".github/workflows/cibo-compound-engine-integrated-cycle.yml",
         "src/qore/infrastructure/cibo_capital_source_ledger.py",
-        "src/qore/infrastructure/cibo_compound_cycle_audit.py"
+        "src/qore/infrastructure/cibo_compound_cycle_audit.py",
+        "src/qore/infrastructure/cibo_compound_funding_coordination.py"
       ],
       "blockers": [
-        "INTEGRATED_CAPITAL_TRUTH_CI_REVALIDATION_REQUIRED",
+        "CROSS_LEDGER_FUNDING_COORDINATION_CI_REVALIDATION_REQUIRED",
         "REAL_CHRONOLOGICAL_SOURCE_SETTLEMENT_COMPOUND_T19_BINDING_REQUIRED",
-        "PROTECTED_OPEN_CAPACITY_MUST_REMAIN_NON_REALIZED_AND_NON_COMPOUNDABLE"
+        "DURABLE_MULTI_LEDGER_ATOMICITY_NOT_YET_PROVEN"
       ],
-      "next_gate": "Pass realized-profit/protected-open lineage CI, then bind authoritative chronological source, settlement, T19 and compound evidence with zero unexplained residuals."
+      "next_gate": "Pass capital-ownership/risk-funding/T19 coordination CI; then bind durable chronological evidence and prove crash-safe multi-ledger atomicity."
     }
   ],
   "current_summary": {
