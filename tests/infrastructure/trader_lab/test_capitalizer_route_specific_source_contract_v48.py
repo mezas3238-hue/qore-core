@@ -39,7 +39,7 @@ def test_generic_scalp_requires_confirmed_continuation_not_one_raw_behavior() ->
     base = {
         "DAILY_CONTEXT_RESOLVED": True,
         "H1_SCALP_BIAS_CONFIRMED": True,
-        "M15_SWING_STRUCTURE_CONFIRMED": True,
+        "M15_PROTECTED_SWING_CONFIRMED_BY_CISD": True,
         "LOGICAL_PROTECTED_SWING_STOP_AVAILABLE": True,
         "STRUCTURAL_TARGET_AVAILABLE": True,
     }
