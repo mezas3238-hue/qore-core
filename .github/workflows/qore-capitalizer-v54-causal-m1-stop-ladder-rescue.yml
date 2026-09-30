@@ -15,8 +15,8 @@ permissions:
   actions: read
 
 concurrency:
-  group: qore-capitalizer-v54-${{ github.ref }}
-  cancel-in-progress: true
+  group: qore-capitalizer-v54-stop-ladder-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
 
 env:
   SOURCE_M1_RUN_ID: '35548099334'
@@ -34,7 +34,9 @@ jobs:
       - run: python -m pip install -e '.[dev]'
       - name: Quality
         run: |
-          ruff check             src/qore/infrastructure/trader_lab/capitalizer_v54_causal_m1_stop_ladder_rescue.py             tests/infrastructure/trader_lab/test_capitalizer_v54_causal_m1_stop_ladder_rescue.py
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_v54_causal_m1_stop_ladder_rescue.py \
+            tests/infrastructure/trader_lab/test_capitalizer_v54_causal_m1_stop_ladder_rescue.py
           mypy src/qore/infrastructure/trader_lab/capitalizer_v54_causal_m1_stop_ladder_rescue.py
           pytest -q --no-cov tests/infrastructure/trader_lab/test_capitalizer_v54_causal_m1_stop_ladder_rescue.py
 
@@ -80,10 +82,12 @@ jobs:
           run-id: ${{ env.SOURCE_M1_RUN_ID }}
       - name: Build V49 source opportunities
         run: |
-          python -m qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49             market m1-source capacity-output --session "${{ matrix.session }}"
+          python -m qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 \
+            market m1-source capacity-output --session "${{ matrix.session }}"
       - name: Run V54 stop-ladder rescue census
         run: |
-          python -m qore.infrastructure.trader_lab.capitalizer_v54_causal_m1_stop_ladder_rescue             market capacity-output m1-source v54-output
+          python -m qore.infrastructure.trader_lab.capitalizer_v54_causal_m1_stop_ladder_rescue \
+            market capacity-output m1-source v54-output
       - name: Enforce pre-economic boundary
         run: |
           python - <<'PY'
@@ -123,7 +127,8 @@ jobs:
           merge-multiple: false
       - name: Build V54 matrix
         run: |
-          python -m qore.infrastructure.trader_lab.capitalizer_v54_causal_m1_stop_ladder_rescue             matrix v54-markets matrix-output
+          python -m qore.infrastructure.trader_lab.capitalizer_v54_causal_m1_stop_ladder_rescue \
+            matrix v54-markets matrix-output
       - uses: actions/upload-artifact@v4
         with:
           name: qore-capitalizer-v54-matrix-${{ github.sha }}
