@@ -6,6 +6,7 @@ on:
       - agent/shared-b-global-world-perception-001
     paths:
       - scripts/shared_b_temporal_source_clock_audit.py
+      - src/qore/infrastructure/core_stack_v2/shared_b_cross_asset_source_replay.py
       - .github/workflows/qore-shared-b-temporal-source-clock-audit.yml
   workflow_dispatch:
 
@@ -42,7 +43,7 @@ jobs:
         run: |
           set -euo pipefail
           ruff check scripts/shared_b_temporal_source_clock_audit.py
-          mypy scripts/shared_b_temporal_source_clock_audit.py
+          mypy src/qore/infrastructure/core_stack_v2/shared_b_cross_asset_source_replay.py scripts/shared_b_temporal_source_clock_audit.py
           python -m py_compile scripts/shared_b_temporal_source_clock_audit.py
 
       - name: Verify exact sealed B-03 lineage
