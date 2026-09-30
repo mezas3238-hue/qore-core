@@ -791,7 +791,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "INTEGRATED_ENGINE_IMPLEMENTED_CI_GREEN_REAL_REPLAY_REQUIRED",
+      "current_maturity": "INTEGRATED_CYCLE_GREEN_DIRECT_A_FORWARD_RECORD_BRIDGE_STAGED_CI_PENDING_REAL_POPULATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_cycle_state.py",
@@ -801,13 +801,17 @@
         "tests/infrastructure/test_cibo_compound_market_cycle.py",
         ".github/workflows/cibo-compound-engine-integrated-cycle.yml",
         "github-actions://36727848373/SUCCESS",
-        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md"
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_arch_a_forward_compound_delivery.py",
+        "tests/infrastructure/test_cibo_arch_a_forward_compound_delivery.py",
+        ".github/workflows/cibo-architect-a-forward-compound-delivery.yml"
       ],
       "blockers": [
+        "INTEGRATOR_ARCH_A_FORWARD_COMPOUND_DELIVERY_CI_REQUIRED",
         "REAL_CHRONOLOGICAL_POPULATION_REPLAY_REQUIRED",
         "COMPOUND_MONTE_CARLO_REAL_POPULATION_STRESS_OOS_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Bind the integrated engine to a real chronological population and close Monte Carlo, fresh OOS, stress and temporal-replication scientific gates."
+      "next_gate": "Pass direct A forward-compound delivery CI; then bind the scientifically-ready real four-fold forward population and run causal/economic closure without synthetic capital-state fields."
     },
     {
       "id": "COMPOUND_PORTFOLIO",
@@ -972,7 +976,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "MONTE_CARLO_ENGINE_AND_REAL_POPULATION_BINDING_CHILD_CI_GREEN_REAL_POPULATION_REQUIRED",
+      "current_maturity": "MONTE_CARLO_ENGINE_REAL_POPULATION_BINDING_PLUS_DIRECT_FORWARD_RECORD_BRIDGE_STAGED_CI_PENDING",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_path_monte_carlo.py",
@@ -983,13 +987,17 @@
         "src/qore/infrastructure/cibo_compound_real_population_binding.py",
         "tests/infrastructure/test_cibo_compound_real_population_binding.py",
         "docs/research/CIBO-COMPOUND-REAL-POPULATION-BINDING-V1.md",
-        "github-actions://36754064447/SUCCESS"
+        "github-actions://36754064447/SUCCESS",
+        "src/qore/infrastructure/cibo_arch_a_forward_compound_delivery.py",
+        "tests/infrastructure/test_cibo_arch_a_forward_compound_delivery.py",
+        ".github/workflows/cibo-architect-a-forward-compound-delivery.yml"
       ],
       "blockers": [
+        "INTEGRATOR_ARCH_A_FORWARD_COMPOUND_DELIVERY_CI_REQUIRED",
         "REAL_COMPOUND_EPISODE_POPULATION_AND_FLOOR_ATTRIBUTION_REQUIRED",
         "ADVERSARIAL_STRESS_AND_TEMPORAL_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Bind real chronological settled compound episodes plus protected-floor attribution; run the frozen Monte Carlo on real population and connect adversarial stress plus temporal replication."
+      "next_gate": "Pass direct forward-record bridge CI; require real compound episodes with exact deployment/floor provenance across WF1..WF4 before Monte Carlo execution."
     },
     {
       "id": "ADVERSARIAL_STRESS",
@@ -1040,7 +1048,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "REPLICATION_HARNESS_AND_ECONOMIC_4_OF_4_CRITERION_CHILD_CI_GREEN_REAL_FOLDS_REQUIRED",
+      "current_maturity": "REPLICATION_HARNESS_AND_DIRECT_FORWARD_RECORD_BRIDGE_STAGED_CI_PENDING_REAL_FOLDS_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_temporal_replication.py",
@@ -1051,13 +1059,17 @@
         "src/qore/infrastructure/cibo_compound_temporal_replication_gate.py",
         "tests/infrastructure/test_cibo_compound_temporal_replication_gate.py",
         "docs/research/CIBO-COMPOUND-TEMPORAL-ECONOMIC-REPLICATION-CRITERION-V1.md",
-        "github-actions://36754064447/SUCCESS"
+        "github-actions://36754064447/SUCCESS",
+        "src/qore/infrastructure/cibo_arch_a_forward_compound_delivery.py",
+        "tests/infrastructure/test_cibo_arch_a_forward_compound_delivery.py",
+        ".github/workflows/cibo-architect-a-forward-compound-delivery.yml"
       ],
       "blockers": [
+        "INTEGRATOR_ARCH_A_FORWARD_COMPOUND_DELIVERY_CI_REQUIRED",
         "REAL_FROZEN_TEMPORAL_FOLDS_REQUIRED",
         "REAL_4_OF_4_ECONOMIC_REPLICATION_RESULTS_REQUIRED"
       ],
-      "next_gate": "Require child GEN-C9 CI to pass the frozen 4/4 criterion; then bind real WF1..WF4 populations and apply the same non-compensatory gate independently without pooling."
+      "next_gate": "Pass direct forward-record bridge CI; bind exact non-overlapping WF1..WF4 compound episodes and apply the frozen non-compensatory replication criterion without pooled rescue."
     },
     {
       "id": "RISK_INTEGRATION",
