@@ -225,6 +225,8 @@ def _fact(
             Genc6EvidenceDirection.LOWER_IS_BETTER,
         Genc6EvidenceKind.OPTIONALITY_CONSUMED_PER_CAPITAL:
             Genc6EvidenceDirection.LOWER_IS_BETTER,
+        Genc6EvidenceKind.PROVIDER_CONSTRAINT_PRESSURE:
+            Genc6EvidenceDirection.LOWER_IS_BETTER,
         Genc6EvidenceKind.RESERVE_VALUE:
             Genc6EvidenceDirection.HIGHER_IS_BETTER,
     }[kind]
@@ -306,6 +308,11 @@ def _facts(
             kind=Genc6EvidenceKind.OPTIONALITY_CONSUMED_PER_CAPITAL,
             value=evidence.incremental_optionality_consumed_usd / amount,
             digit="4",
+        ),
+        _fact(
+            kind=Genc6EvidenceKind.PROVIDER_CONSTRAINT_PRESSURE,
+            value=Decimal("0.10"),
+            digit="5",
         ),
     )
 
