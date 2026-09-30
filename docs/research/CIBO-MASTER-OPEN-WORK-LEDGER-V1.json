@@ -329,15 +329,19 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
+      "current_maturity": "ENGINE_IMPLEMENTED_DEDICATED_END_TO_END_RECONCILIATION_REPLAY_GATE_ADDED_CI_PENDING",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "tests/infrastructure/test_cibo_compound_cycle_replay.py",
+        "src/qore/infrastructure/cibo_compound_cycle_replay.py",
+        "src/qore/infrastructure/cibo_compound_cycle_audit.py",
+        "github-actions://36750376855/SUCCESS"
       ],
       "blockers": [
         "END_TO_END_MATHEMATICAL_RECONCILIATION_REPLAY_REQUIRED"
       ],
-      "next_gate": "Prove no double count/phantom/lost/unexplained capital under chronological replay."
+      "next_gate": "Require the child-PR Compound Engine Integrated Cycle to pass the dedicated chronological GEN-C1 replay proving zero residual, exact one-time profit admission, explained loss destruction, no double counting, no unexplained creation and no unexplained destruction; only then assign terminal disposition."
     },
     {
       "id": "GEN-C2",
@@ -871,13 +875,18 @@
       "kind": "GOVERNANCE",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "OPEN_REQUIRED",
+      "current_maturity": "COMMON_CHECKPOINT_RECONCILED_FINAL_POST_INTEGRATION_RECONCILIATION_REQUIRED",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "REGISTRY_ROADMAP_PR_BODY_CODE_STATE_DIVERGENCE_EXISTS"
+      "evidence_refs": [
+        "docs/research/CIBO-SOURCE-OF-TRUTH-RECONCILIATION-V1.md",
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-WORLD-CUP-SOVEREIGN-CAPITAL-AMPLIFICATION-GAP-MATRIX-V1.md",
+        "github-pr://651"
       ],
-      "next_gate": "Reconcile HEAD→code→tests→CI→artifacts→ADR→roadmap→PR body."
+      "blockers": [
+        "FINAL_POST_ARCHITECT_A_B_INTEGRATION_RECONCILIATION_REQUIRED"
+      ],
+      "next_gate": "After Architect A and B finish, reconcile the integrated HEAD against code, tests, CI, artifacts, ADRs, roadmap, ledger and PR #651 body one final time before terminal closure."
     },
     {
       "id": "ORPHAN_INVENTORY",
