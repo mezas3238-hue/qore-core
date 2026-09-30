@@ -1,16 +1,9 @@
-from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
-from qore.infrastructure.trader_lab.capitalizer_experience_memory import (
-    CapitalizerExperienceMemory,
-)
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
     V49Opportunity,
-)
-from qore.infrastructure.trader_lab.capitalizer_metacognition_v2 import (
-    CapitalizerEpistemicReadiness,
 )
 from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_hf_bridge import (
     V50CognitiveAssessment,
