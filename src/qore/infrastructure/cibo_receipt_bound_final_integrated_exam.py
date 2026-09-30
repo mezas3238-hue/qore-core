@@ -14,7 +14,12 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_ce2i_final_certification import (
-    CiboEconomicCertificationDecision,
+    CiboEconomicCertificationStatus,
+    Phase22QualificationReceipt,
+    assess_cibo_final_economic_certification,
+)
+from qore.infrastructure.cibo_ce2i_phase21_policy_freeze import (
+    Phase21PolicyFreezeManifest,
 )
 from qore.infrastructure.cibo_crossboundary_evidence_receipt import (
     CiboCrossBoundaryEvidenceReceipt,
@@ -73,16 +78,30 @@ def _assert_clean_governance(
 def assess_receipt_bound_final_integrated_exam(
     *,
     integrated_head_sha: str,
-    economic_certification: CiboEconomicCertificationDecision,
+    phase21_manifest: Phase21PolicyFreezeManifest,
+    phase22_receipt: Phase22QualificationReceipt,
     receipts: tuple[CiboCrossBoundaryEvidenceReceipt, ...],
     certification_critical_external_blockers: tuple[str, ...] = (),
 ) -> FinalIntegratedExamReport:
-    if not isinstance(
-        economic_certification,
-        CiboEconomicCertificationDecision,
+    if not isinstance(phase21_manifest, Phase21PolicyFreezeManifest):
+        raise CiboCapitalManagementError(
+            "bound final exam requires canonical Phase21 manifest"
+        )
+    if not isinstance(phase22_receipt, Phase22QualificationReceipt):
+        raise CiboCapitalManagementError(
+            "bound final exam requires canonical Phase22 receipt"
+        )
+    economic_certification = assess_cibo_final_economic_certification(
+        phase21_manifest=phase21_manifest,
+        phase22_receipt=phase22_receipt,
+    )
+    if (
+        economic_certification.status
+        is not CiboEconomicCertificationStatus.CERTIFIED
+        or economic_certification.blockers
     ):
         raise CiboCapitalManagementError(
-            "bound final exam requires canonical economic certification"
+            "bound final exam requires exact Phase21/Phase22 economic certification"
         )
     policy_identity_sha256 = economic_certification.candidate_parameter_sha256
     by_id = require_cross_boundary_receipts(
