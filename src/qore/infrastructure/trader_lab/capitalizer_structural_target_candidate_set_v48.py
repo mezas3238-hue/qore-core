@@ -13,7 +13,6 @@ from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
 
-
 IDENTITY = "QORE_CAPITALIZER_V48_STRUCTURAL_TARGET_CANDIDATE_SET"
 
 
