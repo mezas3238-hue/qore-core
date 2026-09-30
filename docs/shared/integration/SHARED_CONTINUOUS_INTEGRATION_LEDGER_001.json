@@ -119,6 +119,39 @@
       ],
       "partial_work_admitted": false,
       "protected_holdout_opened": false,
+      "master_regression_status": "PASSED_MASTER_REGRESSION",
+      "disposition": "INTEGRATED_AND_PROVEN",
+      "master_regression_evidence": [
+        "github-actions://36778556761/SUCCESS",
+        "github-actions://36778556554/SUCCESS",
+        "github-actions://36778556737/SUCCESS",
+        "github-actions://36778556694/SUCCESS",
+        "github-actions://36778556760/SUCCESS",
+        "github-actions://36778556509/SUCCESS",
+        "github-actions://36778556625/SUCCESS",
+        "github-actions://36778556603/SUCCESS",
+        "github-actions://36778556610/SUCCESS",
+        "github-actions://36778562319/SUCCESS",
+        "github-actions://36778562449/SUCCESS",
+        "github-actions://36778562238/SUCCESS",
+        "github-actions://36778562185/SUCCESS"
+      ]
+    },
+    {
+      "integration_id": "INT-A-003",
+      "source_lane": "A",
+      "source_cut_sha": "c766dc0d0c6757cffada7a475aed7a18fdd321c9",
+      "master_merge_sha": "c5f6a63ea5c96aef042768c902ee7df733c12447",
+      "workstreams": [
+        "MC-21"
+      ],
+      "source_evidence": [
+        "github-actions://36778113321/SUCCESS",
+        "github-actions://36778711964/SUCCESS",
+        "github-actions://36778718692/SUCCESS"
+      ],
+      "partial_work_admitted": false,
+      "protected_holdout_opened": false,
       "master_regression_status": "RUNNING",
       "disposition": "MERGED_PENDING_MASTER_REGRESSION"
     }
@@ -126,27 +159,30 @@
   "next_integrations": [
     {
       "lane": "A",
-      "status": "NEXT_TERMINAL_CANDIDATE",
-      "workstreams": [
-        "MC-21"
-      ],
-      "rule": "Stage independently; MC-26 is dependency-blocked by non-master A modules."
-    },
-    {
-      "lane": "A",
       "status": "DEPENDENCY_BLOCKED",
       "workstreams": [
         "MC-26"
       ],
       "blockers": [
-        "counterfactual_world_engine.py absent from master",
-        "meta_learning_regime_adaptation.py absent from master / MC-23 not terminal"
+        "MC-18 counterfactual world remains nonterminal",
+        "MC-23 meta-learning remains nonterminal",
+        "required A modules absent from master"
       ]
+    },
+    {
+      "lane": "A",
+      "status": "SUPPORT_NEXT_GATES",
+      "workstreams": [
+        "MC-18",
+        "MC-23"
+      ],
+      "rule": "Close terminal scientific evidence before MC-26 integration."
     },
     {
       "lane": "B",
       "status": "SUPPORT_CLOSURE_IN_PROGRESS",
       "workstreams": [
+        "B-04",
         "B-06",
         "B-07",
         "B-08",
