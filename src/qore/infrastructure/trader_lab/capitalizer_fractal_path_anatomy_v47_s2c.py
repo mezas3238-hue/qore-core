@@ -153,7 +153,7 @@ def build_path_points(
     bars: tuple[CapitalizerM1Bar, ...],
     symbol_id: int,
     digits: int,
-) -> tuple[PathPoint, ...]:
+) -> tuple[tuple[PathPoint, ...], bool]:
     entry_at = s1._aware(datetime.fromisoformat(trade.entry_at))
     exit_at = s1._aware(datetime.fromisoformat(trade.exit_at))
     if exit_at < entry_at:
@@ -163,6 +163,7 @@ def build_path_points(
     if not overlap:
         raise ValueError("S2C path has no provider-native M1")
 
+    exact_partial_interval_ticks_used = False
     points: list[PathPoint] = [
         PathPoint(
             observed_at=entry_at,
@@ -175,6 +176,7 @@ def build_path_points(
         partial_end = min(exit_at, bar.closed_at - ONE_MILLISECOND)
         partial = partial_start > bar.opened_at or partial_end < bar.closed_at - ONE_MILLISECOND
         if partial:
+            exact_partial_interval_ticks_used = True
             points.extend(
                 _partial_ticks(
                     client,
@@ -215,8 +217,9 @@ def build_path_points(
             exact_tick=True,
         )
     )
-    return tuple(
-        sorted(points, key=lambda row: (row.observed_at, row.price))
+    return (
+        tuple(sorted(points, key=lambda row: (row.observed_at, row.price))),
+        exact_partial_interval_ticks_used,
     )
 
 
@@ -228,7 +231,7 @@ def audit_trade(
     symbol_id: int,
     digits: int,
 ) -> FractalPathAuditRow:
-    points = build_path_points(
+    points, exact_partial_interval_ticks_used = build_path_points(
         client,
         trade=trade,
         bars=bars,
@@ -288,7 +291,7 @@ def audit_trade(
             int((mfe_point.observed_at - entry_at).total_seconds() // 60),
         ),
         path_order=order,
-        exact_partial_interval_ticks_used=any(row.exact_tick for row in points),
+        exact_partial_interval_ticks_used=exact_partial_interval_ticks_used,
     )
 
 
