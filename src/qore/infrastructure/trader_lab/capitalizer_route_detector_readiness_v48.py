@@ -155,7 +155,7 @@ FACTS: tuple[V48RouteDetectorFact, ...] = (
         V48RouteId.TTRADES_FAILURE_TO_MANIPULATE,
         "CONTINUATION_STRUCTURE_CONFIRMED",
         V48DetectorReadiness.REUSABLE_CAUSAL_PRIMITIVE,
-        "capitalizer_source_native_ftm_v48.py::assess_source_native_ftm",
+        "capitalizer_source_native_ftm_observer_v48.py::observe_source_native_ftm",
         "V48 FTM primitive now encodes the source-native failure-then-continuation identity.",
     ),
     V48RouteDetectorFact(
