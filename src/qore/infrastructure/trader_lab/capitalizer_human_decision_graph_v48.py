@@ -215,7 +215,11 @@ ROUTES: tuple[V48HumanDecisionRoute, ...] = (
                 V48RouteStageRole.STRUCTURE,
                 "DAILY",
                 True,
-                "Allow the daily wick to form before trading the expected daily body.",
+                (
+                    "Allow the daily wick to form before trading the expected daily body; "
+                    "this is a semantic stage evidenced by the 4H/15M structure, not an "
+                    "extra independent gate."
+                ),
             ),
             V48RouteStage(
                 "LONDON_4H_WICK_SWING",
