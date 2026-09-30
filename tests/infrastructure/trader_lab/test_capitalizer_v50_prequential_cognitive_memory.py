@@ -1,8 +1,8 @@
-from qore.infrastructure.trader_lab.capitalizer_v50_prequential_cognitive_memory import (
-    _features,
-)
 from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_feature_atlas import (
     V50CognitiveFeatureRow,
+)
+from qore.infrastructure.trader_lab.capitalizer_v50_prequential_cognitive_memory import (
+    _features,
 )
 
 
