@@ -1,0 +1,132 @@
+name: QORE Shared B GW2 CNH Component Identity
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b_fx_cnh_identity.py
+      - scripts/shared_b_gw2_cnh_component_identity.py
+      - tests/infrastructure/test_shared_b_fx_cnh_identity.py
+      - docs/shared/evidence/SHARED_B_GW2_CNH_AUTHORITY_EVIDENCE_001.json
+      - .github/workflows/qore-shared-b-gw2-cnh-component-identity.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-gw2-cnh-component-identity-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  ISO_RUN_ID: "36652231167"
+  ISO_ARTIFACT_ID: "11070633983"
+  ISO_GIT_SHA: "27a9004c7feb6bc1985edf119fe7a372811ef29b"
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate CNH component closure
+        run: |
+          set -euo pipefail
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/shared_b_fx_cnh_identity.py \
+            scripts/shared_b_gw2_cnh_component_identity.py \
+            tests/infrastructure/test_shared_b_fx_cnh_identity.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/shared_b_fx_cnh_identity.py \
+            scripts/shared_b_gw2_cnh_component_identity.py
+          pytest -q tests/infrastructure/test_shared_b_fx_cnh_identity.py
+
+  resolve:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e .
+      - name: Verify sealed ISO component evidence lineage
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${ISO_RUN_ID}" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${ISO_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${ISO_RUN_ID}" --jq '.head_sha')" = "$ISO_GIT_SHA"
+      - name: Recover authoritative ISO component artifact
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ISO_ARTIFACT_ID}/zip" > iso.zip
+          unzip -q iso.zip -d input
+          (cd input && sha256sum -c SHA256SUMS)
+      - name: Resolve CNH component from separate HKMA authority
+        run: |
+          set -euo pipefail
+          python scripts/shared_b_gw2_cnh_component_identity.py \
+            --iso-evidence input/gw2-fx-iso4217-evidence.json \
+            --authority-evidence docs/shared/evidence/SHARED_B_GW2_CNH_AUTHORITY_EVIDENCE_001.json \
+            --output result/shared-b-gw2-cnh-component-identity.json \
+            | tee result/summary.json
+      - name: Validate narrow authority
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/shared-b-gw2-cnh-component-identity.json").read_text())
+          assert p["identity"] == "SHARED_B_GW2_CNH_COMPONENT_IDENTITY_001"
+          assert p["status"] == "FX_COMPONENT_IDENTITY_COMPLETE_PRODUCT_IDENTITY_UNRESOLVED"
+          assert p["currency_component_identity_verified_count"] == 21
+          assert p["fx_pair_count"] == 60
+          assert p["fx_pairs_with_all_currency_components_verified"] == 60
+          assert p["cnh_component"]["economic_identity"] == "OFFSHORE_RENMINBI"
+          assert p["cnh_component"]["iso4217_current_verified"] is False
+          assert p["cnh_component"]["authority_identity_verified"] is True
+          assert p["cnh_component"]["canonical_alias_to_cny"] is False
+          assert p["provider_symbol_to_reference_mapping_authorized"] is False
+          assert p["canonical_tradable_identity_verified_count"] == 0
+          assert p["calendar_mapping_authorized"] is False
+          assert p["relational_claims_authorized"] is False
+          assert p["historical_market_data_read"] is False
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["productive_authority"] is False
+          PY
+      - name: Seal CNH evidence pack
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+      - name: Upload B CNH closure
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-gw2-cnh-component-identity-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report CNH component closure
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B CNH component identity: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. CNH is verified as a distinct OFFSHORE_RENMINBI component by HKMA authority; CNH→CNY alias=False; FX component coverage=21/21 and 60/60 pairs; provider-symbol mapping, tradable identity, calendar mapping, relational authority and protected holdout remain False."
