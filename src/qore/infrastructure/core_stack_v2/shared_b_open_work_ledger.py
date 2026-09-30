@@ -100,8 +100,11 @@ B_WORK_ITEMS: Final = (
         "B-04",
         "Full R8 US2000 and XAUUSD source acquisition",
         SharedBWorkStatus.IN_PROGRESS,
-        ("run:36753726027",),
-        ("32-shard acquisition/reduction not yet complete",),
+        ("run:36765098842",),
+        (
+            "US2000 acquisition is 16/16 shards GREEN; XAUUSD 32-shard matrix "
+            "and final offline aggregate are still in progress",
+        ),
     ),
     SharedBWorkItem(
         "B-05",
@@ -149,10 +152,24 @@ B_WORK_ITEMS: Final = (
         "B-07",
         "Global market hours and canonical calendars",
         SharedBWorkStatus.EXTERNALLY_BLOCKED,
-        ("run:36623131862",),
         (
-            "canonical calendar registry is incomplete",
-            "distributed OTC FX cannot be assigned a fabricated single venue calendar",
+            "artifact:11123210080",
+            "artifact:11128361589",
+            "run:36623131862",
+            "run:36765945116",
+            "run:36782105126",
+        ),
+        (
+            "exact 177-sensor calendar worklist is frozen but verified canonical "
+            "calendar bindings remain 0/177",
+            "60 FX sensors require governed distributed-OTC weekly market-state "
+            "semantics rather than a fabricated single venue",
+            "11 current official indices still require official calculation-calendar binding",
+            "2 legacy indices require historical versioned calendars and cannot inherit current calendars",
+            "12 indices remain identity-blocked before calendar binding",
+            "73 crypto sensors remain identity/market-structure blocked before canonical temporal semantics",
+            "5 dated futures require versioned session/holiday calendars and 14 commodity "
+            "reference objects require explicit temporal semantics",
         ),
     ),
     SharedBWorkItem(
@@ -161,12 +178,15 @@ B_WORK_ITEMS: Final = (
         SharedBWorkStatus.PARTIAL_EVIDENCE_OPEN,
         (
             "artifact:11124500250",
+            "artifact:11128361589",
             "run:36623131862",
             "run:36767735668",
+            "run:36782105126",
         ),
         (
             "source-clock integrity is sealed for 3 sensors / 41 shards / "
-            "203185 real ticks, but canonical market-hours closure remains open",
+            "203185 real ticks; exact calendar blockers are now classified for 177/177 "
+            "sensors but verified calendar bindings remain 0/177",
             "cadence policy registry is not frozen",
             "canonical calendar binding remains incomplete",
             "comparability policy registry is not frozen",
@@ -232,7 +252,12 @@ B_WORK_ITEMS: Final = (
         "B-14",
         "Agricultural world",
         SharedBWorkStatus.EXTERNALLY_BLOCKED,
-        ("artifact:11059457712", "run:36623645085"),
+        (
+            "artifact:11059457712",
+            "artifact:11126270432",
+            "run:36623645085",
+            "run:36777269692",
+        ),
         (
             "current authorized provider exposes zero agricultural/soft/livestock candidates",
         ),
