@@ -222,14 +222,10 @@ def collect_ctrader_demo_instrument_taxonomy(
             "cTrader taxonomy collections cannot be empty"
         )
 
-    class_ids = {item.asset_class_id for item in asset_classes}
-    category_by_id = {item.category_id: item for item in symbol_categories}
-    enabled_symbols = tuple(item for item in capability.symbols if item.enabled)
-    complete = bool(enabled_symbols) and all(
-        item.symbol_category_id is not None
-        and item.symbol_category_id in category_by_id
-        and category_by_id[item.symbol_category_id].asset_class_id in class_ids
-        for item in enabled_symbols
+    complete = taxonomy_binds_capability(
+        capability=capability,
+        asset_classes=asset_classes,
+        symbol_categories=symbol_categories,
     )
 
     observed = observed_at or datetime.now(UTC)
@@ -248,6 +244,73 @@ def collect_ctrader_demo_instrument_taxonomy(
         taxonomy_sha256=_taxonomy_sha256(asset_classes, symbol_categories),
         catalog_binding_complete=complete,
     )
+
+
+def taxonomy_binds_capability(
+    *,
+    capability: CTraderDemoAccountCapabilityObservation,
+    asset_classes: tuple[CTraderDemoAssetClassEvidence, ...],
+    symbol_categories: tuple[CTraderDemoSymbolCategoryEvidence, ...],
+) -> bool:
+    """Recompute exact enabled-symbol -> category -> asset-class coverage."""
+
+    if not isinstance(capability, CTraderDemoAccountCapabilityObservation):
+        raise CiboCapitalManagementError(
+            "cTrader taxonomy binding requires canonical account capability"
+        )
+    if any(
+        not isinstance(item, CTraderDemoAssetClassEvidence)
+        for item in asset_classes
+    ):
+        raise CiboCapitalManagementError(
+            "cTrader taxonomy binding asset-class evidence invalid"
+        )
+    if any(
+        not isinstance(item, CTraderDemoSymbolCategoryEvidence)
+        for item in symbol_categories
+    ):
+        raise CiboCapitalManagementError(
+            "cTrader taxonomy binding symbol-category evidence invalid"
+        )
+    class_ids = {item.asset_class_id for item in asset_classes}
+    category_by_id = {item.category_id: item for item in symbol_categories}
+    enabled_symbols = tuple(item for item in capability.symbols if item.enabled)
+    return bool(enabled_symbols) and all(
+        item.symbol_category_id is not None
+        and item.symbol_category_id in category_by_id
+        and category_by_id[item.symbol_category_id].asset_class_id in class_ids
+        for item in enabled_symbols
+    )
+
+
+def assert_taxonomy_bound_to_capability(
+    *,
+    capability: CTraderDemoAccountCapabilityObservation,
+    taxonomy: CTraderDemoInstrumentTaxonomyObservation,
+) -> None:
+    """Reject stale/forged completeness flags at every consumer boundary."""
+
+    if not isinstance(taxonomy, CTraderDemoInstrumentTaxonomyObservation):
+        raise CiboCapitalManagementError(
+            "cTrader taxonomy binding requires canonical taxonomy observation"
+        )
+    if taxonomy.account_ref != capability.account_ref:
+        raise CiboCapitalManagementError(
+            "cTrader taxonomy account/capability binding mismatch"
+        )
+    if taxonomy.symbol_catalog_sha256 != capability.catalog_sha256:
+        raise CiboCapitalManagementError(
+            "cTrader taxonomy symbol catalog binding mismatch"
+        )
+    expected_complete = taxonomy_binds_capability(
+        capability=capability,
+        asset_classes=taxonomy.asset_classes,
+        symbol_categories=taxonomy.symbol_categories,
+    )
+    if taxonomy.catalog_binding_complete != expected_complete:
+        raise CiboCapitalManagementError(
+            "cTrader taxonomy completeness flag drift"
+        )
 
 
 def _asset_class(value: object) -> CTraderDemoAssetClassEvidence:
