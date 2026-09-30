@@ -326,7 +326,10 @@ def _integer_support(
     field: str,
 ) -> Genc10IntegerSupport:
     values = tuple(getattr(item, field) for item in rows)
-    if not all(isinstance(value, int) and not isinstance(value, bool) for value in values):
+    if not all(
+        isinstance(value, int) and not isinstance(value, bool)
+        for value in values
+    ):
         raise CiboCompoundCapitalError(
             f"GEN-C10 calibration field {field} must contain ints"
         )
