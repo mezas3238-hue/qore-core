@@ -10,7 +10,8 @@ V48 does not assume the broker's native H4 boundary is equivalent. Instead, it i
 to construct source-bound H4 methodology candles from retained provider-native M1 using
 capitalizer_ttrades_forex_h4_profile_v48.py.
 
-This resolves H4 clock identity only. Daily Forex profile/open binding remains independent.
+This resolves H4 clock identity. The Forex Daily profile is source-bound independently at
+17:00 New York by the same primary TTrades timing table.
 """
 
 from __future__ import annotations
@@ -82,7 +83,7 @@ class V48H4ProfileBinding:
     synthetic_price_authorized: bool = False
     h4_profile_construction_authorized: bool = True
     full_asia_london_route_authorized: bool = False
-    daily_profile_binding_still_required: bool = True
+    daily_profile_binding_resolved_independently: bool = True
     generic_scalp_blocked: bool = False
     fresh_holdout_authorized: bool = False
     economics_authorized: bool = False
@@ -104,8 +105,8 @@ class V48H4ProfileBinding:
             raise ValueError("resolved Forex H4 clock must allow profile construction")
         if self.full_asia_london_route_authorized:
             raise ValueError("H4 clock closure alone cannot authorize full Asia/London route")
-        if not self.daily_profile_binding_still_required:
-            raise ValueError("Daily Forex profile remains independently unresolved")
+        if not self.daily_profile_binding_resolved_independently:
+            raise ValueError("Forex Daily clock should be resolved by its independent ledger")
         if self.generic_scalp_blocked:
             raise ValueError("H4 work cannot block independent H1/M15/M1 Scalping")
         if self.fresh_holdout_authorized or self.economics_authorized:
