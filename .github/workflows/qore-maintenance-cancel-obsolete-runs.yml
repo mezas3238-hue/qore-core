@@ -28,6 +28,36 @@ jobs:
           set -euo pipefail
           repo="${GITHUB_REPOSITORY}"
 
+          cat > classify.py <<'PY'
+          import os
+          from pathlib import Path
+
+          head = os.environ["TARGET_HEAD"]
+          rows = []
+          for line in Path("active.tsv").read_text().splitlines():
+              if not line.strip():
+                  continue
+              run_id, sha, path = line.split("\t", 2)
+              rows.append((int(run_id), sha, path))
+
+          keep_by_path = {}
+          for run_id, sha, path in sorted(rows, reverse=True):
+              if sha == head and path not in keep_by_path:
+                  keep_by_path[path] = run_id
+
+          cancel = [
+              run_id
+              for run_id, sha, path in rows
+              if sha != head or keep_by_path.get(path) != run_id
+          ]
+          Path("cancel-ids.txt").write_text(
+              "".join(f"{item}\n" for item in sorted(cancel))
+          )
+          print(f"active_snapshot={len(rows)}")
+          print(f"keep_current_head={len(keep_by_path)}")
+          print(f"cancel_candidates={len(cancel)}")
+          PY
+
           for pass in 1 2 3 4; do
             head="$(gh api "/repos/${repo}/branches/${TARGET_BRANCH}" --jq '.commit.sha')"
             echo "pass=${pass} target_head=${head}"
@@ -38,35 +68,7 @@ jobs:
             done
             sort -u active.tsv -o active.tsv
 
-            TARGET_HEAD="$head" python - <<'PY'
-            import os
-            from pathlib import Path
-
-            head = os.environ["TARGET_HEAD"]
-            rows = []
-            for line in Path("active.tsv").read_text().splitlines():
-                if not line.strip():
-                    continue
-                run_id, sha, path = line.split("\t", 2)
-                rows.append((int(run_id), sha, path))
-
-            keep_by_path = {}
-            for run_id, sha, path in sorted(rows, reverse=True):
-                if sha == head and path not in keep_by_path:
-                    keep_by_path[path] = run_id
-
-            cancel = [
-                run_id
-                for run_id, sha, path in rows
-                if sha != head or keep_by_path.get(path) != run_id
-            ]
-            Path("cancel-ids.txt").write_text(
-                "".join(f"{item}\n" for item in sorted(cancel))
-            )
-            print(f"active_snapshot={len(rows)}")
-            print(f"keep_current_head={len(keep_by_path)}")
-            print(f"cancel_candidates={len(cancel)}")
-            PY
+            TARGET_HEAD="$head" python classify.py
 
             candidates="$(wc -l < cancel-ids.txt | tr -d ' ')"
             if [ "$candidates" -eq 0 ]; then
@@ -99,37 +101,34 @@ jobs:
           set -euo pipefail
           repo="${GITHUB_REPOSITORY}"
           head="$(gh api "/repos/${repo}/branches/${TARGET_BRANCH}" --jq '.commit.sha')"
+
           : > remaining.tsv
           for status in queued in_progress; do
             gh api --paginate               "/repos/${repo}/actions/runs?branch=${TARGET_BRANCH}&status=${status}&per_page=100"               --jq '.workflow_runs[] | [.id,.head_sha,.path] | @tsv'               >> remaining.tsv
           done
 
-          TARGET_HEAD="$head" python - <<'PY'
+          TARGET_HEAD="$head" python -c '
           import os
           from pathlib import Path
-
-          head = os.environ["TARGET_HEAD"]
-          rows = []
+          head=os.environ["TARGET_HEAD"]
+          rows=[]
           for line in Path("remaining.tsv").read_text().splitlines():
               if line.strip():
-                  run_id, sha, path = line.split("\t", 2)
-                  rows.append((int(run_id), sha, path))
-
-          old = [row for row in rows if row[1] != head]
-          seen = {}
-          dup = []
+                  run_id,sha,path=line.split("\t",2)
+                  rows.append((int(run_id),sha,path))
+          old=[row for row in rows if row[1] != head]
+          seen={}
+          dup=[]
           for row in sorted(rows, reverse=True):
               if row[1] != head:
                   continue
               if row[2] in seen:
                   dup.append(row)
               else:
-                  seen[row[2]] = row
-
+                  seen[row[2]]=row
           print(f"remaining_active={len(rows)}")
           print(f"remaining_current_head={sum(row[1] == head for row in rows)}")
           print(f"remaining_old_sha={len(old)}")
           print(f"remaining_head_duplicates={len(dup)}")
-          if old or dup:
-              raise SystemExit(2)
-          PY
+          raise SystemExit(2 if old or dup else 0)
+          '
