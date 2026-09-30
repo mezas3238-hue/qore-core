@@ -77,7 +77,10 @@ jobs:
           from pathlib import Path
           p=json.loads(Path("result/shared-b-energy-reference-boundary.json").read_text())
           assert p["energy_sensor_count"] == 3
-          assert p["reference_identity_verified_count"] == 3
+          assert p["provider_reference_object_verified_count"] == 3
+          assert p["provider_neutral_reference_identity_verified_count"] == 0
+          assert p["unknown_provider_neutral_identity_count"] == 3
+          assert p["unknown_identity_preserved"] is True
           assert p["tradable_product_identity_verified_count"] == 0
           assert p["exchange_venue_identity_verified_count"] == 0
           assert p["front_contract_identity_verified_count"] == 0
@@ -109,4 +112,4 @@ jobs:
         env:
           ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
         run: |
-          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-15 energy identity boundary: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Exact XBRUSD/XTIUSD/XNGUSD set remains reference-object-only: 3/3 reference identities verified, 0 tradable products, 0 exchange venues, 0 front contracts, 0 continuous series, 0 roll semantics. No symbol-name promotion to futures was permitted. B-15 remains OPEN."
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-15 energy identity boundary: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Exact XBRUSD/XTIUSD/XNGUSD set is provider-reference-object-only. The sealed pack contains NULL provider-neutral current_reference_identity for all 3, so UNKNOWN is preserved: 0 provider-neutral identities, 0 tradable products, 0 exchange venues, 0 front contracts, 0 continuous series, 0 roll semantics. No symbol-name promotion was permitted. B-15 remains OPEN."
