@@ -1,0 +1,46 @@
+name: QORE CIBO Architect B Forward Economic Manifest
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-arch-b-forward-economic-manifest.yml'
+      - 'src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py'
+      - 'tests/infrastructure/test_cibo_arch_b_forward_economic_manifest.py'
+      - 'docs/research/CIBO-ARCH-B-FORWARD-ECONOMIC-EVIDENCE-MANIFEST-V1.md'
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+    paths:
+      - '.github/workflows/cibo-arch-b-forward-economic-manifest.yml'
+      - 'src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py'
+      - 'tests/infrastructure/test_cibo_arch_b_forward_economic_manifest.py'
+      - 'docs/research/CIBO-ARCH-B-FORWARD-ECONOMIC-EVIDENCE-MANIFEST-V1.md'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  arch-b-forward-economic-manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Architect B forward economic manifest quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py \
+            tests/infrastructure/test_cibo_arch_b_forward_economic_manifest.py
+          mypy src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_arch_b_forward_economic_manifest.py
