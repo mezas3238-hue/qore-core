@@ -1,0 +1,128 @@
+name: QORE Shared A MC06 Latent State Temporal Stability
+
+concurrency:
+  group: qore-shared-a-mc06-latent-state-temporal-stability
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - docs/shared/evidence/QORE_SHARED_MC06_LATENT_STATE_TEMPORAL_STABILITY_PREREGISTRATION_001.json
+      - src/qore/infrastructure/core_stack_v2/latent_state_reconstruction.py
+      - scripts/shared_mc06_latent_state_temporal_stability.py
+      - .github/workflows/qore-shared-a-mc06-latent-state-temporal-stability.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  stability:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install and validate
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p input/{r8,r6,r5} result
+          ruff check src/qore/infrastructure/core_stack_v2/latent_state_reconstruction.py scripts/shared_mc06_latent_state_temporal_stability.py
+          mypy src/qore/infrastructure/core_stack_v2/latent_state_reconstruction.py
+          python -m py_compile scripts/shared_mc06_latent_state_temporal_stability.py
+      - name: Validate preregistration
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("docs/shared/evidence/QORE_SHARED_MC06_LATENT_STATE_TEMPORAL_STABILITY_PREREGISTRATION_001.json").read_text())
+          assert p["status"] == "PREREGISTERED_BEFORE_STABILITY_EVALUATION"
+          assert p["calibration_partition"] == "R8_SOURCE_ONLY"
+          assert p["governance"]["outcome_used"] is False
+          assert p["governance"]["protected_certification_holdout_opened"] is False
+          assert p["governance"]["threshold_rescue_authorized"] is False
+          PY
+      - name: Recover immutable source evidence
+        run: |
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+      - name: Evaluate preregistered temporal stability
+        run: |
+          python scripts/shared_mc06_latent_state_temporal_stability.py \
+            --r8-nas input/r8/fresh/NAS100/market-evidence.json \
+            --r8-sp input/r8/fresh/SP500/market-evidence.json \
+            --r8-us input/r8/fresh/US30/market-evidence.json \
+            --r6-nas input/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp input/r6/fresh/SP500/market-evidence.json \
+            --r6-us input/r6/fresh/US30/market-evidence.json \
+            --r5-nas input/r5/fresh/NAS100/market-evidence.json \
+            --r5-sp input/r5/fresh/SP500/market-evidence.json \
+            --r5-us input/r5/fresh/US30/market-evidence.json \
+            --preregistration docs/shared/evidence/QORE_SHARED_MC06_LATENT_STATE_TEMPORAL_STABILITY_PREREGISTRATION_001.json \
+            --output result/mc06-latent-state-temporal-stability.json \
+            | tee result/summary.json
+      - name: Validate scientific disposition without rescue
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc06-latent-state-temporal-stability.json").read_text())
+          assert p["status"] in {
+              "MC06_LATENT_STATE_TEMPORAL_STABILITY_PASS",
+              "MC06_LATENT_STATE_TEMPORAL_STABILITY_FALSIFIED",
+          }
+          assert p["future_market_used"] is False
+          assert p["outcome_used"] is False
+          assert p["productive_authority"] is False
+          assert p["master_ledger_mutated"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+      - name: Seal
+        run: |
+          cp docs/shared/evidence/QORE_SHARED_MC06_LATENT_STATE_TEMPORAL_STABILITY_PREREGISTRATION_001.json result/preregistration.json
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (cd result && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc06-latent-state-stability-${{ github.sha }}
+          path: result/
+          retention-days: 90
+      - name: Report
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/mc06-latent-state-temporal-stability.json").read_text())
+          body="\n".join([
+              "## Shared A MC-06 — Latent-state temporal stability",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              f"- R8 internal TVD / frozen tolerance: **{p['r8']['internal_split_tvd_bps']} / {p['r8']['frozen_tolerance_bps']} bps**",
+              f"- R6 TVD: **{p['r6']['tvd_vs_r8_bps']} bps**",
+              f"- R5 TVD: **{p['r5']['tvd_vs_r8_bps']} bps**",
+              f"- MC-06 completed-and-proven: **{p['mc06_completed_and_proven']}**",
+              "- protected certification holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
