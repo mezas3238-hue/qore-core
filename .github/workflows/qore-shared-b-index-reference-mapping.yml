@@ -1,0 +1,147 @@
+name: QORE Shared B Index Reference Mapping
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b_index_reference_mapping.py
+      - scripts/shared_b_index_reference_mapping.py
+      - tests/infrastructure/test_shared_b_index_reference_mapping.py
+      - docs/shared/evidence/SHARED_B_INDEX_REFERENCE_AUTHORITY_EVIDENCE_001.json
+      - .github/workflows/qore-shared-b-index-reference-mapping.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-index-reference-mapping-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  ATTESTED_RUN_ID: "36774358236"
+  ATTESTED_ARTIFACT_ID: "11124811192"
+  ATTESTED_GIT_SHA: "92f1f076871b791b7d0c1fa7c5b3a69aeb5d0014"
+
+jobs:
+  map-index-references:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate index reference mapping
+        run: |
+          set -euo pipefail
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/shared_b_index_reference_mapping.py \
+            scripts/shared_b_index_reference_mapping.py \
+            tests/infrastructure/test_shared_b_index_reference_mapping.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/shared_b_index_reference_mapping.py \
+            scripts/shared_b_index_reference_mapping.py
+          pytest -q tests/infrastructure/test_shared_b_index_reference_mapping.py
+
+      - name: Verify exact provider-attested lineage
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${ATTESTED_RUN_ID}" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${ATTESTED_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${ATTESTED_RUN_ID}" --jq '.head_sha')" = "$ATTESTED_GIT_SHA"
+
+      - name: Recover sealed provider-attested evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/attested result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ATTESTED_ARTIFACT_ID}/zip" > attested.zip
+          unzip -q attested.zip -d input/attested
+          sums="$(find input/attested -name SHA256SUMS -print -quit)"
+          test -n "$sums"
+          (cd "$(dirname "$sums")" && sha256sum -c SHA256SUMS)
+          attested_file="$(find input/attested -name shared-b-provider-attested-identity-boundary.json -print -quit)"
+          test -n "$attested_file"
+          printf 'ATTESTED_FILE=%s\n' "$attested_file" >> "$GITHUB_ENV"
+
+      - name: Build exact provider index reference mapping
+        run: |
+          set -euo pipefail
+          python scripts/shared_b_index_reference_mapping.py \
+            --provider-attested "$ATTESTED_FILE" \
+            --authority-evidence docs/shared/evidence/SHARED_B_INDEX_REFERENCE_AUTHORITY_EVIDENCE_001.json \
+            --output result/shared-b-index-reference-mapping.json \
+            | tee result/summary.json
+
+      - name: Enforce strict mapping partition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/shared-b-index-reference-mapping.json").read_text()
+          )
+          assert p["identity"] == "SHARED_B_INDEX_REFERENCE_MAPPING_001"
+          assert p["status"] == "INDEX_REFERENCE_MAPPING_PARTIAL_EVIDENCE_FROZEN"
+          assert p["provider_index_sensor_count"] == 25
+          assert p["current_official_reference_mapped_count"] == 11
+          assert p["legacy_reference_lineage_only_count"] == 2
+          assert p["provider_binding_unresolved_count"] == 12
+          assert p["stage_counts"] == {
+              "CURRENT_OFFICIAL_REFERENCE_MAPPED": 11,
+              "LEGACY_REFERENCE_LINEAGE_ONLY": 2,
+              "PROVIDER_BINDING_UNRESOLVED": 12,
+          }
+          assert p["full_index_identity_complete"] is False
+          assert p["tradable_product_identity_complete"] is False
+          assert p["listing_identity_complete"] is False
+          assert p["canonical_calendar_binding_complete"] is False
+          assert p["provider_symbol_name_used_as_mapping_proof"] is False
+          assert p["semantic_guessing_used"] is False
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["historical_market_data_read"] is False
+          assert p["broker_mutation"] is False
+          assert p["productive_authority"] is False
+          assert p["b06_complete"] is False
+          assert len(p["mapping_fingerprint_sha256"]) == 64
+          PY
+
+      - name: Seal B-06 index reference mapping
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          sha256sum docs/shared/evidence/SHARED_B_INDEX_REFERENCE_AUTHORITY_EVIDENCE_001.json \
+            > result/authority-evidence-sha256.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload B-06 index reference mapping
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-index-reference-mapping-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report B-06 index progress
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-06 index reference mapping: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Exact 25 provider index sensors partitioned: 11 current official reference mappings, 2 legacy lineages without current auto-binding, 12 unresolved provider bindings. No symbol-name inference, generic-index guessing, tradable/listing/calendar/admission/relational/productive authority. B-06 remains OPEN."
