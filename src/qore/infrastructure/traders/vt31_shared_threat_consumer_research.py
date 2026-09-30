@@ -13,7 +13,9 @@ same consumer code; the control arm receives no proactive Shared assessment.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import hashlib
+import json
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import StrEnum
 
@@ -74,6 +76,12 @@ class Vt31ThreatConsumerPolicy:
             or self.productive_authority
         ):
             raise ValueError("research threat consumer cannot mutate sovereign geometry")
+
+    def fingerprint(self) -> str:
+        payload = asdict(self)
+        payload["exit_on_levels"] = tuple(item.value for item in self.exit_on_levels)
+        raw = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(raw.encode()).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)
