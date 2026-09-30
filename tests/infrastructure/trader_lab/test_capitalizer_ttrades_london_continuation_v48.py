@@ -7,6 +7,8 @@ from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 
 )
 from qore.infrastructure.trader_lab.capitalizer_ttrades_h4_15m_execution_v48 import (
     IDENTITY as H4_EXECUTION_IDENTITY,
+)
+from qore.infrastructure.trader_lab.capitalizer_ttrades_h4_15m_execution_v48 import (
     V48H415MExecutionObservation,
 )
 from qore.infrastructure.trader_lab.capitalizer_ttrades_london_continuation_v48 import (
@@ -14,6 +16,8 @@ from qore.infrastructure.trader_lab.capitalizer_ttrades_london_continuation_v48 
 )
 from qore.infrastructure.trader_lab.capitalizer_ttrades_structural_cisd_v48 import (
     IDENTITY as CISD_IDENTITY,
+)
+from qore.infrastructure.trader_lab.capitalizer_ttrades_structural_cisd_v48 import (
     V48StructuralCISDObservation,
     V48TimedSourceBar,
 )
