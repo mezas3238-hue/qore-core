@@ -1,0 +1,211 @@
+name: QORE Capitalizer Full FTM V47 S2C
+
+on:
+  push:
+    branches:
+      - agent/capitalizer-full-ftm-v47-s2c-001
+    paths:
+      - '.github/workflows/qore-capitalizer-full-ftm-v47-s2c.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_full_ftm_stream_v47_s2c.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_full_ftm_stream_v47_s2c.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-full-ftm-v47-s2c-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_M1_RUN_ID: '35548099334'
+  SOURCE_M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,ctrader]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_full_ftm_stream_v47_s2c.py \
+            tests/infrastructure/trader_lab/test_capitalizer_full_ftm_stream_v47_s2c.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_full_ftm_stream_v47_s2c.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_full_ftm_stream_v47_s2c.py
+
+  market:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - {symbol: USDJPY, session: ASIA}
+          - {symbol: AUDJPY, session: ASIA}
+          - {symbol: AUDUSD, session: ASIA}
+          - {symbol: GBPJPY, session: ASIA}
+          - {symbol: EURUSD, session: LONDON}
+          - {symbol: GBPUSD, session: LONDON}
+          - {symbol: XAUUSD, session: NEW_YORK}
+          - {symbol: USDCAD, session: NEW_YORK}
+          - {symbol: NAS100, session: NEW_YORK}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[ctrader]'
+      - name: Verify read-only cTrader inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || { echo "missing required read-only DEMO input: $name" >&2; exit 2; }
+          done
+      - name: Discover DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Download immutable provider-native 10Y M1
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.SOURCE_M1_SHA }}
+          path: m1-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M1_RUN_ID }}
+      - name: Build full FTM population and exact fills
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_full_ftm_stream_v47_s2c \
+            market m1-source \
+            --symbol "${{ matrix.symbol }}" \
+            --session "${{ matrix.session }}" \
+            --output s2c-output
+      - name: Enforce FTM market governance
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+          SESSION: ${{ matrix.session }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          reports=sorted(Path("s2c-output").glob("capitalizer-s2c-*-report.json"))
+          assert len(reports) == 3
+          for path in reports:
+              report=json.loads(path.read_text())
+              assert report["identity"] == "QORE_CAPITALIZER_V47_S2C_FULL_FTM_STREAM"
+              assert report["symbol"] == os.environ["SYMBOL"]
+              assert report["session"] == os.environ["SESSION"]
+              assert report["raw_sweeps"] >= report["htf_continuation_aligned"]
+              assert report["htf_continuation_aligned"] >= report["continuation_first"]
+              assert report["continuation_first"] >= report["continuation_binding"]
+              assert report["continuation_binding"] >= report["ict_continuation_mss_fvg"]
+              assert report["ict_continuation_mss_fvg"] >= report["independent_m1_bound"]
+              assert report["independent_m1_bound"] >= report["deterministic_target_bound"]
+              assert report["economics_calculated"] is False
+              assert report["fresh_holdout_opened"] is False
+              assert report["trader_certified"] is False
+
+          for path in Path("s2c-output").glob("capitalizer-s2c-*-fills.jsonl"):
+              for line in path.read_text().splitlines():
+                  if not line.strip():
+                      continue
+                  row=json.loads(line)
+                  assert row["identity"] == "QORE_CAPITALIZER_V47_S2C_FULL_FTM_STREAM"
+                  assert row["route"] == "FAILURE_TO_MANIPULATE_CONTINUATION"
+                  assert row["exact_provider_tick_fill"] is True
+                  assert row["official_v46_adapter_passed"] is True
+                  assert row["outcome_used_for_selection"] is False
+                  assert row["terminal_outcome_read"] is False
+                  assert row["realized_r_read"] is False
+                  assert row["fresh_holdout_opened"] is False
+                  assert row["candidate_promotion_allowed"] is False
+                  assert row["trader_certified"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v47-s2c-${{ matrix.symbol }}-${{ github.sha }}
+          path: s2c-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v47-s2c-*-${{ github.sha }}
+          path: s2c-markets
+          merge-multiple: true
+      - name: Aggregate frozen FTM population
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_full_ftm_stream_v47_s2c \
+            aggregate s2c-markets \
+            --output s2c-aggregate
+      - name: Enforce aggregate governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report=json.loads(
+              Path("s2c-aggregate/capitalizer-s2c-aggregate.json").read_text()
+          )
+          assert report["identity"] == "QORE_CAPITALIZER_V47_S2C_FULL_FTM_STREAM"
+          assert report["predeclaration_comment_id"] == 5901846384
+          assert report["market_period_reports"] == 27
+          assert report["market_count"] == 9
+          assert report["economics_calculated"] is False
+          assert report["fresh_holdout_opened"] is False
+          assert report["candidate_promotion_allowed"] is False
+          assert report["trader_certified"] is False
+          total=sum(x["admitted_exact_fills"] for x in report["periods"].values())
+          assert total == report["funnel"]["admitted_exact_fills"]
+          if total:
+              assert report["next_phase"] == "S2C_FTM_POPULATION_READY_FOR_TWO_ROUTE_FREEZE"
+          else:
+              assert report["next_phase"] == "S2C_ZERO_FTM_ADMISSION_REQUIRES_ROOT_CAUSE"
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v47-s2c-aggregate-${{ github.sha }}
+          path: s2c-aggregate
+          if-no-files-found: error
+          retention-days: 90
