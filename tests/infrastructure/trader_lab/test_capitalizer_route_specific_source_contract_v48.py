@@ -27,18 +27,15 @@ def test_new_york_accepts_one_valid_entry_model_not_all_three() -> None:
 def test_generic_scalp_does_not_require_m1_mss_fvg_and_ob_superintersection() -> None:
     contract = contract_for(V48RouteId.TTRADES_GENERIC_SCALP_H1_M15_M1)
     all_facts = set(contract.required_fact_ids)
-    all_options = {
-        option
-        for group in contract.alternative_groups
-        for option in group.option_fact_ids
-    }
 
     assert "M1_MSS_CONFIRMED" not in all_facts
     assert "M1_ORDER_BLOCK_CONFIRMED" not in all_facts
-    assert "M1_FVG_INTERACTION_CONFIRMED" in all_options
+    assert "M1_FVG_INTERACTION_CONFIRMED" not in all_facts
+    assert "M1_CONTINUATION_CONFIRMED" in all_facts
+    assert contract.alternative_groups == ()
 
 
-def test_generic_scalp_requires_at_least_one_source_execution_behavior() -> None:
+def test_generic_scalp_requires_confirmed_continuation_not_one_raw_behavior() -> None:
     base = {
         "DAILY_CONTEXT_RESOLVED": True,
         "H1_SCALP_BIAS_CONFIRMED": True,
@@ -46,16 +43,41 @@ def test_generic_scalp_requires_at_least_one_source_execution_behavior() -> None
         "LOGICAL_PROTECTED_SWING_STOP_AVAILABLE": True,
         "STRUCTURAL_TARGET_AVAILABLE": True,
     }
-    result = assess_route_contract(V48RouteId.TTRADES_GENERIC_SCALP_H1_M15_M1, base)
-    assert result.decision is V48RouteContractDecision.WAIT
-    assert result.unresolved_alternative_groups == ("M1_EXECUTION_BEHAVIOR",)
-
-    with_cisd = {**base, "M1_CISD_CONFIRMED": True}
+    raw_fvg_only = {**base, "M1_FVG_INTERACTION_CONFIRMED": True}
     result = assess_route_contract(
         V48RouteId.TTRADES_GENERIC_SCALP_H1_M15_M1,
-        with_cisd,
+        raw_fvg_only,
+    )
+    assert result.decision is V48RouteContractDecision.WAIT
+    assert result.missing_required == ("M1_CONTINUATION_CONFIRMED",)
+
+    confirmed = {**base, "M1_CONTINUATION_CONFIRMED": True}
+    result = assess_route_contract(
+        V48RouteId.TTRADES_GENERIC_SCALP_H1_M15_M1,
+        confirmed,
     )
     assert result.decision is V48RouteContractDecision.SOURCE_COMPLETE_PRE_ECONOMIC
+
+
+def test_asia_positional_requires_completed_fractal_confirmation_before_open() -> None:
+    contract = contract_for(V48RouteId.TTRADES_ASIA_POSITIONAL)
+    assert {
+        "HTF_FRACTAL_BIAS_CONFIRMED",
+        "LTF_CISD_CONFIRMED",
+        "PROTECTED_SWING_CONFIRMED",
+        "POSITIONAL_OPEN_AVAILABLE",
+    }.issubset(set(contract.required_fact_ids))
+
+
+def test_london_requires_wick_then_cisd_then_continuation_sequence() -> None:
+    contract = contract_for(V48RouteId.TTRADES_LONDON_DAILY_4H_15M)
+    assert {
+        "DAILY_WICK_FORMATION_CONFIRMED",
+        "H4_WICK_SWING_STRUCTURE_CONFIRMED",
+        "M15_CISD_CONFIRMED",
+        "M15_PROTECTED_SWING_CONFIRMED",
+        "M15_CONTINUATION_AVAILABLE",
+    }.issubset(set(contract.required_fact_ids))
 
 
 def test_ftm_contract_contains_core_failure_then_continuation_only() -> None:
