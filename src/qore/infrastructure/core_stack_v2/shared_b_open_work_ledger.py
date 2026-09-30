@@ -288,11 +288,16 @@ B_WORK_ITEMS: Final = (
         (
             "artifact:11115769948",
             "artifact:11128416668",
+            "artifact:11129012317",
             "run:36755839843",
             "run:36782329462",
+            "run:36784542345",
         ),
         (
-            "energy tradable product identity remains unresolved",
+            "11/11 METALS rows are provider REFERENCE_OBJECTs with NULL "
+            "provider-neutral current_reference_identity; UNKNOWN is preserved",
+            "energy provider-neutral identity remains unresolved; provider symbols "
+            "must not be promoted to futures identities",
             "all 5 sealed dated GC contracts are now proven expired before SEP-2026; "
             "the current provider chain/front contract is absent from the observed set",
             "GC roll and continuous-series semantics remain unresolved and cannot be "
