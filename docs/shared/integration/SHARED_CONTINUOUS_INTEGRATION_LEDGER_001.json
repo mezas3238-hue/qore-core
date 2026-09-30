@@ -21,8 +21,19 @@
         "github-actions://36745412605/SUCCESS"
       ],
       "partial_work_admitted": false,
-      "master_regression_status": "RUNNING",
-      "disposition": "MERGED_PENDING_MASTER_REGRESSION"
+      "master_regression_status": "PASSED_9_OF_9",
+      "disposition": "INTEGRATED_AND_PROVEN",
+      "master_regression_evidence": [
+        "github-actions://36761906740/SUCCESS",
+        "github-actions://36761904213/SUCCESS",
+        "github-actions://36761904338/SUCCESS",
+        "github-actions://36761904253/SUCCESS",
+        "github-actions://36761904274/SUCCESS",
+        "github-actions://36761904244/SUCCESS",
+        "github-actions://36761904431/SUCCESS",
+        "github-actions://36761904327/SUCCESS",
+        "github-actions://36761904330/SUCCESS"
+      ]
     }
   ],
   "next_integrations": [
