@@ -70,6 +70,9 @@ _COMMENT_MARKERS = (
 )
 
 _WORKSTREAM_CLASSIFIERS = (
+    ("*cibo_compound_cycle*", "COMPOUND_ENGINE"),
+    ("*cibo_compound_market_cycle*", "COMPOUND_ENGINE"),
+    ("*compound-engine-integrated-cycle*", "COMPOUND_ENGINE"),
     ("*zero_open_work*", "ZERO_OPEN_WORK_GATE"),
     ("*generation_current_control*", "AS_IS_CONTROL"),
     ("*adaptive_compound_speed*", "GEN-C8"),
