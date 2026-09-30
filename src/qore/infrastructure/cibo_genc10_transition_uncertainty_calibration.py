@@ -305,6 +305,42 @@ def calibrate_genc10_transition_uncertainty(
     )
 
 
+def _decimal_support(
+    rows: tuple[Genc10ObservedTransition, ...],
+    field: str,
+) -> Genc10DecimalSupport:
+    values = tuple(getattr(item, field) for item in rows)
+    if not all(isinstance(value, Decimal) for value in values):
+        raise CiboCompoundCapitalError(
+            f"GEN-C10 calibration field {field} must contain Decimals"
+        )
+    decimal_values = tuple(value for value in values if isinstance(value, Decimal))
+    return Genc10DecimalSupport(
+        minimum=min(decimal_values),
+        maximum=max(decimal_values),
+    )
+
+
+def _integer_support(
+    rows: tuple[Genc10ObservedTransition, ...],
+    field: str,
+) -> Genc10IntegerSupport:
+    values = tuple(getattr(item, field) for item in rows)
+    if not all(isinstance(value, int) and not isinstance(value, bool) for value in values):
+        raise CiboCompoundCapitalError(
+            f"GEN-C10 calibration field {field} must contain ints"
+        )
+    integer_values = tuple(
+        value
+        for value in values
+        if isinstance(value, int) and not isinstance(value, bool)
+    )
+    return Genc10IntegerSupport(
+        minimum=min(integer_values),
+        maximum=max(integer_values),
+    )
+
+
 def _support(
     key: str,
     rows: tuple[Genc10ObservedTransition, ...],
@@ -313,43 +349,50 @@ def _support(
         raise CiboCompoundCapitalError(
             "GEN-C10 support group cannot be empty"
         )
-    decimal_names = (
-        "realized_capital_delta_usd",
-        "compound_value_delta_usd",
-        "protected_floor_delta_usd",
-        "stop_risk_capacity_delta_usd",
-        "stop_risk_usage_delta_usd",
-        "margin_capacity_delta_usd",
-        "margin_usage_delta_usd",
-    )
-    integer_names = (
-        "active_deployment_count_delta",
-        "known_option_count_delta",
-    )
-    decimal_support = {
-        name: Genc10DecimalSupport(
-            minimum=min(getattr(item, name) for item in rows),
-            maximum=max(getattr(item, name) for item in rows),
-        )
-        for name in decimal_names
-    }
-    integer_support = {
-        name: Genc10IntegerSupport(
-            minimum=min(getattr(item, name) for item in rows),
-            maximum=max(getattr(item, name) for item in rows),
-        )
-        for name in integer_names
-    }
     return Genc10TransitionSupport(
         conditioning_key=key,
         observation_count=len(rows),
         observed_from=min(item.observed_start_at for item in rows),
         observed_through=max(item.observed_end_at for item in rows),
+        realized_capital_delta_usd=_decimal_support(
+            rows,
+            "realized_capital_delta_usd",
+        ),
+        compound_value_delta_usd=_decimal_support(
+            rows,
+            "compound_value_delta_usd",
+        ),
+        protected_floor_delta_usd=_decimal_support(
+            rows,
+            "protected_floor_delta_usd",
+        ),
+        stop_risk_capacity_delta_usd=_decimal_support(
+            rows,
+            "stop_risk_capacity_delta_usd",
+        ),
+        stop_risk_usage_delta_usd=_decimal_support(
+            rows,
+            "stop_risk_usage_delta_usd",
+        ),
+        margin_capacity_delta_usd=_decimal_support(
+            rows,
+            "margin_capacity_delta_usd",
+        ),
+        margin_usage_delta_usd=_decimal_support(
+            rows,
+            "margin_usage_delta_usd",
+        ),
+        active_deployment_count_delta=_integer_support(
+            rows,
+            "active_deployment_count_delta",
+        ),
+        known_option_count_delta=_integer_support(
+            rows,
+            "known_option_count_delta",
+        ),
         provider_constraint_change_observations=sum(
             1 for item in rows if item.provider_constraints_changed
         ),
-        **decimal_support,
-        **integer_support,
     )
 
 
