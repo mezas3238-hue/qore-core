@@ -1,0 +1,167 @@
+name: QORE Shared B Commodity Observation Identity Pack
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b_commodity_observation_identity.py
+      - scripts/shared_b_commodity_observation_identity.py
+      - tests/infrastructure/test_shared_b_commodity_observation_identity.py
+      - .github/workflows/qore-shared-b-commodity-observation-identity.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-commodity-observation-identity-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  GEN2_RUN_ID: "36623131862"
+  GEN2_ARTIFACT_ID: "11059307341"
+  GEN2_GIT_SHA: "f5fcd0c9552466132f6f47bb124805e49e774493"
+  METALS_RUN_ID: "36652921751"
+  METALS_ARTIFACT_ID: "11071426302"
+  METALS_GIT_SHA: "aa3f343df41b9fcb4e1abc5d53bb968c2f4208e3"
+  ENERGY_RUN_ID: "36685633010"
+  ENERGY_ARTIFACT_ID: "11082668962"
+  ENERGY_GIT_SHA: "545c56fc4d62da34ee6d33170791dc4aa10fd4ca"
+  GC_RUN_ID: "36685802071"
+  GC_ARTIFACT_ID: "11082689215"
+  GC_GIT_SHA: "518d35bc1b61f04538e9d74ab42d9a2ca4f9f699"
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate commodity identity pack
+        run: |
+          set -euo pipefail
+          ruff check             src/qore/infrastructure/core_stack_v2/shared_b_commodity_observation_identity.py             scripts/shared_b_commodity_observation_identity.py             tests/infrastructure/test_shared_b_commodity_observation_identity.py
+          mypy             src/qore/infrastructure/core_stack_v2/shared_b_commodity_observation_identity.py             scripts/shared_b_commodity_observation_identity.py
+          pytest -q tests/infrastructure/test_shared_b_commodity_observation_identity.py
+
+  bind:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e .
+
+      - name: Verify exact upstream run lineages
+        run: |
+          set -euo pipefail
+          for spec in             "GEN2_RUN_ID GEN2_GIT_SHA"             "METALS_RUN_ID METALS_GIT_SHA"             "ENERGY_RUN_ID ENERGY_GIT_SHA"             "GC_RUN_ID GC_GIT_SHA"
+          do
+            set -- $spec
+            run_id="${!1}"
+            expected_sha="${!2}"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.status')" = "completed"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.conclusion')" = "success"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.head_sha')" = "$expected_sha"
+          done
+
+      - name: Recover sealed upstream evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/gen2 input/metals input/energy input/gc result
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${GEN2_ARTIFACT_ID}/zip" > gen2.zip
+          unzip -q gen2.zip -d input/gen2
+          (cd input/gen2/result && sha256sum -c SHA256SUMS)
+          test "$(cat input/gen2/result/gen2-code-git-sha.txt)" = "$GEN2_GIT_SHA"
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${METALS_ARTIFACT_ID}/zip" > metals.zip
+          unzip -q metals.zip -d input/metals
+          (cd input/metals && sha256sum -c SHA256SUMS)
+          test "$(cat input/metals/code-git-sha.txt)" = "$METALS_GIT_SHA"
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ENERGY_ARTIFACT_ID}/zip" > energy.zip
+          unzip -q energy.zip -d input/energy
+          (cd input/energy && sha256sum -c SHA256SUMS)
+          test "$(cat input/energy/code-git-sha.txt)" = "$ENERGY_GIT_SHA"
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${GC_ARTIFACT_ID}/zip" > gc.zip
+          unzip -q gc.zip -d input/gc
+          (cd input/gc && sha256sum -c SHA256SUMS)
+          test "$(cat input/gc/code-git-sha.txt)" = "$GC_GIT_SHA"
+
+      - name: Resolve mapping knowledge cutoff
+        run: |
+          known_at="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --jq '.created_at')"
+          echo "KNOWN_AT=$known_at" >> "$GITHUB_ENV"
+
+      - name: Build current commodity observation identity pack
+        run: |
+          set -euo pipefail
+          python scripts/shared_b_commodity_observation_identity.py             --provider-schedule input/gen2/result/provider-schedule-catalog.json             --metals-evidence input/metals/gw2-metals-iso4217-reference-evidence.json             --energy-evidence input/energy/gw2-energy-reference-binding.json             --gc-contract-evidence input/gc/gw2-gc-futures-contract-binding.json             --known-at "$KNOWN_AT"             --output result/shared-b-commodity-observation-identity-pack.json             | tee result/summary.json
+
+      - name: Enforce exact commodity frontier
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/shared-b-commodity-observation-identity-pack.json").read_text())
+          assert p["identity"] == "SHARED_B_COMMODITY_OBSERVATION_IDENTITY_PACK_001"
+          assert p["status"] == "CURRENT_COMMODITY_OBSERVATION_IDENTITY_PACK_COMPLETE"
+          assert p["record_count"] == 19
+          assert p["metal_reference_count"] == 11
+          assert p["energy_reference_count"] == 3
+          assert p["dated_gc_contract_count"] == 5
+          assert p["historical_pre_freeze_mapping_authorized"] is False
+          assert p["energy_tradable_product_identity_verified_count"] == 0
+          assert p["gc_front_contract_verified_count"] == 0
+          assert p["gc_roll_semantics_verified_count"] == 0
+          assert p["gc_continuous_series_verified_count"] == 0
+          assert p["sensor_admission_authorized"] is False
+          assert p["relational_claims_authorized"] is False
+          assert p["historical_market_data_read"] is False
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["broker_mutation"] is False
+          assert p["productive_authority"] is False
+          assert len(p["pack_fingerprint_sha256"]) == 64
+          PY
+
+      - name: Seal B commodity evidence
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload commodity observation identity pack
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-commodity-observation-identity-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report B-15 commodity frontier
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-15 commodity observation identity: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Current observation mapping materialized for 11 metal references + 3 energy references + 5 exact GC dated contract descriptors. Energy tradable products remain 0 verified; GC front/roll/continuous remain unresolved; historical pre-freeze mapping, relation admission and productive authority remain False."
