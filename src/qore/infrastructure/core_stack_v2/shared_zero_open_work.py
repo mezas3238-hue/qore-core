@@ -255,6 +255,7 @@ def build_shared_master_open_work_ledger() -> tuple[SharedOpenWorkItem, ...]:
         10: "mc10-transition-stability-run-36755380068",
         15: "mc15-six-source-uncertainty-run-36726927463",
         20: "mc20-operational-stability-run-36775872235",
+        21: "mc21-real-engine-society-run-36778113321",
     }
     for index, title in enumerate(_MC_TITLES, start=1):
         state = (
