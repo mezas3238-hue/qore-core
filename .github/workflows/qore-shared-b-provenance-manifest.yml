@@ -1,0 +1,188 @@
+name: QORE Shared B Evidence Provenance Manifest
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b_provenance_manifest.py
+      - tests/infrastructure/test_shared_b_provenance_manifest.py
+      - .github/workflows/qore-shared-b-provenance-manifest.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-provenance-manifest-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  B_BRANCH: agent/shared-b-global-world-perception-001
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate provenance contract
+        run: |
+          set -euo pipefail
+          ruff check             src/qore/infrastructure/core_stack_v2/shared_b_provenance_manifest.py             tests/infrastructure/test_shared_b_provenance_manifest.py
+          mypy             src/qore/infrastructure/core_stack_v2/shared_b_provenance_manifest.py
+          pytest -q tests/infrastructure/test_shared_b_provenance_manifest.py
+
+      - name: Declare B evidence population
+        run: |
+          mkdir -p input/meta result
+          cat > input/specs.json <<'JSON'
+          [
+            {"evidence_id":"B02_PROVIDER_RAW","capability_scope":"B-02","kind":"RAW_PROVIDER_EVIDENCE","run_id":36742519707,"artifact_id":11110976806,"source_hash":true,"provider_free_replay":false},
+            {"evidence_id":"B02_PROVIDER_PROVENANCE","capability_scope":"B-02","kind":"GOVERNANCE_EVIDENCE","run_id":36742519707,"artifact_id":11111176548,"source_hash":true,"provider_free_replay":false},
+            {"evidence_id":"B03_CROSS_RAW","capability_scope":"B-03","kind":"RAW_PROVIDER_EVIDENCE","run_id":36746337433,"artifact_id":11113260581,"source_hash":true,"provider_free_replay":false},
+            {"evidence_id":"B03_CROSS_REPLAY","capability_scope":"B-03","kind":"REPLAY_EVIDENCE","run_id":36746337433,"artifact_id":11112547465,"source_hash":true,"provider_free_replay":true},
+            {"evidence_id":"B05_SENSOR_REGISTRY","capability_scope":"B-05","kind":"GOVERNANCE_EVIDENCE","run_id":36745412605,"artifact_id":11112621544,"source_hash":false,"provider_free_replay":true},
+            {"evidence_id":"B06_CNH_IDENTITY","capability_scope":"B-06","kind":"IDENTITY_EVIDENCE","run_id":36746146407,"artifact_id":11112587007,"source_hash":true,"provider_free_replay":true},
+            {"evidence_id":"B06_FX_REFERENCE","capability_scope":"B-06","kind":"IDENTITY_EVIDENCE","run_id":36754912247,"artifact_id":11115828701,"source_hash":true,"provider_free_replay":true},
+            {"evidence_id":"B09_DATA_HEALTH","capability_scope":"B-09","kind":"REAL_REPLICATION_EVIDENCE","run_id":36755357039,"artifact_id":11115754374,"source_hash":true,"provider_free_replay":true},
+            {"evidence_id":"B10_12_RELATIONAL_LIFECYCLE","capability_scope":"B-10/B-11/B-12","kind":"ARCHITECTURE_EVIDENCE","run_id":36755296952,"artifact_id":11116372968,"source_hash":true,"provider_free_replay":true},
+            {"evidence_id":"B15_COMMODITY_IDENTITY","capability_scope":"B-15","kind":"IDENTITY_EVIDENCE","run_id":36755839843,"artifact_id":11115769948,"source_hash":true,"provider_free_replay":true},
+            {"evidence_id":"B16_17_ACTIVE_PERCEPTION","capability_scope":"B-16/B-17","kind":"REAL_REPLICATION_EVIDENCE","run_id":36757173753,"artifact_id":11116986748,"source_hash":true,"provider_free_replay":true},
+            {"evidence_id":"B18_20_OBSERVABILITY","capability_scope":"B-18/B-19/B-20","kind":"ARCHITECTURE_EVIDENCE","run_id":36756742481,"artifact_id":11116344955,"source_hash":true,"provider_free_replay":true}
+          ]
+          JSON
+
+      - name: Resolve exact GitHub run and artifact provenance
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          specs=json.loads(Path("input/specs.json").read_text())
+          resolved=[]
+          for spec in specs:
+              run_id=spec["run_id"]
+              artifact_id=spec["artifact_id"]
+              run=json.loads(subprocess.check_output([
+                  "gh","api",
+                  f"/repos/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{run_id}",
+              ]))
+              artifact=json.loads(subprocess.check_output([
+                  "gh","api",
+                  f"/repos/{os.environ['GITHUB_REPOSITORY']}/actions/artifacts/{artifact_id}",
+              ]))
+              assert run["status"]=="completed"
+              assert run["conclusion"]=="success"
+              assert run["head_branch"]==os.environ["B_BRANCH"]
+              assert artifact["expired"] is False
+              assert artifact["workflow_run"]["id"]==run_id
+              assert artifact["workflow_run"]["head_sha"]==run["head_sha"]
+              assert artifact["workflow_run"]["head_branch"]==run["head_branch"]
+              digest=artifact.get("digest","")
+              assert digest.startswith("sha256:")
+              row={
+                  **spec,
+                  "head_sha":run["head_sha"],
+                  "head_branch":run["head_branch"],
+                  "artifact_digest_sha256":digest.removeprefix("sha256:"),
+                  "artifact_name":artifact["name"],
+              }
+              resolved.append(row)
+          Path("input/resolved.json").write_text(
+              json.dumps(resolved,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+
+      - name: Build deterministic B provenance manifest
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          from qore.infrastructure.core_stack_v2.shared_b_provenance_manifest import (
+              SharedBEvidenceKind,
+              SharedBEvidencePointer,
+              build_shared_b_provenance_manifest,
+          )
+
+          resolved=json.loads(Path("input/resolved.json").read_text())
+          pointers=tuple(
+              SharedBEvidencePointer(
+                  evidence_id=row["evidence_id"],
+                  capability_scope=row["capability_scope"],
+                  evidence_kind=SharedBEvidenceKind(row["kind"]),
+                  workflow_run_id=row["run_id"],
+                  artifact_id=row["artifact_id"],
+                  head_sha=row["head_sha"],
+                  head_branch=row["head_branch"],
+                  artifact_digest_sha256=row["artifact_digest_sha256"],
+                  artifact_name=row["artifact_name"],
+                  source_hash_verified_inside_artifact=row["source_hash"],
+                  provider_free_replay_supported=row["provider_free_replay"],
+              )
+              for row in resolved
+          )
+          payload=build_shared_b_provenance_manifest(
+              pointers,
+              expected_branch="agent/shared-b-global-world-perception-001",
+              coverage_complete=False,
+              open_coverage_reasons=(
+                  "B-04 full R8 acquisition has not yet produced its final aggregate artifact",
+                  "B-06/B-07/B-08 global identity/calendar/temporal closure remains incomplete",
+                  "B-13 empirical structural-divergence population remains open",
+                  "B-14 agriculture has no current authorized provider candidates",
+                  "B-21 does not yet cover every mandatory B workstream",
+                  "B-22 WORLD_PERCEPTION_FREEZE does not yet exist",
+              ),
+          )
+          Path("result/shared-b-provenance-manifest.json").write_text(
+              json.dumps(payload,sort_keys=True,indent=2)+"\n"
+          )
+          print(json.dumps({
+              "pointer_count":payload["evidence_pointer_count"],
+              "capability_scopes":payload["capability_scopes"],
+              "coverage_complete":payload["coverage_complete"],
+              "provider_free_replay_pointer_count":payload[
+                  "provider_free_replay_pointer_count"
+              ],
+          },sort_keys=True))
+          PY
+
+      - name: Seal provenance audit
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload B provenance manifest
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-provenance-manifest-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report B-21 provenance disposition
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-21 provenance manifest: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Exact GitHub run↔artifact↔B-branch↔HEAD↔artifact-SHA256 lineage verified for the current sealed B evidence population. coverage_complete=False remains mandatory until B-04 and all other mandatory B workstreams are incorporated; no holdout/broker/productive authority."
