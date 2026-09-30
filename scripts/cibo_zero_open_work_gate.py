@@ -12,8 +12,11 @@ external dependencies remain.
 from __future__ import annotations
 
 import argparse
+import ast
 import fnmatch
+import io
 import json
+import tokenize
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -60,10 +63,10 @@ _MARKER_SCAN_GLOBS = (
     ".github/workflows/*cibo*.yml",
 )
 
-_HIGH_SIGNAL_MARKERS = (
+_COMMENT_MARKERS = (
     "TODO",
     "FIXME",
-    "NotImplementedError",
+    "UNRESOLVED",
 )
 
 _WORKSTREAM_CLASSIFIERS = (
@@ -288,14 +291,59 @@ def _scan_high_signal_markers(
             continue
         path = repo_root / relative
         try:
-            text = path.read_text(encoding="utf-8")
+            source = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        for line_number, line in enumerate(text.splitlines(), start=1):
-            for marker in _HIGH_SIGNAL_MARKERS:
-                if marker in line:
-                    hits.append(f"{relative}:{line_number}:{marker}")
+
+        if relative.endswith(".py"):
+            hits.extend(_python_marker_hits(relative, source))
+        else:
+            hits.extend(_text_comment_marker_hits(relative, source))
     return tuple(sorted(set(hits)))
+
+
+def _python_marker_hits(relative: str, source: str) -> list[str]:
+    hits: list[str] = []
+    try:
+        tokens = tokenize.generate_tokens(io.StringIO(source).readline)
+        for token in tokens:
+            if token.type != tokenize.COMMENT:
+                continue
+            for marker in _COMMENT_MARKERS:
+                if marker in token.string:
+                    hits.append(
+                        f"{relative}:{token.start[0]}:{marker}"
+                    )
+    except tokenize.TokenError as error:
+        raise CiboZeroOpenWorkGateError(
+            f"cannot tokenize mandatory Python source: {relative}"
+        ) from error
+
+    try:
+        tree = ast.parse(source, filename=relative)
+    except SyntaxError as error:
+        raise CiboZeroOpenWorkGateError(
+            f"cannot parse mandatory Python source: {relative}"
+        ) from error
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id == "NotImplementedError":
+            hits.append(
+                f"{relative}:{getattr(node, 'lineno', 0)}:"
+                "NotImplementedError"
+            )
+    return hits
+
+
+def _text_comment_marker_hits(relative: str, source: str) -> list[str]:
+    hits: list[str] = []
+    for line_number, line in enumerate(source.splitlines(), start=1):
+        stripped = line.lstrip()
+        if not stripped.startswith("#"):
+            continue
+        for marker in _COMMENT_MARKERS:
+            if marker in stripped:
+                hits.append(f"{relative}:{line_number}:{marker}")
+    return hits
 
 
 def evaluate_gate(
