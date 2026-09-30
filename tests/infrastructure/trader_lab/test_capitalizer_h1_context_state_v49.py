@@ -83,3 +83,24 @@ def test_repeated_same_direction_signal_does_not_create_duplicate_state() -> Non
     )
     assert len(states) == 1
     assert states[0].established_by == "A"
+
+
+
+def test_last_pre_session_h1_signal_is_inherited_without_future_leakage() -> None:
+    start = datetime(2026, 1, 5, 13, 0, tzinfo=UTC)
+    end = start + timedelta(hours=7)
+    prior = V49H1BiasSignal(
+        confirmed_at=start - timedelta(hours=1),
+        direction=CapitalizerSourceDirection.BEARISH,
+        basis_id="PRE_SESSION_H1",
+    )
+    states = build_h1_context_states(
+        (prior,),
+        session=CapitalizerSession.NEW_YORK,
+        session_start=start,
+        session_end=end,
+    )
+    assert len(states) == 1
+    assert states[0].active_from == start
+    assert states[0].direction is CapitalizerSourceDirection.BEARISH
+    assert states[0].established_by == "SESSION_INHERITED:PRE_SESSION_H1"
