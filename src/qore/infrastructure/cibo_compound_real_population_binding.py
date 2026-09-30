@@ -272,7 +272,7 @@ def _require_four_non_overlapping_folds(
     for (_, _, prior_end), (_, next_start, _) in zip(
         bounds,
         bounds[1:],
-        strict=True,
+        strict=False,
     ):
         if prior_end >= next_start:
             raise CiboCompoundCapitalError(
