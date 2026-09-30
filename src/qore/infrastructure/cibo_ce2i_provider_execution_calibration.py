@@ -447,6 +447,24 @@ def calibrate_ctrader_demo_forward_execution(
     )
 
 
+
+def provider_execution_risk_sha256(
+    risk: Phase20ExecutedRiskEvidence,
+) -> str:
+    """Canonical digest matching the Architect-B manifest risk digest."""
+
+    if not isinstance(risk, Phase20ExecutedRiskEvidence):
+        raise CiboCapitalManagementError(
+            "provider execution risk digest requires canonical evidence"
+        )
+    raw = json.dumps(
+        _canonical(asdict(risk)),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(raw).hexdigest()
+
 def _observation(
     *,
     row: ArchBForwardEconomicManifestRow,
@@ -455,6 +473,14 @@ def _observation(
     if risk.evidence_id != row.execution_risk_evidence_id:
         raise CiboCapitalManagementError(
             "provider execution risk evidence id drift"
+        )
+    if provider_execution_risk_sha256(risk) != row.executed_risk_sha256:
+        raise CiboCapitalManagementError(
+            "provider execution risk evidence SHA drift"
+        )
+    if row.provider_key != "ctrader-demo" or row.environment.lower() != "demo":
+        raise CiboCapitalManagementError(
+            "provider execution calibration provider/environment drift"
         )
     if (
         risk.decision_evidence_sha256 != row.decision_evidence_sha256
