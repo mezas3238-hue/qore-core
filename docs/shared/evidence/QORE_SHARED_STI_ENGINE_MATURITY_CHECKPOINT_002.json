@@ -77,7 +77,8 @@
         "VALUE_DEMONSTRATED": true,
         "OOS_PASS": false,
         "REPLICATION_PASS": true,
-        "CERTIFIED": false
+        "CERTIFIED": false,
+        "STRESS_PASS": true
       },
       "value_scope": "PREDICTIVE_SIGNAL_VALUE_ON_CONSUMED_R6_ONLY",
       "scientific_disposition": "SIGNAL_VALUE_DEMONSTRATED_R6",
@@ -94,6 +95,15 @@
         "false_threat_on_nonlosses_bps": 1751,
         "missed_loss_bps": 3490,
         "median_true_threat_lead_minutes": 3
+      },
+      "stress_scope": "CONSUMED_R6_R5_SOURCE_EVIDENCE_PERTURBATION_V1",
+      "stress_run_id": 36651040605,
+      "stress_git_sha": "0af889b1b968d0f2f07a2c76b983bab076a3cdd3",
+      "stress_results": {
+        "all_non_integrity_stresses_pass_frozen_gate": true,
+        "data_integrity_degradation_fails_closed": true,
+        "fresh_oos_evidence": false,
+        "engine_or_threshold_retuning": false
       }
     }
   ],
