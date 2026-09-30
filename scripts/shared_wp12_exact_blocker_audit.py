@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-IDENTITY = "QORE_SHARED_WP12_EXACT_BLOCKER_AUDIT_001"
+IDENTITY = "QORE_SHARED_WP12_EXACT_BLOCKER_AUDIT_002"
 
 
 def _load(path: Path) -> dict[str, Any]:
@@ -36,8 +36,12 @@ def main() -> None:
         raise AssertionError("MC26 completion flag missing")
     if mc27.get("status") != "MC27_PROSPECTIVE_RESEARCH_PRIORITY_PREREGISTERED":
         raise AssertionError("MC27 prospective evidence missing")
-    if mc28.get("status") != "MC28_STANDARD_006_DIAGNOSTIC_CONTRACT_PASS_OPEN_5":
-        raise AssertionError("MC28 diagnostic evidence missing")
+    if mc28.get("status") != "MC28_MODEL_RUNTIME_INSTABILITY_REAL_BOUND_PASS_OPEN_3":
+        raise AssertionError("latest MC28 diagnostic evidence missing")
+    if mc28.get("model_runtime_instability_diagnostic_bound") is not True:
+        raise AssertionError("MC28 runtime-instability diagnostic not bound")
+    if mc28.get("mc28_completed_and_proven") is not False:
+        raise AssertionError("MC28 must remain open while diagnostics remain")
 
     blockers: list[str] = []
     if mc27.get("future_oos_improvement_demonstrated") is not True:
@@ -58,8 +62,6 @@ def main() -> None:
         "MC28_DIAGNOSTIC_BROKER_PROVIDER_MISMATCH",
         "MC28_DIAGNOSTIC_CLOCK_DRIFT",
         "MC28_DIAGNOSTIC_EXECUTION_QUALITY_DETERIORATION",
-        "MC28_DIAGNOSTIC_MAPPING_ERRORS",
-        "MC28_DIAGNOSTIC_MODEL_RUNTIME_INSTABILITY",
     )
     blockers_tuple = tuple(sorted(blockers))
     if blockers_tuple != expected:
@@ -70,7 +72,8 @@ def main() -> None:
         "status": "WP12_COGNITIVE_ARBITRATION_META_COGNITION_OPEN_EXACT_BLOCKERS",
         "mc26_real_all_facet_arbitration_complete": True,
         "mc27_prospective_cycle_preregistered": True,
-        "mc28_runtime_inventory_old_blockers_satisfied": True,
+        "mc28_mapping_error_diagnostic_complete": True,
+        "mc28_model_runtime_instability_diagnostic_complete": True,
         "mc28_open_diagnostics": open_diagnostics,
         "blocker_count": len(blockers_tuple),
         "blockers": blockers_tuple,
