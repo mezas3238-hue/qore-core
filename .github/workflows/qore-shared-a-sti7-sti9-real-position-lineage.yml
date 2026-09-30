@@ -1,0 +1,115 @@
+name: QORE Shared A STI7 STI9 Real Position Lineage
+
+concurrency:
+  group: qore-shared-a-sti7-sti9-real-position-lineage
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - scripts/shared_sti7_sti9_real_position_lineage.py
+      - .github/workflows/qore-shared-a-sti7-sti9-real-position-lineage.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Validate contracts and replay
+        run: |
+          set -euo pipefail
+          mkdir -p input/{pure,r6,r5,policy} result
+          ruff check scripts/shared_sti7_sti9_real_position_lineage.py
+          python -m py_compile scripts/shared_sti7_sti9_real_position_lineage.py
+          pytest -q tests/infrastructure/test_core_stack_v2_shared_trader_intelligence.py
+      - name: Recover immutable consumed position evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10799064861/zip" > pure.zip
+          unzip -q pure.zip -d input/pure
+          (cd input/pure && sha256sum -c SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11065709899/zip" > policy.zip
+          unzip -q policy.zip -d input/policy
+          (cd input/policy && sha256sum -c SHA256SUMS)
+      - name: Replay STI7 and STI9 causal lineage
+        run: |
+          set -euo pipefail
+          python scripts/shared_sti7_sti9_real_position_lineage.py             --policy input/policy/sti6-sti8-source-only-policies.json             --r6-trades input/pure/r6.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-trades input/pure/r5.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/sti7-sti9-real-position-lineage.json             | tee result/summary.json
+      - name: Validate disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/sti7-sti9-real-position-lineage.json").read_text())
+          assert p["status"] == "STI7_STI9_REAL_POSITION_LINEAGE_COMPLETED_AND_PROVEN"
+          assert p["world_at_entry_committed_on_first_causal_observation"] is True
+          assert p["post_hoc_entry_reconstruction_used"] is False
+          assert p["future_market_used"] is False
+          assert p["future_outcome_used"] is False
+          assert p["pnl_used"] is False
+          assert p["position_management_authority"] is False
+          assert p["sti7_completed_and_proven"] is True
+          assert p["sti9_completed_and_proven"] is True
+          PY
+      - name: Seal result
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-sti7-sti9-real-lineage-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report STI7 STI9
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/sti7-sti9-real-position-lineage.json").read_text())
+          body="\n".join([
+              "## Shared A STI-7 / STI-9 — Real Position Lineage",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              f"- R6: **{p['results']['r6']}**",
+              f"- R5: **{p['results']['r5']}**",
+              "- world-at-entry first causal commit: **True**",
+              "- post-hoc entry reconstruction: **False**",
+              "- position-management authority: **False**",
+              "- protected certification holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
