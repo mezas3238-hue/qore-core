@@ -1,0 +1,132 @@
+name: QORE Shared A MC16 Scientific Memory Verified Binding
+
+concurrency:
+  group: qore-shared-a-mc16-scientific-memory-verified-binding
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - scripts/shared_mc16_scientific_memory_real_data.py
+      - .github/workflows/qore-shared-a-mc16-scientific-memory-verified-binding.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  verified-binding:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Validate existing MC-16 implementation
+        run: |
+          set -euo pipefail
+          mkdir -p input/{pure,r6,r5,sti2,sti5,sti6} result
+          ruff check             src/qore/infrastructure/core_stack_v2/scientific_memory_v2.py             tests/infrastructure/test_core_stack_v2_scientific_memory_v2.py             scripts/shared_mc16_scientific_memory_real_data.py
+          mypy src/qore/infrastructure/core_stack_v2/scientific_memory_v2.py
+          pytest -q tests/infrastructure/test_core_stack_v2_scientific_memory_v2.py
+
+      - name: Recover immutable position and scientific evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10799064861/zip" > pure.zip
+          unzip -q pure.zip -d input/pure
+          (cd input/pure && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11076956277/zip" > sti2.zip
+          unzip -q sti2.zip -d input/sti2
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11082953096/zip" > sti5.zip
+          unzip -q sti5.zip -d input/sti5
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11082582105/zip" > sti6.zip
+          unzip -q sti6.zip -d input/sti6
+
+      - name: Bind MC-16 to real scientific memory
+        run: |
+          set -euo pipefail
+          python scripts/shared_mc16_scientific_memory_real_data.py             --r6-trades input/pure/r6.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r5-trades input/pure/r5.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --sti2-artifact input/sti2             --sti5-artifact input/sti5             --sti6-artifact input/sti6             --output result/mc16-scientific-memory-real-data.json             | tee result/summary.json
+
+      - name: Validate MC-16 scientific disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc16-scientific-memory-real-data.json").read_text())
+          assert p["status"] == "MC16_REAL_DATA_MEMORY_BOUND_CAUSAL_RECALL_PASS"
+          assert p["entry_count"] > 0
+          assert p["episodic_counts"]["r6"] > 0
+          assert p["episodic_counts"]["r5"] > 0
+          assert p["causal_gate_pass"] is True
+          assert p["failure_memory_pass"] is True
+          assert p["four_memory_classes_present"] is True
+          assert p["productive_authority"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+
+      - name: Seal result
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc16-scientific-memory-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report MC-16
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/mc16-scientific-memory-real-data.json").read_text())
+          body="\n".join([
+              "## Shared A MC-16 — Scientific Memory Verified Real Binding",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              f"- entries: **{p['entry_count']}**",
+              f"- episodic R6/R5: **{p['episodic_counts']}**",
+              f"- memory kinds: **{p['memory_kind_counts']}**",
+              f"- causal recall gate: **{p['causal_gate_pass']}**",
+              f"- failure memory: **{p['failure_memory_pass']}**",
+              f"- four memory classes present: **{p['four_memory_classes_present']}**",
+              "- protected certification holdout opened: **False**",
+              "- productive authority: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
