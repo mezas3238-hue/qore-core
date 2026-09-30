@@ -334,7 +334,10 @@ def run(
     proven_symbols = [
         item
         for item in symbol_reports
-        if int(item["source_sample_count"]) > 0
+        if (
+            type(item.get("source_sample_count")) is int
+            and item["source_sample_count"] > 0
+        )
     ]
     if len(proven_symbols) < 2:
         raise SharedBGlobalDataHealthReplayError(
