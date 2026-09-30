@@ -1,7 +1,7 @@
 {
   "schema": "CIBO_INTEGRATOR_TO_ARCH_A_EVIDENCE_DELIVERY_V1",
   "request_id": "CIBO-ARCH-A-CROSSBOUNDARY-REQUEST-001",
-  "status": "PARTIAL_CANONICAL_DELIVERY_REAL_POPULATION_PENDING",
+  "status": "SETTLEMENT_DELIVERY_ADAPTER_IMPLEMENTED_PATH_HISTORY_STILL_OPEN",
   "source_planes": {
     "architect_b_forward_manifest": "src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py",
     "integrated_capital_forward_binding": "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py",
@@ -64,61 +64,25 @@
   ],
   "gaps": [
     {
-      "field": "source_manifest_sha256_per_row_or_delivery",
-      "owner": "INTEGRATOR",
-      "reason": "ARCH_B_ROW_HAS_PROVIDER_ECONOMICS_SHA_BUT_NO_EXPLICIT_SOURCE_MANIFEST_SHA_FIELD",
-      "blocking_for_a": true
-    },
-    {
-      "field": "deployment_id",
-      "owner": "INTEGRATOR_CAPITAL_TRUTH_ADAPTER",
-      "reason": "NOT_EXPORTED_BY_ARCH_B_FORWARD_ROW",
-      "blocking_for_a": true
-    },
-    {
-      "field": "market_event_id",
-      "owner": "INTEGRATOR_CAPITAL_TRUTH_ADAPTER",
-      "reason": "NOT_EXPORTED_BY_ARCH_B_FORWARD_ROW",
-      "blocking_for_a": true
-    },
-    {
-      "field": "source_lot_id",
-      "owner": "INTEGRATOR_CAPITAL_TRUTH_ADAPTER",
-      "reason": "MUST_COME_FROM_CANONICAL_SOURCE_LEDGER_NOT_PROVIDER_ROW",
-      "blocking_for_a": true
-    },
-    {
-      "field": "source_capital_generation",
-      "owner": "INTEGRATOR_CAPITAL_TRUTH_ADAPTER",
-      "reason": "MUST_COME_FROM_CANONICAL_SOURCE_LEDGER",
-      "blocking_for_a": true
-    },
-    {
-      "field": "deployed_capital_usd",
-      "owner": "INTEGRATOR_CAPITAL_TRUTH_ADAPTER",
-      "reason": "MUST_COME_FROM_COMPOUND_DEPLOYMENT_STATE",
-      "blocking_for_a": true
-    },
-    {
-      "field": "protected_floor_graduation_usd_and_sha256",
-      "owner": "INTEGRATOR_CAPITAL_TRUTH_ADAPTER",
-      "reason": "MUST_COME_FROM_PROTECTED_FLOOR_EQUIVALENCE_BINDING",
-      "blocking_for_a": true
-    },
-    {
       "field": "minimum_realized_base_compound_liquid_optional_reserves",
-      "owner": "INTEGRATOR_CAPITAL_TRUTH_ADAPTER",
-      "reason": "PATH_STATE_EXPORT_NOT_YET_CANONICALLY_BOUND",
+      "owner": "INTEGRATOR_CAPITAL_PATH_HISTORY",
+      "reason": "PATH_STATE_HISTORY_NOT_YET_CANONICALLY_MATERIALIZED",
+      "blocking_for_a": true
+    },
+    {
+      "field": "protected_floor_graduation_per_episode",
+      "owner": "INTEGRATOR_CAPITAL_PATH_HISTORY",
+      "reason": "TERMINAL_FLOOR_STATE_IS_NOT_EPISODE_GRADUATION_HISTORY",
       "blocking_for_a": true
     },
     {
       "field": "profit_giveback_path",
       "owner": "ARCHITECT_A_PLUS_INTEGRATOR",
-      "reason": "SCIENTIFIC_PATH_DERIVATION_REQUIRES_FROZEN_CHRONOLOGICAL_POPULATION",
+      "reason": "REQUIRES_FROZEN_CHRONOLOGICAL_STATE_HISTORY",
       "blocking_for_a": true
     },
     {
-      "field": "crisis_factor_set_and_observed_factors",
+      "field": "crisis_factor_history",
       "owner": "ARCHITECT_A_PLUS_PROVIDER_EVIDENCE",
       "reason": "MUST_BE_PREREGISTERED_AND_OBSERVED_NOT_POST_HOC",
       "blocking_for_a": true
@@ -131,5 +95,27 @@
     "frozen_phase20_v3_mutated": false,
     "productive_authority": false
   },
-  "next_gate": "Implement canonical capital-state delivery adapter joining exact Arch-B settlement rows to source-ledger/compound/protected-floor path state, then validate immutable delivery digest and hand to Architect A."
+  "next_gate": "Materialize canonical chronological capital-state history keyed to the exact forward settlement population; derive path minima/floor graduation/giveback without inferring them from terminal state; then deliver the immutable path-state receipt to Architect A.",
+  "implemented_adapter": {
+    "module": "src/qore/infrastructure/cibo_arch_a_capital_state_delivery.py",
+    "test": "tests/infrastructure/test_cibo_arch_a_capital_state_delivery.py",
+    "workflow": ".github/workflows/cibo-architect-a-capital-state-delivery.yml",
+    "delivers": [
+      "source_manifest_sha256",
+      "exact_settlement_identity",
+      "realized_net_pnl_usd",
+      "provider_economics_sha256",
+      "base_vs_compound_source_kind",
+      "compound_deployment_lineage_when_applicable",
+      "source_lot_id_and_generation_when_applicable",
+      "deployed_capital_stop_risk_margin_and_lock_minutes_when_applicable",
+      "terminal_original_base_usd",
+      "terminal_compound_economic_value_usd",
+      "terminal_protected_floor_usd",
+      "terminal_policy_protected_floor_usd",
+      "terminal_broker_guaranteed_floor_usd",
+      "terminal_compound_balances",
+      "highest_generation"
+    ]
+  }
 }
