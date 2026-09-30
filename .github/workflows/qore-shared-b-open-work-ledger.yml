@@ -9,6 +9,12 @@ on:
       - scripts/shared_b_open_work_ledger.py
       - tests/infrastructure/test_shared_b_open_work_ledger.py
       - .github/workflows/qore-shared-b-open-work-ledger.yml
+  pull_request:
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b_open_work_ledger.py
+      - scripts/shared_b_open_work_ledger.py
+      - tests/infrastructure/test_shared_b_open_work_ledger.py
+      - .github/workflows/qore-shared-b-open-work-ledger.yml
   workflow_dispatch:
 
 concurrency:
