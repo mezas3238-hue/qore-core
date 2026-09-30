@@ -181,10 +181,12 @@ B_WORK_ITEMS: Final = (
         SharedBWorkStatus.PARTIAL_EVIDENCE_OPEN,
         (
             "artifact:11124500250",
+            "artifact:11128307917",
             "artifact:11128361589",
             "run:36623131862",
             "run:36767735668",
             "run:36782105126",
+            "run:36782678259",
         ),
         (
             "source-clock integrity is sealed for 3 sensors / 41 shards / "
@@ -195,6 +197,9 @@ B_WORK_ITEMS: Final = (
             "comparability policy registry is not frozen",
             "liquidity policy registry is not frozen",
             "temporal skew policy registry is not frozen",
+            "B-08 readiness gate is explicitly NOT_READY with seven exact "
+            "governance blockers; no global thresholds may be extrapolated "
+            "from the 3-sensor source-clock audit",
         ),
     ),
     SharedBWorkItem(
