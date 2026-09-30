@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -10,8 +11,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_crossboundary_evidence_receipt import (
-    CiboCrossBoundaryEvidenceReceipt,
-    build_cross_boundary_evidence_receipt,
+    bind_cross_boundary_pass_artifact,
     require_cross_boundary_receipts,
 )
 
@@ -20,49 +20,74 @@ HEAD = "a" * 40
 POLICY = "sha256:" + "b" * 64
 
 
-def _receipt(receipt_id: str = "P1") -> CiboCrossBoundaryEvidenceReceipt:
-    return build_cross_boundary_evidence_receipt(
+def _artifact(*, status: str = "PASS", head: str = HEAD, policy: str = POLICY) -> str:
+    payload = {
+        "schema": "qore.cibo.test-producer.v1",
+        "producer_gate_id": "QORE_CIBO_SAMPLE_GATE",
+        "integrated_git_sha": head,
+        "policy_identity_sha256": policy,
+        "observed_at": T0.isoformat(),
+        "status": status,
+        "failures": [] if status == "PASS" else ["FAILED"],
+        "holdout_outcomes_inspected": False,
+        "productive_authority": False,
+    }
+    return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+
+
+def _receipt(receipt_id: str = "P1"):
+    return bind_cross_boundary_pass_artifact(
         receipt_id=receipt_id,
         evidence_kind="FINAL_EXAM_PREREQUISITE",
-        producer_gate_id="QORE_CIBO_SAMPLE_GATE",
-        integrated_git_sha=HEAD,
-        policy_identity_sha256=POLICY,
-        observed_at=T0,
+        source_artifact_json=_artifact(),
     )
 
 
-def test_builder_recomputes_canonical_artifact_digest() -> None:
+def test_binder_derives_pass_from_existing_canonical_artifact() -> None:
     receipt = _receipt()
 
-    artifact = json.loads(receipt.artifact_json)
-    assert artifact["status"] == "PASS"
-    assert artifact["integrated_git_sha"] == HEAD
-    assert receipt.artifact_sha256.startswith("sha256:")
-    assert receipt.passed is True
+    assert receipt.integrated_git_sha == HEAD
+    assert receipt.policy_identity_sha256 == POLICY
+    assert receipt.source_artifact_sha256 == (
+        "sha256:" + hashlib.sha256(_artifact().encode("utf-8")).hexdigest()
+    )
     assert receipt.productive_authority is False
 
 
-def test_fake_sha_cannot_replace_bound_artifact() -> None:
+def test_non_pass_source_artifact_cannot_be_bound() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="source artifact is not PASS",
+    ):
+        bind_cross_boundary_pass_artifact(
+            receipt_id="P1",
+            evidence_kind="FINAL_EXAM_PREREQUISITE",
+            source_artifact_json=_artifact(status="FAIL"),
+        )
+
+
+def test_fake_digest_cannot_replace_bound_source_artifact() -> None:
     receipt = _receipt()
 
     with pytest.raises(
         CiboCapitalManagementError,
-        match="artifact digest mismatch",
+        match="source artifact digest mismatch",
     ):
-        replace(receipt, artifact_sha256="sha256:" + "c" * 64)
+        replace(receipt, source_artifact_sha256="sha256:" + "c" * 64)
 
 
-def test_tampered_artifact_cannot_keep_original_digest() -> None:
+def test_tampered_source_artifact_cannot_keep_original_digest() -> None:
     receipt = _receipt()
-    payload = json.loads(receipt.artifact_json)
+    payload = json.loads(receipt.source_artifact_json)
     payload["status"] = "FAIL"
+    payload["failures"] = ["FAILED"]
     tampered = json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
     with pytest.raises(
         CiboCapitalManagementError,
-        match="artifact digest mismatch",
+        match="source artifact digest mismatch",
     ):
-        replace(receipt, artifact_json=tampered)
+        replace(receipt, source_artifact_json=tampered)
 
 
 def test_receipts_are_bound_to_exact_integrated_head() -> None:
