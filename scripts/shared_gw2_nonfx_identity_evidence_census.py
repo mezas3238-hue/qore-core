@@ -9,13 +9,15 @@ import json
 from pathlib import Path
 from typing import Any, cast
 
+from shared_global_multi_asset_provider_capability_audit import _family_matches
+
 IDENTITY="QORE_SHARED_GW2_NONFX_IDENTITY_EVIDENCE_CENSUS_001"
 EXPECTED_PROVIDER_IDENTITY="QORE_SHARED_GEN2_CTRADER_PROVIDER_SCHEDULE_CATALOG_001"
-FAMILY_CLASS={
-    "EQUITY_INDICES":"indices",
-    "METALS":"metals",
-    "ENERGY":"oil",
-}
+TARGET_FAMILIES=(
+    "EQUITY_INDICES",
+    "METALS",
+    "ENERGY",
+)
 EXPECTED_COUNTS={
     "EQUITY_INDICES":25,
     "METALS":16,
@@ -38,13 +40,13 @@ def run(*, provider_schedule: Path, output: Path) -> dict[str,object]:
         raise ValueError("provider symbols missing")
 
     families=[]
-    for family,asset_class in FAMILY_CLASS.items():
+    for family in TARGET_FAMILIES:
         rows=[]
         for source in raw:
             if not isinstance(source,dict):
                 continue
             row=cast(dict[str,Any],source)
-            if str(row.get("provider_asset_class_name","")).casefold()!=asset_class:
+            if not _family_matches(family, cast(dict[str, object], row)):
                 continue
             rows.append({
                 "provider":row.get("provider"),
