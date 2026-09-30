@@ -72,6 +72,14 @@ def build_t17_provider_capability_source_artifact(
         raise CiboCapitalManagementError(
             "T17 receipt account/provider binding mismatch"
         )
+    enabled_provider_symbols = {
+        item.symbol_name for item in account.symbols if item.enabled
+    }
+    observed_provider_symbols = {item.provider_symbol for item in provider.symbols}
+    if not observed_provider_symbols.issubset(enabled_provider_symbols):
+        raise CiboCapitalManagementError(
+            "T17 receipt provider universe not contained in enabled account catalog"
+        )
     assert_taxonomy_bound_to_capability(
         capability=account,
         taxonomy=taxonomy,
