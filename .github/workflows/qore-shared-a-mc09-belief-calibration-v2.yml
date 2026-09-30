@@ -10,6 +10,7 @@ on:
       - agent/shared-a-cognitive-science-001
     paths:
       - docs/shared/evidence/QORE_SHARED_MC09_BELIEF_STATE_CALIBRATION_V2_PREREGISTRATION_001.json
+      - docs/shared/evidence/QORE_SHARED_MC09_BELIEF_STATE_CALIBRATION_V2_ENGINEERING_RECOVERY_AMENDMENT_001.json
       - scripts/shared_mc09_belief_state_calibration_v2.py
       - .github/workflows/qore-shared-a-mc09-belief-calibration-v2.yml
   workflow_dispatch:
@@ -37,6 +38,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
+          python -m pip install scikit-learn
 
       - name: Validate V2 preregistration
         run: |
@@ -53,6 +55,11 @@ jobs:
           assert p["scientific_hypothesis"]["belief_engine_changed"] is False
           assert p["temporal_oos"]["used_for_fit"] is False
           assert p["governance"]["protected_certification_holdout_opened"] is False
+          a=json.loads(Path("docs/shared/evidence/QORE_SHARED_MC09_BELIEF_STATE_CALIBRATION_V2_ENGINEERING_RECOVERY_AMENDMENT_001.json").read_text())
+          assert a["status"] == "ENGINEERING_RECOVERY_ONLY"
+          assert a["failed_run_id"] == 36754425649
+          assert a["scientific_evaluation_started"] is False
+          assert a["engineering_change_only"]["outcome_aware_retuning"] is False
           PY
 
       - name: Recover burned fit evidence and independent temporal OOS
