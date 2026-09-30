@@ -158,14 +158,20 @@ def detect_sensor_blindspots(
 
     by_key:dict[tuple[str,str],SharedBSensorCoverageFact]={}
     family_horizons:dict[str,set[str]]={}
-    for fact in coverage:
-        if fact.observed_at > as_of or fact.evidence_cutoff_at > as_of:
+    for coverage_fact in coverage:
+        if (
+            coverage_fact.observed_at > as_of
+            or coverage_fact.evidence_cutoff_at > as_of
+        ):
             raise ValueError("future coverage fact is forbidden")
-        key=(fact.sensor_family,fact.horizon)
+        key=(coverage_fact.sensor_family,coverage_fact.horizon)
         if key in by_key:
             raise ValueError("duplicate coverage fact")
-        by_key[key]=fact
-        family_horizons.setdefault(fact.sensor_family,set()).add(fact.horizon)
+        by_key[key]=coverage_fact
+        family_horizons.setdefault(
+            coverage_fact.sensor_family,
+            set(),
+        ).add(coverage_fact.horizon)
 
     blindspots:list[SharedBBlindspot]=[]
     for requirement in requirements:
