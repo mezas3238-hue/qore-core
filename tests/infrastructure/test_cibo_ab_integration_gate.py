@@ -5,7 +5,10 @@ import importlib.util
 from pathlib import Path
 
 
-MODULE_PATH = (\n    Path(__file__).resolve().parents[2]\n    / "scripts/cibo_ab_integration_gate.py"\n)
+MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "scripts/cibo_ab_integration_gate.py"
+)
 SPEC = importlib.util.spec_from_file_location("cibo_ab_integration_gate", MODULE_PATH)
 assert SPEC is not None and SPEC.loader is not None
 gate = importlib.util.module_from_spec(SPEC)
