@@ -77,6 +77,36 @@
           "class": "ENGINEERING_GREEN_OPEN_REAL_REPLAY",
           "workflow_run_id": 36767443011,
           "status": "SUCCESS"
+        },
+        {
+          "id": "CE2I_REGISTRY_RECONCILIATION",
+          "class": "ENGINEERING_GREEN_REGISTRY_RECONCILED_OPEN_ECONOMIC",
+          "workflow_run_id": 36767442915,
+          "status": "SUCCESS"
+        },
+        {
+          "id": "T12",
+          "class": "ENGINEERING_GREEN_OPEN_FRESH_CAUSAL_OOS",
+          "workflow_run_id": 36767442725,
+          "status": "SUCCESS"
+        },
+        {
+          "id": "T13",
+          "class": "ENGINEERING_GREEN_OPEN_FRESH_CAUSAL_OOS",
+          "workflow_run_id": 36767442878,
+          "status": "SUCCESS"
+        },
+        {
+          "id": "FINAL_INTEGRATED_CIBO_EXAM_EXECUTABLE_GATE",
+          "class": "ENGINEERING_GREEN_OPEN_TYPED_RECEIPT_HARDENING_AND_EXECUTION",
+          "workflow_run_id": 36767442737,
+          "status": "SUCCESS"
+        },
+        {
+          "id": "ZERO_OPEN_WORK_A_IMPLEMENTATION",
+          "class": "A_IMPLEMENTATION_GREEN_INTEGRATOR_TWO_EXAM_VARIANT_REVALIDATION_REQUIRED",
+          "workflow_run_id": 36767443016,
+          "status": "SUCCESS"
         }
       ]
     },
@@ -121,7 +151,7 @@
   "pending_candidates": [
     {
       "owner": "ARCHITECT_A",
-      "latest_head_sha": "4b39952718640b1f723f03cd71a68c72afb3d76b",
+      "latest_head_sha": "f3480a4f6f949c7cb6d34f9b825c35ab488eabfc",
       "reasons": [
         "A_SUPPORT_001_FINAL_EXAM_SELF_ATTESTATION",
         "A_SUPPORT_002_MANDATORY_WORKSTREAM_DRIFT",
@@ -139,7 +169,7 @@
     },
     {
       "owner": "ARCHITECT_B",
-      "latest_head_sha": "41f0227e2136ac09c94bdd8187c2e6f5e625ee36",
+      "latest_head_sha": "e15b9b64a4daf09634899131ad2c29071168f2e8",
       "reasons": [
         "CURRENT_HEAD_CI_PENDING",
         "B_SUPPORT_001_USD60_READINESS_SELF_ATTESTATION",
@@ -153,5 +183,14 @@
     }
   ],
   "certification_claim": false,
-  "productive_authority": false
+  "productive_authority": false,
+  "integrator_pending": {
+    "head_sha": "0120125b6b2fe9ed4cc51d536081f42eb0b2707a",
+    "reasons": [
+      "CURRENT_HEAD_CI_PENDING",
+      "TWO_EXAM_ZERO_OPEN_SEQUENCE_REVALIDATION_REQUIRED",
+      "CROSSBOUNDARY_RECEIPT_CI_REQUIRED"
+    ],
+    "certification_claim": false
+  }
 }
