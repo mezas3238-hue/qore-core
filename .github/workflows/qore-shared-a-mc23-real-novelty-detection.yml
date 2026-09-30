@@ -1,0 +1,124 @@
+name: QORE Shared A MC23 Real Novelty Detection
+
+concurrency:
+  group: qore-shared-a-mc23-real-novelty-detection
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/meta_learning_regime_adaptation.py
+      - scripts/shared_mc23_real_novelty_detection.py
+      - .github/workflows/qore-shared-a-mc23-real-novelty-detection.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  novelty:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install and validate
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p input/{r6,r5} result
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/meta_learning_regime_adaptation.py \
+            scripts/shared_mc23_real_novelty_detection.py
+          mypy src/qore/infrastructure/core_stack_v2/meta_learning_regime_adaptation.py
+          pytest -q tests/infrastructure/test_core_stack_v2_meta_learning_regime_adaptation.py
+
+      - name: Recover immutable R6 R5 source evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Replay real novelty detection
+        run: |
+          python scripts/shared_mc23_real_novelty_detection.py \
+            --r6-nas input/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp input/r6/fresh/SP500/market-evidence.json \
+            --r6-us input/r6/fresh/US30/market-evidence.json \
+            --r5-nas input/r5/fresh/NAS100/market-evidence.json \
+            --r5-sp input/r5/fresh/SP500/market-evidence.json \
+            --r5-us input/r5/fresh/US30/market-evidence.json \
+            --output result/mc23-real-novelty-detection.json \
+            | tee result/summary.json
+
+      - name: Validate bounded progress
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc23-real-novelty-detection.json").read_text())
+          assert p["status"] == "MC23_REAL_NOVELTY_DETECTION_BOUND_PASS"
+          assert p["real_novelty_detection_bound"] is True
+          assert p["novel_unknown_treated_as_known"] is False
+          assert p["adaptive_proposals_research_only"] is True
+          assert p["future_market_used"] is False
+          assert p["outcome_used"] is False
+          assert p["pnl_used"] is False
+          assert p["real_novel_regime_validated_adaptation"] is False
+          assert p["certified_knowledge_mutation"] is False
+          assert p["productive_authority"] is False
+          assert p["mc23_completed_and_proven"] is False
+          assert p["master_ledger_mutated"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+
+      - name: Seal
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (cd result && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc23-real-novelty-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/mc23-real-novelty-detection.json").read_text())
+          body="\n".join([
+              "## Shared A MC-23 — Real Novelty Detection",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- real source observations: **{p['real_source_observations']}**",
+              f"- NOVEL/NEAR_KNOWN episodes: **{p['real_novel_or_near_known_episode_count']}**",
+              "- unknown silently treated as known: **False**",
+              "- adaptive proposals: **RESEARCH_ONLY**",
+              "- validated real-regime adaptation: **False**",
+              "- MC-23 completed-and-proven: **False**",
+              "- protected certification holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
