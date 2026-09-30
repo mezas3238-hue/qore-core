@@ -89,6 +89,8 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*COMPOUND-ADVERSARIAL-STRESS*", "ADVERSARIAL_STRESS"),
     ("*cibo_genc3_genc6_economic_gate*", "CAPITAL_AMPLIFICATION"),
     ("*GEN-C3-GEN-C6-NONCOMPENSATORY*", "CAPITAL_AMPLIFICATION"),
+    ("*cibo_genc11_genc13_utility_gate*", "CAPITAL_AMPLIFICATION"),
+    ("*GEN-C11-GEN-C13-NONCOMPENSATORY*", "CAPITAL_AMPLIFICATION"),
     ("*cibo_genc9_economic_gate*", "GEN-C9"),
     ("*GEN-C9-NONCOMPENSATORY-ECONOMIC-GATE*", "GEN-C9"),
     ("*cibo_compound_path_monte_carlo*", "PATH_DEPENDENT_MONTE_CARLO"),

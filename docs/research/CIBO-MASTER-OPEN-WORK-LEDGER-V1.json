@@ -675,7 +675,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_UTILITY_GATE_PREREGISTERED_REAL_EVIDENCE_OPEN",
+      "current_maturity": "ENGINE_CI_GREEN_EXECUTABLE_NONCOMPENSATORY_UTILITY_WRAPPER_IMPLEMENTED_CI_PENDING_REAL_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -688,14 +688,19 @@
         "github-actions://36727848107/SUCCESS",
         "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
         "docs/research/CIBO-GEN-C11-NONCOMPENSATORY-UTILITY-GATE-V1.md",
-        "docs/research/CIBO-COMPOUND-TEMPORAL-ECONOMIC-REPLICATION-CRITERION-V1.md"
+        "docs/research/CIBO-COMPOUND-TEMPORAL-ECONOMIC-REPLICATION-CRITERION-V1.md",
+        "src/qore/infrastructure/cibo_genc11_genc13_utility_gate.py",
+        "tests/infrastructure/test_cibo_genc11_genc13_utility_gate.py",
+        "docs/research/CIBO-GEN-C11-GEN-C13-NONCOMPENSATORY-UTILITY-WRAPPER-V1.md",
+        ".github/workflows/cibo-genc11-genc13-utility-wrapper.yml"
       ],
       "blockers": [
         "FRESH_MULTI_PERIOD_OOS_UTILITY_NOT_YET_PROVEN",
         "STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
-        "GEN_C10_TRANSITION_UNCERTAINTY_NOT_YET_CALIBRATED"
+        "GEN_C10_TRANSITION_UNCERTAINTY_NOT_YET_CALIBRATED",
+        "GENC11_GENC13_UTILITY_WRAPPER_CHILD_CI_REQUIRED"
       ],
-      "next_gate": "After GEN-C10 transition uncertainty is causally calibrated, bind synchronized fresh world populations and apply the preregistered non-compensatory utility gate, adversarial stress and 4/4 temporal replication."
+      "next_gate": "Pass the executable GEN-C11/GEN-C13 wrapper CI; then after legal GEN-C10 transition calibration bind a fresh MPC control/treatment population, reuse the frozen GEN-C9 non-compensatory law, and separately pass stress plus WF1..WF4 replication."
     },
     {
       "id": "GEN-C12",
@@ -732,7 +737,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_CAUSAL_IDENTIFICATION_PROTOCOL_PREREGISTERED_REAL_PROSPECTIVE_EVIDENCE_OPEN",
+      "current_maturity": "ENGINE_CI_GREEN_CAUSAL_IDENTIFICATION_PROTOCOL_AND_EXECUTABLE_UTILITY_WRAPPER_IMPLEMENTED_CI_PENDING_REAL_PROSPECTIVE_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -744,14 +749,19 @@
         "github-actions://36727848318/SUCCESS",
         "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
         "docs/research/CIBO-GEN-C13-CAUSAL-IDENTIFICATION-PROTOCOL-V1.md",
-        "docs/research/CIBO-COMPOUND-CAUSAL-ABLATION-PROTOCOL-V1.md"
+        "docs/research/CIBO-COMPOUND-CAUSAL-ABLATION-PROTOCOL-V1.md",
+        "src/qore/infrastructure/cibo_genc11_genc13_utility_gate.py",
+        "tests/infrastructure/test_cibo_genc11_genc13_utility_gate.py",
+        "docs/research/CIBO-GEN-C11-GEN-C13-NONCOMPENSATORY-UTILITY-WRAPPER-V1.md",
+        ".github/workflows/cibo-genc11-genc13-utility-wrapper.yml"
       ],
       "blockers": [
         "REAL_POST_OUTCOME_EPISODE_POPULATION_NOT_YET_BOUND",
         "PROSPECTIVE_MEMORY_USE_CAUSAL_ABLATION_NOT_YET_RUN",
-        "TEMPORAL_REPLICATION_REQUIRED"
+        "TEMPORAL_REPLICATION_REQUIRED",
+        "GENC11_GENC13_UTILITY_WRAPPER_CHILD_CI_REQUIRED"
       ],
-      "next_gate": "Bind real reconciled post-outcome episodes; generate only hypothesis-level retrospective counterfactuals; preregister any memory-conditioned treatment for later decisions and prove it prospectively via equal-population ablation, non-compensatory gate, stress and 4/4 temporal replication."
+      "next_gate": "Pass the executable GEN-C11/GEN-C13 wrapper CI; then bind real reconciled post-outcome memory episodes, preregister a later prospective memory-use ablation, reuse the frozen GEN-C9 non-compensatory law on causal future evidence, and separately pass stress plus WF1..WF4 replication."
     },
     {
       "id": "GEN-C14",
