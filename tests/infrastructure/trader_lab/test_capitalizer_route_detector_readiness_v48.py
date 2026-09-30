@@ -27,11 +27,18 @@ def test_london_cisd_and_continuation_have_v48_primitives_but_need_route_binding
     ) is V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND
 
 
-def test_scalp_continuation_semantics_exist_but_still_need_m1_poi_binding() -> None:
-    assert _status(
-        V48RouteId.TTRADES_GENERIC_SCALP_H1_M15_M1,
+def test_generic_scalp_core_facts_are_route_bound_pre_economic() -> None:
+    for fact_id in (
+        "H1_SCALP_BIAS_CONFIRMED",
+        "M15_PROTECTED_SWING_CONFIRMED_BY_CISD",
         "M1_CONTINUATION_CONFIRMED",
-    ) is V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND
+        "LOGICAL_PROTECTED_SWING_STOP_AVAILABLE",
+        "STRUCTURAL_TARGET_AVAILABLE",
+    ):
+        assert _status(
+            V48RouteId.TTRADES_GENERIC_SCALP_H1_M15_M1,
+            fact_id,
+        ) is V48DetectorReadiness.ROUTE_BOUND_PRE_ECONOMIC
 
 
 def test_ftm_source_native_primitive_is_now_reusable() -> None:
