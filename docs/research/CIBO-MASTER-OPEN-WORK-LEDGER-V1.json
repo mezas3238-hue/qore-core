@@ -318,13 +318,15 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "FAIL_CLOSED_PROVIDER_UNIVERSE_EVIDENCE_REQUIRED",
+      "current_maturity": "TYPED_PROVIDER_CAPABILITY_REGISTRY_BOUND_UNKNOWN_REMAINS_BLOCKING",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "src/qore/infrastructure/cibo_ce2i_calibration_registry.py",
         "src/qore/infrastructure/cibo_instrument_capability_registry.py",
-        "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py"
+        "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
+        "src/qore/infrastructure/cibo_receipt_bound_calibration_freeze.py",
+        "tests/infrastructure/test_cibo_receipt_bound_calibration_freeze.py"
       ],
       "blockers": [
         "CERTIFIED_HEDGE_PROVIDER_UNIVERSE_NOT_AVAILABLE",
@@ -338,13 +340,15 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "FAIL_CLOSED_PROVIDER_UNIVERSE_EVIDENCE_REQUIRED",
+      "current_maturity": "TYPED_PROVIDER_CAPABILITY_REGISTRY_BOUND_UNKNOWN_REMAINS_BLOCKING",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "src/qore/infrastructure/cibo_ce2i_calibration_registry.py",
         "src/qore/infrastructure/cibo_instrument_capability_registry.py",
-        "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py"
+        "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
+        "src/qore/infrastructure/cibo_receipt_bound_calibration_freeze.py",
+        "tests/infrastructure/test_cibo_receipt_bound_calibration_freeze.py"
       ],
       "blockers": [
         "CERTIFIED_OPTION_DEFINED_RISK_SPREAD_PROVIDER_UNIVERSE_NOT_AVAILABLE",
@@ -958,9 +962,10 @@
         "PHASE20D_FRESH_POPULATION_THRESHOLDS_NOT_YET_MET_OR_REVALIDATED",
         "INTEGRATOR_RECEIPT_BOUND_CALIBRATION_FREEZE_CI_REQUIRED",
         "T01_T20_SOURCE_BOUND_RECEIPTS_NOT_YET_AVAILABLE",
-        "PHASE20D_FORWARD_AND_PROVIDER_FREEZE_RECEIPTS_NOT_YET_AVAILABLE"
+        "PHASE20D_FORWARD_AND_PROVIDER_FREEZE_RECEIPTS_NOT_YET_AVAILABLE",
+        "T16_T17_TYPED_PROVIDER_CAPABILITY_SUPPORT_OR_UNAVAILABLE_EVIDENCE_REQUIRED"
       ],
-      "next_gate": "Pass receipt-bound calibration-freeze CI; complete the frozen Phase20D forward population; then seal T01..T20 only from exact-head source-bound PASS receipts, with T16/T17 disabled only by verified provider capability evidence."
+      "next_gate": "Pass receipt-bound calibration-freeze CI; complete the frozen Phase20D forward population; bind the exact account/provider capability registry; keep T16/T17 OPEN while UNKNOWN and close/activate them only from typed provider-verified UNAVAILABLE/SUPPORTED evidence."
     },
     {
       "id": "PATH_DEPENDENT_MONTE_CARLO",
@@ -1336,9 +1341,10 @@
         "PHASE21_POLICY_FREEZE_RECEIPT_REQUIRED",
         "PROVIDER_ECONOMICS_READY_RECEIPT_REQUIRED",
         "T01_T20_RECEIPT_BOUND_CALIBRATION_FREEZE_REQUIRED",
-        "FINAL_FROZEN_USD60_EXAM_NOT_RUN"
+        "FINAL_FROZEN_USD60_EXAM_NOT_RUN",
+        "T16_T17_TYPED_PROVIDER_CAPABILITY_RESOLUTION_REQUIRED"
       ],
-      "next_gate": "Pass receipt-bound pre-holdout CI; then satisfy Phase20D/Phase21/provider/T01..T20 source-bound receipts on the exact integrated HEAD before any governed unseal of 2017H1."
+      "next_gate": "Pass receipt-bound pre-holdout CI; then satisfy Phase20D/Phase21/provider/T01..T20 receipts plus same-account provider capability registry on the exact integrated HEAD before any governed unseal of 2017H1."
     },
     {
       "id": "INTEGRATED_CAPITAL_TRUTH",
