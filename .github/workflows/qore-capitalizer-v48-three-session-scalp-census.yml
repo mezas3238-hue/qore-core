@@ -52,12 +52,10 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_ttrades_structural_cisd_v48.py \
             src/qore/infrastructure/trader_lab/capitalizer_ttrades_continuation_v48.py \
             src/qore/infrastructure/trader_lab/capitalizer_ttrades_m1_fvg_cisd_continuation_v48.py \
-            src/qore/infrastructure/trader_lab/capitalizer_ttrades_m1_fvg_cisd_continuation_v48.py \
             tests/infrastructure/trader_lab/test_capitalizer_generic_scalp_census_v48.py \
             tests/infrastructure/trader_lab/test_capitalizer_three_session_coverage_gate_v48.py \
             tests/infrastructure/trader_lab/test_capitalizer_ttrades_structural_cisd_v48.py \
             tests/infrastructure/trader_lab/test_capitalizer_ttrades_continuation_v48.py \
-            tests/infrastructure/trader_lab/test_capitalizer_ttrades_m1_fvg_cisd_continuation_v48.py \
             tests/infrastructure/trader_lab/test_capitalizer_ttrades_m1_fvg_cisd_continuation_v48.py
       - name: Mypy
         run: |
@@ -65,14 +63,16 @@ jobs:
             src/qore/infrastructure/trader_lab/capitalizer_generic_scalp_census_v48.py \
             src/qore/infrastructure/trader_lab/capitalizer_three_session_coverage_gate_v48.py \
             src/qore/infrastructure/trader_lab/capitalizer_ttrades_structural_cisd_v48.py \
-            src/qore/infrastructure/trader_lab/capitalizer_ttrades_continuation_v48.py
+            src/qore/infrastructure/trader_lab/capitalizer_ttrades_continuation_v48.py \
+            src/qore/infrastructure/trader_lab/capitalizer_ttrades_m1_fvg_cisd_continuation_v48.py
       - name: Focused tests
         run: |
           pytest -q --no-cov \
             tests/infrastructure/trader_lab/test_capitalizer_generic_scalp_census_v48.py \
             tests/infrastructure/trader_lab/test_capitalizer_three_session_coverage_gate_v48.py \
             tests/infrastructure/trader_lab/test_capitalizer_ttrades_structural_cisd_v48.py \
-            tests/infrastructure/trader_lab/test_capitalizer_ttrades_continuation_v48.py
+            tests/infrastructure/trader_lab/test_capitalizer_ttrades_continuation_v48.py \
+            tests/infrastructure/trader_lab/test_capitalizer_ttrades_m1_fvg_cisd_continuation_v48.py
 
   census:
     needs: quality
