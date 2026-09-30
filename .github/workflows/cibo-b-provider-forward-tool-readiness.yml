@@ -25,10 +25,12 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t11_execution_population.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t11_cost_binding.py'
       - 'src/qore/infrastructure/cibo_ce2i_execution_efficiency.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t03_margin_population.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t11_execution_population.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t11_cost_binding.py'
       - 'tests/infrastructure/test_cibo_ce2i_execution_efficiency.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t11_execution_cost_calibration.py'
       - 'docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md'
 
 permissions:
