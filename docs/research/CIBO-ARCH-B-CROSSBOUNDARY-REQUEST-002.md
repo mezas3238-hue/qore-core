@@ -51,3 +51,16 @@ Please also classify the following B-owned surfaces deterministically:
 The same ownership applies to their tests, CI workflow coverage and associated
 closure documentation. This addendum changes inventory ownership only; it does
 not alter any scientific threshold or terminal disposition.
+
+
+## Addendum — T17 limited-risk provider evidence
+
+Please additionally classify these surfaces under `T17`:
+
+| Pattern / path | Workstream |
+|---|---|
+| `*cibo_ce2i_t17_limited_risk_capability*` | `T17` |
+| `*cibo_t17_limited_risk_capability_probe*` | `T17` |
+
+Their tests and provider-economics workflow evidence remain B-owned and must not
+be absorbed into a generic provider bucket during final inventory closure.
