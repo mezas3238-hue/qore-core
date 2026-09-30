@@ -61,7 +61,9 @@ Final ledger promotion belongs to A/integrator after current-HEAD CI revalidatio
   protocol + pre-exam readiness gate implemented. The pre-exam gate cannot grant
   holdout access, certification or productive authority.
 - **INTEGRATED_CAPITAL_TRUTH** — five-store truth/recovery/transaction infrastructure
-  exists; real chronological forward-population binding remains open.
+  exists. A new forward settlement binding now requires exact equality between the
+  manifest and Compound Cycle settlement populations before Source Ledger <-> GEN-C
+  equivalence is accepted; the real chronological population remains open.
 
 ## 3. New hardening added by B
 
