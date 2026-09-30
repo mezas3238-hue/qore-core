@@ -1,4 +1,5 @@
 import json
+from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -77,14 +78,7 @@ def _write_market(
                 day=f"2026-01-{1 + (offset // 3):02d}",
                 minute=start_minute + offset,
             )
-            handle.write(json.dumps(asdict_compat(row)) + "\n")
-
-
-def asdict_compat(row: V49Opportunity) -> dict[str, object]:
-    return {
-        field: getattr(row, field)
-        for field in row.__dataclass_fields__
-    }
+            handle.write(json.dumps(asdict(row)) + "\n")
 
 
 def test_matrix_passes_high_frequency_density_when_all_sessions_are_dense(
