@@ -1,0 +1,147 @@
+name: QORE Shared GW2 GC Futures Contract Binding
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - docs/shared/evidence/QORE_SHARED_GW2_GC_FUTURES_CONTRACT_AUTHORITY_EVIDENCE_001.json
+      - scripts/shared_gw2_gc_futures_contract_binding.py
+      - .github/workflows/qore-shared-gw2-gc-futures-contract-binding.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  GEN2_RUN_ID: "36623131862"
+  GEN2_ARTIFACT_ID: "11059307341"
+  GEN2_GIT_SHA: "f5fcd0c9552466132f6f47bb124805e49e774493"
+
+jobs:
+  bind:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate GC contract binding
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          ruff check scripts/shared_gw2_gc_futures_contract_binding.py
+          python -m py_compile scripts/shared_gw2_gc_futures_contract_binding.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("docs/shared/evidence/QORE_SHARED_GW2_GC_FUTURES_CONTRACT_AUTHORITY_EVIDENCE_001.json").read_text())
+          assert p["identity"] == "QORE_SHARED_GW2_GC_FUTURES_CONTRACT_AUTHORITY_EVIDENCE_001"
+          assert len(p["provider_contract_bindings"]) == 5
+          assert p["resolved_semantics"]["product"] == "GC_GOLD_FUTURES"
+          assert p["resolved_semantics"]["venue"] == "COMEX"
+          assert p["resolved_semantics"]["month_year_identity"] is True
+          assert p["laws"]["contract_identity_equals_front_contract"] is False
+          assert p["laws"]["contract_identity_equals_continuous_series"] is False
+          assert p["governance"]["protected_certification_holdout_opened"] is False
+          PY
+
+      - name: Recover sealed GEN-2 provider schedule
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${GEN2_RUN_ID}" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${GEN2_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${GEN2_RUN_ID}" --jq '.head_sha')" = "$GEN2_GIT_SHA"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${GEN2_ARTIFACT_ID}/zip" > gen2.zip
+          unzip -q gen2.zip -d input
+          (cd input/result && sha256sum -c SHA256SUMS)
+
+      - name: Bind exact GC product month year identities
+        run: |
+          set -euo pipefail
+          python scripts/shared_gw2_gc_futures_contract_binding.py             --provider-schedule input/result/provider-schedule-catalog.json             --authority-evidence docs/shared/evidence/QORE_SHARED_GW2_GC_FUTURES_CONTRACT_AUTHORITY_EVIDENCE_001.json             --output result/gw2-gc-futures-contract-binding.json             | tee result/summary.json
+
+      - name: Validate contract identity frontier
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/gw2-gc-futures-contract-binding.json").read_text())
+          assert p["provider_gc_contract_count"] == 5
+          assert p["contract_identity_verified_count"] == 5
+          assert p["front_contract_verified_count"] == 0
+          assert p["roll_semantics_verified_count"] == 0
+          assert p["continuous_series_verified_count"] == 0
+          assert p["sensor_admission_authorized"] is False
+          assert p["relational_claims_authorized"] is False
+          assert p["protected_holdout_opened"] is False
+          assert p["productive_authority"] is False
+          expected={
+              "GCG26":(2,2026),
+              "GCJ26":(4,2026),
+              "GCM25":(6,2025),
+              "GCM26":(6,2026),
+              "GCQ26":(8,2026),
+          }
+          for row in p["records"]:
+              assert (row["contract_month"],row["contract_year"]) == expected[row["provider_symbol"]]
+              assert row["venue"] == "COMEX"
+              assert row["economic_underlying"] == "GOLD"
+              assert row["contract_identity_verified"] is True
+              assert row["roll_status"] == "UNRESOLVED"
+          PY
+
+      - name: Bind evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-gw2-gc-contract-binding-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report GC contract identities
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/gw2-gc-futures-contract-binding.json").read_text())
+          lines=[
+              "## Shared GW-2 — GC Futures Contract Identity Binding",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- GC provider contracts: **{p['provider_gc_contract_count']}**",
+              f"- exact product/month/year identities verified: **{p['contract_identity_verified_count']}**",
+              "- venue: **COMEX**",
+              "- front contract / roll / continuous series: **UNRESOLVED / UNRESOLVED / UNRESOLVED**",
+              "- protected certification holdout opened: **False**",
+              "",
+          ]
+          for row in p["records"]:
+              lines.append(
+                  f"- {row['provider_symbol']}: {row['canonical_product']} "
+                  f"{row['contract_month_name']} {row['contract_year']}"
+              )
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
