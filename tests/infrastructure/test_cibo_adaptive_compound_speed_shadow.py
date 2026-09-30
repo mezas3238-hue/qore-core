@@ -6,6 +6,10 @@ from decimal import Decimal
 
 import pytest
 
+from qore.infrastructure.cibo_adaptive_compound_speed_population import (
+    Genc8PopulationStatus,
+    describe_genc8_population,
+)
 from qore.infrastructure.cibo_adaptive_compound_speed_shadow import (
     GENC8_POLICY_FROZEN_AT,
     Genc8AdaptiveSpeedFact,
@@ -15,10 +19,6 @@ from qore.infrastructure.cibo_adaptive_compound_speed_shadow import (
     Genc8SpeedPosture,
     evaluate_genc8_adaptive_compound_speed,
     genc8_policy_sha256,
-)
-from qore.infrastructure.cibo_adaptive_compound_speed_population import (
-    Genc8PopulationStatus,
-    describe_genc8_population,
 )
 from qore.infrastructure.cibo_adaptive_compound_speed_store import (
     DurableGenc8AdaptiveCompoundSpeedStore,
