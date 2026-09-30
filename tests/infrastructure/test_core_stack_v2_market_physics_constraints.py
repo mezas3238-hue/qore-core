@@ -93,4 +93,6 @@ def test_unseen_transition_does_not_masquerade_as_physical_impossibility() -> No
 
 def test_state_classification_is_deterministic() -> None:
     assert classify_market_physics_state(_obs()) is classify_market_physics_state(_obs())
-    assert assess_market_physics(_obs()).fingerprint() == assess_market_physics(_obs()).fingerprint()
+    first = assess_market_physics(_obs()).fingerprint()
+    second = assess_market_physics(_obs()).fingerprint()
+    assert first == second
