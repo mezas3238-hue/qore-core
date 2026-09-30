@@ -1,0 +1,201 @@
+name: QORE Shared Transversal X17 X19 Closure
+
+concurrency:
+  group: qore-shared-transversal-x17-x19-closure
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - .github/workflows/qore-shared-transversal-x17-x19-closure.yml
+      - src/qore/infrastructure/core_stack_v2/global_observability_matrix.py
+      - scripts/shared_gen2_global_observability_matrix.py
+      - src/qore/infrastructure/core_stack_v2/shared_cibo_read_only_facts.py
+      - tests/infrastructure/test_core_stack_v2_global_observability_matrix.py
+      - tests/infrastructure/test_core_stack_v2_shared_cibo_read_only_facts.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  GEN1_RUN_ID: "36566029876"
+  GEN1_ARTIFACT_ID: "11031074951"
+  GEN1_GIT_SHA: "ea0844b7a4354d8447768d4f88030861bffa1fbd"
+  GEN1_REGISTRY_FINGERPRINT: "a306e6422a274c9578b6b439634f40cd48a7f29320c94f7f7003309f3b680c48"
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  close-x17-x19:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared and cTrader
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,ctrader]"
+
+      - name: Validate X17 and X19 code surfaces
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          ruff check             src/qore/infrastructure/core_stack_v2/global_observability_matrix.py             scripts/shared_gen2_global_observability_matrix.py             src/qore/infrastructure/core_stack_v2/shared_cibo_read_only_facts.py             tests/infrastructure/test_core_stack_v2_global_observability_matrix.py             tests/infrastructure/test_core_stack_v2_shared_cibo_read_only_facts.py
+          mypy             src/qore/infrastructure/core_stack_v2/global_observability_matrix.py             src/qore/infrastructure/core_stack_v2/shared_cibo_read_only_facts.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_global_observability_matrix.py             tests/infrastructure/test_core_stack_v2_shared_cibo_read_only_facts.py             --junitxml=result/junit.xml
+
+      - name: Recover exact real 177-sensor registry
+        run: |
+          set -euo pipefail
+          status="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${GEN1_RUN_ID}" --jq '.status')"
+          conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${GEN1_RUN_ID}" --jq '.conclusion')"
+          head_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${GEN1_RUN_ID}" --jq '.head_sha')"
+          test "$status" = "completed"
+          test "$conclusion" = "success"
+          test "$head_sha" = "$GEN1_GIT_SHA"
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${GEN1_ARTIFACT_ID}/zip" > gen1.zip
+          unzip -q gen1.zip -d input
+          (cd input && sha256sum -c SHA256SUMS)
+          test "$(cat input/registry-code-git-sha.txt)" = "$GEN1_GIT_SHA"
+          test "$(python -c 'import json; print(json.load(open("input/global-sensor-registry.json"))["sensor_registry_fingerprint_sha256"])')" = "$GEN1_REGISTRY_FINGERPRINT"
+
+      - name: Resolve authorized DEMO account
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}"
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build real X17 observability matrix
+        run: |
+          set -euo pipefail
+          captured_at="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --jq '.created_at')"
+          python scripts/shared_gen2_ctrader_temporal_metadata.py             --registry input/global-sensor-registry.json             --output result/provider-schedule-catalog.json             --expected-registry-fingerprint "$GEN1_REGISTRY_FINGERPRINT"             --captured-at "$captured_at"             --source-run-id "$GEN1_RUN_ID"             --source-artifact-id "$GEN1_ARTIFACT_ID"             --source-git-sha "$GEN1_GIT_SHA"
+
+          python scripts/shared_gen2_global_observability_matrix.py             --registry input/global-sensor-registry.json             --provider-schedule result/provider-schedule-catalog.json             --output result/global-market-observability-matrix.json             --calendar-output result/global-calendar-registry.json             --mapping-output result/canonical-calendar-mapping-registry.json             --market-structure-evidence docs/shared/evidence/QORE_SHARED_GEN2_CANONICAL_MARKET_STRUCTURE_EVIDENCE_001.json
+
+      - name: Seal strict transversal closure evidence
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          matrix=json.loads(Path("result/global-market-observability-matrix.json").read_text())
+          schedule=json.loads(Path("result/provider-schedule-catalog.json").read_text())
+          root=ET.parse("result/junit.xml").getroot()
+          suites=(root,) if root.tag=="testsuite" else tuple(root.findall("testsuite"))
+          tests=sum(int(x.attrib.get("tests","0")) for x in suites)
+          failures=sum(int(x.attrib.get("failures","0"))+int(x.attrib.get("errors","0")) for x in suites)
+
+          assert tests > 0 and failures == 0
+          assert matrix["sensor_count"] == 177
+          assert len(matrix["rows"]) == 177
+          assert schedule["sensor_count"] == 177
+          assert matrix["automatic_sensor_admission"] is False
+          assert matrix["relational_claims_authorized"] is False
+          assert matrix["execution_authority"] is False
+          assert matrix["risk_authority"] is False
+          assert matrix["sizing_authority"] is False
+          assert all(
+              row["historical_availability"] in {"FULL","PARTIAL","NONE","UNKNOWN"}
+              and row["realtime_availability"] in {"FULL","PARTIAL","NONE","UNKNOWN"}
+              for row in matrix["rows"]
+          )
+
+          evidence={
+              "identity":"QORE_SHARED_TRANSVERSAL_X17_X19_CLOSURE_001",
+              "head":os.environ["GITHUB_SHA"],
+              "run_id":int(os.environ["GITHUB_RUN_ID"]),
+              "X-17":{
+                  "title":"Global Observability Matrix",
+                  "state":"COMPLETED_AND_PROVEN",
+                  "real_provider_sensor_count":matrix["sensor_count"],
+                  "matrix_fingerprint":matrix["global_observability_matrix_fingerprint_sha256"],
+                  "machine_readable_availability":True,
+                  "unknown_is_valid_state":True,
+                  "automatic_admission":False,
+                  "relational_claims_authorized":False
+              },
+              "X-19":{
+                  "title":"World-to-CIBO Read-Only Routing",
+                  "state":"COMPLETED_AND_PROVEN",
+                  "validated_by_tests":True,
+                  "trader_valid_trade_required":True,
+                  "shared_capital_authority":False,
+                  "shared_sizing_authority":False,
+                  "shared_risk_authority":False,
+                  "shared_execution_authority":False,
+                  "productive_behavior_change":False
+              },
+              "test_count":tests,
+              "failure_count":failures,
+              "protected_certification_holdout_opened":False,
+              "productive_authority":False
+          }
+          Path("result/transversal-x17-x19-closure.json").write_text(
+              json.dumps(evidence,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-transversal-x17-x19-closure-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report transversal closure
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/transversal-x17-x19-closure.json").read_text())
+          body="\n".join([
+              "## Shared Transversal Closure — X-17 + X-19",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- X-17 Global Observability Matrix: **{p['X-17']['state']}**",
+              f"- real provider sensors represented: **{p['X-17']['real_provider_sensor_count']}**",
+              f"- X-19 World-to-CIBO Read-Only Routing: **{p['X-19']['state']}**",
+              "- Shared capital/sizing/Risk/execution authority: **False**",
+              "- protected certification holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
