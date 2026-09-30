@@ -1,0 +1,137 @@
+name: QORE Shared GW2 FX ISO4217 Evidence
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/shared_gw2_fx_iso4217_evidence.py
+      - .github/workflows/qore-shared-gw2-fx-iso4217-evidence.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  CENSUS_RUN_ID: "36651933914"
+  CENSUS_ARTIFACT_ID: "11071230797"
+  CENSUS_GIT_SHA: "70e7b7f180d1f928f7fc1062de4d72f445bc7b16"
+  SIX_ISO4217_LIST_ONE_URL: "https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate authoritative-evidence binder
+        run: |
+          set -euo pipefail
+          mkdir -p input/census input/authority result
+          ruff check scripts/shared_gw2_fx_iso4217_evidence.py
+          python -m py_compile scripts/shared_gw2_fx_iso4217_evidence.py
+
+      - name: Recover sealed real provider FX census
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${CENSUS_RUN_ID}" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${CENSUS_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${CENSUS_RUN_ID}" --jq '.head_sha')" = "$CENSUS_GIT_SHA"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${CENSUS_ARTIFACT_ID}/zip" > census.zip
+          unzip -q census.zip -d input/census
+          (cd input/census && sha256sum -c SHA256SUMS)
+          test -f input/census/gw2-fx-identity-evidence-census.json
+
+      - name: Acquire current authoritative ISO 4217 List One
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error             "$SIX_ISO4217_LIST_ONE_URL"             --output input/authority/iso4217-list-one.xml
+          test -s input/authority/iso4217-list-one.xml
+          sha256sum input/authority/iso4217-list-one.xml             > result/iso4217-list-one-SHA256SUMS
+
+      - name: Bind provider currency components to authoritative list
+        run: |
+          set -euo pipefail
+          python scripts/shared_gw2_fx_iso4217_evidence.py             --census input/census/gw2-fx-identity-evidence-census.json             --iso-xml input/authority/iso4217-list-one.xml             --output result/gw2-fx-iso4217-evidence.json             | tee result/summary.json
+
+      - name: Validate authority and unresolved behavior
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(Path("result/gw2-fx-iso4217-evidence.json").read_text())
+          assert p["status"] == "AUTHORITATIVE_ISO4217_COMPONENT_EVIDENCE_BOUND"
+          assert p["source"]["authority"] == "SIX_FINANCIAL_INFORMATION_AG"
+          assert p["source"]["role"] == "ISO_4217_MAINTENANCE_AGENCY"
+          assert p["provider_currency_code_count"] == 21
+          assert p["iso4217_verified_currency_code_count"] >= 20
+          assert p["unresolved_currency_code_count"] >= 1
+          unresolved={
+              row["provider_currency_code"]
+              for row in p["unresolved_currency_codes"]
+          }
+          assert "CNH" in unresolved
+          assert p["cnh_auto_aliased_to_cny"] is False
+          assert p["provider_code_absence_is_not_alias_permission"] is True
+          assert p["fx_pair_count"] == 60
+          assert p["fx_pair_canonical_identity_verified_count"] == 0
+          assert p["historical_market_data_read"] is False
+          assert p["protected_holdout_opened"] is False
+          assert p["productive_authority"] is False
+          PY
+
+      - name: Bind evidence
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-gw2-fx-iso4217-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report authoritative currency evidence
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/gw2-fx-iso4217-evidence.json").read_text())
+          unresolved=", ".join(
+              row["provider_currency_code"]
+              for row in p["unresolved_currency_codes"]
+          )
+          body="\n".join([
+              "## Shared GW-2 — FX ISO 4217 Authority Binding",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              "- authority: **SIX Financial Information AG / ISO 4217 Maintenance Agency**",
+              f"- provider currency codes: **{p['provider_currency_code_count']}**",
+              f"- current ISO 4217 verified: **{p['iso4217_verified_currency_code_count']}**",
+              f"- unresolved: **{p['unresolved_currency_code_count']}** ({unresolved})",
+              f"- FX pairs with both currency components verified: **{p['fx_pairs_with_all_currency_components_verified']}/{p['fx_pair_count']}**",
+              "- CNH auto-aliased to CNY: **False**",
+              "- FX pair canonical identity certified: **0**",
+              "- protected holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
