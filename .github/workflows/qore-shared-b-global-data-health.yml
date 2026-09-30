@@ -24,6 +24,9 @@ env:
   X15_X16_RUN_ID: "36731386099"
   X15_X16_ARTIFACT_ID: "11105029411"
   X15_X16_GIT_SHA: "0e2130194d7e7cb644ae3fe60eda2ccd8bc7e52d"
+  B08_RUN_ID: "36782678259"
+  B08_ARTIFACT_ID: "11128307917"
+  B08_GIT_SHA: "f5b657a81f693b0e21a08d141fe0fb9d009ed920"
 
 jobs:
   validate:
@@ -66,19 +69,43 @@ jobs:
       - name: Recover replicated real-data evidence
         run: |
           set -euo pipefail
-          mkdir -p input result
+          mkdir -p input/x15 input/b08 result
           gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${X15_X16_ARTIFACT_ID}/zip" > x15x16.zip
-          unzip -q x15x16.zip -d input
-          (cd input && sha256sum -c SHA256SUMS)
-          test "$(cat input/code-git-sha.txt)" = "$X15_X16_GIT_SHA"
-          test -f input/x15-x16-replicated-data-health.json
+          unzip -q x15x16.zip -d input/x15
+          (cd input/x15 && sha256sum -c SHA256SUMS)
+          test "$(cat input/x15/code-git-sha.txt)" = "$X15_X16_GIT_SHA"
+          test -f input/x15/x15-x16-replicated-data-health.json
+
+      - name: Verify exact B-08 temporal readiness lineage
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${B08_RUN_ID}" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${B08_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${B08_RUN_ID}" --jq '.head_sha')" = "$B08_GIT_SHA"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${B08_ARTIFACT_ID}/zip" > b08.zip
+          unzip -q b08.zip -d input/b08
+          (cd input/b08 && sha256sum -c SHA256SUMS)
+          test -f input/b08/shared-b-temporal-governance-readiness.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(
+              Path(
+                  "input/b08/shared-b-temporal-governance-readiness.json"
+              ).read_text()
+          )
+          assert p["temporal_governance_status"] == "NOT_READY"
+          assert p["relational_comparability_authorized"] is False
+          assert p["stale_relation_empirical_isolation_authorized"] is False
+          assert p["policy_thresholds_invented"] is False
+          PY
 
       - name: Verify inherited real-data safety proof
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          p=json.loads(Path("input/x15-x16-replicated-data-health.json").read_text())
+          p=json.loads(Path("input/x15/x15-x16-replicated-data-health.json").read_text())
           assert p["identity"] == "QORE_SHARED_X15_X16_REPLICATED_DATA_HEALTH_001"
           assert p["status"] == "COMPLETED_AND_PROVEN_REPLICATED_REAL_DATA"
           assert p["all_pass"] is True
@@ -106,7 +133,9 @@ jobs:
           import os
           from pathlib import Path
 
-          upstream_path=Path("input/x15-x16-replicated-data-health.json")
+          upstream_path=Path("input/x15/x15-x16-replicated-data-health.json")
+          b08_path=Path("input/b08/shared-b-temporal-governance-readiness.json")
+          b08=json.loads(b08_path.read_text())
           upstream=json.loads(upstream_path.read_text())
           samples=sum(
               int(row["sample_count"])
@@ -122,6 +151,14 @@ jobs:
               "upstream_artifact_id":int(os.environ["X15_X16_ARTIFACT_ID"]),
               "upstream_git_sha":os.environ["X15_X16_GIT_SHA"],
               "upstream_evidence_sha256":hashlib.sha256(upstream_path.read_bytes()).hexdigest(),
+              "b08_temporal_readiness_run_id":int(os.environ["B08_RUN_ID"]),
+              "b08_temporal_readiness_artifact_id":int(os.environ["B08_ARTIFACT_ID"]),
+              "b08_temporal_readiness_git_sha":os.environ["B08_GIT_SHA"],
+              "b08_temporal_readiness_sha256":hashlib.sha256(b08_path.read_bytes()).hexdigest(),
+              "b08_temporal_governance_status":b08["temporal_governance_status"],
+              "b08_relational_comparability_authorized":b08[
+                  "relational_comparability_authorized"
+              ],
               "real_replicated_sample_count":samples,
               "real_replicated_partitions":["r8","r6","r5"],
               "real_replicated_markets":["NAS100","SP500","US30"],
