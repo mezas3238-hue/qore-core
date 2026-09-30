@@ -76,10 +76,11 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED_ECONOMIC_PROTOCOL_PREREGISTERED",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md"
       ],
       "blockers": [
         "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
@@ -154,10 +155,11 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED_ECONOMIC_PROTOCOL_PREREGISTERED",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
@@ -169,10 +171,11 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED_ECONOMIC_PROTOCOL_PREREGISTERED",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
@@ -184,10 +187,11 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED_ECONOMIC_PROTOCOL_PREREGISTERED",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md"
       ],
       "blockers": [
         "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
@@ -212,10 +216,11 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED_ECONOMIC_PROTOCOL_PREREGISTERED",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
@@ -227,10 +232,11 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED_ECONOMIC_PROTOCOL_PREREGISTERED",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
@@ -325,10 +331,11 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED_ECONOMIC_PROTOCOL_PREREGISTERED",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
