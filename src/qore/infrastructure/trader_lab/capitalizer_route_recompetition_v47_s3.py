@@ -11,6 +11,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from qore.infrastructure.trader_lab import (
+    capitalizer_source_strategy_ftm_isolation_v47_s2 as ftm,
+)
+from qore.infrastructure.trader_lab import (
+    capitalizer_source_strategy_isolation_v47_s2 as fractal,
+)
 from qore.infrastructure.trader_lab.capitalizer_contract import (
     MAX_EXECUTIONS_PER_SESSION,
 )
@@ -154,6 +160,56 @@ def select_max3_across_routes(
     return RecompetitionResult(
         entrants=entrants,
         selected=result,
+    )
+
+
+def from_fractal(
+    row: fractal.S2AdmittedFillRow,
+) -> RouteCandidate:
+    return RouteCandidate(
+        source_identity=row.identity,
+        period=row.period,
+        symbol=row.symbol,
+        session=row.session,
+        operating_date=row.operating_date,
+        side=row.side,
+        route=row.route,
+        entry_at=row.entry_at,
+        entry_price=row.entry_price,
+        stop_price=row.stop_price,
+        target_price=row.target_price,
+        entry_mode=row.entry_mode,
+        exact_provider_tick_fill=row.exact_provider_tick_fill,
+        official_v46_adapter_passed=row.official_v46_adapter_passed,
+        outcome_used_for_selection=row.outcome_used_for_selection,
+        terminal_outcome_read=row.terminal_outcome_read,
+        fresh_holdout_opened=row.fresh_holdout_opened,
+        trader_certified=row.trader_certified,
+    )
+
+
+def from_ftm(
+    row: ftm.FTMAdmittedFillRow,
+) -> RouteCandidate:
+    return RouteCandidate(
+        source_identity=row.identity,
+        period=row.period,
+        symbol=row.symbol,
+        session=row.session,
+        operating_date=row.operating_date,
+        side=row.side,
+        route=row.route,
+        entry_at=row.entry_at,
+        entry_price=row.entry_price,
+        stop_price=row.stop_price,
+        target_price=row.target_price,
+        entry_mode=row.entry_mode,
+        exact_provider_tick_fill=row.exact_provider_tick_fill,
+        official_v46_adapter_passed=row.official_v46_adapter_passed,
+        outcome_used_for_selection=row.outcome_used_for_selection,
+        terminal_outcome_read=row.terminal_outcome_read,
+        fresh_holdout_opened=row.fresh_holdout_opened,
+        trader_certified=row.trader_certified,
     )
 
 
