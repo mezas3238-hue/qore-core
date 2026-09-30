@@ -1,5 +1,10 @@
 name: QORE Shared Integrator A MC22 Validation
 
+concurrency:
+  group: qore-shared-integrator-a-mc22-validation-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+
 on:
   push:
     branches:
