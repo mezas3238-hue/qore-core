@@ -171,3 +171,139 @@ At Architect A HEAD `5cc3ed93166a1960a4dbdc7c1d97f6ed38a56b94`, Legacy Stack Qua
 The failure remains B-owned and does not authorize Architect A to edit the
 legacy-quarantine implementation. B must return a GREEN quarantine run before
 final integrated certification.
+
+
+## Architect A empirical evidence input contract — V2
+
+Architect A does **not** integrate Architect B implementation. The Integrator
+owns branch integration. This section only defines the immutable evidence that A
+must receive before A can execute its remaining scientific/economic gates.
+
+### 1. Universal identity and chronology
+
+Every row delivered to A must bind, without inference:
+
+- decision epoch id;
+- decision evidence SHA-256;
+- decision timestamp;
+- signal fingerprint;
+- Trader lineage/id;
+- frozen candidate id;
+- frozen candidate code SHA;
+- frozen parameter SHA-256;
+- qualification fold `WF1..WF4`;
+- account identity fingerprint;
+- source-manifest SHA-256;
+- evidence kind proving forward observation;
+- no pre-freeze contamination;
+- no future leakage or outcome-aware refit.
+
+### 2. Provider / execution / Risk / settlement primitives
+
+Where applicable A requires immutable provider-native facts:
+
+- provider key and account reference;
+- provider evidence id and provider-economics SHA-256;
+- provider observation timestamp;
+- provider symbol;
+- minimum volume and volume step;
+- margin per volume;
+- commission per volume;
+- slippage reserve per volume;
+- bid and ask used by the sealed decision;
+- executed source volume;
+- executed initial stop-risk USD;
+- execution-risk lineage SHA-256;
+- terminal CMA settlement SHA-256;
+- settlement deal ids;
+- realized net PnL USD;
+- outcome-observed timestamp;
+- T20 release evidence SHA-256;
+- released stop-risk capacity;
+- released margin capacity;
+- terminal release timestamp;
+- observed capital-minutes.
+
+A may derive drawdown/productivity only from these canonical chronological
+outcomes. A will not synthesize provider economics or substitute current terms
+for missing historical terms.
+
+### 3. Compound and capital-state primitives
+
+For Compound/GEN-C2..GEN-C13 scientific closure, the Integrator must expose
+legally sourced capital-state facts from the canonical Compound/Integrated
+Capital Truth state, including when applicable:
+
+- episode id;
+- deployment id;
+- market-event id;
+- decision id;
+- deployed-at timestamp;
+- settled-at timestamp;
+- source lot id;
+- source capital generation;
+- deployed capital USD;
+- stop-risk USD;
+- margin USD;
+- protected-floor graduation USD;
+- protected-floor evidence SHA-256 when graduation is non-zero;
+- minimum realized/base capital over the evaluated path;
+- minimum compound capital;
+- minimum liquid reserve;
+- minimum optionality/capacity reserve;
+- capital lock-up duration;
+- profit/giveback path needed for retention attribution.
+
+Risk, margin, realized PnL or timestamps may not be reused as stand-ins for a
+missing capital-state field.
+
+### 4. Crisis / stress primitives
+
+GEN-C12 and Adversarial Stress require observed or preregistered crisis-factor
+evidence, not post-hoc labels. A needs immutable evidence for applicable:
+
+- provider degradation/failure incidence;
+- liquidity degradation;
+- volatility dislocation;
+- correlation convergence;
+- margin expansion/pressure;
+- drawdown acceleration;
+- simultaneous-loss clusters;
+- capital lock-up;
+- compound giveback;
+- reserve/optionality state.
+
+The crisis-factor-set identity must be frozen before treatment evaluation.
+
+### 5. Causal-comparison requirements
+
+For any control/treatment scientific claim:
+
+- control and treatment must use the same frozen population;
+- same provider-economic surface;
+- same chronological horizon;
+- same fold identities;
+- same candidate universe where the protocol requires it;
+- treatment must have been frozen before outcome use;
+- no outcome-selected treatment;
+- no weighted-score rescue when a non-compensatory dimension fails;
+- empirical FAIL is scientifically consumable and must not be hidden.
+
+Descriptive observed paths are not causal treatment effects.
+
+### 6. A-side acceptance law
+
+Architect A will accept the delivered evidence only when every required field is
+present with immutable provenance and the relevant A binder/gate accepts it.
+
+A will reject the package when:
+
+- a required field is missing;
+- an identity or lineage drifts;
+- settlement/release arithmetic disagrees;
+- provider evidence is not pre-decision;
+- fold/population comparability fails;
+- a field would need imputation or semantic substitution;
+- causal identification is claimed only from descriptive OOS paths.
+
+Architect A will not repair missing B/Integrator evidence with synthetic values.
