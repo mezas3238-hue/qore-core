@@ -10,6 +10,7 @@ on:
       - agent/qore-core-stack-v2-shared-001
     paths:
       - docs/shared/evidence/QORE_SHARED_STI2_V2_TRAJECTORY_HEADS_PREREGISTRATION_001.json
+      - docs/shared/evidence/QORE_SHARED_STI2_V2_MEASUREMENT_AMENDMENT_001.json
       - src/qore/infrastructure/core_stack_v2/shared_global_opportunity_trajectory_v2.py
       - tests/infrastructure/test_core_stack_v2_shared_global_opportunity_trajectory_v2.py
       - scripts/shared_sti2_v2_trajectory_heads.py
@@ -65,6 +66,22 @@ jobs:
           assert p["calibration"]["partition"] == "R8_SOURCE_ONLY"
           assert p["calibration"]["outcomes_allowed_for_threshold_freeze"] is False
           assert p["governance"]["protected_certification_holdout_opened"] is False
+
+          a=json.loads(
+              Path(
+                  "docs/shared/evidence/"
+                  "QORE_SHARED_STI2_V2_MEASUREMENT_AMENDMENT_001.json"
+              ).read_text()
+          )
+          assert a["scientific_policy_changed"] is False
+          assert a["features_changed"] is False
+          assert a["source_calibration_changed"] is False
+          assert a["thresholds_changed"] is False
+          assert a["gates_changed"] is False
+          assert a["target_definition_changed"] is False
+          assert a["replacement_measurement"]["target_window_lead_minutes"] == 30
+          assert a["replacement_measurement"]["event_level_lead_time_identifiable"] is False
+          assert a["protected_certification_holdout_opened"] is False
           PY
 
       - name: Recover immutable R8 R6 R5 evidence
@@ -122,6 +139,7 @@ jobs:
         run: |
           printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
           cp             docs/shared/evidence/QORE_SHARED_STI2_V2_TRAJECTORY_HEADS_PREREGISTRATION_001.json             result/preregistration.json
+          cp             docs/shared/evidence/QORE_SHARED_STI2_V2_MEASUREMENT_AMENDMENT_001.json             result/measurement-amendment.json
           (
             cd result
             find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
