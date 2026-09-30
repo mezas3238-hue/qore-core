@@ -80,7 +80,7 @@ jobs:
           assert {f"GW-{i}" for i in range(24)} <= ids
 
           states={row["work_id"]:row["state"] for row in p["items"]}
-          assert states["STI-2"] == "STRESS_PASS"
+          assert states["STI-2"] == "RESEARCH_OOS_PASS"
           assert states["STI-5"] == "EXTERNAL_DEPENDENCY_BLOCKED"
           assert states["STI-6"] == "EXTERNAL_DEPENDENCY_BLOCKED"
           assert states["STI-8"] == "RESEARCH_OOS_PASS"
