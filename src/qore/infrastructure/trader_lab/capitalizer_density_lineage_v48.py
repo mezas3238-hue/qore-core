@@ -15,7 +15,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
-
 IDENTITY = "QORE_CAPITALIZER_V48_DENSITY_LINEAGE"
 
 
@@ -131,7 +130,7 @@ class V48DensityLineage:
         if self.m1_data_scarcity_supported_as_primary_v47_explanation:
             raise ValueError("retained native-M1 evidence contradicts M1 data-scarcity explanation")
         if self.m1_triad_unreachability_supported_as_primary_v47_explanation:
-            raise ValueError("retained native-M1 evidence contradicts triad-unreachability explanation")
+            raise ValueError(\n                "retained native-M1 evidence contradicts triad-unreachability explanation"\n            )
         if not self.composition_layer_is_primary_investigation_target:
             raise ValueError("V48 density evidence points to composition as primary investigation")
         if self.economics_inherited_from_old_population or self.fresh_holdout_authorized:
