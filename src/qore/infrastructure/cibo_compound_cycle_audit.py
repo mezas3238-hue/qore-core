@@ -14,6 +14,7 @@ from decimal import Decimal
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_compound_capital import (
     CiboCompoundCapitalError,
+    CompoundCapitalLot,
     CompoundCapitalState,
 )
 from qore.infrastructure.cibo_compound_cycle_state import (
@@ -226,14 +227,21 @@ def reconcile_compound_cycle(
         )
 
     settled_count = sum(1 for item in state.deployments if item.settled)
+    settled_shas = {
+        item.settlement_sha256
+        for item in state.settlements
+        if item.source_kind == "COMPOUND_CAPITAL"
+    }
     path_mechanics = (
-        all(
-            item.deployed_at >= state.compound_ledger.active_lots[0].realized_at
-            if state.compound_ledger.active_lots
-            else True
+        state.last_event_at is not None
+        and all(
+            (
+                item.settlement_sha256 in settled_shas
+                if item.settled
+                else item.settlement_sha256 is None
+            )
             for item in state.deployments
         )
-        and state.last_event_at is not None
     )
 
     return CompoundCycleReconciliation(
@@ -406,7 +414,7 @@ def _generation_edges(
     )
 
 
-def _lot_payload(lot: object) -> dict[str, object]:
+def _lot_payload(lot: CompoundCapitalLot) -> dict[str, object]:
     return {
         "lot_id": lot.lot_id,
         "amount": format(lot.amount_usd, "f"),
