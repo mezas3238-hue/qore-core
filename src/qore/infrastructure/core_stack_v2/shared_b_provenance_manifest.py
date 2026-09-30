@@ -23,6 +23,11 @@ class SharedBEvidenceKind(StrEnum):
     REAL_REPLICATION_EVIDENCE = "REAL_REPLICATION_EVIDENCE"
 
 
+class SharedBEvidenceLineage(StrEnum):
+    B_NATIVE = "B_NATIVE"
+    INHERITED_PRE_SPLIT = "INHERITED_PRE_SPLIT"
+
+
 @dataclass(frozen=True, slots=True)
 class SharedBEvidencePointer:
     evidence_id: str
@@ -36,6 +41,9 @@ class SharedBEvidencePointer:
     artifact_name: str
     source_hash_verified_inside_artifact: bool
     provider_free_replay_supported: bool
+    lineage_kind: SharedBEvidenceLineage = SharedBEvidenceLineage.B_NATIVE
+    inheritance_checkpoint_sha: str | None = None
+    ancestry_to_checkpoint_verified: bool = False
     fresh_holdout_opened: bool = False
     broker_mutation: bool = False
     productive_authority: bool = False
@@ -60,6 +68,20 @@ class SharedBEvidencePointer:
         if len(self.artifact_digest_sha256) != 64:
             raise ValueError("artifact digest must be SHA256")
         int(self.artifact_digest_sha256,16)
+        if not isinstance(self.lineage_kind, SharedBEvidenceLineage):
+            raise ValueError("evidence lineage kind invalid")
+        if self.lineage_kind is SharedBEvidenceLineage.B_NATIVE:
+            if self.inheritance_checkpoint_sha is not None:
+                raise ValueError("B-native evidence cannot carry inheritance checkpoint")
+            if self.ancestry_to_checkpoint_verified:
+                raise ValueError("B-native evidence cannot claim inherited ancestry")
+        else:
+            checkpoint=self.inheritance_checkpoint_sha
+            if checkpoint is None or len(checkpoint) != 40:
+                raise ValueError("inherited evidence requires 40-char checkpoint SHA")
+            int(checkpoint,16)
+            if not self.ancestry_to_checkpoint_verified:
+                raise ValueError("inherited evidence requires verified checkpoint ancestry")
         if (
             self.fresh_holdout_opened
             or self.broker_mutation
@@ -74,6 +96,7 @@ def build_shared_b_provenance_manifest(
     pointers: tuple[SharedBEvidencePointer,...],
     *,
     expected_branch: str,
+    expected_common_checkpoint_sha: str | None = None,
     coverage_complete: bool,
     open_coverage_reasons: tuple[str,...],
 ) -> dict[str,object]:
@@ -88,8 +111,15 @@ def build_shared_b_provenance_manifest(
     artifact_ids=tuple(item.artifact_id for item in pointers)
     if len(artifact_ids) != len(set(artifact_ids)):
         raise ValueError("duplicate artifact_id")
-    if any(item.head_branch != expected_branch for item in pointers):
-        raise ValueError("evidence escaped B branch")
+    for item in pointers:
+        if item.lineage_kind is SharedBEvidenceLineage.B_NATIVE:
+            if item.head_branch != expected_branch:
+                raise ValueError("evidence escaped B branch")
+            continue
+        if expected_common_checkpoint_sha is None:
+            raise ValueError("inherited evidence requires expected common checkpoint")
+        if item.inheritance_checkpoint_sha != expected_common_checkpoint_sha:
+            raise ValueError("inherited evidence checkpoint mismatch")
     if coverage_complete and open_coverage_reasons:
         raise ValueError("complete provenance coverage cannot retain blockers")
     if not coverage_complete and not open_coverage_reasons:
@@ -107,6 +137,14 @@ def build_shared_b_provenance_manifest(
         "evidence_pointer_count":len(ordered),
         "capability_scopes":tuple(
             sorted(set(item.capability_scope for item in ordered))
+        ),
+        "native_pointer_count":sum(
+            item.lineage_kind is SharedBEvidenceLineage.B_NATIVE
+            for item in ordered
+        ),
+        "inherited_pre_split_pointer_count":sum(
+            item.lineage_kind is SharedBEvidenceLineage.INHERITED_PRE_SPLIT
+            for item in ordered
         ),
         "source_hash_verified_pointer_count":sum(
             item.source_hash_verified_inside_artifact for item in ordered
@@ -135,6 +173,11 @@ def build_shared_b_provenance_manifest(
                 ),
                 "provider_free_replay_supported":(
                     item.provider_free_replay_supported
+                ),
+                "lineage_kind":item.lineage_kind.value,
+                "inheritance_checkpoint_sha":item.inheritance_checkpoint_sha,
+                "ancestry_to_checkpoint_verified":(
+                    item.ancestry_to_checkpoint_verified
                 ),
             }
             for item in ordered
