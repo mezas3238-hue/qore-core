@@ -10,18 +10,11 @@ on:
       - tests/infrastructure/test_core_stack_v2_active_perception_v12_acquisition_manifest.py
       - tests/infrastructure/test_shared_wp05_active_perception_v12_manifest_protocol.py
       - .github/workflows/qore-shared-wp05-active-perception-v12-acquisition-manifest.yml
-  pull_request:
-    paths:
-      - src/qore/infrastructure/core_stack_v2/active_perception_v12_acquisition_manifest.py
-      - scripts/shared_wp05_active_perception_v12_acquisition_manifest.py
-      - tests/infrastructure/test_core_stack_v2_active_perception_v12_acquisition_manifest.py
-      - tests/infrastructure/test_shared_wp05_active_perception_v12_manifest_protocol.py
-      - .github/workflows/qore-shared-wp05-active-perception-v12-acquisition-manifest.yml
   workflow_dispatch:
 
 concurrency:
   group: qore-shared-wp05-v12-acquisition-manifest-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
