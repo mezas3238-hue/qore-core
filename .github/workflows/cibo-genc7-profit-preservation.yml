@@ -9,8 +9,11 @@ on:
       - 'src/qore/infrastructure/cibo_profit_preservation_store.py'
       - 'src/qore/infrastructure/cibo_profit_preservation_population.py'
       - 'src/qore/infrastructure/cibo_profit_preservation_oos_binding.py'
+      - 'src/qore/infrastructure/cibo_profit_preservation_economic_gate.py'
       - 'tests/infrastructure/test_cibo_profit_preservation_shadow.py'
+      - 'tests/infrastructure/test_cibo_profit_preservation_economic_gate.py'
       - 'docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-GIVEBACK-SHADOW-PREREGISTRATION-V1.md'
+      - 'docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md'
   push:
     branches:
       - agent/cibo-capital-efficiency-sizing-lab-001
@@ -20,8 +23,11 @@ on:
       - 'src/qore/infrastructure/cibo_profit_preservation_store.py'
       - 'src/qore/infrastructure/cibo_profit_preservation_population.py'
       - 'src/qore/infrastructure/cibo_profit_preservation_oos_binding.py'
+      - 'src/qore/infrastructure/cibo_profit_preservation_economic_gate.py'
       - 'tests/infrastructure/test_cibo_profit_preservation_shadow.py'
+      - 'tests/infrastructure/test_cibo_profit_preservation_economic_gate.py'
       - 'docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-GIVEBACK-SHADOW-PREREGISTRATION-V1.md'
+      - 'docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md'
 
 permissions:
   contents: read
@@ -47,16 +53,20 @@ jobs:
             src/qore/infrastructure/cibo_profit_preservation_store.py \
             src/qore/infrastructure/cibo_profit_preservation_population.py \
             src/qore/infrastructure/cibo_profit_preservation_oos_binding.py \
-            tests/infrastructure/test_cibo_profit_preservation_shadow.py
+            src/qore/infrastructure/cibo_profit_preservation_economic_gate.py \
+            tests/infrastructure/test_cibo_profit_preservation_shadow.py \
+            tests/infrastructure/test_cibo_profit_preservation_economic_gate.py
           mypy \
             src/qore/infrastructure/cibo_profit_preservation_shadow.py \
             src/qore/infrastructure/cibo_profit_preservation_store.py \
             src/qore/infrastructure/cibo_profit_preservation_population.py \
-            src/qore/infrastructure/cibo_profit_preservation_oos_binding.py
+            src/qore/infrastructure/cibo_profit_preservation_oos_binding.py \
+            src/qore/infrastructure/cibo_profit_preservation_economic_gate.py
           python -m py_compile \
             src/qore/infrastructure/cibo_profit_preservation_shadow.py \
             src/qore/infrastructure/cibo_profit_preservation_store.py \
             src/qore/infrastructure/cibo_profit_preservation_population.py \
             src/qore/infrastructure/cibo_profit_preservation_oos_binding.py
           pytest -q --no-cov \
-            tests/infrastructure/test_cibo_profit_preservation_shadow.py
+            tests/infrastructure/test_cibo_profit_preservation_shadow.py \
+            tests/infrastructure/test_cibo_profit_preservation_economic_gate.py

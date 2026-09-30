@@ -173,6 +173,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*adaptive_compound_speed*", "GEN-C8"),
     ("*GEN-C8-ADAPTIVE-COMPOUND-SPEED*", "GEN-C8"),
     ("*profit_preservation*", "GEN-C7"),
+    ("*GEN-C7-PROFIT-PRESERVATION*", "GEN-C7"),
     ("*internal_capital_market*", "INTERNAL_CAPITAL_MARKET"),
     ("*sequential_compounding*", "GEN-C5"),
     ("*marginal_capital_utility*", "GEN-C4"),

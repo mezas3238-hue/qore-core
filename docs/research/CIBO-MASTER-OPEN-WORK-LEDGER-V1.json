@@ -396,17 +396,19 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_PROFIT_GRADUATION_UTILITY_OPEN",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_GENC7_CAUSAL_GRADUATION_GATE_IMPLEMENTED_CI_PENDING_PROFIT_GRADUATION_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
         "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
-        "github-actions://36727848363/SUCCESS"
+        "github-actions://36727848363/SUCCESS",
+        "src/qore/infrastructure/cibo_profit_preservation_economic_gate.py",
+        "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md"
       ],
       "blockers": [
         "CAUSAL_PROFIT_GRADUATION_POLICY_VALUE_REQUIRED"
       ],
-      "next_gate": "Close floor behavior with OOS profit graduation/giveback evidence."
+      "next_gate": "After GEN-C7 causal-effect evidence exists, prove that PROTECT/graduation to the floor adds non-compensatory economic value with no base/compound/tail/optionality degradation, then stress and replicate 4/4."
     },
     {
       "id": "GEN-C3",
@@ -481,17 +483,21 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_GIVEBACK_RETENTION_UTILITY_OPEN",
+      "current_maturity": "ENGINE_CI_GREEN_CAUSAL_NONCOMPENSATORY_ECONOMIC_GATE_IMPLEMENTED_CI_PENDING_REAL_EFFECT_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
         "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
-        "github-actions://36727848202/SUCCESS"
+        "github-actions://36727848202/SUCCESS",
+        "src/qore/infrastructure/cibo_profit_preservation_economic_gate.py",
+        "tests/infrastructure/test_cibo_profit_preservation_economic_gate.py",
+        "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        ".github/workflows/cibo-genc7-profit-preservation.yml"
       ],
       "blockers": [
         "FRESH_OOS_GIVEBACK_RETENTION_STRESS_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Close harvesting/protection/reserve/compoundable-profit utility."
+      "next_gate": "Require the updated GEN-C7 workflow to pass; then identify causal treatment effects on the frozen provider-valid population, apply the non-compensatory gate, adversarial stress and WF1..WF4 replication without using descriptive OOS paths as counterfactual proof."
     },
     {
       "id": "GEN-C8",
@@ -790,19 +796,21 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "GENC7_ENGINE_CHILD_CI_GREEN_FRESH_OOS_PROFIT_RETENTION_VALUE_OPEN",
+      "current_maturity": "GENC7_ENGINE_AND_CAUSAL_ECONOMIC_GATE_IMPLEMENTED_CI_PENDING_FRESH_PROFIT_RETENTION_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_profit_preservation_shadow.py",
         "tests/infrastructure/test_cibo_profit_preservation_shadow.py",
         ".github/workflows/cibo-genc7-profit-preservation.yml",
         "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-GIVEBACK-SHADOW-PREREGISTRATION-V1.md",
-        "github-actions://36727848202/SUCCESS"
+        "github-actions://36727848202/SUCCESS",
+        "src/qore/infrastructure/cibo_profit_preservation_economic_gate.py",
+        "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md"
       ],
       "blockers": [
         "FRESH_OOS_PROFIT_RETENTION_AND_GIVEBACK_VALUE_REQUIRED"
       ],
-      "next_gate": "Close GEN-C2/7 floor+harvest behavior."
+      "next_gate": "Use causally identified GEN-C7 control/treatment evidence to prove profit-retention/giveback value, then stress and replicate 4/4 before terminal Profit Protection closure."
     },
     {
       "id": "PROVIDER_ECONOMICS",
