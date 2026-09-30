@@ -74,6 +74,9 @@ class ArchBForwardEconomicManifestRow:
     provider_symbol: str
     provider_economics_sha256: str
     provider_observed_at: str
+    provider_contract_size: Decimal
+    provider_tick_size: Decimal
+    provider_tick_value: Decimal
     provider_minimum_volume: Decimal
     provider_volume_step: Decimal
     provider_margin_per_volume_usd: Decimal
@@ -149,6 +152,9 @@ class ArchBForwardEconomicManifestRow:
                 "Architect-B release cannot postdate terminal outcome observation"
             )
         for name in (
+            "provider_contract_size",
+            "provider_tick_size",
+            "provider_tick_value",
             "provider_minimum_volume",
             "provider_volume_step",
             "provider_margin_per_volume_usd",
@@ -497,6 +503,9 @@ def build_arch_b_forward_economic_manifest(
                 provider_symbol=str(opportunity.get("provider_symbol", "")),
                 provider_economics_sha256=provider_sha,
                 provider_observed_at=str(provider.get("observed_at", "")),
+                provider_contract_size=_dec(provider, "contract_size"),
+                provider_tick_size=_dec(provider, "tick_size"),
+                provider_tick_value=_dec(provider, "tick_value"),
                 provider_minimum_volume=_dec(provider, "minimum_volume"),
                 provider_volume_step=_dec(provider, "volume_step"),
                 provider_margin_per_volume_usd=_dec(provider, "margin_per_volume"),
