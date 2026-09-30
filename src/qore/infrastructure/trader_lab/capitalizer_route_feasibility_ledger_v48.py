@@ -18,7 +18,6 @@ from qore.infrastructure.trader_lab.capitalizer_source_native_route_registry_v48
     V48RouteId,
 )
 
-
 IDENTITY = "QORE_CAPITALIZER_V48_ROUTE_FEASIBILITY_LEDGER"
 
 
