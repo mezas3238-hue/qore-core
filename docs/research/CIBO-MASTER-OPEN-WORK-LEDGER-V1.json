@@ -802,13 +802,19 @@
       "kind": "GOVERNANCE",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTROL_SELECTED_MACHINE_SEAL_REVALIDATION_REQUIRED",
+      "current_maturity": "SEAL_WORKFLOW_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "CURRENT_CONTROL_SEAL_ARTIFACT_AND_HEAD_WORKFLOW_REVALIDATION_REQUIRED"
+      "evidence_refs": [
+        "docs/research/CIBO-GENERATION-CURRENT-CONTROL-CANDIDATE-V1.md",
+        "docs/research/CIBO-GENERATION-CURRENT-CONTROL-CI-EVIDENCE-V1.json",
+        "scripts/cibo_generation_current_control_freeze.py",
+        "src/qore/infrastructure/cibo_generation_current_control.py",
+        ".github/workflows/cibo-generation-current-control.yml"
       ],
-      "next_gate": "Generate and retain immutable pre-C8 control seal artifact."
+      "blockers": [
+        "CURRENT_CONTROL_SEAL_WORKFLOW_CI_REVALIDATION_REQUIRED"
+      ],
+      "next_gate": "Pass exact-SHA seal workflow and retain its immutable artifact; AS-IS control identity may then close while economic baseline measurement remains a separate evidence dependency."
     },
     {
       "id": "SOURCE_OF_TRUTH_RECONCILIATION",
@@ -828,13 +834,16 @@
       "kind": "GOVERNANCE",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "OPEN_REQUIRED",
+      "current_maturity": "MACHINE_INVENTORY_ASSERTION_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "FULL_CIBO_FILE_EXPERIMENT_WORKFLOW_CLASSIFICATION_REQUIRED"
+      "evidence_refs": [
+        "scripts/cibo_zero_open_work_gate.py",
+        ".github/workflows/cibo-zero-open-work-gate.yml"
       ],
-      "next_gate": "Generate complete CIBO source/workflow/script/test/doc inventory and disposition all orphan candidates."
+      "blockers": [
+        "ZERO_ORPHAN_MACHINE_ASSERTION_CI_REVALIDATION_REQUIRED"
+      ],
+      "next_gate": "Pass machine inventory assertion with orphan_candidate_paths=[], no missing canonical artifacts and no high-signal unresolved code markers."
     },
     {
       "id": "ZERO_OPEN_WORK_GATE",

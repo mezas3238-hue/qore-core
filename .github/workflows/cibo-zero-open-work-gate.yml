@@ -75,6 +75,9 @@ jobs:
           assert isinstance(payload["pass"], bool)
           assert isinstance(payload["open_workstream_ids"], list)
           assert isinstance(payload["inventory_paths"], list)
+          assert payload["orphan_candidate_paths"] == []
+          assert payload["missing_required_artifacts"] == []
+          assert payload["high_signal_marker_hits"] == []
           PY
       - name: Upload zero-open-work gate verdict
         uses: actions/upload-artifact@v4
