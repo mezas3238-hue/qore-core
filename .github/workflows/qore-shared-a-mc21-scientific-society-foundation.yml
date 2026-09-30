@@ -1,0 +1,108 @@
+name: QORE Shared A MC21 Scientific Society Foundation
+
+concurrency:
+  group: qore-shared-a-mc21-scientific-society-foundation
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/scientific_society.py
+      - tests/infrastructure/test_core_stack_v2_scientific_society.py
+      - scripts/shared_mc21_scientific_society_audit.py
+      - .github/workflows/qore-shared-a-mc21-scientific-society-foundation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Validate society contract
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          ruff check src/qore/infrastructure/core_stack_v2/scientific_society.py tests/infrastructure/test_core_stack_v2_scientific_society.py scripts/shared_mc21_scientific_society_audit.py
+          mypy src/qore/infrastructure/core_stack_v2/scientific_society.py
+          pytest -q tests/infrastructure/test_core_stack_v2_scientific_society.py
+      - name: Verify selected real-engine evidence runs
+        run: |
+          set -euo pipefail
+          for run_id in 36737948664 36236760353 36764204066 36764215198 36754966932 36248025384
+          do
+            conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.conclusion // ""')"
+            test "$conclusion" = "success"
+          done
+      - name: Audit Scientific Society
+        run: |
+          set -euo pipefail
+          python scripts/shared_mc21_scientific_society_audit.py             | tee result/summary.json
+      - name: Validate bounded disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc21-scientific-society-audit.json").read_text())
+          assert p["status"] == "MC21_SCIENTIFIC_SOCIETY_FOUNDATION_PASS"
+          assert p["required_role_count"] == 12
+          assert p["all_required_roles_present"] is True
+          assert p["minority_falsification_preserved"] is True
+          assert p["simple_majority_voting_used"] is False
+          assert p["support_only_self_promotes_to_validated"] is False
+          assert p["all_roles_real_engine_bound"] is False
+          assert p["mc21_completed_and_proven"] is False
+          PY
+      - name: Seal result
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc21-scientific-society-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report MC21
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(Path("result/mc21-scientific-society-audit.json").read_text())
+          body="\n".join([
+              "## Shared A MC-21 — Scientific Society Foundation",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- required roles present: **{p['required_role_count']}/12**",
+              f"- real-engine-bound roles: **{p['real_engine_bound_role_count']}/12**",
+              f"- heterogeneous model families: **{p['heterogeneous_model_family_count']}**",
+              "- minority falsification preserved: **True**",
+              "- simple majority voting used: **False**",
+              "- all roles real-engine-bound: **False**",
+              "- MC-21 completed-and-proven: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
