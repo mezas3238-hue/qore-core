@@ -54,7 +54,7 @@ def test_v50_g_target_hit_uses_execution_stop_risk_unit() -> None:
         opportunity=_opportunity(),
         bars=(
             _bar(0, "100.5", "99.8", "100.3"),
-            _bar(1, "101.1", "100.1", "101"),
+            _bar(1, "101.1", "99.9", "101"),
         ),
         stop=Decimal("99.5"),
         target=Decimal("101"),
