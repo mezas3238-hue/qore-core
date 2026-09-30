@@ -12,8 +12,8 @@ from qore.infrastructure.account_wide_risk import (
     TraderLineage,
 )
 from qore.infrastructure.account_wide_risk_ledger import (
-    AccountWideRiskLedger,
     DurableAccountWideRiskEngine,
+    DurableAccountWideRiskLedger,
 )
 from qore.infrastructure.cibo_capital_management_authority import (
     TraderOpportunityEnvelope,
@@ -69,7 +69,7 @@ def _opportunity() -> TraderOpportunityEnvelope:
 
 def _risk(tmp_path: Path, name: str) -> DurableAccountWideRiskEngine:
     return DurableAccountWideRiskEngine(
-        AccountWideRiskLedger(tmp_path / name)
+        DurableAccountWideRiskLedger(tmp_path / name)
     )
 
 
