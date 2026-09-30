@@ -1,11 +1,16 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import CapitalizerM1Bar
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
     V49Opportunity,
 )
+from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 import (
+    CapitalizerSourceDirection,
+)
 from qore.infrastructure.trader_lab.capitalizer_v50_m1_rearm_capacity import (
     V50RearmAttempt,
+    _thesis_intact_until,
 )
 
 
@@ -59,3 +64,57 @@ def test_v49_opportunity_contract_remains_pre_economic_for_rearm_payload() -> No
     assert row.economics_used is False
     assert row.daily_used is False
     assert row.h4_used is False
+
+
+def _m1_bar(
+    minute: int,
+    *,
+    high: str,
+    low: str,
+) -> CapitalizerM1Bar:
+    opened = datetime(2026, 1, 5, 12, 0, tzinfo=UTC) + timedelta(minutes=minute)
+    return CapitalizerM1Bar(
+        symbol="EURUSD",
+        opened_at=opened,
+        closed_at=opened + timedelta(minutes=1),
+        open=Decimal("100"),
+        high=Decimal(high),
+        low=Decimal(low),
+        close=Decimal("100"),
+        volume=1,
+        digits=2,
+    )
+
+
+def test_rearm_requires_m15_thesis_to_remain_intact_through_trigger_close() -> None:
+    bars = (
+        _m1_bar(0, high="100.2", low="99.8"),
+        _m1_bar(1, high="100.1", low="98.9"),
+        _m1_bar(2, high="100.4", low="99.4"),
+    )
+    opened = tuple(item.opened_at for item in bars)
+    assert _thesis_intact_until(
+        bars,
+        opened,
+        setup_confirmed_at=bars[0].opened_at,
+        trigger_confirmed_at=bars[-1].closed_at,
+        protected_swing_price=Decimal("99"),
+        direction=CapitalizerSourceDirection.BULLISH,
+    ) is False
+
+
+def test_rearm_allows_intact_m15_thesis() -> None:
+    bars = (
+        _m1_bar(0, high="100.2", low="99.8"),
+        _m1_bar(1, high="100.1", low="99.2"),
+        _m1_bar(2, high="100.4", low="99.4"),
+    )
+    opened = tuple(item.opened_at for item in bars)
+    assert _thesis_intact_until(
+        bars,
+        opened,
+        setup_confirmed_at=bars[0].opened_at,
+        trigger_confirmed_at=bars[-1].closed_at,
+        protected_swing_price=Decimal("99"),
+        direction=CapitalizerSourceDirection.BULLISH,
+    ) is True
