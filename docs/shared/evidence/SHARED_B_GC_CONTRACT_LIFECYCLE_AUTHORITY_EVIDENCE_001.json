@@ -1,0 +1,59 @@
+{
+  "identity": "SHARED_B_GC_CONTRACT_LIFECYCLE_AUTHORITY_EVIDENCE_001",
+  "status": "FROZEN_OFFICIAL_GC_LIFECYCLE_AUTHORITY",
+  "retrieved_at": "2026-09-30T21:42:00+00:00",
+  "product": {
+    "canonical_product_identity": "COMEX_GOLD_FUTURES_100_TROY_OZ",
+    "product_symbol": "GC",
+    "venue": "COMEX",
+    "contract_size_troy_oz": 100,
+    "termination_rule": "THIRD_LAST_BUSINESS_DAY_OF_DELIVERY_MONTH",
+    "listing_rule_summary": "Current calendar month, next two calendar months, plus specified Feb/Apr/Aug/Oct and Jun/Dec horizons."
+  },
+  "authorities": [
+    {
+      "authority_id": "CME_GOLD_CURRENT_CONTRACT_SPECS",
+      "organization": "CME Group / COMEX",
+      "source_url": "https://www.cmegroup.com/pt/products/metals/gold.html",
+      "supports": [
+        "PRODUCT_SYMBOL_GC",
+        "COMEX_PRODUCT",
+        "CONTRACT_SIZE_100_TROY_OZ",
+        "TERMINATION_WITHIN_DELIVERY_MONTH"
+      ]
+    },
+    {
+      "authority_id": "CME_GOLD_FUTURES_FACT_CARD",
+      "organization": "CME Group / COMEX",
+      "source_url": "https://www.cmegroup.com/trading/metals/files/fact-card-gold-futures-options.pdf",
+      "supports": [
+        "PRODUCT_SYMBOL_GC",
+        "CONTRACT_SIZE_100_TROY_OZ",
+        "TERMINATION_THIRD_LAST_BUSINESS_DAY_OF_DELIVERY_MONTH",
+        "LISTED_CONTRACT_MONTH_STRUCTURE",
+        "RULEBOOK_CHAPTER_113"
+      ]
+    }
+  ],
+  "frozen_conclusions": {
+    "gc_product_identity_verified": true,
+    "gc_contract_size_verified": true,
+    "gc_termination_occurs_within_delivery_month": true,
+    "contract_month_before_assessment_month_is_expired": true,
+    "contract_month_order_alone_proves_front_contract": false,
+    "contract_month_order_alone_proves_roll_rule": false,
+    "dated_contract_set_proves_continuous_series": false,
+    "current_provider_front_contract_may_be_inferred": false
+  },
+  "governance": {
+    "target_or_outcome_read": false,
+    "r6_r5_read": false,
+    "fresh_holdout_opened": false,
+    "historical_market_data_read": false,
+    "broker_mutation": false,
+    "execution_authority": false,
+    "sensor_admission_authorized": false,
+    "relational_claims_authorized": false,
+    "productive_authority": false
+  }
+}
