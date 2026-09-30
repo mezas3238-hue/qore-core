@@ -41,7 +41,7 @@ def _record(
         trader_id=trader,
         signal_fingerprint=f"signal-{fold}",
         account_identity_fingerprint="ctrader:demo:account-a",
-        qualification_fold_id=f"FOLD_{fold}",
+        qualification_fold_id=f"WF{fold}",
         decision_at=decision_at,
         deployed_at=decision_at + timedelta(seconds=1),
         settled_at=decision_at + timedelta(hours=2),
