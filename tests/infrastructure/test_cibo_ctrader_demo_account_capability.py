@@ -18,7 +18,7 @@ class _Proto:
         for name, value in values.items():
             setattr(self, name, value)
 
-    def HasField(self, name: str) -> bool:
+    def HasField(self, name: str) -> bool:  # noqa: N802 - protobuf API compatibility
         return name in self._present
 
 
