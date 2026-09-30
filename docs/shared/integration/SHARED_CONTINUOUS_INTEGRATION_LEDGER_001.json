@@ -1,0 +1,40 @@
+{
+  "schema": "QORE_SHARED_CONTINUOUS_INTEGRATION_LEDGER_001",
+  "master_branch": "agent/qore-core-stack-v2-shared-001",
+  "integrator_branch": "agent/shared-integration-001",
+  "certification_authority": false,
+  "production_authority": false,
+  "entries": [
+    {
+      "integration_id": "INT-B-001",
+      "source_lane": "B",
+      "source_cut_sha": "b498b4a340080c703dedee2fb5480946fa2afcc7",
+      "master_merge_sha": "de96c6caa2a8a4ec001260675f03363d0eba8966",
+      "workstreams": [
+        "B-02",
+        "B-03",
+        "B-05"
+      ],
+      "source_evidence": [
+        "github-actions://36742519707/SUCCESS",
+        "github-actions://36746337433/SUCCESS",
+        "github-actions://36745412605/SUCCESS"
+      ],
+      "partial_work_admitted": false,
+      "master_regression_status": "RUNNING",
+      "disposition": "MERGED_PENDING_MASTER_REGRESSION"
+    }
+  ],
+  "next_integrations": [
+    {
+      "lane": "A",
+      "status": "AWAIT_EXPLICIT_CLOSURE_MANIFEST",
+      "rule": "Do not infer terminal closure from commit-message wording alone."
+    },
+    {
+      "lane": "B",
+      "status": "CONTINUE_FROM_NEXT_EVIDENCE_BACKED_CLOSED_SLICE",
+      "rule": "Do not admit B-06+ partial work."
+    }
+  ]
+}
