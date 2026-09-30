@@ -627,9 +627,9 @@ capability.
 
 ## Current ledger checkpoint
 
-The machine ledger now contains 55 mandatory workstreams after the explicit PROTECTED_BASE_CAPITAL gap was identified.
+The machine ledger now contains 62 mandatory workstreams after explicit separation of PROTECTED_BASE_CAPITAL, Phase18/Phase19 evidence, CMA foundation, CE2I calibration/cross-tool, legacy cognitive/executive and USD60 capability programs.
 
-Only GEN-C0 is currently recorded as terminally COMPLETED_AND_PROVEN; 54 mandatory workstreams remain open.
+Only GEN-C0 is currently recorded as terminally COMPLETED_AND_PROVEN; 61 mandatory workstreams remain open pending further terminal dispositions.
 
 All other rows remain certification-blocking until their scientific or
 engineering closure evidence is produced.
@@ -665,3 +665,15 @@ The final command must exit successfully before CIBO may be considered a final
 certification candidate.
 
 ALL CI GREEN != CIBO CERTIFIED.
+
+
+## Full-file inventory checkpoint
+
+At the current absolute-closure audit, the CIBO inventory contains 575 files
+across source, scripts, tests, workflows and CIBO research documents.
+
+The zero-open-work classifier currently assigns 575/575 files to explicit
+workstreams and reports zero unclassified orphan candidates.
+
+Classification is not closure. Legacy/historical/supporting families remain
+open until their own workstream receives a terminal scientific disposition.
