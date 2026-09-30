@@ -70,6 +70,9 @@ _COMMENT_MARKERS = (
 )
 
 _WORKSTREAM_CLASSIFIERS = (
+    ("*cibo_cma_compound_authority_boundary*", "CMA_FOUNDATION_INTEGRATION"),
+    ("*cma-compound-boundary*", "CMA_FOUNDATION_INTEGRATION"),
+    ("*CMA-COMPOUND-AUTHORITY-BOUNDARY*", "CMA_FOUNDATION_INTEGRATION"),
     ("*cibo_legacy_stack_quarantine*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
     ("*legacy-stack-quarantine*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
     ("*cibo_compound_temporal_replication*", "TEMPORAL_REPLICATION"),

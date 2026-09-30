@@ -956,13 +956,18 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_FAMILY_IMPLEMENTED_INTEGRATED_CLOSURE_REQUIRED",
+      "current_maturity": "END_TO_END_AUTHORITY_ACCOUNTING_GATE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "CMA_LIFECYCLE_SOURCE_SETTLEMENT_OBSERVATION_AND_SIZING_AUTHORITY_MUST_RECONCILE_WITH_COMPOUND_CYCLE"
+      "evidence_refs": [
+        "tests/infrastructure/test_cibo_cma_compound_authority_boundary.py",
+        ".github/workflows/cibo-cma-compound-boundary.yml",
+        "docs/research/CIBO-CMA-COMPOUND-AUTHORITY-BOUNDARY-V1.md",
+        "src/qore/infrastructure/cibo_integrated_capital_truth.py"
       ],
-      "next_gate": "Audit CMA foundation end-to-end and prove no duplicate authority/accounting with Compound Engine."
+      "blockers": [
+        "CMA_COMPOUND_BOUNDARY_CI_REVALIDATION_REQUIRED"
+      ],
+      "next_gate": "Pass authority/accounting boundary gate; then close CMA foundation integration as completed engineering lineage without claiming economic certification."
     },
     {
       "id": "CE2I_CALIBRATION_GOVERNANCE",
