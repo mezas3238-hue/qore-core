@@ -1,0 +1,53 @@
+{
+  "identity": "QORE_SHARED_MC09_BELIEF_STATE_CALIBRATION_V2_PREREGISTRATION_001",
+  "capability": "MC-09_EXPLICIT_BELIEF_STATE",
+  "generation": "CALIBRATION_V2",
+  "status": "PREREGISTERED_BEFORE_TEMPORAL_OOS_SCORING",
+  "parent_v1": {
+    "run_id": 36753425521,
+    "status": "MC09_BELIEF_STATE_CALIBRATION_FALSIFIED",
+    "failure_mechanism": "RAW_TERMINAL_MASS_IS_DISCRIMINATIVE_BUT_STRONGLY_UNDERCALIBRATED"
+  },
+  "scientific_hypothesis": {
+    "statement": "Raw terminal belief mass is an ordinal causal score rather than a calibrated probability; a frozen monotonic Platt mapping fit only on burned R6+R5 development evidence can correct absolute probability scale while preserving ranking.",
+    "belief_engine_changed": false,
+    "ranking_changed": false,
+    "new_mechanism": "EXPLICIT_PROBABILITY_CALIBRATION_LAYER"
+  },
+  "development": {
+    "partitions": ["R6_BURNED", "R5_BURNED"],
+    "use": "CALIBRATOR_FIT_ONLY",
+    "raw_belief_snapshot": "FIFTH_CAUSAL_OBSERVATION_OR_LAST_IF_SEQUENCE_SHORTER"
+  },
+  "temporal_oos": {
+    "window": "2022-07-18T00:00:00Z_TO_2024-07-18T00:00:00Z",
+    "artifact_run": 36653177299,
+    "raw_artifact_id": 11070988924,
+    "result_artifact_id": 11071394080,
+    "used_for_fit": false,
+    "protected_certification_holdout": false
+  },
+  "calibrator": {
+    "family": "PLATT_LOGISTIC",
+    "features": ["raw_terminal_bps"],
+    "C": 1.0,
+    "solver": "lbfgs",
+    "hyperparameter_search": false
+  },
+  "frozen_gates": {
+    "calibrated_brier_lt_raw": true,
+    "calibrated_brier_lt_train_prevalence_baseline": true,
+    "calibrated_ece_lt_raw": true,
+    "calibrated_ece_lte_bps": 2500,
+    "positive_monotonic_coefficient": true,
+    "top_quartile_adverse_rate_gt_bottom_quartile": true,
+    "all_required": true
+  },
+  "governance": {
+    "temporal_oos_used_for_fit": false,
+    "future_market_used_for_belief": false,
+    "future_outcome_used_for_belief": false,
+    "protected_certification_holdout_opened": false,
+    "productive_authority": false
+  }
+}

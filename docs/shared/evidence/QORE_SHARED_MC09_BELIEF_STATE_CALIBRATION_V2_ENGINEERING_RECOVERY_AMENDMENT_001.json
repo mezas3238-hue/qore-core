@@ -1,0 +1,26 @@
+{
+  "identity": "QORE_SHARED_MC09_BELIEF_STATE_CALIBRATION_V2_ENGINEERING_RECOVERY_AMENDMENT_001",
+  "status": "ENGINEERING_RECOVERY_ONLY",
+  "failed_run_id": 36754425649,
+  "failed_stage": "FIT_BURNED_CALIBRATION_LAYER_AND_SCORE_LATER_OOS",
+  "failure": "MISSING_RUNTIME_DEPENDENCY_SCIKIT_LEARN",
+  "scientific_evaluation_started": false,
+  "scientific_invariants_unchanged": {
+    "belief_engine": true,
+    "belief_ranking": true,
+    "platt_family": true,
+    "fit_partitions": true,
+    "temporal_oos_window": true,
+    "features": true,
+    "gates": true,
+    "protected_certification_holdout": false
+  },
+  "engineering_change_only": {
+    "install_scikit_learn_in_workflow": true,
+    "source_code_model_change": false,
+    "feature_change": false,
+    "threshold_change": false,
+    "window_change": false,
+    "outcome_aware_retuning": false
+  }
+}
