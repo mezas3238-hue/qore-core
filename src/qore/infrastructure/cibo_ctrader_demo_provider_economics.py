@@ -90,6 +90,9 @@ class CTraderProviderEconomicsSymbolEvidence:
     expected_margin: tuple[CTraderExpectedMarginQuote, ...]
     margin_native_ready: bool
     spread_native_ready: bool
+    guaranteed_stop_loss: bool | None = None
+    gsl_distance: int | None = None
+    gsl_charge_raw: int | None = None
     source: str = "CTRADER_OPEN_API_READ_ONLY"
     provider: str = "ctrader-demo"
     effective_period: str = "POINT_IN_TIME_AT_OBSERVED_AT"
@@ -139,6 +142,26 @@ class CTraderProviderEconomicsSymbolEvidence:
         if type(self.spread_native_ready) is not bool:
             raise CiboCapitalManagementError(
                 "spread_native_ready must be bool"
+            )
+        if self.guaranteed_stop_loss is not None and (
+            type(self.guaranteed_stop_loss) is not bool
+        ):
+            raise CiboCapitalManagementError(
+                "guaranteed_stop_loss must be bool/null"
+            )
+        for name in ("gsl_distance", "gsl_charge_raw"):
+            value = getattr(self, name)
+            if value is not None and (
+                type(value) is not int or value < 0
+            ):
+                raise CiboCapitalManagementError(
+                    f"{name} must be non-negative int/null"
+                )
+        if self.guaranteed_stop_loss is not True and (
+            self.gsl_distance is not None or self.gsl_charge_raw is not None
+        ):
+            raise CiboCapitalManagementError(
+                "GSL distance/charge require guaranteed-stop-loss support"
             )
         if self.slippage_empirically_calibrated or self.historical_exact_claimed:
             raise CiboCapitalManagementError(
@@ -323,6 +346,18 @@ def collect_ctrader_demo_provider_economics(
                 expected_margin=margin_quotes,
                 margin_native_ready=margin_ready,
                 spread_native_ready=ask >= bid > 0,
+                guaranteed_stop_loss=_optional_present_bool(
+                    detail,
+                    "guaranteedStopLoss",
+                ),
+                gsl_distance=_optional_present_nonnegative_int(
+                    detail,
+                    "gslDistance",
+                ),
+                gsl_charge_raw=_optional_present_nonnegative_int(
+                    detail,
+                    "gslCharge",
+                ),
             )
         )
 
@@ -414,6 +449,23 @@ def _field_present(message: object, name: str) -> bool:
         except (TypeError, ValueError):
             return False
     return False
+
+
+def _optional_present_bool(message: object, name: str) -> bool | None:
+    if not _field_present(message, name):
+        return None
+    value = getattr(message, name, None)
+    return value if type(value) is bool else None
+
+
+def _optional_present_nonnegative_int(
+    message: object,
+    name: str,
+) -> int | None:
+    if not _field_present(message, name):
+        return None
+    value = getattr(message, name, None)
+    return value if type(value) is int and value >= 0 else None
 
 
 def _optional_present_int(message: object, name: str) -> int | None:
