@@ -10,6 +10,8 @@ from qore.infrastructure.trader_lab.capitalizer_source_observation_detectors_v2 
 )
 from qore.infrastructure.trader_lab.capitalizer_v50_m1_rearm_capacity import (
     V50RearmAttempt,
+    _capacity_breakdown,
+    _portfolio_ready,
     _thesis_intact_until,
 )
 
@@ -118,3 +120,66 @@ def test_rearm_allows_intact_m15_thesis() -> None:
         protected_swing_price=Decimal("99"),
         direction=CapitalizerSourceDirection.BULLISH,
     ) is True
+
+
+def _ready_attempt(
+    *,
+    symbol: str,
+    minute: int,
+    attempt_index: int,
+    cognitive_ready: bool = True,
+) -> V50RearmAttempt:
+    at = datetime(2026, 1, 5, 12, 0, tzinfo=UTC)
+    return V50RearmAttempt(
+        symbol=symbol,
+        session="LONDON",
+        operating_date="2026-01-05",
+        h1_state_from=at.isoformat(),
+        h1_state_until=(at + timedelta(hours=2)).isoformat(),
+        h1_state_basis="CANDLE2_REVERSAL:BULLISH_FVG",
+        m15_setup_confirmed_at=at.isoformat(),
+        m15_protected_swing_price="99",
+        trigger_confirmed_at=(at + timedelta(minutes=minute)).isoformat(),
+        trigger_family="FVG_RETRACE_CISD",
+        decision_reference_price="100",
+        structural_target_witness_price="101",
+        attempt_index=attempt_index,
+        geometry_decision="READY",
+        cognitive_disposition="PASS_TO_COMPETITION",
+        geometry_ready=True,
+        cognitive_geometry_ready=cognitive_ready,
+    )
+
+
+def test_rearm_portfolio_capacity_applies_max3_chronologically() -> None:
+    rows = (
+        _ready_attempt(symbol="EURUSD", minute=5, attempt_index=2),
+        _ready_attempt(symbol="GBPUSD", minute=6, attempt_index=1),
+        _ready_attempt(symbol="EURUSD", minute=7, attempt_index=1),
+        _ready_attempt(symbol="GBPUSD", minute=8, attempt_index=2),
+    )
+    selected = _portfolio_ready(rows, cognitive=False)
+    assert len(selected) == 3
+    assert tuple(item.trigger_confirmed_at for item in selected) == tuple(
+        item.trigger_confirmed_at for item in rows[:3]
+    )
+    breakdown = _capacity_breakdown(selected)
+    assert breakdown["trades_after_max3"] == 3
+    assert breakdown["recovered_after_rearm"] == 1
+    assert breakdown["first_attempt_ready"] == 2
+
+
+def test_cognitive_rearm_capacity_excludes_non_cognitive_ready_geometry() -> None:
+    rows = (
+        _ready_attempt(symbol="EURUSD", minute=5, attempt_index=1),
+        _ready_attempt(
+            symbol="GBPUSD",
+            minute=6,
+            attempt_index=2,
+            cognitive_ready=False,
+        ),
+    )
+    assert len(_portfolio_ready(rows, cognitive=False)) == 2
+    cognitive = _portfolio_ready(rows, cognitive=True)
+    assert len(cognitive) == 1
+    assert cognitive[0].symbol == "EURUSD"
