@@ -996,7 +996,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "PHASE20D_COLLECTION_PLUS_SOURCE_BOUND_T01_T20_FREEZE_AND_DYNAMIC_GATE_STAGED_CI_PENDING",
+      "current_maturity": "IMMUTABLE_B_TO_A_FORWARD_MANIFEST_PLUS_DURABLE_EXPORT_STAGED_CI_PENDING_REAL_THRESHOLD_POPULATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py",
@@ -1004,16 +1004,23 @@
         "src/qore/infrastructure/cibo_receipt_bound_calibration_freeze.py",
         "tests/infrastructure/test_cibo_receipt_bound_calibration_freeze.py",
         ".github/workflows/cibo-crossboundary-evidence-receipt.yml",
-        ".github/workflows/cibo-calibration-freeze-manifest.yml"
+        ".github/workflows/cibo-calibration-freeze-manifest.yml",
+        "src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py",
+        "scripts/cibo_phase20_arch_b_forward_economic_manifest.py",
+        "tests/infrastructure/test_cibo_arch_b_forward_economic_manifest.py",
+        "tests/infrastructure/test_cibo_phase20_arch_b_forward_economic_manifest_export.py",
+        ".github/workflows/cibo-arch-b-forward-economic-manifest.yml",
+        "docs/research/CIBO-ARCH-B-FORWARD-ECONOMIC-EVIDENCE-MANIFEST-V1.md"
       ],
       "blockers": [
+        "INTEGRATOR_ARCH_B_FORWARD_MANIFEST_CI_REQUIRED",
         "PHASE20D_FRESH_POPULATION_THRESHOLDS_NOT_YET_MET_OR_REVALIDATED",
         "INTEGRATOR_RECEIPT_BOUND_CALIBRATION_FREEZE_CI_REQUIRED",
         "T01_T20_SOURCE_BOUND_RECEIPTS_NOT_YET_AVAILABLE",
         "PHASE20D_FORWARD_AND_PROVIDER_FREEZE_RECEIPTS_NOT_YET_AVAILABLE",
         "T16_T17_TYPED_PROVIDER_CAPABILITY_SUPPORT_OR_UNAVAILABLE_EVIDENCE_REQUIRED"
       ],
-      "next_gate": "Pass receipt-bound calibration-freeze CI; complete the frozen Phase20D forward population; bind the exact account/provider capability registry; keep T16/T17 OPEN while UNKNOWN and close/activate them only from typed provider-verified UNAVAILABLE/SUPPORTED evidence."
+      "next_gate": "Pass integrated forward-manifest CI; then accumulate the real frozen Phase20D population to decision/candidate/selected/lineage/WF1..WF4 thresholds with complete Risk/CMA/T20 lineage and no pre-freeze contamination."
     },
     {
       "id": "PATH_DEPENDENT_MONTE_CARLO",
