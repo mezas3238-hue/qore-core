@@ -2,7 +2,7 @@
 
 **Status:** B IMPLEMENTATION CHECKPOINT / FINAL A+B RECONCILIATION REQUIRED  
 **B branch:** `agent/cibo-certification-architect-b-integration-001`  
-**B implementation checkpoint before this handoff:** `bf25ab999d440202ce2bada98376de7b124346d6`  
+**B implementation checkpoint before provider-evidence seal:** `3895af47c32c473682700d07435ea437110e5c3e`  
 **Child PR:** #661 — DRAFT / UNMERGED  
 **Primary PR:** #651 — remains DRAFT / UNMERGED
 
@@ -47,8 +47,12 @@ Final ledger promotion belongs to A/integrator after current-HEAD CI revalidatio
 - **T20** — exact requested -> Risk authorized -> executed -> released capacity
   provenance is implemented and hash-chain protected. Real authoritative release
   population remains open.
-- **PROVIDER_ECONOMICS** — point-in-time economics and account-capability boundaries
-  exist. Historical 2017 USD provider economics are not fabricated.
+- **PROVIDER_ECONOMICS** — real cTrader DEMO point-in-time provider terms are now
+  artifact-backed and SHA-verified for AUDJPY/EURUSD/GBPJPY/GBPUSD/NAS100/XAUUSD.
+  The real probe reports `provider_terms_ready=true`, zero probe blockers and
+  `broker_mutation_performed=false`. Empirical slippage remains uncalibrated and
+  historical 2017 USD provider economics are not fabricated. A second read-only
+  account-capability probe is wired into the same secret-backed workflow.
 - **FORWARD_QUALIFICATION** — B->A immutable economic manifest plus durable-store
   exporter implemented. Frozen Phase20D real population thresholds remain open.
 - **FRESH_OOS** — Phase20D/Phase21/Phase22 plumbing exists; real prerequisites remain
@@ -74,7 +78,23 @@ Final ledger promotion belongs to A/integrator after current-HEAD CI revalidatio
 6. T03/T11 and Risk workflows now type-check their production modules in addition
    to ruff/pytest.
 
-## 4. Real external evidence still missing
+## 4. Real provider evidence already recovered
+
+- Workflow run `36727848127` — SUCCESS.
+- Artifact `11104595302`.
+- Artifact ZIP SHA-256:
+  `db65a47bc964c3540a0f7c60ba1e707f8d79b5b6927299f6e685846afe9f4863`.
+- Provider-economics JSON SHA-256:
+  `8bef208a155b94902ad7df4f6e84f01343892f3ec57380e74c7137b0d86fadc3`.
+- Provider observation time: `2026-09-30T14:28:18.024787+00:00`.
+- `provider_terms_ready=true`, `blockers=[]`, no broker mutation.
+- `slippage_empirically_calibrated=false`; therefore T11 economic closure is
+  still open.
+
+Machine metadata:
+`docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-ECONOMICS-EVIDENCE-2026-09-30.json`.
+
+## 5. Real external evidence still missing
 
 B must not manufacture any of the following:
 
@@ -91,7 +111,7 @@ B must not manufacture any of the following:
 
 These are blockers, not reasons to weaken thresholds.
 
-## 5. A/integrator reconciliation required
+## 6. A/integrator reconciliation required
 
 A/integrator should consume
 `docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.json` and current B CI, then:

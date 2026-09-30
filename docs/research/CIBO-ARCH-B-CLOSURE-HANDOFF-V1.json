@@ -1,7 +1,7 @@
 {
   "schema": "CIBO_ARCH_B_CLOSURE_HANDOFF_V1",
   "branch": "agent/cibo-certification-architect-b-integration-001",
-  "implementation_checkpoint_sha": "bf25ab999d440202ce2bada98376de7b124346d6",
+  "implementation_checkpoint_sha": "3895af47c32c473682700d07435ea437110e5c3e",
   "primary_pr": 651,
   "child_pr": 661,
   "governance": {
@@ -123,13 +123,15 @@
     },
     {
       "id": "PROVIDER_ECONOMICS",
-      "b_status": "POINT_IN_TIME_AND_ACCOUNT_CAPABILITY_BOUNDARIES_IMPLEMENTED",
+      "b_status": "REAL_POINT_IN_TIME_PROVIDER_TERMS_PROVEN_ACCOUNT_CAPABILITY_PROBE_READY",
       "recommended_ledger_disposition": null,
       "evidence": [
         "src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py",
         "src/qore/infrastructure/cibo_provider_economic_normalization.py",
         "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
-        "src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py"
+        "src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py",
+        "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-ECONOMICS-EVIDENCE-2026-09-30.json",
+        "scripts/cibo_ctrader_demo_account_capability_probe.py"
       ],
       "blockers": [
         "HISTORICAL_2017_PROVIDER_USD_ECONOMICS_UNAVAILABLE",
