@@ -9,10 +9,10 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import Counter
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
-from collections.abc import Sequence
 
 from qore.infrastructure.core_stack_v2.shared_global_opportunity_board import (
     SharedGlobalOpportunityAttentionBoard,
