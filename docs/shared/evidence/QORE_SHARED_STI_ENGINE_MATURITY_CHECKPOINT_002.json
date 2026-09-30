@@ -173,6 +173,17 @@
       "cnh_auto_aliased_to_cny": false,
       "fx_pair_canonical_identity_verified_count": 0,
       "protected_holdout_opened": false
+    },
+    "gw2_fx_reference_objects": {
+      "workstream": "GW-2_FX_PROVIDER_NEUTRAL_REFERENCE_OBJECTS",
+      "evidence_run_id": 36652443571,
+      "evidence_git_sha": "0fdcb3bceca5a33192dd1a1e966c927e705e0be8",
+      "reference_candidate_count": 59,
+      "unresolved_provider_pair_count": 1,
+      "provider_symbol_to_reference_mapping_authorized": false,
+      "provider_symbol_to_tradable_identity_mapping_authorized": false,
+      "canonical_tradable_identity_verified_count": 0,
+      "protected_holdout_opened": false
     }
   },
   "productive_authority": {
