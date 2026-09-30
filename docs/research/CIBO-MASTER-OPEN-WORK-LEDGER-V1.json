@@ -906,13 +906,17 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "PARTIAL_INTEGRATION",
+      "current_maturity": "CAUSAL_ATTRIBUTION_INFRASTRUCTURE_IMPLEMENTED_REAL_MULTI_MECHANISM_EVIDENCE_OPEN",
       "terminal_disposition": null,
-      "evidence_refs": [],
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_compound_causal_ablation.py",
+        "tests/infrastructure/test_cibo_compound_causal_ablation.py",
+        "docs/research/CIBO-COMPOUND-CAUSAL-ABLATION-PROTOCOL-V1.md"
+      ],
       "blockers": [
         "COMPOUND_PORTFOLIO_AND_GEN_C_CLOSURE_REQUIRED"
       ],
-      "next_gate": "Integrate seed→journey→expansion→profit→compound portfolio→ICM→next opportunity."
+      "next_gate": "After provider-valid forward populations exist, run preregistered one-mechanism-at-a-time causal ablations across eligible GEN-C/CE2I mechanisms, combine only proven non-compensatory contributions through the integrated Compound Portfolio, then close OOS/stress/4-fold attribution without winner selection after outcomes."
     },
     {
       "id": "AS_IS_CONTROL",
@@ -970,7 +974,7 @@
       "kind": "GOVERNANCE",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "AUDITOR_HARDENED_CHILD_CI_GREEN_INVENTORY_EXTENDED_REVALIDATION_PENDING_MASTER_LEDGER_OPEN",
+      "current_maturity": "AUDITOR_HARDENED_ORPHAN_CAUSAL_ABLATION_CLASSIFICATION_FIXED_REVALIDATION_PENDING_MASTER_LEDGER_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "scripts/cibo_zero_open_work_gate.py",
@@ -978,7 +982,7 @@
         "github-actions://36753334521/SUCCESS"
       ],
       "blockers": [
-        "CURRENT_INVENTORY_EXTENSION_CHILD_CI_REVALIDATION_REQUIRED",
+        "LATEST_ORPHAN_CLASSIFICATION_CHILD_CI_REVALIDATION_REQUIRED",
         "MASTER_LEDGER_HAS_OPEN_REQUIRED_WORK"
       ],
       "next_gate": "Revalidate the hardened auditor after the latest inventory classifiers, then keep gate pass=false until every mandatory workstream is terminal and no certification-blocking external dependency remains."
