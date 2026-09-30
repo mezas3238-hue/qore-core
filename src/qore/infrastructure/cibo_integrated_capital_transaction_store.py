@@ -576,7 +576,10 @@ def _event_from_payload(
             if value["previous_event_sha256"] is None
             else str(value["previous_event_sha256"])
         ),
-        productive_authority=bool(value["productive_authority"]),
+        productive_authority=_payload_bool(
+            value["productive_authority"],
+            "productive_authority",
+        ),
     )
 
 
@@ -594,8 +597,29 @@ def _refs_from_payload(
                 component=IntegratedCapitalComponent(
                     str(item["component"])
                 ),
-                generation=int(str(item["generation"])),
+                generation=_payload_int(
+                    item["generation"],
+                    "component generation",
+                ),
                 sha256=str(item["sha256"]),
             )
         )
     return tuple(rows)
+
+
+def _payload_bool(value: object, name: str) -> bool:
+    if type(value) is not bool:
+        raise TypeError(f"integrated transaction {name} must be bool")
+    return value
+
+
+def _payload_int(value: object, name: str) -> int:
+    if (
+        not isinstance(value, int)
+        or isinstance(value, bool)
+        or value < 0
+    ):
+        raise TypeError(
+            f"integrated transaction {name} must be non-negative int"
+        )
+    return value

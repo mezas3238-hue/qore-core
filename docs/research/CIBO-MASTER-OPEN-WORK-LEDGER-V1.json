@@ -915,7 +915,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "TWO_PHASE_DURABLE_COORDINATION_ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "REAL_STORE_ADAPTER_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_integrated_capital_truth.py",
@@ -925,14 +925,16 @@
         "src/qore/infrastructure/cibo_compound_cycle_audit.py",
         "src/qore/infrastructure/cibo_compound_funding_coordination.py",
         "src/qore/infrastructure/cibo_integrated_capital_transaction_store.py",
-        "tests/infrastructure/test_cibo_integrated_capital_transaction_store.py"
+        "tests/infrastructure/test_cibo_integrated_capital_transaction_store.py",
+        "src/qore/infrastructure/cibo_integrated_capital_component_adapter.py",
+        "tests/infrastructure/test_cibo_integrated_capital_component_adapter.py"
       ],
       "blockers": [
-        "INTEGRATED_TRANSACTION_JOURNAL_CI_REVALIDATION_REQUIRED",
-        "REAL_COMPONENT_STORE_ADAPTER_BINDING_REQUIRED",
-        "REAL_RESTART_PARTIAL_WRITE_RECOVERY_EXERCISE_REQUIRED"
+        "REAL_STORE_COMPONENT_ADAPTER_CI_REVALIDATION_REQUIRED",
+        "REAL_RESTART_PARTIAL_WRITE_RECOVERY_EXERCISE_REQUIRED",
+        "LEGACY_SOURCE_T19_SETTLEMENT_SCHEMAS_LACK_EMBEDDED_ACCOUNT_IDENTITY"
       ],
-      "next_gate": "Pass two-phase journal CI; bind exact generations/digests from real component stores; execute restart/partial-write recovery and keep unresolved PREPARE fail-closed."
+      "next_gate": "Pass real-store adapter CI; run partial-write/restart recovery against all five durable stores; then migrate legacy Source/T19/Settlement schemas to embedded account identity or provide equivalent durable scope proof."
     }
   ],
   "current_summary": {
