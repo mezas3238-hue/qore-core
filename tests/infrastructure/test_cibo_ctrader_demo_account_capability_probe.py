@@ -6,6 +6,12 @@ from qore.infrastructure.cibo_ctrader_demo_account_capability import (
     CTraderDemoCatalogSymbol,
     _catalog_sha256,
 )
+from qore.infrastructure.cibo_ctrader_demo_instrument_taxonomy import (
+    CTraderDemoAssetClassEvidence,
+    CTraderDemoInstrumentTaxonomyObservation,
+    CTraderDemoSymbolCategoryEvidence,
+    _taxonomy_sha256,
+)
 from scripts.cibo_ctrader_demo_account_capability_probe import build_report
 
 T0 = datetime(2026, 9, 30, 20, 0, tzinfo=UTC)
@@ -65,3 +71,44 @@ def test_report_preserves_provider_catalog_identity() -> None:
     symbols = report["symbols"]
     assert isinstance(symbols, list)
     assert [row["symbol_name"] for row in symbols] == ["EURUSD", "USTEC"]
+
+
+def test_report_binds_sanitized_provider_taxonomy_without_promoting_t17() -> None:
+    observation = _observation()
+    asset_classes = (
+        CTraderDemoAssetClassEvidence(asset_class_id=1, name="Forex"),
+        CTraderDemoAssetClassEvidence(asset_class_id=2, name="Indices"),
+    )
+    categories = (
+        CTraderDemoSymbolCategoryEvidence(
+            category_id=10,
+            asset_class_id=1,
+            name="Majors",
+        ),
+        CTraderDemoSymbolCategoryEvidence(
+            category_id=20,
+            asset_class_id=2,
+            name="US Indices",
+        ),
+    )
+    taxonomy = CTraderDemoInstrumentTaxonomyObservation(
+        account_ref=observation.account_ref,
+        observed_at=T0,
+        symbol_catalog_sha256=observation.catalog_sha256,
+        asset_classes=asset_classes,
+        symbol_categories=categories,
+        taxonomy_sha256=_taxonomy_sha256(asset_classes, categories),
+        catalog_binding_complete=True,
+    )
+
+    report = build_report(observation, taxonomy)
+
+    assert report["schema"] == (
+        "qore.cibo.ctrader_demo.account_capability_probe.v2"
+    )
+    assert report["taxonomy_sha256"] == taxonomy.taxonomy_sha256
+    assert report["taxonomy_binding_complete"] is True
+    assert report["option_taxonomy_candidates"] == []
+    assert report["t17_option_structure_certified"] is False
+    assert "account_ref" not in report
+    assert "T17_ACCOUNT_TAXONOMY_BINDING_INCOMPLETE" not in report["blockers"]
