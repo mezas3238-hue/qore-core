@@ -39,7 +39,8 @@ def test_bullish_fvg_retrace_plus_cisd_confirms_continuation() -> None:
         _bar(3, "10.45", "10.48", "10.05", "10.15"),
         _bar(4, "10.15", "10.25", "10.00", "10.08"),
         _bar(5, "10.08", "10.20", "9.95", "10.02"),
-        _bar(6, "10.02", "10.60", "10.00", "10.55"),
+        _bar(6, "10.02", "10.20", "10.00", "10.12"),
+        _bar(7, "10.12", "10.60", "10.10", "10.55"),
     )
     result = observe_first_m1_fvg_cisd_continuation(
         bars,
