@@ -1,6 +1,7 @@
 from qore.infrastructure.trader_lab.capitalizer_route_time_context_policy_v48 import (
     ROUTE_TIME_CONTEXTS,
     V48_ROUTE_TIME_POLICY,
+    V48RouteTimeContext,
     V48TimeContextMode,
 )
 from qore.infrastructure.trader_lab.capitalizer_source_native_route_registry_v48 import (
@@ -8,7 +9,7 @@ from qore.infrastructure.trader_lab.capitalizer_source_native_route_registry_v48
 )
 
 
-def _ctx(route_id: V48RouteId):
+def _ctx(route_id: V48RouteId) -> V48RouteTimeContext:
     return next(item for item in ROUTE_TIME_CONTEXTS if item.route_id is route_id)
 
 
