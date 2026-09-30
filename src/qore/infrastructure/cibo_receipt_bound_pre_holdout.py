@@ -90,6 +90,11 @@ def evaluate_receipt_bound_pre_holdout_readiness(
             "receipt-bound pre-holdout provider canonical provenance mismatch"
         )
 
+    calibration_freeze_manifest = build_receipt_bound_calibration_freeze(
+        receipts=calibration_receipts,
+        integrated_git_sha=integrated_git_sha,
+        policy_identity_sha256=policy_identity_sha256,
+    )
     if any(
         len(tool.evidence_refs) != 2
         or any(_SHA256_RE.fullmatch(ref) is None for ref in tool.evidence_refs)
@@ -98,12 +103,6 @@ def evaluate_receipt_bound_pre_holdout_readiness(
         raise CiboCapitalManagementError(
             "receipt-bound pre-holdout calibration tools are not receipt-bound"
         )
-
-    calibration_freeze_manifest = build_receipt_bound_calibration_freeze(
-        receipts=calibration_receipts,
-        integrated_git_sha=integrated_git_sha,
-        policy_identity_sha256=policy_identity_sha256,
-    )
 
     by_id = require_cross_boundary_receipts(
         receipts=receipts,
