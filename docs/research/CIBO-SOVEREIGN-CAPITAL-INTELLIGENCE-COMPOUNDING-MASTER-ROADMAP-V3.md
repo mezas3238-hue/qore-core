@@ -627,9 +627,9 @@ capability.
 
 ## Current ledger checkpoint
 
-At amendment creation the machine ledger contains 54 mandatory workstreams.
+The machine ledger now contains 55 mandatory workstreams after the explicit PROTECTED_BASE_CAPITAL gap was identified.
 
-Only GEN-C0 is currently recorded as terminally COMPLETED_AND_PROVEN.
+Only GEN-C0 is currently recorded as terminally COMPLETED_AND_PROVEN; 54 mandatory workstreams remain open.
 
 All other rows remain certification-blocking until their scientific or
 engineering closure evidence is produced.
