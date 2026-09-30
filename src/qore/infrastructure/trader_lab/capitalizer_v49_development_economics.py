@@ -579,17 +579,17 @@ def main() -> None:
 
     args = parser.parse_args()
     if args.command == "market":
-        report, trades = build_market_economics(
+        market_report, trades = build_market_economics(
             capacity_root=args.capacity_root,
             m1_root=args.m1_root,
         )
-        write_market(report, trades, args.output)
-        print(json.dumps(asdict(report), sort_keys=True))
+        write_market(market_report, trades, args.output)
+        print(json.dumps(asdict(market_report), sort_keys=True))
         return
 
-    report = build_matrix(args.input_root)
-    write_matrix(report, args.output)
-    print(json.dumps(report, sort_keys=True))
+    matrix_report = build_matrix(args.input_root)
+    write_matrix(matrix_report, args.output)
+    print(json.dumps(matrix_report, sort_keys=True))
 
 
 if __name__ == "__main__":
