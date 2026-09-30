@@ -27,6 +27,7 @@ env:
   SOURCE_MANIFEST_PRODUCER_SHA: "99e60783fb270c40ae23805fbb3d16ae76d9c4f2"
   PROVIDER_CATALOG_ARTIFACT_ID: "11110976806"
   PROVIDER_CATALOG_SHA256: "4c10aede99704b937caa772e1ae07257c8e12c3d0644c06ca751b6885b9a363f"
+  PROVIDER_CATALOG_RAW_SHA256: "2cc807599b1afb13b6b6ecf4bb97a165a14ba3d05b66b841a90b61f9e1405b5f"
 
 jobs:
   validate:
@@ -121,7 +122,7 @@ jobs:
           set -euo pipefail
           gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${PROVIDER_CATALOG_ARTIFACT_ID}/zip" > catalog.zip
           unzip -q catalog.zip -d input/catalog
-          (cd input/catalog && sha256sum -c RAW_SHA256SUMS)
+          test "$(sha256sum input/catalog/post-v14-provider-catalog.json | awk '{print $1}')" = "$PROVIDER_CATALOG_RAW_SHA256"
           cp input/catalog/post-v14-provider-catalog.json input/provider-catalog.json
           test "$(python -c 'import json; print(json.load(open("input/provider-catalog.json"))["provider_catalog_sha256"])')" = "$PROVIDER_CATALOG_SHA256"
 
