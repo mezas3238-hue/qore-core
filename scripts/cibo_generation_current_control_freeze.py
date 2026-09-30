@@ -185,10 +185,13 @@ def _load_ci_evidence() -> tuple[str, dict[str, object]]:
         "git_sha": BASELINE_GIT_SHA,
         "workflows": sorted(
             canonical_rows,
-            key=lambda item: (str(item["name"]), int(item["id"])),
+            key=lambda item: str(item["name"]),
         ),
     }
-    return _sha256_payload(canonical), payload
+    typed_payload: dict[str, object] = {
+        str(key): value for key, value in payload.items()
+    }
+    return _sha256_payload(canonical), typed_payload
 
 
 def build_current_control_payload() -> dict[str, object]:
