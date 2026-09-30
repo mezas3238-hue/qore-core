@@ -52,9 +52,9 @@ FACTS: tuple[V48RouteDetectorFact, ...] = (
     V48RouteDetectorFact(
         V48RouteId.TTRADES_ASIA_POSITIONAL,
         "DAILY_PROFILE_TIME_BINDING",
-        V48DetectorReadiness.SOURCE_BINDING_BLOCKED,
-        "capitalizer_forex_daily_profile_binding_v48.py",
-        "Exact TTrades Forex Daily candle/open boundary is not yet source-bound.",
+        V48DetectorReadiness.ROUTE_BOUND_PRE_ECONOMIC,
+        "capitalizer_ttrades_forex_daily_profile_v48.py",
+        "TTrades Forex Daily clock is source-bound at 17:00 New York from the primary timing table.",
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_ASIA_POSITIONAL,
@@ -88,9 +88,9 @@ FACTS: tuple[V48RouteDetectorFact, ...] = (
     V48RouteDetectorFact(
         V48RouteId.TTRADES_ASIA_4H_15M,
         "DAILY_PROFILE_TIME_BINDING",
-        V48DetectorReadiness.SOURCE_BINDING_BLOCKED,
-        "capitalizer_forex_daily_profile_binding_v48.py",
-        "Asia source uses Daily bias/open; exact Forex Daily profile remains unresolved.",
+        V48DetectorReadiness.ROUTE_BOUND_PRE_ECONOMIC,
+        "capitalizer_ttrades_forex_daily_profile_v48.py",
+        "Asia Daily bias/open now uses the source-bound 17:00 New York Forex profile.",
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_ASIA_4H_15M,
@@ -138,9 +138,9 @@ FACTS: tuple[V48RouteDetectorFact, ...] = (
     V48RouteDetectorFact(
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
         "DAILY_PROFILE_TIME_BINDING",
-        V48DetectorReadiness.SOURCE_BINDING_BLOCKED,
-        "capitalizer_forex_daily_profile_binding_v48.py",
-        "London Daily bias requires an exact Forex Daily profile boundary before replay.",
+        V48DetectorReadiness.ROUTE_BOUND_PRE_ECONOMIC,
+        "capitalizer_ttrades_forex_daily_profile_v48.py",
+        "London Daily bias can use the source-bound 17:00 New York Forex profile.",
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
