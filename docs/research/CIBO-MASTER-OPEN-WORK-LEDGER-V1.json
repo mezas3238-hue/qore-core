@@ -1024,39 +1024,56 @@
       "kind": "GOVERNANCE",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "IMPLEMENTATION_IN_PROGRESS",
+      "current_maturity": "INTEGRATOR_HARDENED_STRICT_AND_TWO_EXAM_PRE_EXAM_SEQUENCE_IMPLEMENTED_CI_PENDING_MASTER_LEDGER_OPEN",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "MASTER_LEDGER_HAS_OPEN_REQUIRED_WORK"
+      "evidence_refs": [
+        "scripts/cibo_zero_open_work_gate.py",
+        "tests/infrastructure/test_cibo_zero_open_work_gate.py",
+        "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md"
       ],
-      "next_gate": "Gate must remain pass=false until every mandatory row has terminal disposition."
+      "blockers": [
+        "MASTER_LEDGER_HAS_OPEN_REQUIRED_WORK",
+        "INTEGRATOR_ZERO_OPEN_CI_REQUIRED"
+      ],
+      "next_gate": "PRE_EXAM excludes only FINAL_INTEGRATED_CIBO_EXAM and WORLD_CUP_MAXIMUM_CAPABILITY_EXAM; after all non-exam mandatory work is terminal, run Final Integrated Exam, then World Cup Exam, then require STRICT zero-open PASS."
     },
     {
       "id": "FINAL_INTEGRATED_CIBO_EXAM",
       "kind": "CERTIFICATION",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "OPEN_REQUIRED",
+      "current_maturity": "PROTOCOL_REVIEWED_EXECUTABLE_GATE_NOT_ACCEPTED_TRUST_HARDENING_REQUIRED",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "ALL_PRECEDING_MANDATORY_WORKSTREAMS_MUST_CLOSE"
+      "evidence_refs": [
+        "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md",
+        "docs/research/CIBO-CROSSBOUNDARY-EVIDENCE-BINDING-REUSE-V1.md"
       ],
-      "next_gate": "Run full chronological integrated capital cycle with exact accounting identity."
+      "blockers": [
+        "PRE_EXAM_NON_EXAM_ZERO_OPEN_PASS_REQUIRED",
+        "FINAL_A_B_INTEGRATED_SOURCE_OF_TRUTH_RECONCILIATION_REQUIRED",
+        "PHASE20D_PHASE21_PHASE22_AND_HOLDOUT_CHAIN_REQUIRED",
+        "ALL_MANDATORY_SCIENTIFIC_AND_INTEGRATION_GATES_REQUIRED",
+        "FINAL_EXAM_TYPED_CANONICAL_RECEIPT_HARDENING_REQUIRED",
+        "FINAL_EXAM_EXECUTABLE_GATE_CI_REQUIRED"
+      ],
+      "next_gate": "Harden P1-P8/E1-E10 against self-attestation using canonical typed receipts; after PRE_EXAM and Phase22 receipt pass, execute the integrated exam and terminally disposition it before World Cup."
     },
     {
       "id": "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
       "kind": "CERTIFICATION",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "BLOCKED_BY_ORDINARY_CLOSURE",
+      "current_maturity": "MANDATORY_POST_INTEGRATED_EXAM_PRE_STRICT_CERTIFICATION_PROGRAM",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "ZERO_OPEN_WORK_GATE_MUST_PASS_FIRST"
+      "evidence_refs": [
+        "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md"
       ],
-      "next_gate": "Run only after ordinary CIBO absolute closure."
+      "blockers": [
+        "ALL_NON_EXAM_MANDATORY_WORK_MUST_CLOSE",
+        "FINAL_INTEGRATED_CIBO_EXAM_COMPLETED_AND_PROVEN_REQUIRED",
+        "SEPARATE_WORLD_CUP_PROTOCOL_AND_PROVIDER_COMPETITION_EVIDENCE_REQUIRED"
+      ],
+      "next_gate": "After the Final Integrated CIBO Exam is terminal, freeze/run the World Cup maximum-capability exam; only after it is terminal may STRICT zero-open pass."
     },
     {
       "id": "HISTORICAL_PHASE18_REPLAY_EVIDENCE",
