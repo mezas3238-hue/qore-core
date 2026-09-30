@@ -16,8 +16,11 @@ Please add deterministic assignments for these B surfaces:
 | `*cibo_ce2i_execution_efficiency*` | `T11` |
 | `*cibo_ctrader_demo_account_capability*` | `PROVIDER_ECONOMICS` |
 | `*cibo_ctrader_demo_capability_registry*` | `PROVIDER_ECONOMICS` |
+| `*cibo_ce2i_provider_execution_calibration*` | `PROVIDER_ECONOMICS` |
+| `*cibo_phase20_provider_execution_calibration*` | `PROVIDER_ECONOMICS` |
 | `*cibo_t20_capital_release*` | `T20` |
 | `*cibo_usd60_exam_readiness*` | `USD60_CAPABILITY_PROGRAM` |
+| `*cibo_integrated_capital_forward_binding*` | `INTEGRATED_CAPITAL_TRUTH` |
 | `*cibo_research_memory*` | `LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK` |
 | `*cibo_risk_integration_closure*` | `RISK_INTEGRATION` |
 
