@@ -1,0 +1,165 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+import scripts.cibo_zero_open_work_gate as gate
+
+
+def _ledger(*, disposition: str | None, blocking: bool = True) -> dict:
+    return {
+        "schema": "QORE_CIBO_MASTER_OPEN_WORK_LEDGER_V1",
+        "terminal_dispositions": [
+            "COMPLETED_AND_PROVEN",
+            "FALSIFIED_AND_CLOSED",
+            "SUPERSEDED_WITH_PROVEN_LINEAGE",
+            "EXTERNAL_DEPENDENCY_BLOCKED",
+        ],
+        "workstreams": [
+            {
+                "id": "TEST",
+                "kind": "SYSTEM",
+                "mandatory": True,
+                "certification_blocking": blocking,
+                "current_maturity": (
+                    "COMPLETED_AND_PROVEN"
+                    if disposition == "COMPLETED_AND_PROVEN"
+                    else "OPEN_REQUIRED"
+                ),
+                "terminal_disposition": disposition,
+                "evidence_refs": [],
+                "blockers": (
+                    ["REAL_EXTERNAL_BLOCKER"]
+                    if disposition == "EXTERNAL_DEPENDENCY_BLOCKED"
+                    else []
+                ),
+                "next_gate": "Close the test workstream.",
+            }
+        ],
+    }
+
+
+def _write(path: Path, payload: dict) -> None:
+    path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def test_zero_open_work_gate_blocks_open_required_work(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    _write(ledger, _ledger(disposition=None))
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_SOURCE_GLOBS", ())
+
+    verdict = gate.evaluate_gate(
+        repo_root=tmp_path,
+        ledger_path=ledger,
+    )
+
+    assert verdict.passed is False
+    assert verdict.open_workstream_ids == ("TEST",)
+    assert verdict.reasons == ("UNCLOSED_REQUIRED_WORKSTREAM",)
+
+
+def test_zero_open_work_gate_passes_only_terminal_proven_work(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    _write(ledger, _ledger(disposition="COMPLETED_AND_PROVEN"))
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_SOURCE_GLOBS", ())
+
+    verdict = gate.evaluate_gate(
+        repo_root=tmp_path,
+        ledger_path=ledger,
+    )
+
+    assert verdict.passed is True
+    assert verdict.terminal_workstream_count == 1
+    assert verdict.open_workstream_ids == ()
+    assert verdict.reasons == ()
+
+
+def test_external_dependency_blocks_when_certification_critical(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    _write(
+        ledger,
+        _ledger(
+            disposition="EXTERNAL_DEPENDENCY_BLOCKED",
+            blocking=True,
+        ),
+    )
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_SOURCE_GLOBS", ())
+
+    verdict = gate.evaluate_gate(
+        repo_root=tmp_path,
+        ledger_path=ledger,
+    )
+
+    assert verdict.passed is False
+    assert verdict.certification_blocking_external_dependency_ids == (
+        "TEST",
+    )
+
+
+def test_gate_detects_missing_required_artifact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    _write(ledger, _ledger(disposition="COMPLETED_AND_PROVEN"))
+    monkeypatch.setattr(
+        gate,
+        "_REQUIRED_CANONICAL_ARTIFACTS",
+        ("required/missing.json",),
+    )
+    monkeypatch.setattr(gate, "_SOURCE_GLOBS", ())
+
+    verdict = gate.evaluate_gate(
+        repo_root=tmp_path,
+        ledger_path=ledger,
+    )
+
+    assert verdict.passed is False
+    assert verdict.missing_required_artifacts == (
+        "required/missing.json",
+    )
+    assert "MISSING_REQUIRED_ARTIFACT" in verdict.reasons
+
+
+def test_gate_detects_high_signal_orphan_marker(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    _write(ledger, _ledger(disposition="COMPLETED_AND_PROVEN"))
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "cibo_test.py").write_text(
+        "# TODO unresolved certification work\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_SOURCE_GLOBS", ("src/cibo_*.py",))
+
+    verdict = gate.evaluate_gate(
+        repo_root=tmp_path,
+        ledger_path=ledger,
+    )
+
+    assert verdict.passed is False
+    assert verdict.high_signal_marker_hits == (
+        "src/cibo_test.py:1:TODO",
+    )
+    assert "HIGH_SIGNAL_UNRESOLVED_CODE_MARKER" in verdict.reasons
