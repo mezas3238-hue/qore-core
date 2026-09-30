@@ -1,0 +1,122 @@
+name: QORE Shared B Secondary Observation Provider Intake
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b_secondary_provider_intake.py
+      - tests/infrastructure/test_shared_b_secondary_provider_intake.py
+      - .github/workflows/qore-shared-b-secondary-provider-intake.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-secondary-provider-intake-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  AGRI_RUN_ID: "36777269692"
+  AGRI_ARTIFACT_ID: "11126270432"
+  AGRI_GIT_SHA: "e94caa2a09b0a9927c12be6baec52e39c806d003"
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate secondary provider intake contract
+        run: |
+          set -euo pipefail
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/shared_b_secondary_provider_intake.py \
+            tests/infrastructure/test_shared_b_secondary_provider_intake.py
+          mypy src/qore/infrastructure/core_stack_v2/shared_b_secondary_provider_intake.py
+          pytest -q tests/infrastructure/test_shared_b_secondary_provider_intake.py
+      - name: Verify exact inherited B-14 lineage
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${AGRI_RUN_ID}" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${AGRI_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${AGRI_RUN_ID}" --jq '.head_sha')" = "$AGRI_GIT_SHA"
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${AGRI_ARTIFACT_ID}/zip" > agri.zip
+          unzip -q agri.zip -d input
+          (cd input && sha256sum -c SHA256SUMS)
+      - name: Build B-14 external-provider readiness boundary
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("input/shared-b-agri-inherited-rebind.json").read_text())
+          assert p["identity"] == "SHARED_B_AGRI_INHERITED_EVIDENCE_REBIND_001"
+          assert p["disposition"] == "EXTERNAL_DEPENDENCY_BLOCKED_EVIDENCE_VERIFIED"
+          assert p["conceptual_agricultural_market_count"] == 16
+          assert p["provider_candidate_count"] == 0
+          out={
+              "identity":"SHARED_B_SECONDARY_OBSERVATION_PROVIDER_INTAKE_BOUNDARY_001",
+              "status":"CONTRACT_READY_EXTERNAL_PROVIDER_STILL_REQUIRED",
+              "git_sha":os.environ["GITHUB_SHA"],
+              "workflow_run_id":int(os.environ["GITHUB_RUN_ID"]),
+              "upstream_agri_run_id":int(os.environ["AGRI_RUN_ID"]),
+              "upstream_agri_artifact_id":int(os.environ["AGRI_ARTIFACT_ID"]),
+              "conceptual_agricultural_market_count":16,
+              "current_authorized_provider_candidate_count":0,
+              "current_admitted_agricultural_sensor_count":0,
+              "technical_intake_contract_implemented":True,
+              "technical_qualification_equals_owner_authorization":False,
+              "owner_authorization_equals_scientific_admission":False,
+              "read_only_required":True,
+              "provider_event_and_retrieval_clocks_required":True,
+              "identity_evidence_required":True,
+              "legal_or_license_evidence_required":True,
+              "data_terms_evidence_required":True,
+              "provenance_hashing_required":True,
+              "deterministic_replay_required":True,
+              "mutation_capability_allowed":False,
+              "credentials_in_repository_allowed":False,
+              "provider_auto_added":False,
+              "sensor_auto_admitted":False,
+              "broker_mutation":False,
+              "productive_authority":False,
+              "b14_complete":False,
+          }
+          Path("result/shared-b-secondary-provider-intake-boundary.json").write_text(
+              json.dumps(out,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+      - name: Seal B-14 provider-intake boundary
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+      - name: Upload B-14 provider-intake boundary
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-secondary-provider-intake-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report B-14 provider-intake frontier
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-14 provider-intake boundary: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. The inherited blindspot remains exact: 16 conceptual agricultural/soft/livestock markets and 0 authorized provider candidates. A strict read-only secondary-provider intake contract is now implemented, but technical qualification does not grant Owner authorization or scientific admission. No provider was invented/added; B-14 remains EXTERNALLY_BLOCKED."
