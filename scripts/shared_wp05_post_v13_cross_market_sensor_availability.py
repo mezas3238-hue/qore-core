@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from dataclasses import dataclass
@@ -16,6 +17,7 @@ from qore.infrastructure.core_stack_v2.active_perception_post_v13_sensor_availab
     HistoricalWindowCoverage,
     classify_historical_peer_coverage,
     discover_cross_market_microstructure_candidates,
+    normalize_provider_symbol,
 )
 from qore.infrastructure.core_stack_v2.active_perception_v12_coverage_pilot import (
     select_v12_temporal_coverage_pilot,
@@ -216,12 +218,29 @@ def run(
     manifest_path: Path,
     output_path: Path,
     expected_manifest_sha256: str,
+    source_manifest_artifact_id: int,
+    source_manifest_artifact_digest: str,
+    source_manifest_producer_sha: str,
 ) -> dict[str, object]:
     manifest = _load_manifest(
         manifest_path,
         expected_manifest_sha256=expected_manifest_sha256,
     )
     selected_windows = select_v12_temporal_coverage_pilot(manifest["windows"])
+    if len(selected_windows) != 5:
+        raise PostV13SensorAuditError(
+            "source-only availability audit requires exactly five frozen windows"
+        )
+    if source_manifest_artifact_id <= 0:
+        raise PostV13SensorAuditError("source-manifest artifact id must be positive")
+    if not source_manifest_artifact_digest.startswith("sha256:"):
+        raise PostV13SensorAuditError(
+            "source-manifest artifact digest must be explicit sha256"
+        )
+    if len(source_manifest_producer_sha) != 40:
+        raise PostV13SensorAuditError(
+            "source-manifest producer sha must be full git sha"
+        )
 
     credentials = CTraderOpenApiCredentials(
         client_id=_required_env(
@@ -261,6 +280,10 @@ def run(
                 "cTrader DEMO authentication failed for source-only audit"
             )
         enabled = _enabled_provider_symbols(read_only_client)
+        enabled_catalogue_payload = "\n".join(enabled).encode("utf-8")
+        enabled_catalogue_sha256 = hashlib.sha256(
+            enabled_catalogue_payload
+        ).hexdigest()
         candidates = discover_cross_market_microstructure_candidates(enabled)
         family_reports: dict[str, dict[str, object]] = {}
 
@@ -278,6 +301,9 @@ def run(
         for candidate_ordinal, candidate in enumerate(candidates):
             candidate_report: dict[str, object] = {
                 "provider_symbol": candidate.provider_symbol,
+                "normalized_provider_symbol": normalize_provider_symbol(
+                    candidate.provider_symbol
+                ),
                 "coverage_status": "technical_error",
                 "windows": [],
             }
@@ -356,6 +382,9 @@ def run(
             )
             candidate_report = {
                 "provider_symbol": candidate.provider_symbol,
+                "normalized_provider_symbol": normalize_provider_symbol(
+                    candidate.provider_symbol
+                ),
                 "provider_symbol_id": identity.symbol_id,
                 "provider_digits": identity.digits,
                 "coverage_status": status,
@@ -368,15 +397,35 @@ def run(
                 family_reports[candidate.family.value]["candidate_reports"],
             ).append(candidate_report)
 
+        selected_labels = ("FIRST", "Q1", "MID", "Q3", "LAST")
+        selected_window_report = [
+            {
+                "label": label,
+                "manifest_index": item.manifest_index,
+                "from_at": _iso(item.from_at),
+                "to_at": _iso(item.to_at),
+            }
+            for label, item in zip(
+                selected_labels,
+                selected_windows,
+                strict=True,
+            )
+        ]
         report: dict[str, object] = {
             "identity": IDENTITY,
             "partition": "r8_source_only",
             "source_manifest_sha256": expected_manifest_sha256,
+            "source_manifest_artifact_id": source_manifest_artifact_id,
+            "source_manifest_artifact_digest": source_manifest_artifact_digest,
+            "source_manifest_producer_sha": source_manifest_producer_sha,
             "selection_rule": "FIRST_Q1_MID_Q3_LAST_BY_FROZEN_MANIFEST_ORDINAL",
             "selected_manifest_indices": [
                 item.manifest_index for item in selected_windows
             ],
+            "selected_windows": selected_window_report,
             "enabled_symbol_count": len(enabled),
+            "enabled_symbols": list(enabled),
+            "enabled_symbol_catalogue_sha256": enabled_catalogue_sha256,
             "ustec_control_present": "USTEC" in enabled,
             "peer_families": family_reports,
             "account_fingerprint": compute_ctrader_demo_lab_account_fingerprint(
@@ -409,17 +458,27 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--expected-manifest-sha256", required=True)
+    parser.add_argument("--source-manifest-artifact-id", type=int, required=True)
+    parser.add_argument("--source-manifest-artifact-digest", required=True)
+    parser.add_argument("--source-manifest-producer-sha", required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     report = run(
         manifest_path=args.manifest,
         output_path=args.output,
         expected_manifest_sha256=args.expected_manifest_sha256,
+        source_manifest_artifact_id=args.source_manifest_artifact_id,
+        source_manifest_artifact_digest=args.source_manifest_artifact_digest,
+        source_manifest_producer_sha=args.source_manifest_producer_sha,
     )
     summary = {
         "identity": report["identity"],
         "selected_manifest_indices": report["selected_manifest_indices"],
         "enabled_symbol_count": report["enabled_symbol_count"],
+        "enabled_symbol_catalogue_sha256": report[
+            "enabled_symbol_catalogue_sha256"
+        ],
+        "selected_windows": report["selected_windows"],
         "ustec_control_present": report["ustec_control_present"],
         "peer_families": report["peer_families"],
         "target_or_outcome_read": report["target_or_outcome_read"],
