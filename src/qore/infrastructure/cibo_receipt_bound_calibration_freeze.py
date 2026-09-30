@@ -67,9 +67,9 @@ def build_receipt_bound_calibration_freeze(
         raise CiboCapitalManagementError(
             "calibration freeze capability_at must be timezone-aware"
         )
-    if capability_at > provider_capability_registry.captured_at:
+    if capability_at != provider_capability_registry.captured_at:
         raise CiboCapitalManagementError(
-            "calibration freeze capability time exceeds registry capture"
+            "calibration freeze capability time must equal registry capture"
         )
 
     by_id = require_cross_boundary_receipts(
@@ -92,6 +92,13 @@ def build_receipt_bound_calibration_freeze(
 
     forward_payload = json.loads(forward.source_artifact_json)
     provider_payload = json.loads(provider.source_artifact_json)
+    if (
+        forward_payload.get("provider_capability_registry_sha256")
+        != provider_capability_registry.fingerprint()
+    ):
+        raise CiboCapitalManagementError(
+            "calibration freeze forward/provider capability registry binding mismatch"
+        )
     forward_manifest_sha256 = forward_payload.get(
         "phase20d_forward_manifest_sha256"
     )
