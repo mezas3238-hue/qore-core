@@ -7,7 +7,12 @@ from qore.infrastructure.trader_lab.capitalizer_structural_target_candidate_set_
 )
 
 
-def _candidate(target_id: str, price: str, *, untouched: bool = True):
+def _candidate(
+    target_id: str,
+    price: str,
+    *,
+    untouched: bool = True,
+) -> V48StructuralTargetCandidate:
     return V48StructuralTargetCandidate(
         target_id=target_id,
         kind="HTF_HIGH",
