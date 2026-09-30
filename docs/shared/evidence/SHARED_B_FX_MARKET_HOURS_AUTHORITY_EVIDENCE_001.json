@@ -1,0 +1,73 @@
+{
+  "identity": "SHARED_B_FX_MARKET_HOURS_AUTHORITY_EVIDENCE_001",
+  "version": "001",
+  "retrieved_at": "2026-09-30",
+  "purpose": "Define only the independently supported temporal boundary of the global distributed OTC FX market without inventing a single venue or universal weekly open/close timestamps.",
+  "authorities": [
+    {
+      "authority_id": "BIS_FX_DISTRIBUTED_OTC_2025",
+      "organization": "Bank for International Settlements",
+      "source_title": "The FX trade execution landscape through the prism of the 2025 BIS Triennial Survey",
+      "source_url": "https://www.bis.org/publications/qr-202512/fx-trade-execution-landscape-through-prism-2025-bis-triennial-survey",
+      "supports": [
+        "FX spot and most FX derivatives transact over the counter",
+        "the global FX market is decentralized and fragmented",
+        "there is no single centralized exchange that represents the whole FX market"
+      ],
+      "does_not_support": [
+        "one canonical provider execution venue",
+        "one provider schedule as global FX market truth",
+        "exact universal weekly open and close boundaries"
+      ]
+    },
+    {
+      "authority_id": "NYFED_FX_24_HOUR_OPERATION",
+      "organization": "Federal Reserve Bank of New York Foreign Exchange Committee",
+      "source_title": "About - Foreign Exchange Committee",
+      "source_url": "https://www.newyorkfed.org/fxc/about",
+      "supports": [
+        "the FX market operates 24 hours a day",
+        "the global FX market is interconnected"
+      ],
+      "does_not_support": [
+        "a universal seven-day continuous trading claim",
+        "exact weekend boundary timestamps",
+        "a single canonical venue calendar"
+      ]
+    },
+    {
+      "authority_id": "BOE_FX_24_HOUR_NETWORK",
+      "organization": "Bank of England",
+      "source_title": "Who sets exchange rates?",
+      "source_url": "https://www.bankofengland.co.uk/explainers/who-sets-exchange-rates",
+      "supports": [
+        "foreign exchange markets form a complex network rather than a physical market",
+        "currencies can be bought and sold 24 hours a day"
+      ],
+      "does_not_support": [
+        "one centralized exchange",
+        "exact universal weekly open and close boundaries",
+        "provider schedule equivalence to canonical market hours"
+      ]
+    }
+  ],
+  "frozen_conclusions": {
+    "canonical_market_structure": "DISTRIBUTED_OTC",
+    "single_canonical_venue_exists": false,
+    "daily_24_hour_operation_supported": true,
+    "exact_universal_weekly_boundary_verified": false,
+    "provider_schedule_is_canonical_market_hours": false,
+    "canonical_market_closed_state_derivable_from_provider_schedule": false,
+    "unknown_is_required_when_global_market_state_cannot_be established": true
+  },
+  "governance": {
+    "provider_symbol_name_used_as_market_hours_proof": false,
+    "historical_market_outcomes_read": false,
+    "target_or_outcome_read": false,
+    "r6_r5_read": false,
+    "fresh_holdout_opened": false,
+    "sensor_admission_authorized": false,
+    "relational_claims_authorized": false,
+    "productive_authority": false
+  }
+}
