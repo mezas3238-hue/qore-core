@@ -7,6 +7,7 @@ on:
       - '.github/workflows/cibo-genc8-adaptive-compound-speed.yml'
       - 'src/qore/infrastructure/cibo_adaptive_compound_speed_shadow.py'
       - 'src/qore/infrastructure/cibo_adaptive_compound_speed_store.py'
+      - 'src/qore/infrastructure/cibo_adaptive_compound_speed_population.py'
       - 'tests/infrastructure/test_cibo_adaptive_compound_speed_shadow.py'
       - 'docs/research/CIBO-GEN-C8-ADAPTIVE-COMPOUND-SPEED-SHADOW-PREREGISTRATION-V1.md'
   push:
@@ -16,6 +17,7 @@ on:
       - '.github/workflows/cibo-genc8-adaptive-compound-speed.yml'
       - 'src/qore/infrastructure/cibo_adaptive_compound_speed_shadow.py'
       - 'src/qore/infrastructure/cibo_adaptive_compound_speed_store.py'
+      - 'src/qore/infrastructure/cibo_adaptive_compound_speed_population.py'
       - 'tests/infrastructure/test_cibo_adaptive_compound_speed_shadow.py'
       - 'docs/research/CIBO-GEN-C8-ADAPTIVE-COMPOUND-SPEED-SHADOW-PREREGISTRATION-V1.md'
 
@@ -41,12 +43,15 @@ jobs:
           ruff check \
             src/qore/infrastructure/cibo_adaptive_compound_speed_shadow.py \
             src/qore/infrastructure/cibo_adaptive_compound_speed_store.py \
+            src/qore/infrastructure/cibo_adaptive_compound_speed_population.py \
             tests/infrastructure/test_cibo_adaptive_compound_speed_shadow.py
           mypy \
             src/qore/infrastructure/cibo_adaptive_compound_speed_shadow.py \
-            src/qore/infrastructure/cibo_adaptive_compound_speed_store.py
+            src/qore/infrastructure/cibo_adaptive_compound_speed_store.py \
+            src/qore/infrastructure/cibo_adaptive_compound_speed_population.py
           python -m py_compile \
             src/qore/infrastructure/cibo_adaptive_compound_speed_shadow.py \
-            src/qore/infrastructure/cibo_adaptive_compound_speed_store.py
+            src/qore/infrastructure/cibo_adaptive_compound_speed_store.py \
+            src/qore/infrastructure/cibo_adaptive_compound_speed_population.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_adaptive_compound_speed_shadow.py
