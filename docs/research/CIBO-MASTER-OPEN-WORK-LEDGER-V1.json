@@ -1,8 +1,16 @@
 {
   "schema": "QORE_CIBO_MASTER_OPEN_WORK_LEDGER_V1",
   "directive": "CIBO_ABSOLUTE_CLOSURE_AMENDMENT_V1",
-  "audit_started_from_head": "398c2426173c961ea10797500899f9c8dd7a0bb5",
-  "source_of_truth": "GitHub HEAD + code + tests + CI + artifacts + ADR + roadmap + PR body",
+  "audit_started_from_head": "1460435615a663a614cd5ee8873f719d08086200",
+  "source_of_truth": {
+    "canonical": "GitHub HEAD + code + tests + CI + artifacts + ADR + roadmap + PR body",
+    "integrator_branch": "agent/cibo-integrator-ab-001",
+    "architect_a_pr": 660,
+    "architect_a_head": "9f7a24a86c04a1d0554996ab57523e7338465002",
+    "architect_b_pr": 661,
+    "architect_b_head": "5d028b1ebc76a98db36d26f86bc872e2f60c5541",
+    "reconciliation_rule": "TERMINAL_UNION_ONLY__OPEN_ITEMS_PRESERVED_FROM_COMMON_CHECKPOINT"
+  },
   "terminal_dispositions": [
     "COMPLETED_AND_PROVEN",
     "FALSIFIED_AND_CLOSED",
@@ -17,13 +25,21 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "MECHANICAL_MINIMAL_EXECUTABLE_SEED_CONTRACT_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "src/qore/infrastructure/cibo_cma_initial_seed.py",
+        "src/qore/infrastructure/cibo_fundednext_seed.py",
+        "src/qore/infrastructure/cibo_cma_risk_request.py",
+        "tests/infrastructure/test_cibo_cma_initial_seed.py",
+        "tests/infrastructure/test_cibo_fundednext_seed.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py",
+        "docs/research/CIBO-ARCH-B-T01-MINIMAL-SEED-MECHANICAL-CLOSURE-V1.md",
+        "github-actions://36727848357/SUCCESS"
       ],
       "blockers": [],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "Terminal mechanical minimal-seed primitive. Economic utility of larger deployment remains independently blocking elsewhere."
     },
     {
       "id": "T02",
@@ -75,13 +91,17 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "MECHANICAL_RECYCLING_CONTRACT_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-T05-T19-MECHANICAL-CLOSURE-V1.md",
+        "tests/infrastructure/test_cibo_ce2i_phase20_mechanism_certification.py",
+        "github-actions://36649279224/SUCCESS",
+        "github-actions://36750376948/SUCCESS"
       ],
       "blockers": [],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "Terminal mechanical recycling contract. Economic allocation/redeployment utility remains owned by the relevant non-terminal allocation/expansion workstreams."
     },
     {
       "id": "T06",
@@ -287,13 +307,17 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ATOMIC_CAPACITY_RESERVATION_AND_DURABLE_CONCURRENCY_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-T05-T19-MECHANICAL-CLOSURE-V1.md",
+        "tests/infrastructure/test_cibo_ce2i_phase20_mechanism_certification.py",
+        "github-actions://36649279224/SUCCESS",
+        "github-actions://36750376948/SUCCESS"
       ],
       "blockers": [],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "Terminal mechanical capacity-reservation contract. No economic policy promotion is implied."
     },
     {
       "id": "T20",
@@ -329,15 +353,19 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
-      "terminal_disposition": null,
+      "current_maturity": "MATHEMATICAL_ACCOUNTING_AND_PROVENANCE_RECONCILIATION_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "tests/infrastructure/test_cibo_compound_cycle_replay.py",
+        "src/qore/infrastructure/cibo_compound_cycle_replay.py",
+        "src/qore/infrastructure/cibo_compound_cycle_audit.py",
+        "github-actions://36750376855/SUCCESS",
+        "docs/research/CIBO-GENC1-MATHEMATICAL-RECONCILIATION-CLOSURE-V1.md",
+        "github-actions://36750376948/SUCCESS"
       ],
-      "blockers": [
-        "END_TO_END_MATHEMATICAL_RECONCILIATION_REPLAY_REQUIRED"
-      ],
-      "next_gate": "Prove no double count/phantom/lost/unexplained capital under chronological replay."
+      "blockers": [],
+      "next_gate": "Terminal mechanical foundation. No economic utility claim. Downstream GEN-C2+ and Compound scientific/economic closure remain independently blocking."
     },
     {
       "id": "GEN-C2",
@@ -956,18 +984,19 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "END_TO_END_AUTHORITY_ACCOUNTING_GATE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "COMPLETED_AND_PROVEN_ENGINEERING_AUTHORITY_ACCOUNTING_BOUNDARY",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
         "tests/infrastructure/test_cibo_cma_compound_authority_boundary.py",
         ".github/workflows/cibo-cma-compound-boundary.yml",
         "docs/research/CIBO-CMA-COMPOUND-AUTHORITY-BOUNDARY-V1.md",
-        "src/qore/infrastructure/cibo_integrated_capital_truth.py"
+        "src/qore/infrastructure/cibo_integrated_capital_truth.py",
+        "github-actions://36758246018/SUCCESS",
+        "src/qore/infrastructure/cibo_cma_settlement_ledger.py",
+        "src/qore/infrastructure/cibo_cma_risk_request.py"
       ],
-      "blockers": [
-        "CMA_COMPOUND_BOUNDARY_CI_REVALIDATION_REQUIRED"
-      ],
-      "next_gate": "Pass authority/accounting boundary gate; then close CMA foundation integration as completed engineering lineage without claiming economic certification."
+      "blockers": [],
+      "next_gate": "Terminal engineering closure: Trader remains volume-free, CIBO owns requested sizing, QORE Risk remains independently downstream, and only canonical realized CMA settlement enters Compound. No economic certification claim."
     },
     {
       "id": "CE2I_CALIBRATION_GOVERNANCE",
@@ -1004,18 +1033,20 @@
       "kind": "LEGACY_PROGRAM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "RESEARCH_QUARANTINE_GATE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "QUARANTINED_AND_CURRENT_RUNTIME_DECOUPLED_CI_GREEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
         "scripts/cibo_legacy_stack_quarantine.py",
         "tests/infrastructure/test_cibo_legacy_stack_quarantine.py",
         ".github/workflows/cibo-legacy-stack-quarantine.yml",
-        "docs/research/CIBO-LEGACY-STACK-QUARANTINE-V1.md"
+        "docs/research/CIBO-LEGACY-STACK-QUARANTINE-V1.md",
+        "src/qore/infrastructure/cibo_research_memory.py",
+        "src/qore/infrastructure/traders/vt31_nas100_cibo_market_memory.py",
+        "tests/infrastructure/test_vt31_cibo_market_memory_quarantine.py",
+        "github-actions://36759730275/SUCCESS"
       ],
-      "blockers": [
-        "LEGACY_STACK_QUARANTINE_CI_REVALIDATION_REQUIRED"
-      ],
-      "next_gate": "Pass AST import quarantine with zero forbidden current/runtime consumers; retain only GEN-C13 executive-memory reuse, then close legacy program without deleting research evidence."
+      "blockers": [],
+      "next_gate": "Terminal quarantine: historical cognitive/executive stack has no productive runtime import edge; retained memory reuse remains limited to explicitly governed research consumers."
     },
     {
       "id": "USD60_CAPABILITY_PROGRAM",
@@ -1081,8 +1112,8 @@
   ],
   "current_summary": {
     "mandatory_count": 64,
-    "terminal_count": 7,
-    "open_count": 57,
+    "terminal_count": 13,
+    "open_count": 51,
     "zero_open_work_pass": false,
     "final_certification_candidate": false
   }
