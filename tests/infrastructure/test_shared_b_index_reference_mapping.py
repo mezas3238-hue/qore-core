@@ -12,7 +12,7 @@ from qore.infrastructure.core_stack_v2.shared_b_index_reference_mapping import (
 
 def _provider_attested() -> dict[str, object]:
     records: list[dict[str, object]] = []
-    for offset, symbol_id in enumerate(range(10000, 10025)):
+    for symbol_id in range(10000, 10025):
         records.append({
             "provider": "CTRADER_DEMO",
             "provider_symbol_id": symbol_id,
@@ -21,7 +21,7 @@ def _provider_attested() -> dict[str, object]:
             "provider_asset_class_name": "Indices",
             "identity_stage": "PROVIDER_ATTESTED_ECONOMIC_OBJECT",
         })
-    for offset, symbol_id in enumerate(range(20000, 20073)):
+    for symbol_id in range(20000, 20073):
         records.append({
             "provider": "CTRADER_DEMO",
             "provider_symbol_id": symbol_id,
