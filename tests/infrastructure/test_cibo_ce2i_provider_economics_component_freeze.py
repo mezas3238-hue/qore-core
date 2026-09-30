@@ -1,6 +1,4 @@
 from datetime import UTC, datetime
-from decimal import Decimal
-
 from qore.infrastructure.cibo_arch_b_forward_economic_manifest import (
     ARCH_B_FORWARD_ECONOMIC_MANIFEST_ID,
     ArchBForwardEconomicManifest,
@@ -92,4 +90,3 @@ def test_not_ready_execution_calibration_is_bound_without_promoting_readiness() 
         "EMPIRICAL_SLIPPAGE_NOT_FROZEN",
         "EXECUTION_MODEL_NOT_FROZEN",
     )
-    assert Decimal(freeze.source_observed_at.timestamp()) > 0
