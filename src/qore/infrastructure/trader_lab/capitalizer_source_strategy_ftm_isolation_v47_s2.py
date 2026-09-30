@@ -367,28 +367,19 @@ def first_setup_cisd_binding(
 
 
 def _continuation_m3(
-    prepared: s1._PreparedSourceSeries,
+    rows: tuple[TFBar, ...],
+    closes: tuple[datetime, ...],
+    pivots: tuple[object, ...],
     *,
     sweep: raw_ftm.FTMRawSweep,
     side: CapitalizerSide,
 ) -> v3_source.M3MssEvent | None:
-    rows = tuple(
-        row
-        for row in s1._prepared_tf_between(
-            prepared.m3,
-            prepared.m3_opened,
-            start=sweep.sweep_at - s1.LOOKBACK,
-            end=sweep.deadline,
-        )
-        if isinstance(row, TFBar)
-    )
     if not rows:
         return None
-    closes = tuple(row.closed_at for row in rows)
     return v3_source._find_m3_mss(
         rows,
         closes,
-        _pivots(rows),
+        pivots,  # type: ignore[arg-type]
         after=sweep.sweep_at,
         before=sweep.deadline,
         side=side,
@@ -437,11 +428,41 @@ def bind_ftm_candidates_for_day(
     funnel["raw_sweeps"] = funnel.get("raw_sweeps", 0) + len(sweeps)
     result: list[FTMCanonicalCandidate] = []
 
-    for sweep in sweeps:
-        htf = binders.bind_latest_h1_context(
-            bars,
-            decision_at=sweep.sweep_at,
+    source_start, source_end = s1.source_session_bounds(
+        operating_day,
+        session=session,
+    )
+    execution = s1._prepared_m1_between(
+        prepared,
+        start=source_start,
+        end=source_end,
+    )
+    m3_rows = tuple(
+        row
+        for row in s1._prepared_tf_between(
+            prepared.m3,
+            prepared.m3_opened,
+            start=source_start - s1.LOOKBACK,
+            end=source_end,
         )
+        if isinstance(row, TFBar)
+    )
+    m3_closes = tuple(row.closed_at for row in m3_rows)
+    m3_pivots = _pivots(m3_rows)
+    htf_by_hour: dict[datetime, binders.S0HTFContext | None] = {}
+
+    for sweep in sweeps:
+        hour_open = sweep.sweep_at.replace(
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+        if hour_open not in htf_by_hour:
+            htf_by_hour[hour_open] = binders.bind_latest_h1_context(
+                bars,
+                decision_at=sweep.sweep_at,
+            )
+        htf = htf_by_hour[hour_open]
         if htf is None:
             _bump(rejections, "HTF_CONTEXT_UNRESOLVED")
             continue
@@ -488,21 +509,18 @@ def bind_ftm_candidates_for_day(
         funnel["continuation_binding"] = funnel.get("continuation_binding", 0) + 1
 
         side = _side(continuation_direction)
-        m3 = _continuation_m3(prepared, sweep=sweep, side=side)
+        m3 = _continuation_m3(
+            m3_rows,
+            m3_closes,
+            m3_pivots,
+            sweep=sweep,
+            side=side,
+        )
         if m3 is None:
             _bump(rejections, "CONTINUATION_M3_MSS_UNRESOLVED")
             continue
         funnel["continuation_m3"] = funnel.get("continuation_m3", 0) + 1
 
-        source_start, source_end = s1.source_session_bounds(
-            operating_day,
-            session=session,
-        )
-        execution = s1._prepared_m1_between(
-            prepared,
-            start=source_start,
-            end=source_end,
-        )
         ict_fvg_at = _ict_fvg_at(execution, mss=m3)
         if ict_fvg_at is None:
             _bump(rejections, "CONTINUATION_M3_FVG_UNRESOLVED")
