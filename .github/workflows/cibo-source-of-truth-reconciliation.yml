@@ -1,0 +1,63 @@
+name: QORE CIBO Source of Truth Reconciliation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-source-of-truth-reconciliation.yml'
+      - 'scripts/cibo_source_of_truth_reconciliation_gate.py'
+      - 'tests/infrastructure/test_cibo_source_of_truth_reconciliation_gate.py'
+      - 'docs/research/CIBO-SOURCE-OF-TRUTH-RECONCILIATION-V1.md'
+      - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
+      - 'docs/research/CIBO-AB-INTEGRATION-ACCEPTANCE-V1.json'
+      - 'docs/research/CIBO-AB-CHILD-DELTA-ACCOUNTING-V1.json'
+      - 'docs/research/CIBO-AB-INTEGRATED-EVIDENCE-REGISTER-V1.json'
+      - 'docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md'
+      - 'docs/research/CIBO-WORLD-CUP-SOVEREIGN-CAPITAL-AMPLIFICATION-GAP-MATRIX-V1.md'
+      - 'docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md'
+  push:
+    branches:
+      - agent/cibo-integrator-ab-001
+    paths:
+      - '.github/workflows/cibo-source-of-truth-reconciliation.yml'
+      - 'scripts/cibo_source_of_truth_reconciliation_gate.py'
+      - 'tests/infrastructure/test_cibo_source_of_truth_reconciliation_gate.py'
+      - 'docs/research/CIBO-SOURCE-OF-TRUTH-RECONCILIATION-V1.md'
+      - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
+      - 'docs/research/CIBO-AB-INTEGRATION-ACCEPTANCE-V1.json'
+      - 'docs/research/CIBO-AB-CHILD-DELTA-ACCOUNTING-V1.json'
+      - 'docs/research/CIBO-AB-INTEGRATED-EVIDENCE-REGISTER-V1.json'
+      - 'docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md'
+      - 'docs/research/CIBO-WORLD-CUP-SOVEREIGN-CAPITAL-AMPLIFICATION-GAP-MATRIX-V1.md'
+      - 'docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  source-of-truth-reconciliation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: ruff check scripts/cibo_source_of_truth_reconciliation_gate.py tests/infrastructure/test_cibo_source_of_truth_reconciliation_gate.py
+      - name: mypy
+        run: mypy scripts/cibo_source_of_truth_reconciliation_gate.py
+      - name: pytest
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_source_of_truth_reconciliation_gate.py
+      - name: Emit reconciliation evidence
+        run: python scripts/cibo_source_of_truth_reconciliation_gate.py --git-sha "${{ env.EVIDENCE_SHA }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-source-of-truth-reconciliation-${{ env.EVIDENCE_SHA }}
+          path: artifacts/cibo_source_of_truth_reconciliation_v1.json
+          if-no-files-found: error
