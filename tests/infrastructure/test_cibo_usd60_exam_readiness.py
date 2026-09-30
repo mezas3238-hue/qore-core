@@ -53,51 +53,80 @@ def _empty_manifest():
 def _ready_manifest() -> ArchBForwardEconomicManifest:
     frozen = FROZEN_PHASE20_POLICY_CANDIDATE
     plan = FROZEN_PHASE20D_QUALIFICATION_PLAN
-    row = ArchBForwardEconomicManifestRow(
-        decision_epoch_id="epoch-1",
-        decision_evidence_sha256="sha256:" + "1" * 64,
-        decision_at=T0,
-        fold_id="WF1",
-        signal_fingerprint="signal-1",
-        trader_id="VT31_NAS100",
-        candidate_id=frozen.candidate_id,
-        code_sha=frozen.code_sha,
-        parameter_sha256=frozen.parameter_sha256(),
-        collector_git_sha="a" * 40,
-        provider_key="ctrader-demo",
-        account_ref="12345",
-        environment="DEMO",
-        provider_evidence_id="provider-1",
-        qore_symbol="NAS100",
-        provider_symbol="US100",
-        provider_economics_sha256="sha256:" + "2" * 64,
-        provider_observed_at=(T0 - timedelta(seconds=1)).isoformat(),
-        provider_minimum_volume=Decimal("0.01"),
-        provider_volume_step=Decimal("0.01"),
-        provider_margin_per_volume_usd=Decimal("1"),
-        provider_commission_per_volume_usd=Decimal("0"),
-        provider_slippage_reserve_per_volume_usd=Decimal("0"),
-        provider_bid=Decimal("20000"),
-        provider_ask=Decimal("20001"),
-        policy_record_sha256="sha256:" + "3" * 64,
-        policy_selected=True,
-        baseline_policy_id=plan.baseline_policy_id,
-        baseline_selected=True,
-        execution_risk_evidence_id="risk-1",
-        executed_risk_sha256="sha256:" + "4" * 64,
-        executed_source_volume=Decimal("0.01"),
-        executed_initial_stop_risk_usd=Decimal("1"),
-        settlement_sha256="sha256:" + "5" * 64,
-        settlement_deal_ids=(1,),
-        realized_net_pnl_usd=Decimal("2"),
-        outcome_observed_at=T0 + timedelta(minutes=10),
-        release_evidence_sha256="sha256:" + "6" * 64,
-        release_chain_sha256="sha256:" + "7" * 64,
-        released_stop_risk_capacity_usd=Decimal("1"),
-        released_margin_capacity_usd=Decimal("1"),
-        terminal_release_at=T0 + timedelta(minutes=9),
-        capital_minutes=Decimal("9"),
+    lineages = (
+        "R34_XAUUSD",
+        "R38_EURUSD",
+        "R43_GBPUSD",
+        "R38_GBPJPY",
+        "R42_AUDJPY",
+        "VT08_FOREX",
+        "VT31_NAS100",
     )
+    symbols = (
+        ("XAUUSD", "XAUUSD"),
+        ("EURUSD", "EURUSD"),
+        ("GBPUSD", "GBPUSD"),
+        ("GBPJPY", "GBPJPY"),
+        ("AUDJPY", "AUDJPY"),
+        ("EURUSD", "EURUSD"),
+        ("NAS100", "US100"),
+    )
+    rows = []
+    for index in range(plan.minimum_candidate_outcomes):
+        lineage = lineages[index % len(lineages)]
+        qore_symbol, provider_symbol = symbols[index % len(symbols)]
+        decision_at = T0 + timedelta(minutes=index)
+        rows.append(
+            ArchBForwardEconomicManifestRow(
+                decision_epoch_id=f"epoch-{index}",
+                decision_evidence_sha256=(
+                    "sha256:" + f"{index + 1:064x}"
+                ),
+                decision_at=decision_at,
+                fold_id=f"WF{(index % plan.fold_count) + 1}",
+                signal_fingerprint=f"signal-{index}",
+                trader_id=lineage,
+                candidate_id=frozen.candidate_id,
+                code_sha=frozen.code_sha,
+                parameter_sha256=frozen.parameter_sha256(),
+                collector_git_sha="a" * 40,
+                provider_key="ctrader-demo",
+                account_ref="12345",
+                environment="DEMO",
+                provider_evidence_id=f"provider-{index}",
+                qore_symbol=qore_symbol,
+                provider_symbol=provider_symbol,
+                provider_economics_sha256="sha256:" + "2" * 64,
+                provider_observed_at=(
+                    decision_at - timedelta(seconds=1)
+                ).isoformat(),
+                provider_minimum_volume=Decimal("0.01"),
+                provider_volume_step=Decimal("0.01"),
+                provider_margin_per_volume_usd=Decimal("1"),
+                provider_commission_per_volume_usd=Decimal("0"),
+                provider_slippage_reserve_per_volume_usd=Decimal("0"),
+                provider_bid=Decimal("20000"),
+                provider_ask=Decimal("20001"),
+                policy_record_sha256="sha256:" + "3" * 64,
+                policy_selected=index < plan.minimum_selected_outcomes,
+                baseline_policy_id=plan.baseline_policy_id,
+                baseline_selected=True,
+                execution_risk_evidence_id=f"risk-{index}",
+                executed_risk_sha256="sha256:" + "4" * 64,
+                executed_source_volume=Decimal("0.01"),
+                executed_initial_stop_risk_usd=Decimal("1"),
+                settlement_sha256="sha256:" + "5" * 64,
+                settlement_deal_ids=(index + 1,),
+                realized_net_pnl_usd=Decimal("2"),
+                outcome_observed_at=decision_at + timedelta(minutes=10),
+                release_evidence_sha256="sha256:" + "6" * 64,
+                release_chain_sha256="sha256:" + "7" * 64,
+                released_stop_risk_capacity_usd=Decimal("1"),
+                released_margin_capacity_usd=Decimal("1"),
+                terminal_release_at=decision_at + timedelta(minutes=9),
+                capital_minutes=Decimal("9"),
+            )
+        )
     return ArchBForwardEconomicManifest(
         manifest_id=ARCH_B_FORWARD_ECONOMIC_MANIFEST_ID,
         frozen_candidate_id=frozen.candidate_id,
@@ -107,14 +136,13 @@ def _ready_manifest() -> ArchBForwardEconomicManifest:
         qualification_plan_sha256=phase20d_qualification_plan_sha256(),
         baseline_policy_id=plan.baseline_policy_id,
         qualification_status="PASS",
-        decision_epochs=80,
-        candidate_rows=200,
-        complete_lineage_rows=1,
-        rows=(row,),
+        decision_epochs=plan.minimum_decision_epochs,
+        candidate_rows=len(rows),
+        complete_lineage_rows=len(rows),
+        rows=tuple(rows),
         gaps=(),
         ready_for_scientific_consumption=True,
     )
-
 
 def _prerequisites(*, passed: bool = True, inspected: bool = False):
     return tuple(
