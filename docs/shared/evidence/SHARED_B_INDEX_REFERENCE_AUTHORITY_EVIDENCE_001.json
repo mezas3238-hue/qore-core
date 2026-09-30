@@ -105,7 +105,7 @@
     {
       "provider_symbol_id": 10046,
       "provider_symbol": "DE40",
-      "expected_provider_description": "German DAX 40 Index",
+      "expected_provider_description": "Germany DAX 40 Index",
       "canonical_reference_identity": "INDEX:DAX_40",
       "canonical_reference_name": "DAX",
       "authority": "Deutsche Börse",
