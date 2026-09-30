@@ -59,8 +59,10 @@ jobs:
           from pathlib import Path
           a=json.loads(Path("docs/shared/evidence/QORE_SHARED_STI8_ECONOMIC_RESPONSE_V3_ENGINEERING_RECOVERY_AMENDMENT_002.json").read_text())
           assert a["status"] == "ENGINEERING_RECOVERY_ONLY"
-          assert a["failed_run"]["run_id"] == 36740059589
-          assert a["failed_run"]["economic_evaluation_started"] is False
+          assert a["failed_runs"][0]["run_id"] == 36740059589
+          assert a["failed_runs"][0]["economic_evaluation_started"] is False
+          assert a["failed_runs"][1]["run_id"] == 36741493431
+          assert a["failed_runs"][1]["economic_evaluation_started"] is False
           assert a["scientific_invariants_unchanged"]["v3_policy"] is True
           assert a["scientific_invariants_unchanged"]["economic_gates"] is True
           assert a["engineering_recovery"]["requested_calendar_span_days"] == 740
