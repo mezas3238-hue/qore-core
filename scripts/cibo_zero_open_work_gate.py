@@ -70,6 +70,9 @@ _COMMENT_MARKERS = (
 )
 
 _WORKSTREAM_CLASSIFIERS = (
+    ("*cibo_capital_digital_twin*", "GEN-C10"),
+    ("*genc10-capital-digital-twin*", "GEN-C10"),
+    ("*GEN-C10-CAPITAL-DIGITAL-TWIN*", "GEN-C10"),
     ("*cibo_robust_growth_ruin_capacity*", "GEN-C9"),
     ("*cibo-genc9-robust-growth*", "GEN-C9"),
     ("*cibo_integrated_capital_scope_store*", "INTEGRATED_CAPITAL_TRUTH"),

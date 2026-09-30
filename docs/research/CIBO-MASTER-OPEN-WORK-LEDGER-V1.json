@@ -462,15 +462,22 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ARCHITECTURE_DEFINED",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-GEN-C10-CAPITAL-DIGITAL-TWIN-PREREGISTRATION-V1.md",
+        "src/qore/infrastructure/cibo_capital_digital_twin.py",
+        "tests/infrastructure/test_cibo_capital_digital_twin.py",
+        ".github/workflows/cibo-genc10-capital-digital-twin.yml"
       ],
       "blockers": [
-        "ENGINE_NOT_YET_IMPLEMENTED"
+        "GEN_C10_ENGINE_CI_REVALIDATION_REQUIRED",
+        "CALIBRATED_TRANSITION_UNCERTAINTY_NOT_YET_PROVEN",
+        "REAL_CHRONOLOGICAL_TWIN_POPULATION_NOT_YET_BOUND",
+        "FRESH_OOS_STRESS_TEMPORAL_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Implement conserved full-capital Digital Twin and scenario transition engine."
+      "next_gate": "Pass GEN-C10 engine CI; bind real chronological twin snapshots; calibrate transition uncertainty without future leakage; then OOS/stress/replicate."
     },
     {
       "id": "GEN-C11",
