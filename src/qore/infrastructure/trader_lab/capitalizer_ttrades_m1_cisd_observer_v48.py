@@ -33,7 +33,6 @@ from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
 )
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 
-
 IDENTITY = "QORE_CAPITALIZER_V48_TTRADES_M1_CISD_OBSERVER"
 
 
