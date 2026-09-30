@@ -1,7 +1,7 @@
 {
   "schema": "CIBO_ARCH_B_CLOSURE_HANDOFF_V1",
   "branch": "agent/cibo-certification-architect-b-integration-001",
-  "implementation_checkpoint_sha": "3895af47c32c473682700d07435ea437110e5c3e",
+  "implementation_checkpoint_sha": "0ebc8afcc6b13e3fb2afebe7300d695c18ed33ef",
   "primary_pr": 651,
   "child_pr": 661,
   "governance": {
@@ -123,7 +123,7 @@
     },
     {
       "id": "PROVIDER_ECONOMICS",
-      "b_status": "REAL_POINT_IN_TIME_PROVIDER_TERMS_PROVEN_ACCOUNT_CAPABILITY_PROBE_READY",
+      "b_status": "POINT_IN_TIME_TERMS_FROZEN_AND_FORWARD_EXECUTION_CALIBRATION_PATH_IMPLEMENTED",
       "recommended_ledger_disposition": null,
       "evidence": [
         "src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py",
@@ -131,7 +131,12 @@
         "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
         "src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py",
         "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-ECONOMICS-EVIDENCE-2026-09-30.json",
-        "scripts/cibo_ctrader_demo_account_capability_probe.py"
+        "scripts/cibo_ctrader_demo_account_capability_probe.py",
+        "src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py",
+        "scripts/cibo_phase20_provider_execution_calibration.py",
+        "tests/infrastructure/test_cibo_ce2i_provider_execution_calibration.py",
+        "tests/infrastructure/test_cibo_phase20_provider_execution_calibration_export.py",
+        "docs/research/CIBO-B-PROVIDER-ECONOMICS-COMPONENT-FREEZE-V1.md"
       ],
       "blockers": [
         "HISTORICAL_2017_PROVIDER_USD_ECONOMICS_UNAVAILABLE",
@@ -229,7 +234,7 @@
     },
     {
       "id": "INTEGRATED_CAPITAL_TRUTH",
-      "b_status": "FIVE_STORE_ACCOUNTING_RECOVERY_ENGINE_IMPLEMENTED",
+      "b_status": "FIVE_STORE_ENGINE_AND_FORWARD_SETTLEMENT_BINDING_IMPLEMENTED",
       "recommended_ledger_disposition": null,
       "evidence": [
         "src/qore/infrastructure/cibo_integrated_capital_truth.py",
@@ -238,7 +243,11 @@
         "src/qore/infrastructure/cibo_integrated_capital_scope_store.py",
         "tests/infrastructure/test_cibo_integrated_capital_truth.py",
         "tests/infrastructure/test_cibo_integrated_capital_recovery.py",
-        ".github/workflows/cibo-compound-engine-integrated-cycle.yml"
+        ".github/workflows/cibo-compound-engine-integrated-cycle.yml",
+        "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py",
+        "tests/infrastructure/test_cibo_integrated_capital_forward_binding.py",
+        ".github/workflows/cibo-integrated-capital-forward-binding.yml",
+        "docs/research/CIBO-B-INTEGRATED-CAPITAL-FORWARD-BINDING-V1.md"
       ],
       "blockers": [
         "REAL_CHRONOLOGICAL_FORWARD_POPULATION_BINDING_REQUIRED"
