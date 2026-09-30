@@ -38,16 +38,15 @@ class SharedBWorkItem:
         if not self.title.strip():
             raise ValueError("B work title must be non-empty")
         if (
-            self.evidence_refs
-            != tuple(sorted(set(self.evidence_refs)))
+            len(self.evidence_refs) != len(set(self.evidence_refs))
             or any(not item.strip() for item in self.evidence_refs)
         ):
-            raise ValueError("evidence_refs must be unique/canonical")
+            raise ValueError("evidence_refs must be non-empty/unique")
         if (
-            self.blockers != tuple(sorted(set(self.blockers)))
+            len(self.blockers) != len(set(self.blockers))
             or any(not item.strip() for item in self.blockers)
         ):
-            raise ValueError("blockers must be unique/canonical")
+            raise ValueError("blockers must be non-empty/unique")
         if (
             self.status is SharedBWorkStatus.COMPLETE_AND_PROVEN
             and self.blockers
@@ -217,14 +216,14 @@ B_WORK_ITEMS: Final = (
     SharedBWorkItem(
         "B-16",
         "Active Perception sensor-side acquisition",
-        SharedBWorkStatus.IN_PROGRESS,
+        SharedBWorkStatus.PARTIAL_EVIDENCE_OPEN,
         (
             "artifact:11112547465",
             "artifact:11113260581",
+            "artifact:11116986748",
             "run:36757173753",
         ),
         (
-            "B-16/B-17 boundary workflow has not yet produced final evidence",
             "global 177-sensor causal qualification remains incomplete",
         ),
     ),
@@ -327,8 +326,8 @@ def build_shared_b_open_work_ledger() -> dict[str, object]:
                 "title": item.title,
                 "status": item.status.value,
                 "mandatory": item.mandatory,
-                "evidence_refs": item.evidence_refs,
-                "blockers": item.blockers,
+                "evidence_refs": tuple(sorted(item.evidence_refs)),
+                "blockers": tuple(sorted(item.blockers)),
             }
             for item in B_WORK_ITEMS
         ],
