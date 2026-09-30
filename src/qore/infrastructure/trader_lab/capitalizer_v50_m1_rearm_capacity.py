@@ -316,6 +316,7 @@ def build_rearm_capacity(
                 attempt_index = 0
                 seen_trigger_times: set[datetime] = set()
                 recovered = False
+                cognitive_rearm_active = False
 
                 while cursor < deadline:
                     m1_window = _slice(
@@ -442,7 +443,7 @@ def build_rearm_capacity(
                         counters["TOTAL_READY"] += 1
                         if cognitive_ready:
                             counters["TOTAL_COG_READY"] += 1
-                            if counters["COGNITIVE_REARM_ACTIVE"] > 0:
+                            if cognitive_rearm_active:
                                 counters["COGNITIVE_REARM_RECOVERED"] += 1
                             recovered = True
                             break
@@ -452,7 +453,7 @@ def build_rearm_capacity(
                         # not invalidate the parent H1/M15 thesis. Continue only on a strictly
                         # later source-valid M1 event while the protected swing remains intact.
                         counters["GEOMETRY_READY_COGNITION_BLOCKED"] += 1
-                        counters["COGNITIVE_REARM_ACTIVE"] += 1
+                        cognitive_rearm_active = True
                         counters["COGNITIVE_REARM_ATTEMPTS"] += 1
                         cursor = trigger_at
                         continue
