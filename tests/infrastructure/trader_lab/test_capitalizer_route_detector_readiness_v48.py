@@ -41,16 +41,34 @@ def test_ftm_source_native_primitive_is_now_reusable() -> None:
     ) is V48DetectorReadiness.REUSABLE_CAUSAL_PRIMITIVE
 
 
-def test_ict_binding_block_does_not_hide_ttrades_detector_work() -> None:
+def test_h4_binding_and_ict_binding_are_explicit_local_blockers() -> None:
     assert _status(
         V48RouteId.ICT_2022_EXECUTION,
         "ICT_EXACT_PRIMARY_SOURCE_BINDING",
     ) is V48DetectorReadiness.SOURCE_BINDING_BLOCKED
-    assert any(
-        item.route_id is V48RouteId.TTRADES_ASIA_4H_15M
-        and item.readiness is V48DetectorReadiness.DETECTOR_MISSING
-        for item in FACTS
-    )
+    assert _status(
+        V48RouteId.TTRADES_ASIA_4H_15M,
+        "H4_PROFILE_TIME_BINDING",
+    ) is V48DetectorReadiness.SOURCE_BINDING_BLOCKED
+    assert _status(
+        V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
+        "H4_PROFILE_TIME_BINDING",
+    ) is V48DetectorReadiness.SOURCE_BINDING_BLOCKED
+
+
+def test_ny_sweep_and_cisd_exist_but_london_context_resolver_is_missing() -> None:
+    assert _status(
+        V48RouteId.TTRADES_NEW_YORK_MANIPULATION,
+        "NY_LIQUIDITY_SWEEP_CONFIRMED",
+    ) is V48DetectorReadiness.REUSABLE_CAUSAL_PRIMITIVE
+    assert _status(
+        V48RouteId.TTRADES_NEW_YORK_MANIPULATION,
+        "NY_CISD_CONFIRMED",
+    ) is V48DetectorReadiness.REUSABLE_CAUSAL_PRIMITIVE
+    assert _status(
+        V48RouteId.TTRADES_NEW_YORK_MANIPULATION,
+        "LONDON_CONTEXT_RESOLVED",
+    ) is V48DetectorReadiness.DETECTOR_MISSING
 
 
 def test_readiness_ledger_is_pre_economic_and_fail_closed() -> None:
