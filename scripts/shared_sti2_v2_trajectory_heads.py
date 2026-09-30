@@ -136,8 +136,8 @@ def _source_policy(
         minimum_integrity_bps=9_500,
         source_only_calibration=True,
         evidence_refs=(
-            "sti2-v2-preregistration-001",
             "immutable-r8-source-only-mechanism-distributions",
+            "sti2-v2-preregistration-001",
         ),
     )
     return policy, {
