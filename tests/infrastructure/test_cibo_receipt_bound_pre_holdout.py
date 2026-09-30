@@ -31,6 +31,9 @@ from qore.infrastructure.cibo_ce2i_provider_execution_calibration import (
 from qore.infrastructure.cibo_crossboundary_evidence_receipt import (
     bind_cross_boundary_pass_artifact,
 )
+from qore.infrastructure.cibo_instrument_capability_registry import (
+    CapabilityStatus,
+)
 from qore.infrastructure.cibo_receipt_bound_calibration_freeze import (
     build_receipt_bound_calibration_freeze,
     required_calibration_freeze_receipt_ids,
@@ -55,6 +58,17 @@ _SPEC = importlib.util.spec_from_file_location(
 assert _SPEC is not None and _SPEC.loader is not None
 _PROVIDER_FIXTURE = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_PROVIDER_FIXTURE)
+
+_CALIBRATION_TEST = Path(__file__).with_name(
+    "test_cibo_receipt_bound_calibration_freeze.py"
+)
+_CALIBRATION_SPEC = importlib.util.spec_from_file_location(
+    "_cibo_calibration_freeze_fixture",
+    _CALIBRATION_TEST,
+)
+assert _CALIBRATION_SPEC is not None and _CALIBRATION_SPEC.loader is not None
+_CALIBRATION_FIXTURE = importlib.util.module_from_spec(_CALIBRATION_SPEC)
+_CALIBRATION_SPEC.loader.exec_module(_CALIBRATION_FIXTURE)
 
 
 def _base(receipt_id: str, *, kind: str, head: str = HEAD) -> dict:
@@ -109,6 +123,7 @@ def _calibration_receipts(
     *,
     forward_sha: str,
     provider_sha: str,
+    provider_capability_registry,
     head: str = HEAD,
 ):
     provider_required = {
@@ -145,7 +160,9 @@ def _calibration_receipts(
                 }
             )
             if disabled:
-                payload["provider_capability_verified"] = True
+                payload["provider_capability_registry_sha256"] = (
+                    provider_capability_registry.fingerprint()
+                )
                 payload["structural_disable_reason"] = (
                     "PROVIDER_CAPABILITY_CANONICALLY_UNAVAILABLE"
                 )
@@ -182,18 +199,26 @@ def _pre_holdout_receipts(
     return tuple(result)
 
 
-def _valid_inputs():
+def _valid_inputs(*, provider_capability_registry=None):
     manifest, risks, calibration, provider = _provider_state()
+    registry = (
+        _CALIBRATION_FIXTURE._registry()
+        if provider_capability_registry is None
+        else provider_capability_registry
+    )
     forward_sha = manifest.fingerprint()
     provider_sha = provider.fingerprint()
     calibration_receipts = _calibration_receipts(
         forward_sha=forward_sha,
         provider_sha=provider_sha,
+        provider_capability_registry=registry,
     )
     freeze = build_receipt_bound_calibration_freeze(
         receipts=calibration_receipts,
         integrated_git_sha=HEAD,
         policy_identity_sha256=POLICY,
+        provider_capability_registry=registry,
+        capability_at=registry.captured_at,
     )
     pre_receipts = _pre_holdout_receipts(
         forward_sha=forward_sha,
@@ -201,11 +226,11 @@ def _valid_inputs():
         execution_calibration_sha=calibration.fingerprint(),
         calibration_sha=freeze.fingerprint(),
     )
-    return manifest, risks, calibration_receipts, pre_receipts
+    return manifest, risks, registry, calibration_receipts, pre_receipts
 
 
 def test_receipt_bound_pre_holdout_can_reach_ready_without_reading_holdout() -> None:
-    manifest, risks, calibration_receipts, pre_receipts = _valid_inputs()
+    manifest, risks, registry, calibration_receipts, pre_receipts = _valid_inputs()
 
     readiness = evaluate_receipt_bound_pre_holdout_readiness(
         integrated_git_sha=HEAD,
@@ -214,6 +239,7 @@ def test_receipt_bound_pre_holdout_can_reach_ready_without_reading_holdout() -> 
         calibration_receipts=calibration_receipts,
         forward_manifest=manifest,
         executed_risk_book=risks,
+        provider_capability_registry=registry,
     )
 
     assert readiness.status is CiboPreHoldoutStatus.READY_TO_UNSEAL_2017H1
@@ -223,7 +249,7 @@ def test_receipt_bound_pre_holdout_can_reach_ready_without_reading_holdout() -> 
 
 
 def test_phase21_false_cannot_be_laundered_by_pass_envelope() -> None:
-    manifest, risks, calibration_receipts, _ = _valid_inputs()
+    manifest, risks, registry, calibration_receipts, _ = _valid_inputs()
     calibration = calibrate_ctrader_demo_forward_execution(
         manifest=manifest,
         executed_risk_book=risks,
@@ -237,6 +263,8 @@ def test_phase21_false_cannot_be_laundered_by_pass_envelope() -> None:
         receipts=calibration_receipts,
         integrated_git_sha=HEAD,
         policy_identity_sha256=POLICY,
+        provider_capability_registry=registry,
+        capability_at=registry.captured_at,
     )
     pre_receipts = _pre_holdout_receipts(
         forward_sha=manifest.fingerprint(),
@@ -257,11 +285,12 @@ def test_phase21_false_cannot_be_laundered_by_pass_envelope() -> None:
             calibration_receipts=calibration_receipts,
             forward_manifest=manifest,
             executed_risk_book=risks,
+            provider_capability_registry=registry,
         )
 
 
 def test_provider_fingerprint_mismatch_fails_closed() -> None:
-    manifest, risks, calibration_receipts, _ = _valid_inputs()
+    manifest, risks, registry, calibration_receipts, _ = _valid_inputs()
     calibration = calibrate_ctrader_demo_forward_execution(
         manifest=manifest,
         executed_risk_book=risks,
@@ -271,6 +300,8 @@ def test_provider_fingerprint_mismatch_fails_closed() -> None:
         receipts=calibration_receipts,
         integrated_git_sha=HEAD,
         policy_identity_sha256=POLICY,
+        provider_capability_registry=registry,
+        capability_at=registry.captured_at,
     )
     pre_receipts = _pre_holdout_receipts(
         forward_sha=manifest.fingerprint(),
@@ -290,11 +321,12 @@ def test_provider_fingerprint_mismatch_fails_closed() -> None:
             calibration_receipts=calibration_receipts,
             forward_manifest=manifest,
             executed_risk_book=risks,
+            provider_capability_registry=registry,
         )
 
 
 def test_missing_calibration_tool_receipt_fails_before_holdout() -> None:
-    manifest, risks, calibration_receipts, pre_receipts = _valid_inputs()
+    manifest, risks, registry, calibration_receipts, pre_receipts = _valid_inputs()
     calibration_receipts = tuple(
         item for item in calibration_receipts if item.receipt_id != "T07"
     )
@@ -310,4 +342,29 @@ def test_missing_calibration_tool_receipt_fails_before_holdout() -> None:
             calibration_receipts=calibration_receipts,
             forward_manifest=manifest,
             executed_risk_book=risks,
+            provider_capability_registry=registry,
+        )
+
+
+def test_unknown_t16_capability_blocks_pre_holdout() -> None:
+    registry = _CALIBRATION_FIXTURE._registry(
+        hedge=CapabilityStatus.UNKNOWN,
+    )
+    manifest, risks, calibration, provider = _provider_state()
+    calibration_receipts = _calibration_receipts(
+        forward_sha=manifest.fingerprint(),
+        provider_sha=provider.fingerprint(),
+        provider_capability_registry=registry,
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="T16 structural disablement requires provider-verified HEDGE UNAVAILABLE",
+    ):
+        build_receipt_bound_calibration_freeze(
+            receipts=calibration_receipts,
+            integrated_git_sha=HEAD,
+            policy_identity_sha256=POLICY,
+            provider_capability_registry=registry,
+            capability_at=registry.captured_at,
         )
