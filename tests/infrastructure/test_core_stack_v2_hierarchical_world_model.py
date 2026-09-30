@@ -74,3 +74,29 @@ def test_opposed_lower_timeframe_plus_fragile_higher_timeframe_can_confirm_rever
     )
 
     assert state.structural_reversal_confirmed is True
+
+
+def test_cross_market_regime_is_higher_level_context() -> None:
+    state = reconcile_world_levels(
+        (
+            WorldLevelState(
+                WorldScale.M5,
+                DirectionalState.BEARISH,
+                confidence_bps=8_000,
+                persistence_bps=7_500,
+                fragility_bps=3_000,
+                transition_probability_bps=2_500,
+            ),
+            WorldLevelState(
+                WorldScale.CROSS_MARKET_REGIME,
+                DirectionalState.BULLISH,
+                confidence_bps=9_000,
+                persistence_bps=8_500,
+                fragility_bps=2_000,
+                transition_probability_bps=2_000,
+            ),
+        )
+    )
+
+    assert state.lower_timeframe_pullback_only is True
+    assert state.structural_reversal_confirmed is False

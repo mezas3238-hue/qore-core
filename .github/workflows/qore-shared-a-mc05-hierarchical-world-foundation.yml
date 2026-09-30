@@ -1,0 +1,97 @@
+name: QORE Shared A MC05 Hierarchical World Foundation
+
+concurrency:
+  group: qore-shared-a-mc05-hierarchical-world-foundation
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/hierarchical_world_model.py
+      - tests/infrastructure/test_core_stack_v2_hierarchical_world_model.py
+      - scripts/shared_mc05_hierarchical_world_real_replay.py
+      - .github/workflows/qore-shared-a-mc05-hierarchical-world-foundation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install and validate
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p input/{r6,r5} result
+          ruff check src/qore/infrastructure/core_stack_v2/hierarchical_world_model.py tests/infrastructure/test_core_stack_v2_hierarchical_world_model.py scripts/shared_mc05_hierarchical_world_real_replay.py
+          mypy src/qore/infrastructure/core_stack_v2/hierarchical_world_model.py
+          pytest -q tests/infrastructure/test_core_stack_v2_hierarchical_world_model.py
+      - name: Recover immutable source evidence
+        run: |
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+      - name: Replay MC05
+        run: |
+          python scripts/shared_mc05_hierarchical_world_real_replay.py \
+            --r6-nas input/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp input/r6/fresh/SP500/market-evidence.json \
+            --r6-us input/r6/fresh/US30/market-evidence.json \
+            --r5-nas input/r5/fresh/NAS100/market-evidence.json \
+            --r5-sp input/r5/fresh/SP500/market-evidence.json \
+            --r5-us input/r5/fresh/US30/market-evidence.json \
+            --output result/mc05-hierarchical-world-real-replay.json \
+            | tee result/summary.json
+      - name: Validate bounded disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc05-hierarchical-world-real-replay.json").read_text())
+          assert p["status"] == "MC05_HIERARCHICAL_WORLD_REAL_DATA_BOUND_PASS"
+          assert p["bottom_up_reasoning"] is True
+          assert p["top_down_reasoning"] is True
+          assert p["future_market_used"] is False
+          assert p["outcome_used"] is False
+          assert p["productive_authority"] is False
+          assert p["mc05_completed_and_proven"] is False
+          assert p["external_dependency"] == "B_GLOBAL_WORLD_MULTISCALE_BINDING"
+          PY
+      - name: Seal
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (cd result && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc05-hierarchical-world-${{ github.sha }}
+          path: result/
+          retention-days: 90
+      - name: Report
+        run: |
+          {
+            echo "## Shared A MC-05 — Hierarchical World real binding"
+            echo
+            echo "- M1/M3/M5/M15/H1 + cross-market source replay: **PASS**"
+            echo "- bottom-up / top-down reasoning: **Demonstrated**"
+            echo "- protected certification holdout opened: **False**"
+            echo "- MC-05 completed-and-proven: **False**"
+            echo "- external dependency: **B_GLOBAL_WORLD_MULTISCALE_BINDING**"
+          } > result/issue-comment.md
+          gh issue comment 638 --body-file result/issue-comment.md
