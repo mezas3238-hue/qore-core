@@ -338,30 +338,43 @@ def test_gate_rejects_unsafe_final_candidate_flag(
 def _pre_exam_ledger() -> dict:
     payload = _ledger(disposition="COMPLETED_AND_PROVEN")
     payload["workstreams"][0]["id"] = "SCIENTIFIC_WORK"
-    payload["workstreams"].append(
-        {
-            "id": "FINAL_INTEGRATED_CIBO_EXAM",
-            "kind": "CERTIFICATION",
-            "mandatory": True,
-            "certification_blocking": True,
-            "current_maturity": "FINAL_EXAM_EXECUTION_BLOCKED",
-            "terminal_disposition": None,
-            "evidence_refs": ["docs/research/final-exam.md"],
-            "blockers": ["PRE_EXAM_ZERO_OPEN_PASS_REQUIRED"],
-            "next_gate": "Run the final integrated exam.",
-        }
+    payload["workstreams"].extend(
+        (
+            {
+                "id": "FINAL_INTEGRATED_CIBO_EXAM",
+                "kind": "CERTIFICATION",
+                "mandatory": True,
+                "certification_blocking": True,
+                "current_maturity": "FINAL_EXAM_EXECUTION_BLOCKED",
+                "terminal_disposition": None,
+                "evidence_refs": ["docs/research/final-exam.md"],
+                "blockers": ["PRE_EXAM_ZERO_OPEN_PASS_REQUIRED"],
+                "next_gate": "Run the final integrated exam.",
+            },
+            {
+                "id": "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
+                "kind": "CERTIFICATION",
+                "mandatory": True,
+                "certification_blocking": True,
+                "current_maturity": "WAITING_FOR_FINAL_INTEGRATED_EXAM",
+                "terminal_disposition": None,
+                "evidence_refs": ["docs/research/world-cup-exam.md"],
+                "blockers": ["FINAL_INTEGRATED_CIBO_EXAM_REQUIRED"],
+                "next_gate": "Run after the final integrated exam and before strict closure.",
+            },
+        )
     )
     payload["current_summary"] = {
-        "mandatory_count": 2,
+        "mandatory_count": 3,
         "terminal_count": 1,
-        "open_count": 1,
+        "open_count": 2,
         "zero_open_work_pass": False,
         "final_certification_candidate": False,
     }
     return payload
 
 
-def test_pre_exam_gate_excludes_only_final_exam(
+def test_pre_exam_gate_excludes_both_mandatory_certification_exams(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -386,7 +399,10 @@ def test_pre_exam_gate_excludes_only_final_exam(
     assert pre_exam.mandatory_workstream_count == 1
     assert strict.scope == "STRICT"
     assert strict.passed is False
-    assert strict.open_workstream_ids == ("FINAL_INTEGRATED_CIBO_EXAM",)
+    assert strict.open_workstream_ids == (
+        "FINAL_INTEGRATED_CIBO_EXAM",
+        "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
+    )
 
 
 def test_pre_exam_gate_still_blocks_other_open_work(
@@ -399,9 +415,9 @@ def test_pre_exam_gate_still_blocks_other_open_work(
     payload["workstreams"][0]["terminal_disposition"] = None
     payload["workstreams"][0]["evidence_refs"] = []
     payload["current_summary"] = {
-        "mandatory_count": 2,
+        "mandatory_count": 3,
         "terminal_count": 0,
-        "open_count": 2,
+        "open_count": 3,
         "zero_open_work_pass": False,
         "final_certification_candidate": False,
     }
