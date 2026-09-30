@@ -119,13 +119,17 @@ class V49HighFrequencyScalperIdentity:
             raise ValueError("V49 identity is pre-economic and non-deployable")
 
         configured = {
-            session: tuple(allowed_markets(session))
+            session: frozenset(allowed_markets(session))
             for session in self.sessions
         }
         if configured != {
-            CapitalizerSession.ASIA: ("USDJPY", "AUDJPY", "AUDUSD", "GBPJPY"),
-            CapitalizerSession.LONDON: ("EURUSD", "GBPUSD"),
-            CapitalizerSession.NEW_YORK: ("XAUUSD", "USDCAD", "NAS100"),
+            CapitalizerSession.ASIA: frozenset(
+                {"USDJPY", "AUDJPY", "AUDUSD", "GBPJPY"}
+            ),
+            CapitalizerSession.LONDON: frozenset({"EURUSD", "GBPUSD"}),
+            CapitalizerSession.NEW_YORK: frozenset(
+                {"XAUUSD", "USDCAD", "NAS100"}
+            ),
         }:
             raise ValueError("V49 must preserve the frozen nine-market session identity")
 
