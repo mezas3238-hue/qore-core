@@ -283,8 +283,10 @@ B_WORK_ITEMS: Final = (
             "artifact:11112547465",
             "artifact:11113260581",
             "artifact:11117991672",
+            "artifact:11121310503",
             "run:36746337433",
             "run:36758248635",
+            "run:36765319771",
         ),
         (
             "provenance coverage is verified for current sealed B evidence but does "
