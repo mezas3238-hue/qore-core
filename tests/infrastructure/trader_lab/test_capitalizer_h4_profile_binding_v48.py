@@ -21,10 +21,10 @@ def test_h4_resolution_does_not_assume_native_broker_h4_equivalence() -> None:
     assert all(item.proves_native_broker_h4_equivalence is False for item in EVIDENCE)
 
 
-def test_h4_clock_closure_does_not_authorize_full_route_or_daily_profile() -> None:
+def test_h4_clock_closure_does_not_authorize_full_route() -> None:
     state = V48_H4_PROFILE_BINDING
     assert state.full_asia_london_route_authorized is False
-    assert state.daily_profile_binding_still_required is True
+    assert state.daily_profile_binding_resolved_independently is True
     assert state.generic_scalp_blocked is False
     assert state.fresh_holdout_authorized is False
     assert state.economics_authorized is False
