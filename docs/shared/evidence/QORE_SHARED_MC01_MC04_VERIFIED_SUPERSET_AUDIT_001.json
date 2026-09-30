@@ -1,0 +1,87 @@
+{
+  "identity": "QORE_SHARED_MC01_MC04_VERIFIED_SUPERSET_AUDIT_001",
+  "scope": ["MC-01", "MC-02", "MC-03", "MC-04"],
+  "law": {
+    "wp_closed_does_not_automatically_close_mc": true,
+    "architecture_only_is_not_completed_and_proven": true,
+    "negative_scientific_result_may_satisfy_capability_if_protocol_passes": true,
+    "empty_accepted_causal_set_is_valid": true
+  },
+  "items": {
+    "MC-01": {
+      "title": "Probabilistic Market Digital Twin",
+      "source_wp": "WP-01",
+      "issue": 639,
+      "authoritative_run": 36213616534,
+      "authoritative_sha": "3d40ecf9360b853b2a75a41cacf552ad39ef780d",
+      "state": "RESEARCH_INCOMPLETE",
+      "reason": "WP-01 evidence explicitly closes an architectural foundation; new maximum standard requires proof beyond architecture-only status."
+    },
+    "MC-02": {
+      "title": "Federation of Worlds",
+      "source_wp": "WP-02",
+      "issue": 640,
+      "historical_run": 36235159291,
+      "federation_run": 36235159219,
+      "artifact_id": 10903578165,
+      "authoritative_sha": "1dbdb676a8e780da8704d83fd19a5fc918f5fec2",
+      "state": "COMPLETED_AND_PROVEN",
+      "evidence": {
+        "r8_calibration_episodes": 228,
+        "r6_holdout_episodes": 278,
+        "r5_replication_episodes": 316,
+        "r6_brier_improved": true,
+        "r5_brier_improved": true,
+        "single_world_monopoly_r8_r6_r5": 0,
+        "future_market_runtime_used": false
+      }
+    },
+    "MC-03": {
+      "title": "Dynamic Causal Discovery",
+      "source_wp": "WP-03",
+      "issue": 641,
+      "historical_run": 36236760353,
+      "artifact_id": 10904203504,
+      "artifact_digest": "sha256:1b26f5bc2e0b88cbd2831f2423a40404009764616b2731e4252af5957d7fc711",
+      "authoritative_sha": "6cb1aecaf6d247922dec0932d82aa0764f2cb065",
+      "state": "COMPLETED_AND_PROVEN",
+      "evidence": {
+        "r8_samples": 7644,
+        "r6_holdout_samples": 15736,
+        "r5_replication_samples": 21377,
+        "screened_relations": 108,
+        "accepted_causal_relations": 0,
+        "protocol_pass": true,
+        "empty_accepted_set_preserved": true,
+        "gates_relaxed_after_observation": false
+      }
+    },
+    "MC-04": {
+      "title": "Market Representation and Ontology Discovery",
+      "source_wp": "WP-04",
+      "issue": 642,
+      "holdout_run": 36247407353,
+      "holdout_artifact_id": 10908500161,
+      "replication_run": 36248025384,
+      "replication_artifact_id": 10908077821,
+      "representation_fingerprint": "e2fc2ca059d5852b4e9107c467392e5e64aeabbd6aca2d8013951b93402bc987",
+      "state": "COMPLETED_AND_PROVEN",
+      "evidence": {
+        "holdout_incremental_information_bps": 288,
+        "holdout_positive_targets": "8/8",
+        "replication_incremental_information_bps": 312,
+        "replication_positive_targets": "8/8",
+        "representation_refit_after_freeze": false,
+        "probe_refit_after_holdout": false,
+        "identity_shortcut": false,
+        "runtime_future_information": false
+      }
+    }
+  },
+  "governance": {
+    "productive_authority": false,
+    "protected_certification_holdout_opened_by_this_audit": false,
+    "live_authorized": false,
+    "merge_authorized": false
+  }
+}
