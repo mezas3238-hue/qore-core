@@ -13,11 +13,19 @@ Maturity reports must not collapse ENGINE_IMPLEMENTED into economic
 certification. When a row says PARTIAL, the missing work is explicit in the
 final column.
 
+## Integrator sequence reconciliation — 30-SEP-2026
+
+Older matrix wording that called World Cup `post-certification` is superseded
+for the integrated 64-workstream closure law. The World Cup exam remains a
+separate maximum-capability exam, but it is mandatory and must become terminal
+after the Final Integrated CIBO Exam and before STRICT zero-open / final
+certification candidacy.
+
 | # | Requirement | Existing root | Current state | Next scientific gate |
 |---:|---|---|---|---|
 | 1 | Fundamental identity: capital amplification, not sizing/leverage | ADR-002/ADR-003; World Cup Mission | ARCHITECTURE_DEFINED | Preserve authority split in every engine and experiment |
 | 2 | North Star: robust long-term economic growth | GEN-C9/GEN-C11; T04/T10/T15 | ARCHITECTURE_DEFINED | Preregister multi-dimensional objective and compare controls |
-| 3 | World Cup separate maximum-capability exam | Post-certification World Cup Twin | ARCHITECTURE_DEFINED | Ordinary certification first; then frozen separate exam |
+| 3 | World Cup separate maximum-capability exam | Mandatory pre-final-certification World Cup Twin | ARCHITECTURE_DEFINED | Final Integrated Exam first; then frozen World Cup exam; then STRICT zero-open |
 | 4 | More output per unit of plausible loss | T04; GEN-C4/GEN-C9 | ENGINE_IMPLEMENTED | Bind real data and prove value OOS |
 | 5 | No parallel leverage subsystem | CE2I T01-T20 + GEN-C0-C14 | ARCHITECTURE_DEFINED | Continue only through existing roots |
 | 6 | Sovereignty split | ADR-002; CMA chain | CONTRACT_IMPLEMENTED | Preserve in all new code/tests |
@@ -72,7 +80,7 @@ final column.
 | 55 | Zero certified Traders allowed | Research governance; Phase18/19 | CONTRACT_IMPLEMENTED | Keep historical candidates labeled research evidence |
 | 56 | Future heterogeneous Trader exploitation | T09/T18/GEN-C6 | ARCHITECTURE_DEFINED | Certified lineage-aware allocation when Traders certify |
 | 57 | Small-capital ~$60 lab | Current normalized/provider research lineage | PARTIAL | Provider-valid USD experiment only where real economics exist |
-| 58 | World Cup Digital Twin | GEN-C10 extension | ARCHITECTURE_DEFINED | Post-certification competition twin |
+| 58 | World Cup Digital Twin | GEN-C10 extension | ARCHITECTURE_DEFINED | Build frozen competition twin for the mandatory World Cup exam before final certification candidacy |
 | 59 | World Cup provider adapter | Provider normalization extension | ARCHITECTURE_DEFINED | Competition provider evidence contract |
 | 60 | AS-IS current-generation control | V3 + current CIBO baseline | PARTIAL | Freeze explicit CIBO GENERATION CURRENT CONTROL identity |
 | 61 | Ablation program | Phase20 ablation foundations; GEN-C13 | PARTIAL | Canonical World Cup amplification ablation suite |
@@ -88,7 +96,7 @@ final column.
 | 71 | Scientific failure allowed | GEN-C14 governance | ARCHITECTURE_DEFINED | Terminal falsification/dependency evidence contract |
 | 72 | Continuous N vs N+1 evolution | GEN-C14 | ARCHITECTURE_DEFINED | Immutable control/promotion pipeline |
 | 73 | Certified generation becomes next control | GEN-C14 | ARCHITECTURE_DEFINED | Promotion provenance and regression guard |
-| 74 | Separate World Cup exam | Post-certification program | ARCHITECTURE_DEFINED | Frozen exam protocol after ordinary certification |
+| 74 | Separate World Cup exam | Mandatory final-closure program | ARCHITECTURE_DEFINED | Frozen World Cup protocol after Final Integrated Exam and before STRICT zero-open |
 | 75 | Mandatory causal attribution | GEN-C3/C9/C13; ablations | PARTIAL | Attribution decomposition with identified limits |
 | 76 | Anti-cheating rules | All governance/evidence layers | CONTRACT_IMPLEMENTED | Automated leakage/provenance checks |
 | 77 | Success != return alone | GEN-C9/C12; Risk | ARCHITECTURE_DEFINED | Ruin/tail/plausible-loss non-compensation gates |
@@ -98,7 +106,7 @@ final column.
 | 81 | Owner North Star literal doctrine | World Cup Mission; Roadmap V3 | CONTRACT_IMPLEMENTED | Keep governing text canonical |
 | 82 | Execution order | Roadmap V3 active order | CONTRACT_IMPLEMENTED | Follow dependency order; close red/open work first |
 | 83 | No loose work | PR #651 closure governance | PARTIAL | Audit all CIBO threads to terminal state |
-| 84 | Final self-reinforcing capital growth system | CE2I + GEN-C0-C14 | ARCHITECTURE_DEFINED | Ordinary certification then maximum-capability exam |
+| 84 | Final self-reinforcing capital growth system | CE2I + GEN-C0-C14 | ARCHITECTURE_DEFINED | Final Integrated Exam → World Cup Exam → STRICT zero-open → final certification candidacy |
 
 ## Current critical path
 
@@ -118,8 +126,9 @@ J. GEN-C12 CRISIS INTELLIGENCE
 K. GEN-C13 MEMORY / COUNTERFACTUAL / SKEPTIC
 L. GEN-C14 GOVERNED CAPITAL SCIENCE
 M. ABLATION + CHRONOLOGY + PATH-MC + STRESS + TEMPORAL REPLICATION
-N. ORDINARY CERTIFICATION
-O. SEPARATE WORLD CUP MAXIMUM-CAPABILITY EXAM
+N. FINAL INTEGRATED CIBO EXAM
+O. MANDATORY SEPARATE WORLD CUP MAXIMUM-CAPABILITY EXAM
+P. STRICT ZERO-OPEN + FINAL CERTIFICATION CANDIDATE
 ```
 
 ## No-duplication finding
