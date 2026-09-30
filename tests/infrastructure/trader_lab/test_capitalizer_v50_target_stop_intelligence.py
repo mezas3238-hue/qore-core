@@ -51,7 +51,7 @@ def test_target_ladder_keeps_multiple_untouched_h1_pivots_without_selecting_one(
         _h1(6, "100", "105", "100", "104"),
         _h1(7, "103", "103.5", "101", "102"),
         _h1(8, "102", "108", "102", "107"),
-        _h1(9, "107", "106", "103", "104"),
+        _h1(9, "106", "106.5", "103", "104"),
     )
     decision = datetime(2026, 1, 5, 10, 0, tzinfo=UTC)
     ladder = build_h1_target_ladder(
@@ -73,7 +73,7 @@ def test_touched_h1_pivot_is_removed_from_causal_ladder() -> None:
     h1 = (
         _h1(5, "100", "101", "99", "100"),
         _h1(6, "100", "105", "100", "104"),
-        _h1(7, "104", "103", "101", "102"),
+        _h1(7, "103", "103.5", "101", "102"),
     )
     touch = (_m1(0, "103", "105.1", "102.9", "104"),)
     ladder = build_h1_target_ladder(
