@@ -2,19 +2,29 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
+from qore.infrastructure.trader_lab.capitalizer_confidence import (
+    CapitalizerKnowledgeState,
+)
+from qore.infrastructure.trader_lab.capitalizer_contract import (
+    CapitalizerSession,
+    EvidenceStrength,
+)
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
     V49Opportunity,
 )
 from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_geometry_specialist import (
     IDENTITY as GEOMETRY_IDENTITY,
+)
+from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_geometry_specialist import (
     V50GeometryDecision,
     V50GeometryProposal,
     V50StopMode,
 )
 from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_hf_bridge import (
     IDENTITY as BRIDGE_IDENTITY,
+)
+from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_hf_bridge import (
     V50CognitiveAssessment,
     V50CognitiveDisposition,
     V50CognitiveState,
@@ -26,6 +36,8 @@ from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_hf_bridge import (
 )
 from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_opportunity import (
     IDENTITY as SNAPSHOT_IDENTITY,
+)
+from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_opportunity import (
     V50CognitiveOpportunitySnapshot,
 )
 from qore.infrastructure.trader_lab.capitalizer_v50_master_cognitive_adapter import (
@@ -38,10 +50,6 @@ from qore.infrastructure.trader_lab.capitalizer_v50_target_stop_intelligence imp
     V50H1TargetCandidate,
     V50H1TargetLadder,
 )
-from qore.infrastructure.trader_lab.capitalizer_confidence import (
-    CapitalizerKnowledgeState,
-)
-from qore.infrastructure.trader_lab.capitalizer_contract import EvidenceStrength
 
 
 def _snapshot() -> tuple[V50CognitiveOpportunitySnapshot, V50GeometryProposal]:
