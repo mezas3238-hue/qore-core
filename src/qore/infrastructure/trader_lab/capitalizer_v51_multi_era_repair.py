@@ -35,7 +35,6 @@ from qore.infrastructure.trader_lab.capitalizer_experience_memory import (
 from qore.infrastructure.trader_lab.capitalizer_generic_scalp_census_v48 import _aggregate
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
     DEFAULT_LOOKBACK,
-    V49Opportunity,
 )
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_trader_v49 import (
     materialize_trade_intent,
@@ -45,7 +44,11 @@ from qore.infrastructure.trader_lab.capitalizer_metacognition_v2 import (
 )
 from qore.infrastructure.trader_lab.capitalizer_v49_development_economics import (
     V49EconomicTrade,
+)
+from qore.infrastructure.trader_lab.capitalizer_v49_development_economics import (
     _replay_one as replay_v49,
+)
+from qore.infrastructure.trader_lab.capitalizer_v49_development_economics import (
     _session_bars as v49_session_bars,
 )
 from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_geometry_economics import (
@@ -53,7 +56,11 @@ from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_geometry_economics
     COST_STRESS_R,
     V50GTrade,
     _load_opportunities,
+)
+from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_geometry_economics import (
     _portfolio as v50_portfolio,
+)
+from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_geometry_economics import (
     _replay as replay_v50,
 )
 from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_geometry_specialist import (
