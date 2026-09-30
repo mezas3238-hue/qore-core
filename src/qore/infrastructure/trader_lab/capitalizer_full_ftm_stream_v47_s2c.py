@@ -223,6 +223,8 @@ class S2CPeriodMarketReport:
     trader_certified: bool = False
 
     def __post_init__(self) -> None:
+        if self.identity != IDENTITY or self.period not in PERIODS:
+            raise ValueError("S2C report identity/period drift")
         counts = (
             self.raw_sweeps,
             self.htf_continuation_aligned,
@@ -964,6 +966,23 @@ def aggregate(root: Path, output: Path) -> dict[str, object]:
         raise ValueError(f"S2C requires 27 reports, got {len(reports)}")
 
     output.mkdir(parents=True, exist_ok=True)
+    all_rows = tuple(
+        sorted(
+            rows,
+            key=lambda row: (
+                datetime.fromisoformat(row.entry_at),
+                row.symbol,
+                row.route,
+            ),
+        )
+    )
+    with (output / "capitalizer-s2c-all-admitted.jsonl").open(
+        "w",
+        encoding="utf-8",
+    ) as handle:
+        for row in all_rows:
+            handle.write(json.dumps(asdict(row), sort_keys=True) + "\n")
+
     periods: dict[str, object] = {}
     for period in PERIODS:
         population = tuple(row for row in rows if row.period == period)
