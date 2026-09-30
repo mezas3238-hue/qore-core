@@ -22,6 +22,7 @@ permissions:
 env:
   GH_TOKEN: ${{ github.token }}
   B_BRANCH: agent/shared-b-global-world-perception-001
+  COMMON_SPLIT_CHECKPOINT: 7d1b54cfa5453c0eb5c0662438ed15e7d656da61
 
 jobs:
   audit:
@@ -29,6 +30,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -50,6 +53,7 @@ jobs:
           [
             {"evidence_id":"B01_GOVERNANCE_REVALIDATION","capability_scope":"B-01","kind":"GOVERNANCE_EVIDENCE","run_id":36765392663,"artifact_id":11120068080,"source_hash":false,"provider_free_replay":true},
             {"evidence_id":"B23_ZERO_OPEN_AUDIT","capability_scope":"B-23","kind":"GOVERNANCE_EVIDENCE","run_id":36757894898,"artifact_id":11117192542,"source_hash":false,"provider_free_replay":true},
+            {"evidence_id":"B14_AGRICULTURE_PROVIDER_ABSENCE","capability_scope":"B-14","kind":"RAW_PROVIDER_EVIDENCE","run_id":36623645085,"artifact_id":11059457712,"source_hash":true,"provider_free_replay":true,"lineage":"INHERITED_PRE_SPLIT"},
             {"evidence_id":"B02_PROVIDER_RAW","capability_scope":"B-02","kind":"RAW_PROVIDER_EVIDENCE","run_id":36742519707,"artifact_id":11110976806,"source_hash":true,"provider_free_replay":false},
             {"evidence_id":"B02_PROVIDER_PROVENANCE","capability_scope":"B-02","kind":"GOVERNANCE_EVIDENCE","run_id":36742519707,"artifact_id":11111176548,"source_hash":true,"provider_free_replay":false},
             {"evidence_id":"B03_CROSS_RAW","capability_scope":"B-03","kind":"RAW_PROVIDER_EVIDENCE","run_id":36746337433,"artifact_id":11113260581,"source_hash":true,"provider_free_replay":false},
@@ -94,7 +98,19 @@ jobs:
               ]))
               assert run["status"]=="completed"
               assert run["conclusion"]=="success"
-              assert run["head_branch"]==os.environ["B_BRANCH"]
+              lineage=spec.get("lineage","B_NATIVE")
+              if lineage=="B_NATIVE":
+                  assert run["head_branch"]==os.environ["B_BRANCH"]
+                  inheritance_checkpoint_sha=None
+                  ancestry_verified=False
+              else:
+                  assert lineage=="INHERITED_PRE_SPLIT"
+                  checkpoint=os.environ["COMMON_SPLIT_CHECKPOINT"]
+                  subprocess.check_call([
+                      "git","merge-base","--is-ancestor",run["head_sha"],checkpoint
+                  ])
+                  inheritance_checkpoint_sha=checkpoint
+                  ancestry_verified=True
               assert artifact["expired"] is False
               assert artifact["workflow_run"]["id"]==run_id
               assert artifact["workflow_run"]["head_sha"]==run["head_sha"]
@@ -107,6 +123,9 @@ jobs:
                   "head_branch":run["head_branch"],
                   "artifact_digest_sha256":digest.removeprefix("sha256:"),
                   "artifact_name":artifact["name"],
+                  "lineage":lineage,
+                  "inheritance_checkpoint_sha":inheritance_checkpoint_sha,
+                  "ancestry_verified":ancestry_verified,
               }
               resolved.append(row)
           Path("input/resolved.json").write_text(
@@ -122,6 +141,7 @@ jobs:
 
           from qore.infrastructure.core_stack_v2.shared_b_provenance_manifest import (
               SharedBEvidenceKind,
+              SharedBEvidenceLineage,
               SharedBEvidencePointer,
               build_shared_b_provenance_manifest,
           )
@@ -140,12 +160,18 @@ jobs:
                   artifact_name=row["artifact_name"],
                   source_hash_verified_inside_artifact=row["source_hash"],
                   provider_free_replay_supported=row["provider_free_replay"],
+                  lineage_kind=SharedBEvidenceLineage(row["lineage"]),
+                  inheritance_checkpoint_sha=row["inheritance_checkpoint_sha"],
+                  ancestry_to_checkpoint_verified=row["ancestry_verified"],
               )
               for row in resolved
           )
           payload=build_shared_b_provenance_manifest(
               pointers,
               expected_branch="agent/shared-b-global-world-perception-001",
+              expected_common_checkpoint_sha=(
+                  "7d1b54cfa5453c0eb5c0662438ed15e7d656da61"
+              ),
               coverage_complete=False,
               open_coverage_reasons=(
                   "B-04 full R8 acquisition has not yet produced its final aggregate artifact",
@@ -153,7 +179,7 @@ jobs:
                   "B-09 stale-relation empirical isolation remains gated by B-07/B-08",
                   "B-10/B-11/B-12 empirical relational population remains open",
                   "B-13 empirical structural-divergence population remains open",
-                  "B-14 agriculture has no current authorized provider candidates",
+                  "B-14 is externally blocked by a verified pre-split provider-absence observation; capability remains blocked even though provenance is now explicit",
                   "B-21 does not yet cover every mandatory B workstream",
                   "B-22 WORLD_PERCEPTION_FREEZE does not yet exist",
               ),
