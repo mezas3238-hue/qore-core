@@ -18,8 +18,8 @@ permissions:
   actions: read
 
 concurrency:
-  group: qore-capitalizer-v53-${{ github.ref }}
-  cancel-in-progress: true
+  group: qore-capitalizer-v53-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
 
 env:
   SOURCE_M1_RUN_ID: '35548099334'
@@ -37,13 +37,17 @@ jobs:
       - run: python -m pip install -e '.[dev]'
       - name: Ruff
         run: |
-          ruff check             src/qore/infrastructure/trader_lab/capitalizer_v53_winner_preserving_rearm_economics.py             tests/infrastructure/trader_lab/test_capitalizer_v53_winner_preserving_rearm_economics.py
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_v53_winner_preserving_rearm_economics.py \
+            tests/infrastructure/trader_lab/test_capitalizer_v53_winner_preserving_rearm_economics.py
       - name: Mypy
         run: |
-          mypy             src/qore/infrastructure/trader_lab/capitalizer_v53_winner_preserving_rearm_economics.py
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_v53_winner_preserving_rearm_economics.py
       - name: Focused tests
         run: |
-          pytest -q --no-cov             tests/infrastructure/trader_lab/test_capitalizer_v53_winner_preserving_rearm_economics.py
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_v53_winner_preserving_rearm_economics.py
 
   market:
     needs: quality
@@ -87,16 +91,20 @@ jobs:
           run-id: ${{ env.SOURCE_M1_RUN_ID }}
       - name: Build V49 source opportunities
         run: |
-          python -m qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49             market m1-source capacity-output --session "${{ matrix.session }}"
+          python -m qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 \
+            market m1-source capacity-output --session "${{ matrix.session }}"
       - name: Build frozen V49 baseline economics
         run: |
-          python -m qore.infrastructure.trader_lab.capitalizer_v49_development_economics             market capacity-output m1-source baseline-output
+          python -m qore.infrastructure.trader_lab.capitalizer_v49_development_economics \
+            market capacity-output m1-source baseline-output
       - name: Build V50-R causal rearm population
         run: |
-          python -m qore.infrastructure.trader_lab.capitalizer_v50_m1_rearm_capacity             market m1-source rearm-output --session "${{ matrix.session }}"
+          python -m qore.infrastructure.trader_lab.capitalizer_v50_m1_rearm_capacity \
+            market m1-source rearm-output --session "${{ matrix.session }}"
       - name: Run V53 winner-preserving transformed economics
         run: |
-          python -m qore.infrastructure.trader_lab.capitalizer_v53_winner_preserving_rearm_economics             market capacity-output baseline-output rearm-output m1-source v53-output
+          python -m qore.infrastructure.trader_lab.capitalizer_v53_winner_preserving_rearm_economics \
+            market capacity-output baseline-output rearm-output m1-source v53-output
       - name: Enforce V53 boundary
         env:
           EXPECTED_SYMBOL: ${{ matrix.symbol }}
@@ -149,7 +157,8 @@ jobs:
           merge-multiple: false
       - name: Build V53 matrix
         run: |
-          python -m qore.infrastructure.trader_lab.capitalizer_v53_winner_preserving_rearm_economics             matrix v53-markets matrix-output
+          python -m qore.infrastructure.trader_lab.capitalizer_v53_winner_preserving_rearm_economics \
+            matrix v53-markets matrix-output
       - name: Enforce aggregate boundary
         run: |
           python - <<'PY'
