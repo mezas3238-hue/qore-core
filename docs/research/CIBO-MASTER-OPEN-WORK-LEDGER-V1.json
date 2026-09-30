@@ -347,7 +347,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "TYPED_PROVIDER_CAPABILITY_REGISTRY_PLUS_CTRADER_ACCOUNT_OBSERVATION_ENGINE_STAGED_CI_PENDING_UNKNOWN_REMAINS_BLOCKING",
+      "current_maturity": "ACCOUNT_BOUND_TAXONOMY_ENGINE_STAGED_CI_PENDING_T16_ECONOMIC_HEDGE_UNPROVEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -364,23 +364,27 @@
         "tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py",
         ".github/workflows/cibo-ctrader-demo-account-capability.yml",
         "docs/research/CIBO-CTRADER-DEMO-ACCOUNT-CAPABILITY-V1.md",
-        "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md"
+        "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
+        "tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py",
+        "src/qore/infrastructure/ctrader_open_api_client.py",
+        ".github/workflows/cibo-ctrader-demo-provider-economics.yml"
       ],
       "blockers": [
         "INTEGRATOR_CTRADER_DEMO_ACCOUNT_CAPABILITY_CI_REQUIRED",
-        "ACTUAL_ACCOUNT_BOUND_READ_ONLY_CAPABILITY_OBSERVATION_REQUIRED",
-        "CERTIFIED_HEDGE_PROVIDER_UNIVERSE_NOT_AVAILABLE",
-        "PROVIDER_VERIFIED_SUPPORT_OR_UNAVAILABLE_STATUS_REQUIRED",
-        "ECONOMIC_COST_RISK_EXECUTION_EVIDENCE_REQUIRED_IF_SUPPORTED"
+        "REAL_ACCOUNT_TAXONOMY_OBSERVATION_REQUIRED",
+        "T16_HEDGE_INSTRUMENT_NOT_PROVIDER_VERIFIED",
+        "T16_BASIS_RISK_COST_CORRELATION_EXECUTION_EVIDENCE_REQUIRED",
+        "FRESH_OOS_HEDGE_UTILITY_REQUIRED_IF_SUPPORTED"
       ],
-      "next_gate": "Obtain provider-verified HEDGE capability evidence. If supported, execute provider-bound economic research; if provider-verified unavailable, close as current-provider ineligible without inventing capability."
+      "next_gate": "Pass integrated account/taxonomy CI, collect account-bound taxonomy, then identify a provider-valid hedge instrument and prove basis risk, costs, correlation/execution feasibility and fresh OOS benefit; otherwise retain fail-closed provider ineligibility."
     },
     {
       "id": "T17",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "TYPED_PROVIDER_CAPABILITY_REGISTRY_PLUS_CTRADER_ACCOUNT_OBSERVATION_ENGINE_STAGED_CI_PENDING_UNKNOWN_REMAINS_BLOCKING",
+      "current_maturity": "ACCOUNT_TAXONOMY_PLUS_PROVIDER_NATIVE_GSL_CANDIDATE_ENGINE_STAGED_CI_PENDING_EXECUTION_ECONOMICS_OOS_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -397,16 +401,25 @@
         "tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py",
         ".github/workflows/cibo-ctrader-demo-account-capability.yml",
         "docs/research/CIBO-CTRADER-DEMO-ACCOUNT-CAPABILITY-V1.md",
-        "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md"
+        "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py",
+        "scripts/cibo_t17_limited_risk_capability_probe.py",
+        "tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py",
+        "tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
+        "tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py",
+        "src/qore/infrastructure/ctrader_open_api_client.py",
+        ".github/workflows/cibo-ctrader-demo-provider-economics.yml"
       ],
       "blockers": [
         "INTEGRATOR_CTRADER_DEMO_ACCOUNT_CAPABILITY_CI_REQUIRED",
-        "ACTUAL_ACCOUNT_BOUND_READ_ONLY_CAPABILITY_OBSERVATION_REQUIRED",
-        "CERTIFIED_OPTION_DEFINED_RISK_SPREAD_PROVIDER_UNIVERSE_NOT_AVAILABLE",
-        "PROVIDER_VERIFIED_SUPPORT_OR_UNAVAILABLE_STATUS_REQUIRED",
-        "ECONOMIC_COST_RISK_EXECUTION_EVIDENCE_REQUIRED_IF_SUPPORTED"
+        "INTEGRATOR_CTRADER_DEMO_PROVIDER_ECONOMICS_CI_REQUIRED",
+        "REAL_ACCOUNT_TAXONOMY_AND_LIMITED_RISK_OBSERVATION_REQUIRED",
+        "T17_OPTION_OR_DEFINED_RISK_SPREAD_NOT_PROVIDER_VERIFIED",
+        "T17_GSL_EXECUTION_ECONOMICS_NOT_PROVEN_IF_CANDIDATE_EXISTS",
+        "T17_FRESH_OOS_LIMITED_DOWNSIDE_UTILITY_REQUIRED_IF_CANDIDATE_EXISTS"
       ],
-      "next_gate": "Obtain provider-verified OPTION/DEFINED_RISK_SPREAD capability evidence. If supported, execute provider-bound economic research; if provider-verified unavailable, close as current-provider ineligible without inventing capability."
+      "next_gate": "Pass taxonomy/provider CI; collect actual account Limited Risk + symbol GSL coverage. If a provider-native GSL candidate exists, prove execution charges/slippage/constraints and fresh OOS utility. Do not equate GSL with option/spread support."
     },
     {
       "id": "T18",
@@ -996,7 +1009,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "POINT_IN_TIME_TERMS_PROVEN_PROVIDER_PROVENANCE_AND_ACCOUNT_CAPABILITY_STACK_STAGED_CI_PENDING_REAL_FORWARD_CALIBRATION_OPEN",
+      "current_maturity": "POINT_IN_TIME_TERMS_PLUS_ACCOUNT_TAXONOMY_AND_GSL_SURFACE_STAGED_CI_PENDING_REAL_FORWARD_CALIBRATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py",
@@ -1019,17 +1032,26 @@
         "tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py",
         ".github/workflows/cibo-ctrader-demo-account-capability.yml",
         "docs/research/CIBO-CTRADER-DEMO-ACCOUNT-CAPABILITY-V1.md",
-        "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md"
+        "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
+        "tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py",
+        "src/qore/infrastructure/ctrader_open_api_client.py",
+        ".github/workflows/cibo-ctrader-demo-provider-economics.yml",
+        "src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py",
+        "scripts/cibo_t17_limited_risk_capability_probe.py",
+        "tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py",
+        "tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py"
       ],
       "blockers": [
         "INTEGRATOR_CTRADER_DEMO_ACCOUNT_CAPABILITY_CI_REQUIRED",
+        "INTEGRATOR_CTRADER_DEMO_PROVIDER_ECONOMICS_CI_REQUIRED",
         "PROVIDER_EXECUTION_CALIBRATION_CI_REQUIRED",
         "REAL_FORWARD_EXECUTION_POPULATION_MINIMA_REQUIRED",
-        "CTRADER_DEMO_ACCOUNT_BOUND_CAPABILITY_CATALOG_REQUIRED",
-        "T16_ACCOUNT_BOUND_HEDGE_ECONOMICS_REQUIRED_IF_SUPPORTED",
+        "REAL_ACCOUNT_TAXONOMY_GSL_OBSERVATION_REQUIRED",
+        "T16_T17_ECONOMIC_CAPABILITY_EVIDENCE_REQUIRED_IF_SUPPORTED",
         "HISTORICAL_PROVIDER_USD_ECONOMICS_NOT_AVAILABLE_FOR_LEGACY_REPLAY"
       ],
-      "next_gate": "Pass repaired provider-execution calibration CI; then populate the frozen calibration from real forward fills and reconcile account-bound capabilities without projecting current terms into legacy history."
+      "next_gate": "Pass integrated provider/account taxonomy CI; collect point-in-time account taxonomy and GSL fields read-only; then calibrate real forward execution economics without projecting current provider terms into historical replay."
     },
     {
       "id": "FORWARD_QUALIFICATION",
