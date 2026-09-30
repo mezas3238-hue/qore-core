@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import defaultdict
 from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
