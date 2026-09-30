@@ -142,18 +142,7 @@ def _trade(
     exact_required: bool,
     stop_first_fallback: bool,
 ) -> S2EGrossTrade:
-    realized = s2b._realized_r(
-        side=_side(source.route and source.entry_price and source.stop_price and source.target_price and source.source_stream and source.source_identity and source.period and source.symbol and source.session and source.operating_date and source.entry_at and source.source_sha and source.target_kind and source.source_run_id and source.collision_failed_closed and source.outcome_used_for_selection and source.economics_read and source.fresh_holdout_opened and source.trader_certified and source.route or source.route),  # unreachable guard replaced below
-        entry=Decimal("1"),
-        exit_price=Decimal("1"),
-        risk=Decimal("1"),
-    )
-    del realized
-    side = _side(
-        "LONG"
-        if _d(source.stop_price) < _d(source.entry_price)
-        else "SHORT"
-    )
+    side = _side(source.side)
     entry = _d(source.entry_price)
     realized_r = s2b._realized_r(
         side=side,
@@ -199,11 +188,7 @@ def replay_trade(
     entry = _d(source.entry_price)
     stop = _d(source.stop_price)
     target = _d(source.target_price)
-    side = (
-        CapitalizerSide.LONG
-        if stop < entry
-        else CapitalizerSide.SHORT
-    )
+    side = _side(source.side)
     risk = s2b._risk(side=side, entry=entry, stop=stop)
     target_r = s2b._realized_r(
         side=side,
