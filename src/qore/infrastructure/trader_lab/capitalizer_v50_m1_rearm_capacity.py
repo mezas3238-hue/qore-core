@@ -140,6 +140,7 @@ class V50RearmMarketReport:
     exhausted_rearmable_setups: int
     thesis_invalidated_before_trigger: int
     by_geometry_decision: tuple[tuple[str, int], ...]
+    by_geometry_reason: tuple[tuple[str, int], ...]
     by_attempt_index: tuple[tuple[int, int], ...]
     maximum_attempt_index: int
     outcome_used: bool = False
@@ -275,6 +276,7 @@ def build_rearm_capacity(
     attempts: list[V50RearmAttempt] = []
     counters: Counter[str] = Counter()
     geometry_counts: Counter[str] = Counter()
+    geometry_reason_counts: Counter[str] = Counter()
     attempt_counts: Counter[int] = Counter()
 
     for operating_day, session_bars in _session_groups(bars, session=session):
@@ -399,6 +401,7 @@ def build_rearm_capacity(
                     )
                     geometry = propose_v50_geometry(snapshot)
                     geometry_counts[geometry.decision.value] += 1
+                    geometry_reason_counts.update(geometry.reasons)
                     ready = geometry.decision is V50GeometryDecision.READY
                     cognitive_ready = (
                         ready
@@ -484,6 +487,7 @@ def build_rearm_capacity(
                 "THESIS_INVALIDATED_BEFORE_TRIGGER"
             ],
             by_geometry_decision=tuple(sorted(geometry_counts.items())),
+            by_geometry_reason=tuple(sorted(geometry_reason_counts.items())),
             by_attempt_index=tuple(sorted(attempt_counts.items())),
             maximum_attempt_index=max(attempt_counts, default=0),
         ),
