@@ -1,0 +1,126 @@
+name: QORE Shared A WP10 Prospective Autonomous Lab
+
+concurrency:
+  group: qore-shared-a-wp10-prospective-autonomous-lab
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/autonomous_scientific_lab.py
+      - docs/shared/evidence/QORE_SHARED_MC27_PROSPECTIVE_META_COGNITIVE_RESEARCH_CYCLE_001.json
+      - scripts/shared_wp10_prospective_autonomous_lab_cycle.py
+      - .github/workflows/qore-shared-a-wp10-prospective-autonomous-lab.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  prospective:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install and validate
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p input/mc27 result
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/autonomous_scientific_lab.py \
+            scripts/shared_wp10_prospective_autonomous_lab_cycle.py
+          mypy src/qore/infrastructure/core_stack_v2/autonomous_scientific_lab.py
+          pytest -q tests/infrastructure/test_core_stack_v2_autonomous_scientific_lab.py
+
+      - name: Verify immutable MC27 evidence
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/36782066174" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/36782066174" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11128321427" --jq '.expired')" = "false"
+
+      - name: Recover MC27 prospective evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11128321427/zip" > mc27.zip
+          unzip -q mc27.zip -d input/mc27
+          (cd input/mc27 && sha256sum -c SHA256SUMS)
+
+      - name: Build prospective laboratory chain
+        run: |
+          python scripts/shared_wp10_prospective_autonomous_lab_cycle.py \
+            --mc27 input/mc27/mc27-prospective-research-cycle.json \
+            --preregistration docs/shared/evidence/QORE_SHARED_MC27_PROSPECTIVE_META_COGNITIVE_RESEARCH_CYCLE_001.json \
+            --output result/wp10-prospective-autonomous-lab-cycle.json \
+            | tee result/summary.json
+
+      - name: Validate truthful pre-OOS boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/wp10-prospective-autonomous-lab-cycle.json").read_text())
+          assert p["status"] == "WP10_PROSPECTIVE_LAB_PRE_OOS_CHAIN_PASS"
+          assert p["stage_count"] == 6
+          assert p["highest_stage"] == "LEAKAGE_CONTROLS"
+          assert p["outcome"] == "RESEARCH_ONLY"
+          assert p["prospective_mc27_priority_bound"] is True
+          assert p["future_research_oos_opened"] is False
+          assert p["protected_certification_holdout"] is False
+          assert p["historical_test_stage_complete"] is False
+          assert p["knowledge_decision_stage_complete"] is False
+          assert p["promotion_authority"] is False
+          assert p["certified_runtime_mutation"] is False
+          assert p["wp10_completed_and_proven"] is False
+          assert p["master_ledger_mutated"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+
+      - name: Seal
+        run: |
+          cp docs/shared/evidence/QORE_SHARED_MC27_PROSPECTIVE_META_COGNITIVE_RESEARCH_CYCLE_001.json result/preregistration.json
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (cd result && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-wp10-prospective-lab-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/wp10-prospective-autonomous-lab-cycle.json").read_text())
+          body="\n".join([
+              "## Shared A WP-10 — Prospective Autonomous Lab",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- stages completed prospectively: **{p['stage_count']}/13**",
+              f"- highest stage: **{p['highest_stage']}**",
+              "- future research OOS: **2026-10-01 → 2026-11-01**",
+              "- future OOS opened: **False**",
+              "- auto-promotion: **False**",
+              "- WP-10 completed-and-proven: **False**",
+              "- next gate: **execute frozen future OOS**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
