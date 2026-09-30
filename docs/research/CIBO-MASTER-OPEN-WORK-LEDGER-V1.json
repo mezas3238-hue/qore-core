@@ -465,7 +465,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_REAL_ECONOMIC_CYCLE_OPEN",
+      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_IMPLEMENTED_CI_PENDING_REAL_CYCLE_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -475,19 +475,24 @@
         "tests/infrastructure/test_cibo_core_compound_portfolio.py",
         "src/qore/infrastructure/cibo_compound_portfolio_ledger.py",
         "src/qore/infrastructure/cibo_compound_portfolio_store.py",
-        "tests/infrastructure/test_cibo_compound_portfolio.py"
+        "tests/infrastructure/test_cibo_compound_portfolio.py",
+        "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
+        "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
+        "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        ".github/workflows/cibo-genc3-genc6-economic-gate.yml"
       ],
       "blockers": [
-        "END_TO_END_COMPOUND_PORTFOLIO_ECONOMIC_CYCLE_REQUIRED"
+        "END_TO_END_COMPOUND_PORTFOLIO_ECONOMIC_CYCLE_REQUIRED",
+        "GENC3_GENC6_ECONOMIC_GATE_CHILD_CI_REQUIRED"
       ],
-      "next_gate": "Integrate settlements, floor, generations, reserves, Internal Capital Market and release/recycling."
+      "next_gate": "Pass the shared GEN-C3..GEN-C6 economic-gate CI; then bind a provider-valid complete portfolio cycle and require independent 4/4 non-compensatory economic improvement plus stress before terminal disposition."
     },
     {
       "id": "GEN-C4",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_REAL_DATA_CAUSAL_VALUE_OPEN",
+      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_IMPLEMENTED_CI_PENDING_REAL_CAUSAL_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -498,19 +503,24 @@
         "src/qore/infrastructure/cibo_marginal_capital_utility_evidence_store.py",
         "tests/infrastructure/test_cibo_marginal_capital_utility_evidence_store.py",
         "src/qore/infrastructure/cibo_marginal_leverage_utility.py",
-        "tests/infrastructure/test_cibo_marginal_leverage_utility.py"
+        "tests/infrastructure/test_cibo_marginal_leverage_utility.py",
+        "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
+        "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
+        "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        ".github/workflows/cibo-genc3-genc6-economic-gate.yml"
       ],
       "blockers": [
-        "REAL_DATA_BOUND_CAUSAL_VALUE_PROOF_REQUIRED"
+        "REAL_DATA_BOUND_CAUSAL_VALUE_PROOF_REQUIRED",
+        "GENC3_GENC6_ECONOMIC_GATE_CHILD_CI_REQUIRED"
       ],
-      "next_gate": "Integrate next-unit compound-capital decisions with Compound Portfolio and prove value."
+      "next_gate": "Pass the shared GEN-C3..GEN-C6 economic-gate CI; then bind provider-valid marginal-unit control/treatment evidence and require independent 4/4 non-compensatory economic improvement plus stress."
     },
     {
       "id": "GEN-C5",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_PATH_DEPENDENT_UTILITY_OPEN",
+      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_IMPLEMENTED_CI_PENDING_PATH_DEPENDENT_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -522,19 +532,24 @@
         "src/qore/infrastructure/cibo_sequential_compounding_oos_binding.py",
         "tests/infrastructure/test_cibo_sequential_compounding_shadow.py",
         "tests/infrastructure/test_cibo_sequential_compounding_oos_binding.py",
-        ".github/workflows/cibo-sequential-compounding-shadow.yml"
+        ".github/workflows/cibo-sequential-compounding-shadow.yml",
+        "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
+        "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
+        "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        ".github/workflows/cibo-genc3-genc6-economic-gate.yml"
       ],
       "blockers": [
-        "FRESH_PATH_DEPENDENT_OOS_STRESS_REPLICATION_REQUIRED"
+        "FRESH_PATH_DEPENDENT_OOS_STRESS_REPLICATION_REQUIRED",
+        "GENC3_GENC6_ECONOMIC_GATE_CHILD_CI_REQUIRED"
       ],
-      "next_gate": "Run chronological settlement→classification→capacity→next-opportunity control/treatment."
+      "next_gate": "Pass the shared GEN-C3..GEN-C6 economic-gate CI; then bind provider-valid chronological sequential-compounding control/treatment evidence and require independent 4/4 non-compensatory improvement plus stress."
     },
     {
       "id": "GEN-C6",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_TRUE_SCARCITY_UTILITY_OPEN",
+      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_IMPLEMENTED_CI_PENDING_TRUE_SCARCITY_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -543,12 +558,17 @@
         "src/qore/infrastructure/cibo_internal_capital_market.py",
         "src/qore/infrastructure/cibo_internal_capital_market_population.py",
         "src/qore/infrastructure/cibo_internal_capital_market_oos_binding.py",
-        "tests/infrastructure/test_cibo_internal_capital_market.py"
+        "tests/infrastructure/test_cibo_internal_capital_market.py",
+        "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
+        "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
+        "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        ".github/workflows/cibo-genc3-genc6-economic-gate.yml"
       ],
       "blockers": [
-        "FRESH_TRUE_SCARCITY_OOS_STRESS_REPLICATION_REQUIRED"
+        "FRESH_TRUE_SCARCITY_OOS_STRESS_REPLICATION_REQUIRED",
+        "GENC3_GENC6_ECONOMIC_GATE_CHILD_CI_REQUIRED"
       ],
-      "next_gate": "Prove competition among base/profit/expansion/reserve/optionality/compound uses."
+      "next_gate": "Pass the shared GEN-C3..GEN-C6 economic-gate CI; then bind provider-valid true-scarcity control/treatment evidence and require independent 4/4 non-compensatory improvement plus stress."
     },
     {
       "id": "GEN-C7",
