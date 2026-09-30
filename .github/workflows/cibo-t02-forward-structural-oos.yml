@@ -1,0 +1,44 @@
+name: QORE CIBO T02 Forward Structural OOS
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-t02-forward-structural-oos.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t02_structural_oos.py'
+      - 'docs/research/CIBO-B-T02-FORWARD-STRUCTURAL-OOS-V1.md'
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+    paths:
+      - '.github/workflows/cibo-t02-forward-structural-oos.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t02_structural_oos.py'
+      - 'docs/research/CIBO-B-T02-FORWARD-STRUCTURAL-OOS-V1.md'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  t02-forward-structural-oos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: T02 forward structural evidence quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t02_structural_oos.py
+          mypy src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py
+          python -m py_compile src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py
+          pytest -q --no-cov tests/infrastructure/test_cibo_ce2i_phase20_t02_structural_oos.py
