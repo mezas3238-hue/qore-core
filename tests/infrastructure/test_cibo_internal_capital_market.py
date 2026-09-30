@@ -550,7 +550,7 @@ def test_genc6_true_scarcity_and_reserve_on_pareto_ambiguity(
     assert event.simultaneously_valid_count == 2
     assert event.eligible_candidate_count == 2
     assert event.available_capital_usd == Decimal("60")
-    assert event.total_requested_margin_usd == Decimal("80")
+    assert event.total_requested_capital_usd == Decimal("80")
     assert event.capital_shortfall_usd == Decimal("20")
     assert event.mutually_fundable_candidate_count == 1
     assert event.competition_intensity == Decimal("0.25")
@@ -985,7 +985,7 @@ def _oos_books(
                 realized_net_pnl_usd=Decimal(str(index)),
                 executed_initial_stop_risk_usd=Decimal("1"),
                 realized_structural_outcome_r=Decimal(str(index)),
-                capacity_deployed_at=deployed_at,
+                capital_deployed_at=deployed_at,
                 capital_released_at=released_at,
                 capital_minutes=capital_minutes,
             )
@@ -1344,7 +1344,7 @@ def test_genc6_population_is_descriptive_even_when_coverage_complete(
     assert population.decision_calendar_days == 1
     assert population.calendar_span_days == 1
     assert population.total_available_capital_usd == Decimal("60")
-    assert population.total_requested_margin_usd == Decimal("80")
+    assert population.total_requested_capital_usd == Decimal("80")
     assert population.total_capital_shortfall_usd == Decimal("20")
     assert population.mean_competition_intensity == Decimal("0.25")
     assert population.mean_true_scarcity_intensity == Decimal("0.25")
