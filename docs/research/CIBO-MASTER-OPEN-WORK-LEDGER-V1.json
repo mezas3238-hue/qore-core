@@ -926,27 +926,30 @@
       "kind": "EVIDENCE_PROGRAM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "HISTORICAL_REPLAY_IMPLEMENTED_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "ALL_PHASE18_ARTIFACTS_AND_WORKFLOWS_MUST_BE_RECONCILED_WITH_CURRENT_HEAD",
-        "HISTORICAL_EVIDENCE_MUST_REMAIN_NON_FORWARD"
+      "current_maturity": "HISTORICAL_LINEAGE_RECONCILED_AND_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
+      "evidence_refs": [
+        "docs/research/CIBO-HISTORICAL-EVIDENCE-LINEAGE-DISPOSITION-V1.md",
+        "docs/research/CIBO-HISTORICAL-EVIDENCE-LINEAGE-DISPOSITION-V1.json",
+        "docs/research/CIBO-GENERATION-CURRENT-CONTROL-CI-EVIDENCE-V1.json"
       ],
-      "next_gate": "Inventory/revalidate all Phase18 bind/geometry/score/replay artifacts and assign final historical-evidence disposition."
+      "blockers": [],
+      "next_gate": "Terminal historical-evidence disposition. This closure does not grant forward/OOS/promotion authority."
     },
     {
       "id": "BURNED_PHASE19_RESEARCH_EVIDENCE",
       "kind": "EVIDENCE_PROGRAM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "BURNED_RESEARCH_LINEAGES_REQUIRE_FINAL_DISPOSITION",
-      "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "PHASE19_I_K_L_M_N_AND_RELATED_BURNED_PROGRAMS_REQUIRE_CANONICAL_FINAL_DISPOSITION"
+      "current_maturity": "HISTORICAL_LINEAGE_RECONCILED_AND_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
+      "evidence_refs": [
+        "docs/research/CIBO-HISTORICAL-EVIDENCE-LINEAGE-DISPOSITION-V1.md",
+        "docs/research/CIBO-HISTORICAL-EVIDENCE-LINEAGE-DISPOSITION-V1.json",
+        "docs/research/CIBO-GENERATION-CURRENT-CONTROL-CI-EVIDENCE-V1.json"
       ],
-      "next_gate": "Reconcile all Phase19 calibration/chronology/dependence/regime/topology studies and preserve burned status without retuning."
+      "blockers": [],
+      "next_gate": "Terminal historical-evidence disposition. This closure does not grant forward/OOS/promotion authority."
     },
     {
       "id": "CMA_FOUNDATION_INTEGRATION",
@@ -966,13 +969,15 @@
       "kind": "GOVERNANCE",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "MULTIPLE_BURNED_AND_FROZEN_CALIBRATION_LINEAGES_REQUIRE_RECONCILIATION",
-      "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "BURNED_CALIBRATION_AND_NON_PROMOTION_ARTIFACTS_REQUIRE_FINAL_LINEAGE_MAP"
+      "current_maturity": "HISTORICAL_LINEAGE_RECONCILED_AND_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
+      "evidence_refs": [
+        "docs/research/CIBO-HISTORICAL-EVIDENCE-LINEAGE-DISPOSITION-V1.md",
+        "docs/research/CIBO-HISTORICAL-EVIDENCE-LINEAGE-DISPOSITION-V1.json",
+        "docs/research/CIBO-GENERATION-CURRENT-CONTROL-CI-EVIDENCE-V1.json"
       ],
-      "next_gate": "Map every calibration artifact to burned/frozen/current candidate lineage and prevent silent reuse."
+      "blockers": [],
+      "next_gate": "Terminal historical-evidence disposition. This closure does not grant forward/OOS/promotion authority."
     },
     {
       "id": "CE2I_CROSS_TOOL_INFRASTRUCTURE",
@@ -1064,8 +1069,8 @@
   ],
   "current_summary": {
     "mandatory_count": 64,
-    "terminal_count": 3,
-    "open_count": 61,
+    "terminal_count": 6,
+    "open_count": 58,
     "zero_open_work_pass": false,
     "final_certification_candidate": false
   }
