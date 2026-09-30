@@ -185,7 +185,7 @@ def apply_compound_stress(
             replace(
                 item,
                 settled_at=item.settled_at
-                + _duration(item) * scenario.severity,
+                + _scale_duration(_duration(item), scenario.severity),
             )
             for item in episodes
         )
@@ -274,6 +274,19 @@ def _ordered_stress(
 
 def _duration(item: CompoundMonteCarloEpisode) -> timedelta:
     return item.settled_at - item.deployed_at
+
+
+def _scale_duration(duration: timedelta, factor: Decimal) -> timedelta:
+    total_microseconds = (
+        (
+            duration.days * 86_400
+            + duration.seconds
+        )
+        * 1_000_000
+        + duration.microseconds
+    )
+    scaled_microseconds = int(Decimal(total_microseconds) * factor)
+    return timedelta(microseconds=scaled_microseconds)
 
 
 def _stressed_pnl(
