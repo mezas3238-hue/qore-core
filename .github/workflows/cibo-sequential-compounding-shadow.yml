@@ -19,6 +19,9 @@ on:
       - 'docs/research/CIBO-GEN-C5-SEQUENTIAL-COMPOUNDING-SHADOW-PREREGISTRATION-V1.md'
       - 'src/qore/infrastructure/cibo_generation_current_control.py'
       - 'tests/infrastructure/test_cibo_generation_current_control.py'
+      - 'scripts/cibo_generation_current_control_freeze.py'
+      - 'docs/research/CIBO-GENERATION-CURRENT-CONTROL-CI-EVIDENCE-V1.json'
+      - 'docs/research/CIBO-GENERATION-CURRENT-CONTROL-CANDIDATE-V1.md'
       - 'docs/research/CIBO-SOVEREIGN-CAPITAL-AMPLIFICATION-WORLD-CUP-MISSION-V1.md'
       - 'docs/research/CIBO-WORLD-CUP-SOVEREIGN-CAPITAL-AMPLIFICATION-GAP-MATRIX-V1.md'
       - 'src/qore/infrastructure/cibo_profit_preservation_shadow.py'
@@ -48,6 +51,9 @@ on:
       - 'docs/research/CIBO-GEN-C5-SEQUENTIAL-COMPOUNDING-SHADOW-PREREGISTRATION-V1.md'
       - 'src/qore/infrastructure/cibo_generation_current_control.py'
       - 'tests/infrastructure/test_cibo_generation_current_control.py'
+      - 'scripts/cibo_generation_current_control_freeze.py'
+      - 'docs/research/CIBO-GENERATION-CURRENT-CONTROL-CI-EVIDENCE-V1.json'
+      - 'docs/research/CIBO-GENERATION-CURRENT-CONTROL-CANDIDATE-V1.md'
       - 'docs/research/CIBO-SOVEREIGN-CAPITAL-AMPLIFICATION-WORLD-CUP-MISSION-V1.md'
       - 'docs/research/CIBO-WORLD-CUP-SOVEREIGN-CAPITAL-AMPLIFICATION-GAP-MATRIX-V1.md'
       - 'src/qore/infrastructure/cibo_profit_preservation_shadow.py'
@@ -138,10 +144,35 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/cibo_generation_current_control.py \
+            scripts/cibo_generation_current_control_freeze.py \
             tests/infrastructure/test_cibo_generation_current_control.py
           mypy \
-            src/qore/infrastructure/cibo_generation_current_control.py
+            src/qore/infrastructure/cibo_generation_current_control.py \
+            scripts/cibo_generation_current_control_freeze.py
           python -m py_compile \
-            src/qore/infrastructure/cibo_generation_current_control.py
+            src/qore/infrastructure/cibo_generation_current_control.py \
+            scripts/cibo_generation_current_control_freeze.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_generation_current_control.py
+          python scripts/cibo_generation_current_control_freeze.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("artifacts/cibo_generation_current_control_v1.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          assert payload["schema"] == "CIBO_GENERATION_CURRENT_CONTROL_SEAL_V1"
+          assert payload["manifest"]["git_sha"] == (
+              "87d98ced8d56b275823c4472392923ba6a11d769"
+          )
+          assert payload["manifest"]["all_required_ci_green"] is True
+          assert payload["economic_baseline_measurement"]["bound"] is False
+          assert payload["economic_baseline_measurement"][
+              "synthetic_measurement_used"
+          ] is False
+          PY
+      - name: Upload current-generation control seal
+        uses: actions/upload-artifact@v4
+        with:
+          name: cibo-generation-current-control-v1
+          path: artifacts/cibo_generation_current_control_v1.json
+          if-no-files-found: error
