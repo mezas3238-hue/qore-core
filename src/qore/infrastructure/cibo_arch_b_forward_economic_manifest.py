@@ -278,13 +278,55 @@ class ArchBForwardEconomicManifest:
             )
         if self.ready_for_scientific_consumption and (
             self.qualification_status not in {"PASS", "FAIL"}
-            or self.decision_epochs <= 0
-            or self.candidate_rows <= 0
+            or self.decision_epochs < plan.minimum_decision_epochs
+            or self.candidate_rows < plan.minimum_candidate_outcomes
             or self.complete_lineage_rows <= 0
         ):
             raise CiboCapitalManagementError(
-                "Architect-B scientific readiness requires non-empty qualified lineage"
+                "Architect-B scientific readiness requires frozen population minima"
             )
+        if self.complete_lineage_rows + len(self.gaps) != self.candidate_rows:
+            raise CiboCapitalManagementError(
+                "Architect-B complete/gap coverage must equal candidate rows"
+            )
+        if self.ready_for_scientific_consumption:
+            coverage = Decimal(self.complete_lineage_rows) / Decimal(
+                self.candidate_rows
+            )
+            if coverage < plan.minimum_candidate_outcome_coverage:
+                raise CiboCapitalManagementError(
+                    "Architect-B scientific readiness violates candidate coverage"
+                )
+            if {row.fold_id for row in self.rows} != {
+                "WF1",
+                "WF2",
+                "WF3",
+                "WF4",
+            }:
+                raise CiboCapitalManagementError(
+                    "Architect-B scientific readiness requires all four folds"
+                )
+            lineage_counts: dict[str, int] = {}
+            for row in self.rows:
+                lineage_counts[row.trader_id] = (
+                    lineage_counts.get(row.trader_id, 0) + 1
+                )
+            if len(lineage_counts) < plan.minimum_global_lineages:
+                raise CiboCapitalManagementError(
+                    "Architect-B scientific readiness lacks global lineages"
+                )
+            if any(
+                count < plan.minimum_outcomes_per_lineage
+                for count in lineage_counts.values()
+            ):
+                raise CiboCapitalManagementError(
+                    "Architect-B scientific readiness lacks outcomes per lineage"
+                )
+            selected_rows = sum(1 for row in self.rows if row.policy_selected)
+            if selected_rows < plan.minimum_selected_outcomes:
+                raise CiboCapitalManagementError(
+                    "Architect-B scientific readiness lacks selected outcomes"
+                )
         if self.certification_ready or self.productive_authority:
             raise CiboCapitalManagementError(
                 "Architect-B manifest cannot certify or grant productive authority"
