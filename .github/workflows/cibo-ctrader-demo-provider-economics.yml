@@ -10,6 +10,7 @@ on:
       - 'src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py'
       - 'src/qore/infrastructure/cibo_ctrader_demo_account_capability.py'
       - 'src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py'
+      - 'src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py'
       - 'src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py'
       - 'src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py'
       - 'src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py'
@@ -20,6 +21,7 @@ on:
       - 'scripts/cibo_phase20_provider_execution_calibration.py'
       - 'tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py'
       - 'tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py'
+      - 'tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py'
       - 'tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py'
       - 'tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py'
       - 'tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py'
@@ -32,6 +34,7 @@ on:
       - 'src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py'
       - 'src/qore/infrastructure/cibo_ctrader_demo_account_capability.py'
       - 'src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py'
+      - 'src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py'
       - 'src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py'
       - 'src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py'
       - 'src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py'
@@ -42,6 +45,7 @@ on:
       - 'scripts/cibo_phase20_provider_execution_calibration.py'
       - 'tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py'
       - 'tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py'
+      - 'tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py'
       - 'tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py'
       - 'tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py'
       - 'tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py'
@@ -85,6 +89,7 @@ jobs:
             src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py \
             src/qore/infrastructure/cibo_ctrader_demo_account_capability.py \
             src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py \
+            src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py \
@@ -95,6 +100,7 @@ jobs:
             scripts/cibo_phase20_provider_execution_calibration.py \
             tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py \
             tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py \
+            tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py \
             tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py \
             tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py \
             tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py \
@@ -104,6 +110,7 @@ jobs:
             src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py \
             src/qore/infrastructure/cibo_ctrader_demo_account_capability.py \
             src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py \
+            src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py \
@@ -121,6 +128,7 @@ jobs:
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py \
             tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py \
+            tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py \
             tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py \
             tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py \
             tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py \
@@ -199,6 +207,12 @@ jobs:
           }
           assert capability["catalog_sha256"].startswith("sha256:")
           assert capability["symbol_count"] > 0
+          assert isinstance(capability["taxonomy_binding_complete"], bool)
+          if capability["taxonomy_binding_complete"]:
+              assert capability["taxonomy_sha256"].startswith("sha256:")
+              assert capability["asset_classes"]
+              assert capability["symbol_categories"]
+          assert isinstance(capability["option_taxonomy_candidates"], list)
           assert capability["broker_mutation_performed"] is False
           assert capability["t16_hedge_instrument_certified"] is False
           assert capability["t17_option_structure_certified"] is False
