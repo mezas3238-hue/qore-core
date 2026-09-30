@@ -627,52 +627,55 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "INTEGRATED_ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "INTEGRATED_ENGINE_IMPLEMENTED_CI_GREEN_REAL_ECONOMIC_REPLAY_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_cycle_state.py",
-        "src/qore/infrastructure/cibo_compound_market_cycle.py"
+        "src/qore/infrastructure/cibo_compound_market_cycle.py",
+        "github-actions://36750376948/SUCCESS",
+        "docs/research/CIBO-GENC1-MATHEMATICAL-RECONCILIATION-CLOSURE-V1.md"
       ],
       "blockers": [
-        "INTEGRATED_COMPOUND_CYCLE_CI_REVALIDATION_REQUIRED",
         "REAL_ECONOMIC_PORTFOLIO_REPLAY_REQUIRED",
         "FRESH_OOS_STRESS_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Use the account-local Compound Portfolio in real chronological integrated replay and prove closure gates."
+      "next_gate": "Use the account-local Compound Portfolio in real chronological integrated replay and prove fresh OOS, stress and temporal-replication closure gates."
     },
     {
       "id": "INTERNAL_CAPITAL_MARKET",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "INTEGRATED_WITH_COMPOUND_CYCLE_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "INTEGRATED_WITH_COMPOUND_CYCLE_CI_GREEN_SCIENTIFIC_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_compound_market_cycle.py"
+        "src/qore/infrastructure/cibo_compound_market_cycle.py",
+        "github-actions://36750376948/SUCCESS",
+        "docs/research/CIBO-GENC1-MATHEMATICAL-RECONCILIATION-CLOSURE-V1.md"
       ],
       "blockers": [
-        "INTEGRATED_COMPOUND_CYCLE_CI_REVALIDATION_REQUIRED",
         "FRESH_TRUE_SCARCITY_ECONOMIC_VALUE_REQUIRED",
         "STRESS_AND_TEMPORAL_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Pass integrated-cycle mechanics, then prove fresh scarcity value and non-compensatory stress/replication."
+      "next_gate": "Bind a fresh real scarcity population and prove non-compensatory economic value, stress robustness and temporal replication."
     },
     {
       "id": "CAPITAL_GENERATIONS",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "GEN0_TO_GEN2_MECHANICS_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "GEN0_TO_GEN2_MECHANICS_IMPLEMENTED_CI_GREEN_REAL_REPLAY_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_compound_cycle_audit.py"
+        "src/qore/infrastructure/cibo_compound_cycle_audit.py",
+        "github-actions://36750376948/SUCCESS",
+        "docs/research/CIBO-GENC1-MATHEMATICAL-RECONCILIATION-CLOSURE-V1.md"
       ],
       "blockers": [
-        "INTEGRATED_COMPOUND_CYCLE_CI_REVALIDATION_REQUIRED",
         "MULTI_GENERATION_REAL_REPLAY_REQUIRED",
         "FRESH_OOS_ATTRIBUTION_REQUIRED"
       ],
-      "next_gate": "Prove GEN-0→GEN-N parent/child provenance over real chronological replay, not only test fixtures."
+      "next_gate": "Prove GEN-0→GEN-N parent/child provenance and attribution over real chronological replay, then fresh OOS attribution."
     },
     {
       "id": "PROTECTED_BASE_CAPITAL",
