@@ -1,0 +1,47 @@
+name: QORE CIBO Risk Integration Closure
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-risk-integration-closure.yml'
+      - 'src/qore/infrastructure/account_wide_risk.py'
+      - 'src/qore/infrastructure/account_wide_risk_ledger.py'
+      - 'src/qore/infrastructure/cibo_cma_risk_request.py'
+      - 'src/qore/infrastructure/cibo_fundednext_seed.py'
+      - 'tests/infrastructure/test_cibo_risk_integration_closure.py'
+      - 'docs/research/CIBO-RISK-INTEGRATION-CLOSURE-V1.md'
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+    paths:
+      - '.github/workflows/cibo-risk-integration-closure.yml'
+      - 'src/qore/infrastructure/account_wide_risk.py'
+      - 'src/qore/infrastructure/account_wide_risk_ledger.py'
+      - 'src/qore/infrastructure/cibo_cma_risk_request.py'
+      - 'src/qore/infrastructure/cibo_fundednext_seed.py'
+      - 'tests/infrastructure/test_cibo_risk_integration_closure.py'
+      - 'docs/research/CIBO-RISK-INTEGRATION-CLOSURE-V1.md'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  risk-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: CIBO Risk integration closure
+        run: |
+          ruff check tests/infrastructure/test_cibo_risk_integration_closure.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_risk_integration_closure.py
