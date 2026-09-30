@@ -27,7 +27,7 @@ from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_opportunity import
 
 
 def _m1(minute: int, open_: str, high: str, low: str, close: str) -> CapitalizerM1Bar:
-    opened = datetime(2026, 1, 5, 13, 0, tzinfo=UTC) + timedelta(minutes=minute)
+    opened = datetime(2026, 1, 5, 12, 0, tzinfo=UTC) + timedelta(minutes=minute)
     return CapitalizerM1Bar(
         symbol="EURUSD",
         opened_at=opened,
