@@ -79,6 +79,7 @@ jobs:
             src/qore/infrastructure/cibo_genc9_economic_gate.py \
             src/qore/infrastructure/cibo_compound_adversarial_stress.py \
             src/qore/infrastructure/cibo_compound_temporal_replication.py \
+            src/qore/infrastructure/cibo_compound_temporal_replication_gate.py \
             tests/infrastructure/test_cibo_robust_growth_ruin_capacity.py \
             tests/infrastructure/test_cibo_compound_path_monte_carlo.py \
             tests/infrastructure/test_cibo_compound_real_population_binding.py \
