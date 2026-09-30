@@ -15,14 +15,14 @@ from decimal import Decimal
 from enum import StrEnum
 
 from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
+    FROZEN_PHASE20_POLICY_CANDIDATE,
+)
 from qore.infrastructure.cibo_compound_capital import (
     CiboCompoundCapitalError,
 )
 from qore.infrastructure.cibo_compound_path_monte_carlo import (
     CompoundMonteCarloEpisode,
-)
-from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
-    FROZEN_PHASE20_POLICY_CANDIDATE,
 )
 
 
