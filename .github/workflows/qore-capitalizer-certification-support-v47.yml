@@ -1,0 +1,44 @@
+name: QORE Capitalizer Certification Support V47
+
+on:
+  push:
+    branches:
+      - agent/capitalizer-canonical-source-remediation-v47-s2-001
+    paths:
+      - '.github/workflows/qore-capitalizer-certification-support-v47.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_route_recompetition_v47_s3.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_winner_preservation_adjudicator_v47.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_route_recompetition_v47_s3.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_winner_preservation_adjudicator_v47.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_route_recompetition_v47_s3.py \
+            src/qore/infrastructure/trader_lab/capitalizer_winner_preservation_adjudicator_v47.py \
+            tests/infrastructure/trader_lab/test_capitalizer_route_recompetition_v47_s3.py \
+            tests/infrastructure/trader_lab/test_capitalizer_winner_preservation_adjudicator_v47.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_route_recompetition_v47_s3.py \
+            src/qore/infrastructure/trader_lab/capitalizer_winner_preservation_adjudicator_v47.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_route_recompetition_v47_s3.py \
+            tests/infrastructure/trader_lab/test_capitalizer_winner_preservation_adjudicator_v47.py
