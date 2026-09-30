@@ -183,3 +183,24 @@ def test_cognitive_rearm_capacity_excludes_non_cognitive_ready_geometry() -> Non
     cognitive = _portfolio_ready(rows, cognitive=True)
     assert len(cognitive) == 1
     assert cognitive[0].symbol == "EURUSD"
+
+
+def test_cognition_blocked_geometry_never_enters_cognitive_portfolio() -> None:
+    blocked = _ready_attempt(
+        symbol="GBPUSD",
+        minute=5,
+        attempt_index=1,
+        cognitive_ready=False,
+    )
+    recovered = _ready_attempt(
+        symbol="GBPUSD",
+        minute=9,
+        attempt_index=2,
+        cognitive_ready=True,
+    )
+    selected = _portfolio_ready((blocked, recovered), cognitive=True)
+    assert selected == (recovered,)
+    breakdown = _capacity_breakdown(selected)
+    assert breakdown["trades_after_max3"] == 1
+    assert breakdown["recovered_after_rearm"] == 1
+    assert breakdown["first_attempt_ready"] == 0
