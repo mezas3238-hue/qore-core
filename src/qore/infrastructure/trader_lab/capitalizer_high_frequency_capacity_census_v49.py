@@ -18,7 +18,7 @@ import bisect
 import json
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -37,7 +37,6 @@ from qore.infrastructure.trader_lab.capitalizer_generic_scalp_census_v48 import 
     LOOKBACK_START,
     WINDOW_END,
     WINDOW_START,
-    V48AggregatedBar,
     _aggregate,
     _build_h1_bias_events,
     _operating_date,
