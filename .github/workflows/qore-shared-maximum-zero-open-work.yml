@@ -66,8 +66,8 @@ jobs:
 
           assert a["total_items"] == 103
           assert a["mandatory_items"] == 103
-          assert a["mandatory_closed"] == 9
-          assert a["blocker_count"] == 94
+          assert a["mandatory_closed"] == 12
+          assert a["blocker_count"] == 91
           assert a["zero_open_required_work"] is False
           assert a["pre_certification_ready"] is False
           assert a["final_certification_exam_authorized"] is False
@@ -85,6 +85,9 @@ jobs:
           assert states["STI-6"] == "EXTERNAL_DEPENDENCY_BLOCKED"
           assert states["STI-8"] == "RESEARCH_OOS_PASS"
           assert states["STI-13"] == "COMPLETED_AND_PROVEN"
+          assert states["MC-02"] == "COMPLETED_AND_PROVEN"
+          assert states["MC-03"] == "COMPLETED_AND_PROVEN"
+          assert states["MC-04"] == "COMPLETED_AND_PROVEN"
           assert states["MC-15"] == "COMPLETED_AND_PROVEN"
           assert states["X-11"] == "COMPLETED_AND_PROVEN"
           assert states["X-17"] == "COMPLETED_AND_PROVEN"
