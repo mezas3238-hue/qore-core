@@ -20,6 +20,9 @@ from typing import Any
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
+from qore.infrastructure.cibo_ce2i_calibration_matrix import (
+    CIBO_T01_T20_CALIBRATION_MATRIX,
+)
 
 CALIBRATION_FREEZE_MANIFEST_ID = "CIBO_T01_T20_CALIBRATION_FREEZE_MANIFEST_V1"
 
@@ -162,6 +165,19 @@ class CiboCalibrationFreezeManifest:
         if self.productive_authority:
             raise CiboCapitalManagementError(
                 "calibration freeze manifest has no productive authority"
+            )
+        provider_required = {
+            item.tool_code
+            for item in CIBO_T01_T20_CALIBRATION_MATRIX
+            if item.provider_economics_required
+        }
+        if any(
+            item.tool_code in provider_required
+            and not item.provider_economics_bound
+            for item in self.tools
+        ):
+            raise CiboCapitalManagementError(
+                "calibration freeze provider-dependent tool is not bound"
             )
         active = tuple(
             item
