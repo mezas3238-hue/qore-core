@@ -12,6 +12,9 @@ from datetime import datetime
 from decimal import Decimal
 
 from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_capital_source_ledger_store import (
+    VersionedCapitalSourceLedger,
+)
 from qore.infrastructure.cibo_cma_settlement_ledger import CmaSettlementState
 from qore.infrastructure.cibo_compound_capital import (
     CiboCompoundCapitalError,
@@ -31,6 +34,12 @@ from qore.infrastructure.cibo_compound_cycle_state import (
 from qore.infrastructure.cibo_compound_market_cycle import (
     apply_internal_capital_market_decision,
     settle_compound_deployment,
+)
+from qore.infrastructure.cibo_integrated_capital_truth import (
+    IntegratedCapitalTruth,
+    ProtectedOpenFloorEquivalenceBinding,
+    RealizedProfitEquivalenceBinding,
+    build_integrated_capital_truth,
 )
 from qore.infrastructure.cibo_internal_capital_market import (
     CapitalScarcityEvent,
@@ -139,6 +148,95 @@ class CompoundCycleReplayResult:
             raise CiboCompoundCapitalError(
                 "compound replay governance/causality drift"
             )
+
+
+@dataclass(frozen=True, slots=True)
+class IntegratedCompoundCycleReplayResult:
+    cycle: CompoundCycleReplayResult
+    source_ledger_generation: int
+    source_ledger_observed_at: datetime
+    capital_truth: IntegratedCapitalTruth
+    productive_authority: bool = False
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.cycle, CompoundCycleReplayResult):
+            raise CiboCompoundCapitalError(
+                "integrated replay requires canonical cycle result"
+            )
+        if (
+            not isinstance(self.source_ledger_generation, int)
+            or isinstance(self.source_ledger_generation, bool)
+            or self.source_ledger_generation <= 0
+        ):
+            raise CiboCompoundCapitalError(
+                "integrated replay requires persisted source-ledger generation"
+            )
+        if (
+            self.source_ledger_observed_at.tzinfo is None
+            or self.source_ledger_observed_at.utcoffset() is None
+        ):
+            raise CiboCompoundCapitalError(
+                "integrated replay source-ledger observation must be aware"
+            )
+        final_at = self.cycle.final_state.last_event_at
+        if final_at is None or self.source_ledger_observed_at < final_at:
+            raise CiboCompoundCapitalError(
+                "source-ledger snapshot predates final compound event"
+            )
+        if not isinstance(self.capital_truth, IntegratedCapitalTruth):
+            raise CiboCompoundCapitalError(
+                "integrated replay capital truth is invalid"
+            )
+        if self.productive_authority:
+            raise CiboCompoundCapitalError(
+                "integrated replay has no productive authority"
+            )
+
+
+def replay_compound_cycle_with_capital_truth(
+    *,
+    initial_state: CiboCompoundCycleState,
+    events: tuple[CompoundCycleEvent, ...],
+    source_ledger_version: VersionedCapitalSourceLedger,
+    source_ledger_observed_at: datetime,
+    realized_profit_bindings: tuple[
+        RealizedProfitEquivalenceBinding, ...
+    ],
+    protected_floor_bindings: tuple[
+        ProtectedOpenFloorEquivalenceBinding, ...
+    ] = (),
+) -> IntegratedCompoundCycleReplayResult:
+    """Run chronology then reconcile the exact durable capital-source snapshot."""
+
+    if not isinstance(
+        source_ledger_version,
+        VersionedCapitalSourceLedger,
+    ):
+        raise CiboCompoundCapitalError(
+            "integrated replay requires versioned source ledger"
+        )
+    cycle = replay_compound_cycle(
+        initial_state=initial_state,
+        events=events,
+    )
+    if source_ledger_version.generation <= 0:
+        raise CiboCompoundCapitalError(
+            "integrated replay source ledger must be durably persisted"
+        )
+    truth = build_integrated_capital_truth(
+        account_identity=cycle.final_state.account_identity,
+        source_ledger=source_ledger_version.ledger,
+        compound_state=cycle.final_state,
+        realized_profit_bindings=realized_profit_bindings,
+        protected_floor_bindings=protected_floor_bindings,
+    )
+    return IntegratedCompoundCycleReplayResult(
+        cycle=cycle,
+        source_ledger_generation=source_ledger_version.generation,
+        source_ledger_observed_at=source_ledger_observed_at,
+        capital_truth=truth,
+        productive_authority=False,
+    )
 
 
 def replay_compound_cycle(
