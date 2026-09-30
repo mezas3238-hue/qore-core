@@ -126,6 +126,26 @@ def materialize_as_is_economic_baseline(
         raise CiboCompoundCapitalError(
             "AS-IS baseline Phase20 population cannot be empty"
         )
+    decision_epoch_count = len(
+        {item.decision_epoch_id for item in report.rows}
+    )
+    if (
+        report.readiness.pre_freeze_decisions != 0
+        or report.readiness.missing_policy_decisions != 0
+        or report.readiness.decision_epochs != decision_epoch_count
+        or report.readiness.candidate_instances != len(report.rows)
+        or report.readiness.candidate_outcome_coverage
+        != report.candidate_outcome_coverage
+        or report.readiness.selected_outcome_coverage
+        != report.policy_selected_outcome_coverage
+    ):
+        raise CiboCompoundCapitalError(
+            "AS-IS baseline readiness/report consistency drift"
+        )
+    if sum(item.decision_epoch_count for item in report.folds) != decision_epoch_count:
+        raise CiboCompoundCapitalError(
+            "AS-IS baseline temporal fold population count drift"
+        )
     if (
         not isinstance(compound_records, tuple)
         or not compound_records
@@ -205,7 +225,7 @@ def materialize_as_is_economic_baseline(
         source_manifest_sha256=source_manifest_sha256,
         phase20_population_sha256=_phase20_population_sha256(report),
         compound_population_sha256=_compound_population_sha256(compound_records),
-        decision_epoch_count=len({item.decision_epoch_id for item in report.rows}),
+        decision_epoch_count=decision_epoch_count,
         candidate_row_count=len(report.rows),
         fold_ids=fold_ids,
         policy_net_delta_usd=report.policy_net_delta_usd,
