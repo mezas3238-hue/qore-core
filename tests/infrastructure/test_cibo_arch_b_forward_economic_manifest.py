@@ -1,3 +1,7 @@
+from dataclasses import replace
+
+import pytest
+
 from qore.infrastructure.cibo_arch_b_forward_economic_manifest import (
     ARCH_B_FORWARD_ECONOMIC_MANIFEST_ID,
     build_arch_b_forward_economic_manifest,
@@ -51,3 +55,20 @@ def test_arch_b_empty_manifest_is_deterministic() -> None:
 
     assert left == right
     assert left.fingerprint() == right.fingerprint()
+
+
+def test_arch_b_manifest_cannot_mint_scientific_readiness_without_rows() -> None:
+    manifest = _empty_manifest()
+
+    with pytest.raises(
+        ValueError,
+        match="non-empty qualified lineage",
+    ):
+        replace(
+            manifest,
+            qualification_status="PASS",
+            decision_epochs=80,
+            candidate_rows=200,
+            complete_lineage_rows=0,
+            ready_for_scientific_consumption=True,
+        )
