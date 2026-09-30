@@ -28,6 +28,7 @@ from qore.infrastructure.trader_lab.capitalizer_experience_memory import (
 )
 from qore.infrastructure.trader_lab.capitalizer_generic_scalp_census_v48 import _aggregate
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
+    DEFAULT_LOOKBACK,
     DEV_WINDOW_END,
     DEV_WINDOW_START,
     V49Opportunity,
@@ -217,10 +218,11 @@ def build_market(
     symbol = opportunities[0].symbol
     session = opportunities[0].session
 
+    lookback_start = DEV_WINDOW_START - DEFAULT_LOOKBACK
     bars = tuple(
         bar
         for bar in iter_cibo_m1(m1_root)
-        if DEV_WINDOW_START <= bar.opened_at < DEV_WINDOW_END
+        if lookback_start <= bar.opened_at < DEV_WINDOW_END
     )
     if not bars or any(bar.symbol != symbol for bar in bars):
         raise ValueError("V50-G M1 market mismatch")
@@ -277,6 +279,7 @@ def build_market(
         "session": session,
         "window_start": DEV_WINDOW_START.isoformat(),
         "window_end_exclusive": DEV_WINDOW_END.isoformat(),
+        "context_lookback_start": lookback_start.isoformat(),
         "source_opportunities": len(opportunities),
         "geometry_decisions": sorted(geometry_counts.items()),
         "cognitive_dispositions": sorted(disposition_counts.items()),
