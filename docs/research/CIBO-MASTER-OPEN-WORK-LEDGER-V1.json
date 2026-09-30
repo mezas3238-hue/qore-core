@@ -384,7 +384,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ACCOUNT_TAXONOMY_PLUS_PROVIDER_NATIVE_GSL_CANDIDATE_ENGINE_STAGED_CI_PENDING_EXECUTION_ECONOMICS_OOS_OPEN",
+      "current_maturity": "ACCOUNT_TAXONOMY_GSL_CANDIDATE_PLUS_SOURCE_BOUND_OBSERVATION_RECEIPT_STAGED_CI_PENDING_ECONOMIC_OOS_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -409,17 +409,21 @@
         "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
         "tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py",
         "src/qore/infrastructure/ctrader_open_api_client.py",
-        ".github/workflows/cibo-ctrader-demo-provider-economics.yml"
+        ".github/workflows/cibo-ctrader-demo-provider-economics.yml",
+        "src/qore/infrastructure/cibo_t17_provider_capability_receipt.py",
+        "tests/infrastructure/test_cibo_t17_provider_capability_receipt.py",
+        ".github/workflows/cibo-t17-provider-capability-receipt.yml"
       ],
       "blockers": [
         "INTEGRATOR_CTRADER_DEMO_ACCOUNT_CAPABILITY_CI_REQUIRED",
         "INTEGRATOR_CTRADER_DEMO_PROVIDER_ECONOMICS_CI_REQUIRED",
+        "INTEGRATOR_T17_PROVIDER_CAPABILITY_RECEIPT_CI_REQUIRED",
         "REAL_ACCOUNT_TAXONOMY_AND_LIMITED_RISK_OBSERVATION_REQUIRED",
         "T17_OPTION_OR_DEFINED_RISK_SPREAD_NOT_PROVIDER_VERIFIED",
         "T17_GSL_EXECUTION_ECONOMICS_NOT_PROVEN_IF_CANDIDATE_EXISTS",
         "T17_FRESH_OOS_LIMITED_DOWNSIDE_UTILITY_REQUIRED_IF_CANDIDATE_EXISTS"
       ],
-      "next_gate": "Pass taxonomy/provider CI; collect actual account Limited Risk + symbol GSL coverage. If a provider-native GSL candidate exists, prove execution charges/slippage/constraints and fresh OOS utility. Do not equate GSL with option/spread support."
+      "next_gate": "Pass account/provider/T17-receipt CI; collect one source-bound real account observation. If GSL candidate exists, prove charges/slippage/constraints and fresh OOS utility. Observation receipt PASS is provenance only, never T17 policy PASS."
     },
     {
       "id": "T18",
