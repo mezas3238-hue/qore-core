@@ -72,6 +72,8 @@ class V54LifecycleTrade:
     symbol: str
     session: str
     operating_date: str
+    h1_state_from: str
+    m15_setup_confirmed_at: str
     entry_at: str
     exit_at: str
     entry_price: str
@@ -254,6 +256,8 @@ def _treatment_replay(
         symbol=opportunity.symbol,
         session=opportunity.session,
         operating_date=opportunity.operating_date,
+        h1_state_from=opportunity.h1_state_from,
+        m15_setup_confirmed_at=opportunity.m15_setup_confirmed_at,
         entry_at=entry_at.isoformat(),
         exit_at=exit_at.isoformat(),
         entry_price=str(entry),
@@ -287,6 +291,8 @@ def _control_record(
         symbol=replay.symbol,
         session=replay.session,
         operating_date=replay.operating_date,
+        h1_state_from=opportunity.h1_state_from,
+        m15_setup_confirmed_at=opportunity.m15_setup_confirmed_at,
         entry_at=replay.entry_at,
         exit_at=replay.exit_at,
         entry_price=replay.entry_price,
@@ -343,6 +349,12 @@ def build_market(
         geometry = propose_v50_geometry(snapshot)
         if geometry.decision is not V50GeometryDecision.READY:
             continue
+        if (
+            geometry.stop_price is None
+            or geometry.t1 is None
+            or geometry.t1_reward_r is None
+        ):
+            raise ValueError("V54 READY geometry missing frozen stop/T1 payload")
         if snapshot.cognitive.disposition not in COGNITIVE_GEOMETRY_ALLOWED:
             continue
 
@@ -467,8 +479,15 @@ def _metrics(
     )
 
 
-def _key(item: V54LifecycleTrade) -> tuple[str, str, str, str]:
-    return (item.symbol, item.session, item.operating_date, item.entry_at)
+def _key(item: V54LifecycleTrade) -> tuple[str, str, str, str, str, str]:
+    return (
+        item.symbol,
+        item.session,
+        item.operating_date,
+        item.h1_state_from,
+        item.m15_setup_confirmed_at,
+        item.entry_at,
+    )
 
 
 def _preservation(
