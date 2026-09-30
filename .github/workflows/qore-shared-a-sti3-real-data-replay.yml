@@ -1,0 +1,113 @@
+name: QORE Shared A STI3 Real Data Replay
+
+concurrency:
+  group: qore-shared-a-sti3-real-data-replay
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - scripts/shared_sti3_global_opportunity_board_replay.py
+      - .github/workflows/qore-shared-a-sti3-real-data-replay.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Validate and recover immutable source evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/{r8,r6,r5} result
+          ruff check scripts/shared_sti3_global_opportunity_board_replay.py
+          python -m py_compile scripts/shared_sti3_global_opportunity_board_replay.py
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          test "$(git rev-parse "1df8be7cfea2621a4bfcf6a7de741aa585a29f35:src/qore/infrastructure/core_stack_v2/shared_global_opportunity_trajectory_v2.py")" = "$(git rev-parse "HEAD:src/qore/infrastructure/core_stack_v2/shared_global_opportunity_trajectory_v2.py")"
+      - name: Replay STI-3 from frozen STI-2 source cognition
+        run: |
+          set -euo pipefail
+          python scripts/shared_sti3_global_opportunity_board_replay.py             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/sti3-real-data-replay.json             | tee result/summary.json
+      - name: Validate governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/sti3-real-data-replay.json").read_text())
+          assert p["status"] == "STI3_REAL_DATA_BOUND_CAUSAL_REPLAY_PASS"
+          assert p["proof"]["real_data_bound"] is True
+          assert p["proof"]["future_market_read"] is False
+          assert p["proof"]["future_outcome_read"] is False
+          assert p["proof"]["trader_methodology_read"] is False
+          assert p["proof"]["deterministic_replay"] is True
+          g=p["governance"]
+          assert g["creates_trader_setup"] is False
+          assert g["execution_authority"] is False
+          assert g["capital_authority"] is False
+          assert g["risk_authority"] is False
+          assert g["protected_certification_holdout_opened"] is False
+          assert g["productive_authority"] is False
+          PY
+      - name: Seal result
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-sti3-real-data-replay-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report STI-3 replay
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/sti3-real-data-replay.json").read_text())
+          body="\n".join([
+              "## Shared A STI-3 — Global Opportunity Board Real Replay",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              f"- R6: **{p['replays']['r6']}**",
+              f"- R5: **{p['replays']['r5']}**",
+              "- future market/outcome read: **False / False**",
+              "- Trader methodology read: **False**",
+              "- execution/capital/risk authority: **False / False / False**",
+              "- protected certification holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
