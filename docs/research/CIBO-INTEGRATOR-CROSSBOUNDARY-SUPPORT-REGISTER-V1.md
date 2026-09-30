@@ -41,7 +41,7 @@ Integrator acceptance condition:
 - restore the workstream to mandatory/blocking, or
 - provide an explicit Owner-authorized canonical governance amendment that moves the World Cup exam outside ordinary CIBO certification.
 
-Status: OPEN — A's 63-mandatory ledger is not accepted into #670.
+Resolution designed in #670: keep World Cup mandatory, let PRE_EXAM exclude both mandatory certification exams only for sequencing, then run Final Integrated Exam → World Cup Exam → STRICT zero-open. A must reconcile its protocol/ledger to this topology. Status: OPEN pending A reconciliation.
 
 ## Architect B — current support item
 
@@ -76,3 +76,19 @@ Current reconciled terminal ledger remains:
 - open: 51
 - zero-open-work: false
 - final certification candidate: false
+
+
+### B-SUPPORT-002 — Risk handoff / canonical-ledger drift
+
+Observed at B HEAD `41f0227e2136ac09c94bdd8187c2e6f5e625ee36`:
+- B closure handoff recommends `RISK_INTEGRATION = COMPLETED_AND_PROVEN`.
+- B canonical master ledger still leaves RISK_INTEGRATION open/partial.
+- the mechanical test surface covers minimal-seed ALLOW, safe REDUCE and genuine minimum-fit REJECT semantics.
+- current Risk workflow remains queued.
+
+Integrator acceptance condition:
+- Risk workflow SUCCESS on the accepted checkpoint;
+- B handoff and canonical ledger reconciled in the same checkpoint;
+- then #670 may import the terminal Risk closure.
+
+Status: OPEN pending CI + B source-of-truth reconciliation.
