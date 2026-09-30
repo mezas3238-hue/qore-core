@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import StrEnum
 
 from qore.infrastructure.core_stack_v2.shared_trader_intelligence import (
@@ -138,7 +138,10 @@ class SharedSecondOrderBlindspotAssessment:
             raise SharedTraderIntelligenceValidationError(
                 "blindspot assessment requires identity and reasons"
             )
-        if type(self.research_priority_bps) is not int or not 0 <= self.research_priority_bps <= 10_000:
+        if (
+            type(self.research_priority_bps) is not int
+            or not 0 <= self.research_priority_bps <= 10_000
+        ):
             raise SharedTraderIntelligenceValidationError(
                 "research_priority_bps must be int within 0..10000"
             )
