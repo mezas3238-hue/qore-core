@@ -58,6 +58,46 @@ def _market_payload(symbol: str, session: str, count: int) -> dict[str, object]:
     }
 
 
+def _write_market(
+    root: Path,
+    *,
+    symbol: str,
+    session: str,
+    count: int,
+) -> None:
+    report = root / f"capitalizer-{symbol.lower()}-v48-scalp-pre-economic-census.json"
+    report.write_text(
+        json.dumps(_market_payload(symbol, session, count)),
+        encoding="utf-8",
+    )
+    ledger = root / (
+        f"capitalizer-{symbol.lower()}-v48-scalp-pre-economic-census-opportunities.jsonl"
+    )
+    with ledger.open("w", encoding="utf-8") as handle:
+        for index in range(count):
+            at = datetime(2026, 1, 2, 12, index, tzinfo=UTC).isoformat()
+            handle.write(
+                json.dumps(
+                    {
+                        "symbol": symbol,
+                        "session": session,
+                        "operating_date": "2026-01-02",
+                        "direction": "BULLISH",
+                        "h1_bias_confirmed_at": at,
+                        "h1_closure_kind": "CANDLE2_REVERSAL",
+                        "h1_poi_kind": "SWING_LOW",
+                        "m15_cisd_confirmed_at": at,
+                        "m15_protected_swing_price": "99",
+                        "m1_continuation_confirmed_at": at,
+                        "m1_continuation_family": "LIQUIDITY_SWEEP_CISD",
+                        "decision_reference_price": "100",
+                        "structural_target_witness_price": "101",
+                    }
+                )
+                + "\n"
+            )
+
+
 def test_matrix_requires_nine_markets_and_reports_three_session_coverage(tmp_path: Path) -> None:
     rows = (
         ("USDJPY", "ASIA", 2),
@@ -71,8 +111,7 @@ def test_matrix_requires_nine_markets_and_reports_three_session_coverage(tmp_pat
         ("NAS100", "NEW_YORK", 2),
     )
     for symbol, session, count in rows:
-        path = tmp_path / f"capitalizer-{symbol.lower()}-v48-scalp-pre-economic-census.json"
-        path.write_text(json.dumps(_market_payload(symbol, session, count)), encoding="utf-8")
+        _write_market(tmp_path, symbol=symbol, session=session, count=count)
 
     report = build_matrix(tmp_path)
     assert report["identity"] == MATRIX_IDENTITY
@@ -80,6 +119,7 @@ def test_matrix_requires_nine_markets_and_reports_three_session_coverage(tmp_pat
     assert report["session_count"] == 3
     assert report["coverage_decision"] == "COMPLETE_PRE_ECONOMIC"
     assert report["by_session"] == {"ASIA": 3, "LONDON": 2, "NEW_YORK": 3}
+    assert report["portfolio_max3_chronological_selected"] == 8
     assert report["outcome_used"] is False
     assert report["economics_calculated"] is False
     assert report["census_is_lower_bound"] is True
@@ -99,8 +139,7 @@ def test_matrix_fails_session_operability_when_one_session_is_empty(tmp_path: Pa
         ("NAS100", "NEW_YORK", 2),
     )
     for symbol, session, count in rows:
-        path = tmp_path / f"capitalizer-{symbol.lower()}-v48-scalp-pre-economic-census.json"
-        path.write_text(json.dumps(_market_payload(symbol, session, count)), encoding="utf-8")
+        _write_market(tmp_path, symbol=symbol, session=session, count=count)
 
     report = build_matrix(tmp_path)
     assert report["coverage_decision"] == "INCOMPLETE"
