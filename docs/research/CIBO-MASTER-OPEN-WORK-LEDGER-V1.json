@@ -573,22 +573,27 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "ENGINE_AND_TRANSITION_CALIBRATION_PROTOCOL_CHILD_CI_GREEN_REAL_CALIBRATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
         "docs/research/CIBO-GEN-C10-CAPITAL-DIGITAL-TWIN-PREREGISTRATION-V1.md",
         "src/qore/infrastructure/cibo_capital_digital_twin.py",
         "tests/infrastructure/test_cibo_capital_digital_twin.py",
-        ".github/workflows/cibo-genc10-capital-digital-twin.yml"
+        ".github/workflows/cibo-genc10-capital-digital-twin.yml",
+        "github-actions://36727848250/SUCCESS",
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_genc10_transition_uncertainty_calibration.py",
+        "tests/infrastructure/test_cibo_genc10_transition_uncertainty_calibration.py",
+        "docs/research/CIBO-GEN-C10-TRANSITION-UNCERTAINTY-CALIBRATION-PROTOCOL-V1.md",
+        "github-actions://36754064440/SUCCESS"
       ],
       "blockers": [
-        "GEN_C10_ENGINE_CI_REVALIDATION_REQUIRED",
-        "CALIBRATED_TRANSITION_UNCERTAINTY_NOT_YET_PROVEN",
-        "REAL_CHRONOLOGICAL_TWIN_POPULATION_NOT_YET_BOUND",
+        "REAL_CHRONOLOGICAL_TWIN_TRANSITION_POPULATION_NOT_YET_BOUND",
+        "REAL_TRANSITION_UNCERTAINTY_CALIBRATION_RESULTS_NOT_YET_PROVEN",
         "FRESH_OOS_STRESS_TEMPORAL_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Pass GEN-C10 engine CI; bind real chronological twin snapshots; calibrate transition uncertainty without future leakage; then OOS/stress/replicate."
+      "next_gate": "Require the updated GEN-C10 workflow to pass; then bind a real provider-valid chronological twin-transition population, calibrate descriptive transition support strictly before evaluation cutoff, and run fresh OOS/stress/4-fold replication without mutating frozen GEN-C10 V1."
     },
     {
       "id": "GEN-C11",
