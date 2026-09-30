@@ -89,3 +89,18 @@ def test_metrics_expose_certification_axes() -> None:
     assert diagnostic["expectancy_positive"] is True
     assert diagnostic["dd_le_10r"] is True
     assert diagnostic["payoff_ge_1_20"] is True
+
+
+def test_preservation_does_not_credit_winner_that_turns_into_loss() -> None:
+    baseline = (
+        _base("2015-01-05T10:00:00+00:00", "2", "TARGET"),
+        _base("2015-01-05T10:01:00+00:00", "-1", "STOP"),
+    )
+    candidate = (
+        _candidate("2015-01-05T10:00:00+00:00", "-1"),
+        _candidate("2015-01-05T10:01:00+00:00", "1"),
+    )
+    result = _preservation(baseline, candidate)
+    assert Decimal(result["winner_count_preservation"]) == Decimal("0")
+    assert Decimal(result["winner_r_preservation"]) == Decimal("0")
+    assert Decimal(result["loss_recall"]) == Decimal("1")
