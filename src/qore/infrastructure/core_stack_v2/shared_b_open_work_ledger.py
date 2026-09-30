@@ -188,10 +188,13 @@ B_WORK_ITEMS: Final = (
     SharedBWorkItem(
         "B-13",
         "Cross-asset structural-divergence observation inputs",
-        SharedBWorkStatus.OPEN,
-        ("run:36746337433",),
+        SharedBWorkStatus.ARCHITECTURE_VALIDATED_EVIDENCE_OPEN,
         (
-            "requires temporally comparable multi-family observations before population",
+            "artifact:11116897631",
+            "run:36757804153",
+        ),
+        (
+            "empirical population waits for B-07/B-08 canonical temporal comparability",
         ),
     ),
     SharedBWorkItem(
@@ -280,9 +283,11 @@ B_WORK_ITEMS: Final = (
     SharedBWorkItem(
         "B-23",
         "B-only zero-open-work audit",
-        SharedBWorkStatus.IN_PROGRESS,
-        (),
-        ("B-only ledger validation is being established",),
+        SharedBWorkStatus.COMPLETE_AND_PROVEN,
+        (
+            "artifact:11117192542",
+            "run:36757894898",
+        ),
     ),
     SharedBWorkItem(
         "B-24",
