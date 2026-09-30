@@ -24,7 +24,7 @@ import bisect
 import json
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -108,7 +108,7 @@ class V48ScalpOpportunity:
     m1_continuation_confirmed_at: str
     m1_continuation_family: str
     decision_reference_price: str
-    structural_target_price: str
+    structural_target_witness_price: str
     outcome_used: bool = False
     economics_calculated: bool = False
     exact_entry_selected: bool = False
@@ -530,7 +530,7 @@ def build_market_census(
             m1_continuation_confirmed_at=m1_cisd.confirmed_at.isoformat(),
             m1_continuation_family="LIQUIDITY_SWEEP_CISD",
             decision_reference_price=str(m1_cisd.confirmation_close),
-            structural_target_price=str(target),
+            structural_target_witness_price=str(target),
         )
         opportunities.append(opportunity)
         stages["SOURCE_COMPLETE_OPPORTUNITY"] += 1
@@ -591,6 +591,21 @@ def _read_reports(root: Path) -> tuple[dict[str, Any], ...]:
     return rows
 
 
+def _read_opportunities(root: Path) -> tuple[V48ScalpOpportunity, ...]:
+    paths = sorted(
+        root.rglob("capitalizer-*-v48-scalp-pre-economic-census-opportunities.jsonl")
+    )
+    rows: list[V48ScalpOpportunity] = []
+    for path in paths:
+        with path.open(encoding="utf-8") as handle:
+            for line in handle:
+                if line.strip():
+                    rows.append(V48ScalpOpportunity(**json.loads(line)))
+    return tuple(
+        sorted(rows, key=lambda item: item.m1_continuation_confirmed_at)
+    )
+
+
 def build_matrix(root: Path) -> dict[str, Any]:
     reports = _read_reports(root)
     expected = {
@@ -619,12 +634,18 @@ def build_matrix(root: Path) -> dict[str, Any]:
 
     by_session: dict[str, int] = Counter()
     total = 0
-    total_max3 = 0
+    market_local_max3_sum = 0
     for row in reports:
         count = int(row["source_complete_opportunities"])
         total += count
-        total_max3 += int(row["max3_chronological_selected"])
+        market_local_max3_sum += int(row["max3_chronological_selected"])
         by_session[str(row["session"])] += count
+
+    all_opportunities = _read_opportunities(root)
+    if len(all_opportunities) != total:
+        raise ValueError("V48 opportunity ledgers do not reconcile with market reports")
+    portfolio_max3 = _chronological_max3(all_opportunities)
+    max3_by_session: Counter[str] = Counter(item.session for item in portfolio_max3)
 
     return {
         "identity": MATRIX_IDENTITY,
@@ -633,7 +654,9 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "market_count": 9,
         "session_count": 3,
         "source_complete_opportunities": total,
-        "market_local_max3_selected_sum": total_max3,
+        "market_local_max3_selected_sum": market_local_max3_sum,
+        "portfolio_max3_chronological_selected": len(portfolio_max3),
+        "portfolio_max3_by_session": dict(sorted(max3_by_session.items())),
         "by_session": dict(sorted(by_session.items())),
         "coverage_decision": coverage.decision.value,
         "missing_market_rows": list(coverage.missing_market_rows),
