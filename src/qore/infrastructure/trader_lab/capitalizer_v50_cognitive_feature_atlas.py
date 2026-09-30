@@ -22,7 +22,6 @@ import json
 from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from decimal import Decimal
 from pathlib import Path
 
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import iter_cibo_m1
