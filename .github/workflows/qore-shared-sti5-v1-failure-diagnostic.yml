@@ -1,0 +1,132 @@
+name: QORE Shared STI5 V1 Failure Diagnostic
+
+concurrency:
+  group: qore-shared-sti5-v1-failure-diagnostic
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/shared_sti5_v1_failure_diagnostic.py
+      - .github/workflows/qore-shared-sti5-v1-failure-diagnostic.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate diagnostic
+        run: |
+          set -euo pipefail
+          mkdir -p result input/r6 input/r5
+          ruff check scripts/shared_sti5_v1_failure_diagnostic.py
+          python -m py_compile scripts/shared_sti5_v1_failure_diagnostic.py
+
+      - name: Recover consumed R6 R5 evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Extract STI-5 V1 failure knowledge
+        run: |
+          set -euo pipefail
+          python scripts/shared_sti5_v1_failure_diagnostic.py             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/sti5-v1-failure-diagnostic.json             | tee result/summary.json
+
+      - name: Validate no V1 rescue
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/sti5-v1-failure-diagnostic.json").read_text())
+          assert p["status"] == "STI5_V1_FAILURE_KNOWLEDGE_EXTRACTED_NO_RETUNING"
+          for partition in ("r6","r5"):
+              row=p["partitions"][partition]
+              assert row["sample_count"] > 0
+              assert row["hypothesis_candidates"]
+          g=p["governance"]
+          assert g["v1_policy_changed"] is False
+          assert g["v1_thresholds_changed"] is False
+          assert g["v1_reopened"] is False
+          assert g["v2_policy_selected"] is False
+          assert g["future_market_used_for_source_features"] is False
+          assert g["future_label_attached_only_after_source_features"] is True
+          assert g["protected_certification_holdout_opened"] is False
+          assert g["productive_authority"] is False
+          PY
+
+      - name: Bind diagnostic evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-sti5-v1-failure-diagnostic-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report STI-5 failure knowledge
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/sti5-v1-failure-diagnostic.json").read_text())
+          lines=[
+              "## Shared STI-5 — V1 Failure Knowledge Diagnostic",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- cross-partition hypotheses: **{list(p['cross_partition_hypothesis_candidates'])}**",
+              "- V1 policy/threshold rescue: **False / False**",
+              "- protected certification holdout opened: **False**",
+              "",
+          ]
+          for partition in ("r6","r5"):
+              row=p["partitions"][partition]
+              lines.extend([
+                  f"### {partition.upper()}",
+                  f"- groups: **{row['group_counts']}**",
+                  f"- ranked mechanism deltas: **{row['ranked_mechanism_deltas_bps'][:6]}**",
+                  f"- candidates: **{[x['hypothesis'] for x in row['hypothesis_candidates']]}**",
+                  "",
+              ])
+          lines.append(
+              "These are mechanism candidates only; STI-5 V1 remains falsified."
+          )
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
