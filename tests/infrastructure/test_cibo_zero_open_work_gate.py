@@ -470,3 +470,71 @@ def test_integrator_preserves_architect_b_inventory_classifiers() -> None:
         ),
     }
     assert orphans == ()
+
+
+def test_integrator_classifies_new_crossboundary_and_forward_inventory() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py",
+        "src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam.py",
+        "src/qore/infrastructure/cibo_usd60_prerequisite_receipts.py",
+        "src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py",
+        "scripts/cibo_phase20_provider_execution_calibration.py",
+        "src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py",
+        "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py",
+        ".github/workflows/cibo-integrated-capital-forward-binding.yml",
+        ".github/workflows/cibo-architect-a-internal-readiness.yml",
+        ".github/workflows/cibo-ctrader-demo-provider-economics.yml",
+        ".github/workflows/cibo-crossboundary-evidence-receipt.yml",
+    )
+    ledger_ids = frozenset(
+        {
+            "CE2I_CROSS_TOOL_INFRASTRUCTURE",
+            "FINAL_INTEGRATED_CIBO_EXAM",
+            "USD60_CAPABILITY_PROGRAM",
+            "PROVIDER_ECONOMICS",
+            "INTEGRATED_CAPITAL_TRUTH",
+            "ZERO_OPEN_WORK_GATE",
+        }
+    )
+
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    assert dict(assignments) == {
+        "src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py": (
+            "CE2I_CROSS_TOOL_INFRASTRUCTURE"
+        ),
+        "src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam.py": (
+            "FINAL_INTEGRATED_CIBO_EXAM"
+        ),
+        "src/qore/infrastructure/cibo_usd60_prerequisite_receipts.py": (
+            "USD60_CAPABILITY_PROGRAM"
+        ),
+        "src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py": (
+            "PROVIDER_ECONOMICS"
+        ),
+        "scripts/cibo_phase20_provider_execution_calibration.py": (
+            "PROVIDER_ECONOMICS"
+        ),
+        "src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py": (
+            "PROVIDER_ECONOMICS"
+        ),
+        "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py": (
+            "INTEGRATED_CAPITAL_TRUTH"
+        ),
+        ".github/workflows/cibo-integrated-capital-forward-binding.yml": (
+            "INTEGRATED_CAPITAL_TRUTH"
+        ),
+        ".github/workflows/cibo-architect-a-internal-readiness.yml": (
+            "ZERO_OPEN_WORK_GATE"
+        ),
+        ".github/workflows/cibo-ctrader-demo-provider-economics.yml": (
+            "PROVIDER_ECONOMICS"
+        ),
+        ".github/workflows/cibo-crossboundary-evidence-receipt.yml": (
+            "CE2I_CROSS_TOOL_INFRASTRUCTURE"
+        ),
+    }
+    assert orphans == ()
