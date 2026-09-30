@@ -12,6 +12,7 @@ import argparse
 import json
 from collections import defaultdict, deque
 from pathlib import Path
+
 import shared_sti5_real_regime_transition as v1
 
 from qore.infrastructure.core_stack_v2.dynamic_causal_graph import CausalConcept
