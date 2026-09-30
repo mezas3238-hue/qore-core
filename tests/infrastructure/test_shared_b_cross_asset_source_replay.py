@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import gzip
+import hashlib
 import json
 from datetime import UTC, datetime, timedelta
 
@@ -62,10 +63,29 @@ def test_shared_b_raw_shard_verifies_from_sealed_bytes(tmp_path) -> None:
     assert verified.quote_side == "BID"
     assert verified.window_index == 0
     assert verified.tick_count == 0
-    assert raw_dataset_digest(
+    digest = raw_dataset_digest(
         provider_symbol="US2000",
         shards=(verified,),
     )
+    expected_payload = [
+        (
+            "US2000",
+            "bid",
+            0,
+            0,
+            0,
+            record.content_sha256,
+        )
+    ]
+    expected = hashlib.sha256(
+        json.dumps(
+            expected_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        ).encode("utf-8")
+    ).hexdigest()
+    assert digest == expected
 
 
 def test_shared_b_raw_shard_tamper_fails_closed(tmp_path) -> None:
