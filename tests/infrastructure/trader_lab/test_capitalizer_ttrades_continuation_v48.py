@@ -10,6 +10,8 @@ from qore.infrastructure.trader_lab.capitalizer_ttrades_continuation_v48 import 
 )
 from qore.infrastructure.trader_lab.capitalizer_ttrades_structural_cisd_v48 import (
     IDENTITY as CISD_IDENTITY,
+)
+from qore.infrastructure.trader_lab.capitalizer_ttrades_structural_cisd_v48 import (
     V48StructuralCISDObservation,
 )
 
