@@ -89,7 +89,7 @@ def _partition(
             continue
 
         entry = observations[0]
-        side = SharedPositionSide(str(row["side"]))
+        side = SharedPositionSide(str(row["side"]).upper())
         subscription = SharedPositionObservationSubscription(
             subscription_id=f"sti7:{partition}:{sequence_index:04d}",
             position_id=entry.position_id,
