@@ -1,0 +1,168 @@
+name: QORE Shared STI8 OOS Boundary Audit
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - .github/workflows/qore-shared-sti8-oos-boundary-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  boundary-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Recover consumed R8 R6 R5 evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/pure input/r8 input/r6 input/r5 result
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10799064861/zip" > pure.zip
+          unzip -q pure.zip -d input/pure
+          (cd input/pure && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Audit exact consumed temporal boundaries
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          def market_bounds(path):
+              p=json.loads(Path(path).read_text())
+              rows=p["periods"]["M1"]
+              return {
+                  "row_count":len(rows),
+                  "opened_min":rows[0]["opened_at"],
+                  "opened_max":rows[-1]["opened_at"],
+                  "closed_min":rows[0]["closed_at"],
+                  "closed_max":rows[-1]["closed_at"],
+                  "sha256":hashlib.sha256(Path(path).read_bytes()).hexdigest(),
+              }
+
+          def trade_bounds(path):
+              p=json.loads(Path(path).read_text())
+              rows=p["trades"]
+              signals=sorted(str(row["signal_at"]) for row in rows)
+              return {
+                  "trade_count":len(rows),
+                  "signal_min":signals[0],
+                  "signal_max":signals[-1],
+                  "sha256":hashlib.sha256(Path(path).read_bytes()).hexdigest(),
+              }
+
+          out={
+              "identity":"QORE_SHARED_STI8_OOS_BOUNDARY_AUDIT_001",
+              "partitions":{},
+              "new_evidence_opened":False,
+              "protected_certification_holdout_opened":False,
+          }
+          for part in ("r8","r6","r5"):
+              out["partitions"][part]={
+                  "trades":trade_bounds(f"input/pure/{part}.json"),
+                  "markets":{
+                      market:market_bounds(
+                          f"input/{part}/fresh/{market}/market-evidence.json"
+                      )
+                      for market in ("NAS100","SP500","US30")
+                  },
+              }
+          Path("result/sti8-oos-boundary-audit.json").write_text(
+              json.dumps(out,sort_keys=True,indent=2)+"\n"
+          )
+          print(json.dumps(out,sort_keys=True))
+          PY
+
+      - name: Validate chronological partition order
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/sti8-oos-boundary-audit.json").read_text())
+          for part in ("r8","r6","r5"):
+              assert p["partitions"][part]["trades"]["trade_count"] > 0
+              for market in ("NAS100","SP500","US30"):
+                  assert p["partitions"][part]["markets"][market]["row_count"] > 0
+          assert (
+              p["partitions"]["r8"]["markets"]["NAS100"]["closed_max"]
+              < p["partitions"]["r6"]["markets"]["NAS100"]["opened_min"]
+          )
+          assert (
+              p["partitions"]["r6"]["markets"]["NAS100"]["closed_max"]
+              < p["partitions"]["r5"]["markets"]["NAS100"]["opened_min"]
+          )
+          assert p["new_evidence_opened"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+
+      - name: Bind boundary evidence
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-sti8-oos-boundary-audit-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report OOS boundary dependency
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/sti8-oos-boundary-audit.json").read_text())
+          lines=[
+              "## Shared STI-8 — OOS Boundary Audit",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+          ]
+          for part in ("r8","r6","r5"):
+              row=p["partitions"][part]
+              m=row["markets"]["NAS100"]
+              t=row["trades"]
+              lines.append(
+                  f"- {part.upper()}: M1 **{m['opened_min']} → {m['closed_max']}**; trades **{t['trade_count']}**, signals **{t['signal_min']} → {t['signal_max']}**"
+              )
+          lines.extend([
+              "- new evidence opened: **False**",
+              "- protected certification holdout opened: **False**",
+              "",
+              "Any future STI-8 OOS window must be temporally disjoint from these consumed boundaries and separately preregistered.",
+          ])
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
