@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -136,9 +137,7 @@ def _persisted_stores(
     )
     seal_current_legacy_scope(
         stores,
-        sealed_at=__import__("datetime").datetime.now(
-            __import__("datetime").UTC
-        ),
+        sealed_at=datetime.now(UTC),
         expected_generation=0,
     )
     return stores
@@ -178,9 +177,7 @@ def test_only_mutated_source_ref_changes(tmp_path: Path) -> None:
         read_integrated_component_refs(stores)
     seal_current_legacy_scope(
         stores,
-        sealed_at=__import__("datetime").datetime.now(
-            __import__("datetime").UTC
-        ),
+        sealed_at=datetime.now(UTC),
         expected_generation=1,
     )
     after = {
@@ -260,7 +257,7 @@ def test_adapter_rejects_compound_account_mismatch(tmp_path: Path) -> None:
         floor_store=stores.floor_store,
         t19_store=stores.t19_store,
         settlement_store=stores.settlement_store,
-        legacy_path_scope_verified=True,
+        legacy_scope_store=stores.legacy_scope_store,
     )
 
     with pytest.raises(

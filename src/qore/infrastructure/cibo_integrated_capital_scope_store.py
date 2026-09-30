@@ -456,6 +456,7 @@ def _sha(value: str, name: str) -> None:
         not isinstance(value, str)
         or not value.startswith("sha256:")
         or len(value) != 71
+        or any(char not in "0123456789abcdef" for char in value[7:])
     ):
         raise IntegratedCapitalTransactionError(
             f"legacy scope {name} is invalid"

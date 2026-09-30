@@ -31,7 +31,10 @@ def _identity() -> CiboAccountCapitalIdentity:
     )
 
 
-def _refs(digit: str, generation: int = 1):
+def _refs(
+    digit: str,
+    generation: int = 1,
+) -> tuple[IntegratedCapitalComponentRef, ...]:
     components = (
         IntegratedCapitalComponent.SOURCE_LEDGER,
         IntegratedCapitalComponent.T19_ALLOCATION,
