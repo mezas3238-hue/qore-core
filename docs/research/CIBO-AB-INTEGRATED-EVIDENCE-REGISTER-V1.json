@@ -151,12 +151,11 @@
   "pending_candidates": [
     {
       "owner": "ARCHITECT_A",
-      "latest_head_sha": "f3480a4f6f949c7cb6d34f9b825c35ab488eabfc",
+      "latest_head_sha": "a597b439da22cadc3929193c851140e0559fc906",
       "reasons": [
         "A_SUPPORT_001_FINAL_EXAM_SELF_ATTESTATION",
         "A_SUPPORT_002_MANDATORY_WORKSTREAM_DRIFT",
-        "LEGACY_QUARANTINE_RED_IS_B_OWNED_AND_INTEGRATED_IN_670",
-        "REMAINING_CURRENT_HEAD_CI_PENDING"
+        "CURRENT_HEAD_CI_PENDING"
       ],
       "engineering_green_not_accepted_as_certification_gate": [
         {
@@ -165,21 +164,39 @@
           "status": "SUCCESS",
           "blocker": "TYPED_CANONICAL_RECEIPT_HARDENING_REQUIRED"
         }
+      ],
+      "integrator_staged_candidates": [
+        "GEN-C3..GEN-C6_NONCOMPENSATORY_ECONOMIC_GATE",
+        "GEN-C11_GEN-C13_UTILITY_WRAPPER",
+        "ARCH_A_INTERNAL_READINESS_REFACTOR"
       ]
     },
     {
       "owner": "ARCHITECT_B",
-      "latest_head_sha": "e15b9b64a4daf09634899131ad2c29071168f2e8",
+      "latest_head_sha": "2b13c4395e4bf8dc0d47118040a6915e3df5911c",
       "reasons": [
         "CURRENT_HEAD_CI_PENDING",
         "B_SUPPORT_001_USD60_READINESS_SELF_ATTESTATION",
-        "B_SUPPORT_002_RISK_HANDOFF_LEDGER_DRIFT"
+        "B_SUPPORT_002_RISK_HANDOFF_LEDGER_DRIFT",
+        "B_SUPPORT_003_CALIBRATION_FREEZE_SELF_ATTESTATION"
       ],
       "candidate_workflow_runs": {
-        "risk_integration": 36769958686,
-        "usd60_pre_exam": 36769958758,
-        "provider_economics_component_freeze": 36769958757
-      }
+        "risk_integration": 36778702336,
+        "usd60_pre_exam": 36778702265,
+        "provider_economics": 36778702382,
+        "integrated_capital_forward_binding": 36778702359,
+        "calibration_freeze_manifest": 36778702503,
+        "pre_holdout_checkpoint": 36778702203,
+        "t02_forward_structural_oos": 36778702277
+      },
+      "integrator_staged_candidates": [
+        "T02_EXPLICIT_TERMINAL_REASON_FORWARD_OOS",
+        "T11_PROVIDER_NATIVE_LINEAR_EXECUTION_COST",
+        "PROVIDER_EXECUTION_CALIBRATION_READY_PATH",
+        "INTEGRATED_CAPITAL_FORWARD_BINDING",
+        "RECEIPT_BOUND_T01_T20_CALIBRATION_FREEZE",
+        "RECEIPT_BOUND_PRE_HOLDOUT_CHAIN"
+      ]
     }
   ],
   "certification_claim": false,
