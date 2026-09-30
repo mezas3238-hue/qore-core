@@ -1,0 +1,35 @@
+{
+  "schema": "CIBO_AB_CHILD_DELTA_ACCOUNTING_V1",
+  "observed_at": "2026-09-30",
+  "integrator_pr": 670,
+  "architect_a": {
+    "pr": 660,
+    "head_sha": "a597b439da22cadc3929193c851140e0559fc906",
+    "changed_files": 87,
+    "files_present_in_integrator_delta": 86,
+    "deliberate_overrides": [
+      {
+        "path": ".github/workflows/cibo-zero-open-work-gate.yml",
+        "canonical_integrator_surface": ".github/workflows/cibo-zero-open-work-gate.yml",
+        "reason": "Integrator owns reconciled 64-workstream/two-exam/inventory-union semantics; child workflow is not copied byte-for-byte."
+      }
+    ],
+    "unaccounted_files": []
+  },
+  "architect_b": {
+    "pr": 661,
+    "head_sha": "85a54ad0a7ba77f9633c4e3621bda9810ba1fb57",
+    "changed_files": 71,
+    "files_present_in_integrator_delta": 68,
+    "deliberate_noncanonical_snapshots": [
+      "docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.json",
+      "docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.md",
+      "docs/research/CIBO-ARCH-B-HANDOFF-MAESTRO-CONTINUIDAD-2026-09-30.md"
+    ],
+    "reason": "Branch-local handoffs are status/provenance snapshots; integrated truth is acceptance matrix + master ledger + evidence register + support register.",
+    "unaccounted_files": []
+  },
+  "all_child_delta_files_accounted": true,
+  "productive_authority": false,
+  "certification_claim": false
+}
