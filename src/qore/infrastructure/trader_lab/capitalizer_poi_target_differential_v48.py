@@ -9,7 +9,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-
 IDENTITY = "QORE_CAPITALIZER_V48_POI_TARGET_DIFFERENTIAL"
 
 
