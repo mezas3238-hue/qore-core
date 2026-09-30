@@ -1,0 +1,53 @@
+name: QORE Maintenance Cancel Obsolete Runs
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - .github/workflows/qore-maintenance-cancel-obsolete-runs.yml
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Cancel superseded CIBO integrator runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ids=(36790146802 36790146675 36778065920 36790146700 36790146660 36790146696 36790146653 36790161501 36790146708 36790146766 36790146720 36777976738 36777968011 36790146121 36790146658 36790146725 36790146822 36790146831 36790146058 36790146613 36790146713 36790146774 36790146814 36790146809 36790146178 36790146732 36790146685 36790146674 36778066135 36790146810 36790146557 36790146797 36790146706 36790146686 36790146544 36790146709 36790146800 36790146673 36790146666 36790146150 36790146697 36790146587 36790146629 36790146776 36778080965 36778065976 36778001565 36790146693 36790146678 36790145985 36790146806 36790146657 36790146062)
+          cancelled=0
+          already_terminal=0
+          failed=0
+          for id in "${ids[@]}"; do
+            status="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${id}" --jq '.status' 2>/dev/null || true)"
+            case "$status" in
+              queued|in_progress|waiting|requested|pending)
+                if gh api -X POST "/repos/${GITHUB_REPOSITORY}/actions/runs/${id}/cancel" >/dev/null 2>&1; then
+                  echo "cancelled ${id} (${status})"
+                  cancelled=$((cancelled+1))
+                else
+                  echo "cancel request failed ${id} (${status})"
+                  failed=$((failed+1))
+                fi
+                ;;
+              completed|"")
+                echo "already terminal or unavailable ${id} (${status:-unknown})"
+                already_terminal=$((already_terminal+1))
+                ;;
+              *)
+                echo "unexpected state ${id} (${status})"
+                failed=$((failed+1))
+                ;;
+            esac
+          done
+          echo "cancelled=${cancelled}"
+          echo "already_terminal=${already_terminal}"
+          echo "failed=${failed}"
+          test "$failed" -eq 0
