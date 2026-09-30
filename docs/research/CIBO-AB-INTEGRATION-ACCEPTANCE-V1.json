@@ -6,7 +6,7 @@
   "architect_a": {
     "pr": 660,
     "accepted_head_sha": "9f7a24a86c04a1d0554996ab57523e7338465002",
-    "latest_observed_head_sha": "4b39952718640b1f723f03cd71a68c72afb3d76b",
+    "latest_observed_head_sha": "f3480a4f6f949c7cb6d34f9b825c35ab488eabfc",
     "support_blockers": [
       "A-SUPPORT-001_FINAL_EXAM_SELF_ATTESTATION",
       "A-SUPPORT-002_MANDATORY_WORKSTREAM_DRIFT"
@@ -15,7 +15,7 @@
   "architect_b": {
     "pr": 661,
     "accepted_head_sha": "5d028b1ebc76a98db36d26f86bc872e2f60c5541",
-    "latest_observed_head_sha": "41f0227e2136ac09c94bdd8187c2e6f5e625ee36",
+    "latest_observed_head_sha": "e15b9b64a4daf09634899131ad2c29071168f2e8",
     "support_blockers": [
       "B-SUPPORT-001_USD60_READINESS_SELF_ATTESTATION",
       "B-SUPPORT-002_RISK_HANDOFF_LEDGER_DRIFT"
@@ -39,5 +39,13 @@
   ],
   "integration_ready": false,
   "certification_ready": false,
-  "productive_authority": false
+  "productive_authority": false,
+  "shared_support_primitive": {
+    "module": "src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py",
+    "tests": "tests/infrastructure/test_cibo_crossboundary_evidence_receipt.py",
+    "workflow": ".github/workflows/cibo-crossboundary-evidence-receipt.yml",
+    "purpose": "Canonical artifact digest + exact integrated-head + policy-identity binding for A Final Exam and B USD60 readiness",
+    "accepted": false,
+    "blocker": "INTEGRATOR_CROSSBOUNDARY_RECEIPT_CI_REQUIRED"
+  }
 }
