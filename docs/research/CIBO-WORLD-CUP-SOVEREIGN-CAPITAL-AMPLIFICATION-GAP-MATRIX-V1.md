@@ -13,6 +13,29 @@ Maturity reports must not collapse ENGINE_IMPLEMENTED into economic
 certification. When a row says PARTIAL, the missing work is explicit in the
 final column.
 
+
+## Current reconciliation delta — 30-SEP-2026
+
+The 84-row matrix below preserves the maturity snapshot at its creation. For
+current-state interpretation, the following newer evidence supersedes older
+`ARCHITECTURE_DEFINED` / future-implementation labels:
+
+- GEN-C8 through GEN-C14 now have implemented engines and dedicated GREEN CI at
+  the common checkpoint `1460435615a663a614cd5ee8873f719d08086200`.
+- GEN-C9 now includes the dependency-aware Compound Monte Carlo and the
+  non-compensatory economic gate.
+- Compound adversarial stress and temporal-replication harnesses are implemented
+  and directly exercised by the GREEN GEN-C9 workflow.
+- Compound Engine Integrated Cycle and Protected Base Overlay are GREEN.
+- These facts advance engineering maturity only. Real-data binding, causal
+  replay, fresh OOS, stress execution on real populations and temporal
+  replication remain certification-blocking where the canonical ledger says so.
+- The current machine ledger is 64 mandatory / 7 terminal / 57 open.
+
+Canonical current-state artifact:
+`CIBO-SOURCE-OF-TRUTH-RECONCILIATION-V1.md`.
+
+
 | # | Requirement | Existing root | Current state | Next scientific gate |
 |---:|---|---|---|---|
 | 1 | Fundamental identity: capital amplification, not sizing/leverage | ADR-002/ADR-003; World Cup Mission | ARCHITECTURE_DEFINED | Preserve authority split in every engine and experiment |
@@ -105,20 +128,20 @@ final column.
 The matrix resolves into the following dependency order:
 
 ```text
-A. RESTORE ALL CIBO CI TO GREEN
-B. FREEZE CURRENT AS-IS CONTROL IDENTITY
-C. C5/C6/C7 REAL-DATA + OOS + STRESS CLOSURE
-D. T08/T09/T12/T13/T14/T15/T18 ECONOMIC CLOSURE
-E. T16/T17 PROVIDER-UNIVERSE TERMINAL VERDICTS
-F. GEN-C8 ENGINE
-G. GEN-C9 ENGINE
-H. GEN-C10 DIGITAL TWIN
-I. GEN-C11 MULTI-PERIOD MPC
-J. GEN-C12 CRISIS INTELLIGENCE
-K. GEN-C13 MEMORY / COUNTERFACTUAL / SKEPTIC
-L. GEN-C14 GOVERNED CAPITAL SCIENCE
-M. ABLATION + CHRONOLOGY + PATH-MC + STRESS + TEMPORAL REPLICATION
-N. ORDINARY CERTIFICATION
+A. KEEP ALL A-SIDE CIBO CI GREEN AND RECONCILE STALE BLOCKERS
+B. KEEP CURRENT AS-IS CONTROL IDENTITY SEALED
+C. C5/C6/C7 REAL-DATA + OOS + STRESS + TEMPORAL-REPLICATION CLOSURE
+D. T04/T05/T06/T07/T08/T09/T10/T12/T13/T14/T15/T18/T19 SCIENTIFIC/ECONOMIC CLOSURE
+E. PROVIDER / RISK / CMA / FORWARD DEPENDENCIES FROM ARCHITECT B
+F. GEN-C1 MATHEMATICAL RECONCILIATION CLOSURE
+G. GEN-C8..GEN-C14 REAL-DATA / CAUSAL-REPLAY / VALUE CLOSURE
+H. REAL COMPOUND POPULATION BINDING
+I. PATH-DEPENDENT MONTE CARLO ON REAL POPULATION
+J. ADVERSARIAL STRESS ON REAL POPULATION
+K. FROZEN TEMPORAL REPLICATION
+L. AS-IS ECONOMIC BASELINE + CONTROL/TREATMENT COMPARISON
+M. ZERO-OPEN-WORK POST-INTEGRATION RECONCILIATION
+N. ORDINARY FINAL INTEGRATED CIBO EXAM
 O. SEPARATE WORLD CUP MAXIMUM-CAPABILITY EXAM
 ```
 
