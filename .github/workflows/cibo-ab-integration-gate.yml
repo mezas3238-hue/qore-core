@@ -26,7 +26,26 @@ jobs:
           python-version: "3.12"
       - name: Install dev dependencies
         run: python -m pip install -e '.[dev]'
+      - name: Quality and syntax
+        run: |
+          ruff check \
+            scripts/cibo_ab_integration_gate.py \
+            scripts/cibo_zero_open_work_gate.py \
+            tests/infrastructure/test_cibo_ab_integration_gate.py \
+            tests/infrastructure/test_cibo_zero_open_work_gate.py
+          python -m py_compile \
+            scripts/cibo_ab_integration_gate.py \
+            scripts/cibo_zero_open_work_gate.py
+          python -m json.tool \
+            docs/research/CIBO-AB-INTEGRATION-ACCEPTANCE-V1.json \
+            >/dev/null
+          python -m json.tool \
+            docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json \
+            >/dev/null
       - name: Validate staged A+B reconciliation
         run: python scripts/cibo_ab_integration_gate.py
-      - name: Run integrator gate tests
-        run: pytest -q tests/infrastructure/test_cibo_ab_integration_gate.py
+      - name: Run integrator and zero-open gate tests
+        run: |
+          pytest -q \
+            tests/infrastructure/test_cibo_ab_integration_gate.py \
+            tests/infrastructure/test_cibo_zero_open_work_gate.py
