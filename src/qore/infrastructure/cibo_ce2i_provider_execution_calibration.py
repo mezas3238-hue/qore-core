@@ -52,6 +52,8 @@ class CiboProviderExecutionObservation:
     signed_slippage_price: Decimal
     signed_slippage_bps: Decimal
     adverse_slippage_bps: Decimal
+    signed_slippage_cost_per_volume_usd: Decimal
+    adverse_slippage_cost_per_volume_usd: Decimal
     provider_quote_age_ms: Decimal
     decision_to_fill_ms: Decimal
     fill_to_risk_reconciliation_ms: Decimal
@@ -90,6 +92,8 @@ class CiboProviderExecutionObservation:
             "signed_slippage_price",
             "signed_slippage_bps",
             "adverse_slippage_bps",
+            "signed_slippage_cost_per_volume_usd",
+            "adverse_slippage_cost_per_volume_usd",
             "provider_quote_age_ms",
             "decision_to_fill_ms",
             "fill_to_risk_reconciliation_ms",
@@ -101,6 +105,7 @@ class CiboProviderExecutionObservation:
                 )
         if (
             self.adverse_slippage_bps < 0
+            or self.adverse_slippage_cost_per_volume_usd < 0
             or self.provider_quote_age_ms < 0
             or self.decision_to_fill_ms < 0
             or self.fill_to_risk_reconciliation_ms < 0
@@ -113,6 +118,12 @@ class CiboProviderExecutionObservation:
         ):
             raise CiboCapitalManagementError(
                 "provider execution calibration adverse-slippage drift"
+            )
+        if self.adverse_slippage_cost_per_volume_usd != max(
+            Decimal(0), self.signed_slippage_cost_per_volume_usd
+        ):
+            raise CiboCapitalManagementError(
+                "provider execution calibration adverse USD slippage drift"
             )
         if (
             not self.fill_evidence_refs
@@ -131,6 +142,8 @@ class CiboProviderExecutionSymbolSummary:
     mean_signed_slippage_bps: Decimal
     p95_adverse_slippage_bps: Decimal
     worst_adverse_slippage_bps: Decimal
+    p95_adverse_slippage_cost_per_volume_usd: Decimal
+    worst_adverse_slippage_cost_per_volume_usd: Decimal
     p95_provider_quote_age_ms: Decimal
     p95_decision_to_fill_ms: Decimal
     p95_fill_to_risk_reconciliation_ms: Decimal
@@ -144,6 +157,8 @@ class CiboProviderExecutionSymbolSummary:
             "mean_signed_slippage_bps",
             "p95_adverse_slippage_bps",
             "worst_adverse_slippage_bps",
+            "p95_adverse_slippage_cost_per_volume_usd",
+            "worst_adverse_slippage_cost_per_volume_usd",
             "p95_provider_quote_age_ms",
             "p95_decision_to_fill_ms",
             "p95_fill_to_risk_reconciliation_ms",
@@ -158,6 +173,8 @@ class CiboProviderExecutionSymbolSummary:
             for value in (
                 self.p95_adverse_slippage_bps,
                 self.worst_adverse_slippage_bps,
+                self.p95_adverse_slippage_cost_per_volume_usd,
+                self.worst_adverse_slippage_cost_per_volume_usd,
                 self.p95_provider_quote_age_ms,
                 self.p95_decision_to_fill_ms,
                 self.p95_fill_to_risk_reconciliation_ms,
@@ -523,6 +540,9 @@ def _observation(
         else quote - risk.weighted_fill_price
     )
     signed_bps = signed_price / quote * Decimal("10000")
+    signed_cost_per_volume = (
+        signed_price / row.provider_tick_size * row.provider_tick_value
+    )
     return CiboProviderExecutionObservation(
         decision_evidence_sha256=row.decision_evidence_sha256,
         signal_fingerprint=row.signal_fingerprint,
@@ -533,6 +553,11 @@ def _observation(
         signed_slippage_price=signed_price,
         signed_slippage_bps=signed_bps,
         adverse_slippage_bps=max(Decimal(0), signed_bps),
+        signed_slippage_cost_per_volume_usd=signed_cost_per_volume,
+        adverse_slippage_cost_per_volume_usd=max(
+            Decimal(0),
+            signed_cost_per_volume,
+        ),
         provider_quote_age_ms=_milliseconds(
             row.decision_at - provider_observed_at
         ),
@@ -568,6 +593,15 @@ def _summary(
         ),
         worst_adverse_slippage_bps=max(
             item.adverse_slippage_bps for item in rows
+        ),
+        p95_adverse_slippage_cost_per_volume_usd=_p95(
+            tuple(
+                item.adverse_slippage_cost_per_volume_usd
+                for item in rows
+            )
+        ),
+        worst_adverse_slippage_cost_per_volume_usd=max(
+            item.adverse_slippage_cost_per_volume_usd for item in rows
         ),
         p95_provider_quote_age_ms=_p95(
             tuple(item.provider_quote_age_ms for item in rows)
