@@ -15,14 +15,14 @@ def _bar(index: int, open_: str, high: str, low: str, close: str) -> Capitalizer
     opened = datetime(2026, 1, 2, 12, 0, tzinfo=UTC) + timedelta(minutes=index)
     return CapitalizerM1Bar(
         symbol="EURUSD",
-        timeframe="M1",
         opened_at=opened,
         closed_at=opened + timedelta(minutes=1),
         open=Decimal(open_),
         high=Decimal(high),
         low=Decimal(low),
         close=Decimal(close),
-        source="TEST",
+        volume=100,
+        digits=5,
     )
 
 
