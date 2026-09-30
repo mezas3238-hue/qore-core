@@ -360,7 +360,9 @@ def _pre_exam_ledger() -> dict:
                 "terminal_disposition": None,
                 "evidence_refs": ["docs/research/world-cup-exam.md"],
                 "blockers": ["FINAL_INTEGRATED_CIBO_EXAM_REQUIRED"],
-                "next_gate": "Run after the final integrated exam and before strict closure.",
+                "next_gate": (
+                    "Run after the final integrated exam and before strict closure."
+                ),
             },
         )
     )
@@ -455,8 +457,16 @@ def test_integrator_preserves_architect_b_inventory_classifiers() -> None:
     )
 
     assert dict(assignments) == {
-        "src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py": "FORWARD_QUALIFICATION",
-        "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py": "PROVIDER_ECONOMICS",
-        "src/qore/infrastructure/cibo_research_memory.py": "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK",
+        (
+            "src/qore/infrastructure/"
+            "cibo_arch_b_forward_economic_manifest.py"
+        ): "FORWARD_QUALIFICATION",
+        (
+            "src/qore/infrastructure/"
+            "cibo_ctrader_demo_account_capability.py"
+        ): "PROVIDER_ECONOMICS",
+        "src/qore/infrastructure/cibo_research_memory.py": (
+            "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"
+        ),
     }
     assert orphans == ()
