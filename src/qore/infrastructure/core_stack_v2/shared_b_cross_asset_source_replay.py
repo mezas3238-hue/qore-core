@@ -16,6 +16,7 @@ from qore.infrastructure.core_stack_v2.active_perception_post_v13_sensor_availab
     HistoricalWindowCoverage,
     classify_historical_peer_coverage,
 )
+from qore.infrastructure.market_observation import MarketPriceSide
 
 SHARED_B_CROSS_ASSET_RAW_IDENTITY: Final = (
     "SHARED_B_WP05_CROSS_ASSET_AVAILABILITY_RAW_001"
@@ -157,9 +158,14 @@ def verify_historical_quote_shard(
             "raw shard provenance digest mismatch"
         )
 
-    quote_side = header.get("quote_side")
-    if quote_side not in {"BID", "ASK"}:
+    raw_quote_side = header.get("quote_side")
+    quote_side_by_wire_value = {
+        MarketPriceSide.BID.value: "BID",
+        MarketPriceSide.ASK.value: "ASK",
+    }
+    if raw_quote_side not in quote_side_by_wire_value:
         raise SharedBCrossAssetReplayError("raw shard quote side invalid")
+    quote_side = quote_side_by_wire_value[raw_quote_side]
     window_index = header.get("window_index")
     page_index = header.get("page_index")
     if type(window_index) is not int or window_index < 0:
@@ -168,7 +174,7 @@ def verify_historical_quote_shard(
         raise SharedBCrossAssetReplayError("raw shard page index invalid")
 
     checks = {
-        "quote_side": quote_side,
+        "quote_side": raw_quote_side,
         "window_index": window_index,
         "page_index": page_index,
         "tick_count": tick_count,
