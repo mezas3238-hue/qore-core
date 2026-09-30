@@ -129,11 +129,42 @@ def materialize_as_is_economic_baseline(
     decision_epoch_count = len(
         {item.decision_epoch_id for item in report.rows}
     )
+    observed_rows = tuple(
+        item for item in report.rows
+        if item.realized_net_pnl_usd is not None
+    )
+    candidate_outcomes = len(observed_rows)
+    selected_rows = tuple(item for item in report.rows if item.policy_selected)
+    selected_outcomes = sum(
+        1 for item in selected_rows if item.realized_net_pnl_usd is not None
+    )
+    decision_dates = tuple(item.decision_at.date() for item in report.rows)
+    calendar_span_days = (
+        (max(decision_dates) - min(decision_dates)).days + 1
+        if decision_dates
+        else 0
+    )
+    distinct_trading_days = len(set(decision_dates))
+    lineage_counts: dict[str, int] = {}
+    for item in observed_rows:
+        lineage_counts[item.trader_id] = lineage_counts.get(item.trader_id, 0) + 1
+    represented_lineages = len(lineage_counts)
+    minimum_outcomes_any_lineage = (
+        min(lineage_counts.values()) if lineage_counts else 0
+    )
     if (
         report.readiness.pre_freeze_decisions != 0
         or report.readiness.missing_policy_decisions != 0
         or report.readiness.decision_epochs != decision_epoch_count
         or report.readiness.candidate_instances != len(report.rows)
+        or report.readiness.candidate_outcomes != candidate_outcomes
+        or report.readiness.selected_instances != len(selected_rows)
+        or report.readiness.selected_outcomes != selected_outcomes
+        or report.readiness.calendar_span_days != calendar_span_days
+        or report.readiness.distinct_trading_days != distinct_trading_days
+        or report.readiness.represented_lineages != represented_lineages
+        or report.readiness.minimum_outcomes_any_lineage
+        != minimum_outcomes_any_lineage
         or report.readiness.candidate_outcome_coverage
         != report.candidate_outcome_coverage
         or report.readiness.selected_outcome_coverage
