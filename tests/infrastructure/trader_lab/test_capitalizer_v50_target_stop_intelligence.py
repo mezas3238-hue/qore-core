@@ -109,3 +109,41 @@ def test_dual_invalidation_separates_m1_execution_from_m15_thesis_stop() -> None
     assert result.execution_vs_thesis_ratio is not None
     assert result.execution_vs_thesis_ratio < Decimal("0.5")
     assert result.stop_widening_authorized is False
+
+
+def test_dual_invalidation_rejects_breached_long_pivot_before_entry() -> None:
+    bars = (
+        _m1(0, "100", "100.2", "99.8", "100.1"),
+        _m1(1, "100.1", "100.15", "99.5", "99.7"),
+        _m1(2, "99.7", "100.1", "99.7", "100.0"),
+        _m1(3, "100.0", "100.2", "99.4", "100.1"),
+    )
+    result = build_dual_invalidation(
+        bars,
+        side=CapitalizerSide.LONG,
+        setup_confirmed_at=bars[0].opened_at,
+        decision_at=bars[-1].closed_at,
+        entry_price=Decimal("100.1"),
+        thesis_stop_price=Decimal("98.0"),
+    )
+    assert result.execution_anchor_available is False
+    assert result.execution_stop_price is None
+
+
+def test_dual_invalidation_rejects_breached_short_pivot_before_entry() -> None:
+    bars = (
+        _m1(0, "100", "100.2", "99.8", "99.9"),
+        _m1(1, "99.9", "100.5", "99.85", "100.3"),
+        _m1(2, "100.3", "100.3", "99.9", "100.0"),
+        _m1(3, "100.0", "100.6", "99.8", "99.9"),
+    )
+    result = build_dual_invalidation(
+        bars,
+        side=CapitalizerSide.SHORT,
+        setup_confirmed_at=bars[0].opened_at,
+        decision_at=bars[-1].closed_at,
+        entry_price=Decimal("99.9"),
+        thesis_stop_price=Decimal("102.0"),
+    )
+    assert result.execution_anchor_available is False
+    assert result.execution_stop_price is None
