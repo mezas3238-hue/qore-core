@@ -6,6 +6,65 @@ Compounding ADR: CIBO-CE2I-ADR-003-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING.md
 Gap audit: CIBO-MAXIMUM-CAPITAL-INTELLIGENCE-COMPOUNDING-GAP-AUDIT-V1.md
 Governance: OPEN / DRAFT / UNMERGED / RESEARCH ONLY
 
+
+## CURRENT SOURCE-OF-TRUTH RECONCILIATION — 30-SEP-2026
+
+This section supersedes older current-state wording while preserving every historical checkpoint below.
+
+Common checkpoint:
+
+`1460435615a663a614cd5ee8873f719d08086200`
+
+Canonical machine ledger at that checkpoint:
+
+```text
+MANDATORY WORKSTREAMS = 64
+TERMINAL              = 7
+OPEN                  = 57
+ZERO_OPEN WORK PASS   = FALSE
+FINAL CERT CANDIDATE  = FALSE
+```
+
+Current engineering frontier:
+
+```text
+GEN-C0   = COMPLETED_AND_PROVEN
+GEN-C1   = ENGINE_IMPLEMENTED / MATHEMATICAL RECONCILIATION CLOSURE IN PROGRESS
+GEN-C2   = ENGINE_IMPLEMENTED / SCIENTIFIC VALUE CLOSURE OPEN
+GEN-C3   = ENGINE_IMPLEMENTED / END-TO-END ECONOMIC CYCLE OPEN
+GEN-C4   = ENGINE_IMPLEMENTED / REAL-DATA CAUSAL VALUE OPEN
+GEN-C5   = ENGINE_IMPLEMENTED / FRESH OOS-STRESS-REPLICATION OPEN
+GEN-C6   = ENGINE_IMPLEMENTED / TRUE-SCARCITY OOS-STRESS-REPLICATION OPEN
+GEN-C7   = ENGINE_IMPLEMENTED / GIVEBACK-RETENTION OOS-STRESS-REPLICATION OPEN
+GEN-C8   = ENGINE_IMPLEMENTED / CI GREEN / SCIENTIFIC CLOSURE OPEN
+GEN-C9   = ENGINE IMPLEMENTED + PATH MC + NON-COMPENSATORY GATE / CI GREEN
+GEN-C10  = ENGINE_IMPLEMENTED / CI GREEN / REAL TWIN + CALIBRATION OPEN
+GEN-C11  = ENGINE_IMPLEMENTED / CI GREEN / FRESH MULTI-PERIOD UTILITY OPEN
+GEN-C12  = ENGINE_IMPLEMENTED / CI GREEN / REAL CRISIS EVIDENCE OPEN
+GEN-C13  = ENGINE_IMPLEMENTED / CI GREEN / IDENTIFICATION + REPLICATION OPEN
+GEN-C14  = ENGINE_IMPLEMENTED / CI GREEN / REAL HYPOTHESIS PIPELINE OPEN
+```
+
+Current shared scientific infrastructure also includes:
+
+- dependency-aware Compound Monte Carlo;
+- GEN-C9 non-compensatory economic gate;
+- preregistered Compound adversarial stress matrix;
+- Compound temporal-replication harness;
+- integrated Compound Engine cycle;
+- Protected Base research overlay.
+
+None of those engineering completions is economic certification.
+
+The frozen V3 candidate remains unchanged and the 2017H1 holdout remains SEALED_UNTOUCHED.
+
+Two common-checkpoint red workflows are integration-side defects assigned to Architect B under the certification split. Architect A must not edit those B-owned files.
+
+Canonical reconciliation artifact:
+
+`docs/research/CIBO-SOURCE-OF-TRUTH-RECONCILIATION-V1.md`
+
+
 ## 0. Dual-track law
 
 The current CIBO V3 certification program and the new compounding research program run in parallel.
