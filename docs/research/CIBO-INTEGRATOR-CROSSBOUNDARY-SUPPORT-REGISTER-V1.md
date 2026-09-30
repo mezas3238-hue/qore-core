@@ -30,6 +30,19 @@ Integrator acceptance condition:
 
 Status: OPEN — returned to Architect A in PR #660.
 
+### A-SUPPORT-002 — Mandatory workstream governance drift
+
+Observed at A HEAD `4b39952718640b1f723f03cd71a68c72afb3d76b`:
+- `WORLD_CUP_MAXIMUM_CAPABILITY_EXAM` was changed from mandatory/blocking to non-mandatory/non-blocking.
+- A summary therefore moved from 64 mandatory to 63 mandatory workstreams.
+- B and Integrator #670 remain on the common 64-mandatory closure law.
+
+Integrator acceptance condition:
+- restore the workstream to mandatory/blocking, or
+- provide an explicit Owner-authorized canonical governance amendment that moves the World Cup exam outside ordinary CIBO certification.
+
+Status: OPEN — A's 63-mandatory ledger is not accepted into #670.
+
 ## Architect B — current support item
 
 Source HEAD reviewed:
