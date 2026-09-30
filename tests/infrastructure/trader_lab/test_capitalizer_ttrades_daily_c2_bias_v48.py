@@ -11,6 +11,8 @@ from qore.infrastructure.trader_lab.capitalizer_ttrades_daily_c2_bias_v48 import
 )
 from qore.infrastructure.trader_lab.capitalizer_ttrades_forex_daily_profile_v48 import (
     IDENTITY as DAILY_IDENTITY,
+)
+from qore.infrastructure.trader_lab.capitalizer_ttrades_forex_daily_profile_v48 import (
     V48ForexDailyProfile,
 )
 from qore.infrastructure.trader_lab.capitalizer_ttrades_structural_cisd_v48 import (
