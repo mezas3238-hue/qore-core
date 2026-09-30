@@ -26,6 +26,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install -e . pytest
+      - run: python -m pip install -e . pytest pytest-cov
       - run: pytest -q tests/infrastructure/test_shared_integrator_reconciliation.py
       - run: python scripts/shared_integrator_reconciliation_v1.py
