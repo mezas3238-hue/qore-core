@@ -137,6 +137,9 @@ def _calibration_receipts(
             kind = "PHASE20D_FORWARD_MANIFEST"
             payload = _base(receipt_id, kind=kind, head=head)
             payload["phase20d_forward_manifest_sha256"] = forward_sha
+            payload["provider_capability_registry_sha256"] = (
+                provider_capability_registry.fingerprint()
+            )
         elif receipt_id == "PROVIDER_ECONOMICS_FREEZE":
             kind = "PROVIDER_ECONOMICS_FREEZE"
             payload = _base(receipt_id, kind=kind, head=head)
