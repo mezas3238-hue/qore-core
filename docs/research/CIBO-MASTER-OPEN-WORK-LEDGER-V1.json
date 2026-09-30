@@ -396,14 +396,15 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_GENC7_CAUSAL_GRADUATION_GATE_IMPLEMENTED_CI_PENDING_PROFIT_GRADUATION_VALUE_OPEN",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_GENC7_CAUSAL_GRADUATION_GATE_CHILD_CI_GREEN_PROFIT_GRADUATION_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
         "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
         "github-actions://36727848363/SUCCESS",
         "src/qore/infrastructure/cibo_profit_preservation_economic_gate.py",
-        "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md"
+        "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        "github-actions://36760959025/SUCCESS"
       ],
       "blockers": [
         "CAUSAL_PROFIT_GRADUATION_POLICY_VALUE_REQUIRED"
@@ -483,7 +484,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_CI_GREEN_CAUSAL_NONCOMPENSATORY_ECONOMIC_GATE_IMPLEMENTED_CI_PENDING_REAL_EFFECT_EVIDENCE_OPEN",
+      "current_maturity": "ENGINE_AND_CAUSAL_NONCOMPENSATORY_ECONOMIC_GATE_CHILD_CI_GREEN_REAL_EFFECT_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -492,7 +493,8 @@
         "src/qore/infrastructure/cibo_profit_preservation_economic_gate.py",
         "tests/infrastructure/test_cibo_profit_preservation_economic_gate.py",
         "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
-        ".github/workflows/cibo-genc7-profit-preservation.yml"
+        ".github/workflows/cibo-genc7-profit-preservation.yml",
+        "github-actions://36760959025/SUCCESS"
       ],
       "blockers": [
         "FRESH_OOS_GIVEBACK_RETENTION_STRESS_REPLICATION_REQUIRED"
@@ -504,7 +506,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_IMPLEMENTED_CI_PENDING_REAL_OUTCOME_EVIDENCE_OPEN",
+      "current_maturity": "ENGINE_AND_NONCOMPENSATORY_ECONOMIC_GATE_CHILD_CI_GREEN_REAL_OUTCOME_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -513,7 +515,8 @@
         "src/qore/infrastructure/cibo_adaptive_compound_speed_economic_gate.py",
         "tests/infrastructure/test_cibo_adaptive_compound_speed_economic_gate.py",
         "docs/research/CIBO-GEN-C8-ADAPTIVE-COMPOUND-SPEED-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
-        ".github/workflows/cibo-genc8-adaptive-compound-speed.yml"
+        ".github/workflows/cibo-genc8-adaptive-compound-speed.yml",
+        "github-actions://36760958950/SUCCESS"
       ],
       "blockers": [
         "FRESH_OOS_STRESS_REPLICATION_REQUIRED"
@@ -767,7 +770,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "RESEARCH_OVERLAY_ENGINE_CI_GREEN_POLICY_SEMANTICS_FROZEN_NONCOMPENSATORY_NUMERIC_GATE_IMPLEMENTED_CI_PENDING_REAL_CALIBRATION_OPEN",
+      "current_maturity": "RESEARCH_OVERLAY_ENGINE_POLICY_SEMANTICS_AND_NONCOMPENSATORY_NUMERIC_GATE_CHILD_CI_GREEN_REAL_CALIBRATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md",
@@ -781,7 +784,8 @@
         "docs/research/CIBO-PROTECTED-BASE-POLICY-BEHAVIOR-PREREGISTRATION-V1.md",
         "src/qore/infrastructure/cibo_protected_base_policy_gate.py",
         "tests/infrastructure/test_cibo_protected_base_policy_gate.py",
-        "docs/research/CIBO-PROTECTED-BASE-NONCOMPENSATORY-NUMERIC-POLICY-GATE-V1.md"
+        "docs/research/CIBO-PROTECTED-BASE-NONCOMPENSATORY-NUMERIC-POLICY-GATE-V1.md",
+        "github-actions://36760959053/SUCCESS"
       ],
       "blockers": [
         "PROTECTED_BASE_NUMERIC_CANDIDATE_NOT_YET_FROZEN_ON_REAL_PROVIDER_VALID_POPULATION",
@@ -796,7 +800,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "GENC7_ENGINE_AND_CAUSAL_ECONOMIC_GATE_IMPLEMENTED_CI_PENDING_FRESH_PROFIT_RETENTION_VALUE_OPEN",
+      "current_maturity": "GENC7_ENGINE_AND_CAUSAL_ECONOMIC_GATE_CHILD_CI_GREEN_FRESH_PROFIT_RETENTION_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_profit_preservation_shadow.py",
@@ -805,7 +809,8 @@
         "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-GIVEBACK-SHADOW-PREREGISTRATION-V1.md",
         "github-actions://36727848202/SUCCESS",
         "src/qore/infrastructure/cibo_profit_preservation_economic_gate.py",
-        "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md"
+        "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        "github-actions://36760959025/SUCCESS"
       ],
       "blockers": [
         "FRESH_OOS_PROFIT_RETENTION_AND_GIVEBACK_VALUE_REQUIRED"
@@ -1030,7 +1035,8 @@
         "scripts/cibo_zero_open_work_gate.py",
         "tests/infrastructure/test_cibo_zero_open_work_gate.py",
         "github-actions://36753334521/SUCCESS",
-        "github-actions://36757582137/SUCCESS"
+        "github-actions://36757582137/SUCCESS",
+        "github-actions://36760959191/SUCCESS"
       ],
       "blockers": [
         "MASTER_LEDGER_HAS_OPEN_REQUIRED_WORK"

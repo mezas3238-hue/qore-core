@@ -160,3 +160,14 @@ Failure is an import-path defect in the B-owned quarantine test:
 A does not modify the legacy-quarantine implementation or its test. Architect B
 must resolve this on the B boundary and return GREEN evidence before final A+B
 integration. This observation does not alter A scientific dispositions.
+
+
+### Latest B-side revalidation
+
+At Architect A HEAD `5cc3ed93166a1960a4dbdc7c1d97f6ed38a56b94`, Legacy Stack Quarantine failed again:
+
+`github-actions://36760959376/FAILURE`
+
+The failure remains B-owned and does not authorize Architect A to edit the
+legacy-quarantine implementation. B must return a GREEN quarantine run before
+final integrated certification.
