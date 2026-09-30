@@ -554,16 +554,46 @@ def _read_matrix_attempts(root: Path) -> tuple[V50RearmAttempt, ...]:
     )
 
 
+def _setup_key(
+    item: V50RearmAttempt,
+) -> tuple[str, str, str, str, str]:
+    return (
+        item.symbol,
+        item.session,
+        item.operating_date,
+        item.h1_state_from,
+        item.m15_setup_confirmed_at,
+    )
+
+
 def _portfolio_ready(
     rows: tuple[V50RearmAttempt, ...],
     *,
     cognitive: bool,
 ) -> tuple[V50RearmAttempt, ...]:
-    grouped: dict[tuple[str, str], list[V50RearmAttempt]] = defaultdict(list)
+    # The attempt ledger may contain several later M1 re-arms for one M15 setup.
+    # A portfolio population may execute that parent setup at most once.
+    first_ready_by_setup: dict[
+        tuple[str, str, str, str, str], V50RearmAttempt
+    ] = {}
     for item in rows:
         ready = item.cognitive_geometry_ready if cognitive else item.geometry_ready
-        if ready:
-            grouped[(item.session, item.operating_date)].append(item)
+        if not ready:
+            continue
+        key = _setup_key(item)
+        current = first_ready_by_setup.get(key)
+        if current is None or (
+            datetime.fromisoformat(item.trigger_confirmed_at),
+            item.attempt_index,
+        ) < (
+            datetime.fromisoformat(current.trigger_confirmed_at),
+            current.attempt_index,
+        ):
+            first_ready_by_setup[key] = item
+
+    grouped: dict[tuple[str, str], list[V50RearmAttempt]] = defaultdict(list)
+    for item in first_ready_by_setup.values():
+        grouped[(item.session, item.operating_date)].append(item)
 
     selected: list[V50RearmAttempt] = []
     for key in sorted(grouped):
