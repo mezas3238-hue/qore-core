@@ -1,0 +1,122 @@
+name: QORE Capitalizer Cognitive Post Third Slot Preentry Atlas 2Y V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-cognitive-post-third-slot-preentry-atlas-2y-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_cognitive_post_third_slot_preentry_atlas_2y_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_cognitive_post_third_slot_preentry_atlas_2y_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-cognitive-post-third-slot-preentry-atlas-2y-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  BINDING_RUN_ID: '36065651404'
+  BINDING_SHA: '1d910f5c3550ac481c28390671a86ceb011597e3'
+  TARGET_RUN_ID: '36055792484'
+  TARGET_SHA: 'a66ab11c22efbefb61756db3f0062c3c51a2a825'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check             src/qore/infrastructure/trader_lab/capitalizer_cognitive_post_third_slot_preentry_atlas_2y_v1.py             tests/infrastructure/trader_lab/test_capitalizer_cognitive_post_third_slot_preentry_atlas_2y_v1.py
+      - name: Mypy
+        run: |
+          mypy             src/qore/infrastructure/trader_lab/capitalizer_cognitive_post_third_slot_preentry_atlas_2y_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_capitalizer_cognitive_post_third_slot_preentry_atlas_2y_v1.py
+
+  atlas:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download fully source-bound cognitive ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-evidence-binding-audit-2y-v2-${{ env.BINDING_SHA }}
+          path: binding-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.BINDING_RUN_ID }}
+      - name: Download frozen 1R target ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-max-recovery-target1-stability-2y-v1-${{ env.TARGET_SHA }}
+          path: target-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - name: Build post-third-slot preentry atlas
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cognitive_post_third_slot_preentry_atlas_2y_v1             binding-input target-input post-output
+      - name: Enforce post-third-slot controls
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "post-output/"
+                  "capitalizer-cognitive-post-third-slot-preentry-atlas-2y-v1.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_COGNITIVE_POST_THIRD_SLOT_PREENTRY_ATLAS_2Y_V1"
+          )
+          assert report["source_binding_run_id"] == 36065651404
+          assert report["source_target_run_id"] == 36055792484
+          assert report["control_trades"] == 948
+          assert report["first_stage_diagnostic_only"] is True
+          assert report["first_stage_blocked_trades"] == 31
+          assert report["base_trades"] == 917
+          assert report["base_metrics"]["profit_factor"] == (
+              "2.718762409568739618458298265"
+          )
+          assert report["base_metrics"]["max_drawdown_r"] == (
+              "6.58963930955636680812120412"
+          )
+          assert report["feature_count"] == 15
+          assert report["all_second_stage_features_known_by_entry"] is True
+          assert report["current_outcome_used_to_create_second_stage_cells"] is False
+          assert report["second_stage_cell_selected"] is False
+          assert report["sequential_rule_promotion_allowed"] is False
+          assert report["strategy_rules_changed"] is False
+          assert report["cognitive_rules_changed"] is False
+          assert report["entry_changed"] is False
+          assert report["stop_changed"] is False
+          assert report["target_changed"] is False
+          assert report["max3_changed"] is False
+          assert report["rule_promotion_allowed"] is False
+          assert report["trader_certified"] is False
+          assert report["live_authorized"] is False
+          assert report["real_capital_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-post-third-slot-preentry-atlas-2y-v1-${{ github.sha }}
+          path: post-output
+          if-no-files-found: error
+          retention-days: 90

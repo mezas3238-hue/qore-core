@@ -1,0 +1,90 @@
+name: QORE Capitalizer V52 Winner-Preserving Filter Falsification
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - 'src/qore/infrastructure/trader_lab/capitalizer_v52_winner_preserving_filter_falsification.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_v52_winner_preserving_filter_falsification.py'
+      - '.github/workflows/qore-capitalizer-v52-winner-preserving-filter-falsification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-v52-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ATLAS_RUN_ID: '36744782860'
+  ATLAS_SHA: '56ed5aa140e49c90b7bad58fa270166b164e4790'
+  ECON_RUN_ID: '36761420960'
+  ECON_SHA: 'fbfbaff7ae4ee2125aee6e474b2b6dde36cda209'
+
+jobs:
+  falsification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Quality
+        run: |
+          ruff check             src/qore/infrastructure/trader_lab/capitalizer_v52_winner_preserving_filter_falsification.py             tests/infrastructure/trader_lab/test_capitalizer_v52_winner_preserving_filter_falsification.py
+          mypy             src/qore/infrastructure/trader_lab/capitalizer_v52_winner_preserving_filter_falsification.py             tests/infrastructure/trader_lab/test_capitalizer_v52_winner_preserving_filter_falsification.py
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_capitalizer_v52_winner_preserving_filter_falsification.py
+
+      - name: Download nine V50 feature atlases
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v50-atlas-*-${{ env.ATLAS_SHA }}
+          path: atlas-input
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.ATLAS_RUN_ID }}
+
+      - name: Download nine V49 economic ledgers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v49-dev-econ-*-${{ env.ECON_SHA }}
+          path: economic-input
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.ECON_RUN_ID }}
+
+      - name: Run V52 falsification
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_v52_winner_preserving_filter_falsification             atlas-input economic-input output
+
+      - name: Enforce epistemic boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          result = json.loads(
+              Path("output/capitalizer-v52-winner-preserving-filter-falsification.json").read_text()
+          )
+          assert result["decision_features_known_at_entry"] is True
+          assert result["current_outcome_visible_to_selection"] is False
+          assert result["future_outcome_visible_to_selection"] is False
+          assert result["chronological_max3_recompetition"] is True
+          assert result["symbol_or_session_identity_used_as_block_feature"] is False
+          assert result["automatic_policy_promotion"] is False
+          assert result["trader_certified"] is False
+          assert result["live_authorized"] is False
+          assert result["real_capital_authorized"] is False
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v52-winner-preserving-filter-falsification-${{ github.sha }}
+          path: output
+          if-no-files-found: error
+          retention-days: 180

@@ -1,0 +1,194 @@
+name: QORE Capitalizer Stop Loss Causal Forensics V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-stop-loss-causal-forensics-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_stop_loss_causal_forensics_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_stop_loss_causal_forensics_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-stop-loss-causal-forensics-v1-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_REPLAY_RUN_ID: '35528346941'
+  SOURCE_REPLAY_SHA: 'e0338846170003fd7b346c98883f63257b6cdf45'
+  SOURCE_M5_RUN_ID: '35166210458'
+  SOURCE_M5_SHA: 'ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  SOURCE_JOURNEY_RUN_ID: '35175979474'
+  SOURCE_JOURNEY_SHA: '9cc0f17a2f30846d61b242132547f39391909656'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check             src/qore/infrastructure/trader_lab/capitalizer_stop_loss_causal_forensics_v1.py             tests/infrastructure/trader_lab/test_capitalizer_stop_loss_causal_forensics_v1.py
+      - name: Mypy
+        run: mypy src/qore/infrastructure/trader_lab/capitalizer_stop_loss_causal_forensics_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_capitalizer_stop_loss_causal_forensics_v1.py
+
+  market:
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - symbol: USDJPY
+            session: ASIA
+          - symbol: AUDJPY
+            session: ASIA
+          - symbol: AUDUSD
+            session: ASIA
+          - symbol: GBPJPY
+            session: ASIA
+          - symbol: EURUSD
+            session: LONDON
+          - symbol: GBPUSD
+            session: LONDON
+          - symbol: XAUUSD
+            session: NEW_YORK
+          - symbol: USDCAD
+            session: NEW_YORK
+          - symbol: NAS100
+            session: NEW_YORK
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download immutable replay cell
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-three-session-replay-cell-${{ matrix.symbol }}-${{ env.SOURCE_REPLAY_SHA }}
+          path: replay-cell
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_REPLAY_RUN_ID }}
+      - name: Download immutable RAW M5
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.symbol }}-${{ env.SOURCE_M5_SHA }}
+          path: m5
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M5_RUN_ID }}
+      - name: Download immutable Market Journey
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-journey-${{ matrix.symbol }}-${{ env.SOURCE_JOURNEY_SHA }}
+          path: journey
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_JOURNEY_RUN_ID }}
+      - name: Run stop-loss causal forensics
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_stop_loss_causal_forensics_v1             market replay-cell m5 journey market-output
+      - name: Enforce market governance
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+          EXPECTED_SESSION: ${{ matrix.session }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ['EXPECTED_SYMBOL']
+          session = os.environ['EXPECTED_SESSION']
+          result = json.loads(
+              (
+                  Path('market-output')
+                  / f"capitalizer-{symbol.lower()}-stop-loss-causal-forensics-v1.json"
+              ).read_text()
+          )
+          assert result['identity'] == 'QORE_CAPITALIZER_STOP_LOSS_CAUSAL_FORENSICS_V1'
+          assert result['symbol'] == symbol
+          assert result['session'] == session
+          assert result['trades'] > 0
+          assert result['stops'] > 0
+          assert result['source_replay_status'] == 'M5_GEOMETRY_PROXY'
+          assert result['source_strategy_status'] == 'WAIT_M1_EVIDENCE'
+          assert result['outcome_aware_forensics'] is True
+          assert result['causal_claimed'] is False
+          assert result['rule_promotion_allowed'] is False
+          assert result['stop_widening_authorized'] is False
+          assert result['economic_candidate'] is False
+          assert result['fresh_holdout_claimed'] is False
+          assert result['trader_certified'] is False
+          PY
+      - name: Upload immutable market stop-cause report
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-stop-loss-causal-v1-${{ matrix.symbol }}-${{ github.sha }}
+          path: market-output
+          if-no-files-found: error
+          retention-days: 90
+
+  matrix:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download all nine stop-cause reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-stop-loss-causal-v1-*-${{ github.sha }}
+          path: market-reports
+          merge-multiple: false
+      - name: Build nine-market stop-cause matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_stop_loss_causal_forensics_v1             matrix market-reports matrix-output
+      - name: Enforce matrix governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          result = json.loads(
+              Path(
+                  'matrix-output/capitalizer-nine-market-stop-cause-matrix-v1.json'
+              ).read_text()
+          )
+          assert result['identity'] == 'QORE_CAPITALIZER_NINE_MARKET_STOP_CAUSE_MATRIX_V1'
+          assert result['complete_nine_market_universe'] is True
+          assert len(result['markets']) == 9
+          assert result['outcome_aware_forensics'] is True
+          assert result['causal_claimed'] is False
+          assert result['rule_promotion_allowed'] is False
+          assert result['stop_widening_authorized'] is False
+          assert result['economic_candidate'] is False
+          assert result['trader_certified'] is False
+          PY
+      - name: Upload immutable stop-cause matrix
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-nine-market-stop-cause-matrix-v1-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90

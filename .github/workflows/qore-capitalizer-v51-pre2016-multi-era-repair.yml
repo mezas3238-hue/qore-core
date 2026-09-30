@@ -1,0 +1,175 @@
+name: QORE Capitalizer V51 Pre2016 Multi-Era Repair
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - 'src/qore/infrastructure/trader_lab/capitalizer_v50_target_stop_intelligence.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_v50_target_stop_intelligence.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_v51_multi_era_repair.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_v51_multi_era_repair.py'
+      - '.github/workflows/qore-capitalizer-v51-pre2016-multi-era-repair.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-v51-pre2016-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PRE2016_RUN_ID: '36367221571'
+  PRE2016_SHA: '660881acc008593eb04b7be2c4e2e60f06950a4d'
+  ERA: 'PRE2016_RESEARCH_2014_2016'
+  WINDOW_START: '2014-09-17T00:00:00+00:00'
+  WINDOW_END: '2016-09-17T00:00:00+00:00'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: V50 stop-integrity regression
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_v50_target_stop_intelligence.py \
+            tests/infrastructure/trader_lab/test_capitalizer_v50_target_stop_intelligence.py
+          mypy src/qore/infrastructure/trader_lab/capitalizer_v50_target_stop_intelligence.py
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_v50_target_stop_intelligence.py
+      - name: Ruff
+        run: |
+          ruff check             src/qore/infrastructure/trader_lab/capitalizer_v51_multi_era_repair.py             tests/infrastructure/trader_lab/test_capitalizer_v51_multi_era_repair.py
+      - name: Mypy
+        run: |
+          mypy             src/qore/infrastructure/trader_lab/capitalizer_v51_multi_era_repair.py             tests/infrastructure/trader_lab/test_capitalizer_v51_multi_era_repair.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_capitalizer_v51_multi_era_repair.py
+
+  market:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - symbol: USDJPY
+            session: ASIA
+          - symbol: AUDJPY
+            session: ASIA
+          - symbol: AUDUSD
+            session: ASIA
+          - symbol: GBPJPY
+            session: ASIA
+          - symbol: EURUSD
+            session: LONDON
+          - symbol: GBPUSD
+            session: LONDON
+          - symbol: XAUUSD
+            session: NEW_YORK
+          - symbol: USDCAD
+            session: NEW_YORK
+          - symbol: NAS100
+            session: NEW_YORK
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download pre-2016 provider-native M1
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-pre2016-sealed-m1-${{ matrix.symbol }}-${{ env.PRE2016_SHA }}
+          path: m1-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.PRE2016_RUN_ID }}
+      - name: Verify provider-native provenance
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          manifest = json.loads(Path("m1-source/m1-clone-manifest.json").read_text())
+          assert manifest["canonical_symbol"] == os.environ["EXPECTED_SYMBOL"]
+          assert manifest["provider_native_m1"] is True
+          assert manifest["synthetic_m1"] is False
+          assert manifest["interpolated_m1"] is False
+          assert manifest["contradictory_m1"] == 0
+          assert manifest["read_only"] is True
+          assert manifest["target_start"] == "2014-08-27T00:00:00+00:00"
+          assert manifest["target_end_exclusive"] == "2016-09-17T00:00:00+00:00"
+          PY
+      - name: Build unchanged V49 opportunities on pre-2016 research era
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49             market m1-source capacity-output             --session "${{ matrix.session }}"             --window-start "${{ env.WINDOW_START }}"             --window-end "${{ env.WINDOW_END }}"
+      - name: Run V51 baseline and geometry comparison
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_v51_multi_era_repair             market capacity-output m1-source repair-output             --era "${{ env.ERA }}"
+      - name: Upload V51 market evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v51-pre2016-${{ matrix.symbol }}-${{ github.sha }}
+          path: repair-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download V51 market artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v51-pre2016-*-${{ github.sha }}
+          path: repair-markets
+          merge-multiple: false
+      - name: Build V51 matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_v51_multi_era_repair             matrix repair-markets matrix-output             --era "${{ env.ERA }}"
+      - name: Enforce research boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          result = json.loads(
+              Path("matrix-output/capitalizer-v51-multi-era-repair-matrix.json").read_text()
+          )
+          assert result["historical_research"] is True
+          assert result["all_historical_windows_authorized_for_repair"] is True
+          assert result["outcome_used_for_admission"] is False
+          assert result["outcome_aware_selection"] is False
+          assert result["automatic_policy_promotion"] is False
+          assert result["certification_authority"] is False
+          assert result["final_independent_or_prospective_oos_still_required"] is True
+          assert result["live_authorized"] is False
+          assert result["real_capital_authorized"] is False
+          PY
+      - name: Upload V51 matrix
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v51-pre2016-matrix-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 180

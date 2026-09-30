@@ -1,0 +1,202 @@
+name: QORE Capitalizer Cognitive M3 Stop Protection Ablation 2Y V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-cognitive-m3-stop-protection-ablation-2y-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_cognitive_m3_stop_protection_ablation_2y_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_cognitive_m3_stop_protection_ablation_2y_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-cognitive-m3-stop-protection-ablation-2y-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  BINDING_RUN_ID: '36065651404'
+  BINDING_SHA: '1d910f5c3550ac481c28390671a86ceb011597e3'
+  TARGET_RUN_ID: '36055792484'
+  TARGET_SHA: 'a66ab11c22efbefb61756db3f0062c3c51a2a825'
+  M1_RUN_ID: '35548099334'
+  M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check             src/qore/infrastructure/trader_lab/capitalizer_cognitive_m3_stop_protection_ablation_2y_v1.py             tests/infrastructure/trader_lab/test_capitalizer_cognitive_m3_stop_protection_ablation_2y_v1.py
+      - name: Mypy
+        run: |
+          mypy             src/qore/infrastructure/trader_lab/capitalizer_cognitive_m3_stop_protection_ablation_2y_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_capitalizer_cognitive_m3_stop_protection_ablation_2y_v1.py
+
+  market:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        symbol:
+          - USDJPY
+          - AUDJPY
+          - AUDUSD
+          - GBPJPY
+          - EURUSD
+          - GBPUSD
+          - XAUUSD
+          - USDCAD
+          - NAS100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-evidence-binding-audit-2y-v2-${{ env.BINDING_SHA }}
+          path: binding-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.BINDING_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-max-recovery-target1-stability-2y-v1-${{ env.TARGET_SHA }}
+          path: target-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.M1_SHA }}
+          path: m1-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.M1_RUN_ID }}
+      - name: Run market stop-protection ablation
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cognitive_m3_stop_protection_ablation_2y_v1             market binding-input target-input m1-input ablation-output
+      - name: Enforce market controls
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          report = json.loads(
+              (
+                  Path("ablation-output")
+                  / f"capitalizer-{symbol.lower()}-cognitive-m3-stop-protection-ablation-2y-v1.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_COGNITIVE_M3_STOP_PROTECTION_ABLATION_2Y_V1"
+          )
+          assert report["symbol"] == symbol
+          assert report["market_trades"] > 0
+          assert set(report["modes"]) == {
+              "M3_SWING_IMPROVE",
+              "M3_PROFITABLE_SWING_LOCK",
+          }
+          assert report["m3_confirmation_causal"] is True
+          assert report["stop_updates_monotonic_only"] is True
+          assert report["stop_can_widen"] is False
+          assert report["target_unchanged"] is True
+          assert report["entry_unchanged"] is True
+          assert report["mode_selected"] is False
+          assert report["rule_promotion_allowed"] is False
+          assert report["trader_certified"] is False
+          assert report["live_authorized"] is False
+          assert report["real_capital_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-cognitive-m3-stop-protection-ablation-2y-v1-${{ matrix.symbol }}-${{ github.sha }}
+          path: ablation-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-cognitive-m3-stop-protection-ablation-2y-v1-*-${{ github.sha }}
+          path: ablation-input
+          merge-multiple: false
+      - name: Build nine-market ablation
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cognitive_m3_stop_protection_ablation_2y_v1             matrix ablation-input matrix-output
+      - name: Enforce frozen economic reproduction
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "matrix-output/"
+                  "capitalizer-nine-market-cognitive-m3-stop-protection-ablation-2y-v1.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_NINE_MARKET_COGNITIVE_M3_STOP_PROTECTION_ABLATION_2Y_V1"
+          )
+          assert report["market_count"] == 9
+          assert report["trades"] == 917
+          original = report["original_metrics"]
+          assert original["trades"] == 917
+          assert original["profit_factor"] == "2.718762409568739618458298265"
+          assert original["total_r"] == "450.0258074911594096020975998"
+          assert original["max_drawdown_r"] == "6.58963930955636680812120412"
+          assert set(report["modes"]) == {
+              "M3_SWING_IMPROVE",
+              "M3_PROFITABLE_SWING_LOCK",
+          }
+          for mode in report["modes"].values():
+              assert mode["metrics"]["trades"] == 917
+              assert mode["changed_outcomes"] >= 0
+              assert mode["improved_losing_outcomes"] >= 0
+              assert mode["degraded_winning_outcomes"] >= 0
+          assert report["m3_confirmation_causal"] is True
+          assert report["stop_updates_monotonic_only"] is True
+          assert report["stop_can_widen"] is False
+          assert report["target_unchanged"] is True
+          assert report["entry_unchanged"] is True
+          assert report["mode_selected"] is False
+          assert report["rule_promotion_allowed"] is False
+          assert report["trader_certified"] is False
+          assert report["live_authorized"] is False
+          assert report["real_capital_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-nine-market-cognitive-m3-stop-protection-ablation-2y-v1-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90

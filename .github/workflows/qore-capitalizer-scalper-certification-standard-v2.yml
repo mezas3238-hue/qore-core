@@ -1,0 +1,49 @@
+name: QORE Capitalizer Scalper Certification Standard V2
+
+on:
+  pull_request:
+    paths:
+      - 'docs/research/QORE-CAPITALIZER-SCALPER-CERTIFICATION-STANDARD-V2.md'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_scalper_certification_standard_v2.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_scalper_certification_standard_v2.py'
+      - '.github/workflows/qore-capitalizer-scalper-certification-standard-v2.yml'
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - 'docs/research/QORE-CAPITALIZER-SCALPER-CERTIFICATION-STANDARD-V2.md'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_scalper_certification_standard_v2.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_scalper_certification_standard_v2.py'
+      - '.github/workflows/qore-capitalizer-scalper-certification-standard-v2.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qore-capitalizer-cert-v2-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_scalper_certification_standard_v2.py \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_certification_standard_v2.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_scalper_certification_standard_v2.py \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_certification_standard_v2.py
+      - name: Certification gate tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_certification_standard_v2.py

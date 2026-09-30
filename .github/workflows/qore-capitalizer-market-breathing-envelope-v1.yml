@@ -1,0 +1,214 @@
+name: QORE Capitalizer Market Breathing Envelope V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-market-breathing-envelope-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_market_breathing_envelope_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_market_breathing_envelope_v1.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_stop_breathing_context_v2.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-market-breathing-envelope-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_M1_RUN_ID: '35548099334'
+  SOURCE_M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+  DEV_PEN_RUN_ID: '35593504906'
+  DEV_PEN_SHA: '14014ae72aeebe985b08cae56a04b55122c60f92'
+  DEV_FORENSICS_RUN_ID: '35585286205'
+  DEV_FORENSICS_SHA: 'f728f819266fab7e371873cff85ae7aa4fb489dd'
+  HOLD_FORENSICS_RUN_ID: '35583377247'
+  HOLD_FORENSICS_SHA: 'e69998808dbbb0f57a51622c096b0a4f30006af1'
+  HOLD_PEN_RUN_ID: '35592309957'
+  HOLD_PEN_SHA: 'd7b4f397ae88b1e3dc1ad558e2ccb2284268aea5'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_market_breathing_envelope_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_market_breathing_envelope_v1.py
+      - name: Mypy
+        run: |
+          mypy src/qore/infrastructure/trader_lab/capitalizer_market_breathing_envelope_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_market_breathing_envelope_v1.py
+
+  market:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - {symbol: USDJPY, session: ASIA}
+          - {symbol: AUDJPY, session: ASIA}
+          - {symbol: AUDUSD, session: ASIA}
+          - {symbol: GBPJPY, session: ASIA}
+          - {symbol: EURUSD, session: LONDON}
+          - {symbol: GBPUSD, session: LONDON}
+          - {symbol: XAUUSD, session: NEW_YORK}
+          - {symbol: USDCAD, session: NEW_YORK}
+          - {symbol: NAS100, session: NEW_YORK}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download immutable native-M1 clone
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.SOURCE_M1_SHA }}
+          path: m1-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M1_RUN_ID }}
+      - name: Download frozen development penetration
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-ob-penetration-dev-${{ matrix.symbol }}-${{ env.DEV_PEN_SHA }}
+          path: dev-penetration
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DEV_PEN_RUN_ID }}
+      - name: Download development forensics
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-m1-loss-causal-forensics-dev-${{ matrix.symbol }}-${{ env.DEV_FORENSICS_SHA }}
+          path: dev-forensics
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DEV_FORENSICS_RUN_ID }}
+      - name: Download consumed holdout penetration
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-ob-penetration-${{ matrix.symbol }}-${{ env.HOLD_PEN_SHA }}
+          path: holdout-penetration
+          github-token: ${{ github.token }}
+          run-id: ${{ env.HOLD_PEN_RUN_ID }}
+      - name: Download consumed holdout forensics
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-m1-loss-causal-forensics-${{ matrix.symbol }}-${{ env.HOLD_FORENSICS_SHA }}
+          path: holdout-forensics
+          github-token: ${{ github.token }}
+          run-id: ${{ env.HOLD_FORENSICS_RUN_ID }}
+      - name: Build market breathing envelope
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_market_breathing_envelope_v1 \
+            market \
+            dev-penetration dev-forensics \
+            holdout-penetration holdout-forensics \
+            m1-source envelope-output
+      - name: Enforce envelope governance
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+          EXPECTED_SESSION: ${{ matrix.session }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          path = Path("envelope-output") / (
+              f"capitalizer-{symbol.lower()}-market-breathing-envelope-v1.json"
+          )
+          report = json.loads(path.read_text())
+          assert report["identity"] == "QORE_CAPITALIZER_MARKET_BREATHING_ENVELOPE_V1"
+          assert report["symbol"] == symbol
+          assert report["session"] == os.environ["EXPECTED_SESSION"]
+          assert report["composite_direction_transported"] is True
+          assert [item["quantile"] for item in report["envelopes"]] == ["P50", "P75", "P90"]
+          assert report["development_selects_context_thresholds"] is True
+          assert report["consumed_holdout_selects_context_thresholds"] is False
+          assert report["quantile_grid_predeclared"] is True
+          assert report["quantile_selected_for_execution"] is False
+          assert report["entry_changed"] is False
+          assert report["target_changed"] is False
+          assert report["stop_changed_in_live_runtime"] is False
+          assert report["buffer_candidate_frozen"] is False
+          assert report["rule_promotion_allowed"] is False
+          assert report["economic_candidate"] is False
+          assert report["trader_certified"] is False
+          assert report["live_authorized"] is False
+          assert report["real_capital_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-market-breathing-envelope-${{ matrix.symbol }}-${{ github.sha }}
+          path: envelope-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-market-breathing-envelope-*-${{ github.sha }}
+          path: envelope-input
+          merge-multiple: false
+      - name: Build nine-market envelope matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_market_breathing_envelope_v1 \
+            matrix envelope-input matrix-output
+      - name: Enforce nine-market boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "matrix-output/capitalizer-nine-market-breathing-envelope-v1.json"
+              ).read_text()
+          )
+          assert report["identity"] == "QORE_CAPITALIZER_NINE_MARKET_BREATHING_ENVELOPE_MATRIX_V1"
+          assert report["market_count"] == 9
+          assert report["development_total_trades"] == 10705
+          assert report["consumed_holdout_total_trades"] == 10991
+          assert len(report["composite_direction_transported_markets"]) == 9
+          assert report["quantile_grid"] == ["P50", "P75", "P90"]
+          assert report["consumed_holdout_selects_context_thresholds"] is False
+          assert report["quantile_selected_for_execution"] is False
+          assert report["buffer_candidate_frozen"] is False
+          assert report["rule_promotion_allowed"] is False
+          assert report["economic_candidate"] is False
+          assert report["trader_certified"] is False
+          assert report["live_authorized"] is False
+          assert report["real_capital_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-nine-market-breathing-envelope-v1-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90

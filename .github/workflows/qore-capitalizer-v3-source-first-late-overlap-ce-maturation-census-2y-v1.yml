@@ -1,0 +1,192 @@
+name: QORE Capitalizer V3 SOURCE_FIRST Late Overlap CE Maturation Census 2Y V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-v3-source-first-late-overlap-ce-maturation-census-2y-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_v3_source_first_late_overlap_ce_maturation_census_2y_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_v3_source_first_late_overlap_ce_maturation_census_2y_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-v3-source-first-late-overlap-ce-maturation-census-2y-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  ANATOMY_RUN_ID: '35849395559'
+  ANATOMY_SHA: 'e5f928eba549500bb9af10d90d5c07fb05e83b78'
+  FUNNEL_RUN_ID: '35847723760'
+  FUNNEL_SHA: 'e099f14092c8ab547137b6a3e59a3a1df9344b9e'
+  SOURCE_M1_RUN_ID: '35548099334'
+  SOURCE_M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_v3_source_first_late_overlap_ce_maturation_census_2y_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_v3_source_first_late_overlap_ce_maturation_census_2y_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_v3_source_first_late_overlap_ce_maturation_census_2y_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_v3_source_first_late_overlap_ce_maturation_census_2y_v1.py
+
+  market:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - {symbol: USDJPY, session: ASIA}
+          - {symbol: AUDJPY, session: ASIA}
+          - {symbol: AUDUSD, session: ASIA}
+          - {symbol: GBPJPY, session: ASIA}
+          - {symbol: EURUSD, session: LONDON}
+          - {symbol: GBPUSD, session: LONDON}
+          - {symbol: XAUUSD, session: NEW_YORK}
+          - {symbol: USDCAD, session: NEW_YORK}
+          - {symbol: NAS100, session: NEW_YORK}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download frozen fill-miss anatomy
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-v3-source-first-fill-miss-anatomy-2y-v1-${{ matrix.symbol }}-${{ env.ANATOMY_SHA }}
+          path: anatomy-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.ANATOMY_RUN_ID }}
+      - name: Download frozen funnel atlas
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-v3-source-first-wait5-funnel-atlas-2y-v1-${{ matrix.symbol }}-${{ env.FUNNEL_SHA }}
+          path: funnel-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.FUNNEL_RUN_ID }}
+      - name: Download immutable native-M1 clone
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.SOURCE_M1_SHA }}
+          path: m1-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M1_RUN_ID }}
+      - name: Run late-overlap CE maturation census
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_v3_source_first_late_overlap_ce_maturation_census_2y_v1 \
+            market anatomy-source funnel-source m1-source census-output \
+            --session ${{ matrix.session }}
+      - name: Enforce market controls
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+          EXPECTED_SESSION: ${{ matrix.session }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          report = json.loads(
+              (
+                  Path("census-output")
+                  / f"capitalizer-{symbol.lower()}-v3-source-first-late-overlap-ce-maturation-census-2y-v1.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_V3_SOURCE_FIRST_"
+              "LATE_OVERLAP_CE_MATURATION_CENSUS_2Y_V1"
+          )
+          assert report["symbol"] == symbol
+          assert report["session"] == os.environ["EXPECTED_SESSION"]
+          assert sum(report["ce_status_counts"].values()) == (
+              report["late_overlap_population"]
+          )
+          assert report["outcome_used_for_admission"] is False
+          assert report["strategy_mutated"] is False
+          assert report["diagnostic_only"] is True
+          assert report["economic_candidate"] is False
+          assert report["rule_promotion_allowed"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v3-source-first-late-overlap-ce-maturation-census-2y-v1-${{ matrix.symbol }}-${{ github.sha }}
+          path: census-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v3-source-first-late-overlap-ce-maturation-census-2y-v1-*-${{ github.sha }}
+          path: census-input
+          merge-multiple: false
+      - name: Build nine-market CE maturation matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_v3_source_first_late_overlap_ce_maturation_census_2y_v1 \
+            matrix census-input matrix-output
+      - name: Enforce aggregate controls
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "matrix-output/"
+                  "capitalizer-nine-market-v3-source-first-late-overlap-ce-maturation-census-2y-v1.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_NINE_MARKET_V3_SOURCE_FIRST_"
+              "LATE_OVERLAP_CE_MATURATION_CENSUS_2Y_V1"
+          )
+          assert report["market_count"] == 9
+          assert report["clean_late_population"] == 376
+          assert report["clean_late_control_reproduced"] is True
+          assert report["ce_status_partition_reproduced"] is True
+          assert report["outcome_used_for_admission"] is False
+          assert report["strategy_mutated"] is False
+          assert report["diagnostic_only"] is True
+          assert report["economic_candidate"] is False
+          assert report["rule_promotion_allowed"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-nine-market-v3-source-first-late-overlap-ce-maturation-census-2y-v1-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,64 @@
+name: QORE Capitalizer ICT TTrades Dual Source Fidelity Audit V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-ict-ttrades-dual-source-fidelity-audit-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_ict_ttrades_dual_source_fidelity_audit_v1.py'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_source_strategy_review_v2.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_ict_ttrades_dual_source_fidelity_audit_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_source_strategy_review_v2.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check             src/qore/infrastructure/trader_lab/capitalizer_ict_ttrades_dual_source_fidelity_audit_v1.py             src/qore/infrastructure/trader_lab/capitalizer_source_strategy_review_v2.py             tests/infrastructure/trader_lab/test_capitalizer_ict_ttrades_dual_source_fidelity_audit_v1.py             tests/infrastructure/trader_lab/test_capitalizer_source_strategy_review_v2.py
+      - name: Mypy
+        run: |
+          mypy             src/qore/infrastructure/trader_lab/capitalizer_ict_ttrades_dual_source_fidelity_audit_v1.py             src/qore/infrastructure/trader_lab/capitalizer_source_strategy_review_v2.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_capitalizer_ict_ttrades_dual_source_fidelity_audit_v1.py             tests/infrastructure/trader_lab/test_capitalizer_source_strategy_review_v2.py
+      - name: Enforce source hierarchy
+        run: |
+          python - <<'PY'
+          from qore.infrastructure.trader_lab.capitalizer_ict_ttrades_dual_source_fidelity_audit_v1 import (
+              FROZEN_DUAL_SOURCE_FIDELITY_AUDIT,
+              CapitalizerDualSourceStatus,
+              CapitalizerSourceAuthorityTier,
+          )
+
+          audit = FROZEN_DUAL_SOURCE_FIDELITY_AUDIT
+          assert audit.authority_order[0] is CapitalizerSourceAuthorityTier.ICT_ORIGINAL_PRIMARY
+          assert audit.ttrades_may_override_ict is False
+          assert audit.qore_may_masquerade_as_author is False
+          checks = {item.component: item for item in audit.checks}
+          assert checks['STOP_INVALIDATION_ANCHOR'].status is (
+              CapitalizerDualSourceStatus.TTRADES_REFINEMENT_COMPATIBLE
+          )
+          assert checks['EXACT_INITIAL_STOP_PRICE'].status is (
+              CapitalizerDualSourceStatus.ROUTE_SPECIFIC_VARIANCE
+          )
+          assert checks['CURRENT_ECONOMIC_REPLAY'].status is (
+              CapitalizerDualSourceStatus.QORE_PROXY_GAP
+          )
+          assert audit.current_exact_stop_expression_universally_dual_source_faithful is False
+          assert audit.native_m1_present is False
+          assert audit.trader_certified is False
+          PY

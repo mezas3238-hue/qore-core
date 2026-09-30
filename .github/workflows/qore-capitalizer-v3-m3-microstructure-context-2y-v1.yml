@@ -1,0 +1,176 @@
+name: QORE Capitalizer V3 M3 Microstructure Context 2Y V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-v3-m3-microstructure-context-2y-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_v3_m3_microstructure_context_2y_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_v3_m3_microstructure_context_2y_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-v3-m3-microstructure-context-2y-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  BOTTLENECK_RUN_ID: '35804015774'
+  BOTTLENECK_SHA: '8cd1f83221f8e89c9586f0a241e18f91ad5ac0fc'
+  SOURCE_M5_RUN_ID: '35166210458'
+  SOURCE_M5_SHA: 'ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_v3_m3_microstructure_context_2y_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_v3_m3_microstructure_context_2y_v1.py
+      - name: Mypy
+        run: |
+          mypy src/qore/infrastructure/trader_lab/capitalizer_v3_m3_microstructure_context_2y_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_v3_m3_microstructure_context_2y_v1.py
+
+  market:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - {symbol: USDJPY, session: ASIA}
+          - {symbol: AUDJPY, session: ASIA}
+          - {symbol: AUDUSD, session: ASIA}
+          - {symbol: GBPJPY, session: ASIA}
+          - {symbol: EURUSD, session: LONDON}
+          - {symbol: GBPUSD, session: LONDON}
+          - {symbol: XAUUSD, session: NEW_YORK}
+          - {symbol: USDCAD, session: NEW_YORK}
+          - {symbol: NAS100, session: NEW_YORK}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download frozen 2Y bottleneck cell
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-m3-mss-bottleneck-forensics-2y-v1-${{ matrix.symbol }}-${{ env.BOTTLENECK_SHA }}
+          path: bottleneck-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.BOTTLENECK_RUN_ID }}
+      - name: Download immutable M5 atlas
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-cibo-market-atlas-10y-windowed-${{ matrix.symbol }}-${{ env.SOURCE_M5_SHA }}
+          path: m5-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M5_RUN_ID }}
+      - name: Join existing microstructure lab to V3 bottlenecks
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_v3_m3_microstructure_context_2y_v1 \
+            market bottleneck-source m5-source context-output
+      - name: Enforce exact diagnostic boundary
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+          EXPECTED_SESSION: ${{ matrix.session }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          path = Path("context-output") / (
+              f"capitalizer-{symbol.lower()}-v3-m3-microstructure-context-2y-v1.json"
+          )
+          report = json.loads(path.read_text())
+          assert report["identity"] == "QORE_CAPITALIZER_V3_M3_MICROSTRUCTURE_CONTEXT_2Y_V1"
+          assert report["symbol"] == symbol
+          assert report["session"] == os.environ["EXPECTED_SESSION"]
+          assert report["source_closebacks"] > 0
+          assert report["context_rows"] == report["source_closebacks"]
+          assert report["missing_microstructure_rows"] == 0
+          assert report["coverage"] == "1"
+          assert report["strategy_mutated"] is False
+          assert report["thresholds_mutated"] is False
+          assert report["outcome_used_for_selection"] is False
+          assert report["diagnostic_only"] is True
+          assert report["rule_promotion_allowed"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v3-m3-microstructure-context-2y-v1-${{ matrix.symbol }}-${{ github.sha }}
+          path: context-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v3-m3-microstructure-context-2y-v1-*-${{ github.sha }}
+          path: context-input
+          merge-multiple: false
+      - name: Build nine-market microstructure blocker matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_v3_m3_microstructure_context_2y_v1 \
+            matrix context-input matrix-output
+      - name: Enforce aggregate invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "matrix-output/"
+                  "capitalizer-nine-market-v3-m3-microstructure-context-2y-v1.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_NINE_MARKET_V3_M3_MICROSTRUCTURE_CONTEXT_2Y_V1"
+          )
+          assert report["market_count"] == 9
+          assert report["source_closebacks"] == 8099
+          assert report["context_rows"] == 8099
+          assert report["missing_microstructure_rows"] == 0
+          assert report["strategy_mutated"] is False
+          assert report["thresholds_mutated"] is False
+          assert report["outcome_used_for_selection"] is False
+          assert report["diagnostic_only"] is True
+          assert report["rule_promotion_allowed"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-nine-market-v3-m3-microstructure-context-2y-v1-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90

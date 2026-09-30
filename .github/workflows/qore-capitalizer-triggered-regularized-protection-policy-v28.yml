@@ -1,0 +1,144 @@
+name: QORE Capitalizer Triggered Regularized Protection Policy V28
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-triggered-regularized-protection-policy-v28-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_triggered_regularized_protection_policy_v28.py \
+            tests/infrastructure/trader_lab/test_capitalizer_triggered_regularized_protection_policy_v28.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_triggered_regularized_protection_policy_v28.py \
+            tests/infrastructure/trader_lab/test_capitalizer_triggered_regularized_protection_policy_v28.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_triggered_regularized_protection_policy_v28.py
+
+  aggregate:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download authoritative V21 reconstructed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Run V28 triggered regularized policy
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_triggered_regularized_protection_policy_v28 \
+            reconstructed/development-input \
+            reconstructed/validation-input \
+            reconstructed/reserved-input \
+            reconstructed/development-validation-context \
+            reconstructed/reserved-context \
+            experiment-output
+      - name: Enforce V28 contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "experiment-output/"
+                  "capitalizer-triggered-regularized-protection-policy-v28.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_TRIGGERED_REGULARIZED_PROTECTION_POLICY_V28"
+          )
+          assert report["evaluation"] == (
+              "TRIGGERED_REGULARIZED_COUNTERFACTUAL_MODE_POLICY"
+          )
+          assert report["policy"] == (
+              "TRIGGERED_ROBUST_POSDELTA_NONDOWNSIDE"
+          )
+          assert report["family_count"] == 3
+          assert report["l2_prior_strength_effective_trades"] == "12.0"
+          assert report["state_source"] == (
+              "FULL_V10_V11_CAUSAL_PRETRADE_PLUS_EXACT_TRIGGER_DELAY"
+          )
+          assert report["coarse_delay_bands_used"] is False
+          assert report["hard_recovery_gate_used"] is False
+          assert report["same_trigger_common_path_required"] is True
+          assert report["complete_075_family_includes_lock025"] is True
+          assert report["all_entries_preserved"] is True
+          assert report["density_retention"] == "1"
+          assert report["same_entrant_identities"] is True
+          assert report["fixed_target_r"] == "2.00"
+          assert report["original_stop_geometry_preserved_at_entry"] is True
+          assert report["new_protection_geometry_created"] is False
+          assert report["max3_preserved"] is True
+          assert report["max3_slot_recycling"] is False
+          assert report["chosen_prior_outcomes_recompute_future_state"] is True
+          assert report["current_outcome_visible_to_decision"] is False
+          assert report["heldout_counterfactual_visible_to_decision"] is False
+          assert report["future_after_trigger_visible_to_decision"] is False
+          assert report[
+              "symbol_session_side_time_identity_features_used"
+          ] is False
+          assert report["historical_fresh_oos_available"] is False
+          assert report["2018_2020_status"] == "CONSUMED_NOT_FRESH"
+          assert report["trader_certified"] is False
+
+          expected = {
+              "DEVELOPMENT_2024_2026": 948,
+              "CONSUMED_VALIDATION_2022_2024": 1034,
+              "CONSUMED_RESERVED_2020_2022": 1088,
+          }
+          for row in report["results"]:
+              assert row["trades"] == expected[row["period"]]
+              assert row["density_retention"] == "1"
+
+          for period_rows in report["model_diagnostics"].values():
+              assert len(period_rows) == 3
+              for family_rows in period_rows.values():
+                  assert len(family_rows) >= 2
+                  for action in family_rows.values():
+                      assert action["training_trades"] > 0
+                      assert action["feature_dimension"] > 30
+
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Upload V28 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-triggered-regularized-protection-policy-v28-${{ github.sha }}
+          path: experiment-output
+          if-no-files-found: error
+          retention-days: 90

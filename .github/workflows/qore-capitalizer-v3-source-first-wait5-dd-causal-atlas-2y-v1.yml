@@ -1,0 +1,106 @@
+name: QORE Capitalizer V3 SOURCE_FIRST WAIT5 DD Causal Atlas 2Y V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-v3-source-first-wait5-dd-causal-atlas-2y-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_v3_source_first_wait5_dd_causal_atlas_2y_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_v3_source_first_wait5_dd_causal_atlas_2y_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-v3-source-first-wait5-dd-causal-atlas-2y-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  WAIT5_RUN_ID: '35844549291'
+  WAIT5_SHA: '32bd64963a34b762723416c01cf8a016fd86daab'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_v3_source_first_wait5_dd_causal_atlas_2y_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_v3_source_first_wait5_dd_causal_atlas_2y_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_v3_source_first_wait5_dd_causal_atlas_2y_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_v3_source_first_wait5_dd_causal_atlas_2y_v1.py
+
+  atlas:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download frozen WAIT5 ledgers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v3-source-first-wait5-2y-v1-*-${{ env.WAIT5_SHA }}
+          path: wait5-source
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.WAIT5_RUN_ID }}
+      - name: Build exact WAIT5 DD causal atlas
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_v3_source_first_wait5_dd_causal_atlas_2y_v1 \
+            wait5-source atlas-output
+      - name: Enforce frozen controls
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "atlas-output/"
+                  "capitalizer-nine-market-v3-source-first-wait5-dd-causal-atlas-2y-v1.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_V3_SOURCE_FIRST_WAIT5_DD_CAUSAL_ATLAS_2Y_V1"
+          )
+          assert report["max3_trades"] == 983
+          assert report["max_drawdown_r"] == "11.9420088471277198029814040"
+          assert report["annotations_available_by_entry"] is True
+          assert report["outcome_used_only_to_locate_dd_episode"] is True
+          assert report["outcome_used_for_admission"] is False
+          assert report["filters_applied"] is False
+          assert report["threshold_optimization_used"] is False
+          assert report["candidate_frozen"] is False
+          assert report["economic_candidate"] is False
+          assert report["fresh_holdout_claimed"] is False
+          assert report["rule_promotion_allowed"] is False
+          assert report["trader_certified"] is False
+          assert report["live_authorized"] is False
+          assert report["real_capital_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-nine-market-v3-source-first-wait5-dd-causal-atlas-2y-v1-${{ github.sha }}
+          path: atlas-output
+          if-no-files-found: error
+          retention-days: 90

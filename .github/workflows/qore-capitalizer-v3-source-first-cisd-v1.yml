@@ -1,0 +1,39 @@
+name: QORE Capitalizer V3 Source First CISD V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-v3-source-first-cisd-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_v3_source_first_cisd_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_v3_source_first_cisd_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_v3_source_first_cisd_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_v3_source_first_cisd_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_v3_source_first_cisd_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_v3_source_first_cisd_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_v3_source_first_cisd_v1.py

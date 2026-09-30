@@ -1,0 +1,175 @@
+name: QORE Capitalizer Stop Family Stability V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-stop-family-stability-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_market_stop_family_stability_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_market_stop_family_stability_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-stop-family-stability-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_DEV_FAMILY_RUN_ID: '35585521404'
+  SOURCE_DEV_FAMILY_SHA: '5eb02a7fe10e38cac9eb0ee117996b9d50ae3751'
+  SOURCE_HOLD_FAMILY_RUN_ID: '35585029603'
+  SOURCE_HOLD_FAMILY_SHA: '39497f5117041d539c941ac286dedad9be597edd'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_market_stop_family_stability_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_market_stop_family_stability_v1.py
+      - name: Mypy
+        run: |
+          mypy src/qore/infrastructure/trader_lab/capitalizer_market_stop_family_stability_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_market_stop_family_stability_v1.py
+
+  market:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        symbol:
+          - AUDJPY
+          - AUDUSD
+          - EURUSD
+          - GBPJPY
+          - GBPUSD
+          - NAS100
+          - USDCAD
+          - USDJPY
+          - XAUUSD
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install runtime
+        run: python -m pip install -e .
+      - name: Download development state families
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-stop-state-family-dev-${{ matrix.symbol }}-${{ env.SOURCE_DEV_FAMILY_SHA }}
+          path: development
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_DEV_FAMILY_RUN_ID }}
+      - name: Download consumed-holdout state families
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-market-stop-state-family-${{ matrix.symbol }}-${{ env.SOURCE_HOLD_FAMILY_SHA }}
+          path: holdout
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_HOLD_FAMILY_RUN_ID }}
+      - name: Compare exact families across windows
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_market_stop_family_stability_v1 \
+            market development holdout stability-output
+      - name: Enforce no buffer promotion
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          path = Path("stability-output") / (
+              f"capitalizer-{symbol.lower()}-market-stop-family-stability-v1.json"
+          )
+          report = json.loads(path.read_text())
+          assert report["identity"] == "QORE_CAPITALIZER_MARKET_STOP_FAMILY_STABILITY_V1"
+          assert report["symbol"] == symbol
+          assert report["development_trades"] > 0
+          assert report["consumed_holdout_trades"] > 0
+          assert report["common_family_count"] > 0
+          assert report["family_key_uses_outcome"] is False
+          assert report["fresh_holdout_claimed"] is False
+          assert report["buffer_freeze_supported"] is False
+          assert report["rule_promotion_allowed"] is False
+          assert report["economic_candidate"] is False
+          assert report["trader_certified"] is False
+          assert len(report["missing_pretrade_dimensions"]) >= 7
+          PY
+      - name: Upload market stability report
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-stop-family-stability-${{ matrix.symbol }}-${{ github.sha }}
+          path: stability-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install runtime
+        run: python -m pip install -e .
+      - name: Download nine stability reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-stop-family-stability-*-${{ github.sha }}
+          path: stability-input
+          merge-multiple: false
+      - name: Build nine-market stability matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_market_stop_family_stability_v1 \
+            matrix stability-input matrix-output
+      - name: Enforce falsification boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "matrix-output/capitalizer-nine-market-stop-family-stability-v1.json"
+              ).read_text()
+          )
+          assert report["market_count"] == 9
+          assert report["family_key_uses_outcome"] is False
+          assert report["fresh_holdout_claimed"] is False
+          assert report["buffer_freeze_supported"] is False
+          assert report["rule_promotion_allowed"] is False
+          assert report["economic_candidate"] is False
+          assert report["trader_certified"] is False
+          PY
+      - name: Upload nine-market stability matrix
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-nine-market-stop-family-stability-v1-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90

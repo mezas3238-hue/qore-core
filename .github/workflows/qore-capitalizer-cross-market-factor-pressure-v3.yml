@@ -1,0 +1,95 @@
+name: QORE Capitalizer Cross Market Factor Pressure V3
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-cross-market-factor-pressure-v3.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_cross_market_factor_pressure_v3.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_cross_market_factor_pressure_v3.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  DIRECT_RUN_ID: '36196002610'
+  DIRECT_SHA: 'ddd00209e50d5ec16c8cb94f34e9e5e95f401839'
+  CONTEXT_RUN_ID: '36211415438'
+  CONTEXT_SHA: 'c652b1e5a5181ba95ac6f10ea5c95bf808a0c8a7'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e '.[dev]'
+      - run: |
+          ruff check src/qore/infrastructure/trader_lab/capitalizer_cross_market_factor_pressure_v3.py tests/infrastructure/trader_lab/test_capitalizer_cross_market_factor_pressure_v3.py
+      - run: mypy src/qore/infrastructure/trader_lab/capitalizer_cross_market_factor_pressure_v3.py
+      - run: pytest -q --no-cov tests/infrastructure/trader_lab/test_capitalizer_cross_market_factor_pressure_v3.py
+
+  experiment:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-max-recovery-direct-m1-dev-*-${{ env.DIRECT_SHA }}
+          path: development-input
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DIRECT_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-max-recovery-direct-m1-holdout-*-${{ env.DIRECT_SHA }}
+          path: validation-input
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DIRECT_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-native-market-context-v1-*-${{ env.CONTEXT_SHA }}
+          path: context-input
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.CONTEXT_RUN_ID }}
+      - run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_cross_market_factor_pressure_v3 development-input validation-input context-input experiment-output
+      - name: Enforce causal integrity
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+          report = json.loads(Path("experiment-output/capitalizer-cross-market-factor-pressure-v3.json").read_text())
+          assert report["development_trades"] == 948
+          assert report["validation_trades"] == 1034
+          assert report["all_entries_preserved"] is True
+          assert report["factor_state_uses_prior_closed_chosen_outcomes_only"] is True
+          assert report["current_outcome_visible_to_factor_state"] is False
+          assert report["validation_is_fresh_holdout"] is False
+          assert report["new_holdout_reserved"] == "2020-09-17_TO_2022-09-17"
+          for row in report["results"]:
+              assert row["development"]["trades"] == 948
+              assert row["validation"]["trades"] == 1034
+              assert Decimal(row["development"]["density_retention"]) == Decimal("1")
+              assert Decimal(row["validation"]["density_retention"]) == Decimal("1")
+          assert report["runtime_rule_selected"] is False
+          assert report["trader_certified"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-cross-market-factor-pressure-v3-${{ github.sha }}
+          path: experiment-output
+          retention-days: 90

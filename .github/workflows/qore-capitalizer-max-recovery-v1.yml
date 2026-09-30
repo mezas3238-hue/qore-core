@@ -1,0 +1,171 @@
+name: QORE Capitalizer MAX_RECOVERY V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-max-recovery-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_max_recovery_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_max_recovery_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  ARBITRATION_RUN_ID: '35929691710'
+  ARBITRATION_SHA: '93fcd53cca8b56ab9a3de596881435a5573b65ac'
+  STOP_ATLAS_RUN_ID: '35863455539'
+  STOP_ATLAS_SHA: 'd55b380fe9be21cee59023c2d6ed4cb3ebc84052'
+  FUNNEL_RUN_ID: '35847723760'
+  FUNNEL_SHA: 'e099f14092c8ab547137b6a3e59a3a1df9344b9e'
+  SOURCE_M1_RUN_ID: '35548099334'
+  SOURCE_M1_SHA: '18c338aedd5013ce65a6cb6408ffbc2e904a6217'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_max_recovery_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_max_recovery_v1.py
+      - run: mypy src/qore/infrastructure/trader_lab/capitalizer_max_recovery_v1.py
+      - run: pytest -q --no-cov tests/infrastructure/trader_lab/test_capitalizer_max_recovery_v1.py
+
+  market:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - {symbol: USDJPY, session: ASIA}
+          - {symbol: AUDJPY, session: ASIA}
+          - {symbol: AUDUSD, session: ASIA}
+          - {symbol: GBPJPY, session: ASIA}
+          - {symbol: EURUSD, session: LONDON}
+          - {symbol: GBPUSD, session: LONDON}
+          - {symbol: XAUUSD, session: NEW_YORK}
+          - {symbol: USDCAD, session: NEW_YORK}
+          - {symbol: NAS100, session: NEW_YORK}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-v3-source-first-no-rearm-closeback-arbitration-2y-v1-${{ matrix.symbol }}-${{ env.ARBITRATION_SHA }}
+          path: arbitration-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.ARBITRATION_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-v3-source-first-wait5-stop-invalid-geometry-atlas-2y-v1-${{ matrix.symbol }}-${{ env.STOP_ATLAS_SHA }}
+          path: stop-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.STOP_ATLAS_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-v3-source-first-wait5-funnel-atlas-2y-v1-${{ matrix.symbol }}-${{ env.FUNNEL_SHA }}
+          path: funnel-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.FUNNEL_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-cibo-10y-native-m1-${{ matrix.symbol }}-${{ env.SOURCE_M1_SHA }}
+          path: m1-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M1_RUN_ID }}
+      - name: Build MAX_RECOVERY market
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_v1 \
+            market arbitration-source stop-source funnel-source m1-source replay-output \
+            --session ${{ matrix.session }}
+      - name: Enforce controls
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          report = json.loads(
+              (
+                  Path("replay-output")
+                  / f"capitalizer-{symbol.lower()}-max-recovery-v1.json"
+              ).read_text()
+          )
+          assert report["identity"] == "QORE_CAPITALIZER_MAX_RECOVERY_V1"
+          assert report["symbol"] == symbol
+          assert report["threshold_relaxations_included"] is False
+          assert report["target_changes_included"] is False
+          assert report["outcome_used_for_admission"] is False
+          assert report["recovery_phase_open"] is True
+          assert report["target_phase_open"] is False
+          assert report["live_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-max-recovery-v1-${{ matrix.symbol }}-${{ github.sha }}
+          path: replay-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-max-recovery-v1-*-${{ github.sha }}
+          path: replay-input
+          merge-multiple: false
+      - name: Build MAX_RECOVERY matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_max_recovery_v1 \
+            matrix replay-input matrix-output
+      - name: Enforce aggregate controls
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(
+              Path("matrix-output/capitalizer-nine-market-max-recovery-v1.json").read_text()
+          )
+          assert report["identity"] == "QORE_CAPITALIZER_NINE_MARKET_MAX_RECOVERY_V1"
+          assert report["market_count"] == 9
+          assert report["arbitration_controls"]["raw_reproduced"] is True
+          assert report["arbitration_controls"]["max3_reproduced"] is True
+          assert report["threshold_relaxations_included"] is False
+          assert report["target_changes_included"] is False
+          assert report["outcome_used_for_admission"] is False
+          assert report["recovery_phase_open"] is True
+          assert report["target_phase_open"] is False
+          assert report["live_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-nine-market-max-recovery-v1-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90

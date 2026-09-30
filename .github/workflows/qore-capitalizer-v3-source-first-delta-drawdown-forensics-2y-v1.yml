@@ -1,0 +1,120 @@
+name: QORE Capitalizer V3 SOURCE_FIRST Delta Drawdown Forensics 2Y V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-v3-source-first-delta-drawdown-forensics-2y-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_v3_source_first_delta_drawdown_forensics_2y_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_v3_source_first_delta_drawdown_forensics_2y_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-v3-source-first-delta-drawdown-forensics-2y-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  V3_RUN_ID: '35806006221'
+  V3_SHA: '7f9b9efc82376bb5edbea42379a0a3cf3e72a94a'
+  SOURCE_FIRST_RUN_ID: '35814916032'
+  SOURCE_FIRST_SHA: '66887a9b4ca0cc3c3920f94b1042218652c30c9b'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_v3_source_first_delta_drawdown_forensics_2y_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_v3_source_first_delta_drawdown_forensics_2y_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_v3_source_first_delta_drawdown_forensics_2y_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_v3_source_first_delta_drawdown_forensics_2y_v1.py
+
+  forensics:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download frozen V3 market ledgers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v3-frozen-replay-2y-v1-*-${{ env.V3_SHA }}
+          path: v3-source
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V3_RUN_ID }}
+      - name: Download frozen SOURCE_FIRST market ledgers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v3-source-first-cisd-2y-v1-*-${{ env.SOURCE_FIRST_SHA }}
+          path: source-first-source
+          merge-multiple: false
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_FIRST_RUN_ID }}
+      - name: Build delta and drawdown atlas
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_v3_source_first_delta_drawdown_forensics_2y_v1 \
+            v3-source source-first-source report-output
+      - name: Enforce provenance controls
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "report-output/"
+                  "capitalizer-v3-source-first-delta-drawdown-forensics-2y-v1.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_V3_SOURCE_FIRST_DELTA_DRAWDOWN_FORENSICS_2Y_V1"
+          )
+          assert report["controls"]["v3_raw_reproduced"] is True
+          assert report["controls"]["source_first_raw_reproduced"] is True
+          assert report["controls"]["v3_max3_reproduced"] is True
+          assert report["controls"]["source_first_max3_reproduced"] is True
+          assert report["raw"]["delta_reconciled"] is True
+          assert report["raw"]["v3_trades"] == 475
+          assert report["raw"]["source_first_trades"] == 1142
+          assert report["max3"]["v3_trades"] == 474
+          assert report["max3"]["source_first_trades"] == 1118
+          assert report["max3"]["delta"] == 644
+          assert report["max3_contract_preserved"] is True
+          assert report["realized_exit_order_used_for_drawdown"] is True
+          assert report["outcome_aware_forensics"] is True
+          assert report["decision_time_rule_derived"] is False
+          assert report["strategy_mutated"] is False
+          assert report["rule_promotion_allowed"] is False
+          assert report["economic_candidate"] is False
+          assert report["fresh_holdout_claimed"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-v3-source-first-delta-drawdown-forensics-2y-v1-${{ github.sha }}
+          path: report-output
+          if-no-files-found: error
+          retention-days: 90

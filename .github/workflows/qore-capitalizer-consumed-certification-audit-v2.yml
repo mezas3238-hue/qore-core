@@ -1,0 +1,327 @@
+name: QORE Capitalizer Consumed Certification Audit V2
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-consumed-certification-audit-v2.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_scalper_certification_standard_v2.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_scalper_certification_standard_v2.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+  CHECKPOINT_RUN_ID: '36370790397'
+  CHECKPOINT_SHA: 'b8a50bd72d07f0076810e8496cfdb6ec4e2e5bb2'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_scalper_certification_metrics_v2.py \
+            src/qore/infrastructure/trader_lab/capitalizer_scalper_consumed_certification_audit_v2.py \
+            src/qore/infrastructure/trader_lab/capitalizer_scalper_certification_standard_v2.py \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_certification_metrics_v2.py \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_certification_standard_v2.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_scalper_certification_metrics_v2.py \
+            src/qore/infrastructure/trader_lab/capitalizer_scalper_consumed_certification_audit_v2.py \
+            src/qore/infrastructure/trader_lab/capitalizer_scalper_certification_standard_v2.py \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_certification_metrics_v2.py \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_certification_standard_v2.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_certification_metrics_v2.py \
+            tests/infrastructure/trader_lab/test_capitalizer_scalper_certification_standard_v2.py
+
+  audit:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - period: DEVELOPMENT_2024_2026
+            slug: development
+            checkpoint_artifact: qore-capitalizer-v2-distributed-checkpoint-development-b8a50bd72d07f0076810e8496cfdb6ec4e2e5bb2
+            window_start: '2024-09-17'
+            window_end: '2026-09-17'
+            expected_trades: '948'
+            expected_pf: '2.267384059639811374334565071'
+            expected_total_r: '258.6758664923347730643824142'
+            expected_dd: '5.998927544189151991097403831'
+          - period: CONSUMED_VALIDATION_2022_2024
+            slug: validation
+            checkpoint_artifact: qore-capitalizer-v2-distributed-checkpoint-validation-b8a50bd72d07f0076810e8496cfdb6ec4e2e5bb2
+            window_start: '2022-09-17'
+            window_end: '2024-09-17'
+            expected_trades: '1034'
+            expected_pf: '1.789173103193132230759641064'
+            expected_total_r: '112.8803815218467423179417818'
+            expected_dd: '6.63559674707663196688102741'
+          - period: CONSUMED_RESERVED_2020_2022
+            slug: reserved
+            checkpoint_artifact: qore-capitalizer-v2-distributed-checkpoint-reserved-b8a50bd72d07f0076810e8496cfdb6ec4e2e5bb2
+            window_start: '2020-09-17'
+            window_end: '2022-09-17'
+            expected_trades: '1088'
+            expected_pf: '1.426736008459623878737894328'
+            expected_total_r: '56.62336571948709587930965013'
+            expected_dd: '7.262834994708248872962269456'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download reconstructed consumed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Download exact V2 checkpoint
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.checkpoint_artifact }}
+          path: checkpoint
+          github-token: ${{ github.token }}
+          run-id: ${{ env.CHECKPOINT_RUN_ID }}
+      - name: Reconstruct exact ledger and compute certification analytics
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_scalper_consumed_certification_audit_v2 \
+            --period "${{ matrix.period }}" \
+            --checkpoint "checkpoint/${{ matrix.slug }}.json" \
+            --development-root reconstructed/development-input \
+            --validation-root reconstructed/validation-input \
+            --reserved-root reconstructed/reserved-input \
+            --development-validation-context-root reconstructed/development-validation-context \
+            --reserved-context-root reconstructed/reserved-context \
+            --window-start "${{ matrix.window_start }}" \
+            --window-end-exclusive "${{ matrix.window_end }}" \
+            --output "audit-output/${{ matrix.slug }}"
+      - name: Enforce exact reproduction and metric contract
+        env:
+          SLUG: ${{ matrix.slug }}
+          PERIOD: ${{ matrix.period }}
+          EXPECTED_TRADES: ${{ matrix.expected_trades }}
+          EXPECTED_PF: ${{ matrix.expected_pf }}
+          EXPECTED_TOTAL_R: ${{ matrix.expected_total_r }}
+          EXPECTED_DD: ${{ matrix.expected_dd }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from decimal import Decimal
+          from pathlib import Path
+
+          path = (
+              Path("audit-output")
+              / os.environ["SLUG"]
+              / "capitalizer-scalper-consumed-certification-audit-v2.json"
+          )
+          report = json.loads(path.read_text())
+          assert report["period"] == os.environ["PERIOD"]
+          assert report["checkpoint_metrics_reproduced_exactly"] is True
+          assert report["fresh_holdout_opened"] is False
+          assert report["consumed_evidence_only"] is True
+          assert report["trader_certified"] is False
+          economics = report["candidate_metrics"]["economics"]
+          assert economics["trades"] == int(os.environ["EXPECTED_TRADES"])
+          assert Decimal(economics["profit_factor"]) == Decimal(
+              os.environ["EXPECTED_PF"]
+          )
+          assert Decimal(economics["total_r"]) == Decimal(
+              os.environ["EXPECTED_TOTAL_R"]
+          )
+          assert Decimal(economics["max_drawdown_r"]) == Decimal(
+              os.environ["EXPECTED_DD"]
+          )
+          risk = report["candidate_metrics"]["daily_risk_adjusted"]
+          assert risk["zero_trade_weekdays_included"] is True
+          assert risk["annualization_periods_per_year"] == 252
+          assert risk["risk_free_rate_per_day"] == "0"
+          assert risk["minimum_acceptable_return_per_day"] == "0"
+          assert risk["sharpe_annualized"] is not None
+          assert risk["sortino_annualized"] is not None
+          preservation = report["winner_preservation"]
+          assert preservation["winner_count_preservation"] is not None
+          assert preservation["winner_r_preservation"] is not None
+          assert preservation["loss_recall"] is not None
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Upload consumed certification audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-consumed-certification-audit-v2-${{ matrix.slug }}-${{ github.sha }}
+          path: audit-output/${{ matrix.slug }}
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    if: always()
+    needs: audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-consumed-certification-audit-v2-*
+          path: results
+          merge-multiple: false
+      - name: Build current certification classification
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab import (
+              capitalizer_scalper_certification_standard_v2 as standard,
+          )
+
+          paths = sorted(
+              Path("results").rglob(
+                  "capitalizer-scalper-consumed-certification-audit-v2.json"
+              )
+          )
+          rows = [json.loads(path.read_text()) for path in paths]
+          assert len(rows) == 3, len(rows)
+          by_period = {row["period"]: row for row in rows}
+          validation = by_period["CONSUMED_VALIDATION_2022_2024"]
+          reserved = by_period["CONSUMED_RESERVED_2020_2022"]
+
+          def era(row):
+              economics = row["candidate_metrics"]["economics"]
+              risk = row["candidate_metrics"]["daily_risk_adjusted"]
+              return standard.OosEraEvidence(
+                  era=row["period"],
+                  profit_factor=Decimal(economics["profit_factor"]),
+                  expectancy_r_per_trade=Decimal(
+                      economics["expectancy_r_per_trade"]
+                  ),
+                  sharpe_annualized=Decimal(risk["sharpe_annualized"]),
+                  sortino_annualized=Decimal(risk["sortino_annualized"]),
+                  observed_max_drawdown_r=Decimal(
+                      economics["max_drawdown_r"]
+                  ),
+                  payoff_ratio=Decimal(economics["payoff_ratio"]),
+              )
+
+          oos_rows = (validation, reserved)
+          gross_profit = sum(
+              Decimal(row["candidate_metrics"]["economics"]["gross_profit_r"])
+              for row in oos_rows
+          )
+          gross_loss = sum(
+              Decimal(row["candidate_metrics"]["economics"]["gross_loss_r"])
+              for row in oos_rows
+          )
+          combined_pf = gross_profit / gross_loss
+
+          min_winner_count = min(
+              Decimal(row["winner_preservation"]["winner_count_preservation"])
+              for row in rows
+          )
+          min_winner_r = min(
+              Decimal(row["winner_preservation"]["winner_r_preservation"])
+              for row in rows
+          )
+
+          evidence = standard.CertificationEvidence(
+              oos_eras=(era(validation), era(reserved)),
+              combined_oos_profit_factor=combined_pf,
+              monte_carlo_positive_probability=None,
+              monte_carlo_p95_drawdown_r=None,
+              post_cost_profit_factor=None,
+              post_cost_expectancy_r_per_trade=None,
+              temporal_stability_verified=None,
+              anti_leakage_audit_passed=None,
+              prohibited_outcome_aware_logic_detected=False,
+              catastrophic_loss_clustering_absent=None,
+              mae_mfe_audit_complete=None,
+              loser_anatomy_audit_complete=None,
+              density_sufficient_after_quality=None,
+              fresh_holdout_integrity_verified=True,
+              fresh_holdout_evaluated_once=False,
+              fresh_holdout_passed=None,
+              winner_preservation_required=True,
+              winner_count_preservation=min_winner_count,
+              winner_r_preservation=min_winner_r,
+              risk_review_passed=None,
+              cibo_review_passed=None,
+              independent_validation_passed=None,
+              fatal_falsification=False,
+          )
+          decision = standard.evaluate_certification(evidence)
+          payload = {
+              "identity": (
+                  "QORE_CAPITALIZER_SCALPER_CONSUMED_CERTIFICATION_"
+                  "AUDIT_V2_AGGREGATE"
+              ),
+              "development_reference": by_period["DEVELOPMENT_2024_2026"],
+              "oos_consumed_periods": [
+                  validation["period"],
+                  reserved["period"],
+              ],
+              "combined_consumed_oos_profit_factor": str(combined_pf),
+              "classification": decision.classification.value,
+              "accepted": decision.accepted,
+              "missing_gate_count": decision.missing_gate_count,
+              "failed_gate_count": decision.failed_gate_count,
+              "gates": [
+                  {
+                      "gate": gate.gate,
+                      "status": gate.status.value,
+                      "detail": gate.detail,
+                  }
+                  for gate in decision.gates
+              ],
+              "v2_is_outcome_aware_diagnostic": True,
+              "runtime_policy_candidate": False,
+              "fresh_holdout_opened": False,
+              "trader_certified": False,
+          }
+          assert payload["classification"] == (
+              "INTERVENTION — CONTINUE WORK"
+          )
+          assert payload["accepted"] is False
+          Path("aggregate").mkdir()
+          out = Path("aggregate") / (
+              "capitalizer-consumed-certification-audit-v2-aggregate.json"
+          )
+          out.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+          print(json.dumps(payload, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-consumed-certification-audit-v2-aggregate-${{ github.sha }}
+          path: aggregate
+          if-no-files-found: error
+          retention-days: 90

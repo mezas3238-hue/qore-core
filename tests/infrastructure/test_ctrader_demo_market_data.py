@@ -83,6 +83,7 @@ def _result(
     *,
     instrument: str = "EURUSD",
     digits: int = 5,
+    period: CTraderTrendbarPeriod = CTraderTrendbarPeriod.M5,
     trendbars: tuple[CTraderTrendbar, ...] | None = None,
     has_more: bool = False,
 ) -> CTraderTrendbarReadResult:
@@ -90,7 +91,7 @@ def _result(
         instrument=instrument,
         symbol_id=1_234,
         digits=digits,
-        period=CTraderTrendbarPeriod.M5,
+        period=period,
         trendbars=(_trendbar(),) if trendbars is None else trendbars,
         has_more=has_more,
     )
@@ -178,6 +179,25 @@ def test_ctrader_closed_m5_normalizes_into_canonical_ohlc_snapshot() -> None:
     assert client.requests == [_request()]
 
 
+def test_ctrader_closed_m1_normalizes_into_canonical_ohlc_snapshot() -> None:
+    client = StubCTraderClient(
+        Success(_result(period=CTraderTrendbarPeriod.M1))
+    )
+    flow = CTraderDemoMarketDataFlow(CTraderDemoMarketDataPayloadAdapter(client=client))
+
+    result = flow.read_ohlc(
+        _request(timeframe_seconds=60),
+        snapshot_id=_SNAPSHOT_ID,
+        metadata=_metadata(),
+    )
+
+    assert isinstance(result, Success)
+    snapshot = result.value
+    assert snapshot.timeframe == Timeframe(60)
+    assert snapshot.opened_at == _OPENED_AT
+    assert snapshot.closed_at == _OPENED_AT + timedelta(minutes=1)
+
+
 def test_ctrader_relative_prices_honor_symbol_digits() -> None:
     client = StubCTraderClient(Success(_result(digits=3)))
     flow = CTraderDemoMarketDataFlow(CTraderDemoMarketDataPayloadAdapter(client=client))
@@ -196,7 +216,7 @@ def test_ctrader_relative_prices_honor_symbol_digits() -> None:
     assert snapshot.close == 1.1
 
 
-def test_ctrader_rejects_non_m5_request_before_client_call() -> None:
+def test_ctrader_rejects_non_m1_m5_request_before_client_call() -> None:
     client = StubCTraderClient(Success(_result()))
     adapter = CTraderDemoMarketDataPayloadAdapter(client=client)
 

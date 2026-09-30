@@ -1,0 +1,119 @@
+name: QORE Capitalizer USDJPY R0 Gross Characterization V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-usdjpy-r0-gross-characterization-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_r0_gross_characterization.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_r0_gross_characterization.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-usdjpy-r0-gross-characterization-v1-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_M5_RUN_ID: '35166210458'
+  SOURCE_M5_ARTIFACT: 'qore-cibo-market-atlas-10y-windowed-USDJPY-ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  SOURCE_JOURNEY_RUN_ID: '35175979474'
+  SOURCE_JOURNEY_ARTIFACT: 'qore-cibo-market-journey-USDJPY-9cc0f17a2f30846d61b242132547f39391909656'
+  SOURCE_TARGET_RUN_ID: '35204892665'
+  SOURCE_TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-USDJPY-2f510461b3360e91d5ee70a72716a76cd6561f16'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check --ignore E501 \
+            src/qore/infrastructure/trader_lab/capitalizer_r0_gross_characterization.py \
+            tests/infrastructure/trader_lab/test_capitalizer_r0_gross_characterization.py
+      - name: Mypy
+        run: |
+          mypy src/qore/infrastructure/trader_lab/capitalizer_r0_gross_characterization.py
+      - name: Focused R0 tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_r0_gross_characterization.py
+
+  characterize:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install QORE runtime
+        run: python -m pip install -e .
+      - name: Download immutable consumed M5
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_M5_ARTIFACT }}
+          path: m5-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_M5_RUN_ID }}
+      - name: Download immutable consumed Journey
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_JOURNEY_ARTIFACT }}
+          path: journey-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_JOURNEY_RUN_ID }}
+      - name: Download immutable consumed Target V2
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_TARGET_ARTIFACT }}
+          path: target-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_TARGET_RUN_ID }}
+      - name: Run conservative R0 gross characterization
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_r0_gross_characterization \
+            m5-source journey-source target-source r0-output
+      - name: Enforce characterization-only governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path(
+              'r0-output/capitalizer-usdjpy-r0-gross-characterization-v1.json'
+          )
+          result = json.loads(path.read_text())
+          assert result['identity'] == 'QORE_CAPITALIZER_R0_GROSS_CHARACTERIZATION_V1'
+          assert result['symbol'] == 'USDJPY'
+          assert result['session'] == 'ASIA'
+          assert result['metrics']['trades'] > 0
+          assert result['evidence_status'] == 'CONSUMED_RESEARCH_EVIDENCE'
+          assert result['characterization_only'] is True
+          assert result['economic_candidate'] is False
+          assert result['execution_costs_applied'] is False
+          assert result['portfolio_session_budget_applied'] is False
+          assert result['final_stop_contract_defined'] is False
+          assert result['final_target_contract_defined'] is False
+          assert result['fresh_holdout_claimed'] is False
+          assert result['rule_promotion_allowed'] is False
+          PY
+      - name: Upload immutable R0 characterization evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-usdjpy-r0-gross-characterization-v1-${{ github.sha }}
+          path: r0-output
+          if-no-files-found: error
+          retention-days: 90

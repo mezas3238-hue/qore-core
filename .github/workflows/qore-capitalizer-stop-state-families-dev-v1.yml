@@ -1,0 +1,140 @@
+name: QORE Capitalizer Stop State Families Development V1
+
+on:
+  push:
+    branches:
+      - agent/qore-capitalizer-cognitive-v1-001
+    paths:
+      - '.github/workflows/qore-capitalizer-stop-state-families-dev-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-stop-state-families-dev-v1-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_DEV_FORENSIC_RUN_ID: '35585286205'
+  SOURCE_DEV_FORENSIC_SHA: 'f728f819266fab7e371873cff85ae7aa4fb489dd'
+
+jobs:
+  market:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        symbol:
+          - AUDJPY
+          - AUDUSD
+          - EURUSD
+          - GBPJPY
+          - GBPUSD
+          - NAS100
+          - USDCAD
+          - USDJPY
+          - XAUUSD
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install runtime
+        run: python -m pip install -e .
+      - name: Download consumed development forensic dossier
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-capitalizer-m1-loss-causal-forensics-dev-${{ matrix.symbol }}-${{ env.SOURCE_DEV_FORENSIC_SHA }}
+          path: forensic-input
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_DEV_FORENSIC_RUN_ID }}
+      - name: Build exact development state families
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_market_stop_state_family_lab_v1 \
+            market forensic-input state-family-output
+      - name: Enforce development-family governance
+        env:
+          EXPECTED_SYMBOL: ${{ matrix.symbol }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          symbol = os.environ["EXPECTED_SYMBOL"]
+          path = Path("state-family-output") / (
+              f"capitalizer-{symbol.lower()}-market-stop-state-families-v1.json"
+          )
+          report = json.loads(path.read_text())
+          assert report["identity"] == "QORE_CAPITALIZER_MARKET_STOP_STATE_FAMILY_LAB_V1"
+          assert report["symbol"] == symbol
+          assert report["source_trade_count"] > 0
+          assert report["family_count"] > 0
+          assert report["family_key_uses_outcome"] is False
+          assert report["exact_state_families_built"] is True
+          assert report["buffer_candidate_frozen"] is False
+          assert report["fresh_holdout_claimed"] is False
+          assert report["rule_promotion_allowed"] is False
+          assert report["economic_candidate"] is False
+          assert report["trader_certified"] is False
+          PY
+      - name: Upload development state-family dossier
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-stop-state-family-dev-${{ matrix.symbol }}-${{ github.sha }}
+          path: state-family-output
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: market
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install runtime
+        run: python -m pip install -e .
+      - name: Download nine development family dossiers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-stop-state-family-dev-*-${{ github.sha }}
+          path: state-family-input
+          merge-multiple: false
+      - name: Build development state-family matrix
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_market_stop_state_family_lab_v1 \
+            matrix state-family-input matrix-output
+      - name: Enforce development matrix
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "matrix-output/capitalizer-nine-market-stop-state-family-matrix-v1.json"
+              ).read_text()
+          )
+          assert report["market_count"] == 9
+          assert report["total_trades"] == 10705
+          assert report["family_key_uses_outcome"] is False
+          assert report["buffer_candidate_frozen"] is False
+          assert report["fresh_holdout_claimed"] is False
+          assert report["rule_promotion_allowed"] is False
+          assert report["economic_candidate"] is False
+          assert report["trader_certified"] is False
+          PY
+      - name: Upload development state-family matrix
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-nine-market-stop-state-family-dev-v1-${{ github.sha }}
+          path: matrix-output
+          if-no-files-found: error
+          retention-days: 90

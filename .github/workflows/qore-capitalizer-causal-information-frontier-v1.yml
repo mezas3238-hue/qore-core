@@ -1,0 +1,143 @@
+name: QORE Capitalizer Causal Information Frontier V1
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/qore-capitalizer-causal-information-frontier-v1.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_causal_information_frontier_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_causal_information_frontier_v1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-capitalizer-causal-information-frontier-v1-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  V21_RUN_ID: '36264229554'
+  V21_ARTIFACT_SHA: '05452328bbf5cbbc4b26210791d13114105e3f9d'
+  V29_RUN_ID: '36283499014'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check \
+            src/qore/infrastructure/trader_lab/capitalizer_causal_information_frontier_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_causal_information_frontier_v1.py
+      - name: Mypy
+        run: |
+          mypy \
+            src/qore/infrastructure/trader_lab/capitalizer_causal_information_frontier_v1.py \
+            tests/infrastructure/trader_lab/test_capitalizer_causal_information_frontier_v1.py
+      - name: Focused tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_capitalizer_causal_information_frontier_v1.py
+
+  aggregate:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download authoritative reconstructed consumed evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v21-reconstructed-*-${{ env.V21_ARTIFACT_SHA }}
+          path: reconstructed
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V21_RUN_ID }}
+      - name: Download authoritative V29 native-M1 trigger states
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-capitalizer-v29-trigger-state-*
+          path: trigger-states
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V29_RUN_ID }}
+      - name: Run causal information frontier
+        run: |
+          python -m qore.infrastructure.trader_lab.capitalizer_causal_information_frontier_v1 \
+            reconstructed/development-input \
+            reconstructed/validation-input \
+            reconstructed/reserved-input \
+            reconstructed/development-validation-context \
+            reconstructed/reserved-context \
+            trigger-states \
+            experiment-output
+      - name: Enforce diagnostic contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(
+                  "experiment-output/"
+                  "capitalizer-causal-information-frontier-v1.json"
+              ).read_text()
+          )
+          assert report["identity"] == (
+              "QORE_CAPITALIZER_CAUSAL_INFORMATION_FRONTIER_V1"
+          )
+          assert report["evaluation"] == (
+              "CROSS_ERA_CAUSAL_TWIN_INFORMATION_FRONTIER"
+          )
+          assert report["source_state_identity"] == (
+              "QORE_CAPITALIZER_EVENT_TIME_PORTFOLIO_TRIGGER_STATE_V31"
+          )
+          assert report["causal_state_dimension"] == 95
+          assert report["matching_cell"] == (
+              "SAME_TRIGGER_FAMILY_AND_SAME_SURFACE_MODE"
+          )
+          assert report["trainer_world_scaling_independent"] is True
+          assert report["outcomes_used_in_matching"] is False
+          assert report["heldout_outcome_visible_to_matching"] is False
+          assert report["identity_features_used_in_matching"] is False
+          assert report["oracle_labels_use_future_information"] is True
+          assert report["oracle_labels_diagnostic_only"] is True
+          assert report["action_effect_sign_is_vs_same_surface_mode"] is True
+          assert report["policy_economics_run"] is False
+          assert report["admission_changed"] is False
+          assert report["sizing_changed"] is False
+          assert report["trader_certified"] is False
+          assert len(report["results"]) == 3
+
+          for row in report["results"]:
+              all_states = row["all_surface_trigger_states"]
+              assert all_states["states"] > 0
+              assert all_states["resolved_twin_states"] > 0
+              assert all_states["action_sign_comparisons"] > 0
+              active = row["active_drawdown_states"]
+              assert active["states"] > 0
+              max_dd = row["max_dd_descent_entrants"]
+              assert max_dd["states"] > 0
+
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Upload causal information frontier evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-capitalizer-causal-information-frontier-v1-${{ github.sha }}
+          path: experiment-output
+          if-no-files-found: error
+          retention-days: 90
