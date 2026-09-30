@@ -1345,7 +1345,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ACCOUNT_SCOPED_TRUTH_PLUS_FORWARD_BINDING_ENGINE_STAGED_CI_PENDING_REAL_POPULATION_OPEN",
+      "current_maturity": "FORWARD_BINDING_PLUS_ARCH_A_CAPITAL_STATE_DELIVERY_STAGED_CI_PENDING_PATH_HISTORY_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_integrated_capital_truth.py",
@@ -1363,14 +1363,21 @@
         "tests/infrastructure/test_cibo_integrated_capital_scope_store.py",
         "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py",
         "tests/infrastructure/test_cibo_integrated_capital_forward_binding.py",
-        ".github/workflows/cibo-integrated-capital-forward-binding.yml"
+        ".github/workflows/cibo-integrated-capital-forward-binding.yml",
+        "src/qore/infrastructure/cibo_arch_a_capital_state_delivery.py",
+        "tests/infrastructure/test_cibo_arch_a_capital_state_delivery.py",
+        ".github/workflows/cibo-architect-a-capital-state-delivery.yml",
+        "docs/research/CIBO-INTEGRATOR-TO-ARCH-A-EVIDENCE-DELIVERY-V1.json"
       ],
       "blockers": [
-        "INTEGRATOR_FORWARD_CAPITAL_BINDING_CI_REQUIRED",
+        "INTEGRATOR_ARCH_A_CAPITAL_STATE_DELIVERY_CI_REQUIRED",
         "REAL_CHRONOLOGICAL_FORWARD_POPULATION_BINDING_REQUIRED",
+        "PATH_MINIMUM_CAPITAL_STATE_HISTORY_REQUIRED",
+        "PROTECTED_FLOOR_GRADUATION_PATH_EVIDENCE_REQUIRED",
+        "PROFIT_GIVEBACK_PATH_EVIDENCE_REQUIRED",
         "ACCOUNT_SCOPED_FIVE_STORE_RECOVERY_CI_REVALIDATION_REQUIRED"
       ],
-      "next_gate": "Pass forward-binding CI; then bind the exact scientifically-ready forward settlement population to Compound and IntegratedCapitalTruth with exact settlement/profit equivalence."
+      "next_gate": "Pass Architect-A capital-state delivery CI; bind real scientifically-ready forward settlements to exact Source Ledger/Compound deployment lineage; then materialize chronological path minima, protected-floor graduation and giveback histories without semantic substitution."
     },
     {
       "id": "AS_IS_ECONOMIC_BASELINE",
