@@ -41,7 +41,7 @@ def _authorization() -> T20CapitalAuthorizationEvidence:
         execution_realized_at=T0 + timedelta(seconds=3),
         execution_realized_margin_usd=Decimal("12"),
         execution_realized_stop_risk_usd=Decimal("1.2"),
-        capital_deployed_at=T0 + timedelta(seconds=2),
+        capacity_deployed_at=T0 + timedelta(seconds=2),
         source_refs=(
             "cibo-request:001",
             "qore-risk:001",
@@ -97,7 +97,7 @@ def _outcome() -> Phase20ForwardOutcomeSeal:
         realized_net_pnl_usd=Decimal("2.00"),
         executed_initial_stop_risk_usd=Decimal("1.2"),
         realized_structural_outcome_r=Decimal("1.666666666666666666666666667"),
-        capacity_deployed_at=T0 + timedelta(seconds=2),
+        capital_deployed_at=T0 + timedelta(seconds=2),
         capital_released_at=T0 + timedelta(minutes=10, seconds=2),
         capital_minutes=Decimal("10"),
     )
