@@ -417,3 +417,30 @@ def test_pre_exam_gate_still_blocks_other_open_work(
 
     assert verdict.passed is False
     assert verdict.open_workstream_ids == ("SCIENTIFIC_WORK",)
+
+
+def test_integrator_preserves_architect_b_inventory_classifiers() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
+        "src/qore/infrastructure/cibo_research_memory.py",
+    )
+    ledger_ids = frozenset(
+        {
+            "FORWARD_QUALIFICATION",
+            "PROVIDER_ECONOMICS",
+            "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK",
+        }
+    )
+
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    assert dict(assignments) == {
+        "src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py": "FORWARD_QUALIFICATION",
+        "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py": "PROVIDER_ECONOMICS",
+        "src/qore/infrastructure/cibo_research_memory.py": "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK",
+    }
+    assert orphans == ()
