@@ -10,7 +10,6 @@ from qore.infrastructure.core_stack_v2.system_blindspot_diagnostics import (
     build_second_order_system_diagnostics,
 )
 
-
 NOW = datetime(2026, 9, 30, 21, 5, tzinfo=UTC)
 
 

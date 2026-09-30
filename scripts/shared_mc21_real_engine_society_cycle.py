@@ -47,7 +47,7 @@ def _find_sti5(root: Path) -> dict[str, Any]:
         if (
             isinstance(payload, dict)
             and payload.get("identity") == "QORE_SHARED_STI5_REAL_REGIME_TRANSITION_V1"
-            and payload.get("mode") == "evaluate"
+            and payload.get("mode") == "CAUSAL_HISTORICAL_REPLAY"
         ):
             matches.append(payload)
     if len(matches) != 1:
