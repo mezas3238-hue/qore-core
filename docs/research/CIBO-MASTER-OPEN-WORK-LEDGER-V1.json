@@ -240,40 +240,41 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "FAIL_CLOSED_PROVIDER_UNIVERSE_EVIDENCE_REQUIRED",
+      "current_maturity": "PROVIDER_POLICY_RECONCILED_ACCOUNT_SPECIFIC_HEDGE_EVIDENCE_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "src/qore/infrastructure/cibo_ce2i_calibration_registry.py",
         "src/qore/infrastructure/cibo_instrument_capability_registry.py",
-        "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py"
+        "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
+        "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md"
       ],
       "blockers": [
-        "CERTIFIED_HEDGE_PROVIDER_UNIVERSE_NOT_AVAILABLE",
-        "PROVIDER_VERIFIED_SUPPORT_OR_UNAVAILABLE_STATUS_REQUIRED",
-        "ECONOMIC_COST_RISK_EXECUTION_EVIDENCE_REQUIRED_IF_SUPPORTED"
+        "CTRADER_DEMO_ACCOUNT_TYPE_AND_SYMBOL_CATALOG_OBSERVATION_REQUIRED",
+        "T16_HEDGE_INSTRUMENT_BASIS_RISK_COST_CORRELATION_EVIDENCE_REQUIRED",
+        "T16_PROVIDER_BOUND_OOS_ECONOMIC_UTILITY_REQUIRED"
       ],
-      "next_gate": "Obtain provider-verified HEDGE capability evidence. If supported, execute provider-bound economic research; if provider-verified unavailable, close as current-provider ineligible without inventing capability."
+      "next_gate": "Observe the actual connected cTrader DEMO/FundedNext account capability catalog, then only if a valid hedge instrument exists bind basis-risk, cost, correlation, execution and fresh OOS economics."
     },
     {
       "id": "T17",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "FAIL_CLOSED_PROVIDER_UNIVERSE_EVIDENCE_REQUIRED",
+      "current_maturity": "FUNDEDNEXT_CFD_OPTIONS_UNAVAILABLE_CTRADER_ACCOUNT_CATALOG_UNKNOWN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "src/qore/infrastructure/cibo_ce2i_calibration_registry.py",
         "src/qore/infrastructure/cibo_instrument_capability_registry.py",
-        "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py"
+        "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
+        "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md"
       ],
       "blockers": [
-        "CERTIFIED_OPTION_DEFINED_RISK_SPREAD_PROVIDER_UNIVERSE_NOT_AVAILABLE",
-        "PROVIDER_VERIFIED_SUPPORT_OR_UNAVAILABLE_STATUS_REQUIRED",
-        "ECONOMIC_COST_RISK_EXECUTION_EVIDENCE_REQUIRED_IF_SUPPORTED"
+        "CTRADER_DEMO_ACCOUNT_SYMBOL_CATALOG_OBSERVATION_REQUIRED",
+        "T17_ACCOUNT_BOUND_PROVIDER_STATUS_REQUIRED"
       ],
-      "next_gate": "Obtain provider-verified OPTION/DEFINED_RISK_SPREAD capability evidence. If supported, execute provider-bound economic research; if provider-verified unavailable, close as current-provider ineligible without inventing capability."
+      "next_gate": "Treat FundedNext CFD options/defined-risk spreads as unavailable under the current comprehensive CFD catalog; observe the actual cTrader DEMO broker/account catalog before assigning its T17 capability status."
     },
     {
       "id": "T18",
@@ -710,19 +711,21 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "POINT_IN_TIME_PROVIDER_TERMS_BOUND_HISTORICAL_AND_CAPABILITY_GAPS_OPEN",
+      "current_maturity": "POINT_IN_TIME_TERMS_BOUND_PROVIDER_POLICY_RECONCILED_ACCOUNT_CAPABILITY_AND_FORWARD_COST_GAPS_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py",
         "src/qore/infrastructure/cibo_fundednext_provider.py",
-        "src/qore/infrastructure/cibo_instrument_capability_registry.py"
+        "src/qore/infrastructure/cibo_instrument_capability_registry.py",
+        "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md"
       ],
       "blockers": [
         "HISTORICAL_PROVIDER_USD_ECONOMICS_NOT_AVAILABLE_FOR_LEGACY_REPLAY",
         "EMPIRICAL_SLIPPAGE_CALIBRATION_REQUIRED_WHERE_USD_CLAIMS_REQUIRE_IT",
-        "T16_T17_PROVIDER_CAPABILITY_UNIVERSE_NOT_PROVIDER_VERIFIED"
+        "CTRADER_DEMO_ACCOUNT_BOUND_CAPABILITY_CATALOG_REQUIRED",
+        "T16_ACCOUNT_BOUND_HEDGE_ECONOMICS_REQUIRED_IF_SUPPORTED"
       ],
-      "next_gate": "Bind only provider-native point-in-time terms and forward observed costs; keep historical research R-denominated where USD fields are absent; obtain provider-verified T16/T17 capability evidence."
+      "next_gate": "Bind current account-specific symbol/account-type observations and forward realized costs; keep legacy history R-denominated where provider USD economics are absent."
     },
     {
       "id": "FORWARD_QUALIFICATION",
