@@ -74,6 +74,10 @@ def build_report(
         "same_symbol_opposite_positions_supported": (
             observation.same_symbol_opposite_positions_supported
         ),
+        "is_limited_risk": observation.is_limited_risk,
+        "limited_risk_margin_calculation_strategy": (
+            observation.limited_risk_margin_calculation_strategy
+        ),
         "symbol_count": len(observation.symbols),
         "enabled_symbol_count": observation.enabled_symbol_count,
         "catalog_sha256": observation.catalog_sha256,
