@@ -1,0 +1,155 @@
+name: QORE Shared B AGRI Inherited Evidence Rebind
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+      - agent/shared-support-b-agri-inherited-rebind-001
+    paths:
+      - .github/workflows/qore-shared-b-agri-inherited-rebind.yml
+      - docs/shared/integration/SHARED_B_AGRI_INHERITED_EVIDENCE_REBIND_001.md
+  pull_request:
+    paths:
+      - .github/workflows/qore-shared-b-agri-inherited-rebind.yml
+      - docs/shared/integration/SHARED_B_AGRI_INHERITED_EVIDENCE_REBIND_001.md
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  SOURCE_RUN_ID: "36623645085"
+  SOURCE_ARTIFACT_ID: "11059457712"
+  SOURCE_SHA: "0ce7a2938fa50328d8ab569f47c776852dd5eafe"
+  SOURCE_BRANCH: "agent/qore-core-stack-v2-shared-001"
+  COMMON_CHECKPOINT_SHA: "7d1b54cfa5453c0eb5c0662438ed15e7d656da61"
+
+jobs:
+  rebind:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify original workflow and immutable artifact metadata
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          run_json="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}")"
+          test "$(jq -r '.status' <<<"$run_json")" = "completed"
+          test "$(jq -r '.conclusion' <<<"$run_json")" = "success"
+          test "$(jq -r '.head_sha' <<<"$run_json")" = "$SOURCE_SHA"
+          test "$(jq -r '.head_branch' <<<"$run_json")" = "$SOURCE_BRANCH"
+
+          artifact_json="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${SOURCE_ARTIFACT_ID}")"
+          test "$(jq -r '.expired' <<<"$artifact_json")" = "false"
+          test "$(jq -r '.workflow_run.id' <<<"$artifact_json")" = "$SOURCE_RUN_ID"
+          test "$(jq -r '.workflow_run.head_sha' <<<"$artifact_json")" = "$SOURCE_SHA"
+          test "$(jq -r '.workflow_run.head_branch' <<<"$artifact_json")" = "$SOURCE_BRANCH"
+          jq -r '.digest' <<<"$artifact_json" > result/original-artifact-digest.txt
+
+      - name: Verify pre-split ancestry
+        run: |
+          set -euo pipefail
+          git cat-file -e "${SOURCE_SHA}^{commit}"
+          git cat-file -e "${COMMON_CHECKPOINT_SHA}^{commit}"
+          git merge-base --is-ancestor "$SOURCE_SHA" "$COMMON_CHECKPOINT_SHA"
+          git merge-base --is-ancestor "$COMMON_CHECKPOINT_SHA" "$GITHUB_SHA"
+
+      - name: Recover and verify original AGRI-1 pack
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${SOURCE_ARTIFACT_ID}/zip" > agri.zip
+          unzip -q agri.zip -d input
+          test -f input/result/SHA256SUMS
+          (cd input/result && sha256sum -c SHA256SUMS)
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          pack=json.loads(Path("input/result/agri1-evidence-pack.json").read_text())
+          audit=json.loads(
+              Path("input/result/agricultural-provider-capability-audit.json").read_text()
+          )
+          matrix=json.loads(
+              Path("input/result/global-agricultural-sensor-matrix.json").read_text()
+          )
+
+          assert pack["head"] == "0ce7a2938fa50328d8ab569f47c776852dd5eafe"
+          assert pack["run_id"] == 36623645085
+          assert pack["source_provider_sensor_count"] == 177
+          assert pack["conceptual_market_count"] == 16
+          assert pack["provider_candidate_count"] == 0
+          assert pack["protected_holdout_opened"] is False
+          assert pack["shared_execution_authority"] is False
+          assert pack["shared_risk_authority"] is False
+          assert pack["shared_sizing_authority"] is False
+
+          assert audit["provider_candidate_count"] == 0
+          assert audit["conceptual_market_count"] == 16
+          assert audit["result"] == (
+              "NO_AGRICULTURAL_SOFTS_OR_LIVESTOCK_CANDIDATES_DISCOVERED"
+          )
+          assert audit["automatic_sensor_admission"] is False
+          assert audit["relational_claims_authorized"] is False
+          assert audit["protected_holdout_opened"] is False
+
+          assert matrix["row_count"] == 16
+          assert matrix["target_count"] == 16
+          assert all(row["provider_candidates"] == [] for row in matrix["rows"])
+          assert all(row["scientific_maturity"] == "ABSENT" for row in matrix["rows"])
+          PY
+
+      - name: Build B-native inherited-evidence binding
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          payload={
+              "identity":"SHARED_B_AGRI_INHERITED_EVIDENCE_REBIND_001",
+              "capability_scope":"B-14",
+              "disposition":"EXTERNAL_DEPENDENCY_BLOCKED_EVIDENCE_VERIFIED",
+              "source_run_id":int(os.environ["SOURCE_RUN_ID"]),
+              "source_artifact_id":int(os.environ["SOURCE_ARTIFACT_ID"]),
+              "source_sha":os.environ["SOURCE_SHA"],
+              "source_branch":os.environ["SOURCE_BRANCH"],
+              "common_checkpoint_sha":os.environ["COMMON_CHECKPOINT_SHA"],
+              "source_is_ancestor_of_common_checkpoint":True,
+              "common_checkpoint_is_ancestor_of_rebind_head":True,
+              "provider_sensor_count":177,
+              "conceptual_agricultural_market_count":16,
+              "provider_candidate_count":0,
+              "original_artifact_digest":Path(
+                  "result/original-artifact-digest.txt"
+              ).read_text().strip(),
+              "historical_origin_preserved":True,
+              "evidence_reauthored":False,
+              "fresh_holdout_opened":False,
+              "broker_mutation":False,
+              "productive_authority":False,
+          }
+          Path("result/shared-b-agri-inherited-rebind.json").write_text(
+              json.dumps(payload,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+          printf '%s\n' "$GITHUB_SHA" > result/rebind-head-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/rebind-run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 |
+              sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-agri-inherited-rebind-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
