@@ -780,3 +780,34 @@ def test_integrator_classifies_ctrader_taxonomy_and_t17_limited_risk() -> None:
         ".github/workflows/cibo-t17-provider-capability-receipt.yml": "T17",
     }
     assert orphans == ()
+
+
+def test_integrator_classifies_source_of_truth_reconciliation_surface() -> None:
+    inventory = (
+        "scripts/cibo_source_of_truth_reconciliation_gate.py",
+        "tests/infrastructure/test_cibo_source_of_truth_reconciliation_gate.py",
+        ".github/workflows/cibo-source-of-truth-reconciliation.yml",
+        "docs/research/CIBO-SOURCE-OF-TRUTH-RECONCILIATION-V1.md",
+    )
+    ledger_ids = frozenset({"SOURCE_OF_TRUTH_RECONCILIATION"})
+
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    assert dict(assignments) == {
+        "scripts/cibo_source_of_truth_reconciliation_gate.py": (
+            "SOURCE_OF_TRUTH_RECONCILIATION"
+        ),
+        "tests/infrastructure/test_cibo_source_of_truth_reconciliation_gate.py": (
+            "SOURCE_OF_TRUTH_RECONCILIATION"
+        ),
+        ".github/workflows/cibo-source-of-truth-reconciliation.yml": (
+            "SOURCE_OF_TRUTH_RECONCILIATION"
+        ),
+        "docs/research/CIBO-SOURCE-OF-TRUTH-RECONCILIATION-V1.md": (
+            "SOURCE_OF_TRUTH_RECONCILIATION"
+        ),
+    }
+    assert orphans == ()
