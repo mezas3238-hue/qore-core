@@ -1,7 +1,7 @@
 {
   "schema": "CIBO_ARCH_B_CLOSURE_HANDOFF_V1",
   "branch": "agent/cibo-certification-architect-b-integration-001",
-  "implementation_checkpoint_sha": "0ebc8afcc6b13e3fb2afebe7300d695c18ed33ef",
+  "implementation_checkpoint_sha": "69beac932e363c8b6f81e65209e2dd44c263cfb2",
   "primary_pr": 651,
   "child_pr": 661,
   "governance": {
@@ -162,13 +162,17 @@
     },
     {
       "id": "FRESH_OOS",
-      "b_status": "PHASE20D_PHASE21_PHASE22_PLUMBING_PRESENT",
+      "b_status": "DYNAMIC_PHASE20D_TO_PRE_HOLDOUT_FREEZE_BRIDGE_IMPLEMENTED",
       "recommended_ledger_disposition": null,
       "evidence": [
         "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
         "src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py",
         "src/qore/infrastructure/cibo_ce2i_phase22_holdout_gate.py",
-        "src/qore/infrastructure/cibo_ce2i_phase22_qualification.py"
+        "src/qore/infrastructure/cibo_ce2i_phase22_qualification.py",
+        "src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py",
+        "tests/infrastructure/test_cibo_ce2i_calibration_freeze_manifest.py",
+        ".github/workflows/cibo-calibration-freeze-manifest.yml",
+        "docs/research/CIBO-B-CALIBRATION-FREEZE-MANIFEST-V1.md"
       ],
       "blockers": [
         "REAL_PHASE20D_FORWARD_POPULATION_REQUIRED",
