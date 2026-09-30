@@ -52,20 +52,13 @@ FACTS: tuple[V48RouteDetectorFact, ...] = (
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_ASIA_POSITIONAL,
-        "LTF_CISD_CONFIRMED",
+        "LTF_PROTECTED_SWING_CONFIRMED_BY_CISD",
         V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND,
         "capitalizer_source_cisd_ftm_v2.py::detect_cisd",
         (
-            "Raw structural CISD mechanics are reusable but V2 setup_confirmed carries "
-            "old HTF coupling."
+            "Raw CISD/protected-swing mechanics are reusable but V2 setup_confirmed "
+            "carries old HTF coupling."
         ),
-    ),
-    V48RouteDetectorFact(
-        V48RouteId.TTRADES_ASIA_POSITIONAL,
-        "PROTECTED_SWING_CONFIRMED",
-        V48DetectorReadiness.REUSABLE_CAUSAL_PRIMITIVE,
-        "capitalizer_source_observation_detectors_v2.py::confirm_protected_swing",
-        "Protected-swing confirmation is a causal primitive independent of economics.",
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_ASIA_POSITIONAL,
@@ -83,10 +76,10 @@ FACTS: tuple[V48RouteDetectorFact, ...] = (
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_ASIA_4H_15M,
-        "M15_CISD_CONFIRMED",
+        "M15_PROTECTED_SWING_CONFIRMED_BY_CISD",
         V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND,
         "capitalizer_source_cisd_ftm_v2.py::detect_cisd",
-        "Use raw structural CISD, not the old setup_confirmed conjunction.",
+        "Use one causal CISD-to-protected-swing fact, not two independent gates.",
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_ASIA_4H_15M,
@@ -104,13 +97,6 @@ FACTS: tuple[V48RouteDetectorFact, ...] = (
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
-        "DAILY_WICK_FORMATION_CONFIRMED",
-        V48DetectorReadiness.DETECTOR_MISSING,
-        "V48_LONDON_DAILY_WICK_DETECTOR_REQUIRED",
-        "Need a causal daily-wick completion detector before body participation.",
-    ),
-    V48RouteDetectorFact(
-        V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
         "H4_WICK_SWING_STRUCTURE_CONFIRMED",
         V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND,
         "capitalizer_source_observation_detectors_v2.py",
@@ -118,10 +104,10 @@ FACTS: tuple[V48RouteDetectorFact, ...] = (
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
-        "M15_CISD_CONFIRMED",
+        "M15_PROTECTED_SWING_CONFIRMED_BY_CISD",
         V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND,
         "capitalizer_source_cisd_ftm_v2.py::detect_cisd",
-        "Structural CISD mechanics reusable after removing old route coupling.",
+        "CISD confirms the protected swing; keep it as one causal route fact.",
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
