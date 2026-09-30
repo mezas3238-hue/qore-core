@@ -88,6 +88,8 @@ class CTraderDemoAccountCapabilityObservation:
     same_symbol_opposite_positions_supported: bool | None
     symbols: tuple[CTraderDemoCatalogSymbol, ...]
     catalog_sha256: str
+    is_limited_risk: bool | None = None
+    limited_risk_margin_calculation_strategy: int | None = None
     broker_mutation_performed: bool = False
     t16_hedge_instrument_certified: bool = False
     t17_option_structure_certified: bool = False
@@ -146,6 +148,24 @@ class CTraderDemoAccountCapabilityObservation:
         if self.catalog_sha256 != _catalog_sha256(self.symbols):
             raise CiboCapitalManagementError(
                 "cTrader capability catalog digest drift"
+            )
+        if self.is_limited_risk is not None and type(self.is_limited_risk) is not bool:
+            raise CiboCapitalManagementError(
+                "cTrader capability is_limited_risk must be bool/null"
+            )
+        if self.limited_risk_margin_calculation_strategy is not None and (
+            type(self.limited_risk_margin_calculation_strategy) is not int
+            or self.limited_risk_margin_calculation_strategy not in {0, 1, 2}
+        ):
+            raise CiboCapitalManagementError(
+                "cTrader capability limited-risk margin strategy invalid"
+            )
+        if (
+            self.is_limited_risk is not True
+            and self.limited_risk_margin_calculation_strategy is not None
+        ):
+            raise CiboCapitalManagementError(
+                "cTrader capability limited-risk margin strategy requires limited-risk account"
             )
         if (
             self.broker_mutation_performed
@@ -214,6 +234,23 @@ def collect_ctrader_demo_account_capability(
             "cTrader capability accountType value is unsupported/unknown"
         )
 
+    limited_risk_present = _field_present(trader, "isLimitedRisk")
+    limited_risk_raw = (
+        getattr(trader, "isLimitedRisk", None) if limited_risk_present else None
+    )
+    is_limited_risk = (
+        limited_risk_raw if type(limited_risk_raw) is bool else None
+    )
+    limited_strategy = (
+        getattr(trader, "limitedRiskMarginCalculationStrategy", None)
+        if _field_present(trader, "limitedRiskMarginCalculationStrategy")
+        else None
+    )
+    if type(limited_strategy) is not int or limited_strategy not in {0, 1, 2}:
+        limited_strategy = None
+    if is_limited_risk is not True:
+        limited_strategy = None
+
     listed = _request(
         client,
         "ProtoOASymbolsListReq",
@@ -259,6 +296,8 @@ def collect_ctrader_demo_account_capability(
         same_symbol_opposite_positions_supported=same_symbol,
         symbols=symbols,
         catalog_sha256=_catalog_sha256(symbols),
+        is_limited_risk=is_limited_risk,
+        limited_risk_margin_calculation_strategy=limited_strategy,
     )
 
 
