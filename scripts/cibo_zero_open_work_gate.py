@@ -79,6 +79,13 @@ _COMMENT_MARKERS = (
 
 _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_cma_compound_authority_boundary*", "CMA_FOUNDATION_INTEGRATION"),
+    ("*cibo_ce2i_t02_terminal_reason_evidence*", "T02"),
+    ("*cibo_ce2i_phase20_t02_structural_oos*", "T02"),
+    ("*t02-forward-structural-oos*", "T02"),
+    ("*CIBO-B-T02-FORWARD-STRUCTURAL-OOS*", "T02"),
+    ("*cibo_ce2i_t11_execution_cost_calibration*", "T11"),
+    ("*t11-execution-cost-calibration*", "T11"),
+    ("*CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION*", "T11"),
     ("*cma-compound-boundary*", "CMA_FOUNDATION_INTEGRATION"),
     ("*CMA-COMPOUND-AUTHORITY-BOUNDARY*", "CMA_FOUNDATION_INTEGRATION"),
     ("*cibo_legacy_stack_quarantine*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
