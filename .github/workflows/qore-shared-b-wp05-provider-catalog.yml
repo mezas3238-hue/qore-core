@@ -19,6 +19,7 @@ concurrency:
 
 permissions:
   contents: read
+  issues: write
 
 env:
   B_BASE_HEAD: "7d1b54cfa5453c0eb5c0662438ed15e7d656da61"
@@ -207,9 +208,48 @@ jobs:
           PY
 
       - name: Upload sealed B evidence pack
+        id: evidence_upload
         uses: actions/upload-artifact@v4
         with:
           name: qore-shared-b-wp05-provider-catalog-evidence-${{ github.sha }}
           path: result/shared-b-provider-catalog-evidence-pack.json
           if-no-files-found: error
           retention-days: 90
+
+      - name: Report B provider catalogue evidence to WP-05
+        if: always()
+        env:
+          RAW_ARTIFACT_ID: ${{ steps.raw_upload.outputs.artifact-id }}
+          EVIDENCE_ARTIFACT_ID: ${{ steps.evidence_upload.outputs.artifact-id }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ ! -f result/shared-b-provider-catalog-evidence-pack.json ]; then
+            gh issue comment 643 --body "Architect B provider-catalog evidence run ${GITHUB_RUN_ID} on ${GITHUB_SHA} failed before a lawful sealed evidence pack was produced. No Target-V2 outcomes, R6/R5 or fresh holdout were opened."
+            exit 0
+          fi
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(Path("result/shared-b-provider-catalog-evidence-pack.json").read_text())
+          lines=[
+              "## Architect B — WP-05 provider catalogue evidence",
+              "",
+              f"- B Git SHA: {os.environ['GITHUB_SHA']}",
+              f"- workflow run: {os.environ['GITHUB_RUN_ID']}",
+              f"- enabled symbols: **{p['enabled_symbol_count']}**",
+              f"- provider catalogue SHA256: {p['provider_catalog_sha256']}",
+              f"- previous catalogue SHA256: {p['previous_catalog_sha256']}",
+              f"- catalogue identity changed: **{p['catalog_identity_changed']}**",
+              f"- raw evidence SHA256: {p['raw_evidence_sha256']}",
+              f"- raw artifact ID: {os.environ.get('RAW_ARTIFACT_ID','')}",
+              f"- provenance artifact ID: {os.environ.get('EVIDENCE_ARTIFACT_ID','')}",
+              "- target/outcome read: **False**",
+              "- R6/R5 read: **False**",
+              "- fresh holdout opened: **False**",
+              "- broker mutation: **False**",
+          ]
+          Path("result/b-issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 643 --body-file result/b-issue-comment.md
