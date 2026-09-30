@@ -267,10 +267,12 @@ B_WORK_ITEMS: Final = (
         (
             "artifact:11112547465",
             "artifact:11113260581",
+            "artifact:11117991672",
             "run:36746337433",
+            "run:36758248635",
         ),
         (
-            "global sensor-universe replay/provenance audit remains incomplete",
+            "provenance coverage is verified for current sealed B evidence but does not yet cover all mandatory B workstreams",
         ),
     ),
     SharedBWorkItem(
