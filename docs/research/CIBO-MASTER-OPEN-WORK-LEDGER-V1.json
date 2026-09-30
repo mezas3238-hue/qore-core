@@ -329,19 +329,19 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_DEDICATED_END_TO_END_RECONCILIATION_REPLAY_GATE_ADDED_CI_PENDING",
-      "terminal_disposition": null,
+      "current_maturity": "MATHEMATICAL_ACCOUNTING_AND_PROVENANCE_RECONCILIATION_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
         "tests/infrastructure/test_cibo_compound_cycle_replay.py",
         "src/qore/infrastructure/cibo_compound_cycle_replay.py",
         "src/qore/infrastructure/cibo_compound_cycle_audit.py",
-        "github-actions://36750376855/SUCCESS"
+        "github-actions://36750376855/SUCCESS",
+        "docs/research/CIBO-GENC1-MATHEMATICAL-RECONCILIATION-CLOSURE-V1.md",
+        "github-actions://36750376948/SUCCESS"
       ],
-      "blockers": [
-        "END_TO_END_MATHEMATICAL_RECONCILIATION_REPLAY_REQUIRED"
-      ],
-      "next_gate": "Require the child-PR Compound Engine Integrated Cycle to pass the dedicated chronological GEN-C1 replay proving zero residual, exact one-time profit admission, explained loss destruction, no double counting, no unexplained creation and no unexplained destruction; only then assign terminal disposition."
+      "blockers": [],
+      "next_gate": "Terminal mechanical foundation. No economic utility claim. Downstream GEN-C2+ and Compound scientific/economic closure remain independently blocking."
     },
     {
       "id": "GEN-C2",
@@ -1102,8 +1102,8 @@
   ],
   "current_summary": {
     "mandatory_count": 64,
-    "terminal_count": 7,
-    "open_count": 57,
+    "terminal_count": 8,
+    "open_count": 56,
     "zero_open_work_pass": false,
     "final_certification_candidate": false
   }
