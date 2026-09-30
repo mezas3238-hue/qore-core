@@ -1,0 +1,62 @@
+name: QORE Shared Support B Provenance Coverage
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+      - agent/shared-support-b-provenance-coverage-002
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_integrator_b_provenance_coverage.py
+      - tests/infrastructure/test_shared_integrator_b_provenance_coverage.py
+      - scripts/shared_integrator_b_provenance_coverage.py
+      - .github/workflows/qore-shared-support-b-provenance-coverage.yml
+  pull_request:
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_integrator_b_provenance_coverage.py
+      - tests/infrastructure/test_shared_integrator_b_provenance_coverage.py
+      - scripts/shared_integrator_b_provenance_coverage.py
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: |
+          ruff check             src/qore/infrastructure/core_stack_v2/shared_integrator_b_provenance_coverage.py             tests/infrastructure/test_shared_integrator_b_provenance_coverage.py             scripts/shared_integrator_b_provenance_coverage.py
+          mypy src/qore/infrastructure/core_stack_v2/shared_integrator_b_provenance_coverage.py
+          pytest -q tests/infrastructure/test_shared_integrator_b_provenance_coverage.py
+      - name: Recover latest sealed B provenance manifest
+        run: |
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11125588197/zip" > provenance.zip
+          unzip -q provenance.zip -d input
+          (cd input && sha256sum -c SHA256SUMS)
+      - name: Quantify provenance delta without penalizing improvement
+        run: |
+          python scripts/shared_integrator_b_provenance_coverage.py             --manifest input/shared-b-provenance-manifest.json             --output result/shared-b-provenance-coverage.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/shared-b-provenance-coverage.json").read_text())
+          assert p["covered_count"] >= 17
+          assert p["required_count"] == 24
+          assert p["missing_terminal_ids"] == []
+          assert set(p["missing_ids"]) <= {
+              "B-04","B-07","B-08","B-14","B-21","B-22","B-24"
+          }
+          assert p["b_status_mutated"] is False
+          assert p["holdout_authority"] is False
+          assert p["productive_authority"] is False
+          PY
