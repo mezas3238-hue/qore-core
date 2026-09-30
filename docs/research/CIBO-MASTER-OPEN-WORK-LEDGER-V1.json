@@ -364,10 +364,12 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_PROFIT_GRADUATION_UTILITY_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
+        "github-actions://36727848363/SUCCESS"
       ],
       "blockers": [
         "CAUSAL_PROFIT_GRADUATION_POLICY_VALUE_REQUIRED"
@@ -379,10 +381,12 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_REAL_ECONOMIC_CYCLE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
+        "github-actions://36727848288/SUCCESS"
       ],
       "blockers": [
         "END_TO_END_COMPOUND_PORTFOLIO_ECONOMIC_CYCLE_REQUIRED"
@@ -394,10 +398,12 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_REAL_DATA_CAUSAL_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
+        "github-actions://36727848441/SUCCESS"
       ],
       "blockers": [
         "REAL_DATA_BOUND_CAUSAL_VALUE_PROOF_REQUIRED"
@@ -409,10 +415,12 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_PATH_DEPENDENT_UTILITY_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
+        "github-actions://36727848514/SUCCESS"
       ],
       "blockers": [
         "FRESH_PATH_DEPENDENT_OOS_STRESS_REPLICATION_REQUIRED"
@@ -424,10 +432,12 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_TRUE_SCARCITY_UTILITY_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
+        "github-actions://36727848088/SUCCESS"
       ],
       "blockers": [
         "FRESH_TRUE_SCARCITY_OOS_STRESS_REPLICATION_REQUIRED"
@@ -439,10 +449,12 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_GIVEBACK_RETENTION_UTILITY_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
+        "github-actions://36727848202/SUCCESS"
       ],
       "blockers": [
         "FRESH_OOS_GIVEBACK_RETENTION_STRESS_REPLICATION_REQUIRED"
