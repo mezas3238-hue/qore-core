@@ -48,18 +48,26 @@ def test_ftm_source_native_primitive_is_now_reusable() -> None:
     ) is V48DetectorReadiness.REUSABLE_CAUSAL_PRIMITIVE
 
 
-def test_h4_binding_and_ict_binding_are_explicit_local_blockers() -> None:
-    assert _status(
-        V48RouteId.ICT_2022_EXECUTION,
-        "ICT_EXACT_PRIMARY_SOURCE_BINDING",
-    ) is V48DetectorReadiness.SOURCE_BINDING_BLOCKED
+def test_h4_clock_is_resolved_while_daily_and_ict_clocks_remain_local_blockers() -> None:
     assert _status(
         V48RouteId.TTRADES_ASIA_4H_15M,
         "H4_PROFILE_TIME_BINDING",
-    ) is V48DetectorReadiness.SOURCE_BINDING_BLOCKED
+    ) is V48DetectorReadiness.ROUTE_BOUND_PRE_ECONOMIC
     assert _status(
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
         "H4_PROFILE_TIME_BINDING",
+    ) is V48DetectorReadiness.ROUTE_BOUND_PRE_ECONOMIC
+    assert _status(
+        V48RouteId.TTRADES_ASIA_4H_15M,
+        "DAILY_PROFILE_TIME_BINDING",
+    ) is V48DetectorReadiness.SOURCE_BINDING_BLOCKED
+    assert _status(
+        V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
+        "DAILY_PROFILE_TIME_BINDING",
+    ) is V48DetectorReadiness.SOURCE_BINDING_BLOCKED
+    assert _status(
+        V48RouteId.ICT_2022_EXECUTION,
+        "ICT_EXACT_PRIMARY_SOURCE_BINDING",
     ) is V48DetectorReadiness.SOURCE_BINDING_BLOCKED
 
 
