@@ -23,3 +23,21 @@ The audit:
 Even if all structural gates pass, T02 remains open until a provider-bound causal
 leverage ablation demonstrates economic value and safety. The sealed 2017H1 holdout
 is not read by this contract.
+
+
+## Typed terminal-reason evidence
+
+T02 no longer accepts an independent boolean such as
+`stopped_at_structural_stop=True`. The stop flag is derived exclusively from
+`T02TerminalReasonEvidence`.
+
+Accepted evidence carries decision SHA, signal, position id, settlement deal ids,
+source reference, observation time and a closed terminal-reason enum. Evidence
+constructed from QORE's explicit position lifecycle maps `STOP_LOSS` to
+`STRUCTURAL_STOP`; `TAKE_PROFIT`, policy exit, manual exit and provider stop-out do
+not count as a structural stop.
+
+The evidence contract permanently rejects `inferred_from_pnl=True` and
+`inferred_from_price=True`. cTrader's generic `STOP_LOSS_TAKE_PROFIT` protection
+order type is therefore insufficient by itself to classify a specific deal as a
+strategy stop.
