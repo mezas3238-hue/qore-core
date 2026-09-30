@@ -12,7 +12,6 @@ import argparse
 import json
 from collections import deque
 from pathlib import Path
-from typing import Any
 
 import shared_sti2_real_opportunity_discovery as v1
 
