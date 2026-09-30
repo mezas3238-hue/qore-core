@@ -1,0 +1,56 @@
+{
+  "identity": "QORE_SHARED_STI8_RESEARCH_OOS_ENGINEERING_RECOVERY_AMENDMENT_001",
+  "parent_preregistration": "QORE_SHARED_STI8_RESEARCH_OOS_PREREGISTRATION_001",
+  "original_run_id": 36651718352,
+  "original_open_marker_artifact_id": 11070174356,
+  "amendment_reason": "FROZEN_TRADER_EVIDENCE_LOADER_REQUIRES_REQUIRED_COVERAGE_DAYS_GTE_730",
+  "observed_failure_stage": "TRADER_EVIDENCE_LOAD_BEFORE_TRADE_RECONSTRUCTION",
+  "market_evidence_acquisition_completed": true,
+  "trader_reconstruction_completed": false,
+  "sti8_assessment_executed": false,
+  "terminal_outcome_scoring_executed": false,
+  "market_or_trade_outcome_used_to_choose_amendment": false,
+  "unchanged": {
+    "window_opened_at_inclusive": "2022-07-18T00:00:00+00:00",
+    "window_checked_at_exclusive": "2024-07-18T00:00:00+00:00",
+    "markets": [
+      "NAS100",
+      "SP500",
+      "US30"
+    ],
+    "timeframe": "M1",
+    "frozen_engine_sha": "711788d89521e051ab3969a9006830068381693e",
+    "frozen_policy_artifact_id": 11065709899,
+    "frozen_gates": {
+      "minimum_loss_precision_bps": 6000,
+      "minimum_loss_recall_bps": 4000,
+      "maximum_false_threat_on_nonlosses_bps": 4000,
+      "maximum_missed_loss_bps": 6000
+    },
+    "trader_methodology": "ttrades-am-silver-bullet-nq-r2.2"
+  },
+  "engineering_change_only": {
+    "acquisition_required_coverage_days_from": 720,
+    "acquisition_required_coverage_days_to": 730,
+    "raw_evidence_uploaded_before_replay": true
+  },
+  "scientific_law": {
+    "this_is_not_retuning": true,
+    "no_policy_or_threshold_change": true,
+    "no_window_change": true,
+    "no_feature_change": true,
+    "no_engine_change": true,
+    "same_oos_remains_burned": true,
+    "recovery_reacquisition_is_same_fixed_window": true,
+    "negative_result_must_be_accepted": true
+  },
+  "governance": {
+    "protected_certification_holdout_opened": false,
+    "live_authorized": false,
+    "production_authorized": false,
+    "real_capital_authorized": false,
+    "vps_mutation_authorized": false,
+    "broker_mutation_authorized": false,
+    "productive_authority": false
+  }
+}
