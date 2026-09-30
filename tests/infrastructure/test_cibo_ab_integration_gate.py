@@ -24,12 +24,14 @@ def _state():
             "accepted_head_sha": "b" * 40,
             "latest_observed_head_sha": "c" * 40,
             "support_blockers": ["A-BLOCKER"],
+            "integrator_resolved_support_blockers": [],
         },
         "architect_b": {
             "pr": 661,
             "accepted_head_sha": "d" * 40,
             "latest_observed_head_sha": "e" * 40,
             "support_blockers": [],
+            "integrator_resolved_support_blockers": [],
         },
         "integrated_terminal_ids": ["T01"],
         "integration_ready": False,
@@ -82,11 +84,43 @@ def test_terminal_union_must_match_ledger() -> None:
     assert "integrated terminal set does not match canonical ledger" in errors
 
 
-def test_support_blockers_prevent_integration_ready() -> None:
+def test_unresolved_support_blockers_prevent_integration_ready() -> None:
     matrix, ledger = _state()
     matrix["integration_ready"] = True
     errors = gate.validate_state(matrix, ledger)
-    assert "integration_ready cannot coexist with support blockers" in errors
+    assert (
+        "integration_ready cannot coexist with unresolved support blockers"
+        in errors
+    )
+
+
+def test_integrator_resolved_upstream_blocker_no_longer_blocks_integration() -> None:
+    matrix, ledger = _state()
+    matrix["architect_a"]["integrator_resolved_support_blockers"] = [
+        "A-BLOCKER"
+    ]
+    matrix["integration_ready"] = True
+
+    errors = gate.validate_state(matrix, ledger)
+
+    assert (
+        "integration_ready cannot coexist with unresolved support blockers"
+        not in errors
+    )
+
+
+def test_integrator_cannot_resolve_unknown_blocker() -> None:
+    matrix, ledger = _state()
+    matrix["architect_a"]["integrator_resolved_support_blockers"] = [
+        "NOT-AN-UPSTREAM-BLOCKER"
+    ]
+
+    errors = gate.validate_state(matrix, ledger)
+
+    assert any(
+        "resolved blocker is not present in upstream blockers" in item
+        for item in errors
+    )
 
 
 def test_open_work_cannot_be_relabelled_final_candidate() -> None:
