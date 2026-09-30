@@ -1,0 +1,19 @@
+{
+  "identity": "QORE_SHARED_STI2_V2_MEASUREMENT_AMENDMENT_001",
+  "parent_preregistration": "QORE_SHARED_STI2_V2_TRAJECTORY_HEADS_PREREGISTRATION_001",
+  "reason": "The inherited WP-03 future target is definitionally a complete 30-minute construct: it requires future5, future15, future30, final_close at index 29 and last10 bars. It cannot produce a causal event-level first-hit minute from partial future windows.",
+  "scientific_policy_changed": false,
+  "features_changed": false,
+  "source_calibration_changed": false,
+  "thresholds_changed": false,
+  "gates_changed": false,
+  "target_definition_changed": false,
+  "replacement_measurement": {
+    "target_window_lead_minutes": 30,
+    "event_level_lead_time_identifiable": false,
+    "status": "WINDOW_LEVEL_LEAD_ONLY"
+  },
+  "interpretation": "This preserves the exact preregistered target and refuses to fabricate sub-window timing. A later dedicated event-time target is required for event-level lead-time science.",
+  "protected_certification_holdout_opened": false,
+  "productive_authority": false
+}
