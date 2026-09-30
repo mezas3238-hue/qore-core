@@ -17,6 +17,10 @@ on:
       - 'tests/infrastructure/test_cibo_sequential_compounding_shadow.py'
       - 'tests/infrastructure/test_cibo_sequential_compounding_oos_binding.py'
       - 'docs/research/CIBO-GEN-C5-SEQUENTIAL-COMPOUNDING-SHADOW-PREREGISTRATION-V1.md'
+      - 'src/qore/infrastructure/cibo_generation_current_control.py'
+      - 'tests/infrastructure/test_cibo_generation_current_control.py'
+      - 'docs/research/CIBO-SOVEREIGN-CAPITAL-AMPLIFICATION-WORLD-CUP-MISSION-V1.md'
+      - 'docs/research/CIBO-WORLD-CUP-SOVEREIGN-CAPITAL-AMPLIFICATION-GAP-MATRIX-V1.md'
       - 'src/qore/infrastructure/cibo_profit_preservation_shadow.py'
       - 'src/qore/infrastructure/cibo_profit_preservation_store.py'
       - 'src/qore/infrastructure/cibo_profit_preservation_population.py'
@@ -42,6 +46,10 @@ on:
       - 'tests/infrastructure/test_cibo_sequential_compounding_shadow.py'
       - 'tests/infrastructure/test_cibo_sequential_compounding_oos_binding.py'
       - 'docs/research/CIBO-GEN-C5-SEQUENTIAL-COMPOUNDING-SHADOW-PREREGISTRATION-V1.md'
+      - 'src/qore/infrastructure/cibo_generation_current_control.py'
+      - 'tests/infrastructure/test_cibo_generation_current_control.py'
+      - 'docs/research/CIBO-SOVEREIGN-CAPITAL-AMPLIFICATION-WORLD-CUP-MISSION-V1.md'
+      - 'docs/research/CIBO-WORLD-CUP-SOVEREIGN-CAPITAL-AMPLIFICATION-GAP-MATRIX-V1.md'
       - 'src/qore/infrastructure/cibo_profit_preservation_shadow.py'
       - 'src/qore/infrastructure/cibo_profit_preservation_store.py'
       - 'src/qore/infrastructure/cibo_profit_preservation_population.py'
@@ -115,3 +123,25 @@ jobs:
             src/qore/infrastructure/cibo_profit_preservation_oos_binding.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_profit_preservation_shadow.py
+
+  current-generation-control:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: CIBO AS-IS current generation control quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_generation_current_control.py \
+            tests/infrastructure/test_cibo_generation_current_control.py
+          mypy \
+            src/qore/infrastructure/cibo_generation_current_control.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_generation_current_control.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_generation_current_control.py
