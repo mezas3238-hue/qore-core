@@ -20,15 +20,9 @@ OUTPUT = Path("artifacts/cibo_legacy_stack_quarantine_v1.json")
 LEGACY_MODULES = frozenset(
     {
         "cibo_adaptive_reasoning_runtime",
-        "cibo_operational_supervision_evidence",
         "cibo_reasoning_policy",
         "cibo_reasoning_probe",
         "cibo_reasoning_runtime",
-        "cibo_supervised_runtime",
-        "cibo_trader_capability_profile",
-        "cibo_trader_development_review",
-        "cibo_trader_lab_authority",
-        "cibo_trader_manager",
         "openai_cibo_reasoning_engine",
         "openai_cibo_adaptive_reasoning_engine",
         "openai_cibo_routed_reasoning_engine",
