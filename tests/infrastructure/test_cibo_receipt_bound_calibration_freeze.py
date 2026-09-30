@@ -25,6 +25,8 @@ from qore.infrastructure.cibo_receipt_bound_calibration_freeze import (
 T0 = datetime(2026, 9, 30, 21, 30, tzinfo=UTC)
 HEAD = "a" * 40
 POLICY = "sha256:" + "b" * 64
+FORWARD_SHA = "sha256:" + "c" * 64
+PROVIDER_FREEZE_SHA = "sha256:" + "d" * 64
 
 
 def _base(
@@ -55,9 +57,11 @@ def _receipt(receipt_id: str, *, head: str = HEAD):
     if receipt_id == "PHASE20D_FORWARD_MANIFEST":
         kind = "PHASE20D_FORWARD_MANIFEST"
         payload = _base(receipt_id, evidence_kind=kind, head=head)
+        payload["phase20d_forward_manifest_sha256"] = FORWARD_SHA
     elif receipt_id == "PROVIDER_ECONOMICS_FREEZE":
         kind = "PROVIDER_ECONOMICS_FREEZE"
         payload = _base(receipt_id, evidence_kind=kind, head=head)
+        payload["provider_economics_freeze_sha256"] = PROVIDER_FREEZE_SHA
     else:
         kind = "CE2I_TOOL_CALIBRATION"
         payload = _base(receipt_id, evidence_kind=kind, head=head)
@@ -112,6 +116,8 @@ def test_receipt_bound_calibration_freeze_seals_exact_t01_t20() -> None:
     assert manifest.structurally_disabled_tools == ("T16", "T17")
     assert len(manifest.active_certification_ready_tools) == 18
     assert manifest.sealed is True
+    assert manifest.phase20d_forward_manifest_sha256 == FORWARD_SHA
+    assert manifest.provider_economics_freeze_sha256 == PROVIDER_FREEZE_SHA
     assert manifest.holdout_outcomes_used is False
     assert manifest.holdout_market_data_read is False
     assert manifest.productive_authority is False
