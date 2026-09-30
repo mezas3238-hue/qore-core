@@ -344,7 +344,7 @@ class CiboCompoundCycleState:
                 raise CiboCompoundCapitalError(
                     "compound cycle cannot carry productive authority"
                 )
-        self.core_portfolio
+        _ = self.core_portfolio
         if self.closing_realized_capital_usd != self.accounting_identity_usd:
             raise CiboCompoundCapitalError(
                 "compound cycle accounting identity drift"

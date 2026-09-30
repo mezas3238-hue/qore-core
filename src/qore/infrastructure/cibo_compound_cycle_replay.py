@@ -10,8 +10,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from typing import TypeAlias
-
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_cma_settlement_ledger import CmaSettlementState
 from qore.infrastructure.cibo_compound_capital import (
@@ -93,7 +91,7 @@ class CompoundDeploymentSettlementEvent:
     settlement: CmaSettlementState
 
 
-CompoundCycleEvent: TypeAlias = (
+type CompoundCycleEvent = (
     BaseSettlementEvent
     | ClassificationEvent
     | ProtectProfitEvent
