@@ -956,18 +956,19 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "END_TO_END_AUTHORITY_ACCOUNTING_GATE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "COMPLETED_AND_PROVEN_ENGINEERING_AUTHORITY_ACCOUNTING_BOUNDARY",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
         "tests/infrastructure/test_cibo_cma_compound_authority_boundary.py",
         ".github/workflows/cibo-cma-compound-boundary.yml",
         "docs/research/CIBO-CMA-COMPOUND-AUTHORITY-BOUNDARY-V1.md",
-        "src/qore/infrastructure/cibo_integrated_capital_truth.py"
+        "src/qore/infrastructure/cibo_integrated_capital_truth.py",
+        "github-actions://36758246018/SUCCESS",
+        "src/qore/infrastructure/cibo_cma_settlement_ledger.py",
+        "src/qore/infrastructure/cibo_cma_risk_request.py"
       ],
-      "blockers": [
-        "CMA_COMPOUND_BOUNDARY_CI_REVALIDATION_REQUIRED"
-      ],
-      "next_gate": "Pass authority/accounting boundary gate; then close CMA foundation integration as completed engineering lineage without claiming economic certification."
+      "blockers": [],
+      "next_gate": "Terminal engineering closure: Trader remains volume-free, CIBO owns requested sizing, QORE Risk remains independently downstream, and only canonical realized CMA settlement enters Compound. No economic certification claim."
     },
     {
       "id": "CE2I_CALIBRATION_GOVERNANCE",
@@ -1081,8 +1082,8 @@
   ],
   "current_summary": {
     "mandatory_count": 64,
-    "terminal_count": 7,
-    "open_count": 57,
+    "terminal_count": 8,
+    "open_count": 56,
     "zero_open_work_pass": false,
     "final_certification_candidate": false
   }
