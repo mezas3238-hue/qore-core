@@ -28,7 +28,7 @@ Integrator acceptance condition:
 - stale/cross-head/cross-candidate rejection;
 - adversarial test: dummy SHA + `passed=True` cannot PASS.
 
-Status: OPEN — returned to Architect A in PR #660.
+Integrator repair: receipt-bound Final Exam wrapper exists in #670 and requires canonical source-bound P1–P8/E1–E10 evidence tied to exact integrated HEAD/policy identity.\n\nStatus: STAGED_REPAIR_IN_670 / CI_PENDING / MIRROR_IN_A_REQUIRED.
 
 ### A-SUPPORT-002 — Mandatory workstream governance drift
 
@@ -41,7 +41,7 @@ Integrator acceptance condition:
 - restore the workstream to mandatory/blocking, or
 - provide an explicit Owner-authorized canonical governance amendment that moves the World Cup exam outside ordinary CIBO certification.
 
-Resolution designed in #670: keep World Cup mandatory, let PRE_EXAM exclude both mandatory certification exams only for sequencing, then run Final Integrated Exam → World Cup Exam → STRICT zero-open. A must reconcile its protocol/ledger to this topology. Status: OPEN pending A reconciliation.
+Resolution implemented in #670: keep World Cup mandatory, let PRE_EXAM exclude both mandatory certification exams only for sequencing, then run Final Integrated Exam → World Cup Exam → STRICT zero-open. A must still reconcile its local protocol/ledger. Status: STAGED_REPAIR_IN_670 / CI_PENDING / MIRROR_IN_A_REQUIRED.
 
 ## Architect B — current support item
 
@@ -62,7 +62,7 @@ Integrator acceptance condition:
 - stale/cross-head/cross-candidate rejection;
 - adversarial test: dummy refs + `passed=True` cannot unlock readiness.
 
-Status: OPEN — returned to Architect B in PR #661.
+Integrator repair: receipt-bound USD60 readiness now derives the seven prerequisite PASS rows only after canonical receipt validation against the exact integrated HEAD and frozen policy identity. Forward scientific thresholds remain independently blocking.\n\nStatus: STAGED_REPAIR_IN_670 / CI_PENDING / MIRROR_IN_B_REQUIRED.
 
 ## Integration policy
 
@@ -105,7 +105,7 @@ Integrator repair:
 - `5331472d86023fe619ae6f6d650fcdf57c21c262`
 - `bbb2415a16af9f3bffc42422632c36646759fffe`
 
-Status: REPAIRED_IN_670 / MIRROR_IN_B_REQUIRED.
+Status: STAGED_REPAIR_IN_670 / CI_PENDING / MIRROR_IN_B_REQUIRED.
 
 ### B-SUPPORT-005 — T11 dedicated validation missing
 
@@ -136,4 +136,22 @@ The shared receipt artifact must now embed and cryptographically bind:
 A source artifact cannot be rebound as another P/E/Txx control or another evidence
 kind without changing its canonical JSON and digest.
 
-Status: IMPLEMENTED_IN_670 / CI_PENDING.
+Status: STAGED_REPAIR_IN_670 / CI_PENDING.
+
+
+### B-SUPPORT-003 — Calibration freeze evidence must not be self-attestable
+
+Integrator repair:
+- `cibo_receipt_bound_calibration_freeze.py` reconstructs the T01..T20 freeze only from canonical receipts tied to exact integrated HEAD/policy identity.
+- `cibo_receipt_bound_pre_holdout.py` rebuilds readiness-critical provider objects before pre-holdout evaluation.
+
+Status: STAGED_REPAIR_IN_670 / CI_PENDING / MIRROR_IN_B_REQUIRED.
+
+### B-SUPPORT-006 — T16/T17 structural disablement requires typed provider status
+
+Integrator repair:
+- cTrader DEMO account-capability parser and typed capability registry are staged in #670;
+- account mode `HEDGED` is not treated as proof of T16 economic hedge support;
+- T16/T17 remain UNKNOWN/blocking until provider-verified support or provider-verified unavailable evidence exists.
+
+Status: STAGED_REPAIR_IN_670 / CI_PENDING / REAL_PROVIDER_STATUS_STILL_REQUIRED.
