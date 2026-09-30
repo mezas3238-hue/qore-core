@@ -1,0 +1,105 @@
+name: QORE Shared B Structural Divergence Input Foundation
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b_structural_divergence_inputs.py
+      - tests/infrastructure/test_shared_b_structural_divergence_inputs.py
+      - .github/workflows/qore-shared-b-structural-divergence-inputs.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-structural-divergence-inputs-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate B-13 input foundation
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          ruff check             src/qore/infrastructure/core_stack_v2/shared_b_structural_divergence_inputs.py             tests/infrastructure/test_shared_b_structural_divergence_inputs.py
+          mypy             src/qore/infrastructure/core_stack_v2/shared_b_structural_divergence_inputs.py
+          pytest -q tests/infrastructure/test_shared_b_structural_divergence_inputs.py
+
+      - name: Materialize architecture evidence only
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          pack={
+              "identity":"SHARED_B_STRUCTURAL_DIVERGENCE_INPUT_FOUNDATION_001",
+              "status":"ARCHITECTURE_VALIDATED_EMPIRICAL_POPULATION_OPEN",
+              "git_sha":os.environ["GITHUB_SHA"],
+              "workflow_run_id":int(os.environ["GITHUB_RUN_ID"]),
+              "capabilities":{
+                  "canonical_identity_required":True,
+                  "market_state_required":True,
+                  "market_open_required":True,
+                  "freshness_required":True,
+                  "data_health_required":True,
+                  "temporal_skew_policy_required":True,
+                  "same_horizon_required":True,
+                  "future_evidence_fail_closed":True,
+                  "non_comparable_metrics_hidden":True,
+              },
+              "divergence_declared":False,
+              "causality_declared":False,
+              "opportunity_declared":False,
+              "empirical_cross_asset_population_complete":False,
+              "reason_empirical_population_open":"B-07/B-08 canonical calendars and temporal comparability policies are not yet fully closed.",
+              "target_or_outcome_used":False,
+              "fresh_holdout_opened":False,
+              "productive_authority":False,
+              "trade_priority_authority":False,
+              "capital_priority_authority":False,
+          }
+          raw=json.dumps(pack,sort_keys=True,separators=(",",":")).encode()
+          pack["evidence_fingerprint_sha256"]=hashlib.sha256(raw).hexdigest()
+          Path("result/shared-b-structural-divergence-input-foundation.json").write_text(
+              json.dumps(pack,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload B-13 foundation
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-structural-divergence-inputs-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report B-13 disposition
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-13 structural-divergence input foundation: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Fail-closed point-in-time comparison inputs validate identity/market-open/freshness/data-health/temporal-skew/same-horizon before exposing structural metrics. Divergence/causality/opportunity claims remain False and empirical population remains OPEN until B-07/B-08 comparability closes."
