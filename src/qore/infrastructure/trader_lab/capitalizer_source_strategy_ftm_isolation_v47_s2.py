@@ -91,6 +91,30 @@ COGNITIVE_TOKEN = s1.COGNITIVE_TOKEN
 
 
 @dataclass(frozen=True, slots=True)
+class FTMPreparedM3:
+    rows: tuple[TFBar, ...]
+    closes: tuple[datetime, ...]
+    pivots: tuple[Pivot, ...]
+
+    def __post_init__(self) -> None:
+        if len(self.rows) != len(self.closes):
+            raise ValueError("FTM prepared M3 close index drift")
+
+
+def prepare_ftm_m3(
+    prepared: s1._PreparedSourceSeries,
+) -> FTMPreparedM3:
+    rows = tuple(
+        row for row in prepared.m3 if isinstance(row, TFBar)
+    )
+    return FTMPreparedM3(
+        rows=rows,
+        closes=tuple(row.closed_at for row in rows),
+        pivots=_pivots(rows),
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class FTMContinuationBinding:
     confirmed_at: datetime
     cisd: CapitalizerCISDObservation
@@ -417,6 +441,7 @@ def bind_ftm_candidates_for_day(
     session: CapitalizerSession,
     operating_day: date,
     prepared: s1._PreparedSourceSeries,
+    prepared_m3: FTMPreparedM3,
     funnel: dict[str, int],
     rejections: dict[str, int],
 ) -> tuple[FTMCanonicalCandidate, ...]:
@@ -438,18 +463,6 @@ def bind_ftm_candidates_for_day(
         start=source_start,
         end=source_end,
     )
-    m3_rows = tuple(
-        row
-        for row in s1._prepared_tf_between(
-            prepared.m3,
-            prepared.m3_opened,
-            start=source_start - s1.LOOKBACK,
-            end=source_end,
-        )
-        if isinstance(row, TFBar)
-    )
-    m3_closes = tuple(row.closed_at for row in m3_rows)
-    m3_pivots = _pivots(m3_rows)
     htf_by_hour: dict[datetime, binders.S0HTFContext | None] = {}
 
     for sweep in sweeps:
@@ -511,9 +524,9 @@ def bind_ftm_candidates_for_day(
 
         side = _side(continuation_direction)
         m3 = _continuation_m3(
-            m3_rows,
-            m3_closes,
-            m3_pivots,
+            prepared_m3.rows,
+            prepared_m3.closes,
+            prepared_m3.pivots,
             sweep=sweep,
             side=side,
         )
@@ -837,13 +850,20 @@ def build_period_market_population(
     period: str,
     symbol_id: int,
     digits: int,
+    prepared_source: s1._PreparedSourceSeries | None = None,
+    prepared_m3: FTMPreparedM3 | None = None,
 ) -> tuple[FTMPeriodMarketReport, tuple[FTMAdmittedFillRow, ...]]:
     if period not in PERIODS:
         raise ValueError("unknown FTM period")
     if not market_is_allowed(session=session, symbol=symbol):
         raise ValueError("FTM market outside frozen universe")
     start, end = PERIODS[period]
-    prepared = s1._prepare_source_series(consumed_bars)
+    prepared = (
+        s1._prepare_source_series(consumed_bars)
+        if prepared_source is None
+        else prepared_source
+    )
+    m3_context = prepare_ftm_m3(prepared) if prepared_m3 is None else prepared_m3
     bars = s1._prepared_m1_between(
         prepared,
         start=start - s1.LOOKBACK,
@@ -877,6 +897,7 @@ def build_period_market_population(
             session=session,
             operating_day=day,
             prepared=prepared,
+            prepared_m3=m3_context,
             funnel=funnel,
             rejections=rejections,
         )
@@ -1053,6 +1074,8 @@ def _market(args: argparse.Namespace) -> None:
         bars = s1._load_consumed_bars(args.m1_root)
         if not bars or any(row.symbol != args.symbol for row in bars):
             raise ValueError("FTM provider-native M1 symbol/source mismatch")
+        prepared = s1._prepare_source_series(bars)
+        m3_context = prepare_ftm_m3(prepared)
         for period in PERIODS:
             report, rows = build_period_market_population(
                 client,
@@ -1062,6 +1085,8 @@ def _market(args: argparse.Namespace) -> None:
                 period=period,
                 symbol_id=symbol_id,
                 digits=digits,
+                prepared_source=prepared,
+                prepared_m3=m3_context,
             )
             write_market(args.output, report, rows)
             print(json.dumps(asdict(report), sort_keys=True))
