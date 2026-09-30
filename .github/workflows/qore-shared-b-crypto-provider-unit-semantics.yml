@@ -1,0 +1,121 @@
+name: QORE Shared B Crypto Provider Unit Semantics
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b_crypto_provider_unit_semantics.py
+      - scripts/shared_b_crypto_provider_unit_semantics.py
+      - tests/infrastructure/test_shared_b_crypto_provider_unit_semantics.py
+      - .github/workflows/qore-shared-b-crypto-provider-unit-semantics.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-crypto-provider-unit-semantics-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  ATTESTED_RUN_ID: "36774358236"
+  ATTESTED_ARTIFACT_ID: "11124811192"
+  ATTESTED_GIT_SHA: "92f1f076871b791b7d0c1fa7c5b3a69aeb5d0014"
+
+jobs:
+  crypto-provider-units:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate crypto provider-unit semantics
+        run: |
+          set -euo pipefail
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/shared_b_crypto_provider_unit_semantics.py \
+            scripts/shared_b_crypto_provider_unit_semantics.py \
+            tests/infrastructure/test_shared_b_crypto_provider_unit_semantics.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/shared_b_crypto_provider_unit_semantics.py \
+            scripts/shared_b_crypto_provider_unit_semantics.py
+          pytest -q tests/infrastructure/test_shared_b_crypto_provider_unit_semantics.py
+      - name: Verify exact provider-attested lineage
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${ATTESTED_RUN_ID}" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${ATTESTED_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${ATTESTED_RUN_ID}" --jq '.head_sha')" = "$ATTESTED_GIT_SHA"
+      - name: Recover sealed provider-attested evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ATTESTED_ARTIFACT_ID}/zip" > attested.zip
+          unzip -q attested.zip -d input
+          sums="$(find input -name SHA256SUMS -print -quit)"
+          test -n "$sums"
+          (cd "$(dirname "$sums")" && sha256sum -c SHA256SUMS)
+          file="$(find input -name shared-b-provider-attested-identity-boundary.json -print -quit)"
+          test -n "$file"
+          printf 'ATTESTED_FILE=%s\n' "$file" >> "$GITHUB_ENV"
+      - name: Materialize exact crypto provider-unit semantics
+        run: |
+          python scripts/shared_b_crypto_provider_unit_semantics.py \
+            --provider-attested "$ATTESTED_FILE" \
+            --output result/shared-b-crypto-provider-unit-semantics.json \
+            | tee result/summary.json
+      - name: Enforce provider-unit boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/shared-b-crypto-provider-unit-semantics.json").read_text())
+          assert p["identity"] == "SHARED_B_CRYPTO_PROVIDER_UNIT_SEMANTICS_001"
+          assert p["crypto_sensor_count"] == 73
+          assert p["direct_provider_base_unit_count"] == 71
+          assert p["scaled_provider_base_unit_count"] == 2
+          assert p["provider_unit_semantics_complete"] is True
+          assert p["provider_neutral_reference_identity_complete"] is False
+          assert p["canonical_economic_identity_complete"] is False
+          assert p["provider_underlying_label_is_canonical_proof"] is False
+          assert p["automatic_asset_alias_inference"] is False
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["historical_market_data_read"] is False
+          assert p["broker_mutation"] is False
+          assert p["productive_authority"] is False
+          assert p["b06_complete"] is False
+          assert len(p["semantics_fingerprint_sha256"]) == 64
+          PY
+      - name: Seal B-06 crypto provider units
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+      - name: Upload B-06 crypto provider units
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-crypto-provider-unit-semantics-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report B-06 crypto unit progress
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-06 crypto provider-unit semantics: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Exact 73 crypto sensors: 71 direct provider base units + 2 scaled provider units (1000xSHIB, 1000xPEPE). Provider unit/scale semantics are now explicit, while underlying canonical/provider-neutral identity remains deliberately unproven. No outcome/holdout/broker/productive authority; B-06 remains OPEN."
