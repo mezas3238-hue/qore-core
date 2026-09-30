@@ -249,6 +249,7 @@ def build_shared_master_open_work_ledger() -> tuple[SharedOpenWorkItem, ...]:
         2: "mc01-mc04-verified-superset-run-36727403860",
         3: "mc01-mc04-verified-superset-run-36727403860",
         4: "mc01-mc04-verified-superset-run-36727403860",
+        7: "mc07-predictive-coding-real-replay-run-36729370321",
         15: "mc15-six-source-uncertainty-run-36726927463",
     }
     for index, title in enumerate(_MC_TITLES, start=1):
@@ -360,8 +361,11 @@ def build_shared_master_open_work_ledger() -> tuple[SharedOpenWorkItem, ...]:
         ("X-22", "Seven-Trader Two-Year Certification Protocol"),
     )
     closed_transversal_evidence = {
+        "X-04": "x04-opportunity-trajectory-superset-run-36730025588",
         "X-11": "mc15-six-source-uncertainty-run-36726927463",
+        "X-13": "x13-attention-budget-run-36730806113",
         "X-17": "transversal-x17-x19-closure-run-36726425709",
+        "X-18": "x18-seven-trader-routing-run-36729632136",
         "X-19": "transversal-x17-x19-closure-run-36726425709",
     }
     for work_id, title in cross_cutting:
