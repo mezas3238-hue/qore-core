@@ -1,0 +1,299 @@
+name: QORE Shared WP05 V15 Cross Asset R8 Acquisition
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - docs/shared/QORE_SHARED_WP05_V15_CROSS_ASSET_FULL_R8_ACQUISITION_PREREGISTRATION.md
+      - src/qore/infrastructure/core_stack_v2/active_perception_v15_cross_asset_acquisition.py
+      - scripts/shared_wp05_v15_cross_asset_r8_acquisition.py
+      - scripts/shared_wp05_v15_cross_asset_r8_reduce.py
+      - tests/infrastructure/test_shared_wp05_v15_cross_asset_acquisition.py
+      - .github/workflows/qore-shared-wp05-v15-cross-asset-r8-acquisition.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-wp05-v15-cross-asset-r8-acquisition
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  SOURCE_MANIFEST_SHA256: 2f18b9f11d5893effa46ac85c712edd6646d1d90a9de521b235143e42155d191
+  SOURCE_MANIFEST_ARTIFACT_ID: "11061507332"
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate V15 source-only acquisition contract
+        run: |
+          set -euo pipefail
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/active_perception_v15_cross_asset_acquisition.py \
+            scripts/shared_wp05_v15_cross_asset_r8_acquisition.py \
+            scripts/shared_wp05_v15_cross_asset_r8_reduce.py \
+            tests/infrastructure/test_shared_wp05_v15_cross_asset_acquisition.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/active_perception_v15_cross_asset_acquisition.py \
+            scripts/shared_wp05_v15_cross_asset_r8_acquisition.py \
+            scripts/shared_wp05_v15_cross_asset_r8_reduce.py
+          python -m py_compile \
+            src/qore/infrastructure/core_stack_v2/active_perception_v15_cross_asset_acquisition.py \
+            scripts/shared_wp05_v15_cross_asset_r8_acquisition.py \
+            scripts/shared_wp05_v15_cross_asset_r8_reduce.py
+          pytest -q \
+            tests/infrastructure/test_shared_wp05_v15_cross_asset_acquisition.py \
+            tests/infrastructure/test_ctrader_historical_tick_data.py \
+            tests/infrastructure/test_ctrader_historical_tick_collector.py \
+            tests/infrastructure/test_historical_quote_side_evidence.py \
+            tests/infrastructure/test_historical_quote_side_shards.py
+
+      - name: Validate preregistration
+        run: |
+          set -euo pipefail
+          grep -q "US2000" docs/shared/QORE_SHARED_WP05_V15_CROSS_ASSET_FULL_R8_ACQUISITION_PREREGISTRATION.md
+          grep -q "XAUUSD" docs/shared/QORE_SHARED_WP05_V15_CROSS_ASSET_FULL_R8_ACQUISITION_PREREGISTRATION.md
+          grep -q "XTIUSD.*not admitted" docs/shared/QORE_SHARED_WP05_V15_CROSS_ASSET_FULL_R8_ACQUISITION_PREREGISTRATION.md
+          grep -q "2f18b9f11d5893effa46ac85c712edd6646d1d90a9de521b235143e42155d191" docs/shared/QORE_SHARED_WP05_V15_CROSS_ASSET_FULL_R8_ACQUISITION_PREREGISTRATION.md
+
+  acquire:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        family: [US2000_BREADTH_PROXY, XAUUSD_DEFENSIVE_PROXY]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    env:
+      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+      QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+      QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared + cTrader
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+
+      - name: Verify DEMO credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}" || { echo "missing $name" >&2; exit 2; }
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            [[ "$account_id" =~ ^[1-9][0-9]*$ ]]
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          else
+            echo "::add-mask::$QORE_CTRADER_DEMO_ACCOUNT_ID"
+          fi
+
+      - name: Recover authoritative frozen R8 source manifest
+        run: |
+          set -euo pipefail
+          mkdir -p input/manifest result/shard
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${SOURCE_MANIFEST_ARTIFACT_ID}/zip" > manifest.zip
+          test -s manifest.zip
+          unzip -q manifest.zip -d input/manifest
+          if [ -f input/manifest/SHA256SUMS ]; then
+            (cd input/manifest && sha256sum -c SHA256SUMS)
+          fi
+          manifest_path="$(find input/manifest -name wp05-v12-r8-tick-acquisition-manifest.json -print -quit)"
+          test -n "$manifest_path"
+          cp "$manifest_path" result/source-manifest.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/source-manifest.json").read_text())
+          assert p["identity"] == "QORE_SHARED_WP05_ACTIVE_PERCEPTION_V12_ACQUISITION_MANIFEST_001"
+          assert p["partition"] == "r8"
+          assert p["manifest_sha256"] == "2f18b9f11d5893effa46ac85c712edd6646d1d90a9de521b235143e42155d191"
+          assert len(p["windows"]) == 2948
+          assert p["target_or_outcome_used_for_selection"] is False
+          assert p["r6_r5_read_for_selection"] is False
+          assert p["fresh_holdout_opened"] is False
+          PY
+
+      - name: Acquire V15 cross-asset shard
+        run: |
+          set -euo pipefail
+          python scripts/shared_wp05_v15_cross_asset_r8_acquisition.py \
+            --manifest result/source-manifest.json \
+            --family "${{ matrix.family }}" \
+            --shard-index "${{ matrix.shard }}" \
+            --output-dir result/shard \
+            | tee result/shard-summary.json
+
+      - name: Validate shard governance
+        env:
+          FAMILY: ${{ matrix.family }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          family=os.environ["FAMILY"]
+          shard=int(os.environ["SHARD"])
+          path=Path("result/shard")/f"{family.lower()}-shard-{shard:02d}-report.json"
+          p=json.loads(path.read_text())
+          assert p["identity"] == "QORE_SHARED_WP05_V15_CROSS_ASSET_R8_ACQUISITION_001"
+          assert p["partition"] == "r8_source_only"
+          assert p["family"] == family
+          assert p["shard_index"] == shard
+          assert p["shard_count"] == 16
+          assert p["total_manifest_windows"] == 2948
+          assert p["read_only_message_firewall"] is True
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["scientific_v15_outcomes_opened"] is False
+          assert p["shared_methodology_authority"] is False
+          assert p["shared_sizing_authority"] is False
+          assert p["shared_risk_authority"] is False
+          assert p["shared_order_authority"] is False
+          assert p["shared_execution_authority"] is False
+          PY
+
+      - name: Seal raw V15 shard
+        if: always()
+        run: |
+          if [ -d result/shard ]; then
+            printf '%s\n' "${GITHUB_SHA}" > result/shard/git-sha.txt
+            (
+              cd result/shard
+              find . -type f ! -name SHA256SUMS -print0 \
+                | sort -z | xargs -0 sha256sum > SHA256SUMS
+            )
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-shared-wp05-v15-cross-asset-data-${{ matrix.family }}-${{ matrix.shard }}-${{ github.sha }}
+          path: result/shard
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Prepare compact report
+        if: success()
+        run: |
+          mkdir -p result/report
+          cp "result/shard/$(echo "${{ matrix.family }}" | tr '[:upper:]' '[:lower:]')-shard-$(printf '%02d' "${{ matrix.shard }}")-report.json" result/report/
+
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: qore-shared-wp05-v15-cross-asset-report-${{ matrix.family }}-${{ matrix.shard }}-${{ github.sha }}
+          path: result/report
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: [validate, acquire]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -e .
+
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: qore-shared-wp05-v15-cross-asset-report-*-${{ github.sha }}
+          path: result/reports
+          merge-multiple: true
+
+      - name: Reduce exact V15 source populations
+        id: reduce
+        continue-on-error: true
+        run: |
+          python scripts/shared_wp05_v15_cross_asset_r8_reduce.py \
+            --reports-dir result/reports \
+            --output result/wp05-v15-cross-asset-source-acquisition.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-shared-wp05-v15-cross-asset-global-${{ github.sha }}
+          path: result/wp05-v15-cross-asset-source-acquisition.json
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Report V15 source acquisition state
+        if: always()
+        run: |
+          if [ ! -f result/wp05-v15-cross-asset-source-acquisition.json ]; then
+            gh issue comment 643 --body "WP-05 V15 cross-asset source-only acquisition run `${GITHUB_RUN_ID}` did not prove exact completion. This is acquisition/technical only. Target outcomes, R6/R5 and fresh holdout remain CLOSED."
+            exit 0
+          fi
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(Path("result/wp05-v15-cross-asset-source-acquisition.json").read_text())
+          lines=[
+              "## WP-05 V15 cross-asset R8 source acquisition COMPLETE",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+          ]
+          for name,sensor in p["sensors"].items():
+              lines.extend([
+                  f"- {name} / {sensor['provider_symbol']}:",
+                  f"  - windows: **{sensor['window_count']} / 2948**",
+                  f"  - provider digits: **{sensor['provider_digits']}**",
+                  f"  - BID ticks: **{sensor['bid_tick_count']}**",
+                  f"  - ASK ticks: **{sensor['ask_tick_count']}**",
+                  f"  - empty BID/ASK windows: **{sensor['empty_bid_window_count']} / {sensor['empty_ask_window_count']}**",
+                  f"  - dataset SHA256: `{sensor['global_dataset_sha256']}`",
+              ])
+          lines.extend([
+              "- target/outcome read: **False**",
+              "- R6/R5 read: **False**",
+              "- fresh holdout opened: **False**",
+              "- this is source acquisition only; V15 scientific outcomes remain CLOSED",
+          ])
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 643 --body-file result/issue-comment.md
+
+      - name: Enforce exact completion
+        run: |
+          test "${{ needs.acquire.result }}" = "success"
+          test -f result/wp05-v15-cross-asset-source-acquisition.json
