@@ -34,6 +34,7 @@ from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
     iter_cibo_m1,
 )
 from qore.infrastructure.trader_lab.capitalizer_contract import (
+    MAX_EXECUTIONS_PER_SESSION,
     CapitalizerSession,
     allowed_markets,
 )
@@ -506,11 +507,88 @@ def write_market(
             handle.write(json.dumps(asdict(item), sort_keys=True) + "\n")
 
 
+def _read_matrix_attempts(root: Path) -> tuple[V50RearmAttempt, ...]:
+    paths = sorted(root.rglob("capitalizer-*-v50-r-rearm-capacity-attempts.jsonl"))
+    if len(paths) != 9:
+        raise ValueError(f"V50-R matrix requires 9 attempt ledgers, got {len(paths)}")
+    rows: list[V50RearmAttempt] = []
+    for path in paths:
+        with path.open(encoding="utf-8") as handle:
+            for line in handle:
+                if line.strip():
+                    rows.append(V50RearmAttempt(**json.loads(line)))
+    return tuple(
+        sorted(
+            rows,
+            key=lambda item: (
+                item.trigger_confirmed_at,
+                item.symbol,
+                item.attempt_index,
+            ),
+        )
+    )
+
+
+def _portfolio_ready(
+    rows: tuple[V50RearmAttempt, ...],
+    *,
+    cognitive: bool,
+) -> tuple[V50RearmAttempt, ...]:
+    grouped: dict[tuple[str, str], list[V50RearmAttempt]] = defaultdict(list)
+    for item in rows:
+        ready = item.cognitive_geometry_ready if cognitive else item.geometry_ready
+        if ready:
+            grouped[(item.session, item.operating_date)].append(item)
+
+    selected: list[V50RearmAttempt] = []
+    for key in sorted(grouped):
+        candidates = sorted(
+            grouped[key],
+            key=lambda item: (
+                datetime.fromisoformat(item.trigger_confirmed_at),
+                item.symbol,
+                item.attempt_index,
+            ),
+        )
+        selected.extend(candidates[:MAX_EXECUTIONS_PER_SESSION])
+    return tuple(
+        sorted(
+            selected,
+            key=lambda item: (
+                datetime.fromisoformat(item.trigger_confirmed_at),
+                item.symbol,
+            ),
+        )
+    )
+
+
+def _capacity_breakdown(rows: tuple[V50RearmAttempt, ...]) -> dict[str, Any]:
+    return {
+        "trades_after_max3": len(rows),
+        "recovered_after_rearm": sum(item.attempt_index > 1 for item in rows),
+        "first_attempt_ready": sum(item.attempt_index == 1 for item in rows),
+        "by_session": {
+            session: sum(item.session == session for item in rows)
+            for session in ("ASIA", "LONDON", "NEW_YORK")
+        },
+        "by_market": {
+            symbol: sum(item.symbol == symbol for item in rows)
+            for symbol in sorted({item.symbol for item in rows})
+        },
+        "active_operating_days": len(
+            {(item.session, item.operating_date) for item in rows}
+        ),
+    }
+
+
 def build_matrix(root: Path) -> dict[str, Any]:
     paths = sorted(root.rglob("capitalizer-*-v50-r-rearm-capacity.json"))
     if len(paths) != 9:
         raise ValueError(f"V50-R matrix requires 9 reports, got {len(paths)}")
     reports = tuple(json.loads(path.read_text(encoding="utf-8")) for path in paths)
+    attempts = _read_matrix_attempts(root)
+    geometry_portfolio = _portfolio_ready(attempts, cognitive=False)
+    cognitive_geometry_portfolio = _portfolio_ready(attempts, cognitive=True)
     return {
         "identity": MATRIX_IDENTITY,
         "market_count": 9,
@@ -536,6 +614,12 @@ def build_matrix(root: Path) -> dict[str, Any]:
         "thesis_invalidated_before_trigger": sum(
             int(row["thesis_invalidated_before_trigger"]) for row in reports
         ),
+        "portfolio_geometry_ready": _capacity_breakdown(geometry_portfolio),
+        "portfolio_cognitive_geometry_ready": _capacity_breakdown(
+            cognitive_geometry_portfolio
+        ),
+        "max_executions_per_session": MAX_EXECUTIONS_PER_SESSION,
+        "portfolio_selection_outcome_aware": False,
         "outcome_used": False,
         "economics_used": False,
         "reserved_holdout_reopened": False,
