@@ -144,7 +144,10 @@ def _confirmed_h1_pivots(
         if right.closed_at > decision_at:
             break
         if side is CapitalizerSide.LONG:
-            is_pivot = center.source.high > left.source.high and center.source.high > right.source.high
+            is_pivot = (
+                center.source.high > left.source.high
+                and center.source.high > right.source.high
+            )
             price = center.source.high
             kind = "H1_PIVOT_HIGH"
         else:
