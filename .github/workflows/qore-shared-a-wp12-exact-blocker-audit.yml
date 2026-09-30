@@ -1,0 +1,115 @@
+name: QORE Shared A WP12 Exact Blocker Audit
+
+concurrency:
+  group: qore-shared-a-wp12-exact-blocker-audit
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - scripts/shared_wp12_exact_blocker_audit.py
+      - .github/workflows/qore-shared-a-wp12-exact-blocker-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install and validate
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p input/{mc26,mc27,mc28} result
+          ruff check scripts/shared_wp12_exact_blocker_audit.py
+          python -m py_compile scripts/shared_wp12_exact_blocker_audit.py
+      - name: Verify immutable evidence
+        run: |
+          set -euo pipefail
+          for spec in \
+            "36778113179:11126331852" \
+            "36782066174:11128321427" \
+            "36777388801:11126275619"
+          do
+            run_id="${spec%%:*}"
+            artifact_id="${spec#*:}"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.conclusion')" = "success"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" --jq '.expired')" = "false"
+          done
+      - name: Recover evidence
+        run: |
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11126331852/zip" > mc26.zip
+          unzip -q mc26.zip -d input/mc26
+          (cd input/mc26 && sha256sum -c SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11128321427/zip" > mc27.zip
+          unzip -q mc27.zip -d input/mc27
+          (cd input/mc27 && sha256sum -c SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11126275619/zip" > mc28.zip
+          unzip -q mc28.zip -d input/mc28
+          (cd input/mc28 && sha256sum -c SHA256SUMS)
+      - name: Audit exact blockers
+        run: |
+          python scripts/shared_wp12_exact_blocker_audit.py \
+            --mc26 input/mc26/mc26-real-all-facet-arbitration.json \
+            --mc27 input/mc27/mc27-prospective-research-cycle.json \
+            --mc28 input/mc28/mc28-standard-006-diagnostic-taxonomy.json \
+            --output result/wp12-exact-blockers.json \
+            | tee result/summary.json
+      - name: Validate open disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/wp12-exact-blockers.json").read_text())
+          assert p["status"] == "WP12_COGNITIVE_ARBITRATION_META_COGNITION_OPEN_EXACT_BLOCKERS"
+          assert p["blocker_count"] == 8
+          assert p["mc26_real_all_facet_arbitration_complete"] is True
+          assert p["zero_open_work"] is False
+          assert p["wp12_completed_and_proven"] is False
+          assert p["master_ledger_mutated"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+      - name: Seal
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (cd result && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-wp12-blockers-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(Path("result/wp12-exact-blockers.json").read_text())
+          body="\n".join([
+              "## Shared A WP-12 — Exact Open Blockers",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              "- MC-26 real arbitration: **COMPLETE**",
+              f"- blockers: **{p['blocker_count']}**",
+              *[f"- `{x}`" for x in p["blockers"]],
+              "- WP-12 completed-and-proven: **False**",
+              "- master ledger mutated: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
