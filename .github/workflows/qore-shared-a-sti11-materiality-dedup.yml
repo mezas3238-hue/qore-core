@@ -1,0 +1,121 @@
+name: QORE Shared A STI11 Materiality Dedup
+
+concurrency:
+  group: qore-shared-a-sti11-materiality-dedup
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_alert_materiality.py
+      - tests/infrastructure/test_core_stack_v2_shared_alert_materiality.py
+      - scripts/shared_sti11_materiality_replay.py
+      - .github/workflows/qore-shared-a-sti11-materiality-dedup.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Validate STI-11 engine
+        run: |
+          set -euo pipefail
+          mkdir -p input/{r8,r6,r5} result
+          ruff check             src/qore/infrastructure/core_stack_v2/shared_alert_materiality.py             tests/infrastructure/test_core_stack_v2_shared_alert_materiality.py             scripts/shared_sti11_materiality_replay.py
+          mypy src/qore/infrastructure/core_stack_v2/shared_alert_materiality.py
+          pytest -q tests/infrastructure/test_core_stack_v2_shared_alert_materiality.py
+
+      - name: Recover immutable source evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Calibrate R8 source-only and replay frozen STI-11
+        run: |
+          set -euo pipefail
+          python scripts/shared_sti11_materiality_replay.py             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/sti11-materiality-replay.json             | tee result/summary.json
+
+      - name: Validate STI-11 closure evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/sti11-materiality-replay.json").read_text())
+          assert p["status"] == "STI11_MATERIALITY_DEDUP_COMPLETED_AND_PROVEN"
+          assert p["capability_state"] == "COMPLETED_AND_PROVEN"
+          assert p["materiality_policy"]["source_only_calibration"] is True
+          assert p["materiality_policy"]["calibration_partition"] == "R8"
+          assert p["proof"]["r8_outcomes_used_for_materiality_fit"] is False
+          assert p["proof"]["r6_r5_used_for_threshold_fit"] is False
+          assert p["proof"]["future_market_read"] is False
+          assert p["proof"]["future_outcome_read"] is False
+          assert p["proof"]["materiality_is_order_priority"] is False
+          assert p["governance"]["protected_certification_holdout_opened"] is False
+          PY
+      - name: Seal result
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-sti11-materiality-dedup-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report STI-11
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/sti11-materiality-replay.json").read_text())
+          body="\n".join([
+              "## Shared A STI-11 — Materiality / Dedup Real Replay",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              f"- R8 source-only thresholds: **{p['materiality_policy']['thresholds']}**",
+              f"- R6: **{p['results']['r6']}**",
+              f"- R5: **{p['results']['r5']}**",
+              "- outcomes used for fit: **False**",
+              "- materiality == order priority: **False**",
+              "- protected certification holdout opened: **False**",
+              "- capability state: **COMPLETED_AND_PROVEN**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
