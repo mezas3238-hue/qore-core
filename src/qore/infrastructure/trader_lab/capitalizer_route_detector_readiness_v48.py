@@ -51,6 +51,13 @@ FACTS: tuple[V48RouteDetectorFact, ...] = (
     # ASIA POSITIONAL
     V48RouteDetectorFact(
         V48RouteId.TTRADES_ASIA_POSITIONAL,
+        "DAILY_PROFILE_TIME_BINDING",
+        V48DetectorReadiness.SOURCE_BINDING_BLOCKED,
+        "capitalizer_forex_daily_profile_binding_v48.py",
+        "Exact TTrades Forex Daily candle/open boundary is not yet source-bound.",
+    ),
+    V48RouteDetectorFact(
+        V48RouteId.TTRADES_ASIA_POSITIONAL,
         "HTF_FRACTAL_BIAS_CONFIRMED",
         V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND,
         "capitalizer_source_daily_bias_v2.py",
@@ -80,10 +87,17 @@ FACTS: tuple[V48RouteDetectorFact, ...] = (
     # ASIA 4H -> 15M
     V48RouteDetectorFact(
         V48RouteId.TTRADES_ASIA_4H_15M,
-        "H4_PROFILE_TIME_BINDING",
+        "DAILY_PROFILE_TIME_BINDING",
         V48DetectorReadiness.SOURCE_BINDING_BLOCKED,
-        "capitalizer_h4_profile_binding_v48.py",
-        "Exact TTrades H4 profile-to-provider candle boundary binding remains unresolved.",
+        "capitalizer_forex_daily_profile_binding_v48.py",
+        "Asia source uses Daily bias/open; exact Forex Daily profile remains unresolved.",
+    ),
+    V48RouteDetectorFact(
+        V48RouteId.TTRADES_ASIA_4H_15M,
+        "H4_PROFILE_TIME_BINDING",
+        V48DetectorReadiness.ROUTE_BOUND_PRE_ECONOMIC,
+        "capitalizer_ttrades_forex_h4_profile_v48.py",
+        "TTrades Forex H4 clock is source-bound to 01/05/09/13/17/21 New York time.",
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_ASIA_4H_15M,
@@ -95,9 +109,9 @@ FACTS: tuple[V48RouteDetectorFact, ...] = (
     V48RouteDetectorFact(
         V48RouteId.TTRADES_ASIA_4H_15M,
         "H4_C2_CONFIRMATION",
-        V48DetectorReadiness.SOURCE_BINDING_BLOCKED,
-        "capitalizer_h4_profile_binding_v48.py",
-        "Candle-2 mechanics exist but cannot bind until the H4 profile clock is resolved.",
+        V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND,
+        "capitalizer_ttrades_forex_h4_profile_v48.py + detect_candle2_reversal_closure",
+        "Forex H4 clock and C2 primitive exist; Asia orchestration remains to be wired.",
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_ASIA_4H_15M,
@@ -123,10 +137,17 @@ FACTS: tuple[V48RouteDetectorFact, ...] = (
     # LONDON
     V48RouteDetectorFact(
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
-        "H4_PROFILE_TIME_BINDING",
+        "DAILY_PROFILE_TIME_BINDING",
         V48DetectorReadiness.SOURCE_BINDING_BLOCKED,
-        "capitalizer_h4_profile_binding_v48.py",
-        "Exact TTrades H4 profile-to-provider candle boundary binding remains unresolved.",
+        "capitalizer_forex_daily_profile_binding_v48.py",
+        "London Daily bias requires an exact Forex Daily profile boundary before replay.",
+    ),
+    V48RouteDetectorFact(
+        V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
+        "H4_PROFILE_TIME_BINDING",
+        V48DetectorReadiness.ROUTE_BOUND_PRE_ECONOMIC,
+        "capitalizer_ttrades_forex_h4_profile_v48.py",
+        "TTrades Forex H4 clock is source-bound to 01/05/09/13/17/21 New York time.",
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
@@ -138,9 +159,9 @@ FACTS: tuple[V48RouteDetectorFact, ...] = (
     V48RouteDetectorFact(
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
         "H4_WICK_SWING_STRUCTURE_CONFIRMED",
-        V48DetectorReadiness.SOURCE_BINDING_BLOCKED,
-        "capitalizer_h4_profile_binding_v48.py",
-        "H4 wick/swing mechanics cannot be productive before exact H4 profile binding.",
+        V48DetectorReadiness.NEEDS_ROUTE_SCOPED_REBIND,
+        "capitalizer_ttrades_forex_h4_profile_v48.py + source observation detectors",
+        "Forex H4 profile exists; London wick/swing route orchestration remains to be wired.",
     ),
     V48RouteDetectorFact(
         V48RouteId.TTRADES_LONDON_DAILY_4H_15M,
