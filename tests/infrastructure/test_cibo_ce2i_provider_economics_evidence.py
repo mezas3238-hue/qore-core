@@ -7,6 +7,8 @@ from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
 def test_provider_economics_evidence_is_point_in_time_not_historical() -> None:
     evidence = CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS
 
+    assert evidence.workflow_run_id == 36727848127
+    assert evidence.artifact_id == 11104595302
     assert evidence.provider_terms_ready is True
     assert evidence.slippage_empirically_calibrated is False
     assert evidence.historical_exact_claimed is False
@@ -24,12 +26,12 @@ def test_provider_economics_evidence_is_point_in_time_not_historical() -> None:
     }
 
 
-def test_provider_economics_reference_binds_artifact_digest() -> None:
+def test_provider_economics_reference_binds_latest_verified_artifact() -> None:
     reference = provider_economics_evidence_ref()
 
-    assert "artifact:10975061063" in reference
+    assert "artifact:11104595302" in reference
     assert (
-        "e58cb9cd55c057c2e76888c637712e5ee08c653a1deadbce0d628cca0614cd2d"
+        "db65a47bc964c3540a0f7c60ba1e707f8d79b5b6927299f6e685846afe9f4863"
         in reference
     )
     assert "HISTORICAL_EXACT_FALSE" in reference
