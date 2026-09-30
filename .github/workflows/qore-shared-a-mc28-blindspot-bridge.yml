@@ -1,0 +1,83 @@
+name: QORE Shared A MC28 Blindspot Bridge
+
+concurrency:
+  group: qore-shared-a-mc28-blindspot-bridge
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/core_broker_blindspot_cognition.py
+      - tests/infrastructure/test_core_stack_v2_core_broker_blindspot_cognition.py
+      - scripts/shared_mc28_core_broker_blindspot_bridge.py
+      - .github/workflows/qore-shared-a-mc28-blindspot-bridge.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  bridge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install and validate A cognition
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p result
+          ruff check src/qore/infrastructure/core_stack_v2/core_broker_blindspot_cognition.py tests/infrastructure/test_core_stack_v2_core_broker_blindspot_cognition.py scripts/shared_mc28_core_broker_blindspot_bridge.py src/qore/infrastructure/core_stack_v2/second_order_blindspot_cognition.py tests/infrastructure/test_core_stack_v2_second_order_blindspot_cognition.py
+          mypy src/qore/infrastructure/core_stack_v2/core_broker_blindspot_cognition.py src/qore/infrastructure/core_stack_v2/second_order_blindspot_cognition.py
+          pytest -q tests/infrastructure/test_core_stack_v2_core_broker_blindspot_cognition.py tests/infrastructure/test_core_stack_v2_second_order_blindspot_cognition.py
+      - name: Verify Architect B source evidence
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/36763268609" --jq '.conclusion // ""')" = "success"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11119388121" --jq '.expired' | grep '^false$'
+      - name: Build A-side MC28 bridge
+        run: |
+          python scripts/shared_mc28_core_broker_blindspot_bridge.py | tee result/summary.json
+      - name: Validate bounded disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc28-core-broker-blindspot-bridge.json").read_text())
+          assert p["status"] == "MC28_A_SIDE_BLINDSPOT_BRIDGE_FOUNDATION_PASS"
+          assert p["bridge_state"] == "OBSERVABILITY_INCOMPLETE"
+          assert p["runtime_core_broker_replication_complete"] is False
+          assert p["second_order_inventory_complete"] is False
+          assert p["broker_mutation_authority"] is False
+          assert p["execution_authority"] is False
+          assert p["mc28_completed_and_proven"] is False
+          PY
+      - name: Seal
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (cd result && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc28-blindspot-bridge-${{ github.sha }}
+          path: result/
+          retention-days: 90
+      - name: Report MC28
+        run: |
+          gh issue comment 638 --body "## Shared A MC-28 — Core/Broker Blindspot Bridge
+
+- B source run/artifact: **36763268609 / 11119388121**
+- X-12 cognition executed in this workflow: **Yes**
+- runtime Core/Broker replication complete: **False**
+- second-order inventory complete: **False**
+- mutation authority: **None**
+- MC-28 completed-and-proven: **False**"
