@@ -1,0 +1,143 @@
+name: QORE Shared A MC25 WP04 V3B Lineage Stress
+
+concurrency:
+  group: qore-shared-a-mc25-wp04-v3b-lineage-stress
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/governed_self_improvement.py
+      - scripts/shared_mc25_wp04_v3b_lineage_integrity_stress.py
+      - .github/workflows/qore-shared-a-mc25-wp04-v3b-lineage-stress.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  stress:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install and validate
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p input/{freeze,holdout,replication} result
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/governed_self_improvement.py \
+            scripts/shared_mc25_wp04_v3b_lineage_integrity_stress.py
+          mypy src/qore/infrastructure/core_stack_v2/governed_self_improvement.py
+          pytest -q tests/infrastructure/test_core_stack_v2_governed_self_improvement.py
+
+      - name: Verify immutable WP04 V3B evidence
+        run: |
+          set -euo pipefail
+          for spec in \
+            "36244726347:10906064254" \
+            "36247407353:10908500161" \
+            "36248025384:10908077821"
+          do
+            run_id="${spec%%:*}"
+            artifact_id="${spec#*:}"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.status')" = "completed"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.conclusion')" = "success"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" --jq '.expired')" = "false"
+          done
+
+      - name: Recover exact sealed lineage
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10906064254/zip" > freeze.zip
+          unzip -q freeze.zip -d input/freeze
+          (cd input/freeze && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10908500161/zip" > holdout.zip
+          unzip -q holdout.zip -d input/holdout
+          (cd input/holdout/result && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10908077821/zip" > replication.zip
+          unzip -q replication.zip -d input/replication
+          (cd input/replication/result && sha256sum -c SHA256SUMS)
+
+      - name: Execute fail-closed lineage stress
+        run: |
+          python scripts/shared_mc25_wp04_v3b_lineage_integrity_stress.py \
+            --freeze input/freeze/wp04-predictive-nonlinear-probe-v3b.json \
+            --holdout input/holdout/result/wp04-v3b-holdout-e.json \
+            --replication input/replication/result/wp04-v3b-replication-d.json \
+            --output result/mc25-wp04-v3b-lineage-integrity-stress.json \
+            | tee result/summary.json
+
+      - name: Validate bounded progress
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc25-wp04-v3b-lineage-integrity-stress.json").read_text())
+          assert p["status"] == "MC25_WP04_V3B_LINEAGE_INTEGRITY_STRESS_PASS"
+          assert p["baseline_lineage_validation_pass"] is True
+          assert p["stress_scenario_count"] == 10
+          assert p["stress_rejected_count"] == 10
+          assert p["lineage_integrity_stress_pass"] is True
+          assert p["performance_stress_bound"] is False
+          assert p["formal_stress_stage_completed"] is False
+          assert p["highest_formal_stage"] == "HOLDOUT"
+          assert p["promotion_allowed"] is False
+          assert p["shadow_stage_bound"] is False
+          assert p["certification_stage_bound"] is False
+          assert p["mc25_completed_and_proven"] is False
+          assert p["productive_authority"] is False
+          assert p["master_ledger_mutated"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+
+      - name: Seal
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (cd result && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc25-wp04-v3b-lineage-stress-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/mc25-wp04-v3b-lineage-integrity-stress.json").read_text())
+          body="\n".join([
+              "## Shared A MC-25 — WP04 V3B Lineage Integrity Stress",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- fail-closed stress scenarios: **{p['stress_rejected_count']}/{p['stress_scenario_count']}**",
+              "- lineage / fingerprint / gate / leakage stress: **PASS**",
+              "- same-lineage performance stress: **Still open**",
+              f"- highest formal promotion stage: **{p['highest_formal_stage']}**",
+              "- formal STRESS stage complete: **False**",
+              "- SHADOW / CERTIFICATION / PROMOTION: **Open**",
+              "- MC-25 completed-and-proven: **False**",
+              "- protected certification holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
