@@ -1,0 +1,48 @@
+name: QORE CIBO CMA Compound Authority Boundary
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-cma-compound-boundary.yml'
+      - 'tests/infrastructure/test_cibo_cma_compound_authority_boundary.py'
+      - 'src/qore/infrastructure/cibo_account_sizing_authority.py'
+      - 'src/qore/infrastructure/cibo_capital_management_authority.py'
+      - 'src/qore/infrastructure/cibo_cma_settlement_ledger.py'
+      - 'src/qore/infrastructure/cibo_compound_cycle_state.py'
+      - 'src/qore/infrastructure/cibo_integrated_capital_truth.py'
+      - 'docs/research/CIBO-CMA-COMPOUND-AUTHORITY-BOUNDARY-V1.md'
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-cma-compound-boundary.yml'
+      - 'tests/infrastructure/test_cibo_cma_compound_authority_boundary.py'
+      - 'src/qore/infrastructure/cibo_account_sizing_authority.py'
+      - 'src/qore/infrastructure/cibo_capital_management_authority.py'
+      - 'src/qore/infrastructure/cibo_cma_settlement_ledger.py'
+      - 'src/qore/infrastructure/cibo_compound_cycle_state.py'
+      - 'src/qore/infrastructure/cibo_integrated_capital_truth.py'
+      - 'docs/research/CIBO-CMA-COMPOUND-AUTHORITY-BOUNDARY-V1.md'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  cma-compound-boundary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - run: |
+          ruff check tests/infrastructure/test_cibo_cma_compound_authority_boundary.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_cma_compound_authority_boundary.py

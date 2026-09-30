@@ -1,0 +1,937 @@
+name: QORE CIBO Phase 20 Provider Uncertainty Contract
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase20-provider-uncertainty.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_capital_state_monte_carlo.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_mechanism_certification.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_interaction_ablation.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_robust_allocator.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_mpc.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_policy_candidate.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_advanced_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py'
+      - 'src/qore/infrastructure/cibo_ce2i_full_surface.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_store.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_epoch.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_epoch_aggregator.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_snapshots.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_policy_store.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_qualification_plan.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_causal_tool_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_causal_history_state.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t03_margin_population.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_magnitude.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_returns.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_store.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_m5_collector.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_correlation.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_risk_mapping.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_ablation.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_store.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t11_execution_population.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t11_cost_binding.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_reserve_population.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_policy.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_store.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_treatment.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_treatment_store.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_oos_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_runtime_shadow.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_regime_population.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_policy.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_store.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_runtime_shadow.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_utility.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_utility.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_forward_population.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t14_path_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t14_intervention_population.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t15_option_realization.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t15_reservation_binding.py'
+      - 'src/qore/infrastructure/ctrader_demo_live_behavior_lab.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase22_holdout_gate.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_shadow_observer.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_demo_shadow_risk.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_demo_capital_bootstrap.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_demo_regime.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_demo_runtime_bridge.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_demo_single_slot.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_demo_settlement_observer.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_ctrader_demo_observer.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_outcome_reconciliation.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_ctrader_executed_risk.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_ctrader_recovery.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_m5_shadow_batch.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_execution_risk_store.py'
+      - 'scripts/qore_ctrader_demo_free_runtime.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_qualification.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py'
+      - 'scripts/cibo_phase20_provider_uncertainty_contract.py'
+      - 'scripts/cibo_phase20_counterfactual_stress_matrix.py'
+      - 'scripts/cibo_phase20_capital_state_monte_carlo_contract.py'
+      - 'scripts/cibo_phase20_mechanism_certification.py'
+      - 'scripts/cibo_phase20_operational_mechanism_certification.py'
+      - 'scripts/cibo_phase20_capital_action_certification.py'
+      - 'scripts/cibo_phase20_interaction_ablation.py'
+      - 'scripts/cibo_phase20_robust_allocator_contract.py'
+      - 'scripts/cibo_phase20_forecastless_mpc_contract.py'
+      - 'scripts/cibo_phase20_policy_candidate_freeze.py'
+      - 'scripts/cibo_phase20_forward_evidence_contract.py'
+      - 'scripts/cibo_phase20_forward_store_contract.py'
+      - 'scripts/cibo_phase20_forward_collector_contract.py'
+      - 'scripts/cibo_phase20_qualification_plan.py'
+      - 'scripts/cibo_phase20_forward_qualification.py'
+      - 'scripts/cibo_phase21_policy_freeze_contract.py'
+      - 'scripts/cibo_phase22_holdout_gate_contract.py'
+      - 'scripts/cibo_phase22_holdout_qualification_contract.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase22_qualification_plan.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase22_qualification.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase22_qualification.py'
+      - 'src/qore/infrastructure/cibo_ce2i_final_certification.py'
+      - 'scripts/cibo_final_certification_contract.py'
+      - 'tests/infrastructure/test_cibo_ce2i_final_certification.py'
+      - 'scripts/cibo_phase20_failure_engineering.py'
+      - 'scripts/cibo_phase20_failure_engineering_b.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_mechanism_certification.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_operational_mechanism_certification.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_interaction_ablation.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_robust_allocator.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_mpc.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_policy_candidate.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py'
+      - 'tests/infrastructure/test_cibo_ce2i_advanced_evidence.py'
+      - 'tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py'
+      - 'tests/infrastructure/test_cibo_ce2i_full_surface.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_store.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_policy_store.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_epoch.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_epoch_aggregator.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_snapshots.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_collector.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_qualification_plan.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_qualification_readiness.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_causal_tool_readiness.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_causal_history_state.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t03_margin_population.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_returns.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_store.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_m5_collector.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_correlation.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_risk_mapping.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_store.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t11_execution_population.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t11_cost_binding.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t13_reserve_population.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_policy.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_store.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_treatment.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_treatment_store.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t13_oos_readiness.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t13_runtime_shadow.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_regime_population.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_policy.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_store.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_runtime_shadow.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_readiness.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_readiness.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_utility.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t14_path_readiness.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t14_intervention_population.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t15_option_realization.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t15_reservation_binding.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase21_policy_freeze.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase22_holdout_gate.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_shadow_observer.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_demo_shadow_risk.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_demo_capital_bootstrap.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_demo_regime.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_demo_runtime_bridge.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_demo_single_slot.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_demo_settlement_observer.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_ctrader_demo_observer.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_outcome_reconciliation.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_ctrader_executed_risk.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_execution_risk_store.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_qualification.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py'
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-phase20-provider-uncertainty.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_capital_state_monte_carlo.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_mechanism_certification.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_interaction_ablation.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_robust_allocator.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_mpc.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_policy_candidate.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_advanced_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py'
+      - 'src/qore/infrastructure/cibo_ce2i_full_surface.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_store.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_epoch.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_epoch_aggregator.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_snapshots.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_forward_policy_store.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_qualification_plan.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_causal_tool_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_causal_history_state.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t03_margin_population.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_magnitude.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_returns.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_store.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_m5_collector.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_correlation.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_risk_mapping.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_ablation.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_store.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t11_execution_population.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t11_cost_binding.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_reserve_population.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_policy.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_store.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_treatment.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_treatment_store.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_oos_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_runtime_shadow.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_regime_population.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_policy.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_store.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_runtime_shadow.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_utility.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_utility.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_forward_population.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t14_path_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t14_intervention_population.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t15_option_realization.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t15_reservation_binding.py'
+      - 'src/qore/infrastructure/ctrader_demo_live_behavior_lab.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase22_holdout_gate.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_shadow_observer.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_demo_shadow_risk.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_demo_capital_bootstrap.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_demo_regime.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_demo_runtime_bridge.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_demo_single_slot.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_demo_settlement_observer.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_ctrader_demo_observer.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_outcome_reconciliation.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_ctrader_executed_risk.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_ctrader_recovery.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_m5_shadow_batch.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_execution_risk_store.py'
+      - 'scripts/qore_ctrader_demo_free_runtime.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_qualification.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py'
+      - 'scripts/cibo_phase20_provider_uncertainty_contract.py'
+      - 'scripts/cibo_phase20_counterfactual_stress_matrix.py'
+      - 'scripts/cibo_phase20_capital_state_monte_carlo_contract.py'
+      - 'scripts/cibo_phase20_mechanism_certification.py'
+      - 'scripts/cibo_phase20_operational_mechanism_certification.py'
+      - 'scripts/cibo_phase20_capital_action_certification.py'
+      - 'scripts/cibo_phase20_interaction_ablation.py'
+      - 'scripts/cibo_phase20_robust_allocator_contract.py'
+      - 'scripts/cibo_phase20_forecastless_mpc_contract.py'
+      - 'scripts/cibo_phase20_policy_candidate_freeze.py'
+      - 'scripts/cibo_phase20_forward_evidence_contract.py'
+      - 'scripts/cibo_phase20_forward_store_contract.py'
+      - 'scripts/cibo_phase20_forward_collector_contract.py'
+      - 'scripts/cibo_phase20_qualification_plan.py'
+      - 'scripts/cibo_phase20_forward_qualification.py'
+      - 'scripts/cibo_phase21_policy_freeze_contract.py'
+      - 'scripts/cibo_phase22_holdout_gate_contract.py'
+      - 'scripts/cibo_phase22_holdout_qualification_contract.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase22_qualification_plan.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase22_qualification.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase22_qualification.py'
+      - 'src/qore/infrastructure/cibo_ce2i_final_certification.py'
+      - 'scripts/cibo_final_certification_contract.py'
+      - 'tests/infrastructure/test_cibo_ce2i_final_certification.py'
+      - 'scripts/cibo_phase20_failure_engineering.py'
+      - 'scripts/cibo_phase20_failure_engineering_b.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_mechanism_certification.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_operational_mechanism_certification.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_interaction_ablation.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_robust_allocator.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_mpc.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_policy_candidate.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py'
+      - 'tests/infrastructure/test_cibo_ce2i_advanced_evidence.py'
+      - 'tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py'
+      - 'tests/infrastructure/test_cibo_ce2i_full_surface.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_store.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_policy_store.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_epoch.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_epoch_aggregator.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_snapshots.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_forward_collector.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_qualification_plan.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_qualification_readiness.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_causal_tool_readiness.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_causal_history_state.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t03_margin_population.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_returns.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_store.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_m5_collector.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_correlation.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_risk_mapping.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_store.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t11_execution_population.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t11_cost_binding.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t13_reserve_population.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_policy.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_store.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_treatment.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_treatment_store.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t13_oos_readiness.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t13_runtime_shadow.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_regime_population.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_policy.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_store.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_runtime_shadow.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_readiness.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_readiness.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_utility.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t14_path_readiness.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t14_intervention_population.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t15_option_realization.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t15_reservation_binding.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase21_policy_freeze.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase22_holdout_gate.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_shadow_observer.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_demo_shadow_risk.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_demo_capital_bootstrap.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_demo_regime.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_demo_runtime_bridge.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_demo_single_slot.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_demo_settlement_observer.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_ctrader_demo_observer.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_outcome_reconciliation.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_ctrader_executed_risk.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_execution_risk_store.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_qualification.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Phase 20 provider uncertainty quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_capital_state_monte_carlo.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_mechanism_certification.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_interaction_ablation.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_robust_allocator.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_mpc.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_policy_candidate.py \
+            src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py \
+            src/qore/infrastructure/cibo_ce2i_advanced_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_full_surface.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_forward_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_forward_store.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_forward_epoch.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_epoch_aggregator.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_forward_snapshots.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_forward_policy_store.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_qualification_plan.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_causal_tool_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_causal_history_state.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t03_margin_population.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_magnitude.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_returns.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_store.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_m5_collector.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_correlation.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_risk_mapping.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_ablation.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_store.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t11_execution_population.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t11_cost_binding.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t13_reserve_population.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_policy.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_store.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_treatment.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_treatment_store.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t13_oos_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t13_runtime_shadow.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_regime_population.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_policy.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_store.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_runtime_shadow.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_utility.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_utility.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_forward_population.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t14_path_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t14_intervention_population.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t15_option_realization.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t15_reservation_binding.py \
+            src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py \
+            src/qore/infrastructure/cibo_ce2i_phase22_holdout_gate.py \
+            src/qore/infrastructure/cibo_ce2i_phase22_qualification_plan.py \
+            src/qore/infrastructure/cibo_ce2i_phase22_qualification.py \
+            src/qore/infrastructure/cibo_ce2i_final_certification.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_shadow_observer.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_shadow_risk.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_capital_bootstrap.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_regime.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_runtime_bridge.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_single_slot.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_settlement_observer.py \
+            src/qore/infrastructure/cibo_cma_settlement_ledger.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_ctrader_demo_observer.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_outcome_reconciliation.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_ctrader_executed_risk.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_ctrader_recovery.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_m5_shadow_batch.py \
+            src/qore/infrastructure/ctrader_demo_trade_registry.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_execution_risk_store.py \
+            src/qore/infrastructure/ctrader_demo_mutation_ledger.py \
+            src/qore/infrastructure/ctrader_demo_execution_gateway.py \
+            src/qore/infrastructure/ctrader_demo_operational_runtime.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_qualification.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py \
+            src/qore/infrastructure/cibo_phase20_demo_execution_activation.py \
+            scripts/cibo_phase20_provider_uncertainty_contract.py \
+            scripts/cibo_phase20_counterfactual_stress_matrix.py \
+            scripts/cibo_phase20_capital_state_monte_carlo_contract.py \
+            scripts/cibo_phase20_mechanism_certification.py \
+            scripts/cibo_phase20_operational_mechanism_certification.py \
+            scripts/cibo_phase20_capital_action_certification.py \
+            scripts/cibo_phase20_interaction_ablation.py \
+            scripts/cibo_phase20_robust_allocator_contract.py \
+            scripts/cibo_phase20_forecastless_mpc_contract.py \
+            scripts/cibo_phase20_policy_candidate_freeze.py \
+            scripts/cibo_phase20_forward_evidence_contract.py \
+            scripts/cibo_phase20_forward_store_contract.py \
+            scripts/cibo_phase20_forward_collector_contract.py \
+            scripts/cibo_phase20_qualification_plan.py \
+            scripts/cibo_phase20_forward_qualification.py \
+            scripts/cibo_phase21_policy_freeze_contract.py \
+            scripts/cibo_phase22_holdout_gate_contract.py \
+            scripts/cibo_phase22_holdout_qualification_contract.py \
+            scripts/cibo_final_certification_contract.py \
+            scripts/cibo_phase20_failure_engineering.py \
+            scripts/cibo_phase20_failure_engineering_b.py \
+            scripts/cibo_phase20_demo_execution_arm.py \
+            scripts/cibo_phase20_demo_activation_receipt.py \
+            scripts/cibo_phase20_demo_persistent_collector.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_mechanism_certification.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_operational_mechanism_certification.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_interaction_ablation.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_robust_allocator.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_mpc.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_policy_candidate.py \
+            tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py \
+            tests/infrastructure/test_cibo_ce2i_advanced_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_full_surface.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_forward_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_forward_policy_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_forward_epoch.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_epoch_aggregator.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_forward_snapshots.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_forward_collector.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_qualification_plan.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_qualification_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_causal_tool_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_causal_history_state.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t03_margin_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_returns.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_m5_collector.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_correlation.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_risk_mapping.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t11_execution_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t11_cost_binding.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_reserve_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_policy.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_treatment.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_treatment_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_oos_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_runtime_shadow.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_regime_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_policy.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_runtime_shadow.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_utility.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t03_margin_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_returns.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_m5_collector.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_correlation.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_risk_mapping.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t11_execution_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t11_cost_binding.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_reserve_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_policy.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_treatment.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_treatment_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_oos_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_runtime_shadow.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_regime_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_policy.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_runtime_shadow.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_utility.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t14_path_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t14_intervention_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t15_option_realization.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t15_reservation_binding.py \
+            tests/infrastructure/test_cibo_ce2i_phase21_policy_freeze.py \
+            tests/infrastructure/test_cibo_ce2i_phase22_holdout_gate.py \
+            tests/infrastructure/test_cibo_ce2i_phase22_qualification.py \
+            tests/infrastructure/test_cibo_ce2i_final_certification.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_shadow_observer.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_shadow_risk.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_capital_bootstrap.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_regime.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_runtime_bridge.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_single_slot.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_settlement_observer.py \
+            tests/infrastructure/test_cibo_cma_settlement_ledger.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_ctrader_demo_observer.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_outcome_reconciliation.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_ctrader_executed_risk.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_ctrader_recovery.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_m5_shadow_batch.py \
+            tests/infrastructure/test_ctrader_demo_trade_registry.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_execution_risk_store.py \
+            tests/infrastructure/test_ctrader_demo_execution_gateway.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_qualification.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py \
+            tests/infrastructure/test_cibo_phase20_demo_execution_activation.py
+          mypy \
+            src/qore/infrastructure/cibo_ce2i_phase20_provider_ambiguity.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_provider_stress.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_capital_state_monte_carlo.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_mechanism_certification.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_interaction_ablation.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_robust_allocator.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_mpc.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_policy_candidate.py \
+            src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py \
+            src/qore/infrastructure/cibo_ce2i_advanced_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_full_surface.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_forward_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_forward_store.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_forward_epoch.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_epoch_aggregator.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_forward_snapshots.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_forward_policy_store.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_qualification_plan.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_causal_tool_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_causal_history_state.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t03_margin_population.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_magnitude.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_returns.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_factor_store.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_m5_collector.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_correlation.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_risk_mapping.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_ablation.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_store.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t11_execution_population.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t11_cost_binding.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t13_reserve_population.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_policy.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_store.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_treatment.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_treatment_store.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t13_oos_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t13_runtime_shadow.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_regime_population.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_policy.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_store.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_runtime_shadow.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_utility.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_utility.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_forward_population.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t14_path_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t14_intervention_population.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t15_option_realization.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t15_reservation_binding.py \
+            src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py \
+            src/qore/infrastructure/cibo_ce2i_phase22_holdout_gate.py \
+            src/qore/infrastructure/cibo_ce2i_phase22_qualification_plan.py \
+            src/qore/infrastructure/cibo_ce2i_phase22_qualification.py \
+            src/qore/infrastructure/cibo_ce2i_final_certification.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_shadow_observer.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_shadow_risk.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_capital_bootstrap.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_regime.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_runtime_bridge.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_single_slot.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_settlement_observer.py \
+            src/qore/infrastructure/cibo_cma_settlement_ledger.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_ctrader_demo_observer.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_outcome_reconciliation.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_ctrader_executed_risk.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_ctrader_recovery.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_m5_shadow_batch.py \
+            src/qore/infrastructure/ctrader_demo_trade_registry.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_execution_risk_store.py \
+            src/qore/infrastructure/ctrader_demo_mutation_ledger.py \
+            src/qore/infrastructure/ctrader_demo_execution_gateway.py \
+            src/qore/infrastructure/ctrader_demo_operational_runtime.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_qualification.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_failure_engineering.py \
+            src/qore/infrastructure/cibo_phase20_demo_execution_activation.py \
+            scripts/cibo_phase20_demo_execution_arm.py \
+            scripts/cibo_phase20_demo_activation_receipt.py \
+            scripts/cibo_phase20_demo_persistent_collector.py \
+            scripts/cibo_phase20_provider_uncertainty_contract.py \
+            scripts/cibo_phase20_counterfactual_stress_matrix.py \
+            scripts/cibo_phase20_capital_state_monte_carlo_contract.py \
+            scripts/cibo_phase20_mechanism_certification.py \
+            scripts/cibo_phase20_operational_mechanism_certification.py \
+            scripts/cibo_phase20_capital_action_certification.py \
+            scripts/cibo_phase20_interaction_ablation.py \
+            scripts/cibo_phase20_robust_allocator_contract.py \
+            scripts/cibo_phase20_forecastless_mpc_contract.py \
+            scripts/cibo_phase20_policy_candidate_freeze.py \
+            scripts/cibo_phase20_forward_evidence_contract.py \
+            scripts/cibo_phase20_forward_store_contract.py \
+            scripts/cibo_phase20_forward_collector_contract.py \
+            scripts/cibo_phase20_qualification_plan.py \
+            scripts/cibo_phase20_forward_qualification.py \
+            scripts/cibo_phase21_policy_freeze_contract.py \
+            scripts/cibo_phase22_holdout_gate_contract.py \
+            scripts/cibo_phase22_holdout_qualification_contract.py \
+            scripts/cibo_final_certification_contract.py \
+            scripts/cibo_phase20_failure_engineering.py \
+            scripts/cibo_phase20_failure_engineering_b.py
+          python -m py_compile scripts/qore_ctrader_demo_free_runtime.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_phase20_provider_ambiguity.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_capital_state_monte_carlo.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_mechanism_certification.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_operational_mechanism_certification.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_interaction_ablation.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_robust_allocator.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_mpc.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_policy_candidate.py \
+            tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py \
+            tests/infrastructure/test_cibo_ce2i_advanced_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_full_surface.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_forward_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_forward_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_forward_policy_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_forward_epoch.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_forward_snapshots.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_forward_collector.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_epoch_aggregator.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_qualification_plan.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_qualification_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_causal_tool_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_causal_history_state.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t03_margin_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_returns.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_m5_collector.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_correlation.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_risk_mapping.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t11_execution_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t11_cost_binding.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_reserve_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_policy.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_treatment.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_treatment_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_oos_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_runtime_shadow.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_regime_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_policy.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_runtime_shadow.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_utility.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t03_margin_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_magnitude.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_returns.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_factor_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_m5_collector.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_correlation.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_risk_mapping.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t11_execution_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t11_cost_binding.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_reserve_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_policy.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_treatment.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_shadow_treatment_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_oos_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_runtime_shadow.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_regime_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_policy.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_shadow_store.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_runtime_shadow.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_utility.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_forward_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t14_path_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t14_intervention_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t15_option_realization.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t15_reservation_binding.py \
+            tests/infrastructure/test_cibo_ce2i_phase21_policy_freeze.py \
+            tests/infrastructure/test_cibo_ce2i_phase22_holdout_gate.py \
+            tests/infrastructure/test_cibo_ce2i_phase22_qualification.py \
+            tests/infrastructure/test_cibo_ce2i_final_certification.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_shadow_observer.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_shadow_risk.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_capital_bootstrap.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_regime.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_runtime_bridge.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_single_slot.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_settlement_observer.py \
+            tests/infrastructure/test_cibo_cma_settlement_ledger.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_ctrader_demo_observer.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_outcome_reconciliation.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_ctrader_executed_risk.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_ctrader_recovery.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_m5_shadow_batch.py \
+            tests/infrastructure/test_ctrader_demo_trade_registry.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_execution_risk_store.py \
+            tests/infrastructure/test_ctrader_demo_execution_gateway.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_qualification.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_failure_engineering_b.py \
+            tests/infrastructure/test_cibo_phase20_demo_execution_activation.py
+
+  contract-evidence:
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Emit provider uncertainty contract evidence
+        run: |
+          mkdir -p phase20-output
+          cat > phase20-output/empty-forward-evidence.json <<'JSON'
+          {"schema":"CIBO_PHASE20D_FORWARD_EVIDENCE_BOOK_V4","generation":0,"decisions":[],"outcomes":[]}
+          JSON
+          cat > phase20-output/empty-forward-policy.json <<'JSON'
+          {"schema":"CIBO_PHASE20D_FORWARD_POLICY_BOOK_V1","generation":0,"decisions":[]}
+          JSON
+          cat > phase20-output/empty-t12-shadow.json <<'JSON'
+          {"schema":"CIBO_PHASE20_T12_SHADOW_DECISION_LEDGER_V1","generation":0,"chain_sha256":"sha256:0000000000000000000000000000000000000000000000000000000000000000","records":[]}
+          JSON
+          python scripts/cibo_phase20_provider_uncertainty_contract.py \
+            --output phase20-output/phase20-provider-uncertainty-contract.json \
+            > phase20-output/provider-uncertainty-stdout.json
+          python scripts/cibo_phase20_counterfactual_stress_matrix.py \
+            --output phase20-output/phase20-counterfactual-stress-matrix.json \
+            > phase20-output/counterfactual-stress-stdout.json
+          python scripts/cibo_phase20_capital_state_monte_carlo_contract.py \
+            --output phase20-output/phase20-capital-state-monte-carlo-contract.json \
+            > phase20-output/capital-state-monte-carlo-stdout.json
+          python scripts/cibo_phase20_mechanism_certification.py \
+            --output phase20-output/phase20-mechanism-certification.json \
+            > phase20-output/mechanism-certification-stdout.json
+          python scripts/cibo_phase20_operational_mechanism_certification.py \
+            --output phase20-output/phase20-operational-mechanism-certification.json \
+            > phase20-output/operational-mechanism-certification-stdout.json
+          python scripts/cibo_phase20_capital_action_certification.py \
+            --output phase20-output/phase20-capital-action-certification.json \
+            > phase20-output/capital-action-certification-stdout.json
+          python scripts/cibo_phase20_interaction_ablation.py \
+            --output phase20-output/phase20-interaction-ablation.json \
+            > phase20-output/interaction-ablation-stdout.json
+          python scripts/cibo_phase20_robust_allocator_contract.py \
+            --output phase20-output/phase20-robust-allocator-contract.json \
+            > phase20-output/robust-allocator-stdout.json
+          python scripts/cibo_phase20_forecastless_mpc_contract.py \
+            --output phase20-output/phase20-forecastless-mpc-contract.json \
+            > phase20-output/forecastless-mpc-stdout.json
+          python scripts/cibo_phase20_policy_candidate_freeze.py \
+            --output phase20-output/phase20-policy-candidate-freeze.json \
+            > phase20-output/policy-candidate-freeze-stdout.json
+          python scripts/cibo_phase20_forward_evidence_contract.py \
+            --output phase20-output/phase20-forward-evidence-contract.json \
+            > phase20-output/forward-evidence-stdout.json
+          python scripts/cibo_phase20_forward_store_contract.py \
+            --output phase20-output/phase20-forward-store-contract.json \
+            > phase20-output/forward-store-stdout.json
+          python scripts/cibo_phase20_forward_collector_contract.py \
+            --output phase20-output/phase20-forward-collector-contract.json \
+            > phase20-output/forward-collector-stdout.json
+          python scripts/cibo_phase20_qualification_plan.py \
+            --output phase20-output/phase20-qualification-plan.json \
+            > phase20-output/qualification-plan-stdout.json
+          python scripts/cibo_phase20_forward_qualification.py \
+            --evidence-store phase20-output/empty-forward-evidence.json \
+            --policy-store phase20-output/empty-forward-policy.json \
+            --t12-shadow-store phase20-output/empty-t12-shadow.json \
+            --git-sha "$EVIDENCE_SHA" \
+            --output phase20-output/phase20-forward-qualification-empty-contract.json \
+            > phase20-output/forward-qualification-stdout.json
+          python scripts/cibo_phase21_policy_freeze_contract.py \
+            --output phase20-output/phase21-policy-freeze-contract.json \
+            > phase20-output/phase21-policy-freeze-stdout.json
+          python scripts/cibo_phase22_holdout_gate_contract.py \
+            --output phase20-output/phase22-holdout-lineage-contract.json \
+            > phase20-output/phase22-holdout-lineage-stdout.json
+          python scripts/cibo_phase22_holdout_qualification_contract.py \
+            --output phase20-output/phase22-holdout-qualification-contract.json \
+            > phase20-output/phase22-holdout-qualification-stdout.json
+          python scripts/cibo_final_certification_contract.py \
+            --output phase20-output/cibo-final-certification-contract.json \
+            > phase20-output/cibo-final-certification-stdout.json
+          python scripts/cibo_phase20_failure_engineering.py \
+            --output phase20-output/phase20-failure-engineering.json \
+            > phase20-output/failure-engineering-stdout.json
+          python scripts/cibo_phase20_failure_engineering_b.py \
+            --output phase20-output/phase20-failure-engineering-b.json \
+            > phase20-output/failure-engineering-b-stdout.json
+      - name: Seal Phase 20 provider uncertainty evidence
+        run: |
+          printf '%s\n' "$EVIDENCE_SHA" > phase20-output/git-sha.txt
+          cd phase20-output
+          sha256sum \
+            phase20-provider-uncertainty-contract.json \
+            provider-uncertainty-stdout.json \
+            phase20-counterfactual-stress-matrix.json \
+            counterfactual-stress-stdout.json \
+            phase20-capital-state-monte-carlo-contract.json \
+            capital-state-monte-carlo-stdout.json \
+            phase20-mechanism-certification.json \
+            mechanism-certification-stdout.json \
+            phase20-operational-mechanism-certification.json \
+            operational-mechanism-certification-stdout.json \
+            phase20-capital-action-certification.json \
+            capital-action-certification-stdout.json \
+            phase20-interaction-ablation.json \
+            interaction-ablation-stdout.json \
+            phase20-robust-allocator-contract.json \
+            robust-allocator-stdout.json \
+            phase20-forecastless-mpc-contract.json \
+            forecastless-mpc-stdout.json \
+            phase20-policy-candidate-freeze.json \
+            policy-candidate-freeze-stdout.json \
+            phase20-forward-evidence-contract.json \
+            forward-evidence-stdout.json \
+            phase20-forward-store-contract.json \
+            forward-store-stdout.json \
+            phase20-forward-collector-contract.json \
+            forward-collector-stdout.json \
+            phase20-qualification-plan.json \
+            qualification-plan-stdout.json \
+            phase20-forward-qualification-empty-contract.json \
+            forward-qualification-stdout.json \
+            phase21-policy-freeze-contract.json \
+            phase21-policy-freeze-stdout.json \
+            phase22-holdout-lineage-contract.json \
+            phase22-holdout-lineage-stdout.json \
+            phase22-holdout-qualification-contract.json \
+            phase22-holdout-qualification-stdout.json \
+            cibo-final-certification-contract.json \
+            cibo-final-certification-stdout.json \
+            empty-forward-evidence.json \
+            empty-forward-policy.json \
+            empty-t12-shadow.json \
+            phase20-failure-engineering.json \
+            failure-engineering-stdout.json \
+            phase20-failure-engineering-b.json \
+            failure-engineering-b-stdout.json \
+            git-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase20-provider-uncertainty-${{ env.EVIDENCE_SHA }}
+          path: phase20-output
+          if-no-files-found: error
+          retention-days: 90

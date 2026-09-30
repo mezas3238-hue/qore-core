@@ -1,0 +1,494 @@
+import json
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
+from pathlib import Path
+
+from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
+    Phase20ForwardPolicyDecisionSeal,
+    VersionedPhase20ForwardPolicyBook,
+)
+from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
+    Phase20ForwardDecisionSeal,
+    Phase20ForwardOutcomeSeal,
+    VersionedPhase20ForwardEvidenceBook,
+)
+from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
+    FROZEN_PHASE20_POLICY_CANDIDATE,
+)
+from qore.infrastructure.cibo_ce2i_phase20_qualification import (
+    Phase20QualificationRow,
+    Phase20QualificationStatus,
+    run_phase20d_v2_qualification,
+)
+
+START = datetime(2026, 9, 28, 12, 0, tzinfo=UTC)
+LINEAGES = (
+    TraderLineage.VT31_NAS100.value,
+    TraderLineage.R43_GBPUSD.value,
+    TraderLineage.R34_XAUUSD.value,
+    TraderLineage.R38_EURUSD.value,
+    TraderLineage.R38_GBPJPY.value,
+    TraderLineage.R42_AUDJPY.value,
+    TraderLineage.VT08_FOREX.value,
+)
+
+
+def _sha(index: int) -> str:
+    return f"sha256:{index + 1:064x}"
+
+
+def _candidate(
+    *,
+    signal: str,
+    trader: str,
+) -> dict[str, object]:
+    return {
+        "candidate": {
+            "signal_fingerprint": signal,
+            "trader_id": trader,
+            "stop_risk_usd": "10",
+            "margin_usd": "10",
+            "concentration_group": "ALL",
+            "concentration_risk_usd": "10",
+            "expectation": {
+                "expected_capital_minutes": "10",
+            },
+        },
+        "provider_observation": {
+            "bid": "100",
+            "ask": "100",
+            "tick_size": "0.1",
+            "tick_value": "1",
+            "minimum_volume": "1",
+            "volume_step": "1",
+            "commission_per_volume_usd": "0",
+            "slippage_reserve_per_volume_usd": "0",
+        },
+        "opportunity": {
+            "minimum_execution_steps": 1,
+        },
+    }
+
+
+def _books(
+    *,
+    missing_baseline_outcome: bool = False,
+    negative_fold: bool = False,
+) -> tuple[
+    VersionedPhase20ForwardEvidenceBook,
+    VersionedPhase20ForwardPolicyBook,
+]:
+    decisions: list[Phase20ForwardDecisionSeal] = []
+    policies: list[Phase20ForwardPolicyDecisionSeal] = []
+    outcomes: list[Phase20ForwardOutcomeSeal] = []
+
+    for decision_index in range(80):
+        decision_at = START + timedelta(
+            days=decision_index % 28,
+            minutes=decision_index,
+        )
+        evidence_sha = _sha(decision_index)
+        signals = tuple(
+            f"signal-{decision_index}-{candidate_index}"
+            for candidate_index in range(3)
+        )
+        traders = tuple(
+            LINEAGES[
+                (decision_index * 3 + candidate_index) % len(LINEAGES)
+            ]
+            for candidate_index in range(3)
+        )
+        candidates = [
+            _candidate(signal=signal, trader=trader)
+            for signal, trader in zip(signals, traders, strict=True)
+        ]
+        population_slots = [
+            {
+                "slot_id": f"{trader}|{signal}",
+                "trader_id": trader,
+                "qore_symbol": f"SYMBOL-{candidate_index}",
+                "observed_at": (
+                    decision_at - timedelta(milliseconds=1)
+                ).isoformat(),
+                "disposition": "CANDIDATE",
+                "reason": "VALID_TRADER_OPPORTUNITY",
+                "signal_fingerprint": signal,
+            }
+            for candidate_index, (signal, trader) in enumerate(
+                zip(signals, traders, strict=True)
+            )
+        ]
+        payload = {
+            "evidence_kind": "FORWARD_OBSERVED",
+            "hard_risk_headroom_usd": "30",
+            "margin_headroom_usd": "30",
+            "concentration_limit_by_group": [["ALL", "30"]],
+            "population_slots": population_slots,
+            "candidates": candidates,
+        }
+        decisions.append(
+            Phase20ForwardDecisionSeal(
+                evidence_id=f"evidence-{decision_index}",
+                decision_epoch_id=f"epoch-{decision_index}",
+                evidence_sha256=evidence_sha,
+                decision_at=decision_at,
+                sealed_at=decision_at + timedelta(milliseconds=500),
+                seal_deadline_at=decision_at + timedelta(seconds=2),
+                candidate_id=FROZEN_PHASE20_POLICY_CANDIDATE.candidate_id,
+                code_sha=FROZEN_PHASE20_POLICY_CANDIDATE.code_sha,
+                parameter_sha256=(
+                    FROZEN_PHASE20_POLICY_CANDIDATE.parameter_sha256()
+                ),
+                signal_fingerprints=signals,
+                canonical_payload_json=json.dumps(
+                    payload,
+                    sort_keys=True,
+                ),
+            )
+        )
+        advanced_abstain = {
+            "disposition": "ABSTAIN",
+            "reason": "explicit fixture abstention",
+            "selected_id": None,
+            "approved_volume": "0",
+            "released_capacity_usd": "0",
+            "score": None,
+        }
+        full_surface = {
+            "mission_tools": [
+                f"T{index:02d}" for index in range(1, 21)
+            ],
+            "regime": {
+                "posture": "WATCH",
+                "enabled_tools": [
+                    f"T{index:02d}" for index in range(1, 21)
+                    if index not in (9, 18)
+                ],
+                "blocked_tools": ["T09", "T18"],
+                "reason": "fixture",
+            },
+            "opportunity_assessments": [
+                {
+                    "signal_fingerprint": signal,
+                    "decisions": [
+                        {"tool_code": code, **advanced_abstain}
+                        for code in ("T02", "T03", "T04", "T17")
+                    ],
+                }
+                for signal in signals
+            ],
+            "portfolio_decisions": [
+                {"tool_code": code, **advanced_abstain}
+                for code in ("T08", "T10", "T16")
+            ],
+            "registry_codes": [
+                f"T{index:02d}" for index in range(1, 21)
+            ],
+            "complete_registry": True,
+        }
+        policy_payload = {
+            "allocator_decision": {
+                "deployable_stop_risk_usd": "20",
+                "deployable_margin_usd": "20",
+                "allocation": {
+                    "used_stop_risk_usd": "10",
+                    "used_margin_usd": "10",
+                    "concentration_used_by_group": [["ALL", "10"]],
+                    "rows": [
+                        {
+                            "signal_fingerprint": signals[0],
+                            "selected": True,
+                            "reason": "selected by positive net value per risk-minute",
+                        },
+                        {
+                            "signal_fingerprint": signals[1],
+                            "selected": False,
+                            "reason": "non-positive adjusted expected net value",
+                        },
+                        {
+                            "signal_fingerprint": signals[2],
+                            "selected": False,
+                            "reason": "non-positive adjusted expected net value",
+                        },
+                    ],
+                },
+            },
+            "mpc_plan": {
+                "considered_option_ids": [],
+                "horizon_fully_coverable": True,
+            },
+            "full_surface": full_surface,
+        }
+        policies.append(
+            Phase20ForwardPolicyDecisionSeal(
+                evidence_sha256=evidence_sha,
+                policy_record_sha256=_sha(2000 + decision_index),
+                allocator_disposition="ALLOCATE",
+                selected_signal_fingerprints=(signals[0],),
+                canonical_record_json=json.dumps(
+                    policy_payload,
+                    sort_keys=True,
+                ),
+            )
+        )
+        for candidate_index, signal in enumerate(signals):
+            if (
+                missing_baseline_outcome
+                and decision_index == 0
+                and candidate_index == 1
+            ):
+                continue
+            if candidate_index == 0:
+                outcome_r = Decimal("2")
+                if negative_fold and decision_index % 28 < 7:
+                    outcome_r = Decimal("-1")
+            else:
+                outcome_r = Decimal("-1")
+            outcomes.append(
+                Phase20ForwardOutcomeSeal(
+                    evidence_id=f"outcome-{decision_index}-{candidate_index}",
+                    decision_evidence_sha256=evidence_sha,
+                    signal_fingerprint=signal,
+                    position_id=decision_index * 10 + candidate_index + 1,
+                    execution_risk_evidence_id=(
+                        f"risk-{decision_index}-{candidate_index}"
+                    ),
+                    settlement_deal_ids=(
+                        decision_index * 10 + candidate_index + 10001,
+                    ),
+                    fill_evidence_refs=(
+                        f"fill-{decision_index}-{candidate_index}",
+                    ),
+                    observed_at=decision_at + timedelta(hours=1 + candidate_index),
+                    realized_net_pnl_usd=outcome_r * Decimal("10"),
+                    executed_initial_stop_risk_usd=Decimal("10"),
+                    realized_structural_outcome_r=outcome_r,
+                    capital_deployed_at=(
+                        decision_at + timedelta(minutes=1)
+                    ),
+                    capital_released_at=(
+                        decision_at + timedelta(minutes=31)
+                    ),
+                    capital_minutes=Decimal("30"),
+                )
+            )
+
+    return (
+        VersionedPhase20ForwardEvidenceBook(
+            generation=1,
+            decisions=tuple(decisions),
+            outcomes=tuple(outcomes),
+        ),
+        VersionedPhase20ForwardPolicyBook(
+            generation=1,
+            decisions=tuple(policies),
+        ),
+    )
+
+
+def test_phase20d_fixed_runner_can_pass_without_refit() -> None:
+    evidence, policy = _books()
+
+    report = run_phase20d_v2_qualification(
+        evidence_book=evidence,
+        policy_book=policy,
+    )
+
+    assert report.status is Phase20QualificationStatus.PASS
+    assert report.failures == ()
+    assert len(report.folds) == 4
+    assert all(item.policy_net_delta_usd > 0 for item in report.folds)
+    assert report.policy_net_delta_usd > report.baseline_net_delta_usd
+    assert (
+        report.policy_settlement_cash_drawdown_usd
+        <= report.baseline_settlement_cash_drawdown_usd
+    )
+    assert (
+        report.policy_capital_productivity
+        > report.baseline_capital_productivity
+    )
+    assert report.policy_selected_outcome_coverage == Decimal("1")
+    assert report.baseline_selected_outcome_coverage == Decimal("1")
+    assert report.candidate_outcome_coverage == Decimal("1")
+    assert report.advanced_ce2i_fail_closed_rate == Decimal("0")
+    assert report.advanced_ce2i_abstention_rate == Decimal("1")
+
+
+def test_phase20d_runner_invalidates_missing_realized_capital_minutes() -> None:
+    evidence, policy = _books()
+    first = replace(
+        evidence.outcomes[0],
+        capital_deployed_at=None,
+        capital_released_at=None,
+        capital_minutes=None,
+    )
+    evidence = replace(
+        evidence,
+        outcomes=(first, *evidence.outcomes[1:]),
+    )
+
+    report = run_phase20d_v2_qualification(
+        evidence_book=evidence,
+        policy_book=policy,
+    )
+
+    assert report.status is Phase20QualificationStatus.INVALID
+    assert "REALIZED_EXECUTION_ECONOMICS_COMPLETE" in report.failures
+    assert report.candidate_outcome_coverage < Decimal("1")
+
+
+def test_phase20d_runner_invalidates_execution_risk_identity_mismatch() -> None:
+    evidence, policy = _books()
+    first = evidence.outcomes[0]
+    mismatched = replace(
+        first,
+        realized_net_pnl_usd=Decimal("24"),
+        executed_initial_stop_risk_usd=Decimal("12"),
+        realized_structural_outcome_r=Decimal("2"),
+    )
+    evidence = replace(
+        evidence,
+        outcomes=(mismatched, *evidence.outcomes[1:]),
+    )
+
+    report = run_phase20d_v2_qualification(
+        evidence_book=evidence,
+        policy_book=policy,
+    )
+
+    assert report.status is Phase20QualificationStatus.INVALID
+    assert "REALIZED_EXECUTION_ECONOMICS_COMPLETE" in report.failures
+
+
+def test_phase20d_runner_invalidates_late_physical_decision_seal() -> None:
+    evidence, policy = _books()
+    first = evidence.decisions[0]
+    assert first.seal_deadline_at is not None
+    late = replace(
+        first,
+        sealed_at=first.seal_deadline_at + timedelta(milliseconds=1),
+    )
+    evidence = replace(
+        evidence,
+        decisions=(late, *evidence.decisions[1:]),
+    )
+
+    report = run_phase20d_v2_qualification(
+        evidence_book=evidence,
+        policy_book=policy,
+    )
+
+    assert report.status is Phase20QualificationStatus.INVALID
+    assert "ZERO_CAUSAL_CONTAMINATION" in report.failures
+
+
+def test_phase20d_runner_fails_if_baseline_outcome_is_missing() -> None:
+    evidence, policy = _books(missing_baseline_outcome=True)
+
+    report = run_phase20d_v2_qualification(
+        evidence_book=evidence,
+        policy_book=policy,
+    )
+
+    assert report.status is Phase20QualificationStatus.NOT_READY
+    assert (
+        "BASELINE_SELECTED_OUTCOME_COVERAGE_COMPLETE"
+        in report.failures
+    )
+    assert report.policy_selected_outcome_coverage == Decimal("1")
+    assert report.candidate_outcome_coverage > Decimal("0.95")
+
+
+def test_phase20d_runner_fails_if_any_temporal_fold_is_not_positive() -> None:
+    evidence, policy = _books(negative_fold=True)
+
+    report = run_phase20d_v2_qualification(
+        evidence_book=evidence,
+        policy_book=policy,
+    )
+
+    assert report.status is Phase20QualificationStatus.FAIL
+    assert "ALL_TEMPORAL_FOLDS_POLICY_DELTA_POSITIVE" in report.failures
+
+
+
+def test_phase20d_row_uses_realized_net_pnl_without_double_charging_proxy() -> None:
+    row = Phase20QualificationRow(
+        decision_epoch_id="epoch-exact-economics",
+        decision_evidence_sha256=_sha(9999),
+        decision_at=START,
+        signal_fingerprint="signal-exact-economics",
+        trader_id=TraderLineage.VT31_NAS100.value,
+        stop_risk_usd=Decimal("10"),
+        margin_usd=Decimal("8"),
+        concentration_group="ALL",
+        concentration_risk_usd=Decimal("10"),
+        expected_capital_minutes=Decimal("6"),
+        provider_cost_proxy_usd=Decimal("3"),
+        policy_selected=True,
+        baseline_selected=True,
+        realized_net_pnl_usd=Decimal("18"),
+        executed_initial_stop_risk_usd=Decimal("12"),
+        realized_structural_outcome_r=Decimal("1.5"),
+        capital_minutes=Decimal("30"),
+        outcome_observed_at=START + timedelta(hours=1),
+    )
+
+    # The durable settlement already carries net realized economics.  Neither
+    # candidate stop risk (10) nor the ex-ante provider proxy (3) may rewrite
+    # the observed $18 result after settlement.
+    assert row.policy_net_delta_usd == Decimal("18")
+    assert row.baseline_net_delta_usd == Decimal("18")
+    assert row.realized_structural_outcome_r is not None
+    assert row.policy_net_delta_usd != (
+        row.realized_structural_outcome_r * row.stop_risk_usd
+        - row.provider_cost_proxy_usd
+    )
+
+
+def test_phase20d_script_cannot_self_certify_cibo() -> None:
+    root = Path(__file__).resolve().parents[2]
+    script = (
+        root / "scripts" / "cibo_phase20_forward_qualification.py"
+    ).read_text(encoding="utf-8")
+
+    assert '"CIBO_CERTIFIED"' not in script
+    assert '"PHASE21_POLICY_FREEZE_REQUIRED"' in script
+    assert '"PHASE22_SEALED_HOLDOUT_REQUIRED"' in script
+    assert '"PENDING_PHASE21_PHASE22"' in script
+
+
+def test_phase20d_runner_invalidates_advanced_fail_closed() -> None:
+    evidence, policy = _books()
+    first = policy.decisions[0]
+    payload = json.loads(first.canonical_record_json)
+    payload["full_surface"]["portfolio_decisions"][0]["disposition"] = (
+        "FAIL_CLOSED"
+    )
+    payload["full_surface"]["portfolio_decisions"][0]["reason"] = (
+        "MISSING_PORTFOLIO_NETTING_EVIDENCE"
+    )
+    policy = replace(
+        policy,
+        decisions=(
+            replace(
+                first,
+                canonical_record_json=json.dumps(payload, sort_keys=True),
+            ),
+            *policy.decisions[1:],
+        ),
+    )
+
+    report = run_phase20d_v2_qualification(
+        evidence_book=evidence,
+        policy_book=policy,
+    )
+
+    assert report.status is Phase20QualificationStatus.INVALID
+    assert (
+        "ADVANCED_TOOL_EVIDENCE_COMPLETE_OR_EXPLICIT_ABSTENTION"
+        in report.failures
+    )
+    assert report.advanced_ce2i_fail_closed_rate > Decimal("0")

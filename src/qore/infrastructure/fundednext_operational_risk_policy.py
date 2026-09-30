@@ -5,9 +5,10 @@ Provider constraints and QORE operating limits are deliberately separate:
 * FundedNext provider wall: exact 6% trailing MLL plus the separate cumulative open-risk cap.
 * QORE does not replace the 6% Maximum Loss with a 3% drawdown rule; internal
   containment uses a safety buffer and shared account heat caps above the provider wall.
-* CIBO may request NORMAL/BANK/ATTACK; this policy either ALLOWs the request,
-  REDUCEs ATTACK to NORMAL when earned cushion is insufficient, or REJECTs new
-  risk. No posture changes VT-08's certified per-trade bps.
+* CIBO owns runtime sizing for every Trader. This policy exposes and enforces
+  account-wide survival headroom and may ALLOW/REDUCE/REJECT a CIBO request.
+  No Trader risk fraction or certified historical sizing baseline has runtime
+  sizing authority.
 """
 
 from __future__ import annotations
@@ -23,14 +24,13 @@ from qore.infrastructure.fundednext_stellar_instant import (
     MAXIMUM_LOSS_FRACTION,
     StellarInstantRiskBudget,
 )
-from qore.infrastructure.vt08_forex_cibo_operational import Vt08ForexCiboPosture
 
 QORE_INTERNAL_SAFETY_BUFFER_FRACTION = Decimal("0.005")
 QORE_INTERNAL_BANK_HEAT_FRACTION = Decimal("0.03")
 QORE_INTERNAL_NORMAL_HEAT_FRACTION = Decimal("0.03")
 QORE_INTERNAL_ATTACK_HEAT_FRACTION = Decimal("0.03")
 QORE_INTERNAL_ATTACK_MIN_EARNED_CUSHION_FRACTION = Decimal("0.01")
-QORE_OPERATIONAL_RISK_POLICY_VERSION = "qore-stellar-instant-operational-risk-v3"
+QORE_OPERATIONAL_RISK_POLICY_VERSION = "qore-stellar-instant-operational-risk-v4"
 
 
 class CapitalBudgetDecision(StrEnum):
@@ -39,10 +39,16 @@ class CapitalBudgetDecision(StrEnum):
     REJECT = "REJECT"
 
 
+class CiboAccountCapitalPosture(StrEnum):
+    BANK = "BANK"
+    NORMAL = "NORMAL"
+    ATTACK = "ATTACK"
+
+
 @dataclass(frozen=True, slots=True)
 class QoreOperationalCapitalBudget:
-    requested_posture: Vt08ForexCiboPosture
-    authorized_posture: Vt08ForexCiboPosture
+    requested_posture: CiboAccountCapitalPosture
+    authorized_posture: CiboAccountCapitalPosture
     decision: CapitalBudgetDecision
     provider_maximum_loss_fraction: Decimal
     provider_active_mll: Decimal
@@ -60,9 +66,9 @@ class QoreOperationalCapitalBudget:
     policy_fingerprint: str
 
     def __post_init__(self) -> None:
-        if type(self.requested_posture) is not Vt08ForexCiboPosture:
+        if type(self.requested_posture) is not CiboAccountCapitalPosture:
             raise AccountWideRiskError("requested posture must be canonical")
-        if type(self.authorized_posture) is not Vt08ForexCiboPosture:
+        if type(self.authorized_posture) is not CiboAccountCapitalPosture:
             raise AccountWideRiskError("authorized posture must be canonical")
         if type(self.decision) is not CapitalBudgetDecision:
             raise AccountWideRiskError("capital budget decision must be canonical")
@@ -91,7 +97,10 @@ class QoreOperationalCapitalBudget:
             raise AccountWideRiskError("capital budget policy version mismatch")
         if self.policy_fingerprint != operational_risk_policy_fingerprint():
             raise AccountWideRiskError("capital budget policy fingerprint mismatch")
-        if self.attack_authorized and self.authorized_posture is not Vt08ForexCiboPosture.ATTACK:
+        if (
+            self.attack_authorized
+            and self.authorized_posture is not CiboAccountCapitalPosture.ATTACK
+        ):
             raise AccountWideRiskError("attack authorization requires ATTACK posture")
 
 
@@ -108,14 +117,55 @@ def operational_risk_policy_fingerprint() -> str:
         "attack_min_earned_cushion_fraction": str(
             QORE_INTERNAL_ATTACK_MIN_EARNED_CUSHION_FRACTION
         ),
-        "per_trade_vt08_risk_unchanged_by_posture": True,
+        "capital_posture_owner": "CIBO_ACCOUNT",
+        "capital_postures": [
+            item.value for item in CiboAccountCapitalPosture
+        ],
+        "trader_runtime_sizing_authority": False,
+        "cibo_runtime_sizing_authority": True,
+        "risk_runtime_sizing_authority": False,
         "minimum_broker_volume_uplift_requires_shared_headroom": True,
         "aggregate_heat_shared_by_all_traders": True,
-        "risk_final_capital_authority": True,
+        "risk_is_hard_survivability_governor": True,
     }
     return sha256(
         json.dumps(material, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
+
+
+def derive_cibo_account_capital_posture(
+    *,
+    initial_balance: Decimal,
+    balance: Decimal,
+    equity: Decimal,
+    current_aggregate_stop_risk: Decimal,
+) -> CiboAccountCapitalPosture:
+    """Derive account posture from account facts, never from a Trader."""
+
+    for name, value in (
+        ("initial_balance", initial_balance),
+        ("balance", balance),
+        ("equity", equity),
+    ):
+        _positive(value, name)
+    _nonnegative(
+        current_aggregate_stop_risk,
+        "current_aggregate_stop_risk",
+    )
+    earned = max(Decimal(0), balance - initial_balance)
+    floating_loss = max(Decimal(0), balance - equity)
+    if (
+        floating_loss > 0
+        or current_aggregate_stop_risk
+        >= initial_balance * Decimal("0.005")
+    ):
+        return CiboAccountCapitalPosture.BANK
+    if (
+        earned >= initial_balance * Decimal("0.005")
+        and floating_loss == 0
+    ):
+        return CiboAccountCapitalPosture.ATTACK
+    return CiboAccountCapitalPosture.NORMAL
 
 
 def evaluate_qore_operational_capital_budget(
@@ -126,7 +176,7 @@ def evaluate_qore_operational_capital_budget(
     equity: Decimal,
     highest_closed_balance: Decimal,
     current_aggregate_stop_risk: Decimal,
-    requested_posture: Vt08ForexCiboPosture,
+    requested_posture: CiboAccountCapitalPosture,
     certified_open_risk_fraction: Decimal | None = None,
 ) -> QoreOperationalCapitalBudget:
     """Resolve CIBO posture against provider distance and conservative QORE limits."""
@@ -143,7 +193,7 @@ def evaluate_qore_operational_capital_budget(
     _nonnegative(current_aggregate_stop_risk, "current_aggregate_stop_risk")
     if highest_closed_balance < initial_balance:
         raise AccountWideRiskError("highest closed balance cannot be below initial balance")
-    if type(requested_posture) is not Vt08ForexCiboPosture:
+    if type(requested_posture) is not CiboAccountCapitalPosture:
         raise AccountWideRiskError("requested posture must be canonical")
     if provider_budget.initial_balance != initial_balance:
         raise AccountWideRiskError("provider/QORE initial balance mismatch")
@@ -167,15 +217,15 @@ def evaluate_qore_operational_capital_budget(
     authorized_posture = requested_posture
     posture_decision = CapitalBudgetDecision.ALLOW
     posture_reason = "requested-posture-fits-qore-policy"
-    if requested_posture is Vt08ForexCiboPosture.ATTACK and earned_cushion < attack_threshold:
-        authorized_posture = Vt08ForexCiboPosture.NORMAL
+    if requested_posture is CiboAccountCapitalPosture.ATTACK and earned_cushion < attack_threshold:
+        authorized_posture = CiboAccountCapitalPosture.NORMAL
         posture_decision = CapitalBudgetDecision.REDUCE
         posture_reason = "attack-reduced-earned-cushion-insufficient"
 
     heat_fraction = {
-        Vt08ForexCiboPosture.BANK: QORE_INTERNAL_BANK_HEAT_FRACTION,
-        Vt08ForexCiboPosture.NORMAL: QORE_INTERNAL_NORMAL_HEAT_FRACTION,
-        Vt08ForexCiboPosture.ATTACK: QORE_INTERNAL_ATTACK_HEAT_FRACTION,
+        CiboAccountCapitalPosture.BANK: QORE_INTERNAL_BANK_HEAT_FRACTION,
+        CiboAccountCapitalPosture.NORMAL: QORE_INTERNAL_NORMAL_HEAT_FRACTION,
+        CiboAccountCapitalPosture.ATTACK: QORE_INTERNAL_ATTACK_HEAT_FRACTION,
     }[authorized_posture]
     heat_cap = initial_balance * heat_fraction
     if certified_open_risk_fraction is not None:
@@ -210,7 +260,7 @@ def evaluate_qore_operational_capital_budget(
 
     attack_authorized = (
         decision is CapitalBudgetDecision.ALLOW
-        and authorized_posture is Vt08ForexCiboPosture.ATTACK
+        and authorized_posture is CiboAccountCapitalPosture.ATTACK
     )
     return QoreOperationalCapitalBudget(
         requested_posture=requested_posture,

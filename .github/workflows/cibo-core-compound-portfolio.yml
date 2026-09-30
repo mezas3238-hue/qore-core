@@ -1,0 +1,54 @@
+name: QORE CIBO GEN-C3 Core Compound Portfolio
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-core-compound-portfolio.yml'
+      - 'src/qore/infrastructure/cibo_compound_capital.py'
+      - 'src/qore/infrastructure/cibo_compound_portfolio_ledger.py'
+      - 'src/qore/infrastructure/cibo_compound_floor.py'
+      - 'src/qore/infrastructure/cibo_core_compound_portfolio.py'
+      - 'tests/infrastructure/test_cibo_core_compound_portfolio.py'
+      - 'docs/research/CIBO-CE2I-ADR-003-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING.md'
+      - 'docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md'
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-core-compound-portfolio.yml'
+      - 'src/qore/infrastructure/cibo_compound_capital.py'
+      - 'src/qore/infrastructure/cibo_compound_portfolio_ledger.py'
+      - 'src/qore/infrastructure/cibo_compound_floor.py'
+      - 'src/qore/infrastructure/cibo_core_compound_portfolio.py'
+      - 'tests/infrastructure/test_cibo_core_compound_portfolio.py'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  core-compound-portfolio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: GEN-C3 Core Compound Portfolio quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_compound_capital.py \
+            src/qore/infrastructure/cibo_compound_portfolio_ledger.py \
+            src/qore/infrastructure/cibo_compound_floor.py \
+            src/qore/infrastructure/cibo_core_compound_portfolio.py \
+            tests/infrastructure/test_cibo_core_compound_portfolio.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_core_compound_portfolio.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_core_compound_portfolio.py

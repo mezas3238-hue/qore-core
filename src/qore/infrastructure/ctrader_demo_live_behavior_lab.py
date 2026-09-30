@@ -44,37 +44,37 @@ TRADER_BEHAVIOR_CONTRACTS: dict[str, TraderBehaviorContract] = {
     "VT08_FOREX": TraderBehaviorContract(
         trader="VT08_FOREX",
         management_contract="STATIC_SL_TP_PLUS_H4_CONTAINMENT_EXIT",
-        sizing_path="VT08_CIBO_AUTHORIZATION_PLUS_DEMO_NATIVE_RISK_SIZING",
+        sizing_path="CIBO_CMA_MINIMAL_SEED",
     ),
     "R34_XAUUSD": TraderBehaviorContract(
         trader="R34_XAUUSD",
         management_contract="STATIC_SL_TP_PLUS_24H_EXIT",
-        sizing_path="R34_BASE_RISK_X_GOVERNOR_SCALE_THEN_DEMO_NATIVE_VOLUME",
+        sizing_path="CIBO_CMA_MINIMAL_SEED",
     ),
     "R38_EURUSD": TraderBehaviorContract(
         trader="R38_EURUSD",
         management_contract="DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
-        sizing_path="R38_EURUSD_BASE_RISK_X_COGNITIVE_SCALE_THEN_DEMO_NATIVE_VOLUME",
+        sizing_path="CIBO_CMA_MINIMAL_SEED",
     ),
     "R43_GBPUSD": TraderBehaviorContract(
         trader="R43_GBPUSD",
         management_contract="DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
-        sizing_path="R43_GBPUSD_BASE_RISK_X_COGNITIVE_SCALE_THEN_DEMO_NATIVE_VOLUME",
+        sizing_path="CIBO_CMA_MINIMAL_SEED",
     ),
     "R38_GBPJPY": TraderBehaviorContract(
         trader="R38_GBPJPY",
         management_contract="DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
-        sizing_path="R38_GBPJPY_BASE_RISK_X_COGNITIVE_SCALE_THEN_DEMO_NATIVE_VOLUME",
+        sizing_path="CIBO_CMA_MINIMAL_SEED",
     ),
     "R42_AUDJPY": TraderBehaviorContract(
         trader="R42_AUDJPY",
         management_contract="DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
-        sizing_path="R42_AUDJPY_BASE_RISK_X_COGNITIVE_SCALE_THEN_DEMO_NATIVE_VOLUME",
+        sizing_path="CIBO_CMA_MINIMAL_SEED",
     ),
     "VT31_NAS100": TraderBehaviorContract(
         trader="VT31_NAS100",
         management_contract="V4_PARTIAL_BE_DOL1_RUNNER_PS2_STOP_ADVANCE",
-        sizing_path="VT31_CERTIFIED_RISK_RESOLUTION_THEN_DEMO_NATIVE_VOLUME",
+        sizing_path="CIBO_CMA_MINIMAL_SEED",
     ),
 }
 

@@ -1,8 +1,9 @@
 """Independent QORE cTrader DEMO FREE-CIBO runtime.
 
 Market data, account state, execution, position management, persistence and
-watchdog ownership are cTrader DEMO-only. QORE Risk allocates capital; Trader/CIBO
-retain setup, sizing and position-management authority.
+watchdog ownership are cTrader DEMO-only. Traders retain market-methodology
+authority; CIBO CMA owns sizing/capital management; QORE Risk remains the hard
+survivability governor.
 """
 
 from __future__ import annotations
@@ -35,7 +36,8 @@ from qore.infrastructure.ctrader_demo_free_sink import (
     CTraderDemoFreeSink,
     configure_global_sink,
     credentials_from_environment,
-    demo_capital_for,
+    demo_account_capital,
+    demo_committed_stop_risk,
     submit_demo_request,
 )
 from qore.infrastructure.account_wide_risk import (
@@ -46,6 +48,70 @@ from qore.infrastructure.broker_risk_sizing import BrokerMinimumVolumeRiskReject
 from qore.infrastructure.account_wide_risk_ledger import (
     DurableAccountWideRiskEngine,
     DurableAccountWideRiskLedger,
+)
+from qore.infrastructure.cibo_account_capital_mission import (
+    derive_cibo_capital_mission,
+    eligible_ce2i_tool_codes_for_mission,
+    identity_from_market_test_account,
+)
+from qore.infrastructure.cibo_capital_management_authority import (
+    TraderOpportunityEnvelope,
+)
+from qore.infrastructure.cibo_capital_source_ledger_store import (
+    DurableCapitalSourceLedgerStore,
+)
+from qore.infrastructure.cibo_phase20_demo_execution_activation import (
+    load_phase20_demo_execution_activation,
+)
+from qore.infrastructure.cibo_ctrader_demo_sizing import (
+    build_ctrader_demo_cibo_sizing,
+)
+from qore.infrastructure.cibo_ce2i_phase20_ctrader_recovery import (
+    reconcile_ctrader_demo_phase20_entry,
+)
+from qore.infrastructure.cibo_ce2i_phase20_demo_capital_bootstrap import (
+    bootstrap_phase20_demo_assigned_capital,
+)
+from qore.infrastructure.cibo_ce2i_phase20_demo_runtime_bridge import (
+    finalize_ctrader_demo_m5_phase20_policy,
+    prepare_ctrader_demo_m5_phase20_epoch,
+)
+from qore.infrastructure.cibo_ce2i_phase20_demo_single_slot import (
+    Phase20DemoSingleSlotTerminal,
+    build_ctrader_demo_single_slot_known_option,
+    build_ctrader_demo_single_slot_observed_opportunity,
+    finalize_ctrader_demo_single_slot_phase20_policy,
+    prepare_ctrader_demo_single_slot_phase20_epoch,
+)
+from qore.infrastructure.cibo_ce2i_phase20_demo_settlement_observer import (
+    DurablePhase20DemoSettlementCursorStore,
+    observe_ctrader_demo_phase20_settlements,
+)
+from qore.infrastructure.cibo_ce2i_phase20_execution_risk_store import (
+    DurablePhase20ExecutedRiskStore,
+)
+from qore.infrastructure.cibo_ce2i_phase20_forward_evidence import (
+    Phase20ForwardKnownOptionEvidence,
+    Phase20ForwardPopulationDisposition,
+)
+from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
+    DurablePhase20ForwardPolicyStore,
+)
+from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
+    DurablePhase20ForwardEvidenceStore,
+)
+from qore.infrastructure.cibo_ce2i_phase20_m5_shadow_batch import (
+    Phase20M5ShadowTerminal,
+    build_ctrader_demo_m5_observed_opportunity,
+)
+from qore.infrastructure.cibo_ce2i_phase20_t12_shadow_store import (
+    DurableT12ShadowDecisionStore,
+)
+from qore.infrastructure.cibo_ce2i_phase20_t13_shadow_store import (
+    DurableT13ShadowDecisionStore,
+)
+from qore.infrastructure.cibo_ce2i_phase20_t13_shadow_treatment_store import (
+    DurableT13ShadowTreatmentStore,
 )
 from qore.infrastructure.ctrader_demo_compat import (
     CTraderDemoAccountState,
@@ -63,6 +129,9 @@ from qore.infrastructure.ctrader_demo_runtime_state import (
     CTraderDemoRuntimeState,
     CTraderDemoSingleWriterLock,
     DurableCTraderDemoRuntimeStateStore,
+)
+from qore.infrastructure.ctrader_demo_mutation_ledger import (
+    JsonFileCTraderDemoMutationLedger,
 )
 from qore.infrastructure.market_test_environment import (
     MarketRuntimeEnvironment,
@@ -85,7 +154,7 @@ from qore.infrastructure.r34_xauusd_live import (
     R34LiveState,
     R34LiveStateStore,
     build_live_signal as build_r34_live_signal,
-    build_r34_risk_request,
+    build_r34_opportunity,
     current_anchor as current_r34_anchor,
     load_cognitive as load_r34_cognitive,
 )
@@ -94,7 +163,7 @@ from qore.infrastructure.r38_eurusd_live import (
     R38LiveState,
     R38LiveStateStore,
     build_live_signal as build_r38_live_signal,
-    build_r38_risk_request,
+    build_r38_opportunity,
     current_anchor as current_r38_anchor,
     load_cognitive as load_r38_cognitive,
     manage_open_position as manage_r38_open_position,
@@ -104,7 +173,7 @@ from qore.infrastructure.r43_gbpusd_live import (
     R43LiveState,
     R43LiveStateStore,
     build_live_signal as build_r43_live_signal,
-    build_r43_risk_request,
+    build_r43_opportunity,
     current_anchor as current_r43_anchor,
     load_memory as load_r43_memory,
     manage_open_position as manage_r43_open_position,
@@ -114,7 +183,7 @@ from qore.infrastructure.r38_gbpjpy_live import (
     R38GbpJpyLiveState,
     R38GbpJpyLiveStateStore,
     build_live_signal as build_gbpjpy_r38_live_signal,
-    build_r38_gbpjpy_risk_request,
+    build_r38_gbpjpy_opportunity,
     current_anchor as current_gbpjpy_r38_anchor,
     load_memory as load_gbpjpy_r38_memory,
     manage_open_position as manage_gbpjpy_r38_open_position,
@@ -128,7 +197,7 @@ from qore.infrastructure.r42_audjpy_live import (
     R42AudJpyLiveState,
     R42AudJpyLiveStateStore,
     build_live_signal as build_audjpy_r42_live_signal,
-    build_r42_audjpy_risk_request,
+    build_r42_audjpy_opportunity,
     load_memory as load_audjpy_r42_memory,
     manage_open_position as manage_audjpy_r42_open_position,
 )
@@ -150,8 +219,14 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
     evaluate_vt08_forex_cibo,
 )
 from qore.infrastructure.ctrader_demo_vt08_sizing import (
-    build_ctrader_demo_vt08_cibo_request,
+    build_ctrader_demo_vt08_opportunity,
 )
+from qore.infrastructure.cibo_cma_lifecycle_store import DurableCmaLifecycleStore
+from qore.infrastructure.cibo_cma_runtime_observer import (
+    CmaRuntimePositionSnapshot,
+    observe_runtime_position,
+)
+from qore.infrastructure.cibo_cma_settlement_store import DurableCmaSettlementStore
 from qore.infrastructure.ctrader_demo_live_anomaly_supervisor import (
     run_with_bounded_repair,
 )
@@ -168,6 +243,9 @@ _vt31_adapter = import_module("vt31_nas100_ctrader_demo_adapter")
 evaluate_vt31_boundary = _vt31_adapter.evaluate_boundary
 prepare_vt31_boundary = _vt31_adapter.prepare_boundary
 manage_vt31_open_trade = _vt31_adapter.manage_open_trade
+build_vt31_virtual_order_opportunity = (
+    _vt31_adapter.build_virtual_order_opportunity
+)
 process_vt31_virtual_oco = _vt31_adapter.process_virtual_oco
 reconcile_vt31_pending = _vt31_adapter.reconcile_pending
 vt31_runtime_started_fields = _vt31_adapter.runtime_started_fields
@@ -544,6 +622,16 @@ def _process_candidate(
     capital_budget: Any,
     account_equity: Decimal,
     log_path: Path,
+    phase20_after_submit: Callable[
+        [
+            TraderOpportunityEnvelope,
+            CTraderDemoSymbolSpecification,
+            CTraderDemoAccountState,
+            datetime,
+        ],
+        None,
+    ]
+    | None = None,
 ) -> None:
     boundary_utc = candidate.decision_at.astimezone(UTC)
     observed_utc = now.astimezone(UTC)
@@ -565,7 +653,7 @@ def _process_candidate(
     )
     setup = cibo_setup_from_b01(candidate)
     posture_at = datetime.now(UTC)
-    demo_capital = demo_capital_for(TraderLineage.VT08_FOREX)
+    demo_capital = demo_account_capital()
     posture = request_cibo_posture(
         initial_balance=demo_capital,
         balance=demo_capital,
@@ -582,14 +670,33 @@ def _process_candidate(
     if cibo.decision is not Vt08ForexCiboDecision.ALLOW:
         _log(log_path, {"event": "CIBO_DENY", "symbol": candidate.symbol, "reason": cibo.reason})
         return
-    spec = gateway.read_symbol(candidate.symbol, now=datetime.now(UTC))
-    request = build_ctrader_demo_vt08_cibo_request(
-        request_id=f"vt08-{setup.signal_fingerprint[:24]}",
+    request_at = datetime.now(UTC)
+    spec = gateway.read_symbol(candidate.symbol, now=request_at)
+    account = gateway.read_account(now=request_at)
+    opportunity = build_ctrader_demo_vt08_opportunity(
         cibo_authorization=cibo,
         provider_spec=spec,
-        account_equity=demo_capital,
     )
+    seed = build_ctrader_demo_cibo_sizing(
+        request_id=f"vt08-{setup.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        account_ref=account_binding_id,
+        account_state=account,
+        current_committed_stop_risk_usd=demo_committed_stop_risk(
+            now=request_at,
+        ),
+        requested_at=request_at,
+        expires_at=setup.expires_at,
+    )
+    request = seed.request
     demo_result = submit_demo_request(request)
+    if phase20_after_submit is not None:
+        phase20_after_submit(
+            opportunity,
+            spec,
+            account,
+            request_at,
+        )
     _log(
         log_path,
         {
@@ -622,14 +729,23 @@ def _process_r34_candidate(
     preflight_snapshot: AccountRiskSnapshot | None = None,
     preflight_spec: CTraderDemoSymbolSpecification | None = None,
 ) -> None:
-    spec = gateway.read_symbol("XAUUSD", now=datetime.now(UTC))
-    request, base_risk_usd = build_r34_risk_request(
+    request_at = datetime.now(UTC)
+    spec = gateway.read_symbol("XAUUSD", now=request_at)
+    account = gateway.read_account(now=request_at)
+    opportunity = build_r34_opportunity(signal=signal, provider_spec=spec)
+    seed = build_ctrader_demo_cibo_sizing(
         request_id=f"r34-{signal.signal_fingerprint[:24]}",
-        signal=signal,
-        provider_spec=spec,
-        account_equity=demo_capital_for(TraderLineage.R34_XAUUSD),
-        now=datetime.now(UTC),
+        opportunity=opportunity,
+        account_ref=account_binding_id,
+        account_state=account,
+        current_committed_stop_risk_usd=demo_committed_stop_risk(
+            now=request_at,
+        ),
+        requested_at=request_at,
+        expires_at=request_at + timedelta(seconds=30),
     )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
     demo_result = submit_demo_request(request)
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         r34_store.mark_open(
@@ -669,14 +785,23 @@ def _process_r38_candidate(
     preflight_snapshot: AccountRiskSnapshot | None = None,
     preflight_spec: CTraderDemoSymbolSpecification | None = None,
 ) -> None:
-    spec = gateway.read_symbol("EURUSD", now=datetime.now(UTC))
-    request, base_risk_usd = build_r38_risk_request(
+    request_at = datetime.now(UTC)
+    spec = gateway.read_symbol("EURUSD", now=request_at)
+    account = gateway.read_account(now=request_at)
+    opportunity = build_r38_opportunity(signal=signal, provider_spec=spec)
+    seed = build_ctrader_demo_cibo_sizing(
         request_id=f"r38-{signal.signal_fingerprint[:24]}",
-        signal=signal,
-        provider_spec=spec,
-        account_equity=demo_capital_for(TraderLineage.R38_EURUSD),
-        now=datetime.now(UTC),
+        opportunity=opportunity,
+        account_ref=account_binding_id,
+        account_state=account,
+        current_committed_stop_risk_usd=demo_committed_stop_risk(
+            now=request_at,
+        ),
+        requested_at=request_at,
+        expires_at=request_at + timedelta(seconds=30),
     )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
     demo_result = submit_demo_request(request)
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         r38_store.mark_open(
@@ -716,14 +841,23 @@ def _process_r43_candidate(
     preflight_snapshot: AccountRiskSnapshot | None = None,
     preflight_spec: CTraderDemoSymbolSpecification | None = None,
 ) -> None:
-    spec = gateway.read_symbol("GBPUSD", now=datetime.now(UTC))
-    request, base_risk_usd = build_r43_risk_request(
+    request_at = datetime.now(UTC)
+    spec = gateway.read_symbol("GBPUSD", now=request_at)
+    account = gateway.read_account(now=request_at)
+    opportunity = build_r43_opportunity(signal=signal, provider_spec=spec)
+    seed = build_ctrader_demo_cibo_sizing(
         request_id=f"r43-{signal.signal_fingerprint[:24]}",
-        signal=signal,
-        provider_spec=spec,
-        account_equity=demo_capital_for(TraderLineage.R43_GBPUSD),
-        now=datetime.now(UTC),
+        opportunity=opportunity,
+        account_ref=account_binding_id,
+        account_state=account,
+        current_committed_stop_risk_usd=demo_committed_stop_risk(
+            now=request_at,
+        ),
+        requested_at=request_at,
+        expires_at=request_at + timedelta(seconds=30),
     )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
     demo_result = submit_demo_request(request)
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         r43_store.mark_open(
@@ -763,14 +897,23 @@ def _process_gbpjpy_r38_candidate(
     preflight_snapshot: AccountRiskSnapshot | None = None,
     preflight_spec: CTraderDemoSymbolSpecification | None = None,
 ) -> None:
-    spec = gateway.read_symbol("GBPJPY", now=datetime.now(UTC))
-    request, base_risk_usd = build_r38_gbpjpy_risk_request(
+    request_at = datetime.now(UTC)
+    spec = gateway.read_symbol("GBPJPY", now=request_at)
+    account = gateway.read_account(now=request_at)
+    opportunity = build_r38_gbpjpy_opportunity(signal=signal, provider_spec=spec)
+    seed = build_ctrader_demo_cibo_sizing(
         request_id=f"gbpjpy-r38-{signal.signal_fingerprint[:24]}",
-        signal=signal,
-        provider_spec=spec,
-        account_equity=demo_capital_for(TraderLineage.R38_GBPJPY),
-        now=datetime.now(UTC),
+        opportunity=opportunity,
+        account_ref=account_binding_id,
+        account_state=account,
+        current_committed_stop_risk_usd=demo_committed_stop_risk(
+            now=request_at,
+        ),
+        requested_at=request_at,
+        expires_at=request_at + timedelta(seconds=30),
     )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
     demo_result = submit_demo_request(request)
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         gbpjpy_r38_store.mark_open(
@@ -840,13 +983,25 @@ def _process_audjpy_r42_candidate(
     request_at = stage_time("before-risk-request")
     if request_at is None:
         return
-    request, base_risk_usd = build_r42_audjpy_risk_request(
-        request_id=f"audjpy-r42-{signal.signal_fingerprint[:24]}",
+    account = gateway.read_account(now=request_at)
+    opportunity = build_r42_audjpy_opportunity(
         signal=signal,
         provider_spec=spec,
-        account_equity=demo_capital_for(TraderLineage.R42_AUDJPY),
         now=request_at,
     )
+    seed = build_ctrader_demo_cibo_sizing(
+        request_id=f"audjpy-r42-{signal.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        account_ref=account_binding_id,
+        account_state=account,
+        current_committed_stop_risk_usd=demo_committed_stop_risk(
+            now=request_at,
+        ),
+        requested_at=request_at,
+        expires_at=deadline,
+    )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
 
     demo_result = submit_demo_request(request)
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
@@ -871,9 +1026,12 @@ def _process_audjpy_r42_candidate(
 
 
 def run(root: Path, *, mode: str, activation_path: Path) -> None:
-    del activation_path
     global mt5
     sha = _git_sha(root)
+    load_phase20_demo_execution_activation(
+        activation_path,
+        expected_git_sha=sha,
+    )
     demo_sink = _configure_ctrader_demo_free_sink(root)
     binding_raw = json.loads(
         (root / "var" / "ctrader_demo_free" / "binding.json").read_text(encoding="utf-8")
@@ -932,7 +1090,77 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         account_ref=str(account_info.login),
         environment=MarketRuntimeEnvironment.DEMO,
     )
+    cibo_account_identity = identity_from_market_test_account(account)
+    cibo_capital_mission = derive_cibo_capital_mission(cibo_account_identity)
+    cibo_enabled_ce2i_tools = eligible_ce2i_tool_codes_for_mission(
+        cibo_capital_mission
+    )
     state_dir = root / "var" / "ctrader_demo_signal_runtime"
+    cma_settlement_store = DurableCmaSettlementStore(
+        state_dir / "cibo-cma-settlements.json"
+    )
+    cma_lifecycle_store = DurableCmaLifecycleStore(
+        state_dir / "cibo-cma-lifecycle.json"
+    )
+    # Fail startup if durable CMA evidence is corrupt. Observational CMA must
+    # never manufacture fresh capacity by silently discarding restart state.
+    cma_settlement_store.load()
+    cma_lifecycle_store.load()
+    phase20_evidence_store = DurablePhase20ForwardEvidenceStore(
+        state_dir / "cibo-phase20-forward-evidence.json"
+    )
+    phase20_policy_store = DurablePhase20ForwardPolicyStore(
+        state_dir / "cibo-phase20-forward-policy.json"
+    )
+    phase20_t12_shadow_store = DurableT12ShadowDecisionStore(
+        state_dir / "cibo-phase20-t12-shadow-decisions.json"
+    )
+    phase20_t13_recommendation_store = DurableT13ShadowDecisionStore(
+        state_dir / "cibo-phase20-t13-shadow-decisions.json"
+    )
+    phase20_t13_treatment_store = DurableT13ShadowTreatmentStore(
+        state_dir / "cibo-phase20-t13-shadow-treatments.json"
+    )
+    phase20_executed_risk_store = DurablePhase20ExecutedRiskStore(
+        state_dir / "cibo-phase20-executed-risk.json"
+    )
+    phase20_capital_store = DurableCapitalSourceLedgerStore(
+        state_dir / "cibo-phase20-assigned-capital.json"
+    )
+    phase20_mutation_ledger = JsonFileCTraderDemoMutationLedger(
+        root / "var" / "ctrader_demo_free" / "mutations.json"
+    )
+    phase20_settlement_cursor_store = (
+        DurablePhase20DemoSettlementCursorStore(
+            state_dir / "cibo-phase20-settlement-cursor.json"
+        )
+    )
+    phase20_bootstrap_at = datetime.now(UTC)
+    phase20_bootstrap_account = _account_state_from_demo_api(
+        demo_api,
+        phase20_bootstrap_at,
+    )
+    phase20_assigned_base, phase20_capital_state = (
+        bootstrap_phase20_demo_assigned_capital(
+            store=phase20_capital_store,
+            account=account,
+            account_state=phase20_bootstrap_account,
+            activated_at=phase20_bootstrap_at,
+        )
+    )
+    phase20_known_open_position_ids = tuple(
+        sorted(
+            item.position_id
+            for item in demo_sink.position_service.positions()
+        )
+    )
+    # Forward stores are authoritative evidence. Corruption must fail startup.
+    phase20_evidence_store.load()
+    phase20_policy_store.load()
+    phase20_t12_shadow_store.load()
+    phase20_t13_recommendation_store.load()
+    phase20_t13_treatment_store.load()
+    phase20_executed_risk_store.load()
     startup_memory = ThreadPoolExecutor(
         max_workers=6,
         thread_name_prefix="qore-startup-memory",
@@ -1055,6 +1283,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         state_dir / "runtime-state.json"
     )
     old = store.load()
+    phase20_recovery_status_by_signal: dict[str, str] = {}
     now = datetime.now(UTC)
     if old is not None:
         if old.git_sha != sha or old.account_identity_fingerprint != fingerprint:
@@ -1075,6 +1304,171 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     highest = Decimal(str(account_info.balance))
     previous_mll = Decimal(str(account_info.equity))
     log_path = root / "artifacts" / "ctrader_demo_free_runtime_events.jsonl"
+
+    def observe_phase20_single_slot(
+        *,
+        trader_id: TraderLineage,
+        qore_symbol: str,
+        epoch_scope: str,
+        opened_at: datetime,
+        deadline_at: datetime,
+        terminal_observed_at: datetime,
+        disposition: Phase20ForwardPopulationDisposition,
+        reason: str,
+        account_state_for_shadow: CTraderDemoAccountState,
+        opportunity: TraderOpportunityEnvelope | None = None,
+        provider_spec: CTraderDemoSymbolSpecification | None = None,
+        known_options: tuple[Phase20ForwardKnownOptionEvidence, ...] = (),
+    ) -> None:
+        """Observe one sovereign Trader boundary without blocking execution."""
+
+        sealed_at = datetime.now(UTC)
+        effective_disposition = disposition
+        effective_reason = reason
+        effective_obportunity = opportunity
+        effective_provider = provider_spec
+        effective_known_options = known_options
+        terminal_at = terminal_observed_at
+        decision_at = sealed_at
+        if sealed_at > deadline_at or terminal_observed_at > deadline_at:
+            effective_disposition = (
+                Phase20ForwardPopulationDisposition.DEADLINE_MISSED
+            )
+            effective_reason = "PHASE20D_SHADOW_DEADLINE_MISSED"
+            effective_obportunity = None
+            effective_provider = None
+            effective_known_options = ()
+            terminal_at = deadline_at
+            decision_at = deadline_at
+        try:
+            observed_opportunity = None
+            if effective_obportunity is not None:
+                if effective_provider is None:
+                    raise RuntimeError(
+                        "phase20-single-slot-provider-evidence-missing"
+                    )
+                observed_opportunity = (
+                    build_ctrader_demo_single_slot_observed_opportunity(
+                        opportunity=effective_obportunity,
+                        provider_spec=effective_provider,
+                        observed_at=terminal_at,
+                    )
+                )
+            terminal = Phase20DemoSingleSlotTerminal(
+                trader_id=trader_id,
+                qore_symbol=qore_symbol,
+                observed_at=terminal_at,
+                disposition=effective_disposition,
+                reason=effective_reason,
+                opportunity=observed_opportunity,
+            )
+            prepared = prepare_ctrader_demo_single_slot_phase20_epoch(
+                epoch_scope=epoch_scope,
+                opened_at=opened_at,
+                deadline_at=deadline_at,
+                decision_at=decision_at,
+                terminal=terminal,
+                provider_spec=effective_provider,
+                evidence_store=phase20_evidence_store,
+                account_identity=cibo_account_identity,
+                account_state=account_state_for_shadow,
+                risk=risk,
+                executed_risk_book=phase20_executed_risk_store.load(),
+                open_position_ids=phase20_known_open_position_ids,
+                pending_broker_worst_case_loss_usd=(
+                    demo_sink.registry.pending_stop_risk(
+                        now=account_state_for_shadow.observed_at,
+                        provider_order_status=demo_api.pending_order_status,
+                    )
+                ),
+                capital_state=phase20_capital_state,
+                highest_closed_balance=highest,
+                current_step=max(
+                    0,
+                    int(opened_at.timestamp() // 60),
+                ),
+                known_options=effective_known_options,
+                collector_git_sha=sha,
+            )
+            finalized = finalize_ctrader_demo_single_slot_phase20_policy(
+                prepared=prepared,
+                evidence_store=phase20_evidence_store,
+                policy_store=phase20_policy_store,
+                t12_shadow_store=phase20_t12_shadow_store,
+                t13_recommendation_store=(
+                    phase20_t13_recommendation_store
+                ),
+                t13_treatment_store=phase20_t13_treatment_store,
+            )
+            _log(
+                log_path,
+                {
+                    "event": "PHASE20D_SINGLE_SLOT_OBSERVED",
+                    "trader": trader_id.value,
+                    "symbol": qore_symbol,
+                    "decision_epoch_id": (
+                        finalized.observation.collected.result.evidence.decision_epoch_id
+                    ),
+                    "evidence_sha256": (
+                        finalized.observation.collected.result.decision_record.evidence_sha256
+                    ),
+                    "disposition": effective_disposition.value,
+                    "reason": effective_reason,
+                    "known_options_count": len(effective_known_options),
+                    "regime_policy_sha256": (
+                        finalized.regime_policy_sha256
+                    ),
+                    "t12_shadow_generation": (
+                        None
+                        if finalized.t12_shadow is None
+                        else finalized.t12_shadow.shadow_generation
+                    ),
+                    "t12_selection_changed": (
+                        None
+                        if finalized.t12_shadow is None
+                        else finalized.t12_shadow.selection_changed
+                    ),
+                    "t12_allocator_changed": (
+                        None
+                        if finalized.t12_shadow is None
+                        else finalized.t12_shadow.allocator_changed
+                    ),
+                    "t13_recommendation_generation": (
+                        None
+                        if finalized.t13_shadow is None
+                        else finalized.t13_shadow.recommendation_generation
+                    ),
+                    "t13_treatment_generation": (
+                        None
+                        if finalized.t13_shadow is None
+                        else finalized.t13_shadow.treatment_generation
+                    ),
+                    "t13_selection_changed": (
+                        None
+                        if finalized.t13_shadow is None
+                        else finalized.t13_shadow.selection_changed
+                    ),
+                    "uses_fill_or_outcome_input": False,
+                    "execution_path_blocked": False,
+                    "broker_mutation_performed": False,
+                },
+            )
+        except Exception as shadow_error:
+            _log(
+                log_path,
+                {
+                    "event": "PHASE20D_SINGLE_SLOT_INELIGIBLE",
+                    "trader": trader_id.value,
+                    "symbol": qore_symbol,
+                    "epoch_scope": epoch_scope,
+                    "opened_at": opened_at.isoformat(),
+                    "observed_at": sealed_at.isoformat(),
+                    "reason": type(shadow_error).__name__,
+                    "message": str(shadow_error),
+                    "execution_path_blocked": False,
+                },
+            )
+
     _log(
         log_path,
         {
@@ -1098,7 +1492,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "r38_schedule": "EVERY_H1_H4_BOUNDARY_24_7_SERVICE",
             "r38_external_single_position_gate": False,
             "r38_lifecycle": "STATIC_OR_PROTECT_DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
-            "r38_base_risk_fraction": "0.002",
+            "r38_legacy_risk_fraction_baseline_only": "0.002",
             "r43_enabled": True,
             "r43_identity": "TURTLE_SOUP_GBPUSD_R43",
             "r43_certification": "TURTLE_SOUP_GBPUSD_R45_FINAL_CERTIFICATION_SUITE_V1",
@@ -1106,7 +1500,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "r43_schedule": "EVERY_H1_H4_BOUNDARY_24_7_SERVICE",
             "r43_external_single_position_gate": False,
             "r43_lifecycle": "STATIC_OR_PROTECT_DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
-            "r43_base_risk_fraction": "0.002",
+            "r43_legacy_risk_fraction_baseline_only": "0.002",
             "r43_short_overlay_scale": "0.005",
             "r43_rank2_overlay_scale": "0.25",
             "r43_memory_sha256": "e4a79978c0144e0b97c19ce3ee18040e62a02efe891b204fc724e4a0016734ae",
@@ -1121,7 +1515,21 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 "VT31_NAS100",
             ],
             "execution_environment": "CTRADER_DEMO_FREE",
+            "trader_runtime_sizing_authority": False,
+            "cibo_runtime_sizing_authority": True,
+            "cibo_sizing_scope": "ACCOUNT",
+            "legacy_risk_fraction_execution_authority": False,
             "market_data_provider": "CTRADER_DEMO",
+            "cibo_account_context_source": "ACCOUNT_BINDING",
+            "cibo_capital_mission": cibo_capital_mission.mission.value,
+            "cibo_capital_primary_objective": (
+                cibo_capital_mission.primary_objective.value
+            ),
+            "cibo_ce2i_activation_scope": cibo_capital_mission.ce2i_scope.value,
+            "cibo_enabled_ce2i_tools": list(cibo_enabled_ce2i_tools),
+            "cibo_capability_measurement_enabled": (
+                cibo_capital_mission.capability_measurement_enabled
+            ),
             "ctrader_demo_writer": True,
             "account_wide_risk_active": False,
             "risk_role": "CAPITAL_ALLOCATOR_ONLY",
@@ -1133,7 +1541,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "gbpjpy_r38_schedule": "EVERY_H1_H4_BOUNDARY_24_7_SERVICE",
             "gbpjpy_r38_external_single_position_gate": False,
             "gbpjpy_r38_lifecycle": "STATIC_OR_PROTECT_DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
-            "gbpjpy_r38_base_risk_fraction": "0.002",
+            "gbpjpy_r38_legacy_risk_fraction_baseline_only": "0.002",
             "gbpjpy_r38_ensemble": "R35_RANGE_DIRECTION_MINIMAL_ROBUST",
             "gbpjpy_r38_policy": "CONFIDENCE_100_050_010",
             "gbpjpy_r38_fragility_policy": ["1", "0.25", "0.10", "0.05"],
@@ -1147,7 +1555,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "audjpy_r42_schedule": "EVERY_H1_H4_BOUNDARY_24_7_SERVICE",
             "audjpy_r42_external_single_position_gate": False,
             "audjpy_r42_lifecycle": "STATIC_OR_PROTECT_DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
-            "audjpy_r42_base_risk_fraction": "0.002",
+            "audjpy_r42_legacy_risk_fraction_baseline_only": "0.002",
             "audjpy_r42_ensemble": "R38_FROZEN_SIGNAL_BASELINE",
             "audjpy_r42_policy": "AUDJPY_CONFIDENCE_100_075_025",
             "audjpy_r42_first_fragility_policy": ["1", "0.20", "0.05", "0.01"],
@@ -1389,6 +1797,8 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     }
                     ready_snapshots: dict[str, M5BoundarySnapshot] = {}
                     m5_terminal_identities: set[str] = set()
+                    phase20_terminals: list[Phase20M5ShadowTerminal] = []
+                    phase20_staged_results: list[MarketBoundaryResult] = []
                     m5_ctx: dict[str, Any] = {
                         "anchor": audjpy_arm_anchor,
                         "deadline": m5_deadline,
@@ -1404,7 +1814,37 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         "arm_account": arm_account,
                         "arm_snapshot": arm_snapshot,
                         "arm_specs": arm_specs,
+                        "arm_open_position_ids": phase20_known_open_position_ids,
+                        "phase20_terminals": phase20_terminals,
+                        "phase20_staged_results": phase20_staged_results,
+                        "phase20_eligible": True,
                     }
+
+                    def record_phase20_terminal(
+                        *,
+                        identity: str,
+                        symbol: str,
+                        observed_at: datetime,
+                        disposition: Phase20ForwardPopulationDisposition,
+                        reason: str,
+                        opportunity: Any | None = None,
+                        _ctx: dict[str, Any] = m5_ctx,
+                    ) -> None:
+                        terminals: list[Phase20M5ShadowTerminal] = (
+                            _ctx["phase20_terminals"]
+                        )
+                        if any(item.identity == identity for item in terminals):
+                            return
+                        terminals.append(
+                            Phase20M5ShadowTerminal(
+                                identity=identity,
+                                symbol=symbol,
+                                observed_at=observed_at,
+                                disposition=disposition,
+                                reason=reason,
+                                opportunity=opportunity,
+                            )
+                        )
 
                     def mark_m5_terminal(
                         identity: str,
@@ -1456,6 +1896,17 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         if message is not None:
                             payload["message"] = message
                         _log(log_path, payload)
+                        if reason not in {
+                            "decision-deadline-expired",
+                            "market-snapshot-unavailable-within-sla",
+                        }:
+                            record_phase20_terminal(
+                                identity=identity,
+                                symbol=symbol,
+                                observed_at=min(observed_at, boundary_anchor + M5_PROFILE.decision_deadline),
+                                disposition=Phase20ForwardPopulationDisposition.FAIL_CLOSED,
+                                reason=reason,
+                            )
                         mark_m5_terminal(identity, symbol)
 
                     for identity, symbol in (
@@ -1467,6 +1918,10 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     ):
                         if m5_session_open[symbol]:
                             continue
+                        session_closed_at = max(
+                            audjpy_arm_anchor,
+                            min(datetime.now(UTC), m5_deadline),
+                        )
                         _log(
                             log_path,
                             {
@@ -1474,10 +1929,19 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "identity": identity,
                                 "symbol": symbol,
                                 "decision_at": audjpy_arm_anchor.isoformat(),
-                                "observed_at": datetime.now(UTC).isoformat(),
+                                "observed_at": session_closed_at.isoformat(),
                                 "source": "CTRADER_BROKER_SCHEDULE",
                                 "order_send_called": False,
                             },
+                        )
+                        record_phase20_terminal(
+                            identity=identity,
+                            symbol=symbol,
+                            observed_at=session_closed_at,
+                            disposition=(
+                                Phase20ForwardPopulationDisposition.SESSION_CLOSED
+                            ),
+                            reason="BROKER_SESSION_CLOSED",
                         )
                         mark_m5_terminal(identity, symbol)
 
@@ -1555,6 +2019,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             terminal_ids: set[str] = _ctx["terminal_ids"]
                             if anchor_keys[symbol] in runtime_state.processed_anchors:
                                 terminal_ids.add(identity)
+                                _ctx["phase20_eligible"] = False
                                 return
                             market_actors.submit(
                                 MarketBoundaryJob(
@@ -1568,30 +2033,25 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             actor_result: MarketBoundaryResult,
                             _ctx: dict[str, Any] = m5_ctx,
                         ) -> None:
-                            audjpy_arm_anchor: datetime = _ctx["anchor"]
-                            m5_deadline: datetime = _ctx["deadline"]
-                            m5_terminal_identities: set[str] = _ctx["terminal_ids"]
-                            ready_snapshots: dict[str, M5BoundarySnapshot] = _ctx["ready_snapshots"]
-                            arm_blocked: bool = _ctx["arm_blocked"]
-                            fast_plan_by_identity: dict[str, Any] = _ctx["fast_plan"]
-                            arm_provider: Any = _ctx["arm_provider"]
-                            arm_capital: Any = _ctx["arm_capital"]
-                            arm_account: Any = _ctx["arm_account"]
-                            arm_snapshot: AccountRiskSnapshot = _ctx["arm_snapshot"]
-                            arm_specs: dict[str, CTraderDemoSymbolSpecification] = _ctx["arm_specs"]
+                            boundary_anchor: datetime = _ctx["anchor"]
+                            deadline: datetime = _ctx["deadline"]
+                            terminal_ids: set[str] = _ctx["terminal_ids"]
+                            snapshots: dict[str, M5BoundarySnapshot] = (
+                                _ctx["ready_snapshots"]
+                            )
                             identity = actor_result.identity
                             symbol = actor_result.symbol
-                            if identity in m5_terminal_identities:
+                            if identity in terminal_ids:
                                 return
-                            snapshot = ready_snapshots[symbol]
+                            snapshot = snapshots[symbol]
                             _log_market_decision_telemetry(
                                 log_path=log_path,
-                                anchor=audjpy_arm_anchor,
+                                anchor=boundary_anchor,
                                 snapshot=snapshot,
                                 result=actor_result,
                             )
                             done = actor_result.strategy_finished_at
-                            if arm_blocked:
+                            if bool(_ctx["arm_blocked"]):
                                 log_m5_hard_fail(
                                     identity,
                                     symbol,
@@ -1608,7 +2068,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                     observed_at=done,
                                 )
                                 return
-                            if done > m5_deadline:
+                            if done > deadline:
                                 log_m5_hard_fail(
                                     identity,
                                     symbol,
@@ -1620,7 +2080,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             signal = actor_result.signal
                             reason = actor_result.reason
                             latency_ms = int(
-                                (done - audjpy_arm_anchor).total_seconds() * 1000
+                                (done - boundary_anchor).total_seconds() * 1000
                             )
                             if signal is None:
                                 if identity == "R42_AUDJPY":
@@ -1629,7 +2089,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                         {
                                             "event": "AUDJPY_R42_CAUSAL_ABSTAIN",
                                             "symbol": symbol,
-                                            "decision_at": audjpy_arm_anchor.isoformat(),
+                                            "decision_at": boundary_anchor.isoformat(),
                                             "reason": reason,
                                             "observed_at": done.isoformat(),
                                             "latency_ms": latency_ms,
@@ -1646,13 +2106,13 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                         },
                                     )
                                 else:
-                                    _, abstain_event, _ = fast_plan_by_identity[identity]
+                                    _, abstain_event, _ = _ctx["fast_plan"][identity]
                                     _log(
                                         log_path,
                                         {
                                             "event": abstain_event,
                                             "symbol": symbol,
-                                            "decision_at": audjpy_arm_anchor.isoformat(),
+                                            "decision_at": boundary_anchor.isoformat(),
                                             "observed_at": done.isoformat(),
                                             "latency_ms": latency_ms,
                                             "reason": reason,
@@ -1666,52 +2126,120 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                             ),
                                         },
                                     )
+                                record_phase20_terminal(
+                                    identity=identity,
+                                    symbol=symbol,
+                                    observed_at=done,
+                                    disposition=(
+                                        Phase20ForwardPopulationDisposition.ABSTAIN
+                                    ),
+                                    reason=reason or "CAUSAL_ABSTAIN",
+                                )
                                 mark_m5_terminal(identity, symbol)
                                 return
 
+                            staged_results: list[MarketBoundaryResult] = (
+                                _ctx["phase20_staged_results"]
+                            )
+                            staged_results.append(actor_result)
+                            try:
+                                observed = build_ctrader_demo_m5_observed_opportunity(
+                                    identity=identity,
+                                    signal=signal,
+                                    provider_spec=_ctx["arm_specs"][symbol],
+                                    observed_at=done,
+                                )
+                                record_phase20_terminal(
+                                    identity=identity,
+                                    symbol=symbol,
+                                    observed_at=done,
+                                    disposition=(
+                                        Phase20ForwardPopulationDisposition.CANDIDATE
+                                    ),
+                                    reason="VALID_TRADER_OPPORTUNITY",
+                                    opportunity=observed,
+                                )
+                            except Exception as shadow_error:
+                                _ctx["phase20_eligible"] = False
+                                _log(
+                                    log_path,
+                                    {
+                                        "event": (
+                                            "PHASE20D_SHADOW_TERMINAL_INELIGIBLE"
+                                        ),
+                                        "identity": identity,
+                                        "symbol": symbol,
+                                        "decision_at": boundary_anchor.isoformat(),
+                                        "observed_at": done.isoformat(),
+                                        "reason": type(shadow_error).__name__,
+                                        "message": str(shadow_error),
+                                        "order_send_called": False,
+                                    },
+                                )
+                            execute_staged_market_result(actor_result)
+                            mark_m5_terminal(identity, symbol)
+
+                        def execute_staged_market_result(
+                            actor_result: MarketBoundaryResult,
+                            _ctx: dict[str, Any] = m5_ctx,
+                        ) -> None:
+                            identity = actor_result.identity
+                            symbol = actor_result.symbol
+                            signal = actor_result.signal
+                            if signal is None:
+                                return
                             try:
                                 if identity == "R42_AUDJPY":
                                     _process_audjpy_r42_candidate(
                                         signal=signal,
-                                        now=done,
+                                        now=actor_result.strategy_finished_at,
                                         mode=mode,
                                         gateway=gateway,
                                         transport=transport,
                                         risk=risk,
                                         account_binding_id=fingerprint,
-                                        provider_budget=arm_provider,
-                                        capital_budget=arm_capital,
-                                        account_equity=arm_account.equity,
+                                        provider_budget=_ctx["arm_provider"],
+                                        capital_budget=_ctx["arm_capital"],
+                                        account_equity=_ctx["arm_account"].equity,
                                         audjpy_r42_store=audjpy_r42_store,
                                         log_path=log_path,
-                                        preflight_snapshot=arm_snapshot,
-                                        preflight_spec=arm_specs["AUDJPY"],
+                                        preflight_snapshot=_ctx["arm_snapshot"],
+                                        preflight_spec=_ctx["arm_specs"]["AUDJPY"],
                                     )
                                 else:
-                                    _, _, process_fast = fast_plan_by_identity[identity]
-                                    process_fast(signal=signal, now=done)
+                                    _, _, process_fast = _ctx["fast_plan"][identity]
+                                    process_fast(
+                                        signal=signal,
+                                        now=actor_result.strategy_finished_at,
+                                    )
                             except BrokerMinimumVolumeRiskRejectError as risk_reject:
                                 _log(
                                     log_path,
                                     {
-                                        "event": "RISK_REJECT_MINIMUM_BROKER_VOLUME",
+                                        "event": (
+                                            "RISK_REJECT_MINIMUM_BROKER_VOLUME"
+                                        ),
                                         "symbol": symbol,
-                                        "decision_at": audjpy_arm_anchor.isoformat(),
+                                        "decision_at": _ctx["anchor"].isoformat(),
                                         "candidate": True,
                                         "order_send_called": False,
                                         **risk_reject.telemetry(),
                                     },
                                 )
                             except Exception as market_error:
-                                log_m5_hard_fail(
-                                    identity,
-                                    symbol,
-                                    reason=type(market_error).__name__,
-                                    message=str(market_error),
-                                    observed_at=datetime.now(UTC),
+                                _log(
+                                    log_path,
+                                    {
+                                        "event": "M5_STAGED_EXECUTION_FAIL_CLOSED",
+                                        "identity": identity,
+                                        "symbol": symbol,
+                                        "decision_at": _ctx["anchor"].isoformat(),
+                                        "observed_at": datetime.now(UTC).isoformat(),
+                                        "reason": type(market_error).__name__,
+                                        "message": str(market_error),
+                                        "order_send_called": False,
+                                    },
                                 )
-                                return
-                            mark_m5_terminal(identity, symbol)
 
                         def drain_ready_market_results(_observed: datetime) -> None:
                             for result in market_actors.ready_results():
@@ -1780,6 +2308,195 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                     symbol,
                                     reason="decision-deadline-expired",
                                     observed_at=final_observed,
+                                )
+
+                        if bool(m5_ctx["phase20_eligible"]):
+                            shadow_started_ns = time.perf_counter_ns()
+                            try:
+                                terminal_times = tuple(
+                                    item.observed_at
+                                    for item in phase20_terminals
+                                )
+                                last_terminal_at = max(
+                                    terminal_times,
+                                    default=audjpy_arm_anchor,
+                                )
+                                shadow_decision_at = max(
+                                    audjpy_arm_anchor,
+                                    min(
+                                        max(datetime.now(UTC), last_terminal_at),
+                                        m5_deadline,
+                                    ),
+                                )
+                                phase20_prepared = (
+                                    prepare_ctrader_demo_m5_phase20_epoch(
+                                        epoch_scope=(
+                                            "ctrader-demo:m5:"
+                                            f"{audjpy_arm_anchor.isoformat()}"
+                                        ),
+                                        opened_at=audjpy_arm_anchor,
+                                        deadline_at=m5_deadline,
+                                        terminals=tuple(phase20_terminals),
+                                        decision_at=shadow_decision_at,
+                                        snapshots=tuple(
+                                            ready_snapshots[symbol]
+                                            for symbol in sorted(ready_snapshots)
+                                        ),
+                                        provider_specs=tuple(
+                                            arm_specs[symbol]
+                                            for symbol in sorted(arm_specs)
+                                        ),
+                                        evidence_store=phase20_evidence_store,
+                                        account_identity=cibo_account_identity,
+                                        account_state=arm_account,
+                                        risk=risk,
+                                        executed_risk_book=(
+                                            phase20_executed_risk_store.load()
+                                        ),
+                                        open_position_ids=(
+                                            m5_ctx["arm_open_position_ids"]
+                                        ),
+                                        pending_broker_worst_case_loss_usd=(
+                                            demo_sink.registry.pending_stop_risk(
+                                                now=arm_account.observed_at,
+                                                provider_order_status=(
+                                                    demo_api.pending_order_status
+                                                ),
+                                            )
+                                        ),
+                                        capital_state=phase20_capital_state,
+                                        highest_closed_balance=arm_highest,
+                                        current_step=int(
+                                            audjpy_arm_anchor.timestamp() // 3600
+                                        ),
+                                        collector_git_sha=sha,
+                                    )
+                                )
+                                shadow_elapsed_ms = (
+                                    time.perf_counter_ns() - shadow_started_ns
+                                ) / 1_000_000
+                                _log(
+                                    log_path,
+                                    {
+                                        "event": (
+                                            "PHASE20D_SHADOW_EVIDENCE_SEALED"
+                                        ),
+                                        "decision_epoch_id": (
+                                            phase20_prepared.result.evidence.decision_epoch_id
+                                        ),
+                                        "evidence_sha256": (
+                                            phase20_prepared.result.decision_record.evidence_sha256
+                                        ),
+                                        "candidate_count": len(
+                                            phase20_prepared.result.evidence.candidates
+                                        ),
+                                        "population_count": len(
+                                            phase20_prepared.result.evidence.population_slots
+                                        ),
+                                        "assigned_base_usd": format(
+                                            phase20_assigned_base.assigned_base_usd,
+                                            "f",
+                                        ),
+                                        "regime_policy_sha256": (
+                                            phase20_prepared.regime_policy_sha256
+                                        ),
+                                        "shadow_seal_elapsed_ms": round(
+                                            shadow_elapsed_ms,
+                                            3,
+                                        ),
+                                        "uses_prearm_account_state": True,
+                                        "uses_fill_or_outcome_input": False,
+                                        "execution_authority": False,
+                                    },
+                                )
+                                finalized = (
+                                    finalize_ctrader_demo_m5_phase20_policy(
+                                        prepared=phase20_prepared,
+                                        evidence_store=phase20_evidence_store,
+                                        policy_store=phase20_policy_store,
+                                        t12_shadow_store=(
+                                            phase20_t12_shadow_store
+                                        ),
+                                        t13_recommendation_store=(
+                                            phase20_t13_recommendation_store
+                                        ),
+                                        t13_treatment_store=(
+                                            phase20_t13_treatment_store
+                                        ),
+                                    )
+                                )
+                                _log(
+                                    log_path,
+                                    {
+                                        "event": (
+                                            "PHASE20D_SHADOW_POLICY_FINALIZED"
+                                        ),
+                                        "decision_epoch_id": (
+                                            finalized.observation.collected.result.evidence.decision_epoch_id
+                                        ),
+                                        "evidence_generation": (
+                                            finalized.observation.collected.evidence_generation
+                                        ),
+                                        "policy_generation": (
+                                            finalized.observation.collected.policy_generation
+                                        ),
+                                        "t12_shadow_generation": (
+                                            None
+                                            if finalized.t12_shadow is None
+                                            else finalized.t12_shadow.shadow_generation
+                                        ),
+                                        "t12_selection_changed": (
+                                            None
+                                            if finalized.t12_shadow is None
+                                            else finalized.t12_shadow.selection_changed
+                                        ),
+                                        "t12_allocator_changed": (
+                                            None
+                                            if finalized.t12_shadow is None
+                                            else finalized.t12_shadow.allocator_changed
+                                        ),
+                                        "t13_recommendation_generation": (
+                                            None
+                                            if finalized.t13_shadow is None
+                                            else finalized.t13_shadow.recommendation_generation
+                                        ),
+                                        "t13_treatment_generation": (
+                                            None
+                                            if finalized.t13_shadow is None
+                                            else finalized.t13_shadow.treatment_generation
+                                        ),
+                                        "t13_selection_changed": (
+                                            None
+                                            if finalized.t13_shadow is None
+                                            else finalized.t13_shadow.selection_changed
+                                        ),
+                                        "broker_mutation_performed": (
+                                            finalized.broker_mutation_performed
+                                        ),
+                                        "execution_authority": (
+                                            finalized.execution_authority
+                                        ),
+                                    },
+                                )
+                            except Exception as shadow_error:
+                                _log(
+                                    log_path,
+                                    {
+                                        "event": (
+                                            "PHASE20D_SHADOW_PREPARE_INELIGIBLE"
+                                        ),
+                                        "decision_at": (
+                                            audjpy_arm_anchor.isoformat()
+                                        ),
+                                        "observed_at": (
+                                            datetime.now(UTC).isoformat()
+                                        ),
+                                        "reason": (
+                                            type(shadow_error).__name__
+                                        ),
+                                        "message": str(shadow_error),
+                                        "execution_path_blocked": False,
+                                    },
                                 )
 
                     boundary_observed = max(
@@ -2058,11 +2775,15 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             },
                         )
                         vt31_snapshot = None
-                        vt31_execution_equity = demo_capital_for(
-                            TraderLineage.VT31_NAS100
-                        )
+                        vt31_execution_equity = demo_account_capital()
                     else:
                         vt31_execution_equity = vt31_account.equity
+                    phase20_vt31_deadline = (
+                        vt31_arm_anchor + VT31_DECISION_DEADLINE
+                    )
+                    phase20_vt31_scope = (
+                        f"ctrader-demo:vt31:{vt31_arm_anchor.isoformat()}"
+                    )
                     if vt31_basket is None:
                         _log(
                             log_path,
@@ -2074,7 +2795,43 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "observed_at": (vt31_boundary.observed_at.isoformat()),
                             },
                         )
+                        observe_phase20_single_slot(
+                            trader_id=TraderLineage.VT31_NAS100,
+                            qore_symbol="NAS100",
+                            epoch_scope=phase20_vt31_scope,
+                            opened_at=vt31_arm_anchor,
+                            deadline_at=phase20_vt31_deadline,
+                            terminal_observed_at=vt31_decided_at,
+                            disposition=(
+                                Phase20ForwardPopulationDisposition.ABSTAIN
+                            ),
+                            reason=vt31_reason,
+                            account_state_for_shadow=vt31_account,
+                        )
                     elif len(vt31_basket.candidates) == 1:
+                        def observe_vt31_phase20_candidate(
+                            opportunity: TraderOpportunityEnvelope,
+                            spec: CTraderDemoSymbolSpecification,
+                            shadow_account: CTraderDemoAccountState,
+                            trigger_at: datetime,
+                            observed_at: datetime,
+                        ) -> None:
+                            observe_phase20_single_slot(
+                                trader_id=TraderLineage.VT31_NAS100,
+                                qore_symbol="NAS100",
+                                epoch_scope=phase20_vt31_scope,
+                                opened_at=trigger_at,
+                                deadline_at=trigger_at + VT31_DECISION_DEADLINE,
+                                terminal_observed_at=observed_at,
+                                disposition=(
+                                    Phase20ForwardPopulationDisposition.CANDIDATE
+                                ),
+                                reason="VALID_TRADER_OPPORTUNITY",
+                                account_state_for_shadow=shadow_account,
+                                opportunity=opportunity,
+                                provider_spec=spec,
+                            )
+
                         submit_vt31_single_live(
                             basket=vt31_basket,
                             boundary_at=vt31_arm_anchor,
@@ -2084,6 +2841,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             account_equity=vt31_execution_equity,
                             store=vt31_store,
                             log=lambda event: _log(log_path, event),
+                            phase20_after_submit=observe_vt31_phase20_candidate,
                         )
                     else:
                         _log(
@@ -2096,6 +2854,70 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "candidate_count": len(vt31_basket.candidates),
                             },
                         )
+                        try:
+                            vt31_option_spec = gateway.read_symbol(
+                                "NAS100",
+                                now=vt31_decided_at,
+                            )
+                            vt31_option_known_at = max(
+                                vt31_decided_at,
+                                vt31_option_spec.observed_at,
+                            )
+                            vt31_option_step = max(
+                                0,
+                                int(vt31_arm_anchor.timestamp() // 60),
+                            ) + 1
+                            vt31_known_options = tuple(
+                                build_ctrader_demo_single_slot_known_option(
+                                    opportunity=(
+                                        build_vt31_virtual_order_opportunity(
+                                            order=item,
+                                            provider_spec=vt31_option_spec,
+                                            decision_anchor=vt31_arm_anchor,
+                                            now=vt31_option_known_at,
+                                        )
+                                    ),
+                                    provider_spec=vt31_option_spec,
+                                    known_as_of=vt31_option_known_at,
+                                    decision_step=vt31_option_step,
+                                    expires_at=datetime.fromisoformat(
+                                        item.expires_at
+                                    ),
+                                )
+                                for item in vt31_basket.candidates
+                            )
+                            observe_phase20_single_slot(
+                                trader_id=TraderLineage.VT31_NAS100,
+                                qore_symbol="NAS100",
+                                epoch_scope=phase20_vt31_scope,
+                                opened_at=vt31_arm_anchor,
+                                deadline_at=phase20_vt31_deadline,
+                                terminal_observed_at=vt31_option_known_at,
+                                disposition=(
+                                    Phase20ForwardPopulationDisposition.ABSTAIN
+                                ),
+                                reason="VIRTUAL_OCO_ARMED_AS_KNOWN_OPTIONS",
+                                account_state_for_shadow=vt31_account,
+                                provider_spec=vt31_option_spec,
+                                known_options=vt31_known_options,
+                            )
+                        except Exception as phase20_oco_error:
+                            _log(
+                                log_path,
+                                {
+                                    "event": "PHASE20D_VT31_OCO_ARM_INELIGIBLE",
+                                    "symbol": "NAS100",
+                                    "decision_at": (
+                                        vt31_arm_anchor.isoformat()
+                                    ),
+                                    "basket_id": vt31_basket.basket_id,
+                                    "reason": (
+                                        type(phase20_oco_error).__name__
+                                    ),
+                                    "message": str(phase20_oco_error),
+                                    "execution_path_blocked": False,
+                                },
+                            )
             except BrokerMinimumVolumeRiskRejectError as risk_reject:
                 _log(
                     log_path,
@@ -2440,19 +3262,24 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         try:
             for position in demo_management_api.positions_get():
                 position_id = int(getattr(position, "ticket"))
-                registry_entry = demo_sink.registry.by_position(position_id)
-                if registry_entry is None:
+                registry_entries = demo_sink.registry.entries_by_position(position_id)
+                if not registry_entries:
                     continue
+                registry_entry = registry_entries[0]
                 symbol = str(getattr(position, "symbol"))
                 tick = demo_management_api.symbol_info_tick(symbol)
                 if tick is None:
                     continue
+                observed_at = datetime.now(UTC)
                 side = (
                     "long"
                     if int(getattr(position, "type"))
                     == int(demo_management_api.POSITION_TYPE_BUY)
                     else "short"
                 )
+                entry_price = Decimal(str(getattr(position, "price_open")))
+                stop_loss = Decimal(str(getattr(position, "sl", 0)))
+                remaining_volume = Decimal(str(getattr(position, "volume")))
                 _log(
                     log_path,
                     position_path_observation_payload(
@@ -2461,16 +3288,48 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         signal_fingerprint=registry_entry.signal_fingerprint,
                         position_id=position_id,
                         side=side,
-                        entry_price=Decimal(str(getattr(position, "price_open"))),
+                        entry_price=entry_price,
                         bid=Decimal(str(getattr(tick, "bid"))),
                         ask=Decimal(str(getattr(tick, "ask"))),
-                        stop_loss=Decimal(str(getattr(position, "sl", 0))),
+                        stop_loss=stop_loss,
                         take_profit=Decimal(str(getattr(position, "tp", 0))),
-                        volume=Decimal(str(getattr(position, "volume"))),
+                        volume=remaining_volume,
                         unrealized_pnl=Decimal(str(getattr(position, "profit", 0))),
-                        observed_at=datetime.now(UTC),
+                        observed_at=observed_at,
                     ),
                 )
+
+                cma_spec = gateway.read_symbol(
+                    registry_entry.qore_symbol,
+                    now=observed_at,
+                )
+                cma_result = observe_runtime_position(
+                    CmaRuntimePositionSnapshot(
+                        trader_id=TraderLineage(registry_entry.trader),
+                        signal_fingerprint=registry_entry.signal_fingerprint,
+                        qore_symbol=registry_entry.qore_symbol,
+                        position_id=position_id,
+                        registry_leg_count=len(registry_entries),
+                        side=side,
+                        entry_price=entry_price,
+                        current_stop=stop_loss,
+                        initial_volume=Decimal(registry_entry.requested_volume),
+                        remaining_volume=remaining_volume,
+                        tick_size=cma_spec.tick_size,
+                        tick_value=cma_spec.tick_value,
+                        broker_position_reconciled=True,
+                        broker_stop_reconciled=stop_loss > 0,
+                        mutation_outcome_unknown=gateway.has_unresolved_mutations,
+                        observed_at=observed_at,
+                    ),
+                    settlement_store=cma_settlement_store,
+                    lifecycle_store=cma_lifecycle_store,
+                )
+                if cma_result.failure_payload is not None:
+                    _log(log_path, cma_result.failure_payload)
+                else:
+                    assert cma_result.observation is not None
+                    _log(log_path, cma_result.observation.as_payload())
         except Exception as behavior_sample_error:
             _log(
                 log_path,
@@ -2479,6 +3338,118 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "reason": type(behavior_sample_error).__name__,
                     "message": str(behavior_sample_error),
                     "observed_at": datetime.now(UTC).isoformat(),
+                },
+            )
+
+        settlement_observed_at = datetime.now(UTC)
+        try:
+            settlement_observation = observe_ctrader_demo_phase20_settlements(
+                source=demo_sink.position_service,
+                registry=demo_sink.registry,
+                settlement_store=cma_settlement_store,
+                cursor_store=phase20_settlement_cursor_store,
+                initial_cursor=phase20_assigned_base.activated_at,
+                observed_at=settlement_observed_at,
+            )
+            phase20_known_open_position_ids = (
+                settlement_observation.open_position_ids
+            )
+            if settlement_observation.applied_deal_ids:
+                _log(
+                    log_path,
+                    {
+                        "event": "PHASE20D_DEMO_SETTLEMENTS_INGESTED",
+                        "observed_at": settlement_observed_at.isoformat(),
+                        "cursor_at": (
+                            settlement_observation.cursor_at.isoformat()
+                        ),
+                        "entry_cost_deal_ids": list(
+                            settlement_observation.entry_cost_deal_ids
+                        ),
+                        "partial_deal_ids": list(
+                            settlement_observation.partial_deal_ids
+                        ),
+                        "terminal_deal_ids": list(
+                            settlement_observation.terminal_deal_ids
+                        ),
+                        "broker_mutation_performed": False,
+                    },
+                )
+        except Exception as settlement_error:
+            _log(
+                log_path,
+                {
+                    "event": "PHASE20D_DEMO_SETTLEMENT_INELIGIBLE",
+                    "observed_at": settlement_observed_at.isoformat(),
+                    "reason": type(settlement_error).__name__,
+                    "message": str(settlement_error),
+                    "execution_path_blocked": False,
+                },
+            )
+
+        try:
+            forward_book = phase20_evidence_store.load()
+            sealed_phase20_signals = {
+                signal
+                for decision in forward_book.decisions
+                for signal in decision.signal_fingerprints
+            }
+            for registry_entry in demo_sink.registry.entries():
+                if (
+                    registry_entry.position_id is None
+                    or registry_entry.signal_fingerprint
+                    not in sealed_phase20_signals
+                ):
+                    continue
+                recovery = reconcile_ctrader_demo_phase20_entry(
+                    entry=registry_entry,
+                    account=account,
+                    mutation_ledger=phase20_mutation_ledger,
+                    forward_store=phase20_evidence_store,
+                    executed_risk_store=phase20_executed_risk_store,
+                    settlement_store=cma_settlement_store,
+                    reconciled_at=datetime.now(UTC),
+                )
+                recovery_status = recovery.status.value
+                prior_status = phase20_recovery_status_by_signal.get(
+                    registry_entry.signal_fingerprint
+                )
+                if prior_status != recovery_status:
+                    phase20_recovery_status_by_signal[
+                        registry_entry.signal_fingerprint
+                    ] = recovery_status
+                    _log(
+                        log_path,
+                        {
+                            "event": "PHASE20D_DEMO_RECOVERY_STATUS",
+                            "signal_fingerprint": (
+                                registry_entry.signal_fingerprint
+                            ),
+                            "position_id": recovery.position_id,
+                            "status": recovery_status,
+                            "executed_risk_evidence_id": (
+                                recovery.executed_risk_evidence_id
+                            ),
+                            "outcome_evidence_id": (
+                                recovery.outcome_evidence_id
+                            ),
+                            "broker_mutation_performed": (
+                                recovery.broker_mutation_performed
+                            ),
+                            "execution_authority": (
+                                recovery.execution_authority
+                            ),
+                        },
+                    )
+        except Exception as recovery_error:
+            _log(
+                log_path,
+                {
+                    "event": "PHASE20D_DEMO_RECOVERY_INELIGIBLE",
+                    "observed_at": datetime.now(UTC).isoformat(),
+                    "reason": type(recovery_error).__name__,
+                    "message": str(recovery_error),
+                    "execution_path_blocked": False,
                 },
             )
 
@@ -2505,6 +3476,30 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         # are observational only. Technical integrity is enforced inside the DEMO sink.
         new_order_blocked = False
         vt31_runtime_snapshot = None
+
+        def observe_vt31_phase20_oco_trigger(
+            opportunity: TraderOpportunityEnvelope,
+            spec: CTraderDemoSymbolSpecification,
+            shadow_account: CTraderDemoAccountState,
+            trigger_at: datetime,
+            observed_at: datetime,
+        ) -> None:
+            observe_phase20_single_slot(
+                trader_id=TraderLineage.VT31_NAS100,
+                qore_symbol="NAS100",
+                epoch_scope=(
+                    f"ctrader-demo:vt31-trigger:{trigger_at.isoformat()}"
+                ),
+                opened_at=trigger_at,
+                deadline_at=trigger_at + VT31_DECISION_DEADLINE,
+                terminal_observed_at=observed_at,
+                disposition=Phase20ForwardPopulationDisposition.CANDIDATE,
+                reason="VIRTUAL_OCO_TRIGGERED_CANDIDATE",
+                account_state_for_shadow=shadow_account,
+                opportunity=opportunity,
+                provider_spec=spec,
+            )
+
         # DEMO_FREE: no prop-firm pending-order reconciliation.
         if not new_order_blocked:
             process_vt31_virtual_oco(
@@ -2516,6 +3511,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 account_equity=account_state.equity,
                 store=vt31_store,
                 log=lambda event: _log(log_path, event),
+                phase20_after_submit=observe_vt31_phase20_oco_trigger,
             )
 
         if anchor is not None and not new_order_blocked:
@@ -2525,6 +3521,10 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     continue
                 try:
                     candidate, reason = _causal_candidate(symbol, anchor)
+                    phase20_vt08_deadline = anchor + timedelta(seconds=2)
+                    phase20_vt08_scope = (
+                        f"ctrader-demo:vt08:{symbol}:{anchor.isoformat()}"
+                    )
                     if candidate is None:
                         _log(
                             log_path,
@@ -2535,7 +3535,42 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "reason": reason,
                             },
                         )
+                        observe_phase20_single_slot(
+                            trader_id=TraderLineage.VT08_FOREX,
+                            qore_symbol=symbol,
+                            epoch_scope=phase20_vt08_scope,
+                            opened_at=anchor,
+                            deadline_at=phase20_vt08_deadline,
+                            terminal_observed_at=cycle_at,
+                            disposition=(
+                                Phase20ForwardPopulationDisposition.ABSTAIN
+                            ),
+                            reason=reason,
+                            account_state_for_shadow=account_state,
+                        )
                     else:
+                        def observe_vt08_phase20_candidate(
+                            opportunity: TraderOpportunityEnvelope,
+                            spec: CTraderDemoSymbolSpecification,
+                            shadow_account: CTraderDemoAccountState,
+                            observed_at: datetime,
+                        ) -> None:
+                            observe_phase20_single_slot(
+                                trader_id=TraderLineage.VT08_FOREX,
+                                qore_symbol=symbol,
+                                epoch_scope=phase20_vt08_scope,
+                                opened_at=anchor,
+                                deadline_at=phase20_vt08_deadline,
+                                terminal_observed_at=observed_at,
+                                disposition=(
+                                    Phase20ForwardPopulationDisposition.CANDIDATE
+                                ),
+                                reason="VALID_TRADER_OPPORTUNITY",
+                                account_state_for_shadow=shadow_account,
+                                opportunity=opportunity,
+                                provider_spec=spec,
+                            )
+
                         _process_candidate(
                             candidate=candidate,
                             now=cycle_at,
@@ -2548,6 +3583,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             capital_budget=capital,
                             account_equity=account_state.equity,
                             log_path=log_path,
+                            phase20_after_submit=observe_vt08_phase20_candidate,
                         )
                     processed_anchor = anchor_key
                     state = state.with_cycle(

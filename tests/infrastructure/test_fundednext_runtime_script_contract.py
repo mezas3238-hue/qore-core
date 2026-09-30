@@ -199,9 +199,19 @@ def test_runtime_binds_certified_policy_and_capitalization_without_changing_vt31
     assert "DurableCapitalizationMissionStore" in source
     assert '"capitalization-mission.json"' in source
     assert "CapitalizationMissionState.BANK" in source
-    assert "Vt08ForexCiboPosture.BANK" in source
+    assert "CiboAccountCapitalPosture.BANK" in source
+    assert "derive_cibo_account_capital_posture(" in source
     assert "mission_snapshot.new_risk_allowed_by_mission" in source
     assert '"CAPITALIZATION_MISSION_STATE_CHANGED"' in source
     assert '"capitalization_balance_target"' in source
     assert "VT31_DECISION_DEADLINE" in source
     assert "await_vt31_boundary_snapshot" in source
+
+
+
+def test_account_capital_posture_is_not_owned_by_vt08() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+    assert source.count("derive_cibo_account_capital_posture(") >= 3
+    # VT08 keeps its own methodology posture only inside the VT08 opportunity
+    # validation path; account-wide capital posture is generic CIBO state.
+    assert "CiboAccountCapitalPosture.BANK" in source

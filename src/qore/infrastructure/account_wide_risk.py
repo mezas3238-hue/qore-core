@@ -85,12 +85,82 @@ class AccountRiskSnapshot:
             _nonnegative(decimal_value, name)
         _aware(self.reconciled_at, "reconciled_at")
         provider = self.provider_budget
-        for name in ("provider_headroom", "max_risk_at_any_time", "active_mll"):
-            _nonnegative(getattr(provider, name, None), f"provider_budget.{name}")
-        if type(getattr(provider, "hard_breach", None)) is not bool:
+        for name, decimal_value in (
+            ("provider_headroom", provider.provider_headroom),
+            ("max_risk_at_any_time", provider.max_risk_at_any_time),
+            ("active_mll", provider.active_mll),
+        ):
+            _nonnegative(decimal_value, f"provider_budget.{name}")
+        if type(provider.hard_breach) is not bool:
             raise AccountWideRiskError("provider_budget.hard_breach must be bool")
         if self.qore_authorizable_headroom > provider.provider_headroom:
             raise AccountWideRiskError("QORE headroom cannot exceed provider headroom")
+
+
+@dataclass(frozen=True, slots=True)
+class RiskCapitalConstraintEnvelope:
+    """Read-only hard constraints CIBO may size inside; Risk selects no volume."""
+
+    account_binding_id: str
+    aggregate_pre_order_worst_case_usd: Decimal
+    active_reserved_stop_risk_usd: Decimal
+    active_reserved_margin_usd: Decimal
+    provider_remaining_headroom_usd: Decimal
+    internal_qore_remaining_headroom_usd: Decimal
+    max_risk_remaining_usd: Decimal
+    hard_risk_headroom_usd: Decimal
+    margin_headroom_usd: Decimal
+    provider_hard_breach: bool
+    survival_blocked: bool
+    reason: str
+    reconciled_at: datetime
+
+    def __post_init__(self) -> None:
+        if not self.account_binding_id:
+            raise AccountWideRiskError(
+                "constraint envelope account binding is required"
+            )
+        for name in (
+            "aggregate_pre_order_worst_case_usd",
+            "active_reserved_stop_risk_usd",
+            "active_reserved_margin_usd",
+            "provider_remaining_headroom_usd",
+            "internal_qore_remaining_headroom_usd",
+            "max_risk_remaining_usd",
+            "hard_risk_headroom_usd",
+            "margin_headroom_usd",
+        ):
+            _nonnegative(getattr(self, name), name)
+        if type(self.provider_hard_breach) is not bool:
+            raise AccountWideRiskError("provider_hard_breach must be bool")
+        if type(self.survival_blocked) is not bool:
+            raise AccountWideRiskError("survival_blocked must be bool")
+        if not self.reason:
+            raise AccountWideRiskError("constraint envelope reason is required")
+        _aware(self.reconciled_at, "reconciled_at")
+        if self.survival_blocked and (
+            self.hard_risk_headroom_usd != 0
+            or self.margin_headroom_usd != 0
+        ):
+            raise AccountWideRiskError(
+                "blocked survival envelope cannot expose allocatable headroom"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class CiboCapitalProvenanceLot:
+    """Non-authoritative capital-source metadata carried through Risk."""
+
+    source_kind: str
+    source_id: str
+    amount_usd: Decimal
+
+    def __post_init__(self) -> None:
+        if not self.source_kind or not self.source_id:
+            raise AccountWideRiskError(
+                "capital provenance source kind/id must be non-empty"
+            )
+        _positive(self.amount_usd, "capital provenance amount_usd")
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,6 +184,7 @@ class CiboRiskRequest:
     expires_at: datetime
     strategy_requested_risk_usd: Decimal | None = None
     minimum_volume_uplifted: bool = False
+    capital_provenance: tuple[CiboCapitalProvenanceLot, ...] = ()
 
     def __post_init__(self) -> None:
         for name, text_value in (
@@ -149,6 +220,26 @@ class CiboRiskRequest:
             _positive(self.strategy_requested_risk_usd, "strategy_requested_risk_usd")
         if type(self.minimum_volume_uplifted) is not bool:
             raise AccountWideRiskError("minimum_volume_uplifted must be bool")
+        if not isinstance(self.capital_provenance, tuple):
+            raise AccountWideRiskError(
+                "capital_provenance must be tuple"
+            )
+        if any(
+            not isinstance(item, CiboCapitalProvenanceLot)
+            for item in self.capital_provenance
+        ):
+            raise AccountWideRiskError(
+                "capital_provenance entries must be canonical lots"
+            )
+        if self.capital_provenance:
+            provenance_total = sum(
+                (item.amount_usd for item in self.capital_provenance),
+                Decimal(0),
+            )
+            if provenance_total != self.requested_stop_risk:
+                raise AccountWideRiskError(
+                    "request capital provenance must sum to requested stop risk"
+                )
         if (
             self.minimum_volume_uplifted
             and self.strategy_requested_risk_usd is not None
@@ -200,6 +291,7 @@ class RiskAuthorization:
     authorization_fingerprint: str
     strategy_requested_risk_usd: Decimal | None = None
     minimum_volume_uplifted: bool = False
+    capital_provenance: tuple[CiboCapitalProvenanceLot, ...] = ()
 
     def __post_init__(self) -> None:
         if type(self.decision) is not RiskDecision:
@@ -216,6 +308,30 @@ class RiskAuthorization:
             raise AccountWideRiskError("REDUCE must lower requested volume")
         if len(self.authorization_fingerprint) != 64:
             raise AccountWideRiskError("authorization_fingerprint must be SHA-256")
+        if not isinstance(self.capital_provenance, tuple):
+            raise AccountWideRiskError(
+                "authorization capital_provenance must be tuple"
+            )
+        if any(
+            not isinstance(item, CiboCapitalProvenanceLot)
+            for item in self.capital_provenance
+        ):
+            raise AccountWideRiskError(
+                "authorization provenance entries must be canonical lots"
+            )
+        if self.decision is RiskDecision.REJECT and self.capital_provenance:
+            raise AccountWideRiskError(
+                "rejected authorization cannot carry deployed capital provenance"
+            )
+        if self.capital_provenance:
+            provenance_total = sum(
+                (item.amount_usd for item in self.capital_provenance),
+                Decimal(0),
+            )
+            if provenance_total != self.monetary_stop_loss:
+                raise AccountWideRiskError(
+                    "authorization capital provenance must sum to monetary stop loss"
+                )
         _aware(self.issued_at, "issued_at")
         _aware(self.expires_at, "expires_at")
 
@@ -240,6 +356,23 @@ class AccountWideRiskEngine:
         self._lock = RLock()
         self._reservations: dict[str, RiskReservation] = {}
         self._signal_to_authorization: dict[str, str] = {}
+
+    def capital_constraint_envelope(
+        self,
+        snapshot: AccountRiskSnapshot,
+        *,
+        now: datetime,
+    ) -> RiskCapitalConstraintEnvelope:
+        """Expose only current hard constraints; CIBO remains sizing authority."""
+
+        _aware(now, "now")
+        if not isinstance(snapshot, AccountRiskSnapshot):
+            raise AccountWideRiskError(
+                "constraint envelope requires AccountRiskSnapshot"
+            )
+        with self._lock:
+            self._expire_locked(now)
+            return self._constraint_envelope_locked(snapshot)
 
     def authorize(
         self,
@@ -358,26 +491,22 @@ class AccountWideRiskEngine:
         snapshot: AccountRiskSnapshot,
         now: datetime,
     ) -> RiskAuthorization:
-        pre = (
-            snapshot.open_stop_worst_case_loss
-            + snapshot.pending_broker_worst_case_loss
-            + self._active_risk_locked()
-        )
+        constraints = self._constraint_envelope_locked(snapshot)
+        pre = constraints.aggregate_pre_order_worst_case_usd
         provider = snapshot.provider_budget
         if now > request.expires_at:
             return self._reject(request, snapshot, now, pre, "request-expired")
-        if provider.hard_breach:
-            return self._reject(request, snapshot, now, pre, "provider-hard-breach")
-        if snapshot.equity <= provider.active_mll:
-            return self._reject(request, snapshot, now, pre, "no-provider-equity-headroom")
+        if constraints.survival_blocked:
+            return self._reject(
+                request,
+                snapshot,
+                now,
+                pre,
+                constraints.reason,
+            )
 
-        risk_capacity = min(
-            max(Decimal(0), provider.provider_headroom - pre),
-            max(Decimal(0), snapshot.qore_authorizable_headroom - pre),
-            max(Decimal(0), provider.max_risk_at_any_time - pre),
-        )
-        margin_reserved = self._active_margin_locked()
-        margin_capacity = max(Decimal(0), snapshot.free_margin - margin_reserved)
+        risk_capacity = constraints.hard_risk_headroom_usd
+        margin_capacity = constraints.margin_headroom_usd
         by_risk = risk_capacity / request.stop_loss_per_volume
         by_margin = margin_capacity / request.margin_per_volume
         raw_volume = min(request.requested_volume, by_risk, by_margin)
@@ -440,6 +569,71 @@ class AccountWideRiskEngine:
             reason=reason,
         )
 
+    def _constraint_envelope_locked(
+        self,
+        snapshot: AccountRiskSnapshot,
+    ) -> RiskCapitalConstraintEnvelope:
+        active_risk = self._active_risk_locked()
+        active_margin = self._active_margin_locked()
+        pre = (
+            snapshot.open_stop_worst_case_loss
+            + snapshot.pending_broker_worst_case_loss
+            + active_risk
+        )
+        provider = snapshot.provider_budget
+        provider_remaining = max(
+            Decimal(0),
+            provider.provider_headroom - pre,
+        )
+        qore_remaining = max(
+            Decimal(0),
+            snapshot.qore_authorizable_headroom - pre,
+        )
+        max_risk_remaining = max(
+            Decimal(0),
+            provider.max_risk_at_any_time - pre,
+        )
+        margin_remaining = max(
+            Decimal(0),
+            snapshot.free_margin - active_margin,
+        )
+
+        blocked = bool(
+            provider.hard_breach
+            or snapshot.equity <= provider.active_mll
+        )
+        if provider.hard_breach:
+            reason = "provider-hard-breach"
+        elif snapshot.equity <= provider.active_mll:
+            reason = "no-provider-equity-headroom"
+        else:
+            reason = "hard-constraints-observed"
+
+        hard_risk = (
+            Decimal(0)
+            if blocked
+            else min(
+                provider_remaining,
+                qore_remaining,
+                max_risk_remaining,
+            )
+        )
+        return RiskCapitalConstraintEnvelope(
+            account_binding_id=snapshot.account_binding_id,
+            aggregate_pre_order_worst_case_usd=pre,
+            active_reserved_stop_risk_usd=active_risk,
+            active_reserved_margin_usd=active_margin,
+            provider_remaining_headroom_usd=provider_remaining,
+            internal_qore_remaining_headroom_usd=qore_remaining,
+            max_risk_remaining_usd=max_risk_remaining,
+            hard_risk_headroom_usd=hard_risk,
+            margin_headroom_usd=Decimal(0) if blocked else margin_remaining,
+            provider_hard_breach=provider.hard_breach,
+            survival_blocked=blocked,
+            reason=reason,
+            reconciled_at=snapshot.reconciled_at,
+        )
+
     def _active_risk_locked(self) -> Decimal:
         return sum(
             (
@@ -493,6 +687,14 @@ def _authorization(
     decision: RiskDecision,
     reason: str,
 ) -> RiskAuthorization:
+    authorized_provenance = _scale_capital_provenance(
+        request,
+        authorized_volume=authorized_volume,
+    )
+    provenance_material = ";".join(
+        f"{item.source_kind}:{item.source_id}:{item.amount_usd}"
+        for item in authorized_provenance
+    )
     canonical = "|".join(
         (
             snapshot.account_binding_id,
@@ -505,6 +707,7 @@ def _authorization(
             str(request.stop_loss),
             str(request.take_profit),
             str(authorized_volume),
+            provenance_material,
             issued_at.astimezone(UTC).isoformat(timespec="microseconds"),
         )
     )
@@ -538,7 +741,44 @@ def _authorization(
         authorization_fingerprint=fingerprint,
         strategy_requested_risk_usd=request.strategy_requested_risk_usd,
         minimum_volume_uplifted=request.minimum_volume_uplifted,
+        capital_provenance=authorized_provenance,
     )
+
+
+def _scale_capital_provenance(
+    request: CiboRiskRequest,
+    *,
+    authorized_volume: Decimal,
+) -> tuple[CiboCapitalProvenanceLot, ...]:
+    if authorized_volume <= 0 or not request.capital_provenance:
+        return ()
+    if authorized_volume == request.requested_volume:
+        return request.capital_provenance
+
+    authorized_risk = authorized_volume * request.stop_loss_per_volume
+    fraction = authorized_volume / request.requested_volume
+    retained: list[CiboCapitalProvenanceLot] = []
+    allocated = Decimal(0)
+    for index, item in enumerate(request.capital_provenance):
+        if index == len(request.capital_provenance) - 1:
+            amount = authorized_risk - allocated
+        else:
+            amount = item.amount_usd * fraction
+            allocated += amount
+        if amount <= 0:
+            continue
+        retained.append(
+            CiboCapitalProvenanceLot(
+                source_kind=item.source_kind,
+                source_id=item.source_id,
+                amount_usd=amount,
+            )
+        )
+    if sum((item.amount_usd for item in retained), Decimal(0)) != authorized_risk:
+        raise AccountWideRiskError(
+            "scaled capital provenance does not match authorized stop risk"
+        )
+    return tuple(retained)
 
 
 def _floor_to_step(value: Decimal, step: Decimal) -> Decimal:

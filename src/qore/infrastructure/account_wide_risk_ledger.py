@@ -20,9 +20,11 @@ from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
     AccountWideRiskEngine,
     AccountWideRiskError,
+    CiboCapitalProvenanceLot,
     CiboRiskRequest,
     ReservationState,
     RiskAuthorization,
+    RiskCapitalConstraintEnvelope,
     RiskDecision,
     RiskReservation,
     TraderLineage,
@@ -149,6 +151,18 @@ class DurableAccountWideRiskEngine(AccountWideRiskEngine):
             raise AccountWideRiskError("boot reconciliation account binding mismatch")
         self._recovery_required = False
 
+    def capital_constraint_envelope(
+        self,
+        snapshot: AccountRiskSnapshot,
+        *,
+        now: datetime,
+    ) -> RiskCapitalConstraintEnvelope:
+        if self._recovery_required:
+            raise AccountWideRiskError(
+                "restart-reconciliation-required-before-capital-envelope"
+            )
+        return super().capital_constraint_envelope(snapshot, now=now)
+
     def authorize(
         self,
         request: CiboRiskRequest,
@@ -225,6 +239,14 @@ def _reservation_payload(item: RiskReservation) -> dict[str, object]:
             "issued_at": auth.issued_at.isoformat(),
             "expires_at": auth.expires_at.isoformat(),
             "authorization_fingerprint": auth.authorization_fingerprint,
+            "capital_provenance": [
+                {
+                    "source_kind": item.source_kind,
+                    "source_id": item.source_id,
+                    "amount_usd": str(item.amount_usd),
+                }
+                for item in auth.capital_provenance
+            ],
         },
         "pending_stop_risk": str(item.pending_stop_risk),
         "pending_margin": str(item.pending_margin),
@@ -270,6 +292,15 @@ def _reservation_from_payload(value: object) -> RiskReservation:
             issued_at=datetime.fromisoformat(str(raw_auth["issued_at"])),
             expires_at=datetime.fromisoformat(str(raw_auth["expires_at"])),
             authorization_fingerprint=str(raw_auth["authorization_fingerprint"]),
+            capital_provenance=tuple(
+                CiboCapitalProvenanceLot(
+                    source_kind=str(item["source_kind"]),
+                    source_id=str(item["source_id"]),
+                    amount_usd=Decimal(str(item["amount_usd"])),
+                )
+                for item in raw_auth.get("capital_provenance", [])
+                if isinstance(item, dict)
+            ),
         )
         return RiskReservation(
             authorization=auth,

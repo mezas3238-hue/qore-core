@@ -1,0 +1,57 @@
+name: QORE CIBO GEN-C8 Adaptive Compound Speed
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-genc8-adaptive-compound-speed.yml'
+      - 'src/qore/infrastructure/cibo_adaptive_compound_speed_shadow.py'
+      - 'src/qore/infrastructure/cibo_adaptive_compound_speed_store.py'
+      - 'src/qore/infrastructure/cibo_adaptive_compound_speed_population.py'
+      - 'tests/infrastructure/test_cibo_adaptive_compound_speed_shadow.py'
+      - 'docs/research/CIBO-GEN-C8-ADAPTIVE-COMPOUND-SPEED-SHADOW-PREREGISTRATION-V1.md'
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-genc8-adaptive-compound-speed.yml'
+      - 'src/qore/infrastructure/cibo_adaptive_compound_speed_shadow.py'
+      - 'src/qore/infrastructure/cibo_adaptive_compound_speed_store.py'
+      - 'src/qore/infrastructure/cibo_adaptive_compound_speed_population.py'
+      - 'tests/infrastructure/test_cibo_adaptive_compound_speed_shadow.py'
+      - 'docs/research/CIBO-GEN-C8-ADAPTIVE-COMPOUND-SPEED-SHADOW-PREREGISTRATION-V1.md'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  adaptive-compound-speed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: GEN-C8 adaptive compound speed quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_adaptive_compound_speed_shadow.py \
+            src/qore/infrastructure/cibo_adaptive_compound_speed_store.py \
+            src/qore/infrastructure/cibo_adaptive_compound_speed_population.py \
+            tests/infrastructure/test_cibo_adaptive_compound_speed_shadow.py
+          mypy \
+            src/qore/infrastructure/cibo_adaptive_compound_speed_shadow.py \
+            src/qore/infrastructure/cibo_adaptive_compound_speed_store.py \
+            src/qore/infrastructure/cibo_adaptive_compound_speed_population.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_adaptive_compound_speed_shadow.py \
+            src/qore/infrastructure/cibo_adaptive_compound_speed_store.py \
+            src/qore/infrastructure/cibo_adaptive_compound_speed_population.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_adaptive_compound_speed_shadow.py

@@ -900,6 +900,26 @@ def test_durable_fill_identity_survives_restart_and_preserves_real_conflict(
         mutation_ledger=JsonFileCTraderDemoMutationLedger(path),
     )
     assert isinstance(recovered.restore_submission(submission), Success)
+    durable_fills = recovered.fills_for(submission.receipt_id)
+    assert len(durable_fills) == 1
+    assert durable_fills[0].fill_ref == "90001"
+    assert durable_fills[0].fill_quantity == Decimal("10")
+    assert durable_fills[0].cumulative_quantity == Decimal("10")
+    assert durable_fills[0].fill_price == Decimal("1.23456")
+    assert durable_fills[0].is_complete is True
+    reconciled = recovered.reconcile_fills(
+        submission.receipt_id,
+        reconciled_at=_NOW + timedelta(seconds=19),
+    )
+    assert isinstance(reconciled, Success)
+    assert (
+        reconciled.value.status
+        is CTraderDemoFillReconciliationStatus.MATCHED
+    )
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    assert raw["schema_version"] == 2
+    assert raw["records"][0]["fill_observations"][0]["fill_price"] == "1.23456"
+
     conflict = recovered.observe_fill(
         submission,
         _fill_payload(
@@ -1083,3 +1103,52 @@ def test_full_boundary_composition_idempotency() -> None:
     assert isinstance(replay, Success)
     assert replay.value == first.value
     assert len(transport.submit_calls) == 1
+
+
+
+def test_mutation_ledger_v1_remains_readable_for_restart_compatibility(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "legacy-v1-mutations.json"
+    submission = _submission(suffix=47)
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "records": [
+                    {
+                        "idempotency_key": str(
+                            submission.idempotency_key.value
+                        ),
+                        "receipt_id": str(submission.receipt_id.value),
+                        "submission_digest": (
+                            "sha256:" + "a" * 64
+                        ),
+                        "client_order_id": "legacy-client-order",
+                        "state": "definitive_outcome",
+                        "transitioned_at": (
+                            _NOW + timedelta(seconds=5)
+                        ).isoformat(),
+                        "provider_order_ref": "70047",
+                        "reason": None,
+                        "outcome": "filled",
+                        "fill_refs": ["90047"],
+                        "fill_identities": [
+                            ["90047", "sha256:" + "b" * 64]
+                        ],
+                        "cumulative_quantity": "10",
+                        "is_complete": True,
+                    }
+                ],
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+    ledger = JsonFileCTraderDemoMutationLedger(path)
+    records = ledger.records()
+
+    assert len(records) == 1
+    assert records[0].fill_refs == ("90047",)
+    assert records[0].fill_observations == ()

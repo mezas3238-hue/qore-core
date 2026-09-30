@@ -1,0 +1,126 @@
+name: QORE CIBO Phase19 Burned Calibration
+
+on:
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-phase19-burned-calibration.yml'
+      - 'scripts/cibo_phase19_burned_calibration.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_matrix.py'
+      - 'src/qore/infrastructure/cibo_ce2i_burned_lifecycle_calibration.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_registry.py'
+      - 'tests/infrastructure/test_cibo_ce2i_calibration_matrix.py'
+      - 'tests/infrastructure/test_cibo_ce2i_burned_lifecycle_calibration.py'
+      - 'tests/infrastructure/test_cibo_ce2i_calibration_registry.py'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase19-burned-calibration.yml'
+      - 'scripts/cibo_phase19_burned_calibration.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_matrix.py'
+      - 'tests/infrastructure/test_cibo_ce2i_calibration_matrix.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  burned-calibration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PHASE19_ARTIFACT_ID: "10972948493"
+      PHASE19_ARTIFACT_SHA256: "e2fcf03ac78e278a22ec53f4f4d6b419ae4d9f5f7a9c674c23fd18c3a4e95527"
+      PHASE19_SOURCE_GIT_SHA: "69288ce31c746c6b0e354b45bdb051d45aa3009d"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Quality
+        run: |
+          ruff check \
+            scripts/cibo_phase19_burned_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_burned_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_burned_lifecycle_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_burned_t06_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_burned_non_promotion.py \
+            src/qore/infrastructure/cibo_ce2i_calibration_registry.py \
+            src/qore/infrastructure/cibo_ce2i_calibration_matrix.py \
+            tests/infrastructure/test_cibo_ce2i_burned_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_burned_lifecycle_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_burned_t06_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_burned_non_promotion.py \
+            tests/infrastructure/test_cibo_ce2i_calibration_registry.py \
+            tests/infrastructure/test_cibo_ce2i_calibration_matrix.py
+          mypy \
+            scripts/cibo_phase19_burned_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_burned_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_calibration_matrix.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_burned_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_burned_lifecycle_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_burned_t06_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_burned_non_promotion.py \
+            tests/infrastructure/test_cibo_ce2i_calibration_registry.py \
+            tests/infrastructure/test_cibo_ce2i_calibration_matrix.py
+
+      - name: Download immutable burned Phase19 artifact
+        run: |
+          mkdir -p burned/raw burned/phase19 burned/output
+          gh api             "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${PHASE19_ARTIFACT_ID}/zip"             > burned/raw/phase19.zip
+          echo "${PHASE19_ARTIFACT_SHA256}  burned/raw/phase19.zip"             | sha256sum -c -
+          unzip -q burned/raw/phase19.zip -d burned/phase19
+          test "$(cat burned/phase19/git-sha.txt)" = "${PHASE19_SOURCE_GIT_SHA}"
+          (
+            cd burned/phase19
+            sha256sum -c SHA256SUMS.txt
+          )
+
+      - name: Derive burned-only calibration
+        run: |
+          python scripts/cibo_phase19_burned_calibration.py             --phase19-root burned/phase19             --output burned/output/phase19-burned-calibration.json             > burned/output/phase19-burned-calibration.stdout.json
+
+      - name: Enforce holdout isolation and conservative promotions
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(
+              Path("burned/output/phase19-burned-calibration.json").read_text()
+          )
+          assert p["holdout_2017h1_outcomes_used"] is False
+          assert p["target_aware"] is False
+          assert p["exact_usd_economics_claimed"] is False
+          assert set(p["promoted_tools"]) == {"T04", "T05", "T06", "T10", "T19", "T20"}
+          assert p["walk_forward"]["surviving_policy_count"] == 0
+          assert set(p["provider_economics_required"]) == {
+              "T01", "T03", "T04", "T07",
+              "T10", "T11", "T16", "T17"
+          }
+          PY
+
+      - name: Seal calibration evidence
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > burned/output/calibrator-git-sha.txt
+          printf '%s\n' "$PHASE19_ARTIFACT_ID"             > burned/output/source-artifact-id.txt
+          printf '%s\n' "$PHASE19_ARTIFACT_SHA256"             > burned/output/source-artifact-sha256.txt
+          cd burned/output
+          sha256sum             phase19-burned-calibration.json             phase19-burned-calibration.stdout.json             calibrator-git-sha.txt             source-artifact-id.txt             source-artifact-sha256.txt             > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase19-burned-calibration-${{ github.sha }}
+          path: burned/output
+          if-no-files-found: error
+          retention-days: 90

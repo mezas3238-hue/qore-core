@@ -1,0 +1,279 @@
+name: QORE CIBO Phase 18 VT08 FOREX R3.15 Chronological Replay
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase18-vt08-forex-r315-replay.yml'
+      - 'scripts/cibo_phase18_vt08_r315_policy_replay.py'
+      - 'scripts/cibo_phase18_vt08_score.py'
+      - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
+      - 'tests/infrastructure/test_cibo_ce2i_chronological_replay.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_phase18_vt08_r315_policy_replay.py'
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-phase18-vt08-forex-r315-replay.yml'
+      - 'scripts/cibo_phase18_vt08_r315_policy_replay.py'
+      - 'scripts/cibo_phase18_vt08_score.py'
+      - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
+      - 'tests/infrastructure/test_cibo_ce2i_chronological_replay.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_phase18_vt08_r315_policy_replay.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  GH_TOKEN: ${{ github.token }}
+  RISK_SOURCE_SHA: '6a09be314a5c8b6a17822ea141a41d521aaf8655'
+  RISK_RUN_ID: '34733491533'
+  RISK_ARTIFACT_ID: '10309794877'
+  RISK_ARTIFACT_DIGEST: '6b1ccbeac047b1d06d0b9eee7c24443d2ab03d7a9f33389dbc7ab34adba51d77'
+  HOLDOUT_SOURCE_SHA: '64bc2ab4809c39e4a2b2c72aa8c0e8ec1c709222'
+  HOLDOUT_RUN_ID: '34759027136'
+  HOLDOUT_ARTIFACT_ID: '10318827002'
+  HOLDOUT_ARTIFACT_DIGEST: '73aad16176f2f5335b47fff6510f8f3ce586e2d0a291dd6056c4d3c9e57f9ae4'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Focused quality
+        run: |
+          ruff check \
+            scripts/cibo_phase18_vt08_r315_policy_replay.py \
+            scripts/cibo_phase18_vt08_score.py \
+            src/qore/infrastructure/cibo_ce2i_chronological_replay.py \
+            tests/infrastructure/test_cibo_ce2i_chronological_replay.py \
+            tests/infrastructure/trader_lab/test_cibo_phase18_vt08_r315_policy_replay.py
+          mypy \
+            scripts/cibo_phase18_vt08_r315_policy_replay.py \
+            scripts/cibo_phase18_vt08_score.py \
+            src/qore/infrastructure/cibo_ce2i_chronological_replay.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_chronological_replay.py \
+            tests/infrastructure/trader_lab/test_cibo_phase18_vt08_r315_policy_replay.py
+
+  replay-vt08:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout CIBO evidence head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+
+      - name: Checkout immutable R3.12 Risk source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RISK_SOURCE_SHA }}
+          path: vt08-risk-code
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Verify immutable source commit
+        run: |
+          test "$(git -C vt08-risk-code rev-parse HEAD)" = "$RISK_SOURCE_SHA"
+
+      - name: Download and authenticate immutable VT08 evidence
+        run: |
+          set -euo pipefail
+          mkdir -p official/r312 official/r315 phase18-output
+
+          download_and_verify() {
+            local artifact_id="$1"
+            local run_id="$2"
+            local expected_sha="$3"
+            local expected_digest="$4"
+            local destination="$5"
+            local meta="${destination}.metadata.json"
+            local archive="${destination}.zip"
+
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" > "$meta"
+            jq -e \
+              --argjson artifact_id "$artifact_id" \
+              --argjson run_id "$run_id" \
+              --arg head_sha "$expected_sha" \
+              --arg digest "sha256:${expected_digest}" \
+              '.id == $artifact_id and
+               .expired == false and
+               .workflow_run.id == $run_id and
+               .workflow_run.head_sha == $head_sha and
+               .digest == $digest' "$meta"
+
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$archive"
+            echo "${expected_digest}  ${archive}" | sha256sum -c -
+            unzip -q "$archive" -d "$destination"
+            test "$(tr -d '\r\n' < "${destination}/git-sha.txt")" = "$expected_sha"
+          }
+
+          download_and_verify \
+            "$RISK_ARTIFACT_ID" "$RISK_RUN_ID" "$RISK_SOURCE_SHA" \
+            "$RISK_ARTIFACT_DIGEST" official/r312
+
+          download_and_verify \
+            "$HOLDOUT_ARTIFACT_ID" "$HOLDOUT_RUN_ID" "$HOLDOUT_SOURCE_SHA" \
+            "$HOLDOUT_ARTIFACT_DIGEST" official/r315
+
+      - name: Prove Phase 18 Risk formulas equal frozen R3.12
+        env:
+          PYTHONPATH: ${{ github.workspace }}/vt08-risk-code/src
+        run: |
+          python - <<'PY'
+          import importlib.util
+          import sys
+          from decimal import Decimal
+          from pathlib import Path
+
+          from qore.infrastructure.trader_lab.vt08_official_adaptive_monte_carlo_r3_12 import (
+              AdaptiveRiskPolicy,
+              apply_hysteresis as official_hysteresis,
+              target_risk_bps as official_target,
+          )
+
+          path = Path("scripts/cibo_phase18_vt08_r315_policy_replay.py")
+          spec = importlib.util.spec_from_file_location("phase18_vt08_policy", path)
+          if spec is None or spec.loader is None:
+              raise RuntimeError("cannot load Phase 18 VT08 policy")
+          phase18 = importlib.util.module_from_spec(spec)
+          sys.modules[spec.name] = phase18
+          spec.loader.exec_module(phase18)
+
+          policy = AdaptiveRiskPolicy()
+          states = (
+              (Decimal("97000"), Decimal("100000")),
+              (Decimal("99000"), Decimal("100000")),
+              (Decimal("100000"), Decimal("100000")),
+              (Decimal("102000"), Decimal("102000")),
+              (Decimal("105000"), Decimal("105000")),
+              (Decimal("110000"), Decimal("110000")),
+          )
+          for sleeve in ("a", "gbpjpy"):
+              for equity, peak in states:
+                  wanted = official_target(
+                      policy,
+                      sleeve=sleeve,
+                      equity=equity,
+                      peak_equity=peak,
+                      starting_equity=Decimal("100000"),
+                  )
+                  actual = phase18.target_risk_bps(
+                      sleeve=sleeve,
+                      equity=equity,
+                      peak_equity=peak,
+                  )
+                  assert actual == wanted, (sleeve, equity, peak, actual, wanted)
+
+          hysteresis_cases = (
+              (Decimal("25"), Decimal("25.1")),
+              (Decimal("25"), Decimal("28")),
+              (Decimal("25"), Decimal("15")),
+              (Decimal("20"), Decimal("20.1")),
+              (Decimal("20"), Decimal("24")),
+              (Decimal("20"), Decimal("10")),
+          )
+          for previous, target in hysteresis_cases:
+              wanted = official_hysteresis(
+                  policy,
+                  previous_bps=previous,
+                  target_bps_value=target,
+              )
+              actual = phase18.apply_hysteresis(
+                  previous_bps=previous,
+                  target_bps_value=target,
+              )
+              assert actual == wanted, (previous, target, actual, wanted)
+          PY
+
+      - name: Reconstruct certified VT08 legacy capital policy
+        run: |
+          python scripts/cibo_phase18_vt08_r315_policy_replay.py \
+            --holdout official/r315/holdout-summary.json \
+            --risk-policy official/r312/adaptive-prop-firm-risk-policy.json \
+            --output phase18-output \
+            > phase18-output/replay-stdout.json
+
+      - name: Enforce VT08 Phase 18 governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path("phase18-output/phase18-vt08-r315-policy-report.json").read_text()
+          )
+          assert p["identity"] == "CIBO_PHASE18_VT08_FOREX_R315_POLICY_REPLAY_V1"
+          assert p["portfolio"] == "B_COMBINED"
+          assert p["rows"] == 124
+          assert p["technical_geometry"]["holdout_reopened"] is False
+          assert p["technical_geometry"]["anchors_ny"] == [1,5,9]
+          assert p["legacy_capital_policy"]["policy"] == "balanced-adaptive-v1"
+          assert p["legacy_capital_policy"]["risk_policy_fingerprint"] == (
+              "dfb3fc8217b9895356ed19f8d7e1ee47fae765d39a9bb2e72e14c4ac41fad1f5"
+          )
+          assert p["legacy_capital_policy"]["r25_usd_at_frozen_start"] == "250"
+          assert p["legacy_capital_policy"]["broker_quantity_applied"] is False
+          assert p["legacy_capital_policy"]["execution_cost_applied"] is False
+          assert p["canonical_profile"] == "FUNDEDNEXT_STELLAR_2STEP_2026_09_12"
+          assert p["canonical_result"]["risk_outcomes"]["REJECT"] == 0
+          assert p["source_evidence"]["holdout_artifact_id"] == 10318827002
+          assert p["source_evidence"]["risk_artifact_id"] == 10309794877
+          assert p["provider_economics"]["pre_broker_capital_policy_only"] is True
+          assert p["provider_economics"]["usd_cibo_sizing_comparison_authorized"] is False
+          g=p["governance"]
+          assert g["consumed_holdout_only"] is True
+          assert g["holdout_reopened"] is False
+          assert g["methodology_changed"] is False
+          assert g["live_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["merge_authorized"] is False
+          PY
+
+      - name: Score VT08 with generic CIBO Phase 18 replay
+        run: |
+          python scripts/cibo_phase18_vt08_score.py \
+            --bound phase18-output/phase18-vt08-r315-fundednext-trades.jsonl \
+            --policy-report phase18-output/phase18-vt08-r315-policy-report.json \
+            --output phase18-output/phase18-vt08-r315-generic-score.json
+
+      - name: Hash Phase 18 evidence
+        run: |
+          printf '%s\n' "$EVIDENCE_SHA" > phase18-output/git-sha.txt
+          printf '%s\n' "$RISK_SOURCE_SHA" > phase18-output/risk-source-sha.txt
+          printf '%s\n' "$HOLDOUT_SOURCE_SHA" > phase18-output/holdout-source-sha.txt
+          cd phase18-output
+          sha256sum \
+            phase18-vt08-r315-policy-report.json \
+            phase18-vt08-r315-fundednext-trades.jsonl \
+            phase18-vt08-r315-generic-score.json \
+            replay-stdout.json \
+            git-sha.txt \
+            risk-source-sha.txt \
+            holdout-source-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase18-vt08-r315-${{ env.EVIDENCE_SHA }}
+          path: phase18-output
+          if-no-files-found: error
+          retention-days: 90

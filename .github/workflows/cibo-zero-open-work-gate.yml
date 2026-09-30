@@ -1,0 +1,87 @@
+name: QORE CIBO Zero Open Work Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-zero-open-work-gate.yml'
+      - 'scripts/cibo_zero_open_work_gate.py'
+      - 'tests/infrastructure/test_cibo_zero_open_work_gate.py'
+      - 'docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md'
+      - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
+      - 'docs/research/CIBO-SOVEREIGN-CAPITAL-AMPLIFICATION-WORLD-CUP-MISSION-V1.md'
+      - 'docs/research/CIBO-WORLD-CUP-SOVEREIGN-CAPITAL-AMPLIFICATION-GAP-MATRIX-V1.md'
+      - 'docs/research/CIBO-CE2I-ADR-002-CAPITAL-MANAGEMENT-AUTHORITY.md'
+      - 'docs/research/CIBO-CE2I-ADR-003-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING.md'
+      - 'docs/research/CIBO-CAPITAL-MANAGEMENT-AUTHORITY-CE2I-MASTER-ROADMAP-V2.md'
+      - 'docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md'
+      - 'src/qore/infrastructure/cibo_*.py'
+      - 'scripts/cibo_*.py'
+      - 'tests/infrastructure/test_cibo*.py'
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-zero-open-work-gate.yml'
+      - 'scripts/cibo_zero_open_work_gate.py'
+      - 'tests/infrastructure/test_cibo_zero_open_work_gate.py'
+      - 'docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md'
+      - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
+      - 'docs/research/CIBO-SOVEREIGN-CAPITAL-AMPLIFICATION-WORLD-CUP-MISSION-V1.md'
+      - 'docs/research/CIBO-WORLD-CUP-SOVEREIGN-CAPITAL-AMPLIFICATION-GAP-MATRIX-V1.md'
+      - 'docs/research/CIBO-CE2I-ADR-002-CAPITAL-MANAGEMENT-AUTHORITY.md'
+      - 'docs/research/CIBO-CE2I-ADR-003-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING.md'
+      - 'docs/research/CIBO-CAPITAL-MANAGEMENT-AUTHORITY-CE2I-MASTER-ROADMAP-V2.md'
+      - 'docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md'
+      - 'src/qore/infrastructure/cibo_*.py'
+      - 'scripts/cibo_*.py'
+      - 'tests/infrastructure/test_cibo*.py'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  zero-open-work-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Zero-open-work gate quality
+        run: |
+          ruff check \
+            scripts/cibo_zero_open_work_gate.py \
+            tests/infrastructure/test_cibo_zero_open_work_gate.py
+          mypy scripts/cibo_zero_open_work_gate.py
+          python -m py_compile scripts/cibo_zero_open_work_gate.py
+          pytest -q --no-cov tests/infrastructure/test_cibo_zero_open_work_gate.py
+      - name: Generate current closure verdict
+        run: |
+          python scripts/cibo_zero_open_work_gate.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("artifacts/cibo_zero_open_work_gate_v1.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          assert payload["schema"] == "QORE_CIBO_ZERO_OPEN_WORK_GATE_V1"
+          assert isinstance(payload["pass"], bool)
+          assert isinstance(payload["open_workstream_ids"], list)
+          assert isinstance(payload["inventory_paths"], list)
+          assert payload["orphan_candidate_paths"] == []
+          assert payload["missing_required_artifacts"] == []
+          assert payload["high_signal_marker_hits"] == []
+          PY
+      - name: Upload zero-open-work gate verdict
+        uses: actions/upload-artifact@v4
+        with:
+          name: cibo-zero-open-work-gate-v1
+          path: artifacts/cibo_zero_open_work_gate_v1.json
+          if-no-files-found: error

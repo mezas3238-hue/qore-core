@@ -1,8 +1,8 @@
-"""Operational cTrader DEMO sink for unrestricted Trader/CIBO observation.
+"""Operational cTrader DEMO sink for CIBO account-scoped sizing.
 
-This path is DEMO-only. QORE Risk allocates virtual capital by Trader lineage;
-Trader/CIBO own setup selection and requested size. No FundedNext portfolio-risk
-reduction is applied here.
+This path is DEMO-only. Traders own setup/entry/exit geometry; CIBO alone owns
+requested risk and volume from the full DEMO account envelope. Per-Trader
+capital slices are attribution metadata only and never sizing authority.
 """
 
 from __future__ import annotations
@@ -16,11 +16,9 @@ from pathlib import Path
 from threading import Lock
 from uuid import NAMESPACE_URL, uuid5
 
-from qore.domain.events import CorrelationId
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
 from qore.infrastructure.ctrader_demo_allocation_only import (
     CTraderDemoBrokerContract,
-    DemoCapitalAllocationBook,
     allocation_fence_values,
     authorize_allocation_only,
     build_allocation_only_submission,
@@ -33,10 +31,6 @@ from qore.infrastructure.ctrader_demo_free_binding import (
 from qore.infrastructure.ctrader_demo_free_position_service import (
     CTraderDemoFreePositionService,
 )
-from qore.infrastructure.ctrader_demo_trade_registry import (
-    CTraderDemoTradeRegistry,
-    DemoTradeRegistryEntry,
-)
 from qore.infrastructure.ctrader_demo_live_behavior_lab import (
     CTraderDemoLiveBehaviorLedger,
     sizing_path_for,
@@ -47,6 +41,10 @@ from qore.infrastructure.ctrader_demo_mutation_ledger import (
 from qore.infrastructure.ctrader_demo_operational_runtime import (
     CTraderDemoOperationalRuntime,
 )
+from qore.infrastructure.ctrader_demo_trade_registry import (
+    CTraderDemoTradeRegistry,
+    DemoTradeRegistryEntry,
+)
 from qore.infrastructure.ctrader_open_api_client import (
     CTraderOpenApiCredentials,
     SpotwareCTraderOpenApiClient,
@@ -56,7 +54,6 @@ from qore.infrastructure.market_test_environment import (
 )
 from qore.infrastructure.ports import (
     AdapterId,
-    ExternalRequestMetadata,
     ExternalSourceDescriptor,
     PortName,
     SourceId,
@@ -66,6 +63,18 @@ from qore.kernel.result import Failure
 
 class CTraderDemoFreeSinkError(RuntimeError):
     pass
+
+
+def assert_cibo_sizing_authority(request: CiboRiskRequest) -> None:
+    """Reject any execution request that still carries Trader-owned sizing."""
+
+    if not isinstance(request, CiboRiskRequest):
+        raise CTraderDemoFreeSinkError("request must be CiboRiskRequest")
+    if request.strategy_requested_risk_usd is not None:
+        raise CTraderDemoFreeSinkError(
+            "legacy Trader sizing authority is forbidden; "
+            "CIBO CMA must own requested volume"
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,8 +171,9 @@ class CTraderDemoFreeSink:
                 "balance": format(binding.balance, "f"),
                 "traders": len(self._book.allocations),
                 "symbols": len(binding.contracts),
-                "risk_role": "CAPITAL_ALLOCATOR_ONLY",
-                "cibo_role": "SIZING_AND_POSITION_INTELLIGENCE_SOVEREIGN",
+                "risk_role": "TECHNICAL_EXECUTION_GOVERNOR",
+                "cibo_role": "ACCOUNT_SCOPED_SIZING_AND_CAPITAL_AUTHORITY",
+                "trader_sizing_authority": False,
             }
         )
 
@@ -183,11 +193,21 @@ class CTraderDemoFreeSink:
     def registry(self) -> CTraderDemoTradeRegistry:
         return self._registry
 
-    @property
-    def client(self) -> SpotwareCTraderOpenApiClient:
-        return self._client
+    def account_capital(self) -> Decimal:
+        return self._book.account_capital
+
+    def committed_stop_risk(self, *, now: datetime) -> Decimal:
+        return self._registry.committed_stop_risk(
+            now=now,
+            provider_order_status=lambda provider_order_ref: (
+                self._positions.order_status(
+                    order_id=int(provider_order_ref),
+                )
+            ),
+        )
 
     def capital_for(self, trader: TraderLineage) -> Decimal:
+        """Compatibility alias; no Trader receives a private capital budget."""
         return self._book.capital_for(trader)
 
     def _contract(self, request: CiboRiskRequest) -> CTraderDemoBrokerContract:
@@ -205,13 +225,18 @@ class CTraderDemoFreeSink:
             ctrader_lot_size_units=native.lot_size_units,
         )
 
-    def submit(self, request: CiboRiskRequest, *, now: datetime | None = None) -> CTraderDemoFreeSubmitResult:
+    def submit(
+        self,
+        request: CiboRiskRequest,
+        *,
+        now: datetime | None = None,
+    ) -> CTraderDemoFreeSubmitResult:
+        assert_cibo_sizing_authority(request)
         observed = now or datetime.now(UTC)
         if observed.tzinfo is None or observed.utcoffset() is None:
             raise CTraderDemoFreeSinkError("submit time must be timezone-aware")
         with self._lock:
-            capital = self._book.capital_for(request.trader_id)
-            # No cross-trade or per-trader busy gate lives in the DEMO sink.
+            # No cross-trade or per-trader sizing gate lives in the DEMO sink.
             # Strategy-owned state decides whether another entry is legitimate.
             # Canonical idempotency prevents duplicate submission of the same signal.
             allocation = authorize_allocation_only(
@@ -219,9 +244,10 @@ class CTraderDemoFreeSink:
                 book=self._book,
                 now=observed,
             )
+            contract = self._contract(request)
             submission = build_allocation_only_submission(
                 allocation,
-                contract=self._contract(request),
+                contract=contract,
                 submitted_at=observed,
             )
             auth_id, auth_fingerprint, reservation_id = allocation_fence_values(allocation)
@@ -239,12 +265,16 @@ class CTraderDemoFreeSink:
             client_order_id = f"qore-{submission.idempotency_key.value.hex[:24]}"
             recorded_at = datetime.now(UTC)
             position_id: int | None = None
-            open_for_trader = [
-                item for item in self._positions.positions()
-                if item.trader_id is request.trader_id
+            open_for_request = [
+                item
+                for item in self._positions.positions()
+                if (
+                    item.trader_id is request.trader_id
+                    and item.qore_symbol == request.qore_symbol
+                )
             ]
-            if len(open_for_trader) == 1:
-                position_id = open_for_trader[0].position_id
+            if len(open_for_request) == 1:
+                position_id = open_for_request[0].position_id
             self._registry.register(
                 DemoTradeRegistryEntry(
                     trader=request.trader_id.value,
@@ -258,6 +288,43 @@ class CTraderDemoFreeSink:
                     submitted_at=recorded_at.isoformat(),
                     expires_at=request.expires_at.isoformat(),
                     position_id=position_id,
+                    receipt_id=str(submission.receipt_id.value),
+                    idempotency_key=str(submission.idempotency_key.value),
+                    provider_symbol=request.provider_symbol,
+                    side=request.side,
+                    entry_type=request.entry_type,
+                    intended_entry=format(request.intended_entry, "f"),
+                    stop_loss=format(request.stop_loss, "f"),
+                    take_profit=format(request.take_profit, "f"),
+                    volume_step=format(request.volume_step, "f"),
+                    minimum_volume=format(request.minimum_volume, "f"),
+                    stop_loss_per_volume=format(
+                        request.stop_loss_per_volume,
+                        "f",
+                    ),
+                    margin_per_volume=format(request.margin_per_volume, "f"),
+                    requested_at=request.requested_at.isoformat(),
+                    authorized_source_volume=format(
+                        request.requested_volume,
+                        "f",
+                    ),
+                    minimum_volume_uplifted=request.minimum_volume_uplifted,
+                    source_contract_size_units=format(
+                        contract.source_contract_size_units,
+                        "f",
+                    ),
+                    ctrader_lot_size_units=format(
+                        contract.ctrader_lot_size_units,
+                        "f",
+                    ),
+                    capital_provenance=tuple(
+                        (
+                            item.source_kind,
+                            item.source_id,
+                            format(item.amount_usd, "f"),
+                        )
+                        for item in request.capital_provenance
+                    ),
                 )
             )
             result = CTraderDemoFreeSubmitResult(
@@ -309,7 +376,28 @@ class CTraderDemoFreeSink:
                 "stop_loss": format(request.stop_loss, "f"),
                 "take_profit": format(request.take_profit, "f"),
                 "requested_stop_risk": format(request.requested_stop_risk, "f"),
+                "strategy_requested_risk_usd": (
+                    None
+                    if request.strategy_requested_risk_usd is None
+                    else format(request.strategy_requested_risk_usd, "f")
+                ),
+                "stop_loss_per_volume": format(request.stop_loss_per_volume, "f"),
+                "requested_margin": format(request.requested_margin, "f"),
+                "margin_per_volume": format(request.margin_per_volume, "f"),
+                "volume_step": format(request.volume_step, "f"),
+                "minimum_volume": format(request.minimum_volume, "f"),
+                "minimum_volume_uplifted": request.minimum_volume_uplifted,
                 "sizing_path": sizing_path_for(result.trader_id.value),
+                "sizing_authority": "CIBO_CMA",
+                "capital_management_authority": "CIBO_CMA",
+                "capital_provenance": [
+                    {
+                        "source_kind": item.source_kind,
+                        "source_id": item.source_id,
+                        "amount_usd": format(item.amount_usd, "f"),
+                    }
+                    for item in request.capital_provenance
+                ],
                 "recorded_at": result.recorded_at.isoformat(),
             }
         )
@@ -387,7 +475,16 @@ def global_sink() -> CTraderDemoFreeSink:
     return _GLOBAL_SINK
 
 
+def demo_account_capital() -> Decimal:
+    return global_sink().account_capital()
+
+
+def demo_committed_stop_risk(*, now: datetime) -> Decimal:
+    return global_sink().committed_stop_risk(now=now)
+
+
 def demo_capital_for(trader: TraderLineage) -> Decimal:
+    """Compatibility alias returning account capital, never a Trader slice."""
     return global_sink().capital_for(trader)
 
 
