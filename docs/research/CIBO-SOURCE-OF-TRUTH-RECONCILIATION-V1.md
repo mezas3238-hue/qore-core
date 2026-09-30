@@ -2,6 +2,70 @@
 
 Date: 30-SEP-2026
 
+## Integrated checkpoint — 30-SEP-2026 / PR #670
+
+This section supersedes the historical current-state wording below while
+preserving the common-checkpoint provenance.
+
+Current observed child heads:
+
+- Architect A PR #660: `f10e47e8f3127c5997168dd221fd30d9160dbe08`
+- Architect B PR #661: `868213aa07309b1d3e65745e581c11d45d851fcf`
+- Integrator PR #670 branch: `agent/cibo-integrator-ab-001`
+
+Canonical integrated machine ledger:
+
+```text
+MANDATORY = 64
+TERMINAL  = 14
+OPEN      = 50
+ZERO OPEN = FALSE
+FINAL CERTIFICATION CANDIDATE = FALSE
+```
+
+The terminal union now includes `RISK_INTEGRATION`. Its mechanical closure is
+backed by GitHub Actions run `36769958686/SUCCESS` and a direct verification
+that the Risk closure surface is unchanged through the current Architect-B
+head and byte-identical in the Integrator.
+
+Current A/B delta accounting proves:
+
+- all Architect-A changed files are integrated or deliberately overridden by
+  the canonical Integrator Zero Open workflow;
+- all Architect-B technical/evidence files are integrated;
+- only branch-local B handoff snapshots are deliberately noncanonical;
+- no child-delta files are unaccounted.
+
+PR #670 body has been reconciled to this same 64 / 14 / 50 state.
+
+The current integrated certification ordering is:
+
+```text
+ALL NON-EXAM MANDATORY WORK TERMINAL
+→ PRE_EXAM
+→ FINAL_INTEGRATED_CIBO_EXAM
+→ WORLD_CUP_MAXIMUM_CAPABILITY_EXAM
+→ STRICT ZERO-OPEN
+→ FINAL CERTIFICATION CANDIDATE
+```
+
+Both certification exams remain mandatory and certification-blocking.
+PRE_EXAM is a sequencing scope only; it excludes those two exams and nothing
+else. STRICT includes all 64 mandatory workstreams.
+
+The executable reconciliation gate is:
+
+`scripts/cibo_source_of_truth_reconciliation_gate.py`
+
+It verifies agreement among the ledger, A/B acceptance matrix, child-delta
+accounting, integrated evidence register and current governance documents.
+A passing reconciliation gate proves checkpoint consistency only. It does not
+turn open scientific/economic work into terminal work and grants no productive
+authority.
+
+Source-of-truth terminal disposition remains pending the Integrator
+reconciliation CI on the current integrated state.
+
 Common checkpoint: `1460435615a663a614cd5ee8873f719d08086200`
 
 Architect A child PR: #660
