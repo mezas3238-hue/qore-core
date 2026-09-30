@@ -268,7 +268,11 @@ def assess_shared_b_global_data_health(
         state = SharedBGlobalDataState.MARKET_STATE_UNKNOWN
         interpretation = SharedBGlobalInterpretation.MARKET_STATE_UNKNOWN
         reasons = ["CANONICAL_MARKET_STATE_UNKNOWN"]
-    elif observation.missing or observation.provider_event_at is None or observation.retrieved_at is None:
+    elif (
+        observation.missing
+        or observation.provider_event_at is None
+        or observation.retrieved_at is None
+    ):
         if observation.canonical_market_open is False:
             state = SharedBGlobalDataState.MARKET_CLOSED
             interpretation = (
