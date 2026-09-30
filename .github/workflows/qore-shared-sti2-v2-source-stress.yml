@@ -1,0 +1,146 @@
+name: QORE Shared STI2 V2 Source Stress
+
+concurrency:
+  group: qore-shared-sti2-v2-source-stress
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/shared_sti2_v2_source_stress.py
+      - .github/workflows/qore-shared-sti2-v2-source-stress.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  stress:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate stress harness
+        run: |
+          set -euo pipefail
+          mkdir -p result input/r8 input/r6 input/r5
+          ruff check scripts/shared_sti2_v2_source_stress.py
+          python -m py_compile scripts/shared_sti2_v2_source_stress.py
+
+          SOURCE_SHA="1df8be7cfea2621a4bfcf6a7de741aa585a29f35"
+          for path in             src/qore/infrastructure/core_stack_v2/shared_global_opportunity_trajectory_v2.py             scripts/shared_sti2_v2_trajectory_heads.py
+          do
+            test "$(git rev-parse "$SOURCE_SHA:$path")" = "$(git rev-parse "HEAD:$path")"
+          done
+
+      - name: Recover immutable R8 R6 R5 evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Execute frozen STI-2 V2 source stresses
+        run: |
+          set -euo pipefail
+          python scripts/shared_sti2_v2_source_stress.py             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/sti2-v2-source-stress.json             | tee result/summary.json
+
+      - name: Validate scientific disposition without forcing PASS
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/sti2-v2-source-stress.json").read_text())
+          assert p["scientific_status"] in {
+              "STI2_V2_SOURCE_STRESS_PASS",
+              "STI2_V2_SOURCE_STRESS_FALSIFIED",
+          }
+          g=p["governance"]
+          assert g["v2_policy_retuned"] is False
+          assert g["r8_source_only_calibration"] is True
+          assert g["target_labels_stressed"] is False
+          assert g["future_market_used_for_inference"] is False
+          assert g["protected_certification_holdout_opened"] is False
+          assert g["productive_authority"] is False
+
+          for partition in ("r6","r5"):
+              rows=p["evaluations"][partition]
+              assert rows["BASELINE"]["sample_count"] > 0
+              integrity=rows["DATA_INTEGRITY_BELOW_GATE"]
+              assert integrity["insufficient_count"] == integrity["sample_count"]
+              assert integrity["alert_count"] == 0
+              assert integrity["gate_pass"] is True
+          PY
+
+      - name: Bind evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-sti2-v2-source-stress-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report STI-2 V2 stress
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/sti2-v2-source-stress.json").read_text())
+          lines=[
+              "## Shared STI-2 — V2 Source-Evidence Stress",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['scientific_status']}**",
+              "- V2 policy retuned: **False**",
+              "- target labels stressed: **False**",
+              "- data-integrity degradation fails closed: **True**",
+              "- protected certification holdout opened: **False**",
+              "",
+          ]
+          for partition in ("r6","r5"):
+              lines.append(f"### {partition.upper()}")
+              for name,row in p["evaluations"][partition].items():
+                  lines.append(
+                      f"- {name}: precision/recall "
+                      f"**{row['precision_bps']}/{row['recall_bps']} bps**; "
+                      f"gate=**{row['gate_pass']}**"
+                  )
+              lines.append("")
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
