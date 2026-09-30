@@ -65,6 +65,7 @@ jobs:
             {"evidence_id":"B06_CRYPTO_PROVIDER_UNIT_SEMANTICS","capability_scope":"B-06","kind":"IDENTITY_EVIDENCE","run_id":36775855021,"artifact_id":11124952981,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B07_FX_MARKET_HOURS_BOUNDARY","capability_scope":"B-07","kind":"ARCHITECTURE_EVIDENCE","run_id":36765945116,"artifact_id":11123210080,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B07_CANONICAL_CALENDAR_WORKLIST","capability_scope":"B-07","kind":"ARCHITECTURE_EVIDENCE","run_id":36782105126,"artifact_id":11128361589,"source_hash":true,"provider_free_replay":true},
+            {"evidence_id":"B08_TEMPORAL_GOVERNANCE_READINESS","capability_scope":"B-08","kind":"GOVERNANCE_EVIDENCE","run_id":36782678259,"artifact_id":11128307917,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B09_DATA_HEALTH","capability_scope":"B-09","kind":"REAL_REPLICATION_EVIDENCE","run_id":36755357039,"artifact_id":11115754374,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B09_CROSS_ASSET_REAL","capability_scope":"B-09","kind":"REAL_REPLICATION_EVIDENCE","run_id":36764279123,"artifact_id":11119762780,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B10_12_RELATIONAL_LIFECYCLE","capability_scope":"B-10/B-11/B-12","kind":"ARCHITECTURE_EVIDENCE","run_id":36755296952,"artifact_id":11116372968,"source_hash":true,"provider_free_replay":true},
