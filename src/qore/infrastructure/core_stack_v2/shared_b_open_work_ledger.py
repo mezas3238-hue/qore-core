@@ -226,7 +226,8 @@ B_WORK_ITEMS: Final = (
         "B-10",
         "Global relational graph population",
         SharedBWorkStatus.ARCHITECTURE_VALIDATED_EVIDENCE_OPEN,
-        ("artifact:11116372968", "run:36755296952"),
+        ("artifact:11116372968",
+            "artifact:11128896679", "run:36755296952"),
         (
             "empirical global relation population waits for canonical temporal comparability",
         ),
@@ -255,6 +256,7 @@ B_WORK_ITEMS: Final = (
         SharedBWorkStatus.ARCHITECTURE_VALIDATED_EVIDENCE_OPEN,
         (
             "artifact:11116897631",
+            "run:36784397525",
             "run:36757804153",
         ),
         (
