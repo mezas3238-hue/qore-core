@@ -257,9 +257,9 @@ def _pf_gt(left: object, right: object) -> bool:
     left_value = None if left is None else _d(left)
     right_value = None if right is None else _d(right)
     if left_value is None:
-        return right_value is not None
-    if right_value is None:
         return False
+    if right_value is None:
+        return True
     return right_value > left_value
 
 
