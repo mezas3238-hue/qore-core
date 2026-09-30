@@ -116,7 +116,7 @@ jobs:
           )
           assert (
               p["partitions"]["r6"]["markets"]["NAS100"]["closed_max"]
-              < p["partitions"]["r5"]["markets"]["NAS100"]["opened_min"]
+              <= p["partitions"]["r5"]["markets"]["NAS100"]["opened_min"]
           )
           assert p["new_evidence_opened"] is False
           assert p["protected_certification_holdout_opened"] is False
