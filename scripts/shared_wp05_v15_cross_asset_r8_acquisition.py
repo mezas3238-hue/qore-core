@@ -60,7 +60,10 @@ from qore.kernel.result import Failure
 EXPECTED_MANIFEST_IDENTITY = (
     "QORE_SHARED_WP05_ACTIVE_PERCEPTION_V12_ACQUISITION_MANIFEST_001"
 )
-REQUEST_INTERVAL_SECONDS = 0.21
+REQUEST_INTERVAL_SECONDS = 0.30
+HISTORICAL_REQUEST_TIMEOUT_SECONDS = 45.0
+MAX_TRANSIENT_REQUEST_ATTEMPTS = 3
+TRANSIENT_RETRY_BACKOFF_SECONDS = (1.0, 3.0)
 _SOURCE = ExternalSourceDescriptor(
     adapter_id=AdapterId(UUID("7d000000-0000-0000-0000-000000000001")),
     source_id=SourceId(UUID("7d000000-0000-0000-0000-000000000002")),
@@ -196,7 +199,6 @@ def _collect_side(
     ):
         page_to_at = segment.to_at
         while True:
-            limiter.wait()
             request = CTraderHistoricalTickRequest(
                 account_id=identity.account_id,
                 symbol_id=identity.symbol_id,
@@ -204,19 +206,32 @@ def _collect_side(
                 from_at=segment.from_at,
                 to_at=page_to_at,
             )
-            result = reader.read_page(
-                request=request,
-                digits=identity.digits,
-                client_msg_id=(
-                    f"wp05-v15-{family.value.lower()}-"
-                    f"{window.manifest_index}-"
-                    f"{quote_type.name.lower()}-{page_ordinal}"
-                ),
-            )
-            if isinstance(result, Failure):
+            result = None
+            for attempt in range(MAX_TRANSIENT_REQUEST_ATTEMPTS):
+                limiter.wait()
+                result = reader.read_page(
+                    request=request,
+                    digits=identity.digits,
+                    client_msg_id=(
+                        f"wp05-v15-{family.value.lower()}-"
+                        f"{window.manifest_index}-"
+                        f"{quote_type.name.lower()}-{page_ordinal}-"
+                        f"attempt-{attempt + 1}"
+                    ),
+                )
+                if not isinstance(result, Failure):
+                    break
+                if attempt < len(TRANSIENT_RETRY_BACKOFF_SECONDS):
+                    sleep(TRANSIENT_RETRY_BACKOFF_SECONDS[attempt])
+            if result is None or isinstance(result, Failure):
+                error = (
+                    "unknown read failure"
+                    if result is None
+                    else str(result.error)
+                )
                 raise V15CrossAssetAcquisitionError(
-                    "historical cross-asset request failed: "
-                    f"{result.error}"
+                    "historical cross-asset request failed after "
+                    f"{MAX_TRANSIENT_REQUEST_ATTEMPTS} attempts: {error}"
                 )
             page = result.value
             retrieved_at = datetime.now(UTC)
@@ -348,7 +363,7 @@ def run(
 
         reader = CTraderHistoricalTickReader(
             client=client,
-            timeout_seconds=20.0,
+            timeout_seconds=HISTORICAL_REQUEST_TIMEOUT_SECONDS,
         )
         instrument = Instrument(spec.canonical_instrument)
         all_records: list[HistoricalQuoteSideShardRecord] = []
