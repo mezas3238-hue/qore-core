@@ -83,7 +83,7 @@ jobs:
           mkdir -p input result
           gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${CATALOG_ARTIFACT_ID}/zip" > catalog.zip
           unzip -q catalog.zip -d input
-          (cd input && sha256sum -c RAW_SHA256SUMS)
+          test "$(sha256sum input/post-v14-provider-catalog.json | awk '{print $1}')" = "$PROVIDER_CATALOG_RAW_SHA256"
           cp input/post-v14-provider-catalog.json result/provider-catalog.json
           test "$(python -c 'import json; print(json.load(open("result/provider-catalog.json"))["provider_catalog_sha256"])')" = "$CATALOG_SHA256"
 
