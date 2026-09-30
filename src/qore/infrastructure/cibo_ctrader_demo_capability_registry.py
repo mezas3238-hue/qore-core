@@ -13,10 +13,17 @@ from datetime import datetime
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
 )
+from qore.infrastructure.cibo_capital_management_authority import (
+    CiboCapitalManagementError,
+)
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
 from qore.infrastructure.cibo_ctrader_demo_account_capability import (
     CTraderDemoAccountCapabilityObservation,
     CTraderDemoAccountType,
+)
+from qore.infrastructure.cibo_ctrader_demo_instrument_taxonomy import (
+    CTraderDemoInstrumentTaxonomyObservation,
+    assert_taxonomy_bound_to_capability,
 )
 from qore.infrastructure.cibo_instrument_capability_registry import (
     CapabilityStatus,
@@ -37,6 +44,8 @@ class CTraderDemoT16T17CapabilityReport:
     t16_hedge_status: CapabilityStatus
     t17_option_status: CapabilityStatus
     t17_defined_risk_spread_status: CapabilityStatus
+    taxonomy_binding_complete: bool
+    option_taxonomy_candidates: tuple[str, ...]
     blockers: tuple[str, ...]
     runtime_authority: bool = False
 
@@ -71,6 +80,16 @@ class CTraderDemoT16T17CapabilityReport:
             raise CiboCompoundCapitalError(
                 "cTrader symbol names/account mode cannot certify T17 structures"
             )
+        if type(self.taxonomy_binding_complete) is not bool:
+            raise CiboCompoundCapitalError(
+                "cTrader capability taxonomy binding flag invalid"
+            )
+        if len(self.option_taxonomy_candidates) != len(
+            set(self.option_taxonomy_candidates)
+        ):
+            raise CiboCompoundCapitalError(
+                "cTrader capability option taxonomy candidates must be unique"
+            )
         if self.runtime_authority:
             raise CiboCompoundCapitalError(
                 "cTrader capability reconciliation has no runtime authority"
@@ -81,6 +100,7 @@ def reconcile_ctrader_demo_capability_registry(
     *,
     account_identity: CiboAccountCapitalIdentity,
     observation: CTraderDemoAccountCapabilityObservation,
+    taxonomy: CTraderDemoInstrumentTaxonomyObservation | None = None,
     produced_at: datetime | None = None,
 ) -> CTraderDemoT16T17CapabilityReport:
     """Translate account-bound observation into conservative capability truth."""
@@ -105,8 +125,24 @@ def reconcile_ctrader_demo_capability_registry(
         raise CiboCompoundCapitalError(
             "cTrader capability reconciliation account identity mismatch"
         )
+    if taxonomy is not None:
+        if not isinstance(taxonomy, CTraderDemoInstrumentTaxonomyObservation):
+            raise CiboCompoundCapitalError(
+                "cTrader capability taxonomy evidence invalid"
+            )
+        try:
+            assert_taxonomy_bound_to_capability(
+                capability=observation,
+                taxonomy=taxonomy,
+            )
+        except CiboCapitalManagementError as error:
+            raise CiboCompoundCapitalError(
+                f"cTrader capability taxonomy binding invalid: {error}"
+            ) from error
 
-    produced = produced_at or observation.observed_at
+    produced = produced_at or (
+        taxonomy.observed_at if taxonomy is not None else observation.observed_at
+    )
     if produced.tzinfo is None or produced.utcoffset() is None:
         raise CiboCompoundCapitalError(
             "cTrader capability reconciliation produced_at must be timezone-aware"
@@ -114,6 +150,10 @@ def reconcile_ctrader_demo_capability_registry(
     if produced < observation.observed_at:
         raise CiboCompoundCapitalError(
             "cTrader capability reconciliation cannot predate observation"
+        )
+    if taxonomy is not None and produced < taxonomy.observed_at:
+        raise CiboCompoundCapitalError(
+            "cTrader capability reconciliation cannot predate taxonomy evidence"
         )
 
     source_sha = observation.fingerprint()
@@ -157,12 +197,32 @@ def reconcile_ctrader_demo_capability_registry(
         entries=entries,
         captured_at=produced,
     )
-    blockers = (
+    taxonomy_complete = (
+        taxonomy is not None and taxonomy.catalog_binding_complete
+    )
+    option_candidates = (
+        ()
+        if taxonomy is None
+        else taxonomy.option_taxonomy_candidates
+    )
+    blockers_list = [
         "T16_HEDGE_INSTRUMENT_NOT_PROVIDER_VERIFIED",
         "T16_BASIS_RISK_COST_CORRELATION_EXECUTION_EVIDENCE_REQUIRED",
-        "T17_OPTION_INSTRUMENT_CLASS_NOT_PROVIDER_VERIFIED",
-        "T17_DEFINED_RISK_SPREAD_INSTRUMENT_CLASS_NOT_PROVIDER_VERIFIED",
+    ]
+    if not taxonomy_complete:
+        blockers_list.append("T17_ACCOUNT_TAXONOMY_BINDING_INCOMPLETE")
+    elif option_candidates:
+        blockers_list.append(
+            "T17_OPTION_TAXONOMY_CANDIDATE_REQUIRES_INSTRUMENT_EXECUTION_PROOF"
+        )
+    else:
+        blockers_list.append(
+            "T17_NO_EXPLICIT_OPTION_TAXONOMY_CANDIDATE"
+        )
+    blockers_list.append(
+        "T17_DEFINED_RISK_SPREAD_INSTRUMENT_CLASS_NOT_PROVIDER_VERIFIED"
     )
+    blockers = tuple(blockers_list)
     if source_sha != observation.fingerprint():
         raise CiboCompoundCapitalError(
             "cTrader capability observation fingerprint drift"
@@ -183,6 +243,8 @@ def reconcile_ctrader_demo_capability_registry(
             capability=InstrumentCapability.DEFINED_RISK_SPREAD,
             at=produced,
         ),
+        taxonomy_binding_complete=taxonomy_complete,
+        option_taxonomy_candidates=option_candidates,
         blockers=blockers,
     )
 
