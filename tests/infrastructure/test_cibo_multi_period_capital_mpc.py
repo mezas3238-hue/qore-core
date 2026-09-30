@@ -126,7 +126,7 @@ def _path(
         Genc11WorldStep(
             step_index=index,
             projected_at=T0 + timedelta(minutes=5 * index),
-            posture=CiboRegimePosture.NORMAL,
+            posture=CiboRegimePosture.STABLE,
             scenario=_scenario(
                 scenario_id=f"{path_id}-{index}",
                 kind=kind,
