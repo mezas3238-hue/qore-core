@@ -1,0 +1,70 @@
+name: QORE CIBO Compound Engine Integrated Cycle
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-compound-engine-integrated-cycle.yml'
+      - 'src/qore/infrastructure/cibo_compound_cycle_state.py'
+      - 'src/qore/infrastructure/cibo_compound_market_cycle.py'
+      - 'src/qore/infrastructure/cibo_compound_capital.py'
+      - 'src/qore/infrastructure/cibo_compound_portfolio_ledger.py'
+      - 'src/qore/infrastructure/cibo_compound_floor.py'
+      - 'src/qore/infrastructure/cibo_core_compound_portfolio.py'
+      - 'src/qore/infrastructure/cibo_internal_capital_market.py'
+      - 'src/qore/infrastructure/cibo_ce2i_portfolio_allocation_ledger.py'
+      - 'tests/infrastructure/test_cibo_compound_cycle_state.py'
+      - 'tests/infrastructure/test_cibo_compound_market_cycle.py'
+      - 'docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md'
+      - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-compound-engine-integrated-cycle.yml'
+      - 'src/qore/infrastructure/cibo_compound_cycle_state.py'
+      - 'src/qore/infrastructure/cibo_compound_market_cycle.py'
+      - 'src/qore/infrastructure/cibo_compound_capital.py'
+      - 'src/qore/infrastructure/cibo_compound_portfolio_ledger.py'
+      - 'src/qore/infrastructure/cibo_compound_floor.py'
+      - 'src/qore/infrastructure/cibo_core_compound_portfolio.py'
+      - 'src/qore/infrastructure/cibo_internal_capital_market.py'
+      - 'src/qore/infrastructure/cibo_ce2i_portfolio_allocation_ledger.py'
+      - 'tests/infrastructure/test_cibo_compound_cycle_state.py'
+      - 'tests/infrastructure/test_cibo_compound_market_cycle.py'
+      - 'docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md'
+      - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  compound-engine-integrated-cycle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Compound Engine integrated-cycle quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_compound_cycle_state.py \
+            src/qore/infrastructure/cibo_compound_market_cycle.py \
+            tests/infrastructure/test_cibo_compound_cycle_state.py \
+            tests/infrastructure/test_cibo_compound_market_cycle.py
+          mypy \
+            src/qore/infrastructure/cibo_compound_cycle_state.py \
+            src/qore/infrastructure/cibo_compound_market_cycle.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_compound_cycle_state.py \
+            src/qore/infrastructure/cibo_compound_market_cycle.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_compound_cycle_state.py \
+            tests/infrastructure/test_cibo_compound_market_cycle.py
