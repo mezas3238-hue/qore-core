@@ -34,14 +34,46 @@ def main() -> None:
         "MC09_RAW_BELIEF_CALIBRATION_V1",
         tuple(
             [
-                ScientificLabEvidence(ScientificLabStage.OBSERVATION, "run:36746172379", True),
-                ScientificLabEvidence(ScientificLabStage.PREDICTION_ERROR_OR_ANOMALY, "run:36753425521", True),
-                ScientificLabEvidence(ScientificLabStage.RESEARCH_QUESTION, "mc09:raw-mass-calibration-question", True),
-                ScientificLabEvidence(ScientificLabStage.COMPETING_HYPOTHESES, "mc09:ordinal-vs-probability", True),
-                ScientificLabEvidence(ScientificLabStage.EXPERIMENT_DESIGN, "prereg:MC09_CALIBRATION_V1", True),
-                ScientificLabEvidence(ScientificLabStage.LEAKAGE_CONTROLS, "mc09:oos-not-fit", True),
-                ScientificLabEvidence(ScientificLabStage.HISTORICAL_TEST, "run:36753425521", True),
-                ScientificLabEvidence(ScientificLabStage.FALSIFICATION, "run:36753425521", False),
+                ScientificLabEvidence(
+                    ScientificLabStage.OBSERVATION,
+                    "run:36746172379",
+                    True,
+                ),
+                ScientificLabEvidence(
+                    ScientificLabStage.PREDICTION_ERROR_OR_ANOMALY,
+                    "run:36753425521",
+                    True,
+                ),
+                ScientificLabEvidence(
+                    ScientificLabStage.RESEARCH_QUESTION,
+                    "mc09:raw-mass-calibration-question",
+                    True,
+                ),
+                ScientificLabEvidence(
+                    ScientificLabStage.COMPETING_HYPOTHESES,
+                    "mc09:ordinal-vs-probability",
+                    True,
+                ),
+                ScientificLabEvidence(
+                    ScientificLabStage.EXPERIMENT_DESIGN,
+                    "prereg:MC09_CALIBRATION_V1",
+                    True,
+                ),
+                ScientificLabEvidence(
+                    ScientificLabStage.LEAKAGE_CONTROLS,
+                    "mc09:oos-not-fit",
+                    True,
+                ),
+                ScientificLabEvidence(
+                    ScientificLabStage.HISTORICAL_TEST,
+                    "run:36753425521",
+                    True,
+                ),
+                ScientificLabEvidence(
+                    ScientificLabStage.FALSIFICATION,
+                    "run:36753425521",
+                    False,
+                ),
             ]
         ),
     )
