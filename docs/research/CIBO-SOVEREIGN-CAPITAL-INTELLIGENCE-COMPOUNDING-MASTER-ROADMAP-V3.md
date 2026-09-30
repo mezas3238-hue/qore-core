@@ -457,3 +457,113 @@ Required gates:
 ## Final objective
 
 Build CIBO so that valid Trader edge can become realized profit, protected profit, compound capital, better future capital allocation, higher protected floors and additional generations of productive capital — without martingale, double-spend, leakage, fabricated capacity, hidden concentration or survival compromise.
+
+---
+
+# WORLD CUP SOVEREIGN CAPITAL AMPLIFICATION GOVERNING LAYER — 29-SEP-2026
+
+Canonical mission document:
+
+`docs/research/CIBO-SOVEREIGN-CAPITAL-AMPLIFICATION-WORLD-CUP-MISSION-V1.md`
+
+This layer does not replace CE2I T01–T20 or GEN-C0–GEN-C14. It changes the
+definition of successful completion from "capital mechanics exist" to
+"capital amplification value is causally demonstrated under survival
+constraints."
+
+Binding identity:
+
+```text
+CIBO != POSITION SIZER
+CIBO != LEVERAGE MANAGER
+CIBO != SECOND RISK ENGINE
+
+CIBO = QORE SOVEREIGN CAPITAL AMPLIFICATION INTELLIGENCE
+```
+
+Binding research question:
+
+```text
+HOW MUCH ROBUST ECONOMIC UPSIDE
+CAN THE NEXT UNIT OF PLAUSIBLE LOSS CONTROL?
+```
+
+## Current implementation frontier
+
+At this governing checkpoint:
+
+```text
+GEN-C0  constitutional separation                  = CLOSED
+GEN-C1  compound accounting / generations          = ENGINE_IMPLEMENTED
+GEN-C2  protected capital floor                     = ENGINE_IMPLEMENTED
+GEN-C3  Core Compound Portfolio                     = ENGINE_IMPLEMENTED
+GEN-C4  marginal capital utility evidence           = ENGINE_IMPLEMENTED
+GEN-C5  sequential compounding shadow               = ENGINE_IMPLEMENTED
+GEN-C6  Internal Capital Market                     = ENGINE_IMPLEMENTED
+GEN-C7  profit preservation / giveback shadow       = ENGINE_IMPLEMENTED
+GEN-C8  adaptive compound speed                     = ARCHITECTURE_DEFINED
+GEN-C9  robust growth / ruin / capacity              = ARCHITECTURE_DEFINED
+GEN-C10 capital digital twin                        = ARCHITECTURE_DEFINED
+GEN-C11 robust multi-period MPC                     = ARCHITECTURE_DEFINED
+GEN-C12 crisis intelligence                         = ARCHITECTURE_DEFINED
+GEN-C13 meta-capital memory / skeptic                = ARCHITECTURE_DEFINED
+GEN-C14 governed autonomous capital science          = ARCHITECTURE_DEFINED
+```
+
+ENGINE_IMPLEMENTED does not mean VALUE_DEMONSTRATED, OOS_PASS,
+STRESS_PASS, TEMPORAL_REPLICATION_PASS or CERTIFIED.
+
+GEN-C5, GEN-C6 and GEN-C7 remain research/shadow until fresh causal economic
+evidence exists. Current V3 certification remains a separate frozen lineage.
+
+## Canonical maturity vocabulary
+
+All future CIBO capability reporting must use:
+
+```text
+ARCHITECTURE_DEFINED
+CONTRACT_IMPLEMENTED
+ENGINE_IMPLEMENTED
+REAL_DATA_BOUND
+CAUSAL_REPLAY_EXECUTED
+VALUE_DEMONSTRATED
+OOS_PASS
+STRESS_PASS
+TEMPORAL_REPLICATION_PASS
+CERTIFICATION_CANDIDATE
+CERTIFIED
+```
+
+For failure or blocked work, use an explicit terminal or dependency state such
+as FALSIFIED, NO_VALUE, INSUFFICIENT, TOO_FRAGILE, TOO_EXPENSIVE,
+NO_PROVIDER_ADVANTAGE, NO_MARGINAL_BENEFIT or
+BLOCKED_EXTERNAL_DEPENDENCY:<reason>.
+
+## Updated engineering order
+
+The earlier "GEN-C1 next" sequence above is retained as historical provenance.
+The active order is now:
+
+1. Keep V3 and 2017H1 frozen.
+2. Keep CI green; no red CIBO workflow may be ignored.
+3. Maintain the World Cup requirement→CE2I/GEN-C GAP matrix.
+4. Finish existing C5/C6/C7 real-data/OOS/stress work.
+5. Deepen T01, T04, T05, T06, T07, T09, T10, T15, T20 around capital
+   amplification per unit of plausible loss.
+6. Implement GEN-C8.
+7. Implement GEN-C9.
+8. Implement GEN-C10.
+9. Implement GEN-C11.
+10. Implement GEN-C12.
+11. Implement GEN-C13.
+12. Implement GEN-C14.
+13. Close T08/T09/T12/T13/T14/T15/T18 economic gates and explicit T16/T17
+    provider-universe terminal states.
+14. Build ablation, chronological replay, path-dependent Monte Carlo, stress
+    and temporal replication.
+15. Preserve the final holdout until all prerequisite mechanisms are frozen.
+16. Certify ordinary CIBO first.
+17. Execute the separate World Cup Maximum-Capability Exam afterward.
+
+The +2,000% World Cup aspiration is an experimental North Star only. It must
+never become a tuning target or excuse for proportional risk expansion.
