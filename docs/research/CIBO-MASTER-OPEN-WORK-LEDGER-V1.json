@@ -809,12 +809,106 @@
         "ZERO_OPEN_WORK_GATE_MUST_PASS_FIRST"
       ],
       "next_gate": "Run only after ordinary CIBO absolute closure."
+    },
+    {
+      "id": "HISTORICAL_PHASE18_REPLAY_EVIDENCE",
+      "kind": "EVIDENCE_PROGRAM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "HISTORICAL_REPLAY_IMPLEMENTED_REVALIDATION_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "ALL_PHASE18_ARTIFACTS_AND_WORKFLOWS_MUST_BE_RECONCILED_WITH_CURRENT_HEAD",
+        "HISTORICAL_EVIDENCE_MUST_REMAIN_NON_FORWARD"
+      ],
+      "next_gate": "Inventory/revalidate all Phase18 bind/geometry/score/replay artifacts and assign final historical-evidence disposition."
+    },
+    {
+      "id": "BURNED_PHASE19_RESEARCH_EVIDENCE",
+      "kind": "EVIDENCE_PROGRAM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "BURNED_RESEARCH_LINEAGES_REQUIRE_FINAL_DISPOSITION",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "PHASE19_I_K_L_M_N_AND_RELATED_BURNED_PROGRAMS_REQUIRE_CANONICAL_FINAL_DISPOSITION"
+      ],
+      "next_gate": "Reconcile all Phase19 calibration/chronology/dependence/regime/topology studies and preserve burned status without retuning."
+    },
+    {
+      "id": "CMA_FOUNDATION_INTEGRATION",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ENGINE_FAMILY_IMPLEMENTED_INTEGRATED_CLOSURE_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "CMA_LIFECYCLE_SOURCE_SETTLEMENT_OBSERVATION_AND_SIZING_AUTHORITY_MUST_RECONCILE_WITH_COMPOUND_CYCLE"
+      ],
+      "next_gate": "Audit CMA foundation end-to-end and prove no duplicate authority/accounting with Compound Engine."
+    },
+    {
+      "id": "CE2I_CALIBRATION_GOVERNANCE",
+      "kind": "GOVERNANCE",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "MULTIPLE_BURNED_AND_FROZEN_CALIBRATION_LINEAGES_REQUIRE_RECONCILIATION",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "BURNED_CALIBRATION_AND_NON_PROMOTION_ARTIFACTS_REQUIRE_FINAL_LINEAGE_MAP"
+      ],
+      "next_gate": "Map every calibration artifact to burned/frozen/current candidate lineage and prevent silent reuse."
+    },
+    {
+      "id": "CE2I_CROSS_TOOL_INFRASTRUCTURE",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ENGINE_FAMILY_IMPLEMENTED_TOOL_LEVEL_CLOSURE_REQUIRED",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "CROSS_TOOL_PIPELINE_FULL_SURFACE_MULTI_SOURCE_AND_PORTFOLIO_COORDINATION_REQUIRE_FINAL_EVIDENCE_DISPOSITION"
+      ],
+      "next_gate": "Reconcile common CE2I engines with T01–T20 closures and remove/supersede duplicate paths."
+    },
+    {
+      "id": "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK",
+      "kind": "LEGACY_PROGRAM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "LEGACY_PROGRAM_STATUS_UNRESOLVED",
+      "terminal_disposition": null,
+      "evidence_refs": [],
+      "blockers": [
+        "COGNITIVE_AND_EXECUTIVE_MODULES_MUST_BE_PROVEN_ACTIVE_OR_SUPERSEDED_WITH_PROVEN_LINEAGE"
+      ],
+      "next_gate": "Trace imports/runtime use and formally keep, complete, or supersede every legacy cognitive/executive module."
+    },
+    {
+      "id": "USD60_CAPABILITY_PROGRAM",
+      "kind": "EVIDENCE_PROGRAM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "ENGINE_FOUNDATION_IMPLEMENTED_FINAL_CAPABILITY_EXAM_NOT_RUN",
+      "terminal_disposition": null,
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py"
+      ],
+      "blockers": [
+        "PROVIDER_VALID_USD_ECONOMICS_AND_FINAL_FROZEN_EXAM_REQUIRED"
+      ],
+      "next_gate": "Reconcile robust-capacity/protected-operating-floor mechanics and run provider-valid capability challenge only after prerequisites."
     }
   ],
   "current_summary": {
-    "mandatory_count": 55,
+    "mandatory_count": 62,
     "terminal_count": 1,
-    "open_count": 54,
+    "open_count": 61,
     "zero_open_work_pass": false,
     "final_certification_candidate": false
   }
