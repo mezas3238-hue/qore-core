@@ -171,3 +171,23 @@ def test_global_data_health_has_no_downstream_authority() -> None:
     assert assessment.risk_authority is False
     assert assessment.sizing_authority is False
     assert assessment.capital_authority is False
+
+
+def test_fresh_download_does_not_make_old_market_event_fresh() -> None:
+    historical_event = datetime(2017, 1, 3, 14, 0, tzinfo=UTC)
+    retrieved_now = T0
+    assessment = assess_shared_b_global_data_health(
+        _obs(
+            decision_time=retrieved_now,
+            provider_event_at=historical_event,
+            retrieved_at=retrieved_now,
+            previous_provider_event_at=historical_event - timedelta(seconds=1),
+        )
+    )
+    assert assessment.state is SharedBGlobalDataState.STALE_UNEXPECTED
+    assert assessment.reason_codes == ("MARKET_EVENT_STALE",)
+    assert assessment.transport_age_ms == 0
+    assert assessment.provider_event_age_ms is not None
+    assert assessment.provider_event_age_ms > assessment.transport_age_ms
+    assert assessment.new_market_change_inference_allowed is False
+    assert assessment.relational_claim_allowed is False
