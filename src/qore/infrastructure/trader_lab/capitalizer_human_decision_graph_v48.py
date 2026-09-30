@@ -166,17 +166,13 @@ ROUTES: tuple[V48HumanDecisionRoute, ...] = (
             ),
             V48RouteStage(
                 "ASIA_15M_CISD_PROTECTED_SWING",
-                V48RouteStageRole.STRUCTURE,
-                "15M",
-                True,
-                "15M intra-candle CISD confirms a new protected swing.",
-            ),
-            V48RouteStage(
-                "ASIA_15M_CONTINUATION",
                 V48RouteStageRole.EXECUTION,
                 "15M",
                 True,
-                "Execute only after continuation aligns with the confirmed HTF/4H thesis.",
+                (
+                    "15M intra-candle CISD confirms a new protected swing and supplies "
+                    "the source-required lower-timeframe execution confirmation."
+                ),
             ),
             V48RouteStage(
                 "ASIA_15M_PROTECTED_SWING_STOP",
