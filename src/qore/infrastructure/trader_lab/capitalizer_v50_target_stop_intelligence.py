@@ -258,7 +258,20 @@ def build_dual_invalidation(
             pivot = center.high > left.high and center.high > right.high
             price = center.high
             valid_side = price > entry_price
-        if pivot and valid_side:
+        if not (pivot and valid_side):
+            continue
+
+        # An execution invalidation must still exist at decision time.
+        # If price has already touched/breached the pivot after its causal
+        # right-hand confirmation, that level has been consumed and cannot
+        # serve as a fresh stop anchor for a new entry.
+        later = window[index + 2 :]
+        intact = (
+            all(item.low > price for item in later)
+            if side is CapitalizerSide.LONG
+            else all(item.high < price for item in later)
+        )
+        if intact:
             eligible.append((right.closed_at, price))
 
     if not eligible:
