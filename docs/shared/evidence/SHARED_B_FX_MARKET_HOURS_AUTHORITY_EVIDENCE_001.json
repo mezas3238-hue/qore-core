@@ -58,7 +58,7 @@
     "exact_universal_weekly_boundary_verified": false,
     "provider_schedule_is_canonical_market_hours": false,
     "canonical_market_closed_state_derivable_from_provider_schedule": false,
-    "unknown_is_required_when_global_market_state_cannot_be established": true
+    "unknown_required_when_global_market_state_unresolved": true
   },
   "governance": {
     "provider_symbol_name_used_as_market_hours_proof": false,
