@@ -391,18 +391,32 @@ def _preservation(
     baseline: tuple[V49EconomicTrade, ...],
     candidate: tuple[V50GTrade, ...],
 ) -> dict[str, Any]:
-    candidate_keys = {_key(item) for item in candidate}
+    candidate_by_key = {_key(item): item for item in candidate}
+    candidate_keys = set(candidate_by_key)
     winners = tuple(
         item for item in baseline if Decimal(item.realized_gross_r) > 0
     )
     winner_r = sum((Decimal(item.realized_gross_r) for item in winners), Decimal("0"))
-    preserved = tuple(item for item in winners if _key(item) in candidate_keys)
-    preserved_r = sum(
-        (Decimal(item.realized_gross_r) for item in preserved),
+    preserved = tuple(
+        item
+        for item in winners
+        if _key(item) in candidate_by_key
+        and Decimal(candidate_by_key[_key(item)].realized_gross_r) > 0
+    )
+    preserved_candidate_r = sum(
+        (
+            Decimal(candidate_by_key[_key(item)].realized_gross_r)
+            for item in preserved
+        ),
         Decimal("0"),
     )
     stops = tuple(item for item in baseline if item.exit_reason == "STOP")
-    avoided_stops = tuple(item for item in stops if _key(item) not in candidate_keys)
+    avoided_stops = tuple(
+        item
+        for item in stops
+        if _key(item) not in candidate_keys
+        or Decimal(candidate_by_key[_key(item)].realized_gross_r) >= 0
+    )
     return {
         "density_retention": (
             None
@@ -415,7 +429,7 @@ def _preservation(
             else str(Decimal(len(preserved)) / Decimal(len(winners)))
         ),
         "winner_r_preservation": (
-            None if winner_r == 0 else str(preserved_r / winner_r)
+            None if winner_r == 0 else str(preserved_candidate_r / winner_r)
         ),
         "baseline_full_stops": len(stops),
         "avoided_baseline_full_stops": len(avoided_stops),
