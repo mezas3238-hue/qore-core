@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import Decimal
 from enum import StrEnum
 
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
@@ -274,8 +275,8 @@ def _evaluate(
 def _no_more(
     failed: list[str],
     name: str,
-    candidate: object,
-    control: object,
+    candidate: Decimal | int,
+    control: Decimal | int,
 ) -> None:
     if candidate > control:
         failed.append(name)
@@ -284,8 +285,8 @@ def _no_more(
 def _no_less(
     failed: list[str],
     name: str,
-    candidate: object,
-    control: object,
+    candidate: Decimal | int,
+    control: Decimal | int,
 ) -> None:
     if candidate < control:
         failed.append(name)
