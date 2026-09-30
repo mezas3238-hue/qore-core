@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, timedelta
-from decimal import Decimal
 
 import pytest
 
@@ -11,7 +9,6 @@ from qore.infrastructure.trader_lab import (
 from qore.infrastructure.trader_lab import (
     capitalizer_source_strategy_isolation_v47_s2 as s2,
 )
-from qore.infrastructure.trader_lab.capitalizer_contract import CapitalizerSession
 from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_ftm_raw_population_v47_s1r_c import (
     FTMTakenSide,
