@@ -1,0 +1,149 @@
+name: QORE CIBO B Actions Queue Cleanup
+
+on:
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+    paths:
+      - '.github/workflows/cibo-b-actions-queue-cleanup.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  prune-obsolete-runs:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Cancel obsolete Architect B runs
+        uses: actions/github-script@v7
+        env:
+          TARGET_BRANCH: agent/cibo-certification-architect-b-integration-001
+          TARGET_HEAD: ${{ github.event.before }}
+          MAX_CANCELS: "850"
+        with:
+          script: |
+            const branch = process.env.TARGET_BRANCH;
+            const targetHead = process.env.TARGET_HEAD;
+            const currentRunId = Number(process.env.GITHUB_RUN_ID);
+            const maxCancels = Number(process.env.MAX_CANCELS);
+
+            if (!targetHead || /^0+$/.test(targetHead)) {
+              core.setFailed("TARGET_HEAD is unavailable; refusing to prune");
+              return;
+            }
+
+            const keepNames = new Set([
+              "QORE CIBO T02 Forward Structural OOS",
+              "QORE CIBO T20 Capital Release Evidence",
+              "QORE CIBO cTrader DEMO Account Capability",
+              "QORE CIBO cTrader DEMO Provider Economics Calibration",
+              "QORE CIBO B Provider Forward Tool Readiness",
+              "QORE CIBO Architect B Forward Economic Manifest",
+              "QORE CIBO Integrated Capital Forward Binding",
+              "QORE CIBO Calibration Freeze Manifest",
+              "QORE CIBO Pre-Holdout Checkpoint",
+              "QORE CIBO USD60 Pre-Exam Readiness",
+              "QORE CIBO Risk Integration Closure",
+              "QORE CIBO CMA Compound Authority Boundary",
+              "QORE CIBO Legacy Stack Quarantine",
+              "QORE CIBO Zero Open Work Gate",
+              "QORE CIBO Compound Engine Integrated Cycle",
+              "QORE CIBO Generation Current Control Seal",
+              "QORE CIBO Protected Base Overlay",
+            ]);
+
+            const runs = await github.paginate(
+              github.rest.actions.listWorkflowRunsForRepo,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                branch,
+                per_page: 100,
+              }
+            );
+
+            const active = runs.filter(
+              (run) => run.status !== "completed" && run.id !== currentRunId
+            );
+
+            const keepIds = new Set();
+            for (const name of keepNames) {
+              const candidates = active
+                .filter((run) => run.head_sha === targetHead && run.name === name)
+                .sort((a, b) => {
+                  const eventRank = (run) => run.event === "pull_request" ? 0 : 1;
+                  const rankDelta = eventRank(a) - eventRank(b);
+                  if (rankDelta !== 0) return rankDelta;
+                  return new Date(b.created_at) - new Date(a.created_at);
+                });
+              if (candidates.length) keepIds.add(candidates[0].id);
+            }
+
+            const cancel = [];
+            for (const run of active) {
+              let reason = null;
+              if (run.head_sha !== targetHead) {
+                reason = "obsolete_sha";
+              } else if (!keepNames.has(run.name)) {
+                reason = "not_arch_b_scope";
+              } else if (!keepIds.has(run.id)) {
+                reason = "duplicate_current_checkpoint";
+              }
+              if (reason) cancel.push({ run, reason });
+            }
+
+            const reasonCounts = {};
+            let cancelled = 0;
+            let failed = 0;
+            for (const item of cancel.slice(0, maxCancels)) {
+              try {
+                await github.rest.actions.cancelWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: item.run.id,
+                });
+                cancelled += 1;
+                reasonCounts[item.reason] = (reasonCounts[item.reason] || 0) + 1;
+              } catch (error) {
+                failed += 1;
+                core.warning(
+                  `cancel failed run=${item.run.id} name=${item.run.name}: ${error.message}`
+                );
+              }
+            }
+
+            core.summary
+              .addHeading("Architect B queue cleanup")
+              .addTable([
+                [{data:"Metric",header:true},{data:"Value",header:true}],
+                ["Target checkpoint", targetHead],
+                ["Active runs scanned", String(active.length)],
+                ["Useful runs retained", String(keepIds.size)],
+                ["Eligible for cancellation", String(cancel.length)],
+                ["Cancellation attempts", String(Math.min(cancel.length, maxCancels))],
+                ["Cancelled", String(cancelled)],
+                ["Failed cancellations", String(failed)],
+                ["Remaining eligible after cap", String(Math.max(0, cancel.length - maxCancels))],
+              ])
+              .addRaw("\nReasons: " + JSON.stringify(reasonCounts))
+              .write();
+
+            core.info(
+              JSON.stringify({
+                targetHead,
+                activeRuns: active.length,
+                retainedUsefulRuns: keepIds.size,
+                eligibleForCancellation: cancel.length,
+                cancelled,
+                failed,
+                remainingAfterCap: Math.max(0, cancel.length - maxCancels),
+                reasons: reasonCounts,
+              })
+            );
+
+            if (failed > 0) {
+              core.setFailed(`Failed to cancel ${failed} obsolete workflow runs`);
+            }
