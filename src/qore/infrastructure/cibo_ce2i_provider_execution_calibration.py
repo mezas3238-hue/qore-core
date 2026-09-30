@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from math import ceil
 from typing import Any
@@ -220,11 +220,16 @@ class CiboProviderExecutionCalibration:
             raise CiboCapitalManagementError(
                 "provider execution calibration observation count drift"
             )
-        if tuple(
-            sorted(item.qore_symbol for item in self.symbol_summaries)
-        ) != tuple(item.qore_symbol for item in self.symbol_summaries):
+        summary_symbols = tuple(
+            item.qore_symbol for item in self.symbol_summaries
+        )
+        if tuple(sorted(summary_symbols)) != summary_symbols:
             raise CiboCapitalManagementError(
                 "provider execution summaries must be symbol ordered"
+            )
+        if len(summary_symbols) != len(set(summary_symbols)):
+            raise CiboCapitalManagementError(
+                "provider execution summaries must be symbol unique"
             )
         required = set(CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS.symbols)
         summary_by_symbol = {
@@ -392,7 +397,7 @@ def calibrate_ctrader_demo_forward_execution(
         for symbol in sorted(observed_symbols)
     )
     minimum_per_symbol = FROZEN_PHASE20D_QUALIFICATION_PLAN.minimum_outcomes_per_lineage
-    minimum_symbol = bool(summaries) and all(
+    minimum_symbol = symbol_coverage and all(
         item.observation_count >= minimum_per_symbol
         for item in summaries
         if item.qore_symbol in required
@@ -560,7 +565,7 @@ def _p95(values: tuple[Decimal, ...]) -> Decimal:
     return ordered[index]
 
 
-def _milliseconds(value: Any) -> Decimal:
+def _milliseconds(value: timedelta) -> Decimal:
     microseconds = (
         value.days * 86_400_000_000
         + value.seconds * 1_000_000
