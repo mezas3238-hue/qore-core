@@ -71,6 +71,7 @@ jobs:
             {"evidence_id":"B13_STRUCTURAL_DIVERGENCE","capability_scope":"B-13","kind":"ARCHITECTURE_EVIDENCE","run_id":36757804153,"artifact_id":11116897631,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B14_AGRI_INHERITED_REBIND","capability_scope":"B-14","kind":"GOVERNANCE_EVIDENCE","run_id":36777269692,"artifact_id":11126270432,"source_hash":false,"provider_free_replay":true},
             {"evidence_id":"B15_COMMODITY_IDENTITY","capability_scope":"B-15","kind":"IDENTITY_EVIDENCE","run_id":36755839843,"artifact_id":11115769948,"source_hash":true,"provider_free_replay":true},
+            {"evidence_id":"B15_GC_CONTRACT_LIFECYCLE","capability_scope":"B-15","kind":"IDENTITY_EVIDENCE","run_id":36782329462,"artifact_id":11128416668,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B16_17_ACTIVE_PERCEPTION","capability_scope":"B-16/B-17","kind":"REAL_REPLICATION_EVIDENCE","run_id":36757173753,"artifact_id":11116986748,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B18_20_OBSERVABILITY","capability_scope":"B-18/B-19/B-20","kind":"ARCHITECTURE_EVIDENCE","run_id":36756742481,"artifact_id":11116344955,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B18_CORE_BROKER_REAL","capability_scope":"B-18","kind":"REAL_REPLICATION_EVIDENCE","run_id":36764365409,"artifact_id":11120521150,"source_hash":true,"provider_free_replay":true},
