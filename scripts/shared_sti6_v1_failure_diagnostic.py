@@ -14,7 +14,7 @@ import json
 from collections import Counter
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import shared_sti6_sti8_real_position_intelligence as base
 
