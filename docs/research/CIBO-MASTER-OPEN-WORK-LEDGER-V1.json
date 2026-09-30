@@ -840,22 +840,27 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "REAL_POINT_IN_TIME_CTRADER_DEMO_PROVIDER_TERMS_PROVEN_HISTORICAL_CAPABILITY_AND_FORWARD_COST_GAPS_OPEN",
+      "current_maturity": "POINT_IN_TIME_TERMS_PROVEN_EXECUTION_CALIBRATION_INTEGRATOR_REPAIRED_CI_PENDING",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py",
         "src/qore/infrastructure/cibo_fundednext_provider.py",
         "src/qore/infrastructure/cibo_instrument_capability_registry.py",
         "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-ECONOMICS-EVIDENCE-2026-09-30.json",
-        "github-actions://36727848127/SUCCESS"
+        "github-actions://36727848127/SUCCESS",
+        "src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py",
+        "src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py",
+        "tests/infrastructure/test_cibo_ce2i_provider_execution_calibration.py",
+        "tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py"
       ],
       "blockers": [
-        "HISTORICAL_PROVIDER_USD_ECONOMICS_NOT_AVAILABLE_FOR_LEGACY_REPLAY",
-        "EMPIRICAL_SLIPPAGE_CALIBRATION_REQUIRED_WHERE_USD_CLAIMS_REQUIRE_IT",
+        "INTEGRATOR_PROVIDER_EXECUTION_CALIBRATION_CI_REQUIRED",
+        "REAL_FORWARD_EXECUTION_POPULATION_MINIMA_REQUIRED",
         "CTRADER_DEMO_ACCOUNT_BOUND_CAPABILITY_CATALOG_REQUIRED",
-        "T16_ACCOUNT_BOUND_HEDGE_ECONOMICS_REQUIRED_IF_SUPPORTED"
+        "T16_ACCOUNT_BOUND_HEDGE_ECONOMICS_REQUIRED_IF_SUPPORTED",
+        "HISTORICAL_PROVIDER_USD_ECONOMICS_NOT_AVAILABLE_FOR_LEGACY_REPLAY"
       ],
-      "next_gate": "Preserve the verified point-in-time cTrader DEMO provider terms; bind current account-specific capability observations and forward realized costs; keep legacy history R-denominated where provider USD economics are absent."
+      "next_gate": "Pass repaired provider-execution calibration CI; then populate the frozen calibration from real forward fills and reconcile account-bound capabilities without projecting current terms into legacy history."
     },
     {
       "id": "FORWARD_QUALIFICATION",
@@ -1045,13 +1050,16 @@
       "kind": "GOVERNANCE",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "A_AUDITOR_IMPL_PROVEN_INTEGRATOR_TWO_EXAM_SEQUENCE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "A_INTERNAL_READINESS_STAGED_INTEGRATOR_TWO_EXAM_AUDITOR_CI_PENDING",
       "terminal_disposition": null,
       "evidence_refs": [
         "scripts/cibo_zero_open_work_gate.py",
         "tests/infrastructure/test_cibo_zero_open_work_gate.py",
         "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md",
-        "github-actions://36767443016/SUCCESS"
+        "github-actions://36767443016/SUCCESS",
+        "scripts/cibo_arch_a_internal_readiness_gate.py",
+        "tests/infrastructure/test_cibo_arch_a_internal_readiness_gate.py",
+        ".github/workflows/cibo-architect-a-internal-readiness.yml"
       ],
       "blockers": [
         "MASTER_LEDGER_HAS_OPEN_REQUIRED_WORK",
@@ -1064,7 +1072,7 @@
       "kind": "CERTIFICATION",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "EXECUTABLE_GATE_CHILD_CI_GREEN_TYPED_RECEIPT_HARDENING_AND_EXECUTION_BLOCKED",
+      "current_maturity": "EXECUTABLE_GATE_GREEN_RECEIPT_BOUND_WRAPPER_IMPLEMENTED_CI_PENDING_EXECUTION_BLOCKED",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md",
@@ -1073,16 +1081,21 @@
         "tests/infrastructure/test_cibo_final_integrated_exam.py",
         ".github/workflows/cibo-final-integrated-exam.yml",
         "docs/research/CIBO-FINAL-INTEGRATED-CERTIFICATION-EXAM-PROTOCOL-V1.md",
-        "github-actions://36767442737/SUCCESS"
+        "github-actions://36767442737/SUCCESS",
+        "src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py",
+        "src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam.py",
+        "tests/infrastructure/test_cibo_crossboundary_evidence_receipt.py",
+        "tests/infrastructure/test_cibo_receipt_bound_final_integrated_exam.py",
+        ".github/workflows/cibo-crossboundary-evidence-receipt.yml"
       ],
       "blockers": [
         "PRE_EXAM_NON_EXAM_ZERO_OPEN_PASS_REQUIRED",
         "FINAL_A_B_INTEGRATED_SOURCE_OF_TRUTH_RECONCILIATION_REQUIRED",
         "PHASE20D_PHASE21_PHASE22_AND_HOLDOUT_CHAIN_REQUIRED",
         "ALL_MANDATORY_SCIENTIFIC_AND_INTEGRATION_GATES_REQUIRED",
-        "FINAL_EXAM_TYPED_CANONICAL_RECEIPT_HARDENING_REQUIRED"
+        "INTEGRATOR_RECEIPT_BOUND_FINAL_EXAM_CI_REQUIRED"
       ],
-      "next_gate": "Harden P1-P8/E1-E10 with canonical typed receipts bound to the integrated HEAD; after PRE_EXAM and Phase22 receipt pass, execute the integrated exam and terminally disposition it before World Cup."
+      "next_gate": "Pass receipt-bound final-exam CI; later bind all 18 canonical PASS artifacts to the exact integrated HEAD and frozen policy identity, then execute before World Cup."
     },
     {
       "id": "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
@@ -1205,22 +1218,27 @@
       "kind": "EVIDENCE_PROGRAM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_FOUNDATION_IMPLEMENTED_FINAL_CAPABILITY_EXAM_NOT_RUN",
+      "current_maturity": "ENGINE_FOUNDATION_PLUS_CANONICAL_PREREQUISITE_RECEIPT_ADAPTER_IMPLEMENTED_CI_PENDING_EXAM_NOT_RUN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py"
+        "src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py",
+        "src/qore/infrastructure/cibo_usd60_prerequisite_receipts.py",
+        "tests/infrastructure/test_cibo_usd60_prerequisite_receipts.py",
+        ".github/workflows/cibo-crossboundary-evidence-receipt.yml"
       ],
       "blockers": [
+        "INTEGRATOR_USD60_PREREQUISITE_RECEIPT_CI_REQUIRED",
+        "SEVEN_CANONICAL_PRE_EXAM_RECEIPTS_NOT_YET_AVAILABLE",
         "PROVIDER_VALID_USD_ECONOMICS_AND_FINAL_FROZEN_EXAM_REQUIRED"
       ],
-      "next_gate": "Reconcile robust-capacity/protected-operating-floor mechanics and run provider-valid capability challenge only after prerequisites."
+      "next_gate": "Pass canonical USD60 prerequisite-receipt CI; then replace B self-attested prerequisites with seven source-bound PASS artifacts before any governed USD60 exam may be considered."
     },
     {
       "id": "INTEGRATED_CAPITAL_TRUTH",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ACCOUNT_SCOPED_FIVE_STORE_RECOVERY_ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "ACCOUNT_SCOPED_TRUTH_PLUS_FORWARD_BINDING_ENGINE_STAGED_CI_PENDING_REAL_POPULATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_integrated_capital_truth.py",
@@ -1235,13 +1253,17 @@
         "tests/infrastructure/test_cibo_integrated_capital_component_adapter.py",
         "tests/infrastructure/test_cibo_integrated_capital_recovery.py",
         "src/qore/infrastructure/cibo_integrated_capital_scope_store.py",
-        "tests/infrastructure/test_cibo_integrated_capital_scope_store.py"
+        "tests/infrastructure/test_cibo_integrated_capital_scope_store.py",
+        "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py",
+        "tests/infrastructure/test_cibo_integrated_capital_forward_binding.py",
+        ".github/workflows/cibo-integrated-capital-forward-binding.yml"
       ],
       "blockers": [
-        "ACCOUNT_SCOPED_FIVE_STORE_RECOVERY_CI_REVALIDATION_REQUIRED",
-        "REAL_CHRONOLOGICAL_POPULATION_BINDING_REQUIRED"
+        "INTEGRATOR_FORWARD_CAPITAL_BINDING_CI_REQUIRED",
+        "REAL_CHRONOLOGICAL_FORWARD_POPULATION_BINDING_REQUIRED",
+        "ACCOUNT_SCOPED_FIVE_STORE_RECOVERY_CI_REVALIDATION_REQUIRED"
       ],
-      "next_gate": "Pass account-scoped five-store recovery CI, then bind the journal and IntegratedCapitalTruth to real chronological research population and close OOS/stress/replication gates."
+      "next_gate": "Pass forward-binding CI; then bind the exact scientifically-ready forward settlement population to Compound and IntegratedCapitalTruth with exact settlement/profit equivalence."
     },
     {
       "id": "AS_IS_ECONOMIC_BASELINE",
