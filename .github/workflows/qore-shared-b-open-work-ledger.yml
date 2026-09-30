@@ -1,0 +1,106 @@
+name: QORE Shared B Open Work Ledger
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b_open_work_ledger.py
+      - scripts/shared_b_open_work_ledger.py
+      - tests/infrastructure/test_shared_b_open_work_ledger.py
+      - .github/workflows/qore-shared-b-open-work-ledger.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-open-work-ledger-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  ledger:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate B-only ledger
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          ruff check             src/qore/infrastructure/core_stack_v2/shared_b_open_work_ledger.py             scripts/shared_b_open_work_ledger.py             tests/infrastructure/test_shared_b_open_work_ledger.py
+          mypy             src/qore/infrastructure/core_stack_v2/shared_b_open_work_ledger.py             scripts/shared_b_open_work_ledger.py
+          pytest -q tests/infrastructure/test_shared_b_open_work_ledger.py
+          python scripts/shared_b_open_work_ledger.py             --output result/shared-b-open-work-ledger.json             | tee result/summary.json
+
+      - name: Enforce honest incomplete disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/shared-b-open-work-ledger.json").read_text())
+          assert p["identity"] == "SHARED_B_GLOBAL_WORLD_PERCEPTION_OPEN_WORK_LEDGER_001"
+          assert p["mandatory_item_count"] == 24
+          assert p["required_open_count"] > 0
+          assert p["zero_open_required_work"] is False
+          assert p["b_lane_complete"] is False
+          assert p["shared_certification_authority"] is False
+          assert p["final_shared_holdout_authority"] is False
+          assert len(p["ledger_fingerprint_sha256"]) == 64
+          PY
+
+      - name: Seal B-only ledger evidence
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload B-only ledger
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-open-work-ledger-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report B-only ledger disposition
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(Path("result/shared-b-open-work-ledger.json").read_text())
+          body="\n".join([
+              "## Architect B — exclusive open-work ledger",
+              "",
+              f"- Git SHA: {os.environ['GITHUB_SHA']}",
+              f"- run: {os.environ['GITHUB_RUN_ID']}",
+              f"- artifact: {os.environ.get('ARTIFACT_ID','')}",
+              f"- mandatory B items: **{p['mandatory_item_count']}**",
+              f"- completed-and-proven: **{p['completed_and_proven_count']}**",
+              f"- required open: **{p['required_open_count']}**",
+              f"- ZERO_OPEN_REQUIRED_WORK: **{p['zero_open_required_work']}**",
+              f"- B lane complete: **{p['b_lane_complete']}**",
+              "- Shared certification authority: **False**",
+              "- final Shared holdout authority: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY"             --body-file result/issue-comment.md
