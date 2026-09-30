@@ -111,7 +111,6 @@ CONTRACTS: tuple[V48RouteContract, ...] = (
     V48RouteContract(
         V48RouteId.TTRADES_GENERIC_SCALP_H1_M15_M1,
         (
-            "DAILY_CONTEXT_RESOLVED",
             "H1_SCALP_BIAS_CONFIRMED",
             "M15_PROTECTED_SWING_CONFIRMED_BY_CISD",
             "M1_CONTINUATION_CONFIRMED",
