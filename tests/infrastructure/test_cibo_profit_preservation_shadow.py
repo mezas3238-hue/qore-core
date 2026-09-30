@@ -361,7 +361,7 @@ def test_genc7_population_is_descriptive_not_economic(tmp_path) -> None:
     assert population.descriptive_only is True
     assert population.economic_utility_ready is False
     assert population.certification_ready is False
-    assert "ECONOMIC_GATE_NOT_YET_PREREGISTERED" in population.blockers
+    assert "CAUSAL_EFFECT_IDENTIFICATION_NOT_EVALUATED" in population.blockers
     assert "OUTCOME_BINDING_NOT_EVALUATED" in population.blockers
 
 
