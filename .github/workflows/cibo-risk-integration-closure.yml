@@ -14,6 +14,7 @@ on:
   push:
     branches:
       - agent/cibo-certification-architect-b-integration-001
+      - agent/cibo-integrator-ab-001
     paths:
       - '.github/workflows/cibo-risk-integration-closure.yml'
       - 'src/qore/infrastructure/account_wide_risk.py'
