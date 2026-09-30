@@ -1,0 +1,159 @@
+name: QORE Shared A MC26 Real All Facet Arbitration
+
+concurrency:
+  group: qore-shared-a-mc26-real-all-facet-arbitration
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/cognitive_arbitration.py
+      - scripts/shared_mc26_real_all_facet_arbitration.py
+      - .github/workflows/qore-shared-a-mc26-real-all-facet-arbitration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  arbitrate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install and validate
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p input/{r6,mc15,mc18,mc19,mc14,mc20,mc28} result
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/cognitive_arbitration.py \
+            scripts/shared_mc26_real_all_facet_arbitration.py
+          mypy src/qore/infrastructure/core_stack_v2/cognitive_arbitration.py
+          pytest -q tests/infrastructure/test_core_stack_v2_cognitive_arbitration.py
+      - name: Verify immutable evidence
+        run: |
+          set -euo pipefail
+          for spec in \
+            "36726927463:11102652639" \
+            "36764204066:11119876541" \
+            "36764215198:11120695398" \
+            "36763713858:11120281435" \
+            "36775872235:11125287784" \
+            "36777388801:11126275619" \
+            "36640098773:11066541040"
+          do
+            run_id="${spec%%:*}"
+            artifact_id="${spec#*:}"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.status')" = "completed"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.conclusion')" = "success"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" --jq '.expired')" = "false"
+          done
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524" --jq '.expired')" = "false"
+      - name: Recover sealed evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          for spec in \
+            "11102652639:mc15" \
+            "11119876541:mc18" \
+            "11120695398:mc19" \
+            "11120281435:mc14" \
+            "11125287784:mc20" \
+            "11126275619:mc28"
+          do
+            artifact_id="${spec%%:*}"
+            dir="${spec#*:}"
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "${dir}.zip"
+            unzip -q "${dir}.zip" -d "input/${dir}"
+            (cd "input/${dir}" && sha256sum -c SHA256SUMS)
+          done
+      - name: Execute all-facet arbitration
+        run: |
+          python scripts/shared_mc26_real_all_facet_arbitration.py \
+            --r6-nas input/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp input/r6/fresh/SP500/market-evidence.json \
+            --r6-us input/r6/fresh/US30/market-evidence.json \
+            --mc15 input/mc15 \
+            --mc18 input/mc18 \
+            --mc19 input/mc19 \
+            --mc14 input/mc14 \
+            --mc20 input/mc20 \
+            --mc28 input/mc28 \
+            --output result/mc26-real-all-facet-arbitration.json \
+            | tee result/summary.json
+      - name: Validate completion
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc26-real-all-facet-arbitration.json").read_text())
+          assert p["status"] == "MC26_COGNITIVE_ARBITRATION_COMPLETED_AND_PROVEN"
+          assert p["real_facet_count"] == 9
+          assert p["all_nine_facets_real_evidence_bound"] is True
+          assert p["real_situation_state"] == "INSUFFICIENT"
+          assert p["real_information_gap_preserved"] is True
+          assert p["non_cotemporal_operational_state_not_fused"] is True
+          assert p["causal_absence_preserved_as_uncertainty"] is True
+          assert p["mandatory_mc28_gaps_preserved"] is True
+          assert p["critical_conflict_state"] == "CONTESTED"
+          assert p["critical_conflict_assertiveness_bps"] <= 2500
+          assert p["critical_negative_preserved"] is True
+          assert p["deterministic_replay"] is True
+          assert p["trading_command"] is False
+          assert p["sizing_authority"] is False
+          assert p["capital_authority"] is False
+          assert p["risk_authority"] is False
+          assert p["broker_authority"] is False
+          assert p["productive_authority"] is False
+          assert p["mc26_completed_and_proven"] is True
+          assert p["master_ledger_mutated"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+      - name: Seal
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (cd result && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc26-real-all-facet-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/mc26-real-all-facet-arbitration.json").read_text())
+          body="\n".join([
+              "## Shared A MC-26 — Real All-Facet Cognitive Arbitration",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- real facets bound: **{p['real_facet_count']}/9**",
+              f"- real situation: **{p['real_situation_state']}**",
+              f"- assertiveness: **{p['real_assertiveness_bps']} bps**",
+              "- mandatory information gaps preserved: **True**",
+              "- non-cotemporal operational state fused into historical world: **False**",
+              f"- real falsification conflict case: **{p['critical_conflict_state']}**",
+              "- trading / sizing / capital / Risk / broker authority: **None**",
+              "- MC-26 completed-and-proven: **True**",
+              "- protected certification holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
