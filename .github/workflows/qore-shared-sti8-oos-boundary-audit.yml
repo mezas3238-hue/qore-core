@@ -1,5 +1,7 @@
 name: QORE Shared STI8 OOS Boundary Audit
 
+# Boundary law: contiguous partitions may share a close/open timestamp.
+
 on:
   push:
     branches:
