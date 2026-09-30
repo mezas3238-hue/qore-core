@@ -19,6 +19,9 @@ from qore.infrastructure.cibo_account_capital_mission import (
 )
 from qore.infrastructure.cibo_capital_management_authority import CapitalSource
 from qore.infrastructure.cibo_capital_source_ledger import CapitalSourceLedger
+from qore.infrastructure.cibo_cma_capital_observation import (
+    CmaCapitalObservation,
+)
 from qore.infrastructure.cibo_compound_capital import CompoundCapitalLot
 from qore.infrastructure.cibo_compound_cycle_audit import (
     compound_cycle_state_sha256,
@@ -55,16 +58,35 @@ class RealizedProfitEquivalenceBinding:
 
 
 @dataclass(frozen=True, slots=True)
+class ProtectedOpenFloorEquivalenceBinding:
+    source_id: str
+    observation: CmaCapitalObservation
+
+    def __post_init__(self) -> None:
+        if not self.source_id:
+            raise CiboIntegratedCapitalTruthError(
+                "protected-floor binding source_id is required"
+            )
+        if not isinstance(self.observation, CmaCapitalObservation):
+            raise CiboIntegratedCapitalTruthError(
+                "protected-floor binding observation is invalid"
+            )
+
+
+@dataclass(frozen=True, slots=True)
 class IntegratedCapitalTruth:
     account_identity: CiboAccountCapitalIdentity
     source_ledger_sha256: str
     compound_cycle_state_sha256: str
     realized_profit_source_ids: tuple[str, ...]
     admission_lot_ids: tuple[str, ...]
+    protected_open_source_ids: tuple[str, ...]
     realized_profit_proven_usd: Decimal
     realized_profit_nonconsumed_usd: Decimal
     compound_admitted_realized_profit_usd: Decimal
     compound_current_economic_value_usd: Decimal
+    protected_open_capacity_usd: Decimal
+    economic_profit_capacity_usd: Decimal
     equivalence_residual_usd: Decimal
     nonconsumed_residual_usd: Decimal
     settlement_provenance_pass: bool
@@ -110,6 +132,8 @@ class IntegratedCapitalTruth:
             "realized_profit_nonconsumed_usd",
             "compound_admitted_realized_profit_usd",
             "compound_current_economic_value_usd",
+            "protected_open_capacity_usd",
+            "economic_profit_capacity_usd",
         ):
             value = getattr(self, name)
             if (
@@ -162,6 +186,9 @@ def build_integrated_capital_truth(
     realized_profit_bindings: tuple[
         RealizedProfitEquivalenceBinding, ...
     ],
+    protected_floor_bindings: tuple[
+        ProtectedOpenFloorEquivalenceBinding, ...
+    ] = (),
 ) -> IntegratedCapitalTruth:
     """Prove source-ledger realized profit equals GEN-C admitted profit."""
 
@@ -196,15 +223,34 @@ def build_integrated_capital_truth(
             "realized-profit binding is not canonical"
         )
 
-    protected_sources = tuple(
-        item.source_id
+    if not isinstance(protected_floor_bindings, tuple):
+        raise CiboIntegratedCapitalTruthError(
+            "protected-floor bindings must be tuple"
+        )
+    if any(
+        not isinstance(item, ProtectedOpenFloorEquivalenceBinding)
+        for item in protected_floor_bindings
+    ):
+        raise CiboIntegratedCapitalTruthError(
+            "protected-floor binding is not canonical"
+        )
+
+    protected_accounts = tuple(
+        item
         for item in source_ledger.accounts
         if item.source is CapitalSource.PROTECTED_ECONOMIC_FLOOR
     )
-    if protected_sources:
+    protected_ids = tuple(item.source_id for item in protected_accounts)
+    protected_binding_ids = tuple(
+        item.source_id for item in protected_floor_bindings
+    )
+    if len(protected_binding_ids) != len(set(protected_binding_ids)):
         raise CiboIntegratedCapitalTruthError(
-            "PROTECTED_ECONOMIC_FLOOR source requires explicit lineage "
-            "before cross-ledger consolidation"
+            "protected-floor source cannot have duplicate bindings"
+        )
+    if set(protected_binding_ids) != set(protected_ids):
+        raise CiboIntegratedCapitalTruthError(
+            "protected-floor source binding coverage is incomplete"
         )
 
     realized_accounts = tuple(
@@ -266,6 +312,34 @@ def build_integrated_capital_truth(
             _root_lot(all_lots, lot_id),
         )
 
+    protected_by_id = {
+        item.source_id: item for item in protected_accounts
+    }
+    protected_capacity = Decimal(0)
+    protected_nonconsumed = Decimal(0)
+    for binding in protected_floor_bindings:
+        source = protected_by_id[binding.source_id]
+        observation = binding.observation
+        if (
+            not observation.evidence_sufficient
+            or not observation.expansion_eligible
+            or observation.protected_open_floor_usd is None
+            or observation.protected_open_floor_usd <= 0
+            or observation.base_capital_at_risk_usd != 0
+            or observation.self_financing_capacity_usd is None
+        ):
+            raise CiboIntegratedCapitalTruthError(
+                "protected-floor source lacks eligible reconciled observation"
+            )
+        if source.proven_amount_usd != observation.protected_open_floor_usd:
+            raise CiboIntegratedCapitalTruthError(
+                "protected-floor source amount differs from observation"
+            )
+        protected_capacity += source.proven_amount_usd
+        protected_nonconsumed += (
+            source.proven_amount_usd - source.consumed_usd
+        )
+
     proven = sum(
         (item.proven_amount_usd for item in realized_accounts),
         Decimal(0),
@@ -281,6 +355,7 @@ def build_integrated_capital_truth(
     current = compound_state.compound_ledger.current_economic_value_usd
     equivalence_residual = proven - admitted
     nonconsumed_residual = nonconsumed - current
+    economic_profit_capacity = nonconsumed + protected_nonconsumed
     if equivalence_residual != 0:
         raise CiboIntegratedCapitalTruthError(
             "source-ledger and GEN-C admitted realized profit diverge"
@@ -298,10 +373,13 @@ def build_integrated_capital_truth(
         ),
         realized_profit_source_ids=tuple(sorted(realized_ids)),
         admission_lot_ids=tuple(sorted(admission_ids)),
+        protected_open_source_ids=tuple(sorted(protected_ids)),
         realized_profit_proven_usd=proven,
         realized_profit_nonconsumed_usd=nonconsumed,
         compound_admitted_realized_profit_usd=admitted,
         compound_current_economic_value_usd=current,
+        protected_open_capacity_usd=protected_capacity,
+        economic_profit_capacity_usd=economic_profit_capacity,
         equivalence_residual_usd=equivalence_residual,
         nonconsumed_residual_usd=nonconsumed_residual,
         settlement_provenance_pass=True,

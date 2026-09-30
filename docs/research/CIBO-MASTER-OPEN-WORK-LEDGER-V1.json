@@ -926,10 +926,10 @@
       ],
       "blockers": [
         "INTEGRATED_CAPITAL_TRUTH_CI_REVALIDATION_REQUIRED",
-        "PROTECTED_ECONOMIC_FLOOR_SOURCE_LINEAGE_NOT_YET_GENERALIZED",
-        "REAL_CHRONOLOGICAL_SOURCE_LEDGER_BINDING_REQUIRED"
+        "REAL_CHRONOLOGICAL_SOURCE_SETTLEMENT_COMPOUND_T19_BINDING_REQUIRED",
+        "PROTECTED_OPEN_CAPACITY_MUST_REMAIN_NON_REALIZED_AND_NON_COMPOUNDABLE"
       ],
-      "next_gate": "Pass cross-ledger equivalence CI, then bind real chronological source/settlement/compound/T19 evidence and generalize protected-profit lineage without double counting."
+      "next_gate": "Pass realized-profit/protected-open lineage CI, then bind authoritative chronological source, settlement, T19 and compound evidence with zero unexplained residuals."
     }
   ],
   "current_summary": {

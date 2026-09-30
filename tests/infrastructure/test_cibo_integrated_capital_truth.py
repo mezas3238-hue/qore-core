@@ -14,6 +14,9 @@ from qore.infrastructure.cibo_capital_source_ledger import CapitalSourceLedger
 from qore.infrastructure.cibo_ce2i_portfolio_allocation_ledger import (
     PortfolioAllocationLedger,
 )
+from qore.infrastructure.cibo_cma_capital_observation import (
+    CmaCapitalObservation,
+)
 from qore.infrastructure.cibo_cma_settlement_ledger import (
     CmaSettlementRecord,
     CmaSettlementState,
@@ -25,6 +28,7 @@ from qore.infrastructure.cibo_compound_cycle_state import (
 )
 from qore.infrastructure.cibo_integrated_capital_truth import (
     CiboIntegratedCapitalTruthError,
+    ProtectedOpenFloorEquivalenceBinding,
     RealizedProfitEquivalenceBinding,
     build_integrated_capital_truth,
 )
@@ -196,21 +200,123 @@ def test_integrated_truth_rejects_duplicate_admission_binding() -> None:
         )
 
 
-def test_integrated_truth_refuses_unbound_protected_profit_source() -> None:
+def _protected_observation(
+    *,
+    floor: str = "7",
+    eligible: bool = True,
+) -> CmaCapitalObservation:
+    protected = Decimal(floor)
+    return CmaCapitalObservation(
+        event="CIBO_CMA_CAPITAL_OBSERVATION",
+        trader=TraderLineage.R34_XAUUSD.value,
+        symbol="XAUUSD",
+        signal_fingerprint="protected-open",
+        position_id=903,
+        stage=__import__(
+            "qore.infrastructure.cibo_capital_management_authority",
+            fromlist=["CapitalStage"],
+        ).CapitalStage.CAPITALIZE,
+        evidence_sufficient=True,
+        expansion_eligible=eligible,
+        realized_net_pnl_usd=Decimal("5"),
+        remaining_stop_worst_case_pnl_usd=protected,
+        net_economic_floor_usd=Decimal("5") + protected,
+        base_capital_at_risk_usd=Decimal("0"),
+        protected_open_floor_usd=protected,
+        self_financing_capacity_usd=Decimal("5") + protected,
+        reason="reconciled protected-open floor",
+    )
+
+
+def test_integrated_truth_binds_protected_open_capacity_without_compounding() -> None:
     ledger = _source_ledger().add_source(
-        source_id="protected-profit",
+        source_id="protected-open",
         source=CapitalSource.PROTECTED_ECONOMIC_FLOOR,
-        proven_amount_usd=Decimal("5"),
+        proven_amount_usd=Decimal("7"),
+    )
+    truth = build_integrated_capital_truth(
+        account_identity=_identity(),
+        source_ledger=ledger,
+        compound_state=_compound_state(),
+        realized_profit_bindings=_binding(),
+        protected_floor_bindings=(
+            ProtectedOpenFloorEquivalenceBinding(
+                source_id="protected-open",
+                observation=_protected_observation(),
+            ),
+        ),
+    )
+
+    assert truth.protected_open_capacity_usd == Decimal("7")
+    assert truth.realized_profit_proven_usd == Decimal("20")
+    assert truth.compound_admitted_realized_profit_usd == Decimal("20")
+    assert truth.economic_profit_capacity_usd == Decimal("27")
+    assert truth.fungible_cross_dimension_total_computed is False
+
+
+def test_integrated_truth_requires_protected_floor_lineage() -> None:
+    ledger = _source_ledger().add_source(
+        source_id="protected-open",
+        source=CapitalSource.PROTECTED_ECONOMIC_FLOOR,
+        proven_amount_usd=Decimal("7"),
     )
     with pytest.raises(
         CiboIntegratedCapitalTruthError,
-        match="requires explicit lineage",
+        match="protected-floor source binding coverage is incomplete",
     ):
         build_integrated_capital_truth(
             account_identity=_identity(),
             source_ledger=ledger,
             compound_state=_compound_state(),
             realized_profit_bindings=_binding(),
+        )
+
+
+def test_integrated_truth_rejects_unproven_protected_floor() -> None:
+    ledger = _source_ledger().add_source(
+        source_id="protected-open",
+        source=CapitalSource.PROTECTED_ECONOMIC_FLOOR,
+        proven_amount_usd=Decimal("7"),
+    )
+    with pytest.raises(
+        CiboIntegratedCapitalTruthError,
+        match="lacks eligible reconciled observation",
+    ):
+        build_integrated_capital_truth(
+            account_identity=_identity(),
+            source_ledger=ledger,
+            compound_state=_compound_state(),
+            realized_profit_bindings=_binding(),
+            protected_floor_bindings=(
+                ProtectedOpenFloorEquivalenceBinding(
+                    source_id="protected-open",
+                    observation=_protected_observation(eligible=False),
+                ),
+            ),
+        )
+
+
+def test_integrated_truth_rejects_protected_floor_amount_drift() -> None:
+    ledger = _source_ledger().add_source(
+        source_id="protected-open",
+        source=CapitalSource.PROTECTED_ECONOMIC_FLOOR,
+        proven_amount_usd=Decimal("6"),
+    )
+    with pytest.raises(
+        CiboIntegratedCapitalTruthError,
+        match="amount differs from observation",
+    ):
+        build_integrated_capital_truth(
+            account_identity=_identity(),
+            source_ledger=ledger,
+            compound_state=_compound_state(),
+            realized_profit_bindings=_binding(),
+            protected_floor_bindings=(
+                ProtectedOpenFloorEquivalenceBinding(
+                    source_id="protected-open",
+                    observation=_protected_observation(),
+                ),
+            ),
         )
 
 
