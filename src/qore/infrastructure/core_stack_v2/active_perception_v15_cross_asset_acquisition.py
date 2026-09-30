@@ -175,7 +175,7 @@ def reduce_v15_cross_asset_reports(
         digits = report.get("provider_digits")
         if type(digits) is not int or digits < 0:
             raise ValueError("V15 provider digits invalid")
-        provider_digits.add(cast(int, digits))
+        provider_digits.add(digits)
         if report.get("manifest_sha256") != expected_manifest_sha256:
             raise ValueError("V15 manifest digest mismatch")
         if report.get("partition") != "r8_source_only":
@@ -201,11 +201,11 @@ def reduce_v15_cross_asset_reports(
             raise ValueError("V15 shard index invalid")
         if shard in by_shard:
             raise ValueError("duplicate V15 shard report")
-        by_shard[cast(int, shard)] = report
+        by_shard[shard] = report
         _sha256(report.get("assignment_sha256"), "assignment_sha256")
         shard_digests.append(
             (
-                cast(int, shard),
+                shard,
                 _sha256(
                     report.get("shard_dataset_sha256"),
                     "shard_dataset_sha256",
