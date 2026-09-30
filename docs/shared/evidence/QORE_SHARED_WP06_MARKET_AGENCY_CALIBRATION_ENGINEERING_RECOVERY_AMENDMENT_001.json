@@ -1,0 +1,27 @@
+{
+  "identity": "QORE_SHARED_WP06_MARKET_AGENCY_CALIBRATION_ENGINEERING_RECOVERY_AMENDMENT_001",
+  "status": "ENGINEERING_RECOVERY_ONLY",
+  "failed_run_id": 36754494468,
+  "failed_stage": "EVALUATE_INCREMENTAL_AGENCY_REPRESENTATION",
+  "failure": "MISSING_RUNTIME_DEPENDENCY_SCIKIT_LEARN",
+  "scientific_evaluation_started": false,
+  "scientific_invariants_unchanged": {
+    "agency_engine": true,
+    "baseline_features": true,
+    "treatment_features": true,
+    "model_family": true,
+    "r6_train_split": true,
+    "r6_validation_split": true,
+    "r5_temporal_validation": true,
+    "gates": true,
+    "protected_certification_holdout": false
+  },
+  "engineering_change_only": {
+    "install_scikit_learn_in_workflow": true,
+    "source_code_model_change": false,
+    "feature_change": false,
+    "threshold_change": false,
+    "window_change": false,
+    "outcome_aware_retuning": false
+  }
+}
