@@ -1,0 +1,162 @@
+name: QORE Shared STI2 V2 Trajectory Heads
+
+concurrency:
+  group: qore-shared-sti2-v2-trajectory-heads
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - docs/shared/evidence/QORE_SHARED_STI2_V2_TRAJECTORY_HEADS_PREREGISTRATION_001.json
+      - src/qore/infrastructure/core_stack_v2/shared_global_opportunity_trajectory_v2.py
+      - tests/infrastructure/test_core_stack_v2_shared_global_opportunity_trajectory_v2.py
+      - scripts/shared_sti2_v2_trajectory_heads.py
+      - .github/workflows/qore-shared-sti2-v2-trajectory-heads.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  causal-replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate V2 and preregistration
+        run: |
+          set -euo pipefail
+          mkdir -p result input/r8 input/r6 input/r5
+          ruff check             src/qore/infrastructure/core_stack_v2/shared_global_opportunity_trajectory_v2.py             tests/infrastructure/test_core_stack_v2_shared_global_opportunity_trajectory_v2.py             scripts/shared_sti2_v2_trajectory_heads.py
+          mypy             src/qore/infrastructure/core_stack_v2/shared_global_opportunity_trajectory_v2.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/shared_global_opportunity_trajectory_v2.py             scripts/shared_sti2_v2_trajectory_heads.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_shared_global_opportunity_trajectory_v2.py             --junitxml=result/junit.xml
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(
+              Path(
+                  "docs/shared/evidence/"
+                  "QORE_SHARED_STI2_V2_TRAJECTORY_HEADS_PREREGISTRATION_001.json"
+              ).read_text()
+          )
+          assert p["status"] == "PREREGISTERED_RESEARCH_ONLY"
+          assert p["parent_v1"]["disposition"] == (
+              "STI2_V1_FALSIFIED_ON_CONSUMED_EVIDENCE"
+          )
+          assert p["parent_v1"]["threshold_rescue_allowed"] is False
+          assert p["scientific_hypothesis"]["arbitration_after_heads"] is True
+          assert p["scientific_hypothesis"]["single_max_score_as_primary_model"] is False
+          assert p["calibration"]["partition"] == "R8_SOURCE_ONLY"
+          assert p["calibration"]["outcomes_allowed_for_threshold_freeze"] is False
+          assert p["governance"]["protected_certification_holdout_opened"] is False
+          PY
+
+      - name: Recover immutable R8 R6 R5 evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Execute preregistered V2 causal replay
+        run: |
+          set -euo pipefail
+          python scripts/shared_sti2_v2_trajectory_heads.py             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/sti2-v2-trajectory-heads.json             | tee result/summary.json
+
+      - name: Validate scientific disposition without forcing PASS
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/sti2-v2-trajectory-heads.json").read_text())
+          assert p["scientific_status"] in {
+              "STI2_V2_VALUE_DEMONSTRATED_CONSUMED_R6_R5",
+              "STI2_V2_FALSIFIED_ON_CONSUMED_R6_R5",
+          }
+          assert p["hypothesis"] == "MECHANISM_SPECIFIC_TEMPORAL_TRAJECTORY_HEADS"
+          assert p["calibration"]["future_market_used_for_freeze"] is False
+          assert p["calibration"]["outcome_used_for_freeze"] is False
+          for name in ("r6","r5"):
+              row=p["evaluations"][name]
+              assert row["sample_count"] > 0
+              assert 0 <= row["precision_bps"] <= 10000
+              assert 0 <= row["recall_bps"] <= 10000
+              assert row["recall_uplift_vs_v1_bps"] == (
+                  row["recall_bps"] - row["v1_recall_bps"]
+              )
+          g=p["governance"]
+          assert g["v1_threshold_rescue_used"] is False
+          assert g["r8_source_only_calibration"] is True
+          assert g["r6_threshold_fit"] is False
+          assert g["r5_threshold_fit"] is False
+          assert g["future_market_used_for_inference"] is False
+          assert g["protected_certification_holdout_opened"] is False
+          assert g["productive_authority"] is False
+          PY
+
+      - name: Bind evidence
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          cp             docs/shared/evidence/QORE_SHARED_STI2_V2_TRAJECTORY_HEADS_PREREGISTRATION_001.json             result/preregistration.json
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-sti2-v2-trajectory-heads-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report STI-2 V2 state
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/sti2-v2-trajectory-heads.json").read_text())
+          r6=p["evaluations"]["r6"]; r5=p["evaluations"]["r5"]
+          body="\n".join([
+              "## Shared STI-2 — Trajectory Heads V2",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['scientific_status']}**",
+              "- V1 threshold rescue used: **False**",
+              "- R8 source-only calibration: **True**",
+              f"- R6 precision/recall: **{r6['precision_bps']}/{r6['recall_bps']} bps**; recall uplift vs V1 **{r6['recall_uplift_vs_v1_bps']} bps**",
+              f"- R5 precision/recall: **{r5['precision_bps']}/{r5['recall_bps']} bps**; recall uplift vs V1 **{r5['recall_uplift_vs_v1_bps']} bps**",
+              f"- R6/R5 gate: **{r6['gate_pass']} / {r5['gate_pass']}**",
+              "- protected certification holdout opened: **False**",
+              "- productive authority: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
