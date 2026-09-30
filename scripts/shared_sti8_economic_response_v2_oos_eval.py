@@ -247,7 +247,7 @@ def run(
         "response_policy_fingerprint": FROZEN_STI8_RESPONSE_V2.fingerprint(),
         "changed_rows": changed_rows,
         "governance": {
-            "burned_r6_r5_prior_oos_used_for_v2_value_claim": false if False else False,
+            "burned_r6_r5_prior_oos_used_for_v2_value_claim": False,
             "all_source_decisions_materialized_before_outcome_scoring": True,
             "future_market_used_for_decision": False,
             "future_outcome_used_for_decision": False,
