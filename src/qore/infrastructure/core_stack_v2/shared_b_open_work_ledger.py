@@ -153,9 +153,15 @@ B_WORK_ITEMS: Final = (
         "B-09",
         "Global data health, freshness and degraded mode",
         SharedBWorkStatus.PARTIAL_EVIDENCE_OPEN,
-        ("artifact:11115754374", "run:36755357039"),
         (
-            "new additive degraded states still require dedicated real cross-asset replication",
+            "artifact:11115754374",
+            "artifact:11119762780",
+            "run:36755357039",
+            "run:36764279123",
+        ),
+        (
+            "stale-relation empirical isolation remains gated by B-07/B-08 "
+            "canonical temporal comparability",
         ),
     ),
     SharedBWorkItem(
@@ -239,19 +245,23 @@ B_WORK_ITEMS: Final = (
     SharedBWorkItem(
         "B-18",
         "Core and Broker observational cognition",
-        SharedBWorkStatus.ARCHITECTURE_VALIDATED_EVIDENCE_OPEN,
-        ("artifact:11116344955", "run:36756742481"),
+        SharedBWorkStatus.COMPLETE_AND_PROVEN,
         (
-            "real runtime Core/Broker replication remains open",
+            "artifact:11116344955",
+            "artifact:11120521150",
+            "run:36756742481",
+            "run:36764365409",
         ),
     ),
     SharedBWorkItem(
         "B-19",
         "Sensor-side Blindspot Engine",
-        SharedBWorkStatus.PARTIAL_EVIDENCE_OPEN,
-        ("artifact:11116344955", "run:36756742481"),
+        SharedBWorkStatus.COMPLETE_AND_PROVEN,
         (
-            "second-order coverage-inventory completeness is not yet proven",
+            "artifact:11116344955",
+            "artifact:11120391213",
+            "run:36756742481",
+            "run:36764376550",
         ),
     ),
     SharedBWorkItem(
