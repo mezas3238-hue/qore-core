@@ -1,0 +1,183 @@
+name: QORE Shared A STI3 Real Attention Integration
+
+concurrency:
+  group: qore-shared-a-sti3-real-attention-integration
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - scripts/shared_sti3_global_opportunity_board_replay.py
+      - scripts/shared_sti3_global_opportunity_board_stress.py
+      - scripts/shared_sti3_attention_budget_interaction.py
+      - .github/workflows/qore-shared-a-sti3-real-attention-integration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  integrate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install and validate
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p input/{r8,r6,r5,x13} result
+          ruff check \
+            scripts/shared_sti3_global_opportunity_board_replay.py \
+            scripts/shared_sti3_global_opportunity_board_stress.py \
+            scripts/shared_sti3_attention_budget_interaction.py
+          python -m py_compile \
+            scripts/shared_sti3_global_opportunity_board_replay.py \
+            scripts/shared_sti3_global_opportunity_board_stress.py \
+            scripts/shared_sti3_attention_budget_interaction.py
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_shared_global_opportunity_board.py \
+            tests/infrastructure/test_core_stack_v2_shared_attention_budget.py
+
+      - name: Recover immutable source and X13 evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/36730806113" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11105226668" --jq '.expired')" = "false"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11105226668/zip" > x13.zip
+          unzip -q x13.zip -d input/x13
+          (cd input/x13 && sha256sum -c SHA256SUMS)
+
+          test "$(git rev-parse "1df8be7cfea2621a4bfcf6a7de741aa585a29f35:src/qore/infrastructure/core_stack_v2/shared_global_opportunity_trajectory_v2.py")" = "$(git rev-parse "HEAD:src/qore/infrastructure/core_stack_v2/shared_global_opportunity_trajectory_v2.py")"
+
+      - name: Execute STI3 real replay
+        run: |
+          python scripts/shared_sti3_global_opportunity_board_replay.py \
+            --r8-nas input/r8/fresh/NAS100/market-evidence.json \
+            --r8-sp input/r8/fresh/SP500/market-evidence.json \
+            --r8-us input/r8/fresh/US30/market-evidence.json \
+            --r6-nas input/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp input/r6/fresh/SP500/market-evidence.json \
+            --r6-us input/r6/fresh/US30/market-evidence.json \
+            --r5-nas input/r5/fresh/NAS100/market-evidence.json \
+            --r5-sp input/r5/fresh/SP500/market-evidence.json \
+            --r5-us input/r5/fresh/US30/market-evidence.json \
+            --output result/sti3-real-data-replay.json
+
+      - name: Execute STI3 source stress
+        run: |
+          python scripts/shared_sti3_global_opportunity_board_stress.py \
+            --r8-nas input/r8/fresh/NAS100/market-evidence.json \
+            --r8-sp input/r8/fresh/SP500/market-evidence.json \
+            --r8-us input/r8/fresh/US30/market-evidence.json \
+            --r6-nas input/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp input/r6/fresh/SP500/market-evidence.json \
+            --r6-us input/r6/fresh/US30/market-evidence.json \
+            --r5-nas input/r5/fresh/NAS100/market-evidence.json \
+            --r5-sp input/r5/fresh/SP500/market-evidence.json \
+            --r5-us input/r5/fresh/US30/market-evidence.json \
+            --output result/sti3-source-stress.json
+
+      - name: Execute real scarcity/materiality interaction
+        run: |
+          python scripts/shared_sti3_attention_budget_interaction.py \
+            --r8-nas input/r8/fresh/NAS100/market-evidence.json \
+            --r8-sp input/r8/fresh/SP500/market-evidence.json \
+            --r8-us input/r8/fresh/US30/market-evidence.json \
+            --r6-nas input/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp input/r6/fresh/SP500/market-evidence.json \
+            --r6-us input/r6/fresh/US30/market-evidence.json \
+            --r5-nas input/r5/fresh/NAS100/market-evidence.json \
+            --r5-sp input/r5/fresh/SP500/market-evidence.json \
+            --r5-us input/r5/fresh/US30/market-evidence.json \
+            --sti3-replay result/sti3-real-data-replay.json \
+            --sti3-stress result/sti3-source-stress.json \
+            --x13 input/x13/x13-attention-budget.json \
+            --output result/sti3-attention-integration.json \
+            | tee result/summary.json
+
+      - name: Validate truthful STI3 disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/sti3-attention-integration.json").read_text())
+          assert p["status"] == "STI3_REAL_REPLAY_STRESS_ATTENTION_INTERACTION_PASS"
+          assert p["real_replay_pass"] is True
+          assert p["source_stress_pass"] is True
+          assert p["x13_attention_budget_proof_consumed"] is True
+          assert p["scarcity_materiality_behavior_proven"] is True
+          assert p["data_health_veto_proven"] is True
+          assert p["attention_budget_never_exceeded"] is True
+          assert p["canonical_board_order_is_execution_priority"] is False
+          assert p["trade_outcome_value_used_for_attention"] is False
+          assert p["global_multi_family_coverage_complete"] is False
+          assert p["seven_trader_real_world_routing_complete"] is False
+          assert p["sti3_completed_and_proven"] is False
+          assert p["external_dependency"] == "B_GLOBAL_WORLD_MULTI_FAMILY_AND_7_TRADER_ROUTING"
+          assert p["execution_authority"] is False
+          assert p["capital_authority"] is False
+          assert p["risk_authority"] is False
+          assert p["productive_authority"] is False
+          assert p["master_ledger_mutated"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+
+      - name: Seal
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (cd result && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-sti3-attention-integration-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(Path("result/sti3-attention-integration.json").read_text())
+          body="\n".join([
+              "## Shared A STI-3 — Real Replay + Attention Integration",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              "- real deterministic replay: **PASS**",
+              "- source stress: **PASS**",
+              "- scarcity/materiality with X13: **PASS**",
+              "- data-health veto: **PASS**",
+              "- order/execution ranking semantics: **False**",
+              "- current real coverage: **NAS100/SP500/US30 + VT31 routing**",
+              "- global multi-family / 7-Trader coverage: **OPEN**",
+              "- STI-3 completed-and-proven: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
