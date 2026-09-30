@@ -157,6 +157,11 @@ def test_gate_detects_high_signal_orphan_marker(
     monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
     monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ("src/cibo_*.py",))
     monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ("src/cibo_*.py",))
+    monkeypatch.setattr(
+        gate,
+        "_WORKSTREAM_CLASSIFIERS",
+        (("src/cibo_*.py", "TEST"),),
+    )
 
     verdict = gate.evaluate_gate(
         repo_root=tmp_path,
@@ -168,3 +173,44 @@ def test_gate_detects_high_signal_orphan_marker(
         "src/cibo_test.py:1:TODO",
     )
     assert "HIGH_SIGNAL_UNRESOLVED_CODE_MARKER" in verdict.reasons
+
+
+def test_gate_marks_unclassified_inventory_as_orphan_candidate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    payload = _ledger(disposition="COMPLETED_AND_PROVEN")
+    payload["workstreams"].append(
+        {
+            "id": "ORPHAN_INVENTORY",
+            "kind": "GOVERNANCE",
+            "mandatory": True,
+            "certification_blocking": True,
+            "current_maturity": "OPEN_REQUIRED",
+            "terminal_disposition": None,
+            "evidence_refs": [],
+            "blockers": ["MANUAL_CLASSIFICATION_REQUIRED"],
+            "next_gate": "Classify every CIBO inventory path.",
+        }
+    )
+    _write(ledger, payload)
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "cibo_unknown.py").write_text(
+        "VALUE = 1\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ("src/cibo_*.py",))
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
+    monkeypatch.setattr(gate, "_WORKSTREAM_CLASSIFIERS", ())
+
+    verdict = gate.evaluate_gate(
+        repo_root=tmp_path,
+        ledger_path=ledger,
+    )
+
+    assert verdict.passed is False
+    assert verdict.orphan_candidate_paths == ("src/cibo_unknown.py",)
+    assert "UNCLASSIFIED_ORPHAN_CANDIDATE" in verdict.reasons
