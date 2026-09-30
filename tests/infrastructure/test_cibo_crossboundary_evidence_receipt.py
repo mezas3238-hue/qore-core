@@ -18,11 +18,21 @@ from qore.infrastructure.cibo_crossboundary_evidence_receipt import (
 T0 = datetime(2026, 9, 30, 20, 45, tzinfo=UTC)
 HEAD = "a" * 40
 POLICY = "sha256:" + "b" * 64
+KIND = "FINAL_EXAM_PREREQUISITE"
 
 
-def _artifact(*, status: str = "PASS", head: str = HEAD, policy: str = POLICY) -> str:
+def _artifact(
+    *,
+    receipt_id: str = "P1",
+    evidence_kind: str = KIND,
+    status: str = "PASS",
+    head: str = HEAD,
+    policy: str = POLICY,
+) -> str:
     payload = {
         "schema": "qore.cibo.test-producer.v1",
+        "evidence_binding_id": receipt_id,
+        "evidence_kind": evidence_kind,
         "producer_gate_id": "QORE_CIBO_SAMPLE_GATE",
         "integrated_git_sha": head,
         "policy_identity_sha256": policy,
@@ -38,8 +48,8 @@ def _artifact(*, status: str = "PASS", head: str = HEAD, policy: str = POLICY) -
 def _receipt(receipt_id: str = "P1"):
     return bind_cross_boundary_pass_artifact(
         receipt_id=receipt_id,
-        evidence_kind="FINAL_EXAM_PREREQUISITE",
-        source_artifact_json=_artifact(),
+        evidence_kind=KIND,
+        source_artifact_json=_artifact(receipt_id=receipt_id),
     )
 
 
@@ -49,7 +59,8 @@ def test_binder_derives_pass_from_existing_canonical_artifact() -> None:
     assert receipt.integrated_git_sha == HEAD
     assert receipt.policy_identity_sha256 == POLICY
     assert receipt.source_artifact_sha256 == (
-        "sha256:" + hashlib.sha256(_artifact().encode("utf-8")).hexdigest()
+        "sha256:"
+        + hashlib.sha256(_artifact().encode("utf-8")).hexdigest()
     )
     assert receipt.productive_authority is False
 
@@ -61,8 +72,35 @@ def test_non_pass_source_artifact_cannot_be_bound() -> None:
     ):
         bind_cross_boundary_pass_artifact(
             receipt_id="P1",
-            evidence_kind="FINAL_EXAM_PREREQUISITE",
+            evidence_kind=KIND,
             source_artifact_json=_artifact(status="FAIL"),
+        )
+
+
+def test_source_artifact_cannot_be_relabelled_to_another_receipt_id() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="binding identity drift",
+    ):
+        bind_cross_boundary_pass_artifact(
+            receipt_id="P2",
+            evidence_kind=KIND,
+            source_artifact_json=_artifact(receipt_id="P1"),
+        )
+
+
+def test_source_artifact_cannot_be_relabelled_to_another_kind() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="evidence kind drift",
+    ):
+        bind_cross_boundary_pass_artifact(
+            receipt_id="P1",
+            evidence_kind="USD60_PRE_EXAM_PREREQUISITE",
+            source_artifact_json=_artifact(
+                receipt_id="P1",
+                evidence_kind=KIND,
+            ),
         )
 
 
