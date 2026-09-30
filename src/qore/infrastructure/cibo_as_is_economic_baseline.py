@@ -201,6 +201,55 @@ def materialize_as_is_economic_baseline(
         raise CiboCompoundCapitalError(
             "AS-IS baseline temporal fold population count drift"
         )
+    baseline_rows = tuple(item for item in report.rows if item.baseline_selected)
+    calculated_policy_net = sum(
+        (item.realized_net_pnl_usd or Decimal(0) for item in selected_rows),
+        Decimal(0),
+    )
+    calculated_baseline_net = sum(
+        (item.realized_net_pnl_usd or Decimal(0) for item in baseline_rows),
+        Decimal(0),
+    )
+    calculated_policy_coverage = _coverage(selected_rows)
+    calculated_baseline_coverage = _coverage(baseline_rows)
+    calculated_candidate_coverage = _coverage(tuple(report.rows))
+    calculated_policy_acceptance = _ratio(
+        Decimal(len(selected_rows)),
+        Decimal(len(report.rows)),
+    )
+    calculated_baseline_acceptance = _ratio(
+        Decimal(len(baseline_rows)),
+        Decimal(len(report.rows)),
+    )
+    calculated_policy_dd = _settlement_cash_drawdown(selected_rows)
+    calculated_baseline_dd = _settlement_cash_drawdown(baseline_rows)
+    calculated_policy_productivity = _ratio(
+        calculated_policy_net,
+        _risk_minute_denominator(selected_rows),
+    )
+    calculated_baseline_productivity = _ratio(
+        calculated_baseline_net,
+        _risk_minute_denominator(baseline_rows),
+    )
+    if (
+        report.policy_net_delta_usd != calculated_policy_net
+        or report.baseline_net_delta_usd != calculated_baseline_net
+        or report.policy_selected_outcome_coverage != calculated_policy_coverage
+        or report.baseline_selected_outcome_coverage
+        != calculated_baseline_coverage
+        or report.candidate_outcome_coverage != calculated_candidate_coverage
+        or report.policy_acceptance_rate != calculated_policy_acceptance
+        or report.baseline_acceptance_rate != calculated_baseline_acceptance
+        or report.policy_settlement_cash_drawdown_usd != calculated_policy_dd
+        or report.baseline_settlement_cash_drawdown_usd != calculated_baseline_dd
+        or report.policy_capital_productivity
+        != calculated_policy_productivity
+        or report.baseline_capital_productivity
+        != calculated_baseline_productivity
+    ):
+        raise CiboCompoundCapitalError(
+            "AS-IS baseline aggregate/report reconciliation drift"
+        )
     if (
         not isinstance(compound_records, tuple)
         or not compound_records
@@ -414,6 +463,60 @@ def compound_records_sorted(
             ),
         )
     )
+
+
+def _coverage(rows) -> Decimal:
+    if not rows:
+        return Decimal(1)
+    observed = sum(
+        1
+        for item in rows
+        if (
+            item.realized_net_pnl_usd is not None
+            and item.executed_initial_stop_risk_usd is not None
+            and item.realized_structural_outcome_r is not None
+            and item.capital_minutes is not None
+            and item.capital_minutes > 0
+        )
+    )
+    return Decimal(observed) / Decimal(len(rows))
+
+
+def _risk_minute_denominator(rows) -> Decimal:
+    return sum(
+        (
+            (item.executed_initial_stop_risk_usd or Decimal(0))
+            * (item.capital_minutes or Decimal(0))
+            for item in rows
+        ),
+        Decimal(0),
+    )
+
+
+def _settlement_cash_drawdown(rows) -> Decimal:
+    ordered = sorted(
+        (
+            (item.outcome_observed_at, item.signal_fingerprint, item.realized_net_pnl_usd)
+            for item in rows
+            if item.outcome_observed_at is not None
+            and item.realized_net_pnl_usd is not None
+        ),
+        key=lambda item: (item[0], item[1]),
+    )
+    equity = Decimal(0)
+    peak = Decimal(0)
+    maximum = Decimal(0)
+    for _, _, delta in ordered:
+        equity += delta
+        peak = max(peak, equity)
+        maximum = max(maximum, peak - equity)
+    return maximum
+
+
+def _ratio(numerator: Decimal, denominator: Decimal) -> Decimal:
+    if denominator == 0:
+        return Decimal(0)
+    return numerator / denominator
 
 
 def _minutes(delta) -> Decimal:
