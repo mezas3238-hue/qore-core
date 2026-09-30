@@ -1,0 +1,43 @@
+{
+  "identity": "QORE_SHARED_X04_OPPORTUNITY_TRAJECTORY_VERIFIED_SUPERSET_AUDIT_001",
+  "capability": "X-04_OPPORTUNITY_TRAJECTORY_INTELLIGENCE",
+  "candidate_superset": "STI-2_V2_TRAJECTORY_HEADS",
+  "state_if_audit_passes": "COMPLETED_AND_PROVEN",
+  "evidence": {
+    "consumed_value_run": 36667303884,
+    "consumed_value_sha": "1df8be7cfea2621a4bfcf6a7de741aa585a29f35",
+    "consumed_value_artifact": 11076956277,
+    "r6_precision_bps": 5599,
+    "r6_recall_bps": 4950,
+    "r5_precision_bps": 5499,
+    "r5_recall_bps": 5060,
+    "stress_run": 36685171375,
+    "stress_sha": "758df9bb227e2d8bfba201f4edc617cb6aeb8da9",
+    "stress_artifact": 11083990018,
+    "stress_pass": true,
+    "research_oos_run": 36686214891,
+    "research_oos_sha": "eb9d45bb1a77ede1e339876bd33e8b5c41b48264",
+    "research_oos_artifact": 11083921981,
+    "research_oos_samples": 2180,
+    "research_oos_v2_precision_bps": 5488,
+    "research_oos_v2_recall_bps": 5301,
+    "research_oos_recall_uplift_vs_v1_bps": 4044
+  },
+  "trajectory_properties": {
+    "level_modeled": true,
+    "velocity_modeled": true,
+    "persistence_modeled": true,
+    "maturity_modeled": true,
+    "deterioration_modeled": true,
+    "mechanism_specific_heads": true,
+    "causal_source_time_only": true,
+    "creates_trader_setup": false
+  },
+  "limits": {
+    "does_not_close_sti2_full_capability": true,
+    "sti2_temporal_replication_still_pending": true,
+    "economic_value_not_claimed": true,
+    "productive_authority": false,
+    "protected_certification_holdout_opened": false
+  }
+}
