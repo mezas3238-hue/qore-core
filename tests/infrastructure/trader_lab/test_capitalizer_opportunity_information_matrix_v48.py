@@ -9,7 +9,7 @@ from qore.infrastructure.trader_lab.capitalizer_opportunity_information_matrix_v
 )
 
 
-def _observations():
+def _observations() -> tuple[V48GateObservation, ...]:
     return (
         V48GateObservation("r1", "FTM", {"CISD": True, "PROTECTED_SWING": True, "FVG": True}),
         V48GateObservation("r2", "FTM", {"CISD": True, "PROTECTED_SWING": True, "FVG": False}),
