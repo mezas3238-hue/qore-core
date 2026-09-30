@@ -1,9 +1,10 @@
 """Architect-B energy reference-object identity boundary.
 
 Locks the exact three energy observations already sealed by B-15 to their
-proven reference-object scope. It prevents spot-like/provider symbols from
-being silently promoted to exchange-listed futures, front contracts or
-continuous series.
+proven provider reference-object scope. The sealed commodity pack does not
+contain provider-neutral current reference identities for these rows, so this
+boundary preserves that UNKNOWN explicitly and forbids promotion to futures,
+venues, front contracts or continuous series.
 """
 
 from __future__ import annotations
@@ -14,11 +15,7 @@ from typing import cast
 
 IDENTITY = "SHARED_B_ENERGY_REFERENCE_IDENTITY_BOUNDARY_001"
 EXPECTED_PACK = "SHARED_B_COMMODITY_OBSERVATION_IDENTITY_PACK_001"
-_EXPECTED = {
-    "XBRUSD": "BRENT_CRUDE_OIL_BENCHMARK_FAMILY",
-    "XTIUSD": "WTI_LIGHT_SWEET_CRUDE_OIL",
-    "XNGUSD": "GENERIC_NATURAL_GAS",
-}
+_EXPECTED_SYMBOLS = {"XBRUSD", "XTIUSD", "XNGUSD"}
 
 
 class SharedBEnergyReferenceBoundaryError(ValueError):
@@ -60,7 +57,7 @@ def build_energy_reference_identity_boundary(
         if row.get("asset_world") != "ENERGY":
             continue
         symbol = row.get("provider_symbol")
-        if not isinstance(symbol, str) or symbol not in _EXPECTED:
+        if not isinstance(symbol, str) or symbol not in _EXPECTED_SYMBOLS:
             raise SharedBEnergyReferenceBoundaryError(
                 "unexpected energy provider symbol"
             )
@@ -69,34 +66,41 @@ def build_energy_reference_identity_boundary(
                 "duplicate energy provider symbol"
             )
         seen.add(symbol)
+
         if row.get("identity_kind") != "REFERENCE_OBJECT":
             raise SharedBEnergyReferenceBoundaryError(
                 "energy sensor is not reference-only"
             )
-        if row.get("current_reference_identity") != _EXPECTED[symbol]:
+        if row.get("current_reference_identity") is not None:
             raise SharedBEnergyReferenceBoundaryError(
-                "energy reference identity drift"
+                "energy provider-neutral reference identity unexpectedly present"
             )
-        for field in (
-            "tradable_product_identity_verified",
-            "front_contract_identity_verified",
-            "continuous_series_identity_verified",
-            "roll_semantics_verified",
-        ):
-            if row.get(field) is not False:
-                raise SharedBEnergyReferenceBoundaryError(
-                    f"energy authority widening: {field}"
-                )
+        if row.get("tradable_product_identity_verified") is not False:
+            raise SharedBEnergyReferenceBoundaryError(
+                "energy tradable product authority widened"
+            )
+        if row.get("roll_semantics_verified") is not False:
+            raise SharedBEnergyReferenceBoundaryError(
+                "energy roll semantics authority widened"
+            )
+        if row.get("front_contract_identity_verified") not in (None, False):
+            raise SharedBEnergyReferenceBoundaryError(
+                "energy front-contract authority widened"
+            )
+        if row.get("continuous_series_identity_verified") not in (None, False):
+            raise SharedBEnergyReferenceBoundaryError(
+                "energy continuous-series authority widened"
+            )
+
         output.append(
             {
                 "provider": row.get("provider"),
                 "provider_symbol_id": row.get("provider_symbol_id"),
                 "provider_symbol": symbol,
-                "current_reference_identity": row.get(
-                    "current_reference_identity"
-                ),
                 "identity_kind": "REFERENCE_OBJECT",
-                "reference_identity_verified": True,
+                "provider_reference_object_verified": True,
+                "provider_neutral_reference_identity": None,
+                "provider_neutral_reference_identity_verified": False,
                 "tradable_product_identity_verified": False,
                 "exchange_venue_identity_verified": False,
                 "front_contract_identity_verified": False,
@@ -105,29 +109,33 @@ def build_energy_reference_identity_boundary(
                 "reference_object_can_be_used_as_futures_identity": False,
                 "reference_object_can_define_futures_calendar": False,
                 "reference_object_can_define_roll_semantics": False,
+                "unknown_identity_preserved": True,
                 "execution_authority": False,
             }
         )
 
     output.sort(key=lambda row: str(row["provider_symbol"]))
-    if seen != set(_EXPECTED) or len(output) != 3:
+    if seen != _EXPECTED_SYMBOLS or len(output) != 3:
         raise SharedBEnergyReferenceBoundaryError(
             "expected exact XBRUSD/XTIUSD/XNGUSD energy set"
         )
 
     payload: dict[str, object] = {
         "identity": IDENTITY,
-        "status": "EXACT_ENERGY_REFERENCE_ONLY_BOUNDARY_FROZEN",
+        "status": "EXACT_ENERGY_PROVIDER_REFERENCE_ONLY_BOUNDARY_FROZEN",
         "energy_sensor_count": 3,
-        "reference_identity_verified_count": 3,
+        "provider_reference_object_verified_count": 3,
+        "provider_neutral_reference_identity_verified_count": 0,
         "tradable_product_identity_verified_count": 0,
         "exchange_venue_identity_verified_count": 0,
         "front_contract_identity_verified_count": 0,
         "continuous_series_identity_verified_count": 0,
         "roll_semantics_verified_count": 0,
+        "unknown_provider_neutral_identity_count": 3,
         "records": output,
-        "provider_symbol_similarity_used_as_futures_proof": False,
+        "provider_symbol_similarity_used_as_identity_proof": False,
         "automatic_futures_mapping": False,
+        "unknown_identity_preserved": True,
         "target_or_outcome_read": False,
         "r6_r5_read": False,
         "fresh_holdout_opened": False,
