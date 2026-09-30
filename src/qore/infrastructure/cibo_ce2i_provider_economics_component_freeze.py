@@ -235,6 +235,17 @@ def freeze_current_ctrader_demo_provider_economics(
     if not execution_model:
         blockers.append("EXECUTION_MODEL_NOT_FROZEN")
 
+    pre_holdout_ready = (
+        current_terms
+        and slippage
+        and execution_model
+        and not evidence.historical_exact_claimed
+        and not evidence.holdout_outcomes_used
+        and not evidence.target_aware
+        and not evidence.broker_mutation_performed
+        and not blockers
+    )
+
     return CiboProviderEconomicsComponentFreeze(
         freeze_id=PROVIDER_ECONOMICS_COMPONENT_FREEZE_ID,
         provider_key=evidence.provider_key,
@@ -258,7 +269,7 @@ def freeze_current_ctrader_demo_provider_economics(
         holdout_outcomes_used=evidence.holdout_outcomes_used,
         target_aware=evidence.target_aware,
         broker_mutation_performed=evidence.broker_mutation_performed,
-        pre_holdout_provider_economics_ready=False,
+        pre_holdout_provider_economics_ready=pre_holdout_ready,
         blockers=tuple(blockers),
         execution_calibration_sha256=execution_calibration_sha256,
         productive_authority=False,
