@@ -1,0 +1,66 @@
+{
+  "identity": "QORE_SHARED_STI8_RESEARCH_OOS_PREREGISTRATION_001",
+  "status": "FROZEN_BEFORE_ACQUISITION",
+  "research_capability": "STI-8_POSITION_THREAT_INTELLIGENCE",
+  "evidence_class": "BURNABLE_RESEARCH_OOS_NOT_CERTIFICATION_HOLDOUT",
+  "window": {
+    "opened_at_inclusive": "2022-07-18T00:00:00+00:00",
+    "checked_at_exclusive": "2024-07-18T00:00:00+00:00",
+    "minimum_actual_coverage_days": 720,
+    "markets": [
+      "NAS100",
+      "SP500",
+      "US30"
+    ],
+    "timeframe": "M1",
+    "provider_fabric": "CTRADER_DEMO_READ_ONLY"
+  },
+  "consumed_history_boundary": {
+    "latest_consumed_market_close": "2022-07-15T20:59:00+00:00",
+    "source": "QORE_SHARED_STI8_OOS_BOUNDARY_AUDIT_001",
+    "temporal_overlap_authorized": false
+  },
+  "frozen_engine": {
+    "source_sha": "711788d89521e051ab3969a9006830068381693e",
+    "script": "scripts/shared_sti6_sti8_real_position_intelligence.py",
+    "engine_module": "src/qore/infrastructure/core_stack_v2/shared_position_threat_intelligence.py"
+  },
+  "frozen_policy": {
+    "artifact_id": 11065709899,
+    "artifact_digest": "sha256:10c9941d119878159dfe10ae57997ebe18d638c0fcde07cb5bed176e5a18a415",
+    "source_only_fit_partition": "r8",
+    "no_retuning_after_r6_or_r5": true
+  },
+  "frozen_gates": {
+    "minimum_loss_precision_bps": 6000,
+    "minimum_loss_recall_bps": 4000,
+    "maximum_false_threat_on_nonlosses_bps": 4000,
+    "maximum_missed_loss_bps": 6000
+  },
+  "frozen_trader_methodology": {
+    "identity": "ttrades-am-silver-bullet-nq-r2.2",
+    "methodology_mutation_authorized": false,
+    "source_only_replay_required": true
+  },
+  "protocol": {
+    "acquire_provider_evidence_once": true,
+    "create_trader_rows_from_frozen_methodology": true,
+    "produce_all_source_time_threat_assessments_before_terminal_outcome_scoring": true,
+    "future_market_used_for_intelligence": false,
+    "outcome_used_for_engine_or_policy_selection": false,
+    "oos_result_may_be_pass_or_falsification": true,
+    "retuning_against_this_oos_forbidden": true,
+    "this_oos_burned_after_open": true
+  },
+  "governance": {
+    "protected_certification_holdout_opened": false,
+    "protected_certification_holdout_identified": false,
+    "live_authorized": false,
+    "production_authorized": false,
+    "real_capital_authorized": false,
+    "vps_mutation_authorized": false,
+    "broker_mutation_authorized": false,
+    "merge_authorized": false,
+    "productive_authority": false
+  }
+}
