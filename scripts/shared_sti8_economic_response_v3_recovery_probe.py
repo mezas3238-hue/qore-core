@@ -28,21 +28,37 @@ IDENTITY = "QORE_SHARED_STI8_ECONOMIC_RESPONSE_V3_RECOVERY_SOURCE_001"
 
 def main() -> None:
     credentials = CTraderOpenApiCredentials(
-        client_id=_required_env("QORE_CTRADER_CLIENT_ID", "QORE_CTRADER_DEMO_CLIENT_ID"),
-        client_secret=_required_env("QORE_CTRADER_CLIENT_SECRET", "QORE_CTRADER_DEMO_CLIENT_SECRET"),
-        access_token=_required_env("QORE_CTRADER_ACCESS_TOKEN", "QORE_CTRADER_DEMO_ACCESS_TOKEN"),
-        refresh_token=_required_env("QORE_CTRADER_REFRESH_TOKEN", "QORE_CTRADER_DEMO_REFRESH_TOKEN"),
+        client_id=_required_env(
+            "QORE_CTRADER_CLIENT_ID",
+            "QORE_CTRADER_DEMO_CLIENT_ID",
+        ),
+        client_secret=_required_env(
+            "QORE_CTRADER_CLIENT_SECRET",
+            "QORE_CTRADER_DEMO_CLIENT_SECRET",
+        ),
+        access_token=_required_env(
+            "QORE_CTRADER_ACCESS_TOKEN",
+            "QORE_CTRADER_DEMO_ACCESS_TOKEN",
+        ),
+        refresh_token=_required_env(
+            "QORE_CTRADER_REFRESH_TOKEN",
+            "QORE_CTRADER_DEMO_REFRESH_TOKEN",
+        ),
         ctid_trader_account_id=int(
             _required_env("QORE_CTRADER_DEMO_ACCOUNT_ID", "QORE_CTRADER_ACCOUNT_ID")
         ),
     )
     software_sha = _required_env("QORE_SOFTWARE_SHA")
     if re.fullmatch(r"[0-9a-f]{40}", software_sha) is None:
-        raise CTraderDemoLabProbeError("QORE_SOFTWARE_SHA must be exact lowercase Git SHA")
+        raise CTraderDemoLabProbeError(
+            "QORE_SOFTWARE_SHA must be exact lowercase Git SHA"
+        )
 
     market = os.environ.get("QORE_DEMO_LAB_SYMBOL", "")
     if market not in _RESEARCH_MARKETS:
-        raise CTraderDemoLabProbeError("STI-8 V3 recovery market must be NAS100, SP500 or US30")
+        raise CTraderDemoLabProbeError(
+            "STI-8 V3 recovery market must be NAS100, SP500 or US30"
+        )
 
     client = SpotwareCTraderOpenApiClient(credentials=credentials)
     try:
@@ -80,7 +96,14 @@ def main() -> None:
                 "productive_authority": False,
             }
         )
-        print(json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":")))
+        print(
+            json.dumps(
+                payload,
+                ensure_ascii=True,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+        )
     finally:
         client.close()
 
