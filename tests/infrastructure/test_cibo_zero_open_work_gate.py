@@ -27,6 +27,8 @@ gate = _load_gate_module()
 
 
 def _ledger(*, disposition: str | None, blocking: bool = True) -> dict:
+    terminal_count = 1 if disposition is not None else 0
+    open_count = 1 - terminal_count
     return {
         "schema": "QORE_CIBO_MASTER_OPEN_WORK_LEDGER_V1",
         "terminal_dispositions": [
@@ -35,6 +37,13 @@ def _ledger(*, disposition: str | None, blocking: bool = True) -> dict:
             "SUPERSEDED_WITH_PROVEN_LINEAGE",
             "EXTERNAL_DEPENDENCY_BLOCKED",
         ],
+        "current_summary": {
+            "mandatory_count": 1,
+            "terminal_count": terminal_count,
+            "open_count": open_count,
+            "zero_open_work_pass": open_count == 0,
+            "final_certification_candidate": False,
+        },
         "workstreams": [
             {
                 "id": "TEST",
@@ -47,7 +56,11 @@ def _ledger(*, disposition: str | None, blocking: bool = True) -> dict:
                     else "OPEN_REQUIRED"
                 ),
                 "terminal_disposition": disposition,
-                "evidence_refs": [],
+                "evidence_refs": (
+                    ["test://terminal-evidence"]
+                    if disposition is not None
+                    else []
+                ),
                 "blockers": (
                     ["REAL_EXTERNAL_BLOCKER"]
                     if disposition == "EXTERNAL_DEPENDENCY_BLOCKED"
@@ -212,6 +225,13 @@ def test_gate_marks_unclassified_inventory_as_orphan_candidate(
             "next_gate": "Classify every CIBO inventory path.",
         }
     )
+    payload["current_summary"] = {
+        "mandatory_count": 2,
+        "terminal_count": 1,
+        "open_count": 1,
+        "zero_open_work_pass": False,
+        "final_certification_candidate": False,
+    }
     _write(ledger, payload)
     source = tmp_path / "src"
     source.mkdir()
@@ -232,3 +252,168 @@ def test_gate_marks_unclassified_inventory_as_orphan_candidate(
     assert verdict.passed is False
     assert verdict.orphan_candidate_paths == ("src/cibo_unknown.py",)
     assert "UNCLASSIFIED_ORPHAN_CANDIDATE" in verdict.reasons
+
+
+def test_gate_rejects_current_summary_count_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    payload = _ledger(disposition=None)
+    payload["current_summary"]["open_count"] = 0
+    _write(ledger, payload)
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
+
+    with pytest.raises(
+        gate.CiboZeroOpenWorkGateError,
+        match="current_summary open_count drift",
+    ):
+        gate.evaluate_gate(repo_root=tmp_path, ledger_path=ledger)
+
+
+def test_gate_rejects_closed_terminal_with_blockers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    payload = _ledger(disposition="COMPLETED_AND_PROVEN")
+    payload["workstreams"][0]["blockers"] = ["STALE_BLOCKER"]
+    _write(ledger, payload)
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
+
+    with pytest.raises(
+        gate.CiboZeroOpenWorkGateError,
+        match="closed terminal workstream cannot retain blockers",
+    ):
+        gate.evaluate_gate(repo_root=tmp_path, ledger_path=ledger)
+
+
+def test_gate_rejects_terminal_without_evidence_refs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    payload = _ledger(disposition="FALSIFIED_AND_CLOSED")
+    payload["workstreams"][0]["current_maturity"] = "FALSIFIED_AND_CLOSED"
+    payload["workstreams"][0]["evidence_refs"] = []
+    _write(ledger, payload)
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
+
+    with pytest.raises(
+        gate.CiboZeroOpenWorkGateError,
+        match="terminal workstream requires evidence references",
+    ):
+        gate.evaluate_gate(repo_root=tmp_path, ledger_path=ledger)
+
+
+def test_gate_rejects_unsafe_final_candidate_flag(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    payload = _ledger(disposition="COMPLETED_AND_PROVEN")
+    payload["current_summary"]["final_certification_candidate"] = True
+    _write(ledger, payload)
+    monkeypatch.setattr(
+        gate,
+        "_REQUIRED_CANONICAL_ARTIFACTS",
+        ("required/missing.json",),
+    )
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
+
+    with pytest.raises(
+        gate.CiboZeroOpenWorkGateError,
+        match="final-certification candidate contradicts gate evidence",
+    ):
+        gate.evaluate_gate(repo_root=tmp_path, ledger_path=ledger)
+
+
+def _pre_exam_ledger() -> dict:
+    payload = _ledger(disposition="COMPLETED_AND_PROVEN")
+    payload["workstreams"][0]["id"] = "SCIENTIFIC_WORK"
+    payload["workstreams"].append(
+        {
+            "id": "FINAL_INTEGRATED_CIBO_EXAM",
+            "kind": "CERTIFICATION",
+            "mandatory": True,
+            "certification_blocking": True,
+            "current_maturity": "FINAL_EXAM_EXECUTION_BLOCKED",
+            "terminal_disposition": None,
+            "evidence_refs": ["docs/research/final-exam.md"],
+            "blockers": ["PRE_EXAM_ZERO_OPEN_PASS_REQUIRED"],
+            "next_gate": "Run the final integrated exam.",
+        }
+    )
+    payload["current_summary"] = {
+        "mandatory_count": 2,
+        "terminal_count": 1,
+        "open_count": 1,
+        "zero_open_work_pass": False,
+        "final_certification_candidate": False,
+    }
+    return payload
+
+
+def test_pre_exam_gate_excludes_only_final_exam(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    _write(ledger, _pre_exam_ledger())
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
+
+    pre_exam = gate.evaluate_pre_exam_gate(
+        repo_root=tmp_path,
+        ledger_path=ledger,
+    )
+    strict = gate.evaluate_gate(
+        repo_root=tmp_path,
+        ledger_path=ledger,
+    )
+
+    assert pre_exam.scope == "PRE_EXAM"
+    assert pre_exam.passed is True
+    assert pre_exam.open_workstream_ids == ()
+    assert pre_exam.mandatory_workstream_count == 1
+    assert strict.scope == "STRICT"
+    assert strict.passed is False
+    assert strict.open_workstream_ids == ("FINAL_INTEGRATED_CIBO_EXAM",)
+
+
+def test_pre_exam_gate_still_blocks_other_open_work(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    payload = _pre_exam_ledger()
+    payload["workstreams"][0]["current_maturity"] = "OPEN_REQUIRED"
+    payload["workstreams"][0]["terminal_disposition"] = None
+    payload["workstreams"][0]["evidence_refs"] = []
+    payload["current_summary"] = {
+        "mandatory_count": 2,
+        "terminal_count": 0,
+        "open_count": 2,
+        "zero_open_work_pass": False,
+        "final_certification_candidate": False,
+    }
+    _write(ledger, payload)
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
+
+    verdict = gate.evaluate_pre_exam_gate(
+        repo_root=tmp_path,
+        ledger_path=ledger,
+    )
+
+    assert verdict.passed is False
+    assert verdict.open_workstream_ids == ("SCIENTIFIC_WORK",)
