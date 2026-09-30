@@ -48,7 +48,10 @@ INTEGRATOR_EVIDENCE_CANDIDATES: Final = (
         "MC-09",
         "github-actions://36754966932/SUCCESS",
         ReconciliationReadiness.EVIDENCE_PRESENT,
-        "Belief-state real replay and temporal calibration evidence exist; formal maximum-standard closure audit remains required.",
+        (
+            "Belief-state real replay and temporal calibration evidence exist; "
+            "formal maximum-standard closure audit remains required."
+        ),
     ),
     IntegratorEvidenceCandidate(
         "A",
@@ -56,7 +59,10 @@ INTEGRATOR_EVIDENCE_CANDIDATES: Final = (
         "MC-10",
         "github-actions://36755380068/SUCCESS",
         ReconciliationReadiness.EVIDENCE_PRESENT,
-        "Market-physics foundation and transition-stability evidence exist; formal maximum-standard closure audit remains required.",
+        (
+            "Market-physics foundation and transition-stability evidence exist; "
+            "formal maximum-standard closure audit remains required."
+        ),
     ),
     IntegratorEvidenceCandidate(
         "A",
@@ -64,7 +70,10 @@ INTEGRATOR_EVIDENCE_CANDIDATES: Final = (
         "MC-11",
         "github-actions://36757812741/SUCCESS",
         ReconciliationReadiness.EVIDENCE_PRESENT,
-        "Neural-symbolic hard-constraint boundary is green; full capability closure still requires explicit audit against Standard 006.",
+        (
+            "Neural-symbolic hard-constraint boundary is green; full capability "
+            "closure still requires explicit audit against Standard 006."
+        ),
     ),
     IntegratorEvidenceCandidate(
         "A",
@@ -72,7 +81,10 @@ INTEGRATOR_EVIDENCE_CANDIDATES: Final = (
         "MC-16",
         "github-actions://36752791958/SUCCESS",
         ReconciliationReadiness.EVIDENCE_PRESENT,
-        "Scientific-memory verified binding is green and should be reconciled against the canonical MC-16 closure law.",
+        (
+            "Scientific-memory verified binding is green and should be reconciled "
+            "against the canonical MC-16 closure law."
+        ),
     ),
     IntegratorEvidenceCandidate(
         "A",
@@ -88,7 +100,10 @@ INTEGRATOR_EVIDENCE_CANDIDATES: Final = (
         "STI-10",
         "github-actions://36757202255/SUCCESS",
         ReconciliationReadiness.EVIDENCE_PRESENT,
-        "Real VT31 projection evidence exists; universal STI-10 closure must not be inferred from one Trader.",
+        (
+            "Real VT31 projection evidence exists; universal STI-10 closure must "
+            "not be inferred from one Trader."
+        ),
     ),
     IntegratorEvidenceCandidate(
         "A",
@@ -104,7 +119,10 @@ INTEGRATOR_EVIDENCE_CANDIDATES: Final = (
         "STI-12",
         "github-actions://36756749733/SUCCESS",
         ReconciliationReadiness.EVIDENCE_PRESENT,
-        "Swing-support semantics are green; closure audit must verify scope and evidence sufficiency.",
+        (
+            "Swing-support semantics are green; closure audit must verify scope "
+            "and evidence sufficiency."
+        ),
     ),
     IntegratorEvidenceCandidate(
         "A",
@@ -112,7 +130,10 @@ INTEGRATOR_EVIDENCE_CANDIDATES: Final = (
         "STI-14",
         "github-actions://36744108322/SUCCESS",
         ReconciliationReadiness.EVIDENCE_PRESENT,
-        "Real control/treatment attribution audit is green; canonical STI-14 state should be reconciled.",
+        (
+            "Real control/treatment attribution audit is green; canonical STI-14 "
+            "state should be reconciled."
+        ),
     ),
     IntegratorEvidenceCandidate(
         "B",
@@ -120,7 +141,10 @@ INTEGRATOR_EVIDENCE_CANDIDATES: Final = (
         "GW-1",
         "github-actions://36742519707/SUCCESS",
         ReconciliationReadiness.EVIDENCE_PRESENT,
-        "Provider catalogue/drift freeze is integrated and already corresponds to a closed provider-capability layer.",
+        (
+            "Provider catalogue/drift freeze is integrated and already corresponds "
+            "to a closed provider-capability layer."
+        ),
     ),
     IntegratorEvidenceCandidate(
         "B",
@@ -128,7 +152,10 @@ INTEGRATOR_EVIDENCE_CANDIDATES: Final = (
         "GW-20",
         "github-actions://36763268609/SUCCESS",
         ReconciliationReadiness.DEPENDENCY_OPEN,
-        "Unknown-world semantics are green, but surrounding observability/blindspot completeness remains open; no automatic GW-20 closure.",
+        (
+            "Unknown-world semantics are green, but surrounding observability/"
+            "blindspot completeness remains open; no automatic GW-20 closure."
+        ),
     ),
     IntegratorEvidenceCandidate(
         "B",
@@ -136,7 +163,10 @@ INTEGRATOR_EVIDENCE_CANDIDATES: Final = (
         "MC-28",
         "github-actions://36763268609/SUCCESS",
         ReconciliationReadiness.DEPENDENCY_OPEN,
-        "Core/Broker cognition and blindspot cluster still requires runtime replication and declared-scope completeness.",
+        (
+            "Core/Broker cognition and blindspot cluster still requires runtime "
+            "replication and declared-scope completeness."
+        ),
     ),
     IntegratorEvidenceCandidate(
         "B",
@@ -144,7 +174,10 @@ INTEGRATOR_EVIDENCE_CANDIDATES: Final = (
         "GW-21",
         "github-actions://36757173753/SUCCESS",
         ReconciliationReadiness.DEPENDENCY_OPEN,
-        "Sensor resource boundary is green while global 177-sensor causal qualification remains incomplete.",
+        (
+            "Sensor resource boundary is green while global 177-sensor causal "
+            "qualification remains incomplete."
+        ),
     ),
     IntegratorEvidenceCandidate(
         "B",
@@ -152,7 +185,10 @@ INTEGRATOR_EVIDENCE_CANDIDATES: Final = (
         "GW-18",
         "github-actions://36755296952/SUCCESS",
         ReconciliationReadiness.DEPENDENCY_OPEN,
-        "Relational lifecycle architecture is green but empirical global population awaits canonical temporal comparability.",
+        (
+            "Relational lifecycle architecture is green but empirical global "
+            "population awaits canonical temporal comparability."
+        ),
     ),
 )
 
