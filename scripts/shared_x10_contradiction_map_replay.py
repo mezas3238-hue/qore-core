@@ -150,7 +150,7 @@ def _evaluate(
         missing_state = build_contradiction_state(
             evidence,
             hypothesis_id="H1_WORLD_CONTINUATION",
-            required_groups=GROUPS + ("MACRO",),
+            required_groups=tuple(sorted((*GROUPS, "MACRO"))),
         )
         if "MACRO" not in missing_state.missing_evidence:
             raise AssertionError("required missing evidence was not surfaced")
