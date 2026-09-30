@@ -49,8 +49,17 @@ def main() -> None:
         raise AssertionError("MC15 uncertainty evidence missing")
     if mc15.get("calibration_state") != "UNCALIBRATED":
         raise AssertionError("MC15 uncertainty index semantics drifted")
-    if x10.get("status") != "X10_CONTRADICTION_MAP_REPLICATED_PASS":
-        raise AssertionError("X10 contradiction evidence missing")
+    if x10.get("status") != "X10_COMPLETED_AND_PROVEN_REPLICATED_REAL_DATA":
+        raise AssertionError("X10 final contradiction evidence missing")
+    if x10.get("all_pass") is not True:
+        raise AssertionError("X10 final contradiction proof did not pass")
+    x10_proof = x10.get("proof")
+    if not isinstance(x10_proof, dict):
+        raise AssertionError("X10 proof block missing")
+    if x10_proof.get("assertiveness_decreases_with_contradiction") is not True:
+        raise AssertionError("X10 contradiction monotonicity missing")
+    if x10_proof.get("assertiveness_decreases_with_missing_evidence") is not True:
+        raise AssertionError("X10 missing-evidence monotonicity missing")
     if mc23.get("status") != "MC23_REAL_NOVELTY_DETECTION_BOUND_PASS":
         raise AssertionError("MC23 novelty evidence missing")
     if mc23.get("novel_unknown_treated_as_known") is not False:
@@ -78,16 +87,24 @@ def main() -> None:
         uncertainty_values.append(int(baseline["epistemic_bps"]))
     uncertainty = _clip(max(uncertainty_values))
 
-    contradiction_values: list[int] = []
-    x10_results = x10.get("results")
-    if not isinstance(x10_results, dict):
-        raise AssertionError("X10 result partitions missing")
+    x10_partitions = x10.get("partitions")
+    if not isinstance(x10_partitions, dict):
+        raise AssertionError("X10 final partitions missing")
+    contradiction_observations = 0
+    high_contradiction_observations = 0
     for partition in ("r8", "r6", "r5"):
-        row = x10_results.get(partition)
+        row = x10_partitions.get(partition)
         if not isinstance(row, dict):
             raise AssertionError(f"X10 {partition} missing")
-        contradiction_values.append(int(row["baseline_contradiction_bps"]))
-    contradiction = _clip(max(contradiction_values))
+        count = int(row["source_observation_count"])
+        high = int(row["high_contradiction_observation_count"])
+        if count <= 0 or not 0 <= high <= count:
+            raise AssertionError(f"X10 {partition} contradiction incidence invalid")
+        contradiction_observations += count
+        high_contradiction_observations += high
+    contradiction = _clip(
+        high_contradiction_observations * 10_000 // contradiction_observations
+    )
 
     total = int(mc23["real_source_observations"])
     novel = int(mc23["real_novel_or_near_known_episode_count"])
@@ -163,7 +180,8 @@ def main() -> None:
         },
         "calibration_error_bps": calibration_error,
         "uncertainty_index_bps": uncertainty,
-        "contradiction_bps": contradiction,
+        "population_high_contradiction_incidence_bps": contradiction,
+        "population_high_contradiction_incidence_is_probability": False,
         "population_novelty_incidence_bps": novelty_incidence,
         "population_novelty_incidence_is_probability": False,
         "uncertainty_index_is_probability": False,
