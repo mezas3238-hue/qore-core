@@ -142,6 +142,29 @@ def materialize_as_is_economic_baseline(
         raise CiboCompoundCapitalError(
             "AS-IS baseline readiness/report consistency drift"
         )
+    if (
+        decision_epoch_count < plan.minimum_decision_epochs
+        or report.readiness.candidate_outcomes < plan.minimum_candidate_outcomes
+        or report.readiness.selected_outcomes < plan.minimum_selected_outcomes
+        or report.readiness.calendar_span_days < plan.minimum_calendar_span_days
+        or report.readiness.distinct_trading_days
+        < plan.minimum_distinct_trading_days
+        or report.readiness.represented_lineages < plan.minimum_global_lineages
+        or report.readiness.minimum_outcomes_any_lineage
+        < plan.minimum_outcomes_per_lineage
+        or report.readiness.minimum_fold_candidate_outcomes
+        < plan.minimum_fold_candidate_outcomes
+        or report.readiness.minimum_fold_lineages < plan.minimum_fold_lineages
+        or report.candidate_outcome_coverage
+        < plan.minimum_candidate_outcome_coverage
+        or report.policy_selected_outcome_coverage
+        < plan.required_selected_outcome_coverage
+        or report.baseline_selected_outcome_coverage
+        < plan.required_baseline_selected_outcome_coverage
+    ):
+        raise CiboCompoundCapitalError(
+            "AS-IS baseline frozen qualification thresholds not met"
+        )
     if sum(item.decision_epoch_count for item in report.folds) != decision_epoch_count:
         raise CiboCompoundCapitalError(
             "AS-IS baseline temporal fold population count drift"
