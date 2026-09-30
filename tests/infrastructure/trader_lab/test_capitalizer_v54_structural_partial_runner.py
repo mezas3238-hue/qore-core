@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import CapitalizerM1Bar
+from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
     V49Opportunity,
 )
@@ -13,7 +14,6 @@ from qore.infrastructure.trader_lab.capitalizer_v50_cognitive_geometry_specialis
 from qore.infrastructure.trader_lab.capitalizer_v50_target_stop_intelligence import (
     V50H1TargetCandidate,
 )
-from qore.infrastructure.trader_lab.capitalizer_exposure_graph import CapitalizerSide
 from qore.infrastructure.trader_lab.capitalizer_v54_structural_partial_runner import (
     _treatment_replay,
 )
