@@ -73,7 +73,10 @@ def validate_state(
             errors.append(f"required certification workstream missing: {required_exam}")
             continue
         if row.get("mandatory") is not True:
-            errors.append(\n                "required certification workstream is not mandatory: "\n                f"{required_exam}"\n            )
+            errors.append(
+                "required certification workstream is not mandatory: "
+                f"{required_exam}"
+            )
         if row.get("certification_blocking") is not True:
             errors.append(
                 f"required certification workstream is not blocking: {required_exam}"
@@ -143,7 +146,10 @@ def validate_state(
             errors.append("certification_ready cannot coexist with support blockers")
         if open_ids:
             errors.append("certification_ready requires zero open mandatory work")
-        if (\n            not isinstance(summary, dict)\n            or summary.get("zero_open_work_pass") is not True\n        ):
+        if (
+            not isinstance(summary, dict)
+            or summary.get("zero_open_work_pass") is not True
+        ):
             errors.append("certification_ready requires canonical zero-open pass")
         if (
             not isinstance(summary, dict)
