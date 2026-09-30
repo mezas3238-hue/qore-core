@@ -268,11 +268,15 @@ B_WORK_ITEMS: Final = (
         (
             "artifact:11059457712",
             "artifact:11126270432",
+            "artifact:11128508597",
             "run:36623645085",
             "run:36777269692",
+            "run:36783743044",
         ),
         (
             "current authorized provider exposes zero agricultural/soft/livestock candidates",
+            "strict read-only secondary-provider intake is implemented, but no "
+            "secondary provider is Owner-authorized or scientifically admitted",
         ),
     ),
     SharedBWorkItem(
