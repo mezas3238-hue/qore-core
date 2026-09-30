@@ -184,6 +184,29 @@
       "provider_symbol_to_tradable_identity_mapping_authorized": false,
       "canonical_tradable_identity_verified_count": 0,
       "protected_holdout_opened": false
+    },
+    "gw2_nonfx_census": {
+      "evidence_run_id": 36652731881,
+      "evidence_git_sha": "399c803ba0485a6cc61754c6c33da33436943c7c",
+      "equity_indices": 25,
+      "metals": 16,
+      "energy": 3,
+      "total_sensor_count": 44,
+      "underlying_canonical_identity_verified_count": 0,
+      "product_construction_verified_count": 0,
+      "provider_symbol_is_canonical_identity": false,
+      "protected_holdout_opened": false
+    },
+    "gw2_metals_iso4217": {
+      "evidence_run_id": 36652921751,
+      "evidence_git_sha": "aa3f343df41b9fcb4e1abc5d53bb968c2f4208e3",
+      "real_metal_sensors": 16,
+      "metal_reference_sensors": 11,
+      "component_verified_references": 11,
+      "gold_futures_deferred_to_contract_lane": 5,
+      "provider_symbol_to_reference_mapping_authorized": false,
+      "tradable_instrument_identity_verified_count": 0,
+      "protected_holdout_opened": false
     }
   },
   "productive_authority": {
