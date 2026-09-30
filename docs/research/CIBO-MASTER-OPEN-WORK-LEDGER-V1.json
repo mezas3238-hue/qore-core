@@ -988,26 +988,33 @@
       "kind": "CERTIFICATION",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "OPEN_REQUIRED",
+      "current_maturity": "FINAL_EXAM_PROTOCOL_PREREGISTERED_EXECUTION_BLOCKED",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "ALL_PRECEDING_MANDATORY_WORKSTREAMS_MUST_CLOSE"
+      "evidence_refs": [
+        "docs/research/CIBO-FINAL-INTEGRATED-CERTIFICATION-EXAM-PROTOCOL-V1.md",
+        "docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md"
       ],
-      "next_gate": "Run full chronological integrated capital cycle with exact accounting identity."
+      "blockers": [
+        "ZERO_OPEN_WORK_PASS_REQUIRED",
+        "FINAL_A_B_INTEGRATED_SOURCE_OF_TRUTH_RECONCILIATION_REQUIRED",
+        "PHASE20D_PHASE21_PHASE22_AND_HOLDOUT_CHAIN_REQUIRED",
+        "ALL_MANDATORY_SCIENTIFIC_AND_INTEGRATION_GATES_REQUIRED"
+      ],
+      "next_gate": "Run only after the integrated A+B HEAD satisfies the preregistered entry prerequisites, zero-open-work enforcement, governed holdout chain and all scientific/integration closures; then execute every non-compensatory assertion deterministically."
     },
     {
       "id": "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
       "kind": "CERTIFICATION",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "BLOCKED_BY_ORDINARY_CLOSURE",
+      "current_maturity": "SEPARATE_POST_ORDINARY_CERTIFICATION_PROGRAM_PROTOCOL_NOT_YET_ELIGIBLE_TO_FREEZE",
       "terminal_disposition": null,
       "evidence_refs": [],
       "blockers": [
-        "ZERO_OPEN_WORK_GATE_MUST_PASS_FIRST"
+        "ORDINARY_CIBO_CERTIFICATION_REQUIRED_BEFORE_WORLD_CUP_EXAM_PROTOCOL_FREEZE",
+        "SEPARATE_WORLD_CUP_PROVIDER_AND_COMPETITION_EVIDENCE_REQUIRED"
       ],
-      "next_gate": "Run only after ordinary CIBO absolute closure."
+      "next_gate": "Do not conflate with ordinary certification. After ordinary CIBO certification, freeze a separate World Cup maximum-capability exam protocol before consuming its competition-specific evidence."
     },
     {
       "id": "HISTORICAL_PHASE18_REPLAY_EVIDENCE",
