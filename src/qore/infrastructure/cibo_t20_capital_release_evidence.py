@@ -531,8 +531,8 @@ def build_t20_capital_release_evidence(
             "T20 settlement PnL binding drift"
         )
     if (
-        outcome.capacity_deployed_at is not None
-        and outcome.capacity_deployed_at != authorization.capacity_deployed_at
+        outcome.capital_deployed_at is not None
+        and outcome.capital_deployed_at != authorization.capacity_deployed_at
     ):
         raise CiboCompoundCapitalError(
             "T20 deployment timestamp binding drift"
