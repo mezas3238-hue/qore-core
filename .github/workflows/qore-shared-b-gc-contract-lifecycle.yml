@@ -1,0 +1,151 @@
+name: QORE Shared B GC Observed Contract Lifecycle
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - docs/shared/evidence/SHARED_B_GC_CONTRACT_LIFECYCLE_AUTHORITY_EVIDENCE_001.json
+      - src/qore/infrastructure/core_stack_v2/shared_b_gc_contract_lifecycle.py
+      - scripts/shared_b_gc_contract_lifecycle.py
+      - tests/infrastructure/test_shared_b_gc_contract_lifecycle.py
+      - .github/workflows/qore-shared-b-gc-contract-lifecycle.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-gc-contract-lifecycle-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  COMMODITY_RUN_ID: "36755839843"
+  COMMODITY_ARTIFACT_ID: "11115769948"
+  COMMODITY_GIT_SHA: "52092649a3f78e6449e52288786e1839a58ff916"
+
+jobs:
+  lifecycle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate GC lifecycle boundary
+        run: |
+          set -euo pipefail
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/shared_b_gc_contract_lifecycle.py \
+            scripts/shared_b_gc_contract_lifecycle.py \
+            tests/infrastructure/test_shared_b_gc_contract_lifecycle.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/shared_b_gc_contract_lifecycle.py \
+            scripts/shared_b_gc_contract_lifecycle.py
+          pytest -q tests/infrastructure/test_shared_b_gc_contract_lifecycle.py
+
+      - name: Verify exact sealed commodity lineage
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${COMMODITY_RUN_ID}" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${COMMODITY_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${COMMODITY_RUN_ID}" --jq '.head_sha')" = "$COMMODITY_GIT_SHA"
+
+      - name: Recover sealed commodity identity pack
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${COMMODITY_ARTIFACT_ID}/zip" > commodity.zip
+          unzip -q commodity.zip -d input
+          (cd input && sha256sum -c SHA256SUMS)
+          commodity_file="$(find input -name shared-b-commodity-observation-identity-pack.json -print -quit)"
+          test -n "$commodity_file"
+          printf 'COMMODITY_FILE=%s\n' "$commodity_file" >> "$GITHUB_ENV"
+
+      - name: Build observed GC lifecycle boundary
+        run: |
+          python scripts/shared_b_gc_contract_lifecycle.py \
+            --commodity-pack "$COMMODITY_FILE" \
+            --authority-evidence docs/shared/evidence/SHARED_B_GC_CONTRACT_LIFECYCLE_AUTHORITY_EVIDENCE_001.json \
+            --assessed-at "2026-09-30T21:42:00+00:00" \
+            --output result/shared-b-gc-observed-contract-lifecycle.json \
+            | tee result/summary.json
+
+      - name: Enforce no front or roll inference
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path(
+                  "result/shared-b-gc-observed-contract-lifecycle.json"
+              ).read_text()
+          )
+          assert p["identity"] == "SHARED_B_GC_OBSERVED_CONTRACT_LIFECYCLE_001"
+          assert p["status"] == "OBSERVED_GC_CHAIN_LIFECYCLE_FROZEN"
+          assert p["dated_gc_contract_count"] == 5
+          assert p["expired_before_assessment_month_count"] == 5
+          assert p["delivery_month_exact_expiry_unresolved_count"] == 0
+          assert p["future_contract_count"] == 0
+          assert p[
+              "all_observed_gc_contracts_expired_before_assessment_month"
+          ] is True
+          assert p[
+              "current_front_contract_absent_from_observed_set"
+          ] is True
+          assert p["observed_set_can_prove_current_gc_chain"] is False
+          assert p[
+              "current_front_contract_in_observed_set_verified_count"
+          ] == 0
+          assert p["front_contract_identity_complete"] is False
+          assert p["roll_semantics_complete"] is False
+          assert p["continuous_series_semantics_complete"] is False
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["historical_market_data_read"] is False
+          assert p["broker_mutation"] is False
+          assert p["sensor_admission_authorized"] is False
+          assert p["relational_claims_authorized"] is False
+          assert p["productive_authority"] is False
+          assert p["b15_complete"] is False
+          assert len(p["lifecycle_fingerprint_sha256"]) == 64
+          PY
+
+      - name: Seal B-15 GC lifecycle evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          sha256sum docs/shared/evidence/SHARED_B_GC_CONTRACT_LIFECYCLE_AUTHORITY_EVIDENCE_001.json \
+            > result/authority-evidence-sha256.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload B-15 GC lifecycle evidence
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-gc-contract-lifecycle-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report B-15 GC lifecycle frontier
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-15 GC lifecycle: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Official COMEX GC lifecycle applied to the exact 5 sealed dated contracts: all 5 contract months precede SEP-2026 and are therefore expired before the assessment month; current front candidate in observed set=0. Contract ordering was NOT used to infer front/roll and no continuous-series semantics were fabricated. B-15 remains OPEN because a current provider chain/front binding and explicit roll/continuous-series semantics are still absent."
