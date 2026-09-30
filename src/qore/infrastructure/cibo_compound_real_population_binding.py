@@ -34,10 +34,10 @@ class CompoundPopulationEvidenceKind(StrEnum):
 
 
 _FOLD_ORDER = {
-    "FOLD_1": 1,
-    "FOLD_2": 2,
-    "FOLD_3": 3,
-    "FOLD_4": 4,
+    "WF1": 1,
+    "WF2": 2,
+    "WF3": 3,
+    "WF4": 4,
 }
 
 
@@ -96,7 +96,7 @@ class ForwardCompoundEconomicRecord:
             )
         if self.qualification_fold_id not in _FOLD_ORDER:
             raise CiboCompoundCapitalError(
-                "real compound population requires frozen FOLD_1..FOLD_4"
+                "real compound population requires canonical WF1..WF4"
             )
         for name in ("decision_at", "deployed_at", "settled_at"):
             _aware(getattr(self, name), name)
