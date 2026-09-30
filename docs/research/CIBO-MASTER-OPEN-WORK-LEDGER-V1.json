@@ -232,30 +232,40 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "current_maturity": "FAIL_CLOSED_PROVIDER_UNIVERSE_EVIDENCE_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "src/qore/infrastructure/cibo_ce2i_calibration_registry.py",
+        "src/qore/infrastructure/cibo_instrument_capability_registry.py",
+        "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py"
       ],
       "blockers": [
-        "PROVIDER_UNIVERSE_SUPPORT_AND_ECONOMIC_EVIDENCE_REQUIRED_OR_FORMAL_INELIGIBILITY"
+        "CERTIFIED_HEDGE_PROVIDER_UNIVERSE_NOT_AVAILABLE",
+        "PROVIDER_VERIFIED_SUPPORT_OR_UNAVAILABLE_STATUS_REQUIRED",
+        "ECONOMIC_COST_RISK_EXECUTION_EVIDENCE_REQUIRED_IF_SUPPORTED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "Obtain provider-verified HEDGE capability evidence. If supported, execute provider-bound economic research; if provider-verified unavailable, close as current-provider ineligible without inventing capability."
     },
     {
       "id": "T17",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "current_maturity": "FAIL_CLOSED_PROVIDER_UNIVERSE_EVIDENCE_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "src/qore/infrastructure/cibo_ce2i_calibration_registry.py",
+        "src/qore/infrastructure/cibo_instrument_capability_registry.py",
+        "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py"
       ],
       "blockers": [
-        "PROVIDER_UNIVERSE_SUPPORT_AND_ECONOMIC_EVIDENCE_REQUIRED_OR_FORMAL_INELIGIBILITY"
+        "CERTIFIED_OPTION_DEFINED_RISK_SPREAD_PROVIDER_UNIVERSE_NOT_AVAILABLE",
+        "PROVIDER_VERIFIED_SUPPORT_OR_UNAVAILABLE_STATUS_REQUIRED",
+        "ECONOMIC_COST_RISK_EXECUTION_EVIDENCE_REQUIRED_IF_SUPPORTED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "Obtain provider-verified OPTION/DEFINED_RISK_SPREAD capability evidence. If supported, execute provider-bound economic research; if provider-verified unavailable, close as current-provider ineligible without inventing capability."
     },
     {
       "id": "T18",
@@ -692,13 +702,19 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "PARTIAL_REAL_BINDING",
+      "current_maturity": "POINT_IN_TIME_PROVIDER_TERMS_BOUND_HISTORICAL_AND_CAPABILITY_GAPS_OPEN",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "ALL_REQUIRED_PROVIDER_FIELDS_NOT_YET_PROVEN_FOR_ALL_CERTIFICATION_PATHS"
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py",
+        "src/qore/infrastructure/cibo_fundednext_provider.py",
+        "src/qore/infrastructure/cibo_instrument_capability_registry.py"
       ],
-      "next_gate": "Bind real provider-normalized equity/margin/volume/spec/tick/commission/spread/slippage semantics or mark ineligible."
+      "blockers": [
+        "HISTORICAL_PROVIDER_USD_ECONOMICS_NOT_AVAILABLE_FOR_LEGACY_REPLAY",
+        "EMPIRICAL_SLIPPAGE_CALIBRATION_REQUIRED_WHERE_USD_CLAIMS_REQUIRE_IT",
+        "T16_T17_PROVIDER_CAPABILITY_UNIVERSE_NOT_PROVIDER_VERIFIED"
+      ],
+      "next_gate": "Bind only provider-native point-in-time terms and forward observed costs; keep historical research R-denominated where USD fields are absent; obtain provider-verified T16/T17 capability evidence."
     },
     {
       "id": "FORWARD_QUALIFICATION",
@@ -756,13 +772,24 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "OPEN_REQUIRED",
+      "current_maturity": "PRE_HOLDOUT_PHASE20D_PHASE21_PHASE22_GATES_IMPLEMENTED_REAL_FORWARD_PREREQUISITES_OPEN",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "MANDATORY_CAPABILITIES_NOT_READY_FOR_FINAL_OOS"
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
+        "src/qore/infrastructure/cibo_ce2i_pre_holdout_checkpoint.py",
+        "src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py",
+        "src/qore/infrastructure/cibo_ce2i_phase22_holdout_gate.py",
+        "src/qore/infrastructure/cibo_ce2i_phase22_qualification.py",
+        ".github/workflows/cibo-pre-holdout-checkpoint.yml"
       ],
-      "next_gate": "Run only after mechanisms/policies/gates freeze."
+      "blockers": [
+        "PHASE20D_REAL_FORWARD_POPULATION_THRESHOLDS_NOT_YET_PASSED",
+        "PHASE21_POLICY_FREEZE_CANNOT_SEAL_BEFORE_FORWARD_QUALIFICATION",
+        "PHASE21_FORWARD_EMPIRICAL_VALIDATIONS_REQUIRED",
+        "PROVIDER_ECONOMICS_AND_CALIBRATION_FREEZE_MUST_BE_SEALED",
+        "2017H1_HOLDOUT_MUST_REMAIN_SEALED_UNTOUCHED_UNTIL_ALL_PREREQUISITES_PASS"
+      ],
+      "next_gate": "Collect the real frozen post-freeze Phase20D forward population to thresholds; pass exact causal-tool gates and Phase21 empirical validations; seal Phase21 policy freeze; only then become READY_TO_UNSEAL_2017H1. Do not open holdout from this workstream."
     },
     {
       "id": "TEMPORAL_REPLICATION",
