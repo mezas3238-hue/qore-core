@@ -20,6 +20,7 @@ from qore.infrastructure.cibo_ctrader_demo_account_capability import (
 )
 from qore.infrastructure.cibo_ctrader_demo_instrument_taxonomy import (
     CTraderDemoInstrumentTaxonomyObservation,
+    assert_taxonomy_bound_to_capability,
 )
 from qore.infrastructure.cibo_instrument_capability_registry import (
     CapabilityStatus,
@@ -126,14 +127,15 @@ def reconcile_ctrader_demo_capability_registry(
             raise CiboCompoundCapitalError(
                 "cTrader capability taxonomy evidence invalid"
             )
-        if taxonomy.account_ref != observation.account_ref:
-            raise CiboCompoundCapitalError(
-                "cTrader capability taxonomy account binding mismatch"
+        try:
+            assert_taxonomy_bound_to_capability(
+                capability=observation,
+                taxonomy=taxonomy,
             )
-        if taxonomy.symbol_catalog_sha256 != observation.catalog_sha256:
+        except Exception as error:
             raise CiboCompoundCapitalError(
-                "cTrader capability taxonomy catalog binding mismatch"
-            )
+                f"cTrader capability taxonomy binding invalid: {error}"
+            ) from error
 
     produced = produced_at or (
         taxonomy.observed_at if taxonomy is not None else observation.observed_at
