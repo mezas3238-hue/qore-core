@@ -72,7 +72,13 @@ def run(*, provider_schedule: Path, output: Path) -> dict[str, object]:
             "canonical_pair_identity_verified":False,
         })
 
-    pairs.sort(key=lambda row:(str(row["base_asset_name"]),str(row["quote_asset_name"]),str(row["provider_symbol"])))
+    pairs.sort(
+        key=lambda row: (
+            str(row["base_asset_name"]),
+            str(row["quote_asset_name"]),
+            str(row["provider_symbol"]),
+        )
+    )
     payload={
         "identity":IDENTITY,
         "status":"REAL_PROVIDER_FX_IDENTITY_EVIDENCE_CENSUS",
