@@ -7,7 +7,6 @@ on:
   pull_request:
     paths:
       - "src/qore/infrastructure/core_stack_v2/market_physics_constraints.py"
-      - "src/qore/infrastructure/core_stack_v2/shared_zero_open_work.py"
       - "tests/infrastructure/test_core_stack_v2_market_physics_constraints.py"
       - "scripts/shared_mc09_belief_state_real_position_replay.py"
       - "scripts/shared_mc09_belief_state_calibration.py"
