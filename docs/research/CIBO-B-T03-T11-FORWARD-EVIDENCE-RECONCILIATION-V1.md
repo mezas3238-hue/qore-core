@@ -69,3 +69,30 @@ The following remain independent mandatory blockers:
 
 No fixture, linear-cost readiness result, or current provider observation may
 be relabeled as a terminal T11 policy proof.
+
+
+## T03 equivalent-expression comparison contract
+
+Architect B now includes a fail-closed pairwise comparison surface:
+
+- `cibo_ce2i_t03_equivalent_expression.py`;
+- `test_cibo_ce2i_t03_equivalent_expression.py`;
+- `QORE CIBO B Provider Forward Tool Readiness`.
+
+The comparison accepts only predecision, provider-verified expressions bound to
+the same provider/account scope. Economic equivalence is not inferred from
+symbol names, contract classes, lower margin, leverage, or taxonomy. Both
+expressions must carry the exact same normalized exposure vector.
+
+A candidate can become only `mechanically_eligible=true` when normalized
+exposure is identical, provider/account scope matches, provider and execution
+evidence are explicit, margin is lower, stop-risk does not increase and
+stressed economic loss does not increase.
+
+The audit records margin savings, risk deltas and execution-cost delta but
+hard-codes `fresh_oos_utility_demonstrated=false`,
+`t03_policy_ready=false` and `productive_authority=false`.
+
+This closes the missing T03 comparison infrastructure, not the empirical T03
+gate. Real provider-bound equivalent candidates and fresh OOS economic utility
+remain mandatory.
