@@ -841,12 +841,35 @@
       "note": "Source-of-truth and Zero Open implementations are terminal. Zero Open verdicts remain fail-closed while external dependencies or the two real exams remain unresolved. World Cup software gate is green but the real World Cup exam remains OPEN.",
       "productive_authority": false,
       "certification_claim": false
+    },
+    {
+      "owner": "INTEGRATOR_POST_62_CHILD_ABSORPTION_STAGED",
+      "source_head_sha": "532f19c0774f3ccd2c42be943b236a154c85a8a3",
+      "items": [
+        {
+          "owner": "ARCHITECT_A",
+          "child_head_sha": "2383d6de4bff9c671cc9ed22444935488f010377",
+          "integrated_surface": "17 hardened modules + matching tests + two scientific documents",
+          "child_ci": "54 SUCCESS / 1 workflow-import regression at observation",
+          "integrator_action": "Preserve Integrator workflows; repair legacy test import deterministically; exact-head CI required before scientific promotion."
+        },
+        {
+          "owner": "ARCHITECT_B",
+          "child_head_sha": "aa412b3b7de0824c9b809edba7eeb617cf3571b5",
+          "integrated_surface": "T16 provider-native post-declaration market structure/economics lane",
+          "child_workflow_run_id": 36817089026,
+          "status": "SUCCESS",
+          "integrator_action": "Retain T16 as certification-blocking external dependency; provider-native spread/commission does not fabricate realized slippage or execution cost."
+        }
+      ],
+      "productive_authority": false,
+      "certification_claim": false
     }
   ],
   "pending_candidates": [
     {
       "owner": "ARCHITECT_A",
-      "latest_head_sha": "453e4c0a9f3a84440e7de38e9bc456c3e7d711db",
+      "latest_head_sha": "2383d6de4bff9c671cc9ed22444935488f010377",
       "reasons": [
         "CURRENT_HEAD_CI_PENDING",
         "A_SUPPORT_002_MANDATORY_WORKSTREAM_DRIFT_UPSTREAM",
@@ -875,7 +898,7 @@
     },
     {
       "owner": "ARCHITECT_B",
-      "latest_head_sha": "89faf02d32ad54172cd10e6e28d8e3b734802f6e",
+      "latest_head_sha": "aa412b3b7de0824c9b809edba7eeb617cf3571b5",
       "reasons": [
         "CURRENT_HEAD_CI_PENDING",
         "B_SUPPORT_001_USD60_READINESS_SELF_ATTESTATION_UPSTREAM",
@@ -914,13 +937,12 @@
   "certification_claim": false,
   "productive_authority": false,
   "integrator_pending": {
-    "head_sha": "5146077c41ccb7cfdda319162ef6c5f34d55f478",
+    "head_sha": "532f19c0774f3ccd2c42be943b236a154c85a8a3",
     "reasons": [
+      "POST_62_A_B_ABSORPTION_EXACT_INTEGRATOR_HEAD_CI_REQUIRED",
       "FINAL_INTEGRATED_CIBO_EXAM_REAL_EXECUTION_OPEN",
       "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM_REAL_EXECUTION_OPEN",
-      "CERTIFICATION_BLOCKING_EXTERNAL_EVIDENCE_DEPENDENCIES_REMAIN",
-      "ARCHITECT_A_POST_SNAPSHOT_HARDENING_DELTA_PENDING_INTEGRATION",
-      "ARCHITECT_B_T16_PROVIDER_NATIVE_DELTA_PENDING_INTEGRATION_REPAIR"
+      "CERTIFICATION_BLOCKING_EXTERNAL_EVIDENCE_DEPENDENCIES_REMAIN"
     ],
     "staged_components": [
       "CROSSBOUNDARY_SOURCE_BOUND_RECEIPTS",

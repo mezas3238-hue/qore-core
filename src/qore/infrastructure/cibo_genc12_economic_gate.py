@@ -140,20 +140,13 @@ class Genc12EconomicGateRow:
             "production_promotion",
         ):
             if type(getattr(self, name)) is not bool:
-                raise CiboCapitalManagementError(
-                    f"Genc12EconomicGateRow {name} must be bool"
-                )
+                raise CiboCapitalManagementError(f"Genc12EconomicGateRow {name} must be bool")
         if (
             not isinstance(self.failed_dimensions, tuple)
-            or any(
-                not isinstance(item, str) or not item
-                for item in self.failed_dimensions
-            )
+            or any(not isinstance(item, str) or not item for item in self.failed_dimensions)
             or len(self.failed_dimensions) != len(set(self.failed_dimensions))
         ):
-            raise CiboCapitalManagementError(
-                "Genc12EconomicGateRow failed dimensions are invalid"
-            )
+            raise CiboCapitalManagementError("Genc12EconomicGateRow failed dimensions are invalid")
         if self.weighted_score_used or self.production_promotion:
             raise CiboCapitalManagementError(
                 "Genc12EconomicGateRow cannot score/promote production"
@@ -164,9 +157,7 @@ class Genc12EconomicGateRow:
                 or self.strict_economic_improvement
                 or self.failed_dimensions
             ):
-                raise CiboCapitalManagementError(
-                    "Genc12EconomicGateRow CONTROL row drift"
-                )
+                raise CiboCapitalManagementError("Genc12EconomicGateRow CONTROL row drift")
             return
         expected_status = (
             Genc12EconomicGateStatus.REJECTED_SAFETY_DETERIORATION

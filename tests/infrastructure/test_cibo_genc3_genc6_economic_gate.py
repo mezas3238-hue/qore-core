@@ -215,3 +215,22 @@ def test_productive_authority_is_illegal() -> None:
             ),
             productive_authority=True,
         )
+
+def test_verdict_rejects_manual_status_fold_drift() -> None:
+    report = evaluate_genc3_genc6_economic_gate(
+        _batch(Genc3To6Workstream.GENC3)
+    )
+    verdict = next(
+        item for item in report.verdicts
+        if item.candidate_id == "treatment"
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="status/fold drift",
+    ):
+        replace(
+            verdict,
+            status=Genc3To6EconomicStatus.REJECTED_NOT_STRICT_4_OF_4,
+        )
+

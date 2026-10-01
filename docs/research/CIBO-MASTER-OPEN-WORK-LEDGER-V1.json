@@ -371,7 +371,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "current_maturity": "ENGINEERING_CLOSED_PROVIDER_NATIVE_POST_DECLARATION_TERMS_BOUND_EXTERNAL_REAL_EXECUTION_OOS_REQUIRED",
       "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -399,15 +399,21 @@
         "docs/research/CIBO-B-T16-HEDGE-PAIR-PREREGISTRATION-V1.json",
         ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
         "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
-        "github-actions://36814558004/SUCCESS"
+        "github-actions://36814558004/SUCCESS",
+        "scripts/cibo_t16_ctrader_demo_post_declaration_probe.py",
+        "tests/infrastructure/test_cibo_t16_ctrader_demo_post_declaration_probe.py",
+        ".github/workflows/cibo-t16-post-declaration-market-structure.yml",
+        "docs/research/CIBO-B-T16-POST-DECLARATION-MARKET-STRUCTURE-V1.md",
+        "github-actions://36817089026/SUCCESS"
       ],
       "blockers": [
         "REAL_POST_DECLARATION_HEDGE_RETURN_POPULATION_REQUIRED",
-        "HEDGE_INSTRUMENT_BASIS_RISK_COST_CORRELATION_EXECUTION_EVIDENCE_REQUIRED",
+        "REALIZED_SLIPPAGE_AND_EXECUTION_COVERAGE_REQUIRED",
+        "FULL_HEDGE_COST_MODEL_REQUIRED",
         "NET_ECONOMIC_BENEFIT_NOT_PROVEN",
         "PROVIDER_BOUND_FRESH_OOS_HEDGE_UTILITY_REQUIRED"
       ],
-      "next_gate": "External evidence dependency only. Reopen scientific evaluation when the recorded forward/provider population requirement becomes available; this disposition remains certification-blocking."
+      "next_gate": "Provider-native quoted spread and commission metadata are now bound. Reopen scientific evaluation only when realized slippage/execution, full hedge-cost evidence and fresh-OOS utility become available."
     },
     {
       "id": "T17",

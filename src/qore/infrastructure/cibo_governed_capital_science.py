@@ -73,6 +73,24 @@ _TERMINAL = {
     Genc14ScienceStage.REJECTED_AND_CLOSED,
 }
 
+_CANONICAL_EVIDENCE_SEQUENCE = (
+    Genc14EvidenceKind.PREREGISTRATION,
+    Genc14EvidenceKind.SIMULATION,
+    Genc14EvidenceKind.OOS,
+    Genc14EvidenceKind.STRESS,
+    Genc14EvidenceKind.TEMPORAL_REPLICATION,
+)
+
+_PASSED_STAGE_EVIDENCE_COUNT = {
+    Genc14ScienceStage.HYPOTHESIS: 0,
+    Genc14ScienceStage.PREREGISTERED: 1,
+    Genc14ScienceStage.SIMULATION_PASS: 2,
+    Genc14ScienceStage.OOS_PASS: 3,
+    Genc14ScienceStage.STRESS_PASS: 4,
+    Genc14ScienceStage.TEMPORAL_REPLICATION_PASS: 5,
+    Genc14ScienceStage.OWNER_REVIEW_REQUIRED: 5,
+}
+
 
 def _aware(value: datetime, name: str) -> None:
     if (
@@ -133,6 +151,16 @@ class Genc14CapitalHypothesis:
                 "GEN-C14 candidate must have distinct semantic identity"
             )
         _aware(self.created_at, "created_at")
+        for name in (
+            "outcome_selected",
+            "world_cup_target_fitted",
+            "productive_control_mutated",
+            "auto_promotion_allowed",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(
+                    f"GEN-C14 hypothesis {name} must be bool"
+                )
         if (
             self.outcome_selected
             or self.world_cup_target_fitted
@@ -169,10 +197,17 @@ class Genc14ScienceEvidence:
         _sha(self.candidate_policy_sha256, "candidate_policy_sha256")
         _aware(self.evaluated_at, "evaluated_at")
         _sha(self.evidence_sha256, "evidence_sha256")
-        if type(self.passed) is not bool:
-            raise CiboCapitalManagementError(
-                "GEN-C14 evidence passed must be bool"
-            )
+        for name in (
+            "passed",
+            "burned_data_used",
+            "protected_holdout_used",
+            "future_leakage_used",
+            "post_hoc_gate_changed",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(
+                    f"GEN-C14 evidence {name} must be bool"
+                )
         if (
             self.future_leakage_used
             or self.post_hoc_gate_changed
@@ -233,6 +268,16 @@ class Genc14ScienceRecord:
             raise CiboCapitalManagementError(
                 "GEN-C14 productive control SHA drift"
             )
+        if (
+            not isinstance(self.evidence, tuple)
+            or any(
+                not isinstance(item, Genc14ScienceEvidence)
+                for item in self.evidence
+            )
+        ):
+            raise CiboCapitalManagementError(
+                "GEN-C14 science record requires canonical evidence"
+            )
         ids = tuple(item.evidence_id for item in self.evidence)
         if len(ids) != len(set(ids)):
             raise CiboCapitalManagementError(
@@ -246,13 +291,34 @@ class Genc14ScienceRecord:
             raise CiboCapitalManagementError(
                 "GEN-C14 evidence candidate lineage drift"
             )
-        if self.stage in {
+        if any(item.evaluated_at > self.updated_at for item in self.evidence):
+            raise CiboCapitalManagementError(
+                "GEN-C14 record contains evidence from the future"
+            )
+        _validate_science_evidence_chain(self.stage, self.evidence)
+        closed_failure = self.stage in {
             Genc14ScienceStage.FALSIFIED_AND_CLOSED,
             Genc14ScienceStage.REJECTED_AND_CLOSED,
-        } and not self.closure_reason:
+        }
+        if closed_failure and not self.closure_reason:
             raise CiboCapitalManagementError(
                 "GEN-C14 closed failure requires reason"
             )
+        if not closed_failure and self.closure_reason is not None:
+            raise CiboCapitalManagementError(
+                "GEN-C14 open/pass stage cannot carry closure reason"
+            )
+        for name in (
+            "protected_holdout_opened_by_engine",
+            "productive_control_mutated",
+            "automatic_promotion",
+            "certification_claimed",
+            "owner_decision_recorded",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(
+                    f"GEN-C14 science record {name} must be bool"
+                )
         if (
             self.protected_holdout_opened_by_engine
             or self.productive_control_mutated
@@ -293,6 +359,49 @@ class Genc14ScienceRecord:
         }
         raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
         return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+def _validate_science_evidence_chain(
+    stage: Genc14ScienceStage,
+    evidence: tuple[Genc14ScienceEvidence, ...],
+) -> None:
+    kinds = tuple(item.kind for item in evidence)
+    if len(kinds) > len(_CANONICAL_EVIDENCE_SEQUENCE):
+        raise CiboCapitalManagementError(
+            "GEN-C14 evidence chain exceeds canonical gates"
+        )
+    if kinds != _CANONICAL_EVIDENCE_SEQUENCE[: len(kinds)]:
+        raise CiboCapitalManagementError(
+            "GEN-C14 stage/evidence chain drift"
+        )
+    expected_count = _PASSED_STAGE_EVIDENCE_COUNT.get(stage)
+    if expected_count is not None:
+        if len(evidence) != expected_count or any(
+            not item.passed for item in evidence
+        ):
+            raise CiboCapitalManagementError(
+                "GEN-C14 stage/evidence chain drift"
+            )
+        return
+    if stage is Genc14ScienceStage.FALSIFIED_AND_CLOSED:
+        if (
+            not evidence
+            or any(not item.passed for item in evidence[:-1])
+            or evidence[-1].passed
+        ):
+            raise CiboCapitalManagementError(
+                "GEN-C14 falsified stage/evidence chain drift"
+            )
+        return
+    if stage is Genc14ScienceStage.REJECTED_AND_CLOSED:
+        if any(not item.passed for item in evidence):
+            raise CiboCapitalManagementError(
+                "GEN-C14 rejected stage/evidence chain drift"
+            )
+        return
+    raise CiboCapitalManagementError(
+        "GEN-C14 unsupported science stage"
+    )
 
 
 def start_genc14_science(

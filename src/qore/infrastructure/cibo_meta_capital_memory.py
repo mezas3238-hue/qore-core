@@ -172,6 +172,16 @@ class Genc13CapitalEpisode:
             raise CiboCapitalManagementError(
                 "GEN-C13 capital_minutes must be positive"
             )
+        for name in (
+            "decision_frozen_before_outcome",
+            "outcome_reconciled",
+            "historical_decision_mutated",
+            "productive_authority",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(
+                    f"GEN-C13 episode {name} must be bool"
+                )
         if (
             not self.decision_frozen_before_outcome
             or not self.outcome_reconciled
@@ -226,6 +236,10 @@ class Genc13PhenotypeEvidence:
             )
         _sha(self.evidence_sha256, "phenotype evidence_sha256")
         _aware(self.identified_at, "phenotype identified_at")
+        if type(self.causal_attribution_claimed) is not bool:
+            raise CiboCapitalManagementError(
+                "GEN-C13 phenotype causal_attribution_claimed must be bool"
+            )
         if self.causal_attribution_claimed:
             raise CiboCapitalManagementError(
                 "GEN-C13 phenotype cannot assume causal attribution"
@@ -273,6 +287,17 @@ class Genc13CounterfactualStudy:
             "optionality_delta_usd",
         ):
             _finite(getattr(self, name), name)
+        for name in (
+            "post_outcome_research",
+            "causal_effect_identified",
+            "historical_decision_rewritten",
+            "production_recommendation",
+            "config_mutation_authority",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(
+                    f"GEN-C13 counterfactual {name} must be bool"
+                )
         if (
             not self.post_outcome_research
             or self.causal_effect_identified
@@ -356,6 +381,16 @@ class Genc13SkepticReport:
             raise CiboCapitalManagementError(
                 "GEN-C13 preregistration flag must be bool"
             )
+        for name in (
+            "historical_policy_mutated",
+            "automatic_promotion",
+            "productive_authority",
+            "certification_ready",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(
+                    f"GEN-C13 skeptic report {name} must be bool"
+                )
         if (
             self.winning_counterfactual_id is not None
             or self.historical_policy_mutated

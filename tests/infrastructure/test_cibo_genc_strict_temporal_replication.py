@@ -14,6 +14,11 @@ from qore.infrastructure.cibo_adaptive_compound_speed_shadow import (
     genc8_policy_sha256,
 )
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
+from qore.infrastructure.cibo_genc10_transition_uncertainty_calibration import (
+    Genc10ObservedTransition,
+    Genc10TransitionEvidenceKind,
+    calibrate_genc10_transition_uncertainty,
+)
 from qore.infrastructure.cibo_genc11_genc13_utility_gate import (
     Genc11Genc13UtilityInput,
     Genc11Genc13Workstream,
@@ -55,6 +60,40 @@ START = datetime(2026, 9, 30, 12, tzinfo=UTC)
 
 def _sha(char: str) -> str:
     return "sha256:" + char * 64
+
+
+def _transition_calibration(
+    population_sha256: str,
+    index: int,
+):
+    start = START - timedelta(hours=2)
+    observation = Genc10ObservedTransition(
+        transition_id=f"genc11-fold-calibration-{index}",
+        account_identity_fingerprint="ctrader:demo:account-a",
+        conditioning_key="BALANCED",
+        start_twin_sha256=_sha("6"),
+        end_twin_sha256=_sha("7"),
+        provider_registry_sha256=_sha("8"),
+        observed_start_at=start,
+        observed_end_at=start + timedelta(hours=1),
+        realized_capital_delta_usd=Decimal("1"),
+        compound_value_delta_usd=Decimal("1"),
+        protected_floor_delta_usd=Decimal("0"),
+        stop_risk_capacity_delta_usd=Decimal("0"),
+        stop_risk_usage_delta_usd=Decimal("0"),
+        margin_capacity_delta_usd=Decimal("0"),
+        margin_usage_delta_usd=Decimal("0"),
+        active_deployment_count_delta=0,
+        known_option_count_delta=0,
+        provider_constraints_changed=False,
+        evidence_kind=Genc10TransitionEvidenceKind.FORWARD_OBSERVED,
+        decision_population_sha256=population_sha256,
+    )
+    return calibrate_genc10_transition_uncertainty(
+        observations=(observation,),
+        source_population_sha256=population_sha256,
+        calibration_cutoff_at=START,
+    )
 
 
 def _genc7_observation(
@@ -279,6 +318,11 @@ def _genc11_13_folds(
     workstream: Genc11Genc13Workstream,
 ) -> tuple[Genc11Genc13TemporalFoldEvidence, ...]:
     rows = []
+    calibration = (
+        _transition_calibration(_sha("9"), 9)
+        if workstream is Genc11Genc13Workstream.GENC11
+        else None
+    )
     for index, fold_id in enumerate(FOLDS, start=1):
         report = Genc9ResearchReport(
             research_id=f"{workstream.value}-{fold_id}",
@@ -298,12 +342,13 @@ def _genc11_13_folds(
                 ),
             ),
         )
+        population_sha256 = _sha(str(index))
         common = dict(
             evaluation_id=f"{workstream.value}-{fold_id}",
             workstream=workstream,
             control_candidate_id="control",
             treatment_candidate_id="treatment",
-            population_sha256=_sha(str(index)),
+            population_sha256=population_sha256,
             provider_surface_sha256=_sha("a"),
             protocol_binding_sha256=_sha("c"),
             research_report=report,
@@ -312,10 +357,15 @@ def _genc11_13_folds(
             temporal_separation_proven=True,
         )
         if workstream is Genc11Genc13Workstream.GENC11:
+            assert calibration is not None
             evidence = Genc11Genc13UtilityInput(
                 **common,
                 transition_uncertainty_calibrated=True,
-                transition_calibration_sha256=_sha("d"),
+                transition_calibration_sha256=calibration.report_sha256,
+                transition_calibration_population_sha256=(
+                    calibration.source_population_sha256
+                ),
+                transition_calibration_report=calibration,
             )
         else:
             evidence = Genc11Genc13UtilityInput(
@@ -420,3 +470,37 @@ def test_genc11_rejects_protocol_drift_between_folds() -> None:
         match="treatment/control/protocol drift",
     ):
         evaluate_genc11_genc13_temporal_replication(tuple(folds))
+
+def test_genc_temporal_fold_result_rejects_manual_pass_drift() -> None:
+    report = evaluate_genc7_temporal_replication(
+        treatment_candidate_id="protect",
+        folds=_genc7_folds(),
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="pass/status drift",
+    ):
+        replace(report.fold_results[0], passed=False)
+
+def test_genc11_rejects_calibration_lineage_drift_between_folds() -> None:
+    folds = list(_genc11_13_folds(Genc11Genc13Workstream.GENC11))
+    other = _transition_calibration(_sha("8"), 8)
+    folds[1] = replace(
+        folds[1],
+        evidence=replace(
+            folds[1].evidence,
+            transition_calibration_sha256=other.report_sha256,
+            transition_calibration_population_sha256=(
+                other.source_population_sha256
+            ),
+            transition_calibration_report=other,
+        ),
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="transition calibration drift",
+    ):
+        evaluate_genc11_genc13_temporal_replication(tuple(folds))
+

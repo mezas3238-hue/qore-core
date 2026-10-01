@@ -245,3 +245,23 @@ under the Owner's no-workflow-flood policy.
 - Canonical ledger target: 64 mandatory / 62 terminal / 2 open.
 - The two remaining OPEN workstreams are the actual Final Integrated CIBO Exam
   and the actual World Cup Maximum-Capability Exam.
+
+
+## 2026-10-01 continuous A/B absorption snapshot
+
+- Integrator base: `532f19c0774f3ccd2c42be943b236a154c85a8a3`.
+- Architect A child snapshot: `2383d6de4bff9c671cc9ed22444935488f010377`.
+- Architect B child snapshot: `aa412b3b7de0824c9b809edba7eeb617cf3571b5`.
+- A accounting: 173 changed / 106 byte-integrated / 67 deliberate overrides.
+- B accounting: 112 changed / 85 byte-integrated / 27 deliberate overrides.
+- No child-delta file is unaccounted.
+- A's useful post-snapshot hardenings are staged as modules/tests while the
+  child workflow regression that removed the import environment is not copied.
+  The legacy quarantine test is instead made deterministic via direct script
+  loading.
+- B's T16 provider-native lane is staged from child run `36817089026`
+  SUCCESS. It binds current quote spread and commission metadata but explicitly
+  does not claim realized slippage, execution coverage, a full hedge-cost model
+  or fresh-OOS utility.
+- Canonical ledger remains 62/64 terminal; only the actual Final Integrated
+  CIBO Exam and actual World Cup Maximum-Capability Exam remain open.

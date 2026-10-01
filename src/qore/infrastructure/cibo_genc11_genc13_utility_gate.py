@@ -18,6 +18,9 @@ from qore.infrastructure.cibo_genc9_economic_gate import (
     Genc9EconomicGateStatus,
     evaluate_genc9_economic_gate,
 )
+from qore.infrastructure.cibo_genc10_transition_uncertainty_calibration import (
+    Genc10TransitionCalibrationReport,
+)
 from qore.infrastructure.cibo_robust_growth_ruin_capacity import (
     Genc9CandidateRole,
     Genc9ResearchReport,
@@ -51,6 +54,8 @@ class Genc11Genc13UtilityInput:
     temporal_separation_proven: bool
     transition_uncertainty_calibrated: bool = False
     transition_calibration_sha256: str | None = None
+    transition_calibration_population_sha256: str | None = None
+    transition_calibration_report: Genc10TransitionCalibrationReport | None = None
     prospective_memory_use_ablation: bool = False
     memory_hypothesis_sha256: str | None = None
     retrospective_counterfactual_used_as_causal: bool = False
@@ -150,6 +155,11 @@ class Genc11Genc13UtilityInput:
             if (
                 not self.transition_uncertainty_calibrated
                 or self.transition_calibration_sha256 is None
+                or self.transition_calibration_population_sha256 is None
+                or not isinstance(
+                    self.transition_calibration_report,
+                    Genc10TransitionCalibrationReport,
+                )
                 or self.prospective_memory_use_ablation
                 or self.memory_hypothesis_sha256 is not None
             ):
@@ -160,11 +170,29 @@ class Genc11Genc13UtilityInput:
                 self.transition_calibration_sha256,
                 "transition_calibration_sha256",
             )
+            _sha(
+                self.transition_calibration_population_sha256,
+                "transition_calibration_population_sha256",
+            )
+            report = self.transition_calibration_report
+            if report.report_sha256 != self.transition_calibration_sha256:
+                raise CiboCompoundCapitalError(
+                    "GEN-C11 transition calibration digest drift"
+                )
+            if (
+                report.source_population_sha256
+                != self.transition_calibration_population_sha256
+            ):
+                raise CiboCompoundCapitalError(
+                    "GEN-C11 transition calibration population lineage drift"
+                )
         else:
             if (
                 not self.prospective_memory_use_ablation
                 or self.memory_hypothesis_sha256 is None
                 or self.transition_calibration_sha256 is not None
+                or self.transition_calibration_population_sha256 is not None
+                or self.transition_calibration_report is not None
             ):
                 raise CiboCompoundCapitalError(
                     "GEN-C13 utility requires prospective memory-use ablation"

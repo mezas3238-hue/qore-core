@@ -89,6 +89,39 @@ class Ce2iTemporalFoldResult:
     treatment_status: str
     failed_dimensions: tuple[str, ...]
 
+    def __post_init__(self) -> None:
+        if self.fold_id not in _CANONICAL_FOLDS:
+            raise CiboCompoundCapitalError(
+                "CE2I temporal fold result must be WF1..WF4"
+            )
+        if type(self.passed) is not bool:
+            raise CiboCompoundCapitalError(
+                "CE2I temporal fold result passed must be bool"
+            )
+        if not isinstance(self.treatment_status, str) or not self.treatment_status:
+            raise CiboCompoundCapitalError(
+                "CE2I temporal fold treatment status is required"
+            )
+        if (
+            not isinstance(self.failed_dimensions, tuple)
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.failed_dimensions
+            )
+            or len(self.failed_dimensions) != len(set(self.failed_dimensions))
+        ):
+            raise CiboCompoundCapitalError(
+                "CE2I temporal fold failed dimensions are invalid"
+            )
+        expected = (
+            self.treatment_status == "ELIGIBLE_FOR_FURTHER_RESEARCH"
+            and not self.failed_dimensions
+        )
+        if self.passed != expected:
+            raise CiboCompoundCapitalError(
+                "CE2I temporal fold pass/status drift"
+            )
+
 
 @dataclass(frozen=True, slots=True)
 class Ce2iTemporalReplicationReport:
@@ -123,6 +156,16 @@ class Ce2iTemporalReplicationReport:
                 "CE2I temporal replication candidate identity is invalid"
             )
         _sha(self.protocol_binding_sha256, "protocol_binding_sha256")
+        if (
+            not isinstance(self.fold_results, tuple)
+            or any(
+                not isinstance(item, Ce2iTemporalFoldResult)
+                for item in self.fold_results
+            )
+        ):
+            raise CiboCompoundCapitalError(
+                "CE2I temporal replication requires canonical fold results"
+            )
         if tuple(item.fold_id for item in self.fold_results) != _CANONICAL_FOLDS:
             raise CiboCompoundCapitalError(
                 "CE2I temporal replication requires ordered WF1..WF4"

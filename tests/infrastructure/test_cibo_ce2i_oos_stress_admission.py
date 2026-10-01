@@ -288,6 +288,14 @@ def _scarcity_safety_report() -> T09T18ScarcityGateReport:
         verdicts=(
             T09T18ScarcityCandidateVerdict(
                 tool=T09T18ScarcityTool.T09,
+                candidate_id="control",
+                status=T09T18ScarcityStatus.CONTROL,
+                passed_fold_ids=("WF1", "WF2", "WF3", "WF4"),
+                failed_fold_ids=(),
+                failed_dimensions=(),
+            ),
+            T09T18ScarcityCandidateVerdict(
+                tool=T09T18ScarcityTool.T09,
                 candidate_id="treatment",
                 status=T09T18ScarcityStatus.ELIGIBLE_FOR_FURTHER_RESEARCH,
                 passed_fold_ids=("WF1", "WF2", "WF3", "WF4"),

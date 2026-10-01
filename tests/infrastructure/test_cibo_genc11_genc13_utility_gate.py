@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
 
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
 from qore.infrastructure.cibo_genc9_economic_gate import Genc9EconomicGateStatus
+from qore.infrastructure.cibo_genc10_transition_uncertainty_calibration import (
+    Genc10ObservedTransition,
+    Genc10TransitionEvidenceKind,
+    calibrate_genc10_transition_uncertainty,
+)
 from qore.infrastructure.cibo_genc11_genc13_utility_gate import (
     GATE_SHA256,
     Genc11Genc13UtilityInput,
@@ -24,6 +30,42 @@ from qore.infrastructure.cibo_robust_growth_ruin_capacity import (
 
 def _sha(char: str) -> str:
     return "sha256:" + char * 64
+
+
+CALIBRATION_CUTOFF = datetime(2026, 9, 30, 12, tzinfo=UTC)
+
+
+def _transition_calibration(
+    population_sha256: str,
+):
+    start = CALIBRATION_CUTOFF - timedelta(hours=2)
+    observation = Genc10ObservedTransition(
+        transition_id="genc11-wrapper-calibration",
+        account_identity_fingerprint="ctrader:demo:account-a",
+        conditioning_key="BALANCED",
+        start_twin_sha256=_sha("6"),
+        end_twin_sha256=_sha("7"),
+        provider_registry_sha256=_sha("8"),
+        observed_start_at=start,
+        observed_end_at=start + timedelta(hours=1),
+        realized_capital_delta_usd=Decimal("1"),
+        compound_value_delta_usd=Decimal("1"),
+        protected_floor_delta_usd=Decimal("0"),
+        stop_risk_capacity_delta_usd=Decimal("0"),
+        stop_risk_usage_delta_usd=Decimal("0"),
+        margin_capacity_delta_usd=Decimal("0"),
+        margin_usage_delta_usd=Decimal("0"),
+        active_deployment_count_delta=0,
+        known_option_count_delta=0,
+        provider_constraints_changed=False,
+        evidence_kind=Genc10TransitionEvidenceKind.FORWARD_OBSERVED,
+        decision_population_sha256=population_sha256,
+    )
+    return calibrate_genc10_transition_uncertainty(
+        observations=(observation,),
+        source_population_sha256=population_sha256,
+        calibration_cutoff_at=CALIBRATION_CUTOFF,
+    )
 
 
 def _summary(
@@ -95,12 +137,13 @@ def _input(
     *,
     worse_tail: bool = False,
 ) -> Genc11Genc13UtilityInput:
+    population_sha256 = _sha("1")
     common = dict(
         evaluation_id=f"{workstream.value}-evaluation",
         workstream=workstream,
         control_candidate_id="control",
         treatment_candidate_id="treatment",
-        population_sha256=_sha("1"),
+        population_sha256=population_sha256,
         provider_surface_sha256=_sha("2"),
         protocol_binding_sha256=_sha("3"),
         research_report=_report(worse_tail=worse_tail),
@@ -109,10 +152,15 @@ def _input(
         temporal_separation_proven=True,
     )
     if workstream is Genc11Genc13Workstream.GENC11:
+        calibration = _transition_calibration(population_sha256)
         return Genc11Genc13UtilityInput(
             **common,
             transition_uncertainty_calibrated=True,
-            transition_calibration_sha256=_sha("4"),
+            transition_calibration_sha256=calibration.report_sha256,
+            transition_calibration_population_sha256=(
+                calibration.source_population_sha256
+            ),
+            transition_calibration_report=calibration,
         )
     return Genc11Genc13UtilityInput(
         **common,
@@ -218,4 +266,18 @@ def test_wrapper_rejects_manual_status_eligibility_drift() -> None:
         match="status/eligibility drift",
     ):
         replace(report, research_eligible=False)
+
+def test_genc11_rejects_transition_calibration_population_drift() -> None:
+    evidence = _input(Genc11Genc13Workstream.GENC11)
+    other = _transition_calibration(_sha("9"))
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="population lineage drift",
+    ):
+        replace(
+            evidence,
+            transition_calibration_sha256=other.report_sha256,
+            transition_calibration_report=other,
+        )
 

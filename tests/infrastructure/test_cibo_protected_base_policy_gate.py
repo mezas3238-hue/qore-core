@@ -168,3 +168,22 @@ def test_numeric_candidate_must_freeze_before_evaluation() -> None:
         match="freeze before evaluation",
     ):
         _observation(late)
+
+def test_protected_base_row_rejects_manual_status_metric_drift() -> None:
+    treatment = _observation(
+        _candidate(
+            candidate_id="protect-60",
+            role=ProtectedBaseCandidateRole.TREATMENT,
+            amount="60",
+        ),
+        minimum_base="75",
+        max_dd="4.5",
+    )
+    row = evaluate_protected_base_gate((_control(), treatment)).rows[1]
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="status/metric drift",
+    ):
+        replace(row, safety_no_worse=False)
+

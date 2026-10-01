@@ -86,6 +86,174 @@ class AsIsEconomicBaselineMeasurement:
     treatment_effect_claimed: bool = False
     certification_ready: bool = False
 
+    def __post_init__(self) -> None:
+        if self.state is not AsIsEconomicBaselineState.MATERIALIZED:
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline measurement state drift"
+            )
+        if (
+            self.control_id != AS_IS_CONTROL_ID
+            or self.control_git_sha != AS_IS_CONTROL_GIT_SHA
+            or self.phase20_plan_id != FROZEN_PHASE20D_QUALIFICATION_PLAN.plan_id
+            or self.phase20_plan_sha256 != phase20d_qualification_plan_sha256()
+            or self.candidate_id != FROZEN_PHASE20D_QUALIFICATION_PLAN.candidate_id
+        ):
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline frozen identity drift"
+            )
+        if self.qualification_status not in {
+            Phase20QualificationStatus.PASS,
+            Phase20QualificationStatus.FAIL,
+        }:
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline requires empirical PASS or FAIL"
+            )
+        if (
+            not isinstance(self.qualification_failures, tuple)
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.qualification_failures
+            )
+            or len(self.qualification_failures)
+            != len(set(self.qualification_failures))
+        ):
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline qualification failures are invalid"
+            )
+        if (
+            self.qualification_status is Phase20QualificationStatus.PASS
+            and self.qualification_failures
+        ) or (
+            self.qualification_status is Phase20QualificationStatus.FAIL
+            and not self.qualification_failures
+        ):
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline qualification status/failure drift"
+            )
+        if not self.account_identity_fingerprint:
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline account identity is required"
+            )
+        for name in (
+            "source_manifest_sha256",
+            "phase20_population_sha256",
+            "compound_population_sha256",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, str) or _SHA256_RE.fullmatch(value) is None:
+                raise CiboCompoundCapitalError(
+                    f"AS-IS baseline {name} must be canonical SHA-256"
+                )
+        plan = FROZEN_PHASE20D_QUALIFICATION_PLAN
+        for name, minimum in (
+            ("decision_epoch_count", plan.minimum_decision_epochs),
+            ("candidate_row_count", plan.minimum_candidate_outcomes),
+            ("compound_episode_count", 1),
+            ("max_source_generation", 1),
+        ):
+            value = getattr(self, name)
+            if type(value) is not int or value < minimum:
+                raise CiboCompoundCapitalError(
+                    f"AS-IS baseline {name} is below frozen minimum"
+                )
+        if self.fold_ids != _CANONICAL_FOLDS:
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline requires ordered WF1..WF4"
+            )
+        for name in (
+            "policy_net_delta_usd",
+            "baseline_net_delta_usd",
+            "policy_capital_productivity",
+            "baseline_capital_productivity",
+            "compound_realized_net_pnl_usd",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, Decimal) or not value.is_finite():
+                raise CiboCompoundCapitalError(
+                    f"AS-IS baseline {name} must be finite Decimal"
+                )
+        for name in (
+            "policy_settlement_cash_drawdown_usd",
+            "baseline_settlement_cash_drawdown_usd",
+            "compound_protected_floor_graduation_usd",
+        ):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, Decimal)
+                or not value.is_finite()
+                or value < 0
+            ):
+                raise CiboCompoundCapitalError(
+                    f"AS-IS baseline {name} must be non-negative Decimal"
+                )
+        for name in (
+            "gross_compound_deployment_usd",
+            "compound_capital_minutes_usd",
+            "compound_stop_risk_minutes_usd",
+            "compound_margin_minutes_usd",
+        ):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, Decimal)
+                or not value.is_finite()
+                or value <= 0
+            ):
+                raise CiboCompoundCapitalError(
+                    f"AS-IS baseline {name} must be positive Decimal"
+                )
+        for name in (
+            "policy_acceptance_rate",
+            "baseline_acceptance_rate",
+            "policy_selected_outcome_coverage",
+            "baseline_selected_outcome_coverage",
+            "candidate_outcome_coverage",
+            "capital_utilization",
+            "capital_starvation_rate",
+            "mpc_reserve_efficiency",
+            "optionality_preserved_rate",
+            "concentration_utilization",
+            "provider_failure_incidence",
+            "evidence_missingness",
+        ):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, Decimal)
+                or not value.is_finite()
+                or value < 0
+                or value > 1
+            ):
+                raise CiboCompoundCapitalError(
+                    f"AS-IS baseline {name} must be Decimal in [0,1]"
+                )
+        if (
+            self.candidate_outcome_coverage
+            < plan.minimum_candidate_outcome_coverage
+            or self.policy_selected_outcome_coverage
+            < plan.required_selected_outcome_coverage
+            or self.baseline_selected_outcome_coverage
+            < plan.required_baseline_selected_outcome_coverage
+        ):
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline frozen outcome coverage not met"
+            )
+        for name in (
+            "synthetic_values_used",
+            "treatment_effect_claimed",
+            "certification_ready",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"AS-IS baseline {name} must be bool"
+                )
+        if (
+            self.synthetic_values_used
+            or self.treatment_effect_claimed
+            or self.certification_ready
+        ):
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline governance/claim drift"
+            )
+
 
 def materialize_as_is_economic_baseline(
     *,

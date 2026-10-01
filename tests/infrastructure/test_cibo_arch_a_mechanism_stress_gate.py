@@ -7,6 +7,7 @@ import pytest
 
 from qore.infrastructure.cibo_arch_a_mechanism_stress_gate import (
     MechanismStressObservation,
+    MechanismStressScenarioResult,
     MechanismStressVerdict,
     MechanismStressWorkstream,
     evaluate_mechanism_stress_admission,
@@ -191,3 +192,17 @@ def test_extended_workstreams_bind_only_canonical_source_gates(
         source_gate_id=source_gate_id,
     )
     assert clone.source_gate_id == source_gate_id
+
+def test_scenario_result_rejects_manual_pass_status_drift() -> None:
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="pass/status drift",
+    ):
+        MechanismStressScenarioResult(
+            scenario_kind=CompoundStressKind.MARGIN_HIKE,
+            scenario_id="margin-hike",
+            passed=True,
+            source_gate_status="REJECTED_SAFETY_DETERIORATION",
+            failed_dimensions=("maximum_drawdown_usd",),
+        )
+

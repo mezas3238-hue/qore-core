@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import timedelta
 
 import pytest
@@ -156,3 +157,13 @@ def test_compound_causal_ablation_batch_accepts_distinct_mechanisms() -> None:
 
     assert report.pair_count == 2
     assert report.fold_ids == ("WF1", "WF2")
+
+def test_compound_causal_ablation_report_rejects_manual_governance_drift() -> None:
+    report = gate_compound_causal_ablation_pairs((_pair(),))
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="report governance drift",
+    ):
+        replace(report, economic_outcomes_evaluated=True)
+

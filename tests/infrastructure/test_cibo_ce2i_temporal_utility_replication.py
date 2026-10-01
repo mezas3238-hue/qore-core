@@ -253,3 +253,16 @@ def test_t14_t15_one_failed_fold_falsifies_replication() -> None:
 
     assert report.verdict is Ce2iTemporalReplicationVerdict.FALSIFIED
     assert report.fold_results[3].passed is False
+
+def test_ce2i_temporal_fold_result_rejects_manual_pass_drift() -> None:
+    report = evaluate_expansion_temporal_replication(
+        treatment_candidate_id="treatment",
+        folds=_expansion_folds(),
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="pass/status drift",
+    ):
+        replace(report.fold_results[0], passed=False)
+

@@ -192,6 +192,7 @@ class Genc10TransitionCalibrationReport:
     source_population_sha256: str
     calibration_cutoff_at: datetime
     observation_count: int
+    observation_ids: tuple[str, ...]
     supports: tuple[Genc10TransitionSupport, ...]
     report_sha256: str
     frozen_v1_mutated: bool = False
@@ -210,11 +211,80 @@ class Genc10TransitionCalibrationReport:
             )
         _sha(self.source_population_sha256, "source_population_sha256")
         _aware(self.calibration_cutoff_at, "calibration_cutoff_at")
-        if self.observation_count <= 0 or not self.supports:
+        if (
+            not isinstance(self.observation_count, int)
+            or isinstance(self.observation_count, bool)
+            or self.observation_count <= 0
+        ):
             raise CiboCompoundCapitalError(
-                "GEN-C10 calibration requires observed transitions"
+                "GEN-C10 calibration observation_count invalid"
+            )
+        if (
+            not isinstance(self.observation_ids, tuple)
+            or len(self.observation_ids) != self.observation_count
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.observation_ids
+            )
+            or len(self.observation_ids) != len(set(self.observation_ids))
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C10 calibration observation identity/count drift"
+            )
+        if (
+            not isinstance(self.supports, tuple)
+            or not self.supports
+            or any(
+                not isinstance(item, Genc10TransitionSupport)
+                for item in self.supports
+            )
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C10 calibration requires canonical transition supports"
+            )
+        keys = tuple(item.conditioning_key for item in self.supports)
+        if len(keys) != len(set(keys)) or keys != tuple(sorted(keys)):
+            raise CiboCompoundCapitalError(
+                "GEN-C10 calibration support identity/order drift"
+            )
+        if sum(item.observation_count for item in self.supports) != (
+            self.observation_count
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C10 calibration support population count drift"
+            )
+        if any(
+            item.observed_through >= self.calibration_cutoff_at
+            for item in self.supports
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C10 calibration support crosses evaluation cutoff"
             )
         _sha(self.report_sha256, "report_sha256")
+        expected_payload = {
+            "calibration_id": self.calibration_id,
+            "account_identity_fingerprint": self.account_identity_fingerprint,
+            "source_population_sha256": self.source_population_sha256,
+            "calibration_cutoff_at": self.calibration_cutoff_at.isoformat(),
+            "observation_ids": list(self.observation_ids),
+            "supports": [_support_payload(item) for item in self.supports],
+            "market_probability_claimed": self.market_probability_claimed,
+            "frozen_v1_mutated": self.frozen_v1_mutated,
+        }
+        if self.report_sha256 != _payload_sha256(expected_payload):
+            raise CiboCompoundCapitalError(
+                "GEN-C10 calibration report digest drift"
+            )
+        for name in (
+            "frozen_v1_mutated",
+            "market_probability_claimed",
+            "production_policy_selected",
+            "certification_ready",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"GEN-C10 calibration {name} must be bool"
+                )
         if (
             self.frozen_v1_mutated
             or self.market_probability_claimed
@@ -300,6 +370,7 @@ def calibrate_genc10_transition_uncertainty(
         source_population_sha256=source_population_sha256,
         calibration_cutoff_at=calibration_cutoff_at,
         observation_count=len(ordered),
+        observation_ids=tuple(item.transition_id for item in ordered),
         supports=supports,
         report_sha256=digest,
     )

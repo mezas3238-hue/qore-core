@@ -156,3 +156,16 @@ def test_temporal_replication_rejects_control_drift() -> None:
             treatment_candidate_id="treatment-v1",
             folds=(_fold(1), _fold(2), _fold(3), drifted),
         )
+
+def test_temporal_fold_result_rejects_manual_pass_drift() -> None:
+    result = evaluate_compound_temporal_economic_replication(
+        treatment_candidate_id="treatment-v1",
+        folds=(_fold(1), _fold(2), _fold(3), _fold(4)),
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="pass/status drift",
+    ):
+        replace(result.fold_results[0], passed=False)
+

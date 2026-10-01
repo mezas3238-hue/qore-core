@@ -4,57 +4,32 @@
   "integrator_pr": 670,
   "architect_a": {
     "pr": 660,
-    "head_sha": "453e4c0a9f3a84440e7de38e9bc456c3e7d711db",
-    "changed_files": 124,
-    "files_present_in_integrator_delta": 112,
+    "head_sha": "2383d6de4bff9c671cc9ed22444935488f010377",
+    "changed_files": 173,
+    "files_present_in_integrator_delta": 106,
     "deliberate_overrides": [
       {
-        "path": ".github/workflows/cibo-final-integrated-exam.yml",
-        "reason": "Integrator owns receipt-bound final-exam semantics."
+        "category": "CHILD_WORKFLOWS_NOT_COPIED_AS_AUTHORITY",
+        "count": 61,
+        "reason": "Integrator keeps its own workflow ownership, exact-head evidence semantics, World Cup gate, and avoids Architect-A workflow regressions such as removed PYTHONPATH."
       },
       {
-        "path": ".github/workflows/cibo-t04-t10-economic-gate.yml",
-        "reason": "Integrator preserves combined A+B validation coverage."
+        "category": "CANONICAL_GOVERNANCE_DOCS_OWNED_BY_INTEGRATOR",
+        "count": 4,
+        "paths": [
+          "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json",
+          "docs/research/CIBO-SOURCE-OF-TRUTH-RECONCILIATION-V1.md",
+          "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+          "docs/research/CIBO-WORLD-CUP-SOVEREIGN-CAPITAL-AMPLIFICATION-GAP-MATRIX-V1.md"
+        ]
       },
       {
-        "path": ".github/workflows/cibo-t09-t18-scarcity-safety.yml",
-        "reason": "Integrator validates scarcity safety plus current utility."
-      },
-      {
-        "path": ".github/workflows/cibo-t12-regime-oos-utility.yml",
-        "reason": "Integrator additionally validates canonical T12 utility tests."
-      },
-      {
-        "path": ".github/workflows/cibo-t13-drawdown-reserve-oos-utility.yml",
-        "reason": "Integrator avoids duplicate branch-push execution."
-      },
-      {
-        "path": ".github/workflows/cibo-zero-open-work-gate.yml",
-        "reason": "Integrator owns 64-workstream two-exam A+B union semantics."
-      },
-      {
-        "path": "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json",
-        "reason": "Integrated 64-workstream ledger is canonical."
-      },
-      {
-        "path": "docs/research/CIBO-SOURCE-OF-TRUTH-RECONCILIATION-V1.md",
-        "reason": "Integrator owns cross-branch source-of-truth reconciliation."
-      },
-      {
-        "path": "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
-        "reason": "Integrator preserves current superseding roadmap."
-      },
-      {
-        "path": "docs/research/CIBO-WORLD-CUP-SOVEREIGN-CAPITAL-AMPLIFICATION-GAP-MATRIX-V1.md",
-        "reason": "Integrator preserves mandatory World Cup ordering."
-      },
-      {
-        "path": "scripts/cibo_zero_open_work_gate.py",
-        "reason": "Integrator owns A+B inventory classification."
-      },
-      {
-        "path": "tests/infrastructure/test_cibo_zero_open_work_gate.py",
-        "reason": "Integrator tests global A+B zero-open law."
+        "category": "GLOBAL_ZERO_OPEN_OWNED_BY_INTEGRATOR",
+        "count": 2,
+        "paths": [
+          "scripts/cibo_zero_open_work_gate.py",
+          "tests/infrastructure/test_cibo_zero_open_work_gate.py"
+        ]
       }
     ],
     "deliberate_noncanonical_snapshots": [],
@@ -62,82 +37,47 @@
   },
   "architect_b": {
     "pr": 661,
-    "head_sha": "89faf02d32ad54172cd10e6e28d8e3b734802f6e",
-    "changed_files": 106,
-    "files_present_in_integrator_delta": 83,
+    "head_sha": "aa412b3b7de0824c9b809edba7eeb617cf3571b5",
+    "changed_files": 112,
+    "files_present_in_integrator_delta": 85,
     "deliberate_overrides": [
       {
-        "path": ".github/workflows/cibo-arch-b-forward-economic-manifest.yml",
-        "reason": "Integrator preserves source-bound cross-boundary validation."
+        "category": "CHILD_WORKFLOWS_NOT_COPIED_AS_AUTHORITY",
+        "count": 11,
+        "reason": "Integrator preserves its reconciled workflow surfaces; the T16 post-declaration workflow is integrated separately because it is the new provider-native lane."
       },
       {
-        "path": ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
-        "reason": "Integrator retains repaired T16 preregistration test coverage."
+        "category": "CANONICAL_LEDGER_OWNED_BY_INTEGRATOR",
+        "count": 1,
+        "paths": [
+          "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json"
+        ]
       },
       {
-        "path": ".github/workflows/cibo-calibration-freeze-manifest.yml",
-        "reason": "Integrator owns receipt-bound calibration freeze."
-      },
-      {
-        "path": ".github/workflows/cibo-ctrader-demo-account-capability.yml",
-        "reason": "Integrator retains repaired account-capability validation."
-      },
-      {
-        "path": ".github/workflows/cibo-integrated-capital-forward-binding.yml",
-        "reason": "Integrator retains repaired capital-truth validation."
-      },
-      {
-        "path": ".github/workflows/cibo-pre-holdout-checkpoint.yml",
-        "reason": "Integrator owns receipt-bound pre-holdout semantics."
-      },
-      {
-        "path": ".github/workflows/cibo-risk-integration-closure.yml",
-        "reason": "Integrator owns reconciled Risk closure evidence."
-      },
-      {
-        "path": ".github/workflows/cibo-t20-capital-release.yml",
-        "reason": "Integrator retains current T20 validation surface."
-      },
-      {
-        "path": ".github/workflows/cibo-usd60-pre-exam-readiness.yml",
-        "reason": "Integrator owns receipt-bound USD60 readiness."
-      },
-      {
-        "path": "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json",
-        "reason": "Integrated 64-workstream ledger is canonical."
-      },
-      {
-        "path": "scripts/cibo_zero_open_work_gate.py",
-        "reason": "Integrator owns A+B inventory classification."
-      },
-      {
-        "path": "tests/infrastructure/test_cibo_ce2i_t11_execution_cost_calibration.py",
-        "reason": "Integrator retains repaired T11 validation."
-      },
-      {
-        "path": "tests/infrastructure/test_cibo_ctrader_demo_capability_registry.py",
-        "reason": "Integrator retains repaired capability-registry validation."
-      },
-      {
-        "path": "tests/infrastructure/test_cibo_integrated_capital_forward_binding.py",
-        "reason": "Integrator retains current capital-truth fixture semantics."
-      },
-      {
-        "path": "tests/infrastructure/test_cibo_zero_open_work_gate.py",
-        "reason": "Integrator tests global A+B zero-open law."
+        "category": "INTEGRATOR_REPAIR_TESTS_PRESERVED",
+        "count": 4,
+        "paths": [
+          "tests/infrastructure/test_cibo_ce2i_t11_execution_cost_calibration.py",
+          "tests/infrastructure/test_cibo_ctrader_demo_capability_registry.py",
+          "tests/infrastructure/test_cibo_integrated_capital_forward_binding.py",
+          "tests/infrastructure/test_cibo_legacy_stack_quarantine.py"
+        ],
+        "reason": "Integrator versions retain prior exact-head repairs; legacy-stack test is additionally made independent of PYTHONPATH in this integration batch."
       }
     ],
     "deliberate_noncanonical_snapshots": [
-      ".github/workflows/cibo-arch-b-zero-open-work.yml",
-      ".github/workflows/cibo-b-actions-queue-cleanup.yml",
       "docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.json",
       "docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.md",
+      "docs/research/CIBO-ARCH-B-CROSSBOUNDARY-REQUEST-002.md",
       "docs/research/CIBO-ARCH-B-HANDOFF-MAESTRO-CONTINUIDAD-2026-09-30.md",
+      "docs/research/CIBO-ARCH-B-MASTER-LEDGER-PATCH-REQUEST-V1.json",
+      "docs/research/CIBO-ARCH-B-MASTER-LEDGER-PATCH-REQUEST-V1.md",
       "docs/research/CIBO-ARCH-B-ZERO-OPEN-WORK-GATE-V1.md",
       "scripts/cibo_arch_b_zero_open_work_gate.py",
-      "tests/infrastructure/test_cibo_arch_b_zero_open_work_gate.py"
+      "scripts/cibo_zero_open_work_gate.py",
+      "tests/infrastructure/test_cibo_arch_b_zero_open_work_gate.py",
+      "tests/infrastructure/test_cibo_zero_open_work_gate.py"
     ],
-    "reason": "All B paths are integrated, deliberately overridden, or deliberately noncanonical; child Zero Open cannot replace the global Integrator gate.",
     "unaccounted_files": []
   },
   "all_child_delta_files_accounted": true,

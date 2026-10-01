@@ -353,3 +353,17 @@ def test_as_is_rejects_missing_four_fold_compound_binding() -> None:
             report=report,
             compound_records=records,
         )
+
+def test_as_is_measurement_rejects_manual_frozen_identity_drift() -> None:
+    report = _report()
+    result = materialize_as_is_economic_baseline(
+        report=report,
+        compound_records=_compound_records(report),
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="frozen identity drift",
+    ):
+        replace(result, control_git_sha="0" * 40)
+
