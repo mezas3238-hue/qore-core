@@ -42,6 +42,36 @@ A2_WORKSTREAM_IDS = (
     "AS_IS_ECONOMIC_BASELINE",
 )
 
+A2_SCIENTIFIC_WAVE_1 = (
+    "GEN-C9",
+    "GEN-C10",
+    "GEN-C12",
+    "AS_IS_ECONOMIC_BASELINE",
+)
+A2_SCIENTIFIC_WAVE_2 = (
+    "GEN-C8",
+    "GEN-C11",
+    "GEN-C13",
+    "COMPOUND_ENGINE",
+    "COMPOUND_PORTFOLIO",
+    "INTERNAL_CAPITAL_MARKET",
+    "CAPITAL_GENERATIONS",
+    "PROTECTED_BASE_CAPITAL",
+    "PROFIT_PROTECTION",
+    "PATH_DEPENDENT_MONTE_CARLO",
+)
+A2_SCIENTIFIC_WAVE_3 = (
+    "GEN-C14",
+    "ADVERSARIAL_STRESS",
+)
+A2_SCIENTIFIC_WAVE_4 = ("CAPITAL_AMPLIFICATION",)
+A2_SCIENTIFIC_WAVES = (
+    A2_SCIENTIFIC_WAVE_1,
+    A2_SCIENTIFIC_WAVE_2,
+    A2_SCIENTIFIC_WAVE_3,
+    A2_SCIENTIFIC_WAVE_4,
+)
+
 A1_RESERVED_WORKSTREAM_IDS = (
     "T04",
     "T06",
@@ -84,6 +114,87 @@ def _canonical_sha(payload: object) -> str:
         ensure_ascii=True,
     ).encode("utf-8")
     return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+@dataclass(frozen=True, slots=True)
+class ArchitectA2ScientificExecutionPlan:
+    phase22_manifest_sha256: str
+    wave_1_ids: tuple[str, ...]
+    wave_2_ids: tuple[str, ...]
+    wave_3_ids: tuple[str, ...]
+    wave_4_ids: tuple[str, ...]
+    ready_now_ids: tuple[str, ...]
+    blocked_now_ids: tuple[str, ...]
+    exact_a2_surface: bool
+    a1_execution_required: bool = False
+    integration_authority: bool = False
+    productive_authority: bool = False
+
+    def __post_init__(self) -> None:
+        _sha(self.phase22_manifest_sha256, "phase22_manifest_sha256")
+        waves = (
+            self.wave_1_ids,
+            self.wave_2_ids,
+            self.wave_3_ids,
+            self.wave_4_ids,
+        )
+        if waves != A2_SCIENTIFIC_WAVES:
+            raise ArchitectAReadinessError(
+                "Architect A2 scientific wave identity drift"
+            )
+        flattened = tuple(item for wave in waves for item in wave)
+        exact = (
+            len(flattened) == len(set(flattened))
+            and set(flattened) == set(A2_WORKSTREAM_IDS)
+        )
+        if self.exact_a2_surface != exact or not exact:
+            raise ArchitectAReadinessError(
+                "Architect A2 scientific plan coverage drift"
+            )
+        if set(self.ready_now_ids) & set(self.blocked_now_ids):
+            raise ArchitectAReadinessError(
+                "Architect A2 scientific plan readiness overlap"
+            )
+        if (
+            set(self.ready_now_ids) | set(self.blocked_now_ids)
+            != set(A2_WORKSTREAM_IDS)
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A2 scientific plan readiness coverage drift"
+            )
+        if (
+            self.a1_execution_required
+            or self.integration_authority
+            or self.productive_authority
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A2 scientific plan cannot depend on A1/grant authority"
+            )
+
+    def as_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+def build_architect_a2_scientific_execution_plan(
+    view: "ArchitectA2EvidenceView",
+) -> ArchitectA2ScientificExecutionPlan:
+    """Freeze A2 execution order while allowing every evidence-ready lane to run."""
+
+    if not isinstance(view, ArchitectA2EvidenceView):
+        raise ArchitectAReadinessError(
+            "Architect A2 scientific plan requires canonical evidence view"
+        )
+    return ArchitectA2ScientificExecutionPlan(
+        phase22_manifest_sha256=view.phase22_manifest_sha256,
+        wave_1_ids=A2_SCIENTIFIC_WAVE_1,
+        wave_2_ids=A2_SCIENTIFIC_WAVE_2,
+        wave_3_ids=A2_SCIENTIFIC_WAVE_3,
+        wave_4_ids=A2_SCIENTIFIC_WAVE_4,
+        ready_now_ids=view.ready_ids,
+        blocked_now_ids=view.blocked_ids,
+        exact_a2_surface=True,
+        a1_execution_required=False,
+    )
 
 
 @dataclass(frozen=True, slots=True)
