@@ -60,7 +60,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_EXECUTABLE_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_REAL_EVIDENCE_OPEN",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_EXECUTABLE_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_REAL_EVIDENCE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -74,10 +74,15 @@
         "tests/infrastructure/test_cibo_ce2i_t04_t10_economic_gate.py",
         "docs/research/CIBO-CE2I-T04-T10-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
         ".github/workflows/cibo-t04-t10-economic-gate.yml",
-        "github-actions://36785994658/SUCCESS"
+        "github-actions://36785994658/SUCCESS",
+        "src/qore/infrastructure/cibo_arch_a_mechanism_stress_gate.py",
+        "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
+        "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
+        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml"
       ],
       "blockers": [
-        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
+        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED",
+        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
       ],
       "next_gate": "Pass the executable T04/T10 economic-gate CI; then bind provider-valid marginal-capital control/treatment evidence and require independent WF1..WF4 non-compensatory risk-efficiency value, stress and terminal disposition."
     },
@@ -219,7 +224,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_EXECUTABLE_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_REAL_EVIDENCE_OPEN",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_EXECUTABLE_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_REAL_EVIDENCE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -233,10 +238,15 @@
         "tests/infrastructure/test_cibo_ce2i_t04_t10_economic_gate.py",
         "docs/research/CIBO-CE2I-T04-T10-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
         ".github/workflows/cibo-t04-t10-economic-gate.yml",
-        "github-actions://36785994658/SUCCESS"
+        "github-actions://36785994658/SUCCESS",
+        "src/qore/infrastructure/cibo_arch_a_mechanism_stress_gate.py",
+        "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
+        "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
+        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml"
       ],
       "blockers": [
-        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
+        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED",
+        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
       ],
       "next_gate": "Pass the executable T04/T10 economic-gate CI; then bind authoritative deployment/release provider economics and require independent WF1..WF4 non-compensatory capital-velocity value, stress and terminal disposition."
     },

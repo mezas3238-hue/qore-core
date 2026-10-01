@@ -16,6 +16,9 @@ from qore.infrastructure.cibo_compound_adversarial_stress import (
     CompoundStressScenario,
 )
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
+from qore.infrastructure.cibo_ce2i_t04_t10_economic_gate import (
+    GATE_ID as T04_T10_ECONOMIC_GATE_ID,
+)
 from qore.infrastructure.cibo_expansion_utility_gate import (
     EXPANSION_UTILITY_GATE_ID,
 )
@@ -120,3 +123,19 @@ def test_t07_reuses_expansion_source_gate() -> None:
         source_gate_id=EXPANSION_UTILITY_GATE_ID,
     )
     assert clone.workstream is MechanismStressWorkstream.T07
+
+
+@pytest.mark.parametrize(
+    "workstream",
+    (MechanismStressWorkstream.T04, MechanismStressWorkstream.T10),
+)
+def test_t04_t10_reuse_frozen_economic_source_gate(
+    workstream: MechanismStressWorkstream,
+) -> None:
+    row = _observations()[0]
+    clone = replace(
+        row,
+        workstream=workstream,
+        source_gate_id=T04_T10_ECONOMIC_GATE_ID,
+    )
+    assert clone.source_gate_id == T04_T10_ECONOMIC_GATE_ID

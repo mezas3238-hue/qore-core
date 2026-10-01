@@ -21,6 +21,9 @@ from qore.infrastructure.cibo_compound_adversarial_stress import (
     CompoundStressScenario,
 )
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
+from qore.infrastructure.cibo_ce2i_t04_t10_economic_gate import (
+    GATE_ID as T04_T10_ECONOMIC_GATE_ID,
+)
 from qore.infrastructure.cibo_expansion_utility_gate import (
     EXPANSION_UTILITY_GATE_ID,
 )
@@ -44,8 +47,10 @@ _REQUIRED_STRESS_KINDS = tuple(CompoundStressKind)
 
 
 class MechanismStressWorkstream(StrEnum):
+    T04 = "T04"
     T06 = "T06"
     T07 = "T07"
+    T10 = "T10"
     T14 = "T14"
     T15 = "T15"
     GENC7 = "GEN-C7"
@@ -56,8 +61,10 @@ class MechanismStressWorkstream(StrEnum):
 
 
 _SOURCE_GATE_BY_WORKSTREAM = {
+    MechanismStressWorkstream.T04: T04_T10_ECONOMIC_GATE_ID,
     MechanismStressWorkstream.T06: EXPANSION_UTILITY_GATE_ID,
     MechanismStressWorkstream.T07: EXPANSION_UTILITY_GATE_ID,
+    MechanismStressWorkstream.T10: T04_T10_ECONOMIC_GATE_ID,
     MechanismStressWorkstream.T14: T14_T15_UTILITY_GATE_ID,
     MechanismStressWorkstream.T15: T14_T15_UTILITY_GATE_ID,
     MechanismStressWorkstream.GENC7: GENC7_ECONOMIC_GATE_ID,
