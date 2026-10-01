@@ -180,16 +180,23 @@ def _causal_quote(
     client: SpotwareCTraderOpenApiClient,
     contract: CTraderDemoNativeContract,
 ) -> dict[str, object]:
-    _request(
-        client,
+    subscribed = client.request(
         "ProtoOASubscribeSpotsReq",
         {
             "ctidTraderAccountId": client.account_id,
             "subscribeToSpotTimestamp": True,
             "symbolId": [contract.symbol_id],
         },
-        f"phase22-cal-spots:{contract.symbol_id}",
+        client_msg_id=f"phase22-cal-spots:{contract.symbol_id}",
+        timeout_seconds=10.0,
     )
+    if isinstance(subscribed, Failure) and (
+        "ALREADY_SUBSCRIBED" not in str(subscribed.error)
+    ):
+        raise CiboCapitalManagementError(
+            "Phase22 calibration spot subscription failed: "
+            + str(subscribed.error)
+        )
     event = client.wait_for_event(
         "ProtoOASpotEvent",
         timeout_seconds=10.0,
