@@ -61,6 +61,23 @@ jobs:
               "QORE CIBO Phase22 GBPJPY R38 Replay Parity",\n              "QORE CIBO Compound Engine Integrated Cycle",
               "QORE CIBO Generation Current Control Seal",
               "QORE CIBO Protected Base Overlay",
+              "QORE CIBO Phase22 V2 Execution Preflight",
+              "QORE CIBO Phase22 V2 Store Bundle",
+              "QORE CIBO Phase22 External Dependency Evidence",
+              "QORE CIBO Phase22 Holdout V2 Source Receipt",
+              "QORE CIBO Phase22 Holdout V2 Source Availability",
+              "QORE CIBO Phase22 Trader Parity Freeze",
+              "QORE CIBO Phase22 VT08 FOREX Exact Parity",
+              "QORE CIBO Phase22 VT31 NAS100 Exact Parity",
+              "QORE CIBO Phase22 VT08 Fresh Engine Contract",
+              "QORE CIBO Phase22 VT31 V4 Fresh Engine Contract",
+              "QORE CIBO Phase22 Turtle Fresh Corpus Contract",
+              "QORE CIBO Phase22 Turtle V2 Dependency Contract",
+            ]);
+
+            const neverCancelNames = new Set([
+              "QORE CIBO Phase22 DEMO Provider Calibration",
+              "QORE CIBO Phase22 DEMO Calibration Cleanup",
             ]);
 
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -110,7 +127,9 @@ jobs:
                 )
               );
               return runs.filter(
-                (run) => run.status !== "completed" && run.id !== currentRunId
+                (run) =>
+                  run.status !== "completed" &&
+                  run.id !== currentRunId
               );
             }
 
@@ -159,6 +178,9 @@ jobs:
 
             const cancel = [];
             for (const run of active) {
+              if (neverCancelNames.has(run.name)) {
+                continue;
+              }
               let reason = null;
               if (run.head_sha !== targetHead) {
                 reason = "obsolete_sha";
@@ -210,6 +232,7 @@ jobs:
             for (let settleAttempt = 0; settleAttempt < 8; settleAttempt += 1) {
               active = await listActive();
               remainingBad = active.filter((run) => {
+                if (neverCancelNames.has(run.name)) return false;
                 if (run.head_sha !== targetHead) return true;
                 if (!keepNames.has(run.name)) return true;
                 return !keepIds.has(run.id);
