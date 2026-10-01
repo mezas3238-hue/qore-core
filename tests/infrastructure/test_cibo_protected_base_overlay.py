@@ -155,3 +155,30 @@ def test_broker_guaranteed_base_requires_real_provider_evidence() -> None:
         provider_guaranteed=True,
     )
     assert snapshot.provider_guaranteed is True
+
+
+@pytest.mark.parametrize(
+    "protection_class",
+    (
+        ProtectedBaseClass.ACCOUNTING_PROTECTED,
+        ProtectedBaseClass.ECONOMICALLY_RESERVED,
+    ),
+)
+def test_non_policy_protected_base_rejects_policy_evidence(
+    protection_class: ProtectedBaseClass,
+) -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="non-policy protected base cannot carry policy evidence",
+    ):
+        build_protected_base_snapshot(
+            account_identity=_identity(),
+            ledger=_ledger(),
+            captured_at=T0,
+            source_id="gen0",
+            protected_base_usd=Decimal("50"),
+            protection_class=protection_class,
+            evidence_sha256="sha256:" + "4" * 64,
+            policy_id="UNAUTHORIZED_POLICY_LABEL",
+            policy_sha256="sha256:" + "5" * 64,
+        )
