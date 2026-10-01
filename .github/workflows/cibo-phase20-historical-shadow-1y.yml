@@ -99,7 +99,7 @@ jobs:
 
       - name: Consume historical shadow and evaluate population gate
         run: |
-          python scripts/cibo_phase20_historical_shadow_1y.py \
+          python -m scripts.cibo_phase20_historical_shadow_1y \
             --gbpjpy source/gbpjpy/phase18-gbpjpy-r38-bound-trades.jsonl \
             --gbpusd source/gbpusd/phase18-gbpusd-r43-bound-trades.jsonl \
             --audjpy source/audjpy/phase18-audjpy-r42-bound-trades.jsonl \
