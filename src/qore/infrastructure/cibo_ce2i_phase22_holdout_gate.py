@@ -18,8 +18,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
     VersionedPhase20ForwardPolicyBook,
 )
-from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
-    VersionedPhase20ForwardEvidenceBook,
+from qore.infrastructure.cibo_ce2i_qualification_evidence_protocol import (
+    Phase20QualificationEvidenceBook,
+    require_qualification_evidence_book,
 )
 from qore.infrastructure.cibo_ce2i_phase21_policy_freeze import (
     Phase21PolicyFreezeManifest,
@@ -50,8 +51,8 @@ class Phase22HoldoutLineageAssessment:
 def assess_phase22_holdout_lineage(
     *,
     phase21_manifest: Phase21PolicyFreezeManifest,
-    qualification_evidence_book: VersionedPhase20ForwardEvidenceBook,
-    holdout_evidence_book: VersionedPhase20ForwardEvidenceBook,
+    qualification_evidence_book: Phase20QualificationEvidenceBook,
+    holdout_evidence_book: Phase20QualificationEvidenceBook,
     holdout_policy_book: VersionedPhase20ForwardPolicyBook,
     qualification_evidence_store_sha256: str,
     qualification_policy_store_sha256: str,
@@ -62,20 +63,14 @@ def assess_phase22_holdout_lineage(
         raise CiboCapitalManagementError(
             "Phase22 requires canonical Phase21 freeze manifest"
         )
-    if not isinstance(
+    qualification_evidence_book = require_qualification_evidence_book(
         qualification_evidence_book,
-        VersionedPhase20ForwardEvidenceBook,
-    ):
-        raise CiboCapitalManagementError(
-            "Phase22 qualification evidence book must be canonical"
-        )
-    if not isinstance(
+        context="Phase22 qualification evidence",
+    )
+    holdout_evidence_book = require_qualification_evidence_book(
         holdout_evidence_book,
-        VersionedPhase20ForwardEvidenceBook,
-    ):
-        raise CiboCapitalManagementError(
-            "Phase22 holdout evidence book must be canonical"
-        )
+        context="Phase22 holdout evidence",
+    )
     if not isinstance(
         holdout_policy_book,
         VersionedPhase20ForwardPolicyBook,

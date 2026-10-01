@@ -22,7 +22,10 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
 )
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     Phase20ForwardDecisionSeal,
-    VersionedPhase20ForwardEvidenceBook,
+)
+from qore.infrastructure.cibo_ce2i_qualification_evidence_protocol import (
+    Phase20QualificationEvidenceBook,
+    require_qualification_evidence_book,
 )
 from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
     FROZEN_PHASE20D_QUALIFICATION_PLAN,
@@ -61,15 +64,15 @@ class _OutcomeRow:
 
 def assess_phase20d_qualification_readiness(
     *,
-    evidence_book: VersionedPhase20ForwardEvidenceBook,
+    evidence_book: Phase20QualificationEvidenceBook,
     policy_book: VersionedPhase20ForwardPolicyBook,
 ) -> Phase20QualificationReadiness:
     """Assess readiness without inspecting realized outcome values."""
 
-    if not isinstance(evidence_book, VersionedPhase20ForwardEvidenceBook):
-        raise CiboCapitalManagementError(
-            "Phase20D readiness requires canonical evidence book"
-        )
+    evidence_book = require_qualification_evidence_book(
+        evidence_book,
+        context="Phase20D readiness",
+    )
     if not isinstance(policy_book, VersionedPhase20ForwardPolicyBook):
         raise CiboCapitalManagementError(
             "Phase20D readiness requires canonical policy book"

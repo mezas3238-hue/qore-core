@@ -27,7 +27,10 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
 )
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     Phase20ForwardDecisionSeal,
-    VersionedPhase20ForwardEvidenceBook,
+)
+from qore.infrastructure.cibo_ce2i_qualification_evidence_protocol import (
+    Phase20QualificationEvidenceBook,
+    require_qualification_evidence_book,
 )
 from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
     FROZEN_PHASE20D_QUALIFICATION_PLAN,
@@ -138,15 +141,15 @@ class _ParsedCandidate:
 
 def run_phase20d_full_surface_qualification(
     *,
-    evidence_book: VersionedPhase20ForwardEvidenceBook,
+    evidence_book: Phase20QualificationEvidenceBook,
     policy_book: VersionedPhase20ForwardPolicyBook,
 ) -> Phase20QualificationReport:
     """Run the frozen full-surface protocol; no parameters are fitted from outcomes."""
 
-    if not isinstance(evidence_book, VersionedPhase20ForwardEvidenceBook):
-        raise CiboCapitalManagementError(
-            "Phase20D qualification requires canonical evidence book"
-        )
+    evidence_book = require_qualification_evidence_book(
+        evidence_book,
+        context="Phase20D qualification",
+    )
     if not isinstance(policy_book, VersionedPhase20ForwardPolicyBook):
         raise CiboCapitalManagementError(
             "Phase20D qualification requires canonical policy book"
@@ -1001,7 +1004,7 @@ def _decimal(value: object) -> Decimal:
 
 def run_phase20d_v2_qualification(
     *,
-    evidence_book: VersionedPhase20ForwardEvidenceBook,
+    evidence_book: Phase20QualificationEvidenceBook,
     policy_book: VersionedPhase20ForwardPolicyBook,
 ) -> Phase20QualificationReport:
     """Compatibility alias for callers migrating from the rejected V2 name."""
