@@ -38,7 +38,7 @@ def _chain():
         intake=intake,
         mechanism=mechanism,
         compound_closure=compound,
-        capital_truth=capital_truth,
+        integrated_capital_truth_artifact_json=capital_truth,
         observed_at=observed_at,
     )
     return phase22, intake, system, observed_at
