@@ -94,7 +94,7 @@ jobs:
 
       - name: Run post-TRAIN Phase21 shadow screen
         run: |
-          python -m scripts.cibo_phase21_historical_shadow_empirical \
+          python scripts/cibo_phase21_historical_shadow_empirical.py \
             --gbpjpy source/gbpjpy/phase18-gbpjpy-r38-bound-trades.jsonl \
             --gbpusd source/gbpusd/phase18-gbpusd-r43-bound-trades.jsonl \
             --audjpy source/audjpy/phase18-audjpy-r42-bound-trades.jsonl \
