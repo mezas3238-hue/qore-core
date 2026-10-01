@@ -21,6 +21,9 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     VersionedPhase20ForwardEvidenceBook,
 )
+from qore.infrastructure.cibo_ce2i_holdout_registry import (
+    PREREGISTERED_USD60_HOLDOUT,
+)
 from qore.infrastructure.cibo_ce2i_phase21_policy_freeze import (
     Phase21PolicyFreezeManifest,
 )
@@ -128,10 +131,20 @@ def assess_phase22_holdout_lineage(
 
     collector_shas: set[str] = set()
     decision_by_sha = {}
+    holdout = PREREGISTERED_USD60_HOLDOUT
     for decision in decisions:
         decision_by_sha[decision.evidence_sha256] = decision
-        if decision.decision_at <= phase21_manifest.frozen_at:
-            reasons.append("HOLDOUT_DECISION_NOT_POST_PHASE21_FREEZE")
+        if not (
+            holdout.start_at
+            <= decision.decision_at
+            < holdout.end_exclusive_at
+        ):
+            reasons.append("HOLDOUT_DECISION_OUTSIDE_PREREGISTERED_WINDOW")
+        if (
+            decision.sealed_at is None
+            or decision.sealed_at <= phase21_manifest.frozen_at
+        ):
+            reasons.append("HOLDOUT_DECISION_SEAL_NOT_POST_PHASE21_FREEZE")
         if decision.candidate_id != phase21_manifest.candidate_id:
             reasons.append("HOLDOUT_CANDIDATE_IDENTITY_DRIFT")
         if decision.code_sha != phase21_manifest.candidate_code_sha:
