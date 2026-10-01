@@ -17,7 +17,7 @@ permissions:
 
 concurrency:
   group: qore-cibo-arch2-t11-market-impact-demo
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
@@ -52,7 +52,29 @@ jobs:
             src/qore/infrastructure/cibo_arch2_t11_nonlinear_input_freeze.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_arch2_t11_market_impact_demo.py \
-            tests/infrastructure/test_cibo_arch2_t11_market_impact_evaluator.py
+            tests/infrastructure/test_cibo_arch2_t11_market_impact_evaluator.py \
+            tests/infrastructure/test_cibo_arch2_t11_runner_readiness.py \
+            tests/infrastructure/test_cibo_arch2_t11_experiment_plan.py
+
+      - name: Fail closed unless scientific runner contract is complete
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from qore.infrastructure.cibo_arch2_t11_runner_readiness import (
+              READY,
+              assess_t11_runner_source,
+          )
+
+          source = Path(
+              "scripts/cibo_arch2_t11_market_impact_demo.py"
+          ).read_text(encoding="utf-8")
+          result = assess_t11_runner_source(source)
+          if result.status != READY:
+              raise SystemExit(
+                  "T11 runner contract blocked: "
+                  + ",".join(result.missing_markers)
+              )
+          PY
 
       - name: Verify DEMO credentials
         shell: bash
