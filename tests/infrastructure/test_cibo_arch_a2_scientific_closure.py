@@ -11,12 +11,12 @@ from qore.infrastructure.cibo_arch_a2_scientific_closure import (
     view_architect_a2_evidence_matrix,
 )
 from qore.infrastructure.cibo_arch_a_internal_readiness import (
+    _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM,
     PHASE22_V2_SCIENTIFIC_DISPOSITION_SCHEMA,
     ArchitectAPhase22V2ScientificDispositionReceipt,
     ArchitectAPhase22V2WorkstreamEvidenceMatrix,
     ArchitectAPhase22V2WorkstreamEvidenceState,
     ArchitectAReadinessError,
-    _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM,
 )
 
 
