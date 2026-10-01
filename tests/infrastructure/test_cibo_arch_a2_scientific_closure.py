@@ -9,6 +9,7 @@ from qore.infrastructure.cibo_arch_a2_scientific_closure import (
     A2_SCIENTIFIC_WAVES,
     A2_WORKSTREAM_IDS,
     build_architect_a2_scientific_execution_plan,
+    evaluate_architect_a2_scientific_outcomes,
     reconcile_architect_a2_scientific_dispositions,
     view_architect_a2_evidence_matrix,
 )
@@ -237,3 +238,86 @@ def test_a2_scientific_execution_plan_is_exact_four_wave_surface() -> None:
     assert plan.wave_4_ids == ("CAPITAL_AMPLIFICATION",)
     assert "GEN-C10" in plan.wave_1_ids
     assert "GEN-C11" in plan.wave_2_ids
+
+
+def _matrix_with_ready_a2() -> ArchitectAPhase22V2WorkstreamEvidenceMatrix:
+    states = []
+    ready_ids = []
+    blocked_ids = []
+    for workstream_id, required in (
+        _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM.items()
+    ):
+        ready = workstream_id in A2_WORKSTREAM_IDS
+        states.append(
+            ArchitectAPhase22V2WorkstreamEvidenceState(
+                workstream_id=workstream_id,
+                required_kinds=required,
+                present_kinds=required if ready else (),
+                missing_kinds=() if ready else required,
+                ready_for_frozen_evaluation=ready,
+            )
+        )
+        if ready:
+            ready_ids.append(workstream_id)
+        else:
+            blocked_ids.append(workstream_id)
+    return ArchitectAPhase22V2WorkstreamEvidenceMatrix(
+        phase22_manifest_sha256=_sha("manifest"),
+        states=tuple(states),
+        ready_ids=tuple(ready_ids),
+        blocked_ids=tuple(blocked_ids),
+        all_external_workstreams_ready=False,
+    )
+
+
+def _outcome_payload(workstream_id: str) -> dict[str, object]:
+    return {
+        "workstream_id": workstream_id,
+        "phase22_manifest_sha256": _sha("manifest"),
+        "source_gate_id": f"gate:{workstream_id}",
+        "source_gate_evidence_sha256": _sha(f"gate:{workstream_id}"),
+        "source_gate_status": "PASS",
+        "passed": True,
+        "blockers": [],
+        "failed_dimensions": [],
+        "evaluation_complete": True,
+        "owner_review_approved": workstream_id == "GEN-C14",
+        "future_leakage_detected": False,
+        "synthetic_evidence_used": False,
+        "retuning_after_fresh": False,
+    }
+
+
+def test_a2_ready_outcomes_use_canonical_disposition_law() -> None:
+    matrix = _matrix_with_ready_a2()
+
+    receipts = evaluate_architect_a2_scientific_outcomes(
+        matrix=matrix,
+        payloads=(
+            _outcome_payload("GEN-C9"),
+            _outcome_payload("GEN-C10"),
+        ),
+    )
+
+    assert tuple(item.workstream_id for item in receipts) == (
+        "GEN-C9",
+        "GEN-C10",
+    )
+    assert all(
+        item.recommended_disposition == "COMPLETED_AND_PROVEN"
+        for item in receipts
+    )
+    assert all(item.ledger_update_authority is False for item in receipts)
+
+
+def test_a2_ready_outcomes_reject_a1_payload() -> None:
+    matrix = _matrix_with_ready_a2()
+
+    with pytest.raises(
+        ArchitectAReadinessError,
+        match="cannot evaluate A1-owned",
+    ):
+        evaluate_architect_a2_scientific_outcomes(
+            matrix=matrix,
+            payloads=(_outcome_payload("T04"),),
+        )
