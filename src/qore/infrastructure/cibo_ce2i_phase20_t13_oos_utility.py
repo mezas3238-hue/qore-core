@@ -196,12 +196,49 @@ class Phase20T13UtilityReport:
             raise CiboCapitalManagementError(
                 "Phase20 T13 utility cannot grant runtime authority"
             )
+        if not isinstance(self.blockers, tuple) or any(
+            not isinstance(item, str) or not item for item in self.blockers
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20 T13 utility blockers must be non-empty strings"
+            )
+        if len(self.blockers) != len(set(self.blockers)):
+            raise CiboCapitalManagementError(
+                "Phase20 T13 utility blockers must be unique"
+            )
         if self.fresh_oos_utility_demonstrated != (
             self.population_ready and not self.blockers
         ):
             raise CiboCapitalManagementError(
                 "Phase20 T13 utility result/blocker drift"
             )
+        if self.fresh_oos_utility_demonstrated:
+            plan = FROZEN_PHASE20D_QUALIFICATION_PLAN
+            if (
+                self.candidate_instances <= 0
+                or self.baseline_selected_instances <= 0
+                or self.treatment_selected_instances <= 0
+                or self.selection_changed_epochs <= 0
+                or self.total_shadow_reserved_risk_usd <= 0
+                or self.candidate_outcome_coverage
+                < plan.minimum_candidate_outcome_coverage
+                or self.baseline_selected_outcome_coverage
+                < plan.required_baseline_selected_outcome_coverage
+                or self.treatment_selected_outcome_coverage
+                < plan.required_selected_outcome_coverage
+                or any(
+                    value <= 0
+                    for value in self.fold_treatment_net_delta_usd
+                )
+                or self.treatment_net_delta_usd <= 0
+                or self.treatment_settlement_cash_drawdown_usd
+                > self.baseline_settlement_cash_drawdown_usd
+                or self.treatment_capital_productivity
+                <= self.baseline_capital_productivity
+            ):
+                raise CiboCapitalManagementError(
+                    "Phase20 T13 utility PASS metric drift"
+                )
 
 
 def assess_phase20_t13_oos_utility(

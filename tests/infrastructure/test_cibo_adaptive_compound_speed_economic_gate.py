@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -170,3 +171,13 @@ def test_genc8_rejects_hindsight_retuning() -> None:
             },
             hindsight_retuned=True,
         )
+
+def test_genc8_row_rejects_manual_status_metric_drift() -> None:
+    treatment = _observation(
+        candidate_id="treatment",
+        role=Genc8EconomicRole.TREATMENT,
+        ending="112",
+    )
+    row = _gate(treatment).rows[1]
+    with pytest.raises(CiboCompoundCapitalError, match="status/metric drift"):
+        replace(row, safety_no_worse=False)

@@ -4,6 +4,11 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+import pytest
+
+from qore.infrastructure.cibo_capital_management_authority import (
+    CiboCapitalManagementError,
+)
 from qore.infrastructure.cibo_ce2i_oos_stress_admission import (
     Ce2iOosStressScenarioMeta,
     Ce2iOosStressVerdict,
@@ -310,3 +315,43 @@ def test_t09_stress_requires_utility_and_safety_gate_together() -> None:
     result = evaluate_t09_t18_oos_stress(evidence)
 
     assert result.verdict is Ce2iOosStressVerdict.STRESS_ROBUST
+
+def test_t12_report_rejects_manual_pass_metric_drift() -> None:
+    report = _t12_report()
+
+    with pytest.raises(CiboCapitalManagementError, match="PASS metric drift"):
+        replace(
+            report,
+            treatment_capital_productivity=Decimal("0.5"),
+        )
+
+
+def test_t13_report_rejects_manual_pass_metric_drift() -> None:
+    report = _t13_report()
+
+    with pytest.raises(CiboCapitalManagementError, match="PASS metric drift"):
+        replace(
+            report,
+            total_shadow_reserved_risk_usd=Decimal("0"),
+        )
+
+
+def test_scarcity_report_rejects_manual_pass_metric_drift() -> None:
+    scope = _scarcity_scope("T09")
+
+    with pytest.raises(CiboCapitalManagementError, match="PASS metric drift"):
+        replace(
+            scope,
+            policy_net_delta_usd=Decimal("3"),
+        )
+
+
+def test_scarcity_report_rejects_scope_identity_swap() -> None:
+    report = _scarcity_utility_report()
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="scope identity drift",
+    ):
+        replace(report, t09=report.t18, t18=report.t09)
+

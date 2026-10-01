@@ -6,7 +6,7 @@
   "architect_a": {
     "pr": 660,
     "accepted_head_sha": "9f7a24a86c04a1d0554996ab57523e7338465002",
-    "latest_observed_head_sha": "70db6a38011ff2b69e073f59a437051e04b37e28",
+    "latest_observed_head_sha": "453e4c0a9f3a84440e7de38e9bc456c3e7d711db",
     "support_blockers": [
       "A-SUPPORT-001_FINAL_EXAM_SELF_ATTESTATION",
       "A-SUPPORT-002_MANDATORY_WORKSTREAM_DRIFT"
@@ -21,7 +21,7 @@
   "architect_b": {
     "pr": 661,
     "accepted_head_sha": "5d028b1ebc76a98db36d26f86bc872e2f60c5541",
-    "latest_observed_head_sha": "cd41a8e224812ee6944a70a947d7d4d5f3e7d9de",
+    "latest_observed_head_sha": "89faf02d32ad54172cd10e6e28d8e3b734802f6e",
     "support_blockers": [
       "B-SUPPORT-001_USD60_READINESS_SELF_ATTESTATION",
       "B-SUPPORT-002_RISK_HANDOFF_LEDGER_DRIFT",
@@ -100,5 +100,29 @@
     },
     "productive_authority": false,
     "certification_claim": false
+  },
+  "terminal_disposition_reconciliation": {
+    "source_head": "b0391233c4a47c0f37868619dd9c042f6b355ee7",
+    "promoted_terminal_ids": [
+      "T02",
+      "T11",
+      "T16",
+      "T17",
+      "T20",
+      "PROVIDER_ECONOMICS",
+      "FORWARD_QUALIFICATION"
+    ],
+    "terminal_count": 21,
+    "open_count": 43,
+    "certification_blocking_external_ids": [
+      "T02",
+      "T11",
+      "T16",
+      "T20",
+      "PROVIDER_ECONOMICS",
+      "FORWARD_QUALIFICATION"
+    ],
+    "t17_scope": "current governed cTrader DEMO + FundedNext Stellar Instant CFD universe",
+    "productive_authority": false
   }
 }

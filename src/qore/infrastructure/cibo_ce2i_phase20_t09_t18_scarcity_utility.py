@@ -138,12 +138,45 @@ class Phase20ScarcityUtilityScope:
             raise CiboCapitalManagementError(
                 "Phase20 scarcity utility cannot grant runtime authority"
             )
+        if not isinstance(self.blockers, tuple) or any(
+            not isinstance(item, str) or not item for item in self.blockers
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20 scarcity utility blockers must be non-empty strings"
+            )
+        if len(self.blockers) != len(set(self.blockers)):
+            raise CiboCapitalManagementError(
+                "Phase20 scarcity utility blockers must be unique"
+            )
         if self.fresh_oos_utility_demonstrated != (
             self.population_ready and not self.blockers
         ):
             raise CiboCapitalManagementError(
                 "Phase20 scarcity utility result/blocker drift"
             )
+        if self.fresh_oos_utility_demonstrated:
+            plan = FROZEN_PHASE20D_QUALIFICATION_PLAN
+            if (
+                self.candidate_instances <= 0
+                or self.policy_selected_instances <= 0
+                or self.baseline_selected_instances <= 0
+                or self.candidate_outcome_coverage
+                < plan.minimum_candidate_outcome_coverage
+                or self.policy_selected_outcome_coverage
+                < plan.required_selected_outcome_coverage
+                or self.baseline_selected_outcome_coverage
+                < plan.required_baseline_selected_outcome_coverage
+                or any(value <= 0 for value in self.fold_policy_net_delta_usd)
+                or self.policy_net_delta_usd <= 0
+                or self.policy_net_delta_usd < self.baseline_net_delta_usd
+                or self.policy_settlement_cash_drawdown_usd
+                > self.baseline_settlement_cash_drawdown_usd
+                or self.policy_capital_productivity
+                <= self.baseline_capital_productivity
+            ):
+                raise CiboCapitalManagementError(
+                    "Phase20 scarcity utility PASS metric drift"
+                )
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,9 +204,23 @@ class Phase20T09T18ScarcityUtilityReport:
             raise CiboCapitalManagementError(
                 "Phase20 scarcity utility baseline identity drift"
             )
+        if type(self.outcome_refit_performed) is not bool:
+            raise CiboCapitalManagementError(
+                "Phase20 scarcity utility outcome_refit_performed must be bool"
+            )
         if self.outcome_refit_performed:
             raise CiboCapitalManagementError(
                 "Phase20 scarcity utility cannot refit from outcomes"
+            )
+        if not isinstance(self.t09, Phase20ScarcityUtilityScope) or (
+            not isinstance(self.t18, Phase20ScarcityUtilityScope)
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20 scarcity utility requires canonical scopes"
+            )
+        if self.t09.tool_code != "T09" or self.t18.tool_code != "T18":
+            raise CiboCapitalManagementError(
+                "Phase20 scarcity utility scope identity drift"
             )
 
 

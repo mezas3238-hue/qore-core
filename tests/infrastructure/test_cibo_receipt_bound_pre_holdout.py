@@ -45,7 +45,7 @@ from qore.infrastructure.cibo_receipt_bound_pre_holdout import (
     required_pre_holdout_receipt_ids,
 )
 
-FREEZE_AT = datetime(2026, 10, 1, 1, 0, tzinfo=UTC)
+FREEZE_AT = datetime(2026, 10, 1, 5, 0, tzinfo=UTC)
 HEAD = "a" * 40
 POLICY = FROZEN_PHASE20_POLICY_CANDIDATE.parameter_sha256()
 PHASE21_SHA = "sha256:" + "d" * 64

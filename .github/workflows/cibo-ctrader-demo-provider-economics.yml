@@ -145,7 +145,8 @@ jobs:
             scripts/cibo_ctrader_demo_provider_economics_probe.py \
             scripts/cibo_ctrader_demo_account_capability_probe.py \
             scripts/cibo_phase20_provider_execution_calibration.py \
-            scripts/cibo_t17_limited_risk_capability_probe.py
+            scripts/cibo_t17_limited_risk_capability_probe.py \
+            scripts/cibo_t03_provider_equivalent_candidate_screen.py
           python -m py_compile \
             src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py \
@@ -155,7 +156,8 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py \
             scripts/cibo_ctrader_demo_account_capability_probe.py \
             scripts/cibo_phase20_provider_execution_calibration.py \
-            scripts/cibo_t17_limited_risk_capability_probe.py
+            scripts/cibo_t17_limited_risk_capability_probe.py \
+            scripts/cibo_t03_provider_equivalent_candidate_screen.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py \
             tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py \
@@ -168,7 +170,8 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_t17_structural_disable.py \
             tests/infrastructure/test_cibo_phase20_provider_execution_calibration_export.py \
             tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py \
-            tests/infrastructure/test_cibo_t17_structural_disable_probe.py
+            tests/infrastructure/test_cibo_t17_structural_disable_probe.py \
+            tests/infrastructure/test_cibo_t03_provider_equivalent_candidate_screen.py
 
       - name: Verify DEMO credentials without printing them
         shell: bash
@@ -209,6 +212,10 @@ jobs:
             --limited-risk provider-economics/t17-limited-risk-capability.json \
             --output provider-economics/t17-structural-disable.json \
             > provider-economics/t17-structural-disable.stdout.json
+          python scripts/cibo_t03_provider_equivalent_candidate_screen.py \
+            --account provider-economics/account-capability.json \
+            --output provider-economics/t03-direct-candidate-screen.json \
+            > provider-economics/t03-direct-candidate-screen.stdout.json
 
       - name: Enforce no-mutation/no-history governance
         run: |
@@ -281,6 +288,23 @@ jobs:
           assert t17["t17_policy_ready"] is False
           assert t17["productive_authority"] is False
 
+          t03 = json.loads(
+              Path(
+                  "provider-economics/t03-direct-candidate-screen.json"
+              ).read_text()
+          )
+          assert t03["schema"] == (
+              "qore.cibo.t03.provider_direct_candidate_screen.v1"
+          )
+          assert t03["provider_key"] == "ctrader-demo"
+          assert t03["environment"] == "demo"
+          assert t03["taxonomy_binding_complete"] is True
+          assert t03["normalized_exposure_equivalence_proven"] is False
+          assert t03["holdout_outcomes_used"] is False
+          assert t03["holdout_market_data_read"] is False
+          assert t03["broker_mutation_performed"] is False
+          assert t03["productive_authority"] is False
+
           structural = json.loads(
               Path(
                   "provider-economics/t17-structural-disable.json"
@@ -320,6 +344,8 @@ jobs:
             t17-limited-risk-capability.stdout.json \
             t17-structural-disable.json \
             t17-structural-disable.stdout.json \
+            t03-direct-candidate-screen.json \
+            t03-direct-candidate-screen.stdout.json \
             git-sha.txt > SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
 

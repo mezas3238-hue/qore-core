@@ -390,12 +390,69 @@
       ],
       "productive_authority": false,
       "certification_claim": false
+    },
+    {
+      "owner": "INTEGRATOR_B039_TERMINAL_DISPOSITION_RECONCILIATION",
+      "source_head_sha": "b0391233c4a47c0f37868619dd9c042f6b355ee7",
+      "items": [
+        {
+          "id": "T02",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_id": 36814557961,
+          "status": "SUCCESS"
+        },
+        {
+          "id": "T11",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_id": 36814558301,
+          "status": "SUCCESS"
+        },
+        {
+          "id": "T16",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_id": 36814558004,
+          "status": "SUCCESS"
+        },
+        {
+          "id": "T17",
+          "class": "FALSIFIED_AND_CLOSED_GOVERNED_PROVIDER_UNIVERSE",
+          "workflow_run_ids": [
+            36814558260,
+            36814558179
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "T20",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_id": 36814558181,
+          "status": "SUCCESS"
+        },
+        {
+          "id": "PROVIDER_ECONOMICS",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_id": 36814558179,
+          "status": "SUCCESS"
+        },
+        {
+          "id": "FORWARD_QUALIFICATION",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36814558235,
+            36814558163
+          ],
+          "status": "SUCCESS"
+        }
+      ],
+      "note": "External-dependency terminal dispositions remain certification-blocking. T17 closure is scoped and reopens on governed provider/account capability change.",
+      "productive_authority": false,
+      "certification_claim": false
     }
   ],
   "pending_candidates": [
     {
       "owner": "ARCHITECT_A",
-      "latest_head_sha": "70db6a38011ff2b69e073f59a437051e04b37e28",
+      "latest_head_sha": "453e4c0a9f3a84440e7de38e9bc456c3e7d711db",
       "reasons": [
         "CURRENT_HEAD_CI_PENDING",
         "A_SUPPORT_002_MANDATORY_WORKSTREAM_DRIFT_UPSTREAM",
@@ -424,7 +481,7 @@
     },
     {
       "owner": "ARCHITECT_B",
-      "latest_head_sha": "cd41a8e224812ee6944a70a947d7d4d5f3e7d9de",
+      "latest_head_sha": "89faf02d32ad54172cd10e6e28d8e3b734802f6e",
       "reasons": [
         "CURRENT_HEAD_CI_PENDING",
         "B_SUPPORT_001_USD60_READINESS_SELF_ATTESTATION_UPSTREAM",
@@ -463,14 +520,14 @@
   "certification_claim": false,
   "productive_authority": false,
   "integrator_pending": {
-    "head_sha": "67939c275d901f45a217b442ab904a82d6661f0d",
+    "head_sha": "b0391233c4a47c0f37868619dd9c042f6b355ee7",
     "reasons": [
-      "CURRENT_SNAPSHOT_INTEGRATION_AND_REPAIR_CI_REQUIRED",
-      "T17_GOVERNED_PROVIDER_INELIGIBILITY_CLOSURE_CI_REQUIRED",
-      "ARCHITECT_A_INTERNAL_READINESS_FAIL_CLOSED_WITH_35_EMPIRICAL_OPEN",
+      "RECEIPT_BOUND_PRE_HOLDOUT_FREEZE_TIMESTAMP_FIX_STAGED",
+      "ARCHITECT_A_INTERNAL_READINESS_REMAINS_FAIL_CLOSED",
+      "CERTIFICATION_BLOCKING_EXTERNAL_FORWARD_DEPENDENCIES_REMAIN",
+      "T03_MULTI_LEG_OR_ALTERNATE_PROVIDER_RESEARCH_OPEN",
       "REAL_FORWARD_PHASE20D_POPULATION_THRESHOLDS_OPEN",
-      "T16_POST_PREREGISTRATION_FORWARD_ECONOMIC_PROOF_OPEN",
-      "TWO_EXAM_ZERO_OPEN_SEQUENCE_REVALIDATION_REQUIRED"
+      "TWO_EXAM_ZERO_OPEN_SEQUENCE_OPEN"
     ],
     "staged_components": [
       "CROSSBOUNDARY_SOURCE_BOUND_RECEIPTS",

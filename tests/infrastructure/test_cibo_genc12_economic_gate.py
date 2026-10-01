@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -151,3 +152,13 @@ def test_genc12_rejects_productive_authority_claim() -> None:
             minimum_liquid_reserve_usd=Decimal("1"),
             productive_authority=True,
         )
+
+def test_genc12_row_rejects_manual_status_metric_drift() -> None:
+    treatment = _observation(
+        candidate_id="treatment",
+        role=Genc12EconomicRole.TREATMENT,
+        net_delta="12",
+    )
+    row = _gate(treatment).rows[1]
+    with pytest.raises(CiboCapitalManagementError, match="status/metric drift"):
+        replace(row, safety_no_worse=False)

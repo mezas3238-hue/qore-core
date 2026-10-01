@@ -207,3 +207,15 @@ def test_wrapper_rejects_report_candidate_identity_drift() -> None:
         match="candidate identity drift",
     ):
         replace(evidence, treatment_candidate_id="other")
+
+def test_wrapper_rejects_manual_status_eligibility_drift() -> None:
+    report = evaluate_genc11_genc13_utility(
+        _input(Genc11Genc13Workstream.GENC11)
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="status/eligibility drift",
+    ):
+        replace(report, research_eligible=False)
+

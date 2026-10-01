@@ -229,3 +229,22 @@ def test_t14_t15_gate_rejects_mixed_workstreams() -> None:
         match="cannot mix workstreams",
     ):
         evaluate_t14_t15_utility_gate((control, t15))
+
+def test_t14_t15_row_rejects_manual_status_metric_drift() -> None:
+    control = _summary(
+        candidate_id="control",
+        role=T14T15CandidateRole.CONTROL,
+    )
+    treatment = _summary(
+        candidate_id="treatment",
+        role=T14T15CandidateRole.TREATMENT,
+        max_settlement_drawdown_usd=Decimal("3"),
+    )
+    row = evaluate_t14_t15_utility_gate((control, treatment)).rows[1]
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="status/metric drift",
+    ):
+        replace(row, governance_pass=False)
+

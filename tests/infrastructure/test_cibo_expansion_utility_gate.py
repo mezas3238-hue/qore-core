@@ -214,3 +214,22 @@ def test_expansion_gate_requires_exactly_one_control_and_one_kind() -> None:
         match="cannot mix T06 and T07",
     ):
         evaluate_expansion_utility_gate((control, t07))
+
+def test_expansion_row_rejects_manual_status_metric_drift() -> None:
+    control = _summary(
+        candidate_id="control",
+        role=ExpansionCandidateRole.CONTROL,
+    )
+    treatment = _summary(
+        candidate_id="treatment",
+        role=ExpansionCandidateRole.TREATMENT,
+        realized_net_delta_usd=Decimal("12"),
+    )
+    row = evaluate_expansion_utility_gate((control, treatment)).rows[1]
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="status/metric drift",
+    ):
+        replace(row, safety_no_worse=False)
+

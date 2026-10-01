@@ -145,6 +145,94 @@ class T14T15UtilityGateRow:
     weighted_score_used: bool = False
     production_promotion: bool = False
 
+    def __post_init__(self) -> None:
+        if not self.candidate_id or type(self.status) is not T14T15UtilityStatus:
+            raise CiboCompoundCapitalError(
+                "T14/T15 utility row identity/status drift"
+            )
+        for name in (
+            "causal_identification_pass",
+            "governance_pass",
+            "pareto_no_worse",
+            "strict_utility_improvement",
+            "weighted_score_used",
+            "production_promotion",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"T14/T15 utility row {name} must be bool"
+                )
+        if (
+            not isinstance(self.failed_dimensions, tuple)
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.failed_dimensions
+            )
+            or len(self.failed_dimensions) != len(set(self.failed_dimensions))
+        ):
+            raise CiboCompoundCapitalError(
+                "T14/T15 utility row failed dimensions are invalid"
+            )
+        if self.weighted_score_used or self.production_promotion:
+            raise CiboCompoundCapitalError(
+                "T14/T15 utility row cannot score/promote"
+            )
+        if self.status is T14T15UtilityStatus.CONTROL:
+            if (
+                not self.causal_identification_pass
+                or not self.governance_pass
+                or not self.pareto_no_worse
+                or self.strict_utility_improvement
+                or self.failed_dimensions
+            ):
+                raise CiboCompoundCapitalError(
+                    "T14/T15 CONTROL row drift"
+                )
+            return
+        expected_status = (
+            T14T15UtilityStatus.REJECTED_CAUSAL_IDENTIFICATION
+            if not self.causal_identification_pass
+            else (
+                T14T15UtilityStatus.REJECTED_GOVERNANCE
+                if not self.governance_pass
+                else (
+                    T14T15UtilityStatus.REJECTED_PARETO_DETERIORATION
+                    if not self.pareto_no_worse
+                    else (
+                        T14T15UtilityStatus.REJECTED_NO_STRICT_UTILITY_IMPROVEMENT
+                        if not self.strict_utility_improvement
+                        else T14T15UtilityStatus.ELIGIBLE_FOR_FURTHER_RESEARCH
+                    )
+                )
+            )
+        )
+        if self.status is not expected_status:
+            raise CiboCompoundCapitalError(
+                "T14/T15 utility row status/metric drift"
+            )
+        if (
+            self.status
+            in {
+                T14T15UtilityStatus.ELIGIBLE_FOR_FURTHER_RESEARCH,
+                T14T15UtilityStatus.REJECTED_NO_STRICT_UTILITY_IMPROVEMENT,
+            }
+            and self.failed_dimensions
+        ):
+            raise CiboCompoundCapitalError(
+                "T14/T15 utility row unexpected failed dimensions"
+            )
+        if (
+            self.status
+            in {
+                T14T15UtilityStatus.REJECTED_GOVERNANCE,
+                T14T15UtilityStatus.REJECTED_PARETO_DETERIORATION,
+            }
+            and not self.failed_dimensions
+        ):
+            raise CiboCompoundCapitalError(
+                "T14/T15 utility row missing failed dimensions"
+            )
+
 
 @dataclass(frozen=True, slots=True)
 class T14T15UtilityGateReport:
@@ -168,10 +256,30 @@ class T14T15UtilityGateReport:
             "causal_horizon_sha256",
         ):
             _sha(getattr(self, name), name)
+        if type(self.kind) is not T14T15UtilityKind:
+            raise CiboCompoundCapitalError(
+                "T14/T15 utility gate kind is invalid"
+            )
+        if not isinstance(self.rows, tuple) or not self.rows or any(
+            not isinstance(row, T14T15UtilityGateRow) for row in self.rows
+        ):
+            raise CiboCompoundCapitalError(
+                "T14/T15 utility gate requires canonical rows"
+            )
         ids = tuple(row.candidate_id for row in self.rows)
         if len(ids) != len(set(ids)) or self.control_candidate_id not in ids:
             raise CiboCompoundCapitalError(
                 "T14/T15 utility gate candidate identity drift"
+            )
+        controls = tuple(
+            row for row in self.rows if row.status is T14T15UtilityStatus.CONTROL
+        )
+        if (
+            len(controls) != 1
+            or controls[0].candidate_id != self.control_candidate_id
+        ):
+            raise CiboCompoundCapitalError(
+                "T14/T15 utility gate control row drift"
             )
         if (
             self.weighted_score_used

@@ -37,3 +37,50 @@ authority.
 
 Canonical B status/evidence package:
 `docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.json`.
+
+
+## Addendum — provider taxonomy and T11 calibration surfaces
+
+Please also classify the following B-owned surfaces deterministically:
+
+| Pattern / path | Workstream |
+|---|---|
+| `*cibo_ctrader_demo_instrument_taxonomy*` | `PROVIDER_ECONOMICS` |
+| `*cibo_ce2i_t11_execution_cost_calibration*` | `T11` |
+
+The same ownership applies to their tests, CI workflow coverage and associated
+closure documentation. This addendum changes inventory ownership only; it does
+not alter any scientific threshold or terminal disposition.
+
+
+## Addendum — T17 limited-risk provider evidence
+
+Please additionally classify these surfaces under `T17`:
+
+| Pattern / path | Workstream |
+|---|---|
+| `*cibo_ce2i_t17_limited_risk_capability*` | `T17` |
+| `*cibo_t17_limited_risk_capability_probe*` | `T17` |
+
+Their tests and provider-economics workflow evidence remain B-owned and must not
+be absorbed into a generic provider bucket during final inventory closure.
+
+
+## Addendum — T16 preregistration, T03 direct screen and B terminal dispositions
+
+Please classify these additional B surfaces:
+
+| Pattern / path | Workstream |
+|---|---|
+| `*cibo_ce2i_t16_preregistered_hedge_universe*` | `T16` |
+| `*cibo_t03_provider_equivalent_candidate_screen*` | `T03` |
+
+Architect B also emits:
+
+`docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json`
+
+This package is the canonical B recommendation for final A+B ledger reconciliation.
+It does **not** modify the Master Ledger from branch B. It distinguishes genuine
+scientific closure from `EXTERNAL_DEPENDENCY_BLOCKED` states. Every
+certification-blocking external dependency must remain blocking after
+reconciliation; do not treat terminal classification as certification success.

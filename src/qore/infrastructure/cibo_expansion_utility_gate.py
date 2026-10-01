@@ -150,6 +150,64 @@ class ExpansionUtilityGateRow:
     weighted_score_used: bool = False
     production_promotion: bool = False
 
+    def __post_init__(self) -> None:
+        if not self.candidate_id or type(self.status) is not ExpansionUtilityStatus:
+            raise CiboCompoundCapitalError(
+                "expansion utility row identity/status drift"
+            )
+        for name in (
+            "safety_no_worse",
+            "strict_economic_improvement",
+            "weighted_score_used",
+            "production_promotion",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"expansion utility row {name} must be bool"
+                )
+        if (
+            not isinstance(self.failed_dimensions, tuple)
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.failed_dimensions
+            )
+            or len(self.failed_dimensions) != len(set(self.failed_dimensions))
+        ):
+            raise CiboCompoundCapitalError(
+                "expansion utility row failed dimensions are invalid"
+            )
+        if self.weighted_score_used or self.production_promotion:
+            raise CiboCompoundCapitalError(
+                "expansion utility row cannot score/promote"
+            )
+        if self.status is ExpansionUtilityStatus.CONTROL:
+            if (
+                not self.safety_no_worse
+                or self.strict_economic_improvement
+                or self.failed_dimensions
+            ):
+                raise CiboCompoundCapitalError(
+                    "expansion utility CONTROL row drift"
+                )
+            return
+        expected_status = (
+            ExpansionUtilityStatus.REJECTED_SAFETY_DETERIORATION
+            if not self.safety_no_worse
+            else (
+                ExpansionUtilityStatus.REJECTED_NO_STRICT_ECONOMIC_IMPROVEMENT
+                if not self.strict_economic_improvement
+                else ExpansionUtilityStatus.ELIGIBLE_FOR_FURTHER_RESEARCH
+            )
+        )
+        if self.status is not expected_status:
+            raise CiboCompoundCapitalError(
+                "expansion utility row status/metric drift"
+            )
+        if self.safety_no_worse != (not self.failed_dimensions):
+            raise CiboCompoundCapitalError(
+                "expansion utility row safety/dimension drift"
+            )
+
 
 @dataclass(frozen=True, slots=True)
 class ExpansionUtilityGateReport:
@@ -171,10 +229,31 @@ class ExpansionUtilityGateReport:
             self.provider_economics_sha256,
             "gate provider_economics_sha256",
         )
+        if type(self.kind) is not ExpansionUtilityKind:
+            raise CiboCompoundCapitalError(
+                "expansion utility gate kind is invalid"
+            )
+        if not isinstance(self.rows, tuple) or not self.rows or any(
+            not isinstance(row, ExpansionUtilityGateRow) for row in self.rows
+        ):
+            raise CiboCompoundCapitalError(
+                "expansion utility gate requires canonical rows"
+            )
         ids = tuple(row.candidate_id for row in self.rows)
         if len(ids) != len(set(ids)) or self.control_candidate_id not in ids:
             raise CiboCompoundCapitalError(
                 "expansion utility gate candidate identity drift"
+            )
+        controls = tuple(
+            row for row in self.rows
+            if row.status is ExpansionUtilityStatus.CONTROL
+        )
+        if (
+            len(controls) != 1
+            or controls[0].candidate_id != self.control_candidate_id
+        ):
+            raise CiboCompoundCapitalError(
+                "expansion utility gate control row drift"
             )
         if (
             self.weighted_score_used

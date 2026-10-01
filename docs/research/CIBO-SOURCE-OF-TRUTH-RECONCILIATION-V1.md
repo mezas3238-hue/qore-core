@@ -158,3 +158,21 @@ under the Owner's no-workflow-flood policy.
 - T17 governed-provider ineligibility closure is staged, not terminal, until
   exact-head CI validates cTrader DEMO plus FundedNext evidence together.
 - Productive/runtime/LIVE/merge authority remains false.
+
+
+## 2026-10-01 terminal-disposition acceleration snapshot
+
+- Frozen child snapshot: A=`453e4c0a9f3a84440e7de38e9bc456c3e7d711db`, B=`89faf02d32ad54172cd10e6e28d8e3b734802f6e`.
+- A delta accounting: 124 = 112 byte-integrated + 12 deliberate overrides.
+- B delta accounting: 106 = 83 byte-integrated + 15 deliberate overrides
+  + 8 deliberately noncanonical operational/handoff/child-gate files.
+- Exact Integrator HEAD `b0391233c4a47c0f37868619dd9c042f6b355ee7` produced 57 SUCCESS / 3 failure:
+  Architect A Internal Readiness was intentional fail-closed; Cross-Boundary
+  Receipt and Pre-Holdout shared one stale fixture timestamp defect.
+- Exact-head SUCCESS evidence supports terminal engineering dispositions for
+  T02, T11, T16, T20, PROVIDER_ECONOMICS and FORWARD_QUALIFICATION as
+  certification-blocking EXTERNAL_DEPENDENCY_BLOCKED.
+- T17 is FALSIFIED_AND_CLOSED only for the current governed cTrader DEMO plus
+  FundedNext Stellar Instant CFD universe; provider-universe change reopens it.
+- Canonical ledger after this reconciliation: 64 mandatory / 21 terminal /
+  43 open. Certification remains false.

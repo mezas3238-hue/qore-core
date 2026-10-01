@@ -46,8 +46,8 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "FORWARD_STRUCTURAL_OOS_ENGINE_CI_GREEN_CARRIED_FORWARD_REAL_POPULATION_OPEN",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "src/qore/infrastructure/cibo_ce2i_t02_terminal_reason_evidence.py",
@@ -56,31 +56,38 @@
         "tests/infrastructure/test_cibo_ce2i_phase20_t02_structural_oos.py",
         ".github/workflows/cibo-t02-forward-structural-oos.yml",
         "docs/research/CIBO-B-T02-FORWARD-STRUCTURAL-OOS-V1.md",
-        "github-actions://36790166770/SUCCESS"
+        "github-actions://36790166770/SUCCESS",
+        "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
+        "github-actions://36814557961/SUCCESS"
       ],
       "blockers": [
         "REAL_POST_FREEZE_STRUCTURAL_TERMINAL_REASON_POPULATION_REQUIRED",
         "PROVIDER_BOUND_LEVERAGE_ECONOMIC_ABLATION_REQUIRED"
       ],
-      "next_gate": "Collect explicit terminal-reason post-freeze population without PnL/price inference; then run provider-bound leverage economic ablation before terminal disposition."
+      "next_gate": "External evidence dependency only. Reopen scientific evaluation when the recorded forward/provider population requirement becomes available; this disposition remains certification-blocking."
     },
     {
       "id": "T03",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "FORWARD_PROVIDER_MARGIN_TOOLING_CI_GREEN_CARRIED_FORWARD_VALUE_DEMONSTRATION_OPEN",
+      "current_maturity": "DIRECT_PROVIDER_CANDIDATE_SCREEN_EXHAUSTED_MULTI_LEG_OR_ALTERNATE_PROVIDER_RESEARCH_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
         "docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md",
-        "github-actions://36790166956/SUCCESS"
+        "github-actions://36790166956/SUCCESS",
+        "scripts/cibo_t03_provider_equivalent_candidate_screen.py",
+        "tests/infrastructure/test_cibo_t03_provider_equivalent_candidate_screen.py",
+        "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
+        "github-actions://36814558179/SUCCESS"
       ],
       "blockers": [
-        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
+        "MULTI_LEG_OR_ALTERNATE_PROVIDER_EQUIVALENT_EXPRESSION_NOT_PROVEN",
+        "FRESH_OOS_EQUIVALENT_EXPRESSION_UTILITY_REQUIRED_IF_CANDIDATE_APPEARS"
       ],
-      "next_gate": "Bind real provider margin population and demonstrate provider-bound economic value before registry terminal disposition."
+      "next_gate": "Investigate multi-leg or alternate-provider equivalent-expression candidates without outcome selection. If a candidate appears, prove normalized exposure/economics and fresh OOS utility."
     },
     {
       "id": "T04",
@@ -239,8 +246,8 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "FORWARD_TOOLING_CI_GREEN_LINEAR_EXECUTION_COST_DEDICATED_CI_PENDING_POLICY_UTILITY_OPEN",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py",
@@ -249,16 +256,17 @@
         ".github/workflows/cibo-t11-execution-cost-calibration.yml",
         "docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md",
         ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
-        "github-actions://36790166956/SUCCESS"
+        "github-actions://36790166956/SUCCESS",
+        "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
+        "github-actions://36814558301/SUCCESS"
       ],
       "blockers": [
-        "T11_LINEAR_EXECUTION_COST_CI_REQUIRED",
-        "REAL_SCIENTIFICALLY_READY_FORWARD_EXECUTION_POPULATION_REQUIRED",
-        "T11_GROSS_EDGE_MODEL_NOT_IDENTIFIED",
-        "T11_MARKET_IMPACT_MODEL_NOT_IDENTIFIED",
-        "T11_HISTORICAL_2017_EXECUTION_TERMS_NOT_PROVEN"
+        "REAL_EXECUTION_POPULATION_REQUIRED",
+        "EMPIRICAL_SLIPPAGE_CALIBRATION_REQUIRED",
+        "REAL_CALIBRATED_FRESH_OOS_GROSS_EDGE_MODEL_REQUIRED",
+        "REAL_PROVIDER_BOUND_MARKET_IMPACT_MODEL_REQUIRED"
       ],
-      "next_gate": "Pass T11 calibration CI; bind scientifically-ready provider execution population; identify gross edge and nonlinear market-impact inputs separately; do not promote linear cost calibration into policy readiness."
+      "next_gate": "External evidence dependency only. Reopen scientific evaluation when the recorded forward/provider population requirement becomes available; this disposition remains certification-blocking."
     },
     {
       "id": "T12",
@@ -350,8 +358,8 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "PROVIDER_BOUND_PREOUTCOME_HEDGE_UNIVERSE_PREREGISTERED_ECONOMIC_OOS_OPEN",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "src/qore/infrastructure/cibo_ce2i_calibration_registry.py",
@@ -376,23 +384,25 @@
         "src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py",
         "tests/infrastructure/test_cibo_ce2i_t16_preregistered_hedge_universe.py",
         "docs/research/CIBO-B-T16-HEDGE-PAIR-PREREGISTRATION-V1.json",
-        ".github/workflows/cibo-b-provider-forward-tool-readiness.yml"
+        ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
+        "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
+        "github-actions://36814558004/SUCCESS"
       ],
       "blockers": [
-        "T16_POST_PREREGISTRATION_RETURN_CORRELATION_BASIS_MEASUREMENT_REQUIRED",
-        "T16_PROVIDER_EXECUTION_AND_HEDGE_COST_CALIBRATION_REQUIRED",
-        "T16_FOUR_CONTIGUOUS_FORWARD_FOLDS_REQUIRED",
-        "T16_FRESH_OOS_NET_ECONOMIC_BENEFIT_REQUIRED"
+        "REAL_POST_DECLARATION_HEDGE_RETURN_POPULATION_REQUIRED",
+        "HEDGE_INSTRUMENT_BASIS_RISK_COST_CORRELATION_EXECUTION_EVIDENCE_REQUIRED",
+        "NET_ECONOMIC_BENEFIT_NOT_PROVEN",
+        "PROVIDER_BOUND_FRESH_OOS_HEDGE_UTILITY_REQUIRED"
       ],
-      "next_gate": "Collect only post-preregistration NAS100/US30 and NAS100/US500 windows; measure correlation/basis risk and provider-native execution costs, then require four contiguous folds and fresh OOS net economic benefit."
+      "next_gate": "External evidence dependency only. Reopen scientific evaluation when the recorded forward/provider population requirement becomes available; this disposition remains certification-blocking."
     },
     {
       "id": "T17",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "GOVERNED_PROVIDER_INELIGIBILITY_CLOSURE_STAGED_EXACT_HEAD_CI_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "GOVERNED_PROVIDER_UNIVERSE_STRUCTURALLY_INELIGIBLE_PROVEN",
+      "terminal_disposition": "FALSIFIED_AND_CLOSED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "src/qore/infrastructure/cibo_ce2i_calibration_registry.py",
@@ -424,12 +434,13 @@
         "docs/research/CIBO-B-T17-STRUCTURAL-DISPOSITION-V1.json",
         "src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py",
         "src/qore/infrastructure/cibo_t17_governed_provider_disposition.py",
-        "tests/infrastructure/test_cibo_t17_governed_provider_disposition.py"
+        "tests/infrastructure/test_cibo_t17_governed_provider_disposition.py",
+        "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
+        "github-actions://36814558260/SUCCESS",
+        "github-actions://36814558179/SUCCESS"
       ],
-      "blockers": [
-        "INTEGRATOR_T17_GOVERNED_PROVIDER_DISPOSITION_EXACT_HEAD_CI_REQUIRED"
-      ],
-      "next_gate": "Pass the exact-head governed-provider disposition. If GREEN, terminalize T17 as COMPLETED_PROVIDER_INELIGIBLE for the current cTrader DEMO plus FundedNext Stellar Instant CFD universe."
+      "blockers": [],
+      "next_gate": "Remain closed for the current governed cTrader DEMO + FundedNext Stellar Instant CFD universe. Reopen only if provider/account capability or governed provider universe changes."
     },
     {
       "id": "T18",
@@ -476,20 +487,22 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "MECHANICAL_RELEASE_PROVENANCE_ENGINE_CI_GREEN_CARRIED_FORWARD_REAL_FORWARD_POPULATION_OPEN",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "src/qore/infrastructure/cibo_t20_capital_release_evidence.py",
         "tests/infrastructure/test_cibo_t20_capital_release_evidence.py",
         ".github/workflows/cibo-t20-capital-release.yml",
         "docs/research/CIBO-B-T20-CAPITAL-RELEASE-MECHANICAL-CLOSURE-V1.md",
-        "github-actions://36790166892/SUCCESS"
+        "github-actions://36790166892/SUCCESS",
+        "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
+        "github-actions://36814558181/SUCCESS"
       ],
       "blockers": [
-        "FRESH_AUTHORITATIVE_RELEASE_RETURNED_CAPACITY_POPULATION_REQUIRED"
+        "REAL_AUTHORITATIVE_FORWARD_RELEASE_POPULATION_REQUIRED"
       ],
-      "next_gate": "Populate the frozen FORWARD_OBSERVED qualification set with exact provider→Risk→execution→settlement→terminal-release lifecycles and Phase20D coverage."
+      "next_gate": "External evidence dependency only. Reopen scientific evaluation when the recorded forward/provider population requirement becomes available; this disposition remains certification-blocking."
     },
     {
       "id": "GEN-C0",
@@ -1019,8 +1032,8 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "POINT_IN_TIME_TERMS_PLUS_ACCOUNT_TAXONOMY_AND_GSL_SURFACE_STAGED_CI_PENDING_REAL_FORWARD_CALIBRATION_OPEN",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py",
         "src/qore/infrastructure/cibo_fundednext_provider.py",
@@ -1050,26 +1063,23 @@
         "src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py",
         "scripts/cibo_t17_limited_risk_capability_probe.py",
         "tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py",
-        "tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py"
+        "tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py",
+        "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
+        "github-actions://36814558179/SUCCESS"
       ],
       "blockers": [
-        "INTEGRATOR_CTRADER_DEMO_ACCOUNT_CAPABILITY_CI_REQUIRED",
-        "INTEGRATOR_CTRADER_DEMO_PROVIDER_ECONOMICS_CI_REQUIRED",
-        "PROVIDER_EXECUTION_CALIBRATION_CI_REQUIRED",
-        "REAL_FORWARD_EXECUTION_POPULATION_MINIMA_REQUIRED",
-        "REAL_ACCOUNT_TAXONOMY_GSL_OBSERVATION_REQUIRED",
-        "T16_T17_ECONOMIC_CAPABILITY_EVIDENCE_REQUIRED_IF_SUPPORTED",
-        "HISTORICAL_PROVIDER_USD_ECONOMICS_NOT_AVAILABLE_FOR_LEGACY_REPLAY"
+        "REAL_FORWARD_SLIPPAGE_COST_CALIBRATION_REQUIRED",
+        "HISTORICAL_2017_PROVIDER_USD_ECONOMICS_UNAVAILABLE"
       ],
-      "next_gate": "Pass integrated provider/account taxonomy CI; collect point-in-time account taxonomy and GSL fields read-only; then calibrate real forward execution economics without projecting current provider terms into historical replay."
+      "next_gate": "External evidence dependency only. Reopen scientific evaluation when the recorded forward/provider population requirement becomes available; this disposition remains certification-blocking."
     },
     {
       "id": "FORWARD_QUALIFICATION",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "IMMUTABLE_B_TO_A_FORWARD_MANIFEST_AND_RECEIPT_BOUND_FREEZE_CI_GREEN_REAL_THRESHOLD_POPULATION_OPEN",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py",
         "tests/infrastructure/test_cibo_ce2i_calibration_freeze_manifest.py",
@@ -1085,15 +1095,14 @@
         "docs/research/CIBO-ARCH-B-FORWARD-ECONOMIC-EVIDENCE-MANIFEST-V1.md",
         "docs/research/CIBO-B-CALIBRATION-FREEZE-MANIFEST-V1.md",
         "github-actions://36790166850/SUCCESS",
-        "github-actions://36790166754/SUCCESS"
+        "github-actions://36790166754/SUCCESS",
+        "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
+        "github-actions://36814558235/SUCCESS"
       ],
       "blockers": [
-        "PHASE20D_FRESH_POPULATION_THRESHOLDS_NOT_YET_MET_OR_REVALIDATED",
-        "T01_T20_SOURCE_BOUND_RECEIPTS_NOT_YET_AVAILABLE",
-        "PHASE20D_FORWARD_AND_PROVIDER_FREEZE_RECEIPTS_NOT_YET_AVAILABLE",
-        "T16_T17_TYPED_PROVIDER_CAPABILITY_SUPPORT_OR_UNAVAILABLE_EVIDENCE_REQUIRED"
+        "FROZEN_PHASE20D_REAL_FORWARD_THRESHOLDS_NOT_YET_MET"
       ],
-      "next_gate": "Accumulate the real frozen Phase20D population to decision/candidate/selected/lineage/WF1..WF4 thresholds with complete Risk/CMA/T20 lineage and no pre-freeze contamination."
+      "next_gate": "External evidence dependency only. Reopen scientific evaluation when the recorded forward/provider population requirement becomes available; this disposition remains certification-blocking."
     },
     {
       "id": "PATH_DEPENDENT_MONTE_CARLO",
@@ -1574,8 +1583,8 @@
   ],
   "current_summary": {
     "mandatory_count": 64,
-    "terminal_count": 14,
-    "open_count": 50,
+    "terminal_count": 21,
+    "open_count": 43,
     "zero_open_work_pass": false,
     "final_certification_candidate": false
   }

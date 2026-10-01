@@ -4,9 +4,9 @@
   "integrator_pr": 670,
   "architect_a": {
     "pr": 660,
-    "head_sha": "70db6a38011ff2b69e073f59a437051e04b37e28",
-    "changed_files": 122,
-    "files_present_in_integrator_delta": 110,
+    "head_sha": "453e4c0a9f3a84440e7de38e9bc456c3e7d711db",
+    "changed_files": 124,
+    "files_present_in_integrator_delta": 112,
     "deliberate_overrides": [
       {
         "path": ".github/workflows/cibo-final-integrated-exam.yml",
@@ -62,9 +62,9 @@
   },
   "architect_b": {
     "pr": 661,
-    "head_sha": "cd41a8e224812ee6944a70a947d7d4d5f3e7d9de",
-    "changed_files": 99,
-    "files_present_in_integrator_delta": 79,
+    "head_sha": "89faf02d32ad54172cd10e6e28d8e3b734802f6e",
+    "changed_files": 106,
+    "files_present_in_integrator_delta": 83,
     "deliberate_overrides": [
       {
         "path": ".github/workflows/cibo-arch-b-forward-economic-manifest.yml",
@@ -72,7 +72,7 @@
       },
       {
         "path": ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
-        "reason": "Integrator executes the new T16 preregistration test omitted upstream."
+        "reason": "Integrator retains repaired T16 preregistration test coverage."
       },
       {
         "path": ".github/workflows/cibo-calibration-freeze-manifest.yml",
@@ -88,7 +88,7 @@
       },
       {
         "path": ".github/workflows/cibo-pre-holdout-checkpoint.yml",
-        "reason": "Integrator merges provider evidence into receipt-bound pre-holdout."
+        "reason": "Integrator owns receipt-bound pre-holdout semantics."
       },
       {
         "path": ".github/workflows/cibo-risk-integration-closure.yml",
@@ -101,10 +101,6 @@
       {
         "path": ".github/workflows/cibo-usd60-pre-exam-readiness.yml",
         "reason": "Integrator owns receipt-bound USD60 readiness."
-      },
-      {
-        "path": "docs/research/CIBO-ARCH-B-CROSSBOUNDARY-REQUEST-002.md",
-        "reason": "Integrator reconciles this request against current A+B delivery."
       },
       {
         "path": "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json",
@@ -132,12 +128,16 @@
       }
     ],
     "deliberate_noncanonical_snapshots": [
+      ".github/workflows/cibo-arch-b-zero-open-work.yml",
       ".github/workflows/cibo-b-actions-queue-cleanup.yml",
       "docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.json",
       "docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.md",
-      "docs/research/CIBO-ARCH-B-HANDOFF-MAESTRO-CONTINUIDAD-2026-09-30.md"
+      "docs/research/CIBO-ARCH-B-HANDOFF-MAESTRO-CONTINUIDAD-2026-09-30.md",
+      "docs/research/CIBO-ARCH-B-ZERO-OPEN-WORK-GATE-V1.md",
+      "scripts/cibo_arch_b_zero_open_work_gate.py",
+      "tests/infrastructure/test_cibo_arch_b_zero_open_work_gate.py"
     ],
-    "reason": "All B paths are integrated, deliberately overridden, or deliberately noncanonical.",
+    "reason": "All B paths are integrated, deliberately overridden, or deliberately noncanonical; child Zero Open cannot replace the global Integrator gate.",
     "unaccounted_files": []
   },
   "all_child_delta_files_accounted": true,
