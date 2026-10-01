@@ -35,6 +35,7 @@ permissions:
 
 env:
   EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  PYTHONPATH: .
 
 jobs:
   legacy-stack-quarantine:
