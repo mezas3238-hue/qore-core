@@ -15,14 +15,14 @@ from datetime import datetime
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
+from qore.infrastructure.cibo_ce2i_holdout_registry import (
+    PREREGISTERED_USD60_HOLDOUT,
+)
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
     VersionedPhase20ForwardPolicyBook,
 )
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     VersionedPhase20ForwardEvidenceBook,
-)
-from qore.infrastructure.cibo_ce2i_holdout_registry import (
-    PREREGISTERED_USD60_HOLDOUT,
 )
 from qore.infrastructure.cibo_ce2i_phase21_policy_freeze import (
     Phase21PolicyFreezeManifest,
