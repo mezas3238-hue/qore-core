@@ -13,6 +13,15 @@ PROTOCOL_ID = "CIBO_COMPOUND_CAUSAL_ABLATION_PROTOCOL_V1"
 PROTOCOL_FROZEN_AT = datetime(2026, 9, 30, 17, 42, 30, tzinfo=UTC)
 ROOT_CONTROL_ID = "CIBO_GENERATION_CURRENT_CONTROL_V1"
 SEALED_HOLDOUT_ID = "CIBO_USD60_6M_HOLDOUT_2017H1_V1"
+PHASE22_V2_FRESH_HOLDOUT_ID = (
+    "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
+)
+_PROTECTED_HOLDOUT_IDS = frozenset(
+    {
+        SEALED_HOLDOUT_ID,
+        PHASE22_V2_FRESH_HOLDOUT_ID,
+    }
+)
 _CANONICAL_FOLDS = ("WF1", "WF2", "WF3", "WF4")
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
@@ -99,9 +108,9 @@ class CompoundCausalAblationPair:
             raise CiboCompoundCapitalError(
                 "compound causal ablation mechanism/workstream mismatch"
             )
-        if self.population_id == SEALED_HOLDOUT_ID:
+        if self.population_id in _PROTECTED_HOLDOUT_IDS:
             raise CiboCompoundCapitalError(
-                "sealed 2017H1 holdout cannot enter development ablation"
+                "protected holdout cannot enter development ablation"
             )
         for name in (
             "control_population_sha256",
