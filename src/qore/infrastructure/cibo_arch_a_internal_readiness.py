@@ -30,6 +30,37 @@ MECHANISM_EVIDENCE_SCHEMA = "QORE_CIBO_ARCH_A_MECHANISM_EVIDENCE_RECEIPT_V1"
 ARCH_B_FORWARD_MANIFEST_ID = (
     "CIBO_ARCH_B_FORWARD_ECONOMIC_EVIDENCE_MANIFEST_V1"
 )
+PHASE22_V2_INTAKE_SCHEMA = "QORE_CIBO_ARCH_A_PHASE22_V2_SCIENTIFIC_INTAKE_V1"
+PHASE22_V2_CANDIDATE_ID = (
+    "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
+)
+PHASE22_V2_WINDOW_START = "2015-10-19T00:00:00Z"
+PHASE22_V2_WINDOW_END_EXCLUSIVE = "2016-04-19T00:00:00Z"
+PHASE22_V2_REQUIRED_TRADERS = (
+    "VT08_FOREX",
+    "R34_XAUUSD",
+    "R38_EURUSD",
+    "R43_GBPUSD",
+    "R38_GBPJPY",
+    "R42_AUDJPY",
+    "VT31_NAS100",
+)
+PHASE22_V2_REQUIRED_FOLDS = ("WF1", "WF2", "WF3", "WF4")
+PHASE22_V2_REQUIRED_RECEIPTS = (
+    "source_receipt_sha256",
+    "pre_holdout_freeze_sha256",
+    "trader_parity_manifest_sha256",
+    "execution_manifest_sha256",
+    "holdout_evidence_store_sha256",
+    "holdout_policy_store_sha256",
+    "executed_risk_store_sha256",
+    "cma_settlement_store_sha256",
+    "t20_release_store_sha256",
+    "provider_economics_sha256",
+    "integrated_capital_truth_sha256",
+    "as_is_baseline_sha256",
+    "qualification_report_sha256",
+)
 
 A_WORKSTREAM_IDS = (
     "T04", "T05", "T06", "T07", "T08", "T09", "T10", "T12", "T13",
@@ -616,6 +647,382 @@ def evaluate_architect_a_scientific_intake(
     )
 
 
+
+@dataclass(frozen=True, slots=True)
+class ArchitectAPhase22V2ScientificIntakeReport:
+    schema: str
+    manifest_sha256: str
+    candidate_id: str
+    qualification_status: str
+    trader_ids: tuple[str, ...]
+    fold_ids: tuple[str, ...]
+    decision_epochs: int
+    candidate_outcomes: int
+    selected_outcomes: int
+    calendar_span_days: int
+    distinct_trading_days: int
+    minimum_fold_candidate_outcomes: int
+    minimum_fold_lineages: int
+    minimum_outcomes_any_lineage: int
+    candidate_outcome_coverage: str
+    selected_outcome_coverage: str
+    baseline_selected_outcome_coverage: str
+    receipt_refs: tuple[tuple[str, str], ...]
+    ready_for_scientific_reentry: bool
+    blockers: tuple[str, ...]
+    scientific_closure_claimed: bool = False
+    integration_authority: bool = False
+    production_authority: bool = False
+
+    def __post_init__(self) -> None:
+        if self.schema != PHASE22_V2_INTAKE_SCHEMA:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 intake schema drift"
+            )
+        _require_sha(self.manifest_sha256, "manifest_sha256")
+        if self.candidate_id != PHASE22_V2_CANDIDATE_ID:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 candidate identity drift"
+            )
+        if self.qualification_status not in {"PASS", "FAIL"}:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 requires terminal qualification"
+            )
+        if self.trader_ids != PHASE22_V2_REQUIRED_TRADERS:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 trader lineage drift"
+            )
+        if self.fold_ids != PHASE22_V2_REQUIRED_FOLDS:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 fold lineage drift"
+            )
+        for name in (
+            "decision_epochs",
+            "candidate_outcomes",
+            "selected_outcomes",
+            "calendar_span_days",
+            "distinct_trading_days",
+            "minimum_fold_candidate_outcomes",
+            "minimum_fold_lineages",
+            "minimum_outcomes_any_lineage",
+        ):
+            value = getattr(self, name)
+            if type(value) is not int or value < 0:
+                raise ArchitectAReadinessError(
+                    f"Architect A Phase22 V2 {name} must be non-negative int"
+                )
+        for name in (
+            "candidate_outcome_coverage",
+            "selected_outcome_coverage",
+            "baseline_selected_outcome_coverage",
+        ):
+            _require_ratio(getattr(self, name), name)
+        if (
+            not isinstance(self.receipt_refs, tuple)
+            or tuple(name for name, _digest in self.receipt_refs)
+            != PHASE22_V2_REQUIRED_RECEIPTS
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 receipt set drift"
+            )
+        for _name, digest in self.receipt_refs:
+            _require_sha(digest, "Phase22 V2 receipt sha256")
+        if type(self.ready_for_scientific_reentry) is not bool:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 readiness must be bool"
+            )
+        if (
+            not isinstance(self.blockers, tuple)
+            or any(not isinstance(item, str) or not item for item in self.blockers)
+            or len(self.blockers) != len(set(self.blockers))
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 blockers are invalid"
+            )
+        if self.ready_for_scientific_reentry != (not self.blockers):
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 readiness/blocker drift"
+            )
+        if (
+            self.scientific_closure_claimed
+            or self.integration_authority
+            or self.production_authority
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 intake cannot claim closure/authority"
+            )
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+def evaluate_architect_a_phase22_v2_scientific_intake(
+    payload: dict[str, Any],
+) -> ArchitectAPhase22V2ScientificIntakeReport:
+    """Admit a completed Phase22 V2 exam for frozen Architect-A science.
+
+    PASS and FAIL are both scientifically consumable terminal outcomes. The
+    intake validates completeness, causal governance and lineage; it does not
+    convert a failed Phase22 economic result into a pass.
+    """
+
+    if not isinstance(payload, dict):
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 manifest payload must be object"
+        )
+    if payload.get("schema") != PHASE22_V2_INTAKE_SCHEMA:
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 manifest schema drift"
+        )
+
+    manifest_sha256 = _require_sha(
+        payload.get("manifest_sha256"),
+        "manifest_sha256",
+    )
+    unsigned = dict(payload)
+    unsigned.pop("manifest_sha256", None)
+    if manifest_sha256 != forward_manifest_payload_sha256(unsigned):
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 manifest digest drift"
+        )
+
+    if payload.get("candidate_id") != PHASE22_V2_CANDIDATE_ID:
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 candidate identity drift"
+        )
+    if payload.get("window_start") != PHASE22_V2_WINDOW_START:
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 window start drift"
+        )
+    if payload.get("window_end_exclusive") != PHASE22_V2_WINDOW_END_EXCLUSIVE:
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 window end drift"
+        )
+    if (
+        payload.get("qualification_plan_sha256")
+        != phase20d_qualification_plan_sha256()
+    ):
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 qualification-plan drift"
+        )
+
+    qualification_status = _require_nonempty_str(
+        payload.get("qualification_status"),
+        "qualification_status",
+    )
+    if qualification_status not in {"PASS", "FAIL"}:
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 requires terminal PASS or FAIL"
+        )
+
+    trader_ids_raw = payload.get("trader_ids")
+    fold_ids_raw = payload.get("fold_ids")
+    if not isinstance(trader_ids_raw, list):
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 trader_ids must be list"
+        )
+    if not isinstance(fold_ids_raw, list):
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 fold_ids must be list"
+        )
+    trader_ids = tuple(str(item) for item in trader_ids_raw)
+    fold_ids = tuple(str(item) for item in fold_ids_raw)
+    if trader_ids != PHASE22_V2_REQUIRED_TRADERS:
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 requires exact 7/7 trader lineage"
+        )
+    if fold_ids != PHASE22_V2_REQUIRED_FOLDS:
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 requires exact WF1..WF4 lineage"
+        )
+
+    plan = FROZEN_PHASE20D_QUALIFICATION_PLAN
+    decision_epochs = _require_nonnegative_int(
+        payload.get("decision_epochs"), "decision_epochs"
+    )
+    candidate_outcomes = _require_nonnegative_int(
+        payload.get("candidate_outcomes"), "candidate_outcomes"
+    )
+    selected_outcomes = _require_nonnegative_int(
+        payload.get("selected_outcomes"), "selected_outcomes"
+    )
+    calendar_span_days = _require_nonnegative_int(
+        payload.get("calendar_span_days"), "calendar_span_days"
+    )
+    distinct_trading_days = _require_nonnegative_int(
+        payload.get("distinct_trading_days"), "distinct_trading_days"
+    )
+    minimum_fold_candidate_outcomes = _require_nonnegative_int(
+        payload.get("minimum_fold_candidate_outcomes"),
+        "minimum_fold_candidate_outcomes",
+    )
+    minimum_fold_lineages = _require_nonnegative_int(
+        payload.get("minimum_fold_lineages"), "minimum_fold_lineages"
+    )
+    minimum_outcomes_any_lineage = _require_nonnegative_int(
+        payload.get("minimum_outcomes_any_lineage"),
+        "minimum_outcomes_any_lineage",
+    )
+    candidate_coverage = _require_ratio(
+        payload.get("candidate_outcome_coverage"),
+        "candidate_outcome_coverage",
+    )
+    selected_coverage = _require_ratio(
+        payload.get("selected_outcome_coverage"),
+        "selected_outcome_coverage",
+    )
+    baseline_coverage = _require_ratio(
+        payload.get("baseline_selected_outcome_coverage"),
+        "baseline_selected_outcome_coverage",
+    )
+
+    receipts_raw = payload.get("receipts")
+    if not isinstance(receipts_raw, dict):
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 receipts must be object"
+        )
+    if set(receipts_raw) != set(PHASE22_V2_REQUIRED_RECEIPTS):
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 receipt set drift"
+        )
+    receipt_refs = tuple(
+        (
+            name,
+            _require_sha(receipts_raw.get(name), name),
+        )
+        for name in PHASE22_V2_REQUIRED_RECEIPTS
+    )
+
+    governance_true = (
+        "source_receipt_sealed",
+        "pre_holdout_freeze_sealed",
+        "parity_7_of_7",
+        "fresh_execution_complete",
+        "lineage_gate_passed",
+        "economic_qualification_executed",
+    )
+    governance_false = (
+        "future_leakage",
+        "synthetic_evidence_used",
+        "retuning_after_fresh",
+        "outcome_selected_configuration",
+        "productive_authority",
+        "certification_ready",
+    )
+    blockers: list[str] = []
+    for name in governance_true:
+        value = payload.get(name)
+        if type(value) is not bool:
+            raise ArchitectAReadinessError(
+                f"Architect A Phase22 V2 {name} must be bool"
+            )
+        if not value:
+            blockers.append(name.upper() + "_REQUIRED")
+    for name in governance_false:
+        value = payload.get(name)
+        if type(value) is not bool:
+            raise ArchitectAReadinessError(
+                f"Architect A Phase22 V2 {name} must be bool"
+            )
+        if value:
+            blockers.append(name.upper() + "_PROHIBITED")
+
+    if decision_epochs < plan.minimum_decision_epochs:
+        blockers.append("DECISION_EPOCH_MINIMUM_NOT_MET")
+    if candidate_outcomes < plan.minimum_candidate_outcomes:
+        blockers.append("CANDIDATE_OUTCOME_MINIMUM_NOT_MET")
+    if selected_outcomes < plan.minimum_selected_outcomes:
+        blockers.append("SELECTED_OUTCOME_MINIMUM_NOT_MET")
+    if calendar_span_days < plan.minimum_calendar_span_days:
+        blockers.append("CALENDAR_SPAN_MINIMUM_NOT_MET")
+    if distinct_trading_days < plan.minimum_distinct_trading_days:
+        blockers.append("TRADING_DAY_MINIMUM_NOT_MET")
+    if minimum_fold_candidate_outcomes < plan.minimum_fold_candidate_outcomes:
+        blockers.append("FOLD_CANDIDATE_OUTCOME_MINIMUM_NOT_MET")
+    if minimum_fold_lineages < plan.minimum_fold_lineages:
+        blockers.append("FOLD_LINEAGE_MINIMUM_NOT_MET")
+    if minimum_outcomes_any_lineage < plan.minimum_outcomes_per_lineage:
+        blockers.append("LINEAGE_OUTCOME_MINIMUM_NOT_MET")
+    if candidate_coverage < plan.minimum_candidate_outcome_coverage:
+        blockers.append("CANDIDATE_COVERAGE_MINIMUM_NOT_MET")
+    if selected_coverage < plan.required_selected_outcome_coverage:
+        blockers.append("SELECTED_COVERAGE_INCOMPLETE")
+    if baseline_coverage < plan.required_baseline_selected_outcome_coverage:
+        blockers.append("BASELINE_COVERAGE_INCOMPLETE")
+
+    blockers = list(dict.fromkeys(blockers))
+    return ArchitectAPhase22V2ScientificIntakeReport(
+        schema=PHASE22_V2_INTAKE_SCHEMA,
+        manifest_sha256=manifest_sha256,
+        candidate_id=PHASE22_V2_CANDIDATE_ID,
+        qualification_status=qualification_status,
+        trader_ids=trader_ids,
+        fold_ids=fold_ids,
+        decision_epochs=decision_epochs,
+        candidate_outcomes=candidate_outcomes,
+        selected_outcomes=selected_outcomes,
+        calendar_span_days=calendar_span_days,
+        distinct_trading_days=distinct_trading_days,
+        minimum_fold_candidate_outcomes=minimum_fold_candidate_outcomes,
+        minimum_fold_lineages=minimum_fold_lineages,
+        minimum_outcomes_any_lineage=minimum_outcomes_any_lineage,
+        candidate_outcome_coverage=format(candidate_coverage, "f"),
+        selected_outcome_coverage=format(selected_coverage, "f"),
+        baseline_selected_outcome_coverage=format(baseline_coverage, "f"),
+        receipt_refs=receipt_refs,
+        ready_for_scientific_reentry=not blockers,
+        blockers=tuple(blockers),
+    )
+
+
+def build_architect_a_phase22_v2_scientific_batch_plan(
+    readiness: ArchitectAInternalReadinessReport,
+    intake: ArchitectAPhase22V2ScientificIntakeReport,
+) -> ArchitectAScientificBatchPlan:
+    if not isinstance(readiness, ArchitectAInternalReadinessReport):
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 batch requires canonical readiness report"
+        )
+    if not isinstance(intake, ArchitectAPhase22V2ScientificIntakeReport):
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 batch requires canonical intake"
+        )
+
+    blockers: list[str] = []
+    if not readiness.passed:
+        blockers.append("ARCH_A_INTERNAL_READINESS_REQUIRED")
+    if not intake.ready_for_scientific_reentry:
+        blockers.append("PHASE22_V2_SCIENTIFIC_INTAKE_REQUIRED")
+
+    remaining = set(readiness.empirical_open_ids) | set(
+        readiness.external_dependency_ids
+    )
+    waves = tuple(
+        tuple(item for item in wave if item in remaining)
+        for wave in _SCIENTIFIC_WAVES
+    )
+    flattened = tuple(item for wave in waves for item in wave)
+    if set(flattened) != remaining:
+        missing = tuple(sorted(remaining - set(flattened)))
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 batch missing dependency-wave mapping: "
+            + ",".join(missing)
+        )
+
+    complete = not remaining
+    return ArchitectAScientificBatchPlan(
+        schema=SCIENTIFIC_BATCH_SCHEMA,
+        remaining_workstream_count=len(flattened),
+        remaining_workstream_ids=flattened,
+        wave_1_ids=waves[0],
+        wave_2_ids=waves[1],
+        wave_3_ids=waves[2],
+        wave_4_ids=waves[3],
+        population_batch_ready=bool(flattened) and not blockers,
+        complete_without_execution=complete,
+        blockers=tuple(blockers),
+    )
+
 def forward_manifest_payload_sha256(payload: dict[str, Any]) -> str:
     raw = json.dumps(
         payload,
@@ -645,6 +1052,24 @@ def _require_nonempty_str(value: object, name: str) -> str:
             f"Architect A scientific intake {name} is required"
         )
     return value
+
+
+def _require_ratio(value: object, name: str) -> Decimal:
+    if not isinstance(value, str):
+        raise ArchitectAReadinessError(
+            f"Architect A scientific intake {name} must be decimal string"
+        )
+    try:
+        parsed = Decimal(value)
+    except Exception as exc:
+        raise ArchitectAReadinessError(
+            f"Architect A scientific intake {name} is invalid"
+        ) from exc
+    if not parsed.is_finite() or parsed < 0 or parsed > 1:
+        raise ArchitectAReadinessError(
+            f"Architect A scientific intake {name} must be in [0,1]"
+        )
+    return parsed
 
 
 def _require_nonnegative_int(value: object, name: str) -> int:

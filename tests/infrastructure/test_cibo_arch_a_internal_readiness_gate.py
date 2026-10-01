@@ -436,3 +436,133 @@ def test_scientific_batch_plan_reenters_terminal_external_dependencies(
         readiness.external_dependency_ids
     )
 
+
+
+def _phase22_v2_manifest_payload(
+    *,
+    qualification_status: str = "PASS",
+    future_leakage: bool = False,
+) -> dict:
+    plan = gate.FROZEN_PHASE20D_QUALIFICATION_PLAN
+    receipts = {
+        name: "sha256:" + sha256(name.encode("utf-8")).hexdigest()
+        for name in gate.PHASE22_V2_REQUIRED_RECEIPTS
+    }
+    payload = {
+        "schema": gate.PHASE22_V2_INTAKE_SCHEMA,
+        "candidate_id": gate.PHASE22_V2_CANDIDATE_ID,
+        "window_start": gate.PHASE22_V2_WINDOW_START,
+        "window_end_exclusive": gate.PHASE22_V2_WINDOW_END_EXCLUSIVE,
+        "qualification_plan_sha256": gate.phase20d_qualification_plan_sha256(),
+        "qualification_status": qualification_status,
+        "trader_ids": list(gate.PHASE22_V2_REQUIRED_TRADERS),
+        "fold_ids": list(gate.PHASE22_V2_REQUIRED_FOLDS),
+        "decision_epochs": plan.minimum_decision_epochs,
+        "candidate_outcomes": plan.minimum_candidate_outcomes,
+        "selected_outcomes": plan.minimum_selected_outcomes,
+        "calendar_span_days": plan.minimum_calendar_span_days,
+        "distinct_trading_days": plan.minimum_distinct_trading_days,
+        "minimum_fold_candidate_outcomes": (
+            plan.minimum_fold_candidate_outcomes
+        ),
+        "minimum_fold_lineages": plan.minimum_fold_lineages,
+        "minimum_outcomes_any_lineage": plan.minimum_outcomes_per_lineage,
+        "candidate_outcome_coverage": format(
+            plan.minimum_candidate_outcome_coverage, "f"
+        ),
+        "selected_outcome_coverage": format(
+            plan.required_selected_outcome_coverage, "f"
+        ),
+        "baseline_selected_outcome_coverage": format(
+            plan.required_baseline_selected_outcome_coverage, "f"
+        ),
+        "receipts": receipts,
+        "source_receipt_sealed": True,
+        "pre_holdout_freeze_sealed": True,
+        "parity_7_of_7": True,
+        "fresh_execution_complete": True,
+        "lineage_gate_passed": True,
+        "economic_qualification_executed": True,
+        "future_leakage": future_leakage,
+        "synthetic_evidence_used": False,
+        "retuning_after_fresh": False,
+        "outcome_selected_configuration": False,
+        "productive_authority": False,
+        "certification_ready": False,
+    }
+    payload["manifest_sha256"] = gate.forward_manifest_payload_sha256(payload)
+    return payload
+
+
+@pytest.mark.parametrize("status", ("PASS", "FAIL"))
+def test_phase22_v2_intake_accepts_terminal_scientific_outcome(
+    status: str,
+) -> None:
+    report = gate.evaluate_architect_a_phase22_v2_scientific_intake(
+        _phase22_v2_manifest_payload(qualification_status=status)
+    )
+
+    assert report.qualification_status == status
+    assert report.ready_for_scientific_reentry is True
+    assert report.blockers == ()
+    assert report.trader_ids == gate.PHASE22_V2_REQUIRED_TRADERS
+    assert report.fold_ids == gate.PHASE22_V2_REQUIRED_FOLDS
+    assert report.scientific_closure_claimed is False
+    assert report.production_authority is False
+
+
+def test_phase22_v2_intake_rejects_burned_v1_candidate() -> None:
+    payload = _phase22_v2_manifest_payload()
+    payload["candidate_id"] = "CIBO_USD60_6M_HOLDOUT_2017H1_V1"
+    unsigned = dict(payload)
+    unsigned.pop("manifest_sha256")
+    payload["manifest_sha256"] = gate.forward_manifest_payload_sha256(unsigned)
+
+    with pytest.raises(
+        gate.ArchitectAReadinessError,
+        match="candidate identity drift",
+    ):
+        gate.evaluate_architect_a_phase22_v2_scientific_intake(payload)
+
+
+def test_phase22_v2_intake_blocks_future_leakage() -> None:
+    report = gate.evaluate_architect_a_phase22_v2_scientific_intake(
+        _phase22_v2_manifest_payload(future_leakage=True)
+    )
+
+    assert report.ready_for_scientific_reentry is False
+    assert "FUTURE_LEAKAGE_PROHIBITED" in report.blockers
+
+
+def test_phase22_v2_batch_reenters_all_external_a_workstreams(
+    tmp_path: Path,
+) -> None:
+    payload = _ledger()
+    internally_complete = {"T05", "T19", "GEN-C1"}
+    for row in payload["workstreams"]:
+        if row["id"] in internally_complete:
+            continue
+        row["terminal_disposition"] = "EXTERNAL_DEPENDENCY_BLOCKED"
+        row["current_maturity"] = (
+            "TERMINAL_EXTERNAL_DEPENDENCY_BLOCKED_REAL_PHASE22_REQUIRED"
+        )
+        row["blockers"] = ["PHASE22_V2_EMPIRICAL_EVIDENCE_REQUIRED"]
+
+    ledger_path = tmp_path / "ledger.json"
+    _write(ledger_path, payload)
+    readiness = gate.evaluate_architect_a_internal_readiness(ledger_path)
+    intake = gate.evaluate_architect_a_phase22_v2_scientific_intake(
+        _phase22_v2_manifest_payload(qualification_status="FAIL")
+    )
+
+    plan = gate.build_architect_a_phase22_v2_scientific_batch_plan(
+        readiness,
+        intake,
+    )
+
+    assert plan.population_batch_ready is True
+    assert plan.complete_without_execution is False
+    assert plan.remaining_workstream_count == 35
+    assert set(plan.remaining_workstream_ids) == set(
+        readiness.external_dependency_ids
+    )
