@@ -1,7 +1,7 @@
 {
   "schema": "CIBO_ARCH_B_CLOSURE_HANDOFF_V1",
   "branch": "agent/cibo-certification-architect-b-integration-001",
-  "implementation_checkpoint_sha": "34a7420fc3c70a578f0ed8f20851fbada958d46c",
+  "implementation_checkpoint_sha": "442b9169090c9f5231e8f754dbeaf85dc665acb9",
   "primary_pr": 651,
   "child_pr": 661,
   "governance": {
@@ -87,7 +87,7 @@
     },
     {
       "id": "T16",
-      "b_status": "HEDGED_MODE_PROVEN_PREREGISTERED_T16_MEASUREMENT_ENGINE_IMPLEMENTED",
+      "b_status": "HEDGED_MODE_PROVEN_PREOUTCOME_T16_CANDIDATE_UNIVERSE_PREREGISTERED",
       "recommended_ledger_disposition": null,
       "evidence": [
         "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
@@ -102,10 +102,14 @@
         "github-actions://36806511867/SUCCESS",
         "src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py",
         "tests/infrastructure/test_cibo_ce2i_t16_hedge_candidate.py",
-        ".github/workflows/cibo-b-provider-forward-tool-readiness.yml"
+        ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
+        "src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py",
+        "tests/infrastructure/test_cibo_ce2i_t16_preregistered_hedge_universe.py",
+        "docs/research/CIBO-B-T16-HEDGE-PAIR-PREREGISTRATION-V1.json",
+        "github-actions://36813080437/SUCCESS"
       ],
       "blockers": [
-        "REAL_PREREGISTERED_HEDGE_PAIR_POPULATION_REQUIRED",
+        "REAL_POST_DECLARATION_HEDGE_RETURN_POPULATION_REQUIRED",
         "HEDGE_INSTRUMENT_BASIS_RISK_COST_CORRELATION_EXECUTION_EVIDENCE_REQUIRED",
         "NET_ECONOMIC_BENEFIT_NOT_PROVEN",
         "PROVIDER_BOUND_FRESH_OOS_HEDGE_UTILITY_REQUIRED"
@@ -167,7 +171,8 @@
         "tests/infrastructure/test_cibo_phase20_provider_execution_calibration_export.py",
         "docs/research/CIBO-B-PROVIDER-ECONOMICS-COMPONENT-FREEZE-V1.md",
         "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-EVIDENCE-2026-10-01.json",
-        "github-actions://36806511867/SUCCESS"
+        "github-actions://36806511867/SUCCESS",
+        "github-actions://36813080437/SUCCESS"
       ],
       "blockers": [
         "HISTORICAL_2017_PROVIDER_USD_ECONOMICS_UNAVAILABLE",
@@ -294,7 +299,12 @@
     "current_head_ci_revalidation_required": false,
     "certification_claim": false,
     "new_b_surface_classification_request": "docs/research/CIBO-ARCH-B-CROSSBOUNDARY-REQUEST-002.md",
-    "t17_structural_disposition_ready_for_integrator": true
+    "t17_structural_disposition_ready_for_integrator": true,
+    "t16_preoutcome_candidate_universe_preregistered": true,
+    "t16_preregistered_candidate_pairs": [
+      "NAS100->US30",
+      "NAS100->US500"
+    ]
   },
-  "package_revalidated_at_utc": "2026-10-01T03:27:00Z"
+  "package_revalidated_at_utc": "2026-10-01T04:03:30Z"
 }

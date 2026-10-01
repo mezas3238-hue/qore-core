@@ -2,7 +2,7 @@
 
 **Status:** B IMPLEMENTATION CHECKPOINT / FINAL A+B RECONCILIATION REQUIRED  
 **B branch:** `agent/cibo-certification-architect-b-integration-001`  
-**B revalidated implementation checkpoint before this closure-package refresh:** `0b0932ae46499477d2d9a627e6a334310ae21a5d`  
+**B revalidated implementation checkpoint before this closure-package refresh:** `442b9169090c9f5231e8f754dbeaf85dc665acb9`  
 **Child PR:** #661 — DRAFT / UNMERGED  
 **Primary PR:** #651 — remains DRAFT / UNMERGED
 
@@ -44,10 +44,12 @@ Final ledger promotion belongs to A/integrator after current-HEAD CI revalidatio
   adverse realized slippage when the real forward execution model is ready. Gross-edge,
   market-impact and historical-2017 execution terms remain independently unresolved.
 - **T16/T17** — cTrader account mode, full symbol catalog, provider-native asset
-  class/category taxonomy and Limited-Risk/GSL evidence paths are implemented. HEDGED
-  mode does not certify an economic hedge; taxonomy candidates do not certify options;
-  GSL support does not certify T17 utility. Structural disable must be supported by
-  explicit provider unavailability evidence and is never inferred from missing labels.
+  class/category taxonomy and Limited-Risk/GSL evidence paths are implemented. T16 now
+  also has a pre-outcome candidate universe preregistered from the provider catalog:
+  `NAS100->US30` and `NAS100->US500`. No pair returns, correlation, basis residual,
+  hedge cost or OOS utility were consumed to choose them. This preregistration does
+  **not** certify an economic hedge. T17 retains its current-provider structural
+  disposition; no missing label is treated as global-market proof.
 - **T20** — exact requested -> Risk authorized -> executed -> released capacity
   provenance is implemented and hash-chain protected. Real authoritative release
   population remains open.
@@ -92,16 +94,21 @@ Final ledger promotion belongs to A/integrator after current-HEAD CI revalidatio
    policy readiness without gross-edge, market-impact and historical execution evidence.
 8. Provider-native taxonomy and Limited-Risk/GSL fields are captured read-only for T17;
    absence of an option label is explicitly insufficient for structural disable.
+9. T16 candidate selection is now preregistered before outcomes. The immutable V1
+   universe contains only `NAS100->US30` and `NAS100->US500`, bound to the account
+   fingerprint and provider-catalog SHA. It grants no policy or runtime authority.
 
 ## 4. Real provider evidence already recovered
 
-- Workflow run `36727848127` — SUCCESS.
-- Artifact `11104595302`.
+- Latest read-only revalidation workflow run `36813080437` — SUCCESS on
+  `442b9169090c9f5231e8f754dbeaf85dc665acb9`.
+- Artifact `11140606378`.
 - Artifact ZIP SHA-256:
-  `db65a47bc964c3540a0f7c60ba1e707f8d79b5b6927299f6e685846afe9f4863`.
+  `448027d8b7a7c070886321a668df462f6acc76b5c31b300147ea8ff5d5501ac4`.
 - Provider-economics JSON SHA-256:
-  `8bef208a155b94902ad7df4f6e84f01343892f3ec57380e74c7137b0d86fadc3`.
-- Provider observation time: `2026-09-30T14:28:18.024787+00:00`.
+  `e92da319d515c4d8f8eaf645a3d352fab0cb94ca15a20521e5d9d1364017525a`.
+- Provider observation time: `2026-10-01T04:00:53.852820+00:00`.
+- Account catalog observation time: `2026-10-01T04:01:14.559916+00:00`.
 - `provider_terms_ready=true`, `blockers=[]`, no broker mutation.
 - `slippage_empirically_calibrated=false`; therefore T11 economic closure is
   still open.
@@ -117,7 +124,7 @@ B must not manufacture any of the following:
   28-calendar-day / 20-trading-day / 7-lineage thresholds;
 - current-HEAD account-bound cTrader capability/taxonomy/GSL artifact revalidation;
 - empirical slippage/cost calibration not present in observed executions;
-- T16 basis-risk/cost/correlation/hedge utility;
+- T16 post-declaration return population, basis-risk/cost/correlation and hedge utility;
 - T02 explicit fresh structural terminal-reason population;
 - T20 authoritative real release population;
 - real chronological binding into Integrated Capital Truth;
@@ -138,3 +145,22 @@ A/integrator should consume
 5. perform the final source-of-truth reconciliation after A and B are both complete.
 
 **CIBO is not certified by this handoff.**
+
+## 7. T16 pre-outcome preregistration checkpoint
+
+Machine evidence:
+`docs/research/CIBO-B-T16-HEDGE-PAIR-PREREGISTRATION-V1.json`.
+
+The current cTrader DEMO account catalog proves that `USTEC`, `US30` and
+`US500` are enabled instruments in the provider Indices universe. Before any
+pair returns or hedge-performance measurements were consumed, Architect B froze
+the candidate set to:
+
+- `NAS100 -> US30`;
+- `NAS100 -> US500`.
+
+This closes the **candidate-selection** gap only. T16 remains empirically open
+until post-declaration observations satisfy the sample/fold contract and prove
+(or falsify) basis risk, hedge cost, execution viability, net economic benefit
+and fresh-OOS utility. No holdout data was read and no productive authority was
+granted.
