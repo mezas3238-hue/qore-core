@@ -116,9 +116,9 @@ def _spot_midpoints(
             raise CiboCapitalManagementError(
                 "T03 multi-leg provider spot invalid"
             )
-        bid = Decimal(bid_raw) / _PRICE_SCALE
-        ask = Decimal(ask_raw) / _PRICE_SCALE
-        result[symbol_id] = (bid + ask) / Decimal(2)
+        bid_price = Decimal(bid_raw) / _PRICE_SCALE
+        ask_price = Decimal(ask_raw) / _PRICE_SCALE
+        result[symbol_id] = (bid_price + ask_price) / Decimal(2)
     return result
 
 
@@ -280,7 +280,7 @@ def build_report() -> dict[str, object]:
             "environment": "demo",
             "account_fingerprint_sha256": account_fingerprint,
             "catalog_sha256": capability.catalog_sha256,
-            "catalog_symbol_count": capability.symbol_count,
+            "catalog_symbol_count": len(capability.symbols),
             "enabled_fx_pair_count": len(pair_symbols),
             "targets": target_reports,
             "any_continuous_lower_margin_candidate_identified": global_lower,
