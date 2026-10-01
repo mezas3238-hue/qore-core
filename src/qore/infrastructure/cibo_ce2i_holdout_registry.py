@@ -110,6 +110,18 @@ def _six_calendar_months(start_at: datetime, end_at: datetime) -> bool:
 
 CONFIRMED_CIBO_BURNS: tuple[CiboBurnedInterval, ...] = (
     CiboBurnedInterval(
+        burn_id="vt31:r8:fresh-validation-2016-04-19_2018-05-19",
+        lineage=TraderLineage.VT31_NAS100,
+        start_at=datetime(2016, 4, 19, tzinfo=UTC),
+        end_exclusive_at=datetime(2018, 5, 19, tzinfo=UTC),
+        reason=(
+            "VT31 R8 historical fresh validation consumed outcomes across the "
+            "interval, including 2017H1; candidate rejection does not restore "
+            "holdout freshness"
+        ),
+        evidence_ref="artifact:10402199719",
+    ),
+    CiboBurnedInterval(
         burn_id="phase18:r34-xauusd:5y",
         lineage=TraderLineage.R34_XAUUSD,
         start_at=datetime(2021, 9, 17, tzinfo=UTC),
@@ -176,18 +188,38 @@ CONFIRMED_CIBO_BURNS: tuple[CiboBurnedInterval, ...] = (
 )
 
 
-PREREGISTERED_USD60_HOLDOUT = CiboHoldoutCandidate(
+BURNED_USD60_HOLDOUT_2017H1_V1 = CiboHoldoutCandidate(
     candidate_id="CIBO_USD60_6M_HOLDOUT_2017H1_V1",
     start_at=datetime(2017, 1, 1, tzinfo=UTC),
     end_exclusive_at=datetime(2017, 7, 1, tzinfo=UTC),
-    status=CiboHoldoutCandidateStatus.SEALED_UNTOUCHED,
+    status=CiboHoldoutCandidateStatus.BURNED,
     selection_rule=(
-        "latest complete six-calendar-month block ending at the earliest "
-        "confirmed lineage burn boundary; selected without inspecting outcomes"
+        "original latest six-calendar-month block ending at the then-known "
+        "earliest burn boundary; later invalidated by prior VT31 R8 outcome use"
     ),
     outcome_data_inspected_at_selection=False,
-    source_validation_complete=False,
+    source_validation_complete=True,
 )
+
+# Backward-compatible identity for V1-specific audit/read-only code. It is
+# intentionally burned and must fail burn-clean eligibility checks.
+PREREGISTERED_USD60_HOLDOUT = BURNED_USD60_HOLDOUT_2017H1_V1
+
+NEXT_PREREGISTERED_USD60_HOLDOUT = CiboHoldoutCandidate(
+    candidate_id="CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2",
+    start_at=datetime(2015, 10, 19, tzinfo=UTC),
+    end_exclusive_at=datetime(2016, 4, 19, tzinfo=UTC),
+    status=CiboHoldoutCandidateStatus.ELIGIBLE_FROZEN,
+    selection_rule=(
+        "latest exact six-calendar-month block ending at the earliest confirmed "
+        "lineage burn boundary after incorporating VT31 R8; selected without "
+        "inspecting candidate outcomes"
+    ),
+    outcome_data_inspected_at_selection=False,
+    source_validation_complete=True,
+)
+
+ACTIVE_USD60_HOLDOUT_CANDIDATE = NEXT_PREREGISTERED_USD60_HOLDOUT
 
 
 def candidate_overlaps_confirmed_burn(
