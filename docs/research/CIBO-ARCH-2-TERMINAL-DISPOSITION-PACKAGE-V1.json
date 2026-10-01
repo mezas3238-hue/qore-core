@@ -1,0 +1,506 @@
+{
+  "schema": "CIBO_ARCH_2_TERMINAL_DISPOSITION_PACKAGE_V1",
+  "architect_role": "CIBO Architect 2 — External Scientific Closure",
+  "source_integrator_pr": 670,
+  "source_integrator_head": "3e74242641006513f2b11c28ad357799c628c133",
+  "architect2_pr": 687,
+  "branch": "agent/cibo-external-scientific-closure-001",
+  "governance": {
+    "canonical_ledger_modified": false,
+    "phase22_v2_consumed": false,
+    "final_exam_executed": false,
+    "world_cup_executed": false,
+    "usd60_owned": false,
+    "integrated_capital_truth_owned": false,
+    "vps_touched": false,
+    "fundednext_live_touched": false,
+    "productive_authority": false
+  },
+  "counts": {
+    "assigned": 43,
+    "terminal_recommendation_ready": 1,
+    "blockers_partially_reconciled": 1,
+    "unexplained": 0
+  },
+  "workstreams": [
+    {
+      "workstream_id": "T02",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_POST_FREEZE_STRUCTURAL_TERMINAL_REASON_POPULATION_REQUIRED",
+        "PROVIDER_BOUND_LEVERAGE_ECONOMIC_ABLATION_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "T03",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "CURRENT_CTRADER_DIRECT_SINGLE_INSTRUMENT_CANDIDATE_SCREEN_EXHAUSTED",
+        "MULTI_LEG_OR_ALTERNATE_PROVIDER_EQUIVALENT_EXPRESSION_NOT_PROVEN",
+        "FRESH_OOS_EQUIVALENT_EXPRESSION_UTILITY_REQUIRED_IF_CANDIDATE_APPEARS"
+      ],
+      "architect2_local_status": "DIRECT_SCREEN_EXHAUSTED__MULTILEG_ALT_PROVIDER_NOT_EXHAUSTED",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "T04",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_PROVIDER_VALID_CAUSAL_CONTROL_TREATMENT_POPULATION_REQUIRED",
+        "WF1_WF2_WF3_WF4_NONCOMPENSATORY_REPLICATION_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "T06",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "FRESH_OOS_PROFIT_FUNDED_EXPANSION_UTILITY_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "T07",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "FRESH_OOS_PROTECTED_CAPACITY_EXPANSION_UTILITY_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "T08",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "T09",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_SIMULTANEOUS_SCARCITY_POPULATION_REQUIRED",
+        "STARVATION_AND_CONCENTRATION_NONWORSE_WF1_WF2_WF3_WF4_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "T10",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_PROVIDER_VALID_CAUSAL_CONTROL_TREATMENT_POPULATION_REQUIRED",
+        "WF1_WF2_WF3_WF4_NONCOMPENSATORY_REPLICATION_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "T11",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_EXECUTION_POPULATION_REQUIRED",
+        "EMPIRICAL_SLIPPAGE_CALIBRATION_REQUIRED",
+        "REAL_CALIBRATED_FRESH_OOS_GROSS_EDGE_MODEL_REQUIRED",
+        "REAL_PROVIDER_BOUND_MARKET_IMPACT_MODEL_REQUIRED"
+      ],
+      "architect2_local_status": "BLOCKERS_PARTIALLY_RECONCILED",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "T12",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "T13",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "FRESH_PHASE20D_T13_TREATMENT_POPULATION_THRESHOLDS_REQUIRED",
+        "FOUR_FOLD_POSITIVE_TREATMENT_AND_NONWORSE_DRAWDOWN_EVIDENCE_REQUIRED",
+        "STRICT_CAPITAL_PRODUCTIVITY_IMPROVEMENT_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "T14",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "T15",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
+        "COUNTERFACTUAL_RESERVATION_CAUSAL_EFFECT_NOT_IDENTIFIED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "T16",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_POST_DECLARATION_HEDGE_RETURN_POPULATION_REQUIRED",
+        "REALIZED_SLIPPAGE_AND_EXECUTION_COVERAGE_REQUIRED",
+        "FULL_HEDGE_COST_MODEL_REQUIRED",
+        "NET_ECONOMIC_BENEFIT_NOT_PROVEN",
+        "PROVIDER_BOUND_FRESH_OOS_HEDGE_UTILITY_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "T18",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_SIMULTANEOUS_SCARCITY_POPULATION_REQUIRED",
+        "STARVATION_AND_CONCENTRATION_NONWORSE_WF1_WF2_WF3_WF4_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "T20",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_AUTHORITATIVE_FORWARD_RELEASE_POPULATION_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "GEN-C2",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "CAUSAL_PROFIT_GRADUATION_POLICY_VALUE_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "GEN-C3",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "END_TO_END_COMPOUND_PORTFOLIO_ECONOMIC_CYCLE_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "GEN-C4",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_DATA_BOUND_CAUSAL_VALUE_PROOF_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "GEN-C5",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "FRESH_PATH_DEPENDENT_OOS_STRESS_REPLICATION_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "GEN-C6",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "FRESH_TRUE_SCARCITY_OOS_STRESS_REPLICATION_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "GEN-C7",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "FRESH_OOS_GIVEBACK_RETENTION_STRESS_REPLICATION_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "GEN-C8",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "FRESH_OOS_STRESS_REPLICATION_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "GEN-C9",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_PROVIDER_VALID_COMPOUND_PATH_POPULATION_REQUIRED",
+        "FRESH_OOS_STRESS_TEMPORAL_REPLICATION_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "GEN-C10",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_CHRONOLOGICAL_TWIN_TRANSITION_POPULATION_NOT_YET_BOUND",
+        "REAL_TRANSITION_UNCERTAINTY_CALIBRATION_RESULTS_NOT_YET_PROVEN",
+        "FRESH_OOS_STRESS_TEMPORAL_REPLICATION_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "GEN-C11",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "FRESH_MULTI_PERIOD_OOS_UTILITY_NOT_YET_PROVEN",
+        "STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
+        "GEN_C10_TRANSITION_UNCERTAINTY_NOT_YET_CALIBRATED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "GEN-C12",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_CRISIS_POPULATION_NOT_YET_BOUND",
+        "ADVERSARIAL_CRISIS_STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
+        "ECONOMIC_VALUE_NOT_YET_DEMONSTRATED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "GEN-C13",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_POST_OUTCOME_EPISODE_POPULATION_NOT_YET_BOUND",
+        "PROSPECTIVE_MEMORY_USE_CAUSAL_ABLATION_NOT_YET_RUN",
+        "TEMPORAL_REPLICATION_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "GEN-C14",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_HYPOTHESIS_LINEAGES_NOT_YET_RUN_THROUGH_FULL_PIPELINE",
+        "OWNER_REVIEW_IS_EXTERNAL_AND_CANNOT_BE_FABRICATED",
+        "FINAL_PROMOTION_EVIDENCE_NOT_YET_AVAILABLE"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "COMPOUND_ENGINE",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_CHRONOLOGICAL_POPULATION_REPLAY_REQUIRED",
+        "COMPOUND_MONTE_CARLO_REAL_POPULATION_STRESS_OOS_REPLICATION_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "COMPOUND_PORTFOLIO",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_ECONOMIC_PORTFOLIO_REPLAY_REQUIRED",
+        "FRESH_OOS_STRESS_REPLICATION_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "INTERNAL_CAPITAL_MARKET",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "FRESH_TRUE_SCARCITY_ECONOMIC_VALUE_REQUIRED",
+        "STRESS_AND_TEMPORAL_REPLICATION_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "CAPITAL_GENERATIONS",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "MULTI_GENERATION_REAL_REPLAY_REQUIRED",
+        "FRESH_OOS_ATTRIBUTION_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "PROTECTED_BASE_CAPITAL",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "PROTECTED_BASE_NUMERIC_CANDIDATE_NOT_YET_FROZEN_ON_REAL_PROVIDER_VALID_POPULATION",
+        "PROTECTED_BASE_CAUSAL_VALUE_NOT_YET_PROVEN",
+        "FRESH_OOS_STRESS_AND_4_OF_4_TEMPORAL_REPLICATION_REQUIRED",
+        "PROTECTED_BASE_REMAINS_RESEARCH_ONLY_AND_MUST_NOT_RETROACTIVELY_CHANGE_V3"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "PROFIT_PROTECTION",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_FORWARD_GIVEBACK_PATH_HISTORY_REQUIRED",
+        "FRESH_OOS_PROFIT_RETENTION_AND_GIVEBACK_CAUSAL_VALUE_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "PROVIDER_ECONOMICS",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_FORWARD_SLIPPAGE_COST_CALIBRATION_REQUIRED",
+        "HISTORICAL_2017_PROVIDER_USD_ECONOMICS_UNAVAILABLE"
+      ],
+      "architect2_local_status": "TERMINAL_RECOMMENDATION_READY",
+      "proposed_terminal_disposition": "SUPERSEDED_WITH_PROVEN_LINEAGE",
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "FORWARD_QUALIFICATION",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "FROZEN_PHASE20D_REAL_FORWARD_THRESHOLDS_NOT_YET_MET"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "PATH_DEPENDENT_MONTE_CARLO",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_COMPOUND_EPISODE_POPULATION_AND_FLOOR_ATTRIBUTION_REQUIRED",
+        "ADVERSARIAL_STRESS_AND_TEMPORAL_REPLICATION_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "ADVERSARIAL_STRESS",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_COMPOUND_POPULATION_STRESS_EXECUTION_REQUIRED",
+        "CRISIS_PROVIDER_FACTOR_STRESS_INTEGRATION_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "FRESH_OOS",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "PHASE20D_REAL_FORWARD_POPULATION_THRESHOLDS_NOT_YET_PASSED",
+        "PHASE21_FORWARD_EMPIRICAL_VALIDATIONS_REQUIRE_REAL_FORWARD_POPULATION",
+        "PHASE21_POLICY_FREEZE_REQUIRES_QUALIFIED_FORWARD_POPULATION",
+        "2017H1_HOLDOUT_MUST_REMAIN_SEALED_UNTOUCHED_UNTIL_ALL_PREREQUISITES_PASS"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "TEMPORAL_REPLICATION",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "REAL_FROZEN_TEMPORAL_FOLDS_REQUIRED",
+        "REAL_4_OF_4_ECONOMIC_REPLICATION_RESULTS_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "CAPITAL_AMPLIFICATION",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "UPSTREAM_COMPOUND_AND_GEN_C_REAL_EVIDENCE_CLOSURE_REQUIRED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    },
+    {
+      "workstream_id": "AS_IS_ECONOMIC_BASELINE",
+      "canonical_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "canonical_blockers": [
+        "FRESH_AS_IS_ECONOMIC_POPULATION_REQUIRED",
+        "CURRENT_TRADER_CIBO_COMPOUND_ALLOCATION_UTILIZATION_MEASUREMENT_RESULTS_REQUIRED",
+        "NO_SYNTHETIC_BASELINE_ALLOWED"
+      ],
+      "architect2_local_status": "IN_PROGRESS",
+      "proposed_terminal_disposition": null,
+      "productive_authority": false
+    }
+  ],
+  "integrator_patch_requests": [
+    "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-001.md",
+    "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-002.md"
+  ]
+}

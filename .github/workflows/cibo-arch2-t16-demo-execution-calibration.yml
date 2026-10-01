@@ -1,0 +1,105 @@
+name: QORE CIBO Architect2 T16 DEMO Execution Calibration
+
+on:
+  push:
+    branches:
+      - agent/cibo-external-scientific-closure-001
+    paths:
+      - '.github/workflows/cibo-arch2-t16-demo-execution-calibration.yml'
+      - 'scripts/cibo_arch2_t16_demo_execution_calibration.py'
+      - 'tests/infrastructure/test_cibo_arch2_t16_demo_execution_calibration.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qore-cibo-arch2-t16-demo-execution-calibration
+  cancel-in-progress: false
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  QORE_CIBO_ARCH2_T16_DEMO_AUTHORIZATION: CIBO_ARCH2_T16_DEMO_EXECUTION_AUTHORIZED
+
+jobs:
+  calibrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,ctrader]'
+
+      - name: Quality
+        run: |
+          ruff check scripts/cibo_arch2_t16_demo_execution_calibration.py tests/infrastructure/test_cibo_arch2_t16_demo_execution_calibration.py
+          mypy --disable-error-code=import-untyped scripts/cibo_arch2_t16_demo_execution_calibration.py
+          python -m py_compile scripts/cibo_arch2_t16_demo_execution_calibration.py
+          pytest -q --no-cov tests/infrastructure/test_cibo_arch2_t16_demo_execution_calibration.py
+
+      - name: Verify DEMO credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}" || exit 2
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Execute bounded T16 DEMO calibration
+        run: |
+          mkdir -p arch2-t16-demo
+          python scripts/cibo_arch2_t16_demo_execution_calibration.py             --output arch2-t16-demo/t16-demo-execution.json             > arch2-t16-demo/stdout.json
+
+      - name: Enforce T16 scope
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path("arch2-t16-demo/t16-demo-execution.json").read_text())
+          assert p["status"] == "READY"
+          assert p["provider_key"] == "ctrader-demo"
+          assert p["environment"] == "demo"
+          assert p["required_hedges"] == ["US30", "US500"]
+          assert p["created_round_trip_count"] == 4
+          assert p["minimum_volume_only"] is True
+          assert p["both_sides_covered"] is True
+          assert p["created_positions_closed"] is True
+          assert p["realized_slippage_coverage_complete"] is True
+          assert p["realized_execution_coverage_complete"] is True
+          assert p["full_hedge_cost_model_ready"] is True
+          assert p["holdout_outcomes_used"] is False
+          assert p["holdout_market_data_read"] is False
+          assert p["historical_provider_economics_claimed"] is False
+          assert p["fundednext_touched"] is False
+          assert p["vps_touched"] is False
+          assert p["live_authorized"] is False
+          assert p["real_capital_authorized"] is False
+          assert p["productive_authority"] is False
+          PY
+
+      - name: Seal evidence
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > arch2-t16-demo/git-sha.txt
+          cd arch2-t16-demo
+          sha256sum t16-demo-execution.json stdout.json git-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-arch2-t16-demo-${{ github.sha }}
+          path: arch2-t16-demo
+          if-no-files-found: error
+          retention-days: 90
