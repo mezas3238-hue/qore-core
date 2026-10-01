@@ -130,7 +130,7 @@ def test_b_gate_rejects_missing_b_workstream(tmp_path: Path) -> None:
 
     with pytest.raises(
         gate.ArchitectBZeroOpenWorkGateError,
-        match="set/order drift",
+        match="set drift",
     ):
         gate.evaluate_gate(package_path=package)
 
