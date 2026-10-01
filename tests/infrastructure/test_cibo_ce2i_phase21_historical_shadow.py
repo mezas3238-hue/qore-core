@@ -25,8 +25,11 @@ def _population() -> tuple[Phase19NormalizedReplayTrade, ...]:
         for trader in EXPECTED_ROWS_BY_TRADER
         if frozen_v3_structural_selection(trader)
     }
-    for trader, count in EXPECTED_ROWS_BY_TRADER.items():
-        for _ in range(count):
+    remaining = dict(EXPECTED_ROWS_BY_TRADER)
+    while any(remaining.values()):
+        for trader in EXPECTED_ROWS_BY_TRADER:
+            if remaining[trader] <= 0:
+                continue
             decision_at = VALIDATION_START + timedelta(
                 hours=index * 3,
             )
@@ -62,6 +65,7 @@ def _population() -> tuple[Phase19NormalizedReplayTrade, ...]:
                     outcome_evidence_id=f"outcome-{index}",
                 )
             )
+            remaining[trader] -= 1
             index += 1
     return tuple(rows)
 
