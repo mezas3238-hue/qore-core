@@ -216,9 +216,12 @@ def _validate_bounded_demo_calibration(
         raise CiboCapitalManagementError(
             "E4 Provider Truth DEMO distinct-order coverage drift"
         )
-    for symbol in _REQUIRED_DEMO_SYMBOLS:
-        value = counts.get(symbol)
-        if type(value) is not int or value < _MINIMUM_DEMO_DISTINCT_ORDERS:
+    for required_symbol in _REQUIRED_DEMO_SYMBOLS:
+        count_value = counts.get(required_symbol)
+        if (
+            type(count_value) is not int
+            or count_value < _MINIMUM_DEMO_DISTINCT_ORDERS
+        ):
             raise CiboCapitalManagementError(
                 "E4 Provider Truth DEMO minimum distinct orders not met"
             )
@@ -244,17 +247,18 @@ def _validate_bounded_demo_calibration(
             raise CiboCapitalManagementError(
                 "E4 Provider Truth DEMO observation must be object"
             )
-        symbol = raw.get("qore_symbol")
-        order_ref = raw.get("order_ref")
+        observed_symbol = raw.get("qore_symbol")
+        observed_order_ref = raw.get("order_ref")
         if (
-            symbol not in orders_by_symbol
-            or not isinstance(order_ref, str)
-            or _SHA256_RE.fullmatch(order_ref) is None
+            not isinstance(observed_symbol, str)
+            or observed_symbol not in orders_by_symbol
+            or not isinstance(observed_order_ref, str)
+            or _SHA256_RE.fullmatch(observed_order_ref) is None
         ):
             raise CiboCapitalManagementError(
                 "E4 Provider Truth DEMO observation identity drift"
             )
-        orders_by_symbol[str(symbol)].add(order_ref)
+        orders_by_symbol[observed_symbol].add(observed_order_ref)
     if any(
         len(orders_by_symbol[symbol]) < _MINIMUM_DEMO_DISTINCT_ORDERS
         for symbol in _REQUIRED_DEMO_SYMBOLS
