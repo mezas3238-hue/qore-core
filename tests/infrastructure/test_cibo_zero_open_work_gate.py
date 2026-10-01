@@ -238,7 +238,9 @@ def test_b_surface_classifiers_are_not_orphans() -> None:
     inventory = (
         "src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py",
         "src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py",
+        "src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py",
         "scripts/cibo_t17_limited_risk_capability_probe.py",
+        "scripts/cibo_t17_structural_disable_probe.py",
         "src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py",
         "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
         "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py",
@@ -264,9 +266,11 @@ def test_b_surface_classifiers_are_not_orphans() -> None:
         inventory[0]: "T11",
         inventory[1]: "T17",
         inventory[2]: "T17",
-        inventory[3]: "PROVIDER_ECONOMICS",
-        inventory[4]: "PROVIDER_ECONOMICS",
-        inventory[5]: "INTEGRATED_CAPITAL_TRUTH",
-        inventory[6]: "USD60_CAPABILITY_PROGRAM",
+        inventory[3]: "T17",
+        inventory[4]: "T17",
+        inventory[5]: "PROVIDER_ECONOMICS",
+        inventory[6]: "PROVIDER_ECONOMICS",
+        inventory[7]: "INTEGRATED_CAPITAL_TRUTH",
+        inventory[8]: "USD60_CAPABILITY_PROGRAM",
     }
     assert orphan_candidates == ()
