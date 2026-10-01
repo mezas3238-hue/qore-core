@@ -124,3 +124,54 @@ def mark_phase22_outcomes_emitted(
         claim_run_attempt=claim.claim_run_attempt,
         outcome_bundle_sha256=outcome_bundle_sha256,
     )
+
+
+def persist_phase22_execution_claim(
+    *,
+    claim: Phase22ExecutionConsumptionReceipt,
+    path: Path = CANONICAL_PHASE22_CONSUMPTION_RECEIPT_PATH,
+) -> None:
+    if not claim.claim_committed or claim.outcomes_emitted:
+        raise ValueError("Phase22 claim persistence requires CLAIMED state")
+    if path.exists():
+        raise FileExistsError(
+            "Phase22 durable consumption receipt already exists; fail closed"
+        )
+    _atomic_write(path=path, payload=claim.payload())
+
+
+def persist_phase22_consumed_receipt(
+    *,
+    consumed: Phase22ExecutionConsumptionReceipt,
+    path: Path = CANONICAL_PHASE22_CONSUMPTION_RECEIPT_PATH,
+) -> None:
+    if not consumed.claim_committed or not consumed.outcomes_emitted:
+        raise ValueError("Phase22 consumed persistence requires CONSUMED state")
+    existing = load_phase22_execution_consumption_receipt(path)
+    if existing is None:
+        raise FileNotFoundError(
+            "Phase22 consumed receipt requires durable prior claim"
+        )
+    immutable_claim = (
+        "candidate_id",
+        "execution_manifest_sha256",
+        "claim_head_sha",
+        "claim_run_id",
+        "claim_run_attempt",
+    )
+    for name in immutable_claim:
+        if getattr(existing, name) != getattr(consumed, name):
+            raise ValueError(f"Phase22 consumption claim drift: {name}")
+    if existing.outcomes_emitted:
+        raise FileExistsError("Phase22 outcomes were already durably emitted")
+    _atomic_write(path=path, payload=consumed.payload())
+
+
+def _atomic_write(*, path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    temporary.replace(path)
