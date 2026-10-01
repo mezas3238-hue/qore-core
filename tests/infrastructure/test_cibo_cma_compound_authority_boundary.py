@@ -109,7 +109,7 @@ def test_cma_settlement_becomes_compound_only_after_realization() -> None:
             position_id=1001,
         ),
         CmaSettlementRecord(
-            event="TEST_EXIT_SETTLEMENT",
+            event="CTRADER_DEMO_EXIT_SETTLEMENT",
             deal_id=1002,
             signal_fingerprint="vt31-boundary",
             position_id=1001,
