@@ -138,6 +138,7 @@ def shadow_successor_manifest() -> dict[str, object]:
         "fold_count": 4,
         "ready_for_scientific_consumption": True,
         "holdout_2017h1_read": False,
+        "active_holdout_v2_read": False,
     }
 
 

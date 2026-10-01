@@ -13,7 +13,6 @@ from qore.infrastructure.cibo_phase22_historical_replay_stores import (
     DurablePhase22HistoricalSettlementStore,
 )
 
-
 PHASE22_STORE_ROOT_NAME = "phase22-v2-stores"
 
 
