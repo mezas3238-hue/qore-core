@@ -265,6 +265,24 @@ _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM: dict[str, tuple[str, ...]] = {
     "AS_IS_ECONOMIC_BASELINE": ("FORWARD_CAPITAL_TRUTH_CHRONOLOGY",),
 }
 
+_COMPOUND_P8_REQUIRED_PROVEN_IDS = (
+    "GEN-C2",
+    "GEN-C3",
+    "GEN-C5",
+    "GEN-C6",
+    "GEN-C7",
+    "GEN-C9",
+    "COMPOUND_ENGINE",
+    "COMPOUND_PORTFOLIO",
+    "INTERNAL_CAPITAL_MARKET",
+    "CAPITAL_GENERATIONS",
+    "PROTECTED_BASE_CAPITAL",
+    "PROFIT_PROTECTION",
+    "PATH_DEPENDENT_MONTE_CARLO",
+    "ADVERSARIAL_STRESS",
+    "TEMPORAL_REPLICATION",
+)
+
 _INTERNAL_DEBT_MARKERS = (
     "REGISTRY_RECONCILIATION_REQUIRED", "CI_PENDING", "NOT_IMPLEMENTED",
     "ARCHITECTURE_ONLY", "PREREGISTRATION_REQUIRED", "PROTOCOL_REQUIRED",
@@ -1900,6 +1918,176 @@ def reconcile_architect_a_phase22_v2_dispositions(
         all_scientific_workstreams_resolved=(
             not external and not missing
         ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class ArchitectAPhase22V2ScientificClosureReceipt:
+    phase22_manifest_sha256: str
+    closure_batch_sha256: str
+    completed_ids: tuple[str, ...]
+    falsified_ids: tuple[str, ...]
+    scientific_closure_terminal: bool
+    blockers: tuple[str, ...]
+    certification_claimed: bool = False
+    production_authority: bool = False
+
+    def __post_init__(self) -> None:
+        _require_sha(self.phase22_manifest_sha256, "phase22_manifest_sha256")
+        _require_sha(self.closure_batch_sha256, "closure_batch_sha256")
+        if type(self.scientific_closure_terminal) is not bool:
+            raise ArchitectAReadinessError(
+                "Architect A scientific closure terminal flag must be bool"
+            )
+        expected = not self.blockers
+        if self.scientific_closure_terminal != expected:
+            raise ArchitectAReadinessError(
+                "Architect A scientific closure readiness drift"
+            )
+        if self.certification_claimed or self.production_authority:
+            raise ArchitectAReadinessError(
+                "Architect A scientific closure cannot grant authority"
+            )
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    def fingerprint(self) -> str:
+        raw = json.dumps(
+            self.as_dict(),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        ).encode("utf-8")
+        return "sha256:" + sha256(raw).hexdigest()
+
+
+@dataclass(frozen=True, slots=True)
+class ArchitectAPhase22V2CompoundClosureReceipt:
+    phase22_manifest_sha256: str
+    closure_batch_sha256: str
+    genc1_evidence_sha256: str
+    required_proven_ids: tuple[str, ...]
+    missing_or_nonproven_ids: tuple[str, ...]
+    compound_closure_terminal: bool
+    blockers: tuple[str, ...]
+    certification_claimed: bool = False
+    production_authority: bool = False
+
+    def __post_init__(self) -> None:
+        _require_sha(self.phase22_manifest_sha256, "phase22_manifest_sha256")
+        _require_sha(self.closure_batch_sha256, "closure_batch_sha256")
+        _require_sha(self.genc1_evidence_sha256, "genc1_evidence_sha256")
+        if self.required_proven_ids != _COMPOUND_P8_REQUIRED_PROVEN_IDS:
+            raise ArchitectAReadinessError(
+                "Architect A Compound P8 requirement drift"
+            )
+        if any(
+            item not in self.required_proven_ids
+            for item in self.missing_or_nonproven_ids
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A Compound P8 blocker identity drift"
+            )
+        if type(self.compound_closure_terminal) is not bool:
+            raise ArchitectAReadinessError(
+                "Architect A Compound closure terminal flag must be bool"
+            )
+        expected = not self.blockers and not self.missing_or_nonproven_ids
+        if self.compound_closure_terminal != expected:
+            raise ArchitectAReadinessError(
+                "Architect A Compound closure readiness drift"
+            )
+        if self.certification_claimed or self.production_authority:
+            raise ArchitectAReadinessError(
+                "Architect A Compound closure cannot grant authority"
+            )
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    def fingerprint(self) -> str:
+        raw = json.dumps(
+            self.as_dict(),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        ).encode("utf-8")
+        return "sha256:" + sha256(raw).hexdigest()
+
+
+def build_architect_a_phase22_v2_scientific_closure_receipt(
+    batch: ArchitectAPhase22V2ScientificClosureBatch,
+) -> ArchitectAPhase22V2ScientificClosureReceipt:
+    if not isinstance(batch, ArchitectAPhase22V2ScientificClosureBatch):
+        raise ArchitectAReadinessError(
+            "Architect A scientific closure requires canonical closure batch"
+        )
+    batch_payload = batch.as_dict()
+    batch_raw = json.dumps(
+        batch_payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    batch_sha = "sha256:" + sha256(batch_raw).hexdigest()
+    blockers: list[str] = []
+    if batch.missing_ids:
+        blockers.append("SCIENTIFIC_DISPOSITIONS_MISSING")
+    if batch.external_ids:
+        blockers.append("SCIENTIFIC_EXTERNAL_DEPENDENCIES_REMAIN")
+    return ArchitectAPhase22V2ScientificClosureReceipt(
+        phase22_manifest_sha256=batch.phase22_manifest_sha256,
+        closure_batch_sha256=batch_sha,
+        completed_ids=batch.completed_ids,
+        falsified_ids=batch.falsified_ids,
+        scientific_closure_terminal=not blockers,
+        blockers=tuple(blockers),
+    )
+
+
+def build_architect_a_phase22_v2_compound_closure_receipt(
+    batch: ArchitectAPhase22V2ScientificClosureBatch,
+    *,
+    genc1_evidence_sha256: str,
+    genc1_completed_and_proven: bool,
+) -> ArchitectAPhase22V2CompoundClosureReceipt:
+    if not isinstance(batch, ArchitectAPhase22V2ScientificClosureBatch):
+        raise ArchitectAReadinessError(
+            "Architect A Compound closure requires canonical closure batch"
+        )
+    _require_sha(genc1_evidence_sha256, "genc1_evidence_sha256")
+    if type(genc1_completed_and_proven) is not bool:
+        raise ArchitectAReadinessError(
+            "Architect A GEN-C1 completion flag must be bool"
+        )
+
+    batch_raw = json.dumps(
+        batch.as_dict(),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    batch_sha = "sha256:" + sha256(batch_raw).hexdigest()
+    proven = set(batch.completed_ids)
+    nonproven = tuple(
+        item
+        for item in _COMPOUND_P8_REQUIRED_PROVEN_IDS
+        if item not in proven
+    )
+    blockers: list[str] = []
+    if not genc1_completed_and_proven:
+        blockers.append("GEN_C1_ACCOUNTING_FOUNDATION_NOT_PROVEN")
+    blockers.extend(f"{item}_NOT_PROVEN" for item in nonproven)
+
+    return ArchitectAPhase22V2CompoundClosureReceipt(
+        phase22_manifest_sha256=batch.phase22_manifest_sha256,
+        closure_batch_sha256=batch_sha,
+        genc1_evidence_sha256=genc1_evidence_sha256,
+        required_proven_ids=_COMPOUND_P8_REQUIRED_PROVEN_IDS,
+        missing_or_nonproven_ids=nonproven,
+        compound_closure_terminal=not blockers,
+        blockers=tuple(blockers),
     )
 
 def forward_manifest_payload_sha256(payload: dict[str, Any]) -> str:

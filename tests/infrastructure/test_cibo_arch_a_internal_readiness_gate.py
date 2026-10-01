@@ -956,3 +956,86 @@ def test_phase22_v2_closure_batch_reports_missing_receipts() -> None:
     assert batch.receipt_count == 33
     assert len(batch.missing_ids) == 2
     assert batch.all_scientific_workstreams_resolved is False
+
+
+def test_phase22_v2_scientific_closure_accepts_legitimate_falsification() -> None:
+    matrix = _full_phase22_matrix()
+    receipts = _all_disposition_receipts(
+        matrix,
+        falsified_id="GEN-C12",
+    )
+    batch = gate.reconcile_architect_a_phase22_v2_dispositions(
+        matrix,
+        receipts,
+    )
+
+    closure = gate.build_architect_a_phase22_v2_scientific_closure_receipt(
+        batch
+    )
+
+    assert closure.scientific_closure_terminal is True
+    assert closure.blockers == ()
+    assert "GEN-C12" in closure.falsified_ids
+    assert closure.fingerprint().startswith("sha256:")
+
+
+def test_phase22_v2_compound_closure_rejects_required_falsification() -> None:
+    matrix = _full_phase22_matrix()
+    receipts = _all_disposition_receipts(
+        matrix,
+        falsified_id="GEN-C9",
+    )
+    batch = gate.reconcile_architect_a_phase22_v2_dispositions(
+        matrix,
+        receipts,
+    )
+
+    closure = gate.build_architect_a_phase22_v2_compound_closure_receipt(
+        batch,
+        genc1_evidence_sha256="sha256:" + sha256(b"genc1").hexdigest(),
+        genc1_completed_and_proven=True,
+    )
+
+    assert closure.compound_closure_terminal is False
+    assert "GEN-C9" in closure.missing_or_nonproven_ids
+    assert "GEN-C9_NOT_PROVEN" in closure.blockers
+
+
+def test_phase22_v2_compound_closure_can_pass_with_non_p8_falsification() -> None:
+    matrix = _full_phase22_matrix()
+    receipts = _all_disposition_receipts(
+        matrix,
+        falsified_id="GEN-C12",
+    )
+    batch = gate.reconcile_architect_a_phase22_v2_dispositions(
+        matrix,
+        receipts,
+    )
+
+    closure = gate.build_architect_a_phase22_v2_compound_closure_receipt(
+        batch,
+        genc1_evidence_sha256="sha256:" + sha256(b"genc1").hexdigest(),
+        genc1_completed_and_proven=True,
+    )
+
+    assert closure.compound_closure_terminal is True
+    assert closure.blockers == ()
+    assert closure.fingerprint().startswith("sha256:")
+
+
+def test_phase22_v2_compound_closure_requires_genc1() -> None:
+    matrix = _full_phase22_matrix()
+    receipts = _all_disposition_receipts(matrix)
+    batch = gate.reconcile_architect_a_phase22_v2_dispositions(
+        matrix,
+        receipts,
+    )
+
+    closure = gate.build_architect_a_phase22_v2_compound_closure_receipt(
+        batch,
+        genc1_evidence_sha256="sha256:" + sha256(b"genc1").hexdigest(),
+        genc1_completed_and_proven=False,
+    )
+
+    assert closure.compound_closure_terminal is False
+    assert "GEN_C1_ACCOUNTING_FOUNDATION_NOT_PROVEN" in closure.blockers
