@@ -174,7 +174,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED_STRICT_FOUR_FOLD_CONTRACT_CI_GREEN_OOS_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED_STRICT_FOUR_FOLD_CONTRACT_CI_GREEN_OOS_STRESS_ADMISSION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -190,11 +190,11 @@
         "tests/infrastructure/test_cibo_ce2i_oos_stress_admission.py",
         "docs/research/CIBO-CE2I-OOS-MECHANISM-STRESS-ADMISSION-V1.md",
         ".github/workflows/cibo-ce2i-oos-stress-admission.yml",
-        "github-actions://36809830802/SUCCESS"
+        "github-actions://36809830802/SUCCESS",
+        "github-actions://36812606891/SUCCESS"
       ],
       "blockers": [
-        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
-        "CE2I_OOS_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
       ],
       "next_gate": "Bind the fresh forward causal population and execute the frozen factor-neutralization ablation; require non-compensatory OOS/stress/replication before terminal disposition."
     },
@@ -203,7 +203,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_SCARCITY_UTILITY_AND_NONCOMPENSATORY_SAFETY_GATE_CI_GREEN_REAL_EVIDENCE_OPEN_OOS_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_SCARCITY_UTILITY_AND_NONCOMPENSATORY_SAFETY_GATE_CI_GREEN_REAL_EVIDENCE_OPEN_OOS_STRESS_ADMISSION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -221,11 +221,11 @@
         "src/qore/infrastructure/cibo_ce2i_oos_stress_admission.py",
         "tests/infrastructure/test_cibo_ce2i_oos_stress_admission.py",
         "docs/research/CIBO-CE2I-OOS-MECHANISM-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-ce2i-oos-stress-admission.yml"
+        ".github/workflows/cibo-ce2i-oos-stress-admission.yml",
+        "github-actions://36812606891/SUCCESS"
       ],
       "blockers": [
-        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
-        "CE2I_OOS_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
       ],
       "next_gate": "Pass the supplemental T09/T18 scarcity-safety CI; then bind the same fresh true-scarcity population to both frozen scarcity utility and starvation/concentration safety gates, followed by stress/4-fold evidence and terminal disposition."
     },
@@ -278,7 +278,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED_OOS_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED_OOS_STRESS_ADMISSION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -295,11 +295,11 @@
         "src/qore/infrastructure/cibo_ce2i_oos_stress_admission.py",
         "tests/infrastructure/test_cibo_ce2i_oos_stress_admission.py",
         "docs/research/CIBO-CE2I-OOS-MECHANISM-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-ce2i-oos-stress-admission.yml"
+        ".github/workflows/cibo-ce2i-oos-stress-admission.yml",
+        "github-actions://36812606891/SUCCESS"
       ],
       "blockers": [
-        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
-        "CE2I_OOS_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
       ],
       "next_gate": "Bind fresh forward regime-eligibility treatment/control outcomes to the fixed T12 utility contract; require 4-fold non-compensatory OOS/stress evidence before terminal disposition."
     },
@@ -308,7 +308,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED_OOS_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED_OOS_STRESS_ADMISSION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -326,11 +326,11 @@
         "src/qore/infrastructure/cibo_ce2i_oos_stress_admission.py",
         "tests/infrastructure/test_cibo_ce2i_oos_stress_admission.py",
         "docs/research/CIBO-CE2I-OOS-MECHANISM-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-ce2i-oos-stress-admission.yml"
+        ".github/workflows/cibo-ce2i-oos-stress-admission.yml",
+        "github-actions://36812606891/SUCCESS"
       ],
       "blockers": [
-        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
-        "CE2I_OOS_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
       ],
       "next_gate": "Bind fresh forward drawdown-reserve treatment/control outcomes to the fixed T13 utility contract; require 4-fold non-compensatory OOS/stress evidence before terminal disposition."
     },
@@ -442,7 +442,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_SCARCITY_UTILITY_AND_NONCOMPENSATORY_SAFETY_GATE_CI_GREEN_REAL_EVIDENCE_OPEN_OOS_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_SCARCITY_UTILITY_AND_NONCOMPENSATORY_SAFETY_GATE_CI_GREEN_REAL_EVIDENCE_OPEN_OOS_STRESS_ADMISSION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -462,11 +462,11 @@
         "src/qore/infrastructure/cibo_ce2i_oos_stress_admission.py",
         "tests/infrastructure/test_cibo_ce2i_oos_stress_admission.py",
         "docs/research/CIBO-CE2I-OOS-MECHANISM-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-ce2i-oos-stress-admission.yml"
+        ".github/workflows/cibo-ce2i-oos-stress-admission.yml",
+        "github-actions://36812606891/SUCCESS"
       ],
       "blockers": [
-        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
-        "CE2I_OOS_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
       ],
       "next_gate": "Pass the supplemental T09/T18 scarcity-safety CI; then bind the same fresh cross-Trader scarcity population to both frozen scarcity utility and starvation/concentration safety gates while preserving Trader sovereignty, followed by stress/4-fold evidence and terminal disposition."
     },
