@@ -263,9 +263,9 @@ def assess_t08_fresh_oos_netting_ablation(
         raise CiboCapitalManagementError(
             "T08 OOS minimum_epochs must be at least two"
         )
-    if required_folds < 2:
+    if required_folds != 4:
         raise CiboCapitalManagementError(
-            "T08 OOS required_folds must be at least two"
+            "T08 OOS required_folds must be exactly four"
         )
     if not epochs:
         return _empty_report(

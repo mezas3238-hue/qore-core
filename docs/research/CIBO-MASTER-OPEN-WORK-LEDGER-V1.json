@@ -103,7 +103,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_CERTIFIED_NONCOMPENSATORY_EXPANSION_UTILITY_GATE_CHILD_CI_GREEN_FRESH_OOS_OPEN",
+      "current_maturity": "CONTRACT_CERTIFIED_NONCOMPENSATORY_EXPANSION_UTILITY_GATE_CHILD_CI_GREEN_STRICT_FOUR_FOLD_REPLICATION_GATE_IMPLEMENTED_CI_PENDING_FRESH_OOS_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -114,10 +114,15 @@
         "tests/infrastructure/test_cibo_expansion_utility_gate.py",
         "docs/research/CIBO-T06-T07-EXPANSION-UTILITY-GATE-V1.md",
         ".github/workflows/cibo-t06-t07-expansion-utility.yml",
-        "github-actions://36755770224/SUCCESS"
+        "github-actions://36755770224/SUCCESS",
+        "src/qore/infrastructure/cibo_ce2i_temporal_utility_replication.py",
+        "tests/infrastructure/test_cibo_ce2i_temporal_utility_replication.py",
+        "docs/research/CIBO-CE2I-STRICT-FOUR-FOLD-UTILITY-REPLICATION-V1.md",
+        ".github/workflows/cibo-ce2i-strict-four-fold-replication.yml"
       ],
       "blockers": [
-        "FRESH_OOS_PROFIT_FUNDED_EXPANSION_UTILITY_REQUIRED"
+        "FRESH_OOS_PROFIT_FUNDED_EXPANSION_UTILITY_REQUIRED",
+        "CE2I_STRICT_FOUR_FOLD_REPLICATION_GATE_CHILD_CI_REQUIRED"
       ],
       "next_gate": "Using only legally fresh causal evidence, prove that profit-funded expansion adds robust economic value without unacceptable plausible-loss, drawdown, tail, margin or optionality degradation."
     },
@@ -126,7 +131,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_CERTIFIED_PROTECTED_CAPACITY_NONCOMPENSATORY_UTILITY_GATE_CHILD_CI_GREEN_FRESH_OOS_OPEN",
+      "current_maturity": "CONTRACT_CERTIFIED_PROTECTED_CAPACITY_NONCOMPENSATORY_UTILITY_GATE_CHILD_CI_GREEN_STRICT_FOUR_FOLD_REPLICATION_GATE_IMPLEMENTED_CI_PENDING_FRESH_OOS_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -137,10 +142,15 @@
         "tests/infrastructure/test_cibo_expansion_utility_gate.py",
         "docs/research/CIBO-T06-T07-EXPANSION-UTILITY-GATE-V1.md",
         ".github/workflows/cibo-t06-t07-expansion-utility.yml",
-        "github-actions://36755770224/SUCCESS"
+        "github-actions://36755770224/SUCCESS",
+        "src/qore/infrastructure/cibo_ce2i_temporal_utility_replication.py",
+        "tests/infrastructure/test_cibo_ce2i_temporal_utility_replication.py",
+        "docs/research/CIBO-CE2I-STRICT-FOUR-FOLD-UTILITY-REPLICATION-V1.md",
+        ".github/workflows/cibo-ce2i-strict-four-fold-replication.yml"
       ],
       "blockers": [
-        "FRESH_OOS_PROTECTED_CAPACITY_EXPANSION_UTILITY_REQUIRED"
+        "FRESH_OOS_PROTECTED_CAPACITY_EXPANSION_UTILITY_REQUIRED",
+        "CE2I_STRICT_FOUR_FOLD_REPLICATION_GATE_CHILD_CI_REQUIRED"
       ],
       "next_gate": "Using only reconciled protected-floor evidence and fresh causal outcomes, prove that protected-capacity expansion adds robust economic value without treating accounting protection as broker guarantee."
     },
@@ -149,7 +159,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED_STRICT_FOUR_FOLD_CONTRACT_CI_PENDING",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -158,10 +168,13 @@
         "src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_ablation.py",
         "tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py",
         "src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py",
-        "tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py"
+        "tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py",
+        "docs/research/CIBO-CE2I-STRICT-FOUR-FOLD-UTILITY-REPLICATION-V1.md",
+        ".github/workflows/cibo-ce2i-strict-four-fold-replication.yml"
       ],
       "blockers": [
-        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
+        "T08_STRICT_FOUR_FOLD_CONTRACT_CHILD_CI_REQUIRED"
       ],
       "next_gate": "Bind the fresh forward causal population and execute the frozen factor-neutralization ablation; require non-compensatory OOS/stress/replication before terminal disposition."
     },
@@ -286,7 +299,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CAUSAL_PARETO_UTILITY_GATE_CHILD_CI_GREEN_FRESH_FORWARD_PROOF_OPEN",
+      "current_maturity": "CAUSAL_PARETO_UTILITY_GATE_CHILD_CI_GREEN_STRICT_FOUR_FOLD_REPLICATION_GATE_IMPLEMENTED_CI_PENDING_FRESH_FORWARD_PROOF_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -295,10 +308,15 @@
         "tests/infrastructure/test_cibo_t14_t15_utility_gate.py",
         "docs/research/CIBO-T14-T15-CAUSAL-PARETO-UTILITY-GATE-V1.md",
         ".github/workflows/cibo-t14-t15-causal-utility.yml",
-        "github-actions://36755770128/SUCCESS"
+        "github-actions://36755770128/SUCCESS",
+        "src/qore/infrastructure/cibo_ce2i_temporal_utility_replication.py",
+        "tests/infrastructure/test_cibo_ce2i_temporal_utility_replication.py",
+        "docs/research/CIBO-CE2I-STRICT-FOUR-FOLD-UTILITY-REPLICATION-V1.md",
+        ".github/workflows/cibo-ce2i-strict-four-fold-replication.yml"
       ],
       "blockers": [
-        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
+        "CE2I_STRICT_FOUR_FOLD_REPLICATION_GATE_CHILD_CI_REQUIRED"
       ],
       "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
     },
@@ -307,7 +325,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CAUSAL_PARETO_UTILITY_GATE_CHILD_CI_GREEN_CAUSAL_IDENTIFICATION_AND_FRESH_FORWARD_PROOF_OPEN",
+      "current_maturity": "CAUSAL_PARETO_UTILITY_GATE_CHILD_CI_GREEN_CAUSAL_IDENTIFICATION_AND_STRICT_FOUR_FOLD_REPLICATION_GATE_IMPLEMENTED_CI_PENDING_FRESH_FORWARD_PROOF_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -316,11 +334,16 @@
         "tests/infrastructure/test_cibo_t14_t15_utility_gate.py",
         "docs/research/CIBO-T14-T15-CAUSAL-PARETO-UTILITY-GATE-V1.md",
         ".github/workflows/cibo-t14-t15-causal-utility.yml",
-        "github-actions://36755770128/SUCCESS"
+        "github-actions://36755770128/SUCCESS",
+        "src/qore/infrastructure/cibo_ce2i_temporal_utility_replication.py",
+        "tests/infrastructure/test_cibo_ce2i_temporal_utility_replication.py",
+        "docs/research/CIBO-CE2I-STRICT-FOUR-FOLD-UTILITY-REPLICATION-V1.md",
+        ".github/workflows/cibo-ce2i-strict-four-fold-replication.yml"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
-        "COUNTERFACTUAL_RESERVATION_CAUSAL_EFFECT_NOT_IDENTIFIED"
+        "COUNTERFACTUAL_RESERVATION_CAUSAL_EFFECT_NOT_IDENTIFIED",
+        "CE2I_STRICT_FOUR_FOLD_REPLICATION_GATE_CHILD_CI_REQUIRED"
       ],
       "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
     },

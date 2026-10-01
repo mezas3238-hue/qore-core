@@ -423,6 +423,8 @@ def test_shared_ce2i_economic_gates_are_not_orphans() -> None:
     inventory = (
         "src/qore/infrastructure/cibo_ce2i_t04_t10_economic_gate.py",
         "tests/infrastructure/test_cibo_ce2i_t04_t10_economic_gate.py",
+        "src/qore/infrastructure/cibo_ce2i_temporal_utility_replication.py",
+        "tests/infrastructure/test_cibo_ce2i_temporal_utility_replication.py",
         "src/qore/infrastructure/cibo_t09_t18_scarcity_safety_gate.py",
         "tests/infrastructure/test_cibo_t09_t18_scarcity_safety_gate.py",
     )
