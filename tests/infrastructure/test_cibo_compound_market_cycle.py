@@ -743,6 +743,24 @@ def test_compound_deployment_excess_loss_requires_explicit_evidence(
             ),
         )
 
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="exceeds sealed stop risk",
+    ):
+        settle_compound_deployment(
+            state,
+            event_id="gap-settlement-invalid-evidence",
+            occurred_at=T0 + timedelta(minutes=30),
+            deployment_id="gap-allocation:deployment",
+            settlement=_settlement(
+                signal="signal-a",
+                position_id=3003,
+                deal_id=4003,
+                pnl="-15",
+            ),
+            excess_loss_evidence_sha256="sha256:" + "z" * 64,
+        )
+
 
 def _integrated_funding_state() -> IntegratedCompoundFundingState:
     cycle = _funded_compound_state()
