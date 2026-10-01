@@ -172,6 +172,14 @@ class Genc11WorldPath:
             "reserve_need_evidence_sha256",
         ):
             _sha(getattr(self, name), name)
+        for name in (
+            "market_probability_claimed",
+            "future_outcome_used",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(
+                    f"GEN-C11 world path {name} must be bool"
+                )
         if self.market_probability_claimed or self.future_outcome_used:
             raise CiboCapitalManagementError(
                 "GEN-C11 world path cannot use probability/outcome oracle"
@@ -189,7 +197,14 @@ class Genc11WorldStepPlan:
     anonymous_hypothetical_option_count: int
 
     def __post_init__(self) -> None:
-        if not self.path_id or self.step_index <= 0:
+        if (
+            not isinstance(self.path_id, str)
+            or not self.path_id
+            or not isinstance(self.step_index, int)
+            or isinstance(self.step_index, bool)
+            or self.step_index <= 0
+            or type(self.world_kind) is not Genc10WorldKind
+        ):
             raise CiboCapitalManagementError(
                 "GEN-C11 world step plan identity is invalid"
             )
@@ -204,9 +219,25 @@ class Genc11WorldStepPlan:
             raise CiboCapitalManagementError(
                 "GEN-C11 step plan capacity plan is invalid"
             )
-        if self.anonymous_hypothetical_option_count < 0:
+        if (
+            not isinstance(self.anonymous_hypothetical_option_count, int)
+            or isinstance(self.anonymous_hypothetical_option_count, bool)
+            or self.anonymous_hypothetical_option_count < 0
+        ):
             raise CiboCapitalManagementError(
-                "GEN-C11 hypothetical option count cannot be negative"
+                "GEN-C11 hypothetical option count must be non-negative int"
+            )
+        if (
+            not isinstance(self.geometry_option_ids, tuple)
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.geometry_option_ids
+            )
+            or len(self.geometry_option_ids)
+            != len(set(self.geometry_option_ids))
+        ):
+            raise CiboCapitalManagementError(
+                "GEN-C11 geometry option ids must be unique non-empty strings"
             )
         if any(
             item not in self.projected_state.surviving_known_option_ids
@@ -301,6 +332,67 @@ class Genc11MultiPeriodPlan:
             raise CiboCapitalManagementError(
                 "GEN-C11 robust-envelope count drift"
             )
+        if (
+            not isinstance(self.path_ids, tuple)
+            or not self.path_ids
+            or any(not isinstance(item, str) or not item for item in self.path_ids)
+            or len(self.path_ids) != len(set(self.path_ids))
+        ):
+            raise CiboCapitalManagementError(
+                "GEN-C11 plan path ids must be unique non-empty strings"
+            )
+        if (
+            not isinstance(self.known_option_ids, tuple)
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.known_option_ids
+            )
+            or len(self.known_option_ids) != len(set(self.known_option_ids))
+        ):
+            raise CiboCapitalManagementError(
+                "GEN-C11 plan known option ids must be unique non-empty strings"
+            )
+        for at in self.step_times:
+            _aware(at, "plan step time")
+        if (
+            tuple(sorted(self.step_times)) != self.step_times
+            or len(set(self.step_times)) != len(self.step_times)
+        ):
+            raise CiboCapitalManagementError(
+                "GEN-C11 plan step times must increase strictly"
+            )
+        if (
+            not isinstance(self.world_step_plans, tuple)
+            or any(
+                not isinstance(item, Genc11WorldStepPlan)
+                for item in self.world_step_plans
+            )
+        ):
+            raise CiboCapitalManagementError(
+                "GEN-C11 plan world-step rows must be canonical"
+            )
+        expected_world_steps = {
+            (path_id, step_index)
+            for path_id in self.path_ids
+            for step_index in range(1, self.horizon_steps + 1)
+        }
+        observed_world_steps = {
+            (item.path_id, item.step_index)
+            for item in self.world_step_plans
+        }
+        if (
+            len(self.world_step_plans) != len(expected_world_steps)
+            or observed_world_steps != expected_world_steps
+        ):
+            raise CiboCapitalManagementError(
+                "GEN-C11 plan world-step coverage drift"
+            )
+        if tuple(
+            item.step_index for item in self.robust_step_envelopes
+        ) != tuple(range(1, self.horizon_steps + 1)):
+            raise CiboCapitalManagementError(
+                "GEN-C11 robust-envelope step identity drift"
+            )
         if self.policy_id != GENC11_POLICY_ID:
             raise CiboCapitalManagementError(
                 "GEN-C11 policy identity drift"
@@ -310,6 +402,24 @@ class Genc11MultiPeriodPlan:
                 "GEN-C11 policy digest drift"
             )
         _aware(self.frozen_at, "frozen_at")
+        for name in (
+            "weighted_score_used",
+            "oracle_arrivals_used",
+            "market_probability_claimed",
+            "production_policy_selected",
+            "value_demonstrated",
+            "oos_pass",
+            "stress_pass",
+            "temporal_replication_pass",
+            "certification_ready",
+            "allocation_authority",
+            "risk_authority",
+            "execution_authority",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(
+                    f"GEN-C11 plan {name} must be bool"
+                )
         if any(
             (
                 self.weighted_score_used,
