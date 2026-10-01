@@ -8,11 +8,15 @@ from qore.infrastructure.cibo_arch_a2_scientific_closure import (
     A1_RESERVED_WORKSTREAM_IDS,
     A2_WORKSTREAM_IDS,
     reconcile_architect_a2_scientific_dispositions,
+    view_architect_a2_evidence_matrix,
 )
 from qore.infrastructure.cibo_arch_a_internal_readiness import (
     PHASE22_V2_SCIENTIFIC_DISPOSITION_SCHEMA,
     ArchitectAPhase22V2ScientificDispositionReceipt,
+    ArchitectAPhase22V2WorkstreamEvidenceMatrix,
+    ArchitectAPhase22V2WorkstreamEvidenceState,
     ArchitectAReadinessError,
+    _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM,
 )
 
 
@@ -134,3 +138,47 @@ def test_a2_packet_reports_missing_receipts_without_promoting_them() -> None:
     assert packet.terminal_count == 16
     assert packet.missing_ids == ("AS_IS_ECONOMIC_BASELINE",)
     assert packet.ready_for_integrator is False
+
+
+def test_a2_evidence_view_can_be_ready_while_a1_remains_blocked() -> None:
+    states = []
+    ready_ids = []
+    blocked_ids = []
+    for workstream_id, required in (
+        _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM.items()
+    ):
+        if workstream_id in A2_WORKSTREAM_IDS:
+            present = required
+            missing = ()
+            ready = True
+            ready_ids.append(workstream_id)
+        else:
+            present = ()
+            missing = required
+            ready = False
+            blocked_ids.append(workstream_id)
+        states.append(
+            ArchitectAPhase22V2WorkstreamEvidenceState(
+                workstream_id=workstream_id,
+                required_kinds=required,
+                present_kinds=present,
+                missing_kinds=missing,
+                ready_for_frozen_evaluation=ready,
+            )
+        )
+    matrix = ArchitectAPhase22V2WorkstreamEvidenceMatrix(
+        phase22_manifest_sha256=_sha("manifest"),
+        states=tuple(states),
+        ready_ids=tuple(ready_ids),
+        blocked_ids=tuple(blocked_ids),
+        all_external_workstreams_ready=False,
+    )
+
+    view = view_architect_a2_evidence_matrix(matrix)
+
+    assert view.ready_ids == A2_WORKSTREAM_IDS
+    assert view.blocked_ids == ()
+    assert view.all_a2_workstreams_ready is True
+    assert view.a1_state_consumed is False
+    assert view.integration_authority is False
+    assert view.productive_authority is False
