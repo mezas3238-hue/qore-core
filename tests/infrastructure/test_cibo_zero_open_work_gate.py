@@ -364,10 +364,23 @@ def _pre_exam_ledger() -> dict:
             "next_gate": "Run the final integrated exam.",
         }
     )
+    payload["workstreams"].append(
+        {
+            "id": "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
+            "kind": "CERTIFICATION",
+            "mandatory": True,
+            "certification_blocking": True,
+            "current_maturity": "WORLD_CUP_EXECUTION_BLOCKED",
+            "terminal_disposition": None,
+            "evidence_refs": ["docs/research/world-cup-exam.md"],
+            "blockers": ["FINAL_INTEGRATED_CIBO_EXAM_MUST_PASS_FIRST"],
+            "next_gate": "Run World Cup after Final Integrated PASS.",
+        }
+    )
     payload["current_summary"] = {
-        "mandatory_count": 2,
+        "mandatory_count": 3,
         "terminal_count": 1,
-        "open_count": 1,
+        "open_count": 2,
         "zero_open_work_pass": False,
         "final_certification_candidate": False,
     }
