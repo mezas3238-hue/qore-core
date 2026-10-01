@@ -82,19 +82,19 @@ PHASE22_STORE_IDENTITIES = (
         name="EXECUTED_RISK",
         relative_path="phase22-v2-stores/executed-risk.json",
         schema="CIBO_PHASE22_V2_EXECUTED_RISK_BOOK_V1",
-        role="Risk-authorized fill-derived initial stop risk",
+        role="Risk-authorized counterfactual stop risk; no historical broker fill claim",
     ),
     Phase22StoreIdentity(
         name="CMA_SETTLEMENT",
         relative_path="phase22-v2-stores/cma-settlement.json",
         schema="CIBO_PHASE22_V2_CMA_SETTLEMENT_BOOK_V1",
-        role="chronological terminal settlement truth",
+        role="counterfactual chronological terminal settlement truth; no historical deal claim",
     ),
     Phase22StoreIdentity(
         name="T20_RELEASE",
         relative_path="phase22-v2-stores/t20-release.json",
         schema="CIBO_PHASE22_V2_T20_RELEASE_BOOK_V1",
-        role="chronological returned risk and margin capacity",
+        role="counterfactual returned risk and margin capacity; no historical provider release claim",
     ),
 )
 
