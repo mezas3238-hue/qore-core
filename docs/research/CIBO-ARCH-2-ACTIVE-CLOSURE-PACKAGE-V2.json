@@ -57,19 +57,22 @@
     },
     {
       "workstream_id": "T16",
-      "state": "FROZEN_GATE_WAITING_POPULATION",
+      "state": "TERMINAL_RECOMMENDATION_READY",
       "resolved_blockers": [
         "REAL_POST_DECLARATION_HEDGE_RETURN_POPULATION_REQUIRED",
         "REALIZED_SLIPPAGE_AND_EXECUTION_COVERAGE_REQUIRED",
         "FULL_HEDGE_COST_MODEL_REQUIRED"
       ],
-      "remaining_requirement": "POST_FREEZE_NAS100_US30_US500_M1_POPULATION_32_PLUS_THEN_STRICT_4_OF_4_HEDGE_UTILITY",
+      "remaining_requirement": "INTEGRATOR_EVIDENCE_AUDIT",
       "evidence": [
         "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-004.md",
+        "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-007.md",
+        "src/qore/infrastructure/cibo_arch2_t16_terminal_falsification.py",
         "github-actions://36934306276/SUCCESS",
-        "github-artifact://11197137857/sha256:96ad9cc8a8ac5bdafc2f35cac556bf54a6250cff62abd65ff09db7bd8922434b",
-        "scripts/cibo_arch2_t16_fresh_oos_m1.py"
-      ]
+        "github-actions://36941142280/SUCCESS",
+        "github-artifact://11199498760/sha256:2aa2024db38efa100c4cf97eb8fc59038ea8b78a0428719ee106ea4bee3a0a16"
+      ],
+      "proposed_terminal_disposition": "FALSIFIED_AND_CLOSED"
     },
     {
       "workstream_id": "T20",
@@ -99,5 +102,15 @@
       "state": "WAITING_ON_INTEGRATOR_RECEIPT",
       "remaining_requirement": "AUTHORIZED_PHASE22_V2_FRESH_OUTCOME_RECEIPT"
     }
-  ]
+  ],
+  "summary": {
+    "terminal_recommendation_ready": 4,
+    "nonterminal_active_fronts": 4,
+    "terminal_recommendations": {
+      "T03": "FALSIFIED_AND_CLOSED",
+      "T16": "FALSIFIED_AND_CLOSED",
+      "PROVIDER_ECONOMICS": "SUPERSEDED_WITH_PROVEN_LINEAGE",
+      "FORWARD_QUALIFICATION": "SUPERSEDED_WITH_PROVEN_LINEAGE"
+    }
+  }
 }
