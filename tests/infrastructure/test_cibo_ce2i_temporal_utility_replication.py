@@ -67,10 +67,10 @@ def _expansion_report(
                     is ExpansionUtilityStatus.ELIGIBLE_FOR_FURTHER_RESEARCH
                 ),
                 failed_dimensions=(
-                    ()
+                    ("TEST_FAILURE",)
                     if treatment_status
-                    is ExpansionUtilityStatus.ELIGIBLE_FOR_FURTHER_RESEARCH
-                    else ("TEST_FAILURE",)
+                    is ExpansionUtilityStatus.REJECTED_SAFETY_DETERIORATION
+                    else ()
                 ),
             ),
         ),
