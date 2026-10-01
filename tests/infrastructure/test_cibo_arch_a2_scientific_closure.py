@@ -6,7 +6,9 @@ import pytest
 
 from qore.infrastructure.cibo_arch_a2_scientific_closure import (
     A1_RESERVED_WORKSTREAM_IDS,
+    A2_SCIENTIFIC_WAVES,
     A2_WORKSTREAM_IDS,
+    build_architect_a2_scientific_execution_plan,
     reconcile_architect_a2_scientific_dispositions,
     view_architect_a2_evidence_matrix,
 )
@@ -182,3 +184,56 @@ def test_a2_evidence_view_can_be_ready_while_a1_remains_blocked() -> None:
     assert view.a1_state_consumed is False
     assert view.integration_authority is False
     assert view.productive_authority is False
+
+
+def test_a2_scientific_execution_plan_is_exact_four_wave_surface() -> None:
+    states = []
+    ready_ids = []
+    blocked_ids = []
+    for workstream_id, required in (
+        _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM.items()
+    ):
+        ready = workstream_id in A2_WORKSTREAM_IDS
+        states.append(
+            ArchitectAPhase22V2WorkstreamEvidenceState(
+                workstream_id=workstream_id,
+                required_kinds=required,
+                present_kinds=required if ready else (),
+                missing_kinds=() if ready else required,
+                ready_for_frozen_evaluation=ready,
+            )
+        )
+        if ready:
+            ready_ids.append(workstream_id)
+        else:
+            blocked_ids.append(workstream_id)
+    matrix = ArchitectAPhase22V2WorkstreamEvidenceMatrix(
+        phase22_manifest_sha256=_sha("manifest"),
+        states=tuple(states),
+        ready_ids=tuple(ready_ids),
+        blocked_ids=tuple(blocked_ids),
+        all_external_workstreams_ready=False,
+    )
+    view = view_architect_a2_evidence_matrix(matrix)
+
+    plan = build_architect_a2_scientific_execution_plan(view)
+
+    assert (
+        plan.wave_1_ids,
+        plan.wave_2_ids,
+        plan.wave_3_ids,
+        plan.wave_4_ids,
+    ) == A2_SCIENTIFIC_WAVES
+    flattened = tuple(item for wave in A2_SCIENTIFIC_WAVES for item in wave)
+    assert len(flattened) == 17
+    assert len(set(flattened)) == 17
+    assert set(flattened) == set(A2_WORKSTREAM_IDS)
+    assert plan.ready_now_ids == A2_WORKSTREAM_IDS
+    assert plan.blocked_now_ids == ()
+    assert plan.exact_a2_surface is True
+    assert plan.a1_execution_required is False
+    assert plan.integration_authority is False
+    assert plan.productive_authority is False
+    assert plan.wave_4_ids == ("CAPITAL_AMPLIFICATION",)
+    assert "GEN-C10" in plan.wave_1_ids
+    assert "GEN-C11" in plan.wave_2_ids
