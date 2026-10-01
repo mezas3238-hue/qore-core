@@ -28,8 +28,8 @@ from qore.infrastructure.ctrader_open_api_client import (
 from qore.kernel.result import Failure
 
 _PRICE_SCALE = Decimal("100000")
-_CURRENCIES = ("AUD", "CAD", "CHF", "EUR", "GBP", "JPY", "NZD", "USD")
-_TARGETS = ("AUDJPY", "EURUSD", "GBPJPY", "GBPUSD")
+_CURRENCIES = ("AUD", "CAD", "CHF", "EUR", "GBP", "JPY", "NZD", "USD", "XAU")
+_TARGETS = ("AUDJPY", "EURUSD", "GBPJPY", "GBPUSD", "XAUUSD")
 _EXPECTED_ACCOUNT_FINGERPRINT = (
     "70d38b13a2afb1ada12883a486ddb39aa0626e4c262b69ee44410bb6531d6086"
 )
