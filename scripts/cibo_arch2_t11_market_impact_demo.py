@@ -222,7 +222,7 @@ def _single_deal(response: object, *, order_id: int) -> object | None:
         and type(getattr(direct, "dealId", None)) is int
         and getattr(direct, "orderId", order_id) == order_id
     ):
-        return direct
+        return cast(object, direct)
     raw = getattr(response, "deal", ())
     try:
         rows = tuple(raw)
@@ -237,11 +237,14 @@ def _single_deal(response: object, *, order_id: int) -> object | None:
     )
     if not matches:
         return None
-    return min(
-        matches,
-        key=lambda item: (
-            getattr(item, "executionTimestamp", 0),
-            getattr(item, "dealId", 0),
+    return cast(
+        object,
+        min(
+            matches,
+            key=lambda item: (
+                getattr(item, "executionTimestamp", 0),
+                getattr(item, "dealId", 0),
+            ),
         ),
     )
 
@@ -713,7 +716,7 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
-def _evaluation_payload(value: object) -> dict[str, object]:
+def _evaluation_payload(value: Any) -> dict[str, object]:
     return cast(dict[str, object], _jsonable(asdict(value)))
 
 
