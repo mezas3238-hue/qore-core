@@ -1,5 +1,7 @@
 name: QORE CIBO Phase22 EURUSD R38 Replay Freeze
 
+# PARITY must complete before any FRESH EURUSD execution.
+
 on:
   push:
     branches:
