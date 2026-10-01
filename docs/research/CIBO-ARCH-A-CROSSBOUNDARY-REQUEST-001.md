@@ -375,3 +375,48 @@ The package must make it possible to prove:
 
 If the underlying mechanism has a frozen policy/candidate/calibration/hypothesis
 digest, that digest must also remain invariant across the four folds.
+
+### 10. Machine-to-machine B -> A scientific intake
+
+A green Architect-B contract workflow is not itself a population handoff.
+The handoff to Architect A must be the JSON emitted by
+`scripts/cibo_phase20_arch_b_forward_economic_manifest.py` from the durable
+Phase20 forward, policy, executed-risk, CMA-settlement and T20-release stores.
+
+The exported JSON must retain the Architect-B `manifest_sha256` and must satisfy
+the frozen V3 candidate identity, Phase20D V4 qualification identity, complete
+row/gap accounting, WF1..WF4 coverage, lineage minima and selected-outcome
+minimums. Architect A will independently verify those consumer-side invariants.
+
+After the Integrator places that JSON on the A side, the canonical consumer is:
+
+```text
+python scripts/cibo_arch_a_internal_readiness_gate.py \
+  --forward-manifest <ARCH_B_FORWARD_MANIFEST_JSON> \
+  --require-scientific-intake
+```
+
+The command produces:
+
+- `artifacts/cibo_arch_a_internal_readiness_v1.json`;
+- `artifacts/cibo_arch_a_scientific_intake_v1.json`;
+- `artifacts/cibo_arch_a_scientific_batch_plan_v1.json`.
+
+`ready_for_batch_science=true` means only that the real provider-bound forward
+population is legally consumable by the preregistered Architect-A research
+gates. It is not a scientific PASS, certification, integration authority,
+runtime authority, production authority or holdout-opening authority.
+
+The batch plan preserves dependency order across the 35 currently empirical
+Architect-A workstreams:
+
+1. direct provider-bound/fresh-OOS economic gates;
+2. dependent sequential/compound/capital-state mechanisms;
+3. compound aggregation, governed science, adversarial stress and strict
+   temporal replication;
+4. Capital Amplification only after the upstream mechanisms have dispositions.
+
+A-side batch execution must stop/falsify individual mechanisms according to their
+own frozen non-compensatory laws. No successful mechanism may rescue a failed
+one.
+
