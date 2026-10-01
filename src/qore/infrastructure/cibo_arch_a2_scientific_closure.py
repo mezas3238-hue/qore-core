@@ -16,7 +16,10 @@ from dataclasses import asdict, dataclass
 from qore.infrastructure.cibo_arch_a_internal_readiness import (
     PHASE22_V2_SCIENTIFIC_DISPOSITION_SCHEMA,
     ArchitectAPhase22V2ScientificDispositionReceipt,
+    ArchitectAPhase22V2WorkstreamEvidenceMatrix,
+    ArchitectAPhase22V2WorkstreamEvidenceState,
     ArchitectAReadinessError,
+    _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM,
 )
 
 A2_WORKSTREAM_IDS = (
@@ -81,6 +84,89 @@ def _canonical_sha(payload: object) -> str:
         ensure_ascii=True,
     ).encode("utf-8")
     return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+@dataclass(frozen=True, slots=True)
+class ArchitectA2EvidenceView:
+    phase22_manifest_sha256: str
+    states: tuple[ArchitectAPhase22V2WorkstreamEvidenceState, ...]
+    ready_ids: tuple[str, ...]
+    blocked_ids: tuple[str, ...]
+    all_a2_workstreams_ready: bool
+    a1_state_consumed: bool = False
+    integration_authority: bool = False
+    productive_authority: bool = False
+
+    def __post_init__(self) -> None:
+        _sha(self.phase22_manifest_sha256, "phase22_manifest_sha256")
+        if tuple(item.workstream_id for item in self.states) != A2_WORKSTREAM_IDS:
+            raise ArchitectAReadinessError(
+                "Architect A2 evidence view coverage drift"
+            )
+        for state in self.states:
+            expected = _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM[
+                state.workstream_id
+            ]
+            if state.required_kinds != expected:
+                raise ArchitectAReadinessError(
+                    "Architect A2 evidence requirements drift"
+                )
+        expected_ready = tuple(
+            item.workstream_id
+            for item in self.states
+            if item.ready_for_frozen_evaluation
+        )
+        expected_blocked = tuple(
+            item.workstream_id
+            for item in self.states
+            if not item.ready_for_frozen_evaluation
+        )
+        if self.ready_ids != expected_ready or self.blocked_ids != expected_blocked:
+            raise ArchitectAReadinessError(
+                "Architect A2 evidence readiness partition drift"
+            )
+        if self.all_a2_workstreams_ready != (not self.blocked_ids):
+            raise ArchitectAReadinessError(
+                "Architect A2 evidence readiness flag drift"
+            )
+        if (
+            self.a1_state_consumed
+            or self.integration_authority
+            or self.productive_authority
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A2 evidence view cannot consume A1/grant authority"
+            )
+
+    def as_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+def view_architect_a2_evidence_matrix(
+    matrix: ArchitectAPhase22V2WorkstreamEvidenceMatrix,
+) -> ArchitectA2EvidenceView:
+    """Filter the canonical full-A matrix without depending on A1 readiness."""
+
+    if not isinstance(matrix, ArchitectAPhase22V2WorkstreamEvidenceMatrix):
+        raise ArchitectAReadinessError(
+            "Architect A2 evidence view requires canonical full-A matrix"
+        )
+    by_id = {item.workstream_id: item for item in matrix.states}
+    states = tuple(by_id[item] for item in A2_WORKSTREAM_IDS)
+    ready = tuple(
+        item.workstream_id for item in states if item.ready_for_frozen_evaluation
+    )
+    blocked = tuple(
+        item.workstream_id for item in states if not item.ready_for_frozen_evaluation
+    )
+    return ArchitectA2EvidenceView(
+        phase22_manifest_sha256=matrix.phase22_manifest_sha256,
+        states=states,
+        ready_ids=ready,
+        blocked_ids=blocked,
+        all_a2_workstreams_ready=not blocked,
+        a1_state_consumed=False,
+    )
 
 
 @dataclass(frozen=True, slots=True)
