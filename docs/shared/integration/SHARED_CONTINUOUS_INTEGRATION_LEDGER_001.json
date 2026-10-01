@@ -152,8 +152,41 @@
       ],
       "partial_work_admitted": false,
       "protected_holdout_opened": false,
-      "master_regression_status": "RUNNING",
-      "disposition": "MERGED_PENDING_MASTER_REGRESSION"
+      "master_regression_status": "PASSED_MASTER_REGRESSION",
+      "disposition": "INTEGRATED_AND_PROVEN",
+      "master_regression_evidence": [
+        "github-actions://36797940165/SUCCESS",
+        "github-actions://36797940171/SUCCESS",
+        "github-actions://36800979592/SUCCESS",
+        "github-actions://36800979661/SUCCESS"
+      ]
+    },
+    {
+      "integration_id": "INT-A-004",
+      "source_lane": "A",
+      "source_cut_sha": "262f45f9ae27c163c790256516e262e6594dc47b",
+      "master_merge_sha": "519447cb70e01702b76fc0520efee9a6839ce6d4",
+      "workstreams": [
+        "MC-22"
+      ],
+      "source_evidence": [
+        "github-actions://36782306980/SUCCESS",
+        "github-actions://36798116588/SUCCESS",
+        "github-actions://36798116609/SUCCESS"
+      ],
+      "partial_work_admitted": false,
+      "protected_holdout_opened": false,
+      "master_regression_status": "PASSED_MASTER_REGRESSION",
+      "disposition": "INTEGRATED_AND_PROVEN",
+      "master_regression_evidence": [
+        "github-actions://36800979592/SUCCESS",
+        "github-actions://36800979613/SUCCESS",
+        "github-actions://36800979620/SUCCESS",
+        "github-actions://36800979647/SUCCESS",
+        "github-actions://36800979661/SUCCESS",
+        "github-actions://36800979662/SUCCESS",
+        "github-actions://36800979727/SUCCESS"
+      ]
     }
   ],
   "next_integrations": [
