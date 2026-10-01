@@ -145,7 +145,8 @@ jobs:
             scripts/cibo_ctrader_demo_provider_economics_probe.py \
             scripts/cibo_ctrader_demo_account_capability_probe.py \
             scripts/cibo_phase20_provider_execution_calibration.py \
-            scripts/cibo_t17_limited_risk_capability_probe.py
+            scripts/cibo_t17_limited_risk_capability_probe.py \
+            scripts/cibo_t03_provider_equivalent_candidate_screen.py
           python -m py_compile \
             src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py \
@@ -155,7 +156,8 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py \
             scripts/cibo_ctrader_demo_account_capability_probe.py \
             scripts/cibo_phase20_provider_execution_calibration.py \
-            scripts/cibo_t17_limited_risk_capability_probe.py
+            scripts/cibo_t17_limited_risk_capability_probe.py \
+            scripts/cibo_t03_provider_equivalent_candidate_screen.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py \
             tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py \
@@ -168,7 +170,8 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_t17_structural_disable.py \
             tests/infrastructure/test_cibo_phase20_provider_execution_calibration_export.py \
             tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py \
-            tests/infrastructure/test_cibo_t17_structural_disable_probe.py
+            tests/infrastructure/test_cibo_t17_structural_disable_probe.py \
+            tests/infrastructure/test_cibo_t03_provider_equivalent_candidate_screen.py
 
       - name: Verify DEMO credentials without printing them
         shell: bash
