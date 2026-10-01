@@ -1,7 +1,7 @@
 {
   "schema": "CIBO_ARCH_B_TERMINAL_DISPOSITION_PACKAGE_V1",
   "branch": "agent/cibo-certification-architect-b-integration-001",
-  "source_head": "aa412b3b7de0824c9b809edba7eeb617cf3571b5",
+  "source_head": "3c7e8c881fca6f18eab25152460bc96b5d329695",
   "created_at_utc": "2026-10-01T04:53:49Z",
   "governance": {
     "draft_unmerged": true,
@@ -117,18 +117,27 @@
     },
     {
       "id": "FORWARD_QUALIFICATION",
-      "recommendation": "EXTERNAL_DEPENDENCY_BLOCKED",
-      "certification_blocking": true,
-      "blockers": [
-        "FROZEN_PHASE20D_REAL_FORWARD_THRESHOLDS_NOT_YET_MET"
-      ]
+      "recommendation": "SUPERSEDED_WITH_PROVEN_LINEAGE",
+      "certification_blocking": false,
+      "blockers": [],
+      "evidence_summary": {
+        "replacement_policy_id": "CIBO_PHASE20D_HISTORICAL_SHADOW_HOLDOUT_1Y_V1",
+        "workflow_run_id": 36857676494,
+        "artifact_id": 11160430022,
+        "artifact_digest": "sha256:cb5991afd27d2b73f4854c4105699744e2aa3c173a58262305d37d4ad083ddce",
+        "status": "PASS",
+        "decision_epochs": 775,
+        "candidate_outcomes": 855,
+        "distinct_trading_days": 214,
+        "represented_lineages": 7,
+        "physical_forward_wait_removed": true
+      }
     },
     {
       "id": "FRESH_OOS",
       "recommendation": "EXTERNAL_DEPENDENCY_BLOCKED",
       "certification_blocking": true,
       "blockers": [
-        "REAL_PHASE20D_FORWARD_POPULATION_REQUIRED",
         "PHASE21_EMPIRICAL_VALIDATIONS_REQUIRED",
         "PHASE21_POLICY_FREEZE_REQUIRED",
         "HOLDOUT_MUST_REMAIN_SEALED_UNTIL_PREREQUISITES_PASS"

@@ -1,7 +1,7 @@
 {
   "schema": "CIBO_ARCH_B_MASTER_LEDGER_PATCH_REQUEST_V1",
   "branch": "agent/cibo-certification-architect-b-integration-001",
-  "evidence_base_head": "aa412b3b7de0824c9b809edba7eeb617cf3571b5",
+  "evidence_base_head": "3c7e8c881fca6f18eab25152460bc96b5d329695",
   "primary_pr": 651,
   "child_pr": 661,
   "master_ledger_owned_by": "ARCHITECT_A_OR_INTEGRATOR",
@@ -313,12 +313,10 @@
         ]
       },
       "to": {
-        "current_maturity": "IMMUTABLE_FORWARD_MANIFEST_IMPLEMENTED_EXTERNAL_PHASE20D_POPULATION_REQUIRED",
-        "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+        "current_maturity": "HISTORICAL_SHADOW_1Y_POPULATION_GATE_PASSED",
+        "terminal_disposition": "SUPERSEDED_WITH_PROVEN_LINEAGE",
         "certification_blocking": true,
-        "blockers": [
-          "FROZEN_PHASE20D_REAL_FORWARD_THRESHOLDS_NOT_YET_MET"
-        ],
+        "blockers": [],
         "evidence_refs": [
           "src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py",
           "docs/research/CIBO-ARCH-B-FORWARD-ECONOMIC-EVIDENCE-MANIFEST-V1.md",
@@ -326,9 +324,12 @@
           "scripts/cibo_phase20_arch_b_forward_economic_manifest.py",
           "tests/infrastructure/test_cibo_arch_b_forward_economic_manifest.py",
           "tests/infrastructure/test_cibo_phase20_arch_b_forward_economic_manifest_export.py",
-          ".github/workflows/cibo-arch-b-forward-economic-manifest.yml"
+          ".github/workflows/cibo-arch-b-forward-economic-manifest.yml",
+          "docs/research/CIBO-PHASE20D-HISTORICAL-SHADOW-HOLDOUT-1Y-EVIDENCE-V1.json",
+          "github-actions://36857676494/SUCCESS",
+          "github-actions-artifact://11160430022/sha256:cb5991afd27d2b73f4854c4105699744e2aa3c173a58262305d37d4ad083ddce"
         ],
-        "next_gate": "Await frozen Phase20D real forward thresholds without retuning or synthetic backfill."
+        "next_gate": "Continue directly to provider-aware Phase21 gates; do not wait 28 physical days and do not project current provider USD execution terms backward."
       }
     },
     {
@@ -345,11 +346,10 @@
         ]
       },
       "to": {
-        "current_maturity": "PRE_HOLDOUT_CHAIN_IMPLEMENTED_EXTERNAL_PHASE20D_PHASE21_PREREQUISITES_REQUIRED",
+        "current_maturity": "SHADOW_POPULATION_GATE_PASSED_PHASE21_PREREQUISITES_REQUIRED",
         "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
         "certification_blocking": true,
         "blockers": [
-          "REAL_PHASE20D_FORWARD_POPULATION_REQUIRED",
           "PHASE21_EMPIRICAL_VALIDATIONS_REQUIRED",
           "PHASE21_POLICY_FREEZE_REQUIRED",
           "HOLDOUT_MUST_REMAIN_SEALED_UNTIL_PREREQUISITES_PASS"
@@ -366,7 +366,7 @@
           ".github/workflows/cibo-calibration-freeze-manifest.yml",
           "docs/research/CIBO-B-CALIBRATION-FREEZE-MANIFEST-V1.md"
         ],
-        "next_gate": "Keep 2017H1 sealed until Phase20D real thresholds, Phase21 empirical validations and policy freeze all pass."
+        "next_gate": "Run Phase21 empirical/provider-aware gates and seal policy freeze; only then unseal the final 2017H1 holdout."
       }
     },
     {

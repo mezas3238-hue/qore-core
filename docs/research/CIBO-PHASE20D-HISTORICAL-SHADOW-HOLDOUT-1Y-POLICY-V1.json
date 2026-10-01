@@ -54,7 +54,7 @@
     "production": false,
     "real_capital": false
   },
-  "status": "OWNER_AUTHORIZED_IMPLEMENTED_PENDING_EVIDENCE_RUN",
+  "status": "PASS_CONSUMED_AND_SEALED",
   "deferred_provider_aware_gates": {
     "minimum_selected_outcomes": 60,
     "required_selected_outcome_coverage": "1.00",
@@ -100,5 +100,33 @@
     "v3_usd_economic_superiority_claimed": false,
     "phase21_provider_aware_gates_still_required": true,
     "final_2017h1_exam_still_required": true
+  },
+  "evidence": {
+    "workflow_run_id": 36857676494,
+    "artifact_id": 11160430022,
+    "artifact_digest": "sha256:cb5991afd27d2b73f4854c4105699744e2aa3c173a58262305d37d4ad083ddce",
+    "evidence_head": "3c7e8c881fca6f18eab25152460bc96b5d329695",
+    "status": "PASS",
+    "decision_epochs": 775,
+    "candidate_outcomes": 855,
+    "distinct_trading_days": 214,
+    "calendar_span_days": 279,
+    "represented_lineages": 7,
+    "minimum_outcomes_any_lineage": 45,
+    "fold_candidate_outcomes": [
+      216,
+      216,
+      213,
+      210
+    ],
+    "fold_lineages": [
+      7,
+      7,
+      7,
+      7
+    ],
+    "candidate_outcome_coverage": "1",
+    "physical_28_day_wait_satisfied": true,
+    "final_2017h1_status": "SEALED_UNTOUCHED"
   }
 }

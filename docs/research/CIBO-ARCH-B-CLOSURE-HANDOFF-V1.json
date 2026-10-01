@@ -1,7 +1,7 @@
 {
   "schema": "CIBO_ARCH_B_CLOSURE_HANDOFF_V1",
   "branch": "agent/cibo-certification-architect-b-integration-001",
-  "implementation_checkpoint_sha": "aa412b3b7de0824c9b809edba7eeb617cf3571b5",
+  "implementation_checkpoint_sha": "3c7e8c881fca6f18eab25152460bc96b5d329695",
   "primary_pr": 651,
   "child_pr": 661,
   "governance": {
@@ -184,23 +184,24 @@
     },
     {
       "id": "FORWARD_QUALIFICATION",
-      "b_status": "IMMUTABLE_B_TO_A_MANIFEST_AND_DURABLE_EXPORT_IMPLEMENTED",
-      "recommended_ledger_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "b_status": "OWNER_AUTHORIZED_HISTORICAL_SHADOW_1Y_POPULATION_GATE_PASSED",
+      "recommended_ledger_disposition": "SUPERSEDED_WITH_PROVEN_LINEAGE",
       "evidence": [
         "src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py",
         "scripts/cibo_phase20_arch_b_forward_economic_manifest.py",
         "tests/infrastructure/test_cibo_arch_b_forward_economic_manifest.py",
         "tests/infrastructure/test_cibo_phase20_arch_b_forward_economic_manifest_export.py",
         ".github/workflows/cibo-arch-b-forward-economic-manifest.yml",
-        "docs/research/CIBO-ARCH-B-FORWARD-ECONOMIC-EVIDENCE-MANIFEST-V1.md"
+        "docs/research/CIBO-ARCH-B-FORWARD-ECONOMIC-EVIDENCE-MANIFEST-V1.md",
+        "docs/research/CIBO-PHASE20D-HISTORICAL-SHADOW-HOLDOUT-1Y-EVIDENCE-V1.json",
+        "github-actions://36857676494/SUCCESS",
+        "github-actions-artifact://11160430022/sha256:cb5991afd27d2b73f4854c4105699744e2aa3c173a58262305d37d4ad083ddce"
       ],
-      "blockers": [
-        "FROZEN_PHASE20D_REAL_FORWARD_THRESHOLDS_NOT_YET_MET"
-      ]
+      "blockers": []
     },
     {
       "id": "FRESH_OOS",
-      "b_status": "DYNAMIC_PHASE20D_TO_PRE_HOLDOUT_FREEZE_BRIDGE_IMPLEMENTED",
+      "b_status": "SHADOW_POPULATION_GATE_PASSED_PHASE21_AND_FINAL_FRESH_HOLDOUT_GATES_OPEN",
       "recommended_ledger_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence": [
         "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
@@ -213,7 +214,6 @@
         "docs/research/CIBO-B-CALIBRATION-FREEZE-MANIFEST-V1.md"
       ],
       "blockers": [
-        "REAL_PHASE20D_FORWARD_POPULATION_REQUIRED",
         "PHASE21_EMPIRICAL_VALIDATIONS_REQUIRED",
         "PHASE21_POLICY_FREEZE_REQUIRED",
         "HOLDOUT_MUST_REMAIN_SEALED_UNTIL_PREREQUISITES_PASS"
@@ -358,7 +358,20 @@
       "head": "aa412b3b7de0824c9b809edba7eeb617cf3571b5",
       "relevant_workflows_success": 19,
       "relevant_workflows_failure": 0
+    },
+    "historical_shadow_1y": {
+      "policy_id": "CIBO_PHASE20D_HISTORICAL_SHADOW_HOLDOUT_1Y_V1",
+      "status": "PASS",
+      "workflow_run_id": 36857676494,
+      "artifact_id": 11160430022,
+      "artifact_digest": "sha256:cb5991afd27d2b73f4854c4105699744e2aa3c173a58262305d37d4ad083ddce",
+      "decision_epochs": 775,
+      "candidate_outcomes": 855,
+      "trading_days": 214,
+      "lineages": 7,
+      "physical_forward_wait_removed": true,
+      "final_2017h1_untouched": true
     }
   },
-  "package_revalidated_at_utc": "2026-10-01T04:53:49Z"
+  "package_revalidated_at_utc": "2026-10-01T11:49:00Z"
 }
