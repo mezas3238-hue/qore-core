@@ -128,7 +128,7 @@ jobs:
             --output pre-holdout/pre-holdout-checkpoint.json \
             > pre-holdout/pre-holdout-checkpoint.stdout.json
 
-      - name: Enforce V2 lock until exact 7-of-7 parity
+      - name: Enforce V2 freeze after exact 7-of-7 parity
         run: |
           python - <<'PY'
           import json
@@ -137,11 +137,9 @@ jobs:
           p = json.loads(
               Path("pre-holdout/pre-holdout-checkpoint.json").read_text()
           )
-          assert p["status"] == "LOCKED_PENDING_PARITY"
-          assert p["ready_to_unseal_v2"] is False
-          assert p["pre_holdout_blockers"] == [
-              "PHASE22_V2_TRADER_PARITY_MANIFEST_NOT_FROZEN"
-          ]
+          assert p["status"] == "PRE_HOLDOUT_FROZEN"
+          assert p["ready_to_unseal_v2"] is True
+          assert p["pre_holdout_blockers"] == []
           assert p["fresh_holdout"]["candidate_id"] == (
               "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
           )
@@ -150,7 +148,9 @@ jobs:
           assert p["phase22_v2_source_receipt"]["burn_clean"] is True
           assert p["phase22_v2_source_receipt"]["outcomes_inspected"] is False
           assert p["phase22_v2_source_receipt"]["trader_logic_executed"] is False
-          assert p["phase22_v2_pre_holdout"]["parity_manifest_sha256"] is None
+          parity_sha = p["phase22_v2_pre_holdout"]["parity_manifest_sha256"]
+          assert isinstance(parity_sha, str)
+          assert parity_sha.startswith("sha256:")
           assert p["provider_core_freeze_receipt"]["core_pre_holdout_ready"] is True
           assert p["provider_core_freeze_receipt"]["productive_authority"] is False
           assert p["fresh_holdout"]["outcomes_inspected"] is False

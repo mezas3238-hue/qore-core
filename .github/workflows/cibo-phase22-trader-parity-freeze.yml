@@ -1,0 +1,89 @@
+name: QORE CIBO Phase22 Trader Parity Freeze
+
+on:
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+    paths:
+      - '.github/workflows/cibo-phase22-trader-parity-freeze.yml'
+      - 'src/qore/infrastructure/cibo_phase22_trader_parity_manifest.py'
+      - 'tests/infrastructure/test_cibo_phase22_trader_parity_manifest.py'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase22-trader-parity-freeze.yml'
+      - 'src/qore/infrastructure/cibo_phase22_trader_parity_manifest.py'
+      - 'tests/infrastructure/test_cibo_phase22_trader_parity_manifest.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Validate exact 7-of-7 parity freeze
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_phase22_trader_parity_manifest.py \
+            tests/infrastructure/test_cibo_phase22_trader_parity_manifest.py
+          mypy src/qore/infrastructure/cibo_phase22_trader_parity_manifest.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase22_trader_parity_manifest.py
+
+      - name: Emit immutable parity manifest
+        run: |
+          mkdir -p phase22-parity-freeze
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          from qore.infrastructure.cibo_phase22_trader_parity_manifest import (
+              ACTIVE_PHASE22_TRADER_PARITY_MANIFEST,
+          )
+
+          manifest = ACTIVE_PHASE22_TRADER_PARITY_MANIFEST
+          assert manifest is not None
+          payload = manifest.payload()
+          assert len(payload["receipts"]) == 7
+          assert all(
+              item["exact_match"] is True
+              for item in payload["receipts"]
+          )
+          assert all(
+              item["fresh_outcomes_executed"] is False
+              for item in payload["receipts"]
+          )
+          Path(
+              "phase22-parity-freeze/phase22-trader-parity-manifest.json"
+          ).write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          printf '%s\n' "$EVIDENCE_SHA" \
+            > phase22-parity-freeze/git-sha.txt
+          cd phase22-parity-freeze
+          sha256sum \
+            phase22-trader-parity-manifest.json \
+            git-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase22-trader-parity-freeze-${{ env.EVIDENCE_SHA }}
+          path: phase22-parity-freeze
+          if-no-files-found: error
+          retention-days: 90

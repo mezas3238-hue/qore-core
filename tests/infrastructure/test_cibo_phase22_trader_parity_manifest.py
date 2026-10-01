@@ -26,8 +26,27 @@ def _receipt(trader_id: str, population: int) -> Phase22TraderParityReceipt:
     )
 
 
-def test_active_parity_manifest_is_absent_before_7_of_7() -> None:
-    assert ACTIVE_PHASE22_TRADER_PARITY_MANIFEST is None
+def test_active_parity_manifest_binds_exact_7_of_7_evidence() -> None:
+    manifest = ACTIVE_PHASE22_TRADER_PARITY_MANIFEST
+
+    assert manifest is not None
+    assert tuple(item.trader_id for item in manifest.receipts) == (
+        CANONICAL_PHASE22_TRADER_IDS
+    )
+    assert tuple(item.observed_population for item in manifest.receipts) == (
+        124,
+        921,
+        863,
+        907,
+        897,
+        1039,
+        806,
+    )
+    assert all(item.exact_match for item in manifest.receipts)
+    assert all(not item.methodology_changed for item in manifest.receipts)
+    assert all(not item.fresh_outcomes_executed for item in manifest.receipts)
+    assert manifest.productive_authority is False
+    assert manifest.fingerprint().startswith("sha256:")
 
 
 def test_manifest_requires_exact_ordered_7_of_7_surface() -> None:
