@@ -7,6 +7,7 @@ import json
 import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any, cast
 
 from qore.infrastructure.cibo_phase22_demo_calibration_contract import (
     CALIBRATION_LABEL_PREFIX,
@@ -121,7 +122,7 @@ def build_report() -> dict[str, object]:
                 continue
             symbol = contracts[symbol_id].qore_symbol
             current = latest.get(symbol)
-            if current is None or int(current.executionTimestamp) < execution_ms:
+            if current is None or int(cast(Any, current).executionTimestamp) < execution_ms:
                 latest[symbol] = deal
 
         rows: list[dict[str, object]] = []
@@ -137,8 +138,8 @@ def build_report() -> dict[str, object]:
                 )
                 continue
             contract = by_symbol[symbol]
-            execution_ms = int(deal.executionTimestamp)
-            trade_side = int(deal.tradeSide)
+            execution_ms = int(cast(Any, deal).executionTimestamp)
+            trade_side = int(cast(Any, deal).tradeSide)
             probes: list[dict[str, object]] = []
             for quote_name, quote_type in (("BID", _BID), ("ASK", _ASK)):
                 for lookback_ms in _LOOKBACKS_MS:
