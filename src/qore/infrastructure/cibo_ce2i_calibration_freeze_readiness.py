@@ -157,6 +157,12 @@ def evaluate_calibration_freeze_readiness(
     _validate_forward_identity(forward_manifest, blockers)
     if forward_manifest.get("ready_for_scientific_consumption") is not True:
         blockers.append("FORWARD_MANIFEST_NOT_SCIENTIFICALLY_CONSUMABLE")
+    evidence_kind = forward_manifest.get("evidence_kind")
+    if evidence_kind == "HISTORICAL_SHADOW_QUALIFICATION":
+        if forward_manifest.get("owner_authorized_forward_successor") is not True:
+            blockers.append("SHADOW_SUCCESSOR_NOT_OWNER_AUTHORIZED")
+        if forward_manifest.get("holdout_2017h1_read") is not False:
+            blockers.append("SHADOW_SUCCESSOR_READ_FINAL_HOLDOUT")
 
     if not PROVIDER_CORE_FREEZE_RECEIPT.core_pre_holdout_ready:
         blockers.append("PROVIDER_CORE_FREEZE_NOT_READY")
