@@ -16,8 +16,8 @@ from qore.infrastructure.cibo_arch_a2_scientific_closure import (
     A2_WORKSTREAM_IDS,
 )
 from qore.infrastructure.cibo_arch_a_internal_readiness import (
-    ArchitectAReadinessError,
     LEDGER_PATH,
+    ArchitectAReadinessError,
 )
 
 _SCHEMA = "QORE_CIBO_ARCH_A2_INTERNAL_READINESS_V1"
