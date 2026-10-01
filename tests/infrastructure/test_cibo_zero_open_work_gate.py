@@ -621,3 +621,20 @@ def test_gate_classifies_arch_a_final_pre_exam_control() -> None:
     assert set(assignments) == {
         (path, "FINAL_INTEGRATED_CIBO_EXAM") for path in inventory
     }
+
+
+def test_gate_classifies_arch_a_final_exam_system_controls() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_arch_a_final_exam_system_controls.py",
+        "tests/infrastructure/test_cibo_arch_a_final_exam_system_controls.py",
+    )
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=frozenset(
+            {"FINAL_INTEGRATED_CIBO_EXAM", "ORPHAN_INVENTORY"}
+        ),
+    )
+    assert orphans == ()
+    assert set(assignments) == {
+        (path, "FINAL_INTEGRATED_CIBO_EXAM") for path in inventory
+    }
