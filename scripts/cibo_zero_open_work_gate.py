@@ -71,6 +71,13 @@ _COMMENT_MARKERS = (
 
 _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_arch_b_forward_economic_manifest*", "FORWARD_QUALIFICATION"),
+    ("*cibo_ce2i_t11_execution_cost_calibration*", "T11"),
+    ("*cibo_ce2i_t17_limited_risk_capability*", "T17"),
+    ("*cibo_t17_limited_risk_capability_probe*", "T17"),
+    ("*cibo_ctrader_demo_capability_registry*", "PROVIDER_ECONOMICS"),
+    ("*cibo_ctrader_demo_instrument_taxonomy*", "PROVIDER_ECONOMICS"),
+    ("*cibo_integrated_capital_forward_binding*", "INTEGRATED_CAPITAL_TRUTH"),
+    ("*cibo_usd60_exam_readiness*", "USD60_CAPABILITY_PROGRAM"),
     ("*cibo_ctrader_demo_account_capability*", "PROVIDER_ECONOMICS"),
     ("*cibo_research_memory*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
     ("*cibo_cma_compound_authority_boundary*", "CMA_FOUNDATION_INTEGRATION"),

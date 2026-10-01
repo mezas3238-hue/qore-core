@@ -14,7 +14,7 @@ T0 = datetime(2026, 9, 30, 18, 0, tzinfo=UTC)
 
 class _Proto:
     def __init__(self, *, present: set[str] | None = None, **values: object) -> None:
-        self._present = present or set(values)
+        self._present = set(values) if present is None else set(present)
         for name, value in values.items():
             setattr(self, name, value)
 

@@ -232,3 +232,41 @@ def test_gate_marks_unclassified_inventory_as_orphan_candidate(
     assert verdict.passed is False
     assert verdict.orphan_candidate_paths == ("src/cibo_unknown.py",)
     assert "UNCLASSIFIED_ORPHAN_CANDIDATE" in verdict.reasons
+
+
+def test_b_surface_classifiers_are_not_orphans() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py",
+        "src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py",
+        "scripts/cibo_t17_limited_risk_capability_probe.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
+        "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py",
+        "src/qore/infrastructure/cibo_usd60_exam_readiness.py",
+    )
+    ledger_ids = frozenset(
+        {
+            "T11",
+            "T17",
+            "PROVIDER_ECONOMICS",
+            "INTEGRATED_CAPITAL_TRUTH",
+            "USD60_CAPABILITY_PROGRAM",
+            "ORPHAN_INVENTORY",
+        }
+    )
+
+    assignments, orphan_candidates = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    assert dict(assignments) == {
+        inventory[0]: "T11",
+        inventory[1]: "T17",
+        inventory[2]: "T17",
+        inventory[3]: "PROVIDER_ECONOMICS",
+        inventory[4]: "PROVIDER_ECONOMICS",
+        inventory[5]: "INTEGRATED_CAPITAL_TRUTH",
+        inventory[6]: "USD60_CAPABILITY_PROGRAM",
+    }
+    assert orphan_candidates == ()
