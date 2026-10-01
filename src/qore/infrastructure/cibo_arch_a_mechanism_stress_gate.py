@@ -203,6 +203,39 @@ class MechanismStressScenarioResult:
     source_gate_status: str
     failed_dimensions: tuple[str, ...]
 
+    def __post_init__(self) -> None:
+        if type(self.scenario_kind) is not CompoundStressKind or not self.scenario_id:
+            raise CiboCompoundCapitalError(
+                "mechanism stress scenario result identity is invalid"
+            )
+        if type(self.passed) is not bool:
+            raise CiboCompoundCapitalError(
+                "mechanism stress scenario result passed must be bool"
+            )
+        if not isinstance(self.source_gate_status, str) or not self.source_gate_status:
+            raise CiboCompoundCapitalError(
+                "mechanism stress scenario result source status is required"
+            )
+        if (
+            not isinstance(self.failed_dimensions, tuple)
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.failed_dimensions
+            )
+            or len(self.failed_dimensions) != len(set(self.failed_dimensions))
+        ):
+            raise CiboCompoundCapitalError(
+                "mechanism stress scenario result failed dimensions are invalid"
+            )
+        expected = (
+            self.source_gate_status == _PASS_STATUS
+            and not self.failed_dimensions
+        )
+        if self.passed != expected:
+            raise CiboCompoundCapitalError(
+                "mechanism stress scenario result pass/status drift"
+            )
+
 
 @dataclass(frozen=True, slots=True)
 class MechanismStressGateReport:
@@ -230,10 +263,25 @@ class MechanismStressGateReport:
                 "mechanism stress report source-gate drift"
             )
         _sha(self.protocol_binding_sha256, "protocol_binding_sha256")
+        if (
+            not isinstance(self.scenario_results, tuple)
+            or any(
+                not isinstance(item, MechanismStressScenarioResult)
+                for item in self.scenario_results
+            )
+        ):
+            raise CiboCompoundCapitalError(
+                "mechanism stress report requires canonical scenario results"
+            )
         kinds = tuple(item.scenario_kind for item in self.scenario_results)
         if kinds != _REQUIRED_STRESS_KINDS:
             raise CiboCompoundCapitalError(
                 "mechanism stress report requires canonical stress-kind order"
+            )
+        scenario_ids = tuple(item.scenario_id for item in self.scenario_results)
+        if len(scenario_ids) != len(set(scenario_ids)):
+            raise CiboCompoundCapitalError(
+                "mechanism stress report scenario ids must be unique"
             )
         expected = all(item.passed for item in self.scenario_results)
         if (
