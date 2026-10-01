@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -47,7 +47,7 @@ def test_phase22_bundle_rejects_preexisting_file(tmp_path: Path) -> None:
 
 
 def test_phase22_historical_record_rejects_broker_identity_fields() -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with pytest.raises(
         DurablePhase22HistoricalStoreError,
         match="broker identity field position_id",
