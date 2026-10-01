@@ -422,3 +422,36 @@ A-side batch execution must stop/falsify individual mechanisms according to thei
 own frozen non-compensatory laws. No successful mechanism may rescue a failed
 one.
 
+#### 10.1 Mechanism-evidence receipt
+
+The common forward manifest unlocks only the provider-bound population. Before
+full mechanism execution, the Integrator must also provide one JSON receipt
+bound to the same `manifest_sha256` with immutable SHA-256 references for:
+
+- `FORWARD_CAPITAL_TRUTH_CHRONOLOGY`;
+- `T08_FACTOR_CORRELATION_LINEAGE`;
+- `T09_T18_TRUE_SCARCITY_LINEAGE`;
+- `T15_RESERVATION_COUNTERFACTUAL_LINEAGE`;
+- `GENC10_TWIN_TRANSITION_LINEAGE`;
+- `GENC11_TRANSITION_CALIBRATION`;
+- `GENC12_CRISIS_FACTOR_SET`;
+- `GENC13_MEMORY_HYPOTHESIS`;
+- `PROTECTED_BASE_POLICY_IDENTITY`;
+- `COMPOUND_STRESS_LINEAGE`;
+- `STRICT_TEMPORAL_POPULATION_LINEAGE`.
+
+Architect A validates this receipt with:
+
+```text
+python scripts/cibo_arch_a_internal_readiness_gate.py \
+  --forward-manifest <ARCH_B_FORWARD_MANIFEST_JSON> \
+  --mechanism-evidence <ARCH_A_MECHANISM_EVIDENCE_JSON> \
+  --require-scientific-intake \
+  --require-full-mechanism-science
+```
+
+The resulting
+`artifacts/cibo_arch_a_mechanism_evidence_receipt_v1.json` lists the present
+and missing evidence kinds. The receipt grants no scientific PASS,
+certification, integration, runtime, Risk, sizing or production authority.
+
