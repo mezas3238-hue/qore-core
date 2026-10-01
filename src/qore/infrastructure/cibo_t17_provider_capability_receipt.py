@@ -109,6 +109,8 @@ def build_t17_provider_capability_source_artifact(
 
     payload: dict[str, Any] = {
         "schema": _T17_SCHEMA,
+        "evidence_binding_id": "T17_PROVIDER_CAPABILITY_OBSERVATION",
+        "evidence_kind": "T17_PROVIDER_CAPABILITY_OBSERVATION",
         "producer_gate_id": _T17_GATE_ID,
         "integrated_git_sha": integrated_git_sha,
         "policy_identity_sha256": policy_identity_sha256,

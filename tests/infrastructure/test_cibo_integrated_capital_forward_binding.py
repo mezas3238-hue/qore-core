@@ -181,7 +181,7 @@ def _manifest() -> ArchBForwardEconomicManifest:
 _BINDINGS = (
     RealizedProfitEquivalenceBinding(
         source_id="profit-source",
-        admission_lot_ids=("profit:gen1",),
+        admission_lot_ids=("forward-profit:gen1",),
     ),
 )
 

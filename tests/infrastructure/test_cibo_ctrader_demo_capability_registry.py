@@ -13,14 +13,14 @@ from qore.infrastructure.cibo_ctrader_demo_account_capability import (
     CTraderDemoAccountType,
     CTraderDemoCatalogSymbol,
 )
+from qore.infrastructure.cibo_ctrader_demo_capability_registry import (
+    reconcile_ctrader_demo_capability_registry,
+)
 from qore.infrastructure.cibo_ctrader_demo_instrument_taxonomy import (
     CTraderDemoAssetClassEvidence,
     CTraderDemoInstrumentTaxonomyObservation,
     CTraderDemoSymbolCategoryEvidence,
     _taxonomy_sha256,
-)
-from qore.infrastructure.cibo_ctrader_demo_capability_registry import (
-    reconcile_ctrader_demo_capability_registry,
 )
 from qore.infrastructure.cibo_instrument_capability_registry import (
     CapabilityStatus,

@@ -756,7 +756,10 @@ def main() -> int:
     parser.add_argument(
         "--pre-exam",
         action="store_true",
-        help="Exclude only FINAL_INTEGRATED_CIBO_EXAM and WORLD_CUP_MAXIMUM_CAPABILITY_EXAM from PRE_EXAM sequencing.",
+        help=(
+            "Exclude only FINAL_INTEGRATED_CIBO_EXAM and "
+            "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM from PRE_EXAM sequencing."
+        ),
     )
     args = parser.parse_args()
     verdict = evaluate_pre_exam_gate() if args.pre_exam else evaluate_gate()

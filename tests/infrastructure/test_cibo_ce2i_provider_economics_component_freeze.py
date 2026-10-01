@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+
 from qore.infrastructure.cibo_arch_b_forward_economic_manifest import (
     ARCH_B_FORWARD_ECONOMIC_MANIFEST_ID,
     ArchBForwardEconomicManifest,
@@ -96,10 +97,10 @@ def test_ready_execution_calibration_promotes_pre_holdout_readiness() -> None:
     from decimal import Decimal
 
     from qore.infrastructure.cibo_ce2i_provider_execution_calibration import (
+        PROVIDER_EXECUTION_CALIBRATION_ID,
         CiboProviderExecutionCalibration,
         CiboProviderExecutionObservation,
         CiboProviderExecutionSymbolSummary,
-        PROVIDER_EXECUTION_CALIBRATION_ID,
     )
 
     symbols = (
