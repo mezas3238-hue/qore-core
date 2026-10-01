@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from math import ceil
+from time import sleep
 from typing import Any
 
 from qore.infrastructure.cibo_capital_management_authority import (
@@ -39,7 +40,8 @@ _PARTIALLY_FILLED = 3
 _REQUIRED_DISTINCT_ORDERS_PER_SYMBOL = 8
 _MAX_DEALS_PER_SYMBOL = 32
 _LOOKBACK_DAYS = 365
-_TICK_LOOKBACK_MS = 60_000
+_TICK_LOOKBACK_WINDOWS_MS = (300_000, 900_000, 3_600_000)
+_HISTORICAL_REQUEST_PAUSE_SECONDS = 0.25
 
 
 @dataclass(frozen=True, slots=True)
@@ -536,25 +538,40 @@ def _deal_observation(
     side_code = int(deal.tradeSide)
     side = "BUY" if side_code == _BUY else "SELL"
     quote_type = _ASK if side_code == _BUY else _BID
-    response = _request(
-        client,
-        "ProtoOAGetTickDataReq",
-        {
-            "ctidTraderAccountId": account_id,
-            "symbolId": contract.symbol_id,
-            "type": quote_type,
-            "fromTimestamp": max(0, execution_ms - _TICK_LOOKBACK_MS),
-            "toTimestamp": execution_ms,
-        },
-        f"qore-cibo-tick-{contract.symbol_id}-{execution_ms}-{quote_type}",
-    )
-    ticks = decode_ctrader_tick_series(
-        tuple(getattr(response, "tickData", ()))
-    )
-    causal = tuple(item for item in ticks if item[0] <= execution_ms)
+    causal: tuple[tuple[int, Decimal], ...] = ()
+    for lookback_ms in _TICK_LOOKBACK_WINDOWS_MS:
+        # cTrader historical-data requests are rate limited independently
+        # from normal requests. Pace each attempt so a full calibration
+        # population cannot self-throttle into false quote gaps.
+        sleep(_HISTORICAL_REQUEST_PAUSE_SECONDS)
+        response = _request(
+            client,
+            "ProtoOAGetTickDataReq",
+            {
+                "ctidTraderAccountId": account_id,
+                "symbolId": contract.symbol_id,
+                "type": quote_type,
+                "fromTimestamp": max(0, execution_ms - lookback_ms),
+                "toTimestamp": execution_ms,
+            },
+            (
+                f"qore-cibo-tick-{contract.symbol_id}-{execution_ms}-"
+                f"{quote_type}-{lookback_ms}"
+            ),
+        )
+        if getattr(response, "ctidTraderAccountId", account_id) != account_id:
+            raise CiboCapitalManagementError(
+                "historical tick response account mismatch"
+            )
+        ticks = decode_ctrader_tick_series(
+            tuple(getattr(response, "tickData", ()))
+        )
+        causal = tuple(item for item in ticks if item[0] <= execution_ms)
+        if causal:
+            break
     if not causal:
         raise CiboCapitalManagementError(
-            "no causal historical quote before execution"
+            "no causal historical quote before execution after paced lookbacks"
         )
     quote_ms, quote_price = max(causal, key=lambda item: item[0])
     fill_price = Decimal(str(deal.executionPrice))

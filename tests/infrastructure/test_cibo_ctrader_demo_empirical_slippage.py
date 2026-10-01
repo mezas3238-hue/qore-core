@@ -48,3 +48,11 @@ def test_buy_and_sell_slippage_sign_is_adverse_positive() -> None:
     assert sell[2] == Decimal("10")
     assert favorable[1] == Decimal("-10")
     assert favorable[2] == Decimal("0")
+
+
+def test_tick_lookbacks_are_bounded_and_widen_only() -> None:
+    from qore.infrastructure import cibo_ctrader_demo_empirical_slippage as module
+
+    assert module._TICK_LOOKBACK_WINDOWS_MS == (300_000, 900_000, 3_600_000)
+    assert module._HISTORICAL_REQUEST_PAUSE_SECONDS >= 0.2
+    assert module._HISTORICAL_REQUEST_PAUSE_SECONDS < 1
