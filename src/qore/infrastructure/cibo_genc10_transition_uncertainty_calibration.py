@@ -97,10 +97,15 @@ class Genc10ObservedTransition:
                 raise CiboCompoundCapitalError(
                     f"GEN-C10 transition {name} must be int"
                 )
-        if type(self.provider_constraints_changed) is not bool:
-            raise CiboCompoundCapitalError(
-                "GEN-C10 provider_constraints_changed must be bool"
-            )
+        for name in (
+            "provider_constraints_changed",
+            "future_data_used",
+            "market_probability_claimed",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"GEN-C10 transition {name} must be bool"
+                )
         if type(self.evidence_kind) is not Genc10TransitionEvidenceKind:
             raise CiboCompoundCapitalError(
                 "GEN-C10 transition evidence kind is invalid"
@@ -165,7 +170,13 @@ class Genc10TransitionSupport:
     provider_constraint_change_observations: int
 
     def __post_init__(self) -> None:
-        if not self.conditioning_key or self.observation_count <= 0:
+        if (
+            not isinstance(self.conditioning_key, str)
+            or not self.conditioning_key
+            or not isinstance(self.observation_count, int)
+            or isinstance(self.observation_count, bool)
+            or self.observation_count <= 0
+        ):
             raise CiboCompoundCapitalError(
                 "GEN-C10 transition support identity/count invalid"
             )
@@ -176,7 +187,15 @@ class Genc10TransitionSupport:
                 "GEN-C10 support requires positive chronological span"
             )
         if (
-            self.provider_constraint_change_observations < 0
+            not isinstance(
+                self.provider_constraint_change_observations,
+                int,
+            )
+            or isinstance(
+                self.provider_constraint_change_observations,
+                bool,
+            )
+            or self.provider_constraint_change_observations < 0
             or self.provider_constraint_change_observations
             > self.observation_count
         ):
