@@ -486,3 +486,23 @@ def test_gate_classifies_arch_b_crossboundary_surfaces_specifically() -> None:
     }
     assert orphans == ()
 
+
+
+def test_gate_classifies_final_exam_receipt_binding_surfaces() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_final_exam_control_receipt.py",
+        "src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam_v2.py",
+        "tests/infrastructure/test_cibo_final_exam_control_receipt.py",
+        "tests/infrastructure/test_cibo_receipt_bound_final_integrated_exam_v2.py",
+    )
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=frozenset(
+            {"FINAL_INTEGRATED_CIBO_EXAM", "ORPHAN_INVENTORY"}
+        ),
+    )
+
+    assert orphans == ()
+    assert set(assignments) == {
+        (path, "FINAL_INTEGRATED_CIBO_EXAM") for path in inventory
+    }
