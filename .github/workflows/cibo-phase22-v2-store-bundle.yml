@@ -7,11 +7,15 @@ on:
     paths:
       - '.github/workflows/cibo-phase22-v2-store-bundle.yml'
       - 'src/qore/infrastructure/cibo_phase22_store_bundle.py'
+      - 'src/qore/infrastructure/cibo_phase22_historical_store.py'
+      - 'src/qore/infrastructure/cibo_phase22_store_contract.py'
       - 'tests/infrastructure/test_cibo_phase22_store_bundle.py'
   pull_request:
     paths:
       - '.github/workflows/cibo-phase22-v2-store-bundle.yml'
       - 'src/qore/infrastructure/cibo_phase22_store_bundle.py'
+      - 'src/qore/infrastructure/cibo_phase22_historical_store.py'
+      - 'src/qore/infrastructure/cibo_phase22_store_contract.py'
       - 'tests/infrastructure/test_cibo_phase22_store_bundle.py'
   workflow_dispatch:
 
@@ -32,7 +36,12 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/cibo_phase22_store_bundle.py \
+            src/qore/infrastructure/cibo_phase22_historical_store.py \
+            src/qore/infrastructure/cibo_phase22_store_contract.py \
             tests/infrastructure/test_cibo_phase22_store_bundle.py
-          mypy src/qore/infrastructure/cibo_phase22_store_bundle.py
+          mypy \
+            src/qore/infrastructure/cibo_phase22_store_bundle.py \
+            src/qore/infrastructure/cibo_phase22_historical_store.py \
+            src/qore/infrastructure/cibo_phase22_store_contract.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_phase22_store_bundle.py
