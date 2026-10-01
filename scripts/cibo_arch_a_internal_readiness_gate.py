@@ -13,6 +13,7 @@ from qore.infrastructure.cibo_arch_a_internal_readiness import (
     evaluate_architect_a_mechanism_evidence,
     evaluate_architect_a_phase22_v2_mechanism_evidence,
     evaluate_architect_a_phase22_v2_scientific_intake,
+    evaluate_architect_a_phase22_v2_scientific_outcome,
     evaluate_architect_a_phase22_v2_workstream_evidence,
     evaluate_architect_a_scientific_intake,
 )
@@ -34,6 +35,9 @@ PHASE22_MECHANISM_OUTPUT_PATH = Path(
 )
 PHASE22_WORKSTREAM_MATRIX_OUTPUT_PATH = Path(
     "artifacts/cibo_arch_a_phase22_v2_workstream_evidence_matrix_v1.json"
+)
+PHASE22_DISPOSITION_OUTPUT_PATH = Path(
+    "artifacts/cibo_arch_a_phase22_v2_scientific_disposition_v1.json"
 )
 
 
@@ -68,6 +72,11 @@ def main() -> int:
         help="Integrator JSON containing Architect-A mechanism evidence SHAs.",
     )
     parser.add_argument(
+        "--scientific-outcome",
+        type=Path,
+        help="One completed frozen Architect-A workstream gate outcome JSON.",
+    )
+    parser.add_argument(
         "--require-full-mechanism-science",
         action="store_true",
         help="Exit non-zero unless all mechanism evidence packages are present.",
@@ -96,6 +105,10 @@ def main() -> int:
         if args.mechanism_evidence is not None:
             parser.error(
                 "--mechanism-evidence requires a scientific manifest"
+            )
+        if args.scientific_outcome is not None:
+            parser.error(
+                "--scientific-outcome requires --phase22-v2-manifest"
             )
         if args.require_full_mechanism_science:
             parser.error(
@@ -127,6 +140,7 @@ def main() -> int:
             return 2
 
         mechanism_v2 = None
+        matrix_v2 = None
         if args.mechanism_evidence is not None:
             mechanism_payload = json.loads(
                 args.mechanism_evidence.read_text(encoding="utf-8")
@@ -153,6 +167,28 @@ def main() -> int:
                 matrix_v2.as_dict(),
             )
             print(json.dumps(matrix_v2.as_dict(), sort_keys=True))
+
+        if args.scientific_outcome is not None:
+            if matrix_v2 is None:
+                parser.error(
+                    "--scientific-outcome requires --mechanism-evidence"
+                )
+            outcome_payload = json.loads(
+                args.scientific_outcome.read_text(encoding="utf-8")
+            )
+            if not isinstance(outcome_payload, dict):
+                raise TypeError(
+                    "Architect-A scientific outcome must be JSON object"
+                )
+            disposition = evaluate_architect_a_phase22_v2_scientific_outcome(
+                outcome_payload,
+                matrix_v2,
+            )
+            _write_json(
+                PHASE22_DISPOSITION_OUTPUT_PATH,
+                disposition.as_dict(),
+            )
+            print(json.dumps(disposition.as_dict(), sort_keys=True))
 
         if args.require_full_mechanism_science:
             if mechanism_v2 is None:

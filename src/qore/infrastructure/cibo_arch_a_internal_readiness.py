@@ -37,6 +37,9 @@ PHASE22_V2_INTAKE_SCHEMA = "QORE_CIBO_ARCH_A_PHASE22_V2_SCIENTIFIC_INTAKE_V1"
 PHASE22_V2_MECHANISM_EVIDENCE_SCHEMA = (
     "QORE_CIBO_ARCH_A_PHASE22_V2_MECHANISM_EVIDENCE_V1"
 )
+PHASE22_V2_SCIENTIFIC_DISPOSITION_SCHEMA = (
+    "QORE_CIBO_ARCH_A_PHASE22_V2_SCIENTIFIC_DISPOSITION_V1"
+)
 PHASE22_V2_CANDIDATE_ID = (
     "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
 )
@@ -1492,6 +1495,252 @@ def evaluate_architect_a_phase22_v2_workstream_evidence(
         ready_ids=ready_ids,
         blocked_ids=blocked_ids,
         all_external_workstreams_ready=not blocked_ids,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class ArchitectAPhase22V2ScientificOutcome:
+    workstream_id: str
+    phase22_manifest_sha256: str
+    source_gate_id: str
+    source_gate_evidence_sha256: str
+    source_gate_status: str
+    passed: bool
+    blockers: tuple[str, ...]
+    failed_dimensions: tuple[str, ...]
+    evaluation_complete: bool
+    owner_review_approved: bool = False
+    future_leakage_detected: bool = False
+    synthetic_evidence_used: bool = False
+    retuning_after_fresh: bool = False
+
+    def __post_init__(self) -> None:
+        if self.workstream_id not in _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 scientific outcome workstream drift"
+            )
+        _require_sha(self.phase22_manifest_sha256, "phase22_manifest_sha256")
+        _require_sha(
+            self.source_gate_evidence_sha256,
+            "source_gate_evidence_sha256",
+        )
+        if not self.source_gate_id or not self.source_gate_status:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 scientific outcome gate identity required"
+            )
+        for name in (
+            "passed",
+            "evaluation_complete",
+            "owner_review_approved",
+            "future_leakage_detected",
+            "synthetic_evidence_used",
+            "retuning_after_fresh",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise ArchitectAReadinessError(
+                    f"Architect A Phase22 V2 scientific outcome {name} must be bool"
+                )
+        for name in ("blockers", "failed_dimensions"):
+            values = getattr(self, name)
+            if (
+                not isinstance(values, tuple)
+                or any(not isinstance(item, str) or not item for item in values)
+                or len(values) != len(set(values))
+            ):
+                raise ArchitectAReadinessError(
+                    f"Architect A Phase22 V2 scientific outcome {name} invalid"
+                )
+        if not self.evaluation_complete:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 disposition requires completed evaluation"
+            )
+        if (
+            self.future_leakage_detected
+            or self.synthetic_evidence_used
+            or self.retuning_after_fresh
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 scientific outcome governance drift"
+            )
+        if self.passed and (self.blockers or self.failed_dimensions):
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 PASS cannot retain failed dimensions"
+            )
+        known_pass = {
+            "PASS",
+            "ELIGIBLE_FOR_FURTHER_RESEARCH",
+            "STRESS_ROBUST",
+        }
+        if not self.passed and not self.blockers and not self.failed_dimensions:
+            if self.source_gate_status in known_pass:
+                raise ArchitectAReadinessError(
+                    "Architect A Phase22 V2 failed outcome lacks falsification evidence"
+                )
+        if self.workstream_id != "GEN-C14" and self.owner_review_approved:
+            raise ArchitectAReadinessError(
+                "Owner review approval is reserved for GEN-C14"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class ArchitectAPhase22V2ScientificDispositionReceipt:
+    schema: str
+    workstream_id: str
+    phase22_manifest_sha256: str
+    source_gate_id: str
+    source_gate_evidence_sha256: str
+    source_gate_status: str
+    passed: bool
+    recommended_disposition: str
+    blockers: tuple[str, ...]
+    failed_dimensions: tuple[str, ...]
+    owner_review_approved: bool
+    ledger_update_authority: bool = False
+    certification_claimed: bool = False
+    production_authority: bool = False
+
+    def __post_init__(self) -> None:
+        if self.schema != PHASE22_V2_SCIENTIFIC_DISPOSITION_SCHEMA:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 scientific disposition schema drift"
+            )
+        if self.workstream_id not in _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 scientific disposition workstream drift"
+            )
+        _require_sha(self.phase22_manifest_sha256, "phase22_manifest_sha256")
+        _require_sha(
+            self.source_gate_evidence_sha256,
+            "source_gate_evidence_sha256",
+        )
+        allowed = {
+            "COMPLETED_AND_PROVEN",
+            "FALSIFIED_AND_CLOSED",
+            "EXTERNAL_DEPENDENCY_BLOCKED",
+        }
+        if self.recommended_disposition not in allowed:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 recommended disposition invalid"
+            )
+        if self.passed:
+            expected = (
+                "COMPLETED_AND_PROVEN"
+                if self.workstream_id != "GEN-C14" or self.owner_review_approved
+                else "EXTERNAL_DEPENDENCY_BLOCKED"
+            )
+        else:
+            expected = "FALSIFIED_AND_CLOSED"
+        if self.recommended_disposition != expected:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 scientific disposition/result drift"
+            )
+        if (
+            self.ledger_update_authority
+            or self.certification_claimed
+            or self.production_authority
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 disposition cannot grant authority"
+            )
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+def evaluate_architect_a_phase22_v2_scientific_outcome(
+    payload: dict[str, Any],
+    matrix: ArchitectAPhase22V2WorkstreamEvidenceMatrix,
+) -> ArchitectAPhase22V2ScientificDispositionReceipt:
+    """Translate one completed frozen gate into a non-authoritative disposition."""
+
+    if not isinstance(payload, dict):
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 scientific outcome payload must be object"
+        )
+    if not isinstance(matrix, ArchitectAPhase22V2WorkstreamEvidenceMatrix):
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 scientific outcome requires evidence matrix"
+        )
+
+    workstream_id = _require_nonempty_str(
+        payload.get("workstream_id"),
+        "workstream_id",
+    )
+    if workstream_id not in _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM:
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 scientific outcome unknown workstream"
+        )
+    state = next(
+        item for item in matrix.states if item.workstream_id == workstream_id
+    )
+    if not state.ready_for_frozen_evaluation:
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 workstream evidence is not ready"
+        )
+
+    manifest_sha = _require_sha(
+        payload.get("phase22_manifest_sha256"),
+        "phase22_manifest_sha256",
+    )
+    if manifest_sha != matrix.phase22_manifest_sha256:
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 scientific outcome manifest drift"
+        )
+
+    blockers_raw = payload.get("blockers")
+    failed_raw = payload.get("failed_dimensions")
+    if not isinstance(blockers_raw, list) or not isinstance(failed_raw, list):
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 outcome blockers/failed dimensions must be lists"
+        )
+
+    outcome = ArchitectAPhase22V2ScientificOutcome(
+        workstream_id=workstream_id,
+        phase22_manifest_sha256=manifest_sha,
+        source_gate_id=_require_nonempty_str(
+            payload.get("source_gate_id"),
+            "source_gate_id",
+        ),
+        source_gate_evidence_sha256=_require_sha(
+            payload.get("source_gate_evidence_sha256"),
+            "source_gate_evidence_sha256",
+        ),
+        source_gate_status=_require_nonempty_str(
+            payload.get("source_gate_status"),
+            "source_gate_status",
+        ),
+        passed=payload.get("passed"),
+        blockers=tuple(str(item) for item in blockers_raw),
+        failed_dimensions=tuple(str(item) for item in failed_raw),
+        evaluation_complete=payload.get("evaluation_complete"),
+        owner_review_approved=payload.get("owner_review_approved", False),
+        future_leakage_detected=payload.get("future_leakage_detected", False),
+        synthetic_evidence_used=payload.get("synthetic_evidence_used", False),
+        retuning_after_fresh=payload.get("retuning_after_fresh", False),
+    )
+
+    if outcome.passed:
+        disposition = (
+            "COMPLETED_AND_PROVEN"
+            if outcome.workstream_id != "GEN-C14"
+            or outcome.owner_review_approved
+            else "EXTERNAL_DEPENDENCY_BLOCKED"
+        )
+    else:
+        disposition = "FALSIFIED_AND_CLOSED"
+
+    return ArchitectAPhase22V2ScientificDispositionReceipt(
+        schema=PHASE22_V2_SCIENTIFIC_DISPOSITION_SCHEMA,
+        workstream_id=outcome.workstream_id,
+        phase22_manifest_sha256=outcome.phase22_manifest_sha256,
+        source_gate_id=outcome.source_gate_id,
+        source_gate_evidence_sha256=outcome.source_gate_evidence_sha256,
+        source_gate_status=outcome.source_gate_status,
+        passed=outcome.passed,
+        recommended_disposition=disposition,
+        blockers=outcome.blockers,
+        failed_dimensions=outcome.failed_dimensions,
+        owner_review_approved=outcome.owner_review_approved,
     )
 
 def forward_manifest_payload_sha256(payload: dict[str, Any]) -> str:

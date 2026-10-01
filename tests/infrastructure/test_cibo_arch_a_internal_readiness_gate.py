@@ -755,3 +755,127 @@ def test_phase22_v2_intake_rejects_economic_protocol_digest_drift() -> None:
         match="economic-protocol drift",
     ):
         gate.evaluate_architect_a_phase22_v2_scientific_intake(payload)
+
+
+def _scientific_outcome_payload(
+    matrix: gate.ArchitectAPhase22V2WorkstreamEvidenceMatrix,
+    workstream_id: str,
+    *,
+    passed: bool,
+    owner_review_approved: bool = False,
+) -> dict:
+    return {
+        "workstream_id": workstream_id,
+        "phase22_manifest_sha256": matrix.phase22_manifest_sha256,
+        "source_gate_id": f"FROZEN_{workstream_id}_GATE_V1",
+        "source_gate_evidence_sha256": "sha256:"
+        + sha256(("gate-" + workstream_id).encode("utf-8")).hexdigest(),
+        "source_gate_status": "PASS" if passed else "FAIL",
+        "passed": passed,
+        "blockers": [] if passed else ["ECONOMIC_GATE_FAILED"],
+        "failed_dimensions": [] if passed else ["NET_ECONOMIC_VALUE"],
+        "evaluation_complete": True,
+        "owner_review_approved": owner_review_approved,
+        "future_leakage_detected": False,
+        "synthetic_evidence_used": False,
+        "retuning_after_fresh": False,
+    }
+
+
+def _full_phase22_matrix() -> gate.ArchitectAPhase22V2WorkstreamEvidenceMatrix:
+    intake = gate.evaluate_architect_a_phase22_v2_scientific_intake(
+        _phase22_v2_manifest_payload()
+    )
+    mechanism = gate.evaluate_architect_a_phase22_v2_mechanism_evidence(
+        _phase22_v2_mechanism_payload(intake, complete=True),
+        intake,
+    )
+    return gate.evaluate_architect_a_phase22_v2_workstream_evidence(
+        intake,
+        mechanism,
+    )
+
+
+def test_phase22_v2_scientific_pass_recommends_completed_and_proven() -> None:
+    matrix = _full_phase22_matrix()
+    receipt = gate.evaluate_architect_a_phase22_v2_scientific_outcome(
+        _scientific_outcome_payload(matrix, "T09", passed=True),
+        matrix,
+    )
+
+    assert receipt.recommended_disposition == "COMPLETED_AND_PROVEN"
+    assert receipt.ledger_update_authority is False
+    assert receipt.certification_claimed is False
+
+
+def test_phase22_v2_scientific_fail_recommends_falsified_closed() -> None:
+    matrix = _full_phase22_matrix()
+    receipt = gate.evaluate_architect_a_phase22_v2_scientific_outcome(
+        _scientific_outcome_payload(matrix, "GEN-C12", passed=False),
+        matrix,
+    )
+
+    assert receipt.recommended_disposition == "FALSIFIED_AND_CLOSED"
+    assert receipt.failed_dimensions == ("NET_ECONOMIC_VALUE",)
+
+
+def test_phase22_v2_scientific_outcome_requires_workstream_evidence() -> None:
+    intake = gate.evaluate_architect_a_phase22_v2_scientific_intake(
+        _phase22_v2_manifest_payload()
+    )
+    partial_payload = {
+        "schema": gate.PHASE22_V2_MECHANISM_EVIDENCE_SCHEMA,
+        "phase22_manifest_sha256": intake.manifest_sha256,
+        "evidence_refs": [
+            {
+                "kind": "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+                "sha256": "sha256:"
+                + sha256(b"only-forward").hexdigest(),
+            }
+        ],
+        "scientific_closure_claimed": False,
+        "integration_authority": False,
+        "production_authority": False,
+    }
+    mechanism = gate.evaluate_architect_a_phase22_v2_mechanism_evidence(
+        partial_payload,
+        intake,
+    )
+    matrix = gate.evaluate_architect_a_phase22_v2_workstream_evidence(
+        intake,
+        mechanism,
+    )
+
+    with pytest.raises(
+        gate.ArchitectAReadinessError,
+        match="workstream evidence is not ready",
+    ):
+        gate.evaluate_architect_a_phase22_v2_scientific_outcome(
+            _scientific_outcome_payload(matrix, "GEN-C10", passed=True),
+            matrix,
+        )
+
+
+def test_phase22_v2_genc14_pass_stays_external_without_owner_review() -> None:
+    matrix = _full_phase22_matrix()
+    receipt = gate.evaluate_architect_a_phase22_v2_scientific_outcome(
+        _scientific_outcome_payload(matrix, "GEN-C14", passed=True),
+        matrix,
+    )
+
+    assert receipt.recommended_disposition == "EXTERNAL_DEPENDENCY_BLOCKED"
+
+
+def test_phase22_v2_genc14_can_complete_after_explicit_owner_review() -> None:
+    matrix = _full_phase22_matrix()
+    receipt = gate.evaluate_architect_a_phase22_v2_scientific_outcome(
+        _scientific_outcome_payload(
+            matrix,
+            "GEN-C14",
+            passed=True,
+            owner_review_approved=True,
+        ),
+        matrix,
+    )
+
+    assert receipt.recommended_disposition == "COMPLETED_AND_PROVEN"
