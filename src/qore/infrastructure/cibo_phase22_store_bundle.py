@@ -5,21 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from qore.infrastructure.cibo_ce2i_phase20_execution_risk_store import (
-    DurablePhase20ExecutedRiskStore,
+from qore.infrastructure.cibo_phase22_historical_replay_stores import (
+    DurablePhase22HistoricalExecutedRiskStore,
+    DurablePhase22HistoricalForwardEvidenceStore,
+    DurablePhase22HistoricalPolicyStore,
+    DurablePhase22HistoricalReleaseStore,
+    DurablePhase22HistoricalSettlementStore,
 )
-from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
-    DurablePhase20ForwardPolicyStore,
-)
-from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
-    DurablePhase20ForwardEvidenceStore,
-)
-from qore.infrastructure.cibo_cma_settlement_store import (
-    DurableCmaSettlementStore,
-)
-from qore.infrastructure.cibo_t20_capital_release_evidence import (
-    DurableT20CapitalReleaseStore,
-)
+
 
 PHASE22_STORE_ROOT_NAME = "phase22-v2-stores"
 
@@ -29,11 +22,11 @@ class CiboPhase22StoreBundle:
     """Five separate stores; canonical semantics, Phase22-only files."""
 
     root: Path
-    holdout_evidence: DurablePhase20ForwardEvidenceStore
-    holdout_policy: DurablePhase20ForwardPolicyStore
-    executed_risk: DurablePhase20ExecutedRiskStore
-    cma_settlement: DurableCmaSettlementStore
-    t20_release: DurableT20CapitalReleaseStore
+    holdout_evidence: DurablePhase22HistoricalForwardEvidenceStore
+    holdout_policy: DurablePhase22HistoricalPolicyStore
+    executed_risk: DurablePhase22HistoricalExecutedRiskStore
+    cma_settlement: DurablePhase22HistoricalSettlementStore
+    t20_release: DurablePhase22HistoricalReleaseStore
 
     @property
     def paths(self) -> tuple[Path, ...]:
@@ -74,33 +67,33 @@ class CiboPhase22StoreBundle:
                     "role": "HOLDOUT_FORWARD_EVIDENCE",
                     "path": str(self.paths[0]),
                     "canonical_store_class": (
-                        "DurablePhase20ForwardEvidenceStore"
+                        "DurablePhase22HistoricalForwardEvidenceStore"
                     ),
                 },
                 {
                     "role": "HOLDOUT_POLICY",
                     "path": str(self.paths[1]),
                     "canonical_store_class": (
-                        "DurablePhase20ForwardPolicyStore"
+                        "DurablePhase22HistoricalPolicyStore"
                     ),
                 },
                 {
                     "role": "EXECUTED_RISK",
                     "path": str(self.paths[2]),
                     "canonical_store_class": (
-                        "DurablePhase20ExecutedRiskStore"
+                        "DurablePhase22HistoricalExecutedRiskStore"
                     ),
                 },
                 {
                     "role": "CMA_SETTLEMENT",
                     "path": str(self.paths[3]),
-                    "canonical_store_class": "DurableCmaSettlementStore",
+                    "canonical_store_class": "DurablePhase22HistoricalSettlementStore",
                 },
                 {
                     "role": "T20_RELEASE",
                     "path": str(self.paths[4]),
                     "canonical_store_class": (
-                        "DurableT20CapitalReleaseStore"
+                        "DurablePhase22HistoricalReleaseStore"
                     ),
                 },
             ],
@@ -121,19 +114,19 @@ def build_phase22_store_bundle(root: Path) -> CiboPhase22StoreBundle:
         )
     return CiboPhase22StoreBundle(
         root=root,
-        holdout_evidence=DurablePhase20ForwardEvidenceStore(
+        holdout_evidence=DurablePhase22HistoricalForwardEvidenceStore(
             root / "holdout-forward-evidence.json"
         ),
-        holdout_policy=DurablePhase20ForwardPolicyStore(
+        holdout_policy=DurablePhase22HistoricalPolicyStore(
             root / "holdout-policy.json"
         ),
-        executed_risk=DurablePhase20ExecutedRiskStore(
+        executed_risk=DurablePhase22HistoricalExecutedRiskStore(
             root / "executed-risk.json"
         ),
-        cma_settlement=DurableCmaSettlementStore(
+        cma_settlement=DurablePhase22HistoricalSettlementStore(
             root / "cma-settlement.json"
         ),
-        t20_release=DurableT20CapitalReleaseStore(
+        t20_release=DurablePhase22HistoricalReleaseStore(
             root / "t20-release.json"
         ),
     )
