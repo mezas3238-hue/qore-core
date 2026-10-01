@@ -1,0 +1,38 @@
+name: QORE CIBO Phase22 VT08 Fresh Engine Contract
+
+on:
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+    paths:
+      - '.github/workflows/cibo-phase22-vt08-fresh-engine-contract.yml'
+      - 'src/qore/infrastructure/cibo_phase22_vt08_fresh_engine.py'
+      - 'tests/infrastructure/test_cibo_phase22_vt08_fresh_engine.py'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase22-vt08-fresh-engine-contract.yml'
+      - 'src/qore/infrastructure/cibo_phase22_vt08_fresh_engine.py'
+      - 'tests/infrastructure/test_cibo_phase22_vt08_fresh_engine.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Prove transform and volume-free contract without V2 access
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_phase22_vt08_fresh_engine.py \
+            tests/infrastructure/test_cibo_phase22_vt08_fresh_engine.py
+          mypy src/qore/infrastructure/cibo_phase22_vt08_fresh_engine.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase22_vt08_fresh_engine.py
