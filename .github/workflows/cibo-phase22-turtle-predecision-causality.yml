@@ -10,6 +10,8 @@ on:
       - 'scripts/cibo_phase22_turtle_window_replay.py'
       - 'scripts/cibo_phase22_eurusd_r38_window_replay.py'
       - 'tests/infrastructure/test_cibo_phase22_turtle_predecision_projection.py'
+      - 'tests/infrastructure/test_cibo_phase22_turtle_window_replay.py'
+      - 'tests/infrastructure/test_cibo_phase22_eurusd_r38_window_replay.py'
   pull_request:
     paths:
       - '.github/workflows/cibo-phase22-turtle-predecision-causality.yml'
@@ -17,6 +19,8 @@ on:
       - 'scripts/cibo_phase22_turtle_window_replay.py'
       - 'scripts/cibo_phase22_eurusd_r38_window_replay.py'
       - 'tests/infrastructure/test_cibo_phase22_turtle_predecision_projection.py'
+      - 'tests/infrastructure/test_cibo_phase22_turtle_window_replay.py'
+      - 'tests/infrastructure/test_cibo_phase22_eurusd_r38_window_replay.py'
 
 permissions:
   contents: read
@@ -41,7 +45,7 @@ jobs:
             src/qore/infrastructure/cibo_phase22_turtle_predecision_projection.py \
             scripts/cibo_phase22_turtle_window_replay.py \
             scripts/cibo_phase22_eurusd_r38_window_replay.py
-          pytest -q --no-cov \
+          PYTHONPATH=. pytest -q --no-cov \
             tests/infrastructure/test_cibo_phase22_turtle_predecision_projection.py \
             tests/infrastructure/test_cibo_phase22_turtle_window_replay.py \
             tests/infrastructure/test_cibo_phase22_eurusd_r38_window_replay.py
