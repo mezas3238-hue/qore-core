@@ -22,7 +22,6 @@
   "population_gates": {
     "minimum_decision_epochs": 80,
     "minimum_candidate_outcomes": 200,
-    "minimum_selected_outcomes": 60,
     "minimum_calendar_span_days": 28,
     "minimum_distinct_trading_days": 20,
     "fold_count": 4,
@@ -30,9 +29,7 @@
     "minimum_global_lineages": 7,
     "minimum_outcomes_per_lineage": 8,
     "minimum_fold_lineages": 4,
-    "minimum_candidate_outcome_coverage": "0.95",
-    "required_selected_outcome_coverage": "1.00",
-    "required_baseline_selected_outcome_coverage": "1.00"
+    "minimum_candidate_outcome_coverage": "0.95"
   },
   "causal_requirements": [
     "EVENT_TIME_ORDER_ONLY",
@@ -56,5 +53,52 @@
     "live": false,
     "production": false,
     "real_capital": false
+  },
+  "status": "OWNER_AUTHORIZED_IMPLEMENTED_PENDING_EVIDENCE_RUN",
+  "deferred_provider_aware_gates": {
+    "minimum_selected_outcomes": 60,
+    "required_selected_outcome_coverage": "1.00",
+    "required_baseline_selected_outcome_coverage": "1.00",
+    "reason": "Exact historical provider USD execution economics are not provable; these gates remain downstream and may not be fabricated."
+  },
+  "expected_consumed_population": {
+    "source": "CIBO_PHASE19_INTEGRATED_CHRONOLOGY_REPLAY_V1",
+    "common_observed_start": "2021-09-23T05:00:00+00:00",
+    "common_observed_end": "2022-06-29T09:00:00+00:00",
+    "decision_epochs": 775,
+    "candidate_outcomes": 855,
+    "distinct_trading_days": 214,
+    "calendar_span_days": 279,
+    "represented_lineages": 7,
+    "minimum_outcomes_any_lineage": 45,
+    "folds": [
+      {
+        "fold_id": "WF1",
+        "candidate_outcomes": 216,
+        "represented_lineages": 7
+      },
+      {
+        "fold_id": "WF2",
+        "candidate_outcomes": 216,
+        "represented_lineages": 7
+      },
+      {
+        "fold_id": "WF3",
+        "candidate_outcomes": 213,
+        "represented_lineages": 7
+      },
+      {
+        "fold_id": "WF4",
+        "candidate_outcomes": 210,
+        "represented_lineages": 7
+      }
+    ]
+  },
+  "qualification_effect": {
+    "physical_28_day_wait_removed_on_shadow_pass": true,
+    "phase20d_population_temporal_gate_satisfied_on_shadow_pass": true,
+    "v3_usd_economic_superiority_claimed": false,
+    "phase21_provider_aware_gates_still_required": true,
+    "final_2017h1_exam_still_required": true
   }
 }
