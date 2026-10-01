@@ -41,6 +41,7 @@ from qore.kernel.result import Failure
 
 _M1_NATIVE_PERIOD = 1
 _ONE_MINUTE = timedelta(minutes=1)
+_PRICE_SCALE = Decimal("100000")
 
 
 def _request(
@@ -59,6 +60,253 @@ def _request(
         raise CiboCapitalManagementError(str(result.error))
     return result.value
 
+
+
+def _field_present(message: object, name: str) -> bool:
+    has_field = getattr(message, "HasField", None)
+    if callable(has_field):
+        try:
+            return bool(has_field(name))
+        except (ValueError, KeyError):
+            pass
+    list_fields = getattr(message, "ListFields", None)
+    if callable(list_fields):
+        try:
+            return any(
+                getattr(descriptor, "name", None) == name
+                for descriptor, _ in list_fields()
+            )
+        except (TypeError, ValueError):
+            return False
+    return False
+
+
+def _optional_present_int(message: object, name: str) -> int | None:
+    if not _field_present(message, name):
+        return None
+    value = getattr(message, name, None)
+    return value if type(value) is int else None
+
+
+def _optional_present_str(message: object, name: str) -> str | None:
+    if not _field_present(message, name):
+        return None
+    value = getattr(message, name, None)
+    return value if isinstance(value, str) and value else None
+
+
+def _positive_int(value: object, name: str) -> int:
+    if type(value) is not int or value <= 0:
+        raise CiboCapitalManagementError(
+            f"T16 provider {name} must be positive int"
+        )
+    return value
+
+
+def _collect_spots(
+    client: SpotwareCTraderOpenApiClient,
+    symbol_ids: tuple[int, ...],
+) -> dict[int, tuple[int, int, datetime]]:
+    wanted = set(symbol_ids)
+    _request(
+        client,
+        "ProtoOASubscribeSpotsReq",
+        {
+            "ctidTraderAccountId": client.account_id,
+            "symbolId": list(symbol_ids),
+            "subscribeToSpotTimestamp": True,
+        },
+        "qore-cibo-t16-provider-spots",
+    )
+    partial: dict[int, tuple[int | None, int | None, datetime]] = {}
+    deadline = datetime.now(UTC).timestamp() + 10.0
+    while set(partial) != wanted or any(
+        bid is None or ask is None
+        for bid, ask, _ in partial.values()
+    ):
+        remaining = deadline - datetime.now(UTC).timestamp()
+        if remaining <= 0:
+            raise CiboCapitalManagementError(
+                "T16 provider spot collection timed out"
+            )
+        event = client.wait_for_event(
+            "ProtoOASpotEvent",
+            timeout_seconds=min(1.0, remaining),
+        )
+        if isinstance(event, Failure):
+            continue
+        item = event.value
+        symbol_id = getattr(item, "symbolId", None)
+        if symbol_id not in wanted:
+            continue
+        previous = partial.get(
+            int(symbol_id),
+            (None, None, datetime.now(UTC)),
+        )
+        bid_raw = getattr(item, "bid", 0)
+        ask_raw = getattr(item, "ask", 0)
+        bid = bid_raw if type(bid_raw) is int and bid_raw > 0 else previous[0]
+        ask = ask_raw if type(ask_raw) is int and ask_raw > 0 else previous[1]
+        timestamp = getattr(item, "timestamp", 0)
+        seen_at = (
+            datetime.fromtimestamp(timestamp / 1000, tz=UTC)
+            if type(timestamp) is int and timestamp > 0
+            else datetime.now(UTC)
+        )
+        partial[int(symbol_id)] = (bid, ask, seen_at)
+    return {
+        symbol_id: (int(bid), int(ask), seen_at)
+        for symbol_id, (bid, ask, seen_at) in partial.items()
+        if bid is not None and ask is not None
+    }
+
+
+def _provider_terms(
+    client: SpotwareCTraderOpenApiClient,
+    *,
+    by_name: dict[str, Any],
+    required: set[str],
+) -> dict[str, dict[str, object]]:
+    ids = tuple(
+        sorted(by_name[name].symbol_id for name in required)
+    )
+    details_response = _request(
+        client,
+        "ProtoOASymbolByIdReq",
+        {
+            "ctidTraderAccountId": client.account_id,
+            "symbolId": list(ids),
+        },
+        "qore-cibo-t16-provider-details",
+    )
+    details = tuple(getattr(details_response, "symbol", ()))
+    by_id = {
+        _positive_int(getattr(item, "symbolId", None), "symbolId"): item
+        for item in details
+    }
+    spots = _collect_spots(client, ids)
+
+    result: dict[str, dict[str, object]] = {}
+    for name in sorted(required):
+        light = by_name[name]
+        symbol_id = light.symbol_id
+        detail = by_id.get(symbol_id)
+        if detail is None:
+            raise CiboCapitalManagementError(
+                f"T16 provider detail missing for {name}"
+            )
+        min_volume = _positive_int(
+            getattr(detail, "minVolume", None),
+            f"{name}.minVolume",
+        )
+        max_volume = _positive_int(
+            getattr(detail, "maxVolume", None),
+            f"{name}.maxVolume",
+        )
+        step_volume = _positive_int(
+            getattr(detail, "stepVolume", None),
+            f"{name}.stepVolume",
+        )
+        lot_size = _positive_int(
+            getattr(detail, "lotSize", None),
+            f"{name}.lotSize",
+        )
+        margin_response = _request(
+            client,
+            "ProtoOAExpectedMarginReq",
+            {
+                "ctidTraderAccountId": client.account_id,
+                "symbolId": symbol_id,
+                "volume": [min_volume],
+            },
+            f"qore-cibo-t16-margin-{name.lower()}",
+        )
+        money_digits = getattr(margin_response, "moneyDigits", None)
+        if type(money_digits) is not int or money_digits < 0:
+            raise CiboCapitalManagementError(
+                f"T16 provider ExpectedMargin moneyDigits invalid for {name}"
+            )
+        scale = Decimal(1).scaleb(-money_digits)
+        margin_rows = tuple(getattr(margin_response, "margin", ()))
+        if len(margin_rows) != 1:
+            raise CiboCapitalManagementError(
+                f"T16 provider minimum-margin quote missing for {name}"
+            )
+        margin = margin_rows[0]
+        if getattr(margin, "volume", None) != min_volume:
+            raise CiboCapitalManagementError(
+                f"T16 provider minimum-margin volume drift for {name}"
+            )
+        buy_margin = Decimal(
+            _positive_int(
+                getattr(margin, "buyMargin", None),
+                f"{name}.buyMargin",
+            )
+        ) * scale
+        sell_margin = Decimal(
+            _positive_int(
+                getattr(margin, "sellMargin", None),
+                f"{name}.sellMargin",
+            )
+        ) * scale
+
+        bid_raw, ask_raw, spot_at = spots[symbol_id]
+        bid = Decimal(bid_raw) / _PRICE_SCALE
+        ask = Decimal(ask_raw) / _PRICE_SCALE
+        if bid <= 0 or ask < bid:
+            raise CiboCapitalManagementError(
+                f"T16 provider spot invalid for {name}"
+            )
+        midpoint = (bid + ask) / Decimal(2)
+        spread_bps = (ask - bid) / midpoint * Decimal("10000")
+
+        commission = {
+            "precise_rate_raw": _optional_present_int(
+                detail,
+                "preciseTradingCommissionRate",
+            ),
+            "commission_type": _optional_present_int(
+                detail,
+                "commissionType",
+            ),
+            "precise_minimum_raw": _optional_present_int(
+                detail,
+                "preciseMinCommission",
+            ),
+            "minimum_type": _optional_present_int(
+                detail,
+                "minCommissionType",
+            ),
+            "minimum_asset": _optional_present_str(
+                detail,
+                "minCommissionAsset",
+            ),
+        }
+        commission_complete = all(
+            value is not None for value in commission.values()
+        )
+        result[name] = {
+            "symbol_id": symbol_id,
+            "enabled": True,
+            "observed_at": spot_at.isoformat(),
+            "bid": format(bid, "f"),
+            "ask": format(ask, "f"),
+            "quoted_spread_bps": format(spread_bps, "f"),
+            "min_volume_cents": min_volume,
+            "max_volume_cents": max_volume,
+            "step_volume_cents": step_volume,
+            "lot_size_cents": lot_size,
+            "minimum_buy_margin_usd": format(buy_margin, "f"),
+            "minimum_sell_margin_usd": format(sell_margin, "f"),
+            "commission": commission,
+            "commission_terms_complete": commission_complete,
+            "provider_contract_and_quote_ready": commission_complete,
+            "realized_slippage_observed": False,
+            "realized_fill_observed": False,
+            "full_hedge_cost_model_ready": False,
+            "productive_authority": False,
+        }
+    return result
 
 def _closed_m1_closes(
     client: SpotwareCTraderOpenApiClient,
@@ -228,6 +476,12 @@ def build_report() -> dict[str, object]:
                 "T16 preregistered provider symbols are no longer enabled"
             )
 
+        provider_terms = _provider_terms(
+            client,
+            by_name=by_name,
+            required=required,
+        )
+
         closes = {
             name: _closed_m1_closes(
                 client,
@@ -290,6 +544,14 @@ def build_report() -> dict[str, object]:
         "provider_catalog_sha256": T16_PROVIDER_CATALOG_SHA256,
         "pair_count": len(pairs),
         "pairs": pairs,
+        "provider_terms": provider_terms,
+        "provider_contract_and_quote_coverage_complete": all(
+            bool(row["provider_contract_and_quote_ready"])
+            for row in provider_terms.values()
+        ),
+        "empirical_slippage_coverage_complete": False,
+        "realized_execution_coverage_complete": False,
+        "full_hedge_cost_model_ready": False,
         "hedge_cost_history_claimed": False,
         "execution_cost_history_claimed": False,
         "holdout_outcomes_used": False,

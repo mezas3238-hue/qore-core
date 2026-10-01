@@ -22,3 +22,18 @@ Pairs are fixed before outcomes:
 
 No 2017H1 holdout data, broker mutation, LIVE authority or real-capital
 authority is used.
+
+
+## Provider-native candidate economics
+
+The same read-only lane now also records, point-in-time, for `USTEC`,
+`US30` and `US500`:
+
+- bid/ask and quoted spread in bps;
+- min/max/step/lot volume terms;
+- broker expected margin at minimum volume;
+- native commission metadata.
+
+These fields prove current provider contract/quote availability only. They do
+not prove realized slippage, successful hedge execution, market impact or the
+full hedge cost model. Those remain separate external evidence gates.

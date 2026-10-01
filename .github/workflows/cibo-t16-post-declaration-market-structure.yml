@@ -11,6 +11,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py'
       - 'src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py'
       - 'tests/infrastructure/test_cibo_ce2i_t16_hedge_candidate.py'
+      - 'tests/infrastructure/test_cibo_t16_ctrader_demo_post_declaration_probe.py'
       - 'docs/research/CIBO-B-T16-HEDGE-PAIR-PREREGISTRATION-V1.json'
   pull_request:
     paths:
@@ -19,6 +20,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py'
       - 'src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py'
       - 'tests/infrastructure/test_cibo_ce2i_t16_hedge_candidate.py'
+      - 'tests/infrastructure/test_cibo_t16_ctrader_demo_post_declaration_probe.py'
       - 'docs/research/CIBO-B-T16-HEDGE-PAIR-PREREGISTRATION-V1.json'
 
 permissions:
@@ -55,7 +57,8 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py \
             src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py \
             scripts/cibo_t16_ctrader_demo_post_declaration_probe.py \
-            tests/infrastructure/test_cibo_ce2i_t16_hedge_candidate.py
+            tests/infrastructure/test_cibo_ce2i_t16_hedge_candidate.py \
+            tests/infrastructure/test_cibo_t16_ctrader_demo_post_declaration_probe.py
           mypy \
             src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py \
             src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py \
@@ -66,7 +69,8 @@ jobs:
             scripts/cibo_t16_ctrader_demo_post_declaration_probe.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ce2i_t16_hedge_candidate.py \
-            tests/infrastructure/test_cibo_ce2i_t16_preregistered_hedge_universe.py
+            tests/infrastructure/test_cibo_ce2i_t16_preregistered_hedge_universe.py \
+            tests/infrastructure/test_cibo_t16_ctrader_demo_post_declaration_probe.py
 
       - name: Verify DEMO credentials
         shell: bash
@@ -109,12 +113,24 @@ jobs:
           assert payload["provider_key"] == "ctrader-demo"
           assert payload["environment"] == "demo"
           assert payload["pair_count"] == 2
+          assert set(payload["provider_terms"]) == {"USTEC", "US30", "US500"}
+          assert payload["provider_contract_and_quote_coverage_complete"] is True
+          assert payload["empirical_slippage_coverage_complete"] is False
+          assert payload["realized_execution_coverage_complete"] is False
+          assert payload["full_hedge_cost_model_ready"] is False
           assert payload["hedge_cost_history_claimed"] is False
           assert payload["execution_cost_history_claimed"] is False
           assert payload["holdout_outcomes_used"] is False
           assert payload["holdout_market_data_read"] is False
           assert payload["broker_mutation_performed"] is False
           assert payload["productive_authority"] is False
+          for symbol, terms in payload["provider_terms"].items():
+              assert terms["enabled"] is True, symbol
+              assert terms["provider_contract_and_quote_ready"] is True, symbol
+              assert terms["realized_slippage_observed"] is False, symbol
+              assert terms["realized_fill_observed"] is False, symbol
+              assert terms["full_hedge_cost_model_ready"] is False, symbol
+              assert terms["productive_authority"] is False, symbol
           for pair in payload["pairs"]:
               audit = pair["audit"]
               assert audit["fresh_oos_utility_demonstrated"] is False
