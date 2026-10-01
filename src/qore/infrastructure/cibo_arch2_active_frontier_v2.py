@@ -72,11 +72,9 @@ def architect2_active_frontier_v2() -> tuple[Architect2ActiveFront, ...]:
         ),
         Architect2ActiveFront(
             workstream_id="T16",
-            state=Architect2ActiveState.FROZEN_GATE_WAITING_POPULATION,
-            remaining_requirement=(
-                "POST_FREEZE_NAS100_US30_US500_M1_POPULATION_32_PLUS_"
-                "THEN_STRICT_4_OF_4_HEDGE_UTILITY"
-            ),
+            state=Architect2ActiveState.TERMINAL_RECOMMENDATION_READY,
+            remaining_requirement="INTEGRATOR_EVIDENCE_AUDIT",
+            proposed_terminal_disposition="FALSIFIED_AND_CLOSED",
         ),
         Architect2ActiveFront(
             workstream_id="T20",
