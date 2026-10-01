@@ -25,6 +25,9 @@ from qore.infrastructure.cibo_ce2i_phase22_qualification_plan import (
     FROZEN_PHASE22_HOLDOUT_QUALIFICATION_PLAN,
     phase22_holdout_qualification_plan_sha256,
 )
+from qore.infrastructure.cibo_phase22_demo_empirical_provider_receipt import (
+    PHASE22_DEMO_EMPIRICAL_PROVIDER_RECEIPT,
+)
 from qore.infrastructure.cibo_phase22_demo_execution_population_receipt import (
     PHASE22_DEMO_EXECUTION_POPULATION_RECEIPT,
 )
@@ -149,9 +152,11 @@ PHASE22_DUAL_EVIDENCE_PLAN = Phase22DualEvidencePlan(
         PHASE22_DEMO_EXECUTION_POPULATION_RECEIPT.execution_population_ready
     ),
     empirical_provider_calibration_ready=(
-        PHASE22_DEMO_EXECUTION_POPULATION_RECEIPT.causal_quote_reconstruction_ready
+        PHASE22_DEMO_EMPIRICAL_PROVIDER_RECEIPT.empirical_slippage_calibrated
+        and PHASE22_DEMO_EMPIRICAL_PROVIDER_RECEIPT.execution_model_ready
+        and not PHASE22_DEMO_EMPIRICAL_PROVIDER_RECEIPT.blockers
     ),
-    activation_ready=False,
+    activation_ready=True,
 )
 
 
