@@ -1727,14 +1727,29 @@ def evaluate_architect_a_phase22_v2_scientific_outcome(
             payload.get("source_gate_status"),
             "source_gate_status",
         ),
-        passed=payload.get("passed"),
+        passed=_require_bool(payload.get("passed"), "passed"),
         blockers=tuple(str(item) for item in blockers_raw),
         failed_dimensions=tuple(str(item) for item in failed_raw),
-        evaluation_complete=payload.get("evaluation_complete"),
-        owner_review_approved=payload.get("owner_review_approved", False),
-        future_leakage_detected=payload.get("future_leakage_detected", False),
-        synthetic_evidence_used=payload.get("synthetic_evidence_used", False),
-        retuning_after_fresh=payload.get("retuning_after_fresh", False),
+        evaluation_complete=_require_bool(
+            payload.get("evaluation_complete"),
+            "evaluation_complete",
+        ),
+        owner_review_approved=_require_bool(
+            payload.get("owner_review_approved", False),
+            "owner_review_approved",
+        ),
+        future_leakage_detected=_require_bool(
+            payload.get("future_leakage_detected", False),
+            "future_leakage_detected",
+        ),
+        synthetic_evidence_used=_require_bool(
+            payload.get("synthetic_evidence_used", False),
+            "synthetic_evidence_used",
+        ),
+        retuning_after_fresh=_require_bool(
+            payload.get("retuning_after_fresh", False),
+            "retuning_after_fresh",
+        ),
     )
 
     if outcome.passed:
@@ -1892,14 +1907,14 @@ def reconcile_architect_a_phase22_v2_dispositions(
     external: list[str] = []
     missing: list[str] = []
     for workstream_id in _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM:
-        receipt = by_id.get(workstream_id)
-        if receipt is None:
+        resolved_receipt = by_id.get(workstream_id)
+        if resolved_receipt is None:
             missing.append(workstream_id)
-        elif receipt.recommended_disposition == "COMPLETED_AND_PROVEN":
+        elif resolved_receipt.recommended_disposition == "COMPLETED_AND_PROVEN":
             completed.append(workstream_id)
-        elif receipt.recommended_disposition == "FALSIFIED_AND_CLOSED":
+        elif resolved_receipt.recommended_disposition == "FALSIFIED_AND_CLOSED":
             falsified.append(workstream_id)
-        elif receipt.recommended_disposition == "EXTERNAL_DEPENDENCY_BLOCKED":
+        elif resolved_receipt.recommended_disposition == "EXTERNAL_DEPENDENCY_BLOCKED":
             external.append(workstream_id)
         else:
             raise ArchitectAReadinessError(
@@ -2117,6 +2132,14 @@ def _require_nonempty_str(value: object, name: str) -> str:
     if not isinstance(value, str) or not value:
         raise ArchitectAReadinessError(
             f"Architect A scientific intake {name} is required"
+        )
+    return value
+
+
+def _require_bool(value: object, name: str) -> bool:
+    if type(value) is not bool:
+        raise ArchitectAReadinessError(
+            f"Architect A scientific intake {name} must be bool"
         )
     return value
 

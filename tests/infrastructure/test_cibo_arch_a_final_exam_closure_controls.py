@@ -12,9 +12,9 @@ from qore.infrastructure.cibo_arch_a_final_exam_closure_controls import (
     build_architect_a_final_exam_closure_controls,
 )
 from qore.infrastructure.cibo_arch_a_internal_readiness import (
+    _COMPOUND_P8_REQUIRED_PROVEN_IDS,
     ArchitectAPhase22V2CompoundClosureReceipt,
     ArchitectAPhase22V2ScientificClosureReceipt,
-    _COMPOUND_P8_REQUIRED_PROVEN_IDS,
 )
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
