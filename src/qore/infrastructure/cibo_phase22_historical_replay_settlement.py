@@ -24,8 +24,15 @@ from qore.infrastructure.cibo_phase22_historical_replay_economics_amendment impo
     EXECUTION_ECONOMICS_KIND,
     Phase22HistoricalReplayEconomicsAmendment,
 )
+from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
+    V2_SOURCE_BINDINGS,
+    phase22_v2_holdout_source_receipt_sha256,
+)
 
 _REPLAY_SCHEMA = "qore.cibo.phase22.historical-replay-settlement.v1"
+_V2_SOURCE_COLLECTOR_GIT_SHAS = tuple(
+    sorted({item.collector_git_sha for item in V2_SOURCE_BINDINGS})
+)
 
 
 def _finite(value: Decimal, name: str) -> None:
@@ -199,6 +206,8 @@ class VersionedPhase22HistoricalReplayEvidenceBook:
     amendment_sha256: str
     decisions: tuple[Phase20ForwardDecisionSeal, ...]
     outcomes: tuple[Phase22HistoricalReplayOutcomeSeal, ...]
+    source_receipt_sha256: str
+    source_collector_git_shas: tuple[str, ...]
     qualification_time_basis: str = "SEALED_AT"
     qualification_evidence_kind: str = "HISTORICAL_REPLAY_OBSERVED"
 
@@ -214,6 +223,15 @@ class VersionedPhase22HistoricalReplayEvidenceBook:
         if not self.amendment_sha256.startswith("sha256:"):
             raise CiboCapitalManagementError(
                 "Phase22 replay evidence amendment digest invalid"
+            )
+        expected_source = phase22_v2_holdout_source_receipt_sha256()
+        if self.source_receipt_sha256 != expected_source:
+            raise CiboCapitalManagementError(
+                "Phase22 replay evidence source receipt lineage drift"
+            )
+        if self.source_collector_git_shas != _V2_SOURCE_COLLECTOR_GIT_SHAS:
+            raise CiboCapitalManagementError(
+                "Phase22 replay evidence source collector lineage drift"
             )
         if self.qualification_time_basis != "SEALED_AT":
             raise CiboCapitalManagementError(
