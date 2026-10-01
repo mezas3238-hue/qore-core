@@ -35,6 +35,13 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install -e '.[dev,ctrader]'
 
+      - name: Verify exact research branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "agent/cibo-external-scientific-closure-001"
+          test -n "$GITHUB_SHA"
+
       - name: Quality
         run: |
           ruff check scripts/cibo_arch2_t16_fresh_oos_m1.py tests/infrastructure/test_cibo_arch2_t16_fresh_oos_m1.py
