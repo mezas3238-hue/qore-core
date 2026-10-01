@@ -1,0 +1,103 @@
+{
+  "schema": "CIBO_ARCH2_ACTIVE_CLOSURE_PACKAGE_V2",
+  "architect_role": "CIBO Architect 2 — External Scientific Closure",
+  "branch": "agent/cibo-external-scientific-closure-001",
+  "active_scope": [
+    "T02",
+    "T03",
+    "T11",
+    "T16",
+    "T20",
+    "PROVIDER_ECONOMICS",
+    "FORWARD_QUALIFICATION",
+    "FRESH_OOS"
+  ],
+  "governance": {
+    "canonical_ledger_modified": false,
+    "phase22_v2_consumed": false,
+    "integrator_branch_modified": false,
+    "vps_touched": false,
+    "fundednext_live_touched": false,
+    "real_capital_used": false,
+    "productive_authority": false
+  },
+  "fronts": [
+    {
+      "workstream_id": "T02",
+      "state": "WAITING_ON_AUTHORITATIVE_FORWARD_LIFECYCLE",
+      "remaining_requirement": "POST_FREEZE_EXPLICIT_TERMINAL_REASON_POPULATION_THEN_CIBO_ARCH2_T02_PROVIDER_BOUND_ECONOMIC_ABLATION_V1",
+      "evidence": [
+        "src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py",
+        "src/qore/infrastructure/cibo_arch2_t02_economic_ablation.py"
+      ]
+    },
+    {
+      "workstream_id": "T03",
+      "state": "TERMINAL_RECOMMENDATION_READY",
+      "proposed_terminal_disposition": "FALSIFIED_AND_CLOSED",
+      "evidence": [
+        "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-006.md",
+        "src/qore/infrastructure/cibo_arch2_t03_current_contract_falsification.py",
+        "github-actions://36936279830/SUCCESS",
+        "github-artifact://11197727438/sha256:bbb52ebf064d3e90459a4fadc79b020dd04a158e2fbb6ec815c420e28b19d78f"
+      ]
+    },
+    {
+      "workstream_id": "T11",
+      "state": "FROZEN_GATE_WAITING_POPULATION",
+      "resolved_blockers": [
+        "REAL_EXECUTION_POPULATION_REQUIRED",
+        "EMPIRICAL_SLIPPAGE_CALIBRATION_REQUIRED"
+      ],
+      "remaining_requirement": "FRESH_OOS_GROSS_EDGE_VALIDATION_AND_MIN_VOLUME_MICROBUNDLE_MARKET_IMPACT_CALIBRATION",
+      "evidence": [
+        "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-001.md",
+        "src/qore/infrastructure/cibo_arch2_t11_nonlinear_input_freeze.py"
+      ]
+    },
+    {
+      "workstream_id": "T16",
+      "state": "FROZEN_GATE_WAITING_POPULATION",
+      "resolved_blockers": [
+        "REAL_POST_DECLARATION_HEDGE_RETURN_POPULATION_REQUIRED",
+        "REALIZED_SLIPPAGE_AND_EXECUTION_COVERAGE_REQUIRED",
+        "FULL_HEDGE_COST_MODEL_REQUIRED"
+      ],
+      "remaining_requirement": "POST_FREEZE_NAS100_US30_US500_M1_POPULATION_32_PLUS_THEN_STRICT_4_OF_4_HEDGE_UTILITY",
+      "evidence": [
+        "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-004.md",
+        "github-actions://36934306276/SUCCESS",
+        "github-artifact://11197137857/sha256:96ad9cc8a8ac5bdafc2f35cac556bf54a6250cff62abd65ff09db7bd8922434b",
+        "scripts/cibo_arch2_t16_fresh_oos_m1.py"
+      ]
+    },
+    {
+      "workstream_id": "T20",
+      "state": "WAITING_ON_AUTHORITATIVE_FORWARD_LIFECYCLE",
+      "remaining_requirement": "REAL_CIBO_TO_RISK_TO_EXECUTION_TO_SETTLEMENT_TO_RELEASE_POPULATION"
+    },
+    {
+      "workstream_id": "PROVIDER_ECONOMICS",
+      "state": "TERMINAL_RECOMMENDATION_READY",
+      "proposed_terminal_disposition": "SUPERSEDED_WITH_PROVEN_LINEAGE",
+      "evidence": [
+        "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-002.md",
+        "src/qore/infrastructure/cibo_arch2_provider_economics_terminal_recommendation.py"
+      ]
+    },
+    {
+      "workstream_id": "FORWARD_QUALIFICATION",
+      "state": "TERMINAL_RECOMMENDATION_READY",
+      "proposed_terminal_disposition": "SUPERSEDED_WITH_PROVEN_LINEAGE",
+      "evidence": [
+        "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-003.md",
+        "src/qore/infrastructure/cibo_arch2_forward_qualification_reconciliation.py"
+      ]
+    },
+    {
+      "workstream_id": "FRESH_OOS",
+      "state": "WAITING_ON_INTEGRATOR_RECEIPT",
+      "remaining_requirement": "AUTHORIZED_PHASE22_V2_FRESH_OUTCOME_RECEIPT"
+    }
+  ]
+}
