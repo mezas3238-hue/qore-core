@@ -1,0 +1,81 @@
+name: QORE CIBO Architect B Zero Open Work
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-arch-b-zero-open-work.yml'
+      - 'scripts/cibo_arch_b_zero_open_work_gate.py'
+      - 'tests/infrastructure/test_cibo_arch_b_zero_open_work_gate.py'
+      - 'docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json'
+      - 'docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.json'
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+    paths:
+      - '.github/workflows/cibo-arch-b-zero-open-work.yml'
+      - 'scripts/cibo_arch_b_zero_open_work_gate.py'
+      - 'tests/infrastructure/test_cibo_arch_b_zero_open_work_gate.py'
+      - 'docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json'
+      - 'docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.json'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  architect-b-zero-open:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Architect B zero-open quality
+        run: |
+          ruff check \
+            scripts/cibo_arch_b_zero_open_work_gate.py \
+            tests/infrastructure/test_cibo_arch_b_zero_open_work_gate.py
+          mypy scripts/cibo_arch_b_zero_open_work_gate.py
+          python -m py_compile scripts/cibo_arch_b_zero_open_work_gate.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_arch_b_zero_open_work_gate.py
+
+      - name: Generate Architect B closure verdict
+        run: |
+          python scripts/cibo_arch_b_zero_open_work_gate.py \
+            --require-b-zero-open
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path(
+                  "artifacts/cibo_arch_b_zero_open_work_gate_v1.json"
+              ).read_text(encoding="utf-8")
+          )
+          assert payload["schema"] == (
+              "QORE_CIBO_ARCH_B_ZERO_OPEN_WORK_GATE_V1"
+          )
+          assert payload["pass"] is True
+          assert payload["b_workstream_count"] == 15
+          assert payload["terminal_count"] == 15
+          assert payload["open_workstream_ids"] == []
+          assert payload["certification_ready"] is False
+          assert payload["certification_blocking_ids"]
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-architect-b-zero-open-${{ env.EVIDENCE_SHA }}
+          path: artifacts/cibo_arch_b_zero_open_work_gate_v1.json
+          if-no-files-found: error
+          retention-days: 90
