@@ -29,6 +29,7 @@ CALIBRATION_FREEZE_MANIFEST_ID = "CIBO_T01_T20_CALIBRATION_FREEZE_MANIFEST_V1"
 
 class FrozenToolCalibrationDisposition(StrEnum):
     CERTIFICATION_READY = "CERTIFICATION_READY"
+    QUALIFICATION_FAILED_AND_DISABLED = "QUALIFICATION_FAILED_AND_DISABLED"
     STRUCTURALLY_DISABLED = "STRUCTURALLY_DISABLED"
 
 
@@ -90,7 +91,10 @@ class FrozenToolCalibration:
                 raise CiboCapitalManagementError(
                     "certification-ready frozen tool state is inconsistent"
                 )
-        else:
+        elif (
+            self.disposition
+            is FrozenToolCalibrationDisposition.STRUCTURALLY_DISABLED
+        ):
             if self.tool_code not in {"T16", "T17"}:
                 raise CiboCapitalManagementError(
                     "only T16/T17 may be structurally disabled"
@@ -102,6 +106,15 @@ class FrozenToolCalibration:
             ):
                 raise CiboCapitalManagementError(
                     "structurally-disabled frozen tool state is inconsistent"
+                )
+        else:
+            if (
+                not self.oos_ready
+                or self.certification_ready
+                or not self.structurally_disabled
+            ):
+                raise CiboCapitalManagementError(
+                    "qualification-failed frozen tool state is inconsistent"
                 )
 
 
