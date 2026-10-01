@@ -123,7 +123,7 @@ def build_r8_historical_calendar_frontier(
             "expected exact one historical authority record"
         )
     authority = authority_rows[0]
-    required_authority = {
+    required_authority: dict[str, object] = {
         "provider_symbol_id": 10006,
         "provider_symbol": "JP225",
         "canonical_reference_identity": "INDEX:NIKKEI_225",
@@ -138,8 +138,8 @@ def build_r8_historical_calendar_frontier(
         "historical_exception_calendar_verified": False,
         "canonical_calendar_complete": False,
     }
-    for key, expected in required_authority.items():
-        if authority.get(key) != expected:
+    for key, required_value in required_authority.items():
+        if authority.get(key) != required_value:
             raise SharedBR8HistoricalCalendarError(
                 f"Nikkei authority mismatch: {key}"
             )
