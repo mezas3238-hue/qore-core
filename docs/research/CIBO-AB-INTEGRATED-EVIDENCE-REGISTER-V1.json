@@ -150,7 +150,7 @@
     {
       "owner": "INTEGRATOR_RISK_RECONCILIATION",
       "source_head_sha": "41f0227e2136ac09c94bdd8187c2e6f5e625ee36",
-      "current_architect_b_head_sha": "0b0932ae46499477d2d9a627e6a334310ae21a5d",
+      "current_architect_b_head_sha": "1e99e00144d484d76573f9f9250266f358042b37",
       "unchanged_surface_verified": true,
       "items": [
         {
@@ -219,7 +219,7 @@
     },
     {
       "owner": "ARCHITECT_B",
-      "latest_head_sha": "0b0932ae46499477d2d9a627e6a334310ae21a5d",
+      "latest_head_sha": "1e99e00144d484d76573f9f9250266f358042b37",
       "reasons": [
         "CURRENT_HEAD_CI_PENDING",
         "B_SUPPORT_001_USD60_READINESS_SELF_ATTESTATION_UPSTREAM",

@@ -18,7 +18,7 @@
   },
   "architect_b": {
     "pr": 661,
-    "head_sha": "0b0932ae46499477d2d9a627e6a334310ae21a5d",
+    "head_sha": "1e99e00144d484d76573f9f9250266f358042b37",
     "changed_files": 82,
     "files_present_in_integrator_delta": 78,
     "deliberate_noncanonical_snapshots": [
