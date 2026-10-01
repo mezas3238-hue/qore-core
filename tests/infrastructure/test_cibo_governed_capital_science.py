@@ -249,3 +249,54 @@ def test_genc14_record_rejects_non_bool_promotion_flag() -> None:
     ):
         replace(record, automatic_promotion=1)
 
+
+
+def test_genc14_rejects_empty_declared_holdout_ref() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="protected holdout ref must be non-empty",
+    ):
+        replace(_hypothesis(), protected_holdout_ref="   ")
+
+
+def test_genc14_oos_cannot_consume_unpreregistered_protected_holdout() -> None:
+    hypothesis = replace(_hypothesis(), protected_holdout_ref=None)
+    record = start_genc14_science(
+        science_id="science-unregistered-holdout",
+        hypothesis=hypothesis,
+    )
+    record = advance_genc14_science(
+        record,
+        evidence=_evidence(
+            kind=Genc14EvidenceKind.PREREGISTRATION,
+            minute=1,
+        ),
+        advanced_at=T0 + timedelta(minutes=1),
+    )
+    record = advance_genc14_science(
+        record,
+        evidence=_evidence(
+            kind=Genc14EvidenceKind.SIMULATION,
+            minute=2,
+            digit="4",
+        ),
+        advanced_at=T0 + timedelta(minutes=2),
+    )
+    oos = replace(
+        _evidence(
+            kind=Genc14EvidenceKind.OOS,
+            minute=3,
+            digit="5",
+        ),
+        protected_holdout_used=True,
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="unpreregistered protected holdout",
+    ):
+        advance_genc14_science(
+            record,
+            evidence=oos,
+            advanced_at=T0 + timedelta(minutes=3),
+        )
