@@ -23,6 +23,7 @@ from qore.infrastructure.cibo_final_integrated_exam import (
 )
 from qore.infrastructure.cibo_receipt_bound_final_integrated_exam_v2 import (
     assess_receipt_bound_final_integrated_exam_v2,
+    expected_final_exam_control_producer_gate_id,
     required_final_exam_control_ids,
 )
 
@@ -55,6 +56,15 @@ class FinalIntegratedControlPackage:
             raise CiboCapitalManagementError(
                 "final integrated package contains duplicate receipt"
             )
+        for item in self.receipts:
+            expected_producer = expected_final_exam_control_producer_gate_id(
+                item.receipt_id
+            )
+            if item.producer_gate_id != expected_producer:
+                raise CiboCapitalManagementError(
+                    "final integrated package producer-gate drift: "
+                    + item.receipt_id
+                )
         if any(
             item.integrated_git_sha != self.integrated_git_sha
             for item in self.receipts

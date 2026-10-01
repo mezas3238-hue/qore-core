@@ -38,9 +38,43 @@ _P_IDS = (
 _E_IDS = tuple(item.value for item in FinalIntegratedAssertionId)
 _REQUIRED_IDS = _P_IDS + _E_IDS
 
+_EXPECTED_PRODUCER_GATE_BY_ID = {
+    "P1_SOURCE_OF_TRUTH_RECONCILED": "CIBO_FINAL_SOURCE_OF_TRUTH_CONTROL_V2",
+    "P2_PRE_EXAM_ZERO_OPEN_PASS": "CIBO_PRE_EXAM_ZERO_OPEN_CONTROL_V1",
+    "P3_CERTIFICATION_CI_CLEAR": "CIBO_FINAL_CERTIFICATION_CI_CLEAR_V1",
+    "P4_PROVIDER_RISK_CMA_FORWARD_TRUTH": (
+        "CIBO_P4_PROVIDER_RISK_CMA_FORWARD_TRUTH_V1"
+    ),
+    "P5_PHASE20D_PASS": "CIBO_P5_PHASE20D_PASS_V1",
+    "P6_POLICY_CALIBRATION_FREEZE": "CIBO_P6_POLICY_CALIBRATION_FREEZE_V1",
+    "P7_SCIENTIFIC_CLOSURE": "CIBO_ARCH_A_PHASE22_V2_SCIENTIFIC_CLOSURE",
+    "P8_COMPOUND_CLOSURE": "CIBO_ARCH_A_PHASE22_V2_COMPOUND_CLOSURE",
+    "E1_AUTHORITY": "CIBO_ARCH_A_E1_AUTHORITY_V1",
+    "E2_CAPITAL_CONSERVATION": "CIBO_ARCH_A_E2_CAPITAL_CONSERVATION_V1",
+    "E3_REALIZED_CAPITAL_LAW": "CIBO_ARCH_A_E3_REALIZED_CAPITAL_LAW_V1",
+    "E4_PROVIDER_TRUTH": "CIBO_ARCH_A_E4_PROVIDER_TRUTH_V2",
+    "E5_RISK_PRECEDENCE": "CIBO_ARCH_A_E5_RISK_PRECEDENCE_V1",
+    "E6_CHRONOLOGY_NO_LEAKAGE": "CIBO_ARCH_A_E6_CHRONOLOGY_NO_LEAKAGE_V1",
+    "E7_ECONOMIC_NONCOMPENSATION": (
+        "CIBO_ARCH_A_E7_ECONOMIC_NONCOMPENSATION_V1"
+    ),
+    "E8_STRESS_INTEGRITY": "CIBO_ARCH_A_E8_STRESS_INTEGRITY_V1",
+    "E9_TEMPORAL_REPLICATION": "CIBO_ARCH_A_E9_TEMPORAL_REPLICATION_V1",
+    "E10_DETERMINISTIC_REPLAY": "CIBO_ARCH_A_E10_DETERMINISTIC_REPLAY_V1",
+}
+
 
 def required_final_exam_control_ids() -> tuple[str, ...]:
     return _REQUIRED_IDS
+
+
+def expected_final_exam_control_producer_gate_id(receipt_id: str) -> str:
+    try:
+        return _EXPECTED_PRODUCER_GATE_BY_ID[receipt_id]
+    except KeyError as error:
+        raise CiboCapitalManagementError(
+            "unknown final-exam control receipt identity"
+        ) from error
 
 
 def assess_receipt_bound_final_integrated_exam_v2(
@@ -79,6 +113,13 @@ def assess_receipt_bound_final_integrated_exam_v2(
             phase22_receipt.qualification_artifact_sha256
         ),
     )
+    for receipt_id, receipt in by_id.items():
+        expected_producer = expected_final_exam_control_producer_gate_id(receipt_id)
+        if receipt.producer_gate_id != expected_producer:
+            raise CiboCapitalManagementError(
+                "final-exam control producer-gate drift: " + receipt_id
+            )
+
     assertions = tuple(
         FinalIntegratedAssertionEvidence(
             assertion_id=assertion_id,

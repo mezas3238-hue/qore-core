@@ -31,6 +31,26 @@ _FIXTURE = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_FIXTURE)
 
 HEAD = "a" * 40
+_PRODUCERS = {
+    "P1_SOURCE_OF_TRUTH_RECONCILED": "CIBO_FINAL_SOURCE_OF_TRUTH_CONTROL_V2",
+    "P2_PRE_EXAM_ZERO_OPEN_PASS": "CIBO_PRE_EXAM_ZERO_OPEN_CONTROL_V1",
+    "P3_CERTIFICATION_CI_CLEAR": "CIBO_FINAL_CERTIFICATION_CI_CLEAR_V1",
+    "P4_PROVIDER_RISK_CMA_FORWARD_TRUTH": "CIBO_P4_PROVIDER_RISK_CMA_FORWARD_TRUTH_V1",
+    "P5_PHASE20D_PASS": "CIBO_P5_PHASE20D_PASS_V1",
+    "P6_POLICY_CALIBRATION_FREEZE": "CIBO_P6_POLICY_CALIBRATION_FREEZE_V1",
+    "P7_SCIENTIFIC_CLOSURE": "CIBO_ARCH_A_PHASE22_V2_SCIENTIFIC_CLOSURE",
+    "P8_COMPOUND_CLOSURE": "CIBO_ARCH_A_PHASE22_V2_COMPOUND_CLOSURE",
+    "E1_AUTHORITY": "CIBO_ARCH_A_E1_AUTHORITY_V1",
+    "E2_CAPITAL_CONSERVATION": "CIBO_ARCH_A_E2_CAPITAL_CONSERVATION_V1",
+    "E3_REALIZED_CAPITAL_LAW": "CIBO_ARCH_A_E3_REALIZED_CAPITAL_LAW_V1",
+    "E4_PROVIDER_TRUTH": "CIBO_ARCH_A_E4_PROVIDER_TRUTH_V2",
+    "E5_RISK_PRECEDENCE": "CIBO_ARCH_A_E5_RISK_PRECEDENCE_V1",
+    "E6_CHRONOLOGY_NO_LEAKAGE": "CIBO_ARCH_A_E6_CHRONOLOGY_NO_LEAKAGE_V1",
+    "E7_ECONOMIC_NONCOMPENSATION": "CIBO_ARCH_A_E7_ECONOMIC_NONCOMPENSATION_V1",
+    "E8_STRESS_INTEGRITY": "CIBO_ARCH_A_E8_STRESS_INTEGRITY_V1",
+    "E9_TEMPORAL_REPLICATION": "CIBO_ARCH_A_E9_TEMPORAL_REPLICATION_V1",
+    "E10_DETERMINISTIC_REPLAY": "CIBO_ARCH_A_E10_DETERMINISTIC_REPLAY_V1",
+}
 
 
 def _chain():
@@ -43,7 +63,7 @@ def _chain():
             "schema": "qore.cibo.final-assembly.test.v1",
             "evidence_binding_id": receipt_id,
             "evidence_kind": "FINAL_INTEGRATED_EXAM_CONTROL",
-            "producer_gate_id": f"gate:{receipt_id}",
+            "producer_gate_id": _PRODUCERS[receipt_id],
             "integrated_git_sha": HEAD,
             "policy_identity_sha256": phase22.candidate_parameter_sha256,
             "phase22_qualification_artifact_sha256": (
@@ -118,6 +138,28 @@ def test_assembly_rejects_cross_head_receipt() -> None:
     with pytest.raises(
         CiboCapitalManagementError,
         match="cross-HEAD receipt",
+    ):
+        assemble_final_integrated_control_package(
+            integrated_git_sha=HEAD,
+            receipts=tuple(altered),
+        )
+
+
+def test_assembly_rejects_wrong_canonical_producer() -> None:
+    _phase21, _phase22, receipts = _chain()
+    altered = list(receipts)
+    index = required_final_exam_control_ids().index("P1_SOURCE_OF_TRUTH_RECONCILED")
+    item = altered[index]
+    payload = json.loads(item.source_artifact_json)
+    payload["producer_gate_id"] = "fake:p1"
+    altered[index] = bind_final_exam_control_artifact(
+        receipt_id=item.receipt_id,
+        evidence_kind=item.evidence_kind,
+        source_artifact_json=json.dumps(payload, indent=2, sort_keys=True) + "\n",
+    )
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="producer-gate drift: P1_SOURCE_OF_TRUTH_RECONCILED",
     ):
         assemble_final_integrated_control_package(
             integrated_git_sha=HEAD,
