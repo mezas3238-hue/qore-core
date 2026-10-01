@@ -7,6 +7,7 @@ import pytest
 
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
 from qore.infrastructure.cibo_compound_causal_ablation import (
+    PHASE22_V2_FRESH_HOLDOUT_ID,
     PROTOCOL_FROZEN_AT,
     ROOT_CONTROL_ID,
     SEALED_HOLDOUT_ID,
@@ -112,11 +113,15 @@ def test_compound_causal_ablation_rejects_pre_registration_decision() -> None:
 
 
 def test_compound_causal_ablation_rejects_holdout_or_outcome_selection() -> None:
-    with pytest.raises(
-        CiboCompoundCapitalError,
-        match="sealed 2017H1 holdout",
+    for holdout_id in (
+        SEALED_HOLDOUT_ID,
+        PHASE22_V2_FRESH_HOLDOUT_ID,
     ):
-        _pair(population_id=SEALED_HOLDOUT_ID)
+        with pytest.raises(
+            CiboCompoundCapitalError,
+            match="protected holdout cannot enter development ablation",
+        ):
+            _pair(population_id=holdout_id)
 
     with pytest.raises(
         CiboCompoundCapitalError,
