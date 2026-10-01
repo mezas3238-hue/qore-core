@@ -7,10 +7,10 @@ from pathlib import Path
 import pytest
 
 from qore.infrastructure.cibo_arch_a_internal_readiness import (
+    _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM,
     PHASE22_V2_SCIENTIFIC_DISPOSITION_SCHEMA,
     ArchitectAPhase22V2ScientificClosureBatch,
     ArchitectAPhase22V2ScientificDispositionReceipt,
-    _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM,
 )
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,

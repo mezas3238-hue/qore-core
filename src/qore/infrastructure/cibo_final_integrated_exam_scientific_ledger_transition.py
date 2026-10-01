@@ -14,9 +14,9 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from qore.infrastructure.cibo_arch_a_internal_readiness import (
+    _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM,
     ArchitectAPhase22V2ScientificClosureBatch,
     ArchitectAPhase22V2ScientificDispositionReceipt,
-    _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM,
 )
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
