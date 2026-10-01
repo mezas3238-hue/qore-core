@@ -11,8 +11,10 @@ on:
     paths:
       - '.github/workflows/cibo-architect-a-internal-readiness.yml'
       - 'src/qore/infrastructure/cibo_arch_a_internal_readiness.py'
+      - 'src/qore/infrastructure/cibo_arch_a_phase22_pre_outcome.py'
       - 'scripts/cibo_arch_a_internal_readiness_gate.py'
       - 'tests/infrastructure/test_cibo_arch_a_internal_readiness_gate.py'
+      - 'tests/infrastructure/test_cibo_arch_a_phase22_pre_outcome.py'
       - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
       - 'docs/research/CIBO-ARCH-A-INTERNAL-READINESS-GATE-V1.md'
 
@@ -37,13 +39,17 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/cibo_arch_a_internal_readiness.py \
+            src/qore/infrastructure/cibo_arch_a_phase22_pre_outcome.py \
+            src/qore/infrastructure/cibo_arch_a_phase22_pre_outcome.py \
             scripts/cibo_arch_a_internal_readiness_gate.py \
-            tests/infrastructure/test_cibo_arch_a_internal_readiness_gate.py
+            tests/infrastructure/test_cibo_arch_a_internal_readiness_gate.py \
+            tests/infrastructure/test_cibo_arch_a_phase22_pre_outcome.py
           mypy \
             src/qore/infrastructure/cibo_arch_a_internal_readiness.py \
             scripts/cibo_arch_a_internal_readiness_gate.py
           pytest -q --no-cov \
-            tests/infrastructure/test_cibo_arch_a_internal_readiness_gate.py
+            tests/infrastructure/test_cibo_arch_a_internal_readiness_gate.py \
+            tests/infrastructure/test_cibo_arch_a_phase22_pre_outcome.py
           python scripts/cibo_arch_a_internal_readiness_gate.py
       - uses: actions/upload-artifact@v4
         with:

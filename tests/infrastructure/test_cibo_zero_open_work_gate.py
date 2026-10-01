@@ -655,3 +655,20 @@ def test_gate_classifies_world_cup_entry_controls() -> None:
     assert set(assignments) == {
         (path, "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM") for path in inventory
     }
+
+
+def test_gate_classifies_arch_a_phase22_pre_outcome() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_arch_a_phase22_pre_outcome.py",
+        "tests/infrastructure/test_cibo_arch_a_phase22_pre_outcome.py",
+    )
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=frozenset(
+            {"FINAL_INTEGRATED_CIBO_EXAM", "ORPHAN_INVENTORY"}
+        ),
+    )
+    assert orphans == ()
+    assert set(assignments) == {
+        (path, "FINAL_INTEGRATED_CIBO_EXAM") for path in inventory
+    }

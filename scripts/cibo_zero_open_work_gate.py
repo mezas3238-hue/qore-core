@@ -189,6 +189,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_arch_a_final_exam_closure_controls*", "FINAL_INTEGRATED_CIBO_EXAM"),
     ("*cibo_arch_a_final_exam_scientific_controls*", "FINAL_INTEGRATED_CIBO_EXAM"),
     ("*cibo_arch_a_final_source_truth_control*", "FINAL_INTEGRATED_CIBO_EXAM"),
+    ("*cibo_arch_a_phase22_pre_outcome*", "FINAL_INTEGRATED_CIBO_EXAM"),
     ("*cibo_arch_a_final_pre_exam_control*", "FINAL_INTEGRATED_CIBO_EXAM"),
     ("*cibo_arch_a_final_exam_system_controls*", "FINAL_INTEGRATED_CIBO_EXAM"),
     ("*cibo_final_certification_contract*", "SOURCE_OF_TRUTH_RECONCILIATION"),
