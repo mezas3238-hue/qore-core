@@ -210,4 +210,4 @@ jobs:
         env:
           ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
         run: |
-          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-21 provenance manifest: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Exact GitHub run↔artifact↔B-branch↔HEAD↔artifact-SHA256 lineage verified for the current sealed B evidence population. coverage_complete=False remains mandatory until B-04 and all other mandatory B workstreams are incorporated; no holdout/broker/productive authority."
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-21 provenance manifest: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Exact GitHub run↔artifact↔B-branch↔HEAD↔artifact-SHA256 lineage verified for the current sealed B evidence population. coverage_complete=False remains mandatory until final B-21/B-22/B-24 provenance closure; current upstream evidence is recorded without holdout/broker/productive authority."
