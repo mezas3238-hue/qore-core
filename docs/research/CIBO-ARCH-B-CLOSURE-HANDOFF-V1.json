@@ -308,7 +308,23 @@
     ],
     "architect_b_terminal_disposition_package": "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
     "architect_b_realizable_engineering_exhausted": true,
-    "master_ledger_modified_by_architect_b": false
+    "master_ledger_modified_by_architect_b": false,
+    "master_ledger_patch_request": "docs/research/CIBO-ARCH-B-MASTER-LEDGER-PATCH-REQUEST-V1.json",
+    "master_ledger_patch_rows": 12,
+    "master_ledger_patch_baseline_terminal_count": 10,
+    "master_ledger_patch_expected_terminal_count_if_no_concurrent_changes": 22,
+    "t16_post_declaration_market_structure": {
+      "workflow_run_id": 36815427645,
+      "artifact_id": 11141306779,
+      "artifact_digest": "sha256:9563f7dd32c91a2f4cfaa77fc5902a34e405689251d19ddb89f974e2526946e0",
+      "observed_at_utc": "2026-10-01T04:31:57.494011+00:00",
+      "sample_count_per_pair": 26,
+      "us30_correlation": "0.4632414910514955482449002439",
+      "us500_correlation": "0.9032970883230561116812356603",
+      "fold_coverage_ready": true,
+      "correlation_stable": false,
+      "costs_and_execution_observed": false
+    }
   },
   "package_revalidated_at_utc": "2026-10-01T04:09:27Z"
 }

@@ -84,3 +84,19 @@ It does **not** modify the Master Ledger from branch B. It distinguishes genuine
 scientific closure from `EXTERNAL_DEPENDENCY_BLOCKED` states. Every
 certification-blocking external dependency must remain blocking after
 reconciliation; do not treat terminal classification as certification success.
+
+
+## Addendum — exact Master Ledger patch request
+
+Architect B now provides the exact machine-readable reconciliation delta:
+
+`docs/research/CIBO-ARCH-B-MASTER-LEDGER-PATCH-REQUEST-V1.json`
+
+and its human-readable companion:
+
+`docs/research/CIBO-ARCH-B-MASTER-LEDGER-PATCH-REQUEST-V1.md`
+
+The Integrator must refresh its own HEAD first and then apply only evidence-backed
+rows. The package currently contains 12 B-owned rows that are open in
+the B-branch ledger snapshot but have terminal B dispositions. External
+dependency dispositions remain certification-blocking.
