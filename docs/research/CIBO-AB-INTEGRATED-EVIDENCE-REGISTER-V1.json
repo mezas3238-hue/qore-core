@@ -883,12 +883,44 @@
       ],
       "productive_authority": false,
       "certification_claim": false
+    },
+    {
+      "owner": "INTEGRATOR_7903_ARCH_A_ENGINEERING_CLOSURE_PROVEN",
+      "source_head_sha": "7903cba162595bbfee32fa87fa50f84e6566aaf3",
+      "items": [
+        {
+          "id": "ARCHITECT_A_INTERNAL_READINESS",
+          "workflow_run_id": 36819172460,
+          "status": "SUCCESS",
+          "architect_a_workstreams": 38,
+          "terminal": 38,
+          "internal_debt": 0
+        },
+        {
+          "id": "ZERO_OPEN_WORK_GATE",
+          "workflow_run_id": 36819172385,
+          "status": "SUCCESS"
+        },
+        {
+          "id": "SOURCE_OF_TRUTH_RECONCILIATION",
+          "workflow_run_id": 36819172564,
+          "status": "SUCCESS"
+        },
+        {
+          "id": "A_B_INTEGRATOR_RECONCILIATION",
+          "workflow_run_id": 36819172490,
+          "status": "SUCCESS"
+        }
+      ],
+      "note": "Architect A engineering closure is proven on the canonical 62/64 ledger. Certification remains blocked by external scientific evidence and the two real exams.",
+      "productive_authority": false,
+      "certification_claim": false
     }
   ],
   "pending_candidates": [
     {
       "owner": "ARCHITECT_A",
-      "latest_head_sha": "53bf4c0789e98d25dd295f5bad9647cfc74d0a79",
+      "latest_head_sha": "04e9adb9abb4b092ffc1b896941da840c312567a",
       "reasons": [
         "CURRENT_HEAD_CI_PENDING",
         "A_SUPPORT_002_MANDATORY_WORKSTREAM_DRIFT_UPSTREAM",
@@ -956,10 +988,9 @@
   "certification_claim": false,
   "productive_authority": false,
   "integrator_pending": {
-    "head_sha": "6f530ab46a545a595fb7d281528afa486bb113d9",
+    "head_sha": "7903cba162595bbfee32fa87fa50f84e6566aaf3",
     "reasons": [
-      "ARCHITECT_A_INTERNAL_READINESS_SEMANTICS_EXACT_HEAD_CI_REQUIRED",
-      "ZERO_OPEN_T16_CLASSIFIER_EXACT_HEAD_CI_REQUIRED",
+      "LATEST_ARCH_A_POPULATION_MECHANISM_EVIDENCE_REFINEMENT_EXACT_HEAD_CI_REQUIRED",
       "FINAL_INTEGRATED_CIBO_EXAM_REAL_EXECUTION_OPEN",
       "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM_REAL_EXECUTION_OPEN",
       "CERTIFICATION_BLOCKING_EXTERNAL_EVIDENCE_DEPENDENCIES_REMAIN"

@@ -4,7 +4,7 @@
   "integrator_pr": 670,
   "architect_a": {
     "pr": 660,
-    "head_sha": "53bf4c0789e98d25dd295f5bad9647cfc74d0a79",
+    "head_sha": "04e9adb9abb4b092ffc1b896941da840c312567a",
     "changed_files": 173,
     "files_present_in_integrator_delta": 102,
     "deliberate_overrides": [
@@ -274,7 +274,7 @@
       },
       {
         "path": "scripts/cibo_arch_a_internal_readiness_gate.py",
-        "reason": "Integrator adapts the child intake/readiness surface to canonical 62/64 external-terminal semantics."
+        "reason": "Integrator adapts Architect-A intake/readiness to canonical external-terminal semantics and latest population/mechanism-evidence separation."
       },
       {
         "path": "scripts/cibo_zero_open_work_gate.py",
@@ -282,11 +282,11 @@
       },
       {
         "path": "src/qore/infrastructure/cibo_arch_a_internal_readiness.py",
-        "reason": "Integrator adapts the child intake/readiness surface to canonical 62/64 external-terminal semantics."
+        "reason": "Integrator adapts Architect-A intake/readiness to canonical external-terminal semantics and latest population/mechanism-evidence separation."
       },
       {
         "path": "tests/infrastructure/test_cibo_arch_a_internal_readiness_gate.py",
-        "reason": "Integrator adapts the child intake/readiness surface to canonical 62/64 external-terminal semantics."
+        "reason": "Integrator adapts Architect-A intake/readiness to canonical external-terminal semantics and latest population/mechanism-evidence separation."
       },
       {
         "path": "tests/infrastructure/test_cibo_zero_open_work_gate.py",

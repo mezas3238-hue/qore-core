@@ -6,7 +6,7 @@
   "architect_a": {
     "pr": 660,
     "accepted_head_sha": "9f7a24a86c04a1d0554996ab57523e7338465002",
-    "latest_observed_head_sha": "53bf4c0789e98d25dd295f5bad9647cfc74d0a79",
+    "latest_observed_head_sha": "04e9adb9abb4b092ffc1b896941da840c312567a",
     "support_blockers": [
       "A-SUPPORT-001_FINAL_EXAM_SELF_ATTESTATION",
       "A-SUPPORT-002_MANDATORY_WORKSTREAM_DRIFT"
@@ -210,7 +210,7 @@
   },
   "post_snapshot_integration": {
     "source_integrator_head": "532f19c0774f3ccd2c42be943b236a154c85a8a3",
-    "architect_a_head_sha": "53bf4c0789e98d25dd295f5bad9647cfc74d0a79",
+    "architect_a_head_sha": "04e9adb9abb4b092ffc1b896941da840c312567a",
     "architect_b_head_sha": "aa412b3b7de0824c9b809edba7eeb617cf3571b5",
     "architect_a_byte_integrated_files": 102,
     "architect_b_byte_integrated_files": 85,
@@ -221,6 +221,12 @@
     "productive_authority": false,
     "accounting_repaired_to_per_file_entries": true,
     "architect_a_external_terminal_semantics_repaired": true,
-    "t16_zero_open_classifier_repaired": true
+    "t16_zero_open_classifier_repaired": true,
+    "architect_a_engineering_readiness_proven_at_integrator_head": "7903cba162595bbfee32fa87fa50f84e6566aaf3",
+    "architect_a_engineering_readiness_run_id": 36819172460,
+    "zero_open_run_id": 36819172385,
+    "ab_reconciliation_run_id": 36819172490,
+    "source_of_truth_run_id": 36819172564,
+    "latest_a_population_vs_mechanism_evidence_refinement_staged": true
   }
 }

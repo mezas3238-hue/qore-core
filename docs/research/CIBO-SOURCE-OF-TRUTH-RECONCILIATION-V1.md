@@ -281,3 +281,20 @@ under the Owner's no-workflow-flood policy.
 - T16 post-declaration probe/script/test/workflow/document are classified under
   T16 in Zero Open, eliminating two false orphan candidates.
 - Exact-head CI remains required before recording this repair as proven.
+
+
+## 2026-10-01 Architect-A engineering closure proven
+
+Exact Integrator HEAD: `7903cba162595bbfee32fa87fa50f84e6566aaf3`.
+
+- Architect A Internal Readiness: `36819172460` SUCCESS.
+- Zero Open Work Gate: `36819172385` SUCCESS.
+- Source of Truth Reconciliation: `36819172564` SUCCESS.
+- A+B Integrator Reconciliation: `36819172490` SUCCESS.
+- Architect-A scope is now 38/38 terminal with zero internal engineering debt.
+- Certification is **not** claimed: certification-blocking external scientific
+  evidence remains, and the actual Final Integrated CIBO Exam plus World Cup
+  Maximum-Capability Exam have not run.
+- Latest A refinements at `04e9adb9abb4b092ffc1b896941da840c312567a` separate population intake from
+  mechanism-evidence readiness; those refinements are staged on the Integrator
+  with the 62/64 external-terminal semantics preserved.

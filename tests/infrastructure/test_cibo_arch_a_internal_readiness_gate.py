@@ -242,7 +242,7 @@ def test_scientific_batch_plan_covers_all_35_open_workstreams(
         intake,
     )
 
-    assert plan.batch_science_execution_ready is True
+    assert plan.population_batch_ready is True
     assert plan.remaining_workstream_count == 35
     assert len(plan.remaining_workstream_ids) == 35
     assert len(set(plan.remaining_workstream_ids)) == 35
@@ -269,7 +269,7 @@ def test_scientific_batch_plan_blocks_until_b_intake_is_ready(
         intake,
     )
 
-    assert plan.batch_science_execution_ready is False
+    assert plan.population_batch_ready is False
     assert plan.blockers == ("ARCH_B_SCIENTIFIC_INTAKE_REQUIRED",)
 
 
