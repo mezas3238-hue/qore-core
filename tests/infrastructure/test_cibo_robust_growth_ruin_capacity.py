@@ -323,3 +323,30 @@ def test_genc9_ruin_flag_is_boundary_derived() -> None:
             scenario_evidence_sha256=scenario.scenario_evidence_sha256,
             causal_replay_sha256="sha256:" + "a" * 64,
         )
+
+
+def test_genc9_rejects_drawdown_smaller_than_forced_initial_to_minimum_loss() -> None:
+    scenario = _scenario("drawdown-check", "1")
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="max drawdown is inconsistent with minimum capital",
+    ):
+        Genc9PathEvidence(
+            candidate_id="control",
+            scenario_id=scenario.scenario_id,
+            evaluated_at=T0 + timedelta(minutes=1),
+            numeraire=Genc9Numeraire.NORMALIZED_CAPITAL_UNITS,
+            initial_capital=Decimal("100"),
+            ending_capital=Decimal("120"),
+            minimum_capital=Decimal("80"),
+            max_drawdown=Decimal("19"),
+            max_time_underwater_minutes=Decimal("100"),
+            max_recovery_minutes=Decimal("90"),
+            peak_plausible_loss=Decimal("10"),
+            ruin_boundary=Decimal("20"),
+            ruin_occurred=False,
+            capacity_breach=False,
+            horizon_minutes=Decimal("1000"),
+            scenario_evidence_sha256=scenario.scenario_evidence_sha256,
+            causal_replay_sha256="sha256:" + "b" * 64,
+        )
