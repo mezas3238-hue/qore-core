@@ -11,9 +11,9 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass, replace
 from enum import StrEnum
-from typing import Mapping
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
