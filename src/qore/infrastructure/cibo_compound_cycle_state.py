@@ -49,6 +49,18 @@ def _aware(value: datetime, name: str) -> None:
         )
 
 
+def _sha(value: str, name: str) -> None:
+    if (
+        not isinstance(value, str)
+        or not value.startswith("sha256:")
+        or len(value) != 71
+        or any(char not in "0123456789abcdef" for char in value[7:])
+    ):
+        raise CiboCompoundCapitalError(
+            f"compound cycle {name} must be canonical SHA-256"
+        )
+
+
 def _money(value: Decimal, name: str, *, positive: bool = False) -> None:
     if (
         not isinstance(value, Decimal)
@@ -134,13 +146,7 @@ class CompoundCycleSettlementRecord:
             raise CiboCompoundCapitalError(
                 "compound cycle settlement position must be positive int"
             )
-        if (
-            not self.settlement_sha256.startswith("sha256:")
-            or len(self.settlement_sha256) != 71
-        ):
-            raise CiboCompoundCapitalError(
-                "compound cycle settlement digest is invalid"
-            )
+        _sha(self.settlement_sha256, "settlement digest")
         if (
             not isinstance(self.realized_net_pnl_usd, Decimal)
             or not self.realized_net_pnl_usd.is_finite()
@@ -187,15 +193,7 @@ class CompoundCycleMarketRecord:
             "portfolio_state_sha256",
             "t19_ledger_sha256",
         ):
-            value = getattr(self, name)
-            if (
-                not isinstance(value, str)
-                or not value.startswith("sha256:")
-                or len(value) != 71
-            ):
-                raise CiboCompoundCapitalError(
-                    f"compound cycle market {name} is invalid"
-                )
+            _sha(getattr(self, name), f"market {name}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -253,6 +251,8 @@ class CompoundCycleDeployment:
             raise CiboCompoundCapitalError(
                 "compound cycle settlement flag/digest drift"
             )
+        if self.settlement_sha256 is not None:
+            _sha(self.settlement_sha256, "deployment settlement digest")
 
 
 @dataclass(frozen=True, slots=True)
