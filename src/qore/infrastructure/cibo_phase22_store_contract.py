@@ -70,7 +70,10 @@ PHASE22_STORE_IDENTITIES = (
         name="HOLDOUT_FORWARD_EVIDENCE",
         relative_path="phase22-v2-stores/holdout-forward-evidence.json",
         schema="CIBO_PHASE22_V2_FORWARD_EVIDENCE_BOOK_V1",
-        role="predecision evidence plus postdecision outcomes",
+        role=(
+            "predecision evidence plus counterfactual postdecision outcomes "
+            "without historical broker identity"
+        ),
     ),
     Phase22StoreIdentity(
         name="HOLDOUT_POLICY",
@@ -82,19 +85,28 @@ PHASE22_STORE_IDENTITIES = (
         name="EXECUTED_RISK",
         relative_path="phase22-v2-stores/executed-risk.json",
         schema="CIBO_PHASE22_V2_EXECUTED_RISK_BOOK_V1",
-        role="Risk-authorized fill-derived initial stop risk",
+        role=(
+            "Risk-authorized counterfactual execution-model initial stop risk "
+            "without historical broker identity"
+        ),
     ),
     Phase22StoreIdentity(
         name="CMA_SETTLEMENT",
         relative_path="phase22-v2-stores/cma-settlement.json",
         schema="CIBO_PHASE22_V2_CMA_SETTLEMENT_BOOK_V1",
-        role="chronological terminal settlement truth",
+        role=(
+            "chronological counterfactual terminal settlement truth without "
+            "historical broker deal identity"
+        ),
     ),
     Phase22StoreIdentity(
         name="T20_RELEASE",
         relative_path="phase22-v2-stores/t20-release.json",
         schema="CIBO_PHASE22_V2_T20_RELEASE_BOOK_V1",
-        role="chronological returned risk and margin capacity",
+        role=(
+            "chronological returned risk and margin capacity without "
+            "historical broker deal identity"
+        ),
     ),
 )
 
@@ -117,6 +129,8 @@ def phase22_store_contract_payload() -> dict[str, object]:
             for item in PHASE22_STORE_IDENTITIES
         ],
         "store_reuse_allowed": False,
+        "counterfactual_historical_identity_safe": True,
+        "broker_identity_fields_prohibited": True,
         "fresh_outcomes_executed": False,
         "productive_authority": False,
     }
