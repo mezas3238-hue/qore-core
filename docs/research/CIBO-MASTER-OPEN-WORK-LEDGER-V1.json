@@ -60,7 +60,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_EXECUTABLE_NONCOMPENSATORY_ECONOMIC_GATE_CI_PENDING_REAL_EVIDENCE_OPEN",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_EXECUTABLE_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_REAL_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -73,11 +73,11 @@
         "src/qore/infrastructure/cibo_ce2i_t04_t10_economic_gate.py",
         "tests/infrastructure/test_cibo_ce2i_t04_t10_economic_gate.py",
         "docs/research/CIBO-CE2I-T04-T10-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
-        ".github/workflows/cibo-t04-t10-economic-gate.yml"
+        ".github/workflows/cibo-t04-t10-economic-gate.yml",
+        "github-actions://36785994658/SUCCESS"
       ],
       "blockers": [
-        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED",
-        "T04_T10_ECONOMIC_GATE_CHILD_CI_REQUIRED"
+        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
       ],
       "next_gate": "Pass the executable T04/T10 economic-gate CI; then bind provider-valid marginal-capital control/treatment evidence and require independent WF1..WF4 non-compensatory risk-efficiency value, stress and terminal disposition."
     },
@@ -170,7 +170,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_SCARCITY_UTILITY_AND_NONCOMPENSATORY_SAFETY_GATE_CI_PENDING_REAL_EVIDENCE_OPEN",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_SCARCITY_UTILITY_AND_NONCOMPENSATORY_SAFETY_GATE_CI_GREEN_REAL_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -183,11 +183,11 @@
         "src/qore/infrastructure/cibo_t09_t18_scarcity_safety_gate.py",
         "tests/infrastructure/test_cibo_t09_t18_scarcity_safety_gate.py",
         "docs/research/CIBO-T09-T18-NONCOMPENSATORY-SCARCITY-SAFETY-GATE-V1.md",
-        ".github/workflows/cibo-t09-t18-scarcity-safety.yml"
+        ".github/workflows/cibo-t09-t18-scarcity-safety.yml",
+        "github-actions://36785994838/SUCCESS"
       ],
       "blockers": [
-        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
-        "T09_T18_SCARCITY_SAFETY_GATE_CHILD_CI_REQUIRED"
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
       ],
       "next_gate": "Pass the supplemental T09/T18 scarcity-safety CI; then bind the same fresh true-scarcity population to both frozen scarcity utility and starvation/concentration safety gates, followed by stress/4-fold evidence and terminal disposition."
     },
@@ -196,7 +196,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_EXECUTABLE_NONCOMPENSATORY_ECONOMIC_GATE_CI_PENDING_REAL_EVIDENCE_OPEN",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_EXECUTABLE_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_REAL_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -209,11 +209,11 @@
         "src/qore/infrastructure/cibo_ce2i_t04_t10_economic_gate.py",
         "tests/infrastructure/test_cibo_ce2i_t04_t10_economic_gate.py",
         "docs/research/CIBO-CE2I-T04-T10-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
-        ".github/workflows/cibo-t04-t10-economic-gate.yml"
+        ".github/workflows/cibo-t04-t10-economic-gate.yml",
+        "github-actions://36785994658/SUCCESS"
       ],
       "blockers": [
-        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED",
-        "T04_T10_ECONOMIC_GATE_CHILD_CI_REQUIRED"
+        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
       ],
       "next_gate": "Pass the executable T04/T10 economic-gate CI; then bind authoritative deployment/release provider economics and require independent WF1..WF4 non-compensatory capital-velocity value, stress and terminal disposition."
     },
@@ -369,7 +369,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_SCARCITY_UTILITY_AND_NONCOMPENSATORY_SAFETY_GATE_CI_PENDING_REAL_EVIDENCE_OPEN",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_SCARCITY_UTILITY_AND_NONCOMPENSATORY_SAFETY_GATE_CI_GREEN_REAL_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -384,11 +384,11 @@
         "src/qore/infrastructure/cibo_t09_t18_scarcity_safety_gate.py",
         "tests/infrastructure/test_cibo_t09_t18_scarcity_safety_gate.py",
         "docs/research/CIBO-T09-T18-NONCOMPENSATORY-SCARCITY-SAFETY-GATE-V1.md",
-        ".github/workflows/cibo-t09-t18-scarcity-safety.yml"
+        ".github/workflows/cibo-t09-t18-scarcity-safety.yml",
+        "github-actions://36785994838/SUCCESS"
       ],
       "blockers": [
-        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
-        "T09_T18_SCARCITY_SAFETY_GATE_CHILD_CI_REQUIRED"
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
       ],
       "next_gate": "Pass the supplemental T09/T18 scarcity-safety CI; then bind the same fresh cross-Trader scarcity population to both frozen scarcity utility and starvation/concentration safety gates while preserving Trader sovereignty, followed by stress/4-fold evidence and terminal disposition."
     },
@@ -485,7 +485,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_IMPLEMENTED_CI_PENDING_REAL_CYCLE_EVIDENCE_OPEN",
+      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_REAL_CYCLE_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -499,11 +499,11 @@
         "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
         "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
         "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
-        ".github/workflows/cibo-genc3-genc6-economic-gate.yml"
+        ".github/workflows/cibo-genc3-genc6-economic-gate.yml",
+        "github-actions://36785994686/SUCCESS"
       ],
       "blockers": [
-        "END_TO_END_COMPOUND_PORTFOLIO_ECONOMIC_CYCLE_REQUIRED",
-        "GENC3_GENC6_ECONOMIC_GATE_CHILD_CI_REQUIRED"
+        "END_TO_END_COMPOUND_PORTFOLIO_ECONOMIC_CYCLE_REQUIRED"
       ],
       "next_gate": "Pass the shared GEN-C3..GEN-C6 economic-gate CI; then bind a provider-valid complete portfolio cycle and require independent 4/4 non-compensatory economic improvement plus stress before terminal disposition."
     },
@@ -512,7 +512,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_IMPLEMENTED_CI_PENDING_REAL_CAUSAL_VALUE_OPEN",
+      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_REAL_CAUSAL_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -527,11 +527,11 @@
         "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
         "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
         "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
-        ".github/workflows/cibo-genc3-genc6-economic-gate.yml"
+        ".github/workflows/cibo-genc3-genc6-economic-gate.yml",
+        "github-actions://36785994686/SUCCESS"
       ],
       "blockers": [
-        "REAL_DATA_BOUND_CAUSAL_VALUE_PROOF_REQUIRED",
-        "GENC3_GENC6_ECONOMIC_GATE_CHILD_CI_REQUIRED"
+        "REAL_DATA_BOUND_CAUSAL_VALUE_PROOF_REQUIRED"
       ],
       "next_gate": "Pass the shared GEN-C3..GEN-C6 economic-gate CI; then bind provider-valid marginal-unit control/treatment evidence and require independent 4/4 non-compensatory economic improvement plus stress."
     },
@@ -540,7 +540,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_IMPLEMENTED_CI_PENDING_PATH_DEPENDENT_VALUE_OPEN",
+      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_PATH_DEPENDENT_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -556,11 +556,11 @@
         "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
         "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
         "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
-        ".github/workflows/cibo-genc3-genc6-economic-gate.yml"
+        ".github/workflows/cibo-genc3-genc6-economic-gate.yml",
+        "github-actions://36785994686/SUCCESS"
       ],
       "blockers": [
-        "FRESH_PATH_DEPENDENT_OOS_STRESS_REPLICATION_REQUIRED",
-        "GENC3_GENC6_ECONOMIC_GATE_CHILD_CI_REQUIRED"
+        "FRESH_PATH_DEPENDENT_OOS_STRESS_REPLICATION_REQUIRED"
       ],
       "next_gate": "Pass the shared GEN-C3..GEN-C6 economic-gate CI; then bind provider-valid chronological sequential-compounding control/treatment evidence and require independent 4/4 non-compensatory improvement plus stress."
     },
@@ -569,7 +569,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_IMPLEMENTED_CI_PENDING_TRUE_SCARCITY_VALUE_OPEN",
+      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_TRUE_SCARCITY_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -582,11 +582,11 @@
         "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
         "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
         "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
-        ".github/workflows/cibo-genc3-genc6-economic-gate.yml"
+        ".github/workflows/cibo-genc3-genc6-economic-gate.yml",
+        "github-actions://36785994686/SUCCESS"
       ],
       "blockers": [
-        "FRESH_TRUE_SCARCITY_OOS_STRESS_REPLICATION_REQUIRED",
-        "GENC3_GENC6_ECONOMIC_GATE_CHILD_CI_REQUIRED"
+        "FRESH_TRUE_SCARCITY_OOS_STRESS_REPLICATION_REQUIRED"
       ],
       "next_gate": "Pass the shared GEN-C3..GEN-C6 economic-gate CI; then bind provider-valid true-scarcity control/treatment evidence and require independent 4/4 non-compensatory improvement plus stress."
     },
@@ -695,7 +695,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_CI_GREEN_EXECUTABLE_NONCOMPENSATORY_UTILITY_WRAPPER_IMPLEMENTED_CI_PENDING_REAL_EVIDENCE_OPEN",
+      "current_maturity": "ENGINE_CI_GREEN_EXECUTABLE_NONCOMPENSATORY_UTILITY_WRAPPER_CI_GREEN_REAL_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -712,13 +712,13 @@
         "src/qore/infrastructure/cibo_genc11_genc13_utility_gate.py",
         "tests/infrastructure/test_cibo_genc11_genc13_utility_gate.py",
         "docs/research/CIBO-GEN-C11-GEN-C13-NONCOMPENSATORY-UTILITY-WRAPPER-V1.md",
-        ".github/workflows/cibo-genc11-genc13-utility-wrapper.yml"
+        ".github/workflows/cibo-genc11-genc13-utility-wrapper.yml",
+        "github-actions://36796293045/SUCCESS"
       ],
       "blockers": [
         "FRESH_MULTI_PERIOD_OOS_UTILITY_NOT_YET_PROVEN",
         "STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
-        "GEN_C10_TRANSITION_UNCERTAINTY_NOT_YET_CALIBRATED",
-        "GENC11_GENC13_UTILITY_WRAPPER_CHILD_CI_REQUIRED"
+        "GEN_C10_TRANSITION_UNCERTAINTY_NOT_YET_CALIBRATED"
       ],
       "next_gate": "Pass the executable GEN-C11/GEN-C13 wrapper CI; then after legal GEN-C10 transition calibration bind a fresh MPC control/treatment population, reuse the frozen GEN-C9 non-compensatory law, and separately pass stress plus WF1..WF4 replication."
     },
@@ -757,7 +757,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_CI_GREEN_CAUSAL_IDENTIFICATION_PROTOCOL_AND_EXECUTABLE_UTILITY_WRAPPER_IMPLEMENTED_CI_PENDING_REAL_PROSPECTIVE_EVIDENCE_OPEN",
+      "current_maturity": "ENGINE_CI_GREEN_CAUSAL_IDENTIFICATION_PROTOCOL_AND_EXECUTABLE_UTILITY_WRAPPER_CI_GREEN_REAL_PROSPECTIVE_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -773,13 +773,13 @@
         "src/qore/infrastructure/cibo_genc11_genc13_utility_gate.py",
         "tests/infrastructure/test_cibo_genc11_genc13_utility_gate.py",
         "docs/research/CIBO-GEN-C11-GEN-C13-NONCOMPENSATORY-UTILITY-WRAPPER-V1.md",
-        ".github/workflows/cibo-genc11-genc13-utility-wrapper.yml"
+        ".github/workflows/cibo-genc11-genc13-utility-wrapper.yml",
+        "github-actions://36796293045/SUCCESS"
       ],
       "blockers": [
         "REAL_POST_OUTCOME_EPISODE_POPULATION_NOT_YET_BOUND",
         "PROSPECTIVE_MEMORY_USE_CAUSAL_ABLATION_NOT_YET_RUN",
-        "TEMPORAL_REPLICATION_REQUIRED",
-        "GENC11_GENC13_UTILITY_WRAPPER_CHILD_CI_REQUIRED"
+        "TEMPORAL_REPLICATION_REQUIRED"
       ],
       "next_gate": "Pass the executable GEN-C11/GEN-C13 wrapper CI; then bind real reconciled post-outcome memory episodes, preregister a later prospective memory-use ablation, reuse the frozen GEN-C9 non-compensatory law on causal future evidence, and separately pass stress plus WF1..WF4 replication."
     },
