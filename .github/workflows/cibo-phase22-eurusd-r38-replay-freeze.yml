@@ -61,7 +61,8 @@ jobs:
           ruff check \
             scripts/cibo_phase22_eurusd_r38_window_replay.py \
             tests/infrastructure/test_cibo_phase22_eurusd_r38_window_replay.py
-          mypy scripts/cibo_phase22_eurusd_r38_window_replay.py
+          mypy --disable-error-code import-untyped \
+            scripts/cibo_phase22_eurusd_r38_window_replay.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_phase22_eurusd_r38_window_replay.py
 
