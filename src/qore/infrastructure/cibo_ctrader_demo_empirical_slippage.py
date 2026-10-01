@@ -21,7 +21,6 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 from qore.infrastructure.ctrader_demo_free_binding import (
-    CTraderDemoFreeBinding,
     discover_free_account_binding,
 )
 from qore.infrastructure.ctrader_open_api_client import (
@@ -247,20 +246,20 @@ def collect_ctrader_demo_empirical_slippage(
         sorted(item.qore_symbol for item in binding.contracts)
     )
     raw_deals = tuple(getattr(deals_response, "deal", ()))
-    candidates: list[object] = []
+    candidates: list[Any] = []
     for deal in raw_deals:
         if not _qore_entry_deal(deal, contracts):
             continue
         candidates.append(deal)
     candidates.sort(
-        key=lambda item: int(getattr(item, "executionTimestamp")),
+        key=lambda item: int(item.executionTimestamp),
         reverse=True,
     )
 
-    sampled: list[object] = []
+    sampled: list[Any] = []
     per_symbol: dict[str, int] = defaultdict(int)
     for deal in candidates:
-        contract = contracts[int(getattr(deal, "symbolId"))]
+        contract = contracts[int(deal.symbolId)]
         symbol = contract.qore_symbol
         if per_symbol[symbol] >= _MAX_DEALS_PER_SYMBOL:
             continue
@@ -313,7 +312,7 @@ def collect_ctrader_demo_empirical_slippage(
     ready = coverage and minimum and bool(observations) and not blockers
 
     account_fingerprint = hashlib.sha256(
-        f"ctrader-demo:{binding.account.account_ref}".encode("utf-8")
+        f"ctrader-demo:{binding.account.account_ref}".encode()
     ).hexdigest()
     return CTraderEmpiricalSlippageCalibration(
         provider_key="ctrader-demo",
@@ -429,11 +428,11 @@ def _deal_observation(
     client: CTraderOpenApiMessageClientBoundary,
     account_id: int,
     contract: Any,
-    deal: object,
+    deal: Any,
 ) -> CTraderEmpiricalSlippageObservation:
-    execution_ms = int(getattr(deal, "executionTimestamp"))
-    create_ms = int(getattr(deal, "createTimestamp"))
-    side_code = int(getattr(deal, "tradeSide"))
+    execution_ms = int(deal.executionTimestamp)
+    create_ms = int(deal.createTimestamp)
+    side_code = int(deal.tradeSide)
     side = "BUY" if side_code == _BUY else "SELL"
     quote_type = _ASK if side_code == _BUY else _BID
     response = _request(
@@ -457,14 +456,14 @@ def _deal_observation(
             "no causal historical quote before execution"
         )
     quote_ms, quote_price = max(causal, key=lambda item: item[0])
-    fill_price = Decimal(str(getattr(deal, "executionPrice")))
+    fill_price = Decimal(str(deal.executionPrice))
     signed_price, signed_bps, adverse_bps = signed_slippage(
         side=side,
         quote_price=quote_price,
         fill_price=fill_price,
     )
-    deal_id = int(getattr(deal, "dealId"))
-    order_id = int(getattr(deal, "orderId"))
+    deal_id = int(deal.dealId)
+    order_id = int(deal.orderId)
     evidence_ref = _hash_ref(
         f"{deal_id}|{order_id}|{contract.symbol_id}|{execution_ms}|{fill_price}"
     )
