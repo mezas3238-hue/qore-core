@@ -396,5 +396,43 @@ def test_architect_a_readiness_accepts_terminal_external_dependency(
     assert report.passed is True
     assert "T04" in report.terminal_ids
     assert "T04" not in report.empirical_open_ids
+    assert report.external_dependency_count == 1
+    assert report.external_dependency_ids == ("T04",)
     assert report.internal_debt_ids == ()
+
+
+def test_scientific_batch_plan_reenters_terminal_external_dependencies(
+    tmp_path: Path,
+) -> None:
+    payload = _ledger()
+    internally_complete = {"T05", "T19", "GEN-C1"}
+    for row in payload["workstreams"]:
+        if row["id"] in internally_complete:
+            continue
+        row["terminal_disposition"] = "EXTERNAL_DEPENDENCY_BLOCKED"
+        row["current_maturity"] = (
+            "TERMINAL_EXTERNAL_DEPENDENCY_BLOCKED_REAL_PHASE22_REQUIRED"
+        )
+        row["blockers"] = ["PHASE22_V2_EMPIRICAL_EVIDENCE_REQUIRED"]
+
+    ledger_path = tmp_path / "ledger.json"
+    _write(ledger_path, payload)
+    readiness = gate.evaluate_architect_a_internal_readiness(ledger_path)
+    intake = gate.evaluate_architect_a_scientific_intake(
+        _forward_manifest_payload(ready=True)
+    )
+
+    assert readiness.passed is True
+    assert readiness.terminal_count == 38
+    assert readiness.empirical_open_count == 0
+    assert readiness.external_dependency_count == 35
+
+    plan = gate.build_architect_a_scientific_batch_plan(readiness, intake)
+
+    assert plan.population_batch_ready is True
+    assert plan.complete_without_execution is False
+    assert plan.remaining_workstream_count == 35
+    assert set(plan.remaining_workstream_ids) == set(
+        readiness.external_dependency_ids
+    )
 

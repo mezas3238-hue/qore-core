@@ -99,8 +99,10 @@ class ArchitectAInternalReadinessReport:
     workstream_count: int
     terminal_count: int
     empirical_open_count: int
+    external_dependency_count: int
     terminal_ids: tuple[str, ...]
     empirical_open_ids: tuple[str, ...]
+    external_dependency_ids: tuple[str, ...]
     internal_debt_ids: tuple[str, ...]
     missing_workstream_ids: tuple[str, ...]
     evidence_missing_ids: tuple[str, ...]
@@ -127,6 +129,7 @@ class ArchitectAInternalReadinessReport:
             "workstream_count",
             "terminal_count",
             "empirical_open_count",
+            "external_dependency_count",
         ):
             value = getattr(self, name)
             if type(value) is not int or value < 0:
@@ -140,6 +143,7 @@ class ArchitectAInternalReadinessReport:
         for name in (
             "terminal_ids",
             "empirical_open_ids",
+            "external_dependency_ids",
             "internal_debt_ids",
             "missing_workstream_ids",
             "evidence_missing_ids",
@@ -164,9 +168,22 @@ class ArchitectAInternalReadinessReport:
             raise ArchitectAReadinessError(
                 "Architect A internal-readiness empirical-open count drift"
             )
+        if self.external_dependency_count != len(self.external_dependency_ids):
+            raise ArchitectAReadinessError(
+                "Architect A internal-readiness external-dependency count drift"
+            )
         terminal = set(self.terminal_ids)
         empirical = set(self.empirical_open_ids)
+        external = set(self.external_dependency_ids)
         missing = set(self.missing_workstream_ids)
+        if not external <= terminal:
+            raise ArchitectAReadinessError(
+                "Architect A external dependencies must remain terminal rows"
+            )
+        if external & empirical or external & missing:
+            raise ArchitectAReadinessError(
+                "Architect A external-dependency disposition overlap"
+            )
         if terminal & empirical or terminal & missing or empirical & missing:
             raise ArchitectAReadinessError(
                 "Architect A internal-readiness disposition overlap"
@@ -219,6 +236,7 @@ def evaluate_architect_a_internal_readiness(
     evidence_missing: list[str] = []
     terminal: list[str] = []
     empirical_open: list[str] = []
+    external_dependency: list[str] = []
 
     for row_id in A_WORKSTREAM_IDS:
         row = by_id.get(row_id)
@@ -257,6 +275,7 @@ def evaluate_architect_a_internal_readiness(
         else:
             terminal.append(row_id)
             if disposition == "EXTERNAL_DEPENDENCY_BLOCKED":
+                external_dependency.append(row_id)
                 if not blockers:
                     internal_debt.append(row_id)
             elif blockers:
@@ -270,8 +289,10 @@ def evaluate_architect_a_internal_readiness(
         workstream_count=len(A_WORKSTREAM_IDS),
         terminal_count=len(terminal),
         empirical_open_count=len(empirical_open),
+        external_dependency_count=len(external_dependency),
         terminal_ids=tuple(terminal),
         empirical_open_ids=tuple(empirical_open),
+        external_dependency_ids=tuple(external_dependency),
         internal_debt_ids=tuple(internal_debt),
         missing_workstream_ids=missing,
         evidence_missing_ids=tuple(evidence_missing),
@@ -755,7 +776,12 @@ def build_architect_a_scientific_batch_plan(
     if not intake.ready_for_batch_science:
         blockers.append("ARCH_B_SCIENTIFIC_INTAKE_REQUIRED")
 
-    remaining = set(readiness.empirical_open_ids)
+    # EXTERNAL_DEPENDENCY_BLOCKED is terminal only for internal engineering.
+    # Once admissible empirical evidence arrives, those rows must re-enter the
+    # frozen scientific waves rather than being mistaken for completed science.
+    remaining = set(readiness.empirical_open_ids) | set(
+        readiness.external_dependency_ids
+    )
     waves = tuple(
         tuple(item for item in wave if item in remaining)
         for wave in _SCIENTIFIC_WAVES
