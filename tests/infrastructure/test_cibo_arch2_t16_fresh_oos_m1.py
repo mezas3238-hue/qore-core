@@ -1,10 +1,12 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+from qore.infrastructure.cibo_arch2_t16_fresh_oos_market_data import (
+    align_contiguous_m1_returns,
+)
 from qore.infrastructure.cibo_arch2_t16_fresh_oos_utility import (
     FROZEN_AT,
 )
-from scripts.cibo_arch2_t16_fresh_oos_m1 import _aligned_returns
 
 
 def _rows(
@@ -23,7 +25,7 @@ def test_aligned_returns_preserve_only_contiguous_shared_minutes() -> None:
     target = _rows(start=start, prices=("100", "101", "102", "103"))
     hedge = _rows(start=start, prices=("200", "202", "204", "206"))
 
-    observations = _aligned_returns(target, hedge)
+    observations = align_contiguous_m1_returns(target, hedge)
 
     assert len(observations) == 3
     assert all(item.market_at > FROZEN_AT for item in observations)
@@ -44,7 +46,7 @@ def test_aligned_returns_drop_gapped_intervals() -> None:
         (start + timedelta(minutes=3), Decimal("206")),
     )
 
-    observations = _aligned_returns(target, hedge)
+    observations = align_contiguous_m1_returns(target, hedge)
 
     assert len(observations) == 1
     assert observations[0].market_at == start + timedelta(minutes=3)
