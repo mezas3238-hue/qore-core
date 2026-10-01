@@ -75,6 +75,7 @@ def test_current_provider_terms_freeze_without_overclaiming_slippage() -> None:
     assert freeze.blockers == (
         "EMPIRICAL_SLIPPAGE_NOT_FROZEN",
         "EXECUTION_MODEL_NOT_FROZEN",
+        "PROVIDER_STRESS_BOUND_NOT_FROZEN",
     )
     assert (
         f"artifact:{CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS.artifact_id}"
