@@ -16,6 +16,10 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py'
       - 'src/qore/infrastructure/cibo_ce2i_holdout_registry.py'
       - 'src/qore/infrastructure/cibo_ce2i_usd60_six_month_certification.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_terminal_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_freeze_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_core_freeze_receipt.py'
       - 'src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py'
       - 'src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py'
       - 'tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py'
@@ -33,6 +37,10 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py'
       - 'src/qore/infrastructure/cibo_ce2i_holdout_registry.py'
       - 'src/qore/infrastructure/cibo_ce2i_usd60_six_month_certification.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_terminal_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_freeze_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_core_freeze_receipt.py'
   workflow_dispatch:
 
 permissions:
@@ -75,6 +83,9 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py \
             src/qore/infrastructure/cibo_ce2i_provider_core_freeze_receipt.py \
+            src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py \
+            src/qore/infrastructure/cibo_ce2i_calibration_freeze_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_calibration_terminal_evidence.py \
             src/qore/infrastructure/cibo_ce2i_shadow_certification_receipts.py
           mypy \
             scripts/cibo_pre_holdout_checkpoint.py \
@@ -107,7 +118,7 @@ jobs:
             --output pre-holdout/pre-holdout-checkpoint.json \
             > pre-holdout/pre-holdout-checkpoint.stdout.json
 
-      - name: Enforce untouched holdout and not-ready status
+      - name: Enforce untouched holdout and ready-to-unseal status
         run: |
           python - <<'PY'
           import json
@@ -116,14 +127,22 @@ jobs:
           p = json.loads(
               Path("pre-holdout/pre-holdout-checkpoint.json").read_text()
           )
-          assert p["status"] == "PRE_HOLDOUT_NOT_READY"
-          assert p["ready_to_unseal_2017h1"] is False
+          assert p["status"] == "READY_TO_UNSEAL_2017H1"
+          assert p["ready_to_unseal_2017h1"] is True
           assert p["phase20d_causal_tool_gate_passed"] is True
           assert p["phase21_policy_freeze_sealed"] is True
           assert "PHASE20D_CAUSAL_TOOL_GATE_NOT_PASSED" not in p["pre_holdout_blockers"]
           assert "PHASE21_POLICY_FREEZE_NOT_SEALED" not in p["pre_holdout_blockers"]
           assert "PROVIDER_ECONOMICS_NOT_FROZEN" not in p["pre_holdout_blockers"]
-          assert "CALIBRATION_FREEZE_MANIFEST_NOT_SEALED" in p["pre_holdout_blockers"]
+          assert "CALIBRATION_FREEZE_MANIFEST_NOT_SEALED" not in p["pre_holdout_blockers"]
+          assert p["pre_holdout_blockers"] == []
+          assert p["terminal_calibration"]["active_certification_tools"] == [
+              "T01", "T05", "T11", "T19", "T20"
+          ]
+          assert len(p["terminal_calibration"]["qualification_failed_tools"]) == 13
+          assert p["terminal_calibration"]["structurally_disabled_tools"] == [
+              "T16", "T17"
+          ]
           assert p["provider_core_freeze_receipt"]["core_pre_holdout_ready"] is True
           assert p["provider_core_freeze_receipt"]["provider_deployment_ready"] is False
           assert p["provider_core_freeze_receipt"]["empirical_slippage_claimed"] is False
