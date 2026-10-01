@@ -74,6 +74,8 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_holdout_registry.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py \
+            src/qore/infrastructure/cibo_ce2i_provider_execution_stress_bound.py \
             src/qore/infrastructure/cibo_ce2i_shadow_certification_receipts.py
           mypy \
             scripts/cibo_pre_holdout_checkpoint.py \
@@ -121,8 +123,14 @@ jobs:
           assert p["phase21_policy_freeze_sealed"] is True
           assert "PHASE20D_CAUSAL_TOOL_GATE_NOT_PASSED" not in p["pre_holdout_blockers"]
           assert "PHASE21_POLICY_FREEZE_NOT_SEALED" not in p["pre_holdout_blockers"]
-          assert "PROVIDER_ECONOMICS_NOT_FROZEN" in p["pre_holdout_blockers"]
+          assert "PROVIDER_ECONOMICS_NOT_FROZEN" not in p["pre_holdout_blockers"]
           assert "CALIBRATION_FREEZE_MANIFEST_NOT_SEALED" in p["pre_holdout_blockers"]
+          assert p["provider_economics_freeze"]["ready"] is True
+          assert p["provider_economics_freeze"]["empirical_slippage_frozen"] is False
+          assert p["provider_economics_freeze"]["stress_bound_execution_model_frozen"] is True
+          assert p["provider_economics_freeze"]["execution_model_basis"] == "STRESS_BOUND"
+          assert p["provider_execution_stress_profile"]["scenario_count"] == 4
+          assert p["provider_execution_stress_profile"]["empirical_slippage_claimed"] is False
           assert p["shadow_certification_receipts"]["phase21_policy_freeze"]["sealed"] is True
           assert p["fresh_holdout"]["outcomes_inspected"] is False
           assert p["fresh_holdout"]["market_data_read_by_this_checkpoint"] is False

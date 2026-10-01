@@ -22,6 +22,12 @@ from qore.infrastructure.cibo_ce2i_pre_holdout_gate import (
 from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
     CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS,
 )
+from qore.infrastructure.cibo_ce2i_provider_economics_component_freeze import (
+    freeze_current_ctrader_demo_provider_economics_stress_bound,
+)
+from qore.infrastructure.cibo_ce2i_provider_execution_stress_bound import (
+    FROZEN_PROVIDER_EXECUTION_STRESS_PROFILE,
+)
 from qore.infrastructure.cibo_ce2i_shadow_certification_receipts import (
     SHADOW_CERTIFICATION_RECEIPTS,
     shadow_receipt_payload,
@@ -79,8 +85,15 @@ def build_report(
     )
 
     receipts = SHADOW_CERTIFICATION_RECEIPTS
+    provider_freeze = (
+        freeze_current_ctrader_demo_provider_economics_stress_bound(
+            frozen_at=FROZEN_PROVIDER_EXECUTION_STRESS_PROFILE.frozen_at,
+        )
+    )
     readiness = evaluate_pre_holdout_readiness(
-        provider_economics_frozen=False,
+        provider_economics_frozen=(
+            provider_freeze.pre_holdout_provider_economics_ready
+        ),
         calibration_freeze_manifest_sealed=False,
         phase20d_causal_gate_passed=receipts.phase20_shadow_passed,
         phase21_policy_freeze_sealed=receipts.phase21_policy_freeze_sealed,
@@ -124,7 +137,30 @@ def build_report(
         "config_sha256": _sha256(protocol),
         "calibration_matrix_sha256": calibration_matrix_sha256(),
         "burn_registry_sha256": _sha256(burns),
-        "provider_economics_status": provider_status,
+        "provider_economics_status": (
+            "CURRENT_DEMO_TERMS_PLUS_STRESS_BOUND_EXECUTION_MODEL_READY"
+            if provider_freeze.pre_holdout_provider_economics_ready
+            else provider_status
+        ),
+        "provider_economics_freeze": {
+            "fingerprint": provider_freeze.fingerprint(),
+            "ready": provider_freeze.pre_holdout_provider_economics_ready,
+            "empirical_slippage_frozen": provider_freeze.empirical_slippage_frozen,
+            "stress_bound_execution_model_frozen": (
+                provider_freeze.stress_bound_execution_model_frozen
+            ),
+            "execution_model_basis": provider_freeze.execution_model_basis,
+            "stress_profile_sha256": provider_freeze.stress_profile_sha256,
+            "blockers": list(provider_freeze.blockers),
+        },
+        "provider_execution_stress_profile": {
+            "profile_id": FROZEN_PROVIDER_EXECUTION_STRESS_PROFILE.profile_id,
+            "frozen_at": FROZEN_PROVIDER_EXECUTION_STRESS_PROFILE.frozen_at.isoformat(),
+            "fingerprint": FROZEN_PROVIDER_EXECUTION_STRESS_PROFILE.fingerprint(),
+            "scenario_count": len(FROZEN_PROVIDER_EXECUTION_STRESS_PROFILE.scenarios),
+            "empirical_slippage_claimed": False,
+            "holdout_outcomes_used": False,
+        },
         "provider_economics": {
             "workflow_run_id": provider.workflow_run_id,
             "artifact_id": provider.artifact_id,
