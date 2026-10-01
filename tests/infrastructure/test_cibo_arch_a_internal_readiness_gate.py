@@ -453,7 +453,12 @@ def _phase22_v2_manifest_payload(
         "candidate_id": gate.PHASE22_V2_CANDIDATE_ID,
         "window_start": gate.PHASE22_V2_WINDOW_START,
         "window_end_exclusive": gate.PHASE22_V2_WINDOW_END_EXCLUSIVE,
-        "qualification_plan_sha256": gate.phase20d_qualification_plan_sha256(),
+        "qualification_plan_sha256": (
+            gate.phase22_holdout_qualification_plan_sha256()
+        ),
+        "economic_protocol_plan_sha256": (
+            gate.phase20d_qualification_plan_sha256()
+        ),
         "qualification_status": qualification_status,
         "trader_ids": list(gate.PHASE22_V2_REQUIRED_TRADERS),
         "fold_ids": list(gate.PHASE22_V2_REQUIRED_FOLDS),
@@ -722,3 +727,31 @@ def test_phase22_v2_workstream_matrix_requires_admissible_intake() -> None:
             intake,
             mechanism,
         )
+
+
+def test_phase22_v2_intake_rejects_phase20_digest_in_phase22_slot() -> None:
+    payload = _phase22_v2_manifest_payload()
+    payload["qualification_plan_sha256"] = gate.phase20d_qualification_plan_sha256()
+    unsigned = dict(payload)
+    unsigned.pop("manifest_sha256")
+    payload["manifest_sha256"] = gate.forward_manifest_payload_sha256(unsigned)
+
+    with pytest.raises(
+        gate.ArchitectAReadinessError,
+        match="qualification-plan drift",
+    ):
+        gate.evaluate_architect_a_phase22_v2_scientific_intake(payload)
+
+
+def test_phase22_v2_intake_rejects_economic_protocol_digest_drift() -> None:
+    payload = _phase22_v2_manifest_payload()
+    payload["economic_protocol_plan_sha256"] = "sha256:" + "0" * 64
+    unsigned = dict(payload)
+    unsigned.pop("manifest_sha256")
+    payload["manifest_sha256"] = gate.forward_manifest_payload_sha256(unsigned)
+
+    with pytest.raises(
+        gate.ArchitectAReadinessError,
+        match="economic-protocol drift",
+    ):
+        gate.evaluate_architect_a_phase22_v2_scientific_intake(payload)

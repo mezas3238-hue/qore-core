@@ -21,6 +21,9 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
     FROZEN_PHASE20D_QUALIFICATION_PLAN,
     phase20d_qualification_plan_sha256,
 )
+from qore.infrastructure.cibo_ce2i_phase22_qualification_plan import (
+    phase22_holdout_qualification_plan_sha256,
+)
 
 LEDGER_PATH = Path("docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json")
 SCHEMA = "QORE_CIBO_ARCH_A_INTERNAL_READINESS_V1"
@@ -948,10 +951,17 @@ def evaluate_architect_a_phase22_v2_scientific_intake(
         )
     if (
         payload.get("qualification_plan_sha256")
-        != phase20d_qualification_plan_sha256()
+        != phase22_holdout_qualification_plan_sha256()
     ):
         raise ArchitectAReadinessError(
             "Architect A Phase22 V2 qualification-plan drift"
+        )
+    if (
+        payload.get("economic_protocol_plan_sha256")
+        != phase20d_qualification_plan_sha256()
+    ):
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 economic-protocol drift"
         )
 
     qualification_status = _require_nonempty_str(
