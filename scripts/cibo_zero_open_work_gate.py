@@ -188,6 +188,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_arch_a_final_exam_closure_controls*", "FINAL_INTEGRATED_CIBO_EXAM"),
     ("*cibo_arch_a_final_exam_scientific_controls*", "FINAL_INTEGRATED_CIBO_EXAM"),
     ("*cibo_arch_a_final_source_truth_control*", "FINAL_INTEGRATED_CIBO_EXAM"),
+    ("*cibo_arch_a_final_pre_exam_control*", "FINAL_INTEGRATED_CIBO_EXAM"),
     ("*cibo_final_certification_contract*", "SOURCE_OF_TRUTH_RECONCILIATION"),
     ("*phase18*", "HISTORICAL_PHASE18_REPLAY_EVIDENCE"),
     ("*phase19*", "BURNED_PHASE19_RESEARCH_EVIDENCE"),
@@ -723,7 +724,8 @@ def main() -> int:
     parser.add_argument(
         "--pre-exam",
         action="store_true",
-        help="Exclude only FINAL_INTEGRATED_CIBO_EXAM from the closure scope.",
+        help=("Exclude only FINAL_INTEGRATED_CIBO_EXAM and "
+              "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM from the closure scope."),
     )
     args = parser.parse_args()
     verdict = evaluate_pre_exam_gate() if args.pre_exam else evaluate_gate()
