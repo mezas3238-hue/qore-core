@@ -67,6 +67,10 @@ class CompoundStressScenario:
             not isinstance(self.evidence_sha256, str)
             or not self.evidence_sha256.startswith("sha256:")
             or len(self.evidence_sha256) != 71
+            or any(
+                char not in "0123456789abcdef"
+                for char in self.evidence_sha256[7:]
+            )
         ):
             raise CiboCompoundCapitalError(
                 "compound stress evidence SHA is invalid"
@@ -95,13 +99,29 @@ class CompoundStressResult:
             raise CiboCompoundCapitalError(
                 "compound stress result Monte Carlo is invalid"
             )
-        if (
-            self.baseline_episode_count <= 0
-            or self.stressed_episode_count <= 0
+        for name in (
+            "baseline_episode_count",
+            "stressed_episode_count",
         ):
+            value = getattr(self, name)
+            if type(value) is not int or value <= 0:
+                raise CiboCompoundCapitalError(
+                    "compound stress episode counts must be positive ints"
+                )
+        if self.scenario.kind is CompoundStressKind.WINNER_DROUGHT:
+            if self.stressed_episode_count > self.baseline_episode_count:
+                raise CiboCompoundCapitalError(
+                    "winner-drought stress cannot increase episode count"
+                )
+        elif self.stressed_episode_count != self.baseline_episode_count:
             raise CiboCompoundCapitalError(
-                "compound stress episode counts must be positive"
+                "compound stress transform episode-count drift"
             )
+        for name in ("market_probability_claimed", "certification_ready"):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"compound stress result {name} must be bool"
+                )
         if self.market_probability_claimed or self.certification_ready:
             raise CiboCompoundCapitalError(
                 "compound stress result cannot claim certification"

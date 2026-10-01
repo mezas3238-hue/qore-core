@@ -54,14 +54,49 @@ class Genc9EconomicGateRow:
             raise CiboCompoundCapitalError(
                 "GEN-C9 economic gate status is invalid"
             )
-        if len(self.failed_dimensions) != len(set(self.failed_dimensions)):
+        for name in (
+            "safety_no_worse",
+            "strict_growth_or_efficiency_improvement",
+            "weighted_score_used",
+            "production_promotion",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"GEN-C9 economic gate {name} must be bool"
+                )
+        if (
+            not isinstance(self.failed_dimensions, tuple)
+            or any(not isinstance(item, str) or not item for item in self.failed_dimensions)
+            or len(self.failed_dimensions) != len(set(self.failed_dimensions))
+        ):
             raise CiboCompoundCapitalError(
-                "GEN-C9 failed dimensions must be unique"
+                "GEN-C9 failed dimensions are invalid"
             )
         if self.weighted_score_used or self.production_promotion:
             raise CiboCompoundCapitalError(
                 "GEN-C9 economic gate cannot score/promote production"
             )
+        if self.status is Genc9EconomicGateStatus.CONTROL:
+            if (
+                not self.safety_no_worse
+                or self.strict_growth_or_efficiency_improvement
+                or self.failed_dimensions
+            ):
+                raise CiboCompoundCapitalError("GEN-C9 economic CONTROL row drift")
+            return
+        expected_status = (
+            Genc9EconomicGateStatus.REJECTED_SAFETY_DETERIORATION
+            if not self.safety_no_worse
+            else (
+                Genc9EconomicGateStatus.REJECTED_NO_STRICT_ECONOMIC_IMPROVEMENT
+                if not self.strict_growth_or_efficiency_improvement
+                else Genc9EconomicGateStatus.ELIGIBLE_FOR_FURTHER_RESEARCH
+            )
+        )
+        if self.status is not expected_status:
+            raise CiboCompoundCapitalError("GEN-C9 economic gate status/metric drift")
+        if self.safety_no_worse != (not self.failed_dimensions):
+            raise CiboCompoundCapitalError("GEN-C9 economic gate safety/dimension drift")
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +139,14 @@ class Genc9EconomicGateReport:
             raise CiboCompoundCapitalError(
                 "GEN-C9 economic gate control row is missing"
             )
+        controls = tuple(
+            row for row in self.rows if row.status is Genc9EconomicGateStatus.CONTROL
+        )
+        if (
+            len(controls) != 1
+            or controls[0].candidate_id != self.control_candidate_id
+        ):
+            raise CiboCompoundCapitalError("GEN-C9 economic gate control row drift")
         if (
             not self.economic_gate_preregistered
             or self.winner_candidate_id is not None

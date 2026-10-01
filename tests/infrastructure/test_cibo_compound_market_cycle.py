@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -994,3 +995,13 @@ def test_compound_funding_loss_consumes_same_amount_in_both_ledgers(
         "98.5"
     )
     assert state.capital_truth.nonconsumed_residual_usd == Decimal("0")
+
+def test_compound_cycle_audit_rejects_manual_generation_drift() -> None:
+    audit = reconcile_compound_cycle(_funded_compound_state())
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="generation lineage/highest-generation drift",
+    ):
+        replace(audit, highest_generation=2)
+

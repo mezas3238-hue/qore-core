@@ -180,6 +180,6 @@ def test_high_uncertainty_returns_insufficient_not_forced_deployment() -> None:
 def test_cel5_forbids_outcome_aware_marginal_evidence() -> None:
     with pytest.raises(
         CiboCompoundCapitalError,
-        match="cannot contain realized outcome fields",
+        match="cannot contain outcomes, utility or authority",
     ):
         replace(_marginal(), outcome_present=True)

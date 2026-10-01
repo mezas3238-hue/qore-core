@@ -1,0 +1,31 @@
+name: QORE CIBO Phase22 Historical Replay Settlement
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/qore/infrastructure/cibo_phase22_historical_replay_settlement.py'
+      - 'tests/infrastructure/test_cibo_phase22_historical_replay_settlement.py'
+      - '.github/workflows/cibo-phase22-historical-replay-settlement.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  historical-replay-settlement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Replay settlement provenance and accounting
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_phase22_historical_replay_settlement.py \
+            tests/infrastructure/test_cibo_phase22_historical_replay_settlement.py
+          mypy \
+            src/qore/infrastructure/cibo_phase22_historical_replay_settlement.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase22_historical_replay_settlement.py

@@ -1,0 +1,48 @@
+name: QORE CIBO World Cup Maximum Capability Exam
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-world-cup-maximum-capability-exam.yml'
+      - 'src/qore/infrastructure/cibo_world_cup_maximum_capability_exam.py'
+      - 'src/qore/infrastructure/cibo_world_cup_entry_controls.py'
+      - 'tests/infrastructure/test_cibo_world_cup_maximum_capability_exam.py'
+      - 'tests/infrastructure/test_cibo_world_cup_entry_controls.py'
+      - 'docs/research/CIBO-WORLD-CUP-MAXIMUM-CAPABILITY-EXAM-PROTOCOL-V1.md'
+      - 'docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md'
+      - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  world-cup-maximum-capability-exam:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: World Cup receipt-bound exam quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_world_cup_maximum_capability_exam.py \
+            src/qore/infrastructure/cibo_world_cup_entry_controls.py \
+            tests/infrastructure/test_cibo_world_cup_maximum_capability_exam.py \
+            tests/infrastructure/test_cibo_world_cup_entry_controls.py
+          mypy \
+            src/qore/infrastructure/cibo_world_cup_maximum_capability_exam.py \
+            src/qore/infrastructure/cibo_world_cup_entry_controls.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_world_cup_maximum_capability_exam.py \
+            src/qore/infrastructure/cibo_world_cup_entry_controls.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_world_cup_maximum_capability_exam.py \
+            tests/infrastructure/test_cibo_world_cup_entry_controls.py

@@ -1,0 +1,46 @@
+name: QORE CIBO T13 Drawdown Reserve OOS Utility
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-t13-drawdown-reserve-oos-utility.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_oos_utility.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_oos_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_policy.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_shadow_treatment_store.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t13_oos_utility.py'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  t13-oos-utility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: T13 fixed OOS utility contract
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_ce2i_phase20_t13_oos_utility.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_oos_utility.py
+          mypy \
+            src/qore/infrastructure/cibo_ce2i_phase20_t13_oos_utility.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_ce2i_phase20_t13_oos_utility.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_phase20_t13_oos_utility.py

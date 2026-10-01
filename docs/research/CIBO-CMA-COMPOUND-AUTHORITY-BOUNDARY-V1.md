@@ -18,3 +18,11 @@ It asserts:
 
 This closes duplicate-authority/accounting risk at the engine level. It does
 not prove economic utility or certify CIBO.
+
+## Terminalization rule
+
+The master ledger may mark `CMA_FOUNDATION_INTEGRATION` terminal only after
+the `cibo-cma-compound-boundary` workflow is GREEN on the current Architect A
+lineage. Later capital-science work does not reopen this engineering boundary
+unless it changes one of the authority/accounting surfaces covered by that
+workflow.

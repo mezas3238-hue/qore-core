@@ -152,6 +152,21 @@ class Phase20T13UtilityReport:
             raise CiboCapitalManagementError(
                 "Phase20 T13 utility fold vector length drift"
             )
+        fold_count = len(self.fold_treatment_net_delta_usd)
+        if fold_count not in {
+            0,
+            FROZEN_PHASE20D_QUALIFICATION_PLAN.fold_count,
+        }:
+            raise CiboCapitalManagementError(
+                "Phase20 T13 utility report requires frozen fold count"
+            )
+        if (
+            self.population_ready
+            and fold_count != FROZEN_PHASE20D_QUALIFICATION_PLAN.fold_count
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20 T13 ready report requires frozen fold count"
+            )
         for values, label in (
             (self.fold_baseline_net_delta_usd, "baseline fold deltas"),
             (self.fold_treatment_net_delta_usd, "treatment fold deltas"),
@@ -181,12 +196,49 @@ class Phase20T13UtilityReport:
             raise CiboCapitalManagementError(
                 "Phase20 T13 utility cannot grant runtime authority"
             )
+        if not isinstance(self.blockers, tuple) or any(
+            not isinstance(item, str) or not item for item in self.blockers
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20 T13 utility blockers must be non-empty strings"
+            )
+        if len(self.blockers) != len(set(self.blockers)):
+            raise CiboCapitalManagementError(
+                "Phase20 T13 utility blockers must be unique"
+            )
         if self.fresh_oos_utility_demonstrated != (
             self.population_ready and not self.blockers
         ):
             raise CiboCapitalManagementError(
                 "Phase20 T13 utility result/blocker drift"
             )
+        if self.fresh_oos_utility_demonstrated:
+            plan = FROZEN_PHASE20D_QUALIFICATION_PLAN
+            if (
+                self.candidate_instances <= 0
+                or self.baseline_selected_instances <= 0
+                or self.treatment_selected_instances <= 0
+                or self.selection_changed_epochs <= 0
+                or self.total_shadow_reserved_risk_usd <= 0
+                or self.candidate_outcome_coverage
+                < plan.minimum_candidate_outcome_coverage
+                or self.baseline_selected_outcome_coverage
+                < plan.required_baseline_selected_outcome_coverage
+                or self.treatment_selected_outcome_coverage
+                < plan.required_selected_outcome_coverage
+                or any(
+                    value <= 0
+                    for value in self.fold_treatment_net_delta_usd
+                )
+                or self.treatment_net_delta_usd <= 0
+                or self.treatment_settlement_cash_drawdown_usd
+                > self.baseline_settlement_cash_drawdown_usd
+                or self.treatment_capital_productivity
+                <= self.baseline_capital_productivity
+            ):
+                raise CiboCapitalManagementError(
+                    "Phase20 T13 utility PASS metric drift"
+                )
 
 
 def assess_phase20_t13_oos_utility(
@@ -247,14 +299,14 @@ def assess_phase20_t13_oos_utility(
     baseline_rows: list[Phase20QualificationRow] = []
     treatment_rows: list[Phase20QualificationRow] = []
     for row in scoped:
-        treatment = treatment_by_sha.get(row.decision_evidence_sha256)
-        if treatment is None:
+        treatment_seal = treatment_by_sha.get(row.decision_evidence_sha256)
+        if treatment_seal is None:
             continue
         baseline_set = set(
-            treatment.baseline_selected_signal_fingerprints
+            treatment_seal.baseline_selected_signal_fingerprints
         )
         treatment_set = set(
-            treatment.treatment_selected_signal_fingerprints
+            treatment_seal.treatment_selected_signal_fingerprints
         )
         if row.policy_selected != (row.signal_fingerprint in baseline_set):
             raise CiboCapitalManagementError(

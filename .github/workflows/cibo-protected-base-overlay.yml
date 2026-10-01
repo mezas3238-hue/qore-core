@@ -1,12 +1,20 @@
 name: QORE CIBO Protected Base Overlay
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+
 on:
   workflow_dispatch:
   pull_request:
     paths:
       - '.github/workflows/cibo-protected-base-overlay.yml'
       - 'src/qore/infrastructure/cibo_protected_base_overlay.py'
+      - 'src/qore/infrastructure/cibo_protected_base_policy_gate.py'
       - 'tests/infrastructure/test_cibo_protected_base_overlay.py'
+      - 'tests/infrastructure/test_cibo_protected_base_policy_gate.py'
+      - 'docs/research/CIBO-PROTECTED-BASE-NONCOMPENSATORY-NUMERIC-POLICY-GATE-V1.md'
       - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
   push:
     branches:
@@ -14,7 +22,10 @@ on:
     paths:
       - '.github/workflows/cibo-protected-base-overlay.yml'
       - 'src/qore/infrastructure/cibo_protected_base_overlay.py'
+      - 'src/qore/infrastructure/cibo_protected_base_policy_gate.py'
       - 'tests/infrastructure/test_cibo_protected_base_overlay.py'
+      - 'tests/infrastructure/test_cibo_protected_base_policy_gate.py'
+      - 'docs/research/CIBO-PROTECTED-BASE-NONCOMPENSATORY-NUMERIC-POLICY-GATE-V1.md'
       - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
 
 permissions:
@@ -38,9 +49,15 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/cibo_protected_base_overlay.py \
-            tests/infrastructure/test_cibo_protected_base_overlay.py
-          mypy src/qore/infrastructure/cibo_protected_base_overlay.py
+            src/qore/infrastructure/cibo_protected_base_policy_gate.py \
+            tests/infrastructure/test_cibo_protected_base_overlay.py \
+            tests/infrastructure/test_cibo_protected_base_policy_gate.py
+          mypy \
+            src/qore/infrastructure/cibo_protected_base_overlay.py \
+            src/qore/infrastructure/cibo_protected_base_policy_gate.py
           python -m py_compile \
-            src/qore/infrastructure/cibo_protected_base_overlay.py
+            src/qore/infrastructure/cibo_protected_base_overlay.py \
+            src/qore/infrastructure/cibo_protected_base_policy_gate.py
           pytest -q --no-cov \
-            tests/infrastructure/test_cibo_protected_base_overlay.py
+            tests/infrastructure/test_cibo_protected_base_overlay.py \
+            tests/infrastructure/test_cibo_protected_base_policy_gate.py

@@ -1,0 +1,32 @@
+name: QORE CIBO Final Integrated Exam Architect B Ledger Transition
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/qore/infrastructure/cibo_final_integrated_exam_arch_b_ledger_transition.py'
+      - 'tests/infrastructure/test_cibo_final_integrated_exam_arch_b_ledger_transition.py'
+      - '.github/workflows/cibo-final-integrated-exam-arch-b-ledger-transition.yml'
+      - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
+
+permissions:
+  contents: read
+
+jobs:
+  arch-b-ledger-transition:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Exact ten-row Architect-B transition
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_final_integrated_exam_arch_b_ledger_transition.py \
+            tests/infrastructure/test_cibo_final_integrated_exam_arch_b_ledger_transition.py
+          mypy \
+            src/qore/infrastructure/cibo_final_integrated_exam_arch_b_ledger_transition.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_final_integrated_exam_arch_b_ledger_transition.py

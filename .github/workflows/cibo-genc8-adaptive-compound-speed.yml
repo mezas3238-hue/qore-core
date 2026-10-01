@@ -1,5 +1,10 @@
 name: QORE CIBO GEN-C8 Adaptive Compound Speed
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+
 on:
   workflow_dispatch:
   pull_request:
@@ -8,8 +13,11 @@ on:
       - 'src/qore/infrastructure/cibo_adaptive_compound_speed_shadow.py'
       - 'src/qore/infrastructure/cibo_adaptive_compound_speed_store.py'
       - 'src/qore/infrastructure/cibo_adaptive_compound_speed_population.py'
+      - 'src/qore/infrastructure/cibo_adaptive_compound_speed_economic_gate.py'
       - 'tests/infrastructure/test_cibo_adaptive_compound_speed_shadow.py'
+      - 'tests/infrastructure/test_cibo_adaptive_compound_speed_economic_gate.py'
       - 'docs/research/CIBO-GEN-C8-ADAPTIVE-COMPOUND-SPEED-SHADOW-PREREGISTRATION-V1.md'
+      - 'docs/research/CIBO-GEN-C8-ADAPTIVE-COMPOUND-SPEED-NONCOMPENSATORY-ECONOMIC-GATE-V1.md'
   push:
     branches:
       - agent/cibo-capital-efficiency-sizing-lab-001
@@ -18,8 +26,11 @@ on:
       - 'src/qore/infrastructure/cibo_adaptive_compound_speed_shadow.py'
       - 'src/qore/infrastructure/cibo_adaptive_compound_speed_store.py'
       - 'src/qore/infrastructure/cibo_adaptive_compound_speed_population.py'
+      - 'src/qore/infrastructure/cibo_adaptive_compound_speed_economic_gate.py'
       - 'tests/infrastructure/test_cibo_adaptive_compound_speed_shadow.py'
+      - 'tests/infrastructure/test_cibo_adaptive_compound_speed_economic_gate.py'
       - 'docs/research/CIBO-GEN-C8-ADAPTIVE-COMPOUND-SPEED-SHADOW-PREREGISTRATION-V1.md'
+      - 'docs/research/CIBO-GEN-C8-ADAPTIVE-COMPOUND-SPEED-NONCOMPENSATORY-ECONOMIC-GATE-V1.md'
 
 permissions:
   contents: read
@@ -44,14 +55,19 @@ jobs:
             src/qore/infrastructure/cibo_adaptive_compound_speed_shadow.py \
             src/qore/infrastructure/cibo_adaptive_compound_speed_store.py \
             src/qore/infrastructure/cibo_adaptive_compound_speed_population.py \
-            tests/infrastructure/test_cibo_adaptive_compound_speed_shadow.py
+            src/qore/infrastructure/cibo_adaptive_compound_speed_economic_gate.py \
+            tests/infrastructure/test_cibo_adaptive_compound_speed_shadow.py \
+            tests/infrastructure/test_cibo_adaptive_compound_speed_economic_gate.py
           mypy \
             src/qore/infrastructure/cibo_adaptive_compound_speed_shadow.py \
             src/qore/infrastructure/cibo_adaptive_compound_speed_store.py \
-            src/qore/infrastructure/cibo_adaptive_compound_speed_population.py
+            src/qore/infrastructure/cibo_adaptive_compound_speed_population.py \
+            src/qore/infrastructure/cibo_adaptive_compound_speed_economic_gate.py
           python -m py_compile \
             src/qore/infrastructure/cibo_adaptive_compound_speed_shadow.py \
             src/qore/infrastructure/cibo_adaptive_compound_speed_store.py \
-            src/qore/infrastructure/cibo_adaptive_compound_speed_population.py
+            src/qore/infrastructure/cibo_adaptive_compound_speed_population.py \
+            src/qore/infrastructure/cibo_adaptive_compound_speed_economic_gate.py
           pytest -q --no-cov \
-            tests/infrastructure/test_cibo_adaptive_compound_speed_shadow.py
+            tests/infrastructure/test_cibo_adaptive_compound_speed_shadow.py \
+            tests/infrastructure/test_cibo_adaptive_compound_speed_economic_gate.py

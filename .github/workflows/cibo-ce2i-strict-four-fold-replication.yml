@@ -1,0 +1,52 @@
+name: QORE CIBO CE2I Strict Four Fold Replication
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-ce2i-strict-four-fold-replication.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_temporal_utility_replication.py'
+      - 'tests/infrastructure/test_cibo_ce2i_temporal_utility_replication.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_ablation.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py'
+      - 'docs/research/CIBO-CE2I-STRICT-FOUR-FOLD-UTILITY-REPLICATION-V1.md'
+      - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  strict-four-fold-replication:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: CE2I strict temporal replication contract
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_ce2i_temporal_utility_replication.py \
+            tests/infrastructure/test_cibo_ce2i_temporal_utility_replication.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_ablation.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py
+          mypy \
+            src/qore/infrastructure/cibo_ce2i_temporal_utility_replication.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_ablation.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_ce2i_temporal_utility_replication.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_ablation.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_temporal_utility_replication.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py

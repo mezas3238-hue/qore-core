@@ -1,0 +1,47 @@
+name: QORE CIBO Compound Causal Ablation Gate
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-compound-causal-ablation.yml'
+      - 'src/qore/infrastructure/cibo_compound_causal_ablation.py'
+      - 'tests/infrastructure/test_cibo_compound_causal_ablation.py'
+      - 'docs/research/CIBO-COMPOUND-CAUSAL-ABLATION-PROTOCOL-V1.md'
+  push:
+    branches:
+      - agent/cibo-certification-architect-a-science-001
+    paths:
+      - '.github/workflows/cibo-compound-causal-ablation.yml'
+      - 'src/qore/infrastructure/cibo_compound_causal_ablation.py'
+      - 'tests/infrastructure/test_cibo_compound_causal_ablation.py'
+      - 'docs/research/CIBO-COMPOUND-CAUSAL-ABLATION-PROTOCOL-V1.md'
+
+permissions:
+  contents: read
+
+jobs:
+  causal-ablation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Compound causal ablation quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_compound_causal_ablation.py \
+            tests/infrastructure/test_cibo_compound_causal_ablation.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_compound_causal_ablation.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_compound_causal_ablation.py

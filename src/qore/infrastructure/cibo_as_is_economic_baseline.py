@@ -1,0 +1,722 @@
+"""Materialize the provider-valid AS-IS economic baseline for Architect A.
+
+This adapter consumes, but never mutates, the frozen Phase20D qualification
+report and the strict forward Compound binding. It accepts economically PASS or
+FAIL populations when causal readiness is complete; NOT_READY and INVALID fail
+closed. No missing value is synthesized.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+from dataclasses import dataclass
+from decimal import Decimal
+from enum import StrEnum
+
+from qore.infrastructure.cibo_ce2i_phase20_qualification import (
+    Phase20QualificationReport,
+    Phase20QualificationStatus,
+)
+from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
+    FROZEN_PHASE20D_QUALIFICATION_PLAN,
+    phase20d_qualification_plan_sha256,
+)
+from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
+from qore.infrastructure.cibo_compound_real_population_binding import (
+    ForwardCompoundEconomicRecord,
+    bind_forward_compound_population,
+)
+
+AS_IS_CONTROL_ID = "CIBO_GENERATION_CURRENT_CONTROL_V1"
+AS_IS_CONTROL_GIT_SHA = "87d98ced8d56b275823c4472392923ba6a11d769"
+_CANONICAL_FOLDS = ("WF1", "WF2", "WF3", "WF4")
+_SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+
+
+class AsIsEconomicBaselineState(StrEnum):
+    MATERIALIZED = "MATERIALIZED"
+
+
+@dataclass(frozen=True, slots=True)
+class AsIsEconomicBaselineMeasurement:
+    state: AsIsEconomicBaselineState
+    control_id: str
+    control_git_sha: str
+    phase20_plan_id: str
+    phase20_plan_sha256: str
+    candidate_id: str
+    qualification_status: Phase20QualificationStatus
+    qualification_failures: tuple[str, ...]
+    account_identity_fingerprint: str
+    source_manifest_sha256: str
+    phase20_population_sha256: str
+    compound_population_sha256: str
+    decision_epoch_count: int
+    candidate_row_count: int
+    fold_ids: tuple[str, ...]
+    policy_net_delta_usd: Decimal
+    baseline_net_delta_usd: Decimal
+    policy_settlement_cash_drawdown_usd: Decimal
+    baseline_settlement_cash_drawdown_usd: Decimal
+    policy_capital_productivity: Decimal
+    baseline_capital_productivity: Decimal
+    policy_acceptance_rate: Decimal
+    baseline_acceptance_rate: Decimal
+    policy_selected_outcome_coverage: Decimal
+    baseline_selected_outcome_coverage: Decimal
+    candidate_outcome_coverage: Decimal
+    capital_utilization: Decimal
+    capital_starvation_rate: Decimal
+    mpc_reserve_efficiency: Decimal
+    optionality_preserved_rate: Decimal
+    concentration_utilization: Decimal
+    provider_failure_incidence: Decimal
+    evidence_missingness: Decimal
+    compound_episode_count: int
+    gross_compound_deployment_usd: Decimal
+    compound_realized_net_pnl_usd: Decimal
+    compound_protected_floor_graduation_usd: Decimal
+    compound_capital_minutes_usd: Decimal
+    compound_stop_risk_minutes_usd: Decimal
+    compound_margin_minutes_usd: Decimal
+    max_source_generation: int
+    synthetic_values_used: bool = False
+    treatment_effect_claimed: bool = False
+    certification_ready: bool = False
+
+    def __post_init__(self) -> None:
+        if self.state is not AsIsEconomicBaselineState.MATERIALIZED:
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline measurement state drift"
+            )
+        if (
+            self.control_id != AS_IS_CONTROL_ID
+            or self.control_git_sha != AS_IS_CONTROL_GIT_SHA
+            or self.phase20_plan_id != FROZEN_PHASE20D_QUALIFICATION_PLAN.plan_id
+            or self.phase20_plan_sha256 != phase20d_qualification_plan_sha256()
+            or self.candidate_id != FROZEN_PHASE20D_QUALIFICATION_PLAN.candidate_id
+        ):
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline frozen identity drift"
+            )
+        if self.qualification_status not in {
+            Phase20QualificationStatus.PASS,
+            Phase20QualificationStatus.FAIL,
+        }:
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline requires empirical PASS or FAIL"
+            )
+        if (
+            not isinstance(self.qualification_failures, tuple)
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.qualification_failures
+            )
+            or len(self.qualification_failures)
+            != len(set(self.qualification_failures))
+        ):
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline qualification failures are invalid"
+            )
+        if (
+            self.qualification_status is Phase20QualificationStatus.PASS
+            and self.qualification_failures
+        ) or (
+            self.qualification_status is Phase20QualificationStatus.FAIL
+            and not self.qualification_failures
+        ):
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline qualification status/failure drift"
+            )
+        if not self.account_identity_fingerprint:
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline account identity is required"
+            )
+        for name in (
+            "source_manifest_sha256",
+            "phase20_population_sha256",
+            "compound_population_sha256",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, str) or _SHA256_RE.fullmatch(value) is None:
+                raise CiboCompoundCapitalError(
+                    f"AS-IS baseline {name} must be canonical SHA-256"
+                )
+        plan = FROZEN_PHASE20D_QUALIFICATION_PLAN
+        for name, minimum in (
+            ("decision_epoch_count", plan.minimum_decision_epochs),
+            ("candidate_row_count", plan.minimum_candidate_outcomes),
+            ("compound_episode_count", 1),
+            ("max_source_generation", 1),
+        ):
+            value = getattr(self, name)
+            if type(value) is not int or value < minimum:
+                raise CiboCompoundCapitalError(
+                    f"AS-IS baseline {name} is below frozen minimum"
+                )
+        if self.fold_ids != _CANONICAL_FOLDS:
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline requires ordered WF1..WF4"
+            )
+        for name in (
+            "policy_net_delta_usd",
+            "baseline_net_delta_usd",
+            "policy_capital_productivity",
+            "baseline_capital_productivity",
+            "compound_realized_net_pnl_usd",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, Decimal) or not value.is_finite():
+                raise CiboCompoundCapitalError(
+                    f"AS-IS baseline {name} must be finite Decimal"
+                )
+        for name in (
+            "policy_settlement_cash_drawdown_usd",
+            "baseline_settlement_cash_drawdown_usd",
+            "compound_protected_floor_graduation_usd",
+        ):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, Decimal)
+                or not value.is_finite()
+                or value < 0
+            ):
+                raise CiboCompoundCapitalError(
+                    f"AS-IS baseline {name} must be non-negative Decimal"
+                )
+        for name in (
+            "gross_compound_deployment_usd",
+            "compound_capital_minutes_usd",
+            "compound_stop_risk_minutes_usd",
+            "compound_margin_minutes_usd",
+        ):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, Decimal)
+                or not value.is_finite()
+                or value <= 0
+            ):
+                raise CiboCompoundCapitalError(
+                    f"AS-IS baseline {name} must be positive Decimal"
+                )
+        for name in (
+            "policy_acceptance_rate",
+            "baseline_acceptance_rate",
+            "policy_selected_outcome_coverage",
+            "baseline_selected_outcome_coverage",
+            "candidate_outcome_coverage",
+            "capital_utilization",
+            "capital_starvation_rate",
+            "mpc_reserve_efficiency",
+            "optionality_preserved_rate",
+            "concentration_utilization",
+            "provider_failure_incidence",
+            "evidence_missingness",
+        ):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, Decimal)
+                or not value.is_finite()
+                or value < 0
+                or value > 1
+            ):
+                raise CiboCompoundCapitalError(
+                    f"AS-IS baseline {name} must be Decimal in [0,1]"
+                )
+        if (
+            self.candidate_outcome_coverage
+            < plan.minimum_candidate_outcome_coverage
+            or self.policy_selected_outcome_coverage
+            < plan.required_selected_outcome_coverage
+            or self.baseline_selected_outcome_coverage
+            < plan.required_baseline_selected_outcome_coverage
+        ):
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline frozen outcome coverage not met"
+            )
+        for name in (
+            "synthetic_values_used",
+            "treatment_effect_claimed",
+            "certification_ready",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"AS-IS baseline {name} must be bool"
+                )
+        if (
+            self.synthetic_values_used
+            or self.treatment_effect_claimed
+            or self.certification_ready
+        ):
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline governance/claim drift"
+            )
+
+
+def materialize_as_is_economic_baseline(
+    *,
+    report: Phase20QualificationReport,
+    compound_records: tuple[ForwardCompoundEconomicRecord, ...],
+) -> AsIsEconomicBaselineMeasurement:
+    """Materialize the AS-IS population without retuning or counterfactual claims."""
+
+    if not isinstance(report, Phase20QualificationReport):
+        raise CiboCompoundCapitalError(
+            "AS-IS baseline requires canonical Phase20 qualification report"
+        )
+    if report.status in {
+        Phase20QualificationStatus.NOT_READY,
+        Phase20QualificationStatus.INVALID,
+    }:
+        raise CiboCompoundCapitalError(
+            "AS-IS baseline requires causally ready non-invalid population"
+        )
+    if not report.readiness.ready:
+        raise CiboCompoundCapitalError(
+            "AS-IS baseline readiness must be true"
+        )
+    plan = FROZEN_PHASE20D_QUALIFICATION_PLAN
+    if (
+        report.plan_id != plan.plan_id
+        or report.plan_sha256 != phase20d_qualification_plan_sha256()
+        or report.candidate_id != plan.candidate_id
+    ):
+        raise CiboCompoundCapitalError(
+            "AS-IS baseline Phase20 frozen lineage drift"
+        )
+    fold_ids = tuple(item.fold_id for item in report.folds)
+    if fold_ids != _CANONICAL_FOLDS:
+        raise CiboCompoundCapitalError(
+            "AS-IS baseline requires ordered WF1..WF4"
+        )
+    if not report.rows:
+        raise CiboCompoundCapitalError(
+            "AS-IS baseline Phase20 population cannot be empty"
+        )
+    decision_epoch_count = len(
+        {item.decision_epoch_id for item in report.rows}
+    )
+    observed_rows = tuple(
+        item for item in report.rows
+        if item.realized_net_pnl_usd is not None
+    )
+    candidate_outcomes = len(observed_rows)
+    selected_rows = tuple(item for item in report.rows if item.policy_selected)
+    selected_outcomes = sum(
+        1 for item in selected_rows if item.realized_net_pnl_usd is not None
+    )
+    decision_dates = tuple(item.decision_at.date() for item in report.rows)
+    calendar_span_days = (
+        (max(decision_dates) - min(decision_dates)).days + 1
+        if decision_dates
+        else 0
+    )
+    distinct_trading_days = len(set(decision_dates))
+    lineage_counts: dict[str, int] = {}
+    for item in observed_rows:
+        lineage_counts[item.trader_id] = lineage_counts.get(item.trader_id, 0) + 1
+    represented_lineages = len(lineage_counts)
+    minimum_outcomes_any_lineage = (
+        min(lineage_counts.values()) if lineage_counts else 0
+    )
+    if (
+        report.readiness.pre_freeze_decisions != 0
+        or report.readiness.missing_policy_decisions != 0
+        or report.readiness.decision_epochs != decision_epoch_count
+        or report.readiness.candidate_instances != len(report.rows)
+        or report.readiness.candidate_outcomes != candidate_outcomes
+        or report.readiness.selected_instances != len(selected_rows)
+        or report.readiness.selected_outcomes != selected_outcomes
+        or report.readiness.calendar_span_days != calendar_span_days
+        or report.readiness.distinct_trading_days != distinct_trading_days
+        or report.readiness.represented_lineages != represented_lineages
+        or report.readiness.minimum_outcomes_any_lineage
+        != minimum_outcomes_any_lineage
+        or report.readiness.candidate_outcome_coverage
+        != report.candidate_outcome_coverage
+        or report.readiness.selected_outcome_coverage
+        != report.policy_selected_outcome_coverage
+    ):
+        raise CiboCompoundCapitalError(
+            "AS-IS baseline readiness/report consistency drift"
+        )
+    if (
+        decision_epoch_count < plan.minimum_decision_epochs
+        or report.readiness.candidate_outcomes < plan.minimum_candidate_outcomes
+        or report.readiness.selected_outcomes < plan.minimum_selected_outcomes
+        or report.readiness.calendar_span_days < plan.minimum_calendar_span_days
+        or report.readiness.distinct_trading_days
+        < plan.minimum_distinct_trading_days
+        or report.readiness.represented_lineages < plan.minimum_global_lineages
+        or report.readiness.minimum_outcomes_any_lineage
+        < plan.minimum_outcomes_per_lineage
+        or report.readiness.minimum_fold_candidate_outcomes
+        < plan.minimum_fold_candidate_outcomes
+        or report.readiness.minimum_fold_lineages < plan.minimum_fold_lineages
+        or report.candidate_outcome_coverage
+        < plan.minimum_candidate_outcome_coverage
+        or report.policy_selected_outcome_coverage
+        < plan.required_selected_outcome_coverage
+        or report.baseline_selected_outcome_coverage
+        < plan.required_baseline_selected_outcome_coverage
+    ):
+        raise CiboCompoundCapitalError(
+            "AS-IS baseline frozen qualification thresholds not met"
+        )
+    if sum(item.decision_epoch_count for item in report.folds) != decision_epoch_count:
+        raise CiboCompoundCapitalError(
+            "AS-IS baseline temporal fold population count drift"
+        )
+    baseline_rows = tuple(item for item in report.rows if item.baseline_selected)
+    calculated_policy_net = sum(
+        (item.realized_net_pnl_usd or Decimal(0) for item in selected_rows),
+        Decimal(0),
+    )
+    calculated_baseline_net = sum(
+        (item.realized_net_pnl_usd or Decimal(0) for item in baseline_rows),
+        Decimal(0),
+    )
+    calculated_policy_coverage = _coverage(selected_rows)
+    calculated_baseline_coverage = _coverage(baseline_rows)
+    calculated_candidate_coverage = _coverage(tuple(report.rows))
+    calculated_policy_acceptance = _ratio(
+        Decimal(len(selected_rows)),
+        Decimal(len(report.rows)),
+    )
+    calculated_baseline_acceptance = _ratio(
+        Decimal(len(baseline_rows)),
+        Decimal(len(report.rows)),
+    )
+    calculated_policy_dd = _settlement_cash_drawdown(selected_rows)
+    calculated_baseline_dd = _settlement_cash_drawdown(baseline_rows)
+    calculated_policy_productivity = _ratio(
+        calculated_policy_net,
+        _risk_minute_denominator(selected_rows),
+    )
+    calculated_baseline_productivity = _ratio(
+        calculated_baseline_net,
+        _risk_minute_denominator(baseline_rows),
+    )
+    if (
+        report.policy_net_delta_usd != calculated_policy_net
+        or report.baseline_net_delta_usd != calculated_baseline_net
+        or report.policy_selected_outcome_coverage != calculated_policy_coverage
+        or report.baseline_selected_outcome_coverage
+        != calculated_baseline_coverage
+        or report.candidate_outcome_coverage != calculated_candidate_coverage
+        or report.policy_acceptance_rate != calculated_policy_acceptance
+        or report.baseline_acceptance_rate != calculated_baseline_acceptance
+        or report.policy_settlement_cash_drawdown_usd != calculated_policy_dd
+        or report.baseline_settlement_cash_drawdown_usd != calculated_baseline_dd
+        or report.policy_capital_productivity
+        != calculated_policy_productivity
+        or report.baseline_capital_productivity
+        != calculated_baseline_productivity
+    ):
+        raise CiboCompoundCapitalError(
+            "AS-IS baseline aggregate/report reconciliation drift"
+        )
+    if (
+        not isinstance(compound_records, tuple)
+        or not compound_records
+        or any(
+            not isinstance(item, ForwardCompoundEconomicRecord)
+            for item in compound_records
+        )
+    ):
+        raise CiboCompoundCapitalError(
+            "AS-IS baseline requires real forward Compound records"
+        )
+    bound_episodes = bind_forward_compound_population(compound_records)
+    if len(bound_episodes) != len(compound_records):
+        raise CiboCompoundCapitalError(
+            "AS-IS baseline Compound binding count drift"
+        )
+
+    manifests = {item.source_manifest_sha256 for item in compound_records}
+    accounts = {item.account_identity_fingerprint for item in compound_records}
+    if len(manifests) != 1 or len(accounts) != 1:
+        raise CiboCompoundCapitalError(
+            "AS-IS baseline Compound source/account lineage drift"
+        )
+    source_manifest_sha256 = next(iter(manifests))
+    account_identity_fingerprint = next(iter(accounts))
+    _sha(source_manifest_sha256, "source_manifest_sha256")
+
+    rows = {
+        (item.decision_epoch_id, item.signal_fingerprint): item
+        for item in report.rows
+    }
+    if len(rows) != len(report.rows):
+        raise CiboCompoundCapitalError(
+            "AS-IS baseline Phase20 row identity must be unique"
+        )
+    for item in compound_records:
+        row = rows.get((item.decision_id, item.signal_fingerprint))
+        if row is None:
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline Compound decision missing from Phase20 population"
+            )
+        if not row.policy_selected:
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline Compound deployment was not policy-selected"
+            )
+        if row.decision_at != item.decision_at:
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline decision timestamp lineage drift"
+            )
+        if (
+            row.trader_id != item.trader_id.value
+            or row.stop_risk_usd != item.stop_risk_usd
+            or row.margin_usd != item.margin_usd
+        ):
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline Trader/risk/margin lineage drift"
+            )
+        if row.realized_net_pnl_usd is None:
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline Compound deployment lacks realized outcome"
+            )
+        if row.realized_net_pnl_usd != item.realized_pnl_usd:
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline realized PnL lineage drift"
+            )
+        if item.frozen_candidate_id != report.candidate_id:
+            raise CiboCompoundCapitalError(
+                "AS-IS baseline candidate identity drift"
+            )
+
+    capital_minutes = Decimal(0)
+    stop_risk_minutes = Decimal(0)
+    margin_minutes = Decimal(0)
+    for item in compound_records:
+        duration = _minutes(item.settled_at - item.deployed_at)
+        capital_minutes += item.deployed_capital_usd * duration
+        stop_risk_minutes += item.stop_risk_usd * duration
+        margin_minutes += item.margin_usd * duration
+
+    return AsIsEconomicBaselineMeasurement(
+        state=AsIsEconomicBaselineState.MATERIALIZED,
+        control_id=AS_IS_CONTROL_ID,
+        control_git_sha=AS_IS_CONTROL_GIT_SHA,
+        phase20_plan_id=report.plan_id,
+        phase20_plan_sha256=report.plan_sha256,
+        candidate_id=report.candidate_id,
+        qualification_status=report.status,
+        qualification_failures=report.failures,
+        account_identity_fingerprint=account_identity_fingerprint,
+        source_manifest_sha256=source_manifest_sha256,
+        phase20_population_sha256=_phase20_population_sha256(report),
+        compound_population_sha256=_compound_population_sha256(compound_records),
+        decision_epoch_count=decision_epoch_count,
+        candidate_row_count=len(report.rows),
+        fold_ids=fold_ids,
+        policy_net_delta_usd=report.policy_net_delta_usd,
+        baseline_net_delta_usd=report.baseline_net_delta_usd,
+        policy_settlement_cash_drawdown_usd=(
+            report.policy_settlement_cash_drawdown_usd
+        ),
+        baseline_settlement_cash_drawdown_usd=(
+            report.baseline_settlement_cash_drawdown_usd
+        ),
+        policy_capital_productivity=report.policy_capital_productivity,
+        baseline_capital_productivity=report.baseline_capital_productivity,
+        policy_acceptance_rate=report.policy_acceptance_rate,
+        baseline_acceptance_rate=report.baseline_acceptance_rate,
+        policy_selected_outcome_coverage=report.policy_selected_outcome_coverage,
+        baseline_selected_outcome_coverage=(
+            report.baseline_selected_outcome_coverage
+        ),
+        candidate_outcome_coverage=report.candidate_outcome_coverage,
+        capital_utilization=report.capital_utilization,
+        capital_starvation_rate=report.capital_starvation_rate,
+        mpc_reserve_efficiency=report.mpc_reserve_efficiency,
+        optionality_preserved_rate=report.optionality_preserved_rate,
+        concentration_utilization=report.concentration_utilization,
+        provider_failure_incidence=report.provider_failure_incidence,
+        evidence_missingness=report.evidence_missingness,
+        compound_episode_count=len(compound_records),
+        gross_compound_deployment_usd=sum(
+            (item.deployed_capital_usd for item in compound_records),
+            Decimal(0),
+        ),
+        compound_realized_net_pnl_usd=sum(
+            (item.realized_pnl_usd for item in compound_records),
+            Decimal(0),
+        ),
+        compound_protected_floor_graduation_usd=sum(
+            (item.protected_floor_graduation_usd for item in compound_records),
+            Decimal(0),
+        ),
+        compound_capital_minutes_usd=capital_minutes,
+        compound_stop_risk_minutes_usd=stop_risk_minutes,
+        compound_margin_minutes_usd=margin_minutes,
+        max_source_generation=max(
+            item.source_generation for item in compound_records
+        ),
+    )
+
+
+def as_is_economic_baseline_sha256(
+    measurement: AsIsEconomicBaselineMeasurement,
+) -> str:
+    if not isinstance(measurement, AsIsEconomicBaselineMeasurement):
+        raise CiboCompoundCapitalError(
+            "AS-IS baseline digest requires canonical measurement"
+        )
+    payload = {
+        name: _json_value(getattr(measurement, name))
+        for name in measurement.__dataclass_fields__
+    }
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+def _phase20_population_sha256(report: Phase20QualificationReport) -> str:
+    payload = [
+        {
+            "decision_epoch_id": item.decision_epoch_id,
+            "decision_evidence_sha256": item.decision_evidence_sha256,
+            "decision_at": item.decision_at.isoformat(),
+            "signal_fingerprint": item.signal_fingerprint,
+            "trader_id": item.trader_id,
+            "stop_risk_usd": str(item.stop_risk_usd),
+            "margin_usd": str(item.margin_usd),
+            "expected_capital_minutes": str(item.expected_capital_minutes),
+            "provider_cost_proxy_usd": str(item.provider_cost_proxy_usd),
+            "policy_selected": item.policy_selected,
+            "baseline_selected": item.baseline_selected,
+            "realized_net_pnl_usd": _json_value(item.realized_net_pnl_usd),
+            "capital_minutes": _json_value(item.capital_minutes),
+            "outcome_observed_at": _json_value(item.outcome_observed_at),
+        }
+        for item in report.rows
+    ]
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+def _compound_population_sha256(
+    records: tuple[ForwardCompoundEconomicRecord, ...],
+) -> str:
+    payload = [
+        {
+            "episode_id": item.episode_id,
+            "deployment_id": item.deployment_id,
+            "decision_id": item.decision_id,
+            "signal_fingerprint": item.signal_fingerprint,
+            "decision_at": item.decision_at.isoformat(),
+            "deployed_at": item.deployed_at.isoformat(),
+            "settled_at": item.settled_at.isoformat(),
+            "source_generation": item.source_generation,
+            "deployed_capital_usd": str(item.deployed_capital_usd),
+            "stop_risk_usd": str(item.stop_risk_usd),
+            "margin_usd": str(item.margin_usd),
+            "realized_pnl_usd": str(item.realized_pnl_usd),
+            "protected_floor_graduation_usd": str(
+                item.protected_floor_graduation_usd
+            ),
+            "source_manifest_sha256": item.source_manifest_sha256,
+        }
+        for item in compound_records_sorted(records)
+    ]
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+def compound_records_sorted(
+    records: tuple[ForwardCompoundEconomicRecord, ...],
+) -> tuple[ForwardCompoundEconomicRecord, ...]:
+    return tuple(
+        sorted(
+            records,
+            key=lambda item: (
+                item.decision_at,
+                item.signal_fingerprint,
+                item.episode_id,
+            ),
+        )
+    )
+
+
+def _coverage(rows) -> Decimal:
+    if not rows:
+        return Decimal(1)
+    observed = sum(
+        1
+        for item in rows
+        if (
+            item.realized_net_pnl_usd is not None
+            and item.executed_initial_stop_risk_usd is not None
+            and item.realized_structural_outcome_r is not None
+            and item.capital_minutes is not None
+            and item.capital_minutes > 0
+        )
+    )
+    return Decimal(observed) / Decimal(len(rows))
+
+
+def _risk_minute_denominator(rows) -> Decimal:
+    return sum(
+        (
+            (item.executed_initial_stop_risk_usd or Decimal(0))
+            * (item.capital_minutes or Decimal(0))
+            for item in rows
+        ),
+        Decimal(0),
+    )
+
+
+def _settlement_cash_drawdown(rows) -> Decimal:
+    ordered = sorted(
+        (
+            (item.outcome_observed_at, item.signal_fingerprint, item.realized_net_pnl_usd)
+            for item in rows
+            if item.outcome_observed_at is not None
+            and item.realized_net_pnl_usd is not None
+        ),
+        key=lambda item: (item[0], item[1]),
+    )
+    equity = Decimal(0)
+    peak = Decimal(0)
+    maximum = Decimal(0)
+    for _, _, delta in ordered:
+        equity += delta
+        peak = max(peak, equity)
+        maximum = max(maximum, peak - equity)
+    return maximum
+
+
+def _ratio(numerator: Decimal, denominator: Decimal) -> Decimal:
+    if denominator == 0:
+        return Decimal(0)
+    return numerator / denominator
+
+
+def _minutes(delta) -> Decimal:
+    seconds = (
+        Decimal(delta.days * 86400 + delta.seconds)
+        + Decimal(delta.microseconds) / Decimal(1_000_000)
+    )
+    return seconds / Decimal(60)
+
+
+def _json_value(value):
+    if isinstance(value, Decimal):
+        return str(value)
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    if isinstance(value, StrEnum):
+        return value.value
+    if isinstance(value, tuple):
+        return [_json_value(item) for item in value]
+    return value
+
+
+def _sha(value: str, name: str) -> None:
+    if not isinstance(value, str) or _SHA256_RE.fullmatch(value) is None:
+        raise CiboCompoundCapitalError(
+            f"AS-IS baseline {name} must be canonical SHA-256"
+        )

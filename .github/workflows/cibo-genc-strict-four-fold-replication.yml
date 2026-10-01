@@ -1,0 +1,44 @@
+name: QORE CIBO GEN-C Strict Four Fold Replication
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-genc-strict-four-fold-replication.yml'
+      - 'src/qore/infrastructure/cibo_genc_strict_temporal_replication.py'
+      - 'tests/infrastructure/test_cibo_genc_strict_temporal_replication.py'
+      - 'docs/research/CIBO-GENC-STRICT-FOUR-FOLD-TEMPORAL-REPLICATION-V1.md'
+      - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  genc-strict-four-fold-replication:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: GEN-C strict temporal replication contract
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_genc_strict_temporal_replication.py \
+            tests/infrastructure/test_cibo_genc_strict_temporal_replication.py
+          mypy src/qore/infrastructure/cibo_genc_strict_temporal_replication.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_genc_strict_temporal_replication.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_genc_strict_temporal_replication.py

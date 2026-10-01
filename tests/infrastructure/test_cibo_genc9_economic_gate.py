@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from decimal import Decimal
 
+import pytest
+
+from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
 from qore.infrastructure.cibo_genc9_economic_gate import (
     GENC9_ECONOMIC_GATE_SHA256,
     Genc9EconomicGateStatus,
@@ -167,3 +171,17 @@ def test_genc9_gate_is_noncompensatory_for_ruin_and_capacity() -> None:
     )
     assert "ruin_path_count" in row.failed_dimensions
     assert "capacity_breach_path_count" in row.failed_dimensions
+
+def test_genc9_row_rejects_manual_status_metric_drift() -> None:
+    treatment = _summary(
+        candidate_id="treatment",
+        role=Genc9CandidateRole.TREATMENT,
+        median="115",
+        min_ending="106",
+        min_multiple="1.06",
+        median_multiple="1.15",
+        return_per_loss="1.3",
+    )
+    row = evaluate_genc9_economic_gate(_report(treatment)).rows[1]
+    with pytest.raises(CiboCompoundCapitalError, match="status/metric drift"):
+        replace(row, safety_no_worse=False)

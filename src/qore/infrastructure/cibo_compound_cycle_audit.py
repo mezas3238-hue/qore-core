@@ -101,11 +101,91 @@ class CompoundCycleReconciliation:
     certification_ready: bool = False
 
     def __post_init__(self) -> None:
-        if not self.state_sha256.startswith("sha256:"):
+        if (
+            not isinstance(self.state_sha256, str)
+            or not self.state_sha256.startswith("sha256:")
+            or len(self.state_sha256) != 71
+            or any(
+                char not in "0123456789abcdef"
+                for char in self.state_sha256[7:]
+            )
+        ):
             raise CiboCompoundCapitalError(
                 "compound audit state digest is invalid"
             )
-        if self.accounting_residual_usd != 0:
+        for name in (
+            "opening_original_base_usd",
+            "current_original_base_usd",
+            "admitted_realized_profit_usd",
+            "cumulative_realized_gains_usd",
+            "cumulative_realized_losses_usd",
+            "consumed_compound_capital_usd",
+            "base_capital_loss_usd",
+            "closing_realized_capital_usd",
+            "accounting_identity_usd",
+            "accounting_residual_usd",
+            "protected_floor_usd",
+            "compoundable_usd",
+            "strategic_reserve_usd",
+            "opportunity_reserve_usd",
+            "active_compound_capacity_usd",
+            "deployed_compound_capital_usd",
+            "original_capital_dependence_ratio",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, Decimal) or not value.is_finite():
+                raise CiboCompoundCapitalError(
+                    f"compound audit {name} must be finite Decimal"
+                )
+        for name in (
+            "active_t19_reservation_count",
+            "market_decision_count",
+            "deployment_count",
+            "settled_deployment_count",
+            "highest_generation",
+        ):
+            value = getattr(self, name)
+            if type(value) is not int or value < 0:
+                raise CiboCompoundCapitalError(
+                    f"compound audit {name} must be non-negative int"
+                )
+        if self.settled_deployment_count > self.deployment_count:
+            raise CiboCompoundCapitalError(
+                "compound audit settled deployments exceed deployments"
+            )
+        if (
+            not isinstance(self.generation_edges, tuple)
+            or any(
+                not isinstance(item, CompoundGenerationLineageEdge)
+                for item in self.generation_edges
+            )
+        ):
+            raise CiboCompoundCapitalError(
+                "compound audit generation edges must be canonical"
+            )
+        edge_ids = tuple(
+            (item.child_lot_id, item.direct_parent_lot_id)
+            for item in self.generation_edges
+        )
+        if len(edge_ids) != len(set(edge_ids)):
+            raise CiboCompoundCapitalError(
+                "compound audit generation edges must be unique"
+            )
+        highest_edge_generation = max(
+            (item.child_generation for item in self.generation_edges),
+            default=0,
+        )
+        if (
+            (self.highest_generation < 2 and self.generation_edges)
+            or (
+                self.highest_generation >= 2
+                and highest_edge_generation != self.highest_generation
+            )
+        ):
+            raise CiboCompoundCapitalError(
+                "compound audit generation lineage/highest-generation drift"
+            )
+        if self.accounting_residual_usd != Decimal(0):
             raise CiboCompoundCapitalError(
                 "compound audit accounting residual must be zero"
             )

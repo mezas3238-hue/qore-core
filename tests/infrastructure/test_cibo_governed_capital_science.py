@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -218,3 +219,33 @@ def test_genc14_explicit_rejection_is_terminal_without_control_mutation() -> Non
     assert rejected.current_control_policy_sha256 == "sha256:" + "2" * 64
     assert rejected.productive_control_mutated is False
     assert rejected.automatic_promotion is False
+
+def test_genc14_record_cannot_jump_directly_to_owner_review() -> None:
+    record = start_genc14_science(
+        science_id="science-jump",
+        hypothesis=_hypothesis(),
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="stage/evidence chain drift",
+    ):
+        replace(
+            record,
+            stage=Genc14ScienceStage.OWNER_REVIEW_REQUIRED,
+            updated_at=T0 + timedelta(minutes=1),
+        )
+
+
+def test_genc14_record_rejects_non_bool_promotion_flag() -> None:
+    record = start_genc14_science(
+        science_id="science-bool",
+        hypothesis=_hypothesis(),
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="automatic_promotion must be bool",
+    ):
+        replace(record, automatic_promotion=1)
+

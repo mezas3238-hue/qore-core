@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -262,3 +263,28 @@ def test_floor_graduation_cannot_exceed_realized_profit() -> None:
             pnl="1",
             floor="2",
         )
+
+def test_compound_mc_summary_rejects_manual_aggregate_drift() -> None:
+    episode = _episode(
+        episode_id="single-aggregate",
+        start_minute=0,
+        duration_minutes=5,
+        generation=1,
+        deployed="5",
+        pnl="2",
+    )
+    summary = run_compound_path_monte_carlo(
+        initial=_initial(),
+        episodes=(episode,),
+        simulations=1,
+        draws_per_path=1,
+        components_per_block=1,
+        base_seed=13,
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="dependency breach aggregate drift",
+    ):
+        replace(summary, dependency_breach_paths=1)
+
