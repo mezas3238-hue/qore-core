@@ -234,11 +234,11 @@ class CompoundPortfolioLedger:
                     "compound event target total does not match target lots"
                 )
             if any(
-                item.created_at != event.occurred_at
+                item.created_at > event.occurred_at
                 for item in targets
             ):
                 raise CiboCompoundCapitalError(
-                    "compound event target creation time drift"
+                    "compound event cannot predate target lot creation"
                 )
             if (
                 event.event_type
