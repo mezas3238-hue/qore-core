@@ -16,6 +16,10 @@ from qore.infrastructure.cibo_phase22_historical_replay_settlement import (
     VersionedPhase22HistoricalReplayEvidenceBook,
     build_phase22_historical_replay_outcome,
 )
+from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
+    V2_SOURCE_BINDINGS,
+    phase22_v2_holdout_source_receipt_sha256,
+)
 
 
 def _sha(label: str) -> str:
@@ -138,6 +142,10 @@ def test_replay_book_keeps_decision_outcome_lineage_without_broker_ids() -> None
         amendment_sha256=amendment.fingerprint(),
         decisions=(decision,),
         outcomes=(outcome,),
+        source_receipt_sha256=phase22_v2_holdout_source_receipt_sha256(),
+        source_collector_git_shas=tuple(
+            sorted({item.collector_git_sha for item in V2_SOURCE_BINDINGS})
+        ),
     )
     assert book.outcomes[0].realized_net_pnl_usd == Decimal("-11")
     payload = book.outcomes[0].as_dict()
