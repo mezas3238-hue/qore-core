@@ -1,0 +1,105 @@
+{
+  "identity": "QORE_SHARED_MC14_B04_NEW_INFORMATION_TEMPORAL_CAUSAL_PREREGISTRATION_001",
+  "status": "PREREGISTERED_BEFORE_B04_CAUSAL_EVALUATION",
+  "created_date": "2026-09-30",
+  "owner_lane": "ARCHITECT_A",
+  "upstream_new_information": {
+    "b04_run_id": 36765098842,
+    "b04_global_artifact_id": 11129732922,
+    "b04_git_sha": "aec788d073aedc31f609c1609af3f7d4d8e5ae30",
+    "families": [
+      "US2000_BREADTH_PROXY",
+      "XAUUSD_DEFENSIVE_PROXY"
+    ],
+    "source_windows": 2948,
+    "target_or_outcome_read": false,
+    "r6_r5_read": false,
+    "protected_holdout_opened": false
+  },
+  "rationale": {
+    "prior_mc14_next_gate": "NEW_INFORMATION_OR_REPRESENTATION_REQUIRED",
+    "mechanism_change": "ADD_NEW_CROSS_ASSET_MICROSTRUCTURE_INFORMATION",
+    "threshold_rescue": false,
+    "reuses_failed_v11_v13_v14_mechanism": false
+  },
+  "frozen_temporal_partition": {
+    "total_windows": 2948,
+    "discovery": {
+      "start_index": 0,
+      "end_index_inclusive": 1768,
+      "count": 1769
+    },
+    "validation": {
+      "start_index": 1769,
+      "end_index_inclusive": 2358,
+      "count": 590
+    },
+    "replication": {
+      "start_index": 2359,
+      "end_index_inclusive": 2947,
+      "count": 589
+    },
+    "temporal_order_required": true,
+    "overlap_allowed": false
+  },
+  "frozen_source_features": {
+    "per_family_per_window": [
+      "MID_RETURN_BPS",
+      "ABS_MID_RETURN_BPS",
+      "MEDIAN_SPREAD_BPS",
+      "P90_SPREAD_BPS",
+      "BID_TICK_RATE",
+      "ASK_TICK_RATE",
+      "QUOTE_SIDE_ACTIVITY_IMBALANCE_BPS"
+    ],
+    "target_market_history_controls": [
+      "NAS100_PAST_STATE_ONLY",
+      "SP500_PAST_STATE_ONLY",
+      "US30_PAST_STATE_ONLY",
+      "TIME_OF_DAY_BUCKET"
+    ],
+    "future_market_in_feature_construction": false,
+    "pnl_or_trade_outcomes_in_feature_construction": false
+  },
+  "frozen_hypothesis_families": [
+    {
+      "id": "H_BREADTH_LEADS_INDEX_REGIME_TRANSITION",
+      "source_family": "US2000_BREADTH_PROXY",
+      "target": "FUTURE_US_EQUITY_INDEX_REGIME_TRANSITION"
+    },
+    {
+      "id": "H_DEFENSIVE_ROTATION_LEADS_INDEX_REGIME_TRANSITION",
+      "source_family": "XAUUSD_DEFENSIVE_PROXY",
+      "target": "FUTURE_US_EQUITY_INDEX_REGIME_TRANSITION"
+    }
+  ],
+  "frozen_mc14_gates": {
+    "minimum_effect_bps": 500,
+    "minimum_group_count": 250,
+    "minimum_stratum_group_count": 20,
+    "minimum_stability_bps": 8000,
+    "validation_same_sign_required": true,
+    "replication_same_sign_required": true,
+    "threshold_retune_after_validation": false,
+    "hypothesis_family_expansion_after_validation": false
+  },
+  "falsification_rules": {
+    "no_discovery_candidate": "FALSIFIED_AND_CLOSED_FOR_THIS_MECHANISM",
+    "validation_failure": "FALSIFIED_AND_CLOSED_FOR_THIS_MECHANISM",
+    "replication_failure": "FALSIFIED_AND_CLOSED_FOR_THIS_MECHANISM",
+    "missing_or_noncomparable_source": "INSUFFICIENT_DO_NOT_INFER",
+    "no_gate_relaxation": true
+  },
+  "governance": {
+    "shared_methodology_authority": false,
+    "shared_sizing_authority": false,
+    "shared_risk_authority": false,
+    "shared_order_authority": false,
+    "shared_execution_authority": false,
+    "capital_authority": false,
+    "knowledge_auto_promotion": false,
+    "master_ledger_mutation": false,
+    "protected_certification_holdout_opened": false
+  },
+  "next_gate": "IMPLEMENT_AND_RUN_FROZEN_B04_NEW_INFORMATION_MC14_REPLAY"
+}
