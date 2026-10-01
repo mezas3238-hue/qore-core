@@ -72,6 +72,7 @@ _COMMENT_MARKERS = (
 _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_arch_b_forward_economic_manifest*", "FORWARD_QUALIFICATION"),
     ("*cibo_ce2i_t11_execution_cost_calibration*", "T11"),
+    ("*cibo_ce2i_t16_hedge_candidate*", "T16"),
     ("*cibo_ce2i_t17_limited_risk_capability*", "T17"),
     ("*cibo_ce2i_t17_structural_disable*", "T17"),
     ("*cibo_t17_limited_risk_capability_probe*", "T17"),

@@ -1,7 +1,7 @@
 {
   "schema": "CIBO_ARCH_B_CLOSURE_HANDOFF_V1",
   "branch": "agent/cibo-certification-architect-b-integration-001",
-  "implementation_checkpoint_sha": "6dc4a22dac0a54368917bb9308d04dd83eec079f",
+  "implementation_checkpoint_sha": "01b08d1d76efca8c513103b8de8dfedf95e9721c",
   "primary_pr": 651,
   "child_pr": 661,
   "governance": {
@@ -81,7 +81,7 @@
     },
     {
       "id": "T16",
-      "b_status": "ACCOUNT_BOUND_HEDGED_MODE_AND_TAXONOMY_PROVEN_ECONOMIC_HEDGE_OPEN",
+      "b_status": "ACCOUNT_BOUND_HEDGED_MODE_PROVEN_T16_MEASUREMENT_ENGINE_IMPLEMENTED",
       "recommended_ledger_disposition": null,
       "evidence": [
         "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
@@ -93,10 +93,15 @@
         ".github/workflows/cibo-ctrader-demo-account-capability.yml",
         "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md",
         "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-EVIDENCE-2026-10-01.json",
-        "github-actions://36806511867/SUCCESS"
+        "github-actions://36806511867/SUCCESS",
+        "src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py",
+        "tests/infrastructure/test_cibo_ce2i_t16_hedge_candidate.py",
+        ".github/workflows/cibo-b-provider-forward-tool-readiness.yml"
       ],
       "blockers": [
+        "REAL_PREDECLARED_HEDGE_PAIR_POPULATION_REQUIRED",
         "HEDGE_INSTRUMENT_BASIS_RISK_COST_CORRELATION_EXECUTION_EVIDENCE_REQUIRED",
+        "NET_ECONOMIC_BENEFIT_NOT_PROVEN",
         "PROVIDER_BOUND_FRESH_OOS_HEDGE_UTILITY_REQUIRED"
       ]
     },
@@ -116,7 +121,11 @@
         "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md",
         "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-EVIDENCE-2026-10-01.json",
         "docs/research/CIBO-B-T17-STRUCTURAL-DISPOSITION-V1.json",
-        "github-actions://36806511867/SUCCESS"
+        "github-actions://36806511867/SUCCESS",
+        "src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py",
+        "scripts/cibo_t17_structural_disable_probe.py",
+        "tests/infrastructure/test_cibo_ce2i_t17_structural_disable.py",
+        "tests/infrastructure/test_cibo_t17_structural_disable_probe.py"
       ],
       "blockers": []
     },
@@ -281,5 +290,5 @@
     "new_b_surface_classification_request": "docs/research/CIBO-ARCH-B-CROSSBOUNDARY-REQUEST-002.md",
     "t17_structural_disposition_ready_for_integrator": true
   },
-  "package_revalidated_at_utc": "2026-10-01T02:55:00Z"
+  "package_revalidated_at_utc": "2026-10-01T03:05:00Z"
 }

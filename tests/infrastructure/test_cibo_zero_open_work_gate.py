@@ -237,6 +237,7 @@ def test_gate_marks_unclassified_inventory_as_orphan_candidate(
 def test_b_surface_classifiers_are_not_orphans() -> None:
     inventory = (
         "src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py",
+        "src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py",
         "src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py",
         "src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py",
         "scripts/cibo_t17_limited_risk_capability_probe.py",
@@ -264,13 +265,14 @@ def test_b_surface_classifiers_are_not_orphans() -> None:
 
     assert dict(assignments) == {
         inventory[0]: "T11",
-        inventory[1]: "T17",
+        inventory[1]: "T16",
         inventory[2]: "T17",
         inventory[3]: "T17",
         inventory[4]: "T17",
-        inventory[5]: "PROVIDER_ECONOMICS",
+        inventory[5]: "T17",
         inventory[6]: "PROVIDER_ECONOMICS",
-        inventory[7]: "INTEGRATED_CAPITAL_TRUTH",
-        inventory[8]: "USD60_CAPABILITY_PROGRAM",
+        inventory[7]: "PROVIDER_ECONOMICS",
+        inventory[8]: "INTEGRATED_CAPITAL_TRUTH",
+        inventory[9]: "USD60_CAPABILITY_PROGRAM",
     }
     assert orphan_candidates == ()
