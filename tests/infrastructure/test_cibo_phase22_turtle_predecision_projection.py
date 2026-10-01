@@ -8,7 +8,6 @@ from qore.infrastructure.cibo_phase22_turtle_predecision_projection import (
     project_target_rows_predecision,
 )
 
-
 _AT = datetime(2016, 1, 4, 10, tzinfo=UTC)
 
 

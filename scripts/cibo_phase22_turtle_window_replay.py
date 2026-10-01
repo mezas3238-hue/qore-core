@@ -15,10 +15,10 @@ import hashlib
 import importlib.util
 import json
 import sys
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from contextlib import nullcontext
 from types import ModuleType
 from typing import Any
 
