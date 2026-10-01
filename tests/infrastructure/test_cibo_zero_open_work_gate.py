@@ -333,3 +333,13 @@ def test_gate_classifies_phase22_v2_m5_source_surface() -> None:
     assert assignments == ((path, "FRESH_OOS"),)
     assert orphans == ()
 
+def test_gate_classifies_phase22_v2_m1_source_surface() -> None:
+    path = "src/qore/infrastructure/cibo_phase22_holdout_v2_m1_source.py"
+    assignments, orphans = gate._classify_inventory(
+        (path,),
+        ledger_ids=frozenset({"FRESH_OOS", "ORPHAN_INVENTORY"}),
+    )
+
+    assert assignments == ((path, "FRESH_OOS"),)
+    assert orphans == ()
+
