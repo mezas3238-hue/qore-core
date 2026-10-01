@@ -1,0 +1,31 @@
+name: QORE CIBO World Cup Maximum Capability Exam Assembly
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/qore/infrastructure/cibo_world_cup_maximum_capability_exam_assembly.py'
+      - 'tests/infrastructure/test_cibo_world_cup_maximum_capability_exam_assembly.py'
+      - '.github/workflows/cibo-world-cup-maximum-capability-exam-assembly.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  world-cup-assembly:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Exact ten-receipt World Cup assembly
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_world_cup_maximum_capability_exam_assembly.py \
+            tests/infrastructure/test_cibo_world_cup_maximum_capability_exam_assembly.py
+          mypy \
+            src/qore/infrastructure/cibo_world_cup_maximum_capability_exam_assembly.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_world_cup_maximum_capability_exam_assembly.py
