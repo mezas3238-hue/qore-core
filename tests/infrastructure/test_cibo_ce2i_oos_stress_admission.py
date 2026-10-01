@@ -196,7 +196,15 @@ def test_t08_stress_requires_every_scenario_to_keep_oos_utility() -> None:
 
 def test_one_failed_t08_stress_scenario_falsifies() -> None:
     good = _t08_report()
-    bad = replace(good, fresh_oos_utility_demonstrated=False)
+    bad = assess_t08_fresh_oos_netting_ablation(
+        tuple(
+            replace(
+                _t08_epoch(index),
+                treatment_realized_net_pnl_usd=Decimal("0"),
+            )
+            for index in range(32)
+        )
+    )
     evidence = [
         T08OosStressEvidence(meta=_meta(kind, index), report=good)
         for index, kind in enumerate(CompoundStressKind)
