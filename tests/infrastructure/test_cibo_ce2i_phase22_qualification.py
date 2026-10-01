@@ -36,6 +36,9 @@ from qore.infrastructure.cibo_ce2i_phase22_qualification_plan import (
     FROZEN_PHASE22_HOLDOUT_QUALIFICATION_PLAN,
     phase22_holdout_qualification_plan_sha256,
 )
+from qore.infrastructure.cibo_phase22_historical_replay_settlement import (
+    VersionedPhase22HistoricalReplayEvidenceBook,
+)
 
 QUALIFIED_AT = datetime(2026, 10, 26, 20, 0, tzinfo=UTC)
 PHASE21_FROZEN_AT = QUALIFIED_AT + timedelta(hours=4)
@@ -250,6 +253,30 @@ def _decision(
     )
 
 
+def _historical_holdout_decision(
+    *,
+    evidence_sha: str,
+    decision_at: datetime,
+    sealed_at: datetime,
+) -> Phase20ForwardDecisionSeal:
+    decision = _decision(
+        evidence_sha=evidence_sha,
+        decision_at=decision_at,
+    )
+    payload = json.loads(decision.canonical_payload_json)
+    payload["evidence_kind"] = "HISTORICAL_REPLAY_OBSERVED"
+    return replace(
+        decision,
+        sealed_at=sealed_at,
+        seal_deadline_at=sealed_at + timedelta(seconds=2),
+        canonical_payload_json=json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+    )
+
+
 def _policy(evidence_sha: str) -> Phase20ForwardPolicyDecisionSeal:
     return Phase20ForwardPolicyDecisionSeal(
         evidence_sha256=evidence_sha,
@@ -282,9 +309,10 @@ def test_phase22_valid_lineage_with_immature_population_is_not_ready() -> None:
         evidence_sha=_sha(201),
         decision_at=QUALIFIED_AT - timedelta(days=1),
     )
-    holdout_decision = _decision(
+    holdout_decision = _historical_holdout_decision(
         evidence_sha=_sha(202),
-        decision_at=PHASE21_FROZEN_AT + timedelta(seconds=1),
+        decision_at=datetime(2015, 10, 20, 12, 0, tzinfo=UTC),
+        sealed_at=PHASE21_FROZEN_AT + timedelta(seconds=1),
     )
 
     report = run_phase22_holdout_qualification(
@@ -293,9 +321,11 @@ def test_phase22_valid_lineage_with_immature_population_is_not_ready() -> None:
             generation=1,
             decisions=(qualification_decision,),
         ),
-        holdout_evidence_book=VersionedPhase20ForwardEvidenceBook(
+        holdout_evidence_book=VersionedPhase22HistoricalReplayEvidenceBook(
             generation=1,
+            amendment_sha256=_sha(700),
             decisions=(holdout_decision,),
+            outcomes=(),
         ),
         holdout_policy_book=VersionedPhase20ForwardPolicyBook(
             generation=1,
@@ -319,13 +349,20 @@ def test_phase22_reused_qualification_decision_is_invalid_before_economics() -> 
         evidence_sha=_sha(201),
         decision_at=QUALIFIED_AT - timedelta(days=1),
     )
+    replay_payload = json.loads(qualification_decision.canonical_payload_json)
+    replay_payload["evidence_kind"] = "HISTORICAL_REPLAY_OBSERVED"
     holdout_decision = replace(
         qualification_decision,
         evidence_id="holdout-reused",
         decision_epoch_id="holdout-reused",
-        decision_at=PHASE21_FROZEN_AT + timedelta(seconds=1),
-        sealed_at=PHASE21_FROZEN_AT + timedelta(milliseconds=1100),
+        decision_at=datetime(2015, 10, 20, 12, 0, tzinfo=UTC),
+        sealed_at=PHASE21_FROZEN_AT + timedelta(seconds=1),
         seal_deadline_at=PHASE21_FROZEN_AT + timedelta(seconds=3),
+        canonical_payload_json=json.dumps(
+            replay_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
     )
 
     report = run_phase22_holdout_qualification(
@@ -334,9 +371,11 @@ def test_phase22_reused_qualification_decision_is_invalid_before_economics() -> 
             generation=1,
             decisions=(qualification_decision,),
         ),
-        holdout_evidence_book=VersionedPhase20ForwardEvidenceBook(
+        holdout_evidence_book=VersionedPhase22HistoricalReplayEvidenceBook(
             generation=1,
+            amendment_sha256=_sha(701),
             decisions=(holdout_decision,),
+            outcomes=(),
         ),
         holdout_policy_book=VersionedPhase20ForwardPolicyBook(
             generation=1,
