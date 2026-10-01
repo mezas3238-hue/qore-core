@@ -422,20 +422,20 @@ def signed_slippage(
     return signed_price, signed_bps, max(Decimal(0), signed_bps)
 
 
-def _qore_entry_deal(
-    deal: object,
+def _account_entry_deal(
+    deal: Any,
     contracts: Mapping[int, object],
 ) -> bool:
-    symbol_id = getattr(deal, "symbolId", None)
+    symbol_id = deal.symbolId
     if type(symbol_id) is not int or symbol_id not in contracts:
         return False
-    if getattr(deal, "dealStatus", None) not in {_FILLED, _PARTIALLY_FILLED}:
+    if deal.dealStatus not in {_FILLED, _PARTIALLY_FILLED}:
         return False
-    execution_price = getattr(deal, "executionPrice", None)
-    execution_at = getattr(deal, "executionTimestamp", None)
-    create_at = getattr(deal, "createTimestamp", None)
-    filled_volume = getattr(deal, "filledVolume", None)
-    side = getattr(deal, "tradeSide", None)
+    execution_price = deal.executionPrice
+    execution_at = deal.executionTimestamp
+    create_at = deal.createTimestamp
+    filled_volume = deal.filledVolume
+    side = deal.tradeSide
     if (
         not isinstance(execution_price, float)
         or execution_price <= 0
@@ -454,7 +454,7 @@ def _qore_entry_deal(
 
 
 def _qore_label(deal: Any) -> bool:
-    label = getattr(deal, "label", "")
+    label = deal.label
     return isinstance(label, str) and label.startswith("QORE:")
 
 
