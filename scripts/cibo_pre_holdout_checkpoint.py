@@ -19,12 +19,12 @@ from qore.infrastructure.cibo_ce2i_pre_holdout_gate import (
     calibration_matrix_sha256,
     evaluate_pre_holdout_readiness,
 )
-from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
-    CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS,
-)
 from qore.infrastructure.cibo_ce2i_provider_core_freeze_receipt import (
     PROVIDER_CORE_FREEZE_RECEIPT,
     provider_core_freeze_receipt_payload,
+)
+from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
+    CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS,
 )
 from qore.infrastructure.cibo_ce2i_shadow_certification_receipts import (
     SHADOW_CERTIFICATION_RECEIPTS,
