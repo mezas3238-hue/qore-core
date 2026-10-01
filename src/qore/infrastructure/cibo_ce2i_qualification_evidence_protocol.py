@@ -21,14 +21,29 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
 
 @runtime_checkable
 class Phase20QualificationOutcome(Protocol):
-    evidence_id: str
-    decision_evidence_sha256: str
-    signal_fingerprint: str
-    observed_at: datetime
-    realized_net_pnl_usd: Decimal
-    executed_initial_stop_risk_usd: Decimal
-    realized_structural_outcome_r: Decimal
-    capital_minutes: Decimal | None
+    @property
+    def evidence_id(self) -> str: ...
+
+    @property
+    def decision_evidence_sha256(self) -> str: ...
+
+    @property
+    def signal_fingerprint(self) -> str: ...
+
+    @property
+    def observed_at(self) -> datetime: ...
+
+    @property
+    def realized_net_pnl_usd(self) -> Decimal: ...
+
+    @property
+    def executed_initial_stop_risk_usd(self) -> Decimal: ...
+
+    @property
+    def realized_structural_outcome_r(self) -> Decimal: ...
+
+    @property
+    def capital_minutes(self) -> Decimal | None: ...
 
 
 @runtime_checkable
