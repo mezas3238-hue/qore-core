@@ -20,6 +20,12 @@ from qore.infrastructure.cibo_ce2i_pre_holdout_freeze_v2 import (
 from qore.infrastructure.cibo_ce2i_provider_core_freeze_receipt import (
     PROVIDER_COMPONENT_FREEZE_SHA256,
 )
+from qore.infrastructure.cibo_phase22_demo_empirical_provider_receipt import (
+    PHASE22_DEMO_EMPIRICAL_PROVIDER_RECEIPT,
+)
+from qore.infrastructure.cibo_phase22_dual_evidence_plan import (
+    PHASE22_DUAL_EVIDENCE_PLAN,
+)
 from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
     CANDIDATE_ID,
     phase22_v2_holdout_source_receipt_sha256,
@@ -29,7 +35,7 @@ from qore.infrastructure.cibo_phase22_trader_parity_manifest import (
     CANONICAL_PHASE22_TRADER_IDS,
 )
 
-SCHEMA = "qore.cibo.phase22.execution-manifest.v2"
+SCHEMA = "qore.cibo.phase22.execution-manifest.v3"
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +80,8 @@ class CiboPhase22ExecutionManifest:
     phase21_policy_freeze_sha256: str
     calibration_freeze_sha256: str
     provider_core_freeze_sha256: str
+    dual_evidence_plan_sha256: str
+    empirical_provider_receipt_sha256: str
     candidate_code_sha: str
     candidate_parameter_sha256: str
     qualification_plan_sha256: str
@@ -116,6 +124,14 @@ class CiboPhase22ExecutionManifest:
             (
                 "provider_core_freeze_sha256",
                 PROVIDER_COMPONENT_FREEZE_SHA256,
+            ),
+            (
+                "dual_evidence_plan_sha256",
+                PHASE22_DUAL_EVIDENCE_PLAN.fingerprint(),
+            ),
+            (
+                "empirical_provider_receipt_sha256",
+                PHASE22_DEMO_EMPIRICAL_PROVIDER_RECEIPT.fingerprint(),
             ),
             ("candidate_code_sha", readiness.candidate_code_sha),
             (
@@ -179,6 +195,10 @@ class CiboPhase22ExecutionManifest:
             "phase21_policy_freeze_sha256": self.phase21_policy_freeze_sha256,
             "calibration_freeze_sha256": self.calibration_freeze_sha256,
             "provider_core_freeze_sha256": self.provider_core_freeze_sha256,
+            "dual_evidence_plan_sha256": self.dual_evidence_plan_sha256,
+            "empirical_provider_receipt_sha256": (
+                self.empirical_provider_receipt_sha256
+            ),
             "candidate_code_sha": self.candidate_code_sha,
             "candidate_parameter_sha256": self.candidate_parameter_sha256,
             "qualification_plan_sha256": self.qualification_plan_sha256,
@@ -202,6 +222,10 @@ class CiboPhase22ExecutionManifest:
             "phase21_policy_freeze_sha256": self.phase21_policy_freeze_sha256,
             "calibration_freeze_sha256": self.calibration_freeze_sha256,
             "provider_core_freeze_sha256": self.provider_core_freeze_sha256,
+            "dual_evidence_plan_sha256": self.dual_evidence_plan_sha256,
+            "empirical_provider_receipt_sha256": (
+                self.empirical_provider_receipt_sha256
+            ),
             "candidate_code_sha": self.candidate_code_sha,
             "candidate_parameter_sha256": self.candidate_parameter_sha256,
             "qualification_plan_sha256": self.qualification_plan_sha256,
@@ -247,6 +271,10 @@ def build_phase22_execution_manifest() -> CiboPhase22ExecutionManifest:
         phase21_policy_freeze_sha256=readiness.phase21_policy_freeze_sha256,
         calibration_freeze_sha256=readiness.calibration_freeze_sha256,
         provider_core_freeze_sha256=PROVIDER_COMPONENT_FREEZE_SHA256,
+        dual_evidence_plan_sha256=PHASE22_DUAL_EVIDENCE_PLAN.fingerprint(),
+        empirical_provider_receipt_sha256=(
+            PHASE22_DEMO_EMPIRICAL_PROVIDER_RECEIPT.fingerprint()
+        ),
         candidate_code_sha=readiness.candidate_code_sha,
         candidate_parameter_sha256=readiness.candidate_parameter_sha256,
         qualification_plan_sha256=readiness.qualification_plan_sha256,

@@ -19,6 +19,9 @@ from qore.infrastructure.cibo_ce2i_phase22_qualification_plan import (
 from qore.infrastructure.cibo_ce2i_provider_core_freeze_receipt import (
     PROVIDER_CORE_FREEZE_RECEIPT,
 )
+from qore.infrastructure.cibo_phase22_dual_evidence_plan import (
+    PHASE22_DUAL_EVIDENCE_PLAN,
+)
 from qore.infrastructure.cibo_phase22_execution_manifest import (
     build_phase22_execution_manifest,
 )
@@ -31,6 +34,12 @@ EXECUTION_ECONOMICS_BLOCKER = (
 )
 SYNTHETIC_FORBIDDEN_BLOCKER = (
     "PHASE22_SYNTHETIC_EXECUTION_EVIDENCE_FORBIDDEN"
+)
+DUAL_EVIDENCE_NOT_READY_BLOCKER = (
+    "PHASE22_DUAL_EVIDENCE_PROVIDER_PLANE_NOT_READY"
+)
+PROVIDER_COST_BOUND_NOT_READY_BLOCKER = (
+    "PHASE22_PREDECLARED_PROVIDER_COST_BOUND_NOT_READY"
 )
 
 
@@ -116,13 +125,27 @@ def assess_phase22_one_shot_guard(
     provider = PROVIDER_CORE_FREEZE_RECEIPT
 
     if phase20.realized_execution_economics_required:
+        dual = PHASE22_DUAL_EVIDENCE_PLAN
+        if not dual.activation_ready:
+            blockers.append(DUAL_EVIDENCE_NOT_READY_BLOCKER)
         if (
-            not provider.historical_provider_economics_claimed
-            and not provider.provider_deployment_ready
+            not provider.core_pre_holdout_ready
+            or not dual.require_predeclared_provider_cost_application
+        ):
+            blockers.append(PROVIDER_COST_BOUND_NOT_READY_BLOCKER)
+        if (
+            not dual.forbid_historical_provider_fill_claims
+            or not dual.forbid_historical_provider_order_refs
+            or not dual.forbid_historical_provider_deal_refs
+            or not dual.forbid_historical_provider_settlement_claims
         ):
             blockers.append(EXECUTION_ECONOMICS_BLOCKER)
     if not phase20.synthetic_evidence_allowed or not phase22.allow_synthetic_evidence:
-        if EXECUTION_ECONOMICS_BLOCKER in blockers:
+        if (
+            EXECUTION_ECONOMICS_BLOCKER in blockers
+            or DUAL_EVIDENCE_NOT_READY_BLOCKER in blockers
+            or PROVIDER_COST_BOUND_NOT_READY_BLOCKER in blockers
+        ):
             blockers.append(SYNTHETIC_FORBIDDEN_BLOCKER)
 
     paths = tuple(item.relative_path for item in PHASE22_STORE_IDENTITIES)

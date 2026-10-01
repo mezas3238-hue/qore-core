@@ -7,6 +7,8 @@ on:
     paths:
       - '.github/workflows/cibo-phase22-v2-execution-preflight.yml'
       - 'src/qore/infrastructure/cibo_phase22_execution_manifest.py'
+      - 'src/qore/infrastructure/cibo_phase22_dual_evidence_plan.py'
+      - 'src/qore/infrastructure/cibo_phase22_demo_empirical_provider_receipt.py'
       - 'src/qore/infrastructure/cibo_phase22_store_contract.py'
       - 'src/qore/infrastructure/cibo_phase22_one_shot_guard.py'
       - 'tests/infrastructure/test_cibo_phase22_execution_manifest.py'
@@ -16,6 +18,8 @@ on:
     paths:
       - '.github/workflows/cibo-phase22-v2-execution-preflight.yml'
       - 'src/qore/infrastructure/cibo_phase22_execution_manifest.py'
+      - 'src/qore/infrastructure/cibo_phase22_dual_evidence_plan.py'
+      - 'src/qore/infrastructure/cibo_phase22_demo_empirical_provider_receipt.py'
       - 'src/qore/infrastructure/cibo_phase22_store_contract.py'
       - 'src/qore/infrastructure/cibo_phase22_one_shot_guard.py'
       - 'tests/infrastructure/test_cibo_phase22_execution_manifest.py'
@@ -71,8 +75,7 @@ jobs:
               build_phase22_execution_manifest,
           )
           from qore.infrastructure.cibo_phase22_one_shot_guard import (
-              EXECUTION_ECONOMICS_BLOCKER,
-              SYNTHETIC_FORBIDDEN_BLOCKER,
+              Phase22OneShotGuardStatus,
               assess_phase22_one_shot_guard,
           )
           from qore.infrastructure.cibo_phase22_store_contract import (
@@ -81,10 +84,9 @@ jobs:
 
           manifest = build_phase22_execution_manifest()
           guard = assess_phase22_one_shot_guard()
-          assert guard.status.value == "BLOCKED"
-          assert EXECUTION_ECONOMICS_BLOCKER in guard.blockers
-          assert SYNTHETIC_FORBIDDEN_BLOCKER in guard.blockers
-          assert guard.authorized_to_emit_first_fresh_outcome is False
+          assert guard.status is Phase22OneShotGuardStatus.READY
+          assert guard.blockers == ()
+          assert guard.authorized_to_emit_first_fresh_outcome is True
 
           out = Path("phase22-v2-preflight")
           (out / "execution-manifest.json").write_text(
