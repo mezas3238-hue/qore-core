@@ -6,6 +6,9 @@ from qore.infrastructure.cibo_arch_a_internal_readiness import (
     ArchitectAPhase22V2ScientificDispositionReceipt,
     _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM,
 )
+from qore.infrastructure.cibo_capital_management_authority import (
+    CiboCapitalManagementError,
+)
 from qore.infrastructure.cibo_final_integrated_exam_scientific_ledger_reconciliation import (
     apply_architect_a_phase22_scientific_dispositions,
 )
@@ -179,11 +182,6 @@ def test_rejects_target_that_is_not_external_blocked() -> None:
     row = next(item for item in ledger["workstreams"] if item["id"] == "T04")
     row["terminal_disposition"] = "COMPLETED_AND_PROVEN"
     row["blockers"] = []
-
-    import pytest
-    from qore.infrastructure.cibo_capital_management_authority import (
-        CiboCapitalManagementError,
-    )
 
     with pytest.raises(
         CiboCapitalManagementError,
