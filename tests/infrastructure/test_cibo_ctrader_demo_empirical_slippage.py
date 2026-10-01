@@ -1,5 +1,5 @@
-from types import SimpleNamespace
 from decimal import Decimal
+from types import SimpleNamespace
 
 from qore.infrastructure.cibo_ctrader_demo_empirical_slippage import (
     decode_ctrader_tick_series,
