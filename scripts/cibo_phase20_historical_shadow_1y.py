@@ -14,13 +14,13 @@ from typing import Any
 from qore.infrastructure.cibo_ce2i_phase20_historical_shadow import (
     EVIDENCE_KIND,
     POLICY_ID,
+    REQUIRED_LINEAGES,
     SHADOW_CANDIDATE_ID,
     HistoricalShadowObservation,
     evaluate_historical_shadow_population,
     policy_invariants,
 )
 from scripts.cibo_phase19_integrated_chronology_replay import (
-    PHASE19_REQUIRED_TRADERS,
     SOURCE_SPECS,
     _jsonl,
     _parse_row,
@@ -89,7 +89,7 @@ def consume(
         tuple(observations)
     )
     if {item.trader_id for item in observations} != set(
-        PHASE19_REQUIRED_TRADERS
+        REQUIRED_LINEAGES
     ):
         raise ValueError("historical shadow lineage population drift")
 
