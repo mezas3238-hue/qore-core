@@ -428,12 +428,12 @@ def evaluate_architect_a2_scientific_outcomes(
 
     receipts: list[ArchitectAPhase22V2ScientificDispositionReceipt] = []
     for workstream_id in A2_WORKSTREAM_IDS:
-        payload = by_id.get(workstream_id)
-        if payload is None:
+        resolved_payload = by_id.get(workstream_id)
+        if resolved_payload is None:
             continue
         receipts.append(
             evaluate_architect_a_phase22_v2_scientific_outcome(
-                payload,
+                resolved_payload,
                 matrix,
             )
         )
