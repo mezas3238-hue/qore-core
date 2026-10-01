@@ -172,7 +172,7 @@ def test_genc10_report_rejects_manual_support_count_drift() -> None:
 
     with pytest.raises(
         CiboCompoundCapitalError,
-        match="support population count drift",
+        match="observation identity/count drift",
     ):
         replace(report, observation_count=3)
 
