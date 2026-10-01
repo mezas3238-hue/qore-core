@@ -7,6 +7,9 @@ on:
       - '.github/workflows/cibo-calibration-freeze-manifest.yml'
       - 'src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py'
       - 'src/qore/infrastructure/cibo_ce2i_calibration_freeze_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_terminal_evidence.py'
+      - 'scripts/cibo_calibration_terminal_evidence.py'
+      - 'tests/infrastructure/test_cibo_ce2i_calibration_terminal_evidence.py'
       - 'scripts/cibo_calibration_freeze_readiness.py'
       - 'tests/infrastructure/test_cibo_ce2i_calibration_freeze_readiness.py'
       - 'src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py'
@@ -21,6 +24,9 @@ on:
       - '.github/workflows/cibo-calibration-freeze-manifest.yml'
       - 'src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py'
       - 'src/qore/infrastructure/cibo_ce2i_calibration_freeze_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_terminal_evidence.py'
+      - 'scripts/cibo_calibration_terminal_evidence.py'
+      - 'tests/infrastructure/test_cibo_ce2i_calibration_terminal_evidence.py'
       - 'scripts/cibo_calibration_freeze_readiness.py'
       - 'tests/infrastructure/test_cibo_ce2i_calibration_freeze_readiness.py'
       - 'src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py'
@@ -51,11 +57,15 @@ jobs:
           ruff check \
             src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py \
             src/qore/infrastructure/cibo_ce2i_calibration_freeze_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_calibration_terminal_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_provider_core_freeze_receipt.py \
             scripts/cibo_calibration_freeze_readiness.py \
+            scripts/cibo_calibration_terminal_evidence.py \
             src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py \
             tests/infrastructure/test_cibo_ce2i_calibration_freeze_manifest.py \
             tests/infrastructure/test_cibo_ce2i_calibration_freeze_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_calibration_terminal_evidence.py \
             tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py
           mypy \
             src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py \
@@ -72,3 +82,57 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_calibration_freeze_manifest.py \
             tests/infrastructure/test_cibo_ce2i_calibration_freeze_readiness.py \
             tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py
+
+      - name: Seal terminal calibration evidence
+        run: |
+          mkdir -p calibration-freeze
+          python scripts/cibo_calibration_terminal_evidence.py \
+            --output-dir calibration-freeze \
+            > calibration-freeze/stdout.json
+          python scripts/cibo_calibration_freeze_readiness.py \
+            --forward-manifest calibration-freeze/shadow-successor-manifest.json \
+            --tool-evidence calibration-freeze/terminal-tool-evidence.json \
+            --frozen-at "2026-10-01T14:09:29+00:00" \
+            --output calibration-freeze/readiness.json \
+            --require-ready \
+            > calibration-freeze/readiness.stdout.json
+
+      - name: Enforce terminal freeze
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(
+              Path("calibration-freeze/terminal-calibration-freeze.json").read_text()
+          )
+          r = json.loads(Path("calibration-freeze/readiness.json").read_text())
+          assert p["status"] == "SEALED_TERMINAL"
+          assert p["active_certification_tools"] == [
+              "T01", "T05", "T11", "T19", "T20"
+          ]
+          assert len(p["qualification_failed_tools"]) == 13
+          assert p["structurally_disabled_tools"] == ["T16", "T17"]
+          assert r["ready_to_seal"] is True
+          assert r["blockers"] == []
+          assert r["calibration_manifest"]["sealed"] is True
+          PY
+
+      - name: Seal terminal calibration artifact
+        run: |
+          printf '%s\n' "$EVIDENCE_SHA" > calibration-freeze/git-sha.txt
+          cd calibration-freeze
+          sha256sum \
+            shadow-successor-manifest.json \
+            terminal-tool-evidence.json \
+            terminal-calibration-freeze.json \
+            readiness.json \
+            git-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-terminal-calibration-freeze-${{ env.EVIDENCE_SHA }}
+          path: calibration-freeze
+          if-no-files-found: error
+          retention-days: 90
