@@ -73,7 +73,10 @@ def _ready_provider_freeze(
         target_aware=False,
         broker_mutation_performed=False,
         pre_holdout_provider_economics_ready=True,
+        provider_deployment_ready=True,
+        certification_lane="EMPIRICAL_EXECUTION",
         blockers=(),
+        deployment_blockers=(),
         execution_calibration_sha256="sha256:" + "2" * 64,
         productive_authority=False,
     )
