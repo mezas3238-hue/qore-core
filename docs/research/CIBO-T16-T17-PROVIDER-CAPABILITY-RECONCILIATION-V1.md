@@ -137,3 +137,21 @@ That is not terminal T17 proof. The assessment hard-codes:
 
 If a GSL candidate exists, B still needs empirical execution/cost evidence and
 fresh OOS economic utility before it can become a terminal T17 disposition.
+
+
+## Structural-disable rule
+
+The Calibration Freeze permits T16/T17 to be `STRUCTURALLY_DISABLED`, but B must
+not derive that disposition from silence. In particular, none of the following is
+sufficient by itself:
+
+- a NETTED account type;
+- absence of an `Option` token in broker-defined taxonomy labels;
+- absence of option-looking symbol names;
+- `isLimitedRisk=false` without instrument-level GSL evidence;
+- incomplete or unknown GSL fields.
+
+A structural-disable handoff requires explicit account/provider-bound evidence that
+all admissible capability paths are unavailable for the governed CIBO universe. If
+that evidence is incomplete, the disposition remains fail-closed/open rather than
+being converted into provider unavailability.

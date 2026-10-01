@@ -2,7 +2,7 @@
 
 **Status:** B IMPLEMENTATION CHECKPOINT / FINAL A+B RECONCILIATION REQUIRED  
 **B branch:** `agent/cibo-certification-architect-b-integration-001`  
-**B implementation checkpoint before provider-evidence seal:** `3895af47c32c473682700d07435ea437110e5c3e`  
+**B revalidated implementation checkpoint before this closure-package refresh:** `0b0932ae46499477d2d9a627e6a334310ae21a5d`  
 **Child PR:** #661 — DRAFT / UNMERGED  
 **Primary PR:** #651 — remains DRAFT / UNMERGED
 
@@ -39,11 +39,15 @@ Final ledger promotion belongs to A/integrator after current-HEAD CI revalidatio
   post-freeze population and provider-bound leverage ablation remain open.
 - **T03** — current provider margin population engine exists. Real forward coverage
   and causal equivalent-expression economic utility remain open.
-- **T11** — executed-risk/slippage/latency + spread/commission binding exists.
-  Empirical cost/slippage model remains open.
-- **T16/T17** — cTrader account-mode/catalog probe and fail-closed capability
-  registry reconciliation exist. HEDGED account mode does not certify an economic
-  hedge. Symbol names do not certify options/spreads.
+- **T11** — executed-risk/slippage/latency + spread/commission binding exists, and
+  the provider-bound linear-cost bridge freezes p95 quoted spread + commission +
+  adverse realized slippage when the real forward execution model is ready. Gross-edge,
+  market-impact and historical-2017 execution terms remain independently unresolved.
+- **T16/T17** — cTrader account mode, full symbol catalog, provider-native asset
+  class/category taxonomy and Limited-Risk/GSL evidence paths are implemented. HEDGED
+  mode does not certify an economic hedge; taxonomy candidates do not certify options;
+  GSL support does not certify T17 utility. Structural disable must be supported by
+  explicit provider unavailability evidence and is never inferred from missing labels.
 - **T20** — exact requested -> Risk authorized -> executed -> released capacity
   provenance is implemented and hash-chain protected. Real authoritative release
   population remains open.
@@ -84,6 +88,10 @@ Final ledger promotion belongs to A/integrator after current-HEAD CI revalidatio
    `productive_authority=false`.
 6. T03/T11 and Risk workflows now type-check their production modules in addition
    to ruff/pytest.
+7. T11 linear execution-cost calibration is dedicated-CI covered but cannot promote
+   policy readiness without gross-edge, market-impact and historical execution evidence.
+8. Provider-native taxonomy and Limited-Risk/GSL fields are captured read-only for T17;
+   absence of an option label is explicitly insufficient for structural disable.
 
 ## 4. Real provider evidence already recovered
 
@@ -107,8 +115,7 @@ B must not manufacture any of the following:
 
 - the real post-freeze Phase20D population to the frozen 80 / 200 / 60 /
   28-calendar-day / 20-trading-day / 7-lineage thresholds;
-- actual account-bound cTrader capability observation if provider credentials are
-  not available in the authorized execution environment;
+- current-HEAD account-bound cTrader capability/taxonomy/GSL artifact revalidation;
 - empirical slippage/cost calibration not present in observed executions;
 - T16 basis-risk/cost/correlation/hedge utility;
 - T02 explicit fresh structural terminal-reason population;
