@@ -1,0 +1,131 @@
+name: QORE Shared Integrator A WP08 Validation
+
+concurrency:
+  group: qore-shared-integrator-a-wp08-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+on:
+  pull_request:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/governed_epistemic_layer.py
+      - tests/infrastructure/test_core_stack_v2_governed_epistemic_layer.py
+      - scripts/shared_wp08_governed_epistemic_layer.py
+      - .github/workflows/qore-shared-integrator-a-wp08-validation.yml
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install and validate
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p input/{mc09,mc15,x10,mc23,wp08_source} result
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/governed_epistemic_layer.py \
+            tests/infrastructure/test_core_stack_v2_governed_epistemic_layer.py \
+            scripts/shared_wp08_governed_epistemic_layer.py
+          mypy src/qore/infrastructure/core_stack_v2/governed_epistemic_layer.py
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_governed_epistemic_layer.py \
+            tests/infrastructure/test_core_stack_v2_shared_zero_open_work.py
+
+      - name: Verify immutable WP08 upstream evidence
+        run: |
+          set -euo pipefail
+          for spec in \
+            "36754966932:11116522138" \
+            "36726927463:11102652639" \
+            "36731394336:11104578542" \
+            "36782458472:11128786574" \
+            "36783534368:11128840716"
+          do
+            run_id="${spec%%:*}"
+            artifact_id="${spec#*:}"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.status')" = "completed"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.conclusion')" = "success"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" --jq '.expired')" = "false"
+          done
+
+      - name: Recover exact evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11116522138/zip" > mc09.zip
+          unzip -q mc09.zip -d input/mc09
+          (cd input/mc09 && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11102652639/zip" > mc15.zip
+          unzip -q mc15.zip -d input/mc15
+          (cd input/mc15 && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11104578542/zip" > x10.zip
+          unzip -q x10.zip -d input/x10
+          (cd input/x10 && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11128786574/zip" > mc23.zip
+          unzip -q mc23.zip -d input/mc23
+          (cd input/mc23 && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11128840716/zip" > wp08.zip
+          unzip -q wp08.zip -d input/wp08_source
+          (cd input/wp08_source && sha256sum -c SHA256SUMS)
+
+      - name: Reproduce WP08 deterministically
+        run: |
+          python scripts/shared_wp08_governed_epistemic_layer.py \
+            --mc09 input/mc09/mc09-belief-calibration-v2.json \
+            --mc15 input/mc15/mc15-six-source-uncertainty-v2.json \
+            --x10 input/x10/x10-contradiction-map.json \
+            --mc23 input/mc23/mc23-real-novelty-detection.json \
+            --output result/wp08-governed-epistemic-layer.json \
+            | tee result/summary.json
+          cmp \
+            result/wp08-governed-epistemic-layer.json \
+            input/wp08_source/wp08-governed-epistemic-layer.json
+
+      - name: Validate bounded dependency semantics
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from qore.infrastructure.core_stack_v2.shared_zero_open_work import (
+              SharedWorkState,
+              build_shared_master_open_work_ledger,
+          )
+
+          p=json.loads(Path("result/wp08-governed-epistemic-layer.json").read_text())
+          assert p["status"] == "WP08_GOVERNED_EPISTEMIC_LAYER_COMPLETED_AND_PROVEN"
+          assert p["upstream"]["mc23_real_novelty_detection"] is True
+          assert p["population_novelty_incidence_is_probability"] is False
+          assert p["uncertainty_index_is_probability"] is False
+          assert p["deterministic_integration"] is True
+          assert p["adverse_evidence_cannot_increase_assertiveness"] is True
+          assert p["trading_command"] is False
+          assert p["methodology_authority"] is False
+          assert p["sizing_authority"] is False
+          assert p["capital_authority"] is False
+          assert p["risk_authority"] is False
+          assert p["execution_authority"] is False
+          assert p["master_ledger_mutated"] is False
+          assert p["protected_certification_holdout_opened"] is False
+
+          ledger={item.work_id:item for item in build_shared_master_open_work_ledger()}
+          assert ledger["WP-08"].state is not SharedWorkState.COMPLETED_AND_PROVEN
+          assert ledger["MC-23"].state is not SharedWorkState.COMPLETED_AND_PROVEN
+          assert ledger["WP-10"].state is not SharedWorkState.COMPLETED_AND_PROVEN
+          PY
