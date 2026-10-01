@@ -45,7 +45,8 @@ _REQUIRED_STRESS_KINDS = tuple(CompoundStressKind)
 
 
 class _HasStressMeta(Protocol):
-    meta: Ce2iOosStressScenarioMeta
+    @property
+    def meta(self) -> Ce2iOosStressScenarioMeta: ...
 
 
 class Ce2iOosStressWorkstream(StrEnum):
