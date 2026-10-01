@@ -132,7 +132,7 @@ def _manifest() -> ArchBForwardEconomicManifest:
         provider_economics_sha256="sha256:" + "2" * 64,
         provider_observed_at=(T0 - timedelta(seconds=1)).isoformat(),
         provider_contract_size=Decimal("1"),
-        provider_tick_size=Decimal("1"),
+        provider_tick_size=Decimal("0.01"),
         provider_tick_value=Decimal("1"),
         provider_minimum_volume=Decimal("0.01"),
         provider_volume_step=Decimal("0.01"),

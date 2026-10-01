@@ -320,12 +320,32 @@
           "certification_claim": false
         }
       ]
+    },
+    {
+      "owner": "INTEGRATOR_ARCH_A_GENC11_GENC13_CARRY_FORWARD",
+      "source_head_sha": "87e1add18e13acb0aa59adeb5fa200a3cd526a09",
+      "integrator_base_head_sha": "6dcd2045b80f394f0bdc5b64f10dd992c1125d2b",
+      "unchanged_surface_verified": true,
+      "surface_blob_shas": {
+        "source": "99f10afc6f0607062a0bacb4f133d5c5f3052d11",
+        "test": "823b86431d0d7c06f676c15b5533869b05ed9bb2",
+        "workflow": "426fa19c982e3822f8c39cf834e8acc6db091c6c"
+      },
+      "items": [
+        {
+          "id": "GEN-C11_GEN-C13_UTILITY_WRAPPER",
+          "class": "ENGINEERING_GREEN_IDENTICAL_SURFACE_CARRY_FORWARD_REAL_EVIDENCE_OPEN",
+          "workflow_run_id": 36805561977,
+          "status": "SUCCESS",
+          "scope": "CI implementation proof only; fresh OOS, stress, temporal replication and prospective causal evidence remain open."
+        }
+      ]
     }
   ],
   "pending_candidates": [
     {
       "owner": "ARCHITECT_A",
-      "latest_head_sha": "40137ab89e2ed575700384be84847eb1c2d27fb1",
+      "latest_head_sha": "87e1add18e13acb0aa59adeb5fa200a3cd526a09",
       "reasons": [
         "CURRENT_HEAD_CI_PENDING",
         "A_SUPPORT_002_MANDATORY_WORKSTREAM_DRIFT_UPSTREAM",
@@ -354,7 +374,7 @@
     },
     {
       "owner": "ARCHITECT_B",
-      "latest_head_sha": "99ac91c2880af541966bb4c20445b9cc228c5afd",
+      "latest_head_sha": "fed8acb4588f17033a14f7ccc27480e6ecbb2d22",
       "reasons": [
         "CURRENT_HEAD_CI_PENDING",
         "B_SUPPORT_001_USD60_READINESS_SELF_ATTESTATION_UPSTREAM",

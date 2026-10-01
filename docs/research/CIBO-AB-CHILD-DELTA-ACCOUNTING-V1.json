@@ -4,7 +4,7 @@
   "integrator_pr": 670,
   "architect_a": {
     "pr": 660,
-    "head_sha": "40137ab89e2ed575700384be84847eb1c2d27fb1",
+    "head_sha": "87e1add18e13acb0aa59adeb5fa200a3cd526a09",
     "changed_files": 95,
     "files_present_in_integrator_delta": 94,
     "deliberate_overrides": [
@@ -18,9 +18,9 @@
   },
   "architect_b": {
     "pr": 661,
-    "head_sha": "99ac91c2880af541966bb4c20445b9cc228c5afd",
-    "changed_files": 82,
-    "files_present_in_integrator_delta": 78,
+    "head_sha": "fed8acb4588f17033a14f7ccc27480e6ecbb2d22",
+    "changed_files": 83,
+    "files_present_in_integrator_delta": 79,
     "deliberate_noncanonical_snapshots": [
       ".github/workflows/cibo-b-actions-queue-cleanup.yml",
       "docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.json",
