@@ -38,12 +38,17 @@ on:
 permissions:
   contents: read
 
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
 jobs:
   checkpoint:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
 
       - uses: actions/setup-python@v5
         with:
@@ -96,7 +101,7 @@ jobs:
         run: |
           mkdir -p pre-holdout
           python scripts/cibo_pre_holdout_checkpoint.py \
-            --git-sha "$GITHUB_SHA" \
+            --git-sha "$EVIDENCE_SHA" \
             --output pre-holdout/pre-holdout-checkpoint.json \
             > pre-holdout/pre-holdout-checkpoint.stdout.json
 
@@ -131,7 +136,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: qore-cibo-pre-holdout-checkpoint-${{ github.sha }}
+          name: qore-cibo-pre-holdout-checkpoint-${{ env.EVIDENCE_SHA }}
           path: pre-holdout
           if-no-files-found: error
           retention-days: 90
