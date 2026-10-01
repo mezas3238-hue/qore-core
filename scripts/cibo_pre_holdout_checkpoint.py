@@ -22,6 +22,10 @@ from qore.infrastructure.cibo_ce2i_pre_holdout_gate import (
 from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
     CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS,
 )
+from qore.infrastructure.cibo_ce2i_shadow_certification_receipts import (
+    SHADOW_CERTIFICATION_RECEIPTS,
+    shadow_receipt_payload,
+)
 from qore.infrastructure.cibo_ce2i_usd60_six_month_certification import (
     FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL,
 )
@@ -74,11 +78,12 @@ def build_report(
         "HISTORICAL_EXACT_FALSE_SLIPPAGE_FALSE"
     )
 
+    receipts = SHADOW_CERTIFICATION_RECEIPTS
     readiness = evaluate_pre_holdout_readiness(
         provider_economics_frozen=False,
         calibration_freeze_manifest_sealed=False,
-        phase20d_causal_gate_passed=False,
-        phase21_policy_freeze_sealed=False,
+        phase20d_causal_gate_passed=receipts.phase20_shadow_passed,
+        phase21_policy_freeze_sealed=receipts.phase21_policy_freeze_sealed,
     )
     matrix = [
         {
@@ -139,8 +144,9 @@ def build_report(
             "target_aware": provider.target_aware,
         },
         "ready_to_unseal_2017h1": False,
-        "phase20d_causal_tool_gate_passed": False,
-        "phase21_policy_freeze_sealed": False,
+        "phase20d_causal_tool_gate_passed": receipts.phase20_shadow_passed,
+        "phase21_policy_freeze_sealed": receipts.phase21_policy_freeze_sealed,
+        "shadow_certification_receipts": shadow_receipt_payload(),
         "pre_holdout_blockers": list(readiness.blockers),
         "protocol": protocol,
         "t01_t20_matrix": matrix,
