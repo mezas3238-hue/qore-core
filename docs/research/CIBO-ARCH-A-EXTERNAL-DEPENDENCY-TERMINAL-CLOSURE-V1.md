@@ -109,3 +109,38 @@ terminal disposition such as `COMPLETED_AND_PROVEN` or
 
 This closure grants no merge, LIVE, production, Risk, sizing, execution, real
 capital, holdout-opening or final-certification authority.
+
+
+## Phase22 V2 re-entry amendment — 01-OCT-2026
+
+The original terminal-closure checkpoint above records the pre-Phase22
+dependency state and remains historical audit evidence. It must not be read as
+requiring the burned 2017H1 candidate.
+
+The active empirical re-entry contract now targets:
+
+`CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2`
+
+Architect A now enforces two additional rules in
+`cibo_arch_a_internal_readiness.py`:
+
+1. `EXTERNAL_DEPENDENCY_BLOCKED` remains terminal for internal engineering,
+   but every A-owned external row re-enters the frozen scientific waves once an
+   admissible empirical intake exists. Administrative terminal status cannot
+   erase required science.
+2. Phase22 V2 has its own fail-closed intake. It requires the exact candidate,
+   exact 7/7 Trader lineage, WF1..WF4 coverage, the frozen qualification-plan
+   digest, immutable source/parity/execution/Risk/CMA/T20/provider/capital-truth
+   receipts, complete minimum population, and zero leakage/retuning/synthetic
+   substitution.
+
+A terminal Phase22 `PASS` or `FAIL` may be scientifically consumed. A
+`FAIL` is not converted into a pass; it permits falsification and causal
+closure using the frozen gates.
+
+The eleven preregistered mechanism-evidence families are bound to the exact
+Phase22 V2 manifest digest. Partial delivery is reported as partial evidence;
+full mechanism science is not declared until all eleven identities are present.
+
+This amendment grants no merge, LIVE, production, execution, sizing, Risk,
+real-capital or certification authority.

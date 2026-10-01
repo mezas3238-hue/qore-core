@@ -566,3 +566,72 @@ def test_phase22_v2_batch_reenters_all_external_a_workstreams(
     assert set(plan.remaining_workstream_ids) == set(
         readiness.external_dependency_ids
     )
+
+
+def _phase22_v2_mechanism_payload(
+    intake: gate.ArchitectAPhase22V2ScientificIntakeReport,
+    *,
+    complete: bool,
+) -> dict:
+    kinds = gate._REQUIRED_MECHANISM_EVIDENCE_KINDS
+    selected = kinds if complete else kinds[:4]
+    return {
+        "schema": gate.PHASE22_V2_MECHANISM_EVIDENCE_SCHEMA,
+        "phase22_manifest_sha256": intake.manifest_sha256,
+        "evidence_refs": [
+            {
+                "kind": kind,
+                "sha256": "sha256:"
+                + sha256(("phase22-" + kind).encode("utf-8")).hexdigest(),
+            }
+            for kind in selected
+        ],
+        "scientific_closure_claimed": False,
+        "integration_authority": False,
+        "production_authority": False,
+    }
+
+
+def test_phase22_v2_mechanism_receipt_reports_partial_delivery() -> None:
+    intake = gate.evaluate_architect_a_phase22_v2_scientific_intake(
+        _phase22_v2_manifest_payload()
+    )
+    receipt = gate.evaluate_architect_a_phase22_v2_mechanism_evidence(
+        _phase22_v2_mechanism_payload(intake, complete=False),
+        intake,
+    )
+
+    assert receipt.ready_for_full_mechanism_science is False
+    assert receipt.present_kinds == gate._REQUIRED_MECHANISM_EVIDENCE_KINDS[:4]
+    assert receipt.missing_kinds == gate._REQUIRED_MECHANISM_EVIDENCE_KINDS[4:]
+
+
+def test_phase22_v2_mechanism_receipt_accepts_complete_delivery() -> None:
+    intake = gate.evaluate_architect_a_phase22_v2_scientific_intake(
+        _phase22_v2_manifest_payload(qualification_status="FAIL")
+    )
+    receipt = gate.evaluate_architect_a_phase22_v2_mechanism_evidence(
+        _phase22_v2_mechanism_payload(intake, complete=True),
+        intake,
+    )
+
+    assert receipt.ready_for_full_mechanism_science is True
+    assert receipt.missing_kinds == ()
+    assert receipt.blockers == ()
+
+
+def test_phase22_v2_mechanism_receipt_rejects_manifest_drift() -> None:
+    intake = gate.evaluate_architect_a_phase22_v2_scientific_intake(
+        _phase22_v2_manifest_payload()
+    )
+    payload = _phase22_v2_mechanism_payload(intake, complete=True)
+    payload["phase22_manifest_sha256"] = "sha256:" + "0" * 64
+
+    with pytest.raises(
+        gate.ArchitectAReadinessError,
+        match="mechanism manifest lineage drift",
+    ):
+        gate.evaluate_architect_a_phase22_v2_mechanism_evidence(
+            payload,
+            intake,
+        )

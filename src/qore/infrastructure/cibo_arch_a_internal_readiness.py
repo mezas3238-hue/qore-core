@@ -31,6 +31,9 @@ ARCH_B_FORWARD_MANIFEST_ID = (
     "CIBO_ARCH_B_FORWARD_ECONOMIC_EVIDENCE_MANIFEST_V1"
 )
 PHASE22_V2_INTAKE_SCHEMA = "QORE_CIBO_ARCH_A_PHASE22_V2_SCIENTIFIC_INTAKE_V1"
+PHASE22_V2_MECHANISM_EVIDENCE_SCHEMA = (
+    "QORE_CIBO_ARCH_A_PHASE22_V2_MECHANISM_EVIDENCE_V1"
+)
 PHASE22_V2_CANDIDATE_ID = (
     "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
 )
@@ -1021,6 +1024,172 @@ def build_architect_a_phase22_v2_scientific_batch_plan(
         population_batch_ready=bool(flattened) and not blockers,
         complete_without_execution=complete,
         blockers=tuple(blockers),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class ArchitectAPhase22V2MechanismEvidenceReceipt:
+    schema: str
+    phase22_manifest_sha256: str
+    evidence_refs: tuple[tuple[str, str], ...]
+    present_kinds: tuple[str, ...]
+    missing_kinds: tuple[str, ...]
+    ready_for_full_mechanism_science: bool
+    blockers: tuple[str, ...]
+    scientific_closure_claimed: bool = False
+    integration_authority: bool = False
+    production_authority: bool = False
+
+    def __post_init__(self) -> None:
+        if self.schema != PHASE22_V2_MECHANISM_EVIDENCE_SCHEMA:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 mechanism-evidence schema drift"
+            )
+        _require_sha(self.phase22_manifest_sha256, "phase22_manifest_sha256")
+        kinds = tuple(kind for kind, _digest in self.evidence_refs)
+        if (
+            len(kinds) != len(set(kinds))
+            or any(kind not in _REQUIRED_MECHANISM_EVIDENCE_KINDS for kind in kinds)
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 mechanism-evidence kinds are invalid"
+            )
+        for _kind, digest in self.evidence_refs:
+            _require_sha(digest, "Phase22 V2 mechanism evidence sha256")
+        expected_present = tuple(
+            kind for kind in _REQUIRED_MECHANISM_EVIDENCE_KINDS
+            if kind in set(kinds)
+        )
+        expected_missing = tuple(
+            kind for kind in _REQUIRED_MECHANISM_EVIDENCE_KINDS
+            if kind not in set(kinds)
+        )
+        if self.present_kinds != expected_present:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 mechanism present-kind drift"
+            )
+        if self.missing_kinds != expected_missing:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 mechanism missing-kind drift"
+            )
+        if type(self.ready_for_full_mechanism_science) is not bool:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 mechanism readiness must be bool"
+            )
+        if (
+            not isinstance(self.blockers, tuple)
+            or any(not isinstance(item, str) or not item for item in self.blockers)
+            or len(self.blockers) != len(set(self.blockers))
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 mechanism blockers are invalid"
+            )
+        expected_ready = not self.missing_kinds and not self.blockers
+        if self.ready_for_full_mechanism_science != expected_ready:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 mechanism readiness/blocker drift"
+            )
+        if (
+            self.scientific_closure_claimed
+            or self.integration_authority
+            or self.production_authority
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 mechanism cannot claim closure/authority"
+            )
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+def evaluate_architect_a_phase22_v2_mechanism_evidence(
+    payload: dict[str, Any],
+    intake: ArchitectAPhase22V2ScientificIntakeReport,
+) -> ArchitectAPhase22V2MechanismEvidenceReceipt:
+    if not isinstance(payload, dict):
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 mechanism payload must be object"
+        )
+    if not isinstance(intake, ArchitectAPhase22V2ScientificIntakeReport):
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 mechanism requires canonical intake"
+        )
+    if payload.get("schema") != PHASE22_V2_MECHANISM_EVIDENCE_SCHEMA:
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 mechanism payload schema drift"
+        )
+    manifest_sha = _require_sha(
+        payload.get("phase22_manifest_sha256"),
+        "phase22_manifest_sha256",
+    )
+    if manifest_sha != intake.manifest_sha256:
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 mechanism manifest lineage drift"
+        )
+    for name in (
+        "scientific_closure_claimed",
+        "integration_authority",
+        "production_authority",
+    ):
+        if payload.get(name) not in {None, False}:
+            raise ArchitectAReadinessError(
+                f"Architect A Phase22 V2 mechanism cannot assert {name}"
+            )
+
+    raw_refs = payload.get("evidence_refs")
+    if not isinstance(raw_refs, list):
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 mechanism refs must be list"
+        )
+    refs: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for raw in raw_refs:
+        if not isinstance(raw, dict):
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 mechanism ref must be object"
+            )
+        kind = _require_nonempty_str(raw.get("kind"), "evidence kind")
+        if kind not in _REQUIRED_MECHANISM_EVIDENCE_KINDS:
+            raise ArchitectAReadinessError(
+                f"Architect A Phase22 V2 mechanism unknown kind: {kind}"
+            )
+        if kind in seen:
+            raise ArchitectAReadinessError(
+                f"Architect A Phase22 V2 mechanism duplicate kind: {kind}"
+            )
+        seen.add(kind)
+        refs.append(
+            (
+                kind,
+                _require_sha(raw.get("sha256"), f"{kind} sha256"),
+            )
+        )
+
+    ordered_refs = tuple(
+        (kind, next(digest for ref_kind, digest in refs if ref_kind == kind))
+        for kind in _REQUIRED_MECHANISM_EVIDENCE_KINDS
+        if kind in seen
+    )
+    present = tuple(kind for kind, _digest in ordered_refs)
+    missing = tuple(
+        kind for kind in _REQUIRED_MECHANISM_EVIDENCE_KINDS
+        if kind not in seen
+    )
+    blockers = tuple(
+        ["PHASE22_V2_SCIENTIFIC_INTAKE_REQUIRED"]
+        if not intake.ready_for_scientific_reentry
+        else []
+    )
+    return ArchitectAPhase22V2MechanismEvidenceReceipt(
+        schema=PHASE22_V2_MECHANISM_EVIDENCE_SCHEMA,
+        phase22_manifest_sha256=manifest_sha,
+        evidence_refs=ordered_refs,
+        present_kinds=present,
+        missing_kinds=missing,
+        ready_for_full_mechanism_science=(
+            intake.ready_for_scientific_reentry and not missing
+        ),
+        blockers=blockers,
     )
 
 def forward_manifest_payload_sha256(payload: dict[str, Any]) -> str:
