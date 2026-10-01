@@ -25,12 +25,12 @@ from qore.infrastructure.cibo_ce2i_phase22_qualification_plan import (
     FROZEN_PHASE22_HOLDOUT_QUALIFICATION_PLAN,
     phase22_holdout_qualification_plan_sha256,
 )
-from qore.infrastructure.cibo_phase22_provider_execution_calibration_receipt import (
-    PHASE22_PROVIDER_EXECUTION_CALIBRATION_RECEIPT,
-)
 from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
     CANDIDATE_ID,
     phase22_v2_holdout_source_receipt_sha256,
+)
+from qore.infrastructure.cibo_phase22_provider_execution_calibration_receipt import (
+    PHASE22_PROVIDER_EXECUTION_CALIBRATION_RECEIPT,
 )
 
 DUAL_EVIDENCE_PLAN_ID = "CIBO_PHASE22_DUAL_EVIDENCE_QUALIFICATION_PLAN_V2"
