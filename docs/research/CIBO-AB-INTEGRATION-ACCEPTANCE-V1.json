@@ -6,21 +6,22 @@
   "architect_a": {
     "pr": 660,
     "accepted_head_sha": "9f7a24a86c04a1d0554996ab57523e7338465002",
-    "latest_observed_head_sha": "f10e47e8f3127c5997168dd221fd30d9160dbe08",
+    "latest_observed_head_sha": "40137ab89e2ed575700384be84847eb1c2d27fb1",
     "support_blockers": [
       "A-SUPPORT-001_FINAL_EXAM_SELF_ATTESTATION",
       "A-SUPPORT-002_MANDATORY_WORKSTREAM_DRIFT"
     ],
     "integrator_staged_repair_blockers": [
-      "A-SUPPORT-001_FINAL_EXAM_SELF_ATTESTATION",
       "A-SUPPORT-002_MANDATORY_WORKSTREAM_DRIFT"
     ],
-    "integrator_resolved_support_blockers": []
+    "integrator_resolved_support_blockers": [
+      "A-SUPPORT-001_FINAL_EXAM_SELF_ATTESTATION"
+    ]
   },
   "architect_b": {
     "pr": 661,
     "accepted_head_sha": "5d028b1ebc76a98db36d26f86bc872e2f60c5541",
-    "latest_observed_head_sha": "868213aa07309b1d3e65745e581c11d45d851fcf",
+    "latest_observed_head_sha": "0b0932ae46499477d2d9a627e6a334310ae21a5d",
     "support_blockers": [
       "B-SUPPORT-001_USD60_READINESS_SELF_ATTESTATION",
       "B-SUPPORT-002_RISK_HANDOFF_LEDGER_DRIFT",
@@ -31,13 +32,13 @@
     ],
     "integrator_staged_repair_blockers": [
       "B-SUPPORT-001_USD60_READINESS_SELF_ATTESTATION",
-      "B-SUPPORT-003_CALIBRATION_FREEZE_SELF_ATTESTATION",
       "B-SUPPORT-004_PROVIDER_GEOMETRY_FIXTURE_BREAKAGE",
       "B-SUPPORT-005_T11_DEDICATED_TEST_MISSING",
       "B-SUPPORT-006_T16_T17_STRUCTURAL_DISABLEMENT_REQUIRES_TYPED_PROVIDER_STATUS"
     ],
     "integrator_resolved_support_blockers": [
-      "B-SUPPORT-002_RISK_HANDOFF_LEDGER_DRIFT"
+      "B-SUPPORT-002_RISK_HANDOFF_LEDGER_DRIFT",
+      "B-SUPPORT-003_CALIBRATION_FREEZE_SELF_ATTESTATION"
     ]
   },
   "ledger_path": "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json",
@@ -71,7 +72,9 @@
       "src/qore/infrastructure/cibo_receipt_bound_pre_holdout.py"
     ],
     "purpose": "Exact-head/policy source-bound evidence for Phase21/22 Final Exam, USD60, T01-T20 calibration freeze and pre-holdout readiness",
-    "accepted": false,
-    "blocker": "INTEGRATOR_CROSSBOUNDARY_RECEIPT_CI_REQUIRED"
+    "accepted": true,
+    "blocker": null,
+    "workflow_run_id": 36790166830,
+    "validated_head_sha": "a08682bfab0a1fb56d0d07d8b91436a41334e01b"
   }
 }

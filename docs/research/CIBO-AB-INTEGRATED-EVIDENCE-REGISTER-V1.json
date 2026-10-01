@@ -150,7 +150,7 @@
     {
       "owner": "INTEGRATOR_RISK_RECONCILIATION",
       "source_head_sha": "41f0227e2136ac09c94bdd8187c2e6f5e625ee36",
-      "current_architect_b_head_sha": "868213aa07309b1d3e65745e581c11d45d851fcf",
+      "current_architect_b_head_sha": "0b0932ae46499477d2d9a627e6a334310ae21a5d",
       "unchanged_surface_verified": true,
       "items": [
         {
@@ -161,17 +161,41 @@
           "reconciliation": "docs/research/CIBO-INTEGRATOR-RISK-MECHANICAL-CLOSURE-RECONCILIATION-V1.md"
         }
       ]
+    },
+    {
+      "owner": "INTEGRATOR_RECEIPT_HARDENING",
+      "source_head_sha": "a08682bfab0a1fb56d0d07d8b91436a41334e01b",
+      "items": [
+        {
+          "id": "CROSSBOUNDARY_SOURCE_BOUND_RECEIPTS",
+          "class": "ENGINEERING_GREEN_SOURCE_BOUND_RECEIPT_PRIMITIVE",
+          "workflow_run_id": 36790166830,
+          "status": "SUCCESS"
+        },
+        {
+          "id": "FINAL_INTEGRATED_CIBO_EXAM_RECEIPT_BOUND_ENTRY",
+          "class": "ENGINEERING_GREEN_SELF_ATTESTATION_REPAIR",
+          "workflow_run_id": 36790166786,
+          "status": "SUCCESS"
+        },
+        {
+          "id": "CALIBRATION_FREEZE_RECEIPT_BOUND_ENTRY",
+          "class": "ENGINEERING_GREEN_SELF_ATTESTATION_REPAIR",
+          "workflow_run_id": 36790166754,
+          "status": "SUCCESS"
+        }
+      ]
     }
   ],
   "pending_candidates": [
     {
       "owner": "ARCHITECT_A",
-      "latest_head_sha": "f10e47e8f3127c5997168dd221fd30d9160dbe08",
+      "latest_head_sha": "40137ab89e2ed575700384be84847eb1c2d27fb1",
       "reasons": [
         "CURRENT_HEAD_CI_PENDING",
-        "A_SUPPORT_001_FINAL_EXAM_SELF_ATTESTATION_UPSTREAM",
         "A_SUPPORT_002_MANDATORY_WORKSTREAM_DRIFT_UPSTREAM",
-        "REAL_FORWARD_COMPOUND_POPULATION_OPEN"
+        "REAL_FORWARD_COMPOUND_POPULATION_OPEN",
+        "A_SUPPORT_001_RECEIPT_BOUND_REPAIR_PROVEN_IN_INTEGRATOR"
       ],
       "engineering_green_not_accepted_as_certification_gate": [
         {
@@ -195,13 +219,13 @@
     },
     {
       "owner": "ARCHITECT_B",
-      "latest_head_sha": "868213aa07309b1d3e65745e581c11d45d851fcf",
+      "latest_head_sha": "0b0932ae46499477d2d9a627e6a334310ae21a5d",
       "reasons": [
         "CURRENT_HEAD_CI_PENDING",
         "B_SUPPORT_001_USD60_READINESS_SELF_ATTESTATION_UPSTREAM",
-        "B_SUPPORT_003_CALIBRATION_FREEZE_SELF_ATTESTATION_UPSTREAM",
         "REAL_FORWARD_PROVIDER_AND_CAPITAL_POPULATION_OPEN",
-        "B_SUPPORT_002_UPSTREAM_LEDGER_DRIFT_RECONCILED_IN_INTEGRATOR"
+        "B_SUPPORT_002_UPSTREAM_LEDGER_DRIFT_RECONCILED_IN_INTEGRATOR",
+        "B_SUPPORT_003_RECEIPT_BOUND_FREEZE_PROVEN_IN_INTEGRATOR"
       ],
       "candidate_workflow_runs": {
         "risk_integration": 36778702336,

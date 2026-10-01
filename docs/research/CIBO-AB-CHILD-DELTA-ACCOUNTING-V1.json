@@ -4,7 +4,7 @@
   "integrator_pr": 670,
   "architect_a": {
     "pr": 660,
-    "head_sha": "f10e47e8f3127c5997168dd221fd30d9160dbe08",
+    "head_sha": "40137ab89e2ed575700384be84847eb1c2d27fb1",
     "changed_files": 95,
     "files_present_in_integrator_delta": 94,
     "deliberate_overrides": [
@@ -18,15 +18,16 @@
   },
   "architect_b": {
     "pr": 661,
-    "head_sha": "868213aa07309b1d3e65745e581c11d45d851fcf",
-    "changed_files": 81,
+    "head_sha": "0b0932ae46499477d2d9a627e6a334310ae21a5d",
+    "changed_files": 82,
     "files_present_in_integrator_delta": 78,
     "deliberate_noncanonical_snapshots": [
+      ".github/workflows/cibo-b-actions-queue-cleanup.yml",
       "docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.json",
       "docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.md",
       "docs/research/CIBO-ARCH-B-HANDOFF-MAESTRO-CONTINUIDAD-2026-09-30.md"
     ],
-    "reason": "Branch-local handoffs are status/provenance snapshots; integrated truth is acceptance matrix + master ledger + evidence register + support register.",
+    "reason": "Branch-local handoffs and the temporary Actions queue-cleanup workflow are operational/status surfaces; integrated truth is acceptance matrix + master ledger + evidence register.",
     "unaccounted_files": []
   },
   "all_child_delta_files_accounted": true,
