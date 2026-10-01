@@ -6,7 +6,9 @@ on:
     paths:
       - '.github/workflows/cibo-world-cup-maximum-capability-exam.yml'
       - 'src/qore/infrastructure/cibo_world_cup_maximum_capability_exam.py'
+      - 'src/qore/infrastructure/cibo_world_cup_entry_controls.py'
       - 'tests/infrastructure/test_cibo_world_cup_maximum_capability_exam.py'
+      - 'tests/infrastructure/test_cibo_world_cup_entry_controls.py'
       - 'docs/research/CIBO-WORLD-CUP-MAXIMUM-CAPABILITY-EXAM-PROTOCOL-V1.md'
       - 'docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md'
       - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
@@ -32,9 +34,15 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/cibo_world_cup_maximum_capability_exam.py \
-            tests/infrastructure/test_cibo_world_cup_maximum_capability_exam.py
-          mypy src/qore/infrastructure/cibo_world_cup_maximum_capability_exam.py
+            src/qore/infrastructure/cibo_world_cup_entry_controls.py \
+            tests/infrastructure/test_cibo_world_cup_maximum_capability_exam.py \
+            tests/infrastructure/test_cibo_world_cup_entry_controls.py
+          mypy \
+            src/qore/infrastructure/cibo_world_cup_maximum_capability_exam.py \
+            src/qore/infrastructure/cibo_world_cup_entry_controls.py
           python -m py_compile \
-            src/qore/infrastructure/cibo_world_cup_maximum_capability_exam.py
+            src/qore/infrastructure/cibo_world_cup_maximum_capability_exam.py \
+            src/qore/infrastructure/cibo_world_cup_entry_controls.py
           pytest -q --no-cov \
-            tests/infrastructure/test_cibo_world_cup_maximum_capability_exam.py
+            tests/infrastructure/test_cibo_world_cup_maximum_capability_exam.py \
+            tests/infrastructure/test_cibo_world_cup_entry_controls.py

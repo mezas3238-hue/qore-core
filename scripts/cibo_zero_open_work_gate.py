@@ -181,6 +181,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*ARCH-A-INTERNAL-READINESS*", "ZERO_OPEN_WORK_GATE"),
     ("*cibo_final_integrated_exam*", "FINAL_INTEGRATED_CIBO_EXAM"),
     ("*cibo_world_cup_maximum_capability_exam*", "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM"),
+    ("*cibo_world_cup_entry_controls*", "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM"),
     ("*cibo-world-cup-maximum-capability-exam*", "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM"),
     ("*final-integrated-exam*", "FINAL_INTEGRATED_CIBO_EXAM"),
     ("*cibo_final_exam_control_receipt*", "FINAL_INTEGRATED_CIBO_EXAM"),
