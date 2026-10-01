@@ -249,13 +249,17 @@ def evaluate_architect_a_internal_readiness(
         if not isinstance(evidence, list) or not evidence:
             evidence_missing.append(row_id)
 
-        if row.get("terminal_disposition") is None:
+        disposition = row.get("terminal_disposition")
+        if disposition is None:
             empirical_open.append(row_id)
             if not blockers:
                 internal_debt.append(row_id)
         else:
             terminal.append(row_id)
-            if blockers:
+            if disposition == "EXTERNAL_DEPENDENCY_BLOCKED":
+                if not blockers:
+                    internal_debt.append(row_id)
+            elif blockers:
                 internal_debt.append(row_id)
 
     internal_debt = list(dict.fromkeys(internal_debt))

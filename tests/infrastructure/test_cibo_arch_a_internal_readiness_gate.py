@@ -378,3 +378,23 @@ def test_mechanism_evidence_receipt_rejects_manifest_lineage_drift() -> None:
     ):
         gate.evaluate_architect_a_mechanism_evidence(payload, intake)
 
+def test_architect_a_readiness_accepts_terminal_external_dependency(
+    tmp_path: Path,
+) -> None:
+    payload = _ledger()
+    row = payload["workstreams"][0]
+    row["terminal_disposition"] = "EXTERNAL_DEPENDENCY_BLOCKED"
+    row["current_maturity"] = (
+        "TERMINAL_EXTERNAL_DEPENDENCY_BLOCKED_REAL_PHASE20D_REQUIRED"
+    )
+    row["blockers"] = ["ARCH_B_REAL_PHASE20D_FORWARD_POPULATION_NOT_AVAILABLE"]
+    path = tmp_path / "ledger.json"
+    _write(path, payload)
+
+    report = gate.evaluate_architect_a_internal_readiness(path)
+
+    assert report.passed is True
+    assert "T04" in report.terminal_ids
+    assert "T04" not in report.empirical_open_ids
+    assert report.internal_debt_ids == ()
+
