@@ -39,6 +39,11 @@ from qore.kernel.result import Failure
 _PERIOD_M1 = 1
 _PRICE_SCALE = Decimal("100000")
 _REQUIRED = ("NAS100", "US30", "US500")
+_QORE_TO_PROVIDER = (
+    ("NAS100", "USTEC"),
+    ("US30", "US30"),
+    ("US500", "US500"),
+)
 
 
 def _request(
@@ -142,17 +147,26 @@ def run() -> dict[str, object]:
             for item in capability.symbols
             if item.enabled
         }
-        if not set(_REQUIRED).issubset(by_name):
-            raise CiboCapitalManagementError("T16 fresh-OOS symbols unavailable")
+        provider_by_qore = dict(_QORE_TO_PROVIDER)
+        missing = tuple(
+            qore_symbol
+            for qore_symbol in _REQUIRED
+            if provider_by_qore[qore_symbol] not in by_name
+        )
+        if missing:
+            raise CiboCapitalManagementError(
+                "T16 fresh-OOS provider symbols unavailable: "
+                + ",".join(missing)
+            )
 
         bars = {
-            symbol: _closed_m1_prices(
+            qore_symbol: _closed_m1_prices(
                 client,
-                symbol_id=by_name[symbol].symbol_id,
+                symbol_id=by_name[provider_by_qore[qore_symbol]].symbol_id,
                 opened_at=opened_at,
                 closed_at=closed_at,
             )
-            for symbol in _REQUIRED
+            for qore_symbol in _REQUIRED
         }
         costs = dict(receipt.max_round_trip_cost_bps)
         results: dict[str, dict[str, object]] = {}
@@ -213,6 +227,10 @@ def run() -> dict[str, object]:
             "opened_at": opened_at.isoformat(),
             "closed_at": closed_at.isoformat(),
             "required_symbols": list(_REQUIRED),
+            "provider_symbol_binding": [
+                [qore_symbol, provider_symbol]
+                for qore_symbol, provider_symbol in _QORE_TO_PROVIDER
+            ],
             "bar_counts": {symbol: len(rows) for symbol, rows in bars.items()},
             "bar_sha256": {
                 symbol: market_rows_sha256(rows) for symbol, rows in bars.items()
