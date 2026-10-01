@@ -99,8 +99,9 @@ def architect2_closure_frontier() -> tuple[Arch2WorkstreamFrontier, ...]:
     )
     add(
         "T03",
-        Arch2ClosureState.ACTIVE_PROVIDER_RESEARCH,
-        "MULTI_LEG_MARGIN_SCREEN_THEN_DISCRETE_EQUIVALENCE_IF_CANDIDATE_SURVIVES",
+        Arch2ClosureState.TERMINAL_RECOMMENDATION_READY,
+        "INTEGRATOR_LEDGER_REVIEW",
+        "FALSIFIED_AND_CLOSED",
     )
     add(
         "T20",
