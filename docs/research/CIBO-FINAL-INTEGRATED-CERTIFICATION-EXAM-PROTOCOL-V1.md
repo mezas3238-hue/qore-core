@@ -258,49 +258,50 @@ The exam must not rewrite history to obtain a green verdict.
 
 ## Closure topology — no circular certification
 
-The executable closure order is:
+The executable mandatory closure order is:
 
 ```text
 ZERO-OPEN AUDITOR IMPLEMENTATION PROVEN
         ↓
-PHASE21 / PHASE22 GOVERNED HOLDOUT CHAIN COMPLETE
+PHASE21 / PHASE22 V2 GOVERNED HOLDOUT CHAIN COMPLETE
         ↓
-ALL OTHER ORDINARY MANDATORY WORK EXCEPT FINAL_EXAM TERMINAL
+ALL NON-EXAM MANDATORY WORK TERMINAL
         ↓
 PRE-EXAM ZERO-OPEN PASS
+(excludes only FINAL_INTEGRATED_CIBO_EXAM
+ and WORLD_CUP_MAXIMUM_CAPABILITY_EXAM)
         ↓
 FINAL INTEGRATED EXAM P1-P8 + E1-E10
         ↓
 FINAL_INTEGRATED_CIBO_EXAM TERMINAL
         ↓
+WORLD CUP MAXIMUM CAPABILITY EXAM
+        ↓
+WORLD_CUP_MAXIMUM_CAPABILITY_EXAM TERMINAL
+        ↓
 STRICT ZERO-OPEN PASS
         ↓
-ORDINARY CIBO FINAL CERTIFICATION CANDIDATE
+CIBO FINAL CERTIFICATION CANDIDATE
 ```
 
-`PRE_EXAM` excludes only `FINAL_INTEGRATED_CIBO_EXAM` from the mandatory
-closure set. It does not exclude scientific, provider, Risk, CMA, forward,
-Compound, OOS, stress, replication or governance work.
+`PRE_EXAM` is a sequencing scope, not a waiver. It excludes only the two
+mandatory certification exams so they can execute in order. It does not exclude
+scientific, provider, Risk, CMA, forward, Compound, OOS, stress, replication or
+governance work.
 
 The Zero Open Work auditor itself is normal mandatory infrastructure and must
 already have a terminal engineering disposition before PRE_EXAM can pass.
 
-The post-ordinary `WORLD_CUP_MAXIMUM_CAPABILITY_EXAM` is tracked in the
-ledger but is not part of the ordinary-certification mandatory count. Its
-preparation may not leave orphan work, and its exam cannot run before ordinary
-certification.
+The Phase22 economic receipt must already exist before PRE_EXAM can pass.
+It remains necessary but is not sufficient for global CIBO certification.
 
-The Phase22 economic receipt must already exist before PRE_EXAM can pass because FORWARD_QUALIFICATION is itself ordinary mandatory work. That receipt remains necessary but is not sufficient for global CIBO certification. Global certification additionally requires this integrated exam and the final strict zero-open verdict.
+## World Cup sequencing
 
-## World Cup separation
-
-Passing this ordinary exam does **not** imply World Cup maximum-capability
-certification.
-
-`WORLD_CUP_MAXIMUM_CAPABILITY_EXAM`
-
-remains a separate post-ordinary-certification program under its own future
-frozen protocol and evidence.
+Passing the Final Integrated Exam is necessary but does **not** by itself
+complete CIBO certification. The mandatory downstream
+`WORLD_CUP_MAXIMUM_CAPABILITY_EXAM` must also reach a legal terminal
+disposition under its separately frozen, receipt-bound, non-compensatory
+protocol before STRICT Zero Open and the final certification candidate.
 
 ## Non-claim
 

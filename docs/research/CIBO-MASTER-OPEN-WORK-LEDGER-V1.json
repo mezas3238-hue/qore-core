@@ -1675,41 +1675,52 @@
       "kind": "CERTIFICATION",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "TERMINAL_EXTERNAL_DEPENDENCY_BLOCKED_CERTIFICATION_CRITICAL_REAL_FORWARD_EVIDENCE_REQUIRED",
-      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "current_maturity": "RECEIPT_BOUND_EXAM_GATE_V2_ENGINEERING_PROVEN_REAL_EXAM_OPEN",
+      "terminal_disposition": null,
       "evidence_refs": [
+        "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md",
         "docs/research/CIBO-FINAL-INTEGRATED-CERTIFICATION-EXAM-PROTOCOL-V1.md",
-        "docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md",
         "src/qore/infrastructure/cibo_final_integrated_exam.py",
+        "src/qore/infrastructure/cibo_final_exam_control_receipt.py",
+        "src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam_v2.py",
+        "src/qore/infrastructure/cibo_arch_a_final_exam_closure_controls.py",
         "tests/infrastructure/test_cibo_final_integrated_exam.py",
+        "tests/infrastructure/test_cibo_final_exam_control_receipt.py",
+        "tests/infrastructure/test_cibo_receipt_bound_final_integrated_exam_v2.py",
+        "tests/infrastructure/test_cibo_arch_a_final_exam_closure_controls.py",
         ".github/workflows/cibo-final-integrated-exam.yml",
-        "github-actions://36767442737/SUCCESS",
-        "docs/research/CIBO-A-B-SOURCE-OF-TRUTH-RECONCILIATION-V1.md",
-        "github-pr://661@ce721778184312c68698ed1f14c573b670eb2327/docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.json",
-        "github-pr://661@ce721778184312c68698ed1f14c573b670eb2327/docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
-        "docs/research/CIBO-ARCH-A-EXTERNAL-DEPENDENCY-TERMINAL-CLOSURE-V1.md"
+        ".github/workflows/cibo-final-exam-control-receipt-v2.yml"
       ],
       "blockers": [
-        "CERTIFICATION_CRITICAL_EXTERNAL_DEPENDENCIES_REMAIN",
-        "REAL_PHASE20D_FORWARD_POPULATION_REQUIRED",
-        "PHASE21_EMPIRICAL_VALIDATIONS_AND_POLICY_FREEZE_REQUIRED",
-        "FINAL_GOVERNED_USD60_SIX_MONTH_EXAM_NOT_RUN"
+        "PRE_EXAM_EXTERNAL_DEPENDENCIES_MUST_CLEAR",
+        "PHASE20D_PHASE21_PHASE22_V2_CHAIN_REQUIRED",
+        "ACTUAL_18_RECEIPT_FINAL_INTEGRATED_EXAM_NOT_RUN"
       ],
-      "next_gate": "Do not execute or claim final certification until every certification-blocking external dependency has real evidence and the governed final exam can run without opening the fresh holdout early."
+      "next_gate": "After PRE_EXAM clears and exact Phase22 V2 economic certification plus all 18 source-bound controls exist on one integrated HEAD, execute the actual Final Integrated CIBO Exam."
     },
     {
       "id": "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
       "kind": "CERTIFICATION",
-      "mandatory": false,
-      "certification_blocking": false,
-      "current_maturity": "SEPARATE_POST_ORDINARY_CERTIFICATION_PROGRAM_PROTOCOL_NOT_YET_ELIGIBLE_TO_FREEZE",
+      "mandatory": true,
+      "certification_blocking": true,
+      "current_maturity": "RECEIPT_BOUND_EXAM_GATE_IMPLEMENTED_REAL_EXAM_OPEN",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "ORDINARY_CIBO_CERTIFICATION_REQUIRED_BEFORE_WORLD_CUP_EXAM_PROTOCOL_FREEZE",
-        "SEPARATE_WORLD_CUP_PROVIDER_AND_COMPETITION_EVIDENCE_REQUIRED"
+      "evidence_refs": [
+        "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md",
+        "docs/research/CIBO-WORLD-CUP-MAXIMUM-CAPABILITY-EXAM-PROTOCOL-V1.md",
+        "src/qore/infrastructure/cibo_world_cup_maximum_capability_exam.py",
+        "tests/infrastructure/test_cibo_world_cup_maximum_capability_exam.py",
+        ".github/workflows/cibo-world-cup-maximum-capability-exam.yml"
       ],
-      "next_gate": "Post-ordinary-certification program only. Freeze and execute the separate World Cup exam after ordinary CIBO certification; it does not block the ordinary mandatory zero-open count."
+      "blockers": [
+        "FINAL_INTEGRATED_CIBO_EXAM_MUST_PASS_FIRST",
+        "COMPETITION_PROVIDER_ADAPTER_REAL_EVIDENCE_REQUIRED",
+        "WORLD_CUP_DIGITAL_TWIN_REAL_EVIDENCE_REQUIRED",
+        "WORLD_CUP_CAUSAL_MC_STRESS_REPLICATION_RECEIPTS_REQUIRED",
+        "CERTIFICATION_BLOCKING_EXTERNAL_DEPENDENCIES_MUST_CLEAR",
+        "ACTUAL_WORLD_CUP_MAXIMUM_CAPABILITY_EXAM_NOT_RUN"
+      ],
+      "next_gate": "After the actual Final Integrated Exam passes and external dependencies clear, bind the ten exact-head World Cup controls and execute the non-compensatory maximum-capability exam."
     },
     {
       "id": "HISTORICAL_PHASE18_REPLAY_EVIDENCE",
@@ -1920,10 +1931,10 @@
     }
   ],
   "current_summary": {
-    "mandatory_count": 63,
-    "terminal_count": 63,
-    "open_count": 0,
-    "zero_open_work_pass": true,
+    "mandatory_count": 64,
+    "terminal_count": 62,
+    "open_count": 2,
+    "zero_open_work_pass": false,
     "final_certification_candidate": false
   }
 }

@@ -37,7 +37,12 @@ _TERMINAL = frozenset(
     }
 )
 
-_PRE_EXAM_EXCLUDED_WORKSTREAM_IDS = frozenset({"FINAL_INTEGRATED_CIBO_EXAM"})
+_PRE_EXAM_EXCLUDED_WORKSTREAM_IDS = frozenset(
+    {
+        "FINAL_INTEGRATED_CIBO_EXAM",
+        "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
+    }
+)
 
 _REQUIRED_CANONICAL_ARTIFACTS = (
     "docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md",
@@ -48,6 +53,8 @@ _REQUIRED_CANONICAL_ARTIFACTS = (
     "docs/research/CIBO-CE2I-ADR-003-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING.md",
     "docs/research/CIBO-CAPITAL-MANAGEMENT-AUTHORITY-CE2I-MASTER-ROADMAP-V2.md",
     "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+    "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md",
+    "docs/research/CIBO-WORLD-CUP-MAXIMUM-CAPABILITY-EXAM-PROTOCOL-V1.md",
     "docs/research/CIBO-GENERATION-CURRENT-CONTROL-CI-EVIDENCE-V1.json",
 )
 
@@ -173,6 +180,8 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_arch_a_internal_readiness*", "ZERO_OPEN_WORK_GATE"),
     ("*ARCH-A-INTERNAL-READINESS*", "ZERO_OPEN_WORK_GATE"),
     ("*cibo_final_integrated_exam*", "FINAL_INTEGRATED_CIBO_EXAM"),
+    ("*cibo_world_cup_maximum_capability_exam*", "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM"),
+    ("*cibo-world-cup-maximum-capability-exam*", "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM"),
     ("*final-integrated-exam*", "FINAL_INTEGRATED_CIBO_EXAM"),
     ("*cibo_final_exam_control_receipt*", "FINAL_INTEGRATED_CIBO_EXAM"),
     ("*cibo_receipt_bound_final_integrated_exam_v2*", "FINAL_INTEGRATED_CIBO_EXAM"),

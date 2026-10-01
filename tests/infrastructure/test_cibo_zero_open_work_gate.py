@@ -225,10 +225,23 @@ def test_gate_marks_unclassified_inventory_as_orphan_candidate(
             "next_gate": "Classify every CIBO inventory path.",
         }
     )
+    payload["workstreams"].append(
+        {
+            "id": "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
+            "kind": "CERTIFICATION",
+            "mandatory": True,
+            "certification_blocking": True,
+            "current_maturity": "WORLD_CUP_EXECUTION_BLOCKED",
+            "terminal_disposition": None,
+            "evidence_refs": ["docs/research/world-cup-exam.md"],
+            "blockers": ["FINAL_INTEGRATED_CIBO_EXAM_MUST_PASS_FIRST"],
+            "next_gate": "Run the World Cup exam after Final Integrated PASS.",
+        }
+    )
     payload["current_summary"] = {
-        "mandatory_count": 2,
+        "mandatory_count": 3,
         "terminal_count": 1,
-        "open_count": 1,
+        "open_count": 2,
         "zero_open_work_pass": False,
         "final_certification_candidate": False,
     }
@@ -361,7 +374,7 @@ def _pre_exam_ledger() -> dict:
     return payload
 
 
-def test_pre_exam_gate_excludes_only_final_exam(
+def test_pre_exam_gate_excludes_only_two_certification_exams(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -386,7 +399,10 @@ def test_pre_exam_gate_excludes_only_final_exam(
     assert pre_exam.mandatory_workstream_count == 1
     assert strict.scope == "STRICT"
     assert strict.passed is False
-    assert strict.open_workstream_ids == ("FINAL_INTEGRATED_CIBO_EXAM",)
+    assert strict.open_workstream_ids == (
+        "FINAL_INTEGRATED_CIBO_EXAM",
+        "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
+    )
 
 
 def test_pre_exam_gate_still_blocks_other_open_work(
@@ -522,4 +538,22 @@ def test_gate_classifies_arch_a_final_exam_closure_controls() -> None:
     assert orphans == ()
     assert set(assignments) == {
         (path, "FINAL_INTEGRATED_CIBO_EXAM") for path in inventory
+    }
+
+
+def test_gate_classifies_world_cup_exam_surfaces() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_world_cup_maximum_capability_exam.py",
+        "tests/infrastructure/test_cibo_world_cup_maximum_capability_exam.py",
+        ".github/workflows/cibo-world-cup-maximum-capability-exam.yml",
+    )
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=frozenset(
+            {"WORLD_CUP_MAXIMUM_CAPABILITY_EXAM", "ORPHAN_INVENTORY"}
+        ),
+    )
+    assert orphans == ()
+    assert set(assignments) == {
+        (path, "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM") for path in inventory
     }
