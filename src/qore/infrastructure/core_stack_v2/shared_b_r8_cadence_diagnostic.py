@@ -87,9 +87,12 @@ def _event_times(path: Path, expected: dict[str, object]) -> list[datetime]:
             raise SharedBR8CadenceDiagnosticError(
                 "raw shard header missing"
             )
+        expected_tick_count = expected.get("tick_count")
+        if type(expected_tick_count) is not int or expected_tick_count < 0:
+            raise SharedBR8CadenceDiagnosticError(
+                "expected raw shard tick_count invalid"
+            )
         for key in (
-            "provider_symbol",
-            "provider_symbol_id",
             "quote_side",
             "window_index",
             "page_index",
@@ -101,6 +104,21 @@ def _event_times(path: Path, expected: dict[str, object]) -> list[datetime]:
                 raise SharedBR8CadenceDiagnosticError(
                     f"raw shard header mismatch: {key}"
                 )
+
+        header_symbol = header.get("provider_symbol")
+        header_symbol_id = header.get("provider_symbol_id")
+        if expected_tick_count == 0:
+            if header_symbol is not None or header_symbol_id is not None:
+                raise SharedBR8CadenceDiagnosticError(
+                    "zero-event raw shard must preserve null provider identity"
+                )
+        elif (
+            header_symbol != expected.get("provider_symbol")
+            or header_symbol_id != expected.get("provider_symbol_id")
+        ):
+            raise SharedBR8CadenceDiagnosticError(
+                "populated raw shard provider identity mismatch"
+            )
         for line in handle:
             if not line.strip():
                 continue

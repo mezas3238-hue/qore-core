@@ -38,8 +38,8 @@ def _write_shard(
     }
     header = {
         "header": {
-            "provider_symbol": symbol,
-            "provider_symbol_id": symbol_id,
+            "provider_symbol": symbol if times else None,
+            "provider_symbol_id": symbol_id if times else None,
             **{
                 key: record[key]
                 for key in (
@@ -80,8 +80,12 @@ def _fixture(root: Path) -> dict[str, object]:
     for symbol, symbol_id in SENSORS:
         records: list[dict[str, object]] = []
         for side in ("bid", "ask"):
-            windows = CHECKPOINTS if symbol != "XTIUSD" else (2210, 2947)
-            for window in windows:
+            for window in CHECKPOINTS:
+                times = (
+                    base_times
+                    if symbol != "XTIUSD" or window in (2210, 2947)
+                    else ()
+                )
                 records.append(
                     _write_shard(
                         root,
@@ -89,7 +93,7 @@ def _fixture(root: Path) -> dict[str, object]:
                         symbol_id=symbol_id,
                         side=side,
                         window=window,
-                        times=base_times,
+                        times=times,
                     )
                 )
         reports.append(
