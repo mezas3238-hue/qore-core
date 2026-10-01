@@ -151,9 +151,9 @@ def evaluate_gate(
             )
         by_id[workstream_id] = raw
 
-    if tuple(by_id) != _B_IDS:
+    if set(by_id) != set(_B_IDS):
         raise ArchitectBZeroOpenWorkGateError(
-            "Architect-B disposition set/order drift"
+            "Architect-B disposition set drift"
         )
 
     open_ids: list[str] = []
