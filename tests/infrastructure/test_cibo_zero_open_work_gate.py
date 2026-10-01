@@ -440,3 +440,49 @@ def test_shared_ce2i_economic_gates_are_not_orphans() -> None:
     assert set(assignments) == {
         (path, "CE2I_CROSS_TOOL_INFRASTRUCTURE") for path in inventory
     }
+
+def test_gate_classifies_arch_b_crossboundary_surfaces_specifically() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t03_margin_population.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t11_execution_population.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
+        "src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py",
+        "src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py",
+        "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py",
+        "src/qore/infrastructure/cibo_research_memory.py",
+    )
+    ledger_ids = frozenset(
+        {
+            "FORWARD_QUALIFICATION",
+            "T02",
+            "T03",
+            "T11",
+            "T16",
+            "T17",
+            "PROVIDER_ECONOMICS",
+            "INTEGRATED_CAPITAL_TRUTH",
+            "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK",
+            "ORPHAN_INVENTORY",
+        }
+    )
+
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    assert dict(assignments) == {
+        inventory[0]: "FORWARD_QUALIFICATION",
+        inventory[1]: "T02",
+        inventory[2]: "T03",
+        inventory[3]: "T11",
+        inventory[4]: "PROVIDER_ECONOMICS",
+        inventory[5]: "T17",
+        inventory[6]: "T16",
+        inventory[7]: "INTEGRATED_CAPITAL_TRUTH",
+        inventory[8]: "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK",
+    }
+    assert orphans == ()
+
