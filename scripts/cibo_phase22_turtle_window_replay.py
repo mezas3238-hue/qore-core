@@ -141,7 +141,11 @@ def validate_window_rows(
                 f"{config.trader_id} invalid side at row {index}"
             )
         identity = (signal_at, side)
-        if prior_identity is not None and identity < prior_identity:
+        if (
+            mode == "FRESH"
+            and prior_identity is not None
+            and identity < prior_identity
+        ):
             raise ValueError(
                 f"{config.trader_id} geometry rows are not chronological"
             )

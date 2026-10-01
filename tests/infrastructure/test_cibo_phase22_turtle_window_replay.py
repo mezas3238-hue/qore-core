@@ -63,3 +63,29 @@ def test_parity_population_is_exact() -> None:
 def test_fresh_window_is_exact_six_month_candidate() -> None:
     assert FRESH_OPEN == datetime(2017, 1, 1, tzinfo=UTC)
     assert FRESH_CLOSE == datetime(2017, 7, 1, tzinfo=UTC)
+
+def test_parity_preserves_frozen_nonchronological_serialization() -> None:
+    config = TurtleReplayConfig(
+        trader_id="TEST",
+        expected_parity_rows=2,
+        geometry_filename="trades.jsonl",
+        symbol="TEST",
+    )
+    rows = (
+        _row(datetime(2021, 9, 17, 2, tzinfo=UTC)),
+        _row(datetime(2021, 9, 17, 1, tzinfo=UTC)),
+    )
+
+    validate_window_rows(rows=rows, config=config, mode="PARITY")
+
+
+def test_fresh_rejects_nonchronological_serialization() -> None:
+    config = CONFIGS["AUDJPY_R42"]
+    rows = (
+        _row(datetime(2017, 1, 3, 11, tzinfo=UTC)),
+        _row(datetime(2017, 1, 3, 10, tzinfo=UTC)),
+    )
+
+    with pytest.raises(ValueError, match="not chronological"):
+        validate_window_rows(rows=rows, config=config, mode="FRESH")
+
