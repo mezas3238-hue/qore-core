@@ -17,6 +17,7 @@ from collections import defaultdict
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import cast
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
@@ -234,7 +235,7 @@ def _single_deal(
     if direct is not None and type(direct) is not tuple:
         direct_order_id = getattr(direct, "orderId", order_id)
         if direct_order_id == order_id:
-            return direct
+            return cast(object, direct)
     raw = getattr(response, "deal", ())
     try:
         rows = tuple(raw)
@@ -249,11 +250,14 @@ def _single_deal(
     )
     if not candidates:
         return None
-    return min(
-        candidates,
-        key=lambda item: (
-            getattr(item, "executionTimestamp", 0),
-            getattr(item, "dealId", 0),
+    return cast(
+        object,
+        min(
+            candidates,
+            key=lambda item: (
+                getattr(item, "executionTimestamp", 0),
+                getattr(item, "dealId", 0),
+            ),
         ),
     )
 
