@@ -25,6 +25,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_ce2i_phase19_portfolio_replay import (
     PHASE19_REQUIRED_TRADERS,
 )
+from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
+    Phase20ForwardDecisionSeal,
+)
 from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
     FROZEN_PHASE20_POLICY_CANDIDATE,
 )
@@ -314,7 +317,7 @@ def assess_phase22_t12_t13_causal_population(
 
 
 def _assess_t12(
-    decisions: tuple,
+    decisions: tuple[Phase20ForwardDecisionSeal, ...],
     payloads: tuple[dict[str, object], ...],
 ) -> Phase22T12RegimeLineage:
     counters: dict[TraderLineage, list[int]] = {
@@ -382,7 +385,7 @@ def _assess_t12(
 
 
 def _assess_t13(
-    decisions: tuple,
+    decisions: tuple[Phase20ForwardDecisionSeal, ...],
     payloads: tuple[dict[str, object], ...],
     outcomes: tuple[Phase22HistoricalReplayOutcomeSeal, ...],
 ) -> Phase22T13ReserveLineage:
