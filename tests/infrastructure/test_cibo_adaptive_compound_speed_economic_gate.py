@@ -181,3 +181,70 @@ def test_genc8_row_rejects_manual_status_metric_drift() -> None:
     row = _gate(treatment).rows[1]
     with pytest.raises(CiboCompoundCapitalError, match="status/metric drift"):
         replace(row, safety_no_worse=False)
+
+
+def test_genc8_rejects_malformed_or_nonfinite_economic_metrics() -> None:
+    control = _observation(
+        candidate_id="control",
+        role=Genc8EconomicRole.CONTROL,
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="metrics must be finite non-negative Decimals",
+    ):
+        replace(control, maximum_drawdown_usd=Decimal("NaN"))
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="productivity must be finite Decimal",
+    ):
+        replace(control, capital_risk_time_productivity=Decimal("Infinity"))
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="metrics must be finite non-negative Decimals",
+    ):
+        replace(control, provider_cost_usd=2.0)
+
+
+def test_genc8_productivity_may_be_negative_but_must_remain_finite_decimal() -> None:
+    observation = _observation(
+        candidate_id="negative-productivity",
+        role=Genc8EconomicRole.TREATMENT,
+        productivity="-0.1",
+    )
+
+    assert observation.capital_risk_time_productivity == Decimal("-0.1")
+
+
+def test_genc8_rejects_malformed_fold_identity() -> None:
+    control = _observation(
+        candidate_id="control",
+        role=Genc8EconomicRole.CONTROL,
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="fold ids must be non-empty unique strings",
+    ):
+        replace(control, fold_ids=("WF1", ""))
+
+
+def test_genc8_rejects_non_datetime_horizon_and_non_string_digest() -> None:
+    control = _observation(
+        candidate_id="control",
+        role=Genc8EconomicRole.CONTROL,
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="horizon_start must be timezone-aware",
+    ):
+        replace(control, horizon_start="2026-09-30T19:00:00Z")
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="population_sha256 must be canonical SHA-256",
+    ):
+        replace(control, population_sha256=None)
