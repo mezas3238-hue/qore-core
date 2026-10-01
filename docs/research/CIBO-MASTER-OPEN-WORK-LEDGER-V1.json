@@ -977,7 +977,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "INTEGRATED_ENGINE_IMPLEMENTED_CI_GREEN_REAL_REPLAY_REQUIRED",
+      "current_maturity": "INTEGRATED_ENGINE_IMPLEMENTED_CI_GREEN_REAL_REPLAY_REQUIRED_STRESS_AND_TEMPORAL_ENGINE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_cycle_state.py",
@@ -987,7 +987,15 @@
         "tests/infrastructure/test_cibo_compound_market_cycle.py",
         ".github/workflows/cibo-compound-engine-integrated-cycle.yml",
         "github-actions://36727848373/SUCCESS",
-        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md"
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_compound_adversarial_stress.py",
+        "tests/infrastructure/test_cibo_compound_adversarial_stress.py",
+        "docs/research/CIBO-COMPOUND-ADVERSARIAL-STRESS-MATRIX-V1.md",
+        "src/qore/infrastructure/cibo_compound_temporal_replication_gate.py",
+        "tests/infrastructure/test_cibo_compound_temporal_replication_gate.py",
+        "docs/research/CIBO-COMPOUND-TEMPORAL-ECONOMIC-REPLICATION-CRITERION-V1.md",
+        "github-actions://36727848052/SUCCESS",
+        "github-actions://36754064447/SUCCESS"
       ],
       "blockers": [
         "REAL_CHRONOLOGICAL_POPULATION_REPLAY_REQUIRED",
@@ -1183,7 +1191,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "MONTE_CARLO_ENGINE_AND_REAL_POPULATION_BINDING_CHILD_CI_GREEN_REAL_POPULATION_REQUIRED",
+      "current_maturity": "MONTE_CARLO_ENGINE_AND_REAL_POPULATION_BINDING_CHILD_CI_GREEN_REAL_POPULATION_REQUIRED_STRESS_AND_TEMPORAL_ENGINE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_path_monte_carlo.py",
@@ -1194,7 +1202,13 @@
         "src/qore/infrastructure/cibo_compound_real_population_binding.py",
         "tests/infrastructure/test_cibo_compound_real_population_binding.py",
         "docs/research/CIBO-COMPOUND-REAL-POPULATION-BINDING-V1.md",
-        "github-actions://36754064447/SUCCESS"
+        "github-actions://36754064447/SUCCESS",
+        "src/qore/infrastructure/cibo_compound_adversarial_stress.py",
+        "tests/infrastructure/test_cibo_compound_adversarial_stress.py",
+        "docs/research/CIBO-COMPOUND-ADVERSARIAL-STRESS-MATRIX-V1.md",
+        "src/qore/infrastructure/cibo_compound_temporal_replication_gate.py",
+        "tests/infrastructure/test_cibo_compound_temporal_replication_gate.py",
+        "docs/research/CIBO-COMPOUND-TEMPORAL-ECONOMIC-REPLICATION-CRITERION-V1.md"
       ],
       "blockers": [
         "REAL_COMPOUND_EPISODE_POPULATION_AND_FLOOR_ATTRIBUTION_REQUIRED",
