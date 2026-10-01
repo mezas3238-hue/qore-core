@@ -1007,12 +1007,12 @@ def test_compound_cycle_audit_rejects_manual_generation_drift() -> None:
 
 
 
-def test_compound_cycle_audit_rejects_nonpreceding_generation_parent() -> None:
+def test_compound_cycle_audit_rejects_parent_generation_above_child() -> None:
     state = _funded_compound_state()
     ledger = state.compound_ledger
 
     corrupted_archived = tuple(
-        replace(item, generation=2)
+        replace(item, generation=3)
         if item.lot_id == "compoundable:moved"
         else item
         for item in ledger.archived_lots
@@ -1035,6 +1035,6 @@ def test_compound_cycle_audit_rejects_nonpreceding_generation_parent() -> None:
 
     with pytest.raises(
         CiboCompoundCapitalError,
-        match="generation parent must precede child generation",
+        match="generation parent cannot exceed child generation",
     ):
         reconcile_compound_cycle(corrupted_state)
