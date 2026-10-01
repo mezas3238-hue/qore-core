@@ -1,8 +1,9 @@
 """Fail-closed guard for the single Phase22 V2 fresh execution.
 
-The guard intentionally distinguishes source/trader readiness from execution
-economics readiness. It must never turn missing broker/provider evidence into
-synthetic fills, settlements or releases.
+The guard distinguishes source/trader readiness, provider economics readiness,
+and durable one-shot consumption state. A committed execution claim is a
+one-way barrier: a crashed run may require forensic recovery, but it can never
+silently make the same fresh holdout executable again.
 """
 
 from __future__ import annotations
@@ -18,6 +19,10 @@ from qore.infrastructure.cibo_ce2i_phase22_qualification_plan import (
 )
 from qore.infrastructure.cibo_ce2i_provider_core_freeze_receipt import (
     PROVIDER_CORE_FREEZE_RECEIPT,
+)
+from qore.infrastructure.cibo_phase22_consumption_ledger import (
+    Phase22ExecutionConsumptionReceipt,
+    load_phase22_execution_consumption_receipt,
 )
 from qore.infrastructure.cibo_phase22_dual_evidence_plan import (
     PHASE22_DUAL_EVIDENCE_PLAN,
@@ -41,30 +46,14 @@ DUAL_EVIDENCE_NOT_READY_BLOCKER = (
 PROVIDER_COST_BOUND_NOT_READY_BLOCKER = (
     "PHASE22_PREDECLARED_PROVIDER_COST_BOUND_NOT_READY"
 )
+DURABLE_CLAIM_BLOCKER = "PHASE22_V2_EXECUTION_ALREADY_DURABLY_CLAIMED"
 
 
 class Phase22OneShotGuardStatus(StrEnum):
     READY = "READY"
     BLOCKED = "BLOCKED"
+    CLAIMED = "CLAIMED"
     CONSUMED = "CONSUMED"
-
-
-@dataclass(frozen=True, slots=True)
-class Phase22ExecutionConsumptionReceipt:
-    candidate_id: str
-    execution_manifest_sha256: str
-    outcomes_emitted: bool
-
-    def __post_init__(self) -> None:
-        if not self.candidate_id:
-            raise ValueError("Phase22 consumption candidate is required")
-        if (
-            not self.execution_manifest_sha256.startswith("sha256:")
-            or len(self.execution_manifest_sha256) != 71
-        ):
-            raise ValueError("Phase22 consumption manifest digest invalid")
-        if type(self.outcomes_emitted) is not bool:
-            raise ValueError("Phase22 outcomes_emitted must be bool")
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,6 +62,7 @@ class Phase22OneShotGuardAssessment:
     execution_manifest_sha256: str
     store_paths: tuple[str, ...]
     blockers: tuple[str, ...]
+    execution_claimed: bool
     fresh_outcomes_already_emitted: bool
     authorized_to_emit_first_fresh_outcome: bool
     productive_authority: bool = False
@@ -80,17 +70,19 @@ class Phase22OneShotGuardAssessment:
     def __post_init__(self) -> None:
         expected_ready = (
             not self.blockers
+            and not self.execution_claimed
             and not self.fresh_outcomes_already_emitted
         )
         if self.authorized_to_emit_first_fresh_outcome != expected_ready:
             raise ValueError("Phase22 one-shot authorization drift")
-        expected_status = (
-            Phase22OneShotGuardStatus.CONSUMED
-            if self.fresh_outcomes_already_emitted
-            else Phase22OneShotGuardStatus.READY
-            if expected_ready
-            else Phase22OneShotGuardStatus.BLOCKED
-        )
+        if self.fresh_outcomes_already_emitted:
+            expected_status = Phase22OneShotGuardStatus.CONSUMED
+        elif self.execution_claimed:
+            expected_status = Phase22OneShotGuardStatus.CLAIMED
+        elif expected_ready:
+            expected_status = Phase22OneShotGuardStatus.READY
+        else:
+            expected_status = Phase22OneShotGuardStatus.BLOCKED
         if self.status is not expected_status:
             raise ValueError("Phase22 one-shot status drift")
         if self.productive_authority:
@@ -110,13 +102,20 @@ def assess_phase22_one_shot_guard(
     manifest_sha = manifest.fingerprint()
     blockers: list[str] = []
 
+    if consumption_receipt is None:
+        consumption_receipt = load_phase22_execution_consumption_receipt()
+
+    claimed = False
     already_emitted = False
     if consumption_receipt is not None:
         if consumption_receipt.candidate_id != manifest.candidate_id:
             blockers.append("PHASE22_CONSUMPTION_CANDIDATE_DRIFT")
         if consumption_receipt.execution_manifest_sha256 != manifest_sha:
             blockers.append("PHASE22_CONSUMPTION_MANIFEST_DRIFT")
+        claimed = consumption_receipt.claim_committed
         already_emitted = consumption_receipt.outcomes_emitted
+        if claimed:
+            blockers.append(DURABLE_CLAIM_BLOCKER)
         if already_emitted:
             blockers.append("PHASE22_V2_FRESH_OUTCOMES_ALREADY_EMITTED")
 
@@ -140,7 +139,10 @@ def assess_phase22_one_shot_guard(
             or not dual.forbid_historical_provider_settlement_claims
         ):
             blockers.append(EXECUTION_ECONOMICS_BLOCKER)
-    if not phase20.synthetic_evidence_allowed or not phase22.allow_synthetic_evidence:
+    if (
+        not phase20.synthetic_evidence_allowed
+        or not phase22.allow_synthetic_evidence
+    ):
         if (
             EXECUTION_ECONOMICS_BLOCKER in blockers
             or DUAL_EVIDENCE_NOT_READY_BLOCKER in blockers
@@ -155,6 +157,8 @@ def assess_phase22_one_shot_guard(
     blockers = list(dict.fromkeys(blockers))
     if already_emitted:
         status = Phase22OneShotGuardStatus.CONSUMED
+    elif claimed:
+        status = Phase22OneShotGuardStatus.CLAIMED
     elif blockers:
         status = Phase22OneShotGuardStatus.BLOCKED
     else:
@@ -164,6 +168,9 @@ def assess_phase22_one_shot_guard(
         execution_manifest_sha256=manifest_sha,
         store_paths=paths,
         blockers=tuple(blockers),
+        execution_claimed=claimed,
         fresh_outcomes_already_emitted=already_emitted,
-        authorized_to_emit_first_fresh_outcome=(not blockers and not already_emitted),
+        authorized_to_emit_first_fresh_outcome=(
+            not blockers and not claimed and not already_emitted
+        ),
     )
