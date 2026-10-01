@@ -305,3 +305,21 @@ def test_gate_classifies_calibration_freeze_readiness_surface() -> None:
     )
     assert orphans == ()
 
+def test_gate_classifies_phase22_v2_source_availability() -> None:
+    assignments, orphans = gate._classify_inventory(
+        (
+            "src/qore/infrastructure/"
+            "cibo_phase22_holdout_v2_source_availability.py",
+        ),
+        ledger_ids=frozenset({"FRESH_OOS", "ORPHAN_INVENTORY"}),
+    )
+
+    assert assignments == (
+        (
+            "src/qore/infrastructure/"
+            "cibo_phase22_holdout_v2_source_availability.py",
+            "FRESH_OOS",
+        ),
+    )
+    assert orphans == ()
+

@@ -170,6 +170,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_ce2i_portfolio_*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
     ("*cibo_ce2i_regime_selector*", "T12"),
     ("*cibo_ce2i_tool_registry*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo_phase22_holdout_v2_source_availability*", "FRESH_OOS"),
     ("*cibo_ce2i_usd60*", "USD60_CAPABILITY_PROGRAM"),
     ("*cibo_cognitive_*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
     ("*cibo_executive_*", "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"),
