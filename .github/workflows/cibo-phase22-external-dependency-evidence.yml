@@ -41,7 +41,7 @@ jobs:
           mypy src/qore/infrastructure/cibo_phase22_external_dependency_evidence.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_phase22_external_dependency_evidence.py
-      - name: Emit immutable blocker evidence
+      - name: Emit immutable dependency status evidence
         run: |
           mkdir -p phase22-external-dependency
           python - <<'PY'
@@ -53,10 +53,14 @@ jobs:
           )
 
           payload = build_phase22_external_dependency_evidence().payload()
-          assert payload["disposition"] == "EXTERNAL_DEPENDENCY_BLOCKED"
+          assert payload["disposition"] in {
+              "EXTERNAL_DEPENDENCY_BLOCKED",
+              "DEPENDENCY_RESOLVED_PRE_HOLDOUT",
+          }
           assert payload["fresh_holdout_consumed"] is False
+          assert payload["productive_authority"] is False
           Path(
-              "phase22-external-dependency/provider-execution-blocker.json"
+              "phase22-external-dependency/provider-execution-dependency.json"
           ).write_text(
               json.dumps(payload, indent=2, sort_keys=True) + "\n",
               encoding="utf-8",
@@ -66,7 +70,7 @@ jobs:
             > phase22-external-dependency/git-sha.txt
           cd phase22-external-dependency
           sha256sum \
-            provider-execution-blocker.json \
+            provider-execution-dependency.json \
             git-sha.txt > SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
       - uses: actions/upload-artifact@v4

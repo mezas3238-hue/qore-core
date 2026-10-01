@@ -3,6 +3,10 @@
 This assessment answers one narrow question: may the historical V2 one-shot be
 consumed now and still satisfy the frozen economic protocol without fabricating
 provider execution? The answer is derived from frozen contracts only.
+
+The provider-core freeze is immutable. A separately bound post-freeze empirical
+DEMO calibration may resolve the dependency without rewriting that older receipt
+or claiming historical broker fills.
 """
 
 from __future__ import annotations
@@ -22,16 +26,18 @@ from qore.infrastructure.cibo_ce2i_provider_core_freeze_receipt import (
     PROVIDER_CORE_FREEZE_RECEIPT,
 )
 from qore.infrastructure.cibo_phase22_one_shot_guard import (
-    EXECUTION_ECONOMICS_BLOCKER,
-    SYNTHETIC_FORBIDDEN_BLOCKER,
     assess_phase22_one_shot_guard,
 )
+
+_BLOCKED = "EXTERNAL_DEPENDENCY_BLOCKED"
+_RESOLVED = "DEPENDENCY_RESOLVED_PRE_HOLDOUT"
 
 
 @dataclass(frozen=True, slots=True)
 class Phase22ExternalDependencyEvidence:
     disposition: str
     blockers: tuple[str, ...]
+    authorized_to_emit_first_fresh_outcome: bool
     phase20_realized_execution_economics_required: bool
     phase20_synthetic_evidence_allowed: bool
     phase22_synthetic_evidence_allowed: bool
@@ -43,13 +49,18 @@ class Phase22ExternalDependencyEvidence:
     productive_authority: bool = False
 
     def __post_init__(self) -> None:
-        if self.disposition != "EXTERNAL_DEPENDENCY_BLOCKED":
+        if self.disposition not in {_BLOCKED, _RESOLVED}:
             raise ValueError("Phase22 external dependency disposition drift")
-        if (
-            EXECUTION_ECONOMICS_BLOCKER not in self.blockers
-            or SYNTHETIC_FORBIDDEN_BLOCKER not in self.blockers
-        ):
-            raise ValueError("Phase22 external dependency blockers incomplete")
+        if self.disposition == _BLOCKED:
+            if not self.blockers or self.authorized_to_emit_first_fresh_outcome:
+                raise ValueError(
+                    "Phase22 blocked dependency evidence is internally inconsistent"
+                )
+        else:
+            if self.blockers or not self.authorized_to_emit_first_fresh_outcome:
+                raise ValueError(
+                    "Phase22 resolved dependency evidence is internally inconsistent"
+                )
         if self.fresh_holdout_consumed:
             raise ValueError(
                 "Phase22 provider dependency evidence cannot consume holdout"
@@ -61,7 +72,7 @@ class Phase22ExternalDependencyEvidence:
 
     def payload(self) -> dict[str, object]:
         return {
-            "schema": "qore.cibo.phase22.external-dependency-evidence.v1",
+            "schema": "qore.cibo.phase22.external-dependency-evidence.v2",
             **asdict(self),
             "affected_arch_b_workstreams": [
                 "PROVIDER_ECONOMICS",
@@ -73,10 +84,9 @@ class Phase22ExternalDependencyEvidence:
                 "AS_IS_ECONOMIC_BASELINE",
             ],
             "causal_statement": (
-                "Historical bars may produce Trader outcomes, but they cannot "
-                "supply provider order refs, actual fills, position/deal IDs, "
-                "terminal cTrader DEMO settlement, or observed T20 releases. "
-                "Those facts may not be synthesized under the frozen plans."
+                "Current DEMO provider calibration may bind counterfactual "
+                "historical replay economics, but it never becomes a claim of "
+                "2015-2016 broker fills, order/deal IDs, or terminal settlement."
             ),
         }
 
@@ -89,10 +99,6 @@ def build_phase22_external_dependency_evidence(
     provider = PROVIDER_CORE_FREEZE_RECEIPT
     shadow = policy_invariants()
 
-    if guard.authorized_to_emit_first_fresh_outcome:
-        raise ValueError(
-            "Phase22 external dependency assessment is stale: guard is READY"
-        )
     if phase20.synthetic_evidence_allowed:
         raise ValueError("Phase20 synthetic-evidence policy unexpectedly changed")
     if not phase20.realized_execution_economics_required:
@@ -106,9 +112,13 @@ def build_phase22_external_dependency_evidence(
             "Historical-shadow provider imputation policy unexpectedly changed"
         )
 
+    resolved = guard.authorized_to_emit_first_fresh_outcome
     return Phase22ExternalDependencyEvidence(
-        disposition="EXTERNAL_DEPENDENCY_BLOCKED",
+        disposition=_RESOLVED if resolved else _BLOCKED,
         blockers=guard.blockers,
+        authorized_to_emit_first_fresh_outcome=(
+            guard.authorized_to_emit_first_fresh_outcome
+        ),
         phase20_realized_execution_economics_required=(
             phase20.realized_execution_economics_required
         ),
@@ -123,7 +133,8 @@ def build_phase22_external_dependency_evidence(
         ),
         fresh_holdout_consumed=False,
         recommendation=(
-            "KEEP_V2_SEALED_UNTIL_REAL_PROVIDER_BOUND_EXECUTION_"
-            "SETTLEMENT_AND_RELEASE_EVIDENCE_EXISTS"
+            "PROCEED_TO_FROZEN_ONE_SHOT_WITHOUT_SYNTHETIC_EXECUTION_CLAIMS"
+            if resolved
+            else "KEEP_V2_SEALED_UNTIL_PROVIDER_EXECUTION_PLANE_IS_READY"
         ),
     )
