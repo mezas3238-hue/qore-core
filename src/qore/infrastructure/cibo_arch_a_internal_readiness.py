@@ -26,6 +26,7 @@ LEDGER_PATH = Path("docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json")
 SCHEMA = "QORE_CIBO_ARCH_A_INTERNAL_READINESS_V1"
 SCIENTIFIC_INTAKE_SCHEMA = "QORE_CIBO_ARCH_A_SCIENTIFIC_INTAKE_V1"
 SCIENTIFIC_BATCH_SCHEMA = "QORE_CIBO_ARCH_A_SCIENTIFIC_BATCH_PLAN_V1"
+MECHANISM_EVIDENCE_SCHEMA = "QORE_CIBO_ARCH_A_MECHANISM_EVIDENCE_RECEIPT_V1"
 ARCH_B_FORWARD_MANIFEST_ID = (
     "CIBO_ARCH_B_FORWARD_ECONOMIC_EVIDENCE_MANIFEST_V1"
 )
@@ -777,5 +778,181 @@ def build_architect_a_scientific_batch_plan(
         ),
         complete_without_execution=complete,
         blockers=tuple(blockers),
+    )
+
+@dataclass(frozen=True, slots=True)
+class ArchitectAMechanismEvidenceReceipt:
+    schema: str
+    forward_manifest_sha256: str
+    evidence_refs: tuple[tuple[str, str], ...]
+    present_kinds: tuple[str, ...]
+    missing_kinds: tuple[str, ...]
+    ready_for_full_mechanism_science: bool
+    blockers: tuple[str, ...]
+    scientific_closure_claimed: bool = False
+    integration_authority: bool = False
+    production_authority: bool = False
+
+    def __post_init__(self) -> None:
+        if self.schema != MECHANISM_EVIDENCE_SCHEMA:
+            raise ArchitectAReadinessError(
+                "Architect A mechanism-evidence schema drift"
+            )
+        _require_sha(self.forward_manifest_sha256, "forward_manifest_sha256")
+        if (
+            not isinstance(self.evidence_refs, tuple)
+            or any(
+                not isinstance(item, tuple)
+                or len(item) != 2
+                or item[0] not in _REQUIRED_MECHANISM_EVIDENCE_KINDS
+                for item in self.evidence_refs
+            )
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A mechanism-evidence refs are invalid"
+            )
+        kinds = tuple(item[0] for item in self.evidence_refs)
+        if len(kinds) != len(set(kinds)):
+            raise ArchitectAReadinessError(
+                "Architect A mechanism-evidence kinds must be unique"
+            )
+        for _kind, digest in self.evidence_refs:
+            _require_sha(digest, "mechanism evidence sha256")
+        expected_present = tuple(
+            item
+            for item in _REQUIRED_MECHANISM_EVIDENCE_KINDS
+            if item in set(kinds)
+        )
+        expected_missing = tuple(
+            item
+            for item in _REQUIRED_MECHANISM_EVIDENCE_KINDS
+            if item not in set(kinds)
+        )
+        if self.present_kinds != expected_present:
+            raise ArchitectAReadinessError(
+                "Architect A mechanism-evidence present-kind drift"
+            )
+        if self.missing_kinds != expected_missing:
+            raise ArchitectAReadinessError(
+                "Architect A mechanism-evidence missing-kind drift"
+            )
+        if type(self.ready_for_full_mechanism_science) is not bool:
+            raise ArchitectAReadinessError(
+                "Architect A mechanism-evidence readiness must be bool"
+            )
+        if (
+            not isinstance(self.blockers, tuple)
+            or any(not isinstance(item, str) or not item for item in self.blockers)
+            or len(self.blockers) != len(set(self.blockers))
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A mechanism-evidence blockers are invalid"
+            )
+        expected_ready = not self.missing_kinds and not self.blockers
+        if self.ready_for_full_mechanism_science != expected_ready:
+            raise ArchitectAReadinessError(
+                "Architect A mechanism-evidence readiness/blocker drift"
+            )
+        if (
+            self.scientific_closure_claimed
+            or self.integration_authority
+            or self.production_authority
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A mechanism-evidence cannot claim closure/authority"
+            )
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+def evaluate_architect_a_mechanism_evidence(
+    payload: dict[str, Any],
+    intake: ArchitectAScientificIntakeReport,
+) -> ArchitectAMechanismEvidenceReceipt:
+    if not isinstance(payload, dict):
+        raise ArchitectAReadinessError(
+            "Architect A mechanism-evidence payload must be object"
+        )
+    if not isinstance(intake, ArchitectAScientificIntakeReport):
+        raise ArchitectAReadinessError(
+            "Architect A mechanism-evidence requires canonical intake"
+        )
+    if payload.get("schema") != MECHANISM_EVIDENCE_SCHEMA:
+        raise ArchitectAReadinessError(
+            "Architect A mechanism-evidence payload schema drift"
+        )
+    manifest_sha = _require_sha(
+        payload.get("forward_manifest_sha256"),
+        "forward_manifest_sha256",
+    )
+    if manifest_sha != intake.manifest_sha256:
+        raise ArchitectAReadinessError(
+            "Architect A mechanism-evidence forward-manifest lineage drift"
+        )
+    if payload.get("scientific_closure_claimed") not in {None, False}:
+        raise ArchitectAReadinessError(
+            "Architect A mechanism-evidence cannot claim scientific closure"
+        )
+    if payload.get("integration_authority") not in {None, False}:
+        raise ArchitectAReadinessError(
+            "Architect A mechanism-evidence cannot grant integration authority"
+        )
+    if payload.get("production_authority") not in {None, False}:
+        raise ArchitectAReadinessError(
+            "Architect A mechanism-evidence cannot grant production authority"
+        )
+
+    raw_refs = payload.get("evidence_refs")
+    if not isinstance(raw_refs, list):
+        raise ArchitectAReadinessError(
+            "Architect A mechanism-evidence refs must be list"
+        )
+    refs: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for raw in raw_refs:
+        if not isinstance(raw, dict):
+            raise ArchitectAReadinessError(
+                "Architect A mechanism-evidence ref must be object"
+            )
+        kind = _require_nonempty_str(raw.get("kind"), "evidence kind")
+        if kind not in _REQUIRED_MECHANISM_EVIDENCE_KINDS:
+            raise ArchitectAReadinessError(
+                f"Architect A mechanism-evidence unknown kind: {kind}"
+            )
+        if kind in seen:
+            raise ArchitectAReadinessError(
+                f"Architect A mechanism-evidence duplicate kind: {kind}"
+            )
+        seen.add(kind)
+        digest = _require_sha(raw.get("sha256"), f"{kind} sha256")
+        refs.append((kind, digest))
+
+    ordered_refs = tuple(
+        (kind, next(digest for ref_kind, digest in refs if ref_kind == kind))
+        for kind in _REQUIRED_MECHANISM_EVIDENCE_KINDS
+        if kind in seen
+    )
+    present = tuple(kind for kind, _digest in ordered_refs)
+    missing = tuple(
+        kind
+        for kind in _REQUIRED_MECHANISM_EVIDENCE_KINDS
+        if kind not in seen
+    )
+    blockers = tuple(
+        ["ARCH_B_SCIENTIFIC_INTAKE_REQUIRED"]
+        if not intake.ready_for_batch_science
+        else []
+    )
+    return ArchitectAMechanismEvidenceReceipt(
+        schema=MECHANISM_EVIDENCE_SCHEMA,
+        forward_manifest_sha256=manifest_sha,
+        evidence_refs=ordered_refs,
+        present_kinds=present,
+        missing_kinds=missing,
+        ready_for_full_mechanism_science=(
+            intake.ready_for_batch_science and not missing
+        ),
+        blockers=blockers,
     )
 

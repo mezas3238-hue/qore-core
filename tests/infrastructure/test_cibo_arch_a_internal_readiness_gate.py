@@ -313,3 +313,68 @@ def test_scientific_batch_plan_exposes_mechanism_evidence_contract(
         "STRICT_TEMPORAL_POPULATION_LINEAGE",
     )
 
+def _mechanism_evidence_payload(
+    intake: gate.ArchitectAScientificIntakeReport,
+    *,
+    complete: bool,
+) -> dict:
+    kinds = gate._REQUIRED_MECHANISM_EVIDENCE_KINDS
+    selected = kinds if complete else kinds[:3]
+    return {
+        "schema": gate.MECHANISM_EVIDENCE_SCHEMA,
+        "forward_manifest_sha256": intake.manifest_sha256,
+        "evidence_refs": [
+            {
+                "kind": kind,
+                "sha256": "sha256:"
+                + sha256(kind.encode("utf-8")).hexdigest(),
+            }
+            for kind in selected
+        ],
+        "scientific_closure_claimed": False,
+        "integration_authority": False,
+        "production_authority": False,
+    }
+
+
+def test_mechanism_evidence_receipt_reports_missing_kinds() -> None:
+    intake = gate.evaluate_architect_a_scientific_intake(
+        _forward_manifest_payload(ready=True)
+    )
+    receipt = gate.evaluate_architect_a_mechanism_evidence(
+        _mechanism_evidence_payload(intake, complete=False),
+        intake,
+    )
+
+    assert receipt.ready_for_full_mechanism_science is False
+    assert receipt.present_kinds == gate._REQUIRED_MECHANISM_EVIDENCE_KINDS[:3]
+    assert receipt.missing_kinds == gate._REQUIRED_MECHANISM_EVIDENCE_KINDS[3:]
+
+
+def test_mechanism_evidence_receipt_can_be_complete() -> None:
+    intake = gate.evaluate_architect_a_scientific_intake(
+        _forward_manifest_payload(ready=True)
+    )
+    receipt = gate.evaluate_architect_a_mechanism_evidence(
+        _mechanism_evidence_payload(intake, complete=True),
+        intake,
+    )
+
+    assert receipt.ready_for_full_mechanism_science is True
+    assert receipt.missing_kinds == ()
+    assert receipt.blockers == ()
+
+
+def test_mechanism_evidence_receipt_rejects_manifest_lineage_drift() -> None:
+    intake = gate.evaluate_architect_a_scientific_intake(
+        _forward_manifest_payload(ready=True)
+    )
+    payload = _mechanism_evidence_payload(intake, complete=True)
+    payload["forward_manifest_sha256"] = "sha256:" + "0" * 64
+
+    with pytest.raises(
+        gate.ArchitectAReadinessError,
+        match="forward-manifest lineage drift",
+    ):
+        gate.evaluate_architect_a_mechanism_evidence(payload, intake)
+
