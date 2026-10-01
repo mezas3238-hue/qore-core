@@ -118,3 +118,29 @@ Current-state sections must be updated without deleting historical provenance. A
 Architect A owns the canonical ledger and current-state governance documents during the split. Architect B must not edit them.
 
 Final source-of-truth closure cannot be terminal until A and B work are integrated and a final post-integration reconciliation proves that code, CI, artifacts, ledger, roadmap and PR body agree.
+
+## Integrator static reconciliation checkpoint — 30-SEP-2026
+
+This checkpoint is a deterministic read-only reconciliation of the canonical
+artifacts after the Actions queue cleanup and the Integrator's `[skip ci]`
+repair batches.
+
+- Architect A observed HEAD: `40137ab89e2ed575700384be84847eb1c2d27fb1`
+- Architect B observed HEAD: `99ac91c2880af541966bb4c20445b9cc228c5afd`
+- Integrator validated parent HEAD: `06329da5a95cf610fd2cb058f809c7fa10e0c88a`
+- mandatory workstreams: `64`
+- terminal workstreams: `14`
+- open workstreams: `50`
+- static reconciliation errors: `0`
+- productive authority: `false`
+- certification claim: `false`
+
+The static check reconciled ledger counts, terminal union, both mandatory exams,
+A/B HEAD identity across acceptance + child-delta + evidence register, Risk
+terminal evidence, and the required roadmap / World Cup / sequence / source-of-
+truth phrases.
+
+This is **not** a substitute for GitHub Actions revalidation. The prior Source
+of Truth run failed before semantic execution because of lint/import-format
+defects that are now repaired in the Integrator. Exact-head CI remains pending
+under the Owner's no-workflow-flood policy.

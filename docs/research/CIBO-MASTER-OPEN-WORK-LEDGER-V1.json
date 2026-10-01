@@ -1259,13 +1259,15 @@
       "kind": "GOVERNANCE",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "OPEN_REQUIRED",
+      "current_maturity": "STATIC_RECONCILIATION_PASS_ZERO_ERRORS_CI_REVALIDATION_PENDING",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "REGISTRY_ROADMAP_PR_BODY_CODE_STATE_DIVERGENCE_EXISTS"
+      "evidence_refs": [
+        "docs/research/CIBO-SOURCE-OF-TRUTH-RECONCILIATION-V1.md"
       ],
-      "next_gate": "Reconcile HEAD→code→tests→CI→artifacts→ADR→roadmap→PR body."
+      "blockers": [
+        "INTEGRATOR_SOURCE_OF_TRUTH_CI_REVALIDATION_REQUIRED"
+      ],
+      "next_gate": "Revalidate the repaired Source of Truth workflow once the Actions queue permits; the current static checkpoint reports zero ledger/HEAD/governance reconciliation errors and grants no certification or authority."
     },
     {
       "id": "ORPHAN_INVENTORY",
