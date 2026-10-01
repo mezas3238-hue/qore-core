@@ -428,9 +428,9 @@ def test_pre_exam_gate_still_blocks_other_open_work(
     payload["workstreams"][0]["terminal_disposition"] = None
     payload["workstreams"][0]["evidence_refs"] = []
     payload["current_summary"] = {
-        "mandatory_count": 2,
+        "mandatory_count": 3,
         "terminal_count": 0,
-        "open_count": 2,
+        "open_count": 3,
         "zero_open_work_pass": False,
         "final_certification_candidate": False,
     }
