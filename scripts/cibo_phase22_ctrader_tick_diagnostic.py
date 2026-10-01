@@ -180,6 +180,10 @@ def build_report() -> dict[str, object]:
                         getattr(item, "timestamp", None)
                         for item in ticks[:12]
                     ]
+                    raw_ticks = [
+                        getattr(item, "tick", None)
+                        for item in ticks[:12]
+                    ]
                     decode_status = "OK"
                     decode_error: str | None = None
                     decoded_count = 0
@@ -226,6 +230,7 @@ def build_report() -> dict[str, object]:
                                 else None
                             ),
                             "raw_timestamp_head": raw_timestamps,
+                            "raw_tick_head": raw_ticks,
                             "decode_status": decode_status,
                             "decode_error": decode_error,
                             "decoded_count": decoded_count,
