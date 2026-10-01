@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -391,7 +392,7 @@ def signed_slippage(
 
 def _qore_entry_deal(
     deal: object,
-    contracts: dict[int, object],
+    contracts: Mapping[int, object],
 ) -> bool:
     symbol_id = getattr(deal, "symbolId", None)
     if type(symbol_id) is not int or symbol_id not in contracts:
