@@ -5,7 +5,8 @@ produce evidence, but the final manifest is sealed only after every active tool
 has terminal OOS/certification evidence. T16/T17 may be structurally disabled
 when provider capability is explicitly unavailable.
 
-It never reads or unseals 2017H1 and grants no productive authority.
+It never reads or unseals the active certification holdout and grants no
+productive authority.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ CALIBRATION_FREEZE_MANIFEST_ID = "CIBO_T01_T20_CALIBRATION_FREEZE_MANIFEST_V1"
 
 class FrozenToolCalibrationDisposition(StrEnum):
     CERTIFICATION_READY = "CERTIFICATION_READY"
+    QUALIFICATION_FAILED_AND_DISABLED = "QUALIFICATION_FAILED_AND_DISABLED"
     STRUCTURALLY_DISABLED = "STRUCTURALLY_DISABLED"
 
 
@@ -90,7 +92,10 @@ class FrozenToolCalibration:
                 raise CiboCapitalManagementError(
                     "certification-ready frozen tool state is inconsistent"
                 )
-        else:
+        elif (
+            self.disposition
+            is FrozenToolCalibrationDisposition.STRUCTURALLY_DISABLED
+        ):
             if self.tool_code not in {"T16", "T17"}:
                 raise CiboCapitalManagementError(
                     "only T16/T17 may be structurally disabled"
@@ -102,6 +107,15 @@ class FrozenToolCalibration:
             ):
                 raise CiboCapitalManagementError(
                     "structurally-disabled frozen tool state is inconsistent"
+                )
+        else:
+            if (
+                not self.oos_ready
+                or self.certification_ready
+                or not self.structurally_disabled
+            ):
+                raise CiboCapitalManagementError(
+                    "qualification-failed frozen tool state is inconsistent"
                 )
 
 
@@ -160,7 +174,7 @@ class CiboCalibrationFreezeManifest:
             )
         if self.holdout_outcomes_used or self.holdout_market_data_read:
             raise CiboCapitalManagementError(
-                "calibration freeze manifest cannot consume 2017H1"
+                "calibration freeze manifest cannot consume active holdout"
             )
         if self.productive_authority:
             raise CiboCapitalManagementError(

@@ -401,7 +401,7 @@ class DurablePhase22HistoricalExecutedRiskStore:
             return VersionedPhase22HistoricalExecutedRiskBook(generation=0)
         raw = _read(self._path, _STORE_BY_NAME["EXECUTED_RISK"])
         return VersionedPhase22HistoricalExecutedRiskBook(
-            generation=int(raw["generation"]),
+            generation=_required_int(raw["generation"], "generation"),
             executed_risk=tuple(
                 _risk_from_json(item) for item in _list(raw["executed_risk"])
             ),
@@ -430,7 +430,7 @@ class DurablePhase22HistoricalSettlementStore:
             return VersionedPhase22HistoricalSettlementBook(generation=0)
         raw = _read(self._path, _STORE_BY_NAME["CMA_SETTLEMENT"])
         return VersionedPhase22HistoricalSettlementBook(
-            generation=int(raw["generation"]),
+            generation=_required_int(raw["generation"], "generation"),
             settlements=tuple(
                 _outcome_from_json(item) for item in _list(raw["settlements"])
             ),
@@ -459,7 +459,7 @@ class DurablePhase22HistoricalReleaseStore:
             return VersionedPhase22HistoricalReleaseBook(generation=0)
         raw = _read(self._path, _STORE_BY_NAME["T20_RELEASE"])
         return VersionedPhase22HistoricalReleaseBook(
-            generation=int(raw["generation"]),
+            generation=_required_int(raw["generation"], "generation"),
             release_chain=tuple(
                 _release_from_json(item) for item in _list(raw["release_chain"])
             ),
@@ -566,40 +566,48 @@ def persist_phase22_historical_store_set(
     root: Path,
     books: Phase22HistoricalReplayStoreSet,
 ) -> tuple[str, ...]:
-    stores = (
-        (
-            DurablePhase22HistoricalForwardEvidenceStore(
-                root / "holdout-forward-evidence.json"
-            ),
-            books.holdout_evidence,
-        ),
-        (
-            DurablePhase22HistoricalPolicyStore(root / "holdout-policy.json"),
-            books.holdout_policy,
-        ),
-        (
-            DurablePhase22HistoricalExecutedRiskStore(root / "executed-risk.json"),
-            books.executed_risk,
-        ),
-        (
-            DurablePhase22HistoricalSettlementStore(root / "cma-settlement.json"),
-            books.cma_settlement,
-        ),
-        (
-            DurablePhase22HistoricalReleaseStore(root / "t20-release.json"),
-            books.t20_release,
-        ),
+    evidence_store = DurablePhase22HistoricalForwardEvidenceStore(
+        root / "holdout-forward-evidence.json"
     )
-    paths = tuple(store._path for store, _ in stores)
+    policy_store = DurablePhase22HistoricalPolicyStore(
+        root / "holdout-policy.json"
+    )
+    risk_store = DurablePhase22HistoricalExecutedRiskStore(
+        root / "executed-risk.json"
+    )
+    settlement_store = DurablePhase22HistoricalSettlementStore(
+        root / "cma-settlement.json"
+    )
+    release_store = DurablePhase22HistoricalReleaseStore(
+        root / "t20-release.json"
+    )
+    paths = (
+        evidence_store._path,
+        policy_store._path,
+        risk_store._path,
+        settlement_store._path,
+        release_store._path,
+    )
     if any(path.exists() for path in paths):
         raise CiboCapitalManagementError(
             "Phase22 historical store set must be create-once and pristine"
         )
     written: list[Path] = []
     try:
-        for store, book in stores:
-            store.persist_final(book)
-            written.append(store._path)
+        evidence_store.persist_final(books.holdout_evidence)
+        written.append(evidence_store._path)
+
+        policy_store.persist_final(books.holdout_policy)
+        written.append(policy_store._path)
+
+        risk_store.persist_final(books.executed_risk)
+        written.append(risk_store._path)
+
+        settlement_store.persist_final(books.cma_settlement)
+        written.append(settlement_store._path)
+
+        release_store.persist_final(books.t20_release)
+        written.append(release_store._path)
     except Exception:
         # Do not roll back successfully written evidence: durable one-shot claim
         # must remain fail-closed and forensic reconstruction must see partial
@@ -641,7 +649,7 @@ def _evidence_book_from_json(
     raw: dict[str, object],
 ) -> VersionedPhase22HistoricalReplayEvidenceBook:
     return VersionedPhase22HistoricalReplayEvidenceBook(
-        generation=int(raw["generation"]),
+        generation=_required_int(raw["generation"], "generation"),
         amendment_sha256=str(raw["amendment_sha256"]),
         decisions=tuple(
             _decision_from_json(item) for item in _list(raw["decisions"])
@@ -672,7 +680,7 @@ def _policy_book_from_json(
     raw: dict[str, object],
 ) -> VersionedPhase20ForwardPolicyBook:
     return VersionedPhase20ForwardPolicyBook(
-        generation=int(raw["generation"]),
+        generation=_required_int(raw["generation"], "generation"),
         decisions=tuple(
             _policy_from_json(item) for item in _list(raw["decisions"])
         ),
@@ -944,6 +952,14 @@ def _path(value: Path) -> Path:
 def _list(value: object) -> list[Any]:
     if not isinstance(value, list):
         raise CiboCapitalManagementError("Phase22 persisted collection invalid")
+    return value
+
+
+def _required_int(value: object, field_name: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise CiboCapitalManagementError(
+            f"Phase22 persisted {field_name} must be int"
+        )
     return value
 
 

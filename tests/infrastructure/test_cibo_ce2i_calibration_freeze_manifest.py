@@ -110,6 +110,42 @@ def test_manifest_rejects_any_holdout_consumption() -> None:
 
     with pytest.raises(
         CiboCapitalManagementError,
-        match="cannot consume 2017H1",
+        match="cannot consume active holdout",
     ):
         replace(manifest, holdout_market_data_read=True)
+
+
+def test_qualification_failed_tool_is_disabled_without_becoming_ready() -> None:
+    tool = FrozenToolCalibration(
+        tool_code="T03",
+        disposition=(
+            FrozenToolCalibrationDisposition.QUALIFICATION_FAILED_AND_DISABLED
+        ),
+        evidence_refs=("evidence:T03:falsified",),
+        oos_ready=True,
+        certification_ready=False,
+        structurally_disabled=True,
+        provider_economics_bound=True,
+    )
+
+    assert tool.oos_ready is True
+    assert tool.certification_ready is False
+    assert tool.structurally_disabled is True
+
+
+def test_qualification_failed_tool_cannot_claim_certification_ready() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="qualification-failed frozen tool state is inconsistent",
+    ):
+        FrozenToolCalibration(
+            tool_code="T03",
+            disposition=(
+                FrozenToolCalibrationDisposition.QUALIFICATION_FAILED_AND_DISABLED
+            ),
+            evidence_refs=("evidence:T03:falsified",),
+            oos_ready=True,
+            certification_ready=True,
+            structurally_disabled=True,
+            provider_economics_bound=True,
+        )
