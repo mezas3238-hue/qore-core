@@ -10,7 +10,7 @@ def test_phase22_source_receipt_freezes_nine_market_archives() -> None:
     receipt = PHASE22_HOLDOUT_SOURCE_RECEIPT
 
     assert receipt.source_ready is True
-    assert receipt.burn_clean is True
+    assert receipt.burn_clean is False
     assert len(receipt.source_archives) == 9
     assert receipt.source_archives == SOURCE_ARCHIVES
     assert set(VT08_REQUIRED_MARKETS).issubset(
@@ -27,7 +27,9 @@ def test_phase22_source_receipt_payload_preserves_fresh_governance() -> None:
     assert payload["schema"] == "qore.cibo.phase22.holdout-source-receipt.v1"
     assert payload["candidate_id"] == "CIBO_USD60_6M_HOLDOUT_2017H1_V1"
     assert payload["source_ready"] is True
-    assert payload["burn_clean"] is True
+    assert payload["burn_clean"] is False
+    assert payload["scientifically_consumable"] is False
+    assert payload["status"] == "REJECTED_PRIOR_OUTCOME_BURN"
     assert len(payload["source_archives"]) == 9
     assert payload["trader_outcomes_executed"] is False
     assert payload["selection_outcomes_inspected"] is False

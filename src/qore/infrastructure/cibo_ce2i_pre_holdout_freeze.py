@@ -8,6 +8,10 @@ from enum import StrEnum
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
+from qore.infrastructure.cibo_ce2i_holdout_registry import (
+    PREREGISTERED_USD60_HOLDOUT,
+    candidate_is_burn_clean_for_all_lineages,
+)
 
 PRE_HOLDOUT_CHECKPOINT_RUN_ID = 36877118070
 PRE_HOLDOUT_CHECKPOINT_ARTIFACT_ID = 11169417941
@@ -98,7 +102,7 @@ ACTIVE_PRE_HOLDOUT_FREEZE: CiboPreHoldoutFreezeManifest | None = (
         provider_economics_frozen=True,
     )
 )
-CURRENT_HOLDOUT_SEAL_STATE = CiboHoldoutSealState.PRE_HOLDOUT_FROZEN
+CURRENT_HOLDOUT_SEAL_STATE = CiboHoldoutSealState.BURNED
 
 
 def pre_holdout_freeze_ready() -> bool:
@@ -112,6 +116,9 @@ def pre_holdout_freeze_ready() -> bool:
         and manifest.phase21_policy_freeze_sealed
         and manifest.all_calibrations_frozen
         and manifest.provider_economics_frozen
+        and candidate_is_burn_clean_for_all_lineages(
+            PREREGISTERED_USD60_HOLDOUT
+        )
     )
 
 

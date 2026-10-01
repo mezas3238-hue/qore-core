@@ -11,14 +11,21 @@ from qore.infrastructure.cibo_ce2i_pre_holdout_freeze import (
 )
 
 
-def test_pre_holdout_freeze_is_explicitly_active_and_receipted() -> None:
-    assert CURRENT_HOLDOUT_SEAL_STATE is CiboHoldoutSealState.PRE_HOLDOUT_FROZEN
+def test_pre_holdout_freeze_v1_is_revoked_after_prior_burn_discovery() -> None:
+    assert CURRENT_HOLDOUT_SEAL_STATE is CiboHoldoutSealState.BURNED
     assert ACTIVE_PRE_HOLDOUT_FREEZE is not None
-    assert pre_holdout_freeze_ready() is True
-    require_pre_holdout_freeze_before_2017h1_access()
+    assert pre_holdout_freeze_ready() is False
+
+    import pytest
+    from qore.infrastructure.cibo_capital_management_authority import (
+        CiboCapitalManagementError,
+    )
+
+    with pytest.raises(CiboCapitalManagementError):
+        require_pre_holdout_freeze_before_2017h1_access()
 
     payload = pre_holdout_freeze_receipt_payload()
-    assert payload["ready"] is True
+    assert payload["ready"] is False
     assert payload["checkpoint"]["artifact_id"] == PRE_HOLDOUT_CHECKPOINT_ARTIFACT_ID
     assert (
         payload["calibration_freeze"]["artifact_id"]

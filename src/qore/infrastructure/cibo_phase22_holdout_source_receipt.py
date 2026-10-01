@@ -13,6 +13,10 @@ from dataclasses import dataclass
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
+from qore.infrastructure.cibo_ce2i_holdout_registry import (
+    BURNED_USD60_HOLDOUT_2017H1_V1,
+    candidate_is_burn_clean_for_all_lineages,
+)
 
 PHASE22_SOURCE_VALIDATION_RUN_ID = 36879071685
 PHASE22_SOURCE_VALIDATION_ARTIFACT_ID = 11170192880
@@ -65,9 +69,16 @@ class CiboPhase22HoldoutSourceReceipt:
             raise CiboCapitalManagementError(
                 "Phase22 source receipt candidate identity drift"
             )
-        if not self.source_ready or not self.burn_clean:
+        if type(self.source_ready) is not bool or type(self.burn_clean) is not bool:
             raise CiboCapitalManagementError(
-                "Phase22 source receipt requires ready burn-clean source"
+                "Phase22 source receipt readiness flags must be bool"
+            )
+        registry_burn_clean = candidate_is_burn_clean_for_all_lineages(
+            BURNED_USD60_HOLDOUT_2017H1_V1
+        )
+        if self.burn_clean != registry_burn_clean:
+            raise CiboCapitalManagementError(
+                "Phase22 source receipt burn state disagrees with registry"
             )
         if self.source_validation_run_id != PHASE22_SOURCE_VALIDATION_RUN_ID:
             raise CiboCapitalManagementError(
@@ -137,7 +148,7 @@ class CiboPhase22HoldoutSourceReceipt:
 PHASE22_HOLDOUT_SOURCE_RECEIPT = CiboPhase22HoldoutSourceReceipt(
     candidate_id="CIBO_USD60_6M_HOLDOUT_2017H1_V1",
     source_ready=True,
-    burn_clean=True,
+    burn_clean=False,
     source_validation_run_id=PHASE22_SOURCE_VALIDATION_RUN_ID,
     source_validation_artifact_id=PHASE22_SOURCE_VALIDATION_ARTIFACT_ID,
     source_validation_artifact_digest=PHASE22_SOURCE_VALIDATION_ARTIFACT_DIGEST,
@@ -153,6 +164,12 @@ def phase22_holdout_source_receipt_payload() -> dict[str, object]:
         "candidate_id": receipt.candidate_id,
         "source_ready": receipt.source_ready,
         "burn_clean": receipt.burn_clean,
+        "scientifically_consumable": receipt.source_ready and receipt.burn_clean,
+        "status": (
+            "SOURCE_READY"
+            if receipt.source_ready and receipt.burn_clean
+            else "REJECTED_PRIOR_OUTCOME_BURN"
+        ),
         "source_validation": {
             "run_id": receipt.source_validation_run_id,
             "artifact_id": receipt.source_validation_artifact_id,
