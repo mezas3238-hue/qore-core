@@ -1,14 +1,6 @@
 name: QORE CIBO Phase22 EURUSD R38 Replay Freeze
 
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/cibo-phase22-eurusd-r38-replay-freeze.yml'
-      - 'scripts/cibo_phase22_eurusd_r38_window_replay.py'
-      - 'tests/infrastructure/test_cibo_phase22_eurusd_r38_window_replay.py'
-      - 'scripts/cibo_phase18_eurusd_geometry_patch.py'
-      - 'scripts/cibo_phase18_eurusd_bind.py'
-      - 'scripts/cibo_phase18_eurusd_score.py'
   push:
     branches:
       - agent/cibo-certification-architect-b-integration-001
@@ -24,6 +16,10 @@ on:
 permissions:
   contents: read
   actions: read
+
+concurrency:
+  group: cibo-phase22-eurusd-r38-parity-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   EURUSD_SOURCE_SHA: '324fb91d44a6fa328e66de2e22ace7386630c7aa'
