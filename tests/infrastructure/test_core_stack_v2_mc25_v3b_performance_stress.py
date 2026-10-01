@@ -8,8 +8,10 @@ from qore.infrastructure.core_stack_v2.mc25_v3b_performance_stress import (
     FROZEN_STRESS_SCENARIOS,
     V3BStressKind,
     apply_v3b_performance_stress,
+    summarize_v3b_stress_evaluations,
 )
 from qore.infrastructure.core_stack_v2.representation_predictive_nonlinear_probe_v3b import (
+    PredictiveSecondOrderEvaluation,
     PreparedSecondOrderDesign,
 )
 
@@ -89,3 +91,65 @@ def test_contiguous_drop_removes_one_time_block() -> None:
         if item not in set(stressed.episode_ids)
     ]
     assert missing == list(prepared.episode_ids[45:55])
+
+
+def _evaluation(
+    target: str,
+    *,
+    baseline_mse: int,
+    augmented_mse: int,
+    incremental_bps: int,
+) -> PredictiveSecondOrderEvaluation:
+    return PredictiveSecondOrderEvaluation(
+        partition="stress",
+        target_name=target,
+        sample_count=100,
+        baseline_mse_micros=baseline_mse,
+        augmented_mse_micros=augmented_mse,
+        incremental_information_bps=incremental_bps,
+        probe_fingerprint="a" * 64,
+    )
+
+
+def test_stress_summary_preserves_original_conjunctive_gate() -> None:
+    passing = [
+        _evaluation(
+            f"T{i}",
+            baseline_mse=1_000_000,
+            augmented_mse=970_000 if i < 4 else 1_000_000,
+            incremental_bps=300 if i < 4 else 0,
+        )
+        for i in range(8)
+    ]
+    summary = summarize_v3b_stress_evaluations(passing)
+    assert summary["pooled_incremental_information_bps"] == 150
+    assert summary["positive_target_count"] == 4
+    assert summary["pass"] is True
+
+    too_few_positive = [
+        _evaluation(
+            f"P{i}",
+            baseline_mse=1_000_000,
+            augmented_mse=940_000 if i < 3 else 1_000_000,
+            incremental_bps=600 if i < 3 else 0,
+        )
+        for i in range(8)
+    ]
+    summary = summarize_v3b_stress_evaluations(too_few_positive)
+    assert summary["pooled_incremental_information_bps"] > 100
+    assert summary["positive_target_count"] == 3
+    assert summary["pass"] is False
+
+    insufficient_pooled = [
+        _evaluation(
+            f"I{i}",
+            baseline_mse=1_000_000,
+            augmented_mse=990_000 if i < 4 else 1_010_000,
+            incremental_bps=100 if i < 4 else -100,
+        )
+        for i in range(8)
+    ]
+    summary = summarize_v3b_stress_evaluations(insufficient_pooled)
+    assert summary["positive_target_count"] == 4
+    assert summary["pooled_incremental_information_bps"] == 0
+    assert summary["pass"] is False

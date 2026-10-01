@@ -145,7 +145,8 @@ def _evaluate_partition(
         model=model,
         episodes=episodes,
     )
-    scenario_rows = []
+    scenario_rows: list[dict[str, Any]] = []
+    scenario_pass_count = 0
     for scenario in FROZEN_STRESS_SCENARIOS:
         stressed = apply_v3b_performance_stress(
             prepared,
@@ -162,6 +163,7 @@ def _evaluate_partition(
             for target_name in sorted(probes)
         ]
         summary = summarize_v3b_stress_evaluations(evaluations)
+        scenario_pass_count += int(bool(summary["pass"]))
         scenario_rows.append(
             {
                 "scenario_id": scenario.scenario_id,
@@ -175,13 +177,9 @@ def _evaluate_partition(
     return {
         "partition": partition,
         "scenario_count": len(scenario_rows),
-        "scenario_pass_count": sum(
-            bool(row["evaluation"]["pass"])
-            for row in scenario_rows
-        ),
-        "all_scenarios_pass": all(
-            bool(row["evaluation"]["pass"])
-            for row in scenario_rows
+        "scenario_pass_count": scenario_pass_count,
+        "all_scenarios_pass": (
+            scenario_pass_count == len(FROZEN_STRESS_SCENARIOS)
         ),
         "scenarios": scenario_rows,
     }
