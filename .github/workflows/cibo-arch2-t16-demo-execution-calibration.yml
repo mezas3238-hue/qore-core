@@ -1,14 +1,6 @@
 name: QORE CIBO Architect2 T16 DEMO Execution Calibration
 
 on:
-  push:
-    branches:
-      - agent/cibo-external-scientific-closure-001
-    paths:
-      - '.github/workflows/cibo-arch2-t16-demo-execution-calibration.yml'
-      - 'scripts/cibo_arch2_t16_demo_execution_calibration.py'
-      - 'tests/infrastructure/test_cibo_arch2_t16_demo_execution_calibration.py'
-      - 'src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py'
   workflow_dispatch:
 
 permissions:
