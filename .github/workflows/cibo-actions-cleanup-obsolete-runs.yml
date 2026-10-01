@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   cancel-obsolete-cibo-runs:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - name: Cancel obsolete CIBO runs
         uses: actions/github-script@v7
