@@ -162,3 +162,17 @@ def test_genc10_calibration_digest_is_deterministic() -> None:
     second = calibrate_genc10_transition_uncertainty(**kwargs)
 
     assert first.report_sha256 == second.report_sha256
+
+def test_genc10_report_rejects_manual_support_count_drift() -> None:
+    report = calibrate_genc10_transition_uncertainty(
+        observations=(_observation(1), _observation(2)),
+        source_population_sha256=POPULATION_SHA,
+        calibration_cutoff_at=T0 + timedelta(days=1),
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="support population count drift",
+    ):
+        replace(report, observation_count=3)
+

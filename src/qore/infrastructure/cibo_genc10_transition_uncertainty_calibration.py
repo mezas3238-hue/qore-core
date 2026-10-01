@@ -210,11 +210,54 @@ class Genc10TransitionCalibrationReport:
             )
         _sha(self.source_population_sha256, "source_population_sha256")
         _aware(self.calibration_cutoff_at, "calibration_cutoff_at")
-        if self.observation_count <= 0 or not self.supports:
+        if (
+            not isinstance(self.observation_count, int)
+            or isinstance(self.observation_count, bool)
+            or self.observation_count <= 0
+        ):
             raise CiboCompoundCapitalError(
-                "GEN-C10 calibration requires observed transitions"
+                "GEN-C10 calibration observation_count invalid"
+            )
+        if (
+            not isinstance(self.supports, tuple)
+            or not self.supports
+            or any(
+                not isinstance(item, Genc10TransitionSupport)
+                for item in self.supports
+            )
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C10 calibration requires canonical transition supports"
+            )
+        keys = tuple(item.conditioning_key for item in self.supports)
+        if len(keys) != len(set(keys)) or keys != tuple(sorted(keys)):
+            raise CiboCompoundCapitalError(
+                "GEN-C10 calibration support identity/order drift"
+            )
+        if sum(item.observation_count for item in self.supports) != (
+            self.observation_count
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C10 calibration support population count drift"
+            )
+        if any(
+            item.observed_through >= self.calibration_cutoff_at
+            for item in self.supports
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C10 calibration support crosses evaluation cutoff"
             )
         _sha(self.report_sha256, "report_sha256")
+        for name in (
+            "frozen_v1_mutated",
+            "market_probability_claimed",
+            "production_policy_selected",
+            "certification_ready",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"GEN-C10 calibration {name} must be bool"
+                )
         if (
             self.frozen_v1_mutated
             or self.market_probability_claimed
