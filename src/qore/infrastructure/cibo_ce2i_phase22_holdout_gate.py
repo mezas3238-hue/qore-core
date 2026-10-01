@@ -15,14 +15,18 @@ from datetime import datetime
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
+from qore.infrastructure.cibo_ce2i_holdout_registry import (
+    ACTIVE_USD60_HOLDOUT_CANDIDATE,
+)
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
     VersionedPhase20ForwardPolicyBook,
 )
-from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
-    VersionedPhase20ForwardEvidenceBook,
-)
 from qore.infrastructure.cibo_ce2i_phase21_policy_freeze import (
     Phase21PolicyFreezeManifest,
+)
+from qore.infrastructure.cibo_ce2i_qualification_evidence_protocol import (
+    Phase20QualificationEvidenceBook,
+    require_qualification_evidence_book,
 )
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -50,8 +54,8 @@ class Phase22HoldoutLineageAssessment:
 def assess_phase22_holdout_lineage(
     *,
     phase21_manifest: Phase21PolicyFreezeManifest,
-    qualification_evidence_book: VersionedPhase20ForwardEvidenceBook,
-    holdout_evidence_book: VersionedPhase20ForwardEvidenceBook,
+    qualification_evidence_book: Phase20QualificationEvidenceBook,
+    holdout_evidence_book: Phase20QualificationEvidenceBook,
     holdout_policy_book: VersionedPhase20ForwardPolicyBook,
     qualification_evidence_store_sha256: str,
     qualification_policy_store_sha256: str,
@@ -62,20 +66,14 @@ def assess_phase22_holdout_lineage(
         raise CiboCapitalManagementError(
             "Phase22 requires canonical Phase21 freeze manifest"
         )
-    if not isinstance(
+    qualification_evidence_book = require_qualification_evidence_book(
         qualification_evidence_book,
-        VersionedPhase20ForwardEvidenceBook,
-    ):
-        raise CiboCapitalManagementError(
-            "Phase22 qualification evidence book must be canonical"
-        )
-    if not isinstance(
+        context="Phase22 qualification evidence",
+    )
+    holdout_evidence_book = require_qualification_evidence_book(
         holdout_evidence_book,
-        VersionedPhase20ForwardEvidenceBook,
-    ):
-        raise CiboCapitalManagementError(
-            "Phase22 holdout evidence book must be canonical"
-        )
+        context="Phase22 holdout evidence",
+    )
     if not isinstance(
         holdout_policy_book,
         VersionedPhase20ForwardPolicyBook,
@@ -128,10 +126,20 @@ def assess_phase22_holdout_lineage(
 
     collector_shas: set[str] = set()
     decision_by_sha = {}
+    holdout = ACTIVE_USD60_HOLDOUT_CANDIDATE
     for decision in decisions:
         decision_by_sha[decision.evidence_sha256] = decision
-        if decision.decision_at <= phase21_manifest.frozen_at:
-            reasons.append("HOLDOUT_DECISION_NOT_POST_PHASE21_FREEZE")
+        if not (
+            holdout.start_at
+            <= decision.decision_at
+            < holdout.end_exclusive_at
+        ):
+            reasons.append("HOLDOUT_DECISION_OUTSIDE_PREREGISTERED_WINDOW")
+        if (
+            decision.sealed_at is None
+            or decision.sealed_at <= phase21_manifest.frozen_at
+        ):
+            reasons.append("HOLDOUT_DECISION_SEAL_NOT_POST_PHASE21_FREEZE")
         if decision.candidate_id != phase21_manifest.candidate_id:
             reasons.append("HOLDOUT_CANDIDATE_IDENTITY_DRIFT")
         if decision.code_sha != phase21_manifest.candidate_code_sha:
