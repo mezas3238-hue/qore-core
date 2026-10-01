@@ -155,6 +155,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_capital_efficiency_reconstruction*", "CMA_FOUNDATION_INTEGRATION"),
     ("*cibo_capital_efficiency_sizing_lab*", "CMA_FOUNDATION_INTEGRATION"),
     ("*cibo_ce2i_burned*", "CE2I_CALIBRATION_GOVERNANCE"),
+    ("*cibo_calibration_freeze_readiness*", "CE2I_CALIBRATION_GOVERNANCE"),
     ("*cibo_ce2i_calibration*", "CE2I_CALIBRATION_GOVERNANCE"),
     ("*cibo_ce2i_advanced*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
     ("*cibo_ce2i_causal_expectation*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),

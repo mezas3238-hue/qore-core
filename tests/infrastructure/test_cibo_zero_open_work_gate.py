@@ -288,3 +288,20 @@ def test_b_surface_classifiers_are_not_orphans() -> None:
         inventory[14]: "USD60_CAPABILITY_PROGRAM",
     }
     assert orphan_candidates == ()
+
+def test_gate_classifies_calibration_freeze_readiness_surface() -> None:
+    assignments, orphans = gate._classify_inventory(
+        ("scripts/cibo_calibration_freeze_readiness.py",),
+        ledger_ids=frozenset(
+            {"CE2I_CALIBRATION_GOVERNANCE", "ORPHAN_INVENTORY"}
+        ),
+    )
+
+    assert assignments == (
+        (
+            "scripts/cibo_calibration_freeze_readiness.py",
+            "CE2I_CALIBRATION_GOVERNANCE",
+        ),
+    )
+    assert orphans == ()
+
