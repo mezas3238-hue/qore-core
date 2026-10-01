@@ -1,15 +1,14 @@
+import importlib.util
+import sys
 from decimal import Decimal
+from pathlib import Path
+from types import ModuleType
 
 import pytest
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
-
-import importlib.util
-import sys
-from pathlib import Path
-from types import ModuleType
 
 
 def _load() -> ModuleType:
