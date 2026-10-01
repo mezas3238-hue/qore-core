@@ -51,12 +51,121 @@
           "authority_id": "JPX_2024_CLOSE_EXTENSION_DECISION",
           "organization": "Tokyo Stock Exchange / Japan Exchange Group",
           "source_url": "https://www.jpx.co.jp/english/corporate/news/news-releases/1030/20230920-01.html"
+        },
+        {
+          "authority_id": "NAOJ_2016_CALENDAR",
+          "organization": "National Astronomical Observatory of Japan",
+          "source_url": "https://eco.mtk.nao.ac.jp/koyomi/yoko/2016/rekiyou161.html"
+        },
+        {
+          "authority_id": "NAOJ_2017_CALENDAR",
+          "organization": "National Astronomical Observatory of Japan",
+          "source_url": "https://eco.mtk.nao.ac.jp/koyomi/yoko/2017/rekiyou171.html"
+        },
+        {
+          "authority_id": "NAOJ_2018_CALENDAR",
+          "organization": "National Astronomical Observatory of Japan",
+          "source_url": "https://eco.mtk.nao.ac.jp/koyomi/yoko/2018/rekiyou181.html"
+        },
+        {
+          "authority_id": "JPX_TSE_NON_BUSINESS_RULE",
+          "organization": "Tokyo Stock Exchange / Japan Exchange Group",
+          "source_url": "https://www.jpx.co.jp/english/equities/trading/domestic/01.html"
         }
       ],
       "unresolved_requirements": [
-        "VERSIONED_TSE_HOLIDAY_CALENDAR_2016_2018",
-        "R8_DATE_LEVEL_EXCEPTION_CALENDAR"
-      ]
+        "R8_EXTRAORDINARY_NON_BUSINESS_DAY_EVIDENCE"
+      ],
+      "r8_legal_holiday_dates_verified": true,
+      "r8_legal_holiday_dates": [
+        "2016-04-29",
+        "2016-05-03",
+        "2016-05-04",
+        "2016-05-05",
+        "2016-07-18",
+        "2016-08-11",
+        "2016-09-19",
+        "2016-09-22",
+        "2016-10-10",
+        "2016-11-03",
+        "2016-11-23",
+        "2016-12-23",
+        "2017-01-01",
+        "2017-01-02",
+        "2017-01-09",
+        "2017-02-11",
+        "2017-03-20",
+        "2017-04-29",
+        "2017-05-03",
+        "2017-05-04",
+        "2017-05-05",
+        "2017-07-17",
+        "2017-08-11",
+        "2017-09-18",
+        "2017-09-23",
+        "2017-10-09",
+        "2017-11-03",
+        "2017-11-23",
+        "2017-12-23",
+        "2018-01-01",
+        "2018-01-08",
+        "2018-02-11",
+        "2018-02-12",
+        "2018-03-21",
+        "2018-04-29",
+        "2018-04-30",
+        "2018-05-03",
+        "2018-05-04",
+        "2018-05-05"
+      ],
+      "r8_rule_based_non_business_dates_verified": true,
+      "r8_rule_based_non_business_dates": [
+        "2016-04-29",
+        "2016-05-03",
+        "2016-05-04",
+        "2016-05-05",
+        "2016-07-18",
+        "2016-08-11",
+        "2016-09-19",
+        "2016-09-22",
+        "2016-10-10",
+        "2016-11-03",
+        "2016-11-23",
+        "2016-12-23",
+        "2016-12-31",
+        "2017-01-01",
+        "2017-01-02",
+        "2017-01-03",
+        "2017-01-09",
+        "2017-02-11",
+        "2017-03-20",
+        "2017-04-29",
+        "2017-05-03",
+        "2017-05-04",
+        "2017-05-05",
+        "2017-07-17",
+        "2017-08-11",
+        "2017-09-18",
+        "2017-09-23",
+        "2017-10-09",
+        "2017-11-03",
+        "2017-11-23",
+        "2017-12-23",
+        "2017-12-31",
+        "2018-01-01",
+        "2018-01-02",
+        "2018-01-03",
+        "2018-01-08",
+        "2018-02-11",
+        "2018-02-12",
+        "2018-03-21",
+        "2018-04-29",
+        "2018-04-30",
+        "2018-05-03",
+        "2018-05-04",
+        "2018-05-05"
+      ],
+      "r8_rule_based_non_business_date_count": 44
     }
   ],
   "governance": {
@@ -69,6 +178,8 @@
     "broker_mutation": false,
     "relational_comparability_authorized": false,
     "sensor_admission_authorized": false,
-    "productive_authority": false
+    "productive_authority": false,
+    "r8_rule_based_non_business_calendar_verified": true,
+    "extraordinary_closure_absence_inferred": false
   }
 }

@@ -91,6 +91,11 @@ def _authority() -> dict[str, object]:
                 "calculation_frequency_ms": 5000,
                 "first_calculation_time_local": "09:00:05",
                 "r8_holiday_calendar_verified": False,
+                "r8_legal_holiday_dates_verified": True,
+                "r8_legal_holiday_dates": ["2016-04-29","2016-05-03","2016-05-04","2016-05-05","2016-07-18","2016-08-11","2016-09-19","2016-09-22","2016-10-10","2016-11-03","2016-11-23","2016-12-23","2017-01-01","2017-01-02","2017-01-09","2017-02-11","2017-03-20","2017-04-29","2017-05-03","2017-05-04","2017-05-05","2017-07-17","2017-08-11","2017-09-18","2017-09-23","2017-10-09","2017-11-03","2017-11-23","2017-12-23","2018-01-01","2018-01-08","2018-02-11","2018-02-12","2018-03-21","2018-04-29","2018-04-30","2018-05-03","2018-05-04","2018-05-05"],
+                "r8_rule_based_non_business_dates_verified": True,
+                "r8_rule_based_non_business_dates": ["2016-04-29","2016-05-03","2016-05-04","2016-05-05","2016-07-18","2016-08-11","2016-09-19","2016-09-22","2016-10-10","2016-11-03","2016-11-23","2016-12-23","2016-12-31","2017-01-01","2017-01-02","2017-01-03","2017-01-09","2017-02-11","2017-03-20","2017-04-29","2017-05-03","2017-05-04","2017-05-05","2017-07-17","2017-08-11","2017-09-18","2017-09-23","2017-10-09","2017-11-03","2017-11-23","2017-12-23","2017-12-31","2018-01-01","2018-01-02","2018-01-03","2018-01-08","2018-02-11","2018-02-12","2018-03-21","2018-04-29","2018-04-30","2018-05-03","2018-05-04","2018-05-05"],
+                "r8_rule_based_non_business_date_count": 44,
                 "historical_exception_calendar_verified": False,
                 "canonical_calendar_complete": False,
                 "authorities": [
@@ -113,6 +118,10 @@ def _authority() -> dict[str, object]:
                             "news-releases/1030/20230920-01.html"
                         )
                     },
+                    {"source_url": "https://eco.mtk.nao.ac.jp/a"},
+                    {"source_url": "https://eco.mtk.nao.ac.jp/b"},
+                    {"source_url": "https://eco.mtk.nao.ac.jp/c"},
+                    {"source_url": "https://www.jpx.co.jp/english/equities/a"},
                 ],
             }
         ],
@@ -127,6 +136,8 @@ def test_binds_only_nikkei_r8_session_schedule() -> None:
     )
     assert payload["sensor_count"] == 177
     assert payload["r8_historical_session_schedule_verified_count"] == 1
+    assert payload["r8_legal_holiday_set_verified_count"] == 1
+    assert payload["r8_rule_based_non_business_calendar_verified_count"] == 1
     assert payload["r8_historical_holiday_calendar_verified_count"] == 0
     assert payload["canonical_calendar_verified_count"] == 0
     assert payload["calendar_binding_verified_count"] == 0
@@ -140,12 +151,14 @@ def test_binds_only_nikkei_r8_session_schedule() -> None:
         if row["provider_symbol"] == "JP225"
     )
     assert jp225["r8_historical_session_schedule_verified"] is True
+    assert jp225["r8_legal_holiday_dates_verified"] is True
+    assert jp225["r8_rule_based_non_business_dates_verified"] is True
+    assert jp225["r8_rule_based_non_business_date_count"] == 44
     assert jp225["r8_holiday_calendar_verified"] is False
     assert jp225["canonical_calendar_verified"] is False
     assert jp225["calendar_binding_verified"] is False
     assert jp225["required_evidence"] == [
-        "VERSIONED_TSE_HOLIDAY_CALENDAR_2016_2018",
-        "R8_DATE_LEVEL_EXCEPTION_CALENDAR",
+        "R8_EXTRAORDINARY_NON_BUSINESS_DAY_EVIDENCE",
     ]
 
 

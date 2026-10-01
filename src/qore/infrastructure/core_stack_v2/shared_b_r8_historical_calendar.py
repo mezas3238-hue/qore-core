@@ -132,6 +132,9 @@ def build_r8_historical_calendar_frontier(
         "calculation_frequency_ms": 5000,
         "first_calculation_time_local": "09:00:05",
         "r8_holiday_calendar_verified": False,
+        "r8_legal_holiday_dates_verified": True,
+        "r8_rule_based_non_business_dates_verified": True,
+        "r8_rule_based_non_business_date_count": 44,
         "historical_exception_calendar_verified": False,
         "canonical_calendar_complete": False,
     }
@@ -150,8 +153,27 @@ def build_r8_historical_calendar_frontier(
             "Nikkei R8 session segments drift"
         )
 
+    legal_holidays = authority.get("r8_legal_holiday_dates")
+    rule_dates = authority.get("r8_rule_based_non_business_dates")
+    if not isinstance(legal_holidays, list) or len(legal_holidays) != 39:
+        raise SharedBR8HistoricalCalendarError(
+            "Nikkei R8 legal holiday set must contain exact 39 dates"
+        )
+    if not isinstance(rule_dates, list) or len(rule_dates) != 44:
+        raise SharedBR8HistoricalCalendarError(
+            "Nikkei R8 rule-based closure set must contain exact 44 dates"
+        )
+    if tuple(rule_dates) != tuple(sorted(set(rule_dates))):
+        raise SharedBR8HistoricalCalendarError(
+            "Nikkei R8 rule-based closure dates must be canonical"
+        )
+    if not set(legal_holidays).issubset(set(rule_dates)):
+        raise SharedBR8HistoricalCalendarError(
+            "legal holidays must be included in rule-based closures"
+        )
+
     authorities = authority.get("authorities")
-    if not isinstance(authorities, list) or len(authorities) < 3:
+    if not isinstance(authorities, list) or len(authorities) < 7:
         raise SharedBR8HistoricalCalendarError(
             "Nikkei official authority chain incomplete"
         )
@@ -164,6 +186,7 @@ def build_r8_historical_calendar_frontier(
         if not isinstance(url, str) or not (
             url.startswith("https://indexes.nikkei.co.jp/")
             or url.startswith("https://www.jpx.co.jp/")
+            or url.startswith("https://eco.mtk.nao.ac.jp/")
         ):
             raise SharedBR8HistoricalCalendarError(
                 "Nikkei authority URL is not official"
@@ -197,6 +220,11 @@ def build_r8_historical_calendar_frontier(
                     "r8_historical_session_segments": segments,
                     "r8_calculation_frequency_ms": 5000,
                     "r8_first_calculation_time_local": "09:00:05",
+                    "r8_legal_holiday_dates_verified": True,
+                    "r8_legal_holiday_dates": legal_holidays,
+                    "r8_rule_based_non_business_dates_verified": True,
+                    "r8_rule_based_non_business_dates": rule_dates,
+                    "r8_rule_based_non_business_date_count": 44,
                     "r8_holiday_calendar_verified": False,
                     "r8_exception_calendar_verified": False,
                     "canonical_calendar_verified": False,
@@ -207,12 +235,12 @@ def build_r8_historical_calendar_frontier(
                     ),
                     "reason_codes": [
                         "OFFICIAL_R8_SESSION_SCHEDULE_VERIFIED",
-                        "VERSIONED_R8_HOLIDAY_CALENDAR_UNRESOLVED",
-                        "DATE_LEVEL_R8_EXCEPTIONS_UNRESOLVED",
+                        "OFFICIAL_R8_LEGAL_HOLIDAYS_VERIFIED",
+                        "RULE_BASED_R8_NON_BUSINESS_DATES_VERIFIED",
+                        "EXTRAORDINARY_R8_CLOSURES_UNRESOLVED",
                     ],
                     "required_evidence": [
-                        "VERSIONED_TSE_HOLIDAY_CALENDAR_2016_2018",
-                        "R8_DATE_LEVEL_EXCEPTION_CALENDAR",
+                        "R8_EXTRAORDINARY_NON_BUSINESS_DAY_EVIDENCE",
                     ],
                     "relational_comparability_authorized": False,
                     "sensor_admission_authorized": False,
@@ -240,6 +268,8 @@ def build_r8_historical_calendar_frontier(
         "r8_source_max": EXPECTED_SOURCE_MAX,
         "r8_window_count": 2948,
         "r8_historical_session_schedule_verified_count": 1,
+        "r8_legal_holiday_set_verified_count": 1,
+        "r8_rule_based_non_business_calendar_verified_count": 1,
         "r8_historical_holiday_calendar_verified_count": 0,
         "canonical_calendar_verified_count": 0,
         "calendar_binding_verified_count": 0,

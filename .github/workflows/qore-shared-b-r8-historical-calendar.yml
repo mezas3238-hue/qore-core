@@ -124,6 +124,8 @@ jobs:
           )
           assert p["sensor_count"] == 177
           assert p["r8_historical_session_schedule_verified_count"] == 1
+          assert p["r8_legal_holiday_set_verified_count"] == 1
+          assert p["r8_rule_based_non_business_calendar_verified_count"] == 1
           assert p["r8_historical_holiday_calendar_verified_count"] == 0
           assert p["canonical_calendar_verified_count"] == 0
           assert p["calendar_binding_verified_count"] == 0
@@ -162,4 +164,4 @@ jobs:
         env:
           ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
         run: |
-          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-07 R8 historical calendar frontier: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Frozen R8 horizon is 2016-04-20 through 2018-05-18. JP225/Nikkei 225 now has an official historical session schedule binding for R8 (09:00-11:30 and 12:30-15:00 JST; 5-second index calculation), while the exact 2016-2018 holiday/exception calendar remains OPEN. No current schedule was backfilled, canonical calendar bindings remain 0/177, and relational authority remains CLOSED."
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-07 R8 historical calendar frontier: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Frozen R8 horizon is 2016-04-20 through 2018-05-18. JP225/Nikkei 225 now has an official historical session schedule binding for R8 (09:00-11:30 and 12:30-15:00 JST; 5-second index calculation), and the official 2016-2018 legal/rule-based non-business dates are sealed. Only extraordinary TSE closure evidence remains OPEN. No current schedule was backfilled, canonical calendar bindings remain 0/177, and relational authority remains CLOSED."
