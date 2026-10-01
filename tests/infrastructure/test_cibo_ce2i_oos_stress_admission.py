@@ -51,12 +51,14 @@ from qore.infrastructure.cibo_compound_adversarial_stress import (
 )
 from qore.infrastructure.cibo_t09_t18_scarcity_safety_gate import (
     GATE_FROZEN_AT,
-    GATE_ID as SCARCITY_SAFETY_GATE_ID,
     GATE_SHA256,
     T09T18ScarcityCandidateVerdict,
     T09T18ScarcityGateReport,
     T09T18ScarcityStatus,
     T09T18ScarcityTool,
+)
+from qore.infrastructure.cibo_t09_t18_scarcity_safety_gate import (
+    GATE_ID as SCARCITY_SAFETY_GATE_ID,
 )
 
 BASE = datetime(2026, 9, 30, 10, tzinfo=UTC)

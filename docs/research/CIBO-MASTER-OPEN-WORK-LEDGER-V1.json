@@ -60,7 +60,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_EXECUTABLE_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_REAL_EVIDENCE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_EXECUTABLE_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_REAL_EVIDENCE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -78,11 +78,11 @@
         "src/qore/infrastructure/cibo_arch_a_mechanism_stress_gate.py",
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml"
+        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
+        "github-actions://36809830649/SUCCESS"
       ],
       "blockers": [
-        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
       ],
       "next_gate": "Pass the executable T04/T10 economic-gate CI; then bind provider-valid marginal-capital control/treatment evidence and require independent WF1..WF4 non-compensatory risk-efficiency value, stress and terminal disposition."
     },
@@ -108,7 +108,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_CERTIFIED_NONCOMPENSATORY_EXPANSION_UTILITY_GATE_CHILD_CI_GREEN_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_FRESH_OOS_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "CONTRACT_CERTIFIED_NONCOMPENSATORY_EXPANSION_UTILITY_GATE_CHILD_CI_GREEN_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_FRESH_OOS_OPEN_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -128,11 +128,11 @@
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
         ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
-        "github-actions://36808183923/SUCCESS"
+        "github-actions://36808183923/SUCCESS",
+        "github-actions://36809830649/SUCCESS"
       ],
       "blockers": [
-        "FRESH_OOS_PROFIT_FUNDED_EXPANSION_UTILITY_REQUIRED",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "FRESH_OOS_PROFIT_FUNDED_EXPANSION_UTILITY_REQUIRED"
       ],
       "next_gate": "Using only legally fresh causal evidence, prove that profit-funded expansion adds robust economic value without unacceptable plausible-loss, drawdown, tail, margin or optionality degradation."
     },
@@ -141,7 +141,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_CERTIFIED_PROTECTED_CAPACITY_NONCOMPENSATORY_UTILITY_GATE_CHILD_CI_GREEN_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_FRESH_OOS_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "CONTRACT_CERTIFIED_PROTECTED_CAPACITY_NONCOMPENSATORY_UTILITY_GATE_CHILD_CI_GREEN_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_FRESH_OOS_OPEN_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -161,11 +161,11 @@
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
         ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
-        "github-actions://36808183923/SUCCESS"
+        "github-actions://36808183923/SUCCESS",
+        "github-actions://36809830649/SUCCESS"
       ],
       "blockers": [
-        "FRESH_OOS_PROTECTED_CAPACITY_EXPANSION_UTILITY_REQUIRED",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "FRESH_OOS_PROTECTED_CAPACITY_EXPANSION_UTILITY_REQUIRED"
       ],
       "next_gate": "Using only reconciled protected-floor evidence and fresh causal outcomes, prove that protected-capacity expansion adds robust economic value without treating accounting protection as broker guarantee."
     },
@@ -174,7 +174,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED_STRICT_FOUR_FOLD_CONTRACT_CI_PENDING_OOS_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED_STRICT_FOUR_FOLD_CONTRACT_CI_GREEN_OOS_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -189,11 +189,11 @@
         "src/qore/infrastructure/cibo_ce2i_oos_stress_admission.py",
         "tests/infrastructure/test_cibo_ce2i_oos_stress_admission.py",
         "docs/research/CIBO-CE2I-OOS-MECHANISM-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-ce2i-oos-stress-admission.yml"
+        ".github/workflows/cibo-ce2i-oos-stress-admission.yml",
+        "github-actions://36809830802/SUCCESS"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
-        "T08_STRICT_FOUR_FOLD_CONTRACT_CHILD_CI_REQUIRED",
         "CE2I_OOS_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
       ],
       "next_gate": "Bind the fresh forward causal population and execute the frozen factor-neutralization ablation; require non-compensatory OOS/stress/replication before terminal disposition."
@@ -234,7 +234,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_EXECUTABLE_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_REAL_EVIDENCE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_EXECUTABLE_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_REAL_EVIDENCE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -252,11 +252,11 @@
         "src/qore/infrastructure/cibo_arch_a_mechanism_stress_gate.py",
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml"
+        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
+        "github-actions://36809830649/SUCCESS"
       ],
       "blockers": [
-        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
       ],
       "next_gate": "Pass the executable T04/T10 economic-gate CI; then bind authoritative deployment/release provider economics and require independent WF1..WF4 non-compensatory capital-velocity value, stress and terminal disposition."
     },
@@ -339,7 +339,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CAUSAL_PARETO_UTILITY_GATE_CHILD_CI_GREEN_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_FRESH_FORWARD_PROOF_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "CAUSAL_PARETO_UTILITY_GATE_CHILD_CI_GREEN_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_FRESH_FORWARD_PROOF_OPEN_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -357,11 +357,11 @@
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
         ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
-        "github-actions://36808183923/SUCCESS"
+        "github-actions://36808183923/SUCCESS",
+        "github-actions://36809830649/SUCCESS"
       ],
       "blockers": [
-        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
       ],
       "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
     },
@@ -370,7 +370,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CAUSAL_PARETO_UTILITY_GATE_CHILD_CI_GREEN_CAUSAL_IDENTIFICATION_AND_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_FRESH_FORWARD_PROOF_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "CAUSAL_PARETO_UTILITY_GATE_CHILD_CI_GREEN_CAUSAL_IDENTIFICATION_AND_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_FRESH_FORWARD_PROOF_OPEN_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -388,12 +388,12 @@
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
         ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
-        "github-actions://36808183923/SUCCESS"
+        "github-actions://36808183923/SUCCESS",
+        "github-actions://36809830649/SUCCESS"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
-        "COUNTERFACTUAL_RESERVATION_CAUSAL_EFFECT_NOT_IDENTIFIED",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "COUNTERFACTUAL_RESERVATION_CAUSAL_EFFECT_NOT_IDENTIFIED"
       ],
       "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
     },
@@ -540,7 +540,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_GENC7_CAUSAL_GRADUATION_GATE_CHILD_CI_GREEN_PROFIT_GRADUATION_VALUE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING_GENC7_ECONOMIC_AND_STRICT_FOUR_FOLD_ENGINE_CI_GREEN",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_GENC7_CAUSAL_GRADUATION_GATE_CHILD_CI_GREEN_PROFIT_GRADUATION_VALUE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN_GENC7_ECONOMIC_AND_STRICT_FOUR_FOLD_ENGINE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -559,11 +559,11 @@
         "src/qore/infrastructure/cibo_genc_strict_temporal_replication.py",
         "tests/infrastructure/test_cibo_genc_strict_temporal_replication.py",
         "github-actions://36808183928/SUCCESS",
-        "github-actions://36808183905/SUCCESS"
+        "github-actions://36808183905/SUCCESS",
+        "github-actions://36809830649/SUCCESS"
       ],
       "blockers": [
-        "CAUSAL_PROFIT_GRADUATION_POLICY_VALUE_REQUIRED",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "CAUSAL_PROFIT_GRADUATION_POLICY_VALUE_REQUIRED"
       ],
       "next_gate": "After GEN-C7 causal-effect evidence exists, prove that PROTECT/graduation to the floor adds non-compensatory economic value with no base/compound/tail/optionality degradation, then stress and replicate 4/4."
     },
@@ -572,7 +572,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_REAL_CYCLE_EVIDENCE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_REAL_CYCLE_EVIDENCE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -591,11 +591,11 @@
         "src/qore/infrastructure/cibo_arch_a_mechanism_stress_gate.py",
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml"
+        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
+        "github-actions://36809830649/SUCCESS"
       ],
       "blockers": [
-        "END_TO_END_COMPOUND_PORTFOLIO_ECONOMIC_CYCLE_REQUIRED",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "END_TO_END_COMPOUND_PORTFOLIO_ECONOMIC_CYCLE_REQUIRED"
       ],
       "next_gate": "Pass the shared GEN-C3..GEN-C6 economic-gate CI; then bind a provider-valid complete portfolio cycle and require independent 4/4 non-compensatory economic improvement plus stress before terminal disposition."
     },
@@ -604,7 +604,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_REAL_CAUSAL_VALUE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_REAL_CAUSAL_VALUE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -624,11 +624,11 @@
         "src/qore/infrastructure/cibo_arch_a_mechanism_stress_gate.py",
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml"
+        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
+        "github-actions://36809830649/SUCCESS"
       ],
       "blockers": [
-        "REAL_DATA_BOUND_CAUSAL_VALUE_PROOF_REQUIRED",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "REAL_DATA_BOUND_CAUSAL_VALUE_PROOF_REQUIRED"
       ],
       "next_gate": "Pass the shared GEN-C3..GEN-C6 economic-gate CI; then bind provider-valid marginal-unit control/treatment evidence and require independent 4/4 non-compensatory economic improvement plus stress."
     },
@@ -637,7 +637,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_PATH_DEPENDENT_VALUE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_PATH_DEPENDENT_VALUE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -658,11 +658,11 @@
         "src/qore/infrastructure/cibo_arch_a_mechanism_stress_gate.py",
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml"
+        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
+        "github-actions://36809830649/SUCCESS"
       ],
       "blockers": [
-        "FRESH_PATH_DEPENDENT_OOS_STRESS_REPLICATION_REQUIRED",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "FRESH_PATH_DEPENDENT_OOS_STRESS_REPLICATION_REQUIRED"
       ],
       "next_gate": "Pass the shared GEN-C3..GEN-C6 economic-gate CI; then bind provider-valid chronological sequential-compounding control/treatment evidence and require independent 4/4 non-compensatory improvement plus stress."
     },
@@ -671,7 +671,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_TRUE_SCARCITY_VALUE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_CI_GREEN_TRUE_SCARCITY_VALUE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -689,11 +689,11 @@
         "src/qore/infrastructure/cibo_arch_a_mechanism_stress_gate.py",
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml"
+        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
+        "github-actions://36809830649/SUCCESS"
       ],
       "blockers": [
-        "FRESH_TRUE_SCARCITY_OOS_STRESS_REPLICATION_REQUIRED",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "FRESH_TRUE_SCARCITY_OOS_STRESS_REPLICATION_REQUIRED"
       ],
       "next_gate": "Pass the shared GEN-C3..GEN-C6 economic-gate CI; then bind provider-valid true-scarcity control/treatment evidence and require independent 4/4 non-compensatory improvement plus stress."
     },
@@ -702,7 +702,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_AND_CAUSAL_NONCOMPENSATORY_ECONOMIC_GATE_CHILD_CI_GREEN_REAL_EFFECT_EVIDENCE_OPEN_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "ENGINE_AND_CAUSAL_NONCOMPENSATORY_ECONOMIC_GATE_CHILD_CI_GREEN_REAL_EFFECT_EVIDENCE_OPEN_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -721,11 +721,11 @@
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
         ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
-        "github-actions://36808183905/SUCCESS"
+        "github-actions://36808183905/SUCCESS",
+        "github-actions://36809830649/SUCCESS"
       ],
       "blockers": [
-        "FRESH_OOS_GIVEBACK_RETENTION_STRESS_REPLICATION_REQUIRED",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "FRESH_OOS_GIVEBACK_RETENTION_STRESS_REPLICATION_REQUIRED"
       ],
       "next_gate": "Require the updated GEN-C7 workflow to pass; then identify causal treatment effects on the frozen provider-valid population, apply the non-compensatory gate, adversarial stress and WF1..WF4 replication without using descriptive OOS paths as counterfactual proof."
     },
@@ -734,7 +734,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_AND_NONCOMPENSATORY_ECONOMIC_GATE_CHILD_CI_GREEN_REAL_OUTCOME_EVIDENCE_OPEN_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "ENGINE_AND_NONCOMPENSATORY_ECONOMIC_GATE_CHILD_CI_GREEN_REAL_OUTCOME_EVIDENCE_OPEN_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -753,11 +753,11 @@
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
         ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
-        "github-actions://36808183905/SUCCESS"
+        "github-actions://36808183905/SUCCESS",
+        "github-actions://36809830649/SUCCESS"
       ],
       "blockers": [
-        "FRESH_OOS_STRESS_REPLICATION_REQUIRED",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "FRESH_OOS_STRESS_REPLICATION_REQUIRED"
       ],
       "next_gate": "Require the updated GEN-C8 workflow to pass; then bind the frozen causal population to provider-valid outcomes and apply the non-compensatory gate, fresh OOS, adversarial stress and 4/4 temporal replication without retuning V1."
     },
@@ -766,7 +766,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_REAL_POPULATION_BINDING_AND_TEMPORAL_CRITERION_CHILD_CI_GREEN_REAL_ECONOMIC_EVIDENCE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING_ECONOMIC_AND_TEMPORAL_ENGINE_CI_GREEN",
+      "current_maturity": "ENGINE_REAL_POPULATION_BINDING_AND_TEMPORAL_CRITERION_CHILD_CI_GREEN_REAL_ECONOMIC_EVIDENCE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN_ECONOMIC_AND_TEMPORAL_ENGINE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -788,12 +788,12 @@
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
         ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
         "tests/infrastructure/test_cibo_compound_temporal_replication_gate.py",
-        "github-actions://36808184052/SUCCESS"
+        "github-actions://36808184052/SUCCESS",
+        "github-actions://36809830649/SUCCESS"
       ],
       "blockers": [
         "REAL_PROVIDER_VALID_COMPOUND_PATH_POPULATION_REQUIRED",
-        "FRESH_OOS_STRESS_TEMPORAL_REPLICATION_REQUIRED",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "FRESH_OOS_STRESS_TEMPORAL_REPLICATION_REQUIRED"
       ],
       "next_gate": "Bind provider-valid real compound path population without tuning; apply frozen non-compensatory gate; then fresh OOS, adversarial stress and temporal replication."
     },
@@ -829,7 +829,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_CI_GREEN_EXECUTABLE_NONCOMPENSATORY_UTILITY_WRAPPER_CI_GREEN_REAL_EVIDENCE_OPEN_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "ENGINE_CI_GREEN_EXECUTABLE_NONCOMPENSATORY_UTILITY_WRAPPER_CI_GREEN_REAL_EVIDENCE_OPEN_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -856,13 +856,13 @@
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
         ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
-        "github-actions://36808183905/SUCCESS"
+        "github-actions://36808183905/SUCCESS",
+        "github-actions://36809830649/SUCCESS"
       ],
       "blockers": [
         "FRESH_MULTI_PERIOD_OOS_UTILITY_NOT_YET_PROVEN",
         "STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
-        "GEN_C10_TRANSITION_UNCERTAINTY_NOT_YET_CALIBRATED",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "GEN_C10_TRANSITION_UNCERTAINTY_NOT_YET_CALIBRATED"
       ],
       "next_gate": "Pass the executable GEN-C11/GEN-C13 wrapper CI; then after legal GEN-C10 transition calibration bind a fresh MPC control/treatment population, reuse the frozen GEN-C9 non-compensatory law, and separately pass stress plus WF1..WF4 replication."
     },
@@ -871,7 +871,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_AND_NONCOMPENSATORY_ECONOMIC_GATE_CHILD_CI_GREEN_REAL_CRISIS_EVIDENCE_OPEN_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "ENGINE_AND_NONCOMPENSATORY_ECONOMIC_GATE_CHILD_CI_GREEN_REAL_CRISIS_EVIDENCE_OPEN_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -896,13 +896,13 @@
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
         ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
-        "github-actions://36808183905/SUCCESS"
+        "github-actions://36808183905/SUCCESS",
+        "github-actions://36809830649/SUCCESS"
       ],
       "blockers": [
         "REAL_CRISIS_POPULATION_NOT_YET_BOUND",
         "ADVERSARIAL_CRISIS_STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
-        "ECONOMIC_VALUE_NOT_YET_DEMONSTRATED",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "ECONOMIC_VALUE_NOT_YET_DEMONSTRATED"
       ],
       "next_gate": "Bind real causal crisis populations; run correlation/provider/margin/liquidity/drawdown stress; then fresh OOS and temporal replication."
     },
@@ -911,7 +911,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_CI_GREEN_CAUSAL_IDENTIFICATION_PROTOCOL_AND_EXECUTABLE_UTILITY_WRAPPER_CI_GREEN_REAL_PROSPECTIVE_EVIDENCE_OPEN_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "ENGINE_CI_GREEN_CAUSAL_IDENTIFICATION_PROTOCOL_AND_EXECUTABLE_UTILITY_WRAPPER_CI_GREEN_REAL_PROSPECTIVE_EVIDENCE_OPEN_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -937,13 +937,13 @@
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
         ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
-        "github-actions://36808183905/SUCCESS"
+        "github-actions://36808183905/SUCCESS",
+        "github-actions://36809830649/SUCCESS"
       ],
       "blockers": [
         "REAL_POST_OUTCOME_EPISODE_POPULATION_NOT_YET_BOUND",
         "PROSPECTIVE_MEMORY_USE_CAUSAL_ABLATION_NOT_YET_RUN",
-        "TEMPORAL_REPLICATION_REQUIRED",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "TEMPORAL_REPLICATION_REQUIRED"
       ],
       "next_gate": "Pass the executable GEN-C11/GEN-C13 wrapper CI; then bind real reconciled post-outcome memory episodes, preregister a later prospective memory-use ablation, reuse the frozen GEN-C9 non-compensatory law on causal future evidence, and separately pass stress plus WF1..WF4 replication."
     },
@@ -1008,7 +1008,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "INTEGRATED_ENGINE_IMPLEMENTED_CI_GREEN_REAL_ECONOMIC_REPLAY_REQUIRED_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING_GENC3_STRICT_FOUR_FOLD_ECONOMIC_ENGINE_CI_GREEN",
+      "current_maturity": "INTEGRATED_ENGINE_IMPLEMENTED_CI_GREEN_REAL_ECONOMIC_REPLAY_REQUIRED_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN_GENC3_STRICT_FOUR_FOLD_ECONOMIC_ENGINE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_cycle_state.py",
@@ -1024,12 +1024,12 @@
         "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
         "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
         "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
-        "github-actions://36808183978/SUCCESS"
+        "github-actions://36808183978/SUCCESS",
+        "github-actions://36809830649/SUCCESS"
       ],
       "blockers": [
         "REAL_ECONOMIC_PORTFOLIO_REPLAY_REQUIRED",
-        "FRESH_OOS_STRESS_REPLICATION_REQUIRED",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "FRESH_OOS_STRESS_REPLICATION_REQUIRED"
       ],
       "next_gate": "Use the account-local Compound Portfolio in real chronological integrated replay and prove fresh OOS, stress and temporal-replication closure gates."
     },
@@ -1038,7 +1038,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "INTEGRATED_WITH_COMPOUND_CYCLE_CI_GREEN_SCIENTIFIC_VALUE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING_GENC6_STRICT_FOUR_FOLD_ECONOMIC_ENGINE_CI_GREEN",
+      "current_maturity": "INTEGRATED_WITH_COMPOUND_CYCLE_CI_GREEN_SCIENTIFIC_VALUE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN_GENC6_STRICT_FOUR_FOLD_ECONOMIC_ENGINE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_market_cycle.py",
@@ -1053,12 +1053,12 @@
         "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
         "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
         "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
-        "github-actions://36808183978/SUCCESS"
+        "github-actions://36808183978/SUCCESS",
+        "github-actions://36809830649/SUCCESS"
       ],
       "blockers": [
         "FRESH_TRUE_SCARCITY_ECONOMIC_VALUE_REQUIRED",
-        "STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "STRESS_AND_TEMPORAL_REPLICATION_REQUIRED"
       ],
       "next_gate": "Bind a fresh real scarcity population and prove non-compensatory economic value, stress robustness and temporal replication."
     },
@@ -1087,7 +1087,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "RESEARCH_OVERLAY_ENGINE_POLICY_SEMANTICS_AND_NONCOMPENSATORY_NUMERIC_GATE_CHILD_CI_GREEN_REAL_CALIBRATION_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING_STRICT_FOUR_FOLD_REPLICATION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "RESEARCH_OVERLAY_ENGINE_POLICY_SEMANTICS_AND_NONCOMPENSATORY_NUMERIC_GATE_CHILD_CI_GREEN_REAL_CALIBRATION_OPEN_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md",
@@ -1110,15 +1110,15 @@
         "src/qore/infrastructure/cibo_protected_base_temporal_replication.py",
         "tests/infrastructure/test_cibo_protected_base_temporal_replication.py",
         "docs/research/CIBO-PROTECTED-BASE-STRICT-FOUR-FOLD-TEMPORAL-REPLICATION-V1.md",
-        ".github/workflows/cibo-protected-base-strict-four-fold.yml"
+        ".github/workflows/cibo-protected-base-strict-four-fold.yml",
+        "github-actions://36809830649/SUCCESS",
+        "github-actions://36809830910/SUCCESS"
       ],
       "blockers": [
         "PROTECTED_BASE_NUMERIC_CANDIDATE_NOT_YET_FROZEN_ON_REAL_PROVIDER_VALID_POPULATION",
         "PROTECTED_BASE_CAUSAL_VALUE_NOT_YET_PROVEN",
         "FRESH_OOS_STRESS_AND_4_OF_4_TEMPORAL_REPLICATION_REQUIRED",
-        "PROTECTED_BASE_REMAINS_RESEARCH_ONLY_AND_MUST_NOT_RETROACTIVELY_CHANGE_V3",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED",
-        "PROTECTED_BASE_STRICT_FOUR_FOLD_CHILD_CI_REQUIRED"
+        "PROTECTED_BASE_REMAINS_RESEARCH_ONLY_AND_MUST_NOT_RETROACTIVELY_CHANGE_V3"
       ],
       "next_gate": "Require the updated Protected Base workflow to pass; then freeze one or more numeric candidates before outcome use on the real provider-valid population, apply the non-compensatory gate, stress and WF1..WF4 replication without mutating frozen V3."
     },
@@ -1127,7 +1127,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "GENC7_ENGINE_AND_CAUSAL_ECONOMIC_GATE_CHILD_CI_GREEN_FRESH_PROFIT_RETENTION_VALUE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING_GENC7_ECONOMIC_AND_STRICT_FOUR_FOLD_ENGINE_CI_GREEN",
+      "current_maturity": "GENC7_ENGINE_AND_CAUSAL_ECONOMIC_GATE_CHILD_CI_GREEN_FRESH_PROFIT_RETENTION_VALUE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_CI_GREEN_GENC7_ECONOMIC_AND_STRICT_FOUR_FOLD_ENGINE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_profit_preservation_shadow.py",
@@ -1146,11 +1146,11 @@
         "src/qore/infrastructure/cibo_genc_strict_temporal_replication.py",
         "tests/infrastructure/test_cibo_genc_strict_temporal_replication.py",
         "github-actions://36808183928/SUCCESS",
-        "github-actions://36808183905/SUCCESS"
+        "github-actions://36808183905/SUCCESS",
+        "github-actions://36809830649/SUCCESS"
       ],
       "blockers": [
-        "FRESH_OOS_PROFIT_RETENTION_AND_GIVEBACK_VALUE_REQUIRED",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "FRESH_OOS_PROFIT_RETENTION_AND_GIVEBACK_VALUE_REQUIRED"
       ],
       "next_gate": "Use causally identified GEN-C7 control/treatment evidence to prove profit-retention/giveback value, then stress and replicate 4/4 before terminal Profit Protection closure."
     },
