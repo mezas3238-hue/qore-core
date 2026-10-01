@@ -6,9 +6,9 @@ from dataclasses import replace
 import pytest
 
 from qore.infrastructure.cibo_a1_scientific_disposition import (
+    A1_WORKSTREAMS,
     A1ScientificDispositionPackage,
     A1ScientificStatus,
-    A1_WORKSTREAMS,
     build_a1_scientific_disposition,
 )
 from qore.infrastructure.cibo_capital_management_authority import (
