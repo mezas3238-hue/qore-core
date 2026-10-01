@@ -324,6 +324,8 @@ def partition_metrics(
             "conditional_sign_stability_bps": 0,
             "cross_regime_stability_bps": 0,
             "material_same_sign": False,
+            "insufficient": True,
+            "insufficient_reason": "MINIMUM_GROUP_COUNT_NOT_MET",
         }
 
     effect = int(round(mean(exposed) - mean(controls)))
@@ -379,4 +381,6 @@ def partition_metrics(
         "conditional_sign_stability_bps": conditional,
         "cross_regime_stability_bps": regimes,
         "material_same_sign": material,
+        "insufficient": False,
+        "insufficient_reason": None,
     }

@@ -8,6 +8,7 @@ from pathlib import Path
 from qore.infrastructure.core_stack_v2.mc14_b04_cross_asset_causal import (
     extract_window_features,
     freeze_source_thresholds,
+    partition_metrics,
 )
 
 
@@ -116,3 +117,19 @@ def test_freeze_source_thresholds_are_strict_and_target_blind() -> None:
     assert low < high
     assert 400 <= low <= 500
     assert 500 <= high <= 600
+
+
+def test_partition_metrics_marks_small_groups_insufficient() -> None:
+    rows = [
+        {
+            "source": index,
+            "target_bps": index,
+            "confounder_key": "C",
+            "regime_key": "R",
+        }
+        for index in range(100)
+    ]
+    result = partition_metrics(rows, low=40, high=60)
+    assert result["effect_bps"] is None
+    assert result["insufficient"] is True
+    assert result["insufficient_reason"] == "MINIMUM_GROUP_COUNT_NOT_MET"

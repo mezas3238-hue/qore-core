@@ -205,86 +205,227 @@ def _evaluate_family(
     discovery_candidates = 0
     validation_passes = 0
 
+    insufficient_features = 0
+    falsified_features = 0
+
     for feature in FROZEN_FEATURES:
         discovery_values = [
             by_index[index].feature(feature)
             for index in PARTITIONS["discovery"]
         ]
-        low, high = freeze_source_thresholds(discovery_values)
-
-        metrics = {}
-        reference_sign = None
-        for partition, partition_indexes in PARTITIONS.items():
-            metric_rows = []
-            for index in partition_indexes:
-                target = target_rows[index]
-                metric_rows.append(
-                    {
-                        "source": by_index[index].feature(feature),
-                        "target_bps": target["target_bps"],
-                        "confounder_key": target["confounder_key"],
-                        "regime_key": target["regime_key"],
-                    }
-                )
-            metric = partition_metrics(
-                metric_rows,
-                low=low,
-                high=high,
-                reference_sign=reference_sign,
+        try:
+            low, high = freeze_source_thresholds(discovery_values)
+        except ValueError as exc:
+            insufficient_features += 1
+            relations.append(
+                {
+                    "feature": feature,
+                    "status": "INSUFFICIENT_SOURCE_DIVERSITY",
+                    "reason": str(exc),
+                    "source_threshold_low": None,
+                    "source_threshold_high": None,
+                    "discovery": None,
+                    "validation": None,
+                    "replication": None,
+                    "discovery_candidate": False,
+                    "validation_same_sign_pass": False,
+                    "replication_same_sign_pass": False,
+                }
             )
-            metrics[partition] = metric
-            if (
-                partition == "discovery"
-                and bool(metric["material_same_sign"])
-            ):
-                effect = int(metric["effect_bps"])
-                reference_sign = (
-                    1 if effect > 0 else -1 if effect < 0 else 0
-                )
+            continue
 
-        discovery_pass = bool(
-            metrics["discovery"]["material_same_sign"]
+        discovery_rows = [
+            {
+                "source": by_index[index].feature(feature),
+                "target_bps": target_rows[index]["target_bps"],
+                "confounder_key": target_rows[index]["confounder_key"],
+                "regime_key": target_rows[index]["regime_key"],
+            }
+            for index in PARTITIONS["discovery"]
+        ]
+        discovery = partition_metrics(
+            discovery_rows,
+            low=low,
+            high=high,
         )
-        validation_pass = bool(
-            discovery_pass
-            and metrics["validation"]["material_same_sign"]
+        if bool(discovery["insufficient"]):
+            insufficient_features += 1
+            relations.append(
+                {
+                    "feature": feature,
+                    "status": "INSUFFICIENT_DISCOVERY_GROUP_COUNT",
+                    "reason": discovery["insufficient_reason"],
+                    "source_threshold_low": low,
+                    "source_threshold_high": high,
+                    "discovery": discovery,
+                    "validation": None,
+                    "replication": None,
+                    "discovery_candidate": False,
+                    "validation_same_sign_pass": False,
+                    "replication_same_sign_pass": False,
+                }
+            )
+            continue
+
+        discovery_pass = bool(discovery["material_same_sign"])
+        if not discovery_pass:
+            falsified_features += 1
+            relations.append(
+                {
+                    "feature": feature,
+                    "status": "FALSIFIED_AT_DISCOVERY",
+                    "reason": "NO_DISCOVERY_CANDIDATE",
+                    "source_threshold_low": low,
+                    "source_threshold_high": high,
+                    "discovery": discovery,
+                    "validation": None,
+                    "replication": None,
+                    "discovery_candidate": False,
+                    "validation_same_sign_pass": False,
+                    "replication_same_sign_pass": False,
+                }
+            )
+            continue
+
+        discovery_candidates += 1
+        effect = int(discovery["effect_bps"])
+        reference_sign = 1 if effect > 0 else -1 if effect < 0 else 0
+
+        validation_rows = [
+            {
+                "source": by_index[index].feature(feature),
+                "target_bps": target_rows[index]["target_bps"],
+                "confounder_key": target_rows[index]["confounder_key"],
+                "regime_key": target_rows[index]["regime_key"],
+            }
+            for index in PARTITIONS["validation"]
+        ]
+        validation = partition_metrics(
+            validation_rows,
+            low=low,
+            high=high,
+            reference_sign=reference_sign,
         )
-        replication_pass = bool(
-            validation_pass
-            and metrics["replication"]["material_same_sign"]
+        if bool(validation["insufficient"]):
+            insufficient_features += 1
+            relations.append(
+                {
+                    "feature": feature,
+                    "status": "INSUFFICIENT_VALIDATION_GROUP_COUNT",
+                    "reason": validation["insufficient_reason"],
+                    "source_threshold_low": low,
+                    "source_threshold_high": high,
+                    "discovery": discovery,
+                    "validation": validation,
+                    "replication": None,
+                    "discovery_candidate": True,
+                    "validation_same_sign_pass": False,
+                    "replication_same_sign_pass": False,
+                }
+            )
+            continue
+
+        validation_pass = bool(validation["material_same_sign"])
+        if not validation_pass:
+            falsified_features += 1
+            relations.append(
+                {
+                    "feature": feature,
+                    "status": "FALSIFIED_AT_VALIDATION",
+                    "reason": "VALIDATION_FAILURE",
+                    "source_threshold_low": low,
+                    "source_threshold_high": high,
+                    "discovery": discovery,
+                    "validation": validation,
+                    "replication": None,
+                    "discovery_candidate": True,
+                    "validation_same_sign_pass": False,
+                    "replication_same_sign_pass": False,
+                }
+            )
+            continue
+
+        validation_passes += 1
+        replication_rows = [
+            {
+                "source": by_index[index].feature(feature),
+                "target_bps": target_rows[index]["target_bps"],
+                "confounder_key": target_rows[index]["confounder_key"],
+                "regime_key": target_rows[index]["regime_key"],
+            }
+            for index in PARTITIONS["replication"]
+        ]
+        replication = partition_metrics(
+            replication_rows,
+            low=low,
+            high=high,
+            reference_sign=reference_sign,
         )
-        discovery_candidates += int(discovery_pass)
-        validation_passes += int(validation_pass)
+        if bool(replication["insufficient"]):
+            insufficient_features += 1
+            relations.append(
+                {
+                    "feature": feature,
+                    "status": "INSUFFICIENT_REPLICATION_GROUP_COUNT",
+                    "reason": replication["insufficient_reason"],
+                    "source_threshold_low": low,
+                    "source_threshold_high": high,
+                    "discovery": discovery,
+                    "validation": validation,
+                    "replication": replication,
+                    "discovery_candidate": True,
+                    "validation_same_sign_pass": True,
+                    "replication_same_sign_pass": False,
+                }
+            )
+            continue
+
+        replication_pass = bool(replication["material_same_sign"])
         relation = {
             "feature": feature,
+            "status": (
+                "TEMPORALLY_REPLICATED_RESEARCH_RELATION"
+                if replication_pass
+                else "FALSIFIED_AT_REPLICATION"
+            ),
+            "reason": (
+                "DISCOVERY_VALIDATION_REPLICATION_PASS"
+                if replication_pass
+                else "REPLICATION_FAILURE"
+            ),
             "source_threshold_low": low,
             "source_threshold_high": high,
-            "discovery": metrics["discovery"],
-            "validation": metrics["validation"],
-            "replication": metrics["replication"],
-            "discovery_candidate": discovery_pass,
-            "validation_same_sign_pass": validation_pass,
+            "discovery": discovery,
+            "validation": validation,
+            "replication": replication,
+            "discovery_candidate": True,
+            "validation_same_sign_pass": True,
             "replication_same_sign_pass": replication_pass,
         }
         relations.append(relation)
         if replication_pass:
             replicated.append(relation)
+        else:
+            falsified_features += 1
 
-    if discovery_candidates == 0:
-        status = "FALSIFIED_AND_CLOSED_FOR_THIS_MECHANISM"
-        reason = "NO_DISCOVERY_CANDIDATE"
-    elif validation_passes == 0:
-        status = "FALSIFIED_AND_CLOSED_FOR_THIS_MECHANISM"
-        reason = "VALIDATION_FAILURE"
-    elif not replicated:
-        status = "FALSIFIED_AND_CLOSED_FOR_THIS_MECHANISM"
-        reason = "REPLICATION_FAILURE"
-    else:
+    if replicated:
         status = "TEMPORALLY_REPLICATED_RESEARCH_RELATION_FOUND"
         reason = (
             "FROZEN_RELATION_PASSED_"
             "DISCOVERY_VALIDATION_REPLICATION"
         )
+    elif insufficient_features:
+        status = "INSUFFICIENT_DO_NOT_INFER"
+        reason = "ONE_OR_MORE_FROZEN_FEATURES_NOT_COMPARABLY_EVALUABLE"
+    elif discovery_candidates == 0:
+        status = "FALSIFIED_AND_CLOSED_FOR_THIS_MECHANISM"
+        reason = "NO_DISCOVERY_CANDIDATE"
+    elif validation_passes == 0:
+        status = "FALSIFIED_AND_CLOSED_FOR_THIS_MECHANISM"
+        reason = "VALIDATION_FAILURE"
+    else:
+        status = "FALSIFIED_AND_CLOSED_FOR_THIS_MECHANISM"
+        reason = "REPLICATION_FAILURE"
 
     return {
         "family": family,
@@ -297,6 +438,8 @@ def _evaluate_family(
         "discovery_candidate_count": discovery_candidates,
         "validation_pass_count": validation_passes,
         "replicated_relation_count": len(replicated),
+        "insufficient_feature_count": insufficient_features,
+        "falsified_feature_count": falsified_features,
         "relations": relations,
     }
 

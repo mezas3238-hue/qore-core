@@ -32,7 +32,8 @@
     "exact_window_count": 2948,
     "missing_required_quote_side": "INSUFFICIENT_DO_NOT_INFER",
     "missing_target_alignment": "INSUFFICIENT_DO_NOT_INFER",
-    "source_time_disagreement_between_families": "INSUFFICIENT_DO_NOT_INFER"
+    "source_time_disagreement_between_families": "INSUFFICIENT_DO_NOT_INFER",
+    "minimum_group_count_not_met": "INSUFFICIENT_DO_NOT_INFER"
   },
   "governance": {
     "r6_r5_read": false,
@@ -48,5 +49,11 @@
     "shared_execution_authority": false,
     "master_ledger_mutation": false
   },
-  "next_gate": "CODE_REVIEW_THEN_SINGLE_GOVERNED_REPLAY_WHEN_ACTIONS_CAPACITY_IS_AVAILABLE"
+  "next_gate": "STATIC_REVIEW_COMPLETE_THEN_SINGLE_GOVERNED_REPLAY_WHEN_ACTIONS_CAPACITY_IS_AVAILABLE",
+  "sequential_evaluation": {
+    "discovery_required_before_validation": true,
+    "validation_required_before_replication": true,
+    "later_partition_read_after_prior_gate_failure": false,
+    "insufficient_feature_prevents_family_falsification_unless_another_frozen_relation_replicates": true
+  }
 }
