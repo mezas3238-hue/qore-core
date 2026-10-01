@@ -7,9 +7,11 @@ on:
       - 'src/qore/infrastructure/cibo_final_exam_control_receipt.py'
       - 'src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam_v2.py'
       - 'src/qore/infrastructure/cibo_arch_a_final_exam_closure_controls.py'
+      - 'src/qore/infrastructure/cibo_arch_a_final_exam_scientific_controls.py'
       - 'tests/infrastructure/test_cibo_final_exam_control_receipt.py'
       - 'tests/infrastructure/test_cibo_receipt_bound_final_integrated_exam_v2.py'
       - 'tests/infrastructure/test_cibo_arch_a_final_exam_closure_controls.py'
+      - 'tests/infrastructure/test_cibo_arch_a_final_exam_scientific_controls.py'
       - '.github/workflows/cibo-final-exam-control-receipt-v2.yml'
 
 permissions:
@@ -30,14 +32,18 @@ jobs:
             src/qore/infrastructure/cibo_final_exam_control_receipt.py \
             src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam_v2.py \
             src/qore/infrastructure/cibo_arch_a_final_exam_closure_controls.py \
+            src/qore/infrastructure/cibo_arch_a_final_exam_scientific_controls.py \
             tests/infrastructure/test_cibo_final_exam_control_receipt.py \
             tests/infrastructure/test_cibo_receipt_bound_final_integrated_exam_v2.py \
-            tests/infrastructure/test_cibo_arch_a_final_exam_closure_controls.py
+            tests/infrastructure/test_cibo_arch_a_final_exam_closure_controls.py \
+            tests/infrastructure/test_cibo_arch_a_final_exam_scientific_controls.py
           mypy \
             src/qore/infrastructure/cibo_final_exam_control_receipt.py \
             src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam_v2.py \
-            src/qore/infrastructure/cibo_arch_a_final_exam_closure_controls.py
+            src/qore/infrastructure/cibo_arch_a_final_exam_closure_controls.py \
+            src/qore/infrastructure/cibo_arch_a_final_exam_scientific_controls.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_final_exam_control_receipt.py \
             tests/infrastructure/test_cibo_receipt_bound_final_integrated_exam_v2.py \
-            tests/infrastructure/test_cibo_arch_a_final_exam_closure_controls.py
+            tests/infrastructure/test_cibo_arch_a_final_exam_closure_controls.py \
+            tests/infrastructure/test_cibo_arch_a_final_exam_scientific_controls.py
