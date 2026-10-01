@@ -12,17 +12,19 @@ from qore.infrastructure.cibo_ctrader_demo_empirical_slippage import (
 )
 
 
-def test_tick_series_accepts_live_signed_negative_deltas() -> None:
+def test_tick_series_accepts_live_signed_time_and_price_deltas() -> None:
     rows = (
         SimpleNamespace(timestamp=1_790_884_402_000, tick=10_956_400),
-        SimpleNamespace(timestamp=-157, tick=10_956_300),
-        SimpleNamespace(timestamp=-250, tick=10_956_200),
+        SimpleNamespace(timestamp=-2_402, tick=100),
+        SimpleNamespace(timestamp=-398, tick=100),
+        SimpleNamespace(timestamp=-406, tick=-100),
     )
 
     assert decode_ctrader_tick_series(rows) == (
         (1_790_884_402_000, Decimal("109.564")),
-        (1_790_884_401_843, Decimal("109.563")),
-        (1_790_884_401_593, Decimal("109.562")),
+        (1_790_884_399_598, Decimal("109.565")),
+        (1_790_884_399_200, Decimal("109.566")),
+        (1_790_884_398_794, Decimal("109.565")),
     )
 
 
