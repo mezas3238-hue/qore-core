@@ -691,15 +691,22 @@ NO_PROVIDER_ADVANTAGE, NO_MARGINAL_BENEFIT or an explicit external dependency.
 
 ## 29. Existing freeze protection
 
-The frozen V3 current-CIBO candidate and
-`CIBO_USD60_6M_HOLDOUT_2017H1_V1` remain protected.
+The frozen V3 current-CIBO candidate remains frozen.
+
+The former certification candidate
+`CIBO_USD60_6M_HOLDOUT_2017H1_V1` is **BURNED** and may be referenced only
+as read-only provenance. Burned evidence can never regain freshness.
+
+The active certification holdout is
+`CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2`. It remains protected by
+the governed Phase22 V2 chain and may not be reused for World Cup research.
 
 No retrospective policy mutation, holdout reuse, backdating, outcome-aware
 sizing, provider fabrication or burned-evidence relabeling is permitted.
 
-New World Cup/amplification research must use separate identities and must not
-consume the final holdout before mechanisms, ablations, stress, Monte Carlo and
-replication prerequisites are frozen.
+World Cup/amplification research must use a separate competition population,
+separate evidence identities and a frozen World Cup policy. It must never reuse
+V1 as fresh evidence or V2 as a World Cup optimization/evaluation population.
 
 ## 30. Anti-cheating law
 

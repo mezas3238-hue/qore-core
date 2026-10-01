@@ -30,10 +30,32 @@ current-state interpretation, the following newer evidence supersedes older
 - These facts advance engineering maturity only. Real-data binding, causal
   replay, fresh OOS, stress execution on real populations and temporal
   replication remain certification-blocking where the canonical ledger says so.
-- The current machine ledger is 64 mandatory / 7 terminal / 57 open.
+- At the 30-SEP-2026 checkpoint captured by this historical delta, the machine ledger was 64 mandatory / 7 terminal / 57 open. This is not the current ledger state.
+
+### Superseding current reconciliation — 01-OCT-2026
+
+The canonical Architect-A ledger now records:
+
+- 64 mandatory workstreams;
+- 62 terminal dispositions;
+- 2 real open workstreams;
+- 16 `COMPLETED_AND_PROVEN`;
+- 1 `FALSIFIED_AND_CLOSED`;
+- 45 `EXTERNAL_DEPENDENCY_BLOCKED`;
+- the only open rows are `FINAL_INTEGRATED_CIBO_EXAM` and
+  `WORLD_CUP_MAXIMUM_CAPABILITY_EXAM`;
+- final certification candidate remains false.
+
+The former `CIBO_USD60_6M_HOLDOUT_2017H1_V1` is BURNED/read-only provenance.
+The active certification holdout is
+`CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2`.
+
+The 84-row body below remains a historical requirement-routing snapshot. Its
+older maturity labels do not override the canonical ledger or the current A+B
+source-of-truth reconciliation.
 
 Canonical current-state artifact:
-`CIBO-SOURCE-OF-TRUTH-RECONCILIATION-V1.md`.
+`CIBO-A-B-SOURCE-OF-TRUTH-RECONCILIATION-V1.md`.
 
 
 | # | Requirement | Existing root | Current state | Next scientific gate |
