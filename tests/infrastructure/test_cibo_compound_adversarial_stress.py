@@ -7,7 +7,6 @@ from decimal import Decimal
 import pytest
 
 from qore.infrastructure.account_wide_risk import TraderLineage
-from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
 from qore.infrastructure.cibo_compound_adversarial_stress import (
     COMPOUND_STRESS_POLICY_SHA256,
     CompoundStressKind,
@@ -15,6 +14,7 @@ from qore.infrastructure.cibo_compound_adversarial_stress import (
     apply_compound_stress,
     run_compound_adversarial_stress,
 )
+from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
 from qore.infrastructure.cibo_compound_path_monte_carlo import (
     CompoundMonteCarloEpisode,
     CompoundMonteCarloInitialState,
