@@ -110,7 +110,7 @@ def _authorization() -> None:
 
 def _hash_ref(kind: str, value: int) -> str:
     return "sha256:" + hashlib.sha256(
-        f"{kind}|{value}".encode("utf-8")
+        f"{kind}|{value}".encode()
     ).hexdigest()
 
 
@@ -669,7 +669,7 @@ def _bundle(
                 (
                     f"{run_key}|{bundle_id}|{observed_at.isoformat()}|"
                     f"{total_adverse_usd}"
-                ).encode("utf-8")
+                ).encode()
             ).hexdigest()
         ),
         qore_symbol=qore_symbol,
@@ -731,7 +731,7 @@ def run() -> dict[str, object]:
     try:
         capability = collect_ctrader_demo_account_capability(client)
         account_fingerprint = hashlib.sha256(
-            capability.account_ref.encode("utf-8")
+            capability.account_ref.encode()
         ).hexdigest()
         if account_fingerprint != EXPECTED_ACCOUNT_FINGERPRINT_SHA256:
             raise CiboCapitalManagementError(
