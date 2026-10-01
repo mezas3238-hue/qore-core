@@ -19,7 +19,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, Protocol, cast
 
 SOURCE_CODE_GIT_SHA = "324fb91d44a6fa328e66de2e22ace7386630c7aa"
 PARITY_OPEN = datetime(2021, 9, 17, tzinfo=UTC)
@@ -30,6 +30,20 @@ _ALLOWED = {
     "PARITY": (PARITY_OPEN, PARITY_CLOSE),
     "FRESH": (FRESH_OPEN, FRESH_CLOSE),
 }
+
+
+class _ExactReplayModule(Protocol):
+    EVAL_OPEN: datetime
+    EVAL_CLOSE: datetime
+
+    def run(
+        self,
+        raw_root: Path,
+        target_root: Path,
+        cognitive_root: Path,
+        freeze_root: Path,
+        output_dir: Path,
+    ) -> dict[str, Any]: ...
 
 
 def replay_window(mode: str) -> tuple[datetime, datetime]:
@@ -73,15 +87,15 @@ def run_window(
     output_dir: Path,
 ) -> dict[str, Any]:
     opened_at, closed_at = replay_window(mode)
-    module = _load_module(module_path)
+    raw_module = _load_module(module_path)
     for name in ("EVAL_OPEN", "EVAL_CLOSE", "run"):
-        if not hasattr(module, name):
+        if not hasattr(raw_module, name):
             raise ValueError(f"EURUSD exact replay module missing {name}")
+    module = cast(_ExactReplayModule, raw_module)
 
-    setattr(module, "EVAL_OPEN", opened_at)
-    setattr(module, "EVAL_CLOSE", closed_at)
-    run = getattr(module, "run")
-    result = run(
+    module.EVAL_OPEN = opened_at
+    module.EVAL_CLOSE = closed_at
+    result = module.run(
         raw_root,
         target_root,
         cognitive_root,
