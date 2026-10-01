@@ -41,6 +41,10 @@ def test_t11_market_impact_uses_only_minimum_volume_child_orders() -> None:
     )
     assert impact.temporally_disjoint_validation_required is True
     assert impact.nonnegative_quadratic_coefficient_required is True
+    assert impact.realized_settlement_cost_required is True
+    assert impact.deposit_asset_usd_required is True
+    assert impact.balanced_long_short_pairs_required is True
+    assert impact.alternating_level_order_required is True
     assert impact.fundednext_allowed is False
     assert impact.vps_allowed is False
     assert impact.live_allowed is False
