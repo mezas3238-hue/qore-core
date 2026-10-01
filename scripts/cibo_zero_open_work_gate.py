@@ -85,6 +85,8 @@ _WORKSTREAM_CLASSIFIERS = (
         "SOURCE_OF_TRUTH_RECONCILIATION",
     ),
     ("*cibo_arch_b_forward_economic_manifest*", "FORWARD_QUALIFICATION"),
+    ("*cibo_arch_a2_scientific_closure*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo_arch_a2_internal_readiness*", "SOURCE_OF_TRUTH_RECONCILIATION"),
     ("*cibo_phase20_arch_b_forward_economic_manifest*", "FORWARD_QUALIFICATION"),
     ("*cibo_ce2i_phase20_t02_structural_oos*", "T02"),
     ("*cibo_ce2i_phase20_t03_margin_population*", "T03"),
