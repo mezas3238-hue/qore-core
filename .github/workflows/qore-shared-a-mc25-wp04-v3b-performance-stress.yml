@@ -1,0 +1,180 @@
+name: QORE Shared A MC25 WP04 V3B Performance Stress
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  FREEZE_RUN_ID: "36244726347"
+  FREEZE_ARTIFACT_ID: "10906064254"
+  HOLDOUT_RUN_ID: "36247407353"
+  HOLDOUT_ARTIFACT_ID: "10908500161"
+  REPLICATION_RUN_ID: "36248025384"
+  REPLICATION_ARTIFACT_ID: "10908077821"
+  R8_ARTIFACT_ID: "10402199719"
+  R6_ARTIFACT_ID: "10389112524"
+  R5_ARTIFACT_ID: "10380044761"
+
+jobs:
+  stress:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate frozen stress implementation
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p input/{freeze,holdout,replication,r8,r6,r5} result
+          ruff check             src/qore/infrastructure/core_stack_v2/mc25_v3b_performance_stress.py             scripts/shared_mc25_wp04_v3b_performance_stress.py             tests/infrastructure/test_core_stack_v2_mc25_v3b_performance_stress.py
+          mypy             src/qore/infrastructure/core_stack_v2/mc25_v3b_performance_stress.py             scripts/shared_mc25_wp04_v3b_performance_stress.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_mc25_v3b_performance_stress.py
+
+      - name: Verify immutable prior-stage evidence
+        run: |
+          set -euo pipefail
+          for run_id in             "${FREEZE_RUN_ID}"             "${HOLDOUT_RUN_ID}"             "${REPLICATION_RUN_ID}"
+          do
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.status')" = "completed"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.conclusion')" = "success"
+          done
+          for artifact_id in             "${FREEZE_ARTIFACT_ID}"             "${HOLDOUT_ARTIFACT_ID}"             "${REPLICATION_ARTIFACT_ID}"             "${R8_ARTIFACT_ID}"             "${R6_ARTIFACT_ID}"             "${R5_ARTIFACT_ID}"
+          do
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" --jq '.expired')" = "false"
+          done
+
+      - name: Recover exact sealed lineage
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${FREEZE_ARTIFACT_ID}/zip" > freeze.zip
+          unzip -q freeze.zip -d input/freeze
+          (cd input/freeze && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${HOLDOUT_ARTIFACT_ID}/zip" > holdout.zip
+          unzip -q holdout.zip -d input/holdout
+          (cd input/holdout/result && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${REPLICATION_ARTIFACT_ID}/zip" > replication.zip
+          unzip -q replication.zip -d input/replication
+          (cd input/replication/result && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${R8_ARTIFACT_ID}/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${R6_ARTIFACT_ID}/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${R5_ARTIFACT_ID}/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Execute same-lineage performance stress
+        run: |
+          set -euo pipefail
+          python scripts/shared_mc25_wp04_v3b_performance_stress.py             --freeze input/freeze/wp04-predictive-nonlinear-probe-v3b.json             --holdout-result input/holdout/result/wp04-v3b-holdout-e.json             --replication-result input/replication/result/wp04-v3b-replication-d.json             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --holdout-nas input/holdout/fresh/NAS100/market-evidence.json             --holdout-sp input/holdout/fresh/SP500/market-evidence.json             --holdout-us input/holdout/fresh/US30/market-evidence.json             --replication-nas input/replication/fresh/NAS100/market-evidence.json             --replication-sp input/replication/fresh/SP500/market-evidence.json             --replication-us input/replication/fresh/US30/market-evidence.json             --output result/mc25-v3b-performance-stress.json             | tee result/summary.json
+
+      - name: Validate bounded scientific disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/mc25-v3b-performance-stress.json").read_text()
+          )
+          assert p["identity"] == (
+              "QORE_SHARED_MC25_WP04_V3B_PERFORMANCE_STRESS_001"
+          )
+          assert p["status"] in {
+              "MC25_WP04_V3B_PERFORMANCE_STRESS_PASS",
+              "MC25_WP04_V3B_PERFORMANCE_STRESS_FALSIFIED",
+          }
+          assert p["stress_scenario_count"] == 6
+          assert p["partition_count"] == 2
+          assert p["probe_refit"] is False
+          assert p["representation_refit"] is False
+          assert p["threshold_retuning"] is False
+          assert p["target_aware_stress_selection"] is False
+          assert p["promotion_allowed"] is False
+          assert p["mc25_completed_and_proven"] is False
+          assert p["master_ledger_mutated"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          assert set(p["results"]) == {"HOLDOUT_E", "REPLICATION_D"}
+
+          if p["performance_stress_pass"]:
+              assert p["formal_stress_stage_completed"] is True
+              assert p["highest_formal_stage"] == "STRESS"
+              assert p["next_gate"] == "WP04_V3B_GOVERNED_SHADOW"
+          else:
+              assert p["formal_stress_stage_completed"] is False
+              assert p["highest_formal_stage"] == "HOLDOUT"
+          PY
+
+      - name: Seal
+        run: |
+          set -euo pipefail
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          printf '%s\n' "${GITHUB_RUN_ID}" > result/run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload evidence
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc25-v3b-performance-stress-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report scientific disposition
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/mc25-v3b-performance-stress.json").read_text()
+          )
+          lines=[
+              "## Shared A MC-25 — WP04 V3B Same-Lineage Performance Stress",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- artifact: `{os.environ['ARTIFACT_ID']}`",
+              f"- scientific disposition: **{p['status']}**",
+              f"- performance stress pass: **{p['performance_stress_pass']}**",
+              f"- highest formal stage: **{p['highest_formal_stage']}**",
+          ]
+          for name,row in p["results"].items():
+              lines += [
+                  f"- {name}: **{row['scenario_pass_count']}/{row['scenario_count']} scenarios pass**"
+              ]
+          lines += [
+              f"- next gate: **{p['next_gate']}**",
+              "- SHADOW/CERTIFICATION/PROMOTION: **not bypassed**",
+              "- MC-25 completed-and-proven: **False**",
+              "- protected certification holdout opened: **False**",
+          ]
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
