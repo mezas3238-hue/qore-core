@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timedelta
 
 from qore.infrastructure.cibo_arch_b_forward_economic_manifest import (
     ARCH_B_FORWARD_ECONOMIC_MANIFEST_ID,
@@ -17,8 +17,16 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
 from qore.infrastructure.cibo_ce2i_provider_economics_component_freeze import (
     freeze_current_ctrader_demo_provider_economics,
 )
+from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
+    CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS,
+)
 from qore.infrastructure.cibo_ce2i_provider_execution_calibration import (
     calibrate_ctrader_demo_forward_execution,
+)
+
+
+PROVIDER_OBSERVED_AT = datetime.fromisoformat(
+    CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS.observed_at
 )
 
 
@@ -45,7 +53,7 @@ def _empty_manifest() -> ArchBForwardEconomicManifest:
 
 def test_current_provider_terms_freeze_without_overclaiming_slippage() -> None:
     freeze = freeze_current_ctrader_demo_provider_economics(
-        frozen_at=datetime(2026, 9, 30, 20, 15, tzinfo=UTC)
+        frozen_at=PROVIDER_OBSERVED_AT + timedelta(minutes=1)
     )
 
     assert freeze.point_in_time_terms_frozen is True
@@ -66,18 +74,21 @@ def test_current_provider_terms_freeze_without_overclaiming_slippage() -> None:
         "EMPIRICAL_SLIPPAGE_NOT_FROZEN",
         "EXECUTION_MODEL_NOT_FROZEN",
     )
-    assert "artifact:11104595302" in freeze.source_evidence_ref
+    assert (
+        f"artifact:{CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS.artifact_id}"
+        in freeze.source_evidence_ref
+    )
 
 
 def test_not_ready_execution_calibration_is_bound_without_promoting_readiness() -> None:
     calibration = calibrate_ctrader_demo_forward_execution(
         manifest=_empty_manifest(),
         executed_risk_book=VersionedPhase20ExecutedRiskBook(generation=0),
-        frozen_at=datetime(2026, 9, 30, 20, 20, tzinfo=UTC),
+        frozen_at=PROVIDER_OBSERVED_AT + timedelta(minutes=2),
     )
 
     freeze = freeze_current_ctrader_demo_provider_economics(
-        frozen_at=datetime(2026, 9, 30, 20, 30, tzinfo=UTC),
+        frozen_at=PROVIDER_OBSERVED_AT + timedelta(minutes=3),
         execution_calibration=calibration,
     )
 
