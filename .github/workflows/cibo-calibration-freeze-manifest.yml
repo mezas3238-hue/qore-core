@@ -6,6 +6,12 @@ on:
     paths:
       - '.github/workflows/cibo-calibration-freeze-manifest.yml'
       - 'src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_freeze_readiness.py'
+      - 'scripts/cibo_calibration_freeze_readiness.py'
+      - 'tests/infrastructure/test_cibo_ce2i_calibration_freeze_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_freeze_readiness.py'
+      - 'scripts/cibo_calibration_freeze_readiness.py'
+      - 'tests/infrastructure/test_cibo_ce2i_calibration_freeze_readiness.py'
       - 'src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py'
       - 'src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py'
       - 'tests/infrastructure/test_cibo_ce2i_calibration_freeze_manifest.py'
@@ -44,17 +50,25 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py \
+            src/qore/infrastructure/cibo_ce2i_calibration_freeze_readiness.py \
+            scripts/cibo_calibration_freeze_readiness.py \
             src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py \
             tests/infrastructure/test_cibo_ce2i_calibration_freeze_manifest.py \
+            tests/infrastructure/test_cibo_ce2i_calibration_freeze_readiness.py \
             tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py
           mypy \
             src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py \
+            src/qore/infrastructure/cibo_ce2i_calibration_freeze_readiness.py \
+            scripts/cibo_calibration_freeze_readiness.py \
             src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py
           python -m py_compile \
             src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py \
+            src/qore/infrastructure/cibo_ce2i_calibration_freeze_readiness.py \
+            scripts/cibo_calibration_freeze_readiness.py \
             src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ce2i_calibration_freeze_manifest.py \
+            tests/infrastructure/test_cibo_ce2i_calibration_freeze_readiness.py \
             tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py
