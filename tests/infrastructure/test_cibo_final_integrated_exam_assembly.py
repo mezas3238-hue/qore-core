@@ -148,7 +148,11 @@ def test_assembly_rejects_cross_head_receipt() -> None:
 def test_assembly_rejects_wrong_canonical_producer() -> None:
     _phase21, _phase22, receipts = _chain()
     altered = list(receipts)
-    index = required_final_exam_control_ids().index("P1_SOURCE_OF_TRUTH_RECONCILED")
+    index = next(
+        index
+        for index, receipt in enumerate(altered)
+        if receipt.receipt_id == "P1_SOURCE_OF_TRUTH_RECONCILED"
+    )
     item = altered[index]
     payload = json.loads(item.source_artifact_json)
     payload["producer_gate_id"] = "fake:p1"
