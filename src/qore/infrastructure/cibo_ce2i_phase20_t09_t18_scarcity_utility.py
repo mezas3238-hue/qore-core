@@ -110,6 +110,13 @@ class Phase20ScarcityUtilityScope:
             raise CiboCapitalManagementError(
                 "Phase20 scarcity utility fold deltas must be finite Decimal"
             )
+        if (
+            len(self.fold_policy_net_delta_usd)
+            != FROZEN_PHASE20D_QUALIFICATION_PLAN.fold_count
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20 scarcity utility report requires frozen fold count"
+            )
         for name in (
             "population_ready",
             "fresh_oos_utility_demonstrated",

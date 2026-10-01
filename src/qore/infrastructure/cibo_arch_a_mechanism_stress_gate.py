@@ -16,16 +16,22 @@ from enum import StrEnum
 from qore.infrastructure.cibo_adaptive_compound_speed_economic_gate import (
     GENC8_ECONOMIC_GATE_ID,
 )
+from qore.infrastructure.cibo_ce2i_t04_t10_economic_gate import (
+    GATE_ID as T04_T10_ECONOMIC_GATE_ID,
+)
 from qore.infrastructure.cibo_compound_adversarial_stress import (
     CompoundStressKind,
     CompoundStressScenario,
 )
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
-from qore.infrastructure.cibo_ce2i_t04_t10_economic_gate import (
-    GATE_ID as T04_T10_ECONOMIC_GATE_ID,
-)
 from qore.infrastructure.cibo_expansion_utility_gate import (
     EXPANSION_UTILITY_GATE_ID,
+)
+from qore.infrastructure.cibo_genc3_genc6_economic_gate import (
+    GATE_ID as GENC3_GENC6_ECONOMIC_GATE_ID,
+)
+from qore.infrastructure.cibo_genc9_economic_gate import (
+    GENC9_ECONOMIC_GATE_ID,
 )
 from qore.infrastructure.cibo_genc11_genc13_utility_gate import (
     GATE_ID as GENC11_GENC13_UTILITY_GATE_ID,
@@ -35,6 +41,9 @@ from qore.infrastructure.cibo_genc12_economic_gate import (
 )
 from qore.infrastructure.cibo_profit_preservation_economic_gate import (
     GENC7_ECONOMIC_GATE_ID,
+)
+from qore.infrastructure.cibo_protected_base_policy_gate import (
+    PROTECTED_BASE_GATE_ID,
 )
 from qore.infrastructure.cibo_t14_t15_utility_gate import (
     T14_T15_UTILITY_GATE_ID,
@@ -53,11 +62,21 @@ class MechanismStressWorkstream(StrEnum):
     T10 = "T10"
     T14 = "T14"
     T15 = "T15"
+    GENC2 = "GEN-C2"
+    GENC3 = "GEN-C3"
+    GENC4 = "GEN-C4"
+    GENC5 = "GEN-C5"
+    GENC6 = "GEN-C6"
     GENC7 = "GEN-C7"
     GENC8 = "GEN-C8"
+    GENC9 = "GEN-C9"
     GENC11 = "GEN-C11"
     GENC12 = "GEN-C12"
     GENC13 = "GEN-C13"
+    COMPOUND_PORTFOLIO = "COMPOUND_PORTFOLIO"
+    INTERNAL_CAPITAL_MARKET = "INTERNAL_CAPITAL_MARKET"
+    PROTECTED_BASE_CAPITAL = "PROTECTED_BASE_CAPITAL"
+    PROFIT_PROTECTION = "PROFIT_PROTECTION"
 
 
 _SOURCE_GATE_BY_WORKSTREAM = {
@@ -67,11 +86,21 @@ _SOURCE_GATE_BY_WORKSTREAM = {
     MechanismStressWorkstream.T10: T04_T10_ECONOMIC_GATE_ID,
     MechanismStressWorkstream.T14: T14_T15_UTILITY_GATE_ID,
     MechanismStressWorkstream.T15: T14_T15_UTILITY_GATE_ID,
+    MechanismStressWorkstream.GENC2: GENC7_ECONOMIC_GATE_ID,
+    MechanismStressWorkstream.GENC3: GENC3_GENC6_ECONOMIC_GATE_ID,
+    MechanismStressWorkstream.GENC4: GENC3_GENC6_ECONOMIC_GATE_ID,
+    MechanismStressWorkstream.GENC5: GENC3_GENC6_ECONOMIC_GATE_ID,
+    MechanismStressWorkstream.GENC6: GENC3_GENC6_ECONOMIC_GATE_ID,
     MechanismStressWorkstream.GENC7: GENC7_ECONOMIC_GATE_ID,
     MechanismStressWorkstream.GENC8: GENC8_ECONOMIC_GATE_ID,
+    MechanismStressWorkstream.GENC9: GENC9_ECONOMIC_GATE_ID,
     MechanismStressWorkstream.GENC11: GENC11_GENC13_UTILITY_GATE_ID,
     MechanismStressWorkstream.GENC12: GENC12_ECONOMIC_GATE_ID,
     MechanismStressWorkstream.GENC13: GENC11_GENC13_UTILITY_GATE_ID,
+    MechanismStressWorkstream.COMPOUND_PORTFOLIO: GENC3_GENC6_ECONOMIC_GATE_ID,
+    MechanismStressWorkstream.INTERNAL_CAPITAL_MARKET: GENC3_GENC6_ECONOMIC_GATE_ID,
+    MechanismStressWorkstream.PROTECTED_BASE_CAPITAL: PROTECTED_BASE_GATE_ID,
+    MechanismStressWorkstream.PROFIT_PROTECTION: GENC7_ECONOMIC_GATE_ID,
 }
 
 

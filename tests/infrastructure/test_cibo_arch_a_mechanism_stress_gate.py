@@ -11,16 +11,28 @@ from qore.infrastructure.cibo_arch_a_mechanism_stress_gate import (
     MechanismStressWorkstream,
     evaluate_mechanism_stress_admission,
 )
+from qore.infrastructure.cibo_ce2i_t04_t10_economic_gate import (
+    GATE_ID as T04_T10_ECONOMIC_GATE_ID,
+)
 from qore.infrastructure.cibo_compound_adversarial_stress import (
     CompoundStressKind,
     CompoundStressScenario,
 )
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
-from qore.infrastructure.cibo_ce2i_t04_t10_economic_gate import (
-    GATE_ID as T04_T10_ECONOMIC_GATE_ID,
-)
 from qore.infrastructure.cibo_expansion_utility_gate import (
     EXPANSION_UTILITY_GATE_ID,
+)
+from qore.infrastructure.cibo_genc3_genc6_economic_gate import (
+    GATE_ID as GENC3_GENC6_ECONOMIC_GATE_ID,
+)
+from qore.infrastructure.cibo_genc9_economic_gate import (
+    GENC9_ECONOMIC_GATE_ID,
+)
+from qore.infrastructure.cibo_profit_preservation_economic_gate import (
+    GENC7_ECONOMIC_GATE_ID,
+)
+from qore.infrastructure.cibo_protected_base_policy_gate import (
+    PROTECTED_BASE_GATE_ID,
 )
 
 
@@ -139,3 +151,43 @@ def test_t04_t10_reuse_frozen_economic_source_gate(
         source_gate_id=T04_T10_ECONOMIC_GATE_ID,
     )
     assert clone.source_gate_id == T04_T10_ECONOMIC_GATE_ID
+
+
+@pytest.mark.parametrize(
+    ("workstream", "source_gate_id"),
+    (
+        (MechanismStressWorkstream.GENC2, GENC7_ECONOMIC_GATE_ID),
+        (MechanismStressWorkstream.GENC3, GENC3_GENC6_ECONOMIC_GATE_ID),
+        (MechanismStressWorkstream.GENC4, GENC3_GENC6_ECONOMIC_GATE_ID),
+        (MechanismStressWorkstream.GENC5, GENC3_GENC6_ECONOMIC_GATE_ID),
+        (MechanismStressWorkstream.GENC6, GENC3_GENC6_ECONOMIC_GATE_ID),
+        (MechanismStressWorkstream.GENC9, GENC9_ECONOMIC_GATE_ID),
+        (
+            MechanismStressWorkstream.COMPOUND_PORTFOLIO,
+            GENC3_GENC6_ECONOMIC_GATE_ID,
+        ),
+        (
+            MechanismStressWorkstream.INTERNAL_CAPITAL_MARKET,
+            GENC3_GENC6_ECONOMIC_GATE_ID,
+        ),
+        (
+            MechanismStressWorkstream.PROTECTED_BASE_CAPITAL,
+            PROTECTED_BASE_GATE_ID,
+        ),
+        (
+            MechanismStressWorkstream.PROFIT_PROTECTION,
+            GENC7_ECONOMIC_GATE_ID,
+        ),
+    ),
+)
+def test_extended_workstreams_bind_only_canonical_source_gates(
+    workstream: MechanismStressWorkstream,
+    source_gate_id: str,
+) -> None:
+    row = _observations()[0]
+    clone = replace(
+        row,
+        workstream=workstream,
+        source_gate_id=source_gate_id,
+    )
+    assert clone.source_gate_id == source_gate_id

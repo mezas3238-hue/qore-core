@@ -152,6 +152,13 @@ class Phase20T13UtilityReport:
             raise CiboCapitalManagementError(
                 "Phase20 T13 utility fold vector length drift"
             )
+        if (
+            len(self.fold_treatment_net_delta_usd)
+            != FROZEN_PHASE20D_QUALIFICATION_PLAN.fold_count
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20 T13 utility report requires frozen fold count"
+            )
         for values, label in (
             (self.fold_baseline_net_delta_usd, "baseline fold deltas"),
             (self.fold_treatment_net_delta_usd, "treatment fold deltas"),

@@ -17,12 +17,16 @@ as mechanism-specific scientific evidence.
 
 ## Supported workstreams
 
-Initial V1 coverage:
+Current coverage:
 
+- T04 / T10;
 - T06 / T07;
 - T14 / T15;
+- GEN-C2 / GEN-C3 / GEN-C4 / GEN-C5 / GEN-C6 / GEN-C9;
 - GEN-C7 / GEN-C8;
-- GEN-C11 / GEN-C12 / GEN-C13.
+- GEN-C11 / GEN-C12 / GEN-C13;
+- Compound Portfolio / Internal Capital Market;
+- Protected Base Capital / Profit Protection.
 
 Each workstream is bound to its already frozen source economic/utility gate.
 The stress admission layer may not invent a replacement utility score.
