@@ -26,11 +26,6 @@ from qore.infrastructure.cibo_ce2i_provider_economics_provenance import (
 from qore.infrastructure.cibo_ce2i_provider_execution_calibration import (
     CiboProviderExecutionCalibration,
 )
-from qore.infrastructure.cibo_ce2i_provider_execution_stress_bound import (
-    FROZEN_PROVIDER_EXECUTION_STRESS_PROFILE,
-    PROVIDER_EXECUTION_STRESS_PROFILE_ID,
-    provider_execution_stress_profile_sha256,
-)
 from qore.infrastructure.cibo_ce2i_provider_stress_bound_freeze import (
     CiboProviderStressBoundFreeze,
 )
@@ -56,9 +51,6 @@ class CiboProviderEconomicsComponentFreeze:
     volume_contract_terms_frozen: bool
     empirical_slippage_frozen: bool
     execution_model_frozen: bool
-    stress_bound_execution_model_frozen: bool
-    execution_model_basis: str
-    stress_profile_sha256: str | None
     historical_2017_exact_claimed: bool
     holdout_outcomes_used: bool
     target_aware: bool
@@ -113,7 +105,6 @@ class CiboProviderEconomicsComponentFreeze:
             "volume_contract_terms_frozen",
             "empirical_slippage_frozen",
             "execution_model_frozen",
-            "stress_bound_execution_model_frozen",
             "historical_2017_exact_claimed",
             "holdout_outcomes_used",
             "target_aware",
@@ -215,18 +206,11 @@ class CiboProviderEconomicsComponentFreeze:
                     "provider economics stress-bound SHA invalid"
                 )
         if (
-            self.empirical_slippage_frozen
+            (self.empirical_slippage_frozen or self.execution_model_frozen)
             and self.execution_calibration_sha256 is None
         ):
             raise CiboCapitalManagementError(
-                "provider economics empirical execution requires calibration SHA"
-            )
-        if (
-            self.stress_bound_execution_model_frozen
-            and self.stress_profile_sha256 is None
-        ):
-            raise CiboCapitalManagementError(
-                "provider economics stress execution requires profile SHA"
+                "provider economics calibrated execution requires calibration SHA"
             )
         if self.productive_authority:
             raise CiboCapitalManagementError(
@@ -374,11 +358,6 @@ def freeze_current_ctrader_demo_provider_economics(
         ),
         empirical_slippage_frozen=slippage,
         execution_model_frozen=execution_model,
-        stress_bound_execution_model_frozen=False,
-        execution_model_basis=(
-            "EMPIRICAL" if slippage and execution_model else "UNAVAILABLE"
-        ),
-        stress_profile_sha256=None,
         historical_2017_exact_claimed=evidence.historical_exact_claimed,
         holdout_outcomes_used=evidence.holdout_outcomes_used,
         target_aware=evidence.target_aware,
@@ -431,89 +410,3 @@ def _canonical(value: object) -> object:
             for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
         }
     return value
-
-
-
-def freeze_current_ctrader_demo_provider_economics_stress_bound(
-    *,
-    frozen_at: datetime,
-) -> CiboProviderEconomicsComponentFreeze:
-    """Freeze current provider terms with the predeclared stress-bound model.
-
-    This path is intentionally distinct from empirical execution calibration.
-    It is admissible for pre-holdout certification only because every stress
-    scenario is frozen before the fresh holdout is opened.
-    """
-
-    evidence = CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS
-    provenance = provider_economics_provenance_payload()
-    observed_at = datetime.fromisoformat(evidence.observed_at)
-    if frozen_at.tzinfo is None or frozen_at.utcoffset() is None:
-        raise CiboCapitalManagementError(
-            "provider economics stress-bound frozen_at must be timezone-aware"
-        )
-    if frozen_at < max(
-        observed_at,
-        FROZEN_PROVIDER_EXECUTION_STRESS_PROFILE.frozen_at,
-    ):
-        raise CiboCapitalManagementError(
-            "provider economics stress-bound freeze predates its evidence"
-        )
-    if (
-        evidence.provider_key != provenance["provider"]
-        or tuple(provenance["symbols"]) != evidence.symbols
-    ):
-        raise CiboCapitalManagementError(
-            "provider economics stress-bound evidence/provenance drift"
-        )
-    current_terms = bool(
-        evidence.provider_terms_ready
-        and provenance["current_provider_terms_ready"] is True
-        and provenance["spread_native_ready"] is True
-        and provenance["commission_native_ready"] is True
-        and provenance["expected_margin_native_ready"] is True
-        and provenance["volume_and_contract_terms_ready"] is True
-    )
-    blockers: list[str] = []
-    if not current_terms:
-        blockers.append("CURRENT_PROVIDER_TERMS_NOT_FROZEN")
-
-    return CiboProviderEconomicsComponentFreeze(
-        freeze_id=PROVIDER_ECONOMICS_COMPONENT_FREEZE_ID,
-        provider_key=evidence.provider_key,
-        environment=str(provenance["environment"]),
-        source_evidence_ref=provider_economics_evidence_ref(),
-        source_provenance_sha256=provider_economics_provenance_sha256(),
-        source_observed_at=observed_at,
-        frozen_at=frozen_at,
-        point_in_time_terms_frozen=current_terms,
-        spread_terms_frozen=bool(provenance["spread_native_ready"]),
-        commission_terms_frozen=bool(provenance["commission_native_ready"]),
-        expected_margin_terms_frozen=bool(
-            provenance["expected_margin_native_ready"]
-        ),
-        volume_contract_terms_frozen=bool(
-            provenance["volume_and_contract_terms_ready"]
-        ),
-        empirical_slippage_frozen=False,
-        execution_model_frozen=current_terms,
-        stress_bound_execution_model_frozen=current_terms,
-        execution_model_basis=(
-            "STRESS_BOUND" if current_terms else "UNAVAILABLE"
-        ),
-        stress_profile_sha256=(
-            provider_execution_stress_profile_sha256()
-            if current_terms
-            else None
-        ),
-        historical_2017_exact_claimed=False,
-        holdout_outcomes_used=False,
-        target_aware=False,
-        broker_mutation_performed=False,
-        pre_holdout_provider_economics_ready=(
-            current_terms and not blockers
-        ),
-        blockers=tuple(blockers),
-        execution_calibration_sha256=None,
-        productive_authority=False,
-    )

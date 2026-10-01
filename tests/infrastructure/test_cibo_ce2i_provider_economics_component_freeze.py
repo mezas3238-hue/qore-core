@@ -145,30 +145,3 @@ def test_stress_bound_lane_closes_core_without_deployment_overclaim() -> None:
     assert "PROVIDER_DEPLOYMENT_EMPIRICAL_SLIPPAGE_REQUIRED" in (
         freeze.deployment_blockers
     )
-
-
-
-def test_stress_bound_provider_freeze_is_ready_without_empirical_claim() -> None:
-    from qore.infrastructure.cibo_ce2i_provider_economics_component_freeze import (
-        freeze_current_ctrader_demo_provider_economics_stress_bound,
-    )
-    from qore.infrastructure.cibo_ce2i_provider_execution_stress_bound import (
-        FROZEN_PROVIDER_EXECUTION_STRESS_PROFILE,
-    )
-
-    freeze = freeze_current_ctrader_demo_provider_economics_stress_bound(
-        frozen_at=FROZEN_PROVIDER_EXECUTION_STRESS_PROFILE.frozen_at
-    )
-
-    assert freeze.point_in_time_terms_frozen is True
-    assert freeze.empirical_slippage_frozen is False
-    assert freeze.execution_model_frozen is True
-    assert freeze.stress_bound_execution_model_frozen is True
-    assert freeze.execution_model_basis == "STRESS_BOUND"
-    assert freeze.stress_profile_sha256 is not None
-    assert freeze.execution_calibration_sha256 is None
-    assert freeze.pre_holdout_provider_economics_ready is True
-    assert freeze.blockers == ()
-    assert freeze.historical_2017_exact_claimed is False
-    assert freeze.holdout_outcomes_used is False
-    assert freeze.productive_authority is False
