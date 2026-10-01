@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict, dataclass
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
 from qore.infrastructure.account_wide_risk import TraderLineage
@@ -570,7 +571,10 @@ def _provider_condition_bound(payload: dict[str, object]) -> bool:
     )
 
 
-def _snapshots_bound(payload: dict[str, object], decision_at) -> bool:
+def _snapshots_bound(
+    payload: dict[str, object],
+    decision_at: datetime,
+) -> bool:
     for prefix in ("capital", "risk"):
         identity = payload.get(f"{prefix}_snapshot_id")
         observed_raw = payload.get(f"{prefix}_snapshot_observed_at")
@@ -579,8 +583,6 @@ def _snapshots_bound(payload: dict[str, object], decision_at) -> bool:
         if not isinstance(observed_raw, str):
             return False
         try:
-            from datetime import datetime
-
             observed = datetime.fromisoformat(observed_raw)
         except ValueError:
             return False
