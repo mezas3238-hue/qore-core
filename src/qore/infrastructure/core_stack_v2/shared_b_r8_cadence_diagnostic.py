@@ -229,8 +229,11 @@ def build_r8_empirical_cadence_diagnostic(
         for side in ("bid", "ask"):
             checkpoint_rows: list[dict[str, object]] = []
             aggregate_intervals: list[int] = []
+            populated = 0
             for window in EXPECTED_CHECKPOINTS:
                 timestamps = sorted(set(grouped.get((side, window), ())))
+                if timestamps:
+                    populated += 1
                 intervals = [
                     round((right - left).total_seconds() * 1000)
                     for left, right in zip(timestamps, timestamps[1:], strict=False)
