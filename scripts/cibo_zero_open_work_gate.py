@@ -176,6 +176,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*final-integrated-exam*", "FINAL_INTEGRATED_CIBO_EXAM"),
     ("*cibo_final_exam_control_receipt*", "FINAL_INTEGRATED_CIBO_EXAM"),
     ("*cibo_receipt_bound_final_integrated_exam_v2*", "FINAL_INTEGRATED_CIBO_EXAM"),
+    ("*cibo_arch_a_final_exam_closure_controls*", "FINAL_INTEGRATED_CIBO_EXAM"),
     ("*cibo_final_certification_contract*", "SOURCE_OF_TRUTH_RECONCILIATION"),
     ("*phase18*", "HISTORICAL_PHASE18_REPLAY_EVIDENCE"),
     ("*phase19*", "BURNED_PHASE19_RESEARCH_EVIDENCE"),
