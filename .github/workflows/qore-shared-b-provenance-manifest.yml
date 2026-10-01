@@ -54,6 +54,7 @@ jobs:
             {"evidence_id":"B02_PROVIDER_PROVENANCE","capability_scope":"B-02","kind":"GOVERNANCE_EVIDENCE","run_id":36742519707,"artifact_id":11111176548,"source_hash":true,"provider_free_replay":false},
             {"evidence_id":"B03_CROSS_RAW","capability_scope":"B-03","kind":"RAW_PROVIDER_EVIDENCE","run_id":36746337433,"artifact_id":11113260581,"source_hash":true,"provider_free_replay":false},
             {"evidence_id":"B03_CROSS_REPLAY","capability_scope":"B-03","kind":"REPLAY_EVIDENCE","run_id":36746337433,"artifact_id":11112547465,"source_hash":true,"provider_free_replay":true},
+            {"evidence_id":"B04_FULL_R8_GLOBAL","capability_scope":"B-04","kind":"RAW_PROVIDER_EVIDENCE","run_id":36765098842,"artifact_id":11129732922,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B05_SENSOR_REGISTRY","capability_scope":"B-05","kind":"GOVERNANCE_EVIDENCE","run_id":36745412605,"artifact_id":11112621544,"source_hash":false,"provider_free_replay":true},
             {"evidence_id":"B06_CNH_IDENTITY","capability_scope":"B-06","kind":"IDENTITY_EVIDENCE","run_id":36746146407,"artifact_id":11112587007,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B06_FX_REFERENCE","capability_scope":"B-06","kind":"IDENTITY_EVIDENCE","run_id":36754912247,"artifact_id":11115828701,"source_hash":true,"provider_free_replay":true},
@@ -78,6 +79,7 @@ jobs:
             {"evidence_id":"B15_COMMODITY_IDENTITY","capability_scope":"B-15","kind":"IDENTITY_EVIDENCE","run_id":36755839843,"artifact_id":11115769948,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B15_GC_CONTRACT_LIFECYCLE","capability_scope":"B-15","kind":"IDENTITY_EVIDENCE","run_id":36782329462,"artifact_id":11128416668,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B15_METALS_REFERENCE_BOUNDARY","capability_scope":"B-15","kind":"IDENTITY_EVIDENCE","run_id":36784542345,"artifact_id":11129012317,"source_hash":true,"provider_free_replay":true},
+            {"evidence_id":"B15_ENERGY_REFERENCE_BOUNDARY","capability_scope":"B-15","kind":"IDENTITY_EVIDENCE","run_id":36784810864,"artifact_id":11128739693,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B16_17_ACTIVE_PERCEPTION","capability_scope":"B-16/B-17","kind":"REAL_REPLICATION_EVIDENCE","run_id":36757173753,"artifact_id":11116986748,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B16_SENSOR_QUALIFICATION_FRONTIER","capability_scope":"B-16","kind":"GOVERNANCE_EVIDENCE","run_id":36783433192,"artifact_id":11127854507,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B18_20_OBSERVABILITY","capability_scope":"B-18/B-19/B-20","kind":"ARCHITECTURE_EVIDENCE","run_id":36756742481,"artifact_id":11116344955,"source_hash":true,"provider_free_replay":true},
@@ -164,7 +166,6 @@ jobs:
               expected_branch="agent/shared-b-global-world-perception-001",
               coverage_complete=False,
               open_coverage_reasons=(
-                  "B-04 full R8 acquisition has not yet produced its final aggregate artifact",
                   "B-06/B-07/B-08 global identity/calendar/temporal closure remains incomplete",
                   "B-09 stale-relation empirical isolation remains gated by B-07/B-08",
                   "B-10/B-11/B-12 empirical relational population remains open",
