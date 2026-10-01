@@ -26,6 +26,17 @@ Observed current Integrator checkpoint when reconfirmed:
 The missing module was also absent from Architect-2 because Architect-2 is
 correctly based on the Integrator branch.
 
+A second broken edge was then observed:
+
+`src/qore/infrastructure/cibo_phase22_external_dependency_evidence.py`
+
+imports:
+
+`qore.infrastructure.cibo_ce2i_phase20_historical_shadow`
+
+but `src/qore/infrastructure/cibo_ce2i_phase20_historical_shadow.py` is also
+absent from the current Integrator branch.
+
 ## Impact
 
 Any import path passing through:
@@ -44,10 +55,9 @@ manifest graph.
 
 ## Requested Integrator action
 
-Determine whether the missing module should be:
-
-1. restored from the already-verified integrated lineage, or
-2. the stale import should be removed/repointed to the canonical replacement.
+Reconcile both missing-module edges. For each one determine whether the module
+should be restored from already-verified integrated lineage or whether the stale
+import should be removed/repointed to the canonical replacement.
 
 Then run the Integrator pre-holdout / calibration regression surface.
 
