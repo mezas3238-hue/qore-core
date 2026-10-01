@@ -78,3 +78,11 @@ evidence and receive an independent scientific disposition.
 
 This contract exists only to prevent temporal contamination, pooled rescue,
 3/4 rescue, post-window retuning, and cross-architect ownership drift.
+
+
+## Inventory binding
+
+The implementation/test inventory is classified under
+`TEMPORAL_REPLICATION` for branch-local Zero Open Work accounting. This
+classification changes no Master Ledger disposition and must be reconciled by
+the Integrator before any global certification claim.
