@@ -177,3 +177,27 @@ def test_oos_report_rejects_noncanonical_direct_fold_count() -> None:
         match="report requires exactly four temporal folds",
     ):
         replace(report, required_folds=2)
+
+def test_oos_report_rejects_manual_utility_flag_drift() -> None:
+    report = assess_t08_fresh_oos_netting_ablation(
+        tuple(_epoch(index) for index in range(32))
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="utility result drift",
+    ):
+        replace(report, fresh_oos_utility_demonstrated=False)
+
+
+def test_oos_report_rejects_manual_blocker_drift() -> None:
+    report = assess_t08_fresh_oos_netting_ablation(
+        tuple(_epoch(index) for index in range(32))
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="blocker/result drift",
+    ):
+        replace(report, blockers=())
+

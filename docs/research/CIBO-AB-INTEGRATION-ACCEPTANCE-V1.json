@@ -6,7 +6,7 @@
   "architect_a": {
     "pr": 660,
     "accepted_head_sha": "9f7a24a86c04a1d0554996ab57523e7338465002",
-    "latest_observed_head_sha": "87e1add18e13acb0aa59adeb5fa200a3cd526a09",
+    "latest_observed_head_sha": "70db6a38011ff2b69e073f59a437051e04b37e28",
     "support_blockers": [
       "A-SUPPORT-001_FINAL_EXAM_SELF_ATTESTATION",
       "A-SUPPORT-002_MANDATORY_WORKSTREAM_DRIFT"
@@ -21,7 +21,7 @@
   "architect_b": {
     "pr": 661,
     "accepted_head_sha": "5d028b1ebc76a98db36d26f86bc872e2f60c5541",
-    "latest_observed_head_sha": "fed8acb4588f17033a14f7ccc27480e6ecbb2d22",
+    "latest_observed_head_sha": "cd41a8e224812ee6944a70a947d7d4d5f3e7d9de",
     "support_blockers": [
       "B-SUPPORT-001_USD60_READINESS_SELF_ATTESTATION",
       "B-SUPPORT-002_RISK_HANDOFF_LEDGER_DRIFT",
@@ -30,14 +30,13 @@
       "B-SUPPORT-005_T11_DEDICATED_TEST_MISSING",
       "B-SUPPORT-006_T16_T17_STRUCTURAL_DISABLEMENT_REQUIRES_TYPED_PROVIDER_STATUS"
     ],
-    "integrator_staged_repair_blockers": [
-      "B-SUPPORT-001_USD60_READINESS_SELF_ATTESTATION",
-      "B-SUPPORT-004_PROVIDER_GEOMETRY_FIXTURE_BREAKAGE",
-      "B-SUPPORT-005_T11_DEDICATED_TEST_MISSING"
-    ],
+    "integrator_staged_repair_blockers": [],
     "integrator_resolved_support_blockers": [
+      "B-SUPPORT-001_USD60_READINESS_SELF_ATTESTATION",
       "B-SUPPORT-002_RISK_HANDOFF_LEDGER_DRIFT",
       "B-SUPPORT-003_CALIBRATION_FREEZE_SELF_ATTESTATION",
+      "B-SUPPORT-004_PROVIDER_GEOMETRY_FIXTURE_BREAKAGE",
+      "B-SUPPORT-005_T11_DEDICATED_TEST_MISSING",
       "B-SUPPORT-006_T16_T17_STRUCTURAL_DISABLEMENT_REQUIRES_TYPED_PROVIDER_STATUS"
     ]
   },
@@ -76,5 +75,30 @@
     "blocker": null,
     "workflow_run_id": 36790166830,
     "validated_head_sha": "a08682bfab0a1fb56d0d07d8b91436a41334e01b"
+  },
+  "last_integrator_revalidation": {
+    "head_sha": "67939c275d901f45a217b442ab904a82d6661f0d",
+    "completed_success": 57,
+    "repairable_failures": [
+      "ZERO_OPEN_WORK_GATE_ORPHAN_CLASSIFICATION",
+      "CE2I_OOS_STRESS_ADMISSION_QUALITY"
+    ],
+    "intentional_fail_closed": [
+      "ARCHITECT_A_INTERNAL_READINESS"
+    ],
+    "exact_head_success_evidence": {
+      "usd60_pre_exam_readiness": 36811792266,
+      "provider_economics": 36811792437,
+      "b_provider_forward_tool_readiness": 36811792331,
+      "t11_execution_cost_calibration": 36811792029,
+      "account_capability": 36811792771,
+      "t17_provider_capability_receipt": 36811792623,
+      "integrated_capital_forward_binding": 36811792961,
+      "risk_integration": 36811792162,
+      "ab_integration_reconciliation": 36811792432,
+      "source_of_truth_reconciliation": 36811792550
+    },
+    "productive_authority": false,
+    "certification_claim": false
   }
 }

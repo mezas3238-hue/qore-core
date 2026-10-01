@@ -884,3 +884,59 @@ def test_b_surface_classifiers_are_not_orphans() -> None:
         inventory[11]: "USD60_CAPABILITY_PROGRAM",
     }
     assert orphan_candidates == ()
+
+
+def test_t17_governed_provider_disposition_has_t17_ownership() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_t17_governed_provider_disposition.py",
+        "tests/infrastructure/test_cibo_t17_governed_provider_disposition.py",
+    )
+
+    assignments, orphan_candidates = gate._classify_inventory(
+        inventory,
+        ledger_ids=frozenset({"T17", "ORPHAN_INVENTORY"}),
+    )
+
+    assert set(assignments) == {(path, "T17") for path in inventory}
+    assert orphan_candidates == ()
+
+
+def test_integrator_and_new_a_surfaces_have_explicit_ownership() -> None:
+    inventory = (
+        "scripts/cibo_ab_integration_gate.py",
+        "tests/infrastructure/test_cibo_ab_integration_gate.py",
+        ".github/workflows/cibo-ce2i-strict-four-fold-replication.yml",
+        "docs/research/CIBO-CE2I-STRICT-FOUR-FOLD-UTILITY-REPLICATION-V1.md",
+        ".github/workflows/cibo-ce2i-oos-stress-admission.yml",
+        "docs/research/CIBO-CE2I-OOS-MECHANISM-STRESS-ADMISSION-V1.md",
+        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
+        "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
+        ".github/workflows/cibo-genc-strict-four-fold-replication.yml",
+        "docs/research/CIBO-GENC-STRICT-FOUR-FOLD-TEMPORAL-REPLICATION-V1.md",
+        ".github/workflows/cibo-protected-base-strict-four-fold.yml",
+        "docs/research/CIBO-PROTECTED-BASE-STRICT-FOUR-FOLD-TEMPORAL-REPLICATION-V1.md",
+        "src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py",
+        "docs/research/CIBO-B-T16-HEDGE-PAIR-PREREGISTRATION-V1.json",
+    )
+    ledger_ids = frozenset(
+        {
+            "SOURCE_OF_TRUTH_RECONCILIATION",
+            "CE2I_CROSS_TOOL_INFRASTRUCTURE",
+            "ADVERSARIAL_STRESS",
+            "TEMPORAL_REPLICATION",
+            "PROTECTED_BASE_CAPITAL",
+            "T16",
+            "ORPHAN_INVENTORY",
+        }
+    )
+    assignments, orphan_candidates = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+    assert orphan_candidates == ()
+    assert dict(assignments)[inventory[0]] == "SOURCE_OF_TRUTH_RECONCILIATION"
+    assert dict(assignments)[inventory[2]] == "CE2I_CROSS_TOOL_INFRASTRUCTURE"
+    assert dict(assignments)[inventory[4]] == "ADVERSARIAL_STRESS"
+    assert dict(assignments)[inventory[8]] == "TEMPORAL_REPLICATION"
+    assert dict(assignments)[inventory[10]] == "PROTECTED_BASE_CAPITAL"
+    assert dict(assignments)[inventory[12]] == "T16"

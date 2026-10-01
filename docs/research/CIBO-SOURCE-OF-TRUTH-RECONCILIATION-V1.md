@@ -144,3 +144,17 @@ This is **not** a substitute for GitHub Actions revalidation. The prior Source
 of Truth run failed before semantic execution because of lint/import-format
 defects that are now repaired in the Integrator. Exact-head CI remains pending
 under the Owner's no-workflow-flood policy.
+
+
+## 2026-10-01 atomic child snapshot integration
+
+- Frozen Architect A snapshot: `70db6a38011ff2b69e073f59a437051e04b37e28`.
+- Frozen Architect B snapshot: `cd41a8e224812ee6944a70a947d7d4d5f3e7d9de`.
+- Integrator predecessor fully evaluated: `67939c275d901f45a217b442ab904a82d6661f0d`.
+- A: 122 changed = 110 byte-integrated + 12 deliberate overrides.
+- B: 99 changed = 79 byte-integrated + 16 deliberate overrides
+  + 4 deliberately noncanonical operational/handoff files.
+- Unaccounted child files: 0.
+- T17 governed-provider ineligibility closure is staged, not terminal, until
+  exact-head CI validates cTrader DEMO plus FundedNext evidence together.
+- Productive/runtime/LIVE/merge authority remains false.

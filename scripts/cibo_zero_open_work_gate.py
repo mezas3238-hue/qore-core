@@ -78,6 +78,21 @@ _COMMENT_MARKERS = (
 )
 
 _WORKSTREAM_CLASSIFIERS = (
+    ("*CIBO-B-T16-HEDGE-PAIR-PREREGISTRATION*", "T16"),
+    ("*cibo_ce2i_t16_preregistered_hedge_universe*", "T16"),
+    ("*CIBO-PROTECTED-BASE-STRICT-FOUR-FOLD-TEMPORAL-REPLICATION*", "PROTECTED_BASE_CAPITAL"),
+    ("*cibo-protected-base-strict-four-fold*", "PROTECTED_BASE_CAPITAL"),
+    ("*CIBO-GENC-STRICT-FOUR-FOLD-TEMPORAL-REPLICATION*", "TEMPORAL_REPLICATION"),
+    ("*cibo-genc-strict-four-fold-replication*", "TEMPORAL_REPLICATION"),
+    ("*CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION*", "ADVERSARIAL_STRESS"),
+    ("*cibo-architect-a-mechanism-stress-admission*", "ADVERSARIAL_STRESS"),
+    ("*CIBO-CE2I-OOS-MECHANISM-STRESS-ADMISSION*", "ADVERSARIAL_STRESS"),
+    ("*cibo-ce2i-oos-stress-admission*", "ADVERSARIAL_STRESS"),
+    ("*CIBO-CE2I-STRICT-FOUR-FOLD-UTILITY-REPLICATION*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
+    ("*cibo-ce2i-strict-four-fold-replication*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
+    ("*cibo-ab-integration-gate*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo_ab_integration_gate*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo_t17_governed_provider_disposition*", "T17"),
     ("*cibo_ce2i_temporal_utility_replication*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
     ("*cibo_ce2i_oos_stress_admission*", "ADVERSARIAL_STRESS"),
     ("*cibo_arch_a_mechanism_stress_gate*", "ADVERSARIAL_STRESS"),

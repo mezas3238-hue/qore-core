@@ -340,12 +340,62 @@
           "scope": "CI implementation proof only; fresh OOS, stress, temporal replication and prospective causal evidence remain open."
         }
       ]
+    },
+    {
+      "owner": "INTEGRATOR_67939_CURRENT_HEAD_REVALIDATION",
+      "source_head_sha": "67939c275d901f45a217b442ab904a82d6661f0d",
+      "items": [
+        {
+          "id": "B-SUPPORT-001_USD60_READINESS_SELF_ATTESTATION",
+          "class": "INTEGRATION_DEFECT_RESOLVED_RECEIPT_BOUND_USD60_CURRENT_HEAD",
+          "workflow_run_id": 36811792266,
+          "status": "SUCCESS"
+        },
+        {
+          "id": "B-SUPPORT-004_PROVIDER_GEOMETRY_FIXTURE_BREAKAGE",
+          "class": "INTEGRATION_DEFECT_RESOLVED_PROVIDER_ACCOUNT_GEOMETRY_CURRENT_HEAD",
+          "workflow_run_ids": [
+            36811792437,
+            36811792771
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "B-SUPPORT-005_T11_DEDICATED_TEST_MISSING",
+          "class": "INTEGRATION_DEFECT_RESOLVED_DEDICATED_T11_CURRENT_HEAD",
+          "workflow_run_ids": [
+            36811792029,
+            36811792331
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "T17_SOURCE_BOUND_PROVIDER_CAPABILITY_RECEIPT",
+          "class": "ENGINEERING_GREEN_PROVIDER_BOUND_NO_ECONOMIC_CERTIFICATION",
+          "workflow_run_id": 36811792623,
+          "status": "SUCCESS"
+        },
+        {
+          "id": "INTEGRATED_CAPITAL_FORWARD_BINDING",
+          "class": "ENGINEERING_GREEN_EXACT_FORWARD_POPULATION_RECONCILIATION",
+          "workflow_run_id": 36811792961,
+          "status": "SUCCESS"
+        },
+        {
+          "id": "RISK_INTEGRATION_REVALIDATION",
+          "class": "TERMINAL_MECHANICAL_AUTHORITY_AND_DOWNSIZE_REVALIDATION",
+          "workflow_run_id": 36811792162,
+          "status": "SUCCESS"
+        }
+      ],
+      "productive_authority": false,
+      "certification_claim": false
     }
   ],
   "pending_candidates": [
     {
       "owner": "ARCHITECT_A",
-      "latest_head_sha": "87e1add18e13acb0aa59adeb5fa200a3cd526a09",
+      "latest_head_sha": "70db6a38011ff2b69e073f59a437051e04b37e28",
       "reasons": [
         "CURRENT_HEAD_CI_PENDING",
         "A_SUPPORT_002_MANDATORY_WORKSTREAM_DRIFT_UPSTREAM",
@@ -374,7 +424,7 @@
     },
     {
       "owner": "ARCHITECT_B",
-      "latest_head_sha": "fed8acb4588f17033a14f7ccc27480e6ecbb2d22",
+      "latest_head_sha": "cd41a8e224812ee6944a70a947d7d4d5f3e7d9de",
       "reasons": [
         "CURRENT_HEAD_CI_PENDING",
         "B_SUPPORT_001_USD60_READINESS_SELF_ATTESTATION_UPSTREAM",
@@ -413,14 +463,14 @@
   "certification_claim": false,
   "productive_authority": false,
   "integrator_pending": {
-    "head_sha": "654764b7ba52a8db97e16356f6dfad408740e227",
+    "head_sha": "67939c275d901f45a217b442ab904a82d6661f0d",
     "reasons": [
-      "CURRENT_HEAD_CI_PENDING",
-      "STAGED_REPAIRS_NOT_RESOLVED_UNTIL_SUCCESS",
+      "CURRENT_SNAPSHOT_INTEGRATION_AND_REPAIR_CI_REQUIRED",
+      "T17_GOVERNED_PROVIDER_INELIGIBILITY_CLOSURE_CI_REQUIRED",
+      "ARCHITECT_A_INTERNAL_READINESS_FAIL_CLOSED_WITH_35_EMPIRICAL_OPEN",
       "REAL_FORWARD_PHASE20D_POPULATION_THRESHOLDS_OPEN",
-      "T16_T17_REAL_PROVIDER_STATUS_OPEN",
-      "TWO_EXAM_ZERO_OPEN_SEQUENCE_REVALIDATION_REQUIRED",
-      "T17_SOURCE_BOUND_PROVIDER_CAPABILITY_RECEIPT_CI_PENDING"
+      "T16_POST_PREREGISTRATION_FORWARD_ECONOMIC_PROOF_OPEN",
+      "TWO_EXAM_ZERO_OPEN_SEQUENCE_REVALIDATION_REQUIRED"
     ],
     "staged_components": [
       "CROSSBOUNDARY_SOURCE_BOUND_RECEIPTS",
@@ -441,7 +491,11 @@
       "MANDATORY_WORLD_CUP_SEQUENCE_RECONCILIATION",
       "CTRADER_DEMO_INSTRUMENT_TAXONOMY",
       "T17_LIMITED_RISK_GSL_CAPABILITY",
-      "T17_SOURCE_BOUND_PROVIDER_CAPABILITY_RECEIPT"
+      "T17_SOURCE_BOUND_PROVIDER_CAPABILITY_RECEIPT",
+      "T08_FRESH_OOS_NETTING_ABLATION",
+      "CE2I_OOS_STRESS_ADMISSION",
+      "T16_PREREGISTERED_HEDGE_UNIVERSE",
+      "T17_GOVERNED_PROVIDER_DISPOSITION"
     ],
     "certification_claim": false
   }

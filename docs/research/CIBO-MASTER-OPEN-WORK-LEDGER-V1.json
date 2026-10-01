@@ -173,12 +173,15 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_ECONOMIC_PROTOCOL_PREREGISTERED",
+      "current_maturity": "FRESH_OOS_NETTING_ABLATION_ENGINE_INTEGRATED_REAL_MAPPING_CORRELATION_PROOF_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
-        "github-actions://36767442915/SUCCESS"
+        "github-actions://36767442915/SUCCESS",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_ablation.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_causal_tool_readiness.py"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
@@ -347,7 +350,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ACCOUNT_BOUND_TAXONOMY_ENGINE_STAGED_CI_PENDING_T16_ECONOMIC_HEDGE_UNPROVEN",
+      "current_maturity": "PROVIDER_BOUND_PREOUTCOME_HEDGE_UNIVERSE_PREREGISTERED_ECONOMIC_OOS_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -368,23 +371,27 @@
         "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
         "tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py",
         "src/qore/infrastructure/ctrader_open_api_client.py",
-        ".github/workflows/cibo-ctrader-demo-provider-economics.yml"
+        ".github/workflows/cibo-ctrader-demo-provider-economics.yml",
+        "src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py",
+        "src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py",
+        "tests/infrastructure/test_cibo_ce2i_t16_preregistered_hedge_universe.py",
+        "docs/research/CIBO-B-T16-HEDGE-PAIR-PREREGISTRATION-V1.json",
+        ".github/workflows/cibo-b-provider-forward-tool-readiness.yml"
       ],
       "blockers": [
-        "INTEGRATOR_CTRADER_DEMO_ACCOUNT_CAPABILITY_CI_REQUIRED",
-        "REAL_ACCOUNT_TAXONOMY_OBSERVATION_REQUIRED",
-        "T16_HEDGE_INSTRUMENT_NOT_PROVIDER_VERIFIED",
-        "T16_BASIS_RISK_COST_CORRELATION_EXECUTION_EVIDENCE_REQUIRED",
-        "FRESH_OOS_HEDGE_UTILITY_REQUIRED_IF_SUPPORTED"
+        "T16_POST_PREREGISTRATION_RETURN_CORRELATION_BASIS_MEASUREMENT_REQUIRED",
+        "T16_PROVIDER_EXECUTION_AND_HEDGE_COST_CALIBRATION_REQUIRED",
+        "T16_FOUR_CONTIGUOUS_FORWARD_FOLDS_REQUIRED",
+        "T16_FRESH_OOS_NET_ECONOMIC_BENEFIT_REQUIRED"
       ],
-      "next_gate": "Pass integrated account/taxonomy CI, collect account-bound taxonomy, then identify a provider-valid hedge instrument and prove basis risk, costs, correlation/execution feasibility and fresh OOS benefit; otherwise retain fail-closed provider ineligibility."
+      "next_gate": "Collect only post-preregistration NAS100/US30 and NAS100/US500 windows; measure correlation/basis risk and provider-native execution costs, then require four contiguous folds and fresh OOS net economic benefit."
     },
     {
       "id": "T17",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ACCOUNT_TAXONOMY_GSL_CANDIDATE_PLUS_SOURCE_BOUND_OBSERVATION_RECEIPT_STAGED_CI_PENDING_ECONOMIC_OOS_OPEN",
+      "current_maturity": "GOVERNED_PROVIDER_INELIGIBILITY_CLOSURE_STAGED_EXACT_HEAD_CI_REQUIRED",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -412,18 +419,17 @@
         ".github/workflows/cibo-ctrader-demo-provider-economics.yml",
         "src/qore/infrastructure/cibo_t17_provider_capability_receipt.py",
         "tests/infrastructure/test_cibo_t17_provider_capability_receipt.py",
-        ".github/workflows/cibo-t17-provider-capability-receipt.yml"
+        ".github/workflows/cibo-t17-provider-capability-receipt.yml",
+        "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-EVIDENCE-2026-10-01.json",
+        "docs/research/CIBO-B-T17-STRUCTURAL-DISPOSITION-V1.json",
+        "src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py",
+        "src/qore/infrastructure/cibo_t17_governed_provider_disposition.py",
+        "tests/infrastructure/test_cibo_t17_governed_provider_disposition.py"
       ],
       "blockers": [
-        "INTEGRATOR_CTRADER_DEMO_ACCOUNT_CAPABILITY_CI_REQUIRED",
-        "INTEGRATOR_CTRADER_DEMO_PROVIDER_ECONOMICS_CI_REQUIRED",
-        "INTEGRATOR_T17_PROVIDER_CAPABILITY_RECEIPT_CI_REQUIRED",
-        "REAL_ACCOUNT_TAXONOMY_AND_LIMITED_RISK_OBSERVATION_REQUIRED",
-        "T17_OPTION_OR_DEFINED_RISK_SPREAD_NOT_PROVIDER_VERIFIED",
-        "T17_GSL_EXECUTION_ECONOMICS_NOT_PROVEN_IF_CANDIDATE_EXISTS",
-        "T17_FRESH_OOS_LIMITED_DOWNSIDE_UTILITY_REQUIRED_IF_CANDIDATE_EXISTS"
+        "INTEGRATOR_T17_GOVERNED_PROVIDER_DISPOSITION_EXACT_HEAD_CI_REQUIRED"
       ],
-      "next_gate": "Pass account/provider/T17-receipt CI; collect one source-bound real account observation. If GSL candidate exists, prove charges/slippage/constraints and fresh OOS utility. Observation receipt PASS is provenance only, never T17 policy PASS."
+      "next_gate": "Pass the exact-head governed-provider disposition. If GREEN, terminalize T17 as COMPLETED_PROVIDER_INELIGIBLE for the current cTrader DEMO plus FundedNext Stellar Instant CFD universe."
     },
     {
       "id": "T18",

@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Protocol, TypeVar
+from typing import Protocol
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
@@ -45,10 +45,8 @@ _REQUIRED_STRESS_KINDS = tuple(CompoundStressKind)
 
 
 class _HasStressMeta(Protocol):
-    meta: "Ce2iOosStressScenarioMeta"
-
-
-_TStressEvidence = TypeVar("_TStressEvidence", bound=_HasStressMeta)
+    @property
+    def meta(self) -> Ce2iOosStressScenarioMeta: ...
 
 
 class Ce2iOosStressWorkstream(StrEnum):
@@ -354,10 +352,10 @@ def evaluate_t09_t18_oos_stress(
     )
 
 
-def _ordered(
-    evidence: tuple[_TStressEvidence, ...],
+def _ordered[TStressEvidence: _HasStressMeta](
+    evidence: tuple[TStressEvidence, ...],
     label: str,
-) -> tuple[_TStressEvidence, ...]:
+) -> tuple[TStressEvidence, ...]:
     if not evidence:
         raise CiboCapitalManagementError(
             f"{label} stress evidence is required"

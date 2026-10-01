@@ -6,6 +6,8 @@
 - affected_workstreams:
   - AS_IS_ECONOMIC_BASELINE
   - T04
+  - T06
+  - T07
   - T08
   - T09
   - T10
@@ -15,6 +17,8 @@
   - T15
   - T18
   - T19
+  - GEN-C2
+  - GEN-C3
   - GEN-C4
   - GEN-C5
   - GEN-C6
@@ -24,6 +28,7 @@
   - GEN-C10
   - GEN-C11
   - GEN-C12
+  - GEN-C13
   - COMPOUND_ENGINE
   - COMPOUND_PORTFOLIO
   - INTERNAL_CAPITAL_MARKET
@@ -307,3 +312,66 @@ A will reject the package when:
 - causal identification is claimed only from descriptive OOS paths.
 
 Architect A will not repair missing B/Integrator evidence with synthetic values.
+
+### 7. Stress-admission evidence extension
+
+The Architect-A stress gates now require the Integrator/B evidence package to
+carry immutable stress lineage rather than a bare PASS label.
+
+For every stressed evaluation supplied to A, include when applicable:
+
+- stress scenario id;
+- canonical stress kind;
+- stress-scenario evidence SHA-256;
+- stressed-population SHA-256;
+- stress protocol-binding SHA-256;
+- scenario preregistration timestamp;
+- proof that preregistration predates evaluated outcomes;
+- explicit non-improving-transform flag;
+- unchanged control candidate id;
+- unchanged treatment candidate id;
+- canonical source economic/utility gate id;
+- immutable source-gate evidence SHA-256;
+- source-gate status and failed dimensions;
+- no weighted or cross-scenario compensation.
+
+All seven frozen Compound stress kinds must remain separately identifiable.
+A missing stress family is missing evidence, not a partial pass.
+
+For T09/T18, the same stressed scenario must expose both the canonical scarcity
+utility evidence and the canonical scarcity-safety treatment verdict. A will not
+treat either side alone as stress closure.
+
+### 8. Mechanism-specific causal identity extension
+
+Additional immutable identities required by current A gates:
+
+- T08 factor-risk mapping evidence id and correlation evidence id;
+- T09/T18 true-scarcity opportunity-set identity;
+- GEN-C11 transition-calibration SHA-256 frozen before evaluated outcomes;
+- GEN-C13 prospective memory-hypothesis SHA-256 frozen before evaluated outcomes;
+- GEN-C12 crisis-factor-set SHA-256;
+- Protected Base numeric candidate id, policy SHA-256, frozen-at timestamp,
+  protection class and broker-guarantee evidence SHA-256 when such a guarantee
+  is explicitly claimed.
+
+These are identifiers/provenance fields only. Their presence does not establish
+economic value or scientific PASS.
+
+### 9. Strict temporal-population extension
+
+Where a mechanism claims temporal replication, A requires four independently
+materialized population identities for `WF1`, `WF2`, `WF3`, and `WF4`.
+
+The package must make it possible to prove:
+
+- four distinct population SHA-256 values;
+- unchanged control identity across folds;
+- unchanged treatment identity across folds;
+- unchanged protocol binding across folds;
+- no pooled outcome surface;
+- no 3-of-4 rescue;
+- no treatment replacement after an earlier fold is observed.
+
+If the underlying mechanism has a frozen policy/candidate/calibration/hypothesis
+digest, that digest must also remain invariant across the four folds.

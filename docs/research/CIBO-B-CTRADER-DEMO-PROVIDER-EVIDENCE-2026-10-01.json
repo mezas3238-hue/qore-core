@@ -1,18 +1,19 @@
 {
   "schema": "CIBO_B_CTRADER_DEMO_PROVIDER_EVIDENCE_V2026_10_01",
-  "source_head": "6dc4a22dac0a54368917bb9308d04dd83eec079f",
-  "observed_at_utc": "2026-10-01T02:44:41.309826+00:00",
+  "source_head": "9e2301edf7bbdf141050965c252b51697a3a94db",
+  "observed_at_utc": "2026-10-01T03:39:04.840136+00:00",
   "workflow": {
-    "run_id": 36806511867,
+    "run_id": 36810489106,
     "name": "QORE CIBO cTrader DEMO Provider Economics Calibration",
     "conclusion": "SUCCESS",
-    "artifact_name": "qore-cibo-provider-economics-6dc4a22dac0a54368917bb9308d04dd83eec079f",
-    "artifact_digest": "sha256:acd5b0d27a80657336e83455b680a4df2f8008fd3cc96d35a21e9c10db6bc3ce"
+    "artifact_name": "qore-cibo-provider-economics-9e2301edf7bbdf141050965c252b51697a3a94db",
+    "artifact_digest": "sha256:dc9bb7a969c12fabfca4ce7ea1ca1c015298b8f3817035d39ed24597d993fa02"
   },
   "sealed_files": {
-    "provider-economics.json": "sha256:a7abbd70ab6cc6319e8e7216898b52c26aa24dddd04ee58f738792d623a2a8fc",
-    "account-capability.json": "sha256:bdffd1aae40d46b9d138acc03a8f82dc8639a6211db1a54804634a3a992f8f95",
-    "t17-limited-risk-capability.json": "sha256:2d86d70a028803abc51efcaa8aa18016b5228e2111836eec37c4b7d8f8e4f160"
+    "provider-economics.json": "sha256:2e8a4d0d4bfaf1d1cef9d62ce45aca96ec25fd78a9a25137ef1bc7f980f405c6",
+    "account-capability.json": "sha256:32c266d3ed2c07eb65588b3636e017d40e81b6a02f0e9a508e7f83afc57d2778",
+    "t17-limited-risk-capability.json": "sha256:2d86d70a028803abc51efcaa8aa18016b5228e2111836eec37c4b7d8f8e4f160",
+    "t17-structural-disable.json": "sha256:3c91451eaca3dbbdf745bd79ce626551b630cb39a683d680c000c84c9ddbb442"
   },
   "provider_terms": {
     "provider_key": "ctrader-demo",

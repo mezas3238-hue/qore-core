@@ -23,6 +23,8 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_readiness import (
 )
 from qore.infrastructure.cibo_ce2i_phase20_t08_oos_ablation import (
     T08NettingOosAblationReport,
+    T08NettingShadowEpoch,
+    assess_t08_fresh_oos_netting_ablation,
 )
 from qore.infrastructure.cibo_ce2i_phase20_t09_t18_scarcity_readiness import (
     Phase20T09T18ScarcityReadiness,
@@ -239,31 +241,30 @@ def test_t13_becomes_collecting_when_prior_causal_history_is_reconstructible() -
     )
 
 def _t08_oos_report(*, ready: bool) -> T08NettingOosAblationReport:
-    return T08NettingOosAblationReport(
-        sample_size=32,
-        minimum_epochs=30,
-        required_folds=4,
-        folds=(),
-        baseline_selected_count=32,
-        treatment_selected_count=64 if ready else 32,
-        incremental_selected_count=32 if ready else 0,
-        baseline_total_pnl_usd=Decimal("10"),
-        treatment_total_pnl_usd=Decimal("12") if ready else Decimal("10"),
-        baseline_max_drawdown_usd=Decimal("4"),
-        treatment_max_drawdown_usd=Decimal("3") if ready else Decimal("4"),
-        mapping_evidence_bound=True,
-        correlation_evidence_bound=True,
-        pathwise_authorization_respected=True,
-        fresh_oos_utility_demonstrated=ready,
-        risk_mapping_verified=False,
-        correlation_state_verified=False,
-        netting_credit_authorized=False,
-        blockers=(
-            ("SIGNED_FACTOR_RISK_MAP_REQUIRES_INDEPENDENT_CERTIFICATION",)
-            if ready
-            else ("FRESH_OOS_NETTING_UTILITY_NOT_DEMONSTRATED",)
-        ),
+    epochs = tuple(
+        T08NettingShadowEpoch(
+            epoch_id=f"t08-readiness-{index}",
+            decision_at=BASE + timedelta(minutes=5 * index),
+            shadow_sealed_at=BASE + timedelta(minutes=5 * index, milliseconds=10),
+            outcome_observed_at=BASE + timedelta(minutes=5 * index, hours=1),
+            baseline_selected_count=1,
+            treatment_selected_count=2 if ready else 1,
+            baseline_realized_net_pnl_usd=Decimal("1"),
+            treatment_realized_net_pnl_usd=(
+                Decimal("1.2") if ready else Decimal("1")
+            ),
+            baseline_peak_loss_usd=Decimal("5"),
+            treatment_peak_loss_usd=Decimal("4"),
+            treatment_gross_stop_risk_usd=Decimal("10"),
+            treatment_netted_risk_usd=Decimal("8"),
+            netting_credit_usd=Decimal("2"),
+            risk_mapping_evidence_id=f"risk-map:{index}",
+            correlation_evidence_id=f"corr:{index}",
+            outcome_evidence_ids=(f"outcome:{index}",),
+        )
+        for index in range(32)
     )
+    return assess_t08_fresh_oos_netting_ablation(epochs)
 
 
 def _t13_population() -> Phase20T13ReservePopulationAudit:

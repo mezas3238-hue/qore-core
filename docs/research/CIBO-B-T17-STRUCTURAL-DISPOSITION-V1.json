@@ -1,7 +1,7 @@
 {
   "schema": "CIBO_B_T17_STRUCTURAL_DISPOSITION_V1",
-  "source_head": "6dc4a22dac0a54368917bb9308d04dd83eec079f",
-  "observed_at_utc": "2026-10-01T02:44:41.309826+00:00",
+  "source_head": "9e2301edf7bbdf141050965c252b51697a3a94db",
+  "observed_at_utc": "2026-10-01T03:39:04.840136+00:00",
   "scope": {
     "tool_code": "T17",
     "description": "Convex / limited-downside exposure",
@@ -12,7 +12,7 @@
   },
   "ctrader_demo": {
     "evidence_ref": "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-EVIDENCE-2026-10-01.json",
-    "workflow_run_id": 36806511867,
+    "workflow_run_id": 36810489106,
     "taxonomy_binding_complete": true,
     "symbol_count": 352,
     "option_taxonomy_candidates": [],
@@ -30,7 +30,9 @@
     ],
     "limited_risk_candidate_identified": false,
     "option_structure_proven": false,
-    "defined_risk_spread_proven": false
+    "defined_risk_spread_proven": false,
+    "structural_disable_evidence_sha256": "sha256:a500c9c4e1aa2d2c9cd6a67dddaa6e3fbb62c6c94a411e785dc30088bfeeadb0",
+    "structural_disable_payload_sha256": "sha256:3c91451eaca3dbbdf745bd79ce626551b630cb39a683d680c000c84c9ddbb442"
   },
   "fundednext_stellar_instant_cfd": {
     "evidence_type": "OFFICIAL_PROVIDER_POLICY",

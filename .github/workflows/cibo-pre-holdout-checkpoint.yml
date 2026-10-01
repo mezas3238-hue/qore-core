@@ -5,7 +5,6 @@ on:
     branches:
       - agent/cibo-capital-efficiency-sizing-lab-001
       - agent/cibo-certification-architect-b-integration-001
-      - agent/cibo-integrator-ab-001
     paths:
       - '.github/workflows/cibo-pre-holdout-checkpoint.yml'
       - 'scripts/cibo_pre_holdout_checkpoint.py'
@@ -47,6 +46,10 @@ on:
       - 'tests/infrastructure/test_cibo_crossboundary_evidence_receipt.py'
       - 'src/qore/infrastructure/cibo_ce2i_holdout_registry.py'
       - 'src/qore/infrastructure/cibo_ce2i_usd60_six_month_certification.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py'
   workflow_dispatch:
 
 permissions:

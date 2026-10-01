@@ -262,13 +262,17 @@ def validate_child_delta_accounting(
         ):
             errors.append(f"child delta {accounting_key} counts invalid")
             continue
-        exclusions = (
-            arow.get("deliberate_overrides", [])
-            if accounting_key == "architect_a"
-            else arow.get("deliberate_noncanonical_snapshots", [])
-        )
-        if not isinstance(exclusions, list):
-            errors.append(f"child delta {accounting_key} exclusions invalid")
+        overrides = arow.get("deliberate_overrides", [])
+        noncanonical = arow.get("deliberate_noncanonical_snapshots", [])
+        for label, values in (
+            ("overrides", overrides),
+            ("noncanonical snapshots", noncanonical),
+        ):
+            if not isinstance(values, list):
+                errors.append(
+                    f"child delta {accounting_key} {label} invalid"
+                )
+        if not isinstance(overrides, list) or not isinstance(noncanonical, list):
             continue
         unaccounted = arow.get("unaccounted_files")
         if not isinstance(unaccounted, list):
@@ -276,7 +280,7 @@ def validate_child_delta_accounting(
             continue
         if unaccounted:
             errors.append(f"child delta {accounting_key} has unaccounted files")
-        if present + len(exclusions) != changed:
+        if present + len(overrides) + len(noncanonical) != changed:
             errors.append(f"child delta {accounting_key} accounting count drift")
 
     return errors

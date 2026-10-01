@@ -273,3 +273,14 @@ def test_child_delta_accounting_rejects_count_drift() -> None:
     errors = gate.validate_child_delta_accounting(matrix, accounting)
 
     assert "child delta architect_a accounting count drift" in errors
+
+
+def test_child_delta_accounting_accepts_b_override_and_noncanonical() -> None:
+    matrix, _ledger = _state()
+    accounting = _child_accounting(matrix)
+    accounting["architect_b"]["changed_files"] = 3
+    accounting["architect_b"]["deliberate_overrides"] = [
+        {"path": "b-canonical-override.py"}
+    ]
+
+    assert gate.validate_child_delta_accounting(matrix, accounting) == []
