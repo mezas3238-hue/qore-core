@@ -40,9 +40,38 @@ def _sha(label: str) -> str:
     return "sha256:" + sha256(label.encode("utf-8")).hexdigest()
 
 
+def _capital_truth_artifact() -> str:
+    payload = {
+        "binding_id": "CIBO_INTEGRATED_CAPITAL_FORWARD_POPULATION_BINDING_V1",
+        "manifest_sha256": _sha("forward-manifest"),
+        "manifest_rows": 100,
+        "compound_settlements": 100,
+        "manifest_positive_profit_usd": "12.00",
+        "compound_positive_profit_usd": "12.00",
+        "manifest_scientifically_ready": True,
+        "account_scope_match": True,
+        "settlement_population_exact": True,
+        "positive_profit_reconciliation_match": True,
+        "integrated_capital_truth_pass": True,
+        "ready_for_scientific_consumption": True,
+        "blockers": [],
+        "source_ledger_sha256": _sha("source-ledger"),
+        "compound_cycle_state_sha256": _sha("compound-cycle"),
+        "runtime_authority": False,
+        "sizing_authority": False,
+        "risk_authority": False,
+        "execution_authority": False,
+    }
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+
 def _chain():
     phase21 = _FIXTURE._phase21_manifest()
     phase22 = _FIXTURE._receipt(phase21_sha=phase21.manifest_sha256())
+    capital_truth_artifact = _capital_truth_artifact()
+    capital_truth_sha256 = "sha256:" + sha256(
+        capital_truth_artifact.encode("utf-8")
+    ).hexdigest()
     refs = []
     for name in PHASE22_V2_REQUIRED_RECEIPTS:
         if name == "qualification_report_sha256":
@@ -51,6 +80,8 @@ def _chain():
             value = phase22.holdout_evidence_store_sha256
         elif name == "holdout_policy_store_sha256":
             value = phase22.holdout_policy_store_sha256
+        elif name == "integrated_capital_truth_sha256":
+            value = capital_truth_sha256
         else:
             value = _sha(name)
         refs.append((name, value))
@@ -97,7 +128,7 @@ def _chain():
         compound_closure_terminal=True,
         blockers=(),
     )
-    return phase22, intake, mechanism, compound
+    return phase22, intake, mechanism, compound, capital_truth_artifact
 
 
 def test_authority_contract_is_code_derived_and_trader_volume_free() -> None:
@@ -113,13 +144,14 @@ def test_authority_contract_is_code_derived_and_trader_volume_free() -> None:
 
 
 def test_arch_a_derives_e1_e6_e10_from_exact_phase22_chain() -> None:
-    phase22, intake, mechanism, compound = _chain()
+    phase22, intake, mechanism, compound, capital_truth_artifact = _chain()
     receipts = build_architect_a_final_exam_system_controls(
         integrated_git_sha="a" * 40,
         phase22_receipt=phase22,
         intake=intake,
         mechanism=mechanism,
         compound_closure=compound,
+        integrated_capital_truth_artifact_json=capital_truth_artifact,
         observed_at=phase22.qualified_at + timedelta(minutes=1),
     )
     assert tuple(item.receipt_id for item in receipts) == (
@@ -134,7 +166,7 @@ def test_arch_a_derives_e1_e6_e10_from_exact_phase22_chain() -> None:
 
 
 def test_arch_a_system_controls_reject_phase22_store_drift() -> None:
-    phase22, intake, mechanism, compound = _chain()
+    phase22, intake, mechanism, compound, capital_truth_artifact = _chain()
     intake = replace(
         intake,
         receipt_refs=tuple(
@@ -162,7 +194,7 @@ def test_arch_a_system_controls_reject_phase22_store_drift() -> None:
 
 
 def test_arch_a_system_controls_require_strict_temporal_evidence() -> None:
-    phase22, intake, mechanism, compound = _chain()
+    phase22, intake, mechanism, compound, capital_truth_artifact = _chain()
     evidence_refs = tuple(
         item
         for item in mechanism.evidence_refs
@@ -196,7 +228,7 @@ def test_arch_a_system_controls_require_strict_temporal_evidence() -> None:
 
 
 def test_arch_a_system_controls_require_proven_compound() -> None:
-    phase22, intake, mechanism, compound = _chain()
+    phase22, intake, mechanism, compound, capital_truth_artifact = _chain()
     compound = replace(
         compound,
         missing_or_nonproven_ids=("GEN-C9",),
@@ -213,5 +245,63 @@ def test_arch_a_system_controls_require_proven_compound() -> None:
             intake=intake,
             mechanism=mechanism,
             compound_closure=compound,
+            observed_at=phase22.qualified_at + timedelta(minutes=1),
+        )
+
+
+def test_arch_a_system_controls_reject_capital_truth_artifact_drift() -> None:
+    phase22, intake, mechanism, compound, capital_truth_artifact = _chain()
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="Integrated Capital Truth digest drift",
+    ):
+        build_architect_a_final_exam_system_controls(
+            integrated_git_sha="a" * 40,
+            phase22_receipt=phase22,
+            intake=intake,
+            mechanism=mechanism,
+            compound_closure=compound,
+            integrated_capital_truth_artifact_json=(
+                capital_truth_artifact + " "
+            ),
+            observed_at=phase22.qualified_at + timedelta(minutes=1),
+        )
+
+
+def test_arch_a_system_controls_reject_failed_capital_truth_gate() -> None:
+    phase22, intake, mechanism, compound, capital_truth_artifact = _chain()
+    payload = json.loads(capital_truth_artifact)
+    payload["settlement_population_exact"] = False
+    payload["ready_for_scientific_consumption"] = False
+    payload["blockers"] = ["POPULATION_MISMATCH"]
+    bad_artifact = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    bad_sha = "sha256:" + sha256(bad_artifact.encode("utf-8")).hexdigest()
+    intake = replace(
+        intake,
+        receipt_refs=tuple(
+            (
+                name,
+                bad_sha
+                if name == "integrated_capital_truth_sha256"
+                else digest,
+            )
+            for name, digest in intake.receipt_refs
+        ),
+    )
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="gate failed: settlement_population_exact",
+    ):
+        build_architect_a_final_exam_system_controls(
+            integrated_git_sha="a" * 40,
+            phase22_receipt=phase22,
+            intake=intake,
+            mechanism=mechanism,
+            compound_closure=compound,
+            integrated_capital_truth_artifact_json=bad_artifact,
             observed_at=phase22.qualified_at + timedelta(minutes=1),
         )

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import fields
 from datetime import datetime
 from typing import Any
@@ -29,6 +30,10 @@ from qore.infrastructure.cibo_final_exam_control_receipt import (
 _EVIDENCE_KIND = "FINAL_INTEGRATED_EXAM_CONTROL"
 _SCHEMA = "qore.cibo.arch-a.final-system-control.v1"
 _STRICT_TEMPORAL_KIND = "STRICT_TEMPORAL_POPULATION_LINEAGE"
+_CAPITAL_TRUTH_BINDING_ID = (
+    "CIBO_INTEGRATED_CAPITAL_FORWARD_POPULATION_BINDING_V1"
+)
+_SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _FORBIDDEN_TRADER_SIZING_FIELDS = (
     "volume",
     "lots",
@@ -106,6 +111,71 @@ def _mechanism_ref(
     return value
 
 
+
+def _validate_capital_truth_artifact(
+    *,
+    artifact_json: str,
+    expected_sha256: str,
+) -> dict[str, Any]:
+    actual_sha256 = "sha256:" + hashlib.sha256(
+        artifact_json.encode("utf-8")
+    ).hexdigest()
+    if actual_sha256 != expected_sha256:
+        raise CiboCapitalManagementError(
+            "A final system controls Integrated Capital Truth digest drift"
+        )
+    try:
+        payload = json.loads(artifact_json)
+    except json.JSONDecodeError as error:
+        raise CiboCapitalManagementError(
+            "A final system controls Integrated Capital Truth invalid JSON"
+        ) from error
+    if not isinstance(payload, dict):
+        raise CiboCapitalManagementError(
+            "A final system controls Integrated Capital Truth must be object"
+        )
+    if payload.get("binding_id") != _CAPITAL_TRUTH_BINDING_ID:
+        raise CiboCapitalManagementError(
+            "A final system controls Integrated Capital Truth identity drift"
+        )
+    for field in (
+        "manifest_scientifically_ready",
+        "account_scope_match",
+        "settlement_population_exact",
+        "positive_profit_reconciliation_match",
+        "integrated_capital_truth_pass",
+        "ready_for_scientific_consumption",
+    ):
+        if payload.get(field) is not True:
+            raise CiboCapitalManagementError(
+                "A final system controls Integrated Capital Truth gate failed: "
+                + field
+            )
+    if payload.get("blockers") not in ([], ()):
+        raise CiboCapitalManagementError(
+            "A final system controls Integrated Capital Truth retains blockers"
+        )
+    for field in ("source_ledger_sha256", "compound_cycle_state_sha256"):
+        value = payload.get(field)
+        if not isinstance(value, str) or _SHA256_RE.fullmatch(value) is None:
+            raise CiboCapitalManagementError(
+                "A final system controls Integrated Capital Truth missing ref: "
+                + field
+            )
+    for field in (
+        "runtime_authority",
+        "sizing_authority",
+        "risk_authority",
+        "execution_authority",
+    ):
+        if payload.get(field) is not False:
+            raise CiboCapitalManagementError(
+                "A final system controls Integrated Capital Truth authority drift: "
+                + field
+            )
+    return payload
+
+
 def _artifact_json(
     *,
     assertion_id: str,
@@ -149,6 +219,7 @@ def build_architect_a_final_exam_system_controls(
     intake: ArchitectAPhase22V2ScientificIntakeReport,
     mechanism: ArchitectAPhase22V2MechanismEvidenceReceipt,
     compound_closure: ArchitectAPhase22V2CompoundClosureReceipt,
+    integrated_capital_truth_artifact_json: str,
     observed_at: datetime,
 ) -> tuple[CiboFinalExamControlReceipt, ...]:
     if not isinstance(phase22_receipt, Phase22QualificationReceipt):
@@ -224,6 +295,10 @@ def build_architect_a_final_exam_system_controls(
             "A final system controls Phase22 store lineage drift"
         )
 
+    capital_truth = _validate_capital_truth_artifact(
+        artifact_json=integrated_capital_truth_artifact_json,
+        expected_sha256=refs["integrated_capital_truth_sha256"],
+    )
     strict_temporal_sha = _mechanism_ref(mechanism, _STRICT_TEMPORAL_KIND)
     authority_sha = authority_boundary_contract_sha256()
     risk_decisions = tuple(item.value for item in RiskDecision)
@@ -252,8 +327,21 @@ def build_architect_a_final_exam_system_controls(
                 "cma_settlement_store_sha256": refs["cma_settlement_store_sha256"],
                 "t20_release_store_sha256": refs["t20_release_store_sha256"],
                 "compound_closure_sha256": compound_closure.fingerprint(),
+                "source_ledger_sha256": capital_truth["source_ledger_sha256"],
+                "compound_cycle_state_sha256": capital_truth[
+                    "compound_cycle_state_sha256"
+                ],
             },
             {
+                "settlement_population_exact": capital_truth[
+                    "settlement_population_exact"
+                ],
+                "positive_profit_reconciliation_match": capital_truth[
+                    "positive_profit_reconciliation_match"
+                ],
+                "integrated_capital_truth_pass": capital_truth[
+                    "integrated_capital_truth_pass"
+                ],
                 "accounting_residual_required": "0",
                 "double_spend_allowed": False,
                 "phantom_capital_allowed": False,
@@ -267,8 +355,18 @@ def build_architect_a_final_exam_system_controls(
                 ],
                 "cma_settlement_store_sha256": refs["cma_settlement_store_sha256"],
                 "t20_release_store_sha256": refs["t20_release_store_sha256"],
+                "source_ledger_sha256": capital_truth["source_ledger_sha256"],
+                "compound_cycle_state_sha256": capital_truth[
+                    "compound_cycle_state_sha256"
+                ],
             },
             {
+                "settlement_population_exact": capital_truth[
+                    "settlement_population_exact"
+                ],
+                "integrated_capital_truth_pass": capital_truth[
+                    "integrated_capital_truth_pass"
+                ],
                 "floating_pnl_is_cash": False,
                 "loss_recovery_sizing_allowed": False,
                 "release_before_reuse_required": True,
