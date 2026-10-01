@@ -38,6 +38,12 @@ class DemoTradeRegistryEntry:
     margin_per_volume: str | None = None
     requested_at: str | None = None
     authorized_source_volume: str | None = None
+    risk_authorization_id: str | None = None
+    risk_authorization_fingerprint: str | None = None
+    risk_decision: str | None = None
+    risk_authorized_at: str | None = None
+    risk_authorized_margin_usd: str | None = None
+    risk_authorized_stop_risk_usd: str | None = None
     minimum_volume_uplifted: bool | None = None
     source_contract_size_units: str | None = None
     ctrader_lot_size_units: str | None = None
@@ -71,6 +77,16 @@ class DemoTradeRegistryEntry:
             "margin_per_volume": self.margin_per_volume,
             "requested_at": self.requested_at,
             "authorized_source_volume": self.authorized_source_volume,
+            "risk_authorization_id": self.risk_authorization_id,
+            "risk_authorization_fingerprint": (
+                self.risk_authorization_fingerprint
+            ),
+            "risk_decision": self.risk_decision,
+            "risk_authorized_at": self.risk_authorized_at,
+            "risk_authorized_margin_usd": self.risk_authorized_margin_usd,
+            "risk_authorized_stop_risk_usd": (
+                self.risk_authorized_stop_risk_usd
+            ),
             "minimum_volume_uplifted": self.minimum_volume_uplifted,
             "source_contract_size_units": self.source_contract_size_units,
             "ctrader_lot_size_units": self.ctrader_lot_size_units,
@@ -420,6 +436,36 @@ def _entry_from_json(value: object) -> DemoTradeRegistryEntry:
             None
             if value.get("authorized_source_volume") is None
             else str(value["authorized_source_volume"])
+        ),
+        risk_authorization_id=(
+            None
+            if value.get("risk_authorization_id") is None
+            else str(value["risk_authorization_id"])
+        ),
+        risk_authorization_fingerprint=(
+            None
+            if value.get("risk_authorization_fingerprint") is None
+            else str(value["risk_authorization_fingerprint"])
+        ),
+        risk_decision=(
+            None
+            if value.get("risk_decision") is None
+            else str(value["risk_decision"])
+        ),
+        risk_authorized_at=(
+            None
+            if value.get("risk_authorized_at") is None
+            else str(value["risk_authorized_at"])
+        ),
+        risk_authorized_margin_usd=(
+            None
+            if value.get("risk_authorized_margin_usd") is None
+            else str(value["risk_authorized_margin_usd"])
+        ),
+        risk_authorized_stop_risk_usd=(
+            None
+            if value.get("risk_authorized_stop_risk_usd") is None
+            else str(value["risk_authorized_stop_risk_usd"])
         ),
         minimum_volume_uplifted=(
             None

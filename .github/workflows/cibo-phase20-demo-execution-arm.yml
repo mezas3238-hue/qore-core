@@ -7,6 +7,11 @@ on:
       - 'scripts/qore_ctrader_demo_free_runtime.py'
       - 'src/qore/infrastructure/cibo_phase20_bounded_runtime.py'
       - 'tests/infrastructure/test_cibo_phase20_bounded_runtime.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_demo_risk_bridge.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_demo_risk_bridge.py'
+      - 'tests/infrastructure/test_ctrader_demo_phase20_risk_sink.py'
+      - 'src/qore/infrastructure/ctrader_demo_free_sink.py'
+      - 'src/qore/infrastructure/ctrader_demo_trade_registry.py'
   push:
     branches:
       - agent/cibo-capital-efficiency-sizing-lab-001
@@ -40,15 +45,26 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/cibo_phase20_bounded_runtime.py \
-            tests/infrastructure/test_cibo_phase20_bounded_runtime.py
+            tests/infrastructure/test_cibo_phase20_bounded_runtime.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_risk_bridge.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_risk_bridge.py \
+            tests/infrastructure/test_ctrader_demo_phase20_risk_sink.py
+          ruff check --select F \
+            src/qore/infrastructure/ctrader_demo_free_sink.py \
+            src/qore/infrastructure/ctrader_demo_trade_registry.py
           mypy \
             src/qore/infrastructure/cibo_phase20_bounded_runtime.py \
-            tests/infrastructure/test_cibo_phase20_bounded_runtime.py
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_risk_bridge.py
           python -m py_compile \
             src/qore/infrastructure/cibo_phase20_bounded_runtime.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_risk_bridge.py \
+            src/qore/infrastructure/ctrader_demo_free_sink.py \
+            src/qore/infrastructure/ctrader_demo_trade_registry.py \
             scripts/qore_ctrader_demo_free_runtime.py
           pytest -q --no-cov \
-            tests/infrastructure/test_cibo_phase20_bounded_runtime.py
+            tests/infrastructure/test_cibo_phase20_bounded_runtime.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_risk_bridge.py \
+            tests/infrastructure/test_ctrader_demo_phase20_risk_sink.py
 
   arm:
     if: github.event_name != 'pull_request'
