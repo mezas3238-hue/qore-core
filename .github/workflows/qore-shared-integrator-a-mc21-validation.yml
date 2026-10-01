@@ -7,7 +7,6 @@ on:
   pull_request:
     paths:
       - "src/qore/infrastructure/core_stack_v2/scientific_society.py"
-      - "src/qore/infrastructure/core_stack_v2/shared_zero_open_work.py"
       - "tests/infrastructure/test_core_stack_v2_scientific_society.py"
       - "scripts/shared_mc21_real_engine_society_cycle.py"
       - "scripts/shared_mc21_scientific_society_audit.py"
