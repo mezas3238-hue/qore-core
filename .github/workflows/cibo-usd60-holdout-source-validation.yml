@@ -121,10 +121,13 @@ jobs:
           mkdir -p holdout-source/raw
           declare -A ids=(
             [audjpy]=10476530915
+            [audusd]=10475697610
             [eurusd]=10475354631
             [gbpjpy]=10475453293
             [gbpusd]=10475449182
             [nas100]=10476153072
+            [usdcad]=10475972108
+            [usdjpy]=10475389415
             [xauusd]=10476557530
           )
           for symbol in "${!ids[@]}"; do
@@ -140,10 +143,13 @@ jobs:
         run: |
           python scripts/cibo_usd60_holdout_source_validation.py \
             --audjpy holdout-source/raw/audjpy.zip \
+            --audusd holdout-source/raw/audusd.zip \
             --eurusd holdout-source/raw/eurusd.zip \
             --gbpjpy holdout-source/raw/gbpjpy.zip \
             --gbpusd holdout-source/raw/gbpusd.zip \
             --nas100 holdout-source/raw/nas100.zip \
+            --usdcad holdout-source/raw/usdcad.zip \
+            --usdjpy holdout-source/raw/usdjpy.zip \
             --xauusd holdout-source/raw/xauusd.zip \
             --output holdout-source/holdout-source-validation.json \
             > holdout-source/holdout-source-validation.stdout.json
@@ -170,8 +176,9 @@ jobs:
               "MARKET_SOURCE_READY_PROVIDER_ECONOMICS_PENDING"
           )
           assert set(payload["symbols"]) == {
-              "AUDJPY", "EURUSD", "GBPJPY",
-              "GBPUSD", "NAS100", "XAUUSD",
+              "AUDJPY", "AUDUSD", "EURUSD", "GBPJPY",
+              "GBPUSD", "NAS100", "USDCAD", "USDJPY",
+              "XAUUSD",
           }
           PY
 

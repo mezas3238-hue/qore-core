@@ -26,10 +26,13 @@ from qore.infrastructure.cibo_ce2i_pre_holdout_freeze import (
 
 _REQUIRED = {
     "AUDJPY": 10476530915,
+    "AUDUSD": 10475697610,
     "EURUSD": 10475354631,
     "GBPJPY": 10475453293,
     "GBPUSD": 10475449182,
     "NAS100": 10476153072,
+    "USDCAD": 10475972108,
+    "USDJPY": 10475389415,
     "XAUUSD": 10476557530,
 }
 _HOLDOUT_START = datetime(2017, 1, 1, tzinfo=UTC)
@@ -148,7 +151,9 @@ def validate_artifact(path: Path, *, artifact_id: int) -> BlindMarketSourceValid
 def report(validations: tuple[BlindMarketSourceValidation, ...]) -> dict[str, object]:
     by_symbol = {item.symbol: item for item in validations}
     if tuple(sorted(by_symbol)) != tuple(sorted(_REQUIRED)):
-        raise CiboCapitalManagementError("six-symbol source set is incomplete")
+        raise CiboCapitalManagementError(
+            "preregistered holdout source set is incomplete"
+        )
     candidate = PREREGISTERED_USD60_HOLDOUT
     if candidate.start_at != _HOLDOUT_START or candidate.end_exclusive_at != _HOLDOUT_END:
         raise CiboCapitalManagementError("holdout preregistration drift")
