@@ -216,7 +216,7 @@ def evaluate_a1_strict_temporal_population_lineage(
             "A1 temporal lineage requires four distinct populations"
         )
 
-    for previous, current in zip(folds, folds[1:], strict=True):
+    for previous, current in zip(folds[:-1], folds[1:], strict=True):
         if previous.decision_end_at > current.decision_start_at:
             raise CiboCapitalManagementError(
                 "A1 temporal lineage fold decision windows overlap"
