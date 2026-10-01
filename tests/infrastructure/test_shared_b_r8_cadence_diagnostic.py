@@ -28,8 +28,6 @@ def _write_shard(
     path = root / symbol / "data" / rel
     path.parent.mkdir(parents=True, exist_ok=True)
     record: dict[str, object] = {
-        "provider_symbol": symbol,
-        "provider_symbol_id": symbol_id,
         "quote_side": side,
         "window_index": window,
         "page_index": 0,
@@ -38,16 +36,23 @@ def _write_shard(
         "content_sha256": f"content-{symbol}-{side}-{window}",
         "relative_path": rel,
     }
-    header = {"header": {key: record[key] for key in (
-        "provider_symbol",
-        "provider_symbol_id",
-        "quote_side",
-        "window_index",
-        "page_index",
-        "tick_count",
-        "provenance_sha256",
-        "content_sha256",
-    )}}
+    header = {
+        "header": {
+            "provider_symbol": symbol,
+            "provider_symbol_id": symbol_id,
+            **{
+                key: record[key]
+                for key in (
+                    "quote_side",
+                    "window_index",
+                    "page_index",
+                    "tick_count",
+                    "provenance_sha256",
+                    "content_sha256",
+                )
+            },
+        }
+    }
     with gzip.open(path, "wt", encoding="utf-8") as handle:
         handle.write(json.dumps(header) + "\n")
         for index, timestamp in enumerate(times):
@@ -109,9 +114,23 @@ def _fixture(root: Path) -> dict[str, object]:
 
 
 def test_reducer_is_descriptive_and_fail_closed(tmp_path: Path) -> None:
+    manifest = _fixture(tmp_path)
+    reports = manifest["candidate_reports"]
+    assert isinstance(reports, list)
+    for report in reports:
+        assert isinstance(report, dict)
+        records = report["records"]
+        assert isinstance(records, list)
+        assert all(
+            "provider_symbol" not in record
+            and "provider_symbol_id" not in record
+            for record in records
+            if isinstance(record, dict)
+        )
+
     payload = build_r8_empirical_cadence_diagnostic(
         raw_root=tmp_path,
-        raw_manifest=_fixture(tmp_path),
+        raw_manifest=manifest,
     )
     assert payload["sensor_count"] == 3
     assert payload["sensor_side_count"] == 6

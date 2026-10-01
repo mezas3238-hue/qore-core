@@ -222,8 +222,13 @@ def build_r8_empirical_cadence_diagnostic(
                     "relative shard path missing"
                 )
             shard = raw_root / symbol / "data" / relative
+            expected_shard = {
+                **record,
+                "provider_symbol": symbol,
+                "provider_symbol_id": symbol_id,
+            }
             grouped[(side, window)].extend(
-                _event_times(shard, record)
+                _event_times(shard, expected_shard)
             )
 
         for side in ("bid", "ask"):
