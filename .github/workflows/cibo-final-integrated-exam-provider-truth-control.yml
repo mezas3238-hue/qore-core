@@ -1,0 +1,36 @@
+name: QORE CIBO Final Integrated Exam Provider Truth Control
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-final-integrated-exam-provider-truth-control.yml'
+      - 'src/qore/infrastructure/cibo_final_integrated_exam_provider_truth_control.py'
+      - 'tests/infrastructure/test_cibo_final_integrated_exam_provider_truth_control.py'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  provider-truth-control:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: E4 provider truth contract
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_final_integrated_exam_provider_truth_control.py \
+            tests/infrastructure/test_cibo_final_integrated_exam_provider_truth_control.py
+          mypy \
+            src/qore/infrastructure/cibo_final_integrated_exam_provider_truth_control.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_final_integrated_exam_provider_truth_control.py
