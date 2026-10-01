@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Protocol, cast, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
@@ -33,9 +33,14 @@ class Phase20QualificationOutcome(Protocol):
 
 @runtime_checkable
 class Phase20QualificationEvidenceBook(Protocol):
-    generation: int
-    decisions: tuple[Phase20ForwardDecisionSeal, ...]
-    outcomes: tuple[Phase20QualificationOutcome, ...]
+    @property
+    def generation(self) -> int: ...
+
+    @property
+    def decisions(self) -> tuple[Phase20ForwardDecisionSeal, ...]: ...
+
+    @property
+    def outcomes(self) -> tuple[Phase20QualificationOutcome, ...]: ...
 
 
 def require_qualification_evidence_book(
@@ -107,4 +112,4 @@ def require_qualification_evidence_book(
             raise CiboCapitalManagementError(
                 f"{context} outcome must follow decision"
             )
-    return cast(Phase20QualificationEvidenceBook, value)
+    return value
