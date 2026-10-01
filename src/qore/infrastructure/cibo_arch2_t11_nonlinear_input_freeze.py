@@ -22,8 +22,6 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from decimal import Decimal
-
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
