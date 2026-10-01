@@ -83,7 +83,6 @@ def _genc3_to6_observations(
     }[workstream]
     for fold in manifest.folds:
         common = {
-            "workstream": workstream,
             "fold_id": fold.fold_id,
             "population_sha256": fold.population_sha256,
             "provider_surface_sha256": _sha("provider"),
