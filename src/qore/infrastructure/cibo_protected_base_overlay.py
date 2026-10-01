@@ -202,6 +202,13 @@ class ProtectedBaseSnapshot:
                     "policy-protected base requires policy evidence"
                 )
             _sha(self.policy_sha256, "policy_sha256")
+            if (
+                self.broker_guarantee_evidence_sha256 is not None
+                or self.provider_guaranteed
+            ):
+                raise CiboCapitalManagementError(
+                    "policy-protected base cannot claim broker guarantee"
+                )
         elif self.protection_class is ProtectedBaseClass.BROKER_GUARANTEED:
             if (
                 not self.policy_id
