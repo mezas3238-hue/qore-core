@@ -151,6 +151,13 @@ class Genc14CapitalHypothesis:
                 "GEN-C14 candidate must have distinct semantic identity"
             )
         _aware(self.created_at, "created_at")
+        if self.protected_holdout_ref is not None and (
+            not isinstance(self.protected_holdout_ref, str)
+            or not self.protected_holdout_ref.strip()
+        ):
+            raise CiboCapitalManagementError(
+                "GEN-C14 protected holdout ref must be non-empty when declared"
+            )
         for name in (
             "outcome_selected",
             "world_cup_target_fitted",
@@ -492,6 +499,14 @@ def advance_genc14_science(
     }:
         raise CiboCapitalManagementError(
             "GEN-C14 evidence cannot be reused"
+        )
+    if (
+        evidence.kind is Genc14EvidenceKind.OOS
+        and evidence.protected_holdout_used
+        and record.hypothesis.protected_holdout_ref is None
+    ):
+        raise CiboCapitalManagementError(
+            "GEN-C14 OOS cannot consume an unpreregistered protected holdout"
         )
 
     evidence_rows = record.evidence + (evidence,)
