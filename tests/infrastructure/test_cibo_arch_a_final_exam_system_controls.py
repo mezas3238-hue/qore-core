@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from dataclasses import fields, replace
 from datetime import timedelta
 from hashlib import sha256
@@ -13,6 +14,8 @@ from qore.infrastructure.cibo_arch_a_final_exam_system_controls import (
     build_architect_a_final_exam_system_controls,
 )
 from qore.infrastructure.cibo_arch_a_internal_readiness import (
+    _COMPOUND_P8_REQUIRED_PROVEN_IDS,
+    _REQUIRED_MECHANISM_EVIDENCE_KINDS,
     PHASE22_V2_INTAKE_SCHEMA,
     PHASE22_V2_MECHANISM_EVIDENCE_SCHEMA,
     PHASE22_V2_REQUIRED_FOLDS,
@@ -21,8 +24,6 @@ from qore.infrastructure.cibo_arch_a_internal_readiness import (
     ArchitectAPhase22V2CompoundClosureReceipt,
     ArchitectAPhase22V2MechanismEvidenceReceipt,
     ArchitectAPhase22V2ScientificIntakeReport,
-    _COMPOUND_P8_REQUIRED_PROVEN_IDS,
-    _REQUIRED_MECHANISM_EVIDENCE_KINDS,
 )
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
@@ -189,6 +190,7 @@ def test_arch_a_system_controls_reject_phase22_store_drift() -> None:
             intake=intake,
             mechanism=mechanism,
             compound_closure=compound,
+            integrated_capital_truth_artifact_json=capital_truth_artifact,
             observed_at=phase22.qualified_at + timedelta(minutes=1),
         )
 
@@ -223,6 +225,7 @@ def test_arch_a_system_controls_require_strict_temporal_evidence() -> None:
             intake=intake,
             mechanism=mechanism,
             compound_closure=compound,
+            integrated_capital_truth_artifact_json=capital_truth_artifact,
             observed_at=phase22.qualified_at + timedelta(minutes=1),
         )
 
@@ -245,6 +248,7 @@ def test_arch_a_system_controls_require_proven_compound() -> None:
             intake=intake,
             mechanism=mechanism,
             compound_closure=compound,
+            integrated_capital_truth_artifact_json=capital_truth_artifact,
             observed_at=phase22.qualified_at + timedelta(minutes=1),
         )
 
