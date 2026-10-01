@@ -14,12 +14,12 @@ import json
 from dataclasses import asdict, dataclass
 
 from qore.infrastructure.cibo_arch_a_internal_readiness import (
+    _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM,
     PHASE22_V2_SCIENTIFIC_DISPOSITION_SCHEMA,
     ArchitectAPhase22V2ScientificDispositionReceipt,
     ArchitectAPhase22V2WorkstreamEvidenceMatrix,
     ArchitectAPhase22V2WorkstreamEvidenceState,
     ArchitectAReadinessError,
-    _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM,
 )
 
 A2_WORKSTREAM_IDS = (
