@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import fields, is_dataclass, dataclass
+from dataclasses import dataclass, fields, is_dataclass
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
@@ -136,10 +136,16 @@ def seal_phase22_historical_replay_epoch(
     margin_headroom_usd: Decimal,
     concentration_limit_by_group: tuple[tuple[str, Decimal], ...],
     current_step: int,
-    advanced_evidence: AdvancedPortfolioEvidence = AdvancedPortfolioEvidence(),
+    advanced_evidence: AdvancedPortfolioEvidence | None = None,
     known_options: tuple[Phase20MpcKnownOption, ...] = (),
 ) -> Phase22HistoricalReplaySealPair:
     """Seal one historical epoch using the frozen policy and current provider model."""
+
+    effective_advanced_evidence = (
+        AdvancedPortfolioEvidence()
+        if advanced_evidence is None
+        else advanced_evidence
+    )
 
     if not decision_epoch_id:
         raise CiboCapitalManagementError(
@@ -189,7 +195,7 @@ def seal_phase22_historical_replay_epoch(
         margin_headroom_usd=margin_headroom_usd,
         concentration_limit_by_group=concentration_limit_by_group,
         current_step=current_step,
-        advanced_evidence=advanced_evidence,
+        advanced_evidence=effective_advanced_evidence,
         known_options=known_options,
     )
 

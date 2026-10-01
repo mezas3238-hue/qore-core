@@ -1,8 +1,8 @@
 """Fail-closed pre-holdout gate for the CIBO USD60 six-month examination.
 
-The preregistered 2017H1 dataset must remain unread until this gate becomes
-READY_TO_UNSEAL_2017H1. The gate inspects only code/config/calibration metadata;
-it never reads holdout market data or Trader outcomes.
+The active preregistered holdout must remain unread until this gate becomes
+READY_TO_UNSEAL_ACTIVE_HOLDOUT. The gate inspects only code/config/calibration
+metadata; it never reads holdout market data or Trader outcomes.
 
 The historical calibration matrix remains immutable provenance. Once A+B have
 terminalized the active tool surface, a sealed dynamic calibration manifest may
@@ -27,7 +27,9 @@ from qore.infrastructure.cibo_ce2i_calibration_registry import (
     CiboCalibrationState,
 )
 from qore.infrastructure.cibo_ce2i_holdout_registry import (
-    PREREGISTERED_USD60_HOLDOUT,
+    ACTIVE_USD60_HOLDOUT_CANDIDATE,
+    CiboHoldoutCandidateStatus,
+    candidate_is_burn_clean_for_all_lineages,
 )
 from qore.infrastructure.cibo_ce2i_provider_economics_component_freeze import (
     CiboProviderEconomicsComponentFreeze,
@@ -38,7 +40,9 @@ from qore.infrastructure.cibo_ce2i_tool_registry import CE2I_TOOL_REGISTRY
 class CiboPreHoldoutStatus(StrEnum):
     NOT_READY = "NOT_READY"
     READY_TO_FREEZE = "READY_TO_FREEZE"
-    READY_TO_UNSEAL_2017H1 = "READY_TO_UNSEAL_2017H1"
+    READY_TO_UNSEAL_ACTIVE_HOLDOUT = "READY_TO_UNSEAL_ACTIVE_HOLDOUT"
+    # Compatibility alias only. The active candidate is V2, never 2017H1 V1.
+    READY_TO_UNSEAL_2017H1 = "READY_TO_UNSEAL_ACTIVE_HOLDOUT"
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,7 +59,7 @@ class CiboPreHoldoutReadiness:
     def __post_init__(self) -> None:
         if type(self.status) is not CiboPreHoldoutStatus:
             raise TypeError("pre-holdout status must use canonical enum")
-        if self.status is CiboPreHoldoutStatus.READY_TO_UNSEAL_2017H1:
+        if self.status is CiboPreHoldoutStatus.READY_TO_UNSEAL_ACTIVE_HOLDOUT:
             if self.blockers:
                 raise ValueError("ready-to-unseal status cannot retain blockers")
         if type(self.phase20d_causal_gate_passed) is not bool:
@@ -63,7 +67,9 @@ class CiboPreHoldoutReadiness:
         if type(self.phase21_policy_freeze_sealed) is not bool:
             raise TypeError("phase21 freeze flag must be bool")
         if self.holdout_outcomes_inspected or self.holdout_market_data_read:
-            raise ValueError("pre-holdout readiness cannot consume 2017H1")
+            raise ValueError(
+                "pre-holdout readiness cannot consume the active holdout"
+            )
 
 
 def _matrix_payload() -> list[dict[str, object]]:
@@ -178,14 +184,20 @@ def evaluate_pre_holdout_readiness(
     if not effective_calibration_sealed:
         blockers.append("CALIBRATION_FREEZE_MANIFEST_NOT_SEALED")
 
-    candidate = PREREGISTERED_USD60_HOLDOUT
+    candidate = ACTIVE_USD60_HOLDOUT_CANDIDATE
+    if candidate.status is not CiboHoldoutCandidateStatus.ELIGIBLE_FROZEN:
+        blockers.append("ACTIVE_HOLDOUT_NOT_ELIGIBLE_FROZEN")
+    if not candidate.source_validation_complete:
+        blockers.append("ACTIVE_HOLDOUT_SOURCE_VALIDATION_INCOMPLETE")
+    if not candidate_is_burn_clean_for_all_lineages(candidate):
+        blockers.append("ACTIVE_HOLDOUT_OVERLAPS_CONFIRMED_BURN")
     if candidate.outcome_data_inspected_at_selection:
         blockers.append("HOLDOUT_ALREADY_CONTAMINATED")
 
     blockers = list(dict.fromkeys(blockers))
     return CiboPreHoldoutReadiness(
         status=(
-            CiboPreHoldoutStatus.READY_TO_UNSEAL_2017H1
+            CiboPreHoldoutStatus.READY_TO_UNSEAL_ACTIVE_HOLDOUT
             if not blockers
             else CiboPreHoldoutStatus.NOT_READY
         ),

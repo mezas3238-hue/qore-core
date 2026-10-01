@@ -247,7 +247,7 @@ def test_receipt_bound_pre_holdout_can_reach_ready_without_reading_holdout() -> 
         provider_capability_registry=registry,
     )
 
-    assert readiness.status is CiboPreHoldoutStatus.READY_TO_UNSEAL_2017H1
+    assert readiness.status is CiboPreHoldoutStatus.READY_TO_UNSEAL_ACTIVE_HOLDOUT
     assert readiness.blockers == ()
     assert readiness.holdout_outcomes_inspected is False
     assert readiness.holdout_market_data_read is False

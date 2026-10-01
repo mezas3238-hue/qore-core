@@ -126,6 +126,14 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_ce2i_t17_structural_disable*", "T17"),
     ("*cibo_t17_structural_disable_probe*", "T17"),
     ("*cibo_ce2i_calibration_freeze_manifest*", "FORWARD_QUALIFICATION"),
+    (
+        "*cibo_ce2i_qualification_evidence_protocol*",
+        "FORWARD_QUALIFICATION",
+    ),
+    (
+        "*cibo_ce2i_shadow_certification_receipts*",
+        "FORWARD_QUALIFICATION",
+    ),
     ("*cibo_receipt_bound_calibration_freeze*", "FORWARD_QUALIFICATION"),
     ("*calibration-freeze-manifest*", "FORWARD_QUALIFICATION"),
     ("*CIBO-RISK-INTEGRATION-CLOSURE*", "RISK_INTEGRATION"),

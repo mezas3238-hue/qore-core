@@ -94,7 +94,10 @@ PHASE22_STORE_IDENTITIES = (
         name="T20_RELEASE",
         relative_path="phase22-v2-stores/t20-release.json",
         schema="CIBO_PHASE22_V2_T20_RELEASE_BOOK_V1",
-        role="counterfactual returned risk and margin capacity; no historical provider release claim",
+        role=(
+            "counterfactual returned risk and margin capacity; "
+            "no historical provider release claim"
+        ),
     ),
 )
 

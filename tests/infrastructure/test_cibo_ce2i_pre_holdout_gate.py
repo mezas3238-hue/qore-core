@@ -73,7 +73,10 @@ def _ready_provider_freeze(
         target_aware=False,
         broker_mutation_performed=False,
         pre_holdout_provider_economics_ready=True,
+        provider_deployment_ready=True,
+        certification_lane="EMPIRICAL_EXECUTION",
         blockers=(),
+        deployment_blockers=(),
         execution_calibration_sha256="sha256:" + "2" * 64,
         productive_authority=False,
     )
@@ -96,7 +99,10 @@ def test_pre_holdout_gate_is_fail_closed_before_calibration_freeze() -> None:
     readiness = evaluate_pre_holdout_readiness()
 
     assert readiness.status is CiboPreHoldoutStatus.NOT_READY
-    assert readiness.holdout_candidate_id == "CIBO_USD60_6M_HOLDOUT_2017H1_V1"
+    assert (
+        readiness.holdout_candidate_id
+        == "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
+    )
     assert readiness.holdout_outcomes_inspected is False
     assert readiness.holdout_market_data_read is False
     assert "PHASE20D_CAUSAL_TOOL_GATE_NOT_PASSED" in readiness.blockers
@@ -163,7 +169,7 @@ def test_dynamic_terminal_manifest_supersedes_historical_matrix_blockers() -> No
         phase20d_forward_manifest_sha256=phase20_sha,
     )
 
-    assert readiness.status is CiboPreHoldoutStatus.READY_TO_UNSEAL_2017H1
+    assert readiness.status is CiboPreHoldoutStatus.READY_TO_UNSEAL_ACTIVE_HOLDOUT
     assert readiness.blockers == ()
     assert readiness.holdout_outcomes_inspected is False
     assert readiness.holdout_market_data_read is False

@@ -34,7 +34,6 @@ from qore.infrastructure.cibo_phase22_historical_replay_settlement import (
 )
 from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
     V2_SOURCE_BINDINGS,
-    phase22_v2_holdout_source_receipt_sha256,
 )
 from qore.infrastructure.cibo_phase22_store_contract import (
     PHASE22_STORE_IDENTITIES,

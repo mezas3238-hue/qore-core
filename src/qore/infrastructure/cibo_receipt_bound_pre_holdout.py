@@ -257,7 +257,7 @@ def evaluate_receipt_bound_pre_holdout_readiness(
         calibration_freeze_manifest=calibration_freeze_manifest,
         phase20d_forward_manifest_sha256=forward_sha,
     )
-    if readiness.status is not CiboPreHoldoutStatus.READY_TO_UNSEAL_2017H1:
+    if readiness.status is not CiboPreHoldoutStatus.READY_TO_UNSEAL_ACTIVE_HOLDOUT:
         raise CiboCapitalManagementError(
             "receipt-bound pre-holdout receipts are PASS but canonical gate is not ready"
         )
