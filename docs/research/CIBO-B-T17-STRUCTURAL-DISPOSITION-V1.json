@@ -1,0 +1,78 @@
+{
+  "schema": "CIBO_B_T17_STRUCTURAL_DISPOSITION_V1",
+  "source_head": "6dc4a22dac0a54368917bb9308d04dd83eec079f",
+  "observed_at_utc": "2026-10-01T02:44:41.309826+00:00",
+  "scope": {
+    "tool_code": "T17",
+    "description": "Convex / limited-downside exposure",
+    "providers": [
+      "ctrader-demo",
+      "fundednext-stellar-instant-cfd"
+    ]
+  },
+  "ctrader_demo": {
+    "evidence_ref": "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-EVIDENCE-2026-10-01.json",
+    "workflow_run_id": 36806511867,
+    "taxonomy_binding_complete": true,
+    "symbol_count": 352,
+    "option_taxonomy_candidates": [],
+    "account_limited_risk": false,
+    "governed_gsl_coverage_complete": true,
+    "governed_gsl_supported_symbols": [],
+    "governed_gsl_unknown_symbols": [],
+    "governed_gsl_unsupported_symbols": [
+      "AUDJPY",
+      "EURUSD",
+      "GBPJPY",
+      "GBPUSD",
+      "NAS100",
+      "XAUUSD"
+    ],
+    "limited_risk_candidate_identified": false,
+    "option_structure_proven": false,
+    "defined_risk_spread_proven": false
+  },
+  "fundednext_stellar_instant_cfd": {
+    "evidence_type": "OFFICIAL_PROVIDER_POLICY",
+    "observed_date": "2026-10-01",
+    "source_urls": [
+      "https://fundednext.com/general-rules/cfds/symbols-and-conditions",
+      "https://help.fundednext.com/en/articles/8224087-fundednext-tradable-assets-what-can-i-trade-on-fundednext-cfd-accounts"
+    ],
+    "comprehensive_cfd_asset_classes": [
+      "Forex",
+      "Indices",
+      "Commodities",
+      "Crypto",
+      "Stocks"
+    ],
+    "option_or_defined_risk_instrument_class_listed": false
+  },
+  "admissible_paths": {
+    "option_contracts_available": false,
+    "defined_risk_option_spreads_available": false,
+    "limited_risk_account_available": false,
+    "guaranteed_stop_loss_available_on_governed_ctrader_universe": false
+  },
+  "conclusion": {
+    "structurally_disabled": true,
+    "frozen_tool_disposition": "STRUCTURALLY_DISABLED",
+    "recommended_ledger_disposition": "FALSIFIED_AND_CLOSED",
+    "rationale": "No admissible T17 limited-downside path is provider-available in the current governed cTrader DEMO plus FundedNext Stellar Instant CFD universe.",
+    "global_market_claim": false,
+    "reopen_conditions": [
+      "cTrader account/provider taxonomy exposes an option or defined-risk instrument class",
+      "cTrader account becomes Limited Risk and governed symbols expose Guaranteed Stop Loss",
+      "FundedNext Stellar Instant CFD adds option/defined-risk instruments",
+      "the governed provider universe changes"
+    ]
+  },
+  "governance": {
+    "holdout_outcomes_used": false,
+    "holdout_market_data_read": false,
+    "broker_mutation_performed": false,
+    "productive_authority": false,
+    "live_authority": false,
+    "real_capital_authority": false
+  }
+}

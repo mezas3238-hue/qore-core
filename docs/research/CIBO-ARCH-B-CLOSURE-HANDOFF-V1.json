@@ -1,7 +1,7 @@
 {
   "schema": "CIBO_ARCH_B_CLOSURE_HANDOFF_V1",
   "branch": "agent/cibo-certification-architect-b-integration-001",
-  "implementation_checkpoint_sha": "0b0932ae46499477d2d9a627e6a334310ae21a5d",
+  "implementation_checkpoint_sha": "6dc4a22dac0a54368917bb9308d04dd83eec079f",
   "primary_pr": 651,
   "child_pr": 661,
   "governance": {
@@ -81,7 +81,7 @@
     },
     {
       "id": "T16",
-      "b_status": "ACCOUNT_MODE_AND_PROVIDER_TAXONOMY_RECONCILIATION_IMPLEMENTED_FAIL_CLOSED",
+      "b_status": "ACCOUNT_BOUND_HEDGED_MODE_AND_TAXONOMY_PROVEN_ECONOMIC_HEDGE_OPEN",
       "recommended_ledger_disposition": null,
       "evidence": [
         "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
@@ -91,18 +91,19 @@
         "tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py",
         "tests/infrastructure/test_cibo_ctrader_demo_capability_registry.py",
         ".github/workflows/cibo-ctrader-demo-account-capability.yml",
-        "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md"
+        "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md",
+        "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-EVIDENCE-2026-10-01.json",
+        "github-actions://36806511867/SUCCESS"
       ],
       "blockers": [
-        "REAL_ACCOUNT_BOUND_CAPABILITY_AND_TAXONOMY_ARTIFACT_REVALIDATION_REQUIRED",
         "HEDGE_INSTRUMENT_BASIS_RISK_COST_CORRELATION_EXECUTION_EVIDENCE_REQUIRED",
         "PROVIDER_BOUND_FRESH_OOS_HEDGE_UTILITY_REQUIRED"
       ]
     },
     {
       "id": "T17",
-      "b_status": "ACCOUNT_TAXONOMY_AND_LIMITED_RISK_GSL_ASSESSMENT_IMPLEMENTED_FAIL_CLOSED",
-      "recommended_ledger_disposition": null,
+      "b_status": "CURRENT_PROVIDER_UNIVERSE_STRUCTURALLY_UNAVAILABLE",
+      "recommended_ledger_disposition": "FALSIFIED_AND_CLOSED",
       "evidence": [
         "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
         "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
@@ -112,14 +113,12 @@
         "tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py",
         "tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py",
         ".github/workflows/cibo-ctrader-demo-provider-economics.yml",
-        "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md"
+        "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md",
+        "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-EVIDENCE-2026-10-01.json",
+        "docs/research/CIBO-B-T17-STRUCTURAL-DISPOSITION-V1.json",
+        "github-actions://36806511867/SUCCESS"
       ],
-      "blockers": [
-        "REAL_ACCOUNT_BOUND_TAXONOMY_LIMITED_RISK_GSL_ARTIFACT_REVALIDATION_REQUIRED",
-        "OPTION_OR_DEFINED_RISK_UNAVAILABILITY_NOT_EXPLICITLY_PROVIDER_PROVEN",
-        "GSL_EXECUTION_ECONOMICS_AND_FRESH_OOS_UTILITY_REQUIRED_IF_CANDIDATE_EXISTS",
-        "STRUCTURAL_DISABLE_MUST_NOT_BE_INFERRED_FROM_MISSING_OPTION_LABELS"
-      ]
+      "blockers": []
     },
     {
       "id": "T20",
@@ -137,7 +136,7 @@
     },
     {
       "id": "PROVIDER_ECONOMICS",
-      "b_status": "POINT_IN_TIME_TERMS_FROZEN_AND_FORWARD_EXECUTION_CALIBRATION_PATH_IMPLEMENTED",
+      "b_status": "CURRENT_CTRADER_PROVIDER_TERMS_AND_ACCOUNT_CAPABILITY_PROVEN_FORWARD_EXECUTION_COST_GAP_OPEN",
       "recommended_ledger_disposition": null,
       "evidence": [
         "src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py",
@@ -151,12 +150,13 @@
         "scripts/cibo_phase20_provider_execution_calibration.py",
         "tests/infrastructure/test_cibo_ce2i_provider_execution_calibration.py",
         "tests/infrastructure/test_cibo_phase20_provider_execution_calibration_export.py",
-        "docs/research/CIBO-B-PROVIDER-ECONOMICS-COMPONENT-FREEZE-V1.md"
+        "docs/research/CIBO-B-PROVIDER-ECONOMICS-COMPONENT-FREEZE-V1.md",
+        "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-EVIDENCE-2026-10-01.json",
+        "github-actions://36806511867/SUCCESS"
       ],
       "blockers": [
         "HISTORICAL_2017_PROVIDER_USD_ECONOMICS_UNAVAILABLE",
-        "REAL_FORWARD_SLIPPAGE_COST_CALIBRATION_REQUIRED",
-        "CURRENT_HEAD_REAL_ACCOUNT_CAPABILITY_TAXONOMY_REVALIDATION_REQUIRED"
+        "REAL_FORWARD_SLIPPAGE_COST_CALIBRATION_REQUIRED"
       ]
     },
     {
@@ -275,10 +275,11 @@
   ],
   "integration_notes": {
     "architect_a_owns_final_ledger_reconciliation": true,
-    "zero_open_classifier_updates_required": true,
-    "current_head_ci_revalidation_required": true,
+    "zero_open_classifier_updates_required": false,
+    "current_head_ci_revalidation_required": false,
     "certification_claim": false,
-    "new_b_surface_classification_request": "docs/research/CIBO-ARCH-B-CROSSBOUNDARY-REQUEST-002.md"
+    "new_b_surface_classification_request": "docs/research/CIBO-ARCH-B-CROSSBOUNDARY-REQUEST-002.md",
+    "t17_structural_disposition_ready_for_integrator": true
   },
-  "package_revalidated_at_utc": "2026-10-01T00:23:10Z"
+  "package_revalidated_at_utc": "2026-10-01T02:55:00Z"
 }
