@@ -150,9 +150,12 @@ class CTraderEmpiricalSlippageCalibration:
     lookback_days: int
     account_entry_deals_found: int
     account_entry_deals_by_symbol: tuple[tuple[str, int], ...]
+    market_entry_deals_found: int
+    market_entry_deals_by_symbol: tuple[tuple[str, int], ...]
     qore_deals_found: int
     qore_deals_by_symbol: tuple[tuple[str, int], ...]
     non_qore_entry_deals_by_symbol: tuple[tuple[str, int], ...]
+    non_qore_market_entry_deals_by_symbol: tuple[tuple[str, int], ...]
     observations: tuple[CTraderEmpiricalSlippageObservation, ...]
     summaries: tuple[CTraderEmpiricalSlippageSummary, ...]
     required_symbols: tuple[str, ...]
@@ -250,6 +253,23 @@ def collect_ctrader_demo_empirical_slippage(
     required_symbols = tuple(
         sorted(item.qore_symbol for item in binding.contracts)
     )
+    orders_response = _request(
+        client,
+        "ProtoOAOrderListReq",
+        {
+            "ctidTraderAccountId": account_id,
+            "fromTimestamp": int(from_at.timestamp() * 1000),
+            "toTimestamp": int(observed.timestamp() * 1000),
+        },
+        "qore-cibo-empirical-slippage-orders",
+    )
+    order_history_truncated = bool(getattr(orders_response, "hasMore", False))
+    orders_by_id = {
+        int(order.orderId): order
+        for order in tuple(getattr(orders_response, "order", ()))
+        if type(order.orderId) is int and order.orderId > 0
+    }
+
     raw_deals = tuple(getattr(deals_response, "deal", ()))
     account_entries = tuple(
         deal
@@ -260,17 +280,28 @@ def collect_ctrader_demo_empirical_slippage(
         contracts[int(deal.symbolId)].qore_symbol
         for deal in account_entries
     )
-    candidates: list[Any] = []
-    for deal in account_entries:
-        if not _qore_label(deal):
-            continue
-        candidates.append(deal)
+    market_entries = tuple(
+        deal
+        for deal in account_entries
+        if _market_entry_order(orders_by_id.get(int(deal.orderId)))
+    )
+    market_counts = Counter(
+        contracts[int(deal.symbolId)].qore_symbol
+        for deal in market_entries
+    )
+    candidates: list[Any] = [
+        deal
+        for deal in market_entries
+        if _qore_order(orders_by_id.get(int(deal.orderId)))
+    ]
     qore_counts = Counter(
         contracts[int(deal.symbolId)].qore_symbol
         for deal in candidates
     )
     non_qore_counts = Counter(account_counts)
     non_qore_counts.subtract(qore_counts)
+    non_qore_market_counts = Counter(market_counts)
+    non_qore_market_counts.subtract(qore_counts)
     candidates.sort(
         key=lambda item: int(item.executionTimestamp),
         reverse=True,
@@ -328,6 +359,8 @@ def collect_ctrader_demo_empirical_slippage(
         blockers.append("EMPIRICAL_SLIPPAGE_NO_CAUSAL_QUOTE_OBSERVATIONS")
     if any(quote_failures.values()):
         blockers.append("EMPIRICAL_SLIPPAGE_CAUSAL_QUOTE_GAPS_PRESENT")
+    if deal_history_truncated or order_history_truncated:
+        blockers.append("EMPIRICAL_SLIPPAGE_HISTORY_TRUNCATED")
     blockers = list(dict.fromkeys(blockers))
     ready = coverage and minimum and bool(observations) and not blockers
 
@@ -345,6 +378,11 @@ def collect_ctrader_demo_empirical_slippage(
             (symbol, account_counts.get(symbol, 0))
             for symbol in required_symbols
         ),
+        market_entry_deals_found=len(market_entries),
+        market_entry_deals_by_symbol=tuple(
+            (symbol, market_counts.get(symbol, 0))
+            for symbol in required_symbols
+        ),
         qore_deals_found=len(candidates),
         qore_deals_by_symbol=tuple(
             (symbol, qore_counts.get(symbol, 0))
@@ -354,6 +392,10 @@ def collect_ctrader_demo_empirical_slippage(
             (symbol, non_qore_counts.get(symbol, 0))
             for symbol in required_symbols
         ),
+        non_qore_market_entry_deals_by_symbol=tuple(
+            (symbol, non_qore_market_counts.get(symbol, 0))
+            for symbol in required_symbols
+        ),
         observations=tuple(observations),
         summaries=summaries,
         required_symbols=required_symbols,
@@ -361,7 +403,9 @@ def collect_ctrader_demo_empirical_slippage(
         minimum_distinct_orders_met=minimum,
         empirical_slippage_calibrated=ready,
         execution_model_ready=ready,
-        deal_history_truncated=deal_history_truncated,
+        deal_history_truncated=(
+            deal_history_truncated or order_history_truncated
+        ),
         broker_mutation_performed=False,
         holdout_outcomes_used=False,
         historical_2017_exact_claimed=False,
@@ -453,9 +497,31 @@ def _account_entry_deal(
     return True
 
 
-def _qore_label(deal: Any) -> bool:
-    label = deal.label
-    return isinstance(label, str) and label.startswith("QORE:")
+def _market_entry_order(order: Any | None) -> bool:
+    return order is not None and getattr(order, "orderType", None) == 1
+
+
+def _qore_order(order: Any | None) -> bool:
+    if order is None:
+        return False
+    trade_data = _optional_message(order, "tradeData")
+    label = _optional_text(trade_data, "label")
+    if label is None:
+        label = _optional_text(order, "label")
+    return label is not None and label.startswith("QORE:")
+
+
+def _optional_message(message: Any, name: str) -> Any | None:
+    if not _field_present(message, name):
+        return None
+    return getattr(message, name, None)
+
+
+def _optional_text(message: Any | None, name: str) -> str | None:
+    if message is None or not _field_present(message, name):
+        return None
+    value = getattr(message, name, None)
+    return value if isinstance(value, str) and value else None
 
 
 def _deal_observation(
