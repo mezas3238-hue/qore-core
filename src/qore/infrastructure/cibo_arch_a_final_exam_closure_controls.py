@@ -122,39 +122,37 @@ def build_architect_a_final_exam_closure_controls(
             "A final-exam P8 Compound closure is not proven"
         )
 
-    common = {
-        "integrated_git_sha": integrated_git_sha,
-        "policy_identity_sha256": phase22_receipt.candidate_parameter_sha256,
-        "phase22_artifact_sha256": (
-            phase22_receipt.qualification_artifact_sha256
-        ),
-        "observed_at": observed_at,
-        "phase22_manifest_sha256": (
-            scientific_closure.phase22_manifest_sha256
-        ),
-        "closure_batch_sha256": scientific_closure.closure_batch_sha256,
-    }
     p7_json = _artifact_json(
         receipt_id="P7_SCIENTIFIC_CLOSURE",
         producer_gate_id="CIBO_ARCH_A_PHASE22_V2_SCIENTIFIC_CLOSURE",
+        integrated_git_sha=integrated_git_sha,
+        policy_identity_sha256=phase22_receipt.candidate_parameter_sha256,
+        phase22_artifact_sha256=phase22_receipt.qualification_artifact_sha256,
+        observed_at=observed_at,
+        phase22_manifest_sha256=scientific_closure.phase22_manifest_sha256,
+        closure_batch_sha256=scientific_closure.closure_batch_sha256,
         closure_receipt_sha256=scientific_closure.fingerprint(),
         details={
             "completed_ids": list(scientific_closure.completed_ids),
             "falsified_ids": list(scientific_closure.falsified_ids),
             "scientific_closure_terminal": True,
         },
-        **common,
     )
     p8_json = _artifact_json(
         receipt_id="P8_COMPOUND_CLOSURE",
         producer_gate_id="CIBO_ARCH_A_PHASE22_V2_COMPOUND_CLOSURE",
+        integrated_git_sha=integrated_git_sha,
+        policy_identity_sha256=phase22_receipt.candidate_parameter_sha256,
+        phase22_artifact_sha256=phase22_receipt.qualification_artifact_sha256,
+        observed_at=observed_at,
+        phase22_manifest_sha256=scientific_closure.phase22_manifest_sha256,
+        closure_batch_sha256=scientific_closure.closure_batch_sha256,
         closure_receipt_sha256=compound_closure.fingerprint(),
         details={
             "required_proven_ids": list(compound_closure.required_proven_ids),
             "compound_closure_terminal": True,
             "genc1_evidence_sha256": compound_closure.genc1_evidence_sha256,
         },
-        **common,
     )
     return (
         bind_final_exam_control_artifact(
