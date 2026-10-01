@@ -1,13 +1,18 @@
-"""Bounded cTrader DEMO micro-bundle experiment for Architect-2 T11.
+"""Bounded cTrader DEMO settlement-cost experiment for Architect-2 T11.
 
-The frozen experiment compares aggregate 1x versus 2x exposure while every
-child order remains provider minimum volume. For the 2x level both child
-positions are opened before either is closed.
+The frozen T11 protocol compares matched micro-bundles made only from provider
+minimum-volume child orders:
+- level 1: one child;
+- level 2: two children.
 
-The admitted economic metric is provider-settled all-in loss in the DEMO
-account deposit currency. The runner requires the account deposit asset to be
-USD and binds the final account balance to the final closing-deal settlement.
-No synthetic tick value or historical provider term is created.
+Every child is opened and closed on the cTrader DEMO account. The observed cost
+is the provider-authoritative realized round-trip settlement cost in the USD
+account deposit asset. Calibration and validation populations are disjoint,
+long/short sides are balanced, and matched-pair level order alternates to remove
+systematic first/second execution bias.
+
+No Phase22 V2 outcome, FundedNext account, VPS, LIVE endpoint, real capital, or
+canonical CIBO ledger is touched.
 """
 
 from __future__ import annotations
@@ -32,7 +37,6 @@ from qore.infrastructure.cibo_arch2_t11_nonlinear_input_freeze import (
     MARKET_IMPACT_CALIBRATION_EPISODES_PER_LEVEL_PER_SYMBOL,
     MARKET_IMPACT_VALIDATION_EPISODES_PER_LEVEL_PER_SYMBOL,
     REQUIRED_SYMBOLS,
-    T11_NONLINEAR_INPUT_FREEZE,
 )
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
@@ -63,17 +67,8 @@ _MARKET = 1
 _BUY = 1
 _SELL = 2
 
-# Same source-contract surface used by the frozen Phase20 DEMO execution arm.
-_SOURCE_CONTRACT_SIZE_UNITS = {
-    "AUDJPY": Decimal("100000"),
-    "EURUSD": Decimal("100000"),
-    "GBPJPY": Decimal("100000"),
-    "GBPUSD": Decimal("100000"),
-    "NAS100": Decimal("10"),
-    "XAUUSD": Decimal("100"),
-}
-
-# Provider-native identities already observed before the T11 experiment freeze.
+# Frozen from provider-economics run 36810489106 / artifact 11139835744,
+# which predates the T11 nonlinear protocol freeze.
 _EXPECTED_CONTRACTS = {
     "AUDJPY": ("AUDJPY", 3, 100000, Decimal("100000")),
     "EURUSD": ("EURUSD", 5, 100000, Decimal("100000")),
@@ -89,14 +84,12 @@ def _request(
     name: str,
     fields: dict[str, object],
     message_id: str,
-    *,
-    timeout_seconds: float = 15.0,
 ) -> object:
     result = client.request(
         name,
         fields,
         client_msg_id=message_id,
-        timeout_seconds=timeout_seconds,
+        timeout_seconds=10.0,
     )
     if isinstance(result, Failure):
         raise CiboCapitalManagementError(
@@ -133,127 +126,93 @@ def _field_present(message: object, name: str) -> bool:
     return False
 
 
+def _native_money(value: object, digits: object, name: str) -> Decimal:
+    if type(value) is not int or type(digits) is not int or digits < 0:
+        raise CiboCapitalManagementError(
+            f"T11 market-impact invalid settlement money field: {name}"
+        )
+    return Decimal(value).scaleb(-digits)
+
+
+def realized_settlement_cost_usd(
+    *,
+    entry_commission_usd: Decimal,
+    gross_profit_usd: Decimal,
+    swap_usd: Decimal,
+    close_commission_usd: Decimal,
+    pnl_conversion_fee_usd: Decimal,
+) -> Decimal:
+    """Return non-negative realized economic cost for one exact round trip."""
+
+    values = (
+        entry_commission_usd,
+        gross_profit_usd,
+        swap_usd,
+        close_commission_usd,
+        pnl_conversion_fee_usd,
+    )
+    if any(
+        not isinstance(value, Decimal) or not value.is_finite()
+        for value in values
+    ):
+        raise CiboCapitalManagementError(
+            "T11 market-impact settlement components must be finite Decimal"
+        )
+    net = sum(values, Decimal(0))
+    return max(Decimal(0), -net)
+
+
+def _deposit_asset_name(
+    client: SpotwareCTraderOpenApiClient,
+) -> str:
+    trader_response = _request(
+        client,
+        "ProtoOATraderReq",
+        {"ctidTraderAccountId": client.account_id},
+        "t11-deposit-asset-trader",
+    )
+    trader = getattr(trader_response, "trader", None)
+    if trader is None:
+        raise CiboCapitalManagementError(
+            "T11 market-impact trader account response missing"
+        )
+    asset_id = getattr(trader, "depositAssetId", None)
+    if type(asset_id) is not int or asset_id <= 0:
+        raise CiboCapitalManagementError(
+            "T11 market-impact depositAssetId unavailable"
+        )
+
+    asset_response = _request(
+        client,
+        "ProtoOAAssetListReq",
+        {"ctidTraderAccountId": client.account_id},
+        "t11-deposit-asset-list",
+    )
+    matches = tuple(
+        item
+        for item in tuple(getattr(asset_response, "asset", ()))
+        if getattr(item, "assetId", None) == asset_id
+    )
+    if len(matches) != 1:
+        raise CiboCapitalManagementError(
+            "T11 market-impact deposit asset identity ambiguous"
+        )
+    name = getattr(matches[0], "name", None)
+    if not isinstance(name, str) or not name:
+        raise CiboCapitalManagementError(
+            "T11 market-impact deposit asset name unavailable"
+        )
+    if name.upper() != "USD":
+        raise CiboCapitalManagementError(
+            "T11 market-impact frozen experiment requires USD deposit asset"
+        )
+    return "USD"
+
+
 def _hash_ref(kind: str, value: int) -> str:
     return "sha256:" + hashlib.sha256(
         f"{kind}|{value}".encode()
     ).hexdigest()
-
-
-def _trader(
-    client: SpotwareCTraderOpenApiClient,
-    message_id: str,
-) -> object:
-    response = _request(
-        client,
-        "ProtoOATraderReq",
-        {"ctidTraderAccountId": client.account_id},
-        message_id,
-    )
-    trader = getattr(response, "trader", None)
-    if trader is None:
-        raise CiboCapitalManagementError("T11 DEMO trader entity missing")
-    return trader
-
-
-def _money_digits(message: object, fallback: int = 0) -> int:
-    value = (
-        getattr(message, "moneyDigits", fallback)
-        if _field_present(message, "moneyDigits")
-        else fallback
-    )
-    if type(value) is not int or value < 0:
-        raise CiboCapitalManagementError("T11 DEMO moneyDigits invalid")
-    return value
-
-
-def _balance_usd(trader: object) -> Decimal:
-    raw = getattr(trader, "balance", None)
-    if type(raw) is not int:
-        raise CiboCapitalManagementError("T11 DEMO account balance invalid")
-    return Decimal(raw).scaleb(-_money_digits(trader))
-
-
-def _close_balance_usd(detail: object, *, fallback_digits: int) -> Decimal:
-    raw = getattr(detail, "balance", None)
-    if type(raw) is not int:
-        raise CiboCapitalManagementError(
-            "T11 closing settlement balance invalid"
-        )
-    return Decimal(raw).scaleb(-_money_digits(detail, fallback_digits))
-
-
-def _assert_usd_deposit_asset(
-    client: SpotwareCTraderOpenApiClient,
-    trader: object,
-) -> None:
-    asset_id = getattr(trader, "depositAssetId", None)
-    if type(asset_id) is not int or asset_id <= 0:
-        raise CiboCapitalManagementError(
-            "T11 DEMO deposit asset id invalid"
-        )
-    response = _request(
-        client,
-        "ProtoOAAssetListReq",
-        {"ctidTraderAccountId": client.account_id},
-        "t11-asset-list",
-    )
-    matches = tuple(
-        asset
-        for asset in tuple(getattr(response, "asset", ()))
-        if getattr(asset, "assetId", None) == asset_id
-    )
-    if len(matches) != 1:
-        raise CiboCapitalManagementError(
-            "T11 DEMO deposit asset could not be resolved"
-        )
-    if str(getattr(matches[0], "name", "")).upper() != "USD":
-        raise CiboCapitalManagementError(
-            "T11 market-impact V1 requires USD DEMO deposit asset"
-        )
-
-
-def _reconcile(
-    client: SpotwareCTraderOpenApiClient,
-    message_id: str,
-) -> object:
-    return _request(
-        client,
-        "ProtoOAReconcileReq",
-        {"ctidTraderAccountId": client.account_id},
-        message_id,
-    )
-
-
-def _assert_clean_state(
-    client: SpotwareCTraderOpenApiClient,
-    message_id: str,
-) -> None:
-    response = _reconcile(client, message_id)
-    if tuple(getattr(response, "position", ())) or tuple(
-        getattr(response, "order", ())
-    ):
-        raise CiboCapitalManagementError(
-            "T11 DEMO experiment requires zero open positions/orders"
-        )
-
-
-def _position_for_label(
-    client: SpotwareCTraderOpenApiClient,
-    *,
-    label: str,
-    message_id: str,
-) -> object | None:
-    response = _reconcile(client, message_id)
-    matches = tuple(
-        item
-        for item in tuple(getattr(response, "position", ()))
-        if getattr(getattr(item, "tradeData", None), "label", None) == label
-    )
-    if len(matches) > 1:
-        raise CiboCapitalManagementError(
-            "T11 label maps to multiple positions"
-        )
-    return matches[0] if matches else None
 
 
 def _single_deal(response: object, *, order_id: int) -> object | None:
@@ -263,9 +222,10 @@ def _single_deal(response: object, *, order_id: int) -> object | None:
         and type(getattr(direct, "dealId", None)) is int
         and getattr(direct, "orderId", order_id) == order_id
     ):
-        return cast(object, direct)
+        return direct
+    raw = getattr(response, "deal", ())
     try:
-        rows = tuple(getattr(response, "deal", ()))
+        rows = tuple(raw)
     except TypeError:
         rows = ()
     matches = tuple(
@@ -273,9 +233,41 @@ def _single_deal(response: object, *, order_id: int) -> object | None:
         for item in rows
         if getattr(item, "orderId", order_id) == order_id
         and type(getattr(item, "dealId", None)) is int
-        and getattr(item, "dealId", 0) > 0
+        and item.dealId > 0
     )
-    return matches[0] if len(matches) == 1 else None
+    if not matches:
+        return None
+    return min(
+        matches,
+        key=lambda item: (
+            getattr(item, "executionTimestamp", 0),
+            getattr(item, "dealId", 0),
+        ),
+    )
+
+
+def _position_for_label(
+    client: SpotwareCTraderOpenApiClient,
+    *,
+    label: str,
+    message_id: str,
+) -> object | None:
+    response = _request(
+        client,
+        "ProtoOAReconcileReq",
+        {"ctidTraderAccountId": client.account_id},
+        message_id,
+    )
+    matches = tuple(
+        item
+        for item in tuple(getattr(response, "position", ()))
+        if getattr(getattr(item, "tradeData", None), "label", None) == label
+    )
+    if len(matches) > 1:
+        raise CiboCapitalManagementError(
+            "T11 market-impact label maps to multiple positions"
+        )
+    return matches[0] if matches else None
 
 
 def _wait_entry(
@@ -306,8 +298,8 @@ def _wait_entry(
             message_id=f"t11-position:{order_id}:{attempt}",
         )
         position_id = getattr(position, "positionId", None) if position else None
-        trade = getattr(position, "tradeData", None) if position else None
-        volume = getattr(trade, "volume", None) if trade else None
+        trade_data = getattr(position, "tradeData", None) if position else None
+        volume = getattr(trade_data, "volume", None) if trade_data else None
         if (
             deal is not None
             and type(position_id) is int
@@ -318,17 +310,16 @@ def _wait_entry(
             return deal, position_id, volume
         time.sleep(0.25)
     raise CiboCapitalManagementError(
-        "T11 child entry did not reconcile to fill/position"
+        "T11 market-impact entry did not reconcile to fill/position"
     )
 
 
-def _position_deals(
+def _closing_deal(
     client: SpotwareCTraderOpenApiClient,
     *,
     position_id: int,
-    symbol_id: int,
-    started_at: datetime,
-) -> tuple[object, ...]:
+    opened_at: datetime,
+) -> object:
     for attempt in range(25):
         response = _request(
             client,
@@ -336,38 +327,27 @@ def _position_deals(
             {
                 "ctidTraderAccountId": client.account_id,
                 "fromTimestamp": int(
-                    (started_at - timedelta(minutes=1)).timestamp() * 1000
+                    (opened_at - timedelta(minutes=2)).timestamp() * 1000
                 ),
                 "toTimestamp": int(datetime.now(UTC).timestamp() * 1000),
-                "maxRows": 1000,
+                "maxRows": 500,
             },
-            f"t11-deals:{position_id}:{attempt}",
+            f"t11-close-deals:{position_id}:{attempt}",
         )
-        rows = tuple(
-            sorted(
-                (
-                    item
-                    for item in tuple(getattr(response, "deal", ()))
-                    if getattr(item, "positionId", None) == position_id
-                    and getattr(item, "symbolId", None) == symbol_id
-                    and type(getattr(item, "dealId", None)) is int
-                ),
-                key=lambda item: (
-                    getattr(item, "executionTimestamp", 0),
-                    getattr(item, "dealId", 0),
-                ),
+        matches = tuple(
+            deal
+            for deal in tuple(getattr(response, "deal", ()))
+            if getattr(deal, "positionId", None) == position_id
+            and _field_present(deal, "closePositionDetail")
+        )
+        if matches:
+            return max(
+                matches,
+                key=lambda item: getattr(item, "executionTimestamp", 0),
             )
-        )
-        closing = tuple(
-            row
-            for row in rows
-            if getattr(row, "closePositionDetail", None) is not None
-        )
-        if rows and closing:
-            return rows
         time.sleep(0.25)
     raise CiboCapitalManagementError(
-        "T11 round trip did not reconcile closing settlement"
+        "T11 market-impact close settlement did not reconcile"
     )
 
 
@@ -376,10 +356,15 @@ def _neutralize_label(
     *,
     label: str,
 ) -> None:
-    response = _reconcile(client, f"t11-neutralize:{label}")
+    response = _request(
+        client,
+        "ProtoOAReconcileReq",
+        {"ctidTraderAccountId": client.account_id},
+        f"t11-neutralize:{label}",
+    )
     for order in tuple(getattr(response, "order", ())):
-        trade = getattr(order, "tradeData", None)
-        if getattr(trade, "label", None) != label:
+        trade_data = getattr(order, "tradeData", None)
+        if getattr(trade_data, "label", None) != label:
             continue
         order_id = getattr(order, "orderId", None)
         if type(order_id) is int and order_id > 0:
@@ -393,13 +378,18 @@ def _neutralize_label(
                 timeout_seconds=10.0,
             )
 
-    response = _reconcile(client, f"t11-neutralize-pos:{label}")
+    response = _request(
+        client,
+        "ProtoOAReconcileReq",
+        {"ctidTraderAccountId": client.account_id},
+        f"t11-neutralize-positions:{label}",
+    )
     for position in tuple(getattr(response, "position", ())):
-        trade = getattr(position, "tradeData", None)
-        if getattr(trade, "label", None) != label:
+        trade_data = getattr(position, "tradeData", None)
+        if getattr(trade_data, "label", None) != label:
             continue
         position_id = getattr(position, "positionId", None)
-        volume = getattr(trade, "volume", None)
+        volume = getattr(trade_data, "volume", None)
         if (
             type(position_id) is not int
             or position_id <= 0
@@ -407,7 +397,7 @@ def _neutralize_label(
             or volume <= 0
         ):
             raise CiboCapitalManagementError(
-                "T11 containment position invalid"
+                "T11 market-impact containment position invalid"
             )
         _request(
             client,
@@ -417,12 +407,72 @@ def _neutralize_label(
                 "positionId": position_id,
                 "volume": volume,
             },
-            f"t11-containment-close:{position_id}",
+            f"t11-neutralize-close:{position_id}",
         )
+
     time.sleep(0.2)
+    terminal = _request(
+        client,
+        "ProtoOAReconcileReq",
+        {"ctidTraderAccountId": client.account_id},
+        f"t11-neutralize-terminal:{label}",
+    )
+    if any(
+        getattr(getattr(item, "tradeData", None), "label", None) == label
+        for item in tuple(getattr(terminal, "position", ()))
+    ):
+        raise CiboCapitalManagementError(
+            "T11 market-impact position remains after containment"
+        )
 
 
-def _open_child(
+def _settlement_components(
+    *,
+    entry_deal: object,
+    close_deal: object,
+) -> tuple[Decimal, Decimal, Decimal, Decimal, Decimal]:
+    entry_digits = getattr(entry_deal, "moneyDigits", None)
+    entry_commission = _native_money(
+        getattr(entry_deal, "commission", 0),
+        entry_digits,
+        "entry commission",
+    )
+    close_detail = getattr(close_deal, "closePositionDetail", None)
+    if close_detail is None:
+        raise CiboCapitalManagementError(
+            "T11 market-impact closePositionDetail missing"
+        )
+    close_digits = getattr(
+        close_detail,
+        "moneyDigits",
+        getattr(close_deal, "moneyDigits", None),
+    )
+    return (
+        entry_commission,
+        _native_money(
+            getattr(close_detail, "grossProfit", 0),
+            close_digits,
+            "gross profit",
+        ),
+        _native_money(
+            getattr(close_detail, "swap", 0),
+            close_digits,
+            "swap",
+        ),
+        _native_money(
+            getattr(close_detail, "commission", 0),
+            close_digits,
+            "close commission",
+        ),
+        _native_money(
+            getattr(close_detail, "pnlConversionFee", 0),
+            close_digits,
+            "pnl conversion fee",
+        ),
+    )
+
+
+def _submit_round_trip(
     client: SpotwareCTraderOpenApiClient,
     *,
     symbol_id: int,
@@ -431,106 +481,102 @@ def _open_child(
     label: str,
     child_id: str,
 ) -> dict[str, object]:
-    opened = _request(
-        client,
-        "ProtoOANewOrderReq",
-        {
-            "ctidTraderAccountId": client.account_id,
-            "clientOrderId": child_id,
-            "orderType": _MARKET,
-            "symbolId": symbol_id,
-            "tradeSide": side_code,
-            "volume": native_volume,
-            "label": label,
-            "comment": "cibo-arch2-t11-market-impact",
-        },
-        child_id,
-    )
-    order = getattr(opened, "order", None)
-    order_id = getattr(order, "orderId", None) if order else None
-    if type(order_id) is not int or order_id <= 0:
-        raise CiboCapitalManagementError(
-            "T11 child entry returned no order id"
+    opened_at = datetime.now(UTC)
+    try:
+        opened = _request(
+            client,
+            "ProtoOANewOrderReq",
+            {
+                "ctidTraderAccountId": client.account_id,
+                "clientOrderId": child_id,
+                "orderType": _MARKET,
+                "symbolId": symbol_id,
+                "tradeSide": side_code,
+                "volume": native_volume,
+                "label": label,
+                "comment": "cibo-arch2-t11-settlement-impact",
+            },
+            child_id,
         )
-    entry_deal, position_id, position_volume = _wait_entry(
-        client,
-        opened,
-        order_id=order_id,
-        label=label,
-    )
-    if position_volume != native_volume:
-        raise CiboCapitalManagementError(
-            "T11 child position volume drift"
+        order = getattr(opened, "order", None)
+        order_id = getattr(order, "orderId", None) if order is not None else None
+        if type(order_id) is not int or order_id <= 0:
+            raise CiboCapitalManagementError(
+                "T11 market-impact submit returned no order id"
+            )
+        entry_deal, position_id, position_volume = _wait_entry(
+            client,
+            opened,
+            order_id=order_id,
+            label=label,
         )
-    return {
-        "label": label,
-        "order_id": order_id,
-        "position_id": position_id,
-        "entry_deal_id": int(getattr(entry_deal, "dealId")),
-        "position_volume": position_volume,
-    }
+        entry_deal_id = getattr(entry_deal, "dealId", None)
+        if type(entry_deal_id) is not int or entry_deal_id <= 0:
+            raise CiboCapitalManagementError(
+                "T11 market-impact entry deal identity invalid"
+            )
 
-
-def _close_child(
-    client: SpotwareCTraderOpenApiClient,
-    *,
-    child: dict[str, object],
-    symbol_id: int,
-    started_at: datetime,
-    fallback_money_digits: int,
-) -> dict[str, object]:
-    position_id = cast(int, child["position_id"])
-    volume = cast(int, child["position_volume"])
-    _request(
-        client,
-        "ProtoOAClosePositionReq",
-        {
-            "ctidTraderAccountId": client.account_id,
-            "positionId": position_id,
-            "volume": volume,
-        },
-        f"t11-close:{position_id}",
-    )
-    label = cast(str, child["label"])
-    _neutralize_label(client, label=label)
-    deals = _position_deals(
-        client,
-        position_id=position_id,
-        symbol_id=symbol_id,
-        started_at=started_at,
-    )
-    close_deal = tuple(
-        row
-        for row in deals
-        if getattr(row, "closePositionDetail", None) is not None
-    )[-1]
-    detail = getattr(close_deal, "closePositionDetail")
-    settlement_balance = _close_balance_usd(
-        detail,
-        fallback_digits=fallback_money_digits,
-    )
-    return {
-        "label_sha256": "sha256:"
-        + hashlib.sha256(label.encode()).hexdigest(),
-        "order_ref_sha256": _hash_ref(
-            "order", cast(int, child["order_id"])
-        ),
-        "position_ref_sha256": _hash_ref("position", position_id),
-        "entry_deal_ref_sha256": _hash_ref(
-            "deal", cast(int, child["entry_deal_id"])
-        ),
-        "close_deal_ref_sha256": _hash_ref(
-            "deal", int(getattr(close_deal, "dealId"))
-        ),
-        "settlement_balance_usd": settlement_balance,
-    }
+        _request(
+            client,
+            "ProtoOAClosePositionReq",
+            {
+                "ctidTraderAccountId": client.account_id,
+                "positionId": position_id,
+                "volume": position_volume,
+            },
+            f"t11-close:{position_id}",
+        )
+        close_deal = _closing_deal(
+            client,
+            position_id=position_id,
+            opened_at=opened_at,
+        )
+        close_deal_id = getattr(close_deal, "dealId", None)
+        close_ms = getattr(close_deal, "executionTimestamp", None)
+        if (
+            type(close_deal_id) is not int
+            or close_deal_id <= 0
+            or type(close_ms) is not int
+            or close_ms <= 0
+        ):
+            raise CiboCapitalManagementError(
+                "T11 market-impact close deal identity invalid"
+            )
+        components = _settlement_components(
+            entry_deal=entry_deal,
+            close_deal=close_deal,
+        )
+        cost = realized_settlement_cost_usd(
+            entry_commission_usd=components[0],
+            gross_profit_usd=components[1],
+            swap_usd=components[2],
+            close_commission_usd=components[3],
+            pnl_conversion_fee_usd=components[4],
+        )
+        _neutralize_label(client, label=label)
+        return {
+            "order_ref_sha256": _hash_ref("order", order_id),
+            "entry_deal_ref_sha256": _hash_ref("deal", entry_deal_id),
+            "close_deal_ref_sha256": _hash_ref("deal", close_deal_id),
+            "position_ref_sha256": _hash_ref("position", position_id),
+            "entry_commission_usd": components[0],
+            "gross_profit_usd": components[1],
+            "swap_usd": components[2],
+            "close_commission_usd": components[3],
+            "pnl_conversion_fee_usd": components[4],
+            "realized_settlement_cost_usd": cost,
+            "settled_at": datetime.fromtimestamp(close_ms / 1000, tz=UTC),
+            "position_closed": True,
+        }
+    finally:
+        _neutralize_label(client, label=label)
 
 
 def _validate_contract_binding(binding: CTraderDemoFreeBinding) -> None:
     by_symbol = {item.qore_symbol: item for item in binding.contracts}
     if tuple(sorted(by_symbol)) != REQUIRED_SYMBOLS:
         raise CiboCapitalManagementError(
-            "T11 provider symbol surface drift"
+            "T11 market-impact provider symbol surface drift"
         )
     for symbol in REQUIRED_SYMBOLS:
         contract = by_symbol[symbol]
@@ -542,195 +588,117 @@ def _validate_contract_binding(binding: CTraderDemoFreeBinding) -> None:
             or contract.lot_size_units != lot_size
         ):
             raise CiboCapitalManagementError(
-                f"T11 frozen provider contract drift: {symbol}"
+                f"T11 market-impact frozen contract drift: {symbol}"
             )
 
 
-def source_minimum_volume(
+def _source_minimum_volume(
     *,
-    qore_symbol: str,
     min_native_volume: int,
+    lot_size_units: Decimal,
 ) -> Decimal:
-    source_contract = _SOURCE_CONTRACT_SIZE_UNITS.get(qore_symbol)
-    if source_contract is None:
+    source_volume = (
+        Decimal(min_native_volume) * _NATIVE_VOLUME_UNIT / lot_size_units
+    )
+    if source_volume <= 0:
         raise CiboCapitalManagementError(
-            "T11 source contract identity missing"
+            "T11 market-impact source minimum volume invalid"
         )
-    underlying = Decimal(min_native_volume) * _NATIVE_VOLUME_UNIT
-    result = underlying / source_contract
-    if result <= 0:
-        raise CiboCapitalManagementError(
-            "T11 source minimum volume invalid"
-        )
-    return result
-
-
-def pair_plan(pair_index: int) -> tuple[str, tuple[int, int]]:
-    if pair_index <= 0:
-        raise CiboCapitalManagementError(
-            "T11 pair index must be positive"
-        )
-    side = "long" if pair_index % 2 else "short"
-    levels = (1, 2) if pair_index % 2 else (2, 1)
-    return side, levels
+    return source_volume
 
 
 def _bundle(
     client: SpotwareCTraderOpenApiClient,
     *,
     qore_symbol: str,
-    provider_symbol: str,
     symbol_id: int,
     native_volume: int,
+    lot_size_units: Decimal,
     child_count: int,
+    level_order_position: int,
     side: str,
     phase: str,
     pair_index: int,
     fold_index: int,
     run_key: str,
+    deposit_asset: str,
 ) -> tuple[T11MarketImpactEpisode, dict[str, object]]:
-    if child_count not in {1, 2}:
+    if child_count not in {1, 2} or level_order_position not in {1, 2}:
         raise CiboCapitalManagementError(
-            "T11 child count must be 1 or 2"
+            "T11 market-impact frozen bundle geometry invalid"
         )
-    _assert_clean_state(
-        client,
-        f"t11-clean-pre:{qore_symbol}:{phase}:{pair_index}:{child_count}",
-    )
-    trader_before = _trader(
-        client,
-        f"t11-trader-pre:{qore_symbol}:{phase}:{pair_index}:{child_count}",
-    )
-    fallback_digits = _money_digits(trader_before)
-    balance_before = _balance_usd(trader_before)
-    started_at = datetime.now(UTC)
     side_code = _BUY if side == "long" else _SELL
-    opened: list[dict[str, object]] = []
-    try:
-        for child_index in range(1, child_count + 1):
-            label = (
-                f"{_LABEL_PREFIX}{qore_symbol}:{run_key[-6:]}:"
-                f"{phase[0]}{pair_index:02d}:L{child_count}:C{child_index}"
-            )
-            child_id = (
-                f"qore-t11-{run_key[-10:]}-{qore_symbol.lower()}-"
-                f"{phase[0].lower()}{pair_index:02d}-"
-                f"l{child_count}-c{child_index}"
-            )[-50:]
-            opened.append(
-                _open_child(
-                    client,
-                    symbol_id=symbol_id,
-                    native_volume=native_volume,
-                    side_code=side_code,
-                    label=label,
-                    child_id=child_id,
-                )
-            )
+    pair_id = f"{qore_symbol}-{phase}-{pair_index:02d}"
+    bundle_id = f"{pair_id}-L{child_count}"
 
-        # Critical 2x invariant: all children are open before any close begins.
-        if child_count == 2:
-            response = _reconcile(
-                client,
-                f"t11-aggregate-check:{qore_symbol}:{phase}:{pair_index}",
-            )
-            active = tuple(
-                item
-                for item in tuple(getattr(response, "position", ()))
-                if str(
-                    getattr(getattr(item, "tradeData", None), "label", "")
-                ).startswith(_LABEL_PREFIX)
-            )
-            if len(active) != 2:
-                raise CiboCapitalManagementError(
-                    "T11 2x level failed simultaneous aggregate exposure invariant"
-                )
+    children: list[dict[str, object]] = []
+    total_cost = Decimal(0)
+    for child_index in range(1, child_count + 1):
+        label = (
+            f"{_LABEL_PREFIX}{qore_symbol}:{run_key[-6:]}:"
+            f"{phase[0]}{pair_index:02d}:L{child_count}:C{child_index}"
+        )
+        child_id = (
+            f"cibo-a2-t11-{run_key[-10:]}-{qore_symbol.lower()}-"
+            f"{phase[0].lower()}{pair_index:02d}-"
+            f"l{child_count}-c{child_index}"
+        )
+        child = _submit_round_trip(
+            client,
+            symbol_id=symbol_id,
+            native_volume=native_volume,
+            side_code=side_code,
+            label=label,
+            child_id=child_id,
+        )
+        total_cost += cast(Decimal, child["realized_settlement_cost_usd"])
+        children.append(child)
+        time.sleep(0.15)
 
-        settlements = [
-            _close_child(
-                client,
-                child=child,
-                symbol_id=symbol_id,
-                started_at=started_at,
-                fallback_money_digits=fallback_digits,
-            )
-            for child in opened
-        ]
-        _assert_clean_state(
-            client,
-            f"t11-clean-post:{qore_symbol}:{phase}:{pair_index}:{child_count}",
+    observed_at = max(
+        cast(datetime, item["settled_at"])
+        for item in children
+    )
+    if observed_at <= FROZEN_AT:
+        raise CiboCapitalManagementError(
+            "T11 market-impact settlement does not postdate freeze"
         )
-        trader_after = _trader(
-            client,
-            f"t11-trader-post:{qore_symbol}:{phase}:{pair_index}:{child_count}",
-        )
-        balance_after = _balance_usd(trader_after)
-        final_settlement_balance = cast(
-            Decimal, settlements[-1]["settlement_balance_usd"]
-        )
-        if balance_after != final_settlement_balance:
-            raise CiboCapitalManagementError(
-                "T11 final balance does not bind to final closing settlement"
-            )
-        net_pnl = balance_after - balance_before
-        adverse_cost = max(Decimal(0), -net_pnl)
-        minimum_volume = source_minimum_volume(
-            qore_symbol=qore_symbol,
-            min_native_volume=native_volume,
-        )
-        observed_at = datetime.now(UTC)
-        if observed_at <= FROZEN_AT:
-            raise CiboCapitalManagementError(
-                "T11 market-impact observation predates freeze"
-            )
-        pair_id = f"{qore_symbol}-{phase}-{pair_index:02d}"
-        episode = T11MarketImpactEpisode(
-            evidence_id=(
-                "t11-impact:"
-                + hashlib.sha256(
-                    (
-                        f"{run_key}|{pair_id}|{child_count}|"
-                        f"{observed_at.isoformat()}|{adverse_cost}"
-                    ).encode()
-                ).hexdigest()
-            ),
-            qore_symbol=qore_symbol,
-            pair_id=pair_id,
-            phase=phase,
-            fold_index=fold_index,
-            side=side,
-            child_count=child_count,
-            minimum_volume=minimum_volume,
-            aggregate_volume=minimum_volume * child_count,
-            adverse_slippage_cost_total_usd=adverse_cost,
-            observed_at=observed_at,
-            provider_bound=True,
-            every_child_order_minimum_volume=True,
-            holdout_outcomes_used=False,
-            target_aware=False,
-            productive_authority=False,
-        )
-        raw = {
-            "episode": _jsonable(asdict(episode)),
-            "provider_symbol": provider_symbol,
-            "balance_before_usd": format(balance_before, "f"),
-            "balance_after_usd": format(balance_after, "f"),
-            "net_realized_pnl_usd": format(net_pnl, "f"),
-            "adverse_realized_cost_usd": format(adverse_cost, "f"),
-            "children": _jsonable(settlements),
-            "all_children_open_before_first_close": True,
-        }
-        return episode, raw
-    except Exception:
-        for child in opened:
-            try:
-                _neutralize_label(
-                    client,
-                    label=cast(str, child["label"]),
-                )
-            except Exception:
-                pass
-        raise
+    minimum_volume = _source_minimum_volume(
+        min_native_volume=native_volume,
+        lot_size_units=lot_size_units,
+    )
+    episode = T11MarketImpactEpisode(
+        evidence_id=(
+            "t11-impact:"
+            + hashlib.sha256(
+                (
+                    f"{run_key}|{bundle_id}|{observed_at.isoformat()}|"
+                    f"{total_cost}|{level_order_position}"
+                ).encode()
+            ).hexdigest()
+        ),
+        qore_symbol=qore_symbol,
+        pair_id=pair_id,
+        phase=phase,
+        fold_index=fold_index,
+        side=side,
+        child_count=child_count,
+        level_order_position=level_order_position,
+        minimum_volume=minimum_volume,
+        aggregate_volume=minimum_volume * child_count,
+        realized_settlement_cost_total_usd=total_cost,
+        deposit_asset=deposit_asset,
+        observed_at=observed_at,
+        provider_bound=True,
+        every_child_order_minimum_volume=True,
+        holdout_outcomes_used=False,
+        target_aware=False,
+        productive_authority=False,
+    )
+    return episode, {
+        "episode": _jsonable(asdict(episode)),
+        "children": _jsonable(children),
+    }
 
 
 def _jsonable(value: Any) -> Any:
@@ -747,6 +715,10 @@ def _jsonable(value: Any) -> Any:
 
 def _evaluation_payload(value: object) -> dict[str, object]:
     return cast(dict[str, object], _jsonable(asdict(value)))
+
+
+def _levels_for_pair(pair_index: int) -> tuple[int, int]:
+    return (1, 2) if pair_index % 2 else (2, 1)
 
 
 def run() -> dict[str, object]:
@@ -773,53 +745,55 @@ def run() -> dict[str, object]:
             )
         if capability.account_type is not CTraderDemoAccountType.HEDGED:
             raise CiboCapitalManagementError(
-                "T11 market-impact requires HEDGED DEMO account"
+                "T11 market-impact requires frozen HEDGED DEMO account mode"
             )
-        trader = _trader(client, "t11-initial-trader")
-        _assert_usd_deposit_asset(client, trader)
-        _assert_clean_state(client, "t11-initial-clean-state")
-
+        deposit_asset = _deposit_asset_name(client)
         binding = discover_free_account_binding(client)
         _validate_contract_binding(binding)
         by_symbol = {item.qore_symbol: item for item in binding.contracts}
+
         episodes: list[T11MarketImpactEpisode] = []
         raw_rows: list[dict[str, object]] = []
-
+        phases = (
+            (
+                "CALIBRATION",
+                MARKET_IMPACT_CALIBRATION_EPISODES_PER_LEVEL_PER_SYMBOL,
+            ),
+            (
+                "VALIDATION",
+                MARKET_IMPACT_VALIDATION_EPISODES_PER_LEVEL_PER_SYMBOL,
+            ),
+        )
         for symbol in REQUIRED_SYMBOLS:
             contract = by_symbol[symbol]
-            for phase, pair_count in (
-                (
-                    "CALIBRATION",
-                    MARKET_IMPACT_CALIBRATION_EPISODES_PER_LEVEL_PER_SYMBOL,
-                ),
-                (
-                    "VALIDATION",
-                    MARKET_IMPACT_VALIDATION_EPISODES_PER_LEVEL_PER_SYMBOL,
-                ),
-            ):
+            for phase, pair_count in phases:
                 for pair_index in range(1, pair_count + 1):
-                    side, level_order = pair_plan(pair_index)
+                    side = "long" if pair_index % 2 else "short"
                     fold_index = 0 if phase == "CALIBRATION" else pair_index
-                    for child_count in level_order:
+                    for order_position, child_count in enumerate(
+                        _levels_for_pair(pair_index),
+                        start=1,
+                    ):
                         episode, raw = _bundle(
                             client,
                             qore_symbol=symbol,
-                            provider_symbol=contract.symbol_name,
                             symbol_id=contract.symbol_id,
                             native_volume=contract.min_volume_units,
+                            lot_size_units=contract.lot_size_units,
                             child_count=child_count,
+                            level_order_position=order_position,
                             side=side,
                             phase=phase,
                             pair_index=pair_index,
                             fold_index=fold_index,
                             run_key=run_key,
+                            deposit_asset=deposit_asset,
                         )
                         episodes.append(episode)
                         raw_rows.append(raw)
                         time.sleep(0.25)
 
         evaluation = evaluate_t11_market_impact(tuple(episodes))
-        _assert_clean_state(client, "t11-terminal-clean-state")
         report: dict[str, object] = {
             "schema": "qore.cibo.arch2.t11.market-impact-demo.v2",
             "status": (
@@ -827,18 +801,17 @@ def run() -> dict[str, object]:
                 if evaluation.market_impact_model_ready
                 else "MARKET_IMPACT_MODEL_FALSIFIED_OR_NOT_READY"
             ),
-            "protocol_sha256": T11_NONLINEAR_INPUT_FREEZE.fingerprint(),
+            "protocol_frozen_at": FROZEN_AT.isoformat(),
             "provider_key": "ctrader-demo",
             "environment": "demo",
-            "deposit_asset": "USD",
             "account_fingerprint_sha256": account_fingerprint,
+            "deposit_asset": deposit_asset,
+            "metric": "REALIZED_ROUND_TRIP_SETTLEMENT_COST_USD",
             "episode_count": len(episodes),
             "child_entry_count": sum(item.child_count for item in episodes),
             "minimum_volume_child_orders_only": True,
-            "two_x_children_open_before_close": True,
             "balanced_long_short_pairs": True,
             "alternating_level_order": True,
-            "metric": "ADVERSE_REALIZED_ALL_IN_SETTLEMENT_COST_USD",
             "calibration_pairs_per_symbol": (
                 MARKET_IMPACT_CALIBRATION_EPISODES_PER_LEVEL_PER_SYMBOL
             ),
@@ -848,13 +821,8 @@ def run() -> dict[str, object]:
             "raw_rows": raw_rows,
             "evaluation": _evaluation_payload(evaluation),
             "all_created_positions_closed": True,
-            "broker_mutation_performed": True,
-            "mutation_scope": (
-                "CTRADER_DEMO_MINIMUM_VOLUME_CHILD_ROUND_TRIPS_ONLY"
-            ),
             "holdout_outcomes_used": False,
             "phase22_v2_consumed": False,
-            "historical_provider_economics_claimed": False,
             "fundednext_touched": False,
             "vps_touched": False,
             "live_authorized": False,
@@ -867,11 +835,11 @@ def run() -> dict[str, object]:
         }
         if report["episode_count"] != 144:
             raise CiboCapitalManagementError(
-                "T11 frozen episode-count drift"
+                "T11 market-impact frozen episode-count drift"
             )
         if report["child_entry_count"] != 216:
             raise CiboCapitalManagementError(
-                "T11 frozen child-count drift"
+                "T11 market-impact frozen child-count drift"
             )
         return report
     finally:
@@ -894,6 +862,7 @@ def main() -> None:
                 "status": report["status"],
                 "episode_count": report["episode_count"],
                 "child_entry_count": report["child_entry_count"],
+                "metric": report["metric"],
             },
             sort_keys=True,
         )
