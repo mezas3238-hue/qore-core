@@ -190,6 +190,7 @@ class Genc11Genc13UtilityInput:
             if (
                 not self.prospective_memory_use_ablation
                 or self.memory_hypothesis_sha256 is None
+                or self.transition_uncertainty_calibrated
                 or self.transition_calibration_sha256 is not None
                 or self.transition_calibration_population_sha256 is not None
                 or self.transition_calibration_report is not None
