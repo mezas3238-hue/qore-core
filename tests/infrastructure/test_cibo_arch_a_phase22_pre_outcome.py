@@ -75,7 +75,7 @@ def _stores() -> dict:
                 "role": name,
                 "empty_sha256": _sha(name),
             }
-            for name, path in zip(names, CANONICAL_STORE_PATHS)
+            for name, path in zip(names, CANONICAL_STORE_PATHS, strict=True)
         ],
         "store_reuse_allowed": False,
         "fresh_outcomes_executed": False,

@@ -111,7 +111,7 @@ class WorldCupProviderEvidence(WorldCupEvidenceBase):
     provider_economics_complete: bool = False
 
     def __post_init__(self) -> None:
-        super().__post_init__()
+        WorldCupEvidenceBase.__post_init__(self)
         _sha(self.provider_adapter_sha256, "provider_adapter_sha256")
         _sha(self.provider_economics_sha256, "provider_economics_sha256")
         if not self.competition_provider_bound or not self.provider_economics_complete:
@@ -128,7 +128,7 @@ class WorldCupDigitalTwinEvidence(WorldCupEvidenceBase):
     capital_conservation_proven: bool = False
 
     def __post_init__(self) -> None:
-        super().__post_init__()
+        WorldCupEvidenceBase.__post_init__(self)
         _sha(self.digital_twin_sha256, "digital_twin_sha256")
         _sha(self.capital_conservation_sha256, "capital_conservation_sha256")
         if (
@@ -146,7 +146,7 @@ class WorldCupAsIsControlEvidence(WorldCupEvidenceBase):
     as_is_control_frozen: bool = False
 
     def __post_init__(self) -> None:
-        super().__post_init__()
+        WorldCupEvidenceBase.__post_init__(self)
         _sha(self.as_is_control_sha256, "as_is_control_sha256")
         if not self.as_is_control_frozen:
             raise CiboCapitalManagementError(
@@ -160,7 +160,7 @@ class WorldCupCausalAttributionEvidence(WorldCupEvidenceBase):
     causal_attribution_complete: bool = False
 
     def __post_init__(self) -> None:
-        super().__post_init__()
+        WorldCupEvidenceBase.__post_init__(self)
         _sha(self.attribution_sha256, "attribution_sha256")
         if not self.causal_attribution_complete:
             raise CiboCapitalManagementError(
@@ -174,7 +174,7 @@ class WorldCupPathMonteCarloEvidence(WorldCupEvidenceBase):
     path_structure_preserved: bool = False
 
     def __post_init__(self) -> None:
-        super().__post_init__()
+        WorldCupEvidenceBase.__post_init__(self)
         _sha(self.path_monte_carlo_sha256, "path_monte_carlo_sha256")
         if not self.path_structure_preserved:
             raise CiboCapitalManagementError(
@@ -189,7 +189,7 @@ class WorldCupStressEvidence(WorldCupEvidenceBase):
     stress_noncompensatory_pass: bool = False
 
     def __post_init__(self) -> None:
-        super().__post_init__()
+        WorldCupEvidenceBase.__post_init__(self)
         _sha(self.stress_report_sha256, "stress_report_sha256")
         if self.executed_stress_families != _REQUIRED_STRESS_FAMILIES:
             raise CiboCapitalManagementError(
@@ -209,7 +209,7 @@ class WorldCupTemporalReplicationEvidence(WorldCupEvidenceBase):
     four_fold_replication_pass: bool = False
 
     def __post_init__(self) -> None:
-        super().__post_init__()
+        WorldCupEvidenceBase.__post_init__(self)
         _sha(self.temporal_report_sha256, "temporal_report_sha256")
         if self.fold_ids != _REQUIRED_FOLDS:
             raise CiboCapitalManagementError(
@@ -234,7 +234,7 @@ class WorldCupSurvivalProductivityEvidence(WorldCupEvidenceBase):
     capital_productivity_improved: bool = False
 
     def __post_init__(self) -> None:
-        super().__post_init__()
+        WorldCupEvidenceBase.__post_init__(self)
         _sha(
             self.survival_productivity_sha256,
             "survival_productivity_sha256",
