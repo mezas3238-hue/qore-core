@@ -27,9 +27,9 @@ def test_next_holdout_v2_is_latest_six_month_block_before_earliest_burn() -> Non
 
     assert candidate.start_at == datetime(2015, 10, 19, tzinfo=UTC)
     assert candidate.end_exclusive_at == datetime(2016, 4, 19, tzinfo=UTC)
-    assert candidate.status is CiboHoldoutCandidateStatus.SOURCE_VALIDATION_PENDING
+    assert candidate.status is CiboHoldoutCandidateStatus.ELIGIBLE_FROZEN
     assert candidate.outcome_data_inspected_at_selection is False
-    assert candidate.source_validation_complete is False
+    assert candidate.source_validation_complete is True
     assert candidate_is_burn_clean_for_all_lineages(candidate) is True
 
 

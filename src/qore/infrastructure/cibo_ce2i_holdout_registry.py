@@ -209,14 +209,14 @@ NEXT_PREREGISTERED_USD60_HOLDOUT = CiboHoldoutCandidate(
     candidate_id="CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2",
     start_at=datetime(2015, 10, 19, tzinfo=UTC),
     end_exclusive_at=datetime(2016, 4, 19, tzinfo=UTC),
-    status=CiboHoldoutCandidateStatus.SOURCE_VALIDATION_PENDING,
+    status=CiboHoldoutCandidateStatus.ELIGIBLE_FROZEN,
     selection_rule=(
         "latest exact six-calendar-month block ending at the earliest confirmed "
         "lineage burn boundary after incorporating VT31 R8; selected without "
         "inspecting candidate outcomes"
     ),
     outcome_data_inspected_at_selection=False,
-    source_validation_complete=False,
+    source_validation_complete=True,
 )
 
 ACTIVE_USD60_HOLDOUT_CANDIDATE = NEXT_PREREGISTERED_USD60_HOLDOUT
