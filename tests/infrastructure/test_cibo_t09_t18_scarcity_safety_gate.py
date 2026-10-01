@@ -202,3 +202,19 @@ def test_t18_requires_trader_sovereignty() -> None:
             ),
             trader_sovereignty_preserved=False,
         )
+
+def test_scarcity_verdict_rejects_manual_status_fold_drift() -> None:
+    report = evaluate_t09_t18_scarcity_gate(_batch(T09T18ScarcityTool.T09))
+    verdict = next(
+        item for item in report.verdicts if item.candidate_id == "treatment"
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="status/fold drift",
+    ):
+        replace(
+            verdict,
+            status=T09T18ScarcityStatus.REJECTED_NOT_STRICT_4_OF_4,
+        )
+

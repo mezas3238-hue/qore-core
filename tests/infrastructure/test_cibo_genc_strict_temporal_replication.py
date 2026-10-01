@@ -462,3 +462,16 @@ def test_genc11_rejects_protocol_drift_between_folds() -> None:
         match="treatment/control/protocol drift",
     ):
         evaluate_genc11_genc13_temporal_replication(tuple(folds))
+
+def test_genc_temporal_fold_result_rejects_manual_pass_drift() -> None:
+    report = evaluate_genc7_temporal_replication(
+        treatment_candidate_id="protect",
+        folds=_genc7_folds(),
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="pass/status drift",
+    ):
+        replace(report.fold_results[0], passed=False)
+

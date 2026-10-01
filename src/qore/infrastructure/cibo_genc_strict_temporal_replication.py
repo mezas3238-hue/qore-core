@@ -114,6 +114,36 @@ class GencTemporalFoldResult:
     treatment_status: str
     failed_dimensions: tuple[str, ...]
 
+    def __post_init__(self) -> None:
+        _validate_fold_id(self.fold_id)
+        if type(self.passed) is not bool:
+            raise CiboCompoundCapitalError(
+                "GEN-C temporal fold result passed must be bool"
+            )
+        if not isinstance(self.treatment_status, str) or not self.treatment_status:
+            raise CiboCompoundCapitalError(
+                "GEN-C temporal fold treatment status is required"
+            )
+        if (
+            not isinstance(self.failed_dimensions, tuple)
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.failed_dimensions
+            )
+            or len(self.failed_dimensions) != len(set(self.failed_dimensions))
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C temporal fold failed dimensions are invalid"
+            )
+        expected = (
+            self.treatment_status == "ELIGIBLE_FOR_FURTHER_RESEARCH"
+            and not self.failed_dimensions
+        )
+        if self.passed != expected:
+            raise CiboCompoundCapitalError(
+                "GEN-C temporal fold pass/status drift"
+            )
+
 
 @dataclass(frozen=True, slots=True)
 class GencTemporalReplicationReport:
@@ -151,6 +181,16 @@ class GencTemporalReplicationReport:
         ):
             raise CiboCompoundCapitalError(
                 "GEN-C temporal replication candidate identity is invalid"
+            )
+        if (
+            not isinstance(self.fold_results, tuple)
+            or any(
+                not isinstance(item, GencTemporalFoldResult)
+                for item in self.fold_results
+            )
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C temporal replication requires canonical fold results"
             )
         if tuple(item.fold_id for item in self.fold_results) != _CANONICAL_FOLDS:
             raise CiboCompoundCapitalError(
