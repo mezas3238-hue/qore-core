@@ -185,6 +185,19 @@ def run_phase20d_full_surface_qualification(
     advanced_abstained = 0
     advanced_fail_closed = 0
 
+    expected_evidence_kind = getattr(
+        evidence_book,
+        "qualification_evidence_kind",
+        "FORWARD_OBSERVED",
+    )
+    if expected_evidence_kind not in {
+        "FORWARD_OBSERVED",
+        "HISTORICAL_REPLAY_OBSERVED",
+    }:
+        raise CiboCapitalManagementError(
+            "Phase20D qualification evidence kind invalid"
+        )
+
     ordered_decisions = tuple(
         sorted(
             evidence_book.decisions,
@@ -195,7 +208,7 @@ def run_phase20d_full_surface_qualification(
         payload = _decision_payload(decision)
         if not decision.sealed_within_deadline:
             safety_failures.append("ZERO_CAUSAL_CONTAMINATION")
-        if payload.get("evidence_kind") != "FORWARD_OBSERVED":
+        if payload.get("evidence_kind") != expected_evidence_kind:
             safety_failures.append("ZERO_CAUSAL_CONTAMINATION")
         policy = policy_by_sha.get(decision.evidence_sha256)
         if policy is None:

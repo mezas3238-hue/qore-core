@@ -96,11 +96,26 @@ def assess_phase20d_qualification_readiness(
     pre_freeze_decisions = 0
     outcome_rows: list[_OutcomeRow] = []
 
+    qualification_time_basis = getattr(
+        evidence_book,
+        "qualification_time_basis",
+        "DECISION_AT",
+    )
+    if qualification_time_basis not in {"DECISION_AT", "SEALED_AT"}:
+        raise CiboCapitalManagementError(
+            "Phase20D readiness qualification time basis invalid"
+        )
+
     for decision in sorted(
         evidence_book.decisions,
         key=lambda item: (item.decision_at, item.evidence_sha256),
     ):
-        if decision.decision_at < plan.frozen_at:
+        qualification_at = (
+            decision.decision_at
+            if qualification_time_basis == "DECISION_AT"
+            else decision.sealed_at
+        )
+        if qualification_at is None or qualification_at < plan.frozen_at:
             pre_freeze_decisions += 1
         candidate_map = _candidate_lineage_map(decision)
         if set(candidate_map) != set(decision.signal_fingerprints):

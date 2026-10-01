@@ -64,3 +64,14 @@ def test_historical_replay_book_enters_same_math_without_type_impersonation() ->
         policy_book=policy,
     )
     assert report.status is Phase20QualificationStatus.NOT_READY
+
+
+def test_historical_replay_uses_seal_time_not_market_time_for_freeze() -> None:
+    book = VersionedPhase22HistoricalReplayEvidenceBook(
+        generation=0,
+        amendment_sha256=_sha("amendment"),
+        decisions=(),
+        outcomes=(),
+    )
+    assert book.qualification_time_basis == "SEALED_AT"
+    assert book.qualification_evidence_kind == "HISTORICAL_REPLAY_OBSERVED"

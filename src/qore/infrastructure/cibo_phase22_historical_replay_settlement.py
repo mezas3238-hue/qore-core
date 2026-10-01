@@ -199,6 +199,8 @@ class VersionedPhase22HistoricalReplayEvidenceBook:
     amendment_sha256: str
     decisions: tuple[Phase20ForwardDecisionSeal, ...]
     outcomes: tuple[Phase22HistoricalReplayOutcomeSeal, ...]
+    qualification_time_basis: str = "SEALED_AT"
+    qualification_evidence_kind: str = "HISTORICAL_REPLAY_OBSERVED"
 
     def __post_init__(self) -> None:
         if (
@@ -212,6 +214,14 @@ class VersionedPhase22HistoricalReplayEvidenceBook:
         if not self.amendment_sha256.startswith("sha256:"):
             raise CiboCapitalManagementError(
                 "Phase22 replay evidence amendment digest invalid"
+            )
+        if self.qualification_time_basis != "SEALED_AT":
+            raise CiboCapitalManagementError(
+                "Phase22 replay evidence freeze basis must be SEALED_AT"
+            )
+        if self.qualification_evidence_kind != "HISTORICAL_REPLAY_OBSERVED":
+            raise CiboCapitalManagementError(
+                "Phase22 replay evidence kind drift"
             )
         decision_shas = tuple(item.evidence_sha256 for item in self.decisions)
         if len(decision_shas) != len(set(decision_shas)):
