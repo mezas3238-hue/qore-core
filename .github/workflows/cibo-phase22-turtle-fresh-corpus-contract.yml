@@ -34,5 +34,5 @@ jobs:
             scripts/cibo_phase22_turtle_fresh_corpus_patch.py \
             tests/infrastructure/test_cibo_phase22_turtle_fresh_corpus_patch.py
           mypy scripts/cibo_phase22_turtle_fresh_corpus_patch.py
-          pytest -q --no-cov \
+          PYTHONPATH="$PWD" pytest -q --no-cov \
             tests/infrastructure/test_cibo_phase22_turtle_fresh_corpus_patch.py

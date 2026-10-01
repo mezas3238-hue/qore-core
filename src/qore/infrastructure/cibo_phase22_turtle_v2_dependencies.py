@@ -9,11 +9,11 @@ the frozen Journey and Target Destination algorithms while replacing historical
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
-from typing import Iterator
 
 from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
     M5_COLLECTOR_GIT_SHA,
