@@ -618,7 +618,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_AND_CAUSAL_NONCOMPENSATORY_ECONOMIC_GATE_CHILD_CI_GREEN_REAL_EFFECT_EVIDENCE_OPEN",
+      "current_maturity": "ENGINE_AND_CAUSAL_NONCOMPENSATORY_ECONOMIC_GATE_CHILD_CI_GREEN_REAL_EFFECT_EVIDENCE_OPEN_STRICT_FOUR_FOLD_REPLICATION_GATE_IMPLEMENTED_CI_PENDING",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -628,10 +628,15 @@
         "tests/infrastructure/test_cibo_profit_preservation_economic_gate.py",
         "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
         ".github/workflows/cibo-genc7-profit-preservation.yml",
-        "github-actions://36760959025/SUCCESS"
+        "github-actions://36760959025/SUCCESS",
+        "src/qore/infrastructure/cibo_genc_strict_temporal_replication.py",
+        "tests/infrastructure/test_cibo_genc_strict_temporal_replication.py",
+        "docs/research/CIBO-GENC-STRICT-FOUR-FOLD-TEMPORAL-REPLICATION-V1.md",
+        ".github/workflows/cibo-genc-strict-four-fold-replication.yml"
       ],
       "blockers": [
-        "FRESH_OOS_GIVEBACK_RETENTION_STRESS_REPLICATION_REQUIRED"
+        "FRESH_OOS_GIVEBACK_RETENTION_STRESS_REPLICATION_REQUIRED",
+        "GENC_STRICT_FOUR_FOLD_REPLICATION_GATE_CHILD_CI_REQUIRED"
       ],
       "next_gate": "Require the updated GEN-C7 workflow to pass; then identify causal treatment effects on the frozen provider-valid population, apply the non-compensatory gate, adversarial stress and WF1..WF4 replication without using descriptive OOS paths as counterfactual proof."
     },
@@ -640,7 +645,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_AND_NONCOMPENSATORY_ECONOMIC_GATE_CHILD_CI_GREEN_REAL_OUTCOME_EVIDENCE_OPEN",
+      "current_maturity": "ENGINE_AND_NONCOMPENSATORY_ECONOMIC_GATE_CHILD_CI_GREEN_REAL_OUTCOME_EVIDENCE_OPEN_STRICT_FOUR_FOLD_REPLICATION_GATE_IMPLEMENTED_CI_PENDING",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -650,10 +655,15 @@
         "tests/infrastructure/test_cibo_adaptive_compound_speed_economic_gate.py",
         "docs/research/CIBO-GEN-C8-ADAPTIVE-COMPOUND-SPEED-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
         ".github/workflows/cibo-genc8-adaptive-compound-speed.yml",
-        "github-actions://36760958950/SUCCESS"
+        "github-actions://36760958950/SUCCESS",
+        "src/qore/infrastructure/cibo_genc_strict_temporal_replication.py",
+        "tests/infrastructure/test_cibo_genc_strict_temporal_replication.py",
+        "docs/research/CIBO-GENC-STRICT-FOUR-FOLD-TEMPORAL-REPLICATION-V1.md",
+        ".github/workflows/cibo-genc-strict-four-fold-replication.yml"
       ],
       "blockers": [
-        "FRESH_OOS_STRESS_REPLICATION_REQUIRED"
+        "FRESH_OOS_STRESS_REPLICATION_REQUIRED",
+        "GENC_STRICT_FOUR_FOLD_REPLICATION_GATE_CHILD_CI_REQUIRED"
       ],
       "next_gate": "Require the updated GEN-C8 workflow to pass; then bind the frozen causal population to provider-valid outcomes and apply the non-compensatory gate, fresh OOS, adversarial stress and 4/4 temporal replication without retuning V1."
     },
@@ -718,7 +728,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_CI_GREEN_EXECUTABLE_NONCOMPENSATORY_UTILITY_WRAPPER_CI_GREEN_REAL_EVIDENCE_OPEN",
+      "current_maturity": "ENGINE_CI_GREEN_EXECUTABLE_NONCOMPENSATORY_UTILITY_WRAPPER_CI_GREEN_REAL_EVIDENCE_OPEN_STRICT_FOUR_FOLD_REPLICATION_GATE_IMPLEMENTED_CI_PENDING",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -736,12 +746,17 @@
         "tests/infrastructure/test_cibo_genc11_genc13_utility_gate.py",
         "docs/research/CIBO-GEN-C11-GEN-C13-NONCOMPENSATORY-UTILITY-WRAPPER-V1.md",
         ".github/workflows/cibo-genc11-genc13-utility-wrapper.yml",
-        "github-actions://36796293045/SUCCESS"
+        "github-actions://36796293045/SUCCESS",
+        "src/qore/infrastructure/cibo_genc_strict_temporal_replication.py",
+        "tests/infrastructure/test_cibo_genc_strict_temporal_replication.py",
+        "docs/research/CIBO-GENC-STRICT-FOUR-FOLD-TEMPORAL-REPLICATION-V1.md",
+        ".github/workflows/cibo-genc-strict-four-fold-replication.yml"
       ],
       "blockers": [
         "FRESH_MULTI_PERIOD_OOS_UTILITY_NOT_YET_PROVEN",
         "STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
-        "GEN_C10_TRANSITION_UNCERTAINTY_NOT_YET_CALIBRATED"
+        "GEN_C10_TRANSITION_UNCERTAINTY_NOT_YET_CALIBRATED",
+        "GENC_STRICT_FOUR_FOLD_REPLICATION_GATE_CHILD_CI_REQUIRED"
       ],
       "next_gate": "Pass the executable GEN-C11/GEN-C13 wrapper CI; then after legal GEN-C10 transition calibration bind a fresh MPC control/treatment population, reuse the frozen GEN-C9 non-compensatory law, and separately pass stress plus WF1..WF4 replication."
     },
@@ -750,7 +765,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_AND_NONCOMPENSATORY_ECONOMIC_GATE_CHILD_CI_GREEN_REAL_CRISIS_EVIDENCE_OPEN",
+      "current_maturity": "ENGINE_AND_NONCOMPENSATORY_ECONOMIC_GATE_CHILD_CI_GREEN_REAL_CRISIS_EVIDENCE_OPEN_STRICT_FOUR_FOLD_REPLICATION_GATE_IMPLEMENTED_CI_PENDING",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -766,12 +781,17 @@
         "src/qore/infrastructure/cibo_genc12_economic_gate.py",
         "tests/infrastructure/test_cibo_genc12_economic_gate.py",
         "docs/research/CIBO-GEN-C12-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
-        "github-actions://36757582127/SUCCESS"
+        "github-actions://36757582127/SUCCESS",
+        "src/qore/infrastructure/cibo_genc_strict_temporal_replication.py",
+        "tests/infrastructure/test_cibo_genc_strict_temporal_replication.py",
+        "docs/research/CIBO-GENC-STRICT-FOUR-FOLD-TEMPORAL-REPLICATION-V1.md",
+        ".github/workflows/cibo-genc-strict-four-fold-replication.yml"
       ],
       "blockers": [
         "REAL_CRISIS_POPULATION_NOT_YET_BOUND",
         "ADVERSARIAL_CRISIS_STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
-        "ECONOMIC_VALUE_NOT_YET_DEMONSTRATED"
+        "ECONOMIC_VALUE_NOT_YET_DEMONSTRATED",
+        "GENC_STRICT_FOUR_FOLD_REPLICATION_GATE_CHILD_CI_REQUIRED"
       ],
       "next_gate": "Bind real causal crisis populations; run correlation/provider/margin/liquidity/drawdown stress; then fresh OOS and temporal replication."
     },
@@ -780,7 +800,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_CI_GREEN_CAUSAL_IDENTIFICATION_PROTOCOL_AND_EXECUTABLE_UTILITY_WRAPPER_CI_GREEN_REAL_PROSPECTIVE_EVIDENCE_OPEN",
+      "current_maturity": "ENGINE_CI_GREEN_CAUSAL_IDENTIFICATION_PROTOCOL_AND_EXECUTABLE_UTILITY_WRAPPER_CI_GREEN_REAL_PROSPECTIVE_EVIDENCE_OPEN_STRICT_FOUR_FOLD_REPLICATION_GATE_IMPLEMENTED_CI_PENDING",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -797,12 +817,17 @@
         "tests/infrastructure/test_cibo_genc11_genc13_utility_gate.py",
         "docs/research/CIBO-GEN-C11-GEN-C13-NONCOMPENSATORY-UTILITY-WRAPPER-V1.md",
         ".github/workflows/cibo-genc11-genc13-utility-wrapper.yml",
-        "github-actions://36796293045/SUCCESS"
+        "github-actions://36796293045/SUCCESS",
+        "src/qore/infrastructure/cibo_genc_strict_temporal_replication.py",
+        "tests/infrastructure/test_cibo_genc_strict_temporal_replication.py",
+        "docs/research/CIBO-GENC-STRICT-FOUR-FOLD-TEMPORAL-REPLICATION-V1.md",
+        ".github/workflows/cibo-genc-strict-four-fold-replication.yml"
       ],
       "blockers": [
         "REAL_POST_OUTCOME_EPISODE_POPULATION_NOT_YET_BOUND",
         "PROSPECTIVE_MEMORY_USE_CAUSAL_ABLATION_NOT_YET_RUN",
-        "TEMPORAL_REPLICATION_REQUIRED"
+        "TEMPORAL_REPLICATION_REQUIRED",
+        "GENC_STRICT_FOUR_FOLD_REPLICATION_GATE_CHILD_CI_REQUIRED"
       ],
       "next_gate": "Pass the executable GEN-C11/GEN-C13 wrapper CI; then bind real reconciled post-outcome memory episodes, preregister a later prospective memory-use ablation, reuse the frozen GEN-C9 non-compensatory law on causal future evidence, and separately pass stress plus WF1..WF4 replication."
     },

@@ -91,6 +91,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_compound_adversarial_stress*", "ADVERSARIAL_STRESS"),
     ("*COMPOUND-ADVERSARIAL-STRESS*", "ADVERSARIAL_STRESS"),
     ("*cibo_genc3_genc6_economic_gate*", "CAPITAL_AMPLIFICATION"),
+    ("*cibo_genc_strict_temporal_replication*", "TEMPORAL_REPLICATION"),
     ("*GEN-C3-GEN-C6-NONCOMPENSATORY*", "CAPITAL_AMPLIFICATION"),
     ("*cibo_genc11_genc13_utility_gate*", "CAPITAL_AMPLIFICATION"),
     ("*GEN-C11-GEN-C13-NONCOMPENSATORY*", "CAPITAL_AMPLIFICATION"),
