@@ -40,6 +40,7 @@ jobs:
             tests/infrastructure/test_cibo_meta_capital_memory.py \
             tests/infrastructure/test_cibo_governed_capital_science.py \
             tests/infrastructure/test_cibo_compound_cycle_state.py \
+            tests/infrastructure/test_cibo_compound_market_cycle.py \
             tests/infrastructure/test_cibo_compound_portfolio.py \
             tests/infrastructure/test_cibo_internal_capital_market.py \
             tests/infrastructure/test_cibo_generation_current_control.py \
