@@ -252,7 +252,7 @@ def evaluate_phase22_historical_policy(
     margin_headroom_usd: Decimal,
     concentration_limit_by_group: tuple[tuple[str, Decimal], ...],
     current_step: int,
-    advanced_evidence: AdvancedPortfolioEvidence = AdvancedPortfolioEvidence(),
+    advanced_evidence: AdvancedPortfolioEvidence | None = None,
     known_options: tuple[Phase20MpcKnownOption, ...] = (),
 ) -> Phase22HistoricalPolicyDecisionRecord:
     """Evaluate frozen V3 composition without falsifying historical timestamps."""
@@ -277,6 +277,8 @@ def evaluate_phase22_historical_policy(
         raise CiboCapitalManagementError(
             "Phase22 historical regime opportunity count drift"
         )
+    if advanced_evidence is None:
+        advanced_evidence = AdvancedPortfolioEvidence()
 
     mission = derive_cibo_capital_mission(account_identity)
     candidates = tuple(
