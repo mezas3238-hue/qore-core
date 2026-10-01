@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, cast
 
 from qore.infrastructure.cibo_ce2i_holdout_registry import (
     ACTIVE_USD60_HOLDOUT_CANDIDATE,
@@ -180,9 +180,10 @@ def run_window_replay(
         raise ValueError("frozen replay module does not expose run(...)")
     if not hasattr(module, "EVAL_OPEN") or not hasattr(module, "EVAL_CLOSE"):
         raise ValueError("frozen replay module has no evaluation window")
+    window_module = cast(Any, module)
 
-    original_open = module.EVAL_OPEN
-    original_close = module.EVAL_CLOSE
+    original_open = window_module.EVAL_OPEN
+    original_close = window_module.EVAL_CLOSE
     output.mkdir(parents=True, exist_ok=True)
     causal_scope = (
         fresh_causal_active_ladder(module)
@@ -190,8 +191,8 @@ def run_window_replay(
         else nullcontext()
     )
     try:
-        module.EVAL_OPEN = start
-        module.EVAL_CLOSE = end
+        window_module.EVAL_OPEN = start
+        window_module.EVAL_CLOSE = end
         with causal_scope:
             report = run(
                 raw_root,
@@ -201,8 +202,8 @@ def run_window_replay(
                 output,
             )
     finally:
-        module.EVAL_OPEN = original_open
-        module.EVAL_CLOSE = original_close
+        window_module.EVAL_OPEN = original_open
+        window_module.EVAL_CLOSE = original_close
 
     geometry_path = output / config.geometry_filename
     if not geometry_path.is_file():
