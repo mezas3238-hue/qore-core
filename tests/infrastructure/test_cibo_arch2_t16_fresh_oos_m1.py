@@ -1,10 +1,10 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-from scripts.cibo_arch2_t16_fresh_oos_m1 import _aligned_returns
 from qore.infrastructure.cibo_arch2_t16_fresh_oos_utility import (
     FROZEN_AT,
 )
+from scripts.cibo_arch2_t16_fresh_oos_m1 import _aligned_returns
 
 
 def _rows(
