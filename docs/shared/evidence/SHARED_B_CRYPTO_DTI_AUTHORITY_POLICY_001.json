@@ -1,0 +1,67 @@
+{
+  "identity": "SHARED_B_CRYPTO_DTI_AUTHORITY_POLICY_001",
+  "status": "FROZEN_PROVIDER_NEUTRAL_CRYPTO_IDENTITY_AUTHORITY_POLICY",
+  "retrieved_at": "2026-10-01T02:38:00+00:00",
+  "purpose": "Use a governed provider-neutral digital-asset identifier rather than provider ticker similarity when resolving cryptocurrency economic identity.",
+  "standards": [
+    {
+      "authority_id": "ISO_24165_1_2025",
+      "organization": "International Organization for Standardization",
+      "source_url": "https://www.iso.org/standard/85546.html",
+      "supports": [
+        "UNIQUE_FIXED_LENGTH_DIGITAL_TOKEN_IDENTIFIER",
+        "REGISTRATION_AND_ASSIGNMENT_METHOD"
+      ]
+    },
+    {
+      "authority_id": "ISO_24165_2_2025",
+      "organization": "International Organization for Standardization",
+      "source_url": "https://www.iso.org/standard/85547.html",
+      "supports": [
+        "REGISTRY_DATA_ELEMENTS",
+        "ONE_TO_ONE_TOKEN_TO_IDENTIFIER_RELATIONSHIP"
+      ]
+    },
+    {
+      "authority_id": "DTIF_DTI_PRINCIPLES",
+      "organization": "Digital Token Identifier Foundation",
+      "source_url": "https://dtif.org/what-is-a-dti/",
+      "supports": [
+        "ISO_24165_REGISTRATION_AUTHORITY_IMPLEMENTATION",
+        "OBJECTIVE_VERIFIABLE_REGISTRATION_INFORMATION",
+        "IDENTIFIER_ASSIGNED_TO_DIGITAL_TOKEN"
+      ]
+    },
+    {
+      "authority_id": "DTIF_REGISTRY_INTERFACE",
+      "organization": "Digital Token Identifier Foundation",
+      "source_url": "https://registry.dtif.org/asset",
+      "supports": [
+        "PUBLIC_ASSET_REGISTRY_INTERFACE"
+      ]
+    }
+  ],
+  "resolution_policy": {
+    "provider_symbol_is_canonical_proof": false,
+    "provider_base_asset_name_is_canonical_proof": false,
+    "provider_description_is_canonical_proof": false,
+    "symbol_similarity_alias_inference": false,
+    "asset_level_dti_record_required_for_provider_neutral_economic_identity": true,
+    "scaled_provider_units_require_underlying_asset_identity_plus_explicit_multiplier": true,
+    "dti_asset_identity_is_tradable_product_identity": false,
+    "dti_asset_identity_is_provider_listing_identity": false,
+    "dti_asset_identity_is_calendar_binding": false,
+    "registry_acquisition_policy": "PERMITTED_MACHINE_READABLE_DOWNLOAD_OR_AUTHORIZED_API_ONLY",
+    "automated_html_registry_scraping_authorized": false
+  },
+  "governance": {
+    "target_or_outcome_read": false,
+    "r6_r5_read": false,
+    "fresh_holdout_opened": false,
+    "historical_market_data_read": false,
+    "broker_mutation": false,
+    "sensor_admission_authorized": false,
+    "relational_claims_authorized": false,
+    "productive_authority": false
+  }
+}
