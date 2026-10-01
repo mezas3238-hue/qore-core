@@ -1,0 +1,131 @@
+name: QORE CIBO Architect2 T11 Market Impact DEMO
+
+on:
+  push:
+    branches:
+      - agent/cibo-external-scientific-closure-001
+    paths:
+      - '.github/workflows/cibo-arch2-t11-market-impact-demo.yml'
+      - 'scripts/cibo_arch2_t11_market_impact_demo.py'
+      - 'tests/infrastructure/test_cibo_arch2_t11_market_impact_demo.py'
+      - 'src/qore/infrastructure/cibo_arch2_t11_market_impact_evaluator.py'
+      - 'src/qore/infrastructure/cibo_arch2_t11_nonlinear_input_freeze.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qore-cibo-arch2-t11-market-impact-demo
+  cancel-in-progress: false
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  QORE_CIBO_ARCH2_T11_MARKET_IMPACT_AUTHORIZATION: CIBO_ARCH2_T11_MARKET_IMPACT_DEMO_AUTHORIZED
+
+jobs:
+  market-impact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: python -m pip install -e '.[dev,ctrader]'
+
+      - name: Quality before broker mutation
+        run: |
+          ruff check \
+            scripts/cibo_arch2_t11_market_impact_demo.py \
+            tests/infrastructure/test_cibo_arch2_t11_market_impact_demo.py \
+            src/qore/infrastructure/cibo_arch2_t11_market_impact_evaluator.py \
+            src/qore/infrastructure/cibo_arch2_t11_nonlinear_input_freeze.py
+          mypy --disable-error-code=import-untyped \
+            scripts/cibo_arch2_t11_market_impact_demo.py \
+            src/qore/infrastructure/cibo_arch2_t11_market_impact_evaluator.py \
+            src/qore/infrastructure/cibo_arch2_t11_nonlinear_input_freeze.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_arch2_t11_market_impact_demo.py \
+            tests/infrastructure/test_cibo_arch2_t11_market_impact_evaluator.py
+
+      - name: Verify DEMO credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in \
+            QORE_CTRADER_CLIENT_ID \
+            QORE_CTRADER_CLIENT_SECRET \
+            QORE_CTRADER_ACCESS_TOKEN \
+            QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}" || {
+              echo "::error::missing required cTrader DEMO secret: $name"
+              exit 2
+            }
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Run frozen minimum-volume micro-bundle experiment
+        run: |
+          mkdir -p t11-market-impact
+          python scripts/cibo_arch2_t11_market_impact_demo.py \
+            --output t11-market-impact/market-impact.json \
+            > t11-market-impact/stdout.json
+
+      - name: Enforce governance and frozen population
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(
+              Path("t11-market-impact/market-impact.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert p["status"] in {
+              "MARKET_IMPACT_MODEL_READY",
+              "MARKET_IMPACT_MODEL_FALSIFIED_OR_NOT_READY",
+          }
+          assert p["provider_key"] == "ctrader-demo"
+          assert p["environment"] == "demo"
+          assert p["episode_count"] == 144
+          assert p["child_entry_count"] == 216
+          assert p["minimum_volume_child_orders_only"] is True
+          assert p["calibration_pairs_per_symbol"] == 8
+          assert p["validation_pairs_per_symbol"] == 4
+          assert p["all_created_positions_closed"] is True
+          assert p["holdout_outcomes_used"] is False
+          assert p["phase22_v2_consumed"] is False
+          assert p["fundednext_touched"] is False
+          assert p["vps_touched"] is False
+          assert p["live_authorized"] is False
+          assert p["real_capital_authorized"] is False
+          assert p["canonical_ledger_modified"] is False
+          assert p["productive_authority"] is False
+          assert len(p["evaluation"]["symbols"]) == 6
+          PY
+
+      - name: Seal evidence
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > t11-market-impact/git-sha.txt
+          cd t11-market-impact
+          sha256sum market-impact.json stdout.json git-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-arch2-t11-market-impact-${{ github.sha }}
+          path: t11-market-impact
+          if-no-files-found: error
+          retention-days: 90
