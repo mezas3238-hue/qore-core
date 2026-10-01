@@ -2,6 +2,15 @@ name: QORE CIBO USD60 Holdout Source Validation
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+    paths:
+      - '.github/workflows/cibo-usd60-holdout-source-validation.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_pre_holdout_freeze.py'
+      - 'scripts/cibo_pre_holdout_gate.py'
+      - 'scripts/cibo_usd60_holdout_source_validation.py'
+      - 'tests/infrastructure/test_cibo_ce2i_pre_holdout_freeze.py'
 
 permissions:
   contents: read
@@ -66,13 +75,16 @@ jobs:
           ruff check \
             src/qore/infrastructure/cibo_ce2i_holdout_registry.py \
             src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py \
+            src/qore/infrastructure/cibo_ce2i_pre_holdout_freeze.py \
             scripts/cibo_pre_holdout_gate.py \
             scripts/cibo_usd60_holdout_source_validation.py \
             tests/infrastructure/test_cibo_ce2i_holdout_registry.py \
-            tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py
+            tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py \
+            tests/infrastructure/test_cibo_ce2i_pre_holdout_freeze.py
           mypy \
             src/qore/infrastructure/cibo_ce2i_holdout_registry.py \
             src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py \
+            src/qore/infrastructure/cibo_ce2i_pre_holdout_freeze.py \
             scripts/cibo_pre_holdout_gate.py \
             scripts/cibo_usd60_holdout_source_validation.py
           pytest -q --no-cov \
