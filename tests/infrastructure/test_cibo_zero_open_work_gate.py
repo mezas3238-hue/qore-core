@@ -250,6 +250,7 @@ def test_b_surface_classifiers_are_not_orphans() -> None:
     ledger_ids = frozenset(
         {
             "T11",
+            "T16",
             "T17",
             "PROVIDER_ECONOMICS",
             "INTEGRATED_CAPITAL_TRUTH",
