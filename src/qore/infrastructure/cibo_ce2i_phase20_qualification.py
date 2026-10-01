@@ -28,10 +28,6 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     Phase20ForwardDecisionSeal,
 )
-from qore.infrastructure.cibo_ce2i_qualification_evidence_protocol import (
-    Phase20QualificationEvidenceBook,
-    require_qualification_evidence_book,
-)
 from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
     FROZEN_PHASE20D_QUALIFICATION_PLAN,
     phase20d_qualification_plan_sha256,
@@ -39,6 +35,10 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
 from qore.infrastructure.cibo_ce2i_phase20_qualification_readiness import (
     Phase20QualificationReadiness,
     assess_phase20d_qualification_readiness,
+)
+from qore.infrastructure.cibo_ce2i_qualification_evidence_protocol import (
+    Phase20QualificationEvidenceBook,
+    require_qualification_evidence_book,
 )
 
 

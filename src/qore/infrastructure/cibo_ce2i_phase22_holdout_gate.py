@@ -21,12 +21,12 @@ from qore.infrastructure.cibo_ce2i_holdout_registry import (
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
     VersionedPhase20ForwardPolicyBook,
 )
+from qore.infrastructure.cibo_ce2i_phase21_policy_freeze import (
+    Phase21PolicyFreezeManifest,
+)
 from qore.infrastructure.cibo_ce2i_qualification_evidence_protocol import (
     Phase20QualificationEvidenceBook,
     require_qualification_evidence_book,
-)
-from qore.infrastructure.cibo_ce2i_phase21_policy_freeze import (
-    Phase21PolicyFreezeManifest,
 )
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")

@@ -13,9 +13,6 @@ from enum import StrEnum
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
     VersionedPhase20ForwardPolicyBook,
 )
-from qore.infrastructure.cibo_ce2i_qualification_evidence_protocol import (
-    Phase20QualificationEvidenceBook,
-)
 from qore.infrastructure.cibo_ce2i_phase20_qualification import (
     Phase20QualificationReport,
     Phase20QualificationStatus,
@@ -31,6 +28,9 @@ from qore.infrastructure.cibo_ce2i_phase22_holdout_gate import (
 from qore.infrastructure.cibo_ce2i_phase22_qualification_plan import (
     FROZEN_PHASE22_HOLDOUT_QUALIFICATION_PLAN,
     phase22_holdout_qualification_plan_sha256,
+)
+from qore.infrastructure.cibo_ce2i_qualification_evidence_protocol import (
+    Phase20QualificationEvidenceBook,
 )
 
 

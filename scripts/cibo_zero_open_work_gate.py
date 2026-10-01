@@ -80,6 +80,10 @@ _COMMENT_MARKERS = (
 )
 
 _WORKSTREAM_CLASSIFIERS = (
+    (
+        "*cibo_ce2i_qualification_evidence_protocol*",
+        "SOURCE_OF_TRUTH_RECONCILIATION",
+    ),
     ("*cibo_arch_b_forward_economic_manifest*", "FORWARD_QUALIFICATION"),
     ("*cibo_phase20_arch_b_forward_economic_manifest*", "FORWARD_QUALIFICATION"),
     ("*cibo_ce2i_phase20_t02_structural_oos*", "T02"),

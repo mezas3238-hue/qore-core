@@ -23,12 +23,12 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     Phase20ForwardDecisionSeal,
 )
+from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
+    FROZEN_PHASE20D_QUALIFICATION_PLAN,
+)
 from qore.infrastructure.cibo_ce2i_qualification_evidence_protocol import (
     Phase20QualificationEvidenceBook,
     require_qualification_evidence_book,
-)
-from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
-    FROZEN_PHASE20D_QUALIFICATION_PLAN,
 )
 
 
