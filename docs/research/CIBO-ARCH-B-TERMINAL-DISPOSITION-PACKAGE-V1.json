@@ -1,8 +1,8 @@
 {
   "schema": "CIBO_ARCH_B_TERMINAL_DISPOSITION_PACKAGE_V1",
   "branch": "agent/cibo-certification-architect-b-integration-001",
-  "source_head": "cd41a8e224812ee6944a70a947d7d4d5f3e7d9de",
-  "created_at_utc": "2026-10-01T04:09:27Z",
+  "source_head": "aa412b3b7de0824c9b809edba7eeb617cf3571b5",
+  "created_at_utc": "2026-10-01T04:53:49Z",
   "governance": {
     "draft_unmerged": true,
     "master_ledger_modified": false,
@@ -79,11 +79,24 @@
       "recommendation": "EXTERNAL_DEPENDENCY_BLOCKED",
       "certification_blocking": true,
       "blockers": [
-        "REAL_POST_DECLARATION_HEDGE_RETURN_POPULATION_REQUIRED",
-        "HEDGE_INSTRUMENT_BASIS_RISK_COST_CORRELATION_EXECUTION_EVIDENCE_REQUIRED",
-        "NET_ECONOMIC_BENEFIT_NOT_PROVEN",
-        "PROVIDER_BOUND_FRESH_OOS_HEDGE_UTILITY_REQUIRED"
-      ]
+        "T16_HEDGE_COST_EVIDENCE_INCOMPLETE",
+        "T16_PROVIDER_EXECUTION_SUPPORT_INCOMPLETE",
+        "T16_NET_ECONOMIC_BENEFIT_NOT_PROVEN",
+        "T16_FRESH_OOS_HEDGE_UTILITY_REQUIRED"
+      ],
+      "evidence_summary": {
+        "workflow_run_id": 36817089026,
+        "artifact_id": 11141752922,
+        "sample_count_per_pair": 48,
+        "minimum_samples": 30,
+        "required_folds": 4,
+        "fold_coverage_ready": true,
+        "correlation_stable": true,
+        "basis_risk_measured": true,
+        "provider_contract_and_quote_coverage_complete": true,
+        "realized_execution_coverage_complete": false,
+        "full_hedge_cost_model_ready": false
+      }
     },
     {
       "id": "T20",

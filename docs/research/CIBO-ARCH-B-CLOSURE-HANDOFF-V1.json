@@ -1,7 +1,7 @@
 {
   "schema": "CIBO_ARCH_B_CLOSURE_HANDOFF_V1",
   "branch": "agent/cibo-certification-architect-b-integration-001",
-  "implementation_checkpoint_sha": "cd41a8e224812ee6944a70a947d7d4d5f3e7d9de",
+  "implementation_checkpoint_sha": "aa412b3b7de0824c9b809edba7eeb617cf3571b5",
   "primary_pr": 651,
   "child_pr": 661,
   "governance": {
@@ -88,7 +88,7 @@
     },
     {
       "id": "T16",
-      "b_status": "HEDGED_MODE_PROVEN_PREOUTCOME_T16_CANDIDATE_UNIVERSE_PREREGISTERED",
+      "b_status": "POST_DECLARATION_STRUCTURE_PROVEN_COST_EXECUTION_AND_FRESH_OOS_UTILITY_EXTERNAL",
       "recommended_ledger_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence": [
         "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
@@ -107,13 +107,15 @@
         "src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py",
         "tests/infrastructure/test_cibo_ce2i_t16_preregistered_hedge_universe.py",
         "docs/research/CIBO-B-T16-HEDGE-PAIR-PREREGISTRATION-V1.json",
-        "github-actions://36813080437/SUCCESS"
+        "github-actions://36813080437/SUCCESS",
+        "github-actions://36817089026/SUCCESS",
+        "github-actions-artifact://11141752922/sha256:2c49af854547486de58c358289a7e2db5f8128be4421ad58eb04a0cd06ce90a8"
       ],
       "blockers": [
-        "REAL_POST_DECLARATION_HEDGE_RETURN_POPULATION_REQUIRED",
-        "HEDGE_INSTRUMENT_BASIS_RISK_COST_CORRELATION_EXECUTION_EVIDENCE_REQUIRED",
-        "NET_ECONOMIC_BENEFIT_NOT_PROVEN",
-        "PROVIDER_BOUND_FRESH_OOS_HEDGE_UTILITY_REQUIRED"
+        "T16_HEDGE_COST_EVIDENCE_INCOMPLETE",
+        "T16_PROVIDER_EXECUTION_SUPPORT_INCOMPLETE",
+        "T16_NET_ECONOMIC_BENEFIT_NOT_PROVEN",
+        "T16_FRESH_OOS_HEDGE_UTILITY_REQUIRED"
       ]
     },
     {
@@ -314,17 +316,49 @@
     "master_ledger_patch_baseline_terminal_count": 10,
     "master_ledger_patch_expected_terminal_count_if_no_concurrent_changes": 22,
     "t16_post_declaration_market_structure": {
-      "workflow_run_id": 36815427645,
-      "artifact_id": 11141306779,
-      "artifact_digest": "sha256:9563f7dd32c91a2f4cfaa77fc5902a34e405689251d19ddb89f974e2526946e0",
-      "observed_at_utc": "2026-10-01T04:31:57.494011+00:00",
-      "sample_count_per_pair": 26,
-      "us30_correlation": "0.4632414910514955482449002439",
-      "us500_correlation": "0.9032970883230561116812356603",
+      "workflow_run_id": 36817089026,
+      "artifact_id": 11141752922,
+      "artifact_digest": "sha256:2c49af854547486de58c358289a7e2db5f8128be4421ad58eb04a0cd06ce90a8",
+      "observed_at_utc": "2026-10-01T04:53:49.307000+00:00",
+      "sample_count_per_pair": 48,
+      "required_sample_count": 30,
+      "required_folds": 4,
       "fold_coverage_ready": true,
-      "correlation_stable": false,
+      "correlation_stable": true,
+      "basis_risk_measured": true,
+      "us30": {
+        "correlation": "0.3954139569878453283170350549",
+        "hedge_beta": "0.9870327967453971764500222111",
+        "basis_error_rms": "0.0001368025471723187710923904538"
+      },
+      "us500": {
+        "correlation": "0.8622051595292492167872639614",
+        "hedge_beta": "2.124695637073769264771432974",
+        "basis_error_rms": "0.00007506302011012838714771786774"
+      },
+      "provider_contract_and_quote_coverage_complete": true,
+      "empirical_slippage_coverage_complete": false,
+      "realized_execution_coverage_complete": false,
+      "full_hedge_cost_model_ready": false,
       "costs_and_execution_observed": false
+    },
+    "architect_b_zero_open_gate": {
+      "workflow_run_id": 36817089068,
+      "artifact_id": 11141618476,
+      "artifact_digest": "sha256:dd30597896732ebdb7723badc4a0e0ff8e44e5da8a1cf1c5899bd9ece0bf2c00",
+      "pass": true,
+      "b_workstream_count": 15,
+      "terminal_count": 15,
+      "open_workstream_ids": [],
+      "completed_or_falsified_count": 5,
+      "external_dependency_blocked_count": 10,
+      "certification_ready": false
+    },
+    "current_head_ci": {
+      "head": "aa412b3b7de0824c9b809edba7eeb617cf3571b5",
+      "relevant_workflows_success": 19,
+      "relevant_workflows_failure": 0
     }
   },
-  "package_revalidated_at_utc": "2026-10-01T04:09:27Z"
+  "package_revalidated_at_utc": "2026-10-01T04:53:49Z"
 }

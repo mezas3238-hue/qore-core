@@ -1,7 +1,7 @@
 {
   "schema": "CIBO_ARCH_B_MASTER_LEDGER_PATCH_REQUEST_V1",
   "branch": "agent/cibo-certification-architect-b-integration-001",
-  "evidence_base_head": "1104e799ad238d2f68847a9bf98ff0502ffde137",
+  "evidence_base_head": "aa412b3b7de0824c9b809edba7eeb617cf3571b5",
   "primary_pr": 651,
   "child_pr": 661,
   "master_ledger_owned_by": "ARCHITECT_A_OR_INTEGRATOR",
@@ -191,14 +191,14 @@
         ]
       },
       "to": {
-        "current_maturity": "PREOUTCOME_HEDGE_UNIVERSE_PREREGISTERED_POST_DECLARATION_STRUCTURE_OBSERVED_EXTERNAL_COST_OOS_REQUIRED",
+        "current_maturity": "POST_DECLARATION_HEDGE_STRUCTURE_PROVEN_EXTERNAL_COST_EXECUTION_AND_FRESH_OOS_UTILITY_REQUIRED",
         "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
         "certification_blocking": true,
         "blockers": [
-          "REAL_POST_DECLARATION_HEDGE_RETURN_POPULATION_REQUIRED",
-          "HEDGE_INSTRUMENT_BASIS_RISK_COST_CORRELATION_EXECUTION_EVIDENCE_REQUIRED",
-          "NET_ECONOMIC_BENEFIT_NOT_PROVEN",
-          "PROVIDER_BOUND_FRESH_OOS_HEDGE_UTILITY_REQUIRED"
+          "T16_HEDGE_COST_EVIDENCE_INCOMPLETE",
+          "T16_PROVIDER_EXECUTION_SUPPORT_INCOMPLETE",
+          "T16_NET_ECONOMIC_BENEFIT_NOT_PROVEN",
+          "T16_FRESH_OOS_HEDGE_UTILITY_REQUIRED"
         ],
         "evidence_refs": [
           "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -226,9 +226,11 @@
           ".github/workflows/cibo-t16-post-declaration-market-structure.yml",
           "docs/research/CIBO-B-T16-POST-DECLARATION-MARKET-STRUCTURE-V1.md",
           "github-actions://36815427645/SUCCESS",
-          "github-actions-artifact://11141306779/sha256:9563f7dd32c91a2f4cfaa77fc5902a34e405689251d19ddb89f974e2526946e0"
+          "github-actions-artifact://11141306779/sha256:9563f7dd32c91a2f4cfaa77fc5902a34e405689251d19ddb89f974e2526946e0",
+          "github-actions://36817089026/SUCCESS",
+          "github-actions-artifact://11141752922/sha256:2c49af854547486de58c358289a7e2db5f8128be4421ad58eb04a0cd06ce90a8"
         ],
-        "next_gate": "Continue post-declaration structure collection; require stable folds plus observed hedge cost/execution and fresh-OOS net economic benefit."
+        "next_gate": "Use observed provider contract/quote terms, but require realized hedge execution/slippage/cost evidence and then prove or falsify net economic benefit plus fresh-OOS utility. Do not reopen candidate selection."
       }
     },
     {
@@ -435,5 +437,12 @@
         "next_gate": "Await real chronological forward population and exact settlement/source-ledger/Compound/release reconciliation."
       }
     }
-  ]
+  ],
+  "generated_from_b_zero_open_gate": {
+    "workflow_run_id": 36817089068,
+    "artifact_id": 11141618476,
+    "pass": true,
+    "terminal_count": 15,
+    "open_workstream_ids": []
+  }
 }
