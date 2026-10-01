@@ -57,6 +57,8 @@ def _empty_manifest():
 def _artifact(receipt_id: str) -> str:
     payload = {
         "schema": "qore.cibo.usd60-source-test.v1",
+        "evidence_binding_id": receipt_id,
+        "evidence_kind": "USD60_PRE_EXAM_PREREQUISITE",
         "producer_gate_id": f"gate:{receipt_id}",
         "integrated_git_sha": HEAD,
         "policy_identity_sha256": POLICY,

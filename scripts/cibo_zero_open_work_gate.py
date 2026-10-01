@@ -78,6 +78,11 @@ _COMMENT_MARKERS = (
 )
 
 _WORKSTREAM_CLASSIFIERS = (
+    ("*cibo_ce2i_calibration_freeze_manifest*", "FORWARD_QUALIFICATION"),
+    ("*cibo_receipt_bound_calibration_freeze*", "FORWARD_QUALIFICATION"),
+    ("*calibration-freeze-manifest*", "FORWARD_QUALIFICATION"),
+    ("*CIBO-RISK-INTEGRATION-CLOSURE*", "RISK_INTEGRATION"),
+    ("*arch-b-forward-economic-manifest*", "FORWARD_QUALIFICATION"),
     ("*cibo_cma_compound_authority_boundary*", "CMA_FOUNDATION_INTEGRATION"),
     ("*cibo_ce2i_t02_terminal_reason_evidence*", "T02"),
     ("*cibo_ce2i_phase20_t02_structural_oos*", "T02"),

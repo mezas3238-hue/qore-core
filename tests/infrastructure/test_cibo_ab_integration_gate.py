@@ -134,7 +134,7 @@ def test_integrator_cannot_resolve_unknown_blocker() -> None:
     errors = gate.validate_state(matrix, ledger)
 
     assert any(
-        "resolved blocker is not present in upstream blockers" in item
+        "blocker is not present in upstream blockers" in item
         for item in errors
     )
 
