@@ -64,3 +64,23 @@ Please additionally classify these surfaces under `T17`:
 
 Their tests and provider-economics workflow evidence remain B-owned and must not
 be absorbed into a generic provider bucket during final inventory closure.
+
+
+## Addendum — T16 preregistration, T03 direct screen and B terminal dispositions
+
+Please classify these additional B surfaces:
+
+| Pattern / path | Workstream |
+|---|---|
+| `*cibo_ce2i_t16_preregistered_hedge_universe*` | `T16` |
+| `*cibo_t03_provider_equivalent_candidate_screen*` | `T03` |
+
+Architect B also emits:
+
+`docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json`
+
+This package is the canonical B recommendation for final A+B ledger reconciliation.
+It does **not** modify the Master Ledger from branch B. It distinguishes genuine
+scientific closure from `EXTERNAL_DEPENDENCY_BLOCKED` states. Every
+certification-blocking external dependency must remain blocking after
+reconciliation; do not treat terminal classification as certification success.

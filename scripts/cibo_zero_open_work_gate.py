@@ -74,7 +74,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_ce2i_t03_equivalent_expression*", "T03"),
     ("*cibo_ce2i_t11_execution_cost_calibration*", "T11"),
     ("*cibo_ce2i_t11_policy_input_readiness*", "T11"),
-    ("*cibo_ce2i_t16_hedge_candidate*", "T16"),
+    ("*cibo_ce2i_t16_hedge_candidate*", "T16"),\n    ("*cibo_ce2i_t16_preregistered_hedge_universe*", "T16"),\n    ("*cibo_t03_provider_equivalent_candidate_screen*", "T03"),
     ("*cibo_ce2i_t17_limited_risk_capability*", "T17"),
     ("*cibo_ce2i_t17_structural_disable*", "T17"),
     ("*cibo_t17_limited_risk_capability_probe*", "T17"),

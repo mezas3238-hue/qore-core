@@ -1,7 +1,7 @@
 {
   "schema": "CIBO_ARCH_B_CLOSURE_HANDOFF_V1",
   "branch": "agent/cibo-certification-architect-b-integration-001",
-  "implementation_checkpoint_sha": "442b9169090c9f5231e8f754dbeaf85dc665acb9",
+  "implementation_checkpoint_sha": "cd41a8e224812ee6944a70a947d7d4d5f3e7d9de",
   "primary_pr": 651,
   "child_pr": 661,
   "governance": {
@@ -30,7 +30,7 @@
     {
       "id": "T02",
       "b_status": "FORWARD_STRUCTURAL_OOS_CONTRACT_IMPLEMENTED",
-      "recommended_ledger_disposition": null,
+      "recommended_ledger_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence": [
         "src/qore/infrastructure/cibo_ce2i_t02_calibration_binding.py",
         "src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py",
@@ -45,27 +45,28 @@
     },
     {
       "id": "T03",
-      "b_status": "FORWARD_MARGIN_AND_PREREGISTERED_EQUIVALENT_EXPRESSION_ENGINES_IMPLEMENTED",
-      "recommended_ledger_disposition": null,
+      "b_status": "DIRECT_PROVIDER_UNIVERSE_SCREEN_IMPLEMENTED_EXTERNAL_EQUIVALENT_EXPRESSION_DEPENDENCY",
+      "recommended_ledger_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence": [
         "src/qore/infrastructure/cibo_ce2i_phase20_t03_margin_population.py",
         "tests/infrastructure/test_cibo_ce2i_phase20_t03_margin_population.py",
         ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
         "docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md",
         "src/qore/infrastructure/cibo_ce2i_t03_equivalent_expression.py",
-        "tests/infrastructure/test_cibo_ce2i_t03_equivalent_expression.py"
+        "tests/infrastructure/test_cibo_ce2i_t03_equivalent_expression.py",
+        "scripts/cibo_t03_provider_equivalent_candidate_screen.py",
+        "tests/infrastructure/test_cibo_t03_provider_equivalent_candidate_screen.py"
       ],
       "blockers": [
-        "REAL_PREREGISTERED_PROVIDER_VERIFIED_EQUIVALENT_EXPRESSION_CANDIDATES_REQUIRED",
-        "REAL_FROZEN_FORWARD_MARGIN_POPULATION_REQUIRED",
-        "FRESH_OOS_EQUIVALENT_EXPRESSION_ECONOMIC_UTILITY_REQUIRED",
-        "HISTORICAL_2017_MARGIN_TERMS_NOT_PROVEN"
+        "CURRENT_CTRADER_DIRECT_SINGLE_INSTRUMENT_CANDIDATE_SCREEN_EXHAUSTED",
+        "MULTI_LEG_OR_ALTERNATE_PROVIDER_EQUIVALENT_EXPRESSION_NOT_PROVEN",
+        "FRESH_OOS_EQUIVALENT_EXPRESSION_UTILITY_REQUIRED_IF_CANDIDATE_APPEARS"
       ]
     },
     {
       "id": "T11",
       "b_status": "LINEAR_COST_AND_POLICY_INPUT_PROVENANCE_GATES_IMPLEMENTED",
-      "recommended_ledger_disposition": null,
+      "recommended_ledger_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence": [
         "src/qore/infrastructure/cibo_ce2i_execution_efficiency.py",
         "src/qore/infrastructure/cibo_ce2i_phase20_t11_execution_population.py",
@@ -88,7 +89,7 @@
     {
       "id": "T16",
       "b_status": "HEDGED_MODE_PROVEN_PREOUTCOME_T16_CANDIDATE_UNIVERSE_PREREGISTERED",
-      "recommended_ledger_disposition": null,
+      "recommended_ledger_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence": [
         "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
         "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
@@ -142,7 +143,7 @@
     {
       "id": "T20",
       "b_status": "MECHANICAL_RELEASE_PROVENANCE_ENGINE_AND_GATE_IMPLEMENTED",
-      "recommended_ledger_disposition": null,
+      "recommended_ledger_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence": [
         "src/qore/infrastructure/cibo_t20_capital_release_evidence.py",
         "tests/infrastructure/test_cibo_t20_capital_release_evidence.py",
@@ -156,7 +157,7 @@
     {
       "id": "PROVIDER_ECONOMICS",
       "b_status": "CURRENT_CTRADER_PROVIDER_TERMS_AND_ACCOUNT_CAPABILITY_PROVEN_FORWARD_EXECUTION_COST_GAP_OPEN",
-      "recommended_ledger_disposition": null,
+      "recommended_ledger_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence": [
         "src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py",
         "src/qore/infrastructure/cibo_provider_economic_normalization.py",
@@ -182,7 +183,7 @@
     {
       "id": "FORWARD_QUALIFICATION",
       "b_status": "IMMUTABLE_B_TO_A_MANIFEST_AND_DURABLE_EXPORT_IMPLEMENTED",
-      "recommended_ledger_disposition": null,
+      "recommended_ledger_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence": [
         "src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py",
         "scripts/cibo_phase20_arch_b_forward_economic_manifest.py",
@@ -198,7 +199,7 @@
     {
       "id": "FRESH_OOS",
       "b_status": "DYNAMIC_PHASE20D_TO_PRE_HOLDOUT_FREEZE_BRIDGE_IMPLEMENTED",
-      "recommended_ledger_disposition": null,
+      "recommended_ledger_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence": [
         "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
         "src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py",
@@ -256,7 +257,7 @@
     {
       "id": "USD60_CAPABILITY_PROGRAM",
       "b_status": "ROBUST_CAPACITY_PROTOCOL_AND_PRE_EXAM_GATE_IMPLEMENTED",
-      "recommended_ledger_disposition": null,
+      "recommended_ledger_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence": [
         "src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py",
         "src/qore/infrastructure/cibo_ce2i_usd60_six_month_certification.py",
@@ -274,7 +275,7 @@
     {
       "id": "INTEGRATED_CAPITAL_TRUTH",
       "b_status": "FIVE_STORE_ENGINE_AND_FORWARD_SETTLEMENT_BINDING_IMPLEMENTED",
-      "recommended_ledger_disposition": null,
+      "recommended_ledger_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence": [
         "src/qore/infrastructure/cibo_integrated_capital_truth.py",
         "src/qore/infrastructure/cibo_integrated_capital_transaction_store.py",
@@ -304,7 +305,10 @@
     "t16_preregistered_candidate_pairs": [
       "NAS100->US30",
       "NAS100->US500"
-    ]
+    ],
+    "architect_b_terminal_disposition_package": "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
+    "architect_b_realizable_engineering_exhausted": true,
+    "master_ledger_modified_by_architect_b": false
   },
-  "package_revalidated_at_utc": "2026-10-01T04:03:30Z"
+  "package_revalidated_at_utc": "2026-10-01T04:09:27Z"
 }
