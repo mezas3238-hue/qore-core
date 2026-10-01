@@ -128,6 +128,76 @@ class CompoundStressResult:
             )
 
 
+@dataclass(frozen=True, slots=True)
+class CompoundStressCoverageReport:
+    represented_kinds: tuple[str, ...]
+    scenario_count: int
+    all_frozen_stress_families_represented: bool
+    market_probability_claimed: bool = False
+    scientific_disposition_claimed: bool = False
+    certification_ready: bool = False
+
+    def __post_init__(self) -> None:
+        expected = tuple(item.value for item in CompoundStressKind)
+        if self.represented_kinds != expected:
+            raise CiboCompoundCapitalError(
+                "compound stress coverage family surface drift"
+            )
+        if (
+            not isinstance(self.scenario_count, int)
+            or isinstance(self.scenario_count, bool)
+            or self.scenario_count < len(expected)
+        ):
+            raise CiboCompoundCapitalError(
+                "compound stress coverage scenario count is incomplete"
+            )
+        if self.all_frozen_stress_families_represented is not True:
+            raise CiboCompoundCapitalError(
+                "compound stress coverage must represent every frozen family"
+            )
+        if (
+            self.market_probability_claimed
+            or self.scientific_disposition_claimed
+            or self.certification_ready
+        ):
+            raise CiboCompoundCapitalError(
+                "compound stress coverage cannot overclaim science"
+            )
+
+
+def audit_compound_stress_family_coverage(
+    scenarios: tuple[CompoundStressScenario, ...],
+) -> CompoundStressCoverageReport:
+    """Prove family coverage without changing stress transforms or outcomes."""
+
+    if (
+        not isinstance(scenarios, tuple)
+        or not scenarios
+        or any(not isinstance(item, CompoundStressScenario) for item in scenarios)
+    ):
+        raise CiboCompoundCapitalError(
+            "compound stress coverage requires canonical scenarios"
+        )
+    ids = tuple(item.scenario_id for item in scenarios)
+    if len(ids) != len(set(ids)):
+        raise CiboCompoundCapitalError(
+            "compound stress coverage scenario ids must be unique"
+        )
+    represented = {item.kind for item in scenarios}
+    expected = tuple(CompoundStressKind)
+    missing = tuple(item for item in expected if item not in represented)
+    if missing:
+        raise CiboCompoundCapitalError(
+            "compound stress coverage is incomplete: "
+            + ",".join(item.value for item in missing)
+        )
+    return CompoundStressCoverageReport(
+        represented_kinds=tuple(item.value for item in expected),
+        scenario_count=len(scenarios),
+        all_frozen_stress_families_represented=True,
+    )
+
+
 def run_compound_adversarial_stress(
     *,
     initial: CompoundMonteCarloInitialState,
