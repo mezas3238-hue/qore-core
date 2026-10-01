@@ -18,11 +18,15 @@ import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from contextlib import nullcontext
 from types import ModuleType
 from typing import Any
 
 from qore.infrastructure.cibo_ce2i_holdout_registry import (
     ACTIVE_USD60_HOLDOUT_CANDIDATE,
+)
+from qore.infrastructure.cibo_phase22_turtle_predecision_projection import (
+    fresh_causal_active_ladder,
 )
 
 PARITY_OPEN = datetime(2021, 9, 17, tzinfo=UTC)
@@ -180,16 +184,22 @@ def run_window_replay(
     original_open = module.EVAL_OPEN
     original_close = module.EVAL_CLOSE
     output.mkdir(parents=True, exist_ok=True)
+    causal_scope = (
+        fresh_causal_active_ladder(module)
+        if mode == "FRESH"
+        else nullcontext()
+    )
     try:
         module.EVAL_OPEN = start
         module.EVAL_CLOSE = end
-        report = run(
-            raw_root,
-            target_root,
-            cognitive_root,
-            freeze_root,
-            output,
-        )
+        with causal_scope:
+            report = run(
+                raw_root,
+                target_root,
+                cognitive_root,
+                freeze_root,
+                output,
+            )
     finally:
         module.EVAL_OPEN = original_open
         module.EVAL_CLOSE = original_close
@@ -222,6 +232,7 @@ def run_window_replay(
             report.get("identity") if isinstance(report, dict) else None
         ),
         "methodology_parameters_changed": False,
+        "fresh_predecision_future_outcomes_masked": mode == "FRESH",
         "legacy_trader_sizing_used_for_cibo": False,
         "provider_economics_claimed": False,
         "fresh_holdout_outcomes_executed": mode == "FRESH",

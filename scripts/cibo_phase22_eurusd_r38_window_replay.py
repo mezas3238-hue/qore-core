@@ -16,6 +16,7 @@ import hashlib
 import importlib.util
 import json
 import sys
+from contextlib import nullcontext
 from datetime import UTC, datetime
 from pathlib import Path
 from types import ModuleType
@@ -23,6 +24,9 @@ from typing import Any, Protocol, cast
 
 from qore.infrastructure.cibo_ce2i_holdout_registry import (
     ACTIVE_USD60_HOLDOUT_CANDIDATE,
+)
+from qore.infrastructure.cibo_phase22_turtle_predecision_projection import (
+    fresh_causal_active_ladder,
 )
 
 SOURCE_CODE_GIT_SHA = "324fb91d44a6fa328e66de2e22ace7386630c7aa"
@@ -100,13 +104,19 @@ def run_window(
 
     module.EVAL_OPEN = opened_at
     module.EVAL_CLOSE = closed_at
-    result = module.run(
-        raw_root,
-        target_root,
-        cognitive_root,
-        freeze_root,
-        output_dir,
+    causal_scope = (
+        fresh_causal_active_ladder(raw_module)
+        if mode == "FRESH"
+        else nullcontext()
     )
+    with causal_scope:
+        result = module.run(
+            raw_root,
+            target_root,
+            cognitive_root,
+            freeze_root,
+            output_dir,
+        )
     if not isinstance(result, dict):
         raise ValueError("EURUSD exact replay returned non-object report")
 
@@ -143,6 +153,7 @@ def run_window(
         "geometry_sha256": _sha256(trades_path),
         "engine_report_sha256": _sha256(report_path),
         "methodology_parameters_modified": False,
+        "fresh_predecision_future_outcomes_masked": mode == "FRESH",
         "window_is_preregistered": True,
         "fresh_holdout_accessed": mode == "FRESH",
         "fresh_outcomes_executed": mode == "FRESH",

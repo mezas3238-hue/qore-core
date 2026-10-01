@@ -74,6 +74,7 @@ jobs:
               "QORE CIBO Phase22 VT31 V4 Fresh Engine Contract",
               "QORE CIBO Phase22 Turtle Fresh Corpus Contract",
               "QORE CIBO Phase22 Turtle V2 Dependency Contract",
+              "QORE CIBO Phase22 Turtle Predecision Causality",
               "QORE CIBO Phase22 Dual-Evidence Protocol",
             ]);
 

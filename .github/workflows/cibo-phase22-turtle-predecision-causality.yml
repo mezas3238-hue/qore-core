@@ -1,0 +1,66 @@
+name: QORE CIBO Phase22 Turtle Predecision Causality
+
+on:
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+    paths:
+      - '.github/workflows/cibo-phase22-turtle-predecision-causality.yml'
+      - 'src/qore/infrastructure/cibo_phase22_turtle_predecision_projection.py'
+      - 'scripts/cibo_phase22_turtle_window_replay.py'
+      - 'scripts/cibo_phase22_eurusd_r38_window_replay.py'
+      - 'tests/infrastructure/test_cibo_phase22_turtle_predecision_projection.py'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase22-turtle-predecision-causality.yml'
+      - 'src/qore/infrastructure/cibo_phase22_turtle_predecision_projection.py'
+      - 'scripts/cibo_phase22_turtle_window_replay.py'
+      - 'scripts/cibo_phase22_eurusd_r38_window_replay.py'
+      - 'tests/infrastructure/test_cibo_phase22_turtle_predecision_projection.py'
+
+permissions:
+  contents: read
+
+jobs:
+  causality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_phase22_turtle_predecision_projection.py \
+            scripts/cibo_phase22_turtle_window_replay.py \
+            scripts/cibo_phase22_eurusd_r38_window_replay.py \
+            tests/infrastructure/test_cibo_phase22_turtle_predecision_projection.py
+          mypy --disable-error-code=import-untyped \
+            src/qore/infrastructure/cibo_phase22_turtle_predecision_projection.py \
+            scripts/cibo_phase22_turtle_window_replay.py \
+            scripts/cibo_phase22_eurusd_r38_window_replay.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase22_turtle_predecision_projection.py \
+            tests/infrastructure/test_cibo_phase22_turtle_window_replay.py \
+            tests/infrastructure/test_cibo_phase22_eurusd_r38_window_replay.py
+      - name: Seal causal contract
+        run: |
+          mkdir -p phase22-turtle-causality
+          cat > phase22-turtle-causality/receipt.json <<'JSON'
+          {
+            "schema": "qore.cibo.phase22.turtle-predecision-causality.v1",
+            "fresh_future_target_outcomes_masked": true,
+            "prior_touch_invalidation_preserved": true,
+            "parity_mode_modified": false,
+            "holdout_outcomes_inspected": false,
+            "productive_authority": false
+          }
+          JSON
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase22-turtle-predecision-causality-${{ github.sha }}
+          path: phase22-turtle-causality
+          if-no-files-found: error
+          retention-days: 90
