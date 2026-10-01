@@ -62,6 +62,47 @@ class CompoundTemporalEconomicFoldResult:
     failed_dimensions: tuple[str, ...]
     passed: bool
 
+    def __post_init__(self) -> None:
+        if self.fold_id not in _CANONICAL_FOLDS:
+            raise CiboCompoundCapitalError(
+                "compound economic fold result must be WF1..WF4"
+            )
+        if type(self.treatment_status) is not Genc9EconomicGateStatus:
+            raise CiboCompoundCapitalError(
+                "compound economic fold treatment status is invalid"
+            )
+        for name in (
+            "safety_no_worse",
+            "strict_growth_or_efficiency_improvement",
+            "passed",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"compound economic fold result {name} must be bool"
+                )
+        if (
+            not isinstance(self.failed_dimensions, tuple)
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.failed_dimensions
+            )
+            or len(self.failed_dimensions) != len(set(self.failed_dimensions))
+        ):
+            raise CiboCompoundCapitalError(
+                "compound economic fold failed dimensions are invalid"
+            )
+        expected_pass = (
+            self.treatment_status
+            is Genc9EconomicGateStatus.ELIGIBLE_FOR_FURTHER_RESEARCH
+            and self.safety_no_worse
+            and self.strict_growth_or_efficiency_improvement
+            and not self.failed_dimensions
+        )
+        if self.passed != expected_pass:
+            raise CiboCompoundCapitalError(
+                "compound economic fold pass/status drift"
+            )
+
 
 @dataclass(frozen=True, slots=True)
 class CompoundTemporalEconomicReplicationGate:

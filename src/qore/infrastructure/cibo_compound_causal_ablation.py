@@ -170,6 +170,70 @@ class CompoundCausalAblationGateReport:
     winner_selected: bool = False
     certification_ready: bool = False
 
+    def __post_init__(self) -> None:
+        if self.protocol_id != PROTOCOL_ID:
+            raise CiboCompoundCapitalError(
+                "compound causal ablation report protocol drift"
+            )
+        if (
+            type(self.pair_count) is not int
+            or self.pair_count <= 0
+            or self.pair_count != len(self.ablation_ids)
+            or self.pair_count != len(self.treatment_policy_ids)
+            or self.pair_count != len(self.fold_ids)
+        ):
+            raise CiboCompoundCapitalError(
+                "compound causal ablation report pair-count drift"
+            )
+        for values, label in (
+            (self.ablation_ids, "ablation ids"),
+            (self.treatment_policy_ids, "treatment ids"),
+            (self.fold_ids, "fold ids"),
+        ):
+            if not isinstance(values, tuple) or any(
+                not isinstance(item, str) or not item for item in values
+            ):
+                raise CiboCompoundCapitalError(
+                    f"compound causal ablation report {label} are invalid"
+                )
+        if len(self.ablation_ids) != len(set(self.ablation_ids)):
+            raise CiboCompoundCapitalError(
+                "compound causal ablation report ablation ids must be unique"
+            )
+        if len(self.treatment_policy_ids) != len(set(self.treatment_policy_ids)):
+            raise CiboCompoundCapitalError(
+                "compound causal ablation report treatment ids must be unique"
+            )
+        if any(item not in _CANONICAL_FOLDS for item in self.fold_ids):
+            raise CiboCompoundCapitalError(
+                "compound causal ablation report fold identity drift"
+            )
+        for name in (
+            "one_mechanism_per_pair",
+            "same_population_per_pair",
+            "same_provider_economics_per_pair",
+            "forward_observed_only",
+            "economic_outcomes_evaluated",
+            "winner_selected",
+            "certification_ready",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"compound causal ablation report {name} must be bool"
+                )
+        if (
+            not self.one_mechanism_per_pair
+            or not self.same_population_per_pair
+            or not self.same_provider_economics_per_pair
+            or not self.forward_observed_only
+            or self.economic_outcomes_evaluated
+            or self.winner_selected
+            or self.certification_ready
+        ):
+            raise CiboCompoundCapitalError(
+                "compound causal ablation report governance drift"
+            )
+
 
 def gate_compound_causal_ablation_pairs(
     pairs: tuple[CompoundCausalAblationPair, ...],
