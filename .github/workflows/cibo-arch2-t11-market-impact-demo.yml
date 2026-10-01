@@ -102,9 +102,16 @@ jobs:
           assert p["episode_count"] == 144
           assert p["child_entry_count"] == 216
           assert p["minimum_volume_child_orders_only"] is True
+          assert p["two_x_children_open_before_close"] is True
+          assert p["balanced_long_short_pairs"] is True
+          assert p["alternating_level_order"] is True
+          assert p["deposit_asset"] == "USD"
+          assert p["metric"] == "ADVERSE_REALIZED_ALL_IN_SETTLEMENT_COST_USD"
           assert p["calibration_pairs_per_symbol"] == 8
           assert p["validation_pairs_per_symbol"] == 4
           assert p["all_created_positions_closed"] is True
+          assert p["broker_mutation_performed"] is True
+          assert p["mutation_scope"] == "CTRADER_DEMO_MINIMUM_VOLUME_CHILD_ROUND_TRIPS_ONLY"
           assert p["holdout_outcomes_used"] is False
           assert p["phase22_v2_consumed"] is False
           assert p["fundednext_touched"] is False
