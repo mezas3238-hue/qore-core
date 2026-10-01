@@ -27,7 +27,6 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
 )
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     Phase20ForwardDecisionSeal,
-    VersionedPhase20ForwardEvidenceBook,
 )
 from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
     FROZEN_PHASE20D_QUALIFICATION_PLAN,
@@ -36,6 +35,10 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
 from qore.infrastructure.cibo_ce2i_phase20_qualification_readiness import (
     Phase20QualificationReadiness,
     assess_phase20d_qualification_readiness,
+)
+from qore.infrastructure.cibo_ce2i_qualification_evidence_protocol import (
+    Phase20QualificationEvidenceBook,
+    require_qualification_evidence_book,
 )
 
 
@@ -138,15 +141,15 @@ class _ParsedCandidate:
 
 def run_phase20d_full_surface_qualification(
     *,
-    evidence_book: VersionedPhase20ForwardEvidenceBook,
+    evidence_book: Phase20QualificationEvidenceBook,
     policy_book: VersionedPhase20ForwardPolicyBook,
 ) -> Phase20QualificationReport:
     """Run the frozen full-surface protocol; no parameters are fitted from outcomes."""
 
-    if not isinstance(evidence_book, VersionedPhase20ForwardEvidenceBook):
-        raise CiboCapitalManagementError(
-            "Phase20D qualification requires canonical evidence book"
-        )
+    evidence_book = require_qualification_evidence_book(
+        evidence_book,
+        context="Phase20D qualification",
+    )
     if not isinstance(policy_book, VersionedPhase20ForwardPolicyBook):
         raise CiboCapitalManagementError(
             "Phase20D qualification requires canonical policy book"
@@ -182,6 +185,19 @@ def run_phase20d_full_surface_qualification(
     advanced_abstained = 0
     advanced_fail_closed = 0
 
+    expected_evidence_kind = getattr(
+        evidence_book,
+        "qualification_evidence_kind",
+        "FORWARD_OBSERVED",
+    )
+    if expected_evidence_kind not in {
+        "FORWARD_OBSERVED",
+        "HISTORICAL_REPLAY_OBSERVED",
+    }:
+        raise CiboCapitalManagementError(
+            "Phase20D qualification evidence kind invalid"
+        )
+
     ordered_decisions = tuple(
         sorted(
             evidence_book.decisions,
@@ -192,7 +208,7 @@ def run_phase20d_full_surface_qualification(
         payload = _decision_payload(decision)
         if not decision.sealed_within_deadline:
             safety_failures.append("ZERO_CAUSAL_CONTAMINATION")
-        if payload.get("evidence_kind") != "FORWARD_OBSERVED":
+        if payload.get("evidence_kind") != expected_evidence_kind:
             safety_failures.append("ZERO_CAUSAL_CONTAMINATION")
         policy = policy_by_sha.get(decision.evidence_sha256)
         if policy is None:
@@ -1001,7 +1017,7 @@ def _decimal(value: object) -> Decimal:
 
 def run_phase20d_v2_qualification(
     *,
-    evidence_book: VersionedPhase20ForwardEvidenceBook,
+    evidence_book: Phase20QualificationEvidenceBook,
     policy_book: VersionedPhase20ForwardPolicyBook,
 ) -> Phase20QualificationReport:
     """Compatibility alias for callers migrating from the rejected V2 name."""
