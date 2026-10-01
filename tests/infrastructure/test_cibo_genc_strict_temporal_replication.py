@@ -23,15 +23,15 @@ from qore.infrastructure.cibo_genc12_economic_gate import (
     Genc12EconomicRole,
 )
 from qore.infrastructure.cibo_genc_strict_temporal_replication import (
-    Genc11Genc13TemporalFoldEvidence,
-    Genc12TemporalFoldEvidence,
     Genc7TemporalFoldEvidence,
     Genc8TemporalFoldEvidence,
+    Genc11Genc13TemporalFoldEvidence,
+    Genc12TemporalFoldEvidence,
     GencTemporalReplicationVerdict,
-    evaluate_genc11_genc13_temporal_replication,
-    evaluate_genc12_temporal_replication,
     evaluate_genc7_temporal_replication,
     evaluate_genc8_temporal_replication,
+    evaluate_genc11_genc13_temporal_replication,
+    evaluate_genc12_temporal_replication,
 )
 from qore.infrastructure.cibo_profit_preservation_economic_gate import (
     Genc7CausalEconomicObservation,

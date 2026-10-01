@@ -18,6 +18,7 @@ from qore.infrastructure.cibo_adaptive_compound_speed_economic_gate import (
     evaluate_genc8_economic_gate,
 )
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
+from qore.infrastructure.cibo_genc9_economic_gate import Genc9EconomicGateStatus
 from qore.infrastructure.cibo_genc11_genc13_utility_gate import (
     Genc11Genc13UtilityInput,
     Genc11Genc13Workstream,
@@ -29,7 +30,6 @@ from qore.infrastructure.cibo_genc12_economic_gate import (
     Genc12EconomicGateStatus,
     evaluate_genc12_economic_gate,
 )
-from qore.infrastructure.cibo_genc9_economic_gate import Genc9EconomicGateStatus
 from qore.infrastructure.cibo_profit_preservation_economic_gate import (
     Genc7CausalEconomicObservation,
     Genc7EconomicGateRow,

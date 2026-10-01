@@ -89,6 +89,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_compound_temporal_replication*", "TEMPORAL_REPLICATION"),
     ("*COMPOUND-TEMPORAL-REPLICATION*", "TEMPORAL_REPLICATION"),
     ("*cibo_compound_adversarial_stress*", "ADVERSARIAL_STRESS"),
+    ("*cibo_arch_a_mechanism_stress_gate*", "ADVERSARIAL_STRESS"),
     ("*COMPOUND-ADVERSARIAL-STRESS*", "ADVERSARIAL_STRESS"),
     ("*cibo_genc3_genc6_economic_gate*", "CAPITAL_AMPLIFICATION"),
     ("*cibo_genc_strict_temporal_replication*", "TEMPORAL_REPLICATION"),
