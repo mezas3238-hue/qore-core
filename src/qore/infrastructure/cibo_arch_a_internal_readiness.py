@@ -65,6 +65,20 @@ _SCIENTIFIC_WAVES = (
     _SCIENTIFIC_WAVE_4,
 )
 
+_REQUIRED_MECHANISM_EVIDENCE_KINDS = (
+    "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+    "T08_FACTOR_CORRELATION_LINEAGE",
+    "T09_T18_TRUE_SCARCITY_LINEAGE",
+    "T15_RESERVATION_COUNTERFACTUAL_LINEAGE",
+    "GENC10_TWIN_TRANSITION_LINEAGE",
+    "GENC11_TRANSITION_CALIBRATION",
+    "GENC12_CRISIS_FACTOR_SET",
+    "GENC13_MEMORY_HYPOTHESIS",
+    "PROTECTED_BASE_POLICY_IDENTITY",
+    "COMPOUND_STRESS_LINEAGE",
+    "STRICT_TEMPORAL_POPULATION_LINEAGE",
+)
+
 _INTERNAL_DEBT_MARKERS = (
     "REGISTRY_RECONCILIATION_REQUIRED", "CI_PENDING", "NOT_IMPLEMENTED",
     "ARCHITECTURE_ONLY", "PREREGISTRATION_REQUIRED", "PROTOCOL_REQUIRED",
@@ -638,6 +652,9 @@ class ArchitectAScientificBatchPlan:
     integration_authority: bool = False
     production_authority: bool = False
     mechanism_specific_evidence_required: bool = True
+    required_mechanism_evidence_kinds: tuple[str, ...] = (
+        _REQUIRED_MECHANISM_EVIDENCE_KINDS
+    )
 
     def __post_init__(self) -> None:
         if self.schema != SCIENTIFIC_BATCH_SCHEMA:
@@ -672,6 +689,13 @@ class ArchitectAScientificBatchPlan:
         if not self.mechanism_specific_evidence_required:
             raise ArchitectAReadinessError(
                 "Architect A scientific batch must retain mechanism-specific evidence gate"
+            )
+        if (
+            self.required_mechanism_evidence_kinds
+            != _REQUIRED_MECHANISM_EVIDENCE_KINDS
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A scientific batch mechanism-evidence contract drift"
             )
         if self.population_batch_ready and self.complete_without_execution:
             raise ArchitectAReadinessError(

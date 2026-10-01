@@ -288,3 +288,28 @@ def test_architect_a_readiness_rejects_manual_pass_evidence_drift(
     ):
         replace(report, passed=True)
 
+def test_scientific_batch_plan_exposes_mechanism_evidence_contract(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / "ledger.json"
+    _write(ledger_path, _ledger())
+    readiness = gate.evaluate_architect_a_internal_readiness(ledger_path)
+    intake = gate.evaluate_architect_a_scientific_intake(
+        _forward_manifest_payload(ready=True)
+    )
+    plan = gate.build_architect_a_scientific_batch_plan(readiness, intake)
+
+    assert plan.required_mechanism_evidence_kinds == (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "T08_FACTOR_CORRELATION_LINEAGE",
+        "T09_T18_TRUE_SCARCITY_LINEAGE",
+        "T15_RESERVATION_COUNTERFACTUAL_LINEAGE",
+        "GENC10_TWIN_TRANSITION_LINEAGE",
+        "GENC11_TRANSITION_CALIBRATION",
+        "GENC12_CRISIS_FACTOR_SET",
+        "GENC13_MEMORY_HYPOTHESIS",
+        "PROTECTED_BASE_POLICY_IDENTITY",
+        "COMPOUND_STRESS_LINEAGE",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    )
+
