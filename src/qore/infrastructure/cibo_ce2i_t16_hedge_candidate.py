@@ -65,8 +65,8 @@ class T16HedgeReturnObservation:
     known_at: datetime
     target_return: Decimal
     hedge_return: Decimal
-    hedge_cost_bps: Decimal
-    execution_supported: bool
+    hedge_cost_bps: Decimal | None
+    execution_supported: bool | None
     source_evidence_sha256: str
 
     def __post_init__(self) -> None:
@@ -88,19 +88,25 @@ class T16HedgeReturnObservation:
             raise CiboCapitalManagementError(
                 "T16 hedge observation cannot be known before interval end"
             )
-        for name in ("target_return", "hedge_return", "hedge_cost_bps"):
+        for name in ("target_return", "hedge_return"):
             value = getattr(self, name)
             if not isinstance(value, Decimal) or not value.is_finite():
                 raise CiboCapitalManagementError(
                     f"T16 {name} must be finite Decimal"
                 )
-        if self.hedge_cost_bps < 0:
+        if self.hedge_cost_bps is not None and (
+            not isinstance(self.hedge_cost_bps, Decimal)
+            or not self.hedge_cost_bps.is_finite()
+            or self.hedge_cost_bps < 0
+        ):
             raise CiboCapitalManagementError(
-                "T16 hedge_cost_bps must be non-negative"
+                "T16 hedge_cost_bps must be non-negative Decimal/null"
             )
-        if type(self.execution_supported) is not bool:
+        if self.execution_supported is not None and (
+            type(self.execution_supported) is not bool
+        ):
             raise CiboCapitalManagementError(
-                "T16 execution_supported must be bool"
+                "T16 execution_supported must be bool/null"
             )
         _sha(self.source_evidence_sha256, "source_evidence_sha256")
 
@@ -321,13 +327,21 @@ def assess_t16_hedge_candidate(
         and correlation != 0
         and _fold_signs_stable(folds, correlation)
     )
-    execution_supported = all(row.execution_supported for row in ordered)
-    mean_cost = sum(
-        (row.hedge_cost_bps for row in ordered),
-        Decimal(0),
-    ) / Decimal(len(ordered))
+    execution_supported = all(
+        row.execution_supported is True for row in ordered
+    )
+    cost_rows = tuple(
+        row.hedge_cost_bps
+        for row in ordered
+        if row.hedge_cost_bps is not None
+    )
+    cost_bound = len(cost_rows) == len(ordered) and bool(ordered)
+    mean_cost = (
+        sum(cost_rows, Decimal(0)) / Decimal(len(cost_rows))
+        if cost_bound
+        else None
+    )
     basis_measured = beta is not None and basis_rms is not None
-    cost_bound = bool(ordered)
 
     blockers: list[str] = []
     if not sample_ready:
@@ -344,6 +358,8 @@ def assess_t16_hedge_candidate(
         blockers.append("T16_CORRELATION_NOT_STABLE_ACROSS_FOLDS")
     if not basis_measured:
         blockers.append("T16_BASIS_RISK_NOT_IDENTIFIED")
+    if not cost_bound:
+        blockers.append("T16_HEDGE_COST_EVIDENCE_INCOMPLETE")
     if not execution_supported:
         blockers.append("T16_PROVIDER_EXECUTION_SUPPORT_INCOMPLETE")
     blockers.extend(
@@ -425,6 +441,7 @@ def _empty(
             f"T16_FOLD_COVERAGE_NOT_MET:0/{required_folds}",
             "T16_CORRELATION_NOT_IDENTIFIED",
             "T16_BASIS_RISK_NOT_IDENTIFIED",
+            "T16_HEDGE_COST_EVIDENCE_INCOMPLETE",
             "T16_PROVIDER_EXECUTION_SUPPORT_INCOMPLETE",
             "T16_NET_ECONOMIC_BENEFIT_NOT_PROVEN",
             "T16_FRESH_OOS_HEDGE_UTILITY_REQUIRED",

@@ -77,6 +77,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_ce2i_t16_hedge_candidate*", "T16"),
     ("*cibo_ce2i_t16_preregistered_hedge_universe*", "T16"),
     ("*cibo_t03_provider_equivalent_candidate_screen*", "T03"),
+    ("*cibo_t16_ctrader_demo_post_declaration_probe*", "T16"),
     ("*cibo_ce2i_t17_limited_risk_capability*", "T17"),
     ("*cibo_ce2i_t17_structural_disable*", "T17"),
     ("*cibo_t17_limited_risk_capability_probe*", "T17"),

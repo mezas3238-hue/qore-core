@@ -199,3 +199,45 @@ def test_pair_declaration_identity_drift_is_rejected() -> None:
             minimum_samples=2,
             required_folds=2,
         )
+
+
+
+def test_return_structure_can_be_measured_before_cost_execution_evidence() -> None:
+    rows = []
+    for index in range(40):
+        start = T0 + timedelta(minutes=5 * index)
+        hedge = Decimal(index % 7 - 3) / Decimal("1000")
+        rows.append(
+            T16HedgeReturnObservation(
+                provider_key="ctrader-demo",
+                target_symbol="NAS100",
+                hedge_symbol="SPX500",
+                start_market_at=start,
+                end_market_at=start + timedelta(minutes=5),
+                known_at=start + timedelta(minutes=5),
+                target_return=hedge * Decimal("1.5"),
+                hedge_return=hedge,
+                hedge_cost_bps=None,
+                execution_supported=None,
+                source_evidence_sha256=(
+                    "sha256:" + f"{index + 1000:064x}"
+                ),
+            )
+        )
+
+    report = assess_t16_hedge_candidate(
+        declaration=_declaration(),
+        observations=tuple(rows),
+        decision_at=T0 + timedelta(hours=4),
+    )
+
+    assert report.sample_ready is True
+    assert report.fold_coverage_ready is True
+    assert report.correlation_stable is True
+    assert report.basis_risk_measured is True
+    assert report.hedge_cost_bound is False
+    assert report.mean_hedge_cost_bps is None
+    assert report.execution_support_complete is False
+    assert report.measurement_ready is False
+    assert "T16_HEDGE_COST_EVIDENCE_INCOMPLETE" in report.blockers
+    assert "T16_PROVIDER_EXECUTION_SUPPORT_INCOMPLETE" in report.blockers
