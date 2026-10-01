@@ -288,3 +288,75 @@ def test_compound_mc_summary_rejects_manual_aggregate_drift() -> None:
     ):
         replace(summary, dependency_breach_paths=1)
 
+
+
+def test_compound_mc_result_rejects_terminal_capital_identity_drift() -> None:
+    episode = _episode(
+        episode_id="identity",
+        start_minute=0,
+        duration_minutes=5,
+        generation=1,
+        deployed="5",
+        pnl="2",
+    )
+    summary = run_compound_path_monte_carlo(
+        initial=_initial(),
+        episodes=(episode,),
+        simulations=1,
+        draws_per_path=1,
+        components_per_block=1,
+        base_seed=17,
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="ending realized-capital identity drift",
+    ):
+        replace(
+            summary.results[0],
+            ending_realized_capital_usd=(
+                summary.results[0].ending_realized_capital_usd
+                + Decimal("1")
+            ),
+        )
+
+
+def test_compound_mc_result_rejects_invalid_ending_generation_capacity() -> None:
+    episode = _episode(
+        episode_id="generation-integrity",
+        start_minute=0,
+        duration_minutes=5,
+        generation=1,
+        deployed="5",
+        pnl="2",
+    )
+    summary = run_compound_path_monte_carlo(
+        initial=_initial(),
+        episodes=(episode,),
+        simulations=1,
+        draws_per_path=1,
+        components_per_block=1,
+        base_seed=19,
+    )
+    result = summary.results[0]
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="ending generations must be unique",
+    ):
+        replace(
+            result,
+            ending_generation_capacity_usd=(
+                (1, Decimal("10")),
+                (1, Decimal("10")),
+            ),
+        )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="ending generation capacity must be finite non-negative",
+    ):
+        replace(
+            result,
+            ending_generation_capacity_usd=((1, Decimal("-1")),),
+        )
