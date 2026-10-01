@@ -23,9 +23,6 @@ from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
     Bar,
     Evidence,
 )
-from qore.infrastructure.trader_lab.vt08_b01_backtest_r3_8 import (
-    Vt08B01BacktestTrade,
-)
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 from qore.infrastructure.traders.vt08_b01_r3_8 import (
     AUTHORIZED_FOREX_MARKETS,
@@ -46,6 +43,19 @@ FROZEN_PORTFOLIO = frozenset(
     }
 )
 _NY = ZoneInfo("America/New_York")
+
+
+@dataclass(frozen=True, slots=True)
+class FrozenVt08ModeledTrade:
+    signal_at: datetime
+    exited_at: datetime
+    side: DemoTradingSetupSide
+    entry: Decimal
+    stop: Decimal
+    target: Decimal
+    exit_price: Decimal
+    exit_reason: str
+    return_rate: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -190,7 +200,7 @@ def _model_trade_frozen(
     candidate: Vt08B01Candidate,
     *,
     bars_by_open: dict[datetime, Vt08B01Bar],
-) -> Vt08B01BacktestTrade | None:
+) -> FrozenVt08ModeledTrade | None:
     """Exact copy of the frozen R3.8 execution model, without loader policy."""
     start = candidate.decision_at.astimezone(UTC)
     local = start.astimezone(_NY)
@@ -228,7 +238,7 @@ def _model_trade_frozen(
         return_rate = (exit_price - setup.entry_price) / setup.entry_price
     else:
         return_rate = (setup.entry_price - exit_price) / setup.entry_price
-    return Vt08B01BacktestTrade(
+    return FrozenVt08ModeledTrade(
         signal_at=start,
         exited_at=exited_at,
         side=candidate.side,
@@ -240,7 +250,7 @@ def _model_trade_frozen(
         return_rate=return_rate,
     )
 
-def _realized_r(trade: Vt08B01BacktestTrade) -> Decimal:
+def _realized_r(trade: FrozenVt08ModeledTrade) -> Decimal:
     if trade.side is DemoTradingSetupSide.LONG:
         risk = trade.entry - trade.stop
         delta = trade.exit_price - trade.entry
@@ -255,7 +265,7 @@ def _realized_r(trade: Vt08B01BacktestTrade) -> Decimal:
 def _fingerprint(
     *,
     symbol: str,
-    trade: Vt08B01BacktestTrade,
+    trade: FrozenVt08ModeledTrade,
 ) -> str:
     payload = {
         "trader_id": "VT08_FOREX",
@@ -278,7 +288,7 @@ def _fingerprint(
 
 def _opportunity(
     symbol: str,
-    trade: Vt08B01BacktestTrade,
+    trade: FrozenVt08ModeledTrade,
     transform_sha256: str,
 ) -> Phase22VolumeFreeOpportunity:
     return Phase22VolumeFreeOpportunity(
@@ -331,7 +341,7 @@ def evaluate_vt08_phase22_symbol(
 
     multiple = 0
     incomplete = 0
-    trades: list[Vt08B01BacktestTrade] = []
+    trades: list[FrozenVt08ModeledTrade] = []
     for local_day in sorted(candidates_by_day):
         candidates = candidates_by_day[local_day]
         if len(candidates) != 1:
