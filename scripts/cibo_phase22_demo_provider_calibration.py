@@ -245,7 +245,7 @@ def _single_deal(
         for item in rows
         if getattr(item, "orderId", order_id) == order_id
         and type(getattr(item, "dealId", None)) is int
-        and getattr(item, "dealId") > 0
+        and item.dealId > 0
     )
     if not candidates:
         return None
