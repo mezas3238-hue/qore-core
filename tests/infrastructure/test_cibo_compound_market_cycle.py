@@ -1082,3 +1082,28 @@ def test_compound_portfolio_rejects_event_totals_detached_from_lots() -> None:
         match="source total does not match source lots",
     ):
         replace(ledger, events=events)
+
+
+def test_highest_generation_preserves_consumed_historical_generation() -> None:
+    state = _funded_compound_state()
+    target = state.compound_ledger.lot("activate:moved")
+    consumed_gen2 = replace(
+        target,
+        generation=2,
+        state=CompoundCapitalState.CONSUMED,
+    )
+    active = tuple(
+        consumed_gen2 if item.lot_id == target.lot_id else item
+        for item in state.compound_ledger.active_lots
+    )
+    ledger = replace(
+        state.compound_ledger,
+        active_lots=active,
+    )
+    consumed_state = replace(
+        state,
+        compound_ledger=ledger,
+        cumulative_realized_losses_usd=Decimal("60"),
+    )
+
+    assert consumed_state.highest_generation == 2
