@@ -197,39 +197,56 @@ def _causal_quote(
             "Phase22 calibration spot subscription failed: "
             + str(subscribed.error)
         )
-    event = client.wait_for_event(
-        "ProtoOASpotEvent",
-        timeout_seconds=10.0,
-        predicate=lambda item: getattr(item, "symbolId", None)
-        == contract.symbol_id,
-    )
-    if isinstance(event, Failure):
-        raise CiboCapitalManagementError(
-            f"Phase22 calibration causal quote missing: {contract.qore_symbol}"
+
+    bid: int | None = None
+    ask: int | None = None
+    bid_at: datetime | None = None
+    ask_at: datetime | None = None
+    deadline = time.monotonic() + 10.0
+    while time.monotonic() < deadline and (bid is None or ask is None):
+        remaining = max(0.1, min(2.0, deadline - time.monotonic()))
+        event = client.wait_for_event(
+            "ProtoOASpotEvent",
+            timeout_seconds=remaining,
+            predicate=lambda item: getattr(item, "symbolId", None)
+            == contract.symbol_id,
         )
-    bid = getattr(event.value, "bid", None)
-    ask = getattr(event.value, "ask", None)
-    timestamp = getattr(event.value, "timestamp", None)
+        if isinstance(event, Failure):
+            continue
+        timestamp = getattr(event.value, "timestamp", None)
+        observed_at = (
+            datetime.fromtimestamp(timestamp / 1000, tz=UTC)
+            if type(timestamp) is int and timestamp > 0
+            else datetime.now(UTC)
+        )
+        raw_bid = getattr(event.value, "bid", None)
+        raw_ask = getattr(event.value, "ask", None)
+        if type(raw_bid) is int and raw_bid > 0:
+            bid = raw_bid
+            bid_at = observed_at
+        if type(raw_ask) is int and raw_ask > 0:
+            ask = raw_ask
+            ask_at = observed_at
+
     if (
-        type(bid) is not int
-        or type(ask) is not int
-        or bid <= 0
-        or ask <= 0
+        bid is None
+        or ask is None
+        or bid_at is None
+        or ask_at is None
         or ask < bid
-        or type(timestamp) is not int
-        or timestamp <= 0
     ):
         raise CiboCapitalManagementError(
-            "Phase22 calibration causal quote invalid"
+            "Phase22 calibration causal bid/ask snapshot incomplete"
         )
+    observed_at = max(bid_at, ask_at)
     return {
         "symbol_id": contract.symbol_id,
-        "observed_at": datetime.fromtimestamp(
-            timestamp / 1000,
-            tz=UTC,
-        ).isoformat(),
+        "observed_at": observed_at.isoformat(),
         "bid_relative": bid,
         "ask_relative": ask,
+        "bid_observed_at": bid_at.isoformat(),
+        "ask_observed_at": ask_at.isoformat(),
+        "stream_delta_reconciled": True,
     }
 
 
