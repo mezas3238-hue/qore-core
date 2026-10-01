@@ -21,6 +21,9 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
     Phase20ForwardPolicyDecisionSeal,
     VersionedPhase20ForwardPolicyBook,
 )
+from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
+    Phase20ForwardDecisionSeal,
+)
 from qore.infrastructure.cibo_phase22_historical_replay_settlement import (
     VersionedPhase22HistoricalReplayEvidenceBook,
 )
@@ -261,7 +264,9 @@ def build_a1_phase22_scientific_consumption_manifest(
     )
 
 
-def _build_folds(decisions: tuple) -> tuple[A1Phase22PopulationFold, ...]:
+def _build_folds(
+    decisions: tuple[Phase20ForwardDecisionSeal, ...],
+) -> tuple[A1Phase22PopulationFold, ...]:
     base, remainder = divmod(len(decisions), 4)
     result: list[A1Phase22PopulationFold] = []
     start = 0
