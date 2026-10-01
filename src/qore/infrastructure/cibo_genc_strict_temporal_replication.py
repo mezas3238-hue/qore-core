@@ -403,6 +403,8 @@ def evaluate_genc11_genc13_temporal_replication(
             if (
                 evidence.transition_calibration_sha256
                 != first.transition_calibration_sha256
+                or evidence.transition_calibration_population_sha256
+                != first.transition_calibration_population_sha256
             ):
                 raise CiboCompoundCapitalError(
                     "GEN-C11 temporal transition calibration drift"

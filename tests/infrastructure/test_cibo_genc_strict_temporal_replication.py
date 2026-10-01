@@ -318,6 +318,11 @@ def _genc11_13_folds(
     workstream: Genc11Genc13Workstream,
 ) -> tuple[Genc11Genc13TemporalFoldEvidence, ...]:
     rows = []
+    calibration = (
+        _transition_calibration(_sha("9"), 9)
+        if workstream is Genc11Genc13Workstream.GENC11
+        else None
+    )
     for index, fold_id in enumerate(FOLDS, start=1):
         report = Genc9ResearchReport(
             research_id=f"{workstream.value}-{fold_id}",
@@ -352,11 +357,14 @@ def _genc11_13_folds(
             temporal_separation_proven=True,
         )
         if workstream is Genc11Genc13Workstream.GENC11:
-            calibration = _transition_calibration(population_sha256, index)
+            assert calibration is not None
             evidence = Genc11Genc13UtilityInput(
                 **common,
                 transition_uncertainty_calibrated=True,
                 transition_calibration_sha256=calibration.report_sha256,
+                transition_calibration_population_sha256=(
+                    calibration.source_population_sha256
+                ),
                 transition_calibration_report=calibration,
             )
         else:
@@ -474,4 +482,25 @@ def test_genc_temporal_fold_result_rejects_manual_pass_drift() -> None:
         match="pass/status drift",
     ):
         replace(report.fold_results[0], passed=False)
+
+def test_genc11_rejects_calibration_lineage_drift_between_folds() -> None:
+    folds = list(_genc11_13_folds(Genc11Genc13Workstream.GENC11))
+    other = _transition_calibration(_sha("8"), 8)
+    folds[1] = replace(
+        folds[1],
+        evidence=replace(
+            folds[1].evidence,
+            transition_calibration_sha256=other.report_sha256,
+            transition_calibration_population_sha256=(
+                other.source_population_sha256
+            ),
+            transition_calibration_report=other,
+        ),
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="transition calibration drift",
+    ):
+        evaluate_genc11_genc13_temporal_replication(tuple(folds))
 

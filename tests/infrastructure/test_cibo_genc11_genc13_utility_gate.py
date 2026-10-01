@@ -121,6 +121,9 @@ def _input(
             **common,
             transition_uncertainty_calibrated=True,
             transition_calibration_sha256=calibration.report_sha256,
+            transition_calibration_population_sha256=(
+                calibration.source_population_sha256
+            ),
             transition_calibration_report=calibration,
         )
     return Genc11Genc13UtilityInput(
