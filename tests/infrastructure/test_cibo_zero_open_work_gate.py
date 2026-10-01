@@ -1013,3 +1013,21 @@ def test_world_cup_exam_surfaces_have_world_cup_ownership() -> None:
         for path in inventory
     }
     assert orphan_candidates == ()
+
+
+def test_t16_post_declaration_surfaces_belong_to_t16() -> None:
+    inventory = (
+        "scripts/cibo_t16_ctrader_demo_post_declaration_probe.py",
+        "tests/infrastructure/"
+        "test_cibo_t16_ctrader_demo_post_declaration_probe.py",
+        ".github/workflows/cibo-t16-post-declaration-market-structure.yml",
+        "docs/research/"
+        "CIBO-B-T16-POST-DECLARATION-MARKET-STRUCTURE-V1.md",
+    )
+    assignments, orphan_candidates = gate._classify_inventory(
+        inventory,
+        ledger_ids=frozenset({"T16", "ORPHAN_INVENTORY"}),
+    )
+
+    assert set(assignments) == {(path, "T16") for path in inventory}
+    assert orphan_candidates == ()

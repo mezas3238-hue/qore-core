@@ -265,3 +265,19 @@ under the Owner's no-workflow-flood policy.
   or fresh-OOS utility.
 - Canonical ledger remains 62/64 terminal; only the actual Final Integrated
   CIBO Exam and actual World Cup Maximum-Capability Exam remain open.
+
+
+## 2026-10-01 Architect-A engineering-closure semantic repair
+
+- Latest A snapshot: `53bf4c0789e98d25dd295f5bad9647cfc74d0a79`.
+- Canonical A-owned workstreams: 38/38 terminal; 0 internally open.
+- A readiness previously treated every terminal row with blockers as internal
+  debt, which incorrectly re-opened certification-blocking
+  `EXTERNAL_DEPENDENCY_BLOCKED` work.
+- Integrator now distinguishes external scientific evidence debt from internal
+  engineering debt. External dependencies continue to block PRE_EXAM and
+  certification, but they no longer keep Architect A engineering artificially
+  red.
+- T16 post-declaration probe/script/test/workflow/document are classified under
+  T16 in Zero Open, eliminating two false orphan candidates.
+- Exact-head CI remains required before recording this repair as proven.

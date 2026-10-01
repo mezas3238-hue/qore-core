@@ -864,12 +864,31 @@
       ],
       "productive_authority": false,
       "certification_claim": false
+    },
+    {
+      "owner": "INTEGRATOR_ARCH_A_ENGINEERING_CLOSURE_SEMANTICS_STAGED",
+      "source_head_sha": "6f530ab46a545a595fb7d281528afa486bb113d9",
+      "items": [
+        {
+          "id": "ARCHITECT_A_INTERNAL_READINESS",
+          "action": "Treat certification-blocking EXTERNAL_DEPENDENCY_BLOCKED terminal rows as external evidence debt rather than internal engineering debt.",
+          "architect_a_workstreams": 38,
+          "architect_a_terminal_workstreams": 38,
+          "internal_debt_markers": 0
+        },
+        {
+          "id": "T16_ZERO_OPEN_CLASSIFICATION",
+          "action": "Classify post-declaration T16 probe/workflow/doc/test surfaces under T16 to eliminate false orphan debt."
+        }
+      ],
+      "productive_authority": false,
+      "certification_claim": false
     }
   ],
   "pending_candidates": [
     {
       "owner": "ARCHITECT_A",
-      "latest_head_sha": "2383d6de4bff9c671cc9ed22444935488f010377",
+      "latest_head_sha": "53bf4c0789e98d25dd295f5bad9647cfc74d0a79",
       "reasons": [
         "CURRENT_HEAD_CI_PENDING",
         "A_SUPPORT_002_MANDATORY_WORKSTREAM_DRIFT_UPSTREAM",
@@ -937,9 +956,10 @@
   "certification_claim": false,
   "productive_authority": false,
   "integrator_pending": {
-    "head_sha": "532f19c0774f3ccd2c42be943b236a154c85a8a3",
+    "head_sha": "6f530ab46a545a595fb7d281528afa486bb113d9",
     "reasons": [
-      "POST_62_A_B_ABSORPTION_EXACT_INTEGRATOR_HEAD_CI_REQUIRED",
+      "ARCHITECT_A_INTERNAL_READINESS_SEMANTICS_EXACT_HEAD_CI_REQUIRED",
+      "ZERO_OPEN_T16_CLASSIFIER_EXACT_HEAD_CI_REQUIRED",
       "FINAL_INTEGRATED_CIBO_EXAM_REAL_EXECUTION_OPEN",
       "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM_REAL_EXECUTION_OPEN",
       "CERTIFICATION_BLOCKING_EXTERNAL_EVIDENCE_DEPENDENCIES_REMAIN"

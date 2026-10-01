@@ -92,6 +92,9 @@ _INTERNAL_EXTERNAL_BLOCKER_MARKERS = (
 )
 
 _WORKSTREAM_CLASSIFIERS = (
+    ("*CIBO-B-T16-POST-DECLARATION-MARKET-STRUCTURE*", "T16"),
+    ("*cibo-t16-post-declaration-market-structure*", "T16"),
+    ("*cibo_t16_ctrader_demo_post_declaration_probe*", "T16"),
     ("*CIBO-WORLD-CUP-MAXIMUM-CAPABILITY-EXAM-PROTOCOL*", "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM"),
     ("*cibo_world_cup_maximum_capability_exam*", "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM"),
     ("*CIBO-ARCH-B-CROSSBOUNDARY-REQUEST-002*", "SOURCE_OF_TRUTH_RECONCILIATION"),
