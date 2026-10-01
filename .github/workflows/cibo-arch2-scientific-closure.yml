@@ -1,0 +1,43 @@
+name: QORE CIBO Architect2 Scientific Closure
+
+on:
+  push:
+    branches:
+      - agent/cibo-external-scientific-closure-001
+    paths:
+      - '.github/workflows/cibo-arch2-scientific-closure.yml'
+      - 'src/qore/infrastructure/cibo_arch2_*.py'
+      - 'tests/infrastructure/test_cibo_arch2_*.py'
+      - 'docs/research/CIBO-ARCH-2-*.md'
+      - 'docs/research/CIBO-ARCH-2-*.json'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-arch2-scientific-closure.yml'
+      - 'src/qore/infrastructure/cibo_arch2_*.py'
+      - 'tests/infrastructure/test_cibo_arch2_*.py'
+
+permissions:
+  contents: read
+
+jobs:
+  architect2-scientific-closure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: |
+          ruff check src/qore/infrastructure/cibo_arch2_*.py tests/infrastructure/test_cibo_arch2_*.py
+      - name: mypy
+        run: |
+          mypy src/qore/infrastructure/cibo_arch2_*.py
+      - name: Compile
+        run: |
+          python -m py_compile src/qore/infrastructure/cibo_arch2_*.py
+      - name: Tests
+        run: |
+          pytest -q --no-cov tests/infrastructure/test_cibo_arch2_*.py

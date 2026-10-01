@@ -1,0 +1,111 @@
+name: QORE CIBO Architect2 T16 Fresh OOS M1
+
+on:
+  push:
+    branches:
+      - agent/cibo-external-scientific-closure-001
+    paths:
+      - scripts/cibo_arch2_t16_fresh_oos_m1.py
+      - tests/infrastructure/test_cibo_arch2_t16_fresh_oos_m1.py
+      - .github/workflows/cibo-arch2-t16-fresh-oos-m1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qore-cibo-arch2-t16-fresh-oos-m1
+  cancel-in-progress: false
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  fresh-oos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,ctrader]'
+
+      - name: Verify exact research branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "agent/cibo-external-scientific-closure-001"
+          test -n "$GITHUB_SHA"
+
+      - name: Quality
+        run: |
+          ruff check scripts/cibo_arch2_t16_fresh_oos_m1.py tests/infrastructure/test_cibo_arch2_t16_fresh_oos_m1.py
+          mypy --disable-error-code=import-untyped scripts/cibo_arch2_t16_fresh_oos_m1.py
+          python -m py_compile scripts/cibo_arch2_t16_fresh_oos_m1.py
+          pytest -q --no-cov tests/infrastructure/test_cibo_arch2_t16_fresh_oos_m1.py tests/infrastructure/test_cibo_arch2_t16_fresh_oos_utility.py
+
+      - name: Verify DEMO credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}" || exit 2
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Collect read-only post-freeze M1 evidence
+        run: |
+          mkdir -p arch2-t16-fresh-oos
+          python scripts/cibo_arch2_t16_fresh_oos_m1.py             --output arch2-t16-fresh-oos/t16-fresh-oos-m1.json             > arch2-t16-fresh-oos/stdout.json
+
+      - name: Enforce governance and scientific result shape
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path("arch2-t16-fresh-oos/t16-fresh-oos-m1.json").read_text())
+          assert p["status"] == "EVALUATED"
+          assert p["provider_key"] == "ctrader-demo"
+          assert p["environment"] == "demo"
+          assert p["required_symbols"] == ["NAS100", "US30", "US500"]
+          assert p["orders_created"] == 0
+          assert p["positions_created"] == 0
+          assert p["broker_mutation_performed"] is False
+          assert p["holdout_outcomes_used"] is False
+          assert p["phase22_v2_consumed"] is False
+          assert p["fundednext_touched"] is False
+          assert p["vps_touched"] is False
+          assert p["productive_authority"] is False
+          assert p["terminal_recommendation"] in {
+              "COMPLETED_AND_PROVEN",
+              "FALSIFIED_AND_CLOSED",
+          }
+          for symbol in ("US30", "US500"):
+              result = p["results"][symbol]
+              assert result["observation_count"] >= 32
+              assert len(result["fold_results"]) == 4
+          PY
+
+      - name: Seal evidence
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > arch2-t16-fresh-oos/git-sha.txt
+          cd arch2-t16-fresh-oos
+          sha256sum t16-fresh-oos-m1.json stdout.json git-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-arch2-t16-fresh-oos-${{ github.sha }}
+          path: arch2-t16-fresh-oos
+          if-no-files-found: error
+          retention-days: 90
