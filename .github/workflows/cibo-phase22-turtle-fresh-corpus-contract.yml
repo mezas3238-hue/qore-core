@@ -1,0 +1,38 @@
+name: QORE CIBO Phase22 Turtle Fresh Corpus Contract
+
+on:
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+    paths:
+      - '.github/workflows/cibo-phase22-turtle-fresh-corpus-contract.yml'
+      - 'scripts/cibo_phase22_turtle_fresh_corpus_patch.py'
+      - 'tests/infrastructure/test_cibo_phase22_turtle_fresh_corpus_patch.py'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase22-turtle-fresh-corpus-contract.yml'
+      - 'scripts/cibo_phase22_turtle_fresh_corpus_patch.py'
+      - 'tests/infrastructure/test_cibo_phase22_turtle_fresh_corpus_patch.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Prove corpus-only adaptation
+        run: |
+          ruff check \
+            scripts/cibo_phase22_turtle_fresh_corpus_patch.py \
+            tests/infrastructure/test_cibo_phase22_turtle_fresh_corpus_patch.py
+          mypy scripts/cibo_phase22_turtle_fresh_corpus_patch.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase22_turtle_fresh_corpus_patch.py
