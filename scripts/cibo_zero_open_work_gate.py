@@ -84,6 +84,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_t17_limited_risk_capability_probe*", "T17"),
     ("*cibo_t17_structural_disable_probe*", "T17"),
     ("*cibo_ctrader_demo_capability_registry*", "PROVIDER_ECONOMICS"),
+    ("*cibo_ctrader_demo_empirical_slippage*", "PROVIDER_ECONOMICS"),
     ("*cibo_ctrader_demo_instrument_taxonomy*", "PROVIDER_ECONOMICS"),
     ("*cibo_integrated_capital_forward_binding*", "INTEGRATED_CAPITAL_TRUTH"),
     ("*cibo_usd60_exam_readiness*", "USD60_CAPABILITY_PROGRAM"),

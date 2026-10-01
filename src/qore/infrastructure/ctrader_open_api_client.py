@@ -205,6 +205,8 @@ class _SdkBindings:
             "ProtoOADealListByPositionIdRes",
             "ProtoOAGetPositionUnrealizedPnLReq",
             "ProtoOAGetPositionUnrealizedPnLRes",
+            "ProtoOAGetTickDataReq",
+            "ProtoOAGetTickDataRes",
             "ProtoOAAmendPositionSLTPReq",
             "ProtoOAClosePositionReq",
             "ProtoOAGetTrendbarsReq",
