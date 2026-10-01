@@ -87,9 +87,14 @@ class Genc8EconomicObservation:
             )
         _sha(self.population_sha256, "population_sha256")
         _sha(self.provider_surface_sha256, "provider_surface_sha256")
-        if not self.fold_ids or len(self.fold_ids) != len(set(self.fold_ids)):
+        if (
+            not isinstance(self.fold_ids, tuple)
+            or not self.fold_ids
+            or any(not isinstance(item, str) or not item for item in self.fold_ids)
+            or len(self.fold_ids) != len(set(self.fold_ids))
+        ):
             raise CiboCompoundCapitalError(
-                "GEN-C8 economic fold ids must be non-empty and unique"
+                "GEN-C8 economic fold ids must be non-empty unique strings"
             )
         _aware(self.horizon_start, "horizon_start")
         _aware(self.horizon_end, "horizon_end")
@@ -111,9 +116,21 @@ class Genc8EconomicObservation:
             self.provider_cost_usd,
             self.positive_tail_capture_usd,
         )
-        if any(value < 0 for value in nonnegative):
+        if any(
+            not isinstance(value, Decimal)
+            or not value.is_finite()
+            or value < 0
+            for value in nonnegative
+        ):
             raise CiboCompoundCapitalError(
-                "GEN-C8 economic non-negative metric violated"
+                "GEN-C8 economic metrics must be finite non-negative Decimals"
+            )
+        if (
+            not isinstance(self.capital_risk_time_productivity, Decimal)
+            or not self.capital_risk_time_productivity.is_finite()
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C8 economic productivity must be finite Decimal"
             )
         for name in (
             "unnecessary_acceleration_count",
@@ -374,7 +391,11 @@ def _require_comparable(
 
 
 def _aware(value: datetime, name: str) -> None:
-    if value.tzinfo is None or value.utcoffset() is None:
+    if (
+        not isinstance(value, datetime)
+        or value.tzinfo is None
+        or value.utcoffset() is None
+    ):
         raise CiboCompoundCapitalError(
             f"GEN-C8 economic {name} must be timezone-aware"
         )
@@ -382,7 +403,8 @@ def _aware(value: datetime, name: str) -> None:
 
 def _sha(value: str, name: str) -> None:
     if (
-        not value.startswith("sha256:")
+        not isinstance(value, str)
+        or not value.startswith("sha256:")
         or len(value) != 71
         or any(char not in "0123456789abcdef" for char in value[7:])
     ):
