@@ -232,7 +232,10 @@ def _single_deal(
     order_id: int,
 ) -> object | None:
     direct = getattr(response, "deal", None)
-    if direct is not None and type(direct) is not tuple:
+    if (
+        direct is not None
+        and type(getattr(direct, "dealId", None)) is int
+    ):
         direct_order_id = getattr(direct, "orderId", order_id)
         if direct_order_id == order_id:
             return cast(object, direct)
