@@ -148,7 +148,9 @@ class Genc12EconomicGateRow:
         ):
             raise CiboCapitalManagementError("Genc12EconomicGateRow failed dimensions are invalid")
         if self.weighted_score_used or self.production_promotion:
-            raise CiboCapitalManagementError("Genc12EconomicGateRow cannot score/promote production")
+            raise CiboCapitalManagementError(
+                "Genc12EconomicGateRow cannot score/promote production"
+            )
         if self.status is Genc12EconomicGateStatus.CONTROL:
             if (
                 not self.safety_no_worse
