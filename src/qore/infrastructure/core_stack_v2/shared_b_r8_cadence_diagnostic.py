@@ -230,7 +230,7 @@ def build_r8_empirical_cadence_diagnostic(
                 timestamps = sorted(set(grouped.get((side, window), ())))
                 intervals = [
                     round((right - left).total_seconds() * 1000)
-                    for left, right in zip(timestamps, timestamps[1:])
+                    for left, right in zip(timestamps, timestamps[1:], strict=False)
                     if right >= left
                 ]
                 aggregate_intervals.extend(intervals)
