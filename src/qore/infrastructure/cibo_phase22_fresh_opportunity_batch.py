@@ -88,12 +88,12 @@ class Phase22FreshOpportunity:
             raise CiboCapitalManagementError(
                 "Phase22 fresh opportunity methodology digest invalid"
             )
-        for name, value in (
+        for name, timestamp in (
             ("signal_at", self.signal_at),
             ("entry_at", self.entry_at),
             ("exit_at", self.exit_at),
         ):
-            _aware(value, name)
+            _aware(timestamp, name)
         if self.entry_at < self.signal_at or self.exit_at <= self.entry_at:
             raise CiboCapitalManagementError(
                 "Phase22 fresh opportunity chronology invalid"
@@ -102,12 +102,12 @@ class Phase22FreshOpportunity:
             raise CiboCapitalManagementError(
                 "Phase22 fresh opportunity side invalid"
             )
-        for name, value in (
+        for name, price in (
             ("entry_price", self.entry_price),
             ("structural_stop", self.structural_stop),
             ("technical_target", self.technical_target),
         ):
-            if not isinstance(value, Decimal) or not value.is_finite() or value <= 0:
+            if not isinstance(price, Decimal) or not price.is_finite() or price <= 0:
                 raise CiboCapitalManagementError(
                     f"Phase22 fresh opportunity {name} invalid"
                 )
