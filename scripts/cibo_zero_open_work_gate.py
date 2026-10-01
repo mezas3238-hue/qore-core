@@ -82,6 +82,8 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*compound-causal-ablation*", "CAPITAL_AMPLIFICATION"),
     ("*cibo_as_is_economic_baseline*", "AS_IS_ECONOMIC_BASELINE"),
     ("*cibo_expansion_utility_gate*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
+    ("*cibo_ce2i_t04_t10_economic_gate*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
+    ("*cibo_t09_t18_scarcity_safety_gate*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
     ("*cibo_t14_t15_utility_gate*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
     ("*cibo_compound_temporal_replication*", "TEMPORAL_REPLICATION"),
     ("*COMPOUND-TEMPORAL-REPLICATION*", "TEMPORAL_REPLICATION"),

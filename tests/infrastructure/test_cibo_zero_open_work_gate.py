@@ -417,3 +417,24 @@ def test_pre_exam_gate_still_blocks_other_open_work(
 
     assert verdict.passed is False
     assert verdict.open_workstream_ids == ("SCIENTIFIC_WORK",)
+
+
+def test_shared_ce2i_economic_gates_are_not_orphans() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_ce2i_t04_t10_economic_gate.py",
+        "tests/infrastructure/test_cibo_ce2i_t04_t10_economic_gate.py",
+        "src/qore/infrastructure/cibo_t09_t18_scarcity_safety_gate.py",
+        "tests/infrastructure/test_cibo_t09_t18_scarcity_safety_gate.py",
+    )
+
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=frozenset(
+            {"CE2I_CROSS_TOOL_INFRASTRUCTURE", "ORPHAN_INVENTORY"}
+        ),
+    )
+
+    assert orphans == ()
+    assert set(assignments) == {
+        (path, "CE2I_CROSS_TOOL_INFRASTRUCTURE") for path in inventory
+    }

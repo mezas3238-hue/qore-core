@@ -6,13 +6,13 @@ from decimal import Decimal
 import pytest
 
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
+from qore.infrastructure.cibo_genc9_economic_gate import Genc9EconomicGateStatus
 from qore.infrastructure.cibo_genc11_genc13_utility_gate import (
     GATE_SHA256,
     Genc11Genc13UtilityInput,
     Genc11Genc13Workstream,
     evaluate_genc11_genc13_utility,
 )
-from qore.infrastructure.cibo_genc9_economic_gate import Genc9EconomicGateStatus
 from qore.infrastructure.cibo_robust_growth_ruin_capacity import (
     Genc9CandidateRole,
     Genc9CandidateSummary,
