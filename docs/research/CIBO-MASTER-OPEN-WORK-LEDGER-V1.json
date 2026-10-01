@@ -46,7 +46,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "FORWARD_STRUCTURAL_OOS_EXPLICIT_TERMINAL_REASON_ENGINE_STAGED_CI_PENDING_REAL_POPULATION_OPEN",
+      "current_maturity": "FORWARD_STRUCTURAL_OOS_ENGINE_CI_GREEN_CARRIED_FORWARD_REAL_POPULATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -55,39 +55,39 @@
         "src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py",
         "tests/infrastructure/test_cibo_ce2i_phase20_t02_structural_oos.py",
         ".github/workflows/cibo-t02-forward-structural-oos.yml",
-        "docs/research/CIBO-B-T02-FORWARD-STRUCTURAL-OOS-V1.md"
+        "docs/research/CIBO-B-T02-FORWARD-STRUCTURAL-OOS-V1.md",
+        "github-actions://36790166770/SUCCESS"
       ],
       "blockers": [
-        "T02_FORWARD_STRUCTURAL_OOS_CI_REQUIRED",
         "REAL_POST_FREEZE_STRUCTURAL_TERMINAL_REASON_POPULATION_REQUIRED",
         "PROVIDER_BOUND_LEVERAGE_ECONOMIC_ABLATION_REQUIRED"
       ],
-      "next_gate": "Pass T02 forward-structural CI; collect explicit terminal-reason post-freeze population without PnL/price inference; then run provider-bound leverage economic ablation before terminal disposition."
+      "next_gate": "Collect explicit terminal-reason post-freeze population without PnL/price inference; then run provider-bound leverage economic ablation before terminal disposition."
     },
     {
       "id": "T03",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "current_maturity": "FORWARD_PROVIDER_MARGIN_TOOLING_CI_GREEN_CARRIED_FORWARD_VALUE_DEMONSTRATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
-        "docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md"
+        "docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md",
+        "github-actions://36790166956/SUCCESS"
       ],
       "blockers": [
-        "INTEGRATOR_B_PROVIDER_FORWARD_TOOL_READINESS_CI_REQUIRED",
         "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "Bind real provider margin population and demonstrate provider-bound economic value before registry terminal disposition."
     },
     {
       "id": "T04",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "NONCOMPENSATORY_FOUR_FOLD_ECONOMIC_GATE_STAGED_CI_PENDING_REAL_CAUSAL_POPULATION_OPEN",
+      "current_maturity": "NONCOMPENSATORY_FOUR_FOLD_ECONOMIC_GATE_CI_GREEN_CARRIED_FORWARD_REAL_CAUSAL_POPULATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -96,14 +96,14 @@
         "src/qore/infrastructure/cibo_ce2i_t04_t10_economic_gate.py",
         "tests/infrastructure/test_cibo_ce2i_t04_t10_economic_gate.py",
         ".github/workflows/cibo-t04-t10-economic-gate.yml",
-        "docs/research/CIBO-CE2I-T04-T10-NONCOMPENSATORY-ECONOMIC-GATE-V1.md"
+        "docs/research/CIBO-CE2I-T04-T10-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        "github-actions://36790166857/SUCCESS"
       ],
       "blockers": [
-        "INTEGRATOR_T04_T10_ECONOMIC_GATE_CI_REQUIRED",
         "REAL_PROVIDER_VALID_CAUSAL_CONTROL_TREATMENT_POPULATION_REQUIRED",
         "WF1_WF2_WF3_WF4_NONCOMPENSATORY_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Pass integrated T04/T10 gate CI; bind the same real causal control/treatment population across WF1..WF4 with complete provider economics, capital truth and no safety deterioration."
+      "next_gate": "Bind the same real causal control/treatment population across WF1..WF4 with complete provider economics, capital truth and no safety deterioration."
     },
     {
       "id": "T05",
@@ -190,7 +190,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "SCARCITY_SAFETY_GATE_STAGED_CI_PENDING_REAL_SIMULTANEOUS_SCARCITY_POPULATION_OPEN",
+      "current_maturity": "SCARCITY_SAFETY_GATE_CI_GREEN_CARRIED_FORWARD_REAL_SIMULTANEOUS_SCARCITY_POPULATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -199,21 +199,21 @@
         "src/qore/infrastructure/cibo_t09_t18_scarcity_safety_gate.py",
         "tests/infrastructure/test_cibo_t09_t18_scarcity_safety_gate.py",
         ".github/workflows/cibo-t09-t18-scarcity-safety.yml",
-        "docs/research/CIBO-T09-T18-NONCOMPENSATORY-SCARCITY-SAFETY-GATE-V1.md"
+        "docs/research/CIBO-T09-T18-NONCOMPENSATORY-SCARCITY-SAFETY-GATE-V1.md",
+        "github-actions://36790166818/SUCCESS"
       ],
       "blockers": [
-        "INTEGRATOR_T09_T18_SCARCITY_SAFETY_CI_REQUIRED",
         "REAL_SIMULTANEOUS_SCARCITY_POPULATION_REQUIRED",
         "STARVATION_AND_CONCENTRATION_NONWORSE_WF1_WF2_WF3_WF4_REQUIRED"
       ],
-      "next_gate": "Pass integrated T09/T18 scarcity-safety CI; bind the same real simultaneous-opportunity scarcity population and require non-worse starvation/concentration plus strict value in all four folds."
+      "next_gate": "Bind the same real simultaneous-opportunity scarcity population and require non-worse starvation/concentration plus strict value in all four folds."
     },
     {
       "id": "T10",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "NONCOMPENSATORY_FOUR_FOLD_ECONOMIC_GATE_STAGED_CI_PENDING_REAL_CAUSAL_POPULATION_OPEN",
+      "current_maturity": "NONCOMPENSATORY_FOUR_FOLD_ECONOMIC_GATE_CI_GREEN_CARRIED_FORWARD_REAL_CAUSAL_POPULATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -222,21 +222,21 @@
         "src/qore/infrastructure/cibo_ce2i_t04_t10_economic_gate.py",
         "tests/infrastructure/test_cibo_ce2i_t04_t10_economic_gate.py",
         ".github/workflows/cibo-t04-t10-economic-gate.yml",
-        "docs/research/CIBO-CE2I-T04-T10-NONCOMPENSATORY-ECONOMIC-GATE-V1.md"
+        "docs/research/CIBO-CE2I-T04-T10-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        "github-actions://36790166857/SUCCESS"
       ],
       "blockers": [
-        "INTEGRATOR_T04_T10_ECONOMIC_GATE_CI_REQUIRED",
         "REAL_PROVIDER_VALID_CAUSAL_CONTROL_TREATMENT_POPULATION_REQUIRED",
         "WF1_WF2_WF3_WF4_NONCOMPENSATORY_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Pass integrated T04/T10 gate CI; bind the same real causal control/treatment population across WF1..WF4 with complete provider economics, capital truth and no safety deterioration."
+      "next_gate": "Bind the same real causal control/treatment population across WF1..WF4 with complete provider economics, capital truth and no safety deterioration."
     },
     {
       "id": "T11",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "PROVIDER_BOUND_LINEAR_EXECUTION_COST_ENGINE_STAGED_CI_PENDING_POLICY_UTILITY_OPEN",
+      "current_maturity": "FORWARD_TOOLING_CI_GREEN_LINEAR_EXECUTION_COST_DEDICATED_CI_PENDING_POLICY_UTILITY_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -245,10 +245,10 @@
         "tests/infrastructure/test_cibo_ce2i_t11_execution_cost_calibration.py",
         ".github/workflows/cibo-t11-execution-cost-calibration.yml",
         "docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md",
-        ".github/workflows/cibo-b-provider-forward-tool-readiness.yml"
+        ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
+        "github-actions://36790166956/SUCCESS"
       ],
       "blockers": [
-        "INTEGRATOR_B_PROVIDER_FORWARD_TOOL_READINESS_CI_REQUIRED",
         "T11_LINEAR_EXECUTION_COST_CI_REQUIRED",
         "REAL_SCIENTIFICALLY_READY_FORWARD_EXECUTION_POPULATION_REQUIRED",
         "T11_GROSS_EDGE_MODEL_NOT_IDENTIFIED",
@@ -280,7 +280,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "DRAWNDOWN_RESERVE_OOS_UTILITY_ENGINE_STAGED_CI_PENDING_REAL_FRESH_POPULATION_OPEN",
+      "current_maturity": "DRAWDOWN_RESERVE_OOS_UTILITY_ENGINE_CI_GREEN_CARRIED_FORWARD_REAL_FRESH_POPULATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -289,15 +289,15 @@
         "github-actions://36767442878/SUCCESS",
         "src/qore/infrastructure/cibo_ce2i_phase20_t13_oos_utility.py",
         "tests/infrastructure/test_cibo_ce2i_phase20_t13_oos_utility.py",
-        ".github/workflows/cibo-t13-drawdown-reserve-oos-utility.yml"
+        ".github/workflows/cibo-t13-drawdown-reserve-oos-utility.yml",
+        "github-actions://36790166700/SUCCESS"
       ],
       "blockers": [
-        "INTEGRATOR_T13_OOS_UTILITY_CI_REQUIRED",
         "FRESH_PHASE20D_T13_TREATMENT_POPULATION_THRESHOLDS_REQUIRED",
         "FOUR_FOLD_POSITIVE_TREATMENT_AND_NONWORSE_DRAWDOWN_EVIDENCE_REQUIRED",
         "STRICT_CAPITAL_PRODUCTIVITY_IMPROVEMENT_REQUIRED"
       ],
-      "next_gate": "Pass integrated T13 OOS utility CI; then run the preregistered reserve treatment on the real post-freeze Phase20D population and require all four folds positive, treatment drawdown no worse than baseline, and strictly higher capital productivity."
+      "next_gate": "Run the preregistered reserve treatment on the real post-freeze Phase20D population and require all four folds positive, treatment drawdown no worse than baseline, and strictly higher capital productivity."
     },
     {
       "id": "T14",
@@ -430,7 +430,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "SCARCITY_SAFETY_GATE_STAGED_CI_PENDING_REAL_SIMULTANEOUS_SCARCITY_POPULATION_OPEN",
+      "current_maturity": "SCARCITY_SAFETY_GATE_CI_GREEN_CARRIED_FORWARD_REAL_SIMULTANEOUS_SCARCITY_POPULATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -439,14 +439,14 @@
         "src/qore/infrastructure/cibo_t09_t18_scarcity_safety_gate.py",
         "tests/infrastructure/test_cibo_t09_t18_scarcity_safety_gate.py",
         ".github/workflows/cibo-t09-t18-scarcity-safety.yml",
-        "docs/research/CIBO-T09-T18-NONCOMPENSATORY-SCARCITY-SAFETY-GATE-V1.md"
+        "docs/research/CIBO-T09-T18-NONCOMPENSATORY-SCARCITY-SAFETY-GATE-V1.md",
+        "github-actions://36790166818/SUCCESS"
       ],
       "blockers": [
-        "INTEGRATOR_T09_T18_SCARCITY_SAFETY_CI_REQUIRED",
         "REAL_SIMULTANEOUS_SCARCITY_POPULATION_REQUIRED",
         "STARVATION_AND_CONCENTRATION_NONWORSE_WF1_WF2_WF3_WF4_REQUIRED"
       ],
-      "next_gate": "Pass integrated T09/T18 scarcity-safety CI; bind the same real simultaneous-opportunity scarcity population and require non-worse starvation/concentration plus strict value in all four folds."
+      "next_gate": "Bind the same real simultaneous-opportunity scarcity population and require non-worse starvation/concentration plus strict value in all four folds."
     },
     {
       "id": "T19",
@@ -470,20 +470,20 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "MECHANICAL_RELEASE_PROVENANCE_ENGINE_STAGED_DEDICATED_CI_PENDING_REAL_FORWARD_POPULATION_OPEN",
+      "current_maturity": "MECHANICAL_RELEASE_PROVENANCE_ENGINE_CI_GREEN_CARRIED_FORWARD_REAL_FORWARD_POPULATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "src/qore/infrastructure/cibo_t20_capital_release_evidence.py",
         "tests/infrastructure/test_cibo_t20_capital_release_evidence.py",
         ".github/workflows/cibo-t20-capital-release.yml",
-        "docs/research/CIBO-B-T20-CAPITAL-RELEASE-MECHANICAL-CLOSURE-V1.md"
+        "docs/research/CIBO-B-T20-CAPITAL-RELEASE-MECHANICAL-CLOSURE-V1.md",
+        "github-actions://36790166892/SUCCESS"
       ],
       "blockers": [
-        "INTEGRATOR_T20_CAPITAL_RELEASE_CI_REQUIRED",
         "FRESH_AUTHORITATIVE_RELEASE_RETURNED_CAPACITY_POPULATION_REQUIRED"
       ],
-      "next_gate": "Pass dedicated T20 mechanical CI; then populate the frozen FORWARD_OBSERVED qualification set with exact provider→Risk→execution→settlement→terminal-release lifecycles and Phase20D coverage."
+      "next_gate": "Populate the frozen FORWARD_OBSERVED qualification set with exact provider→Risk→execution→settlement→terminal-release lifecycles and Phase20D coverage."
     },
     {
       "id": "GEN-C0",
@@ -543,7 +543,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_IMPLEMENTED_CI_PENDING_REAL_CYCLE_EVIDENCE_OPEN",
+      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_IMPLEMENTED_CI_GREEN_CARRIED_FORWARD_REAL_CYCLE_EVIDENCE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -557,20 +557,20 @@
         "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
         "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
         "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
-        ".github/workflows/cibo-genc3-genc6-economic-gate.yml"
+        ".github/workflows/cibo-genc3-genc6-economic-gate.yml",
+        "github-actions://36790167057/SUCCESS"
       ],
       "blockers": [
-        "END_TO_END_COMPOUND_PORTFOLIO_ECONOMIC_CYCLE_REQUIRED",
-        "GENC3_GENC6_ECONOMIC_GATE_CHILD_CI_REQUIRED"
+        "END_TO_END_COMPOUND_PORTFOLIO_ECONOMIC_CYCLE_REQUIRED"
       ],
-      "next_gate": "Pass the shared GEN-C3..GEN-C6 economic-gate CI; then bind a provider-valid complete portfolio cycle and require independent 4/4 non-compensatory economic improvement plus stress before terminal disposition."
+      "next_gate": "bind a provider-valid complete portfolio cycle and require independent 4/4 non-compensatory economic improvement plus stress before terminal disposition."
     },
     {
       "id": "GEN-C4",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_IMPLEMENTED_CI_PENDING_REAL_CAUSAL_VALUE_OPEN",
+      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_IMPLEMENTED_CI_GREEN_CARRIED_FORWARD_REAL_CAUSAL_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -585,20 +585,20 @@
         "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
         "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
         "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
-        ".github/workflows/cibo-genc3-genc6-economic-gate.yml"
+        ".github/workflows/cibo-genc3-genc6-economic-gate.yml",
+        "github-actions://36790167057/SUCCESS"
       ],
       "blockers": [
-        "REAL_DATA_BOUND_CAUSAL_VALUE_PROOF_REQUIRED",
-        "GENC3_GENC6_ECONOMIC_GATE_CHILD_CI_REQUIRED"
+        "REAL_DATA_BOUND_CAUSAL_VALUE_PROOF_REQUIRED"
       ],
-      "next_gate": "Pass the shared GEN-C3..GEN-C6 economic-gate CI; then bind provider-valid marginal-unit control/treatment evidence and require independent 4/4 non-compensatory economic improvement plus stress."
+      "next_gate": "bind provider-valid marginal-unit control/treatment evidence and require independent 4/4 non-compensatory economic improvement plus stress."
     },
     {
       "id": "GEN-C5",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_IMPLEMENTED_CI_PENDING_PATH_DEPENDENT_VALUE_OPEN",
+      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_IMPLEMENTED_CI_GREEN_CARRIED_FORWARD_PATH_DEPENDENT_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -614,20 +614,20 @@
         "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
         "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
         "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
-        ".github/workflows/cibo-genc3-genc6-economic-gate.yml"
+        ".github/workflows/cibo-genc3-genc6-economic-gate.yml",
+        "github-actions://36790167057/SUCCESS"
       ],
       "blockers": [
-        "FRESH_PATH_DEPENDENT_OOS_STRESS_REPLICATION_REQUIRED",
-        "GENC3_GENC6_ECONOMIC_GATE_CHILD_CI_REQUIRED"
+        "FRESH_PATH_DEPENDENT_OOS_STRESS_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Pass the shared GEN-C3..GEN-C6 economic-gate CI; then bind provider-valid chronological sequential-compounding control/treatment evidence and require independent 4/4 non-compensatory improvement plus stress."
+      "next_gate": "bind provider-valid chronological sequential-compounding control/treatment evidence and require independent 4/4 non-compensatory improvement plus stress."
     },
     {
       "id": "GEN-C6",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_IMPLEMENTED_CI_PENDING_TRUE_SCARCITY_VALUE_OPEN",
+      "current_maturity": "ENGINE_CI_GREEN_NONCOMPENSATORY_ECONOMIC_GATE_IMPLEMENTED_CI_GREEN_CARRIED_FORWARD_TRUE_SCARCITY_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -640,13 +640,13 @@
         "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
         "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
         "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
-        ".github/workflows/cibo-genc3-genc6-economic-gate.yml"
+        ".github/workflows/cibo-genc3-genc6-economic-gate.yml",
+        "github-actions://36790167057/SUCCESS"
       ],
       "blockers": [
-        "FRESH_TRUE_SCARCITY_OOS_STRESS_REPLICATION_REQUIRED",
-        "GENC3_GENC6_ECONOMIC_GATE_CHILD_CI_REQUIRED"
+        "FRESH_TRUE_SCARCITY_OOS_STRESS_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Pass the shared GEN-C3..GEN-C6 economic-gate CI; then bind provider-valid true-scarcity control/treatment evidence and require independent 4/4 non-compensatory improvement plus stress."
+      "next_gate": "bind provider-valid true-scarcity control/treatment evidence and require independent 4/4 non-compensatory improvement plus stress."
     },
     {
       "id": "GEN-C7",
@@ -846,7 +846,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+      "current_maturity": "ENGINE_CI_GREEN_CARRIED_FORWARD_REAL_HYPOTHESIS_PIPELINE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -855,15 +855,15 @@
         "tests/infrastructure/test_cibo_governed_capital_science.py",
         ".github/workflows/cibo-genc14-autonomous-capital-science.yml",
         "src/qore/infrastructure/cibo_ce2i_burned_non_promotion.py",
-        "src/qore/infrastructure/cibo_ce2i_final_certification.py"
+        "src/qore/infrastructure/cibo_ce2i_final_certification.py",
+        "github-actions://36790166703/SUCCESS"
       ],
       "blockers": [
-        "GEN_C14_ENGINE_CI_REVALIDATION_REQUIRED",
         "REAL_HYPOTHESIS_LINEAGES_NOT_YET_RUN_THROUGH_FULL_PIPELINE",
         "OWNER_REVIEW_IS_EXTERNAL_AND_CANNOT_BE_FABRICATED",
         "FINAL_PROMOTION_EVIDENCE_NOT_YET_AVAILABLE"
       ],
-      "next_gate": "Pass GEN-C14 governance CI; run real capital hypotheses through prereg/simulation/OOS/stress/replication; stop at OWNER_REVIEW_REQUIRED; never auto-promote."
+      "next_gate": "Run real capital hypotheses through preregistration/simulation/OOS/stress/replication; stop at OWNER_REVIEW_REQUIRED; never auto-promote."
     },
     {
       "id": "COMPOUND_ENGINE",
@@ -982,7 +982,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "GENC7_CAUSAL_GATE_GREEN_CHRONOLOGICAL_GIVEBACK_HISTORY_ENGINE_STAGED_CI_PENDING_FRESH_CAUSAL_VALUE_OPEN",
+      "current_maturity": "GENC7_CAUSAL_GATE_GREEN_CHRONOLOGICAL_PATH_AND_A_DELIVERY_CI_GREEN_REAL_CAUSAL_VALUE_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_profit_preservation_shadow.py",
@@ -998,15 +998,15 @@
         ".github/workflows/cibo-compound-path-history.yml",
         "src/qore/infrastructure/cibo_arch_a_path_evidence_delivery.py",
         "tests/infrastructure/test_cibo_arch_a_path_evidence_delivery.py",
-        ".github/workflows/cibo-architect-a-path-evidence-delivery.yml"
+        ".github/workflows/cibo-architect-a-path-evidence-delivery.yml",
+        "github-actions://36790166832/SUCCESS",
+        "github-actions://36790166614/SUCCESS"
       ],
       "blockers": [
-        "INTEGRATOR_COMPOUND_PATH_HISTORY_CI_REQUIRED",
-        "INTEGRATOR_ARCH_A_PATH_EVIDENCE_DELIVERY_CI_REQUIRED",
         "REAL_FORWARD_GIVEBACK_PATH_HISTORY_REQUIRED",
         "FRESH_OOS_PROFIT_RETENTION_AND_GIVEBACK_CAUSAL_VALUE_REQUIRED"
       ],
-      "next_gate": "Pass path-history CI; bind the same fresh forward event stream to treatment/control evidence, then prove causal profit-retention/giveback value and replicate under stress/WF1..WF4."
+      "next_gate": "Bind the fresh forward event stream to treatment/control evidence, then prove causal profit-retention/giveback value and replicate under stress/WF1..WF4."
     },
     {
       "id": "PROVIDER_ECONOMICS",
@@ -1062,7 +1062,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "IMMUTABLE_B_TO_A_FORWARD_MANIFEST_PLUS_DURABLE_EXPORT_STAGED_CI_PENDING_REAL_THRESHOLD_POPULATION_OPEN",
+      "current_maturity": "IMMUTABLE_B_TO_A_FORWARD_MANIFEST_AND_RECEIPT_BOUND_FREEZE_CI_GREEN_REAL_THRESHOLD_POPULATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py",
@@ -1077,24 +1077,24 @@
         "tests/infrastructure/test_cibo_phase20_arch_b_forward_economic_manifest_export.py",
         ".github/workflows/cibo-arch-b-forward-economic-manifest.yml",
         "docs/research/CIBO-ARCH-B-FORWARD-ECONOMIC-EVIDENCE-MANIFEST-V1.md",
-        "docs/research/CIBO-B-CALIBRATION-FREEZE-MANIFEST-V1.md"
+        "docs/research/CIBO-B-CALIBRATION-FREEZE-MANIFEST-V1.md",
+        "github-actions://36790166850/SUCCESS",
+        "github-actions://36790166754/SUCCESS"
       ],
       "blockers": [
-        "INTEGRATOR_ARCH_B_FORWARD_MANIFEST_CI_REQUIRED",
         "PHASE20D_FRESH_POPULATION_THRESHOLDS_NOT_YET_MET_OR_REVALIDATED",
-        "INTEGRATOR_RECEIPT_BOUND_CALIBRATION_FREEZE_CI_REQUIRED",
         "T01_T20_SOURCE_BOUND_RECEIPTS_NOT_YET_AVAILABLE",
         "PHASE20D_FORWARD_AND_PROVIDER_FREEZE_RECEIPTS_NOT_YET_AVAILABLE",
         "T16_T17_TYPED_PROVIDER_CAPABILITY_SUPPORT_OR_UNAVAILABLE_EVIDENCE_REQUIRED"
       ],
-      "next_gate": "Pass integrated forward-manifest CI; then accumulate the real frozen Phase20D population to decision/candidate/selected/lineage/WF1..WF4 thresholds with complete Risk/CMA/T20 lineage and no pre-freeze contamination."
+      "next_gate": "Accumulate the real frozen Phase20D population to decision/candidate/selected/lineage/WF1..WF4 thresholds with complete Risk/CMA/T20 lineage and no pre-freeze contamination."
     },
     {
       "id": "PATH_DEPENDENT_MONTE_CARLO",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "MONTE_CARLO_ENGINE_REAL_POPULATION_BINDING_PLUS_DIRECT_FORWARD_RECORD_BRIDGE_STAGED_CI_PENDING",
+      "current_maturity": "MONTE_CARLO_REAL_POPULATION_BINDING_PATH_HISTORY_CI_GREEN_FORWARD_RECORD_BRIDGE_CI_PENDING",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_path_monte_carlo.py",
@@ -1114,10 +1114,10 @@
         ".github/workflows/cibo-compound-path-history.yml",
         "src/qore/infrastructure/cibo_arch_a_path_evidence_delivery.py",
         "tests/infrastructure/test_cibo_arch_a_path_evidence_delivery.py",
-        ".github/workflows/cibo-architect-a-path-evidence-delivery.yml"
+        ".github/workflows/cibo-architect-a-path-evidence-delivery.yml",
+        "github-actions://36790166832/SUCCESS"
       ],
       "blockers": [
-        "INTEGRATOR_COMPOUND_PATH_HISTORY_CI_REQUIRED",
         "INTEGRATOR_ARCH_A_FORWARD_COMPOUND_DELIVERY_CI_REQUIRED",
         "REAL_COMPOUND_EPISODE_POPULATION_AND_FLOOR_ATTRIBUTION_REQUIRED",
         "ADVERSARIAL_STRESS_AND_TEMPORAL_REPLICATION_REQUIRED"
@@ -1310,7 +1310,7 @@
       "kind": "CERTIFICATION",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "RECEIPT_BOUND_CANONICAL_ENTRY_ENFORCED_IN_FINAL_EXAM_CI_PENDING_PRE_EXAM_AND_PHASE21_22_EXECUTION",
+      "current_maturity": "RECEIPT_BOUND_CANONICAL_ENTRY_CI_GREEN_CARRIED_FORWARD_PRE_EXAM_AND_PHASE21_22_EXECUTION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md",
@@ -1327,16 +1327,16 @@
         ".github/workflows/cibo-crossboundary-evidence-receipt.yml",
         "src/qore/infrastructure/cibo_ce2i_final_certification.py",
         "src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py",
-        "tests/infrastructure/test_cibo_ce2i_final_certification.py"
+        "tests/infrastructure/test_cibo_ce2i_final_certification.py",
+        "github-actions://36790166786/SUCCESS"
       ],
       "blockers": [
-        "INTEGRATOR_FINAL_EXAM_RECEIPT_BOUND_CI_REQUIRED",
         "PRE_EXAM_NON_EXAM_ZERO_OPEN_PASS_REQUIRED",
         "FINAL_A_B_INTEGRATED_SOURCE_OF_TRUTH_RECONCILIATION_REQUIRED",
         "PHASE20D_PHASE21_PHASE22_AND_HOLDOUT_CHAIN_REQUIRED",
         "ALL_MANDATORY_SCIENTIFIC_AND_INTEGRATION_GATES_REQUIRED"
       ],
-      "next_gate": "Pass Final Exam CI with the receipt-bound path mandatory; then after PRE_EXAM and exact Phase21/Phase22 certification, execute the 18-receipt integrated exam before World Cup and STRICT zero-open."
+      "next_gate": "After PRE_EXAM and exact Phase21/Phase22 certification, execute the 18-receipt integrated exam before World Cup and STRICT zero-open."
     },
     {
       "id": "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
@@ -1459,7 +1459,7 @@
       "kind": "EVIDENCE_PROGRAM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_PLUS_RECEIPT_BOUND_USD60_AND_PRE_HOLDOUT_CHAINS_STAGED_CI_PENDING_EXAM_NOT_RUN",
+      "current_maturity": "PRE_HOLDOUT_RECEIPT_CHAIN_CI_GREEN_USD60_READINESS_REPAIR_PENDING_EXAM_NOT_RUN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py",
@@ -1475,11 +1475,11 @@
         "docs/research/CIBO-B-USD60-PRE-EXAM-READINESS-V1.md",
         "src/qore/infrastructure/cibo_receipt_bound_usd60_exam_readiness.py",
         "tests/infrastructure/test_cibo_receipt_bound_usd60_exam_readiness.py",
-        ".github/workflows/cibo-usd60-pre-exam-readiness.yml"
+        ".github/workflows/cibo-usd60-pre-exam-readiness.yml",
+        "github-actions://36790166722/SUCCESS"
       ],
       "blockers": [
         "INTEGRATOR_RECEIPT_BOUND_USD60_READINESS_CI_REQUIRED",
-        "INTEGRATOR_RECEIPT_BOUND_PRE_HOLDOUT_CI_REQUIRED",
         "PHASE20D_FRESH_POPULATION_AND_CAUSAL_PASS_RECEIPT_REQUIRED",
         "PHASE21_POLICY_FREEZE_RECEIPT_REQUIRED",
         "PROVIDER_ECONOMICS_READY_RECEIPT_REQUIRED",
@@ -1494,7 +1494,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "FORWARD_CAPITAL_PLUS_PATH_EVIDENCE_DELIVERY_STACK_STAGED_CI_PENDING_REAL_POPULATION_OPEN",
+      "current_maturity": "PATH_HISTORY_AND_A_PATH_DELIVERY_CI_GREEN_CAPITAL_STATE_DELIVERY_CI_PENDING_REAL_POPULATION_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_integrated_capital_truth.py",
@@ -1523,12 +1523,12 @@
         "src/qore/infrastructure/cibo_arch_a_path_evidence_delivery.py",
         "tests/infrastructure/test_cibo_arch_a_path_evidence_delivery.py",
         ".github/workflows/cibo-architect-a-path-evidence-delivery.yml",
-        "docs/research/CIBO-B-INTEGRATED-CAPITAL-FORWARD-BINDING-V1.md"
+        "docs/research/CIBO-B-INTEGRATED-CAPITAL-FORWARD-BINDING-V1.md",
+        "github-actions://36790166832/SUCCESS",
+        "github-actions://36790166614/SUCCESS"
       ],
       "blockers": [
         "INTEGRATOR_ARCH_A_CAPITAL_STATE_DELIVERY_CI_REQUIRED",
-        "INTEGRATOR_COMPOUND_PATH_HISTORY_CI_REQUIRED",
-        "INTEGRATOR_ARCH_A_PATH_EVIDENCE_DELIVERY_CI_REQUIRED",
         "REAL_CHRONOLOGICAL_FORWARD_POPULATION_BINDING_REQUIRED",
         "REAL_FORWARD_COMPOUND_EVENT_STREAM_PATH_HISTORY_REQUIRED",
         "PROTECTED_FLOOR_GRADUATION_CAUSAL_PATH_BINDING_REQUIRED",

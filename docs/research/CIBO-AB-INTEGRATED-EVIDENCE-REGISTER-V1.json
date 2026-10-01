@@ -185,6 +185,104 @@
           "status": "SUCCESS"
         }
       ]
+    },
+    {
+      "owner": "INTEGRATOR_UNCHANGED_SURFACE_CI_CARRY_FORWARD",
+      "source_head_sha": "a08682bfab0a1fb56d0d07d8b91436a41334e01b",
+      "carried_to_head_sha": "dbc60919b9856e234c964e687483532f799989be",
+      "rule": "SUCCESS may carry only where post-source commits do not modify the workflow-declared validation surface; scientific population/OOS/causal blockers remain unchanged.",
+      "items": [
+        {
+          "id": "T02",
+          "workflow_run_id": 36790166770,
+          "status": "SUCCESS",
+          "carried_forward": true
+        },
+        {
+          "id": "T03_PROVIDER_FORWARD_TOOLING",
+          "workflow_run_id": 36790166956,
+          "status": "SUCCESS",
+          "carried_forward": true
+        },
+        {
+          "id": "T04_T10",
+          "workflow_run_id": 36790166857,
+          "status": "SUCCESS",
+          "carried_forward": true
+        },
+        {
+          "id": "T09_T18",
+          "workflow_run_id": 36790166818,
+          "status": "SUCCESS",
+          "carried_forward": true
+        },
+        {
+          "id": "T11_PROVIDER_FORWARD_TOOLING",
+          "workflow_run_id": 36790166956,
+          "status": "SUCCESS",
+          "carried_forward": true
+        },
+        {
+          "id": "T13",
+          "workflow_run_id": 36790166700,
+          "status": "SUCCESS",
+          "carried_forward": true
+        },
+        {
+          "id": "T20",
+          "workflow_run_id": 36790166892,
+          "status": "SUCCESS",
+          "carried_forward": true
+        },
+        {
+          "id": "GEN-C3_GEN-C6_GATE",
+          "workflow_run_id": 36790167057,
+          "status": "SUCCESS",
+          "carried_forward": true
+        },
+        {
+          "id": "GEN-C14",
+          "workflow_run_id": 36790166703,
+          "status": "SUCCESS",
+          "carried_forward": true
+        },
+        {
+          "id": "COMPOUND_PATH_HISTORY",
+          "workflow_run_id": 36790166832,
+          "status": "SUCCESS",
+          "carried_forward": true
+        },
+        {
+          "id": "ARCH_A_PATH_EVIDENCE_DELIVERY",
+          "workflow_run_id": 36790166614,
+          "status": "SUCCESS",
+          "carried_forward": true
+        },
+        {
+          "id": "ARCH_B_FORWARD_MANIFEST",
+          "workflow_run_id": 36790166850,
+          "status": "SUCCESS",
+          "carried_forward": true
+        },
+        {
+          "id": "PRE_HOLDOUT_RECEIPT_CHAIN",
+          "workflow_run_id": 36790166722,
+          "status": "SUCCESS",
+          "carried_forward": true
+        },
+        {
+          "id": "FINAL_RECEIPT_BOUND_GATE",
+          "workflow_run_id": 36790166786,
+          "status": "SUCCESS",
+          "carried_forward": true
+        },
+        {
+          "id": "CALIBRATION_FREEZE_RECEIPT_BOUND_GATE",
+          "workflow_run_id": 36790166754,
+          "status": "SUCCESS",
+          "carried_forward": true
+        }
+      ]
     }
   ],
   "pending_candidates": [
