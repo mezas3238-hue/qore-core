@@ -208,12 +208,20 @@ def test_t08_lineage_requires_four_fold_correlation_truth() -> None:
 
     with pytest.raises(
         CiboCapitalManagementError,
-        match="requires at least two folds",
+        match="canonical surface drift",
     ):
-        # Canonical T08 correlation object itself may admit >=2 folds, but
-        # A1 lineage requires exactly four and will reject if construction
-        # survives upstream validation.
-        replace(correlation, required_folds=1)
+        assess_t08_factor_correlation_lineage(
+            correlation=correlation,
+            mappings=(
+                _mapping(
+                    candidate="m1",
+                    signal="s1",
+                    structural_risk="10",
+                    eur_risk="6",
+                    gbp_risk="-4",
+                ),
+            ),
+        )
 
 
 def test_t08_lineage_empty_mapping_surface_remains_open() -> None:
