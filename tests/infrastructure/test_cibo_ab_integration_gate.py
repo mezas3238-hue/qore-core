@@ -4,7 +4,6 @@ import copy
 import importlib.util
 from pathlib import Path
 
-
 MODULE_PATH = (
     Path(__file__).resolve().parents[2]
     / "scripts/cibo_ab_integration_gate.py"
