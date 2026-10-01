@@ -35,6 +35,7 @@ jobs:
             tests/infrastructure/test_cibo_genc9_economic_gate.py \
             tests/infrastructure/test_cibo_genc10_transition_uncertainty_calibration.py \
             tests/infrastructure/test_cibo_genc11_genc13_utility_gate.py \
+            tests/infrastructure/test_cibo_multi_period_capital_mpc.py \
             tests/infrastructure/test_cibo_genc12_economic_gate.py \
             tests/infrastructure/test_cibo_meta_capital_memory.py \
             tests/infrastructure/test_cibo_governed_capital_science.py \
