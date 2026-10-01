@@ -26,6 +26,9 @@ from qore.infrastructure.cibo_ce2i_provider_economics_provenance import (
 from qore.infrastructure.cibo_ce2i_provider_execution_calibration import (
     CiboProviderExecutionCalibration,
 )
+from qore.infrastructure.cibo_ce2i_provider_stress_bound_freeze import (
+    CiboProviderStressBoundFreeze,
+)
 
 PROVIDER_ECONOMICS_COMPONENT_FREEZE_ID = (
     "CIBO_CTRADER_DEMO_PROVIDER_ECONOMICS_COMPONENT_FREEZE_V1"
@@ -53,8 +56,12 @@ class CiboProviderEconomicsComponentFreeze:
     target_aware: bool
     broker_mutation_performed: bool
     pre_holdout_provider_economics_ready: bool
+    provider_deployment_ready: bool
+    certification_lane: str
     blockers: tuple[str, ...]
+    deployment_blockers: tuple[str, ...]
     execution_calibration_sha256: str | None = None
+    provider_stress_bound_sha256: str | None = None
     productive_authority: bool = False
 
     def __post_init__(self) -> None:
@@ -103,6 +110,7 @@ class CiboProviderEconomicsComponentFreeze:
             "target_aware",
             "broker_mutation_performed",
             "pre_holdout_provider_economics_ready",
+            "provider_deployment_ready",
             "productive_authority",
         ):
             if type(getattr(self, name)) is not bool:
@@ -118,19 +126,58 @@ class CiboProviderEconomicsComponentFreeze:
                 self.volume_contract_terms_frozen,
             )
         )
+        empirical_lane_ready = (
+            self.empirical_slippage_frozen
+            and self.execution_model_frozen
+            and self.execution_calibration_sha256 is not None
+        )
+        stress_lane_ready = self.provider_stress_bound_sha256 is not None
         expected_ready = (
             current_terms_complete
-            and self.empirical_slippage_frozen
-            and self.execution_model_frozen
+            and (empirical_lane_ready or stress_lane_ready)
             and not self.historical_2017_exact_claimed
             and not self.holdout_outcomes_used
             and not self.target_aware
             and not self.broker_mutation_performed
             and not self.blockers
         )
+        expected_deployment = (
+            current_terms_complete
+            and empirical_lane_ready
+            and not self.historical_2017_exact_claimed
+            and not self.holdout_outcomes_used
+            and not self.target_aware
+            and not self.broker_mutation_performed
+            and not self.deployment_blockers
+        )
         if self.pre_holdout_provider_economics_ready != expected_ready:
             raise CiboCapitalManagementError(
                 "provider economics component readiness/blocker drift"
+            )
+        if self.provider_deployment_ready != expected_deployment:
+            raise CiboCapitalManagementError(
+                "provider economics deployment readiness drift"
+            )
+        if self.certification_lane not in {
+            "EMPIRICAL_EXECUTION",
+            "PREDECLARED_STRESS_BOUND",
+            "NOT_READY",
+        }:
+            raise CiboCapitalManagementError(
+                "provider economics certification lane invalid"
+            )
+        expected_lane = (
+            "EMPIRICAL_EXECUTION"
+            if empirical_lane_ready
+            else (
+                "PREDECLARED_STRESS_BOUND"
+                if stress_lane_ready
+                else "NOT_READY"
+            )
+        )
+        if self.certification_lane != expected_lane:
+            raise CiboCapitalManagementError(
+                "provider economics certification lane drift"
             )
         if self.execution_calibration_sha256 is not None:
             value = self.execution_calibration_sha256
@@ -144,6 +191,19 @@ class CiboProviderEconomicsComponentFreeze:
             ):
                 raise CiboCapitalManagementError(
                     "provider economics execution calibration SHA invalid"
+                )
+        if self.provider_stress_bound_sha256 is not None:
+            value = self.provider_stress_bound_sha256
+            if (
+                not value.startswith("sha256:")
+                or len(value) != 71
+                or any(
+                    char not in "0123456789abcdef"
+                    for char in value[7:]
+                )
+            ):
+                raise CiboCapitalManagementError(
+                    "provider economics stress-bound SHA invalid"
                 )
         if (
             (self.empirical_slippage_frozen or self.execution_model_frozen)
@@ -171,6 +231,7 @@ def freeze_current_ctrader_demo_provider_economics(
     *,
     frozen_at: datetime,
     execution_calibration: CiboProviderExecutionCalibration | None = None,
+    stress_bound: CiboProviderStressBoundFreeze | None = None,
 ) -> CiboProviderEconomicsComponentFreeze:
     """Freeze proven current terms while keeping unsupported components open."""
 
@@ -238,13 +299,45 @@ def freeze_current_ctrader_demo_provider_economics(
             or execution_calibration.execution_model_ready
         )
         execution_calibration_sha256 = execution_calibration.fingerprint()
+    stress_bound_sha256: str | None = None
+    stress_lane_ready = False
+    deployment_blockers: list[str] = []
+    if stress_bound is not None:
+        if not isinstance(stress_bound, CiboProviderStressBoundFreeze):
+            raise CiboCapitalManagementError(
+                "provider economics stress-bound evidence is invalid"
+            )
+        if stress_bound.provider_key != evidence.provider_key:
+            raise CiboCapitalManagementError(
+                "provider economics stress-bound provider drift"
+            )
+        if frozen_at < stress_bound.frozen_at:
+            raise CiboCapitalManagementError(
+                "provider economics freeze cannot predate stress bound"
+            )
+        stress_lane_ready = stress_bound.core_pre_holdout_ready
+        stress_bound_sha256 = stress_bound.fingerprint()
+        deployment_blockers.extend(stress_bound.deployment_blockers)
+
     blockers: list[str] = []
     if not current_terms:
         blockers.append("CURRENT_PROVIDER_TERMS_NOT_FROZEN")
-    if not slippage:
-        blockers.append("EMPIRICAL_SLIPPAGE_NOT_FROZEN")
-    if not execution_model:
-        blockers.append("EXECUTION_MODEL_NOT_FROZEN")
+    if not (slippage and execution_model) and not stress_lane_ready:
+        if not slippage:
+            blockers.append("EMPIRICAL_SLIPPAGE_NOT_FROZEN")
+        if not execution_model:
+            blockers.append("EXECUTION_MODEL_NOT_FROZEN")
+        blockers.append("PROVIDER_STRESS_BOUND_NOT_FROZEN")
+
+    empirical_lane_ready = slippage and execution_model
+    if not empirical_lane_ready:
+        deployment_blockers.extend(
+            (
+                "PROVIDER_DEPLOYMENT_EMPIRICAL_SLIPPAGE_REQUIRED",
+                "PROVIDER_DEPLOYMENT_EXECUTION_MODEL_REQUIRED",
+            )
+        )
+    deployment_blockers = list(dict.fromkeys(deployment_blockers))
 
     return CiboProviderEconomicsComponentFreeze(
         freeze_id=PROVIDER_ECONOMICS_COMPONENT_FREEZE_ID,
@@ -271,16 +364,35 @@ def freeze_current_ctrader_demo_provider_economics(
         broker_mutation_performed=evidence.broker_mutation_performed,
         pre_holdout_provider_economics_ready=(
             current_terms
-            and slippage
-            and execution_model
+            and (empirical_lane_ready or stress_lane_ready)
             and not evidence.historical_exact_claimed
             and not evidence.holdout_outcomes_used
             and not evidence.target_aware
             and not evidence.broker_mutation_performed
             and not blockers
         ),
+        provider_deployment_ready=(
+            current_terms
+            and empirical_lane_ready
+            and not evidence.historical_exact_claimed
+            and not evidence.holdout_outcomes_used
+            and not evidence.target_aware
+            and not evidence.broker_mutation_performed
+            and not deployment_blockers
+        ),
+        certification_lane=(
+            "EMPIRICAL_EXECUTION"
+            if empirical_lane_ready
+            else (
+                "PREDECLARED_STRESS_BOUND"
+                if stress_lane_ready
+                else "NOT_READY"
+            )
+        ),
         blockers=tuple(blockers),
+        deployment_blockers=tuple(deployment_blockers),
         execution_calibration_sha256=execution_calibration_sha256,
+        provider_stress_bound_sha256=stress_bound_sha256,
         productive_authority=False,
     )
 

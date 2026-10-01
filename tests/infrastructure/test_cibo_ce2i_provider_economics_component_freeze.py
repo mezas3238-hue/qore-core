@@ -23,6 +23,9 @@ from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
 from qore.infrastructure.cibo_ce2i_provider_execution_calibration import (
     calibrate_ctrader_demo_forward_execution,
 )
+from qore.infrastructure.cibo_ce2i_provider_stress_bound_freeze import (
+    build_provider_stress_bound_freeze,
+)
 
 PROVIDER_OBSERVED_AT = datetime.fromisoformat(
     CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS.observed_at
@@ -100,4 +103,43 @@ def test_not_ready_execution_calibration_is_bound_without_promoting_readiness() 
     assert freeze.blockers == (
         "EMPIRICAL_SLIPPAGE_NOT_FROZEN",
         "EXECUTION_MODEL_NOT_FROZEN",
+    )
+
+
+
+def test_stress_bound_lane_closes_core_without_deployment_overclaim() -> None:
+    stress = build_provider_stress_bound_freeze(
+        empirical_inventory={
+            "schema": "qore.cibo.ctrader_demo.empirical_slippage.v1",
+            "status": "EMPIRICAL_SLIPPAGE_NOT_READY",
+            "provider_key": "ctrader-demo",
+            "environment": "demo",
+            "account_entry_deals_found": 3,
+            "market_entry_deals_found": 1,
+            "qore_deals_found": 1,
+            "empirical_slippage_calibrated": False,
+            "execution_model_ready": False,
+            "broker_mutation_performed": False,
+            "holdout_outcomes_used": False,
+            "historical_2017_exact_claimed": False,
+            "target_aware": False,
+            "productive_authority": False,
+        },
+        frozen_at=PROVIDER_OBSERVED_AT + timedelta(minutes=4),
+    )
+
+    freeze = freeze_current_ctrader_demo_provider_economics(
+        frozen_at=PROVIDER_OBSERVED_AT + timedelta(minutes=5),
+        stress_bound=stress,
+    )
+
+    assert freeze.pre_holdout_provider_economics_ready is True
+    assert freeze.certification_lane == "PREDECLARED_STRESS_BOUND"
+    assert freeze.empirical_slippage_frozen is False
+    assert freeze.execution_model_frozen is False
+    assert freeze.provider_stress_bound_sha256 == stress.fingerprint()
+    assert freeze.provider_deployment_ready is False
+    assert freeze.blockers == ()
+    assert "PROVIDER_DEPLOYMENT_EMPIRICAL_SLIPPAGE_REQUIRED" in (
+        freeze.deployment_blockers
     )
