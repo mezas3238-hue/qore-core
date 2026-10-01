@@ -358,6 +358,13 @@ class Genc13SkepticReport:
                 "GEN-C13 phenotype cannot predate reconciled outcome"
             )
         if any(
+            item.identified_at > self.generated_at
+            for item in self.phenotypes
+        ):
+            raise CiboCapitalManagementError(
+                "GEN-C13 report cannot contain future phenotype evidence"
+            )
+        if any(
             not isinstance(item, Genc13CounterfactualStudy)
             for item in self.counterfactuals
         ):
@@ -376,6 +383,13 @@ class Genc13SkepticReport:
         ):
             raise CiboCapitalManagementError(
                 "GEN-C13 counterfactual must bind post-outcome episode"
+            )
+        if any(
+            item.created_at > self.generated_at
+            for item in self.counterfactuals
+        ):
+            raise CiboCapitalManagementError(
+                "GEN-C13 report cannot contain future counterfactual evidence"
             )
         if type(self.hypothesis_worth_preregistering) is not bool:
             raise CiboCapitalManagementError(
