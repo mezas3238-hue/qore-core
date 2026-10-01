@@ -1,0 +1,127 @@
+name: QORE CIBO Phase22 DEMO Provider Calibration
+
+on:
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+    paths:
+      - '.github/workflows/cibo-phase22-demo-provider-calibration.yml'
+      - 'scripts/cibo_phase22_demo_provider_calibration.py'
+      - 'src/qore/infrastructure/cibo_phase22_demo_calibration_contract.py'
+      - 'tests/infrastructure/test_cibo_phase22_demo_calibration_contract.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qore-cibo-phase22-demo-provider-calibration
+  cancel-in-progress: false
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  QORE_CIBO_PHASE22_DEMO_CALIBRATION_AUTHORIZATION: CIBO_PHASE22_DEMO_EXECUTION_CALIBRATION_AUTHORIZED
+
+jobs:
+  calibrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,ctrader]'
+
+      - name: Quality and DEMO-only contract
+        run: |
+          ruff check \
+            scripts/cibo_phase22_demo_provider_calibration.py \
+            src/qore/infrastructure/cibo_phase22_demo_calibration_contract.py \
+            tests/infrastructure/test_cibo_phase22_demo_calibration_contract.py
+          mypy --disable-error-code=import-untyped \
+            scripts/cibo_phase22_demo_provider_calibration.py \
+            src/qore/infrastructure/cibo_phase22_demo_calibration_contract.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase22_demo_calibration_contract.py \
+            tests/infrastructure/test_ctrader_demo_operational_runtime.py
+
+      - name: Verify DEMO credentials without printing secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in \
+            QORE_CTRADER_CLIENT_ID \
+            QORE_CTRADER_CLIENT_SECRET \
+            QORE_CTRADER_ACCESS_TOKEN \
+            QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}" || {
+              echo "::error::missing required cTrader DEMO secret: $name"
+              exit 2
+            }
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Top up bounded minimum-volume DEMO calibration cohort
+        run: |
+          mkdir -p phase22-demo-provider-calibration
+          python scripts/cibo_phase22_demo_provider_calibration.py \
+            --output phase22-demo-provider-calibration/calibration.json \
+            > phase22-demo-provider-calibration/stdout.json
+
+      - name: Enforce terminal DEMO-only calibration
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(
+              Path(
+                  "phase22-demo-provider-calibration/calibration.json"
+              ).read_text(encoding="utf-8")
+          )
+          assert p["status"] == "READY"
+          assert p["provider_key"] == "ctrader-demo"
+          assert p["environment"] == "demo"
+          assert p["endpoint_host"] == "demo.ctraderapi.com"
+          assert p["empirical_slippage_calibrated"] is True
+          assert p["execution_model_ready"] is True
+          assert p["minimum_volume_only"] is True
+          assert p["created_positions_closed"] is True
+          assert p["historical_provider_economics_claimed"] is False
+          assert p["historical_holdout_execution_claimed"] is False
+          assert p["holdout_outcomes_used"] is False
+          assert p["fundednext_touched"] is False
+          assert p["vps_touched"] is False
+          assert p["live_authorized"] is False
+          assert p["real_capital_authorized"] is False
+          assert p["productive_authority"] is False
+          assert all(
+              value >= 8
+              for value in p["after_valid_distinct_orders"].values()
+          )
+          PY
+
+      - name: Seal calibration evidence
+        run: |
+          printf '%s\n' "$GITHUB_SHA" \
+            > phase22-demo-provider-calibration/git-sha.txt
+          cd phase22-demo-provider-calibration
+          sha256sum calibration.json stdout.json git-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase22-demo-provider-calibration-${{ github.sha }}
+          path: phase22-demo-provider-calibration
+          if-no-files-found: error
+          retention-days: 90
