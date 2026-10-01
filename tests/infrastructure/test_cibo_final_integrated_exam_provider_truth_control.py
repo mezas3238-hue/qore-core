@@ -22,6 +22,17 @@ assert _SPEC is not None and _SPEC.loader is not None
 _FIXTURE = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_FIXTURE)
 
+_INTAKE_FIXTURE_PATH = Path(__file__).with_name(
+    "test_cibo_arch_a_internal_readiness_gate.py"
+)
+_INTAKE_SPEC = importlib.util.spec_from_file_location(
+    "_provider_truth_intake_fixture",
+    _INTAKE_FIXTURE_PATH,
+)
+assert _INTAKE_SPEC is not None and _INTAKE_SPEC.loader is not None
+_INTAKE_FIXTURE = importlib.util.module_from_spec(_INTAKE_SPEC)
+_INTAKE_SPEC.loader.exec_module(_INTAKE_FIXTURE)
+
 
 def _sha(label: str) -> str:
     return "sha256:" + sha256(label.encode("utf-8")).hexdigest()
@@ -64,7 +75,7 @@ def _artifact(*, ready: bool = True) -> str:
 def _chain(artifact: str):
     phase21 = _FIXTURE._phase21_manifest()
     phase22 = _FIXTURE._receipt(phase21_sha=phase21.manifest_sha256())
-    payload = _FIXTURE._phase22_v2_manifest_payload()
+    payload = _INTAKE_FIXTURE._phase22_v2_manifest_payload()
     refs = dict(payload["receipts"])
     refs["provider_economics_sha256"] = (
         "sha256:" + sha256(artifact.encode("utf-8")).hexdigest()
