@@ -540,7 +540,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_GENC7_CAUSAL_GRADUATION_GATE_CHILD_CI_GREEN_PROFIT_GRADUATION_VALUE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "ENGINE_IMPLEMENTED_CI_GREEN_GENC7_CAUSAL_GRADUATION_GATE_CHILD_CI_GREEN_PROFIT_GRADUATION_VALUE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING_GENC7_ECONOMIC_AND_STRICT_FOUR_FOLD_ENGINE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -555,7 +555,11 @@
         "src/qore/infrastructure/cibo_arch_a_mechanism_stress_gate.py",
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml"
+        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
+        "src/qore/infrastructure/cibo_genc_strict_temporal_replication.py",
+        "tests/infrastructure/test_cibo_genc_strict_temporal_replication.py",
+        "github-actions://36808183928/SUCCESS",
+        "github-actions://36808183905/SUCCESS"
       ],
       "blockers": [
         "CAUSAL_PROFIT_GRADUATION_POLICY_VALUE_REQUIRED",
@@ -762,7 +766,7 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_REAL_POPULATION_BINDING_AND_TEMPORAL_CRITERION_CHILD_CI_GREEN_REAL_ECONOMIC_EVIDENCE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "ENGINE_REAL_POPULATION_BINDING_AND_TEMPORAL_CRITERION_CHILD_CI_GREEN_REAL_ECONOMIC_EVIDENCE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING_ECONOMIC_AND_TEMPORAL_ENGINE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
@@ -782,7 +786,9 @@
         "src/qore/infrastructure/cibo_arch_a_mechanism_stress_gate.py",
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml"
+        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
+        "tests/infrastructure/test_cibo_compound_temporal_replication_gate.py",
+        "github-actions://36808184052/SUCCESS"
       ],
       "blockers": [
         "REAL_PROVIDER_VALID_COMPOUND_PATH_POPULATION_REQUIRED",
@@ -994,7 +1000,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "INTEGRATED_ENGINE_IMPLEMENTED_CI_GREEN_REAL_ECONOMIC_REPLAY_REQUIRED_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "INTEGRATED_ENGINE_IMPLEMENTED_CI_GREEN_REAL_ECONOMIC_REPLAY_REQUIRED_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING_GENC3_STRICT_FOUR_FOLD_ECONOMIC_ENGINE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_cycle_state.py",
@@ -1006,7 +1012,11 @@
         "src/qore/infrastructure/cibo_arch_a_mechanism_stress_gate.py",
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml"
+        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
+        "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
+        "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
+        "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        "github-actions://36808183978/SUCCESS"
       ],
       "blockers": [
         "REAL_ECONOMIC_PORTFOLIO_REPLAY_REQUIRED",
@@ -1020,7 +1030,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "INTEGRATED_WITH_COMPOUND_CYCLE_CI_GREEN_SCIENTIFIC_VALUE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "INTEGRATED_WITH_COMPOUND_CYCLE_CI_GREEN_SCIENTIFIC_VALUE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING_GENC6_STRICT_FOUR_FOLD_ECONOMIC_ENGINE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_market_cycle.py",
@@ -1031,7 +1041,11 @@
         "src/qore/infrastructure/cibo_arch_a_mechanism_stress_gate.py",
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml"
+        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
+        "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
+        "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
+        "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        "github-actions://36808183978/SUCCESS"
       ],
       "blockers": [
         "FRESH_TRUE_SCARCITY_ECONOMIC_VALUE_REQUIRED",
@@ -1105,7 +1119,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "GENC7_ENGINE_AND_CAUSAL_ECONOMIC_GATE_CHILD_CI_GREEN_FRESH_PROFIT_RETENTION_VALUE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "GENC7_ENGINE_AND_CAUSAL_ECONOMIC_GATE_CHILD_CI_GREEN_FRESH_PROFIT_RETENTION_VALUE_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING_GENC7_ECONOMIC_AND_STRICT_FOUR_FOLD_ENGINE_CI_GREEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_profit_preservation_shadow.py",
@@ -1119,7 +1133,12 @@
         "src/qore/infrastructure/cibo_arch_a_mechanism_stress_gate.py",
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml"
+        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
+        "tests/infrastructure/test_cibo_profit_preservation_economic_gate.py",
+        "src/qore/infrastructure/cibo_genc_strict_temporal_replication.py",
+        "tests/infrastructure/test_cibo_genc_strict_temporal_replication.py",
+        "github-actions://36808183928/SUCCESS",
+        "github-actions://36808183905/SUCCESS"
       ],
       "blockers": [
         "FRESH_OOS_PROFIT_RETENTION_AND_GIVEBACK_VALUE_REQUIRED",
