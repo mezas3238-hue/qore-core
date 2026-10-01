@@ -420,12 +420,19 @@ def collect_ctrader_demo_empirical_slippage(
 def decode_ctrader_tick_series(
     rows: tuple[object, ...],
 ) -> tuple[tuple[int, Decimal], ...]:
-    """Decode newest-first cTrader delta timestamps into absolute timestamps."""
+    """Decode newest-first cTrader timestamp and price deltas.
+
+    The first ProtoOATickData row carries absolute Unix milliseconds and an
+    absolute price scaled by 100000. Subsequent rows are relative to the
+    preceding newer tick: timestamp is a time delta and tick is a signed
+    price delta in the same 1/100000 scale.
+    """
 
     if not rows:
         return ()
     decoded: list[tuple[int, Decimal]] = []
     previous_timestamp: int | None = None
+    previous_tick: int | None = None
     for index, row in enumerate(rows):
         raw_timestamp = getattr(row, "timestamp", None)
         raw_tick = getattr(row, "tick", None)
@@ -433,38 +440,53 @@ def decode_ctrader_tick_series(
             raise CiboCapitalManagementError(
                 "historical tick timestamp invalid"
             )
-        if type(raw_tick) is not int or raw_tick <= 0:
+        if type(raw_tick) is not int:
             raise CiboCapitalManagementError("historical tick price invalid")
         if index == 0:
             if raw_timestamp <= 0:
                 raise CiboCapitalManagementError(
                     "historical first tick timestamp invalid"
                 )
-            absolute = raw_timestamp
-        else:
-            if previous_timestamp is None or raw_timestamp == 0:
+            if raw_tick <= 0:
                 raise CiboCapitalManagementError(
-                    "historical tick delta timestamp invalid"
+                    "historical first tick price invalid"
                 )
-            # cTrader returns newest-first ticks. The first timestamp is
-            # absolute Unix ms; subsequent timestamps are relative deltas.
-            # Current Protobuf responses use signed negative deltas
-            # (current - previous), while older fixtures encoded the same
-            # distance as positive (previous - current). Decode both forms
-            # into one strictly descending absolute chronology.
-            absolute = (
+            absolute_timestamp = raw_timestamp
+            absolute_tick = raw_tick
+        else:
+            if previous_timestamp is None or previous_tick is None:
+                raise CiboCapitalManagementError(
+                    "historical tick delta state invalid"
+                )
+            # Current cTrader responses use signed negative time deltas because
+            # the response is newest-first. Retain compatibility with older
+            # positive-distance fixtures while enforcing non-increasing time.
+            absolute_timestamp = (
                 previous_timestamp + raw_timestamp
-                if raw_timestamp < 0
+                if raw_timestamp <= 0
                 else previous_timestamp - raw_timestamp
             )
-            if absolute < 0 or absolute >= previous_timestamp:
+            if (
+                absolute_timestamp < 0
+                or absolute_timestamp > previous_timestamp
+            ):
                 raise CiboCapitalManagementError(
                     "historical tick delta chronology invalid"
                 )
-        decoded.append((absolute, Decimal(raw_tick) / _PRICE_SCALE))
-        previous_timestamp = absolute
+            absolute_tick = previous_tick + raw_tick
+            if absolute_tick <= 0:
+                raise CiboCapitalManagementError(
+                    "historical tick delta price invalid"
+                )
+        decoded.append(
+            (
+                absolute_timestamp,
+                Decimal(absolute_tick) / _PRICE_SCALE,
+            )
+        )
+        previous_timestamp = absolute_timestamp
+        previous_tick = absolute_tick
     return tuple(decoded)
-
 
 def signed_slippage(
     *,

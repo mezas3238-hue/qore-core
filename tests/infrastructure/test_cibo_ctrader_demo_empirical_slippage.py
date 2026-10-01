@@ -36,11 +36,12 @@ def test_tick_series_rejects_non_descending_delta() -> None:
         decode_ctrader_tick_series(rows)
 
 
-def test_tick_series_decodes_newest_first_delta_timestamps() -> None:
+def test_tick_series_decodes_newest_first_time_and_price_deltas() -> None:
     rows = (
         SimpleNamespace(timestamp=1_000_000, tick=110_000),
-        SimpleNamespace(timestamp=250, tick=109_990),
-        SimpleNamespace(timestamp=500, tick=109_980),
+        SimpleNamespace(timestamp=-250, tick=-10),
+        SimpleNamespace(timestamp=-500, tick=20),
+        SimpleNamespace(timestamp=0, tick=0),
     )
 
     decoded = decode_ctrader_tick_series(rows)
@@ -48,9 +49,21 @@ def test_tick_series_decodes_newest_first_delta_timestamps() -> None:
     assert decoded == (
         (1_000_000, Decimal("1.1")),
         (999_750, Decimal("1.0999")),
-        (999_250, Decimal("1.0998")),
+        (999_250, Decimal("1.1001")),
+        (999_250, Decimal("1.1001")),
     )
 
+
+def test_tick_series_accepts_legacy_positive_time_distance() -> None:
+    rows = (
+        SimpleNamespace(timestamp=1_000_000, tick=110_000),
+        SimpleNamespace(timestamp=250, tick=-10),
+    )
+
+    assert decode_ctrader_tick_series(rows) == (
+        (1_000_000, Decimal("1.1")),
+        (999_750, Decimal("1.0999")),
+    )
 
 def test_buy_and_sell_slippage_sign_is_adverse_positive() -> None:
     buy = signed_slippage(
