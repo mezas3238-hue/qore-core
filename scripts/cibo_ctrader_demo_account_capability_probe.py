@@ -32,7 +32,7 @@ def build_report(
     """Sanitize one account-bound observation without leaking account id."""
 
     account_fingerprint = hashlib.sha256(
-        observation.account_ref.encode("utf-8")
+        f"ctrader-demo:{observation.account_ref}".encode()
     ).hexdigest()
     symbols = [
         {
