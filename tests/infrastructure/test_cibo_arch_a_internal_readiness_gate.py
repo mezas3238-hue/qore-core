@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from hashlib import sha256
 from pathlib import Path
 
@@ -272,38 +273,128 @@ def test_scientific_batch_plan_blocks_until_b_intake_is_ready(
     assert plan.population_batch_ready is False
     assert plan.blockers == ("ARCH_B_SCIENTIFIC_INTAKE_REQUIRED",)
 
-
-
-def test_external_dependency_terminal_is_not_internal_engineering_debt(
+def test_architect_a_readiness_rejects_manual_pass_evidence_drift(
     tmp_path: Path,
 ) -> None:
     payload = _ledger()
-    for row in payload["workstreams"]:
-        row["terminal_disposition"] = "EXTERNAL_DEPENDENCY_BLOCKED"
-        row["current_maturity"] = (
-            "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED"
-        )
-        row["blockers"] = ["REAL_FORWARD_POPULATION_REQUIRED"]
-        row["evidence_refs"] = ["github-actions://123/SUCCESS"]
-        row["next_gate"] = (
-            "Reopen only when the real external population becomes available."
-        )
+    payload["workstreams"][0]["evidence_refs"] = []
+    path = tmp_path / "ledger.json"
+    _write(path, payload)
+    report = gate.evaluate_architect_a_internal_readiness(path)
+
+    with pytest.raises(
+        gate.ArchitectAReadinessError,
+        match="pass/evidence drift",
+    ):
+        replace(report, passed=True)
+
+def test_scientific_batch_plan_exposes_mechanism_evidence_contract(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / "ledger.json"
+    _write(ledger_path, _ledger())
+    readiness = gate.evaluate_architect_a_internal_readiness(ledger_path)
+    intake = gate.evaluate_architect_a_scientific_intake(
+        _forward_manifest_payload(ready=True)
+    )
+    plan = gate.build_architect_a_scientific_batch_plan(readiness, intake)
+
+    assert plan.required_mechanism_evidence_kinds == (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "T08_FACTOR_CORRELATION_LINEAGE",
+        "T09_T18_TRUE_SCARCITY_LINEAGE",
+        "T15_RESERVATION_COUNTERFACTUAL_LINEAGE",
+        "GENC10_TWIN_TRANSITION_LINEAGE",
+        "GENC11_TRANSITION_CALIBRATION",
+        "GENC12_CRISIS_FACTOR_SET",
+        "GENC13_MEMORY_HYPOTHESIS",
+        "PROTECTED_BASE_POLICY_IDENTITY",
+        "COMPOUND_STRESS_LINEAGE",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    )
+
+def _mechanism_evidence_payload(
+    intake: gate.ArchitectAScientificIntakeReport,
+    *,
+    complete: bool,
+) -> dict:
+    kinds = gate._REQUIRED_MECHANISM_EVIDENCE_KINDS
+    selected = kinds if complete else kinds[:3]
+    return {
+        "schema": gate.MECHANISM_EVIDENCE_SCHEMA,
+        "forward_manifest_sha256": intake.manifest_sha256,
+        "evidence_refs": [
+            {
+                "kind": kind,
+                "sha256": "sha256:"
+                + sha256(kind.encode("utf-8")).hexdigest(),
+            }
+            for kind in selected
+        ],
+        "scientific_closure_claimed": False,
+        "integration_authority": False,
+        "production_authority": False,
+    }
+
+
+def test_mechanism_evidence_receipt_reports_missing_kinds() -> None:
+    intake = gate.evaluate_architect_a_scientific_intake(
+        _forward_manifest_payload(ready=True)
+    )
+    receipt = gate.evaluate_architect_a_mechanism_evidence(
+        _mechanism_evidence_payload(intake, complete=False),
+        intake,
+    )
+
+    assert receipt.ready_for_full_mechanism_science is False
+    assert receipt.present_kinds == gate._REQUIRED_MECHANISM_EVIDENCE_KINDS[:3]
+    assert receipt.missing_kinds == gate._REQUIRED_MECHANISM_EVIDENCE_KINDS[3:]
+
+
+def test_mechanism_evidence_receipt_can_be_complete() -> None:
+    intake = gate.evaluate_architect_a_scientific_intake(
+        _forward_manifest_payload(ready=True)
+    )
+    receipt = gate.evaluate_architect_a_mechanism_evidence(
+        _mechanism_evidence_payload(intake, complete=True),
+        intake,
+    )
+
+    assert receipt.ready_for_full_mechanism_science is True
+    assert receipt.missing_kinds == ()
+    assert receipt.blockers == ()
+
+
+def test_mechanism_evidence_receipt_rejects_manifest_lineage_drift() -> None:
+    intake = gate.evaluate_architect_a_scientific_intake(
+        _forward_manifest_payload(ready=True)
+    )
+    payload = _mechanism_evidence_payload(intake, complete=True)
+    payload["forward_manifest_sha256"] = "sha256:" + "0" * 64
+
+    with pytest.raises(
+        gate.ArchitectAReadinessError,
+        match="forward-manifest lineage drift",
+    ):
+        gate.evaluate_architect_a_mechanism_evidence(payload, intake)
+
+def test_architect_a_readiness_accepts_terminal_external_dependency(
+    tmp_path: Path,
+) -> None:
+    payload = _ledger()
+    row = payload["workstreams"][0]
+    row["terminal_disposition"] = "EXTERNAL_DEPENDENCY_BLOCKED"
+    row["current_maturity"] = (
+        "TERMINAL_EXTERNAL_DEPENDENCY_BLOCKED_REAL_PHASE20D_REQUIRED"
+    )
+    row["blockers"] = ["ARCH_B_REAL_PHASE20D_FORWARD_POPULATION_NOT_AVAILABLE"]
     path = tmp_path / "ledger.json"
     _write(path, payload)
 
     report = gate.evaluate_architect_a_internal_readiness(path)
 
     assert report.passed is True
-    assert report.terminal_count == len(gate.A_WORKSTREAM_IDS)
-    assert report.empirical_open_count == 0
+    assert "T04" in report.terminal_ids
+    assert "T04" not in report.empirical_open_ids
     assert report.internal_debt_ids == ()
 
-
-def test_current_canonical_ledger_has_no_architect_a_internal_debt() -> None:
-    report = gate.evaluate_architect_a_internal_readiness()
-
-    assert report.passed is True
-    assert report.terminal_count == len(gate.A_WORKSTREAM_IDS)
-    assert report.empirical_open_count == 0
-    assert report.internal_debt_ids == ()
-    assert report.evidence_missing_ids == ()

@@ -11,6 +11,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
 )
 from qore.infrastructure.cibo_ce2i_oos_stress_admission import (
     Ce2iOosStressScenarioMeta,
+    Ce2iOosStressScenarioResult,
     Ce2iOosStressVerdict,
     T08OosStressEvidence,
     T09T18OosStressEvidence,
@@ -362,4 +363,16 @@ def test_scarcity_report_rejects_scope_identity_swap() -> None:
         match="scope identity drift",
     ):
         replace(report, t09=report.t18, t18=report.t09)
+
+def test_stress_scenario_result_rejects_pass_with_failed_dimensions() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="cannot carry failed dimensions",
+    ):
+        Ce2iOosStressScenarioResult(
+            scenario_kind=CompoundStressKind.MARGIN_HIKE,
+            scenario_id="margin-hike",
+            passed=True,
+            failed_dimensions=("maximum_drawdown_usd",),
+        )
 

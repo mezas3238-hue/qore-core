@@ -915,12 +915,53 @@
       "note": "Architect A engineering closure is proven on the canonical 62/64 ledger. Certification remains blocked by external scientific evidence and the two real exams.",
       "productive_authority": false,
       "certification_claim": false
+    },
+    {
+      "owner": "INTEGRATOR_LATEST_A_B_EVIDENCE_INTAKE_STAGING",
+      "source_head_sha": "c2f584c701fb05b5dbe151f47e3a8e253bcf559c",
+      "items": [
+        {
+          "id": "ARCH_A_MECHANISM_EVIDENCE_RECEIPT",
+          "child_head_sha": "7eebf1056eeb0d5d94685bd649439c8fb94ea455",
+          "child_workflow_run_id": 36854114590,
+          "status": "SUCCESS",
+          "scope": "Population intake versus mechanism-evidence readiness contract; no scientific closure claim."
+        },
+        {
+          "id": "ARCH_A_OOS_STRESS_AND_PROTECTED_BASE_HARDENING",
+          "child_head_sha": "7eebf1056eeb0d5d94685bd649439c8fb94ea455",
+          "workflow_run_ids": [
+            36854114678,
+            36854114668
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "T16_POST_DECLARATION_STRUCTURAL_EVIDENCE",
+          "child_head_sha": "ce721778184312c68698ed1f14c573b670eb2327",
+          "workflow_run_id": 36852583894,
+          "status": "SUCCESS",
+          "sample_count_per_pair": 48,
+          "folds": "4/4",
+          "realized_execution_economics_proven": false
+        },
+        {
+          "id": "ARCH_B_FORWARD_MANIFEST_CONTRACT",
+          "child_head_sha": "ce721778184312c68698ed1f14c573b670eb2327",
+          "workflow_run_id": 36852584055,
+          "status": "SUCCESS",
+          "real_phase20d_population_published": false,
+          "ready_for_scientific_consumption": false
+        }
+      ],
+      "productive_authority": false,
+      "certification_claim": false
     }
   ],
   "pending_candidates": [
     {
       "owner": "ARCHITECT_A",
-      "latest_head_sha": "04e9adb9abb4b092ffc1b896941da840c312567a",
+      "latest_head_sha": "7eebf1056eeb0d5d94685bd649439c8fb94ea455",
       "reasons": [
         "CURRENT_HEAD_CI_PENDING",
         "A_SUPPORT_002_MANDATORY_WORKSTREAM_DRIFT_UPSTREAM",
@@ -949,7 +990,7 @@
     },
     {
       "owner": "ARCHITECT_B",
-      "latest_head_sha": "aa412b3b7de0824c9b809edba7eeb617cf3571b5",
+      "latest_head_sha": "ce721778184312c68698ed1f14c573b670eb2327",
       "reasons": [
         "CURRENT_HEAD_CI_PENDING",
         "B_SUPPORT_001_USD60_READINESS_SELF_ATTESTATION_UPSTREAM",
@@ -988,12 +1029,13 @@
   "certification_claim": false,
   "productive_authority": false,
   "integrator_pending": {
-    "head_sha": "7903cba162595bbfee32fa87fa50f84e6566aaf3",
+    "head_sha": "c2f584c701fb05b5dbe151f47e3a8e253bcf559c",
     "reasons": [
-      "LATEST_ARCH_A_POPULATION_MECHANISM_EVIDENCE_REFINEMENT_EXACT_HEAD_CI_REQUIRED",
+      "LATEST_A_MECHANISM_EVIDENCE_INTAKE_EXACT_INTEGRATOR_HEAD_CI_REQUIRED",
+      "REAL_PHASE20D_FORWARD_POPULATION_NOT_YET_AVAILABLE",
+      "EMPIRICAL_SLIPPAGE_AND_REAL_EXECUTION_POPULATION_NOT_YET_AVAILABLE",
       "FINAL_INTEGRATED_CIBO_EXAM_REAL_EXECUTION_OPEN",
-      "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM_REAL_EXECUTION_OPEN",
-      "CERTIFICATION_BLOCKING_EXTERNAL_EVIDENCE_DEPENDENCIES_REMAIN"
+      "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM_REAL_EXECUTION_OPEN"
     ],
     "staged_components": [
       "CROSSBOUNDARY_SOURCE_BOUND_RECEIPTS",

@@ -163,6 +163,31 @@ class Ce2iOosStressScenarioResult:
     passed: bool
     failed_dimensions: tuple[str, ...]
 
+    def __post_init__(self) -> None:
+        if type(self.scenario_kind) is not CompoundStressKind or not self.scenario_id:
+            raise CiboCapitalManagementError(
+                "CE2I OOS stress scenario result identity is invalid"
+            )
+        if type(self.passed) is not bool:
+            raise CiboCapitalManagementError(
+                "CE2I OOS stress scenario result passed must be bool"
+            )
+        if (
+            not isinstance(self.failed_dimensions, tuple)
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.failed_dimensions
+            )
+            or len(self.failed_dimensions) != len(set(self.failed_dimensions))
+        ):
+            raise CiboCapitalManagementError(
+                "CE2I OOS stress failed dimensions are invalid"
+            )
+        if self.passed and self.failed_dimensions:
+            raise CiboCapitalManagementError(
+                "CE2I OOS stress passed result cannot carry failed dimensions"
+            )
+
 
 @dataclass(frozen=True, slots=True)
 class Ce2iOosStressReport:
@@ -182,6 +207,21 @@ class Ce2iOosStressReport:
                 "CE2I OOS stress gate identity drift"
             )
         _sha(self.protocol_binding_sha256, "protocol_binding_sha256")
+        if (
+            not isinstance(self.scenario_results, tuple)
+            or any(
+                not isinstance(item, Ce2iOosStressScenarioResult)
+                for item in self.scenario_results
+            )
+        ):
+            raise CiboCapitalManagementError(
+                "CE2I OOS stress requires canonical scenario results"
+            )
+        scenario_ids = tuple(item.scenario_id for item in self.scenario_results)
+        if len(scenario_ids) != len(set(scenario_ids)):
+            raise CiboCapitalManagementError(
+                "CE2I OOS stress scenario ids must be unique"
+            )
         kinds = tuple(item.scenario_kind for item in self.scenario_results)
         if kinds != _REQUIRED_STRESS_KINDS:
             raise CiboCapitalManagementError(

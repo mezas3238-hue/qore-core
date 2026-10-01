@@ -298,3 +298,23 @@ Exact Integrator HEAD: `7903cba162595bbfee32fa87fa50f84e6566aaf3`.
 - Latest A refinements at `04e9adb9abb4b092ffc1b896941da840c312567a` separate population intake from
   mechanism-evidence readiness; those refinements are staged on the Integrator
   with the 62/64 external-terminal semantics preserved.
+
+
+## 2026-10-01 latest A/B evidence-intake integration
+
+- Integrator base: `c2f584c701fb05b5dbe151f47e3a8e253bcf559c`.
+- Architect A observed HEAD: `7eebf1056eeb0d5d94685bd649439c8fb94ea455`.
+- Architect B observed HEAD: `ce721778184312c68698ed1f14c573b670eb2327`.
+- Integrated Architect-A mechanism-evidence receipt contract, OOS-stress
+  hardening and Protected-Base temporal-replication hardening from exact child
+  GREEN evidence.
+- Integrated latest T16 post-declaration evidence: 48 non-overlapping M1
+  observations per preregistered pair and 4/4 fold coverage. Correlation/basis
+  structure is now measured, while realized fills/slippage/full hedge costs
+  and fresh-OOS utility remain unproven.
+- Architect-B Forward Economic Manifest contract is GREEN, but B explicitly
+  confirms that no completed real Phase20D population artifact exists and
+  `ready_for_scientific_consumption=true` has not been produced.
+- The Integrator therefore keeps the canonical 64/62/2 topology and does not
+  adopt Architect-A's child-only 63/63 ledger or terminalize the two actual
+  exams.
