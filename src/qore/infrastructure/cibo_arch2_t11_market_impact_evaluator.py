@@ -4,11 +4,15 @@ The experiment compares matched minimum-volume micro-bundles:
 - level 1: one provider-minimum child order;
 - level 2: two provider-minimum child orders.
 
-For each symbol, calibration identifies C(v)=a*v+b*v^2 from the two frozen
-levels. Fresh validation is split into four explicit temporal folds. The
-quadratic model is admitted only when it is no worse than the linear-only model
-in every fold. A validated b=0 is allowed: absence of detectable nonlinear
-impact is evidence and must not be replaced by an invented positive coefficient.
+The observed metric is the realized round-trip settlement cost in the cTrader
+DEMO account's USD deposit asset. Calibration identifies C(v)=a*v+b*v^2 from
+the two frozen levels. Fresh validation is split into four explicit temporal
+folds. The quadratic model is admitted only when it is no worse than the
+linear-only model in every fold.
+
+Level order must alternate across matched pairs (L1->L2, then L2->L1, ...).
+This removes a systematic first/second execution bias. A validated b=0 remains
+valid evidence: nonlinear impact must never be invented.
 """
 
 from __future__ import annotations
@@ -42,9 +46,11 @@ class T11MarketImpactEpisode:
     fold_index: int
     side: str
     child_count: int
+    level_order_position: int
     minimum_volume: Decimal
     aggregate_volume: Decimal
-    adverse_slippage_cost_total_usd: Decimal
+    realized_settlement_cost_total_usd: Decimal
+    deposit_asset: str
     observed_at: datetime
     provider_bound: bool
     every_child_order_minimum_volume: bool
@@ -83,6 +89,10 @@ class T11MarketImpactEpisode:
             raise CiboCapitalManagementError(
                 "T11 market-impact child count outside frozen levels"
             )
+        if self.level_order_position not in {1, 2}:
+            raise CiboCapitalManagementError(
+                "T11 market-impact level-order position must be 1 or 2"
+            )
         for name in ("minimum_volume", "aggregate_volume"):
             value = getattr(self, name)
             if (
@@ -98,12 +108,16 @@ class T11MarketImpactEpisode:
                 "T11 market-impact aggregate volume/child identity drift"
             )
         if (
-            not isinstance(self.adverse_slippage_cost_total_usd, Decimal)
-            or not self.adverse_slippage_cost_total_usd.is_finite()
-            or self.adverse_slippage_cost_total_usd < 0
+            not isinstance(self.realized_settlement_cost_total_usd, Decimal)
+            or not self.realized_settlement_cost_total_usd.is_finite()
+            or self.realized_settlement_cost_total_usd < 0
         ):
             raise CiboCapitalManagementError(
-                "T11 market-impact adverse slippage cost invalid"
+                "T11 market-impact realized settlement cost invalid"
+            )
+        if self.deposit_asset != "USD":
+            raise CiboCapitalManagementError(
+                "T11 market-impact deposit asset must be USD"
             )
         if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
             raise CiboCapitalManagementError(
@@ -280,21 +294,19 @@ def _evaluate_symbol(
         label=f"{symbol}:validation",
     )
 
-    if tuple(sorted(pair[0].side for pair in calibration_pairs)).count("long") != (
-        len(calibration_pairs) // 2
-    ):
-        raise CiboCapitalManagementError(
-            "T11 market-impact calibration sides must be balanced"
-        )
-    if tuple(sorted(pair[0].side for pair in validation_pairs)).count("long") != (
-        len(validation_pairs) // 2
-    ):
-        raise CiboCapitalManagementError(
-            "T11 market-impact validation sides must be balanced"
-        )
+    _validate_balanced_sides(calibration_pairs, f"{symbol}:calibration")
+    _validate_balanced_sides(validation_pairs, f"{symbol}:validation")
+    _validate_alternating_level_order(calibration_pairs, f"{symbol}:calibration")
+    _validate_alternating_level_order(validation_pairs, f"{symbol}:validation")
 
-    level1 = tuple(pair[0].adverse_slippage_cost_total_usd for pair in calibration_pairs)
-    level2 = tuple(pair[1].adverse_slippage_cost_total_usd for pair in calibration_pairs)
+    level1 = tuple(
+        pair[0].realized_settlement_cost_total_usd
+        for pair in calibration_pairs
+    )
+    level2 = tuple(
+        pair[1].realized_settlement_cost_total_usd
+        for pair in calibration_pairs
+    )
     mean1 = _mean(level1)
     mean2 = _mean(level2)
     m = minimum_volume
@@ -323,7 +335,7 @@ def _evaluate_symbol(
         errors_linear: list[Decimal] = []
         for item in pair:
             v = item.aggregate_volume
-            observed = item.adverse_slippage_cost_total_usd
+            observed = item.realized_settlement_cost_total_usd
             predicted_quad = linear * v + impact * v * v
             predicted_linear = linear_only * v
             errors_quad.append(abs(observed - predicted_quad))
@@ -378,12 +390,46 @@ def _paired(
             rows[0].side != rows[1].side
             or rows[0].fold_index != rows[1].fold_index
             or rows[0].minimum_volume != rows[1].minimum_volume
+            or rows[0].deposit_asset != rows[1].deposit_asset
+            or {rows[0].level_order_position, rows[1].level_order_position}
+            != {1, 2}
         ):
             raise CiboCapitalManagementError(
                 f"T11 market-impact {label} matched-pair identity drift"
             )
         pairs.append((rows[0], rows[1]))
     return tuple(pairs)
+
+
+def _validate_balanced_sides(
+    pairs: tuple[tuple[T11MarketImpactEpisode, T11MarketImpactEpisode], ...],
+    label: str,
+) -> None:
+    sides = tuple(pair[0].side for pair in pairs)
+    if sides.count("long") != len(pairs) // 2 or sides.count("short") != (
+        len(pairs) // 2
+    ):
+        raise CiboCapitalManagementError(
+            f"T11 market-impact {label} sides must be balanced"
+        )
+
+
+def _validate_alternating_level_order(
+    pairs: tuple[tuple[T11MarketImpactEpisode, T11MarketImpactEpisode], ...],
+    label: str,
+) -> None:
+    for index, pair in enumerate(pairs):
+        first_level = next(
+            item.child_count for item in pair if item.level_order_position == 1
+        )
+        second_level = next(
+            item.child_count for item in pair if item.level_order_position == 2
+        )
+        expected_first = 1 if index % 2 == 0 else 2
+        if first_level != expected_first or second_level == expected_first:
+            raise CiboCapitalManagementError(
+                f"T11 market-impact {label} level order must alternate"
+            )
 
 
 def _mean(values: tuple[Decimal, ...]) -> Decimal:
