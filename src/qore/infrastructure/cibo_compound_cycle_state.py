@@ -382,11 +382,13 @@ class CiboCompoundCycleState:
 
     @property
     def highest_generation(self) -> int:
-        generations = tuple(
-            item.generation
-            for item in self.compound_ledger.active_lots
-            if item.state is not CompoundCapitalState.CONSUMED
+        """Highest generation ever materialized in this replay lineage."""
+
+        all_lots = (
+            self.compound_ledger.active_lots
+            + self.compound_ledger.archived_lots
         )
+        generations = tuple(item.generation for item in all_lots)
         return max(generations) if generations else 0
 
 
