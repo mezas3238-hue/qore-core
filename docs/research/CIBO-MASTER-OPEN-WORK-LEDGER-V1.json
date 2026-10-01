@@ -1065,7 +1065,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "RESEARCH_OVERLAY_ENGINE_POLICY_SEMANTICS_AND_NONCOMPENSATORY_NUMERIC_GATE_CHILD_CI_GREEN_REAL_CALIBRATION_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "RESEARCH_OVERLAY_ENGINE_POLICY_SEMANTICS_AND_NONCOMPENSATORY_NUMERIC_GATE_CHILD_CI_GREEN_REAL_CALIBRATION_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING_STRICT_FOUR_FOLD_REPLICATION_GATE_IMPLEMENTED_CI_PENDING",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md",
@@ -1084,14 +1084,19 @@
         "src/qore/infrastructure/cibo_arch_a_mechanism_stress_gate.py",
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml"
+        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
+        "src/qore/infrastructure/cibo_protected_base_temporal_replication.py",
+        "tests/infrastructure/test_cibo_protected_base_temporal_replication.py",
+        "docs/research/CIBO-PROTECTED-BASE-STRICT-FOUR-FOLD-TEMPORAL-REPLICATION-V1.md",
+        ".github/workflows/cibo-protected-base-strict-four-fold.yml"
       ],
       "blockers": [
         "PROTECTED_BASE_NUMERIC_CANDIDATE_NOT_YET_FROZEN_ON_REAL_PROVIDER_VALID_POPULATION",
         "PROTECTED_BASE_CAUSAL_VALUE_NOT_YET_PROVEN",
         "FRESH_OOS_STRESS_AND_4_OF_4_TEMPORAL_REPLICATION_REQUIRED",
         "PROTECTED_BASE_REMAINS_RESEARCH_ONLY_AND_MUST_NOT_RETROACTIVELY_CHANGE_V3",
-        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
+        "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED",
+        "PROTECTED_BASE_STRICT_FOUR_FOLD_CHILD_CI_REQUIRED"
       ],
       "next_gate": "Require the updated Protected Base workflow to pass; then freeze one or more numeric candidates before outcome use on the real provider-valid population, apply the non-compensatory gate, stress and WF1..WF4 replication without mutating frozen V3."
     },

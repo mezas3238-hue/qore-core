@@ -127,6 +127,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_compound_funding_coordination*", "INTEGRATED_CAPITAL_TRUTH"),
     ("*cibo_integrated_capital_truth*", "INTEGRATED_CAPITAL_TRUTH"),
     ("*cibo_protected_base_policy_gate*", "PROTECTED_BASE_CAPITAL"),
+    ("*cibo_protected_base_temporal_replication*", "PROTECTED_BASE_CAPITAL"),
     ("*PROTECTED-BASE-NONCOMPENSATORY*", "PROTECTED_BASE_CAPITAL"),
     ("*cibo_protected_base_overlay*", "PROTECTED_BASE_CAPITAL"),
     ("*protected-base-overlay*", "PROTECTED_BASE_CAPITAL"),
