@@ -13,13 +13,13 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
-from qore.infrastructure.cibo_genc10_transition_uncertainty_calibration import (
-    Genc10TransitionCalibrationReport,
-)
 from qore.infrastructure.cibo_genc9_economic_gate import (
     GENC9_ECONOMIC_GATE_ID,
     Genc9EconomicGateStatus,
     evaluate_genc9_economic_gate,
+)
+from qore.infrastructure.cibo_genc10_transition_uncertainty_calibration import (
+    Genc10TransitionCalibrationReport,
 )
 from qore.infrastructure.cibo_robust_growth_ruin_capacity import (
     Genc9CandidateRole,

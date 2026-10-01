@@ -7,12 +7,12 @@ from decimal import Decimal
 import pytest
 
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
+from qore.infrastructure.cibo_genc9_economic_gate import Genc9EconomicGateStatus
 from qore.infrastructure.cibo_genc10_transition_uncertainty_calibration import (
     Genc10ObservedTransition,
     Genc10TransitionEvidenceKind,
     calibrate_genc10_transition_uncertainty,
 )
-from qore.infrastructure.cibo_genc9_economic_gate import Genc9EconomicGateStatus
 from qore.infrastructure.cibo_genc11_genc13_utility_gate import (
     GATE_SHA256,
     Genc11Genc13UtilityInput,
@@ -30,6 +30,42 @@ from qore.infrastructure.cibo_robust_growth_ruin_capacity import (
 
 def _sha(char: str) -> str:
     return "sha256:" + char * 64
+
+
+CALIBRATION_CUTOFF = datetime(2026, 9, 30, 12, tzinfo=UTC)
+
+
+def _transition_calibration(
+    population_sha256: str,
+):
+    start = CALIBRATION_CUTOFF - timedelta(hours=2)
+    observation = Genc10ObservedTransition(
+        transition_id="genc11-wrapper-calibration",
+        account_identity_fingerprint="ctrader:demo:account-a",
+        conditioning_key="BALANCED",
+        start_twin_sha256=_sha("6"),
+        end_twin_sha256=_sha("7"),
+        provider_registry_sha256=_sha("8"),
+        observed_start_at=start,
+        observed_end_at=start + timedelta(hours=1),
+        realized_capital_delta_usd=Decimal("1"),
+        compound_value_delta_usd=Decimal("1"),
+        protected_floor_delta_usd=Decimal("0"),
+        stop_risk_capacity_delta_usd=Decimal("0"),
+        stop_risk_usage_delta_usd=Decimal("0"),
+        margin_capacity_delta_usd=Decimal("0"),
+        margin_usage_delta_usd=Decimal("0"),
+        active_deployment_count_delta=0,
+        known_option_count_delta=0,
+        provider_constraints_changed=False,
+        evidence_kind=Genc10TransitionEvidenceKind.FORWARD_OBSERVED,
+        decision_population_sha256=population_sha256,
+    )
+    return calibrate_genc10_transition_uncertainty(
+        observations=(observation,),
+        source_population_sha256=population_sha256,
+        calibration_cutoff_at=CALIBRATION_CUTOFF,
+    )
 
 
 def _summary(
