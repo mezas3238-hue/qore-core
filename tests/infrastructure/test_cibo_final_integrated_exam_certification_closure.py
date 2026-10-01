@@ -18,6 +18,7 @@ from qore.infrastructure.cibo_final_integrated_exam_certification_closure import
     CiboCertificationSealStatus,
     build_certification_closure_ledger,
     build_cibo_certification_seal,
+    promote_certification_candidate_after_seal,
 )
 from qore.infrastructure.cibo_world_cup_maximum_capability_exam_assembly import (
     assemble_world_cup_control_package,
@@ -163,7 +164,7 @@ def test_closure_changes_only_two_exam_rows_and_reaches_64_64() -> None:
         "terminal_count": 64,
         "open_count": 0,
         "zero_open_work_pass": True,
-        "final_certification_candidate": True,
+        "final_certification_candidate": False,
     }
     assert closed["workstreams"][:62] == before["workstreams"][:62]
     assert all(
@@ -242,3 +243,50 @@ def test_certification_seal_certifies_science_but_grants_no_operations() -> None
     assert seal.merge_authorized is False
     assert seal.production_authority is False
     assert seal.fingerprint().startswith("sha256:")
+
+    promoted = promote_certification_candidate_after_seal(
+        closed_ledger=closed,
+        transition=transition,
+        seal=seal,
+    )
+    assert promoted["current_summary"] == {
+        "mandatory_count": 64,
+        "terminal_count": 64,
+        "open_count": 0,
+        "zero_open_work_pass": True,
+        "final_certification_candidate": True,
+    }
+
+
+
+def test_candidate_cannot_promote_before_certification_seal() -> None:
+    _phase22, final_package, final_report, world_package, world_report = _exam_chain()
+    closed, transition = build_certification_closure_ledger(
+        pre_ledger=_ledger(),
+        final_package=final_package,
+        final_report=final_report,
+        world_cup_package=world_package,
+        world_cup_report=world_report,
+    )
+    tampered = dict(closed)
+    tampered["current_summary"] = dict(closed["current_summary"])
+    tampered["current_summary"]["final_certification_candidate"] = True
+
+    phase22 = _phase22
+    seal = build_cibo_certification_seal(
+        transition=transition,
+        closed_ledger=closed,
+        strict_zero_open_artifact_json=_strict_artifact(),
+        closure_head_sha="c" * 40,
+        phase22_receipt=phase22,
+        certified_at=phase22.qualified_at + timedelta(days=1),
+    )
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="closed-ledger digest drift",
+    ):
+        promote_certification_candidate_after_seal(
+            closed_ledger=tampered,
+            transition=transition,
+            seal=seal,
+        )

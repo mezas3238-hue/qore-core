@@ -124,10 +124,10 @@ class CiboCertificationClosureTransition:
             self.mandatory_count != 64
             or self.terminal_count != 64
             or self.open_count != 0
-            or self.final_certification_candidate is not True
+            or self.final_certification_candidate is not False
         ):
             raise CiboCapitalManagementError(
-                "CIBO certification closure requires exact 64/64/0 topology"
+                "CIBO certification closure requires 64/64/0 before STRICT promotion"
             )
         if self.production_authority:
             raise CiboCapitalManagementError(
@@ -347,7 +347,7 @@ def build_certification_closure_ledger(
         "terminal_count": 64,
         "open_count": 0,
         "zero_open_work_pass": True,
-        "final_certification_candidate": True,
+        "final_certification_candidate": False,
     }
 
     transition = CiboCertificationClosureTransition(
@@ -366,7 +366,7 @@ def build_certification_closure_ledger(
         mandatory_count=64,
         terminal_count=64,
         open_count=0,
-        final_certification_candidate=True,
+        final_certification_candidate=False,
     )
     return closed, transition
 
@@ -463,3 +463,58 @@ def build_cibo_certification_seal(
         world_cup_report_sha256=transition.world_cup_report_sha256,
         certified_at=certified_at,
     )
+
+
+
+def promote_certification_candidate_after_seal(
+    *,
+    closed_ledger: dict[str, Any],
+    transition: CiboCertificationClosureTransition,
+    seal: CiboCertificationSeal,
+) -> dict[str, Any]:
+    """Promote candidate=true only after STRICT-backed scientific seal exists."""
+
+    if not isinstance(transition, CiboCertificationClosureTransition):
+        raise CiboCapitalManagementError(
+            "CIBO candidate promotion requires canonical closure transition"
+        )
+    if not isinstance(seal, CiboCertificationSeal):
+        raise CiboCapitalManagementError(
+            "CIBO candidate promotion requires canonical certification seal"
+        )
+    if seal.status is not CiboCertificationSealStatus.CERTIFIED:
+        raise CiboCapitalManagementError(
+            "CIBO candidate promotion requires CERTIFIED seal"
+        )
+    if _ledger_sha256(closed_ledger) != transition.closed_ledger_sha256:
+        raise CiboCapitalManagementError(
+            "CIBO candidate promotion closed-ledger digest drift"
+        )
+    if seal.closed_ledger_sha256 != transition.closed_ledger_sha256:
+        raise CiboCapitalManagementError(
+            "CIBO candidate promotion seal/ledger drift"
+        )
+    if seal.closure_transition_sha256 != transition.fingerprint():
+        raise CiboCapitalManagementError(
+            "CIBO candidate promotion seal/transition drift"
+        )
+    summary = closed_ledger.get("current_summary")
+    if not isinstance(summary, dict):
+        raise CiboCapitalManagementError(
+            "CIBO candidate promotion ledger summary missing"
+        )
+    expected = {
+        "mandatory_count": 64,
+        "terminal_count": 64,
+        "open_count": 0,
+        "zero_open_work_pass": True,
+        "final_certification_candidate": False,
+    }
+    if summary != expected:
+        raise CiboCapitalManagementError(
+            "CIBO candidate promotion requires pre-promotion 64/64 STRICT topology"
+        )
+
+    promoted = copy.deepcopy(closed_ledger)
+    promoted["current_summary"]["final_certification_candidate"] = True
+    return promoted
