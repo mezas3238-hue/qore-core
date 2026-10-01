@@ -1,5 +1,10 @@
 name: QORE CIBO GEN-C11 GEN-C13 Utility Wrapper
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+
 on:
   workflow_dispatch:
   pull_request:
