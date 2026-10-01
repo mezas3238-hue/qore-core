@@ -68,7 +68,6 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_t11_cost_binding.py \
             tests/infrastructure/test_cibo_ce2i_execution_efficiency.py \
             tests/infrastructure/test_cibo_ce2i_t11_execution_cost_calibration.py \
-            tests/infrastructure/test_cibo_ce2i_t16_hedge_candidate.py \
             tests/infrastructure/test_cibo_ce2i_t16_hedge_candidate.py
           mypy \
             src/qore/infrastructure/cibo_ce2i_phase20_t03_margin_population.py \
@@ -89,4 +88,5 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_t11_execution_population.py \
             tests/infrastructure/test_cibo_ce2i_phase20_t11_cost_binding.py \
             tests/infrastructure/test_cibo_ce2i_execution_efficiency.py \
-            tests/infrastructure/test_cibo_ce2i_t11_execution_cost_calibration.py
+            tests/infrastructure/test_cibo_ce2i_t11_execution_cost_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_t16_hedge_candidate.py
