@@ -227,3 +227,48 @@ def test_scientific_intake_rejects_frozen_lineage_drift() -> None:
     ):
         gate.evaluate_architect_a_scientific_intake(payload)
 
+def test_scientific_batch_plan_covers_all_35_open_workstreams(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / "ledger.json"
+    _write(ledger_path, _ledger())
+    readiness = gate.evaluate_architect_a_internal_readiness(ledger_path)
+    intake = gate.evaluate_architect_a_scientific_intake(
+        _forward_manifest_payload(ready=True)
+    )
+
+    plan = gate.build_architect_a_scientific_batch_plan(
+        readiness,
+        intake,
+    )
+
+    assert plan.batch_science_execution_ready is True
+    assert plan.remaining_workstream_count == 35
+    assert len(plan.remaining_workstream_ids) == 35
+    assert len(set(plan.remaining_workstream_ids)) == 35
+    assert plan.wave_1_ids
+    assert plan.wave_2_ids
+    assert plan.wave_3_ids
+    assert plan.wave_4_ids == ("CAPITAL_AMPLIFICATION",)
+    assert plan.scientific_closure_claimed is False
+    assert plan.production_authority is False
+
+
+def test_scientific_batch_plan_blocks_until_b_intake_is_ready(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / "ledger.json"
+    _write(ledger_path, _ledger())
+    readiness = gate.evaluate_architect_a_internal_readiness(ledger_path)
+    intake = gate.evaluate_architect_a_scientific_intake(
+        _forward_manifest_payload(ready=False)
+    )
+
+    plan = gate.build_architect_a_scientific_batch_plan(
+        readiness,
+        intake,
+    )
+
+    assert plan.batch_science_execution_ready is False
+    assert plan.blockers == ("ARCH_B_SCIENTIFIC_INTAKE_REQUIRED",)
+

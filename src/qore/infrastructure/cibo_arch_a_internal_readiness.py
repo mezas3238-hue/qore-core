@@ -25,6 +25,7 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
 LEDGER_PATH = Path("docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json")
 SCHEMA = "QORE_CIBO_ARCH_A_INTERNAL_READINESS_V1"
 SCIENTIFIC_INTAKE_SCHEMA = "QORE_CIBO_ARCH_A_SCIENTIFIC_INTAKE_V1"
+SCIENTIFIC_BATCH_SCHEMA = "QORE_CIBO_ARCH_A_SCIENTIFIC_BATCH_PLAN_V1"
 ARCH_B_FORWARD_MANIFEST_ID = (
     "CIBO_ARCH_B_FORWARD_ECONOMIC_EVIDENCE_MANIFEST_V1"
 )
@@ -38,6 +39,30 @@ A_WORKSTREAM_IDS = (
     "PROTECTED_BASE_CAPITAL", "PROFIT_PROTECTION", "PATH_DEPENDENT_MONTE_CARLO",
     "ADVERSARIAL_STRESS", "TEMPORAL_REPLICATION", "CAPITAL_AMPLIFICATION",
     "AS_IS_ECONOMIC_BASELINE",
+)
+
+
+
+_SCIENTIFIC_WAVE_1 = (
+    "T04", "T06", "T07", "T08", "T09", "T10", "T12", "T13", "T14",
+    "T15", "T18", "GEN-C4", "GEN-C7", "GEN-C9", "GEN-C10", "GEN-C12",
+    "AS_IS_ECONOMIC_BASELINE",
+)
+_SCIENTIFIC_WAVE_2 = (
+    "GEN-C2", "GEN-C5", "GEN-C6", "GEN-C8", "GEN-C11", "GEN-C13",
+    "COMPOUND_ENGINE", "COMPOUND_PORTFOLIO", "INTERNAL_CAPITAL_MARKET",
+    "CAPITAL_GENERATIONS", "PROTECTED_BASE_CAPITAL", "PROFIT_PROTECTION",
+    "PATH_DEPENDENT_MONTE_CARLO",
+)
+_SCIENTIFIC_WAVE_3 = (
+    "GEN-C3", "GEN-C14", "ADVERSARIAL_STRESS", "TEMPORAL_REPLICATION",
+)
+_SCIENTIFIC_WAVE_4 = ("CAPITAL_AMPLIFICATION",)
+_SCIENTIFIC_WAVES = (
+    _SCIENTIFIC_WAVE_1,
+    _SCIENTIFIC_WAVE_2,
+    _SCIENTIFIC_WAVE_3,
+    _SCIENTIFIC_WAVE_4,
 )
 
 _INTERNAL_DEBT_MARKERS = (
@@ -511,4 +536,131 @@ def _require_list(value: object, name: str) -> list[Any]:
             f"Architect A scientific intake {name} must be list"
         )
     return value
+
+@dataclass(frozen=True, slots=True)
+class ArchitectAScientificBatchPlan:
+    schema: str
+    remaining_workstream_count: int
+    remaining_workstream_ids: tuple[str, ...]
+    wave_1_ids: tuple[str, ...]
+    wave_2_ids: tuple[str, ...]
+    wave_3_ids: tuple[str, ...]
+    wave_4_ids: tuple[str, ...]
+    batch_science_execution_ready: bool
+    complete_without_execution: bool
+    blockers: tuple[str, ...]
+    scientific_closure_claimed: bool = False
+    integration_authority: bool = False
+    production_authority: bool = False
+
+    def __post_init__(self) -> None:
+        if self.schema != SCIENTIFIC_BATCH_SCHEMA:
+            raise ArchitectAReadinessError(
+                "Architect A scientific batch schema drift"
+            )
+        waves = (
+            self.wave_1_ids,
+            self.wave_2_ids,
+            self.wave_3_ids,
+            self.wave_4_ids,
+        )
+        flattened = tuple(item for wave in waves for item in wave)
+        if (
+            self.remaining_workstream_count != len(self.remaining_workstream_ids)
+            or flattened != self.remaining_workstream_ids
+            or len(flattened) != len(set(flattened))
+            or any(item not in A_WORKSTREAM_IDS for item in flattened)
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A scientific batch workstream drift"
+            )
+        for name in (
+            "batch_science_execution_ready",
+            "complete_without_execution",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise ArchitectAReadinessError(
+                    f"Architect A scientific batch {name} must be bool"
+                )
+        if self.batch_science_execution_ready and self.complete_without_execution:
+            raise ArchitectAReadinessError(
+                "Architect A scientific batch state is contradictory"
+            )
+        if (
+            not isinstance(self.blockers, tuple)
+            or any(not isinstance(item, str) or not item for item in self.blockers)
+            or len(self.blockers) != len(set(self.blockers))
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A scientific batch blockers are invalid"
+            )
+        expected_ready = (
+            self.remaining_workstream_count > 0
+            and not self.blockers
+            and not self.complete_without_execution
+        )
+        if self.batch_science_execution_ready != expected_ready:
+            raise ArchitectAReadinessError(
+                "Architect A scientific batch readiness/blocker drift"
+            )
+        if (
+            self.scientific_closure_claimed
+            or self.integration_authority
+            or self.production_authority
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A scientific batch cannot claim closure/authority"
+            )
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+def build_architect_a_scientific_batch_plan(
+    readiness: ArchitectAInternalReadinessReport,
+    intake: ArchitectAScientificIntakeReport,
+) -> ArchitectAScientificBatchPlan:
+    if not isinstance(readiness, ArchitectAInternalReadinessReport):
+        raise ArchitectAReadinessError(
+            "Architect A scientific batch requires canonical readiness report"
+        )
+    if not isinstance(intake, ArchitectAScientificIntakeReport):
+        raise ArchitectAReadinessError(
+            "Architect A scientific batch requires canonical intake report"
+        )
+
+    blockers: list[str] = []
+    if not readiness.passed:
+        blockers.append("ARCH_A_INTERNAL_READINESS_REQUIRED")
+    if not intake.ready_for_batch_science:
+        blockers.append("ARCH_B_SCIENTIFIC_INTAKE_REQUIRED")
+
+    remaining = set(readiness.empirical_open_ids)
+    waves = tuple(
+        tuple(item for item in wave if item in remaining)
+        for wave in _SCIENTIFIC_WAVES
+    )
+    flattened = tuple(item for wave in waves for item in wave)
+    if set(flattened) != remaining:
+        missing = tuple(sorted(remaining - set(flattened)))
+        raise ArchitectAReadinessError(
+            "Architect A scientific batch missing dependency-wave mapping: "
+            + ",".join(missing)
+        )
+
+    complete = not remaining
+    return ArchitectAScientificBatchPlan(
+        schema=SCIENTIFIC_BATCH_SCHEMA,
+        remaining_workstream_count=len(flattened),
+        remaining_workstream_ids=flattened,
+        wave_1_ids=waves[0],
+        wave_2_ids=waves[1],
+        wave_3_ids=waves[2],
+        wave_4_ids=waves[3],
+        batch_science_execution_ready=(
+            bool(flattened) and not blockers
+        ),
+        complete_without_execution=complete,
+        blockers=tuple(blockers),
+    )
 
