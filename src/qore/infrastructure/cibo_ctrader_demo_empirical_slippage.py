@@ -10,7 +10,7 @@ outcomes.
 from __future__ import annotations
 
 import hashlib
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -148,7 +148,11 @@ class CTraderEmpiricalSlippageCalibration:
     account_fingerprint_sha256: str
     observed_at: datetime
     lookback_days: int
+    account_entry_deals_found: int
+    account_entry_deals_by_symbol: tuple[tuple[str, int], ...]
     qore_deals_found: int
+    qore_deals_by_symbol: tuple[tuple[str, int], ...]
+    non_qore_entry_deals_by_symbol: tuple[tuple[str, int], ...]
     observations: tuple[CTraderEmpiricalSlippageObservation, ...]
     summaries: tuple[CTraderEmpiricalSlippageSummary, ...]
     required_symbols: tuple[str, ...]
@@ -247,11 +251,26 @@ def collect_ctrader_demo_empirical_slippage(
         sorted(item.qore_symbol for item in binding.contracts)
     )
     raw_deals = tuple(getattr(deals_response, "deal", ()))
+    account_entries = tuple(
+        deal
+        for deal in raw_deals
+        if _account_entry_deal(deal, contracts)
+    )
+    account_counts = Counter(
+        contracts[int(deal.symbolId)].qore_symbol
+        for deal in account_entries
+    )
     candidates: list[Any] = []
-    for deal in raw_deals:
-        if not _qore_entry_deal(deal, contracts):
+    for deal in account_entries:
+        if not _qore_label(deal):
             continue
         candidates.append(deal)
+    qore_counts = Counter(
+        contracts[int(deal.symbolId)].qore_symbol
+        for deal in candidates
+    )
+    non_qore_counts = Counter(account_counts)
+    non_qore_counts.subtract(qore_counts)
     candidates.sort(
         key=lambda item: int(item.executionTimestamp),
         reverse=True,
@@ -321,7 +340,20 @@ def collect_ctrader_demo_empirical_slippage(
         account_fingerprint_sha256=account_fingerprint,
         observed_at=observed,
         lookback_days=_LOOKBACK_DAYS,
+        account_entry_deals_found=len(account_entries),
+        account_entry_deals_by_symbol=tuple(
+            (symbol, account_counts.get(symbol, 0))
+            for symbol in required_symbols
+        ),
         qore_deals_found=len(candidates),
+        qore_deals_by_symbol=tuple(
+            (symbol, qore_counts.get(symbol, 0))
+            for symbol in required_symbols
+        ),
+        non_qore_entry_deals_by_symbol=tuple(
+            (symbol, non_qore_counts.get(symbol, 0))
+            for symbol in required_symbols
+        ),
         observations=tuple(observations),
         summaries=summaries,
         required_symbols=required_symbols,
@@ -399,9 +431,6 @@ def _qore_entry_deal(
         return False
     if getattr(deal, "dealStatus", None) not in {_FILLED, _PARTIALLY_FILLED}:
         return False
-    label = getattr(deal, "label", "")
-    if not isinstance(label, str) or not label.startswith("QORE:"):
-        return False
     execution_price = getattr(deal, "executionPrice", None)
     execution_at = getattr(deal, "executionTimestamp", None)
     create_at = getattr(deal, "createTimestamp", None)
@@ -422,6 +451,11 @@ def _qore_entry_deal(
     if _field_present(deal, "closePositionDetail"):
         return False
     return True
+
+
+def _qore_label(deal: Any) -> bool:
+    label = getattr(deal, "label", "")
+    return isinstance(label, str) and label.startswith("QORE:")
 
 
 def _deal_observation(
