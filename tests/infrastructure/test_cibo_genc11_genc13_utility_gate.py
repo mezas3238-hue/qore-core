@@ -281,3 +281,16 @@ def test_genc11_rejects_transition_calibration_population_drift() -> None:
             transition_calibration_report=other,
         )
 
+
+
+def test_genc13_cannot_claim_genc11_transition_calibration_flag() -> None:
+    evidence = _input(Genc11Genc13Workstream.GENC13)
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="requires prospective memory-use ablation",
+    ):
+        replace(
+            evidence,
+            transition_uncertainty_calibrated=True,
+        )
