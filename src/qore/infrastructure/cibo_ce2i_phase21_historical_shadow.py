@@ -8,7 +8,6 @@ historical provider USD economics are never fabricated and 2017H1 is not read.
 
 from __future__ import annotations
 
-import random
 from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime
