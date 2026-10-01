@@ -29,9 +29,12 @@ def test_eurusd_phase22_source_and_windows_are_frozen() -> None:
         datetime(2021, 9, 17, tzinfo=UTC),
         datetime(2026, 9, 17, tzinfo=UTC),
     )
+    assert adapter.FRESH_CANDIDATE_ID == (
+        "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
+    )
     assert adapter.replay_window("FRESH") == (
-        datetime(2017, 1, 1, tzinfo=UTC),
-        datetime(2017, 7, 1, tzinfo=UTC),
+        datetime(2015, 10, 19, tzinfo=UTC),
+        datetime(2016, 4, 19, tzinfo=UTC),
     )
     assert adapter.PARITY_OPEN < adapter.PARITY_CLOSE
     assert adapter.FRESH_OPEN < adapter.FRESH_CLOSE

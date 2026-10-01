@@ -7,6 +7,7 @@ import pytest
 
 from scripts.cibo_phase22_turtle_window_replay import (
     CONFIGS,
+    FRESH_CANDIDATE_ID,
     FRESH_CLOSE,
     FRESH_OPEN,
     TurtleReplayConfig,
@@ -26,8 +27,8 @@ def _row(at: datetime) -> dict[str, str]:
 def test_fresh_rows_are_window_and_causality_checked() -> None:
     config = CONFIGS["GBPJPY_R38"]
     rows = (
-        _row(datetime(2017, 1, 3, 10, tzinfo=UTC)),
-        _row(datetime(2017, 6, 30, 10, tzinfo=UTC)),
+        _row(datetime(2015, 10, 20, 10, tzinfo=UTC)),
+        _row(datetime(2016, 4, 18, 10, tzinfo=UTC)),
     )
 
     validate_window_rows(rows=rows, config=config, mode="FRESH")
@@ -61,8 +62,11 @@ def test_parity_population_is_exact() -> None:
 
 
 def test_fresh_window_is_exact_six_month_candidate() -> None:
-    assert FRESH_OPEN == datetime(2017, 1, 1, tzinfo=UTC)
-    assert FRESH_CLOSE == datetime(2017, 7, 1, tzinfo=UTC)
+    assert FRESH_CANDIDATE_ID == (
+        "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
+    )
+    assert FRESH_OPEN == datetime(2015, 10, 19, tzinfo=UTC)
+    assert FRESH_CLOSE == datetime(2016, 4, 19, tzinfo=UTC)
 
 def test_parity_preserves_frozen_nonchronological_serialization() -> None:
     config = TurtleReplayConfig(
@@ -82,8 +86,8 @@ def test_parity_preserves_frozen_nonchronological_serialization() -> None:
 def test_fresh_rejects_nonchronological_serialization() -> None:
     config = CONFIGS["AUDJPY_R42"]
     rows = (
-        _row(datetime(2017, 1, 3, 11, tzinfo=UTC)),
-        _row(datetime(2017, 1, 3, 10, tzinfo=UTC)),
+        _row(datetime(2015, 10, 20, 11, tzinfo=UTC)),
+        _row(datetime(2015, 10, 20, 10, tzinfo=UTC)),
     )
 
     with pytest.raises(ValueError, match="not chronological"):

@@ -5,7 +5,7 @@ geometry replay module. It does not alter entry logic, memories, target
 selection, stop logic, risk overlays, market inputs or provider economics.
 
 PARITY mode must regenerate the exact Phase18 population before FRESH mode may
-be used by the one-shot 2017H1 examination.
+be used by the one-shot Phase22 V2 examination.
 """
 
 from __future__ import annotations
@@ -21,10 +21,15 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
+from qore.infrastructure.cibo_ce2i_holdout_registry import (
+    ACTIVE_USD60_HOLDOUT_CANDIDATE,
+)
+
 PARITY_OPEN = datetime(2021, 9, 17, tzinfo=UTC)
 PARITY_CLOSE = datetime(2026, 9, 17, tzinfo=UTC)
-FRESH_OPEN = datetime(2017, 1, 1, tzinfo=UTC)
-FRESH_CLOSE = datetime(2017, 7, 1, tzinfo=UTC)
+FRESH_CANDIDATE_ID = ACTIVE_USD60_HOLDOUT_CANDIDATE.candidate_id
+FRESH_OPEN = ACTIVE_USD60_HOLDOUT_CANDIDATE.start_at
+FRESH_CLOSE = ACTIVE_USD60_HOLDOUT_CANDIDATE.end_exclusive_at
 
 
 @dataclass(frozen=True, slots=True)

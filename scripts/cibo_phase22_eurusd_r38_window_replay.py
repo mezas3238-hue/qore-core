@@ -2,7 +2,7 @@
 
 Only two windows are legal:
 - PARITY: the already-consumed Phase18 five-year population;
-- FRESH: the preregistered 2017H1 CIBO-policy holdout.
+- FRESH: the preregistered Phase22 V2 CIBO-policy holdout.
 
 The adapter never changes R38 methodology parameters. FRESH execution is kept
 out of the parity workflow and must be invoked only by the final governed
@@ -21,11 +21,16 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, Protocol, cast
 
+from qore.infrastructure.cibo_ce2i_holdout_registry import (
+    ACTIVE_USD60_HOLDOUT_CANDIDATE,
+)
+
 SOURCE_CODE_GIT_SHA = "324fb91d44a6fa328e66de2e22ace7386630c7aa"
 PARITY_OPEN = datetime(2021, 9, 17, tzinfo=UTC)
 PARITY_CLOSE = datetime(2026, 9, 17, tzinfo=UTC)
-FRESH_OPEN = datetime(2017, 1, 1, tzinfo=UTC)
-FRESH_CLOSE = datetime(2017, 7, 1, tzinfo=UTC)
+FRESH_CANDIDATE_ID = ACTIVE_USD60_HOLDOUT_CANDIDATE.candidate_id
+FRESH_OPEN = ACTIVE_USD60_HOLDOUT_CANDIDATE.start_at
+FRESH_CLOSE = ACTIVE_USD60_HOLDOUT_CANDIDATE.end_exclusive_at
 _ALLOWED = {
     "PARITY": (PARITY_OPEN, PARITY_CLOSE),
     "FRESH": (FRESH_OPEN, FRESH_CLOSE),
