@@ -13,14 +13,14 @@ from qore.infrastructure.cibo_ctrader_demo_account_capability import (
     CTraderDemoAccountType,
     CTraderDemoCatalogSymbol,
 )
+from qore.infrastructure.cibo_ctrader_demo_capability_registry import (
+    reconcile_ctrader_demo_capability_registry,
+)
 from qore.infrastructure.cibo_ctrader_demo_instrument_taxonomy import (
     CTraderDemoAssetClassEvidence,
     CTraderDemoInstrumentTaxonomyObservation,
     CTraderDemoSymbolCategoryEvidence,
     _taxonomy_sha256,
-)
-from qore.infrastructure.cibo_ctrader_demo_capability_registry import (
-    reconcile_ctrader_demo_capability_registry,
 )
 from qore.infrastructure.cibo_instrument_capability_registry import (
     CapabilityStatus,
@@ -74,7 +74,6 @@ def _observation(
     )
 
 
-
 def _taxonomy(
     observation: CTraderDemoAccountCapabilityObservation,
     *,
@@ -102,6 +101,7 @@ def _taxonomy(
         taxonomy_sha256=_taxonomy_sha256(asset_classes, categories),
         catalog_binding_complete=True,
     )
+
 
 def test_hedged_account_does_not_promote_t16_or_t17() -> None:
     report = reconcile_ctrader_demo_capability_registry(
