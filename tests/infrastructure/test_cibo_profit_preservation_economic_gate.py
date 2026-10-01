@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -151,3 +152,14 @@ def test_treatment_cannot_masquerade_as_hold_control() -> None:
             role=Genc7EconomicRole.TREATMENT,
             action=Genc7Action.HOLD_CURRENT_CAPITAL_STATE,
         )
+
+def test_genc7_row_rejects_manual_status_metric_drift() -> None:
+    treatment = _observation(
+        candidate_id="protect",
+        role=Genc7EconomicRole.TREATMENT,
+        action=Genc7Action.PROTECT,
+        floor="25",
+    )
+    row = evaluate_genc7_economic_gate((_control(), treatment)).rows[1]
+    with pytest.raises(CiboCompoundCapitalError, match="status/metric drift"):
+        replace(row, safety_no_worse=False)

@@ -149,6 +149,47 @@ class Genc7EconomicGateRow:
     weighted_score_used: bool = False
     production_promotion: bool = False
 
+    def __post_init__(self) -> None:
+        if not self.candidate_id or type(self.status) is not Genc7EconomicGateStatus:
+            raise CiboCompoundCapitalError("Genc7EconomicGateRow identity/status drift")
+        for name in (
+            "safety_no_worse",
+            "strict_economic_improvement",
+            "weighted_score_used",
+            "production_promotion",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(f"Genc7EconomicGateRow {name} must be bool")
+        if (
+            not isinstance(self.failed_dimensions, tuple)
+            or any(not isinstance(item, str) or not item for item in self.failed_dimensions)
+            or len(self.failed_dimensions) != len(set(self.failed_dimensions))
+        ):
+            raise CiboCompoundCapitalError("Genc7EconomicGateRow failed dimensions are invalid")
+        if self.weighted_score_used or self.production_promotion:
+            raise CiboCompoundCapitalError("Genc7EconomicGateRow cannot score/promote production")
+        if self.status is Genc7EconomicGateStatus.CONTROL:
+            if (
+                not self.safety_no_worse
+                or self.strict_economic_improvement
+                or self.failed_dimensions
+            ):
+                raise CiboCompoundCapitalError("Genc7EconomicGateRow CONTROL row drift")
+            return
+        expected_status = (
+            Genc7EconomicGateStatus.REJECTED_SAFETY_DETERIORATION
+            if not self.safety_no_worse
+            else (
+                Genc7EconomicGateStatus.REJECTED_NO_STRICT_ECONOMIC_IMPROVEMENT
+                if not self.strict_economic_improvement
+                else Genc7EconomicGateStatus.ELIGIBLE_FOR_FURTHER_RESEARCH
+            )
+        )
+        if self.status is not expected_status:
+            raise CiboCompoundCapitalError("Genc7EconomicGateRow status/metric drift")
+        if self.safety_no_worse != (not self.failed_dimensions):
+            raise CiboCompoundCapitalError("Genc7EconomicGateRow safety/dimension drift")
+
 
 @dataclass(frozen=True, slots=True)
 class Genc7EconomicGateReport:
@@ -180,6 +221,14 @@ class Genc7EconomicGateReport:
             raise CiboCompoundCapitalError(
                 "GEN-C7 economic gate rows/control are invalid"
             )
+        controls = tuple(
+            row for row in self.rows if row.status is Genc7EconomicGateStatus.CONTROL
+        )
+        if (
+            len(controls) != 1
+            or controls[0].candidate_id != self.control_candidate_id
+        ):
+            raise CiboCompoundCapitalError("GEN-C7 economic gate control row drift")
         if (
             self.winner_candidate_id is not None
             or self.weighted_score_used
