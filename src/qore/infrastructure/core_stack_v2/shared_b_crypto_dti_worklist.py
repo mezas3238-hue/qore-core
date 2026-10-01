@@ -1,8 +1,8 @@
-"""Architect-B cryptocurrency DTI resolution worklist.
+"""Architect-B cryptocurrency DTI authority worklist.
 
-Creates an exact 73-sensor provider-neutral identity worklist. Provider labels
-remain evidence only. Canonical economic identity requires a governed DTI asset
-record; no ticker, description or string-similarity alias is promoted.
+Refines the generic crypto canonical-identity worklist with the governed
+provider-neutral authority selected for resolution: ISO 24165 / DTI Asset.
+No provider ticker, description, label, or similarity heuristic is promoted.
 """
 
 from __future__ import annotations
@@ -12,12 +12,12 @@ import json
 from typing import cast
 
 IDENTITY = "SHARED_B_CRYPTO_DTI_RESOLUTION_WORKLIST_001"
-EXPECTED_UNITS = "SHARED_B_CRYPTO_PROVIDER_UNIT_SEMANTICS_001"
+EXPECTED_WORKLIST = "SHARED_B_CRYPTO_CANONICAL_IDENTITY_WORKLIST_001"
 EXPECTED_POLICY = "SHARED_B_CRYPTO_DTI_AUTHORITY_POLICY_001"
 
 
 class SharedBCryptoDtiWorklistError(ValueError):
-    """Crypto DTI worklist evidence failed closed."""
+    """Crypto DTI authority worklist failed closed."""
 
 
 def _fingerprint(value: object) -> str:
@@ -33,35 +33,39 @@ def _fingerprint(value: object) -> str:
 
 def build_crypto_dti_resolution_worklist(
     *,
-    unit_semantics: dict[str, object],
+    identity_worklist: dict[str, object],
     authority_policy: dict[str, object],
 ) -> dict[str, object]:
-    if unit_semantics.get("identity") != EXPECTED_UNITS:
+    if identity_worklist.get("identity") != EXPECTED_WORKLIST:
         raise SharedBCryptoDtiWorklistError(
-            "unexpected crypto unit-semantics identity"
+            "unexpected crypto identity-worklist identity"
         )
     if authority_policy.get("identity") != EXPECTED_POLICY:
         raise SharedBCryptoDtiWorklistError(
             "unexpected DTI authority-policy identity"
         )
 
-    if unit_semantics.get("crypto_sensor_count") != 73:
+    expected_counts = {
+        "SCALED_PROVIDER_UNIT_UNDERLYING_AUTHORITY_REQUIRED": 2,
+        "DIRECT_PROVIDER_SELF_LABEL_EXTERNAL_AUTHORITY_REQUIRED": 13,
+        "DIRECT_PROVIDER_DESCRIPTOR_CROSSWALK_REQUIRED": 58,
+    }
+    if identity_worklist.get("crypto_sensor_count") != 73:
         raise SharedBCryptoDtiWorklistError(
             "crypto sensor population drift"
         )
-    if unit_semantics.get("direct_provider_base_unit_count") != 71:
+    if identity_worklist.get("resolution_category_counts") != expected_counts:
         raise SharedBCryptoDtiWorklistError(
-            "direct provider-unit population drift"
+            "crypto resolution-category population drift"
         )
-    if unit_semantics.get("scaled_provider_base_unit_count") != 2:
+    if identity_worklist.get("external_authority_required_count") != 73:
         raise SharedBCryptoDtiWorklistError(
-            "scaled provider-unit population drift"
+            "external-authority population drift"
         )
     for field in (
-        "provider_neutral_reference_identity_complete",
-        "canonical_economic_identity_complete",
-        "provider_underlying_label_is_canonical_proof",
         "automatic_asset_alias_inference",
+        "symbol_similarity_used_as_identity_proof",
+        "provider_metadata_is_canonical_proof",
         "target_or_outcome_read",
         "r6_r5_read",
         "fresh_holdout_opened",
@@ -70,9 +74,9 @@ def build_crypto_dti_resolution_worklist(
         "productive_authority",
         "b06_complete",
     ):
-        if unit_semantics.get(field) is not False:
+        if identity_worklist.get(field) is not False:
             raise SharedBCryptoDtiWorklistError(
-                f"unit-semantics governance drift: {field}"
+                f"identity-worklist governance drift: {field}"
             )
 
     policy = authority_policy.get("resolution_policy")
@@ -129,41 +133,40 @@ def build_crypto_dti_resolution_worklist(
             "DTI authority ids must be unique"
         )
 
-    rows_raw = unit_semantics.get("records")
+    rows_raw = identity_worklist.get("records")
     if not isinstance(rows_raw, list) or len(rows_raw) != 73:
         raise SharedBCryptoDtiWorklistError(
-            "crypto unit records must contain exact 73 rows"
+            "crypto identity worklist must contain exact 73 rows"
         )
 
     output: list[dict[str, object]] = []
     seen_keys: set[tuple[str, int]] = set()
     scaled_symbols: set[str] = set()
+    category_counts = {key: 0 for key in expected_counts}
+
     for raw in rows_raw:
         if not isinstance(raw, dict):
             raise SharedBCryptoDtiWorklistError(
-                "crypto unit row invalid"
+                "crypto identity-worklist row invalid"
             )
         row = cast(dict[str, object], raw)
         provider = row.get("provider")
         symbol_id = row.get("provider_symbol_id")
         symbol = row.get("provider_symbol")
-        base = row.get("provider_base_asset_name")
-        description = row.get("provider_description")
-        underlying = row.get("provider_underlying_label")
+        category = row.get("resolution_category")
         multiplier = row.get("provider_unit_multiplier")
         kind = row.get("provider_unit_kind")
         if (
             not isinstance(provider, str)
             or type(symbol_id) is not int
             or not isinstance(symbol, str)
-            or not isinstance(base, str)
-            or not isinstance(description, str)
-            or not isinstance(underlying, str)
+            or not isinstance(category, str)
+            or category not in category_counts
             or type(multiplier) is not int
             or multiplier <= 0
         ):
             raise SharedBCryptoDtiWorklistError(
-                "crypto provider identity incomplete"
+                "crypto identity-worklist row incomplete"
             )
         key = (provider, symbol_id)
         if key in seen_keys:
@@ -171,11 +174,37 @@ def build_crypto_dti_resolution_worklist(
                 "duplicate crypto provider key"
             )
         seen_keys.add(key)
+        category_counts[category] += 1
+
+        for field in (
+            "external_authority_required",
+        ):
+            if row.get(field) is not True:
+                raise SharedBCryptoDtiWorklistError(
+                    f"upstream authority requirement drift: {field}"
+                )
+        for field in (
+            "provider_ticker_is_canonical_proof",
+            "provider_description_is_canonical_proof",
+            "provider_underlying_label_is_canonical_proof",
+            "canonical_economic_identity_verified",
+            "provider_neutral_reference_identity_verified",
+            "canonical_calendar_binding_verified",
+            "sensor_admission_authorized",
+            "relational_claims_authorized",
+            "execution_authority",
+        ):
+            if row.get(field) is not False:
+                raise SharedBCryptoDtiWorklistError(
+                    f"forbidden upstream authority widened: {field}"
+                )
 
         blockers = ["DTI_ASSET_RECORD_REQUIRED"]
         if kind == "SCALED_PROVIDER_BASE_UNIT":
             scaled_symbols.add(symbol)
-            blockers.append("SCALED_UNIT_UNDERLYING_DTI_BINDING_REQUIRED")
+            blockers.append(
+                "SCALED_UNIT_UNDERLYING_DTI_BINDING_REQUIRED"
+            )
         elif kind != "DIRECT_PROVIDER_BASE_UNIT":
             raise SharedBCryptoDtiWorklistError(
                 "unknown provider-unit kind"
@@ -186,12 +215,22 @@ def build_crypto_dti_resolution_worklist(
                 "provider": provider,
                 "provider_symbol_id": symbol_id,
                 "provider_symbol": symbol,
-                "provider_description": description,
-                "provider_base_asset_name": base,
-                "provider_underlying_label": underlying,
+                "provider_description": row.get("provider_description"),
+                "provider_base_asset_name": row.get(
+                    "provider_base_asset_name"
+                ),
+                "provider_underlying_label": row.get(
+                    "provider_underlying_label"
+                ),
                 "provider_unit_kind": kind,
                 "provider_unit_multiplier": multiplier,
-                "required_provider_neutral_authority": "ISO_24165_DTI_ASSET",
+                "upstream_resolution_category": category,
+                "upstream_required_evidence": row.get(
+                    "required_evidence"
+                ),
+                "required_provider_neutral_authority": (
+                    "ISO_24165_DTI_ASSET"
+                ),
                 "dti_asset_identifier": None,
                 "dti_asset_identity_verified": False,
                 "canonical_economic_identity_verified": False,
@@ -200,12 +239,21 @@ def build_crypto_dti_resolution_worklist(
                 "canonical_calendar_binding_verified": False,
                 "provider_label_used_as_canonical_proof": False,
                 "symbol_similarity_alias_inference_used": False,
-                "resolution_status": "AUTHORITY_RECORD_REQUIRED",
+                "resolution_status": "DTI_ASSET_RECORD_REQUIRED",
                 "blockers": tuple(sorted(blockers)),
                 "sensor_admission_authorized": False,
                 "relational_claims_authorized": False,
                 "execution_authority": False,
             }
+        )
+
+    if category_counts != expected_counts:
+        raise SharedBCryptoDtiWorklistError(
+            f"crypto category recount drift: {category_counts}"
+        )
+    if scaled_symbols != {"1000xSHIB", "1000xPEPE"}:
+        raise SharedBCryptoDtiWorklistError(
+            "scaled crypto population drift"
         )
 
     output.sort(
@@ -214,19 +262,13 @@ def build_crypto_dti_resolution_worklist(
             int(cast(int, item["provider_symbol_id"])),
         )
     )
-    if scaled_symbols != {"1000xSHIB", "1000xPEPE"}:
-        raise SharedBCryptoDtiWorklistError(
-            "scaled crypto population drift"
-        )
-
     payload: dict[str, object] = {
         "identity": IDENTITY,
         "status": "EXACT_73_CRYPTO_DTI_AUTHORITY_WORKLIST_FROZEN",
         "crypto_sensor_count": 73,
+        "upstream_resolution_category_counts": category_counts,
         "dti_asset_identity_verified_count": 0,
         "dti_asset_record_required_count": 73,
-        "direct_provider_unit_count": 71,
-        "scaled_provider_unit_count": 2,
         "scaled_underlying_binding_required_count": 2,
         "records": output,
         "provider_label_is_canonical_proof": False,

@@ -21,13 +21,13 @@ def _load(path: Path) -> dict[str, object]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--unit-semantics", type=Path, required=True)
+    parser.add_argument("--identity-worklist", type=Path, required=True)
     parser.add_argument("--authority-policy", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
     payload = build_crypto_dti_resolution_worklist(
-        unit_semantics=_load(args.unit_semantics),
+        identity_worklist=_load(args.identity_worklist),
         authority_policy=_load(args.authority_policy),
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
