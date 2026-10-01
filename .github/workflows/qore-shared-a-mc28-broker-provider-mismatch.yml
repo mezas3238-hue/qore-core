@@ -1,0 +1,146 @@
+name: QORE Shared A MC28 Broker Provider Mismatch
+
+concurrency:
+  group: qore-shared-a-mc28-broker-provider-mismatch
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/broker_provider_mismatch_diagnostic.py
+      - tests/infrastructure/test_core_stack_v2_broker_provider_mismatch_diagnostic.py
+      - scripts/shared_mc28_broker_provider_mismatch_diagnostic.py
+      - .github/workflows/qore-shared-a-mc28-broker-provider-mismatch.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install and validate
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p input/{b18,mc28} result
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/broker_provider_mismatch_diagnostic.py \
+            tests/infrastructure/test_core_stack_v2_broker_provider_mismatch_diagnostic.py \
+            scripts/shared_mc28_broker_provider_mismatch_diagnostic.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/broker_provider_mismatch_diagnostic.py
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_broker_provider_mismatch_diagnostic.py
+
+      - name: Verify immutable evidence
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/36764365409" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11120521150" --jq '.expired')" = "false"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/36784322253" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11128901523" --jq '.expired')" = "false"
+
+      - name: Recover exact evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11120521150/zip" > b18.zip
+          unzip -q b18.zip -d input/b18
+          (cd input/b18 && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11128901523/zip" > mc28.zip
+          unzip -q mc28.zip -d input/mc28
+          (cd input/mc28 && sha256sum -c SHA256SUMS)
+
+      - name: Execute broker provider comparator
+        run: |
+          python scripts/shared_mc28_broker_provider_mismatch_diagnostic.py \
+            --b18 input/b18/shared-b-core-broker-real-replication.json \
+            --prior-mc28 input/mc28/mc28-runtime-instability-diagnostic.json \
+            --output result/mc28-broker-provider-mismatch.json \
+            | tee result/summary.json
+
+      - name: Validate reduced blocker set
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(
+              Path("result/mc28-broker-provider-mismatch.json").read_text()
+          )
+          assert p["status"] == (
+              "MC28_BROKER_PROVIDER_MISMATCH_REAL_BOUND_PASS_OPEN_2"
+          )
+          assert p["baseline_diagnostic_state"] == "CONSISTENT"
+          assert p["state_divergence_fault_state"] == "MISMATCH"
+          assert p["catalog_drift_fault_state"] == "MISMATCH"
+          assert p["error_asymmetry_fault_state"] == "MISMATCH"
+          assert p["incomplete_evidence_fault_state"] == "UNKNOWN"
+          assert p["broker_provider_mismatch_diagnostic_bound"] is True
+          assert p["open_diagnostic_count"] == 2
+          assert set(p["open_diagnostics"]) == {
+              "CLOCK_DRIFT",
+              "EXECUTION_QUALITY_DETERIORATION",
+          }
+          assert p["mc28_completed_and_proven"] is False
+          assert p["master_ledger_mutated"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+
+      - name: Seal
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc28-broker-provider-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(
+              Path("result/mc28-broker-provider-mismatch.json").read_text()
+          )
+          body="\n".join([
+              "## Shared A MC-28 — Broker/Provider Mismatch Diagnostic",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- real Provider/Broker: **{p['real_provider_state']} / {p['real_broker_state']}**",
+              "- state divergence injection: **MISMATCH detected**",
+              "- provider-catalog drift injection: **MISMATCH detected**",
+              "- error asymmetry injection: **MISMATCH detected**",
+              "- incomplete evidence: **UNKNOWN**",
+              "- BROKER_PROVIDER_MISMATCH diagnostic: **Bound**",
+              f"- remaining MC28 diagnostics: **{p['open_diagnostic_count']}**",
+              *[f"- `{x}`" for x in p["open_diagnostics"]],
+              "- MC-28 completed-and-proven: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
