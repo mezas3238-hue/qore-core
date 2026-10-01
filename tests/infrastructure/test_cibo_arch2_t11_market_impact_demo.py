@@ -28,55 +28,31 @@ def _load() -> ModuleType:
 runner = _load()
 
 
-def test_adverse_price_to_usd_matches_usd_quote_contract_math() -> None:
-    cost = runner.adverse_price_to_usd(
-        side="long",
-        bid=Decimal("1.10000"),
-        ask=Decimal("1.10001"),
-        fill_price=Decimal("1.10003"),
-        filled_underlying_units=Decimal("1000"),
-        quote_currency_to_usd=Decimal("1"),
-    )
-
-    assert cost == Decimal("0.02000")
-
-
-def test_adverse_price_to_usd_converts_jpy_causally() -> None:
-    cost = runner.adverse_price_to_usd(
-        side="short",
-        bid=Decimal("200.000"),
-        ask=Decimal("200.003"),
-        fill_price=Decimal("199.998"),
-        filled_underlying_units=Decimal("1000"),
-        quote_currency_to_usd=Decimal("0.00625"),
-    )
-
-    assert cost == Decimal("0.01250000")
+def test_source_volume_uses_frozen_cibo_contract_not_provider_lot_size() -> None:
+    assert runner.source_minimum_volume(
+        qore_symbol="EURUSD",
+        min_native_volume=100000,
+    ) == Decimal("0.01")
+    assert runner.source_minimum_volume(
+        qore_symbol="XAUUSD",
+        min_native_volume=100,
+    ) == Decimal("0.01")
+    assert runner.source_minimum_volume(
+        qore_symbol="NAS100",
+        min_native_volume=10,
+    ) == Decimal("0.01")
 
 
-def test_adverse_price_to_usd_never_turns_price_improvement_into_negative_cost() -> None:
-    cost = runner.adverse_price_to_usd(
-        side="long",
-        bid=Decimal("100"),
-        ask=Decimal("101"),
-        fill_price=Decimal("100.5"),
-        filled_underlying_units=Decimal("1"),
-        quote_currency_to_usd=Decimal("1"),
-    )
-
-    assert cost == Decimal("0")
+def test_pair_plan_balances_side_and_alternates_level_order() -> None:
+    assert runner.pair_plan(1) == ("long", (1, 2))
+    assert runner.pair_plan(2) == ("short", (2, 1))
+    assert runner.pair_plan(3) == ("long", (1, 2))
+    assert runner.pair_plan(4) == ("short", (2, 1))
 
 
-def test_adverse_price_to_usd_rejects_crossed_quote() -> None:
-    with pytest.raises(CiboCapitalManagementError, match="quote is crossed"):
-        runner.adverse_price_to_usd(
-            side="long",
-            bid=Decimal("2"),
-            ask=Decimal("1"),
-            fill_price=Decimal("1.5"),
-            filled_underlying_units=Decimal("1"),
-            quote_currency_to_usd=Decimal("1"),
-        )
+def test_pair_plan_rejects_nonpositive_index() -> None:
+    with pytest.raises(CiboCapitalManagementError, match="positive"):
+        runner.pair_plan(0)
 
 
 def test_frozen_experiment_size_is_144_episodes_and_216_child_entries() -> None:
@@ -93,3 +69,13 @@ def test_frozen_experiment_size_is_144_episodes_and_216_child_entries() -> None:
 
     assert episodes == 144
     assert child_entries == 216
+
+
+def test_freeze_requires_settlement_usd_and_simultaneous_minimum_children() -> None:
+    freeze = runner.T11_NONLINEAR_INPUT_FREEZE.market_impact
+
+    assert freeze.realized_settlement_cost_required is True
+    assert freeze.deposit_asset_usd_required is True
+    assert freeze.balanced_long_short_pairs_required is True
+    assert freeze.alternating_level_order_required is True
+    assert freeze.each_child_order_minimum_volume_required is True
