@@ -300,3 +300,19 @@ def test_genc14_oos_cannot_consume_unpreregistered_protected_holdout() -> None:
             evidence=oos,
             advanced_at=T0 + timedelta(minutes=3),
         )
+
+
+def test_genc14_science_fingerprint_binds_protected_holdout_identity() -> None:
+    first = start_genc14_science(
+        science_id="science-holdout-fingerprint",
+        hypothesis=_hypothesis(),
+    )
+    second = start_genc14_science(
+        science_id="science-holdout-fingerprint",
+        hypothesis=replace(
+            _hypothesis(),
+            protected_holdout_ref="CIBO_OTHER_FROZEN_HOLDOUT_V1",
+        ),
+    )
+
+    assert first.fingerprint() != second.fingerprint()
