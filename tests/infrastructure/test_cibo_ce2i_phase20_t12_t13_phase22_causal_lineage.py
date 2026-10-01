@@ -96,7 +96,12 @@ def _decision(index: int, *, omit_last_trader: bool = False) -> Phase20ForwardDe
     )
 
 
-def _outcome(index: int, *, loss: bool = True, observed_shift_hours: int = 0) -> Phase22HistoricalReplayOutcomeSeal:
+def _outcome(
+    index: int,
+    *,
+    loss: bool = True,
+    observed_shift_hours: int = 0,
+) -> Phase22HistoricalReplayOutcomeSeal:
     decision_at = BASE + timedelta(hours=index)
     deployed = decision_at + timedelta(minutes=1)
     released = decision_at + timedelta(minutes=20)
