@@ -244,6 +244,79 @@ class CompoundCausalAblationGateReport:
             )
 
 
+@dataclass(frozen=True, slots=True)
+class CompoundCausalAblationCoverageReport:
+    mechanism_ids: tuple[str, ...]
+    workstream_ids: tuple[str, ...]
+    pair_count: int
+    exact_mechanism_surface: bool
+    economic_outcomes_evaluated: bool = False
+    scientific_disposition_claimed: bool = False
+    certification_ready: bool = False
+
+    def __post_init__(self) -> None:
+        expected_mechanisms = tuple(item.value for item in CompoundCausalMechanism)
+        if self.mechanism_ids != expected_mechanisms:
+            raise CiboCompoundCapitalError(
+                "compound causal ablation coverage mechanism surface drift"
+            )
+        expected_workstreams = tuple(
+            _MECHANISM_WORKSTREAM[item]
+            for item in CompoundCausalMechanism
+        )
+        if self.workstream_ids != expected_workstreams:
+            raise CiboCompoundCapitalError(
+                "compound causal ablation coverage workstream surface drift"
+            )
+        if self.pair_count != len(expected_mechanisms):
+            raise CiboCompoundCapitalError(
+                "compound causal ablation coverage pair-count drift"
+            )
+        if self.exact_mechanism_surface is not True:
+            raise CiboCompoundCapitalError(
+                "compound causal ablation coverage must be exact"
+            )
+        if (
+            self.economic_outcomes_evaluated
+            or self.scientific_disposition_claimed
+            or self.certification_ready
+        ):
+            raise CiboCompoundCapitalError(
+                "compound causal ablation coverage cannot overclaim science"
+            )
+
+
+def audit_compound_causal_ablation_full_surface(
+    pairs: tuple[CompoundCausalAblationPair, ...],
+) -> CompoundCausalAblationCoverageReport:
+    """Prove exact 11-mechanism coverage without evaluating any outcome."""
+
+    gate_compound_causal_ablation_pairs(pairs)
+    by_mechanism: dict[
+        CompoundCausalMechanism,
+        CompoundCausalAblationPair,
+    ] = {}
+    for pair in pairs:
+        if pair.changed_mechanism in by_mechanism:
+            raise CiboCompoundCapitalError(
+                "compound causal ablation full surface duplicates mechanism"
+            )
+        by_mechanism[pair.changed_mechanism] = pair
+    expected = tuple(CompoundCausalMechanism)
+    missing = tuple(item for item in expected if item not in by_mechanism)
+    if missing:
+        raise CiboCompoundCapitalError(
+            "compound causal ablation full surface is incomplete: "
+            + ",".join(item.value for item in missing)
+        )
+    return CompoundCausalAblationCoverageReport(
+        mechanism_ids=tuple(item.value for item in expected),
+        workstream_ids=tuple(_MECHANISM_WORKSTREAM[item] for item in expected),
+        pair_count=len(pairs),
+        exact_mechanism_surface=True,
+    )
+
+
 def gate_compound_causal_ablation_pairs(
     pairs: tuple[CompoundCausalAblationPair, ...],
 ) -> CompoundCausalAblationGateReport:
