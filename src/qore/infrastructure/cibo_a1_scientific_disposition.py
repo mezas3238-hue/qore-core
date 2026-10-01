@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from enum import StrEnum
 from typing import Mapping
 
@@ -281,11 +281,9 @@ def build_a1_scientific_disposition(
         proof_reason=proof_reason,
         receipt_sha256="sha256:" + ("0" * 64),
     )
-    return A1ScientificDisposition(
-        **{
-            **provisional.__dict__,
-            "receipt_sha256": provisional.fingerprint(),
-        }
+    return replace(
+        provisional,
+        receipt_sha256=provisional.fingerprint(),
     )
 
 
