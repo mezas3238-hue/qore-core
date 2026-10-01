@@ -10,13 +10,13 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from cibo_phase19_causal_walk_forward import _bind_freeze
-from cibo_phase19_integrated_chronology_replay import (
+from scripts.cibo_phase19_causal_walk_forward import _bind_freeze
+from scripts.cibo_phase19_integrated_chronology_replay import (
     EXPECTED_SOURCE_ROWS,
     SOURCE_SPECS,
     _jsonl,
 )
-from cibo_phase19_normalized_capital_mechanics import _parse_trade
+from scripts.cibo_phase19_normalized_capital_mechanics import _parse_trade
 
 from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
     FROZEN_PHASE20_POLICY_CANDIDATE,
