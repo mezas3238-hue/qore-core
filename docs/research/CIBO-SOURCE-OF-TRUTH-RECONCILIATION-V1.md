@@ -318,3 +318,18 @@ Exact Integrator HEAD: `7903cba162595bbfee32fa87fa50f84e6566aaf3`.
 - The Integrator therefore keeps the canonical 64/62/2 topology and does not
   adopt Architect-A's child-only 63/63 ledger or terminalize the two actual
   exams.
+
+
+## 2026-10-01 bounded GitHub Phase20D collector engineering
+
+- The existing cTrader DEMO runtime already owns the real Phase20D forward
+  evidence, policy, executed-risk and settlement stores.
+- A bounded-cycle control is staged so that the same runtime can stop cleanly
+  after an exact number of completed cycles in GitHub Actions rather than
+  requiring an infinite resident process.
+- This change does **not** create an activation file and does not claim Owner
+  authorization. The canonical Phase20D DEMO execution activation remains
+  mandatory and SHA-bound.
+- No FundedNext, LIVE, real-capital, VPS or merge authority is introduced.
+- Forward qualification remains externally blocked until genuine post-freeze
+  decisions/outcomes accumulate under the frozen protocol.

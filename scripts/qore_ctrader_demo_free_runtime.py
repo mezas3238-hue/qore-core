@@ -63,6 +63,9 @@ from qore.infrastructure.cibo_capital_source_ledger_store import (
 from qore.infrastructure.cibo_phase20_demo_execution_activation import (
     load_phase20_demo_execution_activation,
 )
+from qore.infrastructure.cibo_phase20_bounded_runtime import (
+    Phase20BoundedCycleBudget,
+)
 from qore.infrastructure.cibo_ctrader_demo_sizing import (
     build_ctrader_demo_cibo_sizing,
 )
@@ -1025,13 +1028,20 @@ def _process_audjpy_r42_candidate(
     return
 
 
-def run(root: Path, *, mode: str, activation_path: Path) -> None:
+def run(
+    root: Path,
+    *,
+    mode: str,
+    activation_path: Path,
+    max_cycles: int | None = None,
+) -> None:
     global mt5
     sha = _git_sha(root)
     load_phase20_demo_execution_activation(
         activation_path,
         expected_git_sha=sha,
     )
+    cycle_budget = Phase20BoundedCycleBudget(max_cycles=max_cycles)
     demo_sink = _configure_ctrader_demo_free_sink(root)
     binding_raw = json.loads(
         (root / "var" / "ctrader_demo_free" / "binding.json").read_text(encoding="utf-8")
@@ -3888,6 +3898,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 heartbeat_at=cycle_at,
             )
             store.store(state)
+        if cycle_budget.complete_cycle():
+            demo_sink.close()
+            return
         cycle_elapsed = time.monotonic() - cycle_started
         time.sleep(max(0.05, _LOOP_SECONDS - cycle_elapsed))
 
@@ -3895,6 +3908,15 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=("demo",), default="demo")
+    parser.add_argument(
+        "--max-cycles",
+        type=int,
+        default=None,
+        help=(
+            "Stop cleanly after N complete runtime cycles. "
+            "Execution activation remains mandatory."
+        ),
+    )
     parser.add_argument(
         "--activation",
         type=Path,
@@ -3910,8 +3932,11 @@ def main() -> None:
                 root,
                 mode=args.mode,
                 activation_path=(root / args.activation),
+                max_cycles=args.max_cycles,
             )
-        raise RuntimeError("resident runtime returned unexpectedly")
+        if args.max_cycles is None:
+            raise RuntimeError("resident runtime returned unexpectedly")
+        return
     except KeyboardInterrupt:
         raise
     except Exception as error:

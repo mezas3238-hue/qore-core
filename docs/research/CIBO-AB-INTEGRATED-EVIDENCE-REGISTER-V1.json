@@ -956,6 +956,28 @@
       ],
       "productive_authority": false,
       "certification_claim": false
+    },
+    {
+      "owner": "INTEGRATOR_PHASE20D_BOUNDED_RUNTIME_STAGING",
+      "source_head_sha": "09994eb5d4b6e26f12b356168d6d657942404cf4",
+      "items": [
+        {
+          "id": "PHASE20D_BOUNDED_GITHUB_RUNTIME",
+          "class": "ENGINEERING_STAGED_EXACT_HEAD_CI_REQUIRED",
+          "scope": [
+            "bounded cycle budget",
+            "runtime --max-cycles",
+            "clean sink close at cycle boundary",
+            "pull-request safe quality validation"
+          ],
+          "execution_activation_required": true,
+          "owner_authorization_required": true,
+          "broker_mutation_performed": false,
+          "certification_claim": false
+        }
+      ],
+      "productive_authority": false,
+      "certification_claim": false
     }
   ],
   "pending_candidates": [
@@ -1029,9 +1051,10 @@
   "certification_claim": false,
   "productive_authority": false,
   "integrator_pending": {
-    "head_sha": "c2f584c701fb05b5dbe151f47e3a8e253bcf559c",
+    "head_sha": "09994eb5d4b6e26f12b356168d6d657942404cf4",
     "reasons": [
-      "LATEST_A_MECHANISM_EVIDENCE_INTAKE_EXACT_INTEGRATOR_HEAD_CI_REQUIRED",
+      "PHASE20D_BOUNDED_GITHUB_RUNTIME_EXACT_HEAD_CI_REQUIRED",
+      "EXPLICIT_OWNER_DEMO_EXECUTION_ACTIVATION_NOT_PRESENT",
       "REAL_PHASE20D_FORWARD_POPULATION_NOT_YET_AVAILABLE",
       "EMPIRICAL_SLIPPAGE_AND_REAL_EXECUTION_POPULATION_NOT_YET_AVAILABLE",
       "FINAL_INTEGRATED_CIBO_EXAM_REAL_EXECUTION_OPEN",

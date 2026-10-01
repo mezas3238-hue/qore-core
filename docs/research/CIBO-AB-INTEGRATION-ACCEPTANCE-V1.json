@@ -231,6 +231,9 @@
     "architect_a_mechanism_evidence_receipt_staged": true,
     "architect_a_oos_and_protected_base_hardening_staged": true,
     "architect_b_t16_latest_structural_evidence_integrated": true,
-    "architect_b_real_phase20d_population_available": false
+    "architect_b_real_phase20d_population_available": false,
+    "phase20d_bounded_github_runtime_staged": true,
+    "phase20d_demo_execution_owner_activation_required": true,
+    "phase20d_demo_execution_owner_activation_present": false
   }
 }

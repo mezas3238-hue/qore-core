@@ -1,6 +1,12 @@
 name: QORE CIBO Phase20 DEMO Execution Arm
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase20-demo-execution-arm.yml'
+      - 'scripts/qore_ctrader_demo_free_runtime.py'
+      - 'src/qore/infrastructure/cibo_phase20_bounded_runtime.py'
+      - 'tests/infrastructure/test_cibo_phase20_bounded_runtime.py'
   push:
     branches:
       - agent/cibo-capital-efficiency-sizing-lab-001
@@ -22,7 +28,31 @@ env:
   QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
 
 jobs:
+  bounded-runtime-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Validate bounded Phase20D runtime contract
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_phase20_bounded_runtime.py \
+            tests/infrastructure/test_cibo_phase20_bounded_runtime.py
+          ruff check --select F scripts/qore_ctrader_demo_free_runtime.py
+          mypy \
+            src/qore/infrastructure/cibo_phase20_bounded_runtime.py \
+            tests/infrastructure/test_cibo_phase20_bounded_runtime.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_phase20_bounded_runtime.py \
+            scripts/qore_ctrader_demo_free_runtime.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase20_bounded_runtime.py
+
   arm:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
