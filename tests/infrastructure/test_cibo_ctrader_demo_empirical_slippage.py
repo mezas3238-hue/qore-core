@@ -1,6 +1,11 @@
 from decimal import Decimal
 from types import SimpleNamespace
 
+import pytest
+
+from qore.infrastructure.cibo_capital_management_authority import (
+    CiboCapitalManagementError,
+)
 from qore.infrastructure.cibo_ctrader_demo_empirical_slippage import (
     decode_ctrader_tick_series,
     signed_slippage,
