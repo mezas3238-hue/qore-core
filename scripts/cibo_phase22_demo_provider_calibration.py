@@ -225,28 +225,52 @@ def _causal_quote(
     }
 
 
-def _position_id(
+def _single_deal(
     response: object,
     *,
-    label: str,
-    client: SpotwareCTraderOpenApiClient,
-) -> int:
-    position = getattr(response, "position", None)
-    value = getattr(position, "positionId", None) if position is not None else None
-    if type(value) is int and value > 0:
-        return value
-    deal = getattr(response, "deal", None)
-    value = getattr(deal, "positionId", None) if deal is not None else None
-    if type(value) is int and value > 0:
-        return value
+    order_id: int,
+) -> object | None:
+    direct = getattr(response, "deal", None)
+    if direct is not None and type(direct) is not tuple:
+        direct_order_id = getattr(direct, "orderId", order_id)
+        if direct_order_id == order_id:
+            return direct
+    raw = getattr(response, "deal", ())
+    try:
+        rows = tuple(raw)
+    except TypeError:
+        rows = ()
+    candidates = tuple(
+        item
+        for item in rows
+        if getattr(item, "orderId", order_id) == order_id
+        and type(getattr(item, "dealId", None)) is int
+        and getattr(item, "dealId") > 0
+    )
+    if not candidates:
+        return None
+    return min(
+        candidates,
+        key=lambda item: (
+            getattr(item, "executionTimestamp", 0),
+            getattr(item, "dealId", 0),
+        ),
+    )
 
+
+def _position_for_label(
+    client: SpotwareCTraderOpenApiClient,
+    label: str,
+    *,
+    message_id: str,
+) -> object | None:
     reconciled = _request(
         client,
         "ProtoOAReconcileReq",
         {"ctidTraderAccountId": client.account_id},
-        f"phase22-cal-reconcile:{label}",
+        message_id,
     )
-    matches: list[int] = []
+    matches = []
     for item in tuple(getattr(reconciled, "position", ())):
         trade_data = getattr(item, "tradeData", None)
         observed_label = (
@@ -254,32 +278,165 @@ def _position_id(
             if trade_data is not None
             else None
         )
-        position_id = getattr(item, "positionId", None)
-        if observed_label == label and type(position_id) is int and position_id > 0:
-            matches.append(position_id)
-    if len(matches) != 1:
+        if observed_label == label:
+            matches.append(item)
+    if len(matches) > 1:
         raise CiboCapitalManagementError(
-            "Phase22 calibration cannot identify unique created position"
+            "Phase22 calibration label maps to multiple positions"
         )
-    return matches[0]
+    return matches[0] if matches else None
 
 
-def _position_absent(
+def _wait_entry_fill(
     client: SpotwareCTraderOpenApiClient,
-    position_id: int,
+    opened: object,
     *,
-    message_id: str,
-) -> bool:
+    order_id: int,
+    label: str,
+) -> tuple[object, int]:
+    """Wait for the exact submitted order; never resubmit on async acceptance."""
+    for attempt in range(25):
+        response = (
+            opened
+            if attempt == 0
+            else _request(
+                client,
+                "ProtoOAOrderDetailsReq",
+                {
+                    "ctidTraderAccountId": client.account_id,
+                    "orderId": order_id,
+                },
+                f"phase22-cal-order-details:{order_id}:{attempt}",
+            )
+        )
+        deal = _single_deal(response, order_id=order_id)
+        position = _position_for_label(
+            client,
+            label,
+            message_id=f"phase22-cal-position:{order_id}:{attempt}",
+        )
+        position_id = (
+            getattr(position, "positionId", None)
+            if position is not None
+            else None
+        )
+        if (
+            deal is not None
+            and type(position_id) is int
+            and position_id > 0
+        ):
+            return deal, position_id
+        time.sleep(0.25)
+    raise CiboCapitalManagementError(
+        "Phase22 calibration accepted order did not reconcile to fill/position"
+    )
+
+
+def _neutralize_label(
+    client: SpotwareCTraderOpenApiClient,
+    label: str,
+) -> None:
+    """Best-effort containment for exactly one calibration label."""
     reconciled = _request(
         client,
         "ProtoOAReconcileReq",
         {"ctidTraderAccountId": client.account_id},
-        message_id,
+        f"phase22-cal-neutralize:{label}",
     )
-    return all(
-        getattr(item, "positionId", None) != position_id
+    orders = tuple(
+        item
+        for item in tuple(getattr(reconciled, "order", ()))
+        if (
+            getattr(getattr(item, "tradeData", None), "label", None)
+            == label
+        )
+    )
+    for order in orders:
+        order_id = getattr(order, "orderId", None)
+        if type(order_id) is not int or order_id <= 0:
+            continue
+        # An accepted MARKET order can fill while cancellation is racing.
+        # Failure here does not authorize a resubmit; we reconcile positions next.
+        result = client.request(
+            "ProtoOACancelOrderReq",
+            {
+                "ctidTraderAccountId": client.account_id,
+                "orderId": order_id,
+            },
+            client_msg_id=f"phase22-cal-neutralize-cancel:{order_id}",
+            timeout_seconds=10.0,
+        )
+        del result
+
+    reconciled = _request(
+        client,
+        "ProtoOAReconcileReq",
+        {"ctidTraderAccountId": client.account_id},
+        f"phase22-cal-neutralize-positions:{label}",
+    )
+    positions = tuple(
+        item
         for item in tuple(getattr(reconciled, "position", ()))
+        if (
+            getattr(getattr(item, "tradeData", None), "label", None)
+            == label
+        )
     )
+    for position in positions:
+        position_id = getattr(position, "positionId", None)
+        trade_data = getattr(position, "tradeData", None)
+        volume = (
+            getattr(trade_data, "volume", None)
+            if trade_data is not None
+            else None
+        )
+        if (
+            type(position_id) is not int
+            or position_id <= 0
+            or type(volume) is not int
+            or volume <= 0
+        ):
+            raise CiboCapitalManagementError(
+                "Phase22 calibration containment position invalid"
+            )
+        _request(
+            client,
+            "ProtoOAClosePositionReq",
+            {
+                "ctidTraderAccountId": client.account_id,
+                "positionId": position_id,
+                "volume": volume,
+            },
+            f"phase22-cal-neutralize-close:{position_id}",
+        )
+
+    time.sleep(0.25)
+    terminal = _request(
+        client,
+        "ProtoOAReconcileReq",
+        {"ctidTraderAccountId": client.account_id},
+        f"phase22-cal-neutralize-terminal:{label}",
+    )
+    remaining_positions = tuple(
+        item
+        for item in tuple(getattr(terminal, "position", ()))
+        if (
+            getattr(getattr(item, "tradeData", None), "label", None)
+            == label
+        )
+    )
+    remaining_orders = tuple(
+        item
+        for item in tuple(getattr(terminal, "order", ()))
+        if (
+            getattr(getattr(item, "tradeData", None), "label", None)
+            == label
+        )
+    )
+    if remaining_positions or remaining_orders:
+        raise CiboCapitalManagementError(
+            "Phase22 calibration label remains active after containment"
+        )
 
 
 def _one_round_trip(
@@ -295,109 +452,114 @@ def _one_round_trip(
     client_order_id = (
         f"qore-p22-cal-{run_key[-12:]}-{contract.qore_symbol}-{ordinal:02d}"
     )
-    opened = _request(
-        client,
-        "ProtoOANewOrderReq",
-        {
-            "ctidTraderAccountId": client.account_id,
-            "clientOrderId": client_order_id,
-            "orderType": _MARKET,
-            "symbolId": contract.symbol_id,
-            "tradeSide": side,
-            "volume": contract.min_volume_units,
+    order_id: int | None = None
+    position_id: int | None = None
+    try:
+        opened = _request(
+            client,
+            "ProtoOANewOrderReq",
+            {
+                "ctidTraderAccountId": client.account_id,
+                "clientOrderId": client_order_id,
+                "orderType": _MARKET,
+                "symbolId": contract.symbol_id,
+                "tradeSide": side,
+                "volume": contract.min_volume_units,
+                "label": label,
+                "comment": "qore-phase22-provider-calibration",
+            },
+            client_order_id,
+        )
+        order = getattr(opened, "order", None)
+        raw_order_id = (
+            getattr(order, "orderId", None)
+            if order is not None
+            else None
+        )
+        if type(raw_order_id) is not int or raw_order_id <= 0:
+            raise CiboCapitalManagementError(
+                "Phase22 calibration submit returned no canonical order id"
+            )
+        order_id = raw_order_id
+        deal, position_id = _wait_entry_fill(
+            client,
+            opened,
+            order_id=order_id,
+            label=label,
+        )
+        deal_id = getattr(deal, "dealId", None)
+        fill_price = getattr(deal, "executionPrice", None)
+        fill_at_ms = getattr(deal, "executionTimestamp", None)
+        if (
+            type(deal_id) is not int
+            or deal_id <= 0
+            or not isinstance(fill_price, float)
+            or fill_price <= 0
+            or type(fill_at_ms) is not int
+            or fill_at_ms <= 0
+        ):
+            raise CiboCapitalManagementError(
+                "Phase22 calibration reconciled deal is incomplete"
+            )
+
+        position = _position_for_label(
+            client,
+            label,
+            message_id=f"phase22-cal-preclose:{position_id}",
+        )
+        trade_data = (
+            getattr(position, "tradeData", None)
+            if position is not None
+            else None
+        )
+        volume = (
+            getattr(trade_data, "volume", None)
+            if trade_data is not None
+            else None
+        )
+        if type(volume) is not int or volume <= 0:
+            raise CiboCapitalManagementError(
+                "Phase22 calibration created position volume missing"
+            )
+        _request(
+            client,
+            "ProtoOAClosePositionReq",
+            {
+                "ctidTraderAccountId": client.account_id,
+                "positionId": position_id,
+                "volume": volume,
+            },
+            f"close:{client_order_id}",
+        )
+        _neutralize_label(client, label)
+
+        return {
+            "qore_symbol": contract.qore_symbol,
+            "provider_symbol": contract.symbol_name,
+            "symbol_id": contract.symbol_id,
+            "minimum_volume_units": contract.min_volume_units,
+            "side": "BUY" if side == _BUY else "SELL",
             "label": label,
-            "comment": "qore-phase22-provider-calibration",
-        },
-        client_order_id,
-    )
-    order = getattr(opened, "order", None)
-    deal = getattr(opened, "deal", None)
-    order_id = getattr(order, "orderId", None) if order is not None else None
-    deal_id = getattr(deal, "dealId", None) if deal is not None else None
-    fill_price = getattr(deal, "executionPrice", None) if deal is not None else None
-    fill_at_ms = (
-        getattr(deal, "executionTimestamp", None)
-        if deal is not None
-        else None
-    )
-    if (
-        type(order_id) is not int
-        or order_id <= 0
-        or type(deal_id) is not int
-        or deal_id <= 0
-        or not isinstance(fill_price, float)
-        or fill_price <= 0
-        or type(fill_at_ms) is not int
-        or fill_at_ms <= 0
-    ):
-        raise CiboCapitalManagementError(
-            "Phase22 calibration entry did not return a complete fill"
-        )
-
-    position_id = _position_id(opened, label=label, client=client)
-    closed = _request(
-        client,
-        "ProtoOAClosePositionReq",
-        {
-            "ctidTraderAccountId": client.account_id,
-            "positionId": position_id,
-            "volume": contract.min_volume_units,
-        },
-        f"close:{client_order_id}",
-    )
-    close_deal = getattr(closed, "deal", None)
-    close_deal_id = (
-        getattr(close_deal, "dealId", None)
-        if close_deal is not None
-        else None
-    )
-    close_price = (
-        getattr(close_deal, "executionPrice", None)
-        if close_deal is not None
-        else None
-    )
-    if (
-        type(close_deal_id) is not int
-        or close_deal_id <= 0
-        or not isinstance(close_price, float)
-        or close_price <= 0
-    ):
-        raise CiboCapitalManagementError(
-            "Phase22 calibration close did not return a complete fill"
-        )
-    if not _position_absent(
-        client,
-        position_id,
-        message_id=f"verify-close:{client_order_id}",
-    ):
-        raise CiboCapitalManagementError(
-            "Phase22 calibration position remains open after close"
-        )
-
-    return {
-        "qore_symbol": contract.qore_symbol,
-        "provider_symbol": contract.symbol_name,
-        "symbol_id": contract.symbol_id,
-        "minimum_volume_units": contract.min_volume_units,
-        "side": "BUY" if side == _BUY else "SELL",
-        "label": label,
-        "causal_quote": quote,
-        "entry_order_ref_sha256": "sha256:"
-        + hashlib.sha256(str(order_id).encode()).hexdigest(),
-        "entry_deal_ref_sha256": "sha256:"
-        + hashlib.sha256(str(deal_id).encode()).hexdigest(),
-        "position_ref_sha256": "sha256:"
-        + hashlib.sha256(str(position_id).encode()).hexdigest(),
-        "entry_fill_price": str(fill_price),
-        "entry_fill_at": datetime.fromtimestamp(
-            fill_at_ms / 1000,
-            tz=UTC,
-        ).isoformat(),
-        "close_deal_ref_sha256": "sha256:"
-        + hashlib.sha256(str(close_deal_id).encode()).hexdigest(),
-        "close_fill_price": str(close_price),
-        "position_closed": True,
-    }
+            "causal_quote": quote,
+            "entry_order_ref_sha256": "sha256:"
+            + hashlib.sha256(str(order_id).encode()).hexdigest(),
+            "entry_deal_ref_sha256": "sha256:"
+            + hashlib.sha256(str(deal_id).encode()).hexdigest(),
+            "position_ref_sha256": "sha256:"
+            + hashlib.sha256(str(position_id).encode()).hexdigest(),
+            "entry_fill_price": str(fill_price),
+            "entry_fill_at": datetime.fromtimestamp(
+                fill_at_ms / 1000,
+                tz=UTC,
+            ).isoformat(),
+            "position_closed": True,
+            "async_fill_reconciled": True,
+        }
+    finally:
+        # Exact-label neutralization is safe even when the normal close already
+        # completed. It prevents a failed parsing/poll step from leaving a DEMO
+        # calibration mutation unresolved.
+        _neutralize_label(client, label)
 
 
 def _jsonable_observation(
