@@ -269,7 +269,7 @@ def collect_ctrader_demo_empirical_slippage(
     observations: list[CTraderEmpiricalSlippageObservation] = []
     quote_failures: dict[str, int] = defaultdict(int)
     for deal in sampled:
-        contract = contracts[int(getattr(deal, "symbolId"))]
+        contract = contracts[int(deal.symbolId)]
         try:
             observation = _deal_observation(
                 client=client,
