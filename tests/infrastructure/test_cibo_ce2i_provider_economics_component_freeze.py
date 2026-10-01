@@ -14,16 +14,15 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
     FROZEN_PHASE20D_QUALIFICATION_PLAN,
     phase20d_qualification_plan_sha256,
 )
-from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
-    CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS,
-)
 from qore.infrastructure.cibo_ce2i_provider_economics_component_freeze import (
     freeze_current_ctrader_demo_provider_economics,
+)
+from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
+    CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS,
 )
 from qore.infrastructure.cibo_ce2i_provider_execution_calibration import (
     calibrate_ctrader_demo_forward_execution,
 )
-
 
 PROVIDER_OBSERVED_AT = datetime.fromisoformat(
     CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS.observed_at
