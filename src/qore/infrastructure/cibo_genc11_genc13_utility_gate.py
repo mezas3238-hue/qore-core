@@ -197,6 +197,51 @@ class Genc11Genc13UtilityReport:
             raise CiboCompoundCapitalError(
                 "GEN-C11/13 utility wrapper reused gate drift"
             )
+        if not self.evaluation_id or not self.treatment_candidate_id:
+            raise CiboCompoundCapitalError(
+                "GEN-C11/13 utility wrapper result identity is required"
+            )
+        if type(self.workstream) is not Genc11Genc13Workstream:
+            raise CiboCompoundCapitalError(
+                "GEN-C11/13 utility wrapper workstream is invalid"
+            )
+        if type(self.status) is not Genc9EconomicGateStatus:
+            raise CiboCompoundCapitalError(
+                "GEN-C11/13 utility wrapper status is invalid"
+            )
+        if (
+            not isinstance(self.failed_dimensions, tuple)
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.failed_dimensions
+            )
+            or len(self.failed_dimensions) != len(set(self.failed_dimensions))
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C11/13 utility wrapper failed dimensions are invalid"
+            )
+        for name in (
+            "research_eligible",
+            "temporal_replication_claimed",
+            "stress_pass_claimed",
+            "winner_selected",
+            "productive_authority",
+            "certification_ready",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"GEN-C11/13 utility wrapper {name} must be bool"
+                )
+        if self.research_eligible != (
+            self.status is Genc9EconomicGateStatus.ELIGIBLE_FOR_FURTHER_RESEARCH
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C11/13 utility wrapper status/eligibility drift"
+            )
+        if self.research_eligible and self.failed_dimensions:
+            raise CiboCompoundCapitalError(
+                "GEN-C11/13 eligible result cannot carry failed dimensions"
+            )
         if (
             self.temporal_replication_claimed
             or self.stress_pass_claimed
