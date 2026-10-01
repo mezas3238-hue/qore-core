@@ -147,17 +147,16 @@ def test_builds_wc03_wc10_only_from_complete_separate_population() -> None:
 
 
 def test_rejects_phase22_v2_population_reuse() -> None:
-    provider = replace(
-        _evidence()[0],
-        competition_population_id=(
-            "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
-        ),
-    )
     with pytest.raises(
         CiboCapitalManagementError,
         match="cannot reuse protected Phase22 V2 holdout",
     ):
-        provider.__post_init__()
+        replace(
+            _evidence()[0],
+            competition_population_id=(
+                "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
+            ),
+        )
 
 
 def test_rejects_incomplete_stress_surface() -> None:
