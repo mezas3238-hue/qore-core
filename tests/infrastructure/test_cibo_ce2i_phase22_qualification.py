@@ -39,6 +39,10 @@ from qore.infrastructure.cibo_ce2i_phase22_qualification_plan import (
 from qore.infrastructure.cibo_phase22_historical_replay_settlement import (
     VersionedPhase22HistoricalReplayEvidenceBook,
 )
+from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
+    V2_SOURCE_BINDINGS,
+    phase22_v2_holdout_source_receipt_sha256,
+)
 
 QUALIFIED_AT = datetime(2026, 10, 26, 20, 0, tzinfo=UTC)
 PHASE21_FROZEN_AT = QUALIFIED_AT + timedelta(hours=4)
@@ -265,6 +269,12 @@ def _historical_holdout_decision(
     )
     payload = json.loads(decision.canonical_payload_json)
     payload["evidence_kind"] = "HISTORICAL_REPLAY_OBSERVED"
+    payload["source_lineage"] = {
+        "source_receipt_sha256": phase22_v2_holdout_source_receipt_sha256(),
+        "collector_git_shas": list(
+            sorted({item.collector_git_sha for item in V2_SOURCE_BINDINGS})
+        ),
+    }
     return replace(
         decision,
         sealed_at=sealed_at,
@@ -326,6 +336,10 @@ def test_phase22_valid_lineage_with_immature_population_is_not_ready() -> None:
             amendment_sha256=_sha(700),
             decisions=(holdout_decision,),
             outcomes=(),
+            source_receipt_sha256=phase22_v2_holdout_source_receipt_sha256(),
+            source_collector_git_shas=tuple(
+                sorted({item.collector_git_sha for item in V2_SOURCE_BINDINGS})
+            ),
         ),
         holdout_policy_book=VersionedPhase20ForwardPolicyBook(
             generation=1,
@@ -351,6 +365,12 @@ def test_phase22_reused_qualification_decision_is_invalid_before_economics() -> 
     )
     replay_payload = json.loads(qualification_decision.canonical_payload_json)
     replay_payload["evidence_kind"] = "HISTORICAL_REPLAY_OBSERVED"
+    replay_payload["source_lineage"] = {
+        "source_receipt_sha256": phase22_v2_holdout_source_receipt_sha256(),
+        "collector_git_shas": list(
+            sorted({item.collector_git_sha for item in V2_SOURCE_BINDINGS})
+        ),
+    }
     holdout_decision = replace(
         qualification_decision,
         evidence_id="holdout-reused",
@@ -376,6 +396,10 @@ def test_phase22_reused_qualification_decision_is_invalid_before_economics() -> 
             amendment_sha256=_sha(701),
             decisions=(holdout_decision,),
             outcomes=(),
+            source_receipt_sha256=phase22_v2_holdout_source_receipt_sha256(),
+            source_collector_git_shas=tuple(
+                sorted({item.collector_git_sha for item in V2_SOURCE_BINDINGS})
+            ),
         ),
         holdout_policy_book=VersionedPhase20ForwardPolicyBook(
             generation=1,
