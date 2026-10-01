@@ -306,7 +306,10 @@ def _evaluate_symbol(
     linear_only = mean1 / m
 
     fold_results: list[T11MarketImpactFoldResult] = []
-    by_fold = {fold: [] for fold in range(1, 5)}
+    by_fold: dict[
+        int,
+        list[tuple[T11MarketImpactEpisode, T11MarketImpactEpisode]],
+    ] = {fold: [] for fold in range(1, 5)}
     for pair in validation_pairs:
         by_fold[pair[0].fold_index].append(pair)
     if any(len(rows) != 1 for rows in by_fold.values()):
