@@ -100,10 +100,7 @@ def _ready_manifest() -> ArchBForwardEconomicManifest:
                 provider_contract_size=Decimal("1"),
                 provider_tick_size=Decimal("0.01"),
                 provider_tick_value=Decimal("1"),
-                provider_contract_size=Decimal("1"),
-        provider_tick_size=Decimal("0.01"),
-        provider_tick_value=Decimal("1"),
-        provider_observed_at=(
+                provider_observed_at=(
                     decision_at - timedelta(seconds=1)
                 ).isoformat(),
                 provider_minimum_volume=Decimal("0.01"),
