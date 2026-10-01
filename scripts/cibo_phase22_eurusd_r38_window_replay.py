@@ -78,9 +78,10 @@ def run_window(
         if not hasattr(module, name):
             raise ValueError(f"EURUSD exact replay module missing {name}")
 
-    module.EVAL_OPEN = opened_at
-    module.EVAL_CLOSE = closed_at
-    result = module.run(
+    setattr(module, "EVAL_OPEN", opened_at)
+    setattr(module, "EVAL_CLOSE", closed_at)
+    run = getattr(module, "run")
+    result = run(
         raw_root,
         target_root,
         cognitive_root,
