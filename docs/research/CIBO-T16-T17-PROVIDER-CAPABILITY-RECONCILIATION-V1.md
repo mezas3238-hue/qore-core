@@ -1,7 +1,7 @@
 # CIBO Architect B — T16/T17 Provider Capability Reconciliation V1
 
 Observed: 2026-09-30  
-Status: **PROVIDER-POLICY RECONCILED / ACCOUNT-SPECIFIC CAPABILITY STILL FAIL-CLOSED**
+Status: **ACCOUNT-BOUND PROVIDER EVIDENCE SEALED / T17 STRUCTURAL DISPOSITION READY / T16 ECONOMIC HEDGE STILL OPEN**
 
 This note narrows T16/T17 without fabricating account capabilities.
 
@@ -155,3 +155,60 @@ A structural-disable handoff requires explicit account/provider-bound evidence t
 all admissible capability paths are unavailable for the governed CIBO universe. If
 that evidence is incomplete, the disposition remains fail-closed/open rather than
 being converted into provider unavailability.
+
+
+## 2026-10-01 account-bound disposition
+
+GitHub Actions run `36806511867` completed successfully at HEAD
+`6dc4a22dac0a54368917bb9308d04dd83eec079f` and sealed current cTrader DEMO provider/account evidence.
+
+The durable sanitized snapshot is:
+
+`docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-EVIDENCE-2026-10-01.json`
+
+Observed facts:
+
+- the account type is `HEDGED`;
+- the complete account catalog contains 352 symbols;
+- taxonomy binding is complete across 11 provider asset classes;
+- no explicit option taxonomy candidate exists;
+- `isLimitedRisk=false`;
+- all six governed CIBO symbols have explicit
+  `guaranteedStopLoss=false`;
+- GSL coverage has no unknown rows;
+- no Limited-Risk/GSL candidate exists.
+
+The earlier structural-disable rule required the combination of complete
+taxonomy plus explicit instrument-level Limited-Risk/GSL evidence. That
+condition is now satisfied for cTrader DEMO rather than inferred from silence.
+
+For FundedNext Stellar Instant CFDs, the official current comprehensive symbol
+policy enumerates Forex, indices, commodities, crypto and stocks and does not
+list an option/defined-risk instrument class.
+
+Therefore Architect B emits:
+
+`docs/research/CIBO-B-T17-STRUCTURAL-DISPOSITION-V1.json`
+
+with recommended calibration-freeze disposition
+`STRUCTURALLY_DISABLED` and recommended master-ledger disposition
+`FALSIFIED_AND_CLOSED`.
+
+This disposition is scoped to the current governed provider universe. It is
+not a claim that T17 is impossible in global markets. It must be reopened if
+cTrader or FundedNext later exposes an admissible option, defined-risk, Limited
+Risk or Guaranteed Stop Loss path.
+
+T16 does **not** receive the same disposition. The observed cTrader account is
+HEDGED, so structural unavailability is false. T16 remains open for actual
+hedge-instrument basis risk, cost, correlation, execution and fresh OOS
+economic utility.
+
+
+## T16 anti-selection preregistration
+
+A T16 hedge pair must be declared before the first return window consumed by
+the audit. The declaration fixes provider, target symbol and hedge symbol.
+Choosing the pair after observing correlation, basis residual or costs is
+rejected as causal contamination. This requirement is independent from the
+later fresh-OOS utility gate.

@@ -6,6 +6,7 @@ from qore.infrastructure.cibo_ctrader_demo_provider_economics import (
     CTraderNativeCommissionTerms,
     CTraderProviderEconomicsProbe,
     CTraderProviderEconomicsSymbolEvidence,
+    _gsl_terms,
 )
 
 _NOW = datetime(2026, 9, 28, 13, 0, tzinfo=UTC)
@@ -132,3 +133,36 @@ def test_provider_symbol_can_carry_gsl_terms_without_promoting_execution() -> No
     assert row.gsl_charge_raw == 100
     assert row.slippage_empirically_calibrated is False
     assert row.historical_exact_claimed is False
+
+
+
+class _Proto:
+    def __init__(self, *, present: set[str], **values: object) -> None:
+        self._present = set(present)
+        for name, value in values.items():
+            setattr(self, name, value)
+
+    def HasField(self, name: str) -> bool:  # noqa: N802
+        return name in self._present
+
+
+def test_provider_defaults_do_not_create_false_gsl_terms() -> None:
+    detail = _Proto(
+        present={"guaranteedStopLoss", "gslDistance", "gslCharge"},
+        guaranteedStopLoss=False,
+        gslDistance=0,
+        gslCharge=0,
+    )
+
+    assert _gsl_terms(detail) == (False, None, None)
+
+
+def test_provider_gsl_terms_are_retained_only_when_explicitly_supported() -> None:
+    detail = _Proto(
+        present={"guaranteedStopLoss", "gslDistance", "gslCharge"},
+        guaranteedStopLoss=True,
+        gslDistance=25,
+        gslCharge=100,
+    )
+
+    assert _gsl_terms(detail) == (True, 25, 100)

@@ -1,3 +1,4 @@
+from dataclasses import replace
 from decimal import Decimal
 
 import pytest
@@ -64,4 +65,23 @@ def test_t12_utility_requires_canonical_shadow_tuple() -> None:
             qualification_rows=(),
             readiness=_empty_readiness(),
             shadow_decisions=(object(),),  # type: ignore[arg-type]
+        )
+
+
+def test_t12_report_rejects_noncanonical_fold_count() -> None:
+    report = assess_phase20_t12_oos_utility(
+        qualification_rows=(),
+        readiness=_empty_readiness(),
+        shadow_decisions=(),
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="report requires frozen fold count",
+    ):
+        replace(
+            report,
+            fold_treatment_net_delta_usd=(Decimal("0"), Decimal("0")),
+            fold_control_net_delta_usd=(Decimal("0"), Decimal("0")),
+            fold_incremental_net_delta_usd=(Decimal("0"), Decimal("0")),
         )

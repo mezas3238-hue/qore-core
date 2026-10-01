@@ -244,3 +244,21 @@ def test_t13_utility_rejects_baseline_selection_binding_drift() -> None:
             readiness=_readiness(),
             treatment_decisions=_treatments(),
         )
+
+
+def test_t13_report_rejects_noncanonical_fold_count() -> None:
+    report = assess_phase20_t13_oos_utility(
+        qualification_rows=_rows(),
+        readiness=_readiness(),
+        treatment_decisions=_treatments(),
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="report requires frozen fold count",
+    ):
+        replace(
+            report,
+            fold_baseline_net_delta_usd=(Decimal("1"), Decimal("1")),
+            fold_treatment_net_delta_usd=(Decimal("1"), Decimal("1")),
+        )

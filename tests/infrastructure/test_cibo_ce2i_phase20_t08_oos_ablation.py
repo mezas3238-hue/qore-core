@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -153,3 +154,26 @@ def test_oos_ablation_rejects_duplicate_epoch_identity() -> None:
         match="epoch ids must be unique",
     ):
         assess_t08_fresh_oos_netting_ablation((epoch, epoch))
+
+
+def test_oos_ablation_rejects_noncanonical_fold_count() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="required_folds must be exactly four",
+    ):
+        assess_t08_fresh_oos_netting_ablation(
+            tuple(_epoch(index) for index in range(16)),
+            required_folds=2,
+        )
+
+
+def test_oos_report_rejects_noncanonical_direct_fold_count() -> None:
+    report = assess_t08_fresh_oos_netting_ablation(
+        tuple(_epoch(index) for index in range(32))
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="report requires exactly four temporal folds",
+    ):
+        replace(report, required_folds=2)

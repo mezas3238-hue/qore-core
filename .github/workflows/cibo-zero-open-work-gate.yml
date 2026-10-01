@@ -13,7 +13,6 @@ on:
   push:
     branches:
       - agent/cibo-capital-efficiency-sizing-lab-001
-      - agent/cibo-integrator-ab-001
     paths:
       - '.github/workflows/*cibo*.yml'
       - 'src/qore/infrastructure/cibo_*.py'

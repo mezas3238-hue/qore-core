@@ -5,7 +5,6 @@ on:
     branches:
       - agent/cibo-capital-efficiency-sizing-lab-001
       - agent/cibo-certification-architect-b-integration-001
-      - agent/cibo-integrator-ab-001
     paths:
       - '.github/workflows/cibo-ctrader-demo-provider-economics.yml'
       - 'src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py'
@@ -17,11 +16,13 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py'
       - 'src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py'
       - 'src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py'
       - 'src/qore/infrastructure/ctrader_open_api_client.py'
       - 'scripts/cibo_ctrader_demo_provider_economics_probe.py'
       - 'scripts/cibo_ctrader_demo_account_capability_probe.py'
       - 'scripts/cibo_phase20_provider_execution_calibration.py'
       - 'scripts/cibo_t17_limited_risk_capability_probe.py'
+      - 'scripts/cibo_t17_structural_disable_probe.py'
       - 'tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py'
       - 'tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py'
       - 'tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py'
@@ -30,8 +31,10 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py'
       - 'tests/infrastructure/test_cibo_ce2i_provider_execution_calibration.py'
       - 'tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t17_structural_disable.py'
       - 'tests/infrastructure/test_cibo_phase20_provider_execution_calibration_export.py'
       - 'tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py'
+      - 'tests/infrastructure/test_cibo_t17_structural_disable_probe.py'
       - 'docs/research/CIBO-B-PROVIDER-ECONOMICS-COMPONENT-FREEZE-V1.md'
   pull_request:
     paths:
@@ -45,11 +48,13 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py'
       - 'src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py'
       - 'src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py'
       - 'src/qore/infrastructure/ctrader_open_api_client.py'
       - 'scripts/cibo_ctrader_demo_provider_economics_probe.py'
       - 'scripts/cibo_ctrader_demo_account_capability_probe.py'
       - 'scripts/cibo_phase20_provider_execution_calibration.py'
       - 'scripts/cibo_t17_limited_risk_capability_probe.py'
+      - 'scripts/cibo_t17_structural_disable_probe.py'
       - 'tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py'
       - 'tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py'
       - 'tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py'
@@ -58,8 +63,10 @@ on:
       - 'tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py'
       - 'tests/infrastructure/test_cibo_ce2i_provider_execution_calibration.py'
       - 'tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t17_structural_disable.py'
       - 'tests/infrastructure/test_cibo_phase20_provider_execution_calibration_export.py'
       - 'tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py'
+      - 'tests/infrastructure/test_cibo_t17_structural_disable_probe.py'
       - 'docs/research/CIBO-B-PROVIDER-ECONOMICS-COMPONENT-FREEZE-V1.md'
   workflow_dispatch:
 
@@ -105,11 +112,13 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py \
             src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py \
             src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py \
+            src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py \
             src/qore/infrastructure/ctrader_open_api_client.py \
             scripts/cibo_ctrader_demo_provider_economics_probe.py \
             scripts/cibo_ctrader_demo_account_capability_probe.py \
             scripts/cibo_phase20_provider_execution_calibration.py \
             scripts/cibo_t17_limited_risk_capability_probe.py \
+            scripts/cibo_t17_structural_disable_probe.py \
             tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py \
             tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py \
             tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py \
@@ -118,8 +127,10 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py \
             tests/infrastructure/test_cibo_ce2i_provider_execution_calibration.py \
             tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py \
+            tests/infrastructure/test_cibo_ce2i_t17_structural_disable.py \
             tests/infrastructure/test_cibo_phase20_provider_execution_calibration_export.py \
-            tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py
+            tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py \
+            tests/infrastructure/test_cibo_t17_structural_disable_probe.py
           mypy \
             src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py \
             src/qore/infrastructure/cibo_ctrader_demo_account_capability.py \
@@ -130,6 +141,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py \
             src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py \
             src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py \
+            src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py \
             scripts/cibo_ctrader_demo_provider_economics_probe.py \
             scripts/cibo_ctrader_demo_account_capability_probe.py \
             scripts/cibo_phase20_provider_execution_calibration.py \
@@ -140,6 +152,7 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py \
             src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py \
             src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py \
+            src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py \
             scripts/cibo_ctrader_demo_account_capability_probe.py \
             scripts/cibo_phase20_provider_execution_calibration.py \
             scripts/cibo_t17_limited_risk_capability_probe.py
@@ -152,8 +165,10 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py \
             tests/infrastructure/test_cibo_ce2i_provider_execution_calibration.py \
             tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py \
+            tests/infrastructure/test_cibo_ce2i_t17_structural_disable.py \
             tests/infrastructure/test_cibo_phase20_provider_execution_calibration_export.py \
-            tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py
+            tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py \
+            tests/infrastructure/test_cibo_t17_structural_disable_probe.py
 
       - name: Verify DEMO credentials without printing them
         shell: bash
@@ -189,6 +204,11 @@ jobs:
             --provider provider-economics/provider-economics.json \
             --output provider-economics/t17-limited-risk-capability.json \
             > provider-economics/t17-limited-risk-capability.stdout.json
+          python scripts/cibo_t17_structural_disable_probe.py \
+            --account provider-economics/account-capability.json \
+            --limited-risk provider-economics/t17-limited-risk-capability.json \
+            --output provider-economics/t17-structural-disable.json \
+            > provider-economics/t17-structural-disable.stdout.json
 
       - name: Enforce no-mutation/no-history governance
         run: |
@@ -260,6 +280,31 @@ jobs:
           assert t17["fresh_oos_utility_demonstrated"] is False
           assert t17["t17_policy_ready"] is False
           assert t17["productive_authority"] is False
+
+          structural = json.loads(
+              Path(
+                  "provider-economics/t17-structural-disable.json"
+              ).read_text()
+          )
+          assert structural["schema"] == (
+              "qore.cibo.t17.structural_disable.v1"
+          )
+          assert structural["provider_key"] == "ctrader-demo"
+          assert structural["environment"] == "demo"
+          assert structural["account_fingerprint_sha256"] == (
+              capability["account_fingerprint_sha256"]
+          )
+          assert isinstance(
+              structural["structurally_disabled_for_current_account"],
+              bool,
+          )
+          assert structural["broker_mutation_performed"] is False
+          assert structural["holdout_outcomes_used"] is False
+          assert structural["productive_authority"] is False
+          if structural["structurally_disabled_for_current_account"]:
+              assert structural["blockers"] == []
+          else:
+              assert structural["blockers"]
           PY
 
       - name: Seal provider economics evidence
@@ -273,6 +318,8 @@ jobs:
             account-capability.stdout.json \
             t17-limited-risk-capability.json \
             t17-limited-risk-capability.stdout.json \
+            t17-structural-disable.json \
+            t17-structural-disable.stdout.json \
             git-sha.txt > SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
 

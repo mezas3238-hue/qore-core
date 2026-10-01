@@ -21,6 +21,8 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 
+T08_OOS_ABLATION_CONTRACT_ID = "CIBO_T08_FRESH_OOS_NETTING_ABLATION_V1"
+
 _MAX_NETTING_CREDIT_FRACTION = Decimal("0.50")
 
 
@@ -223,9 +225,9 @@ class T08NettingOosAblationReport:
                 raise CiboCapitalManagementError(
                     f"T08 OOS report {name} invalid"
                 )
-        if self.minimum_epochs < 2 or self.required_folds < 2:
+        if self.minimum_epochs < 2 or self.required_folds != 4:
             raise CiboCapitalManagementError(
-                "T08 OOS report frozen thresholds invalid"
+                "T08 OOS report requires exactly four temporal folds"
             )
         for name in (
             "baseline_total_pnl_usd",
@@ -263,9 +265,9 @@ def assess_t08_fresh_oos_netting_ablation(
         raise CiboCapitalManagementError(
             "T08 OOS minimum_epochs must be at least two"
         )
-    if required_folds < 2:
+    if required_folds != 4:
         raise CiboCapitalManagementError(
-            "T08 OOS required_folds must be at least two"
+            "T08 OOS required_folds must be exactly four"
         )
     if not epochs:
         return _empty_report(

@@ -13,7 +13,6 @@ on:
   push:
     branches:
       - agent/cibo-certification-architect-a-science-001
-      - agent/cibo-integrator-ab-001
     paths:
       - '.github/workflows/cibo-t13-drawdown-reserve-oos-utility.yml'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t13_oos_utility.py'

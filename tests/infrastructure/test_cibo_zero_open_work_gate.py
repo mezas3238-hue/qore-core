@@ -811,3 +811,76 @@ def test_integrator_classifies_source_of_truth_reconciliation_surface() -> None:
         ),
     }
     assert orphans == ()
+
+
+def test_shared_ce2i_economic_gates_are_not_orphans() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_ce2i_t04_t10_economic_gate.py",
+        "tests/infrastructure/test_cibo_ce2i_t04_t10_economic_gate.py",
+        "src/qore/infrastructure/cibo_ce2i_temporal_utility_replication.py",
+        "tests/infrastructure/test_cibo_ce2i_temporal_utility_replication.py",
+        "src/qore/infrastructure/cibo_t09_t18_scarcity_safety_gate.py",
+        "tests/infrastructure/test_cibo_t09_t18_scarcity_safety_gate.py",
+    )
+
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=frozenset(
+            {"CE2I_CROSS_TOOL_INFRASTRUCTURE", "ORPHAN_INVENTORY"}
+        ),
+    )
+
+    assert orphans == ()
+    assert set(assignments) == {
+        (path, "CE2I_CROSS_TOOL_INFRASTRUCTURE") for path in inventory
+    }
+
+
+def test_b_surface_classifiers_are_not_orphans() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_ce2i_t03_equivalent_expression.py",
+        "src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py",
+        "src/qore/infrastructure/cibo_ce2i_t11_policy_input_readiness.py",
+        "src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py",
+        "src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py",
+        "src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py",
+        "scripts/cibo_t17_limited_risk_capability_probe.py",
+        "scripts/cibo_t17_structural_disable_probe.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
+        "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py",
+        "src/qore/infrastructure/cibo_usd60_exam_readiness.py",
+    )
+    ledger_ids = frozenset(
+        {
+            "T03",
+            "T11",
+            "T16",
+            "T17",
+            "PROVIDER_ECONOMICS",
+            "INTEGRATED_CAPITAL_TRUTH",
+            "USD60_CAPABILITY_PROGRAM",
+            "ORPHAN_INVENTORY",
+        }
+    )
+
+    assignments, orphan_candidates = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    assert dict(assignments) == {
+        inventory[0]: "T03",
+        inventory[1]: "T11",
+        inventory[2]: "T11",
+        inventory[3]: "T16",
+        inventory[4]: "T17",
+        inventory[5]: "T17",
+        inventory[6]: "T17",
+        inventory[7]: "T17",
+        inventory[8]: "PROVIDER_ECONOMICS",
+        inventory[9]: "PROVIDER_ECONOMICS",
+        inventory[10]: "INTEGRATED_CAPITAL_TRUTH",
+        inventory[11]: "USD60_CAPABILITY_PROGRAM",
+    }
+    assert orphan_candidates == ()

@@ -10,6 +10,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_policy.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_store.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility_ready.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility.py'
 
 permissions:
   contents: read
@@ -32,10 +33,12 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_utility.py \
-            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility_ready.py
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility_ready.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility.py
           mypy \
             src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_utility.py
           python -m py_compile \
             src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_utility.py
           pytest -q --no-cov \
-            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility_ready.py
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility_ready.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility.py

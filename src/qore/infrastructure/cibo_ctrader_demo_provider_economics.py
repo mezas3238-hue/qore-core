@@ -329,6 +329,7 @@ def collect_ctrader_demo_provider_economics(
                 "minCommissionAsset",
             ),
         )
+        gsl_supported, gsl_distance, gsl_charge_raw = _gsl_terms(detail)
         rows.append(
             CTraderProviderEconomicsSymbolEvidence(
                 qore_symbol=contract.qore_symbol,
@@ -346,18 +347,9 @@ def collect_ctrader_demo_provider_economics(
                 expected_margin=margin_quotes,
                 margin_native_ready=margin_ready,
                 spread_native_ready=ask >= bid > 0,
-                guaranteed_stop_loss=_optional_present_bool(
-                    detail,
-                    "guaranteedStopLoss",
-                ),
-                gsl_distance=_optional_present_nonnegative_int(
-                    detail,
-                    "gslDistance",
-                ),
-                gsl_charge_raw=_optional_present_nonnegative_int(
-                    detail,
-                    "gslCharge",
-                ),
+                guaranteed_stop_loss=gsl_supported,
+                gsl_distance=gsl_distance,
+                gsl_charge_raw=gsl_charge_raw,
             )
         )
 
@@ -449,6 +441,19 @@ def _field_present(message: object, name: str) -> bool:
         except (TypeError, ValueError):
             return False
     return False
+
+
+def _gsl_terms(
+    message: object,
+) -> tuple[bool | None, int | None, int | None]:
+    supported = _optional_present_bool(message, "guaranteedStopLoss")
+    if supported is not True:
+        return supported, None, None
+    return (
+        supported,
+        _optional_present_nonnegative_int(message, "gslDistance"),
+        _optional_present_nonnegative_int(message, "gslCharge"),
+    )
 
 
 def _optional_present_bool(message: object, name: str) -> bool | None:

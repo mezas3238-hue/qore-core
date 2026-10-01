@@ -69,3 +69,63 @@ The following remain independent mandatory blockers:
 
 No fixture, linear-cost readiness result, or current provider observation may
 be relabeled as a terminal T11 policy proof.
+
+
+## T03 equivalent-expression comparison contract
+
+Architect B now includes a fail-closed pairwise comparison surface:
+
+- `cibo_ce2i_t03_equivalent_expression.py`;
+- `test_cibo_ce2i_t03_equivalent_expression.py`;
+- `QORE CIBO B Provider Forward Tool Readiness`.
+
+The comparison accepts only predecision, provider-verified expressions bound to
+the same provider/account scope. Economic equivalence is not inferred from
+symbol names, contract classes, lower margin, leverage, or taxonomy. Both
+expressions must carry the exact same normalized exposure vector.
+
+A candidate can become only `mechanically_eligible=true` when normalized
+exposure is identical, provider/account scope matches, provider and execution
+evidence are explicit, margin is lower, stop-risk does not increase and
+stressed economic loss does not increase.
+
+The audit records margin savings, risk deltas and execution-cost delta but
+hard-codes `fresh_oos_utility_demonstrated=false`,
+`t03_policy_ready=false` and `productive_authority=false`.
+
+This closes the missing T03 comparison infrastructure, not the empirical T03
+gate. Real provider-bound equivalent candidates and fresh OOS economic utility
+remain mandatory.
+
+
+## T11 unresolved-input provenance gate
+
+The execution-efficient cap already consumes gross edge and nonlinear market
+impact, but neither input may be populated from the linear execution-cost
+bridge. Architect B therefore adds
+`cibo_ce2i_t11_policy_input_readiness.py`.
+
+The gate requires independent per-symbol evidence:
+
+- gross-edge evidence must be calibrated, fresh-OOS validated and temporally
+  stable with explicit model/calibration artifact hashes;
+- market-impact evidence must be provider-bound, empirically calibrated,
+  fresh-OOS validated and observed across multiple volume levels;
+- target-aware, holdout-consuming or authority-bearing impact evidence is
+  rejected at the contract boundary;
+- all evidence must predate the freeze.
+
+The gate can report `t11_policy_inputs_ready=true` only when linear costs,
+gross edge and market impact all have complete symbol coverage. It still
+hard-codes historical-2017 execution terms to false and grants no productive
+authority. Thus it makes T11's missing inputs machine-readable without
+inventing either model.
+
+
+### T03 anti-selection preregistration
+
+Equivalent-expression candidates must be declared before either provider
+observation used in the comparison. The declaration binds provider/account,
+target expression, candidate expression and normalized-factor schema. A pair
+chosen after observing margin, risk or execution economics is rejected rather
+than treated as causal T03 evidence.

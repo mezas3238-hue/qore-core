@@ -78,6 +78,16 @@ _COMMENT_MARKERS = (
 )
 
 _WORKSTREAM_CLASSIFIERS = (
+    ("*cibo_ce2i_temporal_utility_replication*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
+    ("*cibo_ce2i_oos_stress_admission*", "ADVERSARIAL_STRESS"),
+    ("*cibo_arch_a_mechanism_stress_gate*", "ADVERSARIAL_STRESS"),
+    ("*cibo_genc_strict_temporal_replication*", "TEMPORAL_REPLICATION"),
+    ("*cibo_protected_base_temporal_replication*", "PROTECTED_BASE_CAPITAL"),
+    ("*cibo_ce2i_t03_equivalent_expression*", "T03"),
+    ("*cibo_ce2i_t11_policy_input_readiness*", "T11"),
+    ("*cibo_ce2i_t16_hedge_candidate*", "T16"),
+    ("*cibo_ce2i_t17_structural_disable*", "T17"),
+    ("*cibo_t17_structural_disable_probe*", "T17"),
     ("*cibo_ce2i_calibration_freeze_manifest*", "FORWARD_QUALIFICATION"),
     ("*cibo_receipt_bound_calibration_freeze*", "FORWARD_QUALIFICATION"),
     ("*calibration-freeze-manifest*", "FORWARD_QUALIFICATION"),
