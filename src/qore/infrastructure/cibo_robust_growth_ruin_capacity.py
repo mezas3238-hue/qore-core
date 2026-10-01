@@ -222,6 +222,10 @@ class Genc9PathEvidence:
             raise CiboCompoundCapitalError(
                 "GEN-C9 minimum capital is inconsistent"
             )
+        if self.max_drawdown < self.initial_capital - self.minimum_capital:
+            raise CiboCompoundCapitalError(
+                "GEN-C9 max drawdown is inconsistent with minimum capital"
+            )
         if self.ruin_boundary > self.initial_capital:
             raise CiboCompoundCapitalError(
                 "GEN-C9 ruin boundary exceeds initial capital"
