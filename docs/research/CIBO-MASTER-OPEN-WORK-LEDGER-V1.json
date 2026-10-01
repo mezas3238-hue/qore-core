@@ -17,13 +17,21 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_BURNED_CALIBRATION_ONLY_FORWARD_PROOF_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "src/qore/infrastructure/cibo_ce2i_burned_t01_calibration.py",
+        "tests/infrastructure/test_cibo_ce2i_burned_t01_calibration.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_demo_capital_bootstrap.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_demo_capital_bootstrap.py",
+        "docs/research/CIBO-CE2I-T01-T11-REGISTRY-RECONCILIATION-V1.md"
       ],
-      "blockers": [],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "blockers": [
+        "FRESH_FORWARD_PROVIDER_BOUND_MINIMAL_SEED_EVIDENCE_REQUIRED",
+        "OOS_MINIMAL_SEED_CAPITAL_EFFICIENCY_NOT_YET_PROVEN"
+      ],
+      "next_gate": "Bind T01 to the frozen Phase20D forward provider-valid population and observed executions; prove minimum executable seed behavior across canonical lineages without outcome tuning, then require fresh OOS capital-efficiency/safety evidence before terminal disposition."
     },
     {
       "id": "T02",
@@ -265,13 +273,22 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILED_FORWARD_EXECUTION_ECONOMICS_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t11_execution_population.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_t11_execution_population.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t11_cost_binding.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_t11_cost_binding.py",
+        "docs/research/CIBO-CE2I-T01-T11-REGISTRY-RECONCILIATION-V1.md"
       ],
-      "blockers": [],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "blockers": [
+        "REALIZED_COMMISSION_AND_SPREAD_ECONOMICS_NOT_BOUND",
+        "REALIZED_SPREAD_COMPONENT_NOT_SEPARATELY_IDENTIFIED",
+        "T11_EXECUTION_EFFICIENCY_POLICY_NOT_IDENTIFIED"
+      ],
+      "next_gate": "Use only fresh FORWARD_OBSERVED executed-risk/CMA/provider evidence to bind realized commission, quoted and realized spread, slippage and latency; identify a preregistered execution-efficient exposure policy and prove fresh OOS non-compensatory value before terminal disposition."
     },
     {
       "id": "T12",
