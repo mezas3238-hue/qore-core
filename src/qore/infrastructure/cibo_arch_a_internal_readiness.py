@@ -9,11 +9,25 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
+from decimal import Decimal
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
+    FROZEN_PHASE20_POLICY_CANDIDATE,
+)
+from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
+    FROZEN_PHASE20D_QUALIFICATION_PLAN,
+    phase20d_qualification_plan_sha256,
+)
+
 LEDGER_PATH = Path("docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json")
 SCHEMA = "QORE_CIBO_ARCH_A_INTERNAL_READINESS_V1"
+SCIENTIFIC_INTAKE_SCHEMA = "QORE_CIBO_ARCH_A_SCIENTIFIC_INTAKE_V1"
+ARCH_B_FORWARD_MANIFEST_ID = (
+    "CIBO_ARCH_B_FORWARD_ECONOMIC_EVIDENCE_MANIFEST_V1"
+)
 
 A_WORKSTREAM_IDS = (
     "T04", "T05", "T06", "T07", "T08", "T09", "T10", "T12", "T13",
@@ -133,3 +147,368 @@ def evaluate_architect_a_internal_readiness(
         missing_workstream_ids=missing,
         evidence_missing_ids=tuple(evidence_missing),
     )
+
+@dataclass(frozen=True, slots=True)
+class ArchitectAScientificIntakeReport:
+    schema: str
+    manifest_sha256: str
+    qualification_status: str
+    decision_epochs: int
+    candidate_rows: int
+    complete_lineage_rows: int
+    complete_lineage_coverage: str
+    fold_ids: tuple[str, ...]
+    trader_lineage_count: int
+    selected_rows: int
+    blocking_gap_count: int
+    ready_for_batch_science: bool
+    blockers: tuple[str, ...]
+    scientific_closure_claimed: bool = False
+    integration_authority: bool = False
+    production_authority: bool = False
+
+    def __post_init__(self) -> None:
+        if self.schema != SCIENTIFIC_INTAKE_SCHEMA:
+            raise ArchitectAReadinessError(
+                "Architect A scientific intake schema drift"
+            )
+        _require_sha(self.manifest_sha256, "manifest_sha256")
+        for name in (
+            "decision_epochs",
+            "candidate_rows",
+            "complete_lineage_rows",
+            "trader_lineage_count",
+            "selected_rows",
+            "blocking_gap_count",
+        ):
+            value = getattr(self, name)
+            if type(value) is not int or value < 0:
+                raise ArchitectAReadinessError(
+                    f"Architect A scientific intake {name} must be non-negative int"
+                )
+        if type(self.ready_for_batch_science) is not bool:
+            raise ArchitectAReadinessError(
+                "Architect A scientific intake readiness must be bool"
+            )
+        if (
+            not isinstance(self.blockers, tuple)
+            or any(not isinstance(item, str) or not item for item in self.blockers)
+            or len(self.blockers) != len(set(self.blockers))
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A scientific intake blockers are invalid"
+            )
+        if self.ready_for_batch_science != (not self.blockers):
+            raise ArchitectAReadinessError(
+                "Architect A scientific intake readiness/blocker drift"
+            )
+        if (
+            self.scientific_closure_claimed
+            or self.integration_authority
+            or self.production_authority
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A scientific intake cannot claim closure/authority"
+            )
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+def evaluate_architect_a_scientific_intake(
+    payload: dict[str, Any],
+) -> ArchitectAScientificIntakeReport:
+    """Validate Architect-B forward manifest before launching A science.
+
+    This is an intake gate only. It never interprets the population as proof,
+    never changes the frozen policy and never grants certification or runtime
+    authority.
+    """
+
+    if not isinstance(payload, dict):
+        raise ArchitectAReadinessError(
+            "Architect B forward manifest payload must be object"
+        )
+
+    manifest_sha256 = _require_sha(
+        payload.get("manifest_sha256"),
+        "manifest_sha256",
+    )
+    unsigned = dict(payload)
+    unsigned.pop("manifest_sha256", None)
+    if manifest_sha256 != forward_manifest_payload_sha256(unsigned):
+        raise ArchitectAReadinessError(
+            "Architect B forward manifest digest drift"
+        )
+
+    if payload.get("manifest_id") != ARCH_B_FORWARD_MANIFEST_ID:
+        raise ArchitectAReadinessError(
+            "Architect B forward manifest identity drift"
+        )
+
+    frozen = FROZEN_PHASE20_POLICY_CANDIDATE
+    plan = FROZEN_PHASE20D_QUALIFICATION_PLAN
+    if (
+        payload.get("frozen_candidate_id") != frozen.candidate_id
+        or payload.get("frozen_code_sha") != frozen.code_sha
+        or payload.get("frozen_parameter_sha256") != frozen.parameter_sha256()
+    ):
+        raise ArchitectAReadinessError(
+            "Architect B frozen Phase20 lineage drift"
+        )
+    if (
+        payload.get("qualification_plan_id") != plan.plan_id
+        or payload.get("qualification_plan_sha256")
+        != phase20d_qualification_plan_sha256()
+        or payload.get("baseline_policy_id") != plan.baseline_policy_id
+    ):
+        raise ArchitectAReadinessError(
+            "Architect B qualification-plan lineage drift"
+        )
+
+    decision_epochs = _require_nonnegative_int(
+        payload.get("decision_epochs"),
+        "decision_epochs",
+    )
+    candidate_rows = _require_nonnegative_int(
+        payload.get("candidate_rows"),
+        "candidate_rows",
+    )
+    complete_lineage_rows = _require_nonnegative_int(
+        payload.get("complete_lineage_rows"),
+        "complete_lineage_rows",
+    )
+    rows = _require_list(payload.get("rows"), "rows")
+    gaps = _require_list(payload.get("gaps"), "gaps")
+    if complete_lineage_rows != len(rows):
+        raise ArchitectAReadinessError(
+            "Architect B complete-lineage count drift"
+        )
+    if complete_lineage_rows + len(gaps) != candidate_rows:
+        raise ArchitectAReadinessError(
+            "Architect B complete/gap coverage drift"
+        )
+
+    fold_ids: set[str] = set()
+    lineage_counts: dict[str, int] = {}
+    selected_rows = 0
+    row_keys: set[tuple[str, str]] = set()
+    for raw_row in rows:
+        if not isinstance(raw_row, dict):
+            raise ArchitectAReadinessError(
+                "Architect B forward manifest row must be object"
+            )
+        decision_sha = _require_sha(
+            raw_row.get("decision_evidence_sha256"),
+            "decision_evidence_sha256",
+        )
+        signal = _require_nonempty_str(
+            raw_row.get("signal_fingerprint"),
+            "signal_fingerprint",
+        )
+        key = (decision_sha, signal)
+        if key in row_keys:
+            raise ArchitectAReadinessError(
+                "Architect B forward manifest duplicate row identity"
+            )
+        row_keys.add(key)
+
+        fold_id = _require_nonempty_str(raw_row.get("fold_id"), "fold_id")
+        if fold_id not in {"WF1", "WF2", "WF3", "WF4"}:
+            raise ArchitectAReadinessError(
+                "Architect B forward manifest fold identity is invalid"
+            )
+        fold_ids.add(fold_id)
+
+        trader_id = _require_nonempty_str(
+            raw_row.get("trader_id"),
+            "trader_id",
+        )
+        lineage_counts[trader_id] = lineage_counts.get(trader_id, 0) + 1
+
+        if raw_row.get("candidate_id") != frozen.candidate_id:
+            raise ArchitectAReadinessError(
+                "Architect B row candidate identity drift"
+            )
+        if raw_row.get("code_sha") != frozen.code_sha:
+            raise ArchitectAReadinessError(
+                "Architect B row code lineage drift"
+            )
+        if raw_row.get("parameter_sha256") != frozen.parameter_sha256():
+            raise ArchitectAReadinessError(
+                "Architect B row parameter lineage drift"
+            )
+        if raw_row.get("baseline_policy_id") != plan.baseline_policy_id:
+            raise ArchitectAReadinessError(
+                "Architect B row baseline lineage drift"
+            )
+        for name in (
+            "provider_economics_sha256",
+            "executed_risk_sha256",
+            "settlement_sha256",
+            "release_evidence_sha256",
+        ):
+            _require_sha(raw_row.get(name), name)
+        policy_selected = raw_row.get("policy_selected")
+        if type(policy_selected) is not bool:
+            raise ArchitectAReadinessError(
+                "Architect B row policy_selected must be bool"
+            )
+        selected_rows += int(policy_selected)
+
+    gap_keys: set[tuple[str, str]] = set()
+    blocking_gap_count = 0
+    for raw_gap in gaps:
+        if not isinstance(raw_gap, dict):
+            raise ArchitectAReadinessError(
+                "Architect B forward manifest gap must be object"
+            )
+        decision_sha = _require_sha(
+            raw_gap.get("decision_evidence_sha256"),
+            "gap decision_evidence_sha256",
+        )
+        signal = _require_nonempty_str(
+            raw_gap.get("signal_fingerprint"),
+            "gap signal_fingerprint",
+        )
+        key = (decision_sha, signal)
+        if key in gap_keys:
+            raise ArchitectAReadinessError(
+                "Architect B forward manifest duplicate gap identity"
+            )
+        gap_keys.add(key)
+        blocking = raw_gap.get("blocking")
+        if type(blocking) is not bool:
+            raise ArchitectAReadinessError(
+                "Architect B forward manifest gap blocking must be bool"
+            )
+        reasons = raw_gap.get("reasons")
+        if (
+            not isinstance(reasons, list)
+            or not reasons
+            or any(not isinstance(item, str) or not item for item in reasons)
+        ):
+            raise ArchitectAReadinessError(
+                "Architect B forward manifest gap reasons are invalid"
+            )
+        blocking_gap_count += int(blocking)
+
+    qualification_status = _require_nonempty_str(
+        payload.get("qualification_status"),
+        "qualification_status",
+    )
+    ready_from_b = payload.get("ready_for_scientific_consumption")
+    if type(ready_from_b) is not bool:
+        raise ArchitectAReadinessError(
+            "Architect B scientific-consumption flag must be bool"
+        )
+    if payload.get("certification_ready") is not False:
+        raise ArchitectAReadinessError(
+            "Architect B manifest cannot claim certification"
+        )
+    if payload.get("productive_authority") is not False:
+        raise ArchitectAReadinessError(
+            "Architect B manifest cannot grant productive authority"
+        )
+
+    coverage = (
+        Decimal(complete_lineage_rows) / Decimal(candidate_rows)
+        if candidate_rows
+        else Decimal(0)
+    )
+    blockers: list[str] = []
+    if qualification_status not in {"PASS", "FAIL"}:
+        blockers.append("PHASE20D_EMPIRICAL_DISPOSITION_REQUIRED")
+    if decision_epochs < plan.minimum_decision_epochs:
+        blockers.append("DECISION_EPOCH_MINIMUM_NOT_MET")
+    if candidate_rows < plan.minimum_candidate_outcomes:
+        blockers.append("CANDIDATE_OUTCOME_MINIMUM_NOT_MET")
+    if complete_lineage_rows <= 0:
+        blockers.append("COMPLETE_LINEAGE_REQUIRED")
+    if blocking_gap_count:
+        blockers.append("BLOCKING_LINEAGE_GAPS_PRESENT")
+    if coverage < plan.minimum_candidate_outcome_coverage:
+        blockers.append("CANDIDATE_COVERAGE_MINIMUM_NOT_MET")
+    if fold_ids != {"WF1", "WF2", "WF3", "WF4"}:
+        blockers.append("WF1_WF4_COVERAGE_REQUIRED")
+    if len(lineage_counts) < plan.minimum_global_lineages:
+        blockers.append("GLOBAL_LINEAGE_MINIMUM_NOT_MET")
+    if any(
+        count < plan.minimum_outcomes_per_lineage
+        for count in lineage_counts.values()
+    ):
+        blockers.append("OUTCOMES_PER_LINEAGE_MINIMUM_NOT_MET")
+    if selected_rows < plan.minimum_selected_outcomes:
+        blockers.append("SELECTED_OUTCOME_MINIMUM_NOT_MET")
+    if not ready_from_b:
+        blockers.append("ARCH_B_NOT_READY_FOR_SCIENTIFIC_CONSUMPTION")
+
+    blockers = list(dict.fromkeys(blockers))
+    if ready_from_b and blockers:
+        raise ArchitectAReadinessError(
+            "Architect B scientific readiness contradicts manifest evidence"
+        )
+
+    return ArchitectAScientificIntakeReport(
+        schema=SCIENTIFIC_INTAKE_SCHEMA,
+        manifest_sha256=manifest_sha256,
+        qualification_status=qualification_status,
+        decision_epochs=decision_epochs,
+        candidate_rows=candidate_rows,
+        complete_lineage_rows=complete_lineage_rows,
+        complete_lineage_coverage=format(coverage, "f"),
+        fold_ids=tuple(sorted(fold_ids)),
+        trader_lineage_count=len(lineage_counts),
+        selected_rows=selected_rows,
+        blocking_gap_count=blocking_gap_count,
+        ready_for_batch_science=not blockers,
+        blockers=tuple(blockers),
+    )
+
+
+def forward_manifest_payload_sha256(payload: dict[str, Any]) -> str:
+    raw = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    return "sha256:" + sha256(raw).hexdigest()
+
+
+def _require_sha(value: object, name: str) -> str:
+    if (
+        not isinstance(value, str)
+        or not value.startswith("sha256:")
+        or len(value) != 71
+        or any(char not in "0123456789abcdef" for char in value[7:])
+    ):
+        raise ArchitectAReadinessError(
+            f"Architect A scientific intake {name} must be canonical SHA-256"
+        )
+    return value
+
+
+def _require_nonempty_str(value: object, name: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise ArchitectAReadinessError(
+            f"Architect A scientific intake {name} is required"
+        )
+    return value
+
+
+def _require_nonnegative_int(value: object, name: str) -> int:
+    if type(value) is not int or value < 0:
+        raise ArchitectAReadinessError(
+            f"Architect A scientific intake {name} must be non-negative int"
+        )
+    return value
+
+
+def _require_list(value: object, name: str) -> list[Any]:
+    if not isinstance(value, list):
+        raise ArchitectAReadinessError(
+            f"Architect A scientific intake {name} must be list"
+        )
+    return value
+
