@@ -244,10 +244,17 @@ def build_r8_empirical_cadence_diagnostic(
                 }
                 checkpoint_rows.append(row)
 
-            populated = sum(
-                int(row["unique_provider_event_count"]) > 0
-                for row in checkpoint_rows
-            )
+            populated = 0
+            for checkpoint_row in checkpoint_rows:
+                event_count = checkpoint_row.get(
+                    "unique_provider_event_count"
+                )
+                if type(event_count) is not int:
+                    raise SharedBR8CadenceDiagnosticError(
+                        "checkpoint provider-event count invalid"
+                    )
+                if event_count > 0:
+                    populated += 1
             p99_values: list[float] = []
             for checkpoint_row in checkpoint_rows:
                 p99_value = checkpoint_row["p99_ms"]
