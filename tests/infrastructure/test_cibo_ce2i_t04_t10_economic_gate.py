@@ -212,3 +212,19 @@ def test_future_outcome_use_is_illegal() -> None:
             ),
             future_outcome_used=True,
         )
+
+def test_verdict_rejects_manual_status_fold_drift() -> None:
+    report = evaluate_t04_t10_economic_gate(_batch(Ce2iT04T10Tool.T04))
+    verdict = next(
+        item for item in report.verdicts if item.candidate_id == "treatment"
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="status/fold drift",
+    ):
+        replace(
+            verdict,
+            status=Ce2iT04T10Status.REJECTED_NOT_STRICT_4_OF_4,
+        )
+

@@ -211,6 +211,92 @@ class Ce2iT04T10CandidateVerdict:
     winner_selected: bool = False
     production_promotion: bool = False
 
+    def __post_init__(self) -> None:
+        if type(self.tool) is not Ce2iT04T10Tool or not self.candidate_id:
+            raise CiboCompoundCapitalError(
+                "T04/T10 economic verdict identity is invalid"
+            )
+        if type(self.status) is not Ce2iT04T10Status:
+            raise CiboCompoundCapitalError(
+                "T04/T10 economic verdict status is invalid"
+            )
+        for values, label in (
+            (self.passed_fold_ids, "passed folds"),
+            (self.failed_fold_ids, "failed folds"),
+            (self.failed_dimensions, "failed dimensions"),
+        ):
+            if not isinstance(values, tuple) or any(
+                not isinstance(item, str) or not item for item in values
+            ):
+                raise CiboCompoundCapitalError(
+                    f"T04/T10 economic verdict {label} are invalid"
+                )
+            if len(values) != len(set(values)):
+                raise CiboCompoundCapitalError(
+                    f"T04/T10 economic verdict {label} must be unique"
+                )
+        passed = set(self.passed_fold_ids)
+        failed = set(self.failed_fold_ids)
+        canonical = set(_CANONICAL_FOLDS)
+        if (
+            not passed <= canonical
+            or not failed <= canonical
+            or passed & failed
+            or self.passed_fold_ids
+            != tuple(item for item in _CANONICAL_FOLDS if item in passed)
+            or self.failed_fold_ids
+            != tuple(item for item in _CANONICAL_FOLDS if item in failed)
+        ):
+            raise CiboCompoundCapitalError(
+                "T04/T10 economic verdict fold identity drift"
+            )
+        for name in ("winner_selected", "production_promotion"):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"T04/T10 economic verdict {name} must be bool"
+                )
+        if self.winner_selected or self.production_promotion:
+            raise CiboCompoundCapitalError(
+                "T04/T10 economic verdict cannot select/promote"
+            )
+        if self.status is Ce2iT04T10Status.CONTROL:
+            if (
+                self.passed_fold_ids != _CANONICAL_FOLDS
+                or self.failed_fold_ids
+                or self.failed_dimensions
+            ):
+                raise CiboCompoundCapitalError(
+                    "T04/T10 CONTROL verdict fold drift"
+                )
+            return
+        if passed | failed != canonical:
+            raise CiboCompoundCapitalError(
+                "T04/T10 treatment verdict requires WF1..WF4 disposition"
+            )
+        for dimension in self.failed_dimensions:
+            fold_id, separator, _name = dimension.partition(":")
+            if not separator or fold_id not in failed:
+                raise CiboCompoundCapitalError(
+                    "T04/T10 failed dimension/fold drift"
+                )
+        safety_failed = any(
+            not item.endswith(":NO_STRICT_IMPROVEMENT")
+            for item in self.failed_dimensions
+        )
+        expected_status = (
+            Ce2iT04T10Status.REJECTED_SAFETY_DETERIORATION
+            if safety_failed
+            else (
+                Ce2iT04T10Status.REJECTED_NOT_STRICT_4_OF_4
+                if self.passed_fold_ids != _CANONICAL_FOLDS
+                else Ce2iT04T10Status.ELIGIBLE_FOR_FURTHER_RESEARCH
+            )
+        )
+        if self.status is not expected_status:
+            raise CiboCompoundCapitalError(
+                "T04/T10 economic verdict status/fold drift"
+            )
+
 
 @dataclass(frozen=True, slots=True)
 class Ce2iT04T10EconomicGateReport:
@@ -236,11 +322,28 @@ class Ce2iT04T10EconomicGateReport:
             raise CiboCompoundCapitalError(
                 "T04/T10 economic gate freeze drift"
             )
+        if not isinstance(self.verdicts, tuple) or not self.verdicts or any(
+            not isinstance(item, Ce2iT04T10CandidateVerdict)
+            for item in self.verdicts
+        ):
+            raise CiboCompoundCapitalError(
+                "T04/T10 economic gate requires canonical verdicts"
+            )
         keys = tuple((item.tool, item.candidate_id) for item in self.verdicts)
         if len(keys) != len(set(keys)):
             raise CiboCompoundCapitalError(
                 "T04/T10 economic verdict identities must be unique"
             )
+        for tool in {item.tool for item in self.verdicts}:
+            controls = tuple(
+                item
+                for item in self.verdicts
+                if item.tool is tool and item.status is Ce2iT04T10Status.CONTROL
+            )
+            if len(controls) != 1:
+                raise CiboCompoundCapitalError(
+                    "T04/T10 economic gate requires one control verdict per tool"
+                )
         if (
             self.weighted_score_used
             or self.winner_selected
