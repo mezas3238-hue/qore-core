@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -219,3 +220,19 @@ def test_genc13_report_requires_post_outcome_counterfactuals() -> None:
             generated_at=T0 + timedelta(minutes=33),
             hypothesis_worth_preregistering=False,
         )
+
+def test_genc13_episode_rejects_non_bool_provenance_flag() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="decision_frozen_before_outcome must be bool",
+    ):
+        replace(_episode(), decision_frozen_before_outcome=1)
+
+
+def test_genc13_report_rejects_non_bool_governance_flag() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="automatic_promotion must be bool",
+    ):
+        replace(_report(), automatic_promotion=1)
+
