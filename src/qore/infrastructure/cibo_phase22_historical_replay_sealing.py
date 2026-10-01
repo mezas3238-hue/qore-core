@@ -291,6 +291,7 @@ def seal_phase22_historical_replay_epoch(
 
     policy_payload = {
         "schema": "qore.cibo.phase22.historical-replay-policy.v1",
+        "evidence_sha256": evidence_sha,
         **_canonical(policy_record),
         "source_lineage": source_lineage,
         "provider_model_sha256": provider_model,
