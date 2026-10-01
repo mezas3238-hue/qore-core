@@ -121,6 +121,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_a1_strict_temporal_population_lineage*", "TEMPORAL_REPLICATION"),
     ("*cibo_a1_scientific_disposition*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
     ("*cibo_a1_phase22_scientific_consumption*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
+    ("*cibo_a1_genc3_genc7_phase22_binding*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
     ("*cibo_ce2i_oos_stress_admission*", "ADVERSARIAL_STRESS"),
     ("*cibo_t09_t18_scarcity_safety_gate*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
     ("*cibo_t14_t15_utility_gate*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
