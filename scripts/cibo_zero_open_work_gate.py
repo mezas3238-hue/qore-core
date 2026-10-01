@@ -253,6 +253,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*compound_capital*", "COMPOUND_ENGINE"),
     ("*t20_capital_release*", "T20"),
     ("*cibo_t08_factor_correlation_lineage*", "T08"),
+    ("*cibo_a1_t08_phase22_oos_binding*", "T08"),
     ("*phase20_t08*", "T08"),
     ("*phase20_t09_t18*", "T09"),
     ("*phase20_t12*", "T12"),
