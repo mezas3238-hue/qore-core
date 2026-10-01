@@ -348,6 +348,7 @@ class Genc14ScienceRecord:
             "candidate_policy_sha256": (
                 self.hypothesis.candidate_policy_sha256
             ),
+            "protected_holdout_ref": self.hypothesis.protected_holdout_ref,
             "current_control_policy_sha256": (
                 self.current_control_policy_sha256
             ),
