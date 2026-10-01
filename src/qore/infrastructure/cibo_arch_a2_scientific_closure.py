@@ -20,6 +20,7 @@ from qore.infrastructure.cibo_arch_a_internal_readiness import (
     ArchitectAPhase22V2WorkstreamEvidenceMatrix,
     ArchitectAPhase22V2WorkstreamEvidenceState,
     ArchitectAReadinessError,
+    evaluate_architect_a_phase22_v2_scientific_outcome,
 )
 
 A2_WORKSTREAM_IDS = (
@@ -377,6 +378,66 @@ class ArchitectA2ScientificClosurePacket:
 
     def fingerprint(self) -> str:
         return _canonical_sha(self.as_dict())
+
+
+def evaluate_architect_a2_scientific_outcomes(
+    *,
+    matrix: ArchitectAPhase22V2WorkstreamEvidenceMatrix,
+    payloads: tuple[dict[str, object], ...],
+) -> tuple[ArchitectAPhase22V2ScientificDispositionReceipt, ...]:
+    """Evaluate evidence-ready A2 outcomes through the canonical A disposition law."""
+
+    if not isinstance(matrix, ArchitectAPhase22V2WorkstreamEvidenceMatrix):
+        raise ArchitectAReadinessError(
+            "Architect A2 outcome evaluation requires canonical evidence matrix"
+        )
+    if (
+        not isinstance(payloads, tuple)
+        or any(not isinstance(item, dict) for item in payloads)
+    ):
+        raise ArchitectAReadinessError(
+            "Architect A2 outcome payloads must be object tuple"
+        )
+
+    view = view_architect_a2_evidence_matrix(matrix)
+    ready = set(view.ready_ids)
+    by_id: dict[str, dict[str, object]] = {}
+    for payload in payloads:
+        raw_id = payload.get("workstream_id")
+        if not isinstance(raw_id, str) or not raw_id:
+            raise ArchitectAReadinessError(
+                "Architect A2 outcome workstream id required"
+            )
+        if raw_id in A1_RESERVED_WORKSTREAM_IDS:
+            raise ArchitectAReadinessError(
+                "Architect A2 cannot evaluate A1-owned workstream: " + raw_id
+            )
+        if raw_id not in A2_WORKSTREAM_IDS:
+            raise ArchitectAReadinessError(
+                "Architect A2 outcome outside owned workstream surface"
+            )
+        if raw_id not in ready:
+            raise ArchitectAReadinessError(
+                "Architect A2 outcome lacks frozen evidence readiness: " + raw_id
+            )
+        if raw_id in by_id:
+            raise ArchitectAReadinessError(
+                "Architect A2 duplicate scientific outcome payload"
+            )
+        by_id[raw_id] = payload
+
+    receipts: list[ArchitectAPhase22V2ScientificDispositionReceipt] = []
+    for workstream_id in A2_WORKSTREAM_IDS:
+        payload = by_id.get(workstream_id)
+        if payload is None:
+            continue
+        receipts.append(
+            evaluate_architect_a_phase22_v2_scientific_outcome(
+                payload,
+                matrix,
+            )
+        )
+    return tuple(receipts)
 
 
 def reconcile_architect_a2_scientific_dispositions(
