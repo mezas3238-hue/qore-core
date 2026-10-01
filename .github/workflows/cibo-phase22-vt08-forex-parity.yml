@@ -1,0 +1,239 @@
+name: QORE CIBO Phase22 VT08 FOREX Exact Parity
+
+on:
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+    paths:
+      - '.github/workflows/cibo-phase22-vt08-forex-parity.yml'
+      - 'src/qore/infrastructure/cibo_phase22_parity_lane_evidence.py'
+      - 'tests/infrastructure/test_cibo_phase22_parity_lane_evidence.py'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase22-vt08-forex-parity.yml'
+      - 'src/qore/infrastructure/cibo_phase22_parity_lane_evidence.py'
+      - 'tests/infrastructure/test_cibo_phase22_parity_lane_evidence.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  GH_TOKEN: ${{ github.token }}
+  VT08_SOURCE_SHA: '64bc2ab4809c39e4a2b2c72aa8c0e8ec1c709222'
+  VT08_RUN_ID: '34759027136'
+
+jobs:
+  parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+
+      - name: Checkout immutable VT08 R3.15 source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.VT08_SOURCE_SHA }}
+          path: vt08-code
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_phase22_parity_lane_evidence.py \
+            tests/infrastructure/test_cibo_phase22_parity_lane_evidence.py
+          mypy src/qore/infrastructure/cibo_phase22_parity_lane_evidence.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase22_parity_lane_evidence.py
+
+      - name: Verify immutable source
+        run: |
+          test "$(git -C vt08-code rev-parse HEAD)" = "$VT08_SOURCE_SHA"
+
+      - name: Recover seven immutable VT08 market artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p input regenerated official phase22-output
+          download() {
+            local symbol="$1"
+            local id="$2"
+            local digest="$3"
+            mkdir -p "input/${symbol}"
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}" \
+              > "input/${symbol}/metadata.json"
+            jq -e \
+              --argjson id "$id" \
+              --argjson run "$VT08_RUN_ID" \
+              --arg sha "$VT08_SOURCE_SHA" \
+              --arg digest "sha256:${digest}" \
+              '.id == $id and .expired == false and
+               .workflow_run.id == $run and
+               .workflow_run.head_sha == $sha and
+               .digest == $digest' "input/${symbol}/metadata.json"
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}/zip" \
+              > "input/${symbol}.zip"
+            echo "${digest}  input/${symbol}.zip" | sha256sum -c -
+            unzip -q "input/${symbol}.zip" -d "input/${symbol}/artifact"
+            test "$(tr -d '\r\n' < "input/${symbol}/artifact/git-sha.txt")" \
+              = "$VT08_SOURCE_SHA"
+          }
+          download AUDJPY 10318258071 ca9d9268b806f766441550ba8e7ba2edf6fc88b4e2933968ea9661f3478fa5ea
+          download AUDUSD 10317419979 f3c50abde4308c79df9f3dd392bad605125c821aceec53ad4888c3f07eea9242
+          download EURUSD 10317944717 407df5cdf14fad433572c6a15d75d13112a35b2492efb8240667c867505ad652
+          download GBPJPY 10317794998 82416f8a815fcb948581beb99c1bfef671bb74343df1ba9074230938b31dd762
+          download GBPUSD 10318835914 b213e91945601a88875cf72a9caf6b4c6858700c3ed458098fcb1a816a246044
+          download USDCAD 10318398127 ca9c81bff7e7559c6ace39499a4edd8a019937cf1c20fcb71aec5f05c5dae69e
+          download USDJPY 10319210071 e0e1b8c53b6716d0c8b14191f409dec9dd10dc107ff002df475e99d4f25d80af
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10318827002/zip" \
+            > official.zip
+          echo "73aad16176f2f5335b47fff6510f8f3ce586e2d0a291dd6056c4d3c9e57f9ae4  official.zip" \
+            | sha256sum -c -
+          unzip -q official.zip -d official
+
+      - name: Re-run all seven frozen VT08 backtests exactly
+        shell: bash
+        env:
+          PYTHONPATH: ${{ github.workspace }}/vt08-code/src
+        run: |
+          set -euo pipefail
+          for symbol in AUDJPY AUDUSD EURUSD GBPJPY GBPUSD USDCAD USDJPY; do
+            python -m qore.infrastructure.trader_lab.vt08_b01_backtest_r3_8 \
+              "input/${symbol}/artifact/market-evidence.json" \
+              > "regenerated/${symbol}.json"
+            python - "${symbol}" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          symbol = sys.argv[1]
+          regenerated = json.loads(Path(f"regenerated/{symbol}.json").read_text())
+          original = json.loads(
+              Path(f"input/{symbol}/artifact/b01-backtest.json").read_text()
+          )
+          assert regenerated == original, f"{symbol} exact replay parity drift"
+          PY
+          done
+
+      - name: Rebuild exact frozen R3.15 seven-market adjudication
+        shell: bash
+        env:
+          PYTHONPATH: ${{ github.workspace }}/vt08-code/src
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.vt08_final_holdout_r3_15 \
+            aggregate \
+            regenerated/AUDJPY.json \
+            regenerated/AUDUSD.json \
+            regenerated/EURUSD.json \
+            regenerated/GBPJPY.json \
+            regenerated/GBPUSD.json \
+            regenerated/USDCAD.json \
+            regenerated/USDJPY.json \
+            > regenerated/holdout-summary.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          regenerated = json.loads(
+              Path("regenerated/holdout-summary.json").read_text()
+          )
+          original = json.loads(Path("official/holdout-summary.json").read_text())
+          assert regenerated == original
+          assert regenerated["sample_size"] == 124
+          assert regenerated["portfolio"] == "B_COMBINED"
+          assert regenerated["methodology_mutation_after_holdout"] is False
+          PY
+
+      - name: Build Phase22 VT08 parity receipt
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          from qore.infrastructure.cibo_phase22_parity_lane_evidence import (
+              CiboPhase22ParityLaneEvidence,
+          )
+
+          root = Path("vt08-code")
+          paths = (
+              root / "src/qore/infrastructure/traders/vt08_b01_r3_8.py",
+              root / "src/qore/infrastructure/trader_lab/vt08_b01_backtest_r3_8.py",
+              root / "src/qore/infrastructure/trader_lab/vt08_final_holdout_r3_15.py",
+          )
+          h = hashlib.sha256()
+          for path in paths:
+              h.update(str(path.relative_to(root)).encode())
+              h.update(b"\0")
+              h.update(path.read_bytes())
+              h.update(b"\0")
+          holdout = json.loads(
+              Path("regenerated/holdout-summary.json").read_text()
+          )
+          method = str(holdout["methodology_fingerprint"])
+          evidence = CiboPhase22ParityLaneEvidence(
+              trader_id="VT08_FOREX",
+              frozen_source_git_sha="64bc2ab4809c39e4a2b2c72aa8c0e8ec1c709222",
+              methodology_sha256="sha256:" + method,
+              replay_engine_sha256="sha256:" + h.hexdigest(),
+              parameter_sha256="sha256:" + method,
+              authorized_markets=(
+                  "AUDJPY", "AUDUSD", "EURUSD", "GBPJPY",
+                  "GBPUSD", "USDCAD", "USDJPY",
+              ),
+              processed_markets=(
+                  "AUDJPY", "AUDUSD", "EURUSD", "GBPJPY",
+                  "GBPUSD", "USDCAD", "USDJPY",
+              ),
+              historical_artifact_refs=(
+                  "github-actions-artifact://10318258071",
+                  "github-actions-artifact://10317419979",
+                  "github-actions-artifact://10317944717",
+                  "github-actions-artifact://10317794998",
+                  "github-actions-artifact://10318835914",
+                  "github-actions-artifact://10318398127",
+                  "github-actions-artifact://10319210071",
+                  "github-actions-artifact://10318827002",
+              ),
+              expected_population=124,
+              observed_population=int(holdout["sample_size"]),
+              exact_historical_match=True,
+          )
+          payload = evidence.payload()
+          payload["portfolio"] = "B_COMBINED"
+          payload["seven_market_source_replay_exact"] = True
+          Path("phase22-output/phase22-vt08-parity.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n"
+          )
+          PY
+
+      - name: Seal VT08 parity evidence
+        run: |
+          printf '%s\n' "$EVIDENCE_SHA" > phase22-output/git-sha.txt
+          printf '%s\n' "$VT08_SOURCE_SHA" > phase22-output/frozen-source-sha.txt
+          cp regenerated/holdout-summary.json phase22-output/
+          cd phase22-output
+          sha256sum \
+            phase22-vt08-parity.json \
+            holdout-summary.json \
+            git-sha.txt \
+            frozen-source-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase22-vt08-parity-${{ env.EVIDENCE_SHA }}
+          path: phase22-output
+          if-no-files-found: error
+          retention-days: 90

@@ -26,14 +26,12 @@ from qore.infrastructure.cibo_ce2i_pre_holdout_freeze_v2 import (
 )
 from qore.infrastructure.cibo_ce2i_provider_core_freeze_receipt import (
     PROVIDER_CORE_FREEZE_RECEIPT,
-    build_provider_core_component_freeze,
     provider_core_freeze_receipt_payload,
 )
 from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
     CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS,
 )
 from qore.infrastructure.cibo_ce2i_shadow_certification_receipts import (
-    PHASE20_SHADOW_ARTIFACT_DIGEST,
     SHADOW_CERTIFICATION_RECEIPTS,
     shadow_receipt_payload,
 )
@@ -95,7 +93,6 @@ def build_report(
 
     receipts = SHADOW_CERTIFICATION_RECEIPTS
     provider_receipt = PROVIDER_CORE_FREEZE_RECEIPT
-    provider_freeze = build_provider_core_component_freeze()
     calibration = build_terminal_calibration_readiness()
     if calibration.calibration_manifest is None:
         raise RuntimeError("terminal calibration manifest was not sealed")
