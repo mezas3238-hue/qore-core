@@ -99,11 +99,10 @@ B_WORK_ITEMS: Final = (
     SharedBWorkItem(
         "B-04",
         "Full R8 US2000 and XAUUSD source acquisition",
-        SharedBWorkStatus.IN_PROGRESS,
-        ("run:36765098842",),
+        SharedBWorkStatus.COMPLETE_AND_PROVEN,
         (
-            "US2000 acquisition is 16/16 shards GREEN; XAUUSD 32-shard matrix "
-            "and final offline aggregate are still in progress",
+            "artifact:11129732922",
+            "run:36765098842",
         ),
     ),
     SharedBWorkItem(
@@ -288,16 +287,19 @@ B_WORK_ITEMS: Final = (
         (
             "artifact:11115769948",
             "artifact:11128416668",
+            "artifact:11128739693",
             "artifact:11129012317",
             "run:36755839843",
             "run:36782329462",
             "run:36784542345",
+            "run:36784810864",
         ),
         (
             "11/11 METALS rows are provider REFERENCE_OBJECTs with NULL "
             "provider-neutral current_reference_identity; UNKNOWN is preserved",
-            "energy provider-neutral identity remains unresolved; provider symbols "
-            "must not be promoted to futures identities",
+            "3/3 ENERGY rows are now sealed as provider REFERENCE_OBJECTs with "
+            "NULL provider-neutral identity; front/venue/continuous-series mappings "
+            "remain 0/3 and provider symbols must not be promoted to futures identities",
             "all 5 sealed dated GC contracts are now proven expired before SEP-2026; "
             "the current provider chain/front contract is absent from the observed set",
             "GC roll and continuous-series semantics remain unresolved and cannot be "
