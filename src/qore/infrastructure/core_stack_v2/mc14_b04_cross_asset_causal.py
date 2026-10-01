@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from statistics import mean
-from typing import Final
+from typing import Final, TypedDict
 
 IDENTITY: Final = "QORE_SHARED_MC14_B04_CROSS_ASSET_FEATURES_001"
 POST_SOURCE_MINUTES: Final = 15
@@ -30,6 +30,31 @@ FROZEN_FEATURES: Final = (
     "ASK_TICK_RATE",
     "QUOTE_SIDE_ACTIVITY_IMBALANCE_BPS",
 )
+
+
+class CausalMetricRow(TypedDict):
+    source: int
+    target_bps: int
+    confounder_key: str
+    regime_key: str
+
+
+class CausalTargetRow(TypedDict):
+    source_at: str
+    target_bps: int
+    confounder_key: str
+    regime_key: str
+
+
+class PartitionMetrics(TypedDict):
+    effect_bps: int | None
+    exposed_count: int
+    control_count: int
+    conditional_sign_stability_bps: int
+    cross_regime_stability_bps: int
+    material_same_sign: bool
+    insufficient: bool
+    insufficient_reason: str | None
 
 
 def _utc(value: str) -> datetime:
@@ -304,12 +329,12 @@ def _sign(value: int) -> int:
 
 
 def partition_metrics(
-    rows: list[dict[str, object]],
+    rows: list[CausalMetricRow],
     *,
     low: int,
     high: int,
     reference_sign: int | None = None,
-) -> dict[str, object]:
+) -> PartitionMetrics:
     exposed = [
         int(row["target_bps"])
         for row in rows

@@ -7,6 +7,7 @@ import argparse
 import json
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from shared_wp03_historical_causal_discovery import (
     MARKETS,
@@ -24,6 +25,9 @@ from qore.infrastructure.core_stack_v2.dynamic_causal_graph import (
 from qore.infrastructure.core_stack_v2.mc14_b04_cross_asset_causal import (
     EXPECTED_WINDOW_COUNT,
     FROZEN_FEATURES,
+    B04WindowFeatures,
+    CausalMetricRow,
+    CausalTargetRow,
     MINIMUM_EFFECT_BPS,
     MINIMUM_GROUP_COUNT,
     MINIMUM_STABILITY_BPS,
@@ -71,7 +75,7 @@ def _target_rows(
     *,
     evidence: dict[str, Path],
     source_times: dict[int, datetime],
-) -> tuple[dict[int, dict[str, object]], list[int]]:
+) -> tuple[dict[int, CausalTargetRow], list[int]]:
     bars = {
         market: _load_bars(evidence[market])
         for market in MARKETS
@@ -83,7 +87,7 @@ def _target_rows(
         }
         for market, rows in bars.items()
     }
-    rows: dict[int, dict[str, object]] = {}
+    rows: dict[int, CausalTargetRow] = {}
     missing: list[int] = []
     for window_index in range(EXPECTED_WINDOW_COUNT):
         source_at = source_times.get(window_index)
@@ -99,11 +103,15 @@ def _target_rows(
             missing.append(window_index)
             continue
 
-        pre = {}
-        future = {}
+        pre: dict[str, tuple[Any, ...]] = {}
+        future: dict[str, tuple[Any, ...]] = {}
         valid = True
         for market in MARKETS:
-            index = int(market_indexes[market])
+            raw_index = market_indexes[market]
+            if raw_index is None:
+                valid = False
+                break
+            index = raw_index
             if (
                 index < PRE_WINDOW_MINUTES - 1
                 or index + TARGET_HORIZON_MINUTES
@@ -165,8 +173,8 @@ def _target_rows(
 def _evaluate_family(
     *,
     family: str,
-    feature_rows,
-    target_rows: dict[int, dict[str, object]],
+    feature_rows: tuple[B04WindowFeatures, ...],
+    target_rows: dict[int, CausalTargetRow],
 ) -> dict[str, object]:
     complete = [row for row in feature_rows if row.complete]
     missing_feature_windows = [
@@ -200,8 +208,8 @@ def _evaluate_family(
         row.window_index: row
         for row in feature_rows
     }
-    relations = []
-    replicated = []
+    relations: list[dict[str, Any]] = []
+    replicated: list[dict[str, Any]] = []
     discovery_candidates = 0
     validation_passes = 0
 
@@ -234,7 +242,7 @@ def _evaluate_family(
             )
             continue
 
-        discovery_rows = [
+        discovery_rows: list[CausalMetricRow] = [
             {
                 "source": by_index[index].feature(feature),
                 "target_bps": target_rows[index]["target_bps"],
@@ -288,10 +296,14 @@ def _evaluate_family(
             continue
 
         discovery_candidates += 1
-        effect = int(discovery["effect_bps"])
-        reference_sign = 1 if effect > 0 else -1 if effect < 0 else 0
+        effect_value = discovery["effect_bps"]
+        if effect_value is None:
+            raise AssertionError("material discovery lost effect")
+        reference_sign = (
+            1 if effect_value > 0 else -1 if effect_value < 0 else 0
+        )
 
-        validation_rows = [
+        validation_rows: list[CausalMetricRow] = [
             {
                 "source": by_index[index].feature(feature),
                 "target_bps": target_rows[index]["target_bps"],
@@ -346,7 +358,7 @@ def _evaluate_family(
             continue
 
         validation_passes += 1
-        replication_rows = [
+        replication_rows: list[CausalMetricRow] = [
             {
                 "source": by_index[index].feature(feature),
                 "target_bps": target_rows[index]["target_bps"],

@@ -92,8 +92,8 @@ def _validate_prior_lineage(
 
 def _rebuild_model(
     consumed: dict[str, dict[str, Path]],
-):
-    transitions = {}
+) -> Any:
+    transitions: dict[str, Any] = {}
     for partition in PARTITIONS:
         episodes, _source_range = _prepare_source_partition(
             partition=partition,
@@ -136,10 +136,10 @@ def _filter_targets(
 def _evaluate_partition(
     *,
     partition: str,
-    model,
-    probes,
-    episodes,
-    targets,
+    model: Any,
+    probes: dict[str, Any],
+    episodes: tuple[Any, ...],
+    targets: dict[str, tuple[Any, ...]],
 ) -> dict[str, object]:
     prepared = prepare_second_order_design(
         model=model,
@@ -224,8 +224,8 @@ def main() -> None:
             for partition in PARTITIONS
         }
     )
-    probes = {
-        payload["target_name"]: _probe_from_payload(payload)
+    probes: dict[str, Any] = {
+        str(payload["target_name"]): _probe_from_payload(payload)
         for payload in freeze["final_frozen_probes"]
     }
     if len(probes) != 8:
@@ -266,7 +266,7 @@ def main() -> None:
     if set(replication_targets) != set(probes):
         raise ValueError("REPLICATION_D target schema drift")
 
-    results = {
+    results: dict[str, dict[str, object]] = {
         "HOLDOUT_E": _evaluate_partition(
             partition="holdout_e",
             model=model,
