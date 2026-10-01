@@ -181,8 +181,8 @@ def run_window_replay(
     if not hasattr(module, "EVAL_OPEN") or not hasattr(module, "EVAL_CLOSE"):
         raise ValueError("frozen replay module has no evaluation window")
 
-    original_open = module.EVAL_OPEN
-    original_close = module.EVAL_CLOSE
+    original_open = getattr(module, "EVAL_OPEN")
+    original_close = getattr(module, "EVAL_CLOSE")
     output.mkdir(parents=True, exist_ok=True)
     causal_scope = (
         fresh_causal_active_ladder(module)
@@ -190,8 +190,8 @@ def run_window_replay(
         else nullcontext()
     )
     try:
-        module.EVAL_OPEN = start
-        module.EVAL_CLOSE = end
+        setattr(module, "EVAL_OPEN", start)
+        setattr(module, "EVAL_CLOSE", end)
         with causal_scope:
             report = run(
                 raw_root,
@@ -201,8 +201,8 @@ def run_window_replay(
                 output,
             )
     finally:
-        module.EVAL_OPEN = original_open
-        module.EVAL_CLOSE = original_close
+        setattr(module, "EVAL_OPEN", original_open)
+        setattr(module, "EVAL_CLOSE", original_close)
 
     geometry_path = output / config.geometry_filename
     if not geometry_path.is_file():

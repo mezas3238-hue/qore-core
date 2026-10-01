@@ -13,7 +13,7 @@ from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 _OUTCOME_FIELDS = (
     "touch_within_24h",
@@ -123,12 +123,15 @@ def fresh_causal_active_ladder(module: Any) -> Iterator[None]:
     ) -> list[Any]:
         projected = project_target_rows_predecision(rows, at=at)
         assert_no_future_outcome_surface(projected, at=at)
-        return original(
-            projected,
-            at=at,
-            side=side,
-            entry=entry,
-            tick=tick,
+        return cast(
+            list[Any],
+            original(
+                projected,
+                at=at,
+                side=side,
+                entry=entry,
+                tick=tick,
+            ),
         )
 
     v1._active_ladder = causal_active_ladder
