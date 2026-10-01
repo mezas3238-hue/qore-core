@@ -8,6 +8,7 @@ import os
 from datetime import UTC, datetime
 from pathlib import Path
 from time import monotonic
+from collections.abc import Callable
 from typing import Any
 
 from qore.infrastructure.core_stack_v2.runtime_clock_drift_diagnostic import (
@@ -89,6 +90,33 @@ def _provider_timestamp(value: object) -> int | None:
     if type(timestamp) is not int or timestamp <= 0:
         return None
     return timestamp
+
+
+def _timestamped_spot_predicate(
+    symbol_id: int,
+) -> Callable[[object], bool]:
+    def predicate(item: object) -> bool:
+        return (
+            getattr(item, "symbolId", None) == symbol_id
+            and _provider_timestamp(item) is not None
+        )
+
+    return predicate
+
+
+def _newer_spot_predicate(
+    symbol_id: int,
+    after_timestamp: int,
+) -> Callable[[object], bool]:
+    def predicate(item: object) -> bool:
+        timestamp = _provider_timestamp(item)
+        return (
+            getattr(item, "symbolId", None) == symbol_id
+            and timestamp is not None
+            and timestamp > after_timestamp
+        )
+
+    return predicate
 
 
 def run(*, output_path: Path) -> dict[str, Any]:
@@ -203,9 +231,8 @@ def run(*, output_path: Path) -> dict[str, Any]:
         bootstrap = client.wait_for_event(
             "ProtoOASpotEvent",
             timeout_seconds=EVENT_WAIT_TIMEOUT_SECONDS,
-            predicate=lambda item: (
-                getattr(item, "symbolId", None) == provider_symbol_id
-                and _provider_timestamp(item) is not None
+            predicate=_timestamped_spot_predicate(
+                provider_symbol_id
             ),
         )
         if isinstance(bootstrap, Failure):
@@ -229,12 +256,9 @@ def run(*, output_path: Path) -> dict[str, Any]:
             event = client.wait_for_event(
                 "ProtoOASpotEvent",
                 timeout_seconds=EVENT_WAIT_TIMEOUT_SECONDS,
-                predicate=lambda item, after=last_timestamp: (
-                    getattr(item, "symbolId", None) == provider_symbol_id
-                    and (
-                        (_provider_timestamp(item) or 0)
-                        > after
-                    )
+                predicate=_newer_spot_predicate(
+                    provider_symbol_id,
+                    last_timestamp,
                 ),
             )
             mono_after = monotonic()
