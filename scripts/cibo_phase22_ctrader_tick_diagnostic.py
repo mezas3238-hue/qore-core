@@ -121,7 +121,7 @@ def build_report() -> dict[str, object]:
                 continue
             symbol = contracts[symbol_id].qore_symbol
             current = latest.get(symbol)
-            if current is None or int(getattr(current, "executionTimestamp")) < execution_ms:
+            if current is None or int(current.executionTimestamp) < execution_ms:
                 latest[symbol] = deal
 
         rows: list[dict[str, object]] = []
@@ -137,8 +137,8 @@ def build_report() -> dict[str, object]:
                 )
                 continue
             contract = by_symbol[symbol]
-            execution_ms = int(getattr(deal, "executionTimestamp"))
-            trade_side = int(getattr(deal, "tradeSide"))
+            execution_ms = int(deal.executionTimestamp)
+            trade_side = int(deal.tradeSide)
             probes: list[dict[str, object]] = []
             for quote_name, quote_type in (("BID", _BID), ("ASK", _ASK)):
                 for lookback_ms in _LOOKBACKS_MS:
