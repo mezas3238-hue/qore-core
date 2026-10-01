@@ -777,6 +777,36 @@
       "note": "Second conservative external-dependency closure batch. Every row has exact-head green implementation evidence and no remaining CI/repair/implementation blocker.",
       "productive_authority": false,
       "certification_claim": false
+    },
+    {
+      "owner": "INTEGRATOR_39DAB_TERMINAL_CLOSURE_BATCH_003",
+      "source_head_sha": "39dab5dc43081764c9de8b044af502194274406c",
+      "items": [
+        {
+          "id": "T03",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36816113836,
+            36816113832
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "GEN-C12",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_id": 36816113558,
+          "status": "SUCCESS"
+        },
+        {
+          "id": "USD60_CAPABILITY_PROGRAM",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_id": 36816113930,
+          "status": "SUCCESS"
+        }
+      ],
+      "note": "Engineering terminalization only. All three remain certification-blocking; USD60 final six-month exam is not claimed as executed.",
+      "productive_authority": false,
+      "certification_claim": false
     }
   ],
   "pending_candidates": [
@@ -850,14 +880,13 @@
   "certification_claim": false,
   "productive_authority": false,
   "integrator_pending": {
-    "head_sha": "b8277be59eba25d2ef734448c1de8e87e6a488f2",
+    "head_sha": "39dab5dc43081764c9de8b044af502194274406c",
     "reasons": [
-      "GENC12_LINT_REPAIR_STAGED",
-      "SOURCE_OF_TRUTH_AND_AB_ACCEPTANCE_TERMINAL_UNION_REPAIR_STAGED",
-      "T03_MULTI_LEG_OR_ALTERNATE_PROVIDER_RESEARCH_OPEN",
-      "USD60_FINAL_GOVERNED_EXAM_SEQUENCE_OPEN",
-      "FINAL_INTEGRATED_EXAM_AND_WORLD_CUP_EXECUTION_OPEN",
-      "ZERO_OPEN_STRICT_SEQUENCE_OPEN",
+      "SOURCE_OF_TRUTH_DYNAMIC_SUMMARY_TEST_REPAIR_STAGED",
+      "ZERO_OPEN_EXTERNAL_BLOCKER_MARKER_CONSTANT_REPAIR_STAGED",
+      "WORLD_CUP_RECEIPT_BOUND_GATE_STAGED_CI_PENDING",
+      "FINAL_INTEGRATED_EXAM_REAL_EXECUTION_OPEN",
+      "WORLD_CUP_REAL_EXECUTION_OPEN",
       "CERTIFICATION_BLOCKING_EXTERNAL_EVIDENCE_DEPENDENCIES_REMAIN"
     ],
     "staged_components": [

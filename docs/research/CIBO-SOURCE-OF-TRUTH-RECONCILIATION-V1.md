@@ -211,3 +211,20 @@ under the Owner's no-workflow-flood policy.
   SOURCE_OF_TRUTH_RECONCILIATION, ZERO_OPEN_WORK_GATE,
   FINAL_INTEGRATED_CIBO_EXAM, WORLD_CUP_MAXIMUM_CAPABILITY_EXAM and
   USD60_CAPABILITY_PROGRAM.
+
+
+## 2026-10-01 terminal closure batch 003 and World Cup gate staging
+
+- Evidence HEAD: `39dab5dc43081764c9de8b044af502194274406c`.
+- T03, GEN-C12 and USD60_CAPABILITY_PROGRAM receive
+  certification-blocking `EXTERNAL_DEPENDENCY_BLOCKED` dispositions after
+  exact-head SUCCESS evidence.
+- USD60 readiness is engineering readiness only; the governed six-month exam
+  has not run and the protected 2017H1 holdout remains sealed.
+- Canonical ledger target: 64 mandatory / 60 terminal / 4 open.
+- Remaining open workstreams: SOURCE_OF_TRUTH_RECONCILIATION,
+  ZERO_OPEN_WORK_GATE, FINAL_INTEGRATED_CIBO_EXAM and
+  WORLD_CUP_MAXIMUM_CAPABILITY_EXAM.
+- World Cup now has a receipt-bound non-compensatory executable contract. The
+  Owner's aspirational return reference is explicitly prohibited as a tuning or
+  pass threshold.

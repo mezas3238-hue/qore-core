@@ -990,3 +990,26 @@ def test_external_dependency_cannot_hide_internal_ci_work(
         match="hides internal work",
     ):
         gate.evaluate_gate(repo_root=tmp_path, ledger_path=ledger)
+
+
+def test_world_cup_exam_surfaces_have_world_cup_ownership() -> None:
+    inventory = (
+        "src/qore/infrastructure/"
+        "cibo_world_cup_maximum_capability_exam.py",
+        "tests/infrastructure/"
+        "test_cibo_world_cup_maximum_capability_exam.py",
+        "docs/research/"
+        "CIBO-WORLD-CUP-MAXIMUM-CAPABILITY-EXAM-PROTOCOL-V1.md",
+    )
+    assignments, orphan_candidates = gate._classify_inventory(
+        inventory,
+        ledger_ids=frozenset(
+            {"WORLD_CUP_MAXIMUM_CAPABILITY_EXAM", "ORPHAN_INVENTORY"}
+        ),
+    )
+
+    assert set(assignments) == {
+        (path, "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM")
+        for path in inventory
+    }
+    assert orphan_candidates == ()

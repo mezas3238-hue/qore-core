@@ -71,8 +71,8 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "DIRECT_PROVIDER_CANDIDATE_SCREEN_EXHAUSTED_MULTI_LEG_OR_ALTERNATE_PROVIDER_RESEARCH_OPEN",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
@@ -81,13 +81,16 @@
         "scripts/cibo_t03_provider_equivalent_candidate_screen.py",
         "tests/infrastructure/test_cibo_t03_provider_equivalent_candidate_screen.py",
         "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
-        "github-actions://36814558179/SUCCESS"
+        "github-actions://36814558179/SUCCESS",
+        "github-actions://36816113836/SUCCESS",
+        "github-actions://36816113832/SUCCESS"
       ],
       "blockers": [
+        "CURRENT_CTRADER_DIRECT_SINGLE_INSTRUMENT_CANDIDATE_SCREEN_EXHAUSTED",
         "MULTI_LEG_OR_ALTERNATE_PROVIDER_EQUIVALENT_EXPRESSION_NOT_PROVEN",
         "FRESH_OOS_EQUIVALENT_EXPRESSION_UTILITY_REQUIRED_IF_CANDIDATE_APPEARS"
       ],
-      "next_gate": "Investigate multi-leg or alternate-provider equivalent-expression candidates without outcome selection. If a candidate appears, prove normalized exposure/economics and fresh OOS utility."
+      "next_gate": "Reopen only when a preregisterable multi-leg or alternate-provider equivalent expression becomes available; then require provider-bound normalized exposure/economics and fresh-OOS utility."
     },
     {
       "id": "T04",
@@ -831,8 +834,8 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_AND_NONCOMPENSATORY_ECONOMIC_GATE_CHILD_CI_GREEN_REAL_CRISIS_EVIDENCE_OPEN",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
         "docs/research/CIBO-GEN-C12-CRISIS-CAPITAL-INTELLIGENCE-V1.md",
@@ -847,14 +850,15 @@
         "src/qore/infrastructure/cibo_genc12_economic_gate.py",
         "tests/infrastructure/test_cibo_genc12_economic_gate.py",
         "docs/research/CIBO-GEN-C12-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
-        "github-actions://36757582127/SUCCESS"
+        "github-actions://36757582127/SUCCESS",
+        "github-actions://36816113558/SUCCESS"
       ],
       "blockers": [
         "REAL_CRISIS_POPULATION_NOT_YET_BOUND",
         "ADVERSARIAL_CRISIS_STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
         "ECONOMIC_VALUE_NOT_YET_DEMONSTRATED"
       ],
-      "next_gate": "Bind real causal crisis populations; run correlation/provider/margin/liquidity/drawdown stress; then fresh OOS and temporal replication."
+      "next_gate": "Reopen when real crisis/provider-factor forward evidence is available; execute the frozen non-compensatory crisis protocol and temporal replication. This remains certification-blocking."
     },
     {
       "id": "GEN-C13",
@@ -1410,17 +1414,24 @@
       "kind": "CERTIFICATION",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "MANDATORY_POST_INTEGRATED_EXAM_PRE_STRICT_CERTIFICATION_PROGRAM",
+      "current_maturity": "RECEIPT_BOUND_EXAM_GATE_STAGED_CI_PENDING_REAL_EXAM_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
-        "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md"
+        "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md",
+        "src/qore/infrastructure/cibo_world_cup_maximum_capability_exam.py",
+        "tests/infrastructure/test_cibo_world_cup_maximum_capability_exam.py",
+        "docs/research/CIBO-WORLD-CUP-MAXIMUM-CAPABILITY-EXAM-PROTOCOL-V1.md",
+        ".github/workflows/cibo-final-integrated-exam.yml"
       ],
       "blockers": [
-        "ALL_NON_EXAM_MANDATORY_WORK_MUST_CLOSE",
-        "FINAL_INTEGRATED_CIBO_EXAM_COMPLETED_AND_PROVEN_REQUIRED",
-        "SEPARATE_WORLD_CUP_PROTOCOL_AND_PROVIDER_COMPETITION_EVIDENCE_REQUIRED"
+        "WORLD_CUP_RECEIPT_BOUND_GATE_CI_REQUIRED",
+        "FINAL_INTEGRATED_CIBO_EXAM_MUST_PASS_FIRST",
+        "COMPETITION_PROVIDER_ADAPTER_REAL_EVIDENCE_REQUIRED",
+        "WORLD_CUP_DIGITAL_TWIN_REAL_EVIDENCE_REQUIRED",
+        "WORLD_CUP_CAUSAL_MC_STRESS_REPLICATION_RECEIPTS_REQUIRED",
+        "CERTIFICATION_BLOCKING_EXTERNAL_DEPENDENCIES_MUST_CLEAR"
       ],
-      "next_gate": "After the Final Integrated CIBO Exam is terminal, freeze/run the World Cup maximum-capability exam; only after it is terminal may STRICT zero-open pass."
+      "next_gate": "Pass receipt-bound World Cup gate CI; then, only after the actual Final Integrated Exam passes and external blockers clear, bind the frozen competition provider/Digital Twin/causal/MC/stress/replication receipts and execute the real World Cup exam."
     },
     {
       "id": "HISTORICAL_PHASE18_REPLAY_EVIDENCE",
@@ -1526,8 +1537,8 @@
       "kind": "EVIDENCE_PROGRAM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "PRE_HOLDOUT_RECEIPT_CHAIN_CI_GREEN_USD60_READINESS_REPAIR_PENDING_EXAM_NOT_RUN",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py",
         "src/qore/infrastructure/cibo_usd60_prerequisite_receipts.py",
@@ -1543,18 +1554,15 @@
         "src/qore/infrastructure/cibo_receipt_bound_usd60_exam_readiness.py",
         "tests/infrastructure/test_cibo_receipt_bound_usd60_exam_readiness.py",
         ".github/workflows/cibo-usd60-pre-exam-readiness.yml",
-        "github-actions://36790166722/SUCCESS"
+        "github-actions://36790166722/SUCCESS",
+        "github-actions://36816113930/SUCCESS"
       ],
       "blockers": [
-        "INTEGRATOR_RECEIPT_BOUND_USD60_READINESS_CI_REQUIRED",
-        "PHASE20D_FRESH_POPULATION_AND_CAUSAL_PASS_RECEIPT_REQUIRED",
-        "PHASE21_POLICY_FREEZE_RECEIPT_REQUIRED",
-        "PROVIDER_ECONOMICS_READY_RECEIPT_REQUIRED",
-        "T01_T20_RECEIPT_BOUND_CALIBRATION_FREEZE_REQUIRED",
-        "FINAL_FROZEN_USD60_EXAM_NOT_RUN",
-        "T16_T17_TYPED_PROVIDER_CAPABILITY_RESOLUTION_REQUIRED"
+        "FROZEN_PHASE20D_REAL_FORWARD_THRESHOLDS_REQUIRED",
+        "PRE_EXAM_EXTERNAL_PREREQUISITES_REQUIRED",
+        "FINAL_GOVERNED_SIX_MONTH_EXAM_NOT_RUN"
       ],
-      "next_gate": "Pass receipt-bound USD60 + pre-holdout CI; then satisfy real Phase20D/Phase21/provider/T01..T20 receipts and typed provider capability on the exact integrated HEAD before any governed 2017H1 unseal."
+      "next_gate": "Reopen when real Phase20D/Phase21/provider prerequisites permit the governed six-month USD60 exam. Keep 2017H1 sealed until the existing pre-holdout chain authorizes unseal."
     },
     {
       "id": "INTEGRATED_CAPITAL_TRUTH",
@@ -1637,8 +1645,8 @@
   ],
   "current_summary": {
     "mandatory_count": 64,
-    "terminal_count": 57,
-    "open_count": 7,
+    "terminal_count": 60,
+    "open_count": 4,
     "zero_open_work_pass": false,
     "final_certification_candidate": false
   }

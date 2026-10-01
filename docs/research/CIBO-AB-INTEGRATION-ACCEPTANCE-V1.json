@@ -44,6 +44,7 @@
   "integrated_terminal_ids": [
     "T01",
     "T02",
+    "T03",
     "T04",
     "T05",
     "T06",
@@ -73,6 +74,7 @@
     "GEN-C9",
     "GEN-C10",
     "GEN-C11",
+    "GEN-C12",
     "GEN-C13",
     "GEN-C14",
     "COMPOUND_ENGINE",
@@ -97,6 +99,7 @@
     "CE2I_CALIBRATION_GOVERNANCE",
     "CE2I_CROSS_TOOL_INFRASTRUCTURE",
     "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK",
+    "USD60_CAPABILITY_PROGRAM",
     "INTEGRATED_CAPITAL_TRUTH",
     "AS_IS_ECONOMIC_BASELINE"
   ],
@@ -147,15 +150,13 @@
     "certification_claim": false
   },
   "terminal_disposition_reconciliation": {
-    "source_head": "b8277be59eba25d2ef734448c1de8e87e6a488f2",
-    "terminal_count": 57,
-    "open_count": 7,
-    "external_dependency_terminal_count": 42,
-    "falsified_terminal_ids": [
-      "T17"
-    ],
+    "source_head": "39dab5dc43081764c9de8b044af502194274406c",
+    "terminal_count": 60,
+    "open_count": 4,
+    "external_dependency_terminal_count": 45,
     "certification_blocking_external_ids": [
       "T02",
+      "T03",
       "T04",
       "T06",
       "T07",
@@ -180,6 +181,7 @@
       "GEN-C9",
       "GEN-C10",
       "GEN-C11",
+      "GEN-C12",
       "GEN-C13",
       "GEN-C14",
       "COMPOUND_ENGINE",
@@ -195,6 +197,7 @@
       "FRESH_OOS",
       "TEMPORAL_REPLICATION",
       "CAPITAL_AMPLIFICATION",
+      "USD60_CAPABILITY_PROGRAM",
       "INTEGRATED_CAPITAL_TRUTH",
       "AS_IS_ECONOMIC_BASELINE"
     ],

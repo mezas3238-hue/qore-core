@@ -34,9 +34,11 @@ def test_current_integrated_checkpoint_is_internally_reconciled() -> None:
     assert errors == []
     report = gate.build_report(git_sha="a" * 40)
     assert report["pass"] is True
-    assert report["mandatory_count"] == 64
-    assert report["terminal_count"] == 14
-    assert report["open_count"] == 50
+    ledger = _load(gate.LEDGER)
+    summary = ledger["current_summary"]
+    assert report["mandatory_count"] == summary["mandatory_count"]
+    assert report["terminal_count"] == summary["terminal_count"]
+    assert report["open_count"] == summary["open_count"]
     assert report["all_child_delta_files_accounted"] is True
     assert report["world_cup_mandatory"] is True
     assert report["productive_authority"] is False
