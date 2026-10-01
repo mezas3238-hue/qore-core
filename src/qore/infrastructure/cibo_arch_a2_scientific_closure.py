@@ -176,7 +176,7 @@ class ArchitectA2ScientificExecutionPlan:
 
 
 def build_architect_a2_scientific_execution_plan(
-    view: "ArchitectA2EvidenceView",
+    view: ArchitectA2EvidenceView,
 ) -> ArchitectA2ScientificExecutionPlan:
     """Freeze A2 execution order while allowing every evidence-ready lane to run."""
 
