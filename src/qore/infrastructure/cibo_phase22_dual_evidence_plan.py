@@ -25,11 +25,8 @@ from qore.infrastructure.cibo_ce2i_phase22_qualification_plan import (
     FROZEN_PHASE22_HOLDOUT_QUALIFICATION_PLAN,
     phase22_holdout_qualification_plan_sha256,
 )
-from qore.infrastructure.cibo_phase22_demo_empirical_provider_receipt import (
-    PHASE22_DEMO_EMPIRICAL_PROVIDER_RECEIPT,
-)
-from qore.infrastructure.cibo_phase22_demo_execution_population_receipt import (
-    PHASE22_DEMO_EXECUTION_POPULATION_RECEIPT,
+from qore.infrastructure.cibo_phase22_provider_execution_calibration_receipt import (
+    PHASE22_PROVIDER_EXECUTION_CALIBRATION_RECEIPT,
 )
 from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
     CANDIDATE_ID,
@@ -46,6 +43,7 @@ class Phase22DualEvidencePlan:
     source_receipt_sha256: str
     superseded_plan_id: str
     superseded_plan_sha256: str
+    provider_execution_calibration_sha256: str
     protocol_frozen_before_holdout_outcomes: bool
     require_historical_holdout_market_plane: bool
     require_real_current_demo_execution_plane: bool
@@ -87,6 +85,12 @@ class Phase22DualEvidencePlan:
         if self.superseded_plan_sha256 != phase22_holdout_qualification_plan_sha256():
             raise CiboCapitalManagementError(
                 "Phase22 dual-evidence superseded plan digest drift"
+            )
+        if self.provider_execution_calibration_sha256 != (
+            PHASE22_PROVIDER_EXECUTION_CALIBRATION_RECEIPT.fingerprint()
+        ):
+            raise CiboCapitalManagementError(
+                "Phase22 dual-evidence provider calibration receipt drift"
             )
         required_true = (
             self.protocol_frozen_before_holdout_outcomes,
@@ -136,6 +140,9 @@ PHASE22_DUAL_EVIDENCE_PLAN = Phase22DualEvidencePlan(
     source_receipt_sha256=phase22_v2_holdout_source_receipt_sha256(),
     superseded_plan_id=FROZEN_PHASE22_HOLDOUT_QUALIFICATION_PLAN.plan_id,
     superseded_plan_sha256=phase22_holdout_qualification_plan_sha256(),
+    provider_execution_calibration_sha256=(
+        PHASE22_PROVIDER_EXECUTION_CALIBRATION_RECEIPT.fingerprint()
+    ),
     protocol_frozen_before_holdout_outcomes=True,
     require_historical_holdout_market_plane=True,
     require_real_current_demo_execution_plane=True,
@@ -149,12 +156,14 @@ PHASE22_DUAL_EVIDENCE_PLAN = Phase22DualEvidencePlan(
     forbid_holdout_mining=True,
     require_both_planes_for_certification=True,
     execution_population_ready=(
-        PHASE22_DEMO_EXECUTION_POPULATION_RECEIPT.execution_population_ready
+        PHASE22_PROVIDER_EXECUTION_CALIBRATION_RECEIPT.execution_population_ready
     ),
     empirical_provider_calibration_ready=(
-        PHASE22_DEMO_EMPIRICAL_PROVIDER_RECEIPT.empirical_slippage_calibrated
-        and PHASE22_DEMO_EMPIRICAL_PROVIDER_RECEIPT.execution_model_ready
-        and not PHASE22_DEMO_EMPIRICAL_PROVIDER_RECEIPT.blockers
+        PHASE22_PROVIDER_EXECUTION_CALIBRATION_RECEIPT.empirical_slippage_calibrated
+        and PHASE22_PROVIDER_EXECUTION_CALIBRATION_RECEIPT.execution_model_ready
+        and PHASE22_PROVIDER_EXECUTION_CALIBRATION_RECEIPT.created_positions_closed
+        and PHASE22_PROVIDER_EXECUTION_CALIBRATION_RECEIPT.minimum_volume_only
+        and not PHASE22_PROVIDER_EXECUTION_CALIBRATION_RECEIPT.blockers
     ),
     activation_ready=True,
 )
