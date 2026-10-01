@@ -14,6 +14,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -73,7 +74,12 @@ def _load_module(path: Path) -> ModuleType:
     if spec is None or spec.loader is None:
         raise ValueError("cannot load frozen replay module")
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        sys.modules.pop(module_name, None)
+        raise
     return module
 
 
