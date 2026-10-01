@@ -167,12 +167,12 @@ jobs:
 
       - name: Phase22 exact-window parity adapter
         env:
-          PYTHONPATH: ${{ github.workspace }}/source-code/src:${{ github.workspace }}/src
+          PYTHONPATH: ${{ github.workspace }}/audjpy-code/src:${{ github.workspace }}/src
         run: |
           mkdir -p phase22-output
           python scripts/cibo_phase22_turtle_window_replay.py \
             --trader AUDJPY_R42 --mode PARITY \
-            --module-path source-code/src/qore/infrastructure/trader_lab/cibo_phase18_audjpy_r40_geometry_replay.py \
+            --module-path audjpy-code/src/qore/infrastructure/trader_lab/cibo_phase18_audjpy_r40_geometry_replay.py \
             --raw-root source-audjpy --target-root target-audjpy \
             --cognitive-root v2-r27 --freeze-root r39-freeze \
             --output phase22-output
