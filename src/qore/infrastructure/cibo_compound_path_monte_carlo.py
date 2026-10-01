@@ -290,6 +290,36 @@ class CompoundMonteCarloPathResult:
             "peak_margin_usd",
         ):
             _money(getattr(self, name), name)
+        generations = tuple(
+            generation for generation, _amount in self.ending_generation_capacity_usd
+        )
+        if len(generations) != len(set(generations)):
+            raise CiboCompoundCapitalError(
+                "compound Monte Carlo ending generations must be unique"
+            )
+        for generation, amount in self.ending_generation_capacity_usd:
+            if (
+                not isinstance(generation, int)
+                or isinstance(generation, bool)
+                or generation < 1
+            ):
+                raise CiboCompoundCapitalError(
+                    "compound Monte Carlo ending generation id must be positive int"
+                )
+            _money(amount, "ending generation capacity")
+        expected_ending = (
+            self.ending_original_base_usd
+            + self.protected_floor_usd
+            + sum(
+                (amount for _, amount in self.ending_generation_capacity_usd),
+                Decimal(0),
+            )
+        )
+        if self.ending_realized_capital_usd != expected_ending:
+            raise CiboCompoundCapitalError(
+                "compound Monte Carlo ending realized-capital identity drift"
+            )
+
         for name in (
             "dependency_breach_count",
             "capacity_breach_count",
