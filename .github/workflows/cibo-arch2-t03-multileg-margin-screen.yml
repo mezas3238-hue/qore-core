@@ -1,14 +1,6 @@
 name: QORE CIBO Architect2 T03 Multi-Leg Margin Screen
 
 on:
-  push:
-    branches:
-      - agent/cibo-external-scientific-closure-001
-    paths:
-      - '.github/workflows/cibo-arch2-t03-multileg-margin-screen.yml'
-      - 'scripts/cibo_arch2_t03_multileg_margin_screen.py'
-      - 'src/qore/infrastructure/cibo_arch2_t03_multileg_math.py'
-      - 'tests/infrastructure/test_cibo_arch2_t03_multileg_math.py'
   workflow_dispatch:
 
 permissions:
