@@ -9,6 +9,9 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
+from qore.infrastructure.cibo_ctrader_demo_empirical_slippage import (
+    decode_ctrader_tick_series,
+)
 from qore.infrastructure.cibo_phase22_demo_calibration_contract import (
     CALIBRATION_LABEL_PREFIX,
     REQUIRED_SYMBOLS,
@@ -173,6 +176,30 @@ def build_report() -> dict[str, object]:
                     response = result.value
                     ticks = tuple(getattr(response, "tickData", ()))
                     first = ticks[0] if ticks else None
+                    raw_timestamps = [
+                        getattr(item, "timestamp", None)
+                        for item in ticks[:12]
+                    ]
+                    decode_status = "OK"
+                    decode_error: str | None = None
+                    decoded_count = 0
+                    causal_count = 0
+                    decoded_head: list[int] = []
+                    try:
+                        decoded = decode_ctrader_tick_series(ticks)
+                        decoded_count = len(decoded)
+                        causal = tuple(
+                            item
+                            for item in decoded
+                            if item[0] <= execution_ms
+                        )
+                        causal_count = len(causal)
+                        decoded_head = [item[0] for item in decoded[:12]]
+                    except Exception as exc:
+                        decode_status = "ERROR"
+                        decode_error = (
+                            f"{type(exc).__name__}:{exc}"
+                        )
                     probes.append(
                         {
                             "quote_type": quote_name,
@@ -198,6 +225,12 @@ def build_report() -> dict[str, object]:
                                 if first is not None
                                 else None
                             ),
+                            "raw_timestamp_head": raw_timestamps,
+                            "decode_status": decode_status,
+                            "decode_error": decode_error,
+                            "decoded_count": decoded_count,
+                            "causal_count": causal_count,
+                            "decoded_timestamp_head": decoded_head,
                         }
                     )
             rows.append(
