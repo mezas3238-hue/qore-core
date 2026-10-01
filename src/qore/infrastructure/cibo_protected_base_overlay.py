@@ -218,6 +218,10 @@ class ProtectedBaseSnapshot:
                 "broker_guarantee_evidence_sha256",
             )
         else:
+            if self.policy_id is not None or self.policy_sha256 is not None:
+                raise CiboCapitalManagementError(
+                    "non-policy protected base cannot carry policy evidence"
+                )
             if self.provider_guaranteed:
                 raise CiboCapitalManagementError(
                     "non-broker protected base cannot claim provider guarantee"
