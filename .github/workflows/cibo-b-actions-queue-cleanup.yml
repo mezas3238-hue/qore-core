@@ -54,7 +54,7 @@ jobs:
               "QORE CIBO T16 Post-Declaration Market Structure",
               "QORE CIBO Phase20 Historical Shadow Holdout 1Y",
               "QORE CIBO Phase21 Shadow Policy Freeze",
-              "QORE CIBO Phase21 Shadow Empirical Screen",
+              "QORE CIBO Phase21 Shadow Empirical Screen",\n              "QORE CIBO Phase22 Turtle 4-of-4 Replay Parity",
               "QORE CIBO Compound Engine Integrated Cycle",
               "QORE CIBO Generation Current Control Seal",
               "QORE CIBO Protected Base Overlay",
