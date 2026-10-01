@@ -220,6 +220,8 @@ def _decision(
     *,
     evidence_sha: str,
     decision_at: datetime,
+    sealed_at: datetime | None = None,
+    seal_deadline_at: datetime | None = None,
 ) -> Phase20ForwardDecisionSeal:
     candidate = FROZEN_PHASE20_POLICY_CANDIDATE
     payload = json.dumps(
@@ -239,8 +241,16 @@ def _decision(
         decision_epoch_id=f"epoch-{evidence_sha[-4:]}",
         evidence_sha256=evidence_sha,
         decision_at=decision_at,
-        sealed_at=decision_at + timedelta(milliseconds=100),
-        seal_deadline_at=decision_at + timedelta(seconds=2),
+        sealed_at=(
+            decision_at + timedelta(milliseconds=100)
+            if sealed_at is None
+            else sealed_at
+        ),
+        seal_deadline_at=(
+            decision_at + timedelta(seconds=2)
+            if seal_deadline_at is None
+            else seal_deadline_at
+        ),
         candidate_id=candidate.candidate_id,
         code_sha=candidate.code_sha,
         parameter_sha256=candidate.parameter_sha256(),
@@ -284,7 +294,9 @@ def test_phase22_valid_lineage_with_immature_population_is_not_ready() -> None:
     )
     holdout_decision = _decision(
         evidence_sha=_sha(202),
-        decision_at=PHASE21_FROZEN_AT + timedelta(seconds=1),
+        decision_at=datetime(2016, 2, 15, 14, 0, tzinfo=UTC),
+        sealed_at=PHASE21_FROZEN_AT + timedelta(seconds=1),
+        seal_deadline_at=PHASE21_FROZEN_AT + timedelta(seconds=3),
     )
 
     report = run_phase22_holdout_qualification(
@@ -323,7 +335,7 @@ def test_phase22_reused_qualification_decision_is_invalid_before_economics() -> 
         qualification_decision,
         evidence_id="holdout-reused",
         decision_epoch_id="holdout-reused",
-        decision_at=PHASE21_FROZEN_AT + timedelta(seconds=1),
+        decision_at=datetime(2016, 2, 15, 14, 0, tzinfo=UTC),
         sealed_at=PHASE21_FROZEN_AT + timedelta(milliseconds=1100),
         seal_deadline_at=PHASE21_FROZEN_AT + timedelta(seconds=3),
     )

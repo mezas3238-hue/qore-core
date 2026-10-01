@@ -290,7 +290,7 @@ def test_phase22_lineage_accepts_only_fresh_disjoint_frozen_policy() -> None:
     )
     holdout_decision = _decision(
         evidence_sha=_sha(202),
-        decision_at=datetime(2017, 3, 15, 14, 0, tzinfo=UTC),
+        decision_at=datetime(2016, 2, 15, 14, 0, tzinfo=UTC),
         sealed_at=PHASE21_FROZEN_AT + timedelta(seconds=1),
         seal_deadline_at=PHASE21_FROZEN_AT + timedelta(seconds=3),
     )
@@ -315,7 +315,7 @@ def test_phase22_lineage_rejects_pre_freeze_seal() -> None:
     )
     holdout_decision = _decision(
         evidence_sha=_sha(202),
-        decision_at=datetime(2017, 3, 15, 14, 0, tzinfo=UTC),
+        decision_at=datetime(2016, 2, 15, 14, 0, tzinfo=UTC),
         sealed_at=PHASE21_FROZEN_AT,
         seal_deadline_at=PHASE21_FROZEN_AT + timedelta(seconds=2),
     )
@@ -339,7 +339,7 @@ def test_phase22_lineage_rejects_market_time_outside_preregistered_holdout() -> 
     )
     holdout_decision = _decision(
         evidence_sha=_sha(202),
-        decision_at=datetime(2017, 7, 1, tzinfo=UTC),
+        decision_at=datetime(2016, 4, 19, tzinfo=UTC),
         sealed_at=PHASE21_FROZEN_AT + timedelta(seconds=1),
         seal_deadline_at=PHASE21_FROZEN_AT + timedelta(seconds=3),
     )
@@ -363,7 +363,7 @@ def test_phase22_lineage_rejects_qualification_decision_reuse() -> None:
         qualification_decision,
         evidence_id="holdout-evidence",
         decision_epoch_id="holdout-epoch",
-        decision_at=datetime(2017, 3, 15, 14, 0, tzinfo=UTC),
+        decision_at=datetime(2016, 2, 15, 14, 0, tzinfo=UTC),
         sealed_at=PHASE21_FROZEN_AT + timedelta(milliseconds=1100),
         seal_deadline_at=PHASE21_FROZEN_AT + timedelta(seconds=3),
     )
@@ -384,7 +384,7 @@ def test_phase22_lineage_requires_complete_collector_git_sha() -> None:
     )
     holdout_decision = _decision(
         evidence_sha=_sha(202),
-        decision_at=datetime(2017, 3, 15, 14, 0, tzinfo=UTC),
+        decision_at=datetime(2016, 2, 15, 14, 0, tzinfo=UTC),
         sealed_at=PHASE21_FROZEN_AT + timedelta(seconds=1),
         seal_deadline_at=PHASE21_FROZEN_AT + timedelta(seconds=3),
         collector_git_sha=None,
@@ -406,7 +406,7 @@ def test_phase22_lineage_requires_one_policy_record_per_decision() -> None:
     )
     holdout_decision = _decision(
         evidence_sha=_sha(202),
-        decision_at=datetime(2017, 3, 15, 14, 0, tzinfo=UTC),
+        decision_at=datetime(2016, 2, 15, 14, 0, tzinfo=UTC),
         sealed_at=PHASE21_FROZEN_AT + timedelta(seconds=1),
         seal_deadline_at=PHASE21_FROZEN_AT + timedelta(seconds=3),
     )

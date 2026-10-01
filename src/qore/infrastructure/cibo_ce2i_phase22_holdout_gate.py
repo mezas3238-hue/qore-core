@@ -16,7 +16,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_ce2i_holdout_registry import (
-    PREREGISTERED_USD60_HOLDOUT,
+    ACTIVE_USD60_HOLDOUT_CANDIDATE,
 )
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
     VersionedPhase20ForwardPolicyBook,
@@ -131,7 +131,7 @@ def assess_phase22_holdout_lineage(
 
     collector_shas: set[str] = set()
     decision_by_sha = {}
-    holdout = PREREGISTERED_USD60_HOLDOUT
+    holdout = ACTIVE_USD60_HOLDOUT_CANDIDATE
     for decision in decisions:
         decision_by_sha[decision.evidence_sha256] = decision
         if not (
