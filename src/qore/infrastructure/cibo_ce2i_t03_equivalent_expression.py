@@ -41,6 +41,65 @@ class T03NormalizedExposureComponent:
 
 
 @dataclass(frozen=True, slots=True)
+class T03EquivalentExpressionDeclaration:
+    declaration_id: str
+    provider_key: str
+    account_fingerprint_sha256: str
+    target_qore_symbol: str
+    target_provider_symbol: str
+    candidate_qore_symbol: str
+    candidate_provider_symbol: str
+    normalized_factor_ids: tuple[str, ...]
+    declared_at: datetime
+    evidence_sha256: str
+    productive_authority: bool = False
+
+    def __post_init__(self) -> None:
+        for name in (
+            "declaration_id",
+            "provider_key",
+            "target_qore_symbol",
+            "target_provider_symbol",
+            "candidate_qore_symbol",
+            "candidate_provider_symbol",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip():
+                raise CiboCapitalManagementError(
+                    f"T03 declaration {name} is required"
+                )
+        if (
+            self.target_qore_symbol == self.candidate_qore_symbol
+            and self.target_provider_symbol == self.candidate_provider_symbol
+        ):
+            raise CiboCapitalManagementError(
+                "T03 declaration requires a distinct candidate expression"
+            )
+        _hex_sha(
+            self.account_fingerprint_sha256,
+            "declaration account_fingerprint_sha256",
+        )
+        _canonical_sha(self.evidence_sha256, "declaration evidence_sha256")
+        _aware(self.declared_at, "declaration declared_at")
+        if (
+            not self.normalized_factor_ids
+            or self.normalized_factor_ids
+            != tuple(sorted(set(self.normalized_factor_ids)))
+        ):
+            raise CiboCapitalManagementError(
+                "T03 declaration factor ids must be sorted unique/non-empty"
+            )
+        if type(self.productive_authority) is not bool:
+            raise CiboCapitalManagementError(
+                "T03 declaration productive_authority must be bool"
+            )
+        if self.productive_authority:
+            raise CiboCapitalManagementError(
+                "T03 declaration cannot carry productive authority"
+            )
+
+
+@dataclass(frozen=True, slots=True)
 class T03ExpressionEconomics:
     provider_key: str
     account_fingerprint_sha256: str
@@ -121,6 +180,7 @@ class T03ExpressionEconomics:
 
 @dataclass(frozen=True, slots=True)
 class T03EquivalentExpressionAudit:
+    declaration_id: str
     decision_at: datetime
     target_provider_symbol: str
     candidate_provider_symbol: str
@@ -143,6 +203,10 @@ class T03EquivalentExpressionAudit:
     blockers: tuple[str, ...]
 
     def __post_init__(self) -> None:
+        if not isinstance(self.declaration_id, str) or not self.declaration_id:
+            raise CiboCapitalManagementError(
+                "T03 equivalent-expression declaration_id is required"
+            )
         _aware(self.decision_at, "audit decision_at")
         for name in (
             "normalized_exposure_equivalent",
@@ -200,12 +264,17 @@ class T03EquivalentExpressionAudit:
 
 def assess_t03_equivalent_expression(
     *,
+    declaration: T03EquivalentExpressionDeclaration,
     target: T03ExpressionEconomics,
     candidate: T03ExpressionEconomics,
     decision_at: datetime,
 ) -> T03EquivalentExpressionAudit:
     """Compare one predeclared provider-verified candidate to its target."""
 
+    if not isinstance(declaration, T03EquivalentExpressionDeclaration):
+        raise CiboCapitalManagementError(
+            "T03 equivalent-expression audit requires canonical declaration"
+        )
     if not isinstance(target, T03ExpressionEconomics) or not isinstance(
         candidate,
         T03ExpressionEconomics,
@@ -217,6 +286,45 @@ def assess_t03_equivalent_expression(
     if target.known_at > decision_at or candidate.known_at > decision_at:
         raise CiboCapitalManagementError(
             "T03 equivalent-expression audit contains future-known evidence"
+        )
+    if declaration.declared_at > target.observed_at or (
+        declaration.declared_at > candidate.observed_at
+    ):
+        raise CiboCapitalManagementError(
+            "T03 declaration must predate provider observations"
+        )
+    identity = (
+        declaration.provider_key,
+        declaration.account_fingerprint_sha256,
+        declaration.target_qore_symbol,
+        declaration.target_provider_symbol,
+        declaration.candidate_qore_symbol,
+        declaration.candidate_provider_symbol,
+    )
+    observed_identity = (
+        target.provider_key,
+        target.account_fingerprint_sha256,
+        target.qore_symbol,
+        target.provider_symbol,
+        candidate.qore_symbol,
+        candidate.provider_symbol,
+    )
+    if identity != observed_identity:
+        raise CiboCapitalManagementError(
+            "T03 declaration/expression identity drift"
+        )
+    target_factors = tuple(
+        item.factor_id for item in target.normalized_exposure
+    )
+    candidate_factors = tuple(
+        item.factor_id for item in candidate.normalized_exposure
+    )
+    if (
+        target_factors != declaration.normalized_factor_ids
+        or candidate_factors != declaration.normalized_factor_ids
+    ):
+        raise CiboCapitalManagementError(
+            "T03 declaration/exposure factor schema drift"
         )
     if (
         target.provider_symbol == candidate.provider_symbol
@@ -283,6 +391,7 @@ def assess_t03_equivalent_expression(
         )
     )
     return T03EquivalentExpressionAudit(
+        declaration_id=declaration.declaration_id,
         decision_at=decision_at,
         target_provider_symbol=target.provider_symbol,
         candidate_provider_symbol=candidate.provider_symbol,

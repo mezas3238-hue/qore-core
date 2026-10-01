@@ -203,3 +203,12 @@ T16 does **not** receive the same disposition. The observed cTrader account is
 HEDGED, so structural unavailability is false. T16 remains open for actual
 hedge-instrument basis risk, cost, correlation, execution and fresh OOS
 economic utility.
+
+
+## T16 anti-selection preregistration
+
+A T16 hedge pair must be declared before the first return window consumed by
+the audit. The declaration fixes provider, target symbol and hedge symbol.
+Choosing the pair after observing correlation, basis residual or costs is
+rejected as causal contamination. This requirement is independent from the
+later fresh-OOS utility gate.

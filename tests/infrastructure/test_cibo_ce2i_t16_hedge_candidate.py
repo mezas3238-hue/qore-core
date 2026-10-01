@@ -9,11 +9,23 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_ce2i_t16_hedge_candidate import (
+    T16HedgePairDeclaration,
     T16HedgeReturnObservation,
     assess_t16_hedge_candidate,
 )
 
 T0 = datetime(2026, 10, 1, 2, 0, tzinfo=UTC)
+
+
+def _declaration() -> T16HedgePairDeclaration:
+    return T16HedgePairDeclaration(
+        declaration_id="t16-pair-001",
+        provider_key="ctrader-demo",
+        target_symbol="NAS100",
+        hedge_symbol="SPX500",
+        declared_at=T0 - timedelta(seconds=1),
+        evidence_sha256="sha256:" + "d" * 64,
+    )
 
 
 def _rows(
@@ -46,6 +58,7 @@ def _rows(
 
 def test_ready_measurement_still_cannot_promote_t16_policy() -> None:
     report = assess_t16_hedge_candidate(
+        declaration=_declaration(),
         observations=_rows(40),
         decision_at=T0 + timedelta(hours=4),
     )
@@ -70,6 +83,7 @@ def test_ready_measurement_still_cannot_promote_t16_policy() -> None:
 
 def test_insufficient_sample_stays_fail_closed() -> None:
     report = assess_t16_hedge_candidate(
+        declaration=_declaration(),
         observations=_rows(8),
         decision_at=T0 + timedelta(hours=1),
         minimum_samples=30,
@@ -83,6 +97,7 @@ def test_insufficient_sample_stays_fail_closed() -> None:
 
 def test_missing_execution_support_is_explicit_blocker() -> None:
     report = assess_t16_hedge_candidate(
+        declaration=_declaration(),
         observations=_rows(40, execution_supported=False),
         decision_at=T0 + timedelta(hours=4),
     )
@@ -101,6 +116,7 @@ def test_future_known_evidence_is_rejected() -> None:
         match="future-known evidence",
     ):
         assess_t16_hedge_candidate(
+            declaration=_declaration(),
             observations=rows,
             decision_at=decision_at,
             minimum_samples=2,
@@ -129,7 +145,56 @@ def test_mixed_pairs_are_rejected() -> None:
         match="one provider and one fixed pair",
     ):
         assess_t16_hedge_candidate(
+            declaration=_declaration(),
             observations=tuple(rows),
+            decision_at=T0 + timedelta(hours=1),
+            minimum_samples=2,
+            required_folds=2,
+        )
+
+
+def test_pair_must_be_declared_before_return_windows() -> None:
+    rows = _rows(2)
+    declaration = T16HedgePairDeclaration(
+        declaration_id="late-pair",
+        provider_key="ctrader-demo",
+        target_symbol="NAS100",
+        hedge_symbol="SPX500",
+        declared_at=T0 + timedelta(seconds=1),
+        evidence_sha256="sha256:" + "e" * 64,
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="declared before observed return windows",
+    ):
+        assess_t16_hedge_candidate(
+            declaration=declaration,
+            observations=rows,
+            decision_at=T0 + timedelta(hours=1),
+            minimum_samples=2,
+            required_folds=2,
+        )
+
+
+def test_pair_declaration_identity_drift_is_rejected() -> None:
+    rows = _rows(2)
+    declaration = T16HedgePairDeclaration(
+        declaration_id="wrong-pair",
+        provider_key="ctrader-demo",
+        target_symbol="NAS100",
+        hedge_symbol="US30",
+        declared_at=T0 - timedelta(seconds=1),
+        evidence_sha256="sha256:" + "e" * 64,
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="identity drift",
+    ):
+        assess_t16_hedge_candidate(
+            declaration=declaration,
+            observations=rows,
             decision_at=T0 + timedelta(hours=1),
             minimum_samples=2,
             required_folds=2,

@@ -10,6 +10,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_ce2i_t03_equivalent_expression import (
+    T03EquivalentExpressionDeclaration,
     T03ExpressionEconomics,
     T03NormalizedExposureComponent,
     assess_t03_equivalent_expression,
@@ -22,6 +23,21 @@ EXPOSURE = (
         signed_exposure_usd=Decimal("1000"),
     ),
 )
+
+
+def _declaration() -> T03EquivalentExpressionDeclaration:
+    return T03EquivalentExpressionDeclaration(
+        declaration_id="t03-pair-001",
+        provider_key="ctrader-demo",
+        account_fingerprint_sha256="a" * 64,
+        target_qore_symbol="NAS100",
+        target_provider_symbol="US100",
+        candidate_qore_symbol="NAS100_EQUIVALENT",
+        candidate_provider_symbol="US100_ALT",
+        normalized_factor_ids=("US_EQUITY_BETA",),
+        declared_at=T0 - timedelta(seconds=3),
+        evidence_sha256="sha256:" + "d" * 64,
+    )
 
 
 def _expression(
@@ -56,6 +72,7 @@ def _expression(
 
 def test_lower_margin_equivalent_expression_is_only_mechanically_eligible() -> None:
     report = assess_t03_equivalent_expression(
+        declaration=_declaration(),
         target=_expression(
             qore_symbol="NAS100",
             provider_symbol="US100",
@@ -93,6 +110,7 @@ def test_different_normalized_exposure_is_not_equivalent() -> None:
         ),
     )
     report = assess_t03_equivalent_expression(
+        declaration=_declaration(),
         target=_expression(
             qore_symbol="NAS100",
             provider_symbol="US100",
@@ -125,6 +143,7 @@ def test_lower_margin_cannot_hide_more_stop_or_stressed_loss() -> None:
         stressed_loss="13",
     )
     report = assess_t03_equivalent_expression(
+        declaration=_declaration(),
         target=target,
         candidate=candidate,
         decision_at=T0,
@@ -149,6 +168,7 @@ def test_unverified_or_unsupported_candidate_stays_fail_closed() -> None:
         execution_supported=False,
     )
     report = assess_t03_equivalent_expression(
+        declaration=_declaration(),
         target=target,
         candidate=candidate,
         decision_at=T0,
@@ -179,6 +199,62 @@ def test_future_known_candidate_is_rejected() -> None:
         match="future-known evidence",
     ):
         assess_t03_equivalent_expression(
+            declaration=_declaration(),
+            target=target,
+            candidate=candidate,
+            decision_at=T0,
+        )
+
+
+def test_post_observation_declaration_is_rejected() -> None:
+    target = _expression(
+        qore_symbol="NAS100",
+        provider_symbol="US100",
+        margin="100",
+    )
+    candidate = _expression(
+        qore_symbol="NAS100_EQUIVALENT",
+        provider_symbol="US100_ALT",
+        margin="60",
+    )
+    declaration = replace(
+        _declaration(),
+        declared_at=T0,
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="must predate provider observations",
+    ):
+        assess_t03_equivalent_expression(
+            declaration=declaration,
+            target=target,
+            candidate=candidate,
+            decision_at=T0,
+        )
+
+
+def test_declaration_identity_drift_is_rejected() -> None:
+    target = _expression(
+        qore_symbol="NAS100",
+        provider_symbol="US100",
+        margin="100",
+    )
+    candidate = _expression(
+        qore_symbol="NAS100_EQUIVALENT",
+        provider_symbol="US100_ALT",
+        margin="60",
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="identity drift",
+    ):
+        assess_t03_equivalent_expression(
+            declaration=replace(
+                _declaration(),
+                candidate_provider_symbol="US30",
+            ),
             target=target,
             candidate=candidate,
             decision_at=T0,

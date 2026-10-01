@@ -18,6 +18,44 @@ from qore.infrastructure.cibo_capital_management_authority import (
 
 
 @dataclass(frozen=True, slots=True)
+class T16HedgePairDeclaration:
+    declaration_id: str
+    provider_key: str
+    target_symbol: str
+    hedge_symbol: str
+    declared_at: datetime
+    evidence_sha256: str
+    productive_authority: bool = False
+
+    def __post_init__(self) -> None:
+        for name in (
+            "declaration_id",
+            "provider_key",
+            "target_symbol",
+            "hedge_symbol",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value:
+                raise CiboCapitalManagementError(
+                    f"T16 hedge declaration {name} is required"
+                )
+        if self.target_symbol == self.hedge_symbol:
+            raise CiboCapitalManagementError(
+                "T16 hedge declaration requires distinct instruments"
+            )
+        _aware(self.declared_at, "T16 declaration declared_at")
+        _sha(self.evidence_sha256, "declaration evidence_sha256")
+        if type(self.productive_authority) is not bool:
+            raise CiboCapitalManagementError(
+                "T16 declaration productive_authority must be bool"
+            )
+        if self.productive_authority:
+            raise CiboCapitalManagementError(
+                "T16 hedge declaration cannot carry productive authority"
+            )
+
+
+@dataclass(frozen=True, slots=True)
 class T16HedgeReturnObservation:
     provider_key: str
     target_symbol: str
@@ -69,6 +107,7 @@ class T16HedgeReturnObservation:
 
 @dataclass(frozen=True, slots=True)
 class T16HedgeCandidateAudit:
+    declaration_id: str
     provider_key: str | None
     target_symbol: str | None
     hedge_symbol: str | None
@@ -93,6 +132,10 @@ class T16HedgeCandidateAudit:
     blockers: tuple[str, ...]
 
     def __post_init__(self) -> None:
+        if not isinstance(self.declaration_id, str) or not self.declaration_id:
+            raise CiboCapitalManagementError(
+                "T16 hedge audit declaration_id is required"
+            )
         _aware(self.decision_at, "T16 audit decision_at")
         if self.sample_size < 0 or self.minimum_samples < 2:
             raise CiboCapitalManagementError(
@@ -170,6 +213,7 @@ class T16HedgeCandidateAudit:
 
 def assess_t16_hedge_candidate(
     *,
+    declaration: T16HedgePairDeclaration,
     observations: tuple[T16HedgeReturnObservation, ...],
     decision_at: datetime,
     minimum_samples: int = 30,
@@ -177,7 +221,15 @@ def assess_t16_hedge_candidate(
 ) -> T16HedgeCandidateAudit:
     """Measure a predeclared hedge pair without claiming economic utility."""
 
+    if not isinstance(declaration, T16HedgePairDeclaration):
+        raise CiboCapitalManagementError(
+            "T16 hedge audit requires canonical declaration"
+        )
     _aware(decision_at, "T16 audit decision_at")
+    if declaration.declared_at > decision_at:
+        raise CiboCapitalManagementError(
+            "T16 hedge declaration cannot postdate decision"
+        )
     if minimum_samples < 2:
         raise CiboCapitalManagementError(
             "T16 minimum_samples must be at least two"
@@ -188,6 +240,7 @@ def assess_t16_hedge_candidate(
         )
     if not observations:
         return _empty(
+            declaration=declaration,
             decision_at=decision_at,
             minimum_samples=minimum_samples,
             required_folds=required_folds,
@@ -209,6 +262,24 @@ def assess_t16_hedge_candidate(
     if len(providers) != 1 or len(targets) != 1 or len(hedges) != 1:
         raise CiboCapitalManagementError(
             "T16 hedge audit requires one provider and one fixed pair"
+        )
+    identity = (
+        next(iter(providers)),
+        next(iter(targets)),
+        next(iter(hedges)),
+    )
+    declared_identity = (
+        declaration.provider_key,
+        declaration.target_symbol,
+        declaration.hedge_symbol,
+    )
+    if identity != declared_identity:
+        raise CiboCapitalManagementError(
+            "T16 hedge declaration/observation identity drift"
+        )
+    if declaration.declared_at > ordered[0].start_market_at:
+        raise CiboCapitalManagementError(
+            "T16 hedge pair must be declared before observed return windows"
         )
     for row in ordered:
         if row.known_at > decision_at:
@@ -293,6 +364,7 @@ def assess_t16_hedge_candidate(
         )
     )
     return T16HedgeCandidateAudit(
+        declaration_id=declaration.declaration_id,
         provider_key=next(iter(providers)),
         target_symbol=next(iter(targets)),
         hedge_symbol=next(iter(hedges)),
@@ -320,14 +392,16 @@ def assess_t16_hedge_candidate(
 
 def _empty(
     *,
+    declaration: T16HedgePairDeclaration,
     decision_at: datetime,
     minimum_samples: int,
     required_folds: int,
 ) -> T16HedgeCandidateAudit:
     return T16HedgeCandidateAudit(
-        provider_key=None,
-        target_symbol=None,
-        hedge_symbol=None,
+        declaration_id=declaration.declaration_id,
+        provider_key=declaration.provider_key,
+        target_symbol=declaration.target_symbol,
+        hedge_symbol=declaration.hedge_symbol,
         decision_at=decision_at,
         sample_size=0,
         minimum_samples=minimum_samples,

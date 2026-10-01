@@ -120,3 +120,12 @@ gross edge and market impact all have complete symbol coverage. It still
 hard-codes historical-2017 execution terms to false and grants no productive
 authority. Thus it makes T11's missing inputs machine-readable without
 inventing either model.
+
+
+### T03 anti-selection preregistration
+
+Equivalent-expression candidates must be declared before either provider
+observation used in the comparison. The declaration binds provider/account,
+target expression, candidate expression and normalized-factor schema. A pair
+chosen after observing margin, risk or execution economics is rejected rather
+than treated as causal T03 evidence.

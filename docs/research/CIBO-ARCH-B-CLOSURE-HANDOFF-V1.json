@@ -1,7 +1,7 @@
 {
   "schema": "CIBO_ARCH_B_CLOSURE_HANDOFF_V1",
   "branch": "agent/cibo-certification-architect-b-integration-001",
-  "implementation_checkpoint_sha": "6e8142365f57ccc8847f068662a58fdf59aefc86",
+  "implementation_checkpoint_sha": "34a7420fc3c70a578f0ed8f20851fbada958d46c",
   "primary_pr": 651,
   "child_pr": 661,
   "governance": {
@@ -45,7 +45,7 @@
     },
     {
       "id": "T03",
-      "b_status": "FORWARD_MARGIN_AND_EQUIVALENT_EXPRESSION_COMPARISON_ENGINES_IMPLEMENTED",
+      "b_status": "FORWARD_MARGIN_AND_PREREGISTERED_EQUIVALENT_EXPRESSION_ENGINES_IMPLEMENTED",
       "recommended_ledger_disposition": null,
       "evidence": [
         "src/qore/infrastructure/cibo_ce2i_phase20_t03_margin_population.py",
@@ -56,7 +56,7 @@
         "tests/infrastructure/test_cibo_ce2i_t03_equivalent_expression.py"
       ],
       "blockers": [
-        "REAL_PROVIDER_VERIFIED_EQUIVALENT_EXPRESSION_CANDIDATES_REQUIRED",
+        "REAL_PREREGISTERED_PROVIDER_VERIFIED_EQUIVALENT_EXPRESSION_CANDIDATES_REQUIRED",
         "REAL_FROZEN_FORWARD_MARGIN_POPULATION_REQUIRED",
         "FRESH_OOS_EQUIVALENT_EXPRESSION_ECONOMIC_UTILITY_REQUIRED",
         "HISTORICAL_2017_MARGIN_TERMS_NOT_PROVEN"
@@ -87,7 +87,7 @@
     },
     {
       "id": "T16",
-      "b_status": "ACCOUNT_BOUND_HEDGED_MODE_PROVEN_T16_MEASUREMENT_ENGINE_IMPLEMENTED",
+      "b_status": "HEDGED_MODE_PROVEN_PREREGISTERED_T16_MEASUREMENT_ENGINE_IMPLEMENTED",
       "recommended_ledger_disposition": null,
       "evidence": [
         "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
@@ -105,7 +105,7 @@
         ".github/workflows/cibo-b-provider-forward-tool-readiness.yml"
       ],
       "blockers": [
-        "REAL_PREDECLARED_HEDGE_PAIR_POPULATION_REQUIRED",
+        "REAL_PREREGISTERED_HEDGE_PAIR_POPULATION_REQUIRED",
         "HEDGE_INSTRUMENT_BASIS_RISK_COST_CORRELATION_EXECUTION_EVIDENCE_REQUIRED",
         "NET_ECONOMIC_BENEFIT_NOT_PROVEN",
         "PROVIDER_BOUND_FRESH_OOS_HEDGE_UTILITY_REQUIRED"
@@ -296,5 +296,5 @@
     "new_b_surface_classification_request": "docs/research/CIBO-ARCH-B-CROSSBOUNDARY-REQUEST-002.md",
     "t17_structural_disposition_ready_for_integrator": true
   },
-  "package_revalidated_at_utc": "2026-10-01T03:20:00Z"
+  "package_revalidated_at_utc": "2026-10-01T03:27:00Z"
 }
