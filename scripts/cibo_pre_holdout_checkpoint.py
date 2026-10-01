@@ -22,6 +22,10 @@ from qore.infrastructure.cibo_ce2i_pre_holdout_gate import (
 from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
     CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS,
 )
+from qore.infrastructure.cibo_ce2i_provider_core_freeze_receipt import (
+    PROVIDER_CORE_FREEZE_RECEIPT,
+    provider_core_freeze_receipt_payload,
+)
 from qore.infrastructure.cibo_ce2i_shadow_certification_receipts import (
     SHADOW_CERTIFICATION_RECEIPTS,
     shadow_receipt_payload,
@@ -79,8 +83,9 @@ def build_report(
     )
 
     receipts = SHADOW_CERTIFICATION_RECEIPTS
+    provider_receipt = PROVIDER_CORE_FREEZE_RECEIPT
     readiness = evaluate_pre_holdout_readiness(
-        provider_economics_frozen=False,
+        provider_economics_frozen=provider_receipt.core_pre_holdout_ready,
         calibration_freeze_manifest_sealed=False,
         phase20d_causal_gate_passed=receipts.phase20_shadow_passed,
         phase21_policy_freeze_sealed=receipts.phase21_policy_freeze_sealed,
@@ -124,7 +129,12 @@ def build_report(
         "config_sha256": _sha256(protocol),
         "calibration_matrix_sha256": calibration_matrix_sha256(),
         "burn_registry_sha256": _sha256(burns),
-        "provider_economics_status": provider_status,
+        "provider_economics_status": (
+            "CORE_PRE_HOLDOUT_READY_PREDECLARED_STRESS_BOUND"
+            if provider_receipt.core_pre_holdout_ready
+            else provider_status
+        ),
+        "provider_core_freeze_receipt": provider_core_freeze_receipt_payload(),
         "provider_economics": {
             "workflow_run_id": provider.workflow_run_id,
             "artifact_id": provider.artifact_id,
