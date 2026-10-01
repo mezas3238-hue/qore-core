@@ -79,6 +79,7 @@ jobs:
             const neverCancelNames = new Set([
               "QORE CIBO Phase22 DEMO Provider Calibration",
               "QORE CIBO Phase22 DEMO Calibration Cleanup",
+              "QORE CIBO Phase22 cTrader Tick Diagnostic",
             ]);
 
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

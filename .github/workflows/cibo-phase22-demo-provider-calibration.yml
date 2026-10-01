@@ -89,12 +89,24 @@ jobs:
                   "phase22-demo-provider-calibration/calibration.json"
               ).read_text(encoding="utf-8")
           )
-          assert p["status"] == "READY"
+          assert p["status"] in {
+              "READY",
+              "EXECUTION_POPULATION_READY_QUOTE_RECONSTRUCTION_PENDING",
+          }
           assert p["provider_key"] == "ctrader-demo"
           assert p["environment"] == "demo"
           assert p["endpoint_host"] == "demo.ctraderapi.com"
-          assert p["empirical_slippage_calibrated"] is True
-          assert p["execution_model_ready"] is True
+          assert p["execution_population_ready"] is True
+          if p["status"] == "READY":
+              assert p["empirical_slippage_calibrated"] is True
+              assert p["execution_model_ready"] is True
+              assert p["blockers"] == []
+          else:
+              assert p["empirical_slippage_calibrated"] is False
+              assert p["execution_model_ready"] is False
+              assert p["blockers"] == [
+                  "CAUSAL_QUOTE_RECONSTRUCTION_PENDING"
+              ]
           assert p["minimum_volume_only"] is True
           assert p["created_positions_closed"] is True
           assert p["historical_provider_economics_claimed"] is False
@@ -107,8 +119,10 @@ jobs:
           assert p["productive_authority"] is False
           assert all(
               value >= 8
-              for value in p["after_valid_distinct_orders"].values()
+              for value in p["after_execution_entry_orders"].values()
           )
+          if p["population_already_sufficient_before_run"]:
+              assert p["created_round_trip_count"] == 0
           PY
 
       - name: Seal calibration evidence

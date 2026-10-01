@@ -104,6 +104,7 @@ def _history(
 ) -> tuple[
     dict[str, tuple[CTraderEmpiricalSlippageObservation, ...]],
     dict[str, int],
+    dict[str, int],
 ]:
     account_id = client.account_id
     start = observed_at - timedelta(days=365)
@@ -146,6 +147,7 @@ def _history(
         defaultdict(list)
     )
     invalid: dict[str, int] = defaultdict(int)
+    execution_counts: dict[str, int] = defaultdict(int)
     for deal in tuple(getattr(deals_res, "deal", ())):
         if not _account_entry_deal(deal, contracts):
             continue
@@ -156,6 +158,7 @@ def _history(
         if label is None or not label.startswith(CALIBRATION_LABEL_PREFIX):
             continue
         contract = contracts[int(deal.symbolId)]
+        execution_counts[contract.qore_symbol] += 1
         try:
             observation = _deal_observation(
                 client=client,
@@ -173,7 +176,7 @@ def _history(
         )
         for symbol, rows in observations.items()
     }
-    return frozen, dict(invalid)
+    return frozen, dict(invalid), dict(execution_counts)
 
 
 def _causal_quote(
@@ -644,24 +647,32 @@ def run() -> dict[str, object]:
                 "Phase22 calibration provider symbol surface drift"
             )
 
-        before, before_invalid = _history(
+        before, before_invalid, before_execution_counts_raw = _history(
             client,
             binding,
             observed_at=datetime.now(UTC),
         )
-        before_counts = {
+        before_valid_counts = {
             symbol: len({item.order_ref for item in before.get(symbol, ())})
             for symbol in REQUIRED_SYMBOLS
         }
+        before_execution_counts = {
+            symbol: before_execution_counts_raw.get(symbol, 0)
+            for symbol in REQUIRED_SYMBOLS
+        }
+        population_already_sufficient = all(
+            count >= MINIMUM_DISTINCT_ENTRY_ORDERS_PER_SYMBOL
+            for count in before_execution_counts.values()
+        )
 
         for symbol in REQUIRED_SYMBOLS:
             deficit = max(
                 0,
                 MINIMUM_DISTINCT_ENTRY_ORDERS_PER_SYMBOL
-                - before_counts[symbol],
+                - before_execution_counts[symbol],
             )
             for offset in range(deficit):
-                ordinal = before_counts[symbol] + offset + 1
+                ordinal = before_execution_counts[symbol] + offset + 1
                 created.append(
                     _one_round_trip(
                         client,
@@ -672,27 +683,42 @@ def run() -> dict[str, object]:
                 )
                 time.sleep(0.35)
 
-        after, after_invalid = _history(
+        after, after_invalid, after_execution_counts_raw = _history(
             client,
             binding,
             observed_at=datetime.now(UTC),
         )
-        after_counts = {
+        after_valid_counts = {
             symbol: len({item.order_ref for item in after.get(symbol, ())})
             for symbol in REQUIRED_SYMBOLS
         }
-        ready = all(
+        after_execution_counts = {
+            symbol: after_execution_counts_raw.get(symbol, 0)
+            for symbol in REQUIRED_SYMBOLS
+        }
+        population_ready = all(
             count >= MINIMUM_DISTINCT_ENTRY_ORDERS_PER_SYMBOL
-            for count in after_counts.values()
+            for count in after_execution_counts.values()
         )
-        if not ready:
+        if not population_ready:
             raise CiboCapitalManagementError(
-                "Phase22 calibration minimum causal population not reached"
+                "Phase22 calibration minimum execution population not reached"
             )
-        if any(after_invalid.get(symbol, 0) for symbol in REQUIRED_SYMBOLS):
-            raise CiboCapitalManagementError(
-                "Phase22 calibration cohort contains causal quote gaps"
+        causal_ready = (
+            all(
+                count >= MINIMUM_DISTINCT_ENTRY_ORDERS_PER_SYMBOL
+                for count in after_valid_counts.values()
             )
+            and not any(
+                after_invalid.get(symbol, 0)
+                for symbol in REQUIRED_SYMBOLS
+            )
+        )
+        blockers = (
+            []
+            if causal_ready
+            else ["CAUSAL_QUOTE_RECONSTRUCTION_PENDING"]
+        )
 
         observations = [
             _jsonable_observation(item)
@@ -701,7 +727,11 @@ def run() -> dict[str, object]:
         ]
         return {
             "schema": "qore.cibo.phase22.demo-provider-calibration.v1",
-            "status": "READY",
+            "status": (
+                "READY"
+                if causal_ready
+                else "EXECUTION_POPULATION_READY_QUOTE_RECONSTRUCTION_PENDING"
+            ),
             "provider_key": "ctrader-demo",
             "environment": "demo",
             "endpoint_host": "demo.ctraderapi.com",
@@ -712,16 +742,23 @@ def run() -> dict[str, object]:
             "minimum_distinct_entry_orders_per_symbol": (
                 MINIMUM_DISTINCT_ENTRY_ORDERS_PER_SYMBOL
             ),
-            "before_valid_distinct_orders": before_counts,
-            "after_valid_distinct_orders": after_counts,
+            "before_execution_entry_orders": before_execution_counts,
+            "after_execution_entry_orders": after_execution_counts,
+            "before_valid_distinct_orders": before_valid_counts,
+            "after_valid_distinct_orders": after_valid_counts,
+            "population_already_sufficient_before_run": (
+                population_already_sufficient
+            ),
+            "execution_population_ready": population_ready,
             "before_invalid_causal_observations": before_invalid,
             "after_invalid_causal_observations": after_invalid,
             "created_round_trips": created,
             "created_round_trip_count": len(created),
             "observations": observations,
             "observation_count": len(observations),
-            "empirical_slippage_calibrated": True,
-            "execution_model_ready": True,
+            "empirical_slippage_calibrated": causal_ready,
+            "execution_model_ready": causal_ready,
+            "blockers": blockers,
             "broker_mutation_performed": bool(created),
             "minimum_volume_only": True,
             "created_positions_closed": all(
@@ -758,6 +795,9 @@ def main() -> None:
             {
                 "status": report["status"],
                 "created_round_trip_count": report["created_round_trip_count"],
+                "after_execution_entry_orders": report[
+                    "after_execution_entry_orders"
+                ],
                 "after_valid_distinct_orders": report[
                     "after_valid_distinct_orders"
                 ],
