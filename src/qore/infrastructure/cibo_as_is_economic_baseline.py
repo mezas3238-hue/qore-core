@@ -605,8 +605,13 @@ def _compound_population_sha256(
         {
             "episode_id": item.episode_id,
             "deployment_id": item.deployment_id,
+            "market_event_id": item.market_event_id,
             "decision_id": item.decision_id,
+            "candidate_id": item.candidate_id,
+            "trader_id": item.trader_id.value,
             "signal_fingerprint": item.signal_fingerprint,
+            "account_identity_fingerprint": item.account_identity_fingerprint,
+            "qualification_fold_id": item.qualification_fold_id,
             "decision_at": item.decision_at.isoformat(),
             "deployed_at": item.deployed_at.isoformat(),
             "settled_at": item.settled_at.isoformat(),
@@ -618,7 +623,20 @@ def _compound_population_sha256(
             "protected_floor_graduation_usd": str(
                 item.protected_floor_graduation_usd
             ),
+            "floor_evidence_sha256": item.floor_evidence_sha256,
+            "decision_evidence_sha256": item.decision_evidence_sha256,
+            "provider_economics_sha256": item.provider_economics_sha256,
+            "risk_lineage_sha256": item.risk_lineage_sha256,
+            "cma_lineage_sha256": item.cma_lineage_sha256,
+            "terminal_settlement_sha256": item.terminal_settlement_sha256,
+            "release_evidence_sha256": item.release_evidence_sha256,
             "source_manifest_sha256": item.source_manifest_sha256,
+            "frozen_candidate_id": item.frozen_candidate_id,
+            "frozen_candidate_code_sha": item.frozen_candidate_code_sha,
+            "evidence_kind": item.evidence_kind.value,
+            "market_record_present": item.market_record_present,
+            "terminal_release_present": item.terminal_release_present,
+            "future_leakage_used": item.future_leakage_used,
         }
         for item in compound_records_sorted(records)
     ]
