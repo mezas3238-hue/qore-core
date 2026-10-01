@@ -108,7 +108,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_CERTIFIED_NONCOMPENSATORY_EXPANSION_UTILITY_GATE_CHILD_CI_GREEN_STRICT_FOUR_FOLD_REPLICATION_GATE_IMPLEMENTED_CI_PENDING_FRESH_OOS_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "CONTRACT_CERTIFIED_NONCOMPENSATORY_EXPANSION_UTILITY_GATE_CHILD_CI_GREEN_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_FRESH_OOS_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -127,11 +127,11 @@
         "src/qore/infrastructure/cibo_arch_a_mechanism_stress_gate.py",
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml"
+        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
+        "github-actions://36808183923/SUCCESS"
       ],
       "blockers": [
         "FRESH_OOS_PROFIT_FUNDED_EXPANSION_UTILITY_REQUIRED",
-        "CE2I_STRICT_FOUR_FOLD_REPLICATION_GATE_CHILD_CI_REQUIRED",
         "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
       ],
       "next_gate": "Using only legally fresh causal evidence, prove that profit-funded expansion adds robust economic value without unacceptable plausible-loss, drawdown, tail, margin or optionality degradation."
@@ -141,7 +141,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_CERTIFIED_PROTECTED_CAPACITY_NONCOMPENSATORY_UTILITY_GATE_CHILD_CI_GREEN_STRICT_FOUR_FOLD_REPLICATION_GATE_IMPLEMENTED_CI_PENDING_FRESH_OOS_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "CONTRACT_CERTIFIED_PROTECTED_CAPACITY_NONCOMPENSATORY_UTILITY_GATE_CHILD_CI_GREEN_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_FRESH_OOS_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -160,11 +160,11 @@
         "src/qore/infrastructure/cibo_arch_a_mechanism_stress_gate.py",
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml"
+        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
+        "github-actions://36808183923/SUCCESS"
       ],
       "blockers": [
         "FRESH_OOS_PROTECTED_CAPACITY_EXPANSION_UTILITY_REQUIRED",
-        "CE2I_STRICT_FOUR_FOLD_REPLICATION_GATE_CHILD_CI_REQUIRED",
         "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
       ],
       "next_gate": "Using only reconciled protected-floor evidence and fresh causal outcomes, prove that protected-capacity expansion adds robust economic value without treating accounting protection as broker guarantee."
@@ -339,7 +339,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CAUSAL_PARETO_UTILITY_GATE_CHILD_CI_GREEN_STRICT_FOUR_FOLD_REPLICATION_GATE_IMPLEMENTED_CI_PENDING_FRESH_FORWARD_PROOF_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "CAUSAL_PARETO_UTILITY_GATE_CHILD_CI_GREEN_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_FRESH_FORWARD_PROOF_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -356,11 +356,11 @@
         "src/qore/infrastructure/cibo_arch_a_mechanism_stress_gate.py",
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml"
+        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
+        "github-actions://36808183923/SUCCESS"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
-        "CE2I_STRICT_FOUR_FOLD_REPLICATION_GATE_CHILD_CI_REQUIRED",
         "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
       ],
       "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
@@ -370,7 +370,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CAUSAL_PARETO_UTILITY_GATE_CHILD_CI_GREEN_CAUSAL_IDENTIFICATION_AND_STRICT_FOUR_FOLD_REPLICATION_GATE_IMPLEMENTED_CI_PENDING_FRESH_FORWARD_PROOF_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
+      "current_maturity": "CAUSAL_PARETO_UTILITY_GATE_CHILD_CI_GREEN_CAUSAL_IDENTIFICATION_AND_STRICT_FOUR_FOLD_REPLICATION_GATE_CI_GREEN_FRESH_FORWARD_PROOF_OPEN_MECHANISM_STRESS_ADMISSION_GATE_IMPLEMENTED_CI_PENDING",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -387,12 +387,12 @@
         "src/qore/infrastructure/cibo_arch_a_mechanism_stress_gate.py",
         "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
         "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
-        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml"
+        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
+        "github-actions://36808183923/SUCCESS"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
         "COUNTERFACTUAL_RESERVATION_CAUSAL_EFFECT_NOT_IDENTIFIED",
-        "CE2I_STRICT_FOUR_FOLD_REPLICATION_GATE_CHILD_CI_REQUIRED",
         "MECHANISM_STRESS_ADMISSION_GATE_CHILD_CI_REQUIRED"
       ],
       "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
