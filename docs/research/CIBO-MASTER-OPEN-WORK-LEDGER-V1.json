@@ -71,8 +71,8 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
-      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "current_maturity": "FALSIFIED_AND_CLOSED_CURRENT_GOVERNED_CTRADER_DEMO_CONTRACT",
+      "terminal_disposition": "FALSIFIED_AND_CLOSED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
@@ -83,14 +83,17 @@
         "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
         "github-actions://36814558179/SUCCESS",
         "github-actions://36816113836/SUCCESS",
-        "github-actions://36816113832/SUCCESS"
+        "github-actions://36816113832/SUCCESS",
+        "src/qore/infrastructure/cibo_arch2_t03_multileg_math.py",
+        "tests/infrastructure/test_cibo_arch2_t03_multileg_math.py",
+        "src/qore/infrastructure/cibo_arch2_t03_current_contract_falsification.py",
+        "tests/infrastructure/test_cibo_arch2_t03_current_contract_falsification.py",
+        "github-actions://36936279830/SUCCESS",
+        "github-artifact://11197727438/sha256:bbb52ebf064d3e90459a4fadc79b020dd04a158e2fbb6ec815c420e28b19d78f",
+        "git://9925d0f0a0e1fb88ba4da8eb15b602652e4423f8"
       ],
-      "blockers": [
-        "CURRENT_CTRADER_DIRECT_SINGLE_INSTRUMENT_CANDIDATE_SCREEN_EXHAUSTED",
-        "MULTI_LEG_OR_ALTERNATE_PROVIDER_EQUIVALENT_EXPRESSION_NOT_PROVEN",
-        "FRESH_OOS_EQUIVALENT_EXPRESSION_UTILITY_REQUIRED_IF_CANDIDATE_APPEARS"
-      ],
-      "next_gate": "Reopen only when a preregisterable multi-leg or alternate-provider equivalent expression becomes available; then require provider-bound normalized exposure/economics and fresh-OOS utility."
+      "blockers": [],
+      "next_gate": "Terminal falsification for the current governed cTrader DEMO comparison contract. Reopen only under a newly preregistered comparison contract with a genuinely equivalent lower-margin expression; no fresh-OOS utility is required while candidate_count remains zero."
     },
     {
       "id": "T04",
@@ -255,7 +258,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "current_maturity": "ENGINEERING_CLOSED_EMPIRICAL_EXECUTION_AND_SLIPPAGE_PROVEN_FRESH_OOS_GROSS_EDGE_AND_MARKET_IMPACT_REQUIRED",
       "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -267,15 +270,21 @@
         ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
         "github-actions://36790166956/SUCCESS",
         "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
-        "github-actions://36814558301/SUCCESS"
+        "github-actions://36814558301/SUCCESS",
+        "src/qore/infrastructure/cibo_phase22_demo_empirical_provider_receipt.py",
+        "src/qore/infrastructure/cibo_arch2_provider_blocker_reconciliation.py",
+        "tests/infrastructure/test_cibo_arch2_provider_blocker_reconciliation.py",
+        "src/qore/infrastructure/cibo_arch2_t11_nonlinear_input_freeze.py",
+        "tests/infrastructure/test_cibo_arch2_t11_nonlinear_input_freeze.py",
+        "github-actions://36927602692/SUCCESS",
+        "github-artifact://11194039517/sha256:5957a77cceb44c15319785aa26a1a0574fef46535ff7ce69fcec3757d02972c4",
+        "git://9896fd96c95480744b2de123d42f1f7848993537"
       ],
       "blockers": [
-        "REAL_EXECUTION_POPULATION_REQUIRED",
-        "EMPIRICAL_SLIPPAGE_CALIBRATION_REQUIRED",
         "REAL_CALIBRATED_FRESH_OOS_GROSS_EDGE_MODEL_REQUIRED",
         "REAL_PROVIDER_BOUND_MARKET_IMPACT_MODEL_REQUIRED"
       ],
-      "next_gate": "External evidence dependency only. Reopen scientific evaluation when the recorded forward/provider population requirement becomes available; this disposition remains certification-blocking."
+      "next_gate": "Consume only post-freeze fresh-OOS gross-edge validation and the preregistered minimum-volume microbundle market-impact calibration; real execution population and empirical slippage are already proven."
     },
     {
       "id": "T12",
@@ -371,7 +380,7 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINEERING_CLOSED_PROVIDER_NATIVE_POST_DECLARATION_TERMS_BOUND_EXTERNAL_REAL_EXECUTION_OOS_REQUIRED",
+      "current_maturity": "ENGINEERING_CLOSED_REALIZED_EXECUTION_AND_HEDGE_COST_MODEL_PROVEN_FRESH_OOS_NET_UTILITY_REQUIRED",
       "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
@@ -404,16 +413,20 @@
         "tests/infrastructure/test_cibo_t16_ctrader_demo_post_declaration_probe.py",
         ".github/workflows/cibo-t16-post-declaration-market-structure.yml",
         "docs/research/CIBO-B-T16-POST-DECLARATION-MARKET-STRUCTURE-V1.md",
-        "github-actions://36817089026/SUCCESS"
+        "github-actions://36817089026/SUCCESS",
+        "src/qore/infrastructure/cibo_arch2_t16_demo_execution_receipt.py",
+        "tests/infrastructure/test_cibo_arch2_t16_demo_execution_receipt.py",
+        "src/qore/infrastructure/cibo_arch2_t16_fresh_oos_utility.py",
+        "tests/infrastructure/test_cibo_arch2_t16_fresh_oos_utility.py",
+        "github-actions://36934306276/SUCCESS",
+        "github-artifact://11197137857/sha256:96ad9cc8a8ac5bdafc2f35cac556bf54a6250cff62abd65ff09db7bd8922434b",
+        "git://8cc3794feb645710952859fe40e20223e1c59093"
       ],
       "blockers": [
-        "REAL_POST_DECLARATION_HEDGE_RETURN_POPULATION_REQUIRED",
-        "REALIZED_SLIPPAGE_AND_EXECUTION_COVERAGE_REQUIRED",
-        "FULL_HEDGE_COST_MODEL_REQUIRED",
         "NET_ECONOMIC_BENEFIT_NOT_PROVEN",
         "PROVIDER_BOUND_FRESH_OOS_HEDGE_UTILITY_REQUIRED"
       ],
-      "next_gate": "Provider-native quoted spread and commission metadata are now bound. Reopen scientific evaluation only when realized slippage/execution, full hedge-cost evidence and fresh-OOS utility become available."
+      "next_gate": "Collect the preregistered post-freeze NAS100/US30/US500 M1 population without broker mutation, then require strict 4-of-4 positive net hedge utility after conservative observed round-trip costs."
     },
     {
       "id": "T17",
@@ -1084,8 +1097,8 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
-      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "current_maturity": "SUPERSEDED_WITH_PROVEN_PHASE22_DUAL_EVIDENCE_PROVIDER_LINEAGE",
+      "terminal_disposition": "SUPERSEDED_WITH_PROVEN_LINEAGE",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py",
         "src/qore/infrastructure/cibo_fundednext_provider.py",
@@ -1117,21 +1130,26 @@
         "tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py",
         "tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py",
         "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
-        "github-actions://36814558179/SUCCESS"
+        "github-actions://36814558179/SUCCESS",
+        "src/qore/infrastructure/cibo_phase22_demo_empirical_provider_receipt.py",
+        "src/qore/infrastructure/cibo_phase22_provider_execution_calibration_receipt.py",
+        "src/qore/infrastructure/cibo_phase22_dual_evidence_plan.py",
+        "src/qore/infrastructure/cibo_arch2_provider_economics_terminal_recommendation.py",
+        "tests/infrastructure/test_cibo_arch2_provider_economics_terminal_recommendation.py",
+        "github-actions://36927602692/SUCCESS",
+        "github-artifact://11194039517/sha256:5957a77cceb44c15319785aa26a1a0574fef46535ff7ce69fcec3757d02972c4",
+        "github-actions://36940403035/SUCCESS"
       ],
-      "blockers": [
-        "REAL_FORWARD_SLIPPAGE_COST_CALIBRATION_REQUIRED",
-        "HISTORICAL_2017_PROVIDER_USD_ECONOMICS_UNAVAILABLE"
-      ],
-      "next_gate": "External evidence dependency only. Reopen scientific evaluation when the recorded forward/provider population requirement becomes available; this disposition remains certification-blocking."
+      "blockers": [],
+      "next_gate": "Terminal supersession: Phase22 separates historical market replay from real current cTrader DEMO execution calibration and explicitly forbids fabricated historical provider fills. Reopen only on provider-plane contract regression; this does not grant deployment readiness."
     },
     {
       "id": "FORWARD_QUALIFICATION",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
-      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "current_maturity": "SUPERSEDED_WITH_PROVEN_PHASE22_DUAL_EVIDENCE_QUALIFICATION_LINEAGE",
+      "terminal_disposition": "SUPERSEDED_WITH_PROVEN_LINEAGE",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py",
         "tests/infrastructure/test_cibo_ce2i_calibration_freeze_manifest.py",
@@ -1149,12 +1167,14 @@
         "github-actions://36790166850/SUCCESS",
         "github-actions://36790166754/SUCCESS",
         "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
-        "github-actions://36814558235/SUCCESS"
+        "github-actions://36814558235/SUCCESS",
+        "src/qore/infrastructure/cibo_phase22_dual_evidence_plan.py",
+        "src/qore/infrastructure/cibo_arch2_forward_qualification_reconciliation.py",
+        "tests/infrastructure/test_cibo_arch2_forward_qualification_reconciliation.py",
+        "github-actions://36940403035/SUCCESS"
       ],
-      "blockers": [
-        "FROZEN_PHASE20D_REAL_FORWARD_THRESHOLDS_NOT_YET_MET"
-      ],
-      "next_gate": "External evidence dependency only. Reopen scientific evaluation when the recorded forward/provider population requirement becomes available; this disposition remains certification-blocking."
+      "blockers": [],
+      "next_gate": "Terminal supersession of the old Phase20D duration/count qualification contract by the frozen Phase22 Dual Evidence Plan V2. Fresh-OOS outcome proof remains a separate FRESH_OOS dependency and V2 is not consumed here."
     },
     {
       "id": "PATH_DEPENDENT_MONTE_CARLO",
@@ -1220,7 +1240,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "current_maturity": "ENGINEERING_CLOSED_PHASE22_V2_FRESH_OUTCOME_EXTERNAL_DEPENDENCY_BLOCKED",
       "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
@@ -1231,15 +1251,16 @@
         ".github/workflows/cibo-pre-holdout-checkpoint.yml",
         "github-actions://36815305113/SUCCESS",
         "github-actions://36815305247/SUCCESS",
-        "github-actions://36815305324/SUCCESS"
+        "github-actions://36815305324/SUCCESS",
+        "src/qore/infrastructure/cibo_phase22_dual_evidence_plan.py",
+        "src/qore/infrastructure/cibo_phase22_execution_manifest.py",
+        "src/qore/infrastructure/cibo_phase22_consumption_ledger.py",
+        "github-actions://36940403035/SUCCESS"
       ],
       "blockers": [
-        "PHASE20D_REAL_FORWARD_POPULATION_THRESHOLDS_NOT_YET_PASSED",
-        "PHASE21_FORWARD_EMPIRICAL_VALIDATIONS_REQUIRE_REAL_FORWARD_POPULATION",
-        "PHASE21_POLICY_FREEZE_REQUIRES_QUALIFIED_FORWARD_POPULATION",
-        "2017H1_HOLDOUT_MUST_REMAIN_SEALED_UNTOUCHED_UNTIL_ALL_PREREQUISITES_PASS"
+        "PHASE22_V2_FRESH_OUTCOME_RECEIPT_REQUIRED"
       ],
-      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen protocol. This remains certification-blocking."
+      "next_gate": "Do not consume V2 until the canonical pre-holdout chain authorizes the one-shot. Then claim -> persist -> consume exactly once and bind the resulting source-bound fresh outcome receipt."
     },
     {
       "id": "TEMPORAL_REPLICATION",

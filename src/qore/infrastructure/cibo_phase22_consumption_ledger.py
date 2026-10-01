@@ -113,7 +113,10 @@ def mark_phase22_outcomes_emitted(
     outcome_bundle_sha256: str,
 ) -> Phase22ExecutionConsumptionReceipt:
     if not claim.claim_committed:
-        raise ValueError("Phase22 outcomes cannot finalize an uncommitted claim")
+        raise ValueError(
+            "Phase22 outcomes require durable prior claim; "
+            "cannot finalize an uncommitted claim"
+        )
     return Phase22ExecutionConsumptionReceipt(
         candidate_id=claim.candidate_id,
         execution_manifest_sha256=claim.execution_manifest_sha256,

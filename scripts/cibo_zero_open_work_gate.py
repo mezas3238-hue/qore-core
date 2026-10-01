@@ -92,6 +92,35 @@ _INTERNAL_EXTERNAL_BLOCKER_MARKERS = (
 )
 
 _WORKSTREAM_CLASSIFIERS = (
+    ("*cibo_a1_scientific_disposition*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo_a1_strict_temporal_population_lineage*", "TEMPORAL_REPLICATION"),
+    ("*cibo_t08_factor_correlation_lineage*", "T08"),
+    (
+        "*cibo_ce2i_phase20_t09_t18_phase22_true_scarcity_lineage*",
+        "CE2I_CROSS_TOOL_INFRASTRUCTURE",
+    ),
+    ("*cibo_ce2i_phase20_t15_reservation_counterfactual*", "T15"),
+    ("*cibo_arch_a2_internal_readiness*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo_arch_a2_scientific_closure*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo_arch_a2_integrator_handoff*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo_arch2_active_scope_v2*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo_arch2_active_frontier_v2*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo_arch2_t02_economic_ablation*", "T02"),
+    ("*cibo_arch2_t03_*", "T03"),
+    ("*cibo_arch2_t11_*", "T11"),
+    ("*cibo_arch2_t16_*", "T16"),
+    (
+        "*cibo_arch2_provider_blocker_reconciliation*",
+        "SOURCE_OF_TRUTH_RECONCILIATION",
+    ),
+    (
+        "*cibo_arch2_provider_economics_terminal_recommendation*",
+        "PROVIDER_ECONOMICS",
+    ),
+    (
+        "*cibo_arch2_forward_qualification_reconciliation*",
+        "FORWARD_QUALIFICATION",
+    ),
     ("*CIBO-B-T16-POST-DECLARATION-MARKET-STRUCTURE*", "T16"),
     ("*cibo-t16-post-declaration-market-structure*", "T16"),
     ("*cibo_t16_ctrader_demo_post_declaration_probe*", "T16"),
