@@ -1,0 +1,228 @@
+name: QORE Shared A MC28 Runtime Clock Drift
+
+concurrency:
+  group: qore-shared-a-mc28-runtime-clock-drift
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/runtime_clock_drift_diagnostic.py
+      - tests/infrastructure/test_core_stack_v2_runtime_clock_drift_diagnostic.py
+      - scripts/shared_mc28_runtime_clock_drift.py
+      - docs/shared/evidence/QORE_SHARED_MC28_RUNTIME_CLOCK_DRIFT_PREREGISTRATION_001.json
+      - .github/workflows/qore-shared-a-mc28-runtime-clock-drift.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  PRIOR_MC28_RUN_ID: "36796674458"
+  PRIOR_MC28_ARTIFACT_ID: "11134473860"
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+      QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+      QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install and validate frozen diagnostic
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,ctrader]"
+          mkdir -p input/prior result
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/runtime_clock_drift_diagnostic.py \
+            tests/infrastructure/test_core_stack_v2_runtime_clock_drift_diagnostic.py \
+            scripts/shared_mc28_runtime_clock_drift.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/runtime_clock_drift_diagnostic.py \
+            scripts/shared_mc28_runtime_clock_drift.py
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_runtime_clock_drift_diagnostic.py
+
+      - name: Verify preregistration predates real runtime outcome
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(
+              Path(
+                  "docs/shared/evidence/"
+                  "QORE_SHARED_MC28_RUNTIME_CLOCK_DRIFT_PREREGISTRATION_001.json"
+              ).read_text()
+          )
+          assert p["status"] == "FROZEN_BEFORE_REAL_RUNTIME_CLOCK_OBSERVATION"
+          assert p["measurement"]["minimum_real_samples"] == 5
+          assert p["frozen_limits"]["maximum_absolute_clock_offset_ms"] == 1000
+          assert p["frozen_limits"]["maximum_wall_monotonic_divergence_ms"] == 100
+          assert p["frozen_limits"]["transport_jitter_margin_ms"] == 250
+          assert p["governance"]["read_only_message_firewall"] is True
+          assert p["governance"]["broker_mutation"] is False
+          assert p["governance"]["protected_holdout_opened"] is False
+          PY
+
+      - name: Verify prior MC28 broker provider closure
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${PRIOR_MC28_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${PRIOR_MC28_ARTIFACT_ID}" --jq '.expired')" = "false"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${PRIOR_MC28_ARTIFACT_ID}/zip" > prior.zip
+          unzip -q prior.zip -d input/prior
+          (cd input/prior && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(
+              Path("input/prior/mc28-broker-provider-mismatch.json").read_text()
+          )
+          assert p["status"] == (
+              "MC28_BROKER_PROVIDER_MISMATCH_REAL_BOUND_PASS_OPEN_2"
+          )
+          assert p["open_diagnostics"] == [
+              "CLOCK_DRIFT",
+              "EXECUTION_QUALITY_DETERIORATION",
+          ]
+          PY
+
+      - name: Resolve authorized DEMO account
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in \
+            QORE_CTRADER_CLIENT_ID \
+            QORE_CTRADER_CLIENT_SECRET \
+            QORE_CTRADER_ACCESS_TOKEN \
+            QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}" || { echo "missing ${name}" >&2; exit 2; }
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            [[ "$account_id" =~ ^[1-9][0-9]*$ ]]
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          else
+            echo "::add-mask::$QORE_CTRADER_DEMO_ACCOUNT_ID"
+          fi
+
+      - name: Execute real read-only runtime clock diagnostic
+        run: |
+          set -euo pipefail
+          python scripts/shared_mc28_runtime_clock_drift.py \
+            --output result/mc28-runtime-clock-drift.json \
+            | tee result/summary.json
+
+      - name: Validate scientific disposition and sovereignty
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/mc28-runtime-clock-drift.json").read_text()
+          )
+          assert p["identity"] == (
+              "QORE_SHARED_MC28_RUNTIME_CLOCK_DRIFT_DIAGNOSTIC_001"
+          )
+          assert p["status"] in {"PASS", "DRIFT", "INSUFFICIENT"}
+          assert p["provider_environment"] == "CTRADER_DEMO"
+          assert p["subscribe_to_spot_timestamp"] is True
+          assert p["read_only_message_firewall"] is True
+          assert p["broker_mutation"] is False
+          assert p["restart_authority"] is False
+          assert p["order_authority"] is False
+          assert p["risk_authority"] is False
+          assert p["sizing_authority"] is False
+          assert p["capital_authority"] is False
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["protected_holdout_opened"] is False
+          assert p["productive_authority"] is False
+
+          if p["status"] == "PASS":
+              assert p["clock_drift_completed_and_proven"] is True
+              assert p["remaining_mc28_diagnostics"] == [
+                  "EXECUTION_QUALITY_DETERIORATION"
+              ]
+          else:
+              assert p["clock_drift_completed_and_proven"] is False
+              assert p["remaining_mc28_diagnostics"] == [
+                  "CLOCK_DRIFT",
+                  "EXECUTION_QUALITY_DETERIORATION",
+              ]
+          PY
+
+      - name: Seal
+        run: |
+          set -euo pipefail
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          printf '%s\n' "${GITHUB_RUN_ID}" > result/run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload evidence
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc28-runtime-clock-drift-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report scientific disposition
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/mc28-runtime-clock-drift.json").read_text()
+          )
+          body="\n".join([
+              "## Shared A MC-28 — Runtime Clock Drift Diagnostic",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- artifact: `{os.environ['ARTIFACT_ID']}`",
+              f"- provider environment/symbol: **{p['provider_environment']} / {p['provider_symbol']}**",
+              f"- real clock samples: **{p['sample_count']}**",
+              f"- frozen absolute offset ceiling: **{p['maximum_absolute_clock_offset_ms']} ms**",
+              f"- bounded offset interval: **{p['offset_lower_bound_ms']} .. {p['offset_upper_bound_ms']} ms**",
+              f"- local wall↔monotonic max divergence: **{p['max_wall_monotonic_divergence_observed_ms']} ms**",
+              f"- scientific disposition: **{p['status']}**",
+              f"- CLOCK_DRIFT completed-and-proven: **{p['clock_drift_completed_and_proven']}**",
+              f"- remaining MC28 diagnostics: **{len(p['remaining_mc28_diagnostics'])}**",
+              *[f"- `{item}`" for item in p["remaining_mc28_diagnostics"]],
+              "- broker mutation/order/Risk/sizing/capital authority: **False**",
+              "- protected certification holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
