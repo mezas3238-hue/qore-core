@@ -104,6 +104,7 @@ def test_not_ready_execution_calibration_is_bound_without_promoting_readiness() 
     assert freeze.blockers == (
         "EMPIRICAL_SLIPPAGE_NOT_FROZEN",
         "EXECUTION_MODEL_NOT_FROZEN",
+        "PROVIDER_STRESS_BOUND_NOT_FROZEN",
     )
 
 
