@@ -229,11 +229,11 @@ def run(*, output_path: Path) -> dict[str, Any]:
             event = client.wait_for_event(
                 "ProtoOASpotEvent",
                 timeout_seconds=EVENT_WAIT_TIMEOUT_SECONDS,
-                predicate=lambda item: (
+                predicate=lambda item, after=last_timestamp: (
                     getattr(item, "symbolId", None) == provider_symbol_id
                     and (
                         (_provider_timestamp(item) or 0)
-                        > last_timestamp
+                        > after
                     )
                 ),
             )
