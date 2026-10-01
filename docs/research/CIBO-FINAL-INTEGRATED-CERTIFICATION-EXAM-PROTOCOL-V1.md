@@ -6,8 +6,7 @@ Identity:
 
 `CIBO_FINAL_INTEGRATED_CERTIFICATION_EXAM_V1`
 
-This protocol does not open the sealed 2017H1 holdout and grants no MERGE,
-LIVE, PRODUCTION, REAL-CAPITAL or broker-mutation authority.
+This protocol does not open any holdout. The former 2017H1 V1 candidate is BURNED; the active V2 holdout may be consumed only through the governed Phase22 V2 chain. This protocol grants no MERGE, LIVE, PRODUCTION, REAL-CAPITAL or broker-mutation authority.
 
 ## Purpose
 
@@ -112,20 +111,30 @@ The complete chronological Compound cycle must already prove:
 - adversarial stress;
 - temporal replication.
 
-## Sealed holdout law
+## Governed holdout law
 
-Protected identity:
+Burned historical identity:
 
 `CIBO_USD60_6M_HOLDOUT_2017H1_V1`
 
-Window:
+Historical burned window:
 
 `2017-01-01 inclusive -> 2017-07-01 exclusive`
 
-The exam protocol itself does not authorize opening it.
+Active certification identity:
 
-The holdout may be consumed only through the already-governed Phase21/Phase22
-chain after all holdout-opening prerequisites pass.
+`CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2`
+
+Active window:
+
+`2015-10-19T00:00:00Z inclusive -> 2016-04-19T00:00:00Z exclusive`
+
+V1 remains read-only provenance and is never eligible for fresh certification.
+The exam protocol itself does not authorize opening V2.
+
+V2 may be consumed only through the governed Phase21/Phase22 V2 chain after
+source receipt, exact 7/7 Trader parity, pre-holdout freeze and all other
+holdout-opening prerequisites pass.
 
 Once opened:
 

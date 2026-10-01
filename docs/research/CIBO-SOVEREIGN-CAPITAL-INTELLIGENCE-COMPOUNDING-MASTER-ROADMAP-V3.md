@@ -56,7 +56,7 @@ Current shared scientific infrastructure also includes:
 
 None of those engineering completions is economic certification.
 
-The frozen V3 candidate remains unchanged and the 2017H1 holdout remains SEALED_UNTOUCHED.
+The frozen V3 candidate remains unchanged. The former 2017H1 V1 holdout is BURNED/read-only provenance; the active V2 holdout (`2015-10-19T00:00:00Z -> 2016-04-19T00:00:00Z`) remains protected under Phase22 V2 governance.
 
 Two common-checkpoint red workflows are integration-side defects assigned to Architect B under the certification split. Architect A must not edit those B-owned files.
 
@@ -92,7 +92,7 @@ Deliverables:
 Exit gate:
 - all governance invariants documented.
 - V3 candidate unchanged.
-- 2017H1 unchanged.
+- V1 2017H1 remains BURNED/read-only; active V2 remains protected from development and outcome-aware retuning.
 
 Status at roadmap creation: COMPLETE FOR DOCUMENTATION.
 
@@ -603,7 +603,7 @@ BLOCKED_EXTERNAL_DEPENDENCY:<reason>.
 The earlier "GEN-C1 next" sequence above is retained as historical provenance.
 The active order is now:
 
-1. Keep V3 and 2017H1 frozen.
+1. Keep V3 frozen; keep V1 2017H1 BURNED/read-only and keep active V2 protected by the Phase22 V2 governance chain.
 2. Keep CI green; no red CIBO workflow may be ignored.
 3. Maintain the World Cup requirement→CE2I/GEN-C GAP matrix.
 4. Finish existing C5/C6/C7 real-data/OOS/stress work.

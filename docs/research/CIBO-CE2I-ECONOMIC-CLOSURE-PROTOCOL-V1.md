@@ -30,7 +30,7 @@ Every economic claim in this protocol requires:
 
 If population equality cannot be proven, the comparison is invalid.
 
-The sealed 2017H1 holdout is excluded from development.
+The former `CIBO_USD60_6M_HOLDOUT_2017H1_V1` is BURNED and may be used only as historical provenance. The active certification holdout is `CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2`; it is excluded from development and may be consumed only through the governed Phase22 V2 chain.
 
 ## Universal economic gate
 
