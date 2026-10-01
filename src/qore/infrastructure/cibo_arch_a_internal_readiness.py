@@ -191,7 +191,6 @@ class ArchitectAScientificIntakeReport:
     scientific_closure_claimed: bool = False
     integration_authority: bool = False
     production_authority: bool = False
-    mechanism_specific_evidence_required: bool = True
 
     def __post_init__(self) -> None:
         if self.schema != SCIENTIFIC_INTAKE_SCHEMA:
@@ -553,6 +552,7 @@ class ArchitectAScientificBatchPlan:
     scientific_closure_claimed: bool = False
     integration_authority: bool = False
     production_authority: bool = False
+    mechanism_specific_evidence_required: bool = True
 
     def __post_init__(self) -> None:
         if self.schema != SCIENTIFIC_BATCH_SCHEMA:
