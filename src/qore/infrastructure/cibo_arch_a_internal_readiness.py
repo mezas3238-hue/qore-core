@@ -114,6 +114,151 @@ _REQUIRED_MECHANISM_EVIDENCE_KINDS = (
     "STRICT_TEMPORAL_POPULATION_LINEAGE",
 )
 
+
+_PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM: dict[str, tuple[str, ...]] = {
+    "T04": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    ),
+    "T06": ("FORWARD_CAPITAL_TRUTH_CHRONOLOGY",),
+    "T07": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "PROTECTED_BASE_POLICY_IDENTITY",
+    ),
+    "T08": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "T08_FACTOR_CORRELATION_LINEAGE",
+    ),
+    "T09": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "T09_T18_TRUE_SCARCITY_LINEAGE",
+    ),
+    "T10": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    ),
+    "T12": ("FORWARD_CAPITAL_TRUTH_CHRONOLOGY",),
+    "T13": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    ),
+    "T14": ("FORWARD_CAPITAL_TRUTH_CHRONOLOGY",),
+    "T15": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "T15_RESERVATION_COUNTERFACTUAL_LINEAGE",
+    ),
+    "T18": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "T09_T18_TRUE_SCARCITY_LINEAGE",
+    ),
+    "GEN-C2": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "PROTECTED_BASE_POLICY_IDENTITY",
+    ),
+    "GEN-C3": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "COMPOUND_STRESS_LINEAGE",
+    ),
+    "GEN-C4": ("FORWARD_CAPITAL_TRUTH_CHRONOLOGY",),
+    "GEN-C5": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "COMPOUND_STRESS_LINEAGE",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    ),
+    "GEN-C6": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "T09_T18_TRUE_SCARCITY_LINEAGE",
+        "COMPOUND_STRESS_LINEAGE",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    ),
+    "GEN-C7": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "PROTECTED_BASE_POLICY_IDENTITY",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    ),
+    "GEN-C8": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "COMPOUND_STRESS_LINEAGE",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    ),
+    "GEN-C9": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "COMPOUND_STRESS_LINEAGE",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    ),
+    "GEN-C10": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "GENC10_TWIN_TRANSITION_LINEAGE",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    ),
+    "GEN-C11": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "GENC10_TWIN_TRANSITION_LINEAGE",
+        "GENC11_TRANSITION_CALIBRATION",
+        "COMPOUND_STRESS_LINEAGE",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    ),
+    "GEN-C12": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "GENC12_CRISIS_FACTOR_SET",
+        "COMPOUND_STRESS_LINEAGE",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    ),
+    "GEN-C13": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "GENC13_MEMORY_HYPOTHESIS",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    ),
+    "GEN-C14": _REQUIRED_MECHANISM_EVIDENCE_KINDS,
+    "COMPOUND_ENGINE": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "COMPOUND_STRESS_LINEAGE",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    ),
+    "COMPOUND_PORTFOLIO": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "COMPOUND_STRESS_LINEAGE",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    ),
+    "INTERNAL_CAPITAL_MARKET": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "T09_T18_TRUE_SCARCITY_LINEAGE",
+        "COMPOUND_STRESS_LINEAGE",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    ),
+    "CAPITAL_GENERATIONS": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    ),
+    "PROTECTED_BASE_CAPITAL": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "PROTECTED_BASE_POLICY_IDENTITY",
+        "COMPOUND_STRESS_LINEAGE",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    ),
+    "PROFIT_PROTECTION": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "PROTECTED_BASE_POLICY_IDENTITY",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    ),
+    "PATH_DEPENDENT_MONTE_CARLO": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "COMPOUND_STRESS_LINEAGE",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    ),
+    "ADVERSARIAL_STRESS": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "GENC12_CRISIS_FACTOR_SET",
+        "COMPOUND_STRESS_LINEAGE",
+    ),
+    "TEMPORAL_REPLICATION": (
+        "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+        "STRICT_TEMPORAL_POPULATION_LINEAGE",
+    ),
+    "CAPITAL_AMPLIFICATION": _REQUIRED_MECHANISM_EVIDENCE_KINDS,
+    "AS_IS_ECONOMIC_BASELINE": ("FORWARD_CAPITAL_TRUTH_CHRONOLOGY",),
+}
+
 _INTERNAL_DEBT_MARKERS = (
     "REGISTRY_RECONCILIATION_REQUIRED", "CI_PENDING", "NOT_IMPLEMENTED",
     "ARCHITECTURE_ONLY", "PREREGISTRATION_REQUIRED", "PROTOCOL_REQUIRED",
@@ -1190,6 +1335,153 @@ def evaluate_architect_a_phase22_v2_mechanism_evidence(
             intake.ready_for_scientific_reentry and not missing
         ),
         blockers=blockers,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class ArchitectAPhase22V2WorkstreamEvidenceState:
+    workstream_id: str
+    required_kinds: tuple[str, ...]
+    present_kinds: tuple[str, ...]
+    missing_kinds: tuple[str, ...]
+    ready_for_frozen_evaluation: bool
+
+    def __post_init__(self) -> None:
+        if self.workstream_id not in _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 workstream evidence identity drift"
+            )
+        expected_required = _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM[
+            self.workstream_id
+        ]
+        if self.required_kinds != expected_required:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 workstream required-evidence drift"
+            )
+        required = set(self.required_kinds)
+        if (
+            set(self.present_kinds) & set(self.missing_kinds)
+            or set(self.present_kinds) | set(self.missing_kinds) != required
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 workstream evidence partition drift"
+            )
+        if type(self.ready_for_frozen_evaluation) is not bool:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 workstream readiness must be bool"
+            )
+        if self.ready_for_frozen_evaluation != (not self.missing_kinds):
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 workstream readiness/evidence drift"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class ArchitectAPhase22V2WorkstreamEvidenceMatrix:
+    phase22_manifest_sha256: str
+    states: tuple[ArchitectAPhase22V2WorkstreamEvidenceState, ...]
+    ready_ids: tuple[str, ...]
+    blocked_ids: tuple[str, ...]
+    all_external_workstreams_ready: bool
+    scientific_closure_claimed: bool = False
+    integration_authority: bool = False
+    production_authority: bool = False
+
+    def __post_init__(self) -> None:
+        _require_sha(self.phase22_manifest_sha256, "phase22_manifest_sha256")
+        expected_ids = tuple(_PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM)
+        if tuple(item.workstream_id for item in self.states) != expected_ids:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 workstream matrix coverage drift"
+            )
+        expected_ready = tuple(
+            item.workstream_id
+            for item in self.states
+            if item.ready_for_frozen_evaluation
+        )
+        expected_blocked = tuple(
+            item.workstream_id
+            for item in self.states
+            if not item.ready_for_frozen_evaluation
+        )
+        if self.ready_ids != expected_ready or self.blocked_ids != expected_blocked:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 workstream matrix partition drift"
+            )
+        if self.all_external_workstreams_ready != (not self.blocked_ids):
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 matrix readiness drift"
+            )
+        if (
+            self.scientific_closure_claimed
+            or self.integration_authority
+            or self.production_authority
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 matrix cannot claim closure/authority"
+            )
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+def evaluate_architect_a_phase22_v2_workstream_evidence(
+    intake: ArchitectAPhase22V2ScientificIntakeReport,
+    mechanism: ArchitectAPhase22V2MechanismEvidenceReceipt,
+) -> ArchitectAPhase22V2WorkstreamEvidenceMatrix:
+    """Route partial Phase22 evidence to only the frozen A workstreams it unlocks."""
+
+    if not isinstance(intake, ArchitectAPhase22V2ScientificIntakeReport):
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 matrix requires canonical intake"
+        )
+    if not isinstance(mechanism, ArchitectAPhase22V2MechanismEvidenceReceipt):
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 matrix requires canonical mechanism receipt"
+        )
+    if mechanism.phase22_manifest_sha256 != intake.manifest_sha256:
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 matrix manifest lineage drift"
+        )
+    if not intake.ready_for_scientific_reentry:
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 matrix requires admissible scientific intake"
+        )
+
+    available = set(mechanism.present_kinds)
+    states: list[ArchitectAPhase22V2WorkstreamEvidenceState] = []
+    for workstream_id, required in (
+        _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM.items()
+    ):
+        present = tuple(kind for kind in required if kind in available)
+        missing = tuple(kind for kind in required if kind not in available)
+        states.append(
+            ArchitectAPhase22V2WorkstreamEvidenceState(
+                workstream_id=workstream_id,
+                required_kinds=required,
+                present_kinds=present,
+                missing_kinds=missing,
+                ready_for_frozen_evaluation=not missing,
+            )
+        )
+
+    states_tuple = tuple(states)
+    ready_ids = tuple(
+        item.workstream_id
+        for item in states_tuple
+        if item.ready_for_frozen_evaluation
+    )
+    blocked_ids = tuple(
+        item.workstream_id
+        for item in states_tuple
+        if not item.ready_for_frozen_evaluation
+    )
+    return ArchitectAPhase22V2WorkstreamEvidenceMatrix(
+        phase22_manifest_sha256=intake.manifest_sha256,
+        states=states_tuple,
+        ready_ids=ready_ids,
+        blocked_ids=blocked_ids,
+        all_external_workstreams_ready=not blocked_ids,
     )
 
 def forward_manifest_payload_sha256(payload: dict[str, Any]) -> str:

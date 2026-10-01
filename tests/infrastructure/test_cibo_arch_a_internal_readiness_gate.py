@@ -635,3 +635,90 @@ def test_phase22_v2_mechanism_receipt_rejects_manifest_drift() -> None:
             payload,
             intake,
         )
+
+
+def test_phase22_v2_workstream_matrix_unlocks_only_satisfied_evidence() -> None:
+    intake = gate.evaluate_architect_a_phase22_v2_scientific_intake(
+        _phase22_v2_manifest_payload()
+    )
+    payload = {
+        "schema": gate.PHASE22_V2_MECHANISM_EVIDENCE_SCHEMA,
+        "phase22_manifest_sha256": intake.manifest_sha256,
+        "evidence_refs": [
+            {
+                "kind": kind,
+                "sha256": "sha256:"
+                + sha256(("partial-" + kind).encode("utf-8")).hexdigest(),
+            }
+            for kind in (
+                "FORWARD_CAPITAL_TRUTH_CHRONOLOGY",
+                "T09_T18_TRUE_SCARCITY_LINEAGE",
+            )
+        ],
+        "scientific_closure_claimed": False,
+        "integration_authority": False,
+        "production_authority": False,
+    }
+    mechanism = gate.evaluate_architect_a_phase22_v2_mechanism_evidence(
+        payload,
+        intake,
+    )
+    matrix = gate.evaluate_architect_a_phase22_v2_workstream_evidence(
+        intake,
+        mechanism,
+    )
+
+    assert "T09" in matrix.ready_ids
+    assert "T18" in matrix.ready_ids
+    assert "AS_IS_ECONOMIC_BASELINE" in matrix.ready_ids
+    assert "GEN-C6" in matrix.blocked_ids
+    assert "INTERNAL_CAPITAL_MARKET" in matrix.blocked_ids
+    assert "GEN-C10" in matrix.blocked_ids
+    assert matrix.all_external_workstreams_ready is False
+
+
+def test_phase22_v2_workstream_matrix_full_evidence_unlocks_all() -> None:
+    intake = gate.evaluate_architect_a_phase22_v2_scientific_intake(
+        _phase22_v2_manifest_payload(qualification_status="FAIL")
+    )
+    mechanism = gate.evaluate_architect_a_phase22_v2_mechanism_evidence(
+        _phase22_v2_mechanism_payload(intake, complete=True),
+        intake,
+    )
+    matrix = gate.evaluate_architect_a_phase22_v2_workstream_evidence(
+        intake,
+        mechanism,
+    )
+
+    assert matrix.all_external_workstreams_ready is True
+    assert matrix.blocked_ids == ()
+    assert len(matrix.ready_ids) == 35
+    assert set(matrix.ready_ids) == set(
+        gate._PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM
+    )
+
+
+def test_phase22_v2_workstream_matrix_requires_admissible_intake() -> None:
+    payload = _phase22_v2_manifest_payload(future_leakage=True)
+    intake = gate.evaluate_architect_a_phase22_v2_scientific_intake(payload)
+    mechanism_payload = {
+        "schema": gate.PHASE22_V2_MECHANISM_EVIDENCE_SCHEMA,
+        "phase22_manifest_sha256": intake.manifest_sha256,
+        "evidence_refs": [],
+        "scientific_closure_claimed": False,
+        "integration_authority": False,
+        "production_authority": False,
+    }
+    mechanism = gate.evaluate_architect_a_phase22_v2_mechanism_evidence(
+        mechanism_payload,
+        intake,
+    )
+
+    with pytest.raises(
+        gate.ArchitectAReadinessError,
+        match="requires admissible scientific intake",
+    ):
+        gate.evaluate_architect_a_phase22_v2_workstream_evidence(
+            intake,
+            mechanism,
+        )

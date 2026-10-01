@@ -13,6 +13,7 @@ from qore.infrastructure.cibo_arch_a_internal_readiness import (
     evaluate_architect_a_mechanism_evidence,
     evaluate_architect_a_phase22_v2_mechanism_evidence,
     evaluate_architect_a_phase22_v2_scientific_intake,
+    evaluate_architect_a_phase22_v2_workstream_evidence,
     evaluate_architect_a_scientific_intake,
 )
 
@@ -30,6 +31,9 @@ PHASE22_BATCH_OUTPUT_PATH = Path(
 )
 PHASE22_MECHANISM_OUTPUT_PATH = Path(
     "artifacts/cibo_arch_a_phase22_v2_mechanism_evidence_v1.json"
+)
+PHASE22_WORKSTREAM_MATRIX_OUTPUT_PATH = Path(
+    "artifacts/cibo_arch_a_phase22_v2_workstream_evidence_matrix_v1.json"
 )
 
 
@@ -140,6 +144,15 @@ def main() -> int:
                 mechanism_v2.as_dict(),
             )
             print(json.dumps(mechanism_v2.as_dict(), sort_keys=True))
+            matrix_v2 = evaluate_architect_a_phase22_v2_workstream_evidence(
+                intake_v2,
+                mechanism_v2,
+            )
+            _write_json(
+                PHASE22_WORKSTREAM_MATRIX_OUTPUT_PATH,
+                matrix_v2.as_dict(),
+            )
+            print(json.dumps(matrix_v2.as_dict(), sort_keys=True))
 
         if args.require_full_mechanism_science:
             if mechanism_v2 is None:
