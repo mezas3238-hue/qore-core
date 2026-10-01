@@ -1,0 +1,32 @@
+name: QORE CIBO Phase22 Historical Replay Economics Amendment
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/qore/infrastructure/cibo_phase22_historical_replay_economics_amendment.py'
+      - 'tests/infrastructure/test_cibo_phase22_historical_replay_economics_amendment.py'
+      - 'docs/research/CIBO-PHASE22-HISTORICAL-REPLAY-ECONOMICS-AMENDMENT-V1.md'
+      - '.github/workflows/cibo-phase22-historical-replay-economics-amendment.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  provenance-amendment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Preserve frozen policy and thresholds
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_phase22_historical_replay_economics_amendment.py \
+            tests/infrastructure/test_cibo_phase22_historical_replay_economics_amendment.py
+          mypy \
+            src/qore/infrastructure/cibo_phase22_historical_replay_economics_amendment.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase22_historical_replay_economics_amendment.py
