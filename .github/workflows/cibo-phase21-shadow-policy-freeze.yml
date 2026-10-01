@@ -1,0 +1,114 @@
+name: QORE CIBO Phase21 Shadow Policy Freeze
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+    paths:
+      - '.github/workflows/cibo-phase21-shadow-policy-freeze.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_phase21_shadow_policy_freeze.py'
+      - 'scripts/cibo_phase21_shadow_policy_freeze.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase21_shadow_policy_freeze.py'
+      - 'docs/research/CIBO-PHASE21-SHADOW-POLICY-FREEZE-V1.md'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase21-shadow-policy-freeze.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_phase21_shadow_policy_freeze.py'
+      - 'scripts/cibo_phase21_shadow_policy_freeze.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase21_shadow_policy_freeze.py'
+      - 'docs/research/CIBO-PHASE21-SHADOW-POLICY-FREEZE-V1.md'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  phase21-shadow-policy-freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_ce2i_phase21_shadow_policy_freeze.py \
+            scripts/cibo_phase21_shadow_policy_freeze.py \
+            tests/infrastructure/test_cibo_ce2i_phase21_shadow_policy_freeze.py
+          mypy \
+            src/qore/infrastructure/cibo_ce2i_phase21_shadow_policy_freeze.py \
+            scripts/cibo_phase21_shadow_policy_freeze.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_phase21_shadow_policy_freeze.py
+
+      - name: Recover successful Phase21 shadow evidence
+        run: |
+          set -euo pipefail
+          mkdir -p source freeze-output
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11164600745/zip" \
+            > phase21-shadow.zip
+          echo "0b3d0b892207ec3f5873240175eb08dc15cebd31c23d8621472933e691a2990c  phase21-shadow.zip" \
+            | sha256sum -c -
+          unzip -q phase21-shadow.zip -d source
+          (cd source && sha256sum -c SHA256SUMS.txt)
+
+      - name: Seal Phase21 shadow policy
+        run: |
+          python scripts/cibo_phase21_shadow_policy_freeze.py \
+            --screen source/phase21-shadow-screen.json \
+            --output freeze-output/phase21-shadow-policy-freeze.json \
+            > freeze-output/phase21-shadow-policy-freeze.stdout.json
+
+      - name: Enforce sealed freeze
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(
+              Path(
+                  "freeze-output/phase21-shadow-policy-freeze.json"
+              ).read_text(encoding="utf-8")
+          )
+          assert p["status"] == "SEALED"
+          assert p["sealed"] is True
+          assert p["validation_rows"] == 332
+          assert p["selected_outcomes"] == 256
+          assert p["represented_lineages"] == 7
+          assert p["monte_carlo_simulations"] == 1000
+          assert p["source_run_id"] == 36865828999
+          assert p["source_artifact_id"] == 11164600745
+          assert p["holdout_2017h1_read"] is False
+          assert p["provider_economics_claimed"] is False
+          assert p["productive_authority"] is False
+          PY
+
+      - name: Seal evidence
+        run: |
+          printf '%s\n' "$EVIDENCE_SHA" > freeze-output/git-sha.txt
+          cd freeze-output
+          sha256sum \
+            phase21-shadow-policy-freeze.json \
+            phase21-shadow-policy-freeze.stdout.json \
+            git-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase21-shadow-policy-freeze-${{ env.EVIDENCE_SHA }}
+          path: freeze-output
+          if-no-files-found: error
+          retention-days: 90
