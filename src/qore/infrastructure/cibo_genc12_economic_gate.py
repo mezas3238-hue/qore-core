@@ -87,6 +87,13 @@ class Genc12CrisisEconomicObservation:
             raise CiboCapitalManagementError(
                 "GEN-C12 economic horizon must be positive"
             )
+        if (
+            not isinstance(self.net_delta_usd, Decimal)
+            or not self.net_delta_usd.is_finite()
+        ):
+            raise CiboCapitalManagementError(
+                "GEN-C12 economic net delta must be finite Decimal"
+            )
         nonnegative = (
             self.maximum_drawdown_usd,
             self.peak_plausible_loss_usd,
@@ -97,13 +104,22 @@ class Genc12CrisisEconomicObservation:
             self.minimum_realized_capital_usd,
             self.minimum_liquid_reserve_usd,
         )
-        if any(value < 0 for value in nonnegative):
+        if any(
+            not isinstance(value, Decimal)
+            or not value.is_finite()
+            or value < 0
+            for value in nonnegative
+        ):
             raise CiboCapitalManagementError(
-                "GEN-C12 economic metrics must be non-negative"
+                "GEN-C12 economic metrics must be finite non-negative Decimals"
             )
-        if self.simultaneous_loss_cluster_count < 0:
+        if (
+            not isinstance(self.simultaneous_loss_cluster_count, int)
+            or isinstance(self.simultaneous_loss_cluster_count, bool)
+            or self.simultaneous_loss_cluster_count < 0
+        ):
             raise CiboCapitalManagementError(
-                "GEN-C12 loss-cluster count must be non-negative"
+                "GEN-C12 loss-cluster count must be non-negative int"
             )
         if self.provider_failure_incidence > Decimal(1):
             raise CiboCapitalManagementError(
