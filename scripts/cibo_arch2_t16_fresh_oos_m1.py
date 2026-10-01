@@ -17,10 +17,13 @@ from pathlib import Path
 from qore.infrastructure.cibo_arch2_t16_demo_execution_receipt import (
     T16_DEMO_EXECUTION_RECEIPT,
 )
+from qore.infrastructure.cibo_arch2_t16_fresh_oos_market_data import (
+    align_contiguous_m1_returns,
+    market_rows_sha256,
+)
 from qore.infrastructure.cibo_arch2_t16_fresh_oos_utility import (
     FROZEN_AT,
     MINIMUM_OOS_OBSERVATIONS,
-    T16UtilityObservation,
     evaluate_t16_fresh_oos_utility,
 )
 from qore.infrastructure.cibo_capital_management_authority import (
@@ -107,37 +110,6 @@ def _closed_m1_prices(
     return ordered
 
 
-def _aligned_returns(
-    target: tuple[tuple[datetime, Decimal], ...],
-    hedge: tuple[tuple[datetime, Decimal], ...],
-) -> tuple[T16UtilityObservation, ...]:
-    target_map = dict(target)
-    hedge_map = dict(hedge)
-    shared = tuple(sorted(set(target_map) & set(hedge_map)))
-    observations: list[T16UtilityObservation] = []
-    for previous, current in zip(shared, shared[1:], strict=False):
-        if current - previous != timedelta(minutes=1):
-            continue
-        target_previous = target_map[previous]
-        hedge_previous = hedge_map[previous]
-        observations.append(
-            T16UtilityObservation(
-                market_at=current,
-                target_return=(target_map[current] / target_previous) - Decimal(1),
-                hedge_return=(hedge_map[current] / hedge_previous) - Decimal(1),
-            )
-        )
-    return tuple(observations)
-
-
-def _sha256_rows(rows: tuple[tuple[datetime, Decimal], ...]) -> str:
-    raw = json.dumps(
-        [[at.isoformat(), format(price, "f")] for at, price in rows],
-        separators=(",", ":"),
-        ensure_ascii=True,
-    ).encode("utf-8")
-    return "sha256:" + hashlib.sha256(raw).hexdigest()
-
 
 def run() -> dict[str, object]:
     now = datetime.now(UTC).replace(second=0, microsecond=0)
@@ -183,9 +155,9 @@ def run() -> dict[str, object]:
             for symbol in _REQUIRED
         }
         costs = dict(receipt.max_round_trip_cost_bps)
-        results: dict[str, object] = {}
+        results: dict[str, dict[str, object]] = {}
         for hedge in ("US30", "US500"):
-            observations = _aligned_returns(bars["NAS100"], bars[hedge])
+            observations = align_contiguous_m1_returns(bars["NAS100"], bars[hedge])
             if len(observations) < MINIMUM_OOS_OBSERVATIONS:
                 raise CiboCapitalManagementError(
                     f"T16 {hedge} fresh-OOS observations insufficient: "
@@ -243,7 +215,7 @@ def run() -> dict[str, object]:
             "required_symbols": list(_REQUIRED),
             "bar_counts": {symbol: len(rows) for symbol, rows in bars.items()},
             "bar_sha256": {
-                symbol: _sha256_rows(rows) for symbol, rows in bars.items()
+                symbol: market_rows_sha256(rows) for symbol, rows in bars.items()
             },
             "results": results,
             "candidate_passes": candidate_passes,
