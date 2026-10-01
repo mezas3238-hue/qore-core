@@ -143,8 +143,10 @@ def build_r8_empirical_cadence_diagnostic(
         raise SharedBR8CadenceDiagnosticError(
             "source manifest hash drift"
         )
-    if tuple(raw_manifest.get("selected_manifest_indices", ())) != (
-        EXPECTED_CHECKPOINTS
+    selected_manifest_indices = raw_manifest.get("selected_manifest_indices")
+    if (
+        not isinstance(selected_manifest_indices, list)
+        or tuple(selected_manifest_indices) != EXPECTED_CHECKPOINTS
     ):
         raise SharedBR8CadenceDiagnosticError(
             "R8 checkpoint selection drift"
@@ -180,6 +182,7 @@ def build_r8_empirical_cadence_diagnostic(
         if (
             not isinstance(symbol, str)
             or symbol not in EXPECTED_SENSORS
+            or type(symbol_id) is not int
             or symbol_id != EXPECTED_SENSORS[symbol]
         ):
             raise SharedBR8CadenceDiagnosticError(
@@ -189,7 +192,7 @@ def build_r8_empirical_cadence_diagnostic(
             raise SharedBR8CadenceDiagnosticError(
                 "duplicate provider sensor"
             )
-        observed_sensors[symbol] = cast(int, symbol_id)
+        observed_sensors[symbol] = symbol_id
 
         records = report.get("records")
         if not isinstance(records, list):
@@ -242,19 +245,23 @@ def build_r8_empirical_cadence_diagnostic(
                 checkpoint_rows.append(row)
 
             populated = sum(
-                row["unique_provider_event_count"] > 0
+                int(row["unique_provider_event_count"]) > 0
                 for row in checkpoint_rows
             )
-            p99_values = [
-                cast(float, row["p99_ms"])
-                for row in checkpoint_rows
-                if row["p99_ms"] is not None
-            ]
+            p99_values: list[float] = []
+            for checkpoint_row in checkpoint_rows:
+                p99_value = checkpoint_row["p99_ms"]
+                if isinstance(p99_value, (int, float)):
+                    p99_values.append(float(p99_value))
             p99_min = min(p99_values) if p99_values else None
             p99_max = max(p99_values) if p99_values else None
             ratio_bps = (
                 round(p99_max / p99_min * 10_000)
-                if p99_min not in (None, 0.0) and p99_max is not None
+                if (
+                    p99_min is not None
+                    and p99_min != 0.0
+                    and p99_max is not None
+                )
                 else None
             )
             output.append(
