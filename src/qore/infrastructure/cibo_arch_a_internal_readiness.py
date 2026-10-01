@@ -1743,6 +1743,165 @@ def evaluate_architect_a_phase22_v2_scientific_outcome(
         owner_review_approved=outcome.owner_review_approved,
     )
 
+
+@dataclass(frozen=True, slots=True)
+class ArchitectAPhase22V2ScientificClosureBatch:
+    phase22_manifest_sha256: str
+    receipt_count: int
+    resolved_count: int
+    completed_ids: tuple[str, ...]
+    falsified_ids: tuple[str, ...]
+    external_ids: tuple[str, ...]
+    missing_ids: tuple[str, ...]
+    all_scientific_workstreams_resolved: bool
+    ledger_update_authority: bool = False
+    certification_claimed: bool = False
+    production_authority: bool = False
+
+    def __post_init__(self) -> None:
+        _require_sha(self.phase22_manifest_sha256, "phase22_manifest_sha256")
+        total = len(_PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM)
+        if type(self.receipt_count) is not int or not 0 <= self.receipt_count <= total:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 closure receipt count invalid"
+            )
+        if type(self.resolved_count) is not int or not 0 <= self.resolved_count <= total:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 closure resolved count invalid"
+            )
+        groups = (
+            self.completed_ids,
+            self.falsified_ids,
+            self.external_ids,
+            self.missing_ids,
+        )
+        known = set(_PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM)
+        for values in groups:
+            if (
+                not isinstance(values, tuple)
+                or any(item not in known for item in values)
+                or len(values) != len(set(values))
+            ):
+                raise ArchitectAReadinessError(
+                    "Architect A Phase22 V2 closure workstream ids invalid"
+                )
+        sets = tuple(set(values) for values in groups)
+        for index, left in enumerate(sets):
+            for right in sets[index + 1:]:
+                if left & right:
+                    raise ArchitectAReadinessError(
+                        "Architect A Phase22 V2 closure disposition overlap"
+                    )
+        if set().union(*sets) != known:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 closure workstream coverage drift"
+            )
+        if self.receipt_count != (
+            len(self.completed_ids)
+            + len(self.falsified_ids)
+            + len(self.external_ids)
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 closure receipt partition drift"
+            )
+        if self.resolved_count != (
+            len(self.completed_ids) + len(self.falsified_ids)
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 closure resolved partition drift"
+            )
+        expected_all = not self.external_ids and not self.missing_ids
+        if self.all_scientific_workstreams_resolved != expected_all:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 closure readiness drift"
+            )
+        if (
+            self.ledger_update_authority
+            or self.certification_claimed
+            or self.production_authority
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 closure batch cannot grant authority"
+            )
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+def reconcile_architect_a_phase22_v2_dispositions(
+    matrix: ArchitectAPhase22V2WorkstreamEvidenceMatrix,
+    receipts: tuple[ArchitectAPhase22V2ScientificDispositionReceipt, ...],
+) -> ArchitectAPhase22V2ScientificClosureBatch:
+    """Reconcile partial or complete scientific dispositions without editing ledger."""
+
+    if not isinstance(matrix, ArchitectAPhase22V2WorkstreamEvidenceMatrix):
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 closure requires evidence matrix"
+        )
+    if (
+        not isinstance(receipts, tuple)
+        or any(
+            not isinstance(
+                item,
+                ArchitectAPhase22V2ScientificDispositionReceipt,
+            )
+            for item in receipts
+        )
+    ):
+        raise ArchitectAReadinessError(
+            "Architect A Phase22 V2 closure receipts must be canonical tuple"
+        )
+
+    by_id: dict[str, ArchitectAPhase22V2ScientificDispositionReceipt] = {}
+    ready = set(matrix.ready_ids)
+    for receipt in receipts:
+        if receipt.phase22_manifest_sha256 != matrix.phase22_manifest_sha256:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 closure manifest lineage drift"
+            )
+        if receipt.workstream_id in by_id:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 closure duplicate workstream receipt"
+            )
+        if receipt.workstream_id not in ready:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 closure receipt lacks evidence readiness"
+            )
+        by_id[receipt.workstream_id] = receipt
+
+    completed: list[str] = []
+    falsified: list[str] = []
+    external: list[str] = []
+    missing: list[str] = []
+    for workstream_id in _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM:
+        receipt = by_id.get(workstream_id)
+        if receipt is None:
+            missing.append(workstream_id)
+        elif receipt.recommended_disposition == "COMPLETED_AND_PROVEN":
+            completed.append(workstream_id)
+        elif receipt.recommended_disposition == "FALSIFIED_AND_CLOSED":
+            falsified.append(workstream_id)
+        elif receipt.recommended_disposition == "EXTERNAL_DEPENDENCY_BLOCKED":
+            external.append(workstream_id)
+        else:
+            raise ArchitectAReadinessError(
+                "Architect A Phase22 V2 closure unknown disposition"
+            )
+
+    resolved_count = len(completed) + len(falsified)
+    return ArchitectAPhase22V2ScientificClosureBatch(
+        phase22_manifest_sha256=matrix.phase22_manifest_sha256,
+        receipt_count=len(receipts),
+        resolved_count=resolved_count,
+        completed_ids=tuple(completed),
+        falsified_ids=tuple(falsified),
+        external_ids=tuple(external),
+        missing_ids=tuple(missing),
+        all_scientific_workstreams_resolved=(
+            not external and not missing
+        ),
+    )
+
 def forward_manifest_payload_sha256(payload: dict[str, Any]) -> str:
     raw = json.dumps(
         payload,

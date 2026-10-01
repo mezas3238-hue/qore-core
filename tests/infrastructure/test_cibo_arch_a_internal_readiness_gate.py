@@ -879,3 +879,80 @@ def test_phase22_v2_genc14_can_complete_after_explicit_owner_review() -> None:
     )
 
     assert receipt.recommended_disposition == "COMPLETED_AND_PROVEN"
+
+
+def _all_disposition_receipts(
+    matrix: gate.ArchitectAPhase22V2WorkstreamEvidenceMatrix,
+    *,
+    falsified_id: str | None = None,
+    approve_genc14: bool = True,
+) -> tuple[gate.ArchitectAPhase22V2ScientificDispositionReceipt, ...]:
+    receipts = []
+    for workstream_id in gate._PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM:
+        passed = workstream_id != falsified_id
+        receipts.append(
+            gate.evaluate_architect_a_phase22_v2_scientific_outcome(
+                _scientific_outcome_payload(
+                    matrix,
+                    workstream_id,
+                    passed=passed,
+                    owner_review_approved=(
+                        approve_genc14 and workstream_id == "GEN-C14"
+                    ),
+                ),
+                matrix,
+            )
+        )
+    return tuple(receipts)
+
+
+def test_phase22_v2_closure_batch_accepts_falsification_as_resolved() -> None:
+    matrix = _full_phase22_matrix()
+    receipts = _all_disposition_receipts(
+        matrix,
+        falsified_id="GEN-C12",
+    )
+
+    batch = gate.reconcile_architect_a_phase22_v2_dispositions(
+        matrix,
+        receipts,
+    )
+
+    assert batch.receipt_count == 35
+    assert batch.resolved_count == 35
+    assert batch.falsified_ids == ("GEN-C12",)
+    assert batch.external_ids == ()
+    assert batch.missing_ids == ()
+    assert batch.all_scientific_workstreams_resolved is True
+    assert batch.certification_claimed is False
+
+
+def test_phase22_v2_closure_batch_keeps_owner_review_external() -> None:
+    matrix = _full_phase22_matrix()
+    receipts = _all_disposition_receipts(
+        matrix,
+        approve_genc14=False,
+    )
+
+    batch = gate.reconcile_architect_a_phase22_v2_dispositions(
+        matrix,
+        receipts,
+    )
+
+    assert batch.external_ids == ("GEN-C14",)
+    assert batch.resolved_count == 34
+    assert batch.all_scientific_workstreams_resolved is False
+
+
+def test_phase22_v2_closure_batch_reports_missing_receipts() -> None:
+    matrix = _full_phase22_matrix()
+    receipts = _all_disposition_receipts(matrix)[:-2]
+
+    batch = gate.reconcile_architect_a_phase22_v2_dispositions(
+        matrix,
+        receipts,
+    )
+
+    assert batch.receipt_count == 33
+    assert len(batch.missing_ids) == 2
+    assert batch.all_scientific_workstreams_resolved is False
