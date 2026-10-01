@@ -13,9 +13,9 @@ from qore.infrastructure.cibo_a1_genc3_genc7_phase22_binding import (
     bind_genc7_to_phase22,
 )
 from qore.infrastructure.cibo_a1_phase22_scientific_consumption import (
+    MANIFEST_ID,
     A1Phase22PopulationFold,
     A1Phase22ScientificConsumptionManifest,
-    MANIFEST_ID,
 )
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
 from qore.infrastructure.cibo_genc3_genc6_economic_gate import (
