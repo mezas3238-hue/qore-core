@@ -471,7 +471,9 @@ def _generation_edges(
                 "compound audit generation parent is missing"
             )
         if parent.generation >= child.generation:
-            continue
+            raise CiboCompoundCapitalError(
+                "compound audit generation parent must precede child generation"
+            )
         edges.append(
             CompoundGenerationLineageEdge(
                 child_lot_id=child.lot_id,
