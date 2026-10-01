@@ -23,7 +23,6 @@ from qore.infrastructure.cibo_ce2i_phase21_historical_shadow import (
     VALIDATION_START,
     evaluate_phase21_historical_shadow,
 )
-
 from scripts.cibo_phase19_causal_walk_forward import _bind_freeze
 from scripts.cibo_phase19_integrated_chronology_replay import (
     EXPECTED_SOURCE_ROWS,
