@@ -57,6 +57,40 @@ class ProtectedBaseTemporalFoldResult:
     treatment_status: ProtectedBaseGateStatus
     failed_dimensions: tuple[str, ...]
 
+    def __post_init__(self) -> None:
+        if self.fold_id not in _CANONICAL_FOLDS:
+            raise CiboCapitalManagementError(
+                "protected-base temporal result fold must be WF1..WF4"
+            )
+        if type(self.passed) is not bool:
+            raise CiboCapitalManagementError(
+                "protected-base temporal result passed must be bool"
+            )
+        if type(self.treatment_status) is not ProtectedBaseGateStatus:
+            raise CiboCapitalManagementError(
+                "protected-base temporal treatment status is invalid"
+            )
+        if (
+            not isinstance(self.failed_dimensions, tuple)
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.failed_dimensions
+            )
+            or len(self.failed_dimensions) != len(set(self.failed_dimensions))
+        ):
+            raise CiboCapitalManagementError(
+                "protected-base temporal failed dimensions are invalid"
+            )
+        expected = (
+            self.treatment_status
+            is ProtectedBaseGateStatus.ELIGIBLE_FOR_FURTHER_RESEARCH
+            and not self.failed_dimensions
+        )
+        if self.passed != expected:
+            raise CiboCapitalManagementError(
+                "protected-base temporal pass/status drift"
+            )
+
 
 @dataclass(frozen=True, slots=True)
 class ProtectedBaseTemporalReplicationReport:
@@ -83,6 +117,16 @@ class ProtectedBaseTemporalReplicationReport:
         ):
             raise CiboCapitalManagementError(
                 "protected-base temporal candidate identity invalid"
+            )
+        if (
+            not isinstance(self.fold_results, tuple)
+            or any(
+                not isinstance(item, ProtectedBaseTemporalFoldResult)
+                for item in self.fold_results
+            )
+        ):
+            raise CiboCapitalManagementError(
+                "protected-base temporal requires canonical fold results"
             )
         if tuple(item.fold_id for item in self.fold_results) != _CANONICAL_FOLDS:
             raise CiboCapitalManagementError(

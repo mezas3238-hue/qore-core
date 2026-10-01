@@ -13,10 +13,12 @@ from qore.infrastructure.cibo_protected_base_overlay import ProtectedBaseClass
 from qore.infrastructure.cibo_protected_base_policy_gate import (
     ProtectedBaseCandidateRole,
     ProtectedBaseEconomicObservation,
+    ProtectedBaseGateStatus,
     ProtectedBasePolicyCandidate,
 )
 from qore.infrastructure.cibo_protected_base_temporal_replication import (
     ProtectedBaseTemporalFoldEvidence,
+    ProtectedBaseTemporalFoldResult,
     ProtectedBaseTemporalVerdict,
     evaluate_protected_base_temporal_replication,
 )
@@ -161,3 +163,16 @@ def test_reused_population_is_invalid_replication() -> None:
             treatment_candidate_id="protect-60",
             folds=tuple(folds),
         )
+
+def test_protected_base_fold_result_rejects_manual_pass_drift() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="pass/status drift",
+    ):
+        ProtectedBaseTemporalFoldResult(
+            fold_id="WF1",
+            passed=True,
+            treatment_status=ProtectedBaseGateStatus.REJECTED_NO_STRICT_IMPROVEMENT,
+            failed_dimensions=("NO_STRICT_IMPROVEMENT",),
+        )
+
