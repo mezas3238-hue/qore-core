@@ -8,6 +8,7 @@ still required before economic certification.
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -27,6 +28,10 @@ from qore.infrastructure.cibo_ce2i_phase21_policy_freeze import (
 from qore.infrastructure.cibo_ce2i_qualification_evidence_protocol import (
     Phase20QualificationEvidenceBook,
     require_qualification_evidence_book,
+)
+from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
+    V2_SOURCE_BINDINGS,
+    phase22_v2_holdout_source_receipt_sha256,
 )
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -124,7 +129,36 @@ def assess_phase22_holdout_lineage(
     if qualification_shas.intersection(holdout_shas):
         reasons.append("QUALIFICATION_DECISION_REUSED_IN_HOLDOUT")
 
+    historical_replay = (
+        getattr(
+            holdout_evidence_book,
+            "qualification_evidence_kind",
+            "FORWARD_OBSERVED",
+        )
+        == "HISTORICAL_REPLAY_OBSERVED"
+    )
+    expected_source_collectors = tuple(
+        sorted({item.collector_git_sha for item in V2_SOURCE_BINDINGS})
+    )
     collector_shas: set[str] = set()
+    if historical_replay:
+        if (
+            getattr(holdout_evidence_book, "source_receipt_sha256", None)
+            != phase22_v2_holdout_source_receipt_sha256()
+        ):
+            reasons.append("HOLDOUT_SOURCE_RECEIPT_LINEAGE_MISMATCH")
+        if (
+            tuple(
+                getattr(
+                    holdout_evidence_book,
+                    "source_collector_git_shas",
+                    (),
+                )
+            )
+            != expected_source_collectors
+        ):
+            reasons.append("HOLDOUT_SOURCE_COLLECTOR_LINEAGE_MISMATCH")
+        collector_shas.update(expected_source_collectors)
     decision_by_sha = {}
     holdout = ACTIVE_USD60_HOLDOUT_CANDIDATE
     for decision in decisions:
@@ -151,12 +185,33 @@ def assess_phase22_holdout_lineage(
             reasons.append("HOLDOUT_PARAMETER_DIGEST_DRIFT")
         if not decision.sealed_within_deadline:
             reasons.append("HOLDOUT_DECISION_NOT_CAUSALLY_SEALED")
-        if decision.collector_git_sha is None:
+        if historical_replay:
+            try:
+                payload = json.loads(decision.canonical_payload_json)
+            except json.JSONDecodeError:
+                payload = {}
+            source_lineage = (
+                payload.get("source_lineage")
+                if isinstance(payload, dict)
+                else None
+            )
+            if not isinstance(source_lineage, dict):
+                reasons.append("HOLDOUT_DECISION_SOURCE_LINEAGE_INCOMPLETE")
+            else:
+                raw_collectors = source_lineage.get("collector_git_shas")
+                if (
+                    source_lineage.get("source_receipt_sha256")
+                    != phase22_v2_holdout_source_receipt_sha256()
+                    or not isinstance(raw_collectors, list)
+                    or tuple(raw_collectors) != expected_source_collectors
+                ):
+                    reasons.append("HOLDOUT_DECISION_SOURCE_LINEAGE_MISMATCH")
+        elif decision.collector_git_sha is None:
             reasons.append("HOLDOUT_COLLECTOR_GIT_LINEAGE_INCOMPLETE")
         else:
             collector_shas.add(decision.collector_git_sha)
 
-    if len(collector_shas) > 1:
+    if not historical_replay and len(collector_shas) > 1:
         reasons.append("HOLDOUT_COLLECTOR_GIT_LINEAGE_NOT_SINGLE_SHA")
 
     policy_shas = {
