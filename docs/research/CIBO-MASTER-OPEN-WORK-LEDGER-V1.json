@@ -1328,15 +1328,17 @@
       "kind": "GOVERNANCE",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "STATIC_RECONCILIATION_PASS_ZERO_ERRORS_CI_REVALIDATION_PENDING",
-      "terminal_disposition": null,
+      "current_maturity": "RECONCILIATION_IMPLEMENTED_AND_EXACT_HEAD_CI_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
-        "docs/research/CIBO-SOURCE-OF-TRUTH-RECONCILIATION-V1.md"
+        "docs/research/CIBO-SOURCE-OF-TRUTH-RECONCILIATION-V1.md",
+        "scripts/cibo_source_of_truth_reconciliation_gate.py",
+        "tests/infrastructure/test_cibo_source_of_truth_reconciliation_gate.py",
+        "github-actions://36816926205/SUCCESS",
+        "github-actions://36816926262/SUCCESS"
       ],
-      "blockers": [
-        "INTEGRATOR_SOURCE_OF_TRUTH_CI_REVALIDATION_REQUIRED"
-      ],
-      "next_gate": "Revalidate the repaired Source of Truth workflow once the Actions queue permits; the current static checkpoint reports zero ledger/HEAD/governance reconciliation errors and grants no certification or authority."
+      "blockers": [],
+      "next_gate": "Terminal governance implementation. Reopen only on source-of-truth, child-delta, ledger or authority regression."
     },
     {
       "id": "ORPHAN_INVENTORY",
@@ -1358,8 +1360,8 @@
       "kind": "GOVERNANCE",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "FULL_INVENTORY_STRICT_AND_PRE_EXAM_AUDITOR_STAGED_CI_PENDING_OPEN_WORK_REMAINS",
-      "terminal_disposition": null,
+      "current_maturity": "STRICT_AND_PRE_EXAM_AUDITOR_IMPLEMENTED_AND_EXACT_HEAD_CI_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
         "scripts/cibo_zero_open_work_gate.py",
         "tests/infrastructure/test_cibo_zero_open_work_gate.py",
@@ -1368,20 +1370,19 @@
         "scripts/cibo_arch_a_internal_readiness_gate.py",
         "tests/infrastructure/test_cibo_arch_a_internal_readiness_gate.py",
         ".github/workflows/cibo-architect-a-internal-readiness.yml",
-        ".github/workflows/cibo-zero-open-work-gate.yml"
+        ".github/workflows/cibo-zero-open-work-gate.yml",
+        "github-actions://36816926163/SUCCESS",
+        "github-actions://36816926262/SUCCESS"
       ],
-      "blockers": [
-        "INTEGRATOR_ZERO_OPEN_FULL_INVENTORY_CI_REQUIRED",
-        "MASTER_LEDGER_HAS_OPEN_REQUIRED_WORK"
-      ],
-      "next_gate": "Pass the full-inventory auditor with zero orphans/missing artifacts/markers while OPEN work remains visible; after all non-exam work closes, PRE_EXAM may pass; after Final Exam + World Cup terminalize, STRICT must pass."
+      "blockers": [],
+      "next_gate": "Gate implementation is terminal. PRE_EXAM/STRICT verdicts remain data-dependent and will continue to fail closed while certification external dependencies or the Final/World Cup exams remain unresolved."
     },
     {
       "id": "FINAL_INTEGRATED_CIBO_EXAM",
       "kind": "CERTIFICATION",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "RECEIPT_BOUND_CANONICAL_ENTRY_CI_GREEN_CARRIED_FORWARD_PRE_EXAM_AND_PHASE21_22_EXECUTION_OPEN",
+      "current_maturity": "RECEIPT_BOUND_EXAM_GATE_EXACT_HEAD_CI_GREEN_REAL_EXAM_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md",
@@ -1399,39 +1400,42 @@
         "src/qore/infrastructure/cibo_ce2i_final_certification.py",
         "src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py",
         "tests/infrastructure/test_cibo_ce2i_final_certification.py",
-        "github-actions://36790166786/SUCCESS"
+        "github-actions://36790166786/SUCCESS",
+        "github-actions://36816926072/SUCCESS",
+        "github-actions://36816926163/SUCCESS",
+        "github-actions://36816926205/SUCCESS"
       ],
       "blockers": [
-        "PRE_EXAM_NON_EXAM_ZERO_OPEN_PASS_REQUIRED",
-        "FINAL_A_B_INTEGRATED_SOURCE_OF_TRUTH_RECONCILIATION_REQUIRED",
-        "PHASE20D_PHASE21_PHASE22_AND_HOLDOUT_CHAIN_REQUIRED",
-        "ALL_MANDATORY_SCIENTIFIC_AND_INTEGRATION_GATES_REQUIRED"
+        "PRE_EXAM_EXTERNAL_DEPENDENCIES_MUST_CLEAR",
+        "PHASE20D_PHASE21_PHASE22_AND_PROTECTED_HOLDOUT_CHAIN_REQUIRED",
+        "ACTUAL_18_RECEIPT_FINAL_INTEGRATED_EXAM_NOT_RUN"
       ],
-      "next_gate": "After PRE_EXAM and exact Phase21/Phase22 certification, execute the 18-receipt integrated exam before World Cup and STRICT zero-open."
+      "next_gate": "After the real external prerequisites permit PRE_EXAM and exact Phase21/Phase22 certification, execute the actual 18-receipt Final Integrated Exam. Software-gate CI alone is not exam PASS."
     },
     {
       "id": "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
       "kind": "CERTIFICATION",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "RECEIPT_BOUND_EXAM_GATE_STAGED_CI_PENDING_REAL_EXAM_OPEN",
+      "current_maturity": "RECEIPT_BOUND_EXAM_GATE_EXACT_HEAD_CI_GREEN_REAL_EXAM_OPEN",
       "terminal_disposition": null,
       "evidence_refs": [
         "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md",
         "src/qore/infrastructure/cibo_world_cup_maximum_capability_exam.py",
         "tests/infrastructure/test_cibo_world_cup_maximum_capability_exam.py",
         "docs/research/CIBO-WORLD-CUP-MAXIMUM-CAPABILITY-EXAM-PROTOCOL-V1.md",
-        ".github/workflows/cibo-final-integrated-exam.yml"
+        ".github/workflows/cibo-final-integrated-exam.yml",
+        "github-actions://36816926072/SUCCESS"
       ],
       "blockers": [
-        "WORLD_CUP_RECEIPT_BOUND_GATE_CI_REQUIRED",
         "FINAL_INTEGRATED_CIBO_EXAM_MUST_PASS_FIRST",
         "COMPETITION_PROVIDER_ADAPTER_REAL_EVIDENCE_REQUIRED",
         "WORLD_CUP_DIGITAL_TWIN_REAL_EVIDENCE_REQUIRED",
         "WORLD_CUP_CAUSAL_MC_STRESS_REPLICATION_RECEIPTS_REQUIRED",
-        "CERTIFICATION_BLOCKING_EXTERNAL_DEPENDENCIES_MUST_CLEAR"
+        "CERTIFICATION_BLOCKING_EXTERNAL_DEPENDENCIES_MUST_CLEAR",
+        "ACTUAL_WORLD_CUP_MAXIMUM_CAPABILITY_EXAM_NOT_RUN"
       ],
-      "next_gate": "Pass receipt-bound World Cup gate CI; then, only after the actual Final Integrated Exam passes and external blockers clear, bind the frozen competition provider/Digital Twin/causal/MC/stress/replication receipts and execute the real World Cup exam."
+      "next_gate": "Software gate is proven. After the actual Final Integrated Exam passes and external dependencies clear, bind real competition-provider, Digital-Twin, causal attribution, path-MC, stress and temporal receipts and execute the actual World Cup exam."
     },
     {
       "id": "HISTORICAL_PHASE18_REPLAY_EVIDENCE",
@@ -1645,8 +1649,8 @@
   ],
   "current_summary": {
     "mandatory_count": 64,
-    "terminal_count": 60,
-    "open_count": 4,
+    "terminal_count": 62,
+    "open_count": 2,
     "zero_open_work_pass": false,
     "final_certification_candidate": false
   }

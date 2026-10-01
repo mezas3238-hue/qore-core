@@ -92,7 +92,9 @@
     "RISK_INTEGRATION",
     "CAPITAL_AMPLIFICATION",
     "AS_IS_CONTROL",
+    "SOURCE_OF_TRUTH_RECONCILIATION",
     "ORPHAN_INVENTORY",
+    "ZERO_OPEN_WORK_GATE",
     "HISTORICAL_PHASE18_REPLAY_EVIDENCE",
     "BURNED_PHASE19_RESEARCH_EVIDENCE",
     "CMA_FOUNDATION_INTEGRATION",
@@ -150,10 +152,11 @@
     "certification_claim": false
   },
   "terminal_disposition_reconciliation": {
-    "source_head": "39dab5dc43081764c9de8b044af502194274406c",
-    "terminal_count": 60,
-    "open_count": 4,
+    "source_head": "5146077c41ccb7cfdda319162ef6c5f34d55f478",
+    "terminal_count": 62,
+    "open_count": 2,
     "external_dependency_terminal_count": 45,
+    "completed_and_proven_terminal_count": 16,
     "certification_blocking_external_ids": [
       "T02",
       "T03",
@@ -200,6 +203,10 @@
       "USD60_CAPABILITY_PROGRAM",
       "INTEGRATED_CAPITAL_TRUTH",
       "AS_IS_ECONOMIC_BASELINE"
+    ],
+    "open_exam_ids": [
+      "FINAL_INTEGRATED_CIBO_EXAM",
+      "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM"
     ],
     "productive_authority": false
   }

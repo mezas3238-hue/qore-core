@@ -807,6 +807,40 @@
       "note": "Engineering terminalization only. All three remain certification-blocking; USD60 final six-month exam is not claimed as executed.",
       "productive_authority": false,
       "certification_claim": false
+    },
+    {
+      "owner": "INTEGRATOR_514607_GOVERNANCE_CLOSURE_BATCH_004",
+      "source_head_sha": "5146077c41ccb7cfdda319162ef6c5f34d55f478",
+      "items": [
+        {
+          "id": "SOURCE_OF_TRUTH_RECONCILIATION",
+          "class": "COMPLETED_AND_PROVEN",
+          "workflow_run_ids": [
+            36816926205,
+            36816926262
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "ZERO_OPEN_WORK_GATE",
+          "class": "COMPLETED_AND_PROVEN",
+          "workflow_run_ids": [
+            36816926163,
+            36816926262
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
+          "class": "ENGINEERING_GATE_ONLY",
+          "workflow_run_id": 36816926072,
+          "status": "SUCCESS",
+          "terminal": false
+        }
+      ],
+      "note": "Source-of-truth and Zero Open implementations are terminal. Zero Open verdicts remain fail-closed while external dependencies or the two real exams remain unresolved. World Cup software gate is green but the real World Cup exam remains OPEN.",
+      "productive_authority": false,
+      "certification_claim": false
     }
   ],
   "pending_candidates": [
@@ -880,14 +914,13 @@
   "certification_claim": false,
   "productive_authority": false,
   "integrator_pending": {
-    "head_sha": "39dab5dc43081764c9de8b044af502194274406c",
+    "head_sha": "5146077c41ccb7cfdda319162ef6c5f34d55f478",
     "reasons": [
-      "SOURCE_OF_TRUTH_DYNAMIC_SUMMARY_TEST_REPAIR_STAGED",
-      "ZERO_OPEN_EXTERNAL_BLOCKER_MARKER_CONSTANT_REPAIR_STAGED",
-      "WORLD_CUP_RECEIPT_BOUND_GATE_STAGED_CI_PENDING",
-      "FINAL_INTEGRATED_EXAM_REAL_EXECUTION_OPEN",
-      "WORLD_CUP_REAL_EXECUTION_OPEN",
-      "CERTIFICATION_BLOCKING_EXTERNAL_EVIDENCE_DEPENDENCIES_REMAIN"
+      "FINAL_INTEGRATED_CIBO_EXAM_REAL_EXECUTION_OPEN",
+      "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM_REAL_EXECUTION_OPEN",
+      "CERTIFICATION_BLOCKING_EXTERNAL_EVIDENCE_DEPENDENCIES_REMAIN",
+      "ARCHITECT_A_POST_SNAPSHOT_HARDENING_DELTA_PENDING_INTEGRATION",
+      "ARCHITECT_B_T16_PROVIDER_NATIVE_DELTA_PENDING_INTEGRATION_REPAIR"
     ],
     "staged_components": [
       "CROSSBOUNDARY_SOURCE_BOUND_RECEIPTS",

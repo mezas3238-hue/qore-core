@@ -228,3 +228,20 @@ under the Owner's no-workflow-flood policy.
 - World Cup now has a receipt-bound non-compensatory executable contract. The
   Owner's aspirational return reference is explicitly prohibited as a tuning or
   pass threshold.
+
+
+## 2026-10-01 governance closure batch 004
+
+- Exact evidence HEAD: `5146077c41ccb7cfdda319162ef6c5f34d55f478`.
+- Source of Truth Reconciliation: run `36816926205` SUCCESS.
+- A+B Integrator Reconciliation: run `36816926262` SUCCESS.
+- Zero Open Work Gate: run `36816926163` SUCCESS.
+- Final + World Cup software gate: run `36816926072` SUCCESS.
+- SOURCE_OF_TRUTH_RECONCILIATION and ZERO_OPEN_WORK_GATE are now
+  `COMPLETED_AND_PROVEN` as governance implementations.
+- Zero Open verdicts are **not** declared PASS for certification: PRE_EXAM and
+  STRICT remain fail-closed while certification-blocking external dependencies
+  and/or the two actual exam workstreams remain unresolved.
+- Canonical ledger target: 64 mandatory / 62 terminal / 2 open.
+- The two remaining OPEN workstreams are the actual Final Integrated CIBO Exam
+  and the actual World Cup Maximum-Capability Exam.
