@@ -19,15 +19,19 @@ from zoneinfo import ZoneInfo
 from qore.infrastructure.trader_lab import (
     cibo_market_atlas_journey_extractor_v1 as journey,
 )
+from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
+    Bar,
+    Evidence,
+)
 from qore.infrastructure.trader_lab.vt08_b01_backtest_r3_8 import (
     Vt08B01BacktestTrade,
-    _model_trade,
 )
 from qore.infrastructure.traders.contracts import DemoTradingSetupSide
 from qore.infrastructure.traders.vt08_b01_r3_8 import (
     AUTHORIZED_FOREX_MARKETS,
     OWNER_FOREX_ENTRY_ANCHORS,
     Vt08B01Bar,
+    Vt08B01Candidate,
     evaluate_b01_at_entry_indexed,
     methodology_fingerprint,
 )
@@ -122,12 +126,12 @@ def _bucket_start(value: datetime) -> datetime:
 
 
 def resample_m5_to_m15(
-    evidence: journey.Evidence,
+    evidence: Evidence,
 ) -> tuple[tuple[Vt08B01Bar, ...], Phase22M5ToM15Receipt]:
     """Aggregate only exact contiguous 00/05/10 M5 triplets; never interpolate."""
     if evidence.symbol not in AUTHORIZED_FOREX_MARKETS:
         raise ValueError("VT08 Phase22 resampling requires authorized Forex")
-    grouped: dict[datetime, list[journey.Bar]] = defaultdict(list)
+    grouped: dict[datetime, list[Bar]] = defaultdict(list)
     for bar in evidence.bars:
         opened = bar.opened_at.astimezone(UTC)
         if (
@@ -176,6 +180,65 @@ def resample_m5_to_m15(
     )
     return frozen, receipt
 
+
+
+def _touches(bar: Vt08B01Bar, price: Decimal) -> bool:
+    return bar.low <= price <= bar.high
+
+
+def _model_trade_frozen(
+    candidate: Vt08B01Candidate,
+    *,
+    bars_by_open: dict[datetime, Vt08B01Bar],
+) -> Vt08B01BacktestTrade | None:
+    """Exact copy of the frozen R3.8 execution model, without loader policy."""
+    start = candidate.decision_at.astimezone(UTC)
+    local = start.astimezone(_NY)
+    end = (local + timedelta(hours=4)).astimezone(UTC)
+    if end - start != timedelta(hours=4):
+        return None
+    retained: list[Vt08B01Bar] = []
+    cursor = start
+    while cursor < end:
+        bar = bars_by_open.get(cursor)
+        if bar is None or bar.closed_at != cursor + timedelta(minutes=15):
+            return None
+        retained.append(bar)
+        cursor += timedelta(minutes=15)
+    if cursor != end or not retained:
+        return None
+
+    setup = candidate.setup
+    exit_price = retained[-1].close
+    exited_at = retained[-1].closed_at
+    reason = "h4_containment_exit"
+    for bar in retained:
+        if _touches(bar, setup.invalidation_price):
+            exit_price = setup.invalidation_price
+            exited_at = bar.closed_at
+            reason = "stop"
+            break
+        if _touches(bar, setup.take_profit_price):
+            exit_price = setup.take_profit_price
+            exited_at = bar.closed_at
+            reason = "target"
+            break
+
+    if candidate.side is DemoTradingSetupSide.LONG:
+        return_rate = (exit_price - setup.entry_price) / setup.entry_price
+    else:
+        return_rate = (setup.entry_price - exit_price) / setup.entry_price
+    return Vt08B01BacktestTrade(
+        signal_at=start,
+        exited_at=exited_at,
+        side=candidate.side,
+        entry=setup.entry_price,
+        stop=setup.invalidation_price,
+        target=setup.take_profit_price,
+        exit_price=exit_price,
+        exit_reason=reason,
+        return_rate=return_rate,
+    )
 
 def _realized_r(trade: Vt08B01BacktestTrade) -> Decimal:
     if trade.side is DemoTradingSetupSide.LONG:
@@ -249,7 +312,7 @@ def evaluate_vt08_phase22_symbol(
     bars, resampling = resample_m5_to_m15(evidence)
     by_open = {item.opened_at: item for item in bars}
     abstains: Counter[str] = Counter()
-    candidates_by_day: dict[date, list[object]] = defaultdict(list)
+    candidates_by_day: dict[date, list[Vt08B01Candidate]] = defaultdict(list)
 
     for bar in bars:
         local = bar.opened_at.astimezone(_NY)
@@ -274,7 +337,7 @@ def evaluate_vt08_phase22_symbol(
         if len(candidates) != 1:
             multiple += 1
             continue
-        modeled = _model_trade(candidates[0], bars_by_open=by_open)
+        modeled = _model_trade_frozen(candidates[0], bars_by_open=by_open)
         if modeled is None:
             incomplete += 1
             continue

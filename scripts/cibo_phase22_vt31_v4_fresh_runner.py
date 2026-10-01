@@ -21,6 +21,7 @@ from qore.infrastructure.cibo_phase22_vt31_v4_fresh_source import (
     CANDIDATE_ID,
     load_phase22_vt31_m1,
 )
+from qore.infrastructure.market_data import OhlcSnapshot
 
 FROZEN_SOURCE_GIT_SHA = "cac38ed14f20e066536910145027426fd23f5939"
 WINDOW_START = date(2015, 10, 19)
@@ -92,7 +93,16 @@ def run_fresh(
 
     source = load_phase22_vt31_m1(source_root)
 
-    def loader(_path: Path):
+    def loader(
+        _path: Path,
+    ) -> tuple[
+        tuple[OhlcSnapshot, ...],
+        str,
+        str,
+        object,
+        str,
+        str,
+    ]:
         return (
             source.series,
             "",
@@ -114,7 +124,7 @@ def run_fresh(
         residual.load_market_evidence = original_residual
         physical.load_market_evidence = original_physical
 
-    raw: dict[date, list[object]] = defaultdict(list)
+    raw: dict[date, list[OhlcSnapshot]] = defaultdict(list)
     for bar in source.series:
         raw[r25._day(bar.opened_at)].append(bar)
     by_day = {
