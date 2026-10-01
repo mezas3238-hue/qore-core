@@ -351,10 +351,10 @@ def evaluate_t09_t18_oos_stress(
     )
 
 
-def _ordered[_TStressEvidence: _HasStressMeta](
-    evidence: tuple[_TStressEvidence, ...],
+def _ordered[TStressEvidence: _HasStressMeta](
+    evidence: tuple[TStressEvidence, ...],
     label: str,
-) -> tuple[_TStressEvidence, ...]:
+) -> tuple[TStressEvidence, ...]:
     if not evidence:
         raise CiboCapitalManagementError(
             f"{label} stress evidence is required"
