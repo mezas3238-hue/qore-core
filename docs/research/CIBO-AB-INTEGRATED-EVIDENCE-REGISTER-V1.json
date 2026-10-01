@@ -283,6 +283,23 @@
           "carried_forward": true
         }
       ]
+    },
+    {
+      "owner": "INTEGRATOR_T16_T17_TYPED_DISABLEMENT_REPAIR",
+      "source_head_sha": "a08682bfab0a1fb56d0d07d8b91436a41334e01b",
+      "unchanged_surface_verified": true,
+      "items": [
+        {
+          "id": "B-SUPPORT-006_T16_T17_STRUCTURAL_DISABLEMENT_REQUIRES_TYPED_PROVIDER_STATUS",
+          "class": "INTEGRATION_DEFECT_RESOLVED_TYPED_PROVIDER_VERIFIED_STATUS_REQUIRED",
+          "workflow_run_ids": [
+            36790166754,
+            36790166913
+          ],
+          "status": "SUCCESS",
+          "scope": "Structural-disable governance only; no claim that T16/T17 real provider capability or economic utility is resolved."
+        }
+      ]
     }
   ],
   "pending_candidates": [
@@ -323,7 +340,8 @@
         "B_SUPPORT_001_USD60_READINESS_SELF_ATTESTATION_UPSTREAM",
         "REAL_FORWARD_PROVIDER_AND_CAPITAL_POPULATION_OPEN",
         "B_SUPPORT_002_UPSTREAM_LEDGER_DRIFT_RECONCILED_IN_INTEGRATOR",
-        "B_SUPPORT_003_RECEIPT_BOUND_FREEZE_PROVEN_IN_INTEGRATOR"
+        "B_SUPPORT_003_RECEIPT_BOUND_FREEZE_PROVEN_IN_INTEGRATOR",
+        "B_SUPPORT_006_TYPED_STRUCTURAL_DISABLEMENT_REPAIR_PROVEN_IN_INTEGRATOR"
       ],
       "candidate_workflow_runs": {
         "risk_integration": 36778702336,
