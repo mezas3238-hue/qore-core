@@ -16,6 +16,10 @@ permissions:
   contents: read
   actions: read
 
+concurrency:
+  group: cibo-usd60-holdout-source-validation-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   blind-source-validation:
     runs-on: ubuntu-latest

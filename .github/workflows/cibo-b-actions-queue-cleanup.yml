@@ -45,6 +45,7 @@ jobs:
               "QORE CIBO Calibration Freeze Manifest",
               "QORE CIBO Pre-Holdout Checkpoint",
               "QORE CIBO USD60 Pre-Exam Readiness",
+              "QORE CIBO USD60 Holdout Source Validation",
               "QORE CIBO Risk Integration Closure",
               "QORE CIBO CMA Compound Authority Boundary",
               "QORE CIBO Legacy Stack Quarantine",
