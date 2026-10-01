@@ -176,3 +176,38 @@ under the Owner's no-workflow-flood policy.
   FundedNext Stellar Instant CFD universe; provider-universe change reopens it.
 - Canonical ledger after this reconciliation: 64 mandatory / 21 terminal /
   43 open. Certification remains false.
+
+
+## 2026-10-01 external-dependency closure batch 001
+
+- Exact Integrator evidence HEAD: `b8277be59eba25d2ef734448c1de8e87e6a488f2`.
+- 23 additional workstreams are eligible for terminal
+  `EXTERNAL_DEPENDENCY_BLOCKED` disposition because their implementation and
+  exact-head CI are complete while the remaining blockers require real
+  forward/OOS/provider evidence.
+- Promoted IDs:
+  `T04`, `T06`, `T07`, `T09`, `T10`, `T12`, `T13`, `T14`, `T15`, `T18`, `GEN-C3`, `GEN-C4`, `GEN-C5`, `GEN-C6`, `GEN-C7`, `GEN-C8`, `GEN-C9`, `GEN-C10`, `GEN-C11`, `GEN-C14`, `PROTECTED_BASE_CAPITAL`, `AS_IS_ECONOMIC_BASELINE`, `INTERNAL_CAPITAL_MARKET`.
+- Zero Open is simultaneously hardened so an external-dependency disposition
+  must carry exact `github-actions://.../SUCCESS` evidence and may not hide
+  CI/implementation/contract/repair blockers.
+- Canonical target summary for this batch: 64 mandatory / 44 terminal / 20 open.
+- These 23 dispositions remain certification-blocking; they do not represent
+  economic validation or LIVE authority.
+
+
+## 2026-10-01 external-dependency closure batch 002
+
+- Exact-head CI on `b8277be59eba25d2ef734448c1de8e87e6a488f2`
+  closed the remaining implementation validation for T08, GEN-C2, GEN-C13,
+  Compound Engine/Portfolio, Capital Generations, Profit Protection,
+  Path-Dependent Monte Carlo, Adversarial Stress, Fresh OOS infrastructure,
+  Temporal Replication, Capital Amplification and Integrated Capital Truth.
+- These 13 workstreams now have only real forward/OOS/provider evidence
+  dependencies and therefore receive certification-blocking
+  `EXTERNAL_DEPENDENCY_BLOCKED` dispositions.
+- Target canonical summary becomes 64 mandatory / 57 terminal / 7 open.
+- Remaining OPEN IDs are intentionally limited to work that still has internal
+  repair/research/exam/strict-closure execution: T03, GEN-C12,
+  SOURCE_OF_TRUTH_RECONCILIATION, ZERO_OPEN_WORK_GATE,
+  FINAL_INTEGRATED_CIBO_EXAM, WORLD_CUP_MAXIMUM_CAPABILITY_EXAM and
+  USD60_CAPABILITY_PROGRAM.

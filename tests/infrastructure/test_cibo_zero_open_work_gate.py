@@ -57,7 +57,11 @@ def _ledger(*, disposition: str | None, blocking: bool = True) -> dict:
                 ),
                 "terminal_disposition": disposition,
                 "evidence_refs": (
-                    ["test://terminal-evidence"]
+                    (
+                        ["github-actions://123/SUCCESS"]
+                        if disposition == "EXTERNAL_DEPENDENCY_BLOCKED"
+                        else ["test://terminal-evidence"]
+                    )
                     if disposition is not None
                     else []
                 ),
@@ -940,3 +944,49 @@ def test_integrator_and_new_a_surfaces_have_explicit_ownership() -> None:
     assert dict(assignments)[inventory[8]] == "TEMPORAL_REPLICATION"
     assert dict(assignments)[inventory[10]] == "PROTECTED_BASE_CAPITAL"
     assert dict(assignments)[inventory[12]] == "T16"
+
+
+def test_external_dependency_requires_exact_success_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    payload = _ledger(
+        disposition="EXTERNAL_DEPENDENCY_BLOCKED",
+        blocking=True,
+    )
+    payload["workstreams"][0]["evidence_refs"] = ["docs/evidence.json"]
+    _write(ledger, payload)
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
+
+    with pytest.raises(
+        gate.CiboZeroOpenWorkGateError,
+        match="requires exact SUCCESS evidence",
+    ):
+        gate.evaluate_gate(repo_root=tmp_path, ledger_path=ledger)
+
+
+def test_external_dependency_cannot_hide_internal_ci_work(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    payload = _ledger(
+        disposition="EXTERNAL_DEPENDENCY_BLOCKED",
+        blocking=True,
+    )
+    payload["workstreams"][0]["blockers"] = [
+        "INTEGRATOR_COMPONENT_CI_REQUIRED"
+    ]
+    _write(ledger, payload)
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
+
+    with pytest.raises(
+        gate.CiboZeroOpenWorkGateError,
+        match="hides internal work",
+    ):
+        gate.evaluate_gate(repo_root=tmp_path, ledger_path=ledger)

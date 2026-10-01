@@ -447,6 +447,336 @@
       "note": "External-dependency terminal dispositions remain certification-blocking. T17 closure is scoped and reopens on governed provider/account capability change.",
       "productive_authority": false,
       "certification_claim": false
+    },
+    {
+      "owner": "INTEGRATOR_B827_EXTERNAL_DEPENDENCY_CLOSURE_BATCH_001",
+      "source_head_sha": "b8277be59eba25d2ef734448c1de8e87e6a488f2",
+      "items": [
+        {
+          "id": "T04",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815304953
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "T06",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305261
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "T07",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305261
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "T09",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305285
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "T10",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815304953
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "T12",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305264
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "T13",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305288
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "T14",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305262
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "T15",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305262
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "T18",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305285
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "GEN-C3",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305260,
+            36815305335
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "GEN-C4",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305246,
+            36815305335
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "GEN-C5",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305205,
+            36815305335
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "GEN-C6",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305203,
+            36815305335
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "GEN-C7",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305015
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "GEN-C8",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305175
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "GEN-C9",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815304935
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "GEN-C10",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305087
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "GEN-C11",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815304979,
+            36815305207
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "GEN-C14",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305156
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "PROTECTED_BASE_CAPITAL",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305005,
+            36815305307
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "AS_IS_ECONOMIC_BASELINE",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305298
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "INTERNAL_CAPITAL_MARKET",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305203,
+            36815305335
+          ],
+          "status": "SUCCESS"
+        }
+      ],
+      "note": "Every row has exact-head CI SUCCESS and retains only forward/OOS/provider evidence blockers. Zero Open is hardened to reject hidden CI/repair/implementation blockers and to require exact SUCCESS evidence.",
+      "productive_authority": false,
+      "certification_claim": false
+    },
+    {
+      "owner": "INTEGRATOR_B827_EXTERNAL_DEPENDENCY_CLOSURE_BATCH_002",
+      "source_head_sha": "b8277be59eba25d2ef734448c1de8e87e6a488f2",
+      "items": [
+        {
+          "id": "T08",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305265
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "GEN-C2",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305266,
+            36815305015
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "GEN-C13",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305157,
+            36815305207
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "COMPOUND_ENGINE",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305118,
+            36815305048
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "COMPOUND_PORTFOLIO",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305118,
+            36815305260,
+            36815305335
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "CAPITAL_GENERATIONS",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305114
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "PROFIT_PROTECTION",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305015,
+            36815305225,
+            36815305249
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "PATH_DEPENDENT_MONTE_CARLO",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305225,
+            36815305048,
+            36815305141
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "ADVERSARIAL_STRESS",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305174,
+            36815305180
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "FRESH_OOS",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305113,
+            36815305247,
+            36815305324
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "TEMPORAL_REPLICATION",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305141,
+            36815305265
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "CAPITAL_AMPLIFICATION",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815304940
+          ],
+          "status": "SUCCESS"
+        },
+        {
+          "id": "INTEGRATED_CAPITAL_TRUTH",
+          "class": "EXTERNAL_DEPENDENCY_BLOCKED",
+          "workflow_run_ids": [
+            36815305118,
+            36815305147,
+            36815305179,
+            36815305225,
+            36815305249
+          ],
+          "status": "SUCCESS"
+        }
+      ],
+      "note": "Second conservative external-dependency closure batch. Every row has exact-head green implementation evidence and no remaining CI/repair/implementation blocker.",
+      "productive_authority": false,
+      "certification_claim": false
     }
   ],
   "pending_candidates": [
@@ -520,14 +850,15 @@
   "certification_claim": false,
   "productive_authority": false,
   "integrator_pending": {
-    "head_sha": "b0391233c4a47c0f37868619dd9c042f6b355ee7",
+    "head_sha": "b8277be59eba25d2ef734448c1de8e87e6a488f2",
     "reasons": [
-      "RECEIPT_BOUND_PRE_HOLDOUT_FREEZE_TIMESTAMP_FIX_STAGED",
-      "ARCHITECT_A_INTERNAL_READINESS_REMAINS_FAIL_CLOSED",
-      "CERTIFICATION_BLOCKING_EXTERNAL_FORWARD_DEPENDENCIES_REMAIN",
+      "GENC12_LINT_REPAIR_STAGED",
+      "SOURCE_OF_TRUTH_AND_AB_ACCEPTANCE_TERMINAL_UNION_REPAIR_STAGED",
       "T03_MULTI_LEG_OR_ALTERNATE_PROVIDER_RESEARCH_OPEN",
-      "REAL_FORWARD_PHASE20D_POPULATION_THRESHOLDS_OPEN",
-      "TWO_EXAM_ZERO_OPEN_SEQUENCE_OPEN"
+      "USD60_FINAL_GOVERNED_EXAM_SEQUENCE_OPEN",
+      "FINAL_INTEGRATED_EXAM_AND_WORLD_CUP_EXECUTION_OPEN",
+      "ZERO_OPEN_STRICT_SEQUENCE_OPEN",
+      "CERTIFICATION_BLOCKING_EXTERNAL_EVIDENCE_DEPENDENCIES_REMAIN"
     ],
     "staged_components": [
       "CROSSBOUNDARY_SOURCE_BOUND_RECEIPTS",

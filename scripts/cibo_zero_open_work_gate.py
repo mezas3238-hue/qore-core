@@ -681,6 +681,25 @@ def evaluate_gate(
                 raise CiboZeroOpenWorkGateError(
                     "external-dependency disposition requires blocker evidence"
                 )
+            if not any(
+                ref.startswith("github-actions://") and ref.endswith("/SUCCESS")
+                for ref in evidence_refs
+            ):
+                raise CiboZeroOpenWorkGateError(
+                    "external-dependency disposition requires exact SUCCESS evidence"
+                )
+            internal_blockers = tuple(
+                blocker
+                for blocker in blockers
+                if any(
+                    marker in blocker
+                    for marker in _INTERNAL_EXTERNAL_BLOCKER_MARKERS
+                )
+            )
+            if internal_blockers:
+                raise CiboZeroOpenWorkGateError(
+                    "external-dependency disposition hides internal work"
+                )
             continue
 
         if blockers:
