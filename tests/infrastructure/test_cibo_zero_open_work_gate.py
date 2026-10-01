@@ -672,3 +672,24 @@ def test_gate_classifies_arch_a_phase22_pre_outcome() -> None:
     assert set(assignments) == {
         (path, "FINAL_INTEGRATED_CIBO_EXAM") for path in inventory
     }
+
+
+def test_gate_classifies_arch_a2_governance_surfaces() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_arch_a2_scientific_closure.py",
+        "tests/infrastructure/test_cibo_arch_a2_scientific_closure.py",
+        "src/qore/infrastructure/cibo_arch_a2_internal_readiness.py",
+        "tests/infrastructure/test_cibo_arch_a2_internal_readiness.py",
+    )
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=frozenset(
+            {"SOURCE_OF_TRUTH_RECONCILIATION", "ORPHAN_INVENTORY"}
+        ),
+    )
+
+    assert orphans == ()
+    assert set(assignments) == {
+        (path, "SOURCE_OF_TRUTH_RECONCILIATION")
+        for path in inventory
+    }
