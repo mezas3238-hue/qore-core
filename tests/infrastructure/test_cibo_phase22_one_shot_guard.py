@@ -1,12 +1,12 @@
+from qore.infrastructure.cibo_phase22_execution_manifest import (
+    build_phase22_execution_manifest,
+)
 from qore.infrastructure.cibo_phase22_one_shot_guard import (
     EXECUTION_ECONOMICS_BLOCKER,
     SYNTHETIC_FORBIDDEN_BLOCKER,
     Phase22ExecutionConsumptionReceipt,
     Phase22OneShotGuardStatus,
     assess_phase22_one_shot_guard,
-)
-from qore.infrastructure.cibo_phase22_execution_manifest import (
-    build_phase22_execution_manifest,
 )
 
 
