@@ -8,8 +8,6 @@ Architect A1, Architect A2 and the Integrator retain exclusive ownership of
 their respective surfaces.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 
 
