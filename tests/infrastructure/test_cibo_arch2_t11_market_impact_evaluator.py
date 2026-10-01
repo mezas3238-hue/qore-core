@@ -45,9 +45,18 @@ def _episodes(*, nonlinear: bool = True) -> tuple[T11MarketImpactEpisode, ...]:
                             fold_index=fold,
                             side=side,
                             child_count=child_count,
+                            level_order_position=(
+                                1
+                                if (
+                                    (index % 2 == 0 and child_count == 1)
+                                    or (index % 2 == 1 and child_count == 2)
+                                )
+                                else 2
+                            ),
                             minimum_volume=minimum,
                             aggregate_volume=volume,
-                            adverse_slippage_cost_total_usd=linear + impact,
+                            realized_settlement_cost_total_usd=linear + impact,
+                            deposit_asset="USD",
                             observed_at=FROZEN_AT + timedelta(minutes=minute),
                             provider_bound=True,
                             every_child_order_minimum_volume=True,
@@ -92,10 +101,86 @@ def test_market_impact_rejects_non_minimum_child_volume_identity() -> None:
             fold_index=0,
             side="long",
             child_count=2,
+            level_order_position=1,
             minimum_volume=Decimal("0.01"),
             aggregate_volume=Decimal("0.03"),
-            adverse_slippage_cost_total_usd=Decimal("0"),
+            realized_settlement_cost_total_usd=Decimal("0"),
+            deposit_asset="USD",
             observed_at=FROZEN_AT + timedelta(minutes=1),
             provider_bound=True,
             every_child_order_minimum_volume=True,
         )
+
+
+def test_market_impact_rejects_non_usd_settlement_asset() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="deposit asset must be USD",
+    ):
+        T11MarketImpactEpisode(
+            evidence_id="bad-asset",
+            qore_symbol="EURUSD",
+            pair_id="bad-asset-pair",
+            phase="CALIBRATION",
+            fold_index=0,
+            side="long",
+            child_count=1,
+            level_order_position=1,
+            minimum_volume=Decimal("0.01"),
+            aggregate_volume=Decimal("0.01"),
+            realized_settlement_cost_total_usd=Decimal("0"),
+            deposit_asset="EUR",
+            observed_at=FROZEN_AT + timedelta(minutes=1),
+            provider_bound=True,
+            every_child_order_minimum_volume=True,
+        )
+
+
+def test_market_impact_rejects_non_alternating_level_order() -> None:
+    rows = list(_episodes())
+    first = rows[0]
+    second = rows[1]
+    rows[0] = T11MarketImpactEpisode(
+        evidence_id=first.evidence_id,
+        qore_symbol=first.qore_symbol,
+        pair_id=first.pair_id,
+        phase=first.phase,
+        fold_index=first.fold_index,
+        side=first.side,
+        child_count=first.child_count,
+        level_order_position=2,
+        minimum_volume=first.minimum_volume,
+        aggregate_volume=first.aggregate_volume,
+        realized_settlement_cost_total_usd=(
+            first.realized_settlement_cost_total_usd
+        ),
+        deposit_asset=first.deposit_asset,
+        observed_at=first.observed_at,
+        provider_bound=True,
+        every_child_order_minimum_volume=True,
+    )
+    rows[1] = T11MarketImpactEpisode(
+        evidence_id=second.evidence_id,
+        qore_symbol=second.qore_symbol,
+        pair_id=second.pair_id,
+        phase=second.phase,
+        fold_index=second.fold_index,
+        side=second.side,
+        child_count=second.child_count,
+        level_order_position=1,
+        minimum_volume=second.minimum_volume,
+        aggregate_volume=second.aggregate_volume,
+        realized_settlement_cost_total_usd=(
+            second.realized_settlement_cost_total_usd
+        ),
+        deposit_asset=second.deposit_asset,
+        observed_at=second.observed_at,
+        provider_bound=True,
+        every_child_order_minimum_volume=True,
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="level order must alternate",
+    ):
+        evaluate_t11_market_impact(tuple(rows))
