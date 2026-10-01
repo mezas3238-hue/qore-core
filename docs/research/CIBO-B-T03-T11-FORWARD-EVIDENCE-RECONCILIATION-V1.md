@@ -96,3 +96,27 @@ hard-codes `fresh_oos_utility_demonstrated=false`,
 This closes the missing T03 comparison infrastructure, not the empirical T03
 gate. Real provider-bound equivalent candidates and fresh OOS economic utility
 remain mandatory.
+
+
+## T11 unresolved-input provenance gate
+
+The execution-efficient cap already consumes gross edge and nonlinear market
+impact, but neither input may be populated from the linear execution-cost
+bridge. Architect B therefore adds
+`cibo_ce2i_t11_policy_input_readiness.py`.
+
+The gate requires independent per-symbol evidence:
+
+- gross-edge evidence must be calibrated, fresh-OOS validated and temporally
+  stable with explicit model/calibration artifact hashes;
+- market-impact evidence must be provider-bound, empirically calibrated,
+  fresh-OOS validated and observed across multiple volume levels;
+- target-aware, holdout-consuming or authority-bearing impact evidence is
+  rejected at the contract boundary;
+- all evidence must predate the freeze.
+
+The gate can report `t11_policy_inputs_ready=true` only when linear costs,
+gross edge and market impact all have complete symbol coverage. It still
+hard-codes historical-2017 execution terms to false and grants no productive
+authority. Thus it makes T11's missing inputs machine-readable without
+inventing either model.

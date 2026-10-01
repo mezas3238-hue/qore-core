@@ -1,7 +1,7 @@
 {
   "schema": "CIBO_ARCH_B_CLOSURE_HANDOFF_V1",
   "branch": "agent/cibo-certification-architect-b-integration-001",
-  "implementation_checkpoint_sha": "874afa2e2f79c175150440fd3870ef82f12cbcdb",
+  "implementation_checkpoint_sha": "6e8142365f57ccc8847f068662a58fdf59aefc86",
   "primary_pr": 651,
   "child_pr": 661,
   "governance": {
@@ -64,7 +64,7 @@
     },
     {
       "id": "T11",
-      "b_status": "FORWARD_EXECUTION_COST_BINDING_AND_LINEAR_PROVIDER_CALIBRATION_IMPLEMENTED",
+      "b_status": "LINEAR_COST_AND_POLICY_INPUT_PROVENANCE_GATES_IMPLEMENTED",
       "recommended_ledger_disposition": null,
       "evidence": [
         "src/qore/infrastructure/cibo_ce2i_execution_efficiency.py",
@@ -73,13 +73,15 @@
         "src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py",
         "tests/infrastructure/test_cibo_ce2i_t11_execution_cost_calibration.py",
         ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
-        "docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md"
+        "docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_ce2i_t11_policy_input_readiness.py",
+        "tests/infrastructure/test_cibo_ce2i_t11_policy_input_readiness.py"
       ],
       "blockers": [
         "REAL_EXECUTION_POPULATION_REQUIRED",
         "EMPIRICAL_SLIPPAGE_CALIBRATION_REQUIRED",
-        "GROSS_EDGE_MODEL_NOT_IDENTIFIED",
-        "MARKET_IMPACT_MODEL_NOT_IDENTIFIED",
+        "REAL_CALIBRATED_FRESH_OOS_GROSS_EDGE_MODEL_REQUIRED",
+        "REAL_PROVIDER_BOUND_MARKET_IMPACT_MODEL_REQUIRED",
         "HISTORICAL_2017_EXECUTION_TERMS_NOT_PROVEN"
       ]
     },
@@ -294,5 +296,5 @@
     "new_b_surface_classification_request": "docs/research/CIBO-ARCH-B-CROSSBOUNDARY-REQUEST-002.md",
     "t17_structural_disposition_ready_for_integrator": true
   },
-  "package_revalidated_at_utc": "2026-10-01T03:15:00Z"
+  "package_revalidated_at_utc": "2026-10-01T03:20:00Z"
 }
