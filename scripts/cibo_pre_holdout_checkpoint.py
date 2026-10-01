@@ -1,4 +1,4 @@
-"""Emit the CIBO pre-holdout calibration checkpoint without reading 2017H1."""
+"""Emit the CIBO Phase22 V2 pre-holdout checkpoint without fresh execution."""
 
 from __future__ import annotations
 
@@ -18,12 +18,11 @@ from qore.infrastructure.cibo_ce2i_calibration_terminal_evidence import (
     build_terminal_calibration_readiness,
 )
 from qore.infrastructure.cibo_ce2i_holdout_registry import (
+    ACTIVE_USD60_HOLDOUT_CANDIDATE,
     CONFIRMED_CIBO_BURNS,
-    PREREGISTERED_USD60_HOLDOUT,
 )
-from qore.infrastructure.cibo_ce2i_pre_holdout_gate import (
-    calibration_matrix_sha256,
-    evaluate_pre_holdout_readiness,
+from qore.infrastructure.cibo_ce2i_pre_holdout_freeze_v2 import (
+    evaluate_phase22_v2_pre_holdout_readiness,
 )
 from qore.infrastructure.cibo_ce2i_provider_core_freeze_receipt import (
     PROVIDER_CORE_FREEZE_RECEIPT,
@@ -40,6 +39,10 @@ from qore.infrastructure.cibo_ce2i_shadow_certification_receipts import (
 )
 from qore.infrastructure.cibo_ce2i_usd60_six_month_certification import (
     FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL,
+)
+from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
+    phase22_v2_holdout_source_receipt_payload,
+    phase22_v2_holdout_source_receipt_sha256,
 )
 
 
@@ -96,15 +99,7 @@ def build_report(
     calibration = build_terminal_calibration_readiness()
     if calibration.calibration_manifest is None:
         raise RuntimeError("terminal calibration manifest was not sealed")
-    readiness = evaluate_pre_holdout_readiness(
-        provider_economics_frozen=provider_receipt.core_pre_holdout_ready,
-        calibration_freeze_manifest_sealed=True,
-        phase20d_causal_gate_passed=receipts.phase20_shadow_passed,
-        phase21_policy_freeze_sealed=receipts.phase21_policy_freeze_sealed,
-        provider_economics_component_freeze=provider_freeze,
-        calibration_freeze_manifest=calibration.calibration_manifest,
-        phase20d_forward_manifest_sha256=PHASE20_SHADOW_ARTIFACT_DIGEST,
-    )
+    readiness = evaluate_phase22_v2_pre_holdout_readiness()
     matrix = [
         {
             "tool": row.tool_code,
@@ -134,15 +129,15 @@ def build_report(
         }
         for item in CONFIRMED_CIBO_BURNS
     ]
-    candidate = PREREGISTERED_USD60_HOLDOUT
+    candidate = ACTIVE_USD60_HOLDOUT_CANDIDATE
 
     return {
-        "schema": "qore.cibo.pre_holdout_checkpoint.v1",
+        "schema": "qore.cibo.phase22.v2-pre-holdout-checkpoint.v1",
         "identity": "CIBO_PRE_HOLDOUT_FREEZE_CHECKPOINT",
-        "status": readiness.status.value,
+        "status": readiness.state.value,
         "git_sha": git_sha,
         "config_sha256": _sha256(protocol),
-        "calibration_matrix_sha256": calibration_matrix_sha256(),
+        "calibration_matrix_sha256": _sha256(matrix),
         "burn_registry_sha256": _sha256(burns),
         "provider_economics_status": (
             "CORE_PRE_HOLDOUT_READY_PREDECLARED_STRESS_BOUND"
@@ -168,7 +163,14 @@ def build_report(
             "holdout_outcomes_used": provider.holdout_outcomes_used,
             "target_aware": provider.target_aware,
         },
-        "ready_to_unseal_2017h1": not readiness.blockers,
+        "ready_to_unseal_v2": readiness.ready_to_unseal_v2,
+        "phase22_v2_source_receipt_sha256": (
+            phase22_v2_holdout_source_receipt_sha256()
+        ),
+        "phase22_v2_source_receipt": (
+            phase22_v2_holdout_source_receipt_payload()
+        ),
+        "phase22_v2_pre_holdout": readiness.as_dict(),
         "phase20d_causal_tool_gate_passed": receipts.phase20_shadow_passed,
         "phase21_policy_freeze_sealed": receipts.phase21_policy_freeze_sealed,
         "shadow_certification_receipts": shadow_receipt_payload(),
@@ -191,7 +193,8 @@ def build_report(
             "selection_rule": candidate.selection_rule,
             "outcomes_inspected": False,
             "market_data_read_by_this_checkpoint": False,
-            "untouched_confirmation": True,
+            "source_stage_outcomes_inspected": False,
+            "source_stage_trader_logic_executed": False,
         },
         "governance": {
             "holdout_used_for_calibration": False,

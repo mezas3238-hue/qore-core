@@ -1,4 +1,4 @@
-"""Emit the active CIBO pre-holdout access gate without reading 2017H1."""
+"""Emit the active CIBO Phase22 V2 pre-holdout gate without fresh execution."""
 
 from __future__ import annotations
 
@@ -7,52 +7,33 @@ import json
 from pathlib import Path
 
 from qore.infrastructure.cibo_ce2i_holdout_registry import (
-    PREREGISTERED_USD60_HOLDOUT,
+    ACTIVE_USD60_HOLDOUT_CANDIDATE,
 )
-from qore.infrastructure.cibo_ce2i_pre_holdout_freeze import (
-    ACTIVE_PRE_HOLDOUT_FREEZE,
-    pre_holdout_freeze_ready,
-    pre_holdout_freeze_receipt_payload,
+from qore.infrastructure.cibo_ce2i_pre_holdout_freeze_v2 import (
+    evaluate_phase22_v2_pre_holdout_readiness,
+)
+from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
+    phase22_v2_holdout_source_receipt_payload,
 )
 
 
 def build_report() -> dict[str, object]:
-    manifest = ACTIVE_PRE_HOLDOUT_FREEZE
-    authorized = pre_holdout_freeze_ready()
-    candidate = PREREGISTERED_USD60_HOLDOUT
+    readiness = evaluate_phase22_v2_pre_holdout_readiness()
+    candidate = ACTIVE_USD60_HOLDOUT_CANDIDATE
     return {
-        "schema": "qore.cibo.pre_holdout_gate.v2",
-        "status": (
-            "READY_TO_UNSEAL_2017H1"
-            if authorized
-            else "LOCKED_UNTOUCHED"
-        ),
-        "authorized": authorized,
-        "blockers": [] if authorized else ["PRE_HOLDOUT_FREEZE_NOT_ACTIVE"],
+        "schema": "qore.cibo.phase22.v2-pre-holdout-gate.v1",
+        "status": readiness.state.value,
+        "authorized": readiness.ready_to_unseal_v2,
+        "blockers": list(readiness.blockers),
         "holdout_candidate_id": candidate.candidate_id,
-        "holdout_outcomes_inspected": False,
-        "holdout_market_data_read": False,
-        "provider_economics_frozen": (
-            False if manifest is None else manifest.provider_economics_frozen
-        ),
-        "phase20d_causal_tool_gate_passed": (
-            False
-            if manifest is None
-            else manifest.phase20d_causal_tool_gate_passed
-        ),
-        "phase21_policy_freeze_sealed": (
-            False
-            if manifest is None
-            else manifest.phase21_policy_freeze_sealed
-        ),
-        "calibration_freeze_manifest_sealed": (
-            False if manifest is None else manifest.all_calibrations_frozen
-        ),
-        "freeze_receipt": (
-            None
-            if manifest is None
-            else pre_holdout_freeze_receipt_payload()
-        ),
+        "window": {
+            "start": candidate.start_at.isoformat(),
+            "end_exclusive": candidate.end_exclusive_at.isoformat(),
+        },
+        "source_receipt": phase22_v2_holdout_source_receipt_payload(),
+        "pre_holdout_v2": readiness.as_dict(),
+        "fresh_outcomes_executed": False,
+        "productive_authority": False,
     }
 
 

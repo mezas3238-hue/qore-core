@@ -7,9 +7,11 @@ logic, inspects no outcomes and grants no productive authority.
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import asdict, dataclass
 from datetime import datetime
+from hashlib import sha256
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
@@ -289,3 +291,13 @@ def phase22_v2_holdout_source_receipt_payload() -> dict[str, object]:
         "outcomes_inspected": False,
         "productive_authority": False,
     }
+
+
+def phase22_v2_holdout_source_receipt_sha256() -> str:
+    raw = json.dumps(
+        phase22_v2_holdout_source_receipt_payload(),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    return f"sha256:{sha256(raw).hexdigest()}"
