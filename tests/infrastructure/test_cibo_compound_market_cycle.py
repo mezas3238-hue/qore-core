@@ -1056,3 +1056,29 @@ def test_compound_cycle_audit_rejects_parent_generation_above_child() -> None:
         match="generation parent cannot exceed child generation",
     ):
         reconcile_compound_cycle(corrupted_state)
+
+
+def test_compound_portfolio_rejects_event_totals_detached_from_lots() -> None:
+    state = _funded_compound_state()
+    ledger = state.compound_ledger
+    index = next(
+        i
+        for i, event in enumerate(ledger.events)
+        if event.source_lot_ids
+    )
+    event = ledger.events[index]
+    drifted = replace(
+        event,
+        source_total_usd=event.source_total_usd + Decimal("1"),
+        target_total_usd=event.target_total_usd + Decimal("1"),
+    )
+    events = tuple(
+        drifted if i == index else item
+        for i, item in enumerate(ledger.events)
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="source total does not match source lots",
+    ):
+        replace(ledger, events=events)
