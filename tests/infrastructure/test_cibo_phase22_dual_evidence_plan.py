@@ -1,7 +1,13 @@
 from qore.infrastructure.cibo_phase22_demo_empirical_provider_receipt import (
     ARTIFACT_DIGEST as EMPIRICAL_ARTIFACT_DIGEST,
+)
+from qore.infrastructure.cibo_phase22_demo_empirical_provider_receipt import (
     ARTIFACT_ID as EMPIRICAL_ARTIFACT_ID,
+)
+from qore.infrastructure.cibo_phase22_demo_empirical_provider_receipt import (
     PHASE22_DEMO_EMPIRICAL_PROVIDER_RECEIPT,
+)
+from qore.infrastructure.cibo_phase22_demo_empirical_provider_receipt import (
     RUN_ID as EMPIRICAL_RUN_ID,
 )
 from qore.infrastructure.cibo_phase22_demo_execution_population_receipt import (
