@@ -99,7 +99,7 @@ def test_e4_provider_truth_accepts_ready_empirical_calibration() -> None:
         observed_at=phase22.qualified_at + timedelta(minutes=1),
     )
     assert receipt.receipt_id == "E4_PROVIDER_TRUTH"
-    assert receipt.producer_gate_id == "CIBO_ARCH_A_E4_PROVIDER_TRUTH_V1"
+    assert receipt.producer_gate_id == "CIBO_ARCH_A_E4_PROVIDER_TRUTH_V2"
 
 
 def test_e4_provider_truth_rejects_not_ready_calibration() -> None:
@@ -130,5 +130,100 @@ def test_e4_provider_truth_rejects_artifact_digest_drift() -> None:
             phase22_receipt=phase22,
             intake=intake,
             provider_calibration_artifact_json=artifact + " ",
+            observed_at=phase22.qualified_at + timedelta(minutes=1),
+        )
+
+
+
+def _demo_artifact(*, contaminated: bool = False) -> str:
+    required = ["AUDJPY", "EURUSD", "GBPJPY", "GBPUSD", "NAS100", "XAUUSD"]
+    observations = []
+    for symbol in required:
+        for index in range(8):
+            observations.append(
+                {
+                    "qore_symbol": symbol,
+                    "order_ref": _sha(f"{symbol}:{index}"),
+                    "execution_at": "2026-10-01T18:00:00+00:00",
+                    "quote_at": "2026-10-01T17:59:59.900000+00:00",
+                    "quote_price": "1",
+                    "fill_price": "1",
+                    "signed_slippage_price": "0",
+                    "signed_slippage_bps": "0",
+                    "adverse_slippage_bps": "0",
+                }
+            )
+    payload = {
+        "schema": "qore.cibo.phase22.demo-provider-calibration.v1",
+        "status": "READY",
+        "provider_key": "ctrader-demo",
+        "environment": "demo",
+        "endpoint_host": "demo.ctraderapi.com",
+        "required_symbols": required,
+        "minimum_distinct_entry_orders_per_symbol": 8,
+        "before_valid_distinct_orders": {symbol: 0 for symbol in required},
+        "after_valid_distinct_orders": {symbol: 8 for symbol in required},
+        "created_round_trips": [
+            {
+                "qore_symbol": symbol,
+                "position_closed": True,
+            }
+            for symbol in required
+            for _index in range(8)
+        ],
+        "created_round_trip_count": 48,
+        "observations": observations,
+        "observation_count": 48,
+        "empirical_slippage_calibrated": True,
+        "execution_model_ready": True,
+        "broker_mutation_performed": True,
+        "minimum_volume_only": True,
+        "created_positions_closed": True,
+        "historical_provider_economics_claimed": False,
+        "historical_holdout_execution_claimed": False,
+        "holdout_outcomes_used": contaminated,
+        "fundednext_touched": False,
+        "vps_touched": False,
+        "live_authorized": False,
+        "real_capital_authorized": False,
+        "productive_authority": False,
+        "git_sha": "a" * 40,
+        "run_id": "1",
+        "run_attempt": "1",
+    }
+    return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+
+
+def test_e4_accepts_bounded_demo_calibration_without_historical_relabel() -> None:
+    artifact = _demo_artifact()
+    phase22, intake = _chain(artifact)
+    receipt = build_e4_provider_truth_control(
+        integrated_git_sha="a" * 40,
+        phase22_receipt=phase22,
+        intake=intake,
+        provider_calibration_artifact_json=artifact,
+        observed_at=phase22.qualified_at + timedelta(minutes=1),
+    )
+    assert receipt.receipt_id == "E4_PROVIDER_TRUTH"
+    payload = json.loads(receipt.source_artifact_json)
+    assert payload["provider_calibration_mode"] == (
+        "BOUNDED_DEMO_EXECUTION_CALIBRATION_V1"
+    )
+    assert payload["total_observations"] == 48
+    assert payload["historical_holdout_execution_claimed"] is False
+
+
+def test_e4_rejects_demo_calibration_that_touched_holdout() -> None:
+    artifact = _demo_artifact(contaminated=True)
+    phase22, intake = _chain(artifact)
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="governance contamination: holdout_outcomes_used",
+    ):
+        build_e4_provider_truth_control(
+            integrated_git_sha="a" * 40,
+            phase22_receipt=phase22,
+            intake=intake,
+            provider_calibration_artifact_json=artifact,
             observed_at=phase22.qualified_at + timedelta(minutes=1),
         )
