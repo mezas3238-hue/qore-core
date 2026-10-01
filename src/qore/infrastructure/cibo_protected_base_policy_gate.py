@@ -183,6 +183,63 @@ class ProtectedBaseGateRow:
     failed_dimensions: tuple[str, ...]
     production_promotion: bool = False
 
+    def __post_init__(self) -> None:
+        if not self.candidate_id or type(self.status) is not ProtectedBaseGateStatus:
+            raise CiboCapitalManagementError(
+                "protected-base gate row identity/status drift"
+            )
+        for name in (
+            "safety_no_worse",
+            "strict_improvement",
+            "production_promotion",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(
+                    f"protected-base gate row {name} must be bool"
+                )
+        if (
+            not isinstance(self.failed_dimensions, tuple)
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.failed_dimensions
+            )
+            or len(self.failed_dimensions) != len(set(self.failed_dimensions))
+        ):
+            raise CiboCapitalManagementError(
+                "protected-base gate row failed dimensions are invalid"
+            )
+        if self.production_promotion:
+            raise CiboCapitalManagementError(
+                "protected-base gate row cannot promote production"
+            )
+        if self.status is ProtectedBaseGateStatus.CONTROL:
+            if (
+                not self.safety_no_worse
+                or self.strict_improvement
+                or self.failed_dimensions
+            ):
+                raise CiboCapitalManagementError(
+                    "protected-base CONTROL row drift"
+                )
+            return
+        expected_status = (
+            ProtectedBaseGateStatus.REJECTED_SAFETY_DETERIORATION
+            if not self.safety_no_worse
+            else (
+                ProtectedBaseGateStatus.REJECTED_NO_STRICT_IMPROVEMENT
+                if not self.strict_improvement
+                else ProtectedBaseGateStatus.ELIGIBLE_FOR_FURTHER_RESEARCH
+            )
+        )
+        if self.status is not expected_status:
+            raise CiboCapitalManagementError(
+                "protected-base gate row status/metric drift"
+            )
+        if self.safety_no_worse != (not self.failed_dimensions):
+            raise CiboCapitalManagementError(
+                "protected-base gate row safety/dimension drift"
+            )
+
 
 @dataclass(frozen=True, slots=True)
 class ProtectedBaseGateReport:
@@ -209,10 +266,27 @@ class ProtectedBaseGateReport:
             raise CiboCapitalManagementError(
                 "protected-base gate freeze drift"
             )
+        if not isinstance(self.rows, tuple) or not self.rows or any(
+            not isinstance(row, ProtectedBaseGateRow) for row in self.rows
+        ):
+            raise CiboCapitalManagementError(
+                "protected-base gate requires canonical rows"
+            )
         ids = tuple(row.candidate_id for row in self.rows)
         if len(ids) != len(set(ids)) or self.control_candidate_id not in ids:
             raise CiboCapitalManagementError(
                 "protected-base gate rows/control are invalid"
+            )
+        controls = tuple(
+            row for row in self.rows
+            if row.status is ProtectedBaseGateStatus.CONTROL
+        )
+        if (
+            len(controls) != 1
+            or controls[0].candidate_id != self.control_candidate_id
+        ):
+            raise CiboCapitalManagementError(
+                "protected-base gate control row drift"
             )
         if (
             self.winner_candidate_id is not None
