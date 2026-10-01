@@ -62,7 +62,7 @@ def main() -> int:
     print(json.dumps(intake.as_dict(), sort_keys=True))
     print(json.dumps(batch.as_dict(), sort_keys=True))
 
-    if args.require_scientific_intake and not batch.batch_science_execution_ready:
+    if args.require_scientific_intake and not batch.population_batch_ready:
         return 2
     return 0
 

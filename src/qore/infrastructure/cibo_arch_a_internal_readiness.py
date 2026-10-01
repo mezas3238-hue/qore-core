@@ -191,6 +191,7 @@ class ArchitectAScientificIntakeReport:
     scientific_closure_claimed: bool = False
     integration_authority: bool = False
     production_authority: bool = False
+    mechanism_specific_evidence_required: bool = True
 
     def __post_init__(self) -> None:
         if self.schema != SCIENTIFIC_INTAKE_SCHEMA:
@@ -546,7 +547,7 @@ class ArchitectAScientificBatchPlan:
     wave_2_ids: tuple[str, ...]
     wave_3_ids: tuple[str, ...]
     wave_4_ids: tuple[str, ...]
-    batch_science_execution_ready: bool
+    population_batch_ready: bool
     complete_without_execution: bool
     blockers: tuple[str, ...]
     scientific_closure_claimed: bool = False
@@ -575,14 +576,19 @@ class ArchitectAScientificBatchPlan:
                 "Architect A scientific batch workstream drift"
             )
         for name in (
-            "batch_science_execution_ready",
+            "population_batch_ready",
             "complete_without_execution",
+            "mechanism_specific_evidence_required",
         ):
             if type(getattr(self, name)) is not bool:
                 raise ArchitectAReadinessError(
                     f"Architect A scientific batch {name} must be bool"
                 )
-        if self.batch_science_execution_ready and self.complete_without_execution:
+        if not self.mechanism_specific_evidence_required:
+            raise ArchitectAReadinessError(
+                "Architect A scientific batch must retain mechanism-specific evidence gate"
+            )
+        if self.population_batch_ready and self.complete_without_execution:
             raise ArchitectAReadinessError(
                 "Architect A scientific batch state is contradictory"
             )
@@ -599,7 +605,7 @@ class ArchitectAScientificBatchPlan:
             and not self.blockers
             and not self.complete_without_execution
         )
-        if self.batch_science_execution_ready != expected_ready:
+        if self.population_batch_ready != expected_ready:
             raise ArchitectAReadinessError(
                 "Architect A scientific batch readiness/blocker drift"
             )
@@ -657,7 +663,7 @@ def build_architect_a_scientific_batch_plan(
         wave_2_ids=waves[1],
         wave_3_ids=waves[2],
         wave_4_ids=waves[3],
-        batch_science_execution_ready=(
+        population_batch_ready=(
             bool(flattened) and not blockers
         ),
         complete_without_execution=complete,

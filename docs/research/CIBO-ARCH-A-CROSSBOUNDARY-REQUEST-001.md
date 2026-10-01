@@ -403,8 +403,8 @@ The command produces:
 - `artifacts/cibo_arch_a_scientific_batch_plan_v1.json`.
 
 `ready_for_batch_science=true` means only that the real provider-bound forward
-population is legally consumable by the preregistered Architect-A research
-gates. It is not a scientific PASS, certification, integration authority,
+population is legally consumable as the common population input to the
+preregistered Architect-A research gates. It is not a scientific PASS, certification, integration authority,
 runtime authority, production authority or holdout-opening authority.
 
 The batch plan preserves dependency order across the 35 currently empirical
@@ -415,6 +415,8 @@ Architect-A workstreams:
 3. compound aggregation, governed science, adversarial stress and strict
    temporal replication;
 4. Capital Amplification only after the upstream mechanisms have dispositions.
+
+Population readiness does not waive mechanism-specific evidence. T08 factor/correlation lineage, T09/T18 scarcity identity, GEN-C11 calibration, GEN-C12 crisis factors, GEN-C13 memory hypothesis, Protected Base identity, stress lineage and temporal-population evidence remain mandatory where applicable.
 
 A-side batch execution must stop/falsify individual mechanisms according to their
 own frozen non-compensatory laws. No successful mechanism may rescue a failed
